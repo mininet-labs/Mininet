@@ -1,0 +1,14 @@
+[package]
+name = "mini-crdt"
+version = "0.0.1"
+description = "Mininet's own op-log CRDT (SPEC-09 §3): signed operations merging conflict-free and offline-first — threads, forums, shared docs, and forge discussions."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }

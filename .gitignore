@@ -1,0 +1,11 @@
+# Rust build output
+/target
+**/*.rs.bk
+
+# Note: Cargo.lock IS committed (reproducible builds — see docs/DECISION_LOG.md D-0006).
+
+# Editor / OS noise
+.DS_Store
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,15 @@
+[package]
+name = "mini-presence"
+version = "0.0.1"
+description = "Range-bound, mutually-signed co-presence attestations for Mininet: proof that two verified identity roots' devices were physically together, offline."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+mini-bearer = { path = "../mini-bearer" }

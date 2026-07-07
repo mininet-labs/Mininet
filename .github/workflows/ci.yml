@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # rust-toolchain.toml pins the channel + components; rustup honours it.
+      - name: Show toolchain
+        run: rustup show
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: cargo test --all --all-features
+
+  # Placeholder for SPEC-11's verified-reproducible release pipeline. A later
+  # batch turns this into a real K-independent-builder reproducibility check
+  # (build twice in clean environments; assert byte-identical artifacts).
+  reproducibility:
+    runs-on: ubuntu-latest
+    if: false # enabled when the release pipeline batch lands
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reproducible build (placeholder)
+        run: echo "TODO: hermetic build + artifact hash comparison (SPEC-11 §8)"

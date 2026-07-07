@@ -1,0 +1,26 @@
+[package]
+name = "mini-crypto"
+version = "0.0.1"
+description = "Crypto-agile primitives for Mininet: signatures, X25519 DH, ChaCha20-Poly1305 AEAD, HKDF, strong multihash, and multibase."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Audited, widely-used primitives. The dependency surface is kept deliberately
+# small because this crate is security-critical and must stay easy to review and
+# reproduce.
+# Current default signature suite (RFC 8032); enable zeroize so dalek scrubs
+# secret material on drop.
+ed25519-dalek = { version = "2", features = ["zeroize"] }
+x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] } # DH for Noise-style sessions
+chacha20poly1305 = "0.10" # AEAD for encrypted bearer sessions
+hkdf = "0.12"         # HKDF-SHA256 for Noise-style key derivation
+zeroize = "1"         # best-effort scrubbing of local secret buffers
+blake3 = "1"          # default content-address hash
+sha2 = "0.10"         # SHA-256, for Git-object interop (SPEC-11)
+bs58 = "0.5"          # base58btc for multibase identifiers
+getrandom = "0.2"     # OS CSPRNG for key generation

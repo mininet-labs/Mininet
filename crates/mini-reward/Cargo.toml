@@ -1,0 +1,14 @@
+[package]
+name = "mini-reward"
+version = "0.0.1"
+description = "Deterministic, non-spendable local reward accrual from verified presence: slow, presence-conditioned, diversity-weighted (P4). A demo stub, not money."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-presence = { path = "../mini-presence" }

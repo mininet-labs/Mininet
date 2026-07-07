@@ -1,0 +1,14 @@
+[package]
+name = "mini-objects"
+version = "0.0.1"
+description = "The SPEC-09 unified object model: signed, typed, content-addressed envelopes that every Mininet surface (feed, forums, media, forge, releases) reads and writes."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }

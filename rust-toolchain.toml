@@ -1,0 +1,7 @@
+# Pinning the toolchain is part of moving toward reproducible builds (SPEC-11).
+# The exact channel is a TUNABLE detail; pinning *something* is the frozen-spirit
+# requirement. Bump deliberately, in a reviewed commit, and re-verify builds.
+[toolchain]
+channel = "1.83.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

@@ -1,0 +1,38 @@
+# Mininet — Cargo workspace for the self-contained Rust core.
+#
+# Founder Decision A1 now targets a custom Rust chain, not Cosmos/Go. Identity
+# and presence remain ledger-independent (SPEC-01 G8), so this workspace can
+# build the two-phone Bluetooth demo before the chain lands.
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/mini-crypto",
+    "crates/did-mini",
+    "crates/mini-bearer",
+    "crates/mini-presence",
+    "crates/mini-reward",
+    "crates/mini-keystone",
+    "crates/mini-objects",
+    "crates/mini-store",
+    "crates/mini-crdt",
+    "crates/mini-sync",
+    "crates/mini-social",
+    "crates/mini-media",
+    "crates/mini-forge",
+]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.83"
+license = "CC0-1.0"
+repository = "https://github.com/REPLACE-ME/mininet"
+authors = ["The Mininet contributors"]
+
+[profile.release]
+# Deterministic codegen helps us toward SPEC-11's frozen "verified reproducible"
+# release requirement. (Full hermetic/reproducible builds are a later batch; this
+# is the cheap, non-surprising part.) panic strategy is left at the default so
+# `cargo test --release` keeps working.
+codegen-units = 1
+lto = "thin"

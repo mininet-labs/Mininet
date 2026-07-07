@@ -1,0 +1,14 @@
+[package]
+name = "mini-store"
+version = "0.0.1"
+description = "Content-addressed local store for Mininet objects: blob persistence, deterministic indexes, signed head pointers, and want-list helpers for sync."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }

@@ -1,0 +1,21 @@
+[package]
+name = "did-mini"
+version = "0.0.1"
+description = "did:mini self-sovereign identity: KERI-style autonomic identifiers with a hash-chained Key Event Log, pre-rotation, and self-certifying SCIDs — verifiable peer-to-peer with no central registry."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Identity builds only on the crypto foundation. Keeping the dependency surface
+# this small is deliberate: this crate is security-critical and must stay easy to
+# review and reproduce (SPEC-11). It has NO network or chain dependency — SPEC-01
+# G8: identity is verifiable peer-to-peer, the chain is only an optional anchor.
+mini-crypto = { path = "../mini-crypto" }
+
+[dev-dependencies]
+# Tests reconstruct expected keys directly from seeds.
+mini-crypto = { path = "../mini-crypto" }

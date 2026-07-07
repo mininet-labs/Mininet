@@ -1,0 +1,16 @@
+[package]
+name = "mini-media"
+version = "0.0.1"
+description = "Chunked, content-addressed media for Mininet: Merkle manifests, progressive assembly, interruption-proof by construction."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }

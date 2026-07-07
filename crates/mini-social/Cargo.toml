@@ -1,0 +1,15 @@
+[package]
+name = "mini-social"
+version = "0.0.1"
+description = "The personal social layer: profiles, the follow graph, and feeds as locally computed, explainable views — ranking is a user-chosen filter, never a hidden algorithm."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }

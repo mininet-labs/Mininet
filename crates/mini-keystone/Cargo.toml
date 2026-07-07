@@ -1,0 +1,17 @@
+[package]
+name = "mini-keystone"
+version = "0.0.1"
+description = "The keystone demo harness: two devices form an anonymous encrypted link, exchange verified identities, prove range-bound co-presence, and accrue reward — no internet, no server."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+mini-bearer = { path = "../mini-bearer" }
+mini-presence = { path = "../mini-presence" }
+mini-reward = { path = "../mini-reward" }
