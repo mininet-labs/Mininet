@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use did_mini::{verify_delegation, Capabilities, Did, Kel};
 
-use crate::attestation::{kel_digest, PresenceAttestation, Party, PRESENCE_VERSION};
+use crate::attestation::{kel_digest, Party, PresenceAttestation, PRESENCE_VERSION};
 use crate::error::{PresenceError, Result};
 
 /// Range/timing policy for accepting an attestation.
@@ -161,8 +161,7 @@ pub fn verify_presence(
         }
         // Max age: too-old attestations are refused so replay windows are
         // finite even across verifier restarts.
-        if ctx.policy.max_age_ms > 0
-            && f.finished_at_ms < now.saturating_sub(ctx.policy.max_age_ms)
+        if ctx.policy.max_age_ms > 0 && f.finished_at_ms < now.saturating_sub(ctx.policy.max_age_ms)
         {
             return Err(PresenceError::BadTimeWindow);
         }

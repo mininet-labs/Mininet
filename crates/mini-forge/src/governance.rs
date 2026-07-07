@@ -60,6 +60,16 @@ pub const MAX_TITLE_BYTES: usize = 256;
 /// Maximum governance-chain length walked (hostile-input bound).
 pub const MAX_CHAIN_LEN: usize = 100_000;
 
+/// Founder decision (2026-07-07, D-0033): for now, every protocol-critical
+/// repo (this repo, and any repo whose merges can change protocol-level
+/// behavior) requires at least this many distinct maintainer approvals
+/// before merge, at least this many release attestations before release
+/// (see `ADOPTION_MIN_ATTESTATIONS` in `crate::lib`), and at least this many
+/// approvals on crypto-sensitive AI-assisted code. This is a **floor**, not
+/// a ceiling — a project may require more, never fewer, and it upgrades to
+/// personhood-root quorum once SPEC-02 lands. No 1-of-1 canonical merge path.
+pub const PROTOCOL_MIN_APPROVALS: u32 = 2;
+
 const ENTRY_MERGE: u8 = 1;
 const ENTRY_AMEND: u8 = 2;
 const VERDICT_APPROVE: u8 = 1;
@@ -75,7 +85,9 @@ pub struct Policy {
 
 impl Policy {
     fn contains(&self, identity_root: &Did) -> bool {
-        self.maintainers.iter().any(|m| m.as_str() == identity_root.as_str())
+        self.maintainers
+            .iter()
+            .any(|m| m.as_str() == identity_root.as_str())
     }
 }
 
@@ -101,6 +113,18 @@ fn valid_policy(policy: &Policy) -> Result<()> {
     Ok(())
 }
 
+/// Validate a policy for a protocol-critical repo/project: an ordinary
+/// policy check, plus the current founder-decision floor of
+/// [`PROTOCOL_MIN_APPROVALS`] required approvals. Use this (instead of
+/// creating a [`Policy`] directly) wherever `project` is called for
+/// protocol-critical work, so the floor cannot be silently weakened.
+pub fn valid_policy_for_protocol_repo(policy: &Policy) -> Result<()> {
+    valid_policy(policy)?;
+    if policy.min_approvals < PROTOCOL_MIN_APPROVALS {
+        return Err(ForgeError::BadObject);
+    }
+    Ok(())
+}
 
 fn encode_policy(payload: &mut Vec<u8>, policy: &Policy) {
     payload.extend_from_slice(&policy.min_approvals.to_be_bytes());
@@ -220,6 +244,7 @@ pub fn approve<B: Backend>(
 /// Record a merge of `pr_id` as the chain entry after `prev` (the project id
 /// or the current tip). Validity is judged at [`resolve_project`] time against
 /// the policy as of `prev`.
+#[allow(clippy::too_many_arguments)]
 pub fn merge<B: Backend>(
     store: &mut Store<B>,
     human: &Did,
@@ -467,12 +492,24 @@ fn entry_is_valid<B: Backend>(
             // Lineage: the PR must target THIS project, and have been built
             // against the entry it is being merged onto (its `base` == entry
             // `prev`) — no cross-project or stale-base merges.
-            let pr_project = pr.links.iter().find(|l| l.rel == "project").map(|l| &l.target);
+            let pr_project = pr
+                .links
+                .iter()
+                .find(|l| l.rel == "project")
+                .map(|l| &l.target);
             if pr_project != Some(project_id) {
                 return Ok(false);
             }
-            let entry_prev = e.links.iter().find(|l| l.rel == "prev").map(|l| l.target.clone());
-            let pr_base = pr.links.iter().find(|l| l.rel == "base").map(|l| l.target.clone());
+            let entry_prev = e
+                .links
+                .iter()
+                .find(|l| l.rel == "prev")
+                .map(|l| l.target.clone());
+            let pr_base = pr
+                .links
+                .iter()
+                .find(|l| l.rel == "base")
+                .map(|l| l.target.clone());
             if entry_prev.is_none() || pr_base != entry_prev {
                 return Ok(false);
             }
@@ -513,8 +550,7 @@ fn apply_entry<B: Backend>(
                 .target
                 .clone();
             let pr = store.get(&pr_id)?;
-            let (branch, _title) =
-                parse_pr_payload_strict(&pr).ok_or(ForgeError::BadObject)?;
+            let (branch, _title) = parse_pr_payload_strict(&pr).ok_or(ForgeError::BadObject)?;
             let head = pr
                 .links
                 .iter()
@@ -538,7 +574,6 @@ fn put_str(w: &mut Vec<u8>, s: &str) {
     w.extend_from_slice(&(s.len() as u32).to_be_bytes());
     w.extend_from_slice(s.as_bytes());
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ParsedChainEntry {

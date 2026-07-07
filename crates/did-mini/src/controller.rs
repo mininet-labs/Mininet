@@ -20,8 +20,8 @@ use mini_crypto::{SignatureSuite, SigningKey};
 use crate::delegation::{Capabilities, Seal};
 use crate::error::{IdentityError, Result};
 use crate::event::{self, Establishment, Event, EventKind, IndexedSig};
-use crate::limits::{MAX_ANCHORS, MAX_SEALS};
 use crate::kel::{Kel, KeyState};
+use crate::limits::{MAX_ANCHORS, MAX_SEALS};
 use crate::Did;
 
 /// Holds an identity's secret keys and its event history.
@@ -65,7 +65,12 @@ impl Controller {
 
     /// Incept a single-key identity using operating-system entropy.
     pub fn incept_single() -> Result<Self> {
-        Self::incept(vec![SigningKey::generate()?], 1, vec![SigningKey::generate()?], 1)
+        Self::incept(
+            vec![SigningKey::generate()?],
+            1,
+            vec![SigningKey::generate()?],
+            1,
+        )
     }
 
     /// Incept with an explicit current/next key set and thresholds.

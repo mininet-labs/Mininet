@@ -10,7 +10,8 @@ fn human(seed: u8) -> (Controller, Controller) {
     let device =
         Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
             .unwrap();
-    root.delegate_device(&device.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
     (root, device)
 }
 
@@ -53,7 +54,9 @@ fn insert_get_and_indexes() {
 
     assert_eq!(store.get(p1.id()).unwrap(), p1);
     assert!(matches!(
-        store.get(&ObjectId::parse(head(&root.did(), &device, "x", p1.id(), 1).id().as_str()).unwrap()),
+        store.get(
+            &ObjectId::parse(head(&root.did(), &device, "x", p1.id(), 1).id().as_str()).unwrap()
+        ),
         Err(StoreError::NotFound)
     ));
 
@@ -85,8 +88,14 @@ fn heads_converge_regardless_of_arrival_order() {
     assert_eq!(b.apply_head(&h1).unwrap(), HeadState::Stale);
 
     // Both resolve to v2.
-    assert_eq!(a.resolve_head(&root.did(), "profile").unwrap(), Some(v2.id().clone()));
-    assert_eq!(b.resolve_head(&root.did(), "profile").unwrap(), Some(v2.id().clone()));
+    assert_eq!(
+        a.resolve_head(&root.did(), "profile").unwrap(),
+        Some(v2.id().clone())
+    );
+    assert_eq!(
+        b.resolve_head(&root.did(), "profile").unwrap(),
+        Some(v2.id().clone())
+    );
 }
 
 #[test]
@@ -101,7 +110,10 @@ fn head_slots_are_per_author_and_shape_checked() {
     let theirs = head(&root2.did(), &device2, "profile", target.id(), 9);
     store.apply_head(&theirs).unwrap();
     assert_eq!(store.resolve_head(&root.did(), "profile").unwrap(), None);
-    assert!(store.resolve_head(&root2.did(), "profile").unwrap().is_some());
+    assert!(store
+        .resolve_head(&root2.did(), "profile")
+        .unwrap()
+        .is_some());
 
     // Shape violations are rejected.
     let not_head = post(&root.did(), &device, b"x", 2);
@@ -127,7 +139,10 @@ fn missing_links_and_want_list_drive_sync() {
         .unwrap();
 
     store.insert(&reply).unwrap(); // arrived before its parent
-    assert_eq!(store.missing_links(reply.id()).unwrap(), vec![target.id().clone()]);
+    assert_eq!(
+        store.missing_links(reply.id()).unwrap(),
+        vec![target.id().clone()]
+    );
     assert_eq!(store.want_list().unwrap(), vec![target.id().clone()]);
 
     store.insert(&target).unwrap();

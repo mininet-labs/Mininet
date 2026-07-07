@@ -43,6 +43,6 @@ mod object;
 
 pub use error::{ObjectError, Result};
 pub use object::{
-    verify_provenance, Link, Object, ObjectBuilder, ObjectId, ObjectType, Payload,
-    MAX_LINKS, MAX_PAYLOAD_BYTES,
+    verify_provenance, Link, Object, ObjectBuilder, ObjectId, ObjectType, Payload, MAX_LINKS,
+    MAX_PAYLOAD_BYTES,
 };

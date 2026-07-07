@@ -125,8 +125,8 @@ impl VerifyingKey {
                     expected: 32,
                     got: bytes.len(),
                 })?;
-                let inner =
-                    DalekVerifyingKey::from_bytes(&arr).map_err(|_| CryptoError::InvalidPublicKey)?;
+                let inner = DalekVerifyingKey::from_bytes(&arr)
+                    .map_err(|_| CryptoError::InvalidPublicKey)?;
                 Ok(VerifyingKey { suite, inner })
             }
         }

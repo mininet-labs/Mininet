@@ -2,16 +2,11 @@
 
 use did_mini::{Capabilities, Controller, Did};
 use mini_objects::{
-    verify_provenance, Object, ObjectBuilder, ObjectError, ObjectId, ObjectType, Payload,
-    MAX_LINKS,
+    verify_provenance, Object, ObjectBuilder, ObjectError, ObjectId, ObjectType, Payload, MAX_LINKS,
 };
 
-fn human_with_device(
-    root_c: u8,
-    caps: Capabilities,
-) -> (Controller, Controller) {
-    let mut root =
-        Controller::incept_single_from_seeds(&[root_c; 32], &[root_c + 1; 32]).unwrap();
+fn human_with_device(root_c: u8, caps: Capabilities) -> (Controller, Controller) {
+    let mut root = Controller::incept_single_from_seeds(&[root_c; 32], &[root_c + 1; 32]).unwrap();
     let device = Controller::incept_device_single_from_seeds(
         &root.did(),
         &[root_c + 2; 32],
@@ -80,10 +75,7 @@ fn tampered_bytes_change_the_id_and_fail_integrity() {
         // ...or it parses to a DIFFERENT id, so the claimed id fails integrity.
         Ok(t) => {
             assert_ne!(t.id(), obj.id());
-            assert_eq!(
-                t.verify_integrity(obj.id()),
-                Err(ObjectError::IdMismatch)
-            );
+            assert_eq!(t.verify_integrity(obj.id()), Err(ObjectError::IdMismatch));
         }
     }
 }
@@ -169,7 +161,10 @@ fn custom_types_and_encrypted_payloads_round_trip() {
         .sign(&root.did(), &device)
         .unwrap();
     let back = Object::from_bytes(&obj.to_bytes()).unwrap();
-    assert_eq!(back.object_type, ObjectType::Custom("chess/move".to_string()));
+    assert_eq!(
+        back.object_type,
+        ObjectType::Custom("chess/move".to_string())
+    );
     assert!(matches!(back.payload, Payload::Encrypted(ref b) if b == &vec![9, 9, 9]));
     // Encryption hides content; the signature still proves authorship.
     back.verify_signature(&device.kel()).unwrap();

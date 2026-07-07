@@ -66,7 +66,6 @@ fn did_parse_roundtrip() {
     assert_eq!(parsed.scid(), ctrl.scid());
 }
 
-
 #[test]
 fn did_from_scid_rejects_invalid_scid() {
     assert!(Did::from_scid("not-a-multibase-multihash").is_err());
@@ -86,7 +85,8 @@ fn rotation_reveals_precommitted_keys_and_verifies() {
     let mut ctrl = Controller::incept_single_from_seeds(&CUR_A, &NEXT_A).unwrap();
     let scid_before = ctrl.scid().to_string();
 
-    ctrl.rotate_with_next(vec![SigningKey::from_seed(&ROT_A)]).unwrap();
+    ctrl.rotate_with_next(vec![SigningKey::from_seed(&ROT_A)])
+        .unwrap();
 
     let kel = ctrl.kel();
     let state = kel.verify().unwrap();
@@ -146,7 +146,6 @@ fn trailing_bytes_are_rejected() {
     blob.push(0x00);
     assert!(Kel::from_bytes(&blob).is_err());
 }
-
 
 #[test]
 fn did_parse_rejects_non_canonical_scid() {

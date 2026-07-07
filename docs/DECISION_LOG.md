@@ -163,6 +163,12 @@ internet relay**. Routing is **mesh + store-and-forward / delay-tolerant**: node
 sync opportunistically and may "refresh" and submit payloads to the wider network
 **periodically** rather than maintaining constant connectivity.
 
+**Founder decision (2026-07-07, reaffirmed in D-0033): radio/LoRa is
+permanently out of scope**, not merely deferred past Phase 1. This is a
+closed question, not an open one to revisit as the network scales — the
+connectivity core stays BLE + local Wi-Fi/hotspot/mDNS + optional internet
+relay + store-and-forward/delay-tolerant sync, indefinitely.
+
 The bearer trait is the load-bearing commitment — it keeps every transport
 swappable, so no single bearer (and no single upstream project) is ever
 load-bearing. Proven pieces (authenticated-encryption channel design, gossip/epidemic
@@ -746,3 +752,51 @@ Rust toolchain pass:
 Still required before publication: real `cargo fmt`, `cargo clippy --all-targets
 --all-features -- -D warnings`, `cargo test --all`, `cargo generate-lockfile`,
 then commit `Cargo.lock`.
+
+### D-0033 — Founder decisions batch: public walls, base device, seed-on-view, 2-approval floor, radio/Cosmos closed for good  ·  *Accepted*
+**Date:** 2026-07-07 (ratified by founder cohort) · **Refs:** SPEC-00 P1/P2/P6,
+SPEC-09 §6.1, SPEC-11 §2, D-0009, D-0025, D-0028, D-0030.
+
+Six founder decisions, locked and implemented in this batch:
+
+1. **Public profiles are first-class "public walls."** `mini-social::PublicWall`
+   (`ObjectType::WALL`) is a voluntary public identity surface published under
+   whatever DID a user chooses — a primary root or an independent pseudonym
+   root. It carries no human-root field, requires only `POST` capability
+   (never `VOTE`), and is never auto-registered anywhere. The **only** way to
+   bind a wall to another identity is an explicit, self-signed
+   `publish_wall_linkage` (`ObjectType::WALL_LINKAGE`) — absent by default.
+   Tests: `crates/mini-social/tests/social.rs`.
+2. **No preservation duty for now-contradictory Cosmos/radio docs.** Superseded
+   language is rewritten in place, not kept "for history" — `docs/DECISION_LOG.md`
+   itself is the history.
+3. **Protocol-repo approvals: 2 for now.** `mini-forge::governance::PROTOCOL_MIN_APPROVALS
+   = 2` and `valid_policy_for_protocol_repo` reject any protocol-critical policy
+   below that floor — no 1-of-1 canonical merge path. Mirrors the existing
+   `ADOPTION_MIN_ATTESTATIONS = 2` release-attestation floor. This upgrades to
+   personhood-root quorum once SPEC-02 lands; it is a floor, not a ceiling.
+4. **Radio/LoRa is permanently out**, not merely deferred past Phase 1 (amends
+   D-0009's framing — see that entry). The connectivity core stays BLE + local
+   Wi-Fi/hotspot/mDNS + optional internet relay + store-and-forward/DTN sync.
+5. **One base/static device is recommended per human**, for hosting, storage,
+   seeding, and participation — `did-mini::BaseDeviceRole` (storage commitment,
+   relay, seed-on-view, availability window, bandwidth limit, battery policy,
+   privacy mode). This is *advisory only*: it is deliberately not a
+   `Capabilities` bit and cannot grant governance weight (P1) — a human may run
+   zero or many. Tests: `crates/did-mini/tests/identity_modes.rs`.
+6. **Seed-on-view: watching helps seed, unless disabled or policy forbids it.**
+   `mini-store::CacheTier` (`EphemeralCache`, `SeedCache`, `CommittedStorage`,
+   `PrivateOnly`, `PinnedByOwner`) and `Store::note_view` promote public content
+   toward `SeedCache` only when the device's `BaseDeviceRole` policy, battery,
+   metered-connection, and storage-budget checks all allow it. Encrypted
+   content is never promoted past `PrivateOnly`; `note_view` takes no viewer
+   identity (opening content cannot mutate identity state); pinned/committed
+   tiers are never downgraded by a view. Tests: `crates/mini-store/tests/cache.rs`.
+
+Also formalized: the identity-mode taxonomy (`did-mini::IdentityMode` —
+`HumanRoot`, `BaseDevice`, `DeviceDid`, `PublicWall`, `PseudonymProfile`,
+`AnonymousAction`), documenting which are implemented today and which remain
+`pending` (only `AnonymousAction`, gated on SPEC-02's `PersonhoodOracle`).
+
+None of the above changes P1/P2: money and infrastructure commitment still
+never buy a vote, and human status is still private and exactly one per human.

@@ -11,7 +11,8 @@ fn human(seed: u8) -> (Controller, Controller) {
     let device =
         Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
             .unwrap();
-    root.delegate_device(&device.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
     (root, device)
 }
 
@@ -25,8 +26,16 @@ fn chunked_roundtrip_preserves_bytes() {
     let mut store = Store::new(MemoryBackend::new());
     let bytes = payload(2 * CHUNK_SIZE + 123);
 
-    let manifest =
-        publish_media(&mut store, &root.did(), &device, "video/mp4", &bytes, 100, 1).unwrap();
+    let manifest = publish_media(
+        &mut store,
+        &root.did(),
+        &device,
+        "video/mp4",
+        &bytes,
+        100,
+        1,
+    )
+    .unwrap();
     assert_eq!(manifest.chunks.len(), 3);
     assert_eq!(manifest.total_len, bytes.len() as u64);
 
@@ -42,13 +51,23 @@ fn assembly_is_progressive_across_arrivals() {
     let (root, device) = human(10);
     let mut origin = Store::new(MemoryBackend::new());
     let bytes = payload(3 * CHUNK_SIZE);
-    let manifest =
-        publish_media(&mut origin, &root.did(), &device, "video/mp4", &bytes, 100, 1).unwrap();
+    let manifest = publish_media(
+        &mut origin,
+        &root.did(),
+        &device,
+        "video/mp4",
+        &bytes,
+        100,
+        1,
+    )
+    .unwrap();
 
     // A receiving replica gets the manifest and ONE chunk first.
     let mut replica = Store::new(MemoryBackend::new());
     replica.insert(&origin.get(&manifest.id).unwrap()).unwrap();
-    replica.insert(&origin.get(&manifest.chunks[1]).unwrap()).unwrap();
+    replica
+        .insert(&origin.get(&manifest.chunks[1]).unwrap())
+        .unwrap();
 
     let missing = missing_chunks(&replica, &manifest).unwrap();
     assert_eq!(missing.len(), 2);
@@ -68,8 +87,16 @@ fn a_manifest_that_lies_is_caught_by_the_digest() {
     let (root, device) = human(10);
     let mut store = Store::new(MemoryBackend::new());
     let bytes = payload(2 * CHUNK_SIZE);
-    let honest =
-        publish_media(&mut store, &root.did(), &device, "video/mp4", &bytes, 100, 1).unwrap();
+    let honest = publish_media(
+        &mut store,
+        &root.did(),
+        &device,
+        "video/mp4",
+        &bytes,
+        100,
+        1,
+    )
+    .unwrap();
 
     // Craft a manifest claiming the same digest but listing chunks REVERSED.
     let mut forged_payload = Vec::new();

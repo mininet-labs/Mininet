@@ -134,8 +134,8 @@ impl AeadKey {
     pub fn encrypt(&self, nonce: &AeadNonce, plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
         match self.suite {
             AeadSuite::ChaCha20Poly1305 => {
-                let cipher = ChaCha20Poly1305::new_from_slice(&self.bytes)
-                    .map_err(|_| CryptoError::Aead)?;
+                let cipher =
+                    ChaCha20Poly1305::new_from_slice(&self.bytes).map_err(|_| CryptoError::Aead)?;
                 cipher
                     .encrypt(
                         Nonce::from_slice(nonce.as_bytes()),
@@ -153,8 +153,8 @@ impl AeadKey {
     pub fn decrypt(&self, nonce: &AeadNonce, ciphertext: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
         match self.suite {
             AeadSuite::ChaCha20Poly1305 => {
-                let cipher = ChaCha20Poly1305::new_from_slice(&self.bytes)
-                    .map_err(|_| CryptoError::Aead)?;
+                let cipher =
+                    ChaCha20Poly1305::new_from_slice(&self.bytes).map_err(|_| CryptoError::Aead)?;
                 cipher
                     .decrypt(
                         Nonce::from_slice(nonce.as_bytes()),

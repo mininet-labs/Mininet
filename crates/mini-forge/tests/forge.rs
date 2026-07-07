@@ -18,7 +18,8 @@ fn human(seed: u8) -> (Controller, Controller) {
     let device =
         Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
             .unwrap();
-    root.delegate_device(&device.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
     (root, device)
 }
 
@@ -34,7 +35,8 @@ fn second_device(root: &mut Controller, seed: u8) -> Controller {
     let device =
         Controller::incept_device_single_from_seeds(&root.did(), &[seed; 32], &[seed + 1; 32])
             .unwrap();
-    root.delegate_device(&device.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
     device
 }
 
@@ -50,7 +52,11 @@ fn repo_commits_branch_moves_and_checkout_roundtrips() {
         &mut store,
         &h,
         &device,
-        &[TreeEntry { name: "lib.rs".into(), is_dir: false, target: lib }],
+        &[TreeEntry {
+            name: "lib.rs".into(),
+            is_dir: false,
+            target: lib,
+        }],
     )
     .unwrap();
     let readme = put_file(&mut store, &h, &device, b"# mininet").unwrap();
@@ -59,15 +65,26 @@ fn repo_commits_branch_moves_and_checkout_roundtrips() {
         &h,
         &device,
         &[
-            TreeEntry { name: "src".into(), is_dir: true, target: src.clone() },
-            TreeEntry { name: "README.md".into(), is_dir: false, target: readme },
+            TreeEntry {
+                name: "src".into(),
+                is_dir: true,
+                target: src.clone(),
+            },
+            TreeEntry {
+                name: "README.md".into(),
+                is_dir: false,
+                target: readme,
+            },
         ],
     )
     .unwrap();
 
     let c1 = commit(&mut store, &h, &device, "init", &tree_v1, &[], 100, 1).unwrap();
     set_branch(&mut store, &h, &device, "main", c1.id(), 1).unwrap();
-    assert_eq!(resolve_branch(&store, &h, "main").unwrap(), Some(c1.id().clone()));
+    assert_eq!(
+        resolve_branch(&store, &h, "main").unwrap(),
+        Some(c1.id().clone())
+    );
 
     // Second commit edits the README; branch advances.
     let readme2 = put_file(&mut store, &h, &device, b"# mininet v2").unwrap();
@@ -76,12 +93,30 @@ fn repo_commits_branch_moves_and_checkout_roundtrips() {
         &h,
         &device,
         &[
-            TreeEntry { name: "src".into(), is_dir: true, target: src },
-            TreeEntry { name: "README.md".into(), is_dir: false, target: readme2 },
+            TreeEntry {
+                name: "src".into(),
+                is_dir: true,
+                target: src,
+            },
+            TreeEntry {
+                name: "README.md".into(),
+                is_dir: false,
+                target: readme2,
+            },
         ],
     )
     .unwrap();
-    let c2 = commit(&mut store, &h, &device, "edit readme", &tree_v2, &[c1.id().clone()], 200, 2).unwrap();
+    let c2 = commit(
+        &mut store,
+        &h,
+        &device,
+        "edit readme",
+        &tree_v2,
+        &[c1.id().clone()],
+        200,
+        2,
+    )
+    .unwrap();
     set_branch(&mut store, &h, &device, "main", c2.id(), 2).unwrap();
 
     let head = resolve_branch(&store, &h, "main").unwrap().unwrap();
@@ -104,15 +139,26 @@ fn released(
     let mut store = Store::new(MemoryBackend::new());
     let artifact_bytes = b"the reproducible binary".to_vec();
     let digest = HashAlgorithm::Blake3.digest(&artifact_bytes);
-    let manifest =
-        publish_media(&mut store, author, dev, "application/octet-stream", &artifact_bytes, 50, 1)
-            .unwrap();
+    let manifest = publish_media(
+        &mut store,
+        author,
+        dev,
+        "application/octet-stream",
+        &artifact_bytes,
+        50,
+        1,
+    )
+    .unwrap();
     let src = put_file(&mut store, author, dev, b"source").unwrap();
     let tree = put_tree(
         &mut store,
         author,
         dev,
-        &[TreeEntry { name: "main.rs".into(), is_dir: false, target: src }],
+        &[TreeEntry {
+            name: "main.rs".into(),
+            is_dir: false,
+            target: src,
+        }],
     )
     .unwrap();
     let c = commit(&mut store, author, dev, "release commit", &tree, &[], 90, 2).unwrap();
@@ -121,12 +167,25 @@ fn released(
         author,
         dev,
         "app",
-        &Policy { min_approvals: 1, maintainers: vec![author.clone()] },
+        &Policy {
+            min_approvals: 1,
+            maintainers: vec![author.clone()],
+        },
     )
     .unwrap();
     let rel = release(
-        &mut store, author, dev, "0.1.0", proj.id(), "main", c.id(), &manifest.id, digest,
-        [7u8; 32], 1_000, 3,
+        &mut store,
+        author,
+        dev,
+        "0.1.0",
+        proj.id(),
+        "main",
+        c.id(),
+        &manifest.id,
+        digest,
+        [7u8; 32],
+        1_000,
+        3,
     )
     .unwrap();
     (store, rel.id().clone(), digest, 1_000)
@@ -137,7 +196,11 @@ fn release_verifies_with_independent_humans_and_gates_hold() {
     let (author_root, author_dev) = human(10);
     let (mut store, rel_id, digest, rel_ts) = released(&author_root.did(), &author_dev);
 
-    let policy = |now: u64| ReleasePolicy { min_attestations: 3, timelock_ms: 10_000, now_ms: now };
+    let policy = |now: u64| ReleasePolicy {
+        min_attestations: 3,
+        timelock_ms: 10_000,
+        now_ms: now,
+    };
 
     // Three independent humans attest.
     let mut oracle = oracle_of(&[&author_root, &author_dev]);
@@ -155,7 +218,8 @@ fn release_verifies_with_independent_humans_and_gates_hold() {
     );
 
     // After the timelock: verified, artifact complete, 3 attesters counted.
-    let v = verify_release_artifact_only(&store, &oracle, &rel_id, &policy(rel_ts + 10_000)).unwrap();
+    let v =
+        verify_release_artifact_only(&store, &oracle, &rel_id, &policy(rel_ts + 10_000)).unwrap();
     assert_eq!(v.version, "0.1.0");
     assert_eq!(v.attesters, 3);
 }
@@ -169,22 +233,77 @@ fn one_human_many_devices_counts_once_and_author_never_counts() {
     let (mut sybil_root, sybil_d1) = human(50);
     let sybil_d2 = second_device(&mut sybil_root, 70);
     let sybil_d3 = second_device(&mut sybil_root, 80);
-    attest(&mut store, &sybil_root.did(), &sybil_d1, &rel_id, digest, 2_000, 1).unwrap();
-    attest(&mut store, &sybil_root.did(), &sybil_d2, &rel_id, digest, 2_001, 2).unwrap();
-    attest(&mut store, &sybil_root.did(), &sybil_d3, &rel_id, digest, 2_002, 3).unwrap();
+    attest(
+        &mut store,
+        &sybil_root.did(),
+        &sybil_d1,
+        &rel_id,
+        digest,
+        2_000,
+        1,
+    )
+    .unwrap();
+    attest(
+        &mut store,
+        &sybil_root.did(),
+        &sybil_d2,
+        &rel_id,
+        digest,
+        2_001,
+        2,
+    )
+    .unwrap();
+    attest(
+        &mut store,
+        &sybil_root.did(),
+        &sybil_d3,
+        &rel_id,
+        digest,
+        2_002,
+        3,
+    )
+    .unwrap();
 
     // The AUTHOR attests their own release — never counts.
-    attest(&mut store, &author_root.did(), &author_dev, &rel_id, digest, 2_003, 4).unwrap();
+    attest(
+        &mut store,
+        &author_root.did(),
+        &author_dev,
+        &rel_id,
+        digest,
+        2_003,
+        4,
+    )
+    .unwrap();
 
     // A wrong-digest attestation — never counts.
     let (other_root, other_dev) = human(90);
-    attest(&mut store, &other_root.did(), &other_dev, &rel_id, [0u8; 32], 2_004, 1).unwrap();
+    attest(
+        &mut store,
+        &other_root.did(),
+        &other_dev,
+        &rel_id,
+        [0u8; 32],
+        2_004,
+        1,
+    )
+    .unwrap();
 
     let oracle = oracle_of(&[
-        &author_root, &author_dev, &sybil_root, &sybil_d1, &sybil_d2, &sybil_d3,
-        &other_root, &other_dev,
+        &author_root,
+        &author_dev,
+        &sybil_root,
+        &sybil_d1,
+        &sybil_d2,
+        &sybil_d3,
+        &other_root,
+        &other_dev,
     ]);
-    let policy = ReleasePolicy { min_attestations: 2, timelock_ms: 0, now_ms: rel_ts + 1 };
+    let policy = ReleasePolicy {
+        min_attestations: 2,
+        timelock_ms: 0,
+        now_ms: rel_ts + 1,
+    };
     assert_eq!(
         verify_release_artifact_only(&store, &oracle, &rel_id, &policy),
         Err(ForgeError::NotEnoughAttestations { needed: 2, got: 1 })
@@ -208,7 +327,11 @@ fn incomplete_artifact_blocks_adoption() {
     attest(&mut replica, &r.did(), &d, &rel_id, digest, 2_000, 1).unwrap();
 
     let oracle = oracle_of(&[&author_root, &author_dev, &r, &d]);
-    let policy = ReleasePolicy { min_attestations: 1, timelock_ms: 0, now_ms: rel_ts + 1 };
+    let policy = ReleasePolicy {
+        min_attestations: 1,
+        timelock_ms: 0,
+        now_ms: rel_ts + 1,
+    };
     assert_eq!(
         verify_release_artifact_only(&replica, &oracle, &rel_id, &policy),
         Err(ForgeError::ArtifactUnavailable)

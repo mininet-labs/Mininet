@@ -107,7 +107,11 @@ fn signing_key_debug_does_not_leak_secret() {
     let sk = SigningKey::from_seed(&SEED_A);
     let dbg = format!("{sk:?}");
     assert!(dbg.contains("redacted"));
-    let seed_hex: String = SEED_A.iter().map(|b| format!("{b:02x}")).collect();
+    let seed_hex = SEED_A.iter().fold(String::new(), |mut acc, b| {
+        use std::fmt::Write;
+        let _ = write!(acc, "{b:02x}");
+        acc
+    });
     assert!(!dbg.contains(&seed_hex));
 }
 
@@ -148,7 +152,6 @@ fn multihash_rejects_sha1_code() {
     );
 }
 
-
 #[test]
 fn multihash_rejects_short_digest_even_when_length_field_matches() {
     // The length prefix is not enough: a supported strong hash must have its
@@ -167,7 +170,6 @@ fn multihash_rejects_short_digest_even_when_length_field_matches() {
     );
 }
 
-
 #[test]
 fn multihash_rejects_non_canonical_varint_encoding() {
     // BLAKE3 code 0x1e encoded as an overlong varint: 0x9e 0x00.
@@ -177,7 +179,10 @@ fn multihash_rejects_non_canonical_varint_encoding() {
     forged.extend_from_slice(&[0x9e, 0x00]);
     forged.push(32u8);
     forged.extend_from_slice(&digest);
-    assert_eq!(Multihash::from_bytes(&forged), Err(CryptoError::BadEncoding));
+    assert_eq!(
+        Multihash::from_bytes(&forged),
+        Err(CryptoError::BadEncoding)
+    );
 }
 
 #[test]
@@ -321,13 +326,15 @@ fn chacha20poly1305_aead_roundtrip_and_authentication() {
 
     let ciphertext = key.encrypt(&nonce, plaintext, aad).unwrap();
     assert_ne!(ciphertext, plaintext);
-    assert_eq!(key.decrypt(&nonce, &ciphertext, aad).unwrap(), plaintext.to_vec());
+    assert_eq!(
+        key.decrypt(&nonce, &ciphertext, aad).unwrap(),
+        plaintext.to_vec()
+    );
     assert_eq!(
         key.decrypt(&nonce, &ciphertext, b"wrong aad"),
         Err(CryptoError::Aead)
     );
 }
-
 
 #[test]
 fn hkdf_rejects_oversized_output_before_allocating() {

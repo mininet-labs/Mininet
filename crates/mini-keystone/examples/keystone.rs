@@ -24,7 +24,10 @@ fn main() {
     println!();
     println!("identity root A : {}", report.initiator_root);
     println!("identity root B : {}", report.responder_root);
-    println!("channel : anonymous, forward-secret (binding {:02x?}...)", &report.channel_binding[..4]);
+    println!(
+        "channel : anonymous, forward-secret (binding {:02x?}...)",
+        &report.channel_binding[..4]
+    );
     println!();
     println!(
         "A accrued {} points ({} vested yet — value matures slowly, P4)",
@@ -36,5 +39,7 @@ fn main() {
     );
     println!();
     println!("identity verified offline · presence range-bound & mutually signed ·");
-    println!("reward non-spendable, no governance weight (P1) · one identity root, one accrual (P2)");
+    println!(
+        "reward non-spendable, no governance weight (P1) · one identity root, one accrual (P2)"
+    );
 }

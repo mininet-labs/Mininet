@@ -98,10 +98,12 @@ impl FsBackend {
         // Keys are `/`-separated ASCII segments; each segment becomes a path
         // component. Refuse traversal and empty segments.
         if key.is_empty()
-            || !key
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'/' || b == b'-' || b == b'_' || b == b'.')
-            || key.split('/').any(|seg| seg.is_empty() || seg == "." || seg == "..")
+            || !key.bytes().all(|b| {
+                b.is_ascii_alphanumeric() || b == b'/' || b == b'-' || b == b'_' || b == b'.'
+            })
+            || key
+                .split('/')
+                .any(|seg| seg.is_empty() || seg == "." || seg == "..")
         {
             return Err(StoreError::Io("invalid meta key".to_string()));
         }

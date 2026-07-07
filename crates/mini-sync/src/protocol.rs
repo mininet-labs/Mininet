@@ -171,8 +171,7 @@ fn pull<B: Backend>(
         if rounds > MAX_WANT_ROUNDS {
             return Err(SyncError::LimitExceeded);
         }
-        let batch: Vec<String> =
-            wants[cursor..wants.len().min(cursor + WANT_BATCH)].to_vec();
+        let batch: Vec<String> = wants[cursor..wants.len().min(cursor + WANT_BATCH)].to_vec();
         cursor += batch.len();
         let last = batch.is_empty();
         send(bearer, chan, &Msg::Want(batch))?;

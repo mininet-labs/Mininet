@@ -42,8 +42,10 @@ fn two_devices_one_human_with_capabilities() {
     let phone = device(&root.did(), &A_C, &A_N);
     let laptop = device(&root.did(), &B_C, &B_N);
 
-    root.delegate_device(&phone.did(), Capabilities::primary()).unwrap();
-    root.delegate_device(&laptop.did(), Capabilities::secondary()).unwrap();
+    root.delegate_device(&phone.did(), Capabilities::primary())
+        .unwrap();
+    root.delegate_device(&laptop.did(), Capabilities::secondary())
+        .unwrap();
 
     // Both devices verify as delegated, with the granted capabilities.
     let phone_caps = verify_delegation(&root.kel(), &phone.kel()).unwrap();
@@ -64,7 +66,8 @@ fn two_devices_one_human_with_capabilities() {
 fn revocation_removes_a_device() {
     let mut root = root();
     let phone = device(&root.did(), &A_C, &A_N);
-    root.delegate_device(&phone.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&phone.did(), Capabilities::primary())
+        .unwrap();
     assert!(verify_delegation(&root.kel(), &phone.kel()).is_ok());
 
     root.revoke_device(&phone.did()).unwrap();
@@ -89,11 +92,14 @@ fn device_claiming_wrong_root_is_rejected() {
     let dev = device(&other_root.did(), &A_C, &A_N);
 
     // Even if this root tries to claim it, the device's dip names other_root.
-    root.delegate_device(&dev.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&dev.did(), Capabilities::primary())
+        .unwrap();
     assert!(verify_delegation(&root.kel(), &dev.kel()).is_err());
     // It does verify against its real delegator once that root authorizes it.
     let mut other_root = other_root;
-    other_root.delegate_device(&dev.did(), Capabilities::primary()).unwrap();
+    other_root
+        .delegate_device(&dev.did(), Capabilities::primary())
+        .unwrap();
     assert!(verify_delegation(&other_root.kel(), &dev.kel()).is_ok());
 }
 
@@ -101,13 +107,15 @@ fn device_claiming_wrong_root_is_rejected() {
 fn re_delegation_updates_capabilities() {
     let mut root = root();
     let phone = device(&root.did(), &A_C, &A_N);
-    root.delegate_device(&phone.did(), Capabilities::secondary()).unwrap();
+    root.delegate_device(&phone.did(), Capabilities::secondary())
+        .unwrap();
     assert_eq!(
         verify_delegation(&root.kel(), &phone.kel()).unwrap(),
         Capabilities::secondary()
     );
     // Re-delegating the same device upgrades it (last write wins).
-    root.delegate_device(&phone.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&phone.did(), Capabilities::primary())
+        .unwrap();
     assert_eq!(
         verify_delegation(&root.kel(), &phone.kel()).unwrap(),
         Capabilities::primary()
@@ -122,7 +130,8 @@ fn root_kel_with_seals_still_verifies() {
     let mut root = root();
     let before = root.kel().verify().unwrap();
     let phone = device(&root.did(), &A_C, &A_N);
-    root.delegate_device(&phone.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&phone.did(), Capabilities::primary())
+        .unwrap();
     let after = root.kel().verify().unwrap();
     assert_eq!(before.keys, after.keys);
     assert_eq!(after.sn, before.sn + 1);
@@ -141,7 +150,6 @@ fn capabilities_are_a_narrowing_bitset() {
         Capabilities::SIGN.bits() | Capabilities::PAY.bits()
     );
 }
-
 
 #[test]
 fn unknown_capability_bits_are_rejected() {

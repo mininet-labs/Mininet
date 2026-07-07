@@ -20,7 +20,7 @@ pub enum HeadState {
 /// A content-addressed object store over any [`Backend`].
 #[derive(Debug)]
 pub struct Store<B: Backend> {
-    backend: B,
+    pub(crate) backend: B,
 }
 
 impl<B: Backend> Store<B> {
@@ -40,8 +40,10 @@ impl<B: Backend> Store<B> {
             &format!("idx/author/{}/{id}", object.author_human.scid()),
             b"",
         )?;
-        self.backend
-            .put_meta(&format!("idx/type/{}/{id}", type_key(&object.object_type)), b"")?;
+        self.backend.put_meta(
+            &format!("idx/type/{}/{id}", type_key(&object.object_type)),
+            b"",
+        )?;
         for link in &object.links {
             self.backend
                 .put_meta(&format!("idx/link/{}/{id}", link.target.as_str()), b"")?;
@@ -139,7 +141,8 @@ impl<B: Backend> Store<B> {
                 return Ok(HeadState::Stale);
             }
         }
-        self.backend.put_meta(&slot, &encode_slot(candidate.0, &candidate.1))?;
+        self.backend
+            .put_meta(&slot, &encode_slot(candidate.0, &candidate.1))?;
         Ok(HeadState::Applied)
     }
 

@@ -8,8 +8,9 @@
 use did_mini::{Capabilities, Controller};
 use mini_bearer::{Initiator, Responder};
 use mini_presence::{
-    kel_digest, verify_presence, AttestationFields, InMemoryReplayGuard, Party, PresenceAttestation,
-    PresenceError, RangePolicy, TransportKind, VerifyContext, PRESENCE_VERSION,
+    kel_digest, verify_presence, AttestationFields, InMemoryReplayGuard, Party,
+    PresenceAttestation, PresenceError, RangePolicy, TransportKind, VerifyContext,
+    PRESENCE_VERSION,
 };
 
 /// Build a identity root controller and one delegated device with `caps`.
@@ -31,7 +32,10 @@ fn fresh_binding() -> [u8; 32] {
     let (initiator, hello1) = Initiator::start().unwrap();
     let (responder_channel, hello2) = Responder::respond(&hello1).unwrap();
     let initiator_channel = initiator.finish(&hello2).unwrap();
-    assert_eq!(initiator_channel.channel_binding(), responder_channel.channel_binding());
+    assert_eq!(
+        initiator_channel.channel_binding(),
+        responder_channel.channel_binding()
+    );
     initiator_channel.channel_binding()
 }
 
@@ -108,7 +112,13 @@ fn valid_presence_names_both_identity_roots() {
 #[test]
 fn device_without_attest_capability_is_rejected() {
     // Secondary devices lack ATTEST.
-    let (a_root, a_dev) = human([1; 32], [2; 32], [3; 32], [4; 32], Capabilities::secondary());
+    let (a_root, a_dev) = human(
+        [1; 32],
+        [2; 32],
+        [3; 32],
+        [4; 32],
+        Capabilities::secondary(),
+    );
     let (b_root, b_dev) = human([5; 32], [6; 32], [7; 32], [8; 32], Capabilities::primary());
     let binding = fresh_binding();
     let att = valid_attestation(&a_dev, &b_dev, binding);
@@ -283,10 +293,14 @@ fn self_presence_between_own_devices_is_rejected() {
     // One human, two of their own ATTEST-capable devices: verification must
     // refuse — a human cannot be co-present with themselves (P2).
     let mut root = Controller::incept_single_from_seeds(&[1; 32], &[2; 32]).unwrap();
-    let dev_a = Controller::incept_device_single_from_seeds(&root.did(), &[3; 32], &[4; 32]).unwrap();
-    let dev_b = Controller::incept_device_single_from_seeds(&root.did(), &[5; 32], &[6; 32]).unwrap();
-    root.delegate_device(&dev_a.did(), Capabilities::primary()).unwrap();
-    root.delegate_device(&dev_b.did(), Capabilities::primary()).unwrap();
+    let dev_a =
+        Controller::incept_device_single_from_seeds(&root.did(), &[3; 32], &[4; 32]).unwrap();
+    let dev_b =
+        Controller::incept_device_single_from_seeds(&root.did(), &[5; 32], &[6; 32]).unwrap();
+    root.delegate_device(&dev_a.did(), Capabilities::primary())
+        .unwrap();
+    root.delegate_device(&dev_b.did(), Capabilities::primary())
+        .unwrap();
 
     let binding = fresh_binding();
     let att = valid_attestation(&dev_a, &dev_b, binding);

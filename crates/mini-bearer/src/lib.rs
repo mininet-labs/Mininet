@@ -45,12 +45,10 @@ mod channel;
 mod error;
 mod inprocess;
 
-pub use bearer::{
-    encode_frame, Bearer, FrameReader, MAX_FRAME_BYTES, MAX_STREAM_BUFFER_BYTES,
-};
+pub use bearer::{encode_frame, Bearer, FrameReader, MAX_FRAME_BYTES, MAX_STREAM_BUFFER_BYTES};
 pub use channel::{
-    Channel, Initiator, Responder, MAX_CHANNEL_CIPHERTEXT_BYTES,
-    MAX_CHANNEL_PLAINTEXT_BYTES, PROTOCOL_VERSION,
+    Channel, Initiator, Responder, MAX_CHANNEL_CIPHERTEXT_BYTES, MAX_CHANNEL_PLAINTEXT_BYTES,
+    PROTOCOL_VERSION,
 };
 pub use error::{BearerError, Result};
 pub use inprocess::{pair, InProcessBearer};

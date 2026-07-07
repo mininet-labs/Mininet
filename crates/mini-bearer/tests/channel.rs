@@ -5,9 +5,9 @@
 //! Bluetooth peer would probe.
 
 use mini_bearer::{
-    encode_frame, pair, Bearer, BearerError, Channel, FrameReader, Initiator,
-    Responder, MAX_CHANNEL_CIPHERTEXT_BYTES, MAX_CHANNEL_PLAINTEXT_BYTES,
-    MAX_FRAME_BYTES, MAX_STREAM_BUFFER_BYTES, PROTOCOL_VERSION,
+    encode_frame, pair, Bearer, BearerError, Channel, FrameReader, Initiator, Responder,
+    MAX_CHANNEL_CIPHERTEXT_BYTES, MAX_CHANNEL_PLAINTEXT_BYTES, MAX_FRAME_BYTES,
+    MAX_STREAM_BUFFER_BYTES, PROTOCOL_VERSION,
 };
 
 /// Drive a full handshake in-process and return both established channels.
@@ -58,13 +58,19 @@ fn tampered_ciphertext_is_rejected() {
 fn wrong_associated_data_is_rejected() {
     let (mut a, mut b) = establish();
     let ct = a.seal(b"bound to header", b"frame-1").unwrap();
-    assert!(matches!(b.open(&ct, b"frame-2"), Err(BearerError::Crypto(_))));
+    assert!(matches!(
+        b.open(&ct, b"frame-2"),
+        Err(BearerError::Crypto(_))
+    ));
 }
 
 #[test]
 fn malformed_handshakes_are_rejected() {
     // Too short.
-    assert!(matches!(Responder::respond(&[1, 1, 2, 3]), Err(BearerError::BadHandshake)));
+    assert!(matches!(
+        Responder::respond(&[1, 1, 2, 3]),
+        Err(BearerError::BadHandshake)
+    ));
 
     let (_initiator, good) = Initiator::start().unwrap();
 
@@ -79,19 +85,27 @@ fn malformed_handshakes_are_rejected() {
     // Correct length + version, unknown key-agreement suite.
     let mut bad_ka = good.clone();
     bad_ka[1] = 0xff;
-    assert!(matches!(Responder::respond(&bad_ka), Err(BearerError::Crypto(_))));
+    assert!(matches!(
+        Responder::respond(&bad_ka),
+        Err(BearerError::Crypto(_))
+    ));
 
     // Correct length + version, unknown KDF suite.
     let mut bad_kdf = good.clone();
     bad_kdf[2] = 0xfe;
-    assert!(matches!(Responder::respond(&bad_kdf), Err(BearerError::Crypto(_))));
+    assert!(matches!(
+        Responder::respond(&bad_kdf),
+        Err(BearerError::Crypto(_))
+    ));
 
     // Correct length + version, unknown AEAD suite.
     let mut bad_aead = good;
     bad_aead[3] = 0xfd;
-    assert!(matches!(Responder::respond(&bad_aead), Err(BearerError::Crypto(_))));
+    assert!(matches!(
+        Responder::respond(&bad_aead),
+        Err(BearerError::Crypto(_))
+    ));
 }
-
 
 #[test]
 fn all_zero_ephemeral_public_key_is_rejected() {
@@ -100,7 +114,10 @@ fn all_zero_ephemeral_public_key_is_rejected() {
     // handshake instead of deriving known traffic keys.
     let (_initiator, mut hello) = Initiator::start().unwrap();
     hello[4..].fill(0);
-    assert!(matches!(Responder::respond(&hello), Err(BearerError::Crypto(_))));
+    assert!(matches!(
+        Responder::respond(&hello),
+        Err(BearerError::Crypto(_))
+    ));
 }
 
 #[test]
@@ -119,7 +136,6 @@ fn channel_rejects_oversized_frames_before_crypto() {
         Err(BearerError::FrameTooLarge { .. })
     ));
 }
-
 
 #[test]
 fn distinct_sessions_have_distinct_bindings() {
@@ -148,7 +164,10 @@ fn channel_runs_over_the_in_process_bearer() {
     let ct = left_channel.seal(b"presence nonce", b"ctx").unwrap();
     left.send(&ct).unwrap();
     let received = right.recv().unwrap();
-    assert_eq!(right_channel.open(&received, b"ctx").unwrap(), b"presence nonce".to_vec());
+    assert_eq!(
+        right_channel.open(&received, b"ctx").unwrap(),
+        b"presence nonce".to_vec()
+    );
 }
 
 #[test]

@@ -47,20 +47,24 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod base_device;
 mod codec;
 mod controller;
 mod delegation;
 mod error;
 mod event;
+mod identity_mode;
 mod kel;
 mod limits;
 
 use mini_crypto::{encoding, Multihash};
 
+pub use base_device::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, PrivacyMode};
 pub use controller::Controller;
 pub use delegation::{Capabilities, Seal};
 pub use error::{IdentityError, Result};
 pub use event::{Establishment, Event, EventKind, IndexedSig};
+pub use identity_mode::IdentityMode;
 pub use kel::{verify_delegation, Kel, KeyState};
 
 /// The `did:mini` method prefix.
@@ -112,7 +116,6 @@ impl core::fmt::Display for Did {
         f.write_str(&self.0)
     }
 }
-
 
 fn validate_scid(scid: &str) -> Result<()> {
     // The SCID is a multibase string wrapping a canonical strong multihash. This

@@ -44,7 +44,10 @@ impl core::fmt::Display for BearerError {
                 write!(f, "unsupported channel protocol version {v}")
             }
             BearerError::CounterExhausted => {
-                write!(f, "channel message counter exhausted; re-establish the channel")
+                write!(
+                    f,
+                    "channel message counter exhausted; re-establish the channel"
+                )
             }
             BearerError::Crypto(e) => write!(f, "crypto error: {e}"),
         }

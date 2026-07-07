@@ -158,7 +158,10 @@ fn ledger_is_complete_sorted_and_order_independent() {
     sorted.sort_unstable();
     assert_eq!(ids, sorted);
     // b met both a and c.
-    let b_acct = l.iter().find(|acct| acct.identity_root.as_str() == b.as_str()).unwrap();
+    let b_acct = l
+        .iter()
+        .find(|acct| acct.identity_root.as_str() == b.as_str())
+        .unwrap();
     assert_eq!(b_acct.distinct_counterparties, 2);
 
     // Reordering the input does not change the ledger.

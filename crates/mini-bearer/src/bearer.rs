@@ -67,14 +67,14 @@ impl FrameReader {
     /// [`MAX_STREAM_BUFFER_BYTES`]. Callers should drain complete frames with
     /// [`FrameReader::next_frame`] before pushing more data.
     pub fn push(&mut self, bytes: &[u8]) -> Result<()> {
-        let new_len = self
-            .buf
-            .len()
-            .checked_add(bytes.len())
-            .ok_or(BearerError::FrameTooLarge {
-                max: MAX_STREAM_BUFFER_BYTES,
-                got: usize::MAX,
-            })?;
+        let new_len =
+            self.buf
+                .len()
+                .checked_add(bytes.len())
+                .ok_or(BearerError::FrameTooLarge {
+                    max: MAX_STREAM_BUFFER_BYTES,
+                    got: usize::MAX,
+                })?;
         if new_len > MAX_STREAM_BUFFER_BYTES {
             return Err(BearerError::FrameTooLarge {
                 max: MAX_STREAM_BUFFER_BYTES,

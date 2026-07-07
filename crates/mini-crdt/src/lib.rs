@@ -249,7 +249,12 @@ fn parse_op<'a>(doc: &ObjectId, obj: &'a Object) -> Option<ParsedOp<'a>> {
     if body.len() > MAX_BODY_BYTES {
         return None;
     }
-    let target = obj.links.iter().find(|l| l.rel == target_rel)?.target.clone();
+    let target = obj
+        .links
+        .iter()
+        .find(|l| l.rel == target_rel)?
+        .target
+        .clone();
     Some(ParsedOp {
         obj,
         kind,
@@ -298,8 +303,7 @@ pub fn replay(doc: &ObjectId, ops: &[Object]) -> DocState {
             if attached.contains_key(id) {
                 continue;
             }
-            let parent_ok =
-                p.target == *doc || attached.contains_key(p.target.as_str());
+            let parent_ok = p.target == *doc || attached.contains_key(p.target.as_str());
             if parent_ok {
                 attached.insert(
                     id.clone(),

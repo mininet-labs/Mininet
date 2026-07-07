@@ -26,9 +26,11 @@
 #![warn(missing_debug_implementations)]
 
 mod backend;
+mod cache;
 mod store;
 
 pub use backend::{Backend, FsBackend, MemoryBackend};
+pub use cache::{CacheTier, ViewConditions};
 pub use store::{HeadState, Store};
 
 use did_mini::IdentityError;

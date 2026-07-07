@@ -36,7 +36,9 @@ impl Bearer for InProcessBearer {
                 got: frame.len(),
             });
         }
-        self.tx.send(frame.to_vec()).map_err(|_| BearerError::Closed)
+        self.tx
+            .send(frame.to_vec())
+            .map_err(|_| BearerError::Closed)
     }
 
     fn recv(&mut self) -> Result<Vec<u8>> {

@@ -5,9 +5,11 @@
 
 Mininet is a peer-to-peer network whose rules sit above its protocol: money buys
 reach and storage but never a vote; governance is one verified human, one equal
-vote; there is no owner, no admin key, no off switch, no law-enforcement
-backdoor, and no party that can unmask a user. The software is public domain.
-Privacy, data sovereignty, and the right to run locally are structural.
+vote; there is no owner, no institution, no foundation, no admin key, no off
+switch, no law-enforcement backdoor, and no party that can unmask a user. The
+software is public domain, built Rust-first and in-house — proven designs are
+adapted into our own tree, never taken as a live external dependency. Privacy,
+data sovereignty, and the right to run locally are structural.
 
 This repository is the **self-contained Rust core**. It starts with identity
 because identity works offline before any chain, server, app store, DNS record, or
@@ -25,8 +27,10 @@ that requires SPEC-02 personhood and the future `PersonhoodOracle`.
 Release adoption must use `verify_governed_release`; `verify_release_artifact_only`
 checks only artifact/timelock/attestation facts and is not sufficient to install
 software. The physical two-phone beta still needs a real BLE/local-Wi-Fi bearer,
-active software RTT challenge-response, persistent replay storage, and a real Rust
-toolchain pass with `Cargo.lock` committed.
+active software RTT challenge-response, and persistent replay storage. A real Rust
+toolchain pass (`cargo fmt --all`, `cargo clippy --all-targets --all-features -- -D
+warnings`, `cargo test --all --all-features`) is clean and `Cargo.lock` is
+committed as of this tree.
 
 ## What makes this repo different
 
@@ -124,6 +128,32 @@ In short:
 
 The canonical enforcement map is `docs/INVARIANTS.md`.
 
+## Identity, public walls, and base devices (founder decisions, 2026-07-07)
+
+A human's status is private, cold, and never public by default — but everyone
+is free to be public, pseudonymous, or anonymous with whatever *they* choose
+to publish:
+
+- **Public profiles are voluntary "public walls,"** first-class from the start
+  (`mini-social::PublicWall`). A wall is published under whatever DID the user
+  picks and never carries a human-root field; publishing one requires only
+  ordinary post authority and never a vote, and it never creates extra human
+  status. One human may run **many** public, pseudonymous, or anonymous
+  surfaces — unlinkable by default, linkable only if the user explicitly,
+  voluntarily signs a linkage. See `crates/mini-social/src/wall.rs` and
+  `did-mini::IdentityMode` for the full taxonomy (`HumanRoot`, `BaseDevice`,
+  `DeviceDid`, `PublicWall`, `PseudonymProfile`, `AnonymousAction`).
+- **One base/static device is recommended** per human — for hosting, storage,
+  seeding, and participation (`did-mini::BaseDeviceRole`). It is operational
+  infrastructure, not political power: it is deliberately not a capability
+  and cannot buy governance weight.
+- **Watching helps seed it.** Opening public content naturally helps seed it
+  to the network, unless the user disables that or content policy forbids it
+  — see `mini-store::CacheTier` and `Store::note_view`. Encrypted/private
+  content is never advertised, no matter the policy.
+- **Money, storage, and reach never buy a vote.** Storage/seeding commitment
+  earns value (`mini-reward`) and reach, never voice (P1).
+
 ## Stack at a glance
 
 - **Language:** one Rust stack for on-device core and chain.
@@ -131,8 +161,9 @@ The canonical enforcement map is `docs/INVARIANTS.md`.
   weight per verified human, never stake.
 - **Identity:** KERI-style did:mini autonomic identifiers.
 - **Networking core:** BLE + local Wi-Fi/hotspot/mDNS + optional relay;
-  store-and-forward/delay-tolerant by default. Radio/LoRa is not a Phase-1 core
-  dependency.
+  store-and-forward/delay-tolerant by default. Radio/LoRa is **permanently
+  out of scope** — a closed founder decision (2026-07-07, D-0033), not a
+  Phase-1 deferral.
 - **Forge/update:** internal content-addressed forge and on-chain release registry;
   GitHub/GitLab/etc. are temporary mirrors only.
 
@@ -141,12 +172,11 @@ The canonical enforcement map is `docs/INVARIANTS.md`.
 ```sh
 cargo fmt --all
 cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all
+cargo test --all --all-features
 ```
 
-This sandbox did not include the Rust toolchain, so run those locally before
-merge. `Cargo.lock` must be committed by the first environment that can run
-`cargo generate-lockfile`.
+All three are clean on this tree and `Cargo.lock` is committed for
+reproducible builds (D-0006).
 
 ## License
 

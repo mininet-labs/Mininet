@@ -4,22 +4,44 @@
 
 use did_mini::{Capabilities, Controller, Did};
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
-use mini_store::{MemoryBackend, Store};
 use mini_social::{
-    feed, followers, following, publish_profile, resolve_profile, set_follow, FeedFilter,
-    FeedReason,
+    feed, followers, following, publish_profile, publish_wall, publish_wall_linkage,
+    resolve_profile, resolve_wall, resolve_wall_linkage, set_follow, FeedFilter, FeedReason,
+    VisibilityPolicy,
 };
+use mini_store::{MemoryBackend, Store};
 
 fn human(seed: u8) -> (Controller, Controller) {
     let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
     let device =
         Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
             .unwrap();
-    root.delegate_device(&device.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
     (root, device)
 }
 
-fn post(store: &mut Store<MemoryBackend>, h: &Did, d: &Controller, text: &[u8], ts: u64, seq: u64) -> mini_objects::Object {
+/// A human whose only delegated device holds the *secondary* capability set
+/// (no `VOTE`, no `MANAGE_DEVICES`) — used to prove wall publication never
+/// needs governance authority.
+fn human_no_vote(seed: u8) -> (Controller, Controller) {
+    let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+    let device =
+        Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
+            .unwrap();
+    root.delegate_device(&device.did(), Capabilities::secondary())
+        .unwrap();
+    (root, device)
+}
+
+fn post(
+    store: &mut Store<MemoryBackend>,
+    h: &Did,
+    d: &Controller,
+    text: &[u8],
+    ts: u64,
+    seq: u64,
+) -> mini_objects::Object {
     let o = ObjectBuilder::new(ObjectType::POST)
         .timestamp_ms(ts)
         .sequence(seq)
@@ -35,8 +57,28 @@ fn profile_publishes_and_edits_resolve_latest() {
     let (root, device) = human(10);
     let mut store = Store::new(MemoryBackend::new());
 
-    publish_profile(&mut store, &root.did(), &device, "Ada", "first bio", None, 100, 1).unwrap();
-    publish_profile(&mut store, &root.did(), &device, "Ada L.", "second bio", None, 200, 2).unwrap();
+    publish_profile(
+        &mut store,
+        &root.did(),
+        &device,
+        "Ada",
+        "first bio",
+        None,
+        100,
+        1,
+    )
+    .unwrap();
+    publish_profile(
+        &mut store,
+        &root.did(),
+        &device,
+        "Ada L.",
+        "second bio",
+        None,
+        200,
+        2,
+    )
+    .unwrap();
 
     let p = resolve_profile(&store, &root.did()).unwrap().unwrap();
     assert_eq!(p.display_name, "Ada L.");
@@ -130,8 +172,193 @@ fn filter_reorders_but_never_drops_followed_speech() {
     let mut store = Store::new(MemoryBackend::new());
     set_follow(&mut store, &a_root.did(), &a_dev, &b_root.did(), true, 1, 1).unwrap();
     for i in 0..20 {
-        post(&mut store, &b_root.did(), &b_dev, format!("b{i}").as_bytes(), 100 + i, i);
+        post(
+            &mut store,
+            &b_root.did(),
+            &b_dev,
+            format!("b{i}").as_bytes(),
+            100 + i,
+            i,
+        );
     }
     let items = feed(&store, &a_root.did(), FeedFilter::Chronological, usize::MAX).unwrap();
     assert_eq!(items.len(), 20);
+}
+
+#[test]
+fn public_wall_publishes_and_edits_resolve_latest_with_no_human_root_field() {
+    let (owner, device) = human(10);
+    let mut store = Store::new(MemoryBackend::new());
+
+    publish_wall(
+        &mut store,
+        &owner.did(),
+        &device,
+        "Ada's Wall",
+        "first bio",
+        None,
+        &["https://example.org"],
+        &[],
+        VisibilityPolicy::Public,
+        100,
+        1,
+    )
+    .unwrap();
+    publish_wall(
+        &mut store,
+        &owner.did(),
+        &device,
+        "Ada's Wall v2",
+        "second bio",
+        None,
+        &["https://example.org", "https://example.net"],
+        &[],
+        VisibilityPolicy::Unlisted,
+        200,
+        2,
+    )
+    .unwrap();
+
+    let w = resolve_wall(&store, &owner.did()).unwrap().unwrap();
+    assert_eq!(w.display_name, "Ada's Wall v2");
+    assert_eq!(w.bio, "second bio");
+    assert_eq!(w.public_links.len(), 2);
+    assert_eq!(w.visibility, VisibilityPolicy::Unlisted);
+    assert_eq!(w.owner.as_str(), owner.did().as_str());
+    // `PublicWall` has no human-root field at all — the only DID it carries
+    // is the DID it was *published under*, which is the wall's own identity.
+
+    // A wall owner is never auto-linked to anything: no linkage has been
+    // published, so resolving one yields nothing.
+    assert!(resolve_wall_linkage(&store, &owner.did())
+        .unwrap()
+        .is_none());
+}
+
+#[test]
+fn public_wall_reveals_human_root_only_via_explicit_signed_linkage() {
+    // The wall is published under an independent pseudonym root, distinct
+    // from the "human_root" identity the user separately controls.
+    let (pseudonym, pseudonym_device) = human(20);
+    let (human_root, _) = human(21);
+    let mut store = Store::new(MemoryBackend::new());
+
+    publish_wall(
+        &mut store,
+        &pseudonym.did(),
+        &pseudonym_device,
+        "Anon",
+        "just a pseudonym",
+        None,
+        &[],
+        &[],
+        VisibilityPolicy::Public,
+        100,
+        1,
+    )
+    .unwrap();
+
+    // By default, nothing connects the wall to the human root.
+    assert!(resolve_wall_linkage(&store, &pseudonym.did())
+        .unwrap()
+        .is_none());
+
+    // The user explicitly, voluntarily publishes the linkage themselves.
+    publish_wall_linkage(
+        &mut store,
+        &pseudonym.did(),
+        &pseudonym_device,
+        &human_root.did(),
+        150,
+        1,
+    )
+    .unwrap();
+
+    let linked = resolve_wall_linkage(&store, &pseudonym.did())
+        .unwrap()
+        .unwrap();
+    assert_eq!(linked.as_str(), human_root.did().as_str());
+}
+
+#[test]
+fn public_wall_never_needs_or_implies_a_vote_capability() {
+    // A device holding only the secondary capability set (no VOTE, no
+    // MANAGE_DEVICES) can still fully publish a wall — proving wall
+    // publication requires nothing beyond ordinary POST authority and can
+    // never itself grant or require governance standing.
+    let (owner, device) = human_no_vote(30);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let result = publish_wall(
+        &mut store,
+        &owner.did(),
+        &device,
+        "No Vote Needed",
+        "",
+        None,
+        &[],
+        &[],
+        VisibilityPolicy::Public,
+        100,
+        1,
+    );
+    assert!(result.is_ok());
+    assert!(resolve_wall(&store, &owner.did()).unwrap().is_some());
+}
+
+#[test]
+fn multiple_walls_are_unlinkable_by_default_and_unknown_walls_are_not_registered() {
+    // One human privately runs two independent pseudonym roots and publishes
+    // a wall under each. Nothing in the protocol connects them.
+    let (wall_a, dev_a) = human(40);
+    let (wall_b, dev_b) = human(41);
+    let mut store = Store::new(MemoryBackend::new());
+
+    publish_wall(
+        &mut store,
+        &wall_a.did(),
+        &dev_a,
+        "Wall A",
+        "",
+        None,
+        &[],
+        &[],
+        VisibilityPolicy::Public,
+        100,
+        1,
+    )
+    .unwrap();
+    publish_wall(
+        &mut store,
+        &wall_b.did(),
+        &dev_b,
+        "Wall B",
+        "",
+        None,
+        &[],
+        &[],
+        VisibilityPolicy::Public,
+        100,
+        1,
+    )
+    .unwrap();
+
+    let a = resolve_wall(&store, &wall_a.did()).unwrap().unwrap();
+    let b = resolve_wall(&store, &wall_b.did()).unwrap().unwrap();
+    assert_ne!(a.wall_id.as_str(), b.wall_id.as_str());
+    assert_ne!(a.owner.as_str(), b.owner.as_str());
+    // Neither wall's resolved data references the other's DID anywhere.
+    assert!(resolve_wall_linkage(&store, &wall_a.did())
+        .unwrap()
+        .is_none());
+    assert!(resolve_wall_linkage(&store, &wall_b.did())
+        .unwrap()
+        .is_none());
+
+    // A DID that never published a wall simply resolves to nothing — there
+    // is no implicit registration/creation of "human status" on lookup.
+    let (never_published, _) = human(42);
+    assert!(resolve_wall(&store, &never_published.did())
+        .unwrap()
+        .is_none());
 }

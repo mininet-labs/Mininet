@@ -55,9 +55,9 @@ impl RewardParams {
         RewardParams {
             base_points: 1_000,
             max_repeats_per_counterparty: 5,
-            window_ms: 3_600_000,           // 1 hour
+            window_ms: 3_600_000, // 1 hour
             max_points_per_window: 5_000,
-            maturation_ms: 86_400_000,      // 1 day
+            maturation_ms: 86_400_000, // 1 day
         }
     }
 }

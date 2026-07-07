@@ -15,7 +15,8 @@ fn human(seed: u8) -> (Controller, Controller) {
     let device =
         Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
             .unwrap();
-    root.delegate_device(&device.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
     (root, device)
 }
 
@@ -41,7 +42,12 @@ fn seeded(seed: u8, n: u64) -> (Store<MemoryBackend>, KelCache, Controller, Cont
     cache.insert_verified(device.kel());
     for i in 0..n {
         store
-            .insert(&post(&root.did(), &device, format!("post {i}").as_bytes(), i))
+            .insert(&post(
+                &root.did(),
+                &device,
+                format!("post {i}").as_bytes(),
+                i,
+            ))
             .unwrap();
     }
     (store, cache, root, device)
@@ -75,12 +81,24 @@ fn run_sync(
     let (mut ba, mut bb) = pair();
     let (mut ca, mut cb) = channels(&mut ba, &mut bb);
     let handle = thread::spawn(move || {
-        let r = sync_bidirectional(&mut bb, &mut cb, &mut b_store, &mut b_cache, SyncRole::Responder)
-            .unwrap();
+        let r = sync_bidirectional(
+            &mut bb,
+            &mut cb,
+            &mut b_store,
+            &mut b_cache,
+            SyncRole::Responder,
+        )
+        .unwrap();
         (b_store, b_cache, r)
     });
-    let ra = sync_bidirectional(&mut ba, &mut ca, &mut a_store, &mut a_cache, SyncRole::Initiator)
-        .unwrap();
+    let ra = sync_bidirectional(
+        &mut ba,
+        &mut ca,
+        &mut a_store,
+        &mut a_cache,
+        SyncRole::Initiator,
+    )
+    .unwrap();
     let (b_store, b_cache, rb) = handle.join().unwrap();
     (a_store, a_cache, ra, b_store, b_cache, rb)
 }
@@ -196,7 +214,12 @@ fn heads_sync_and_resolve_on_the_receiver() {
         .unwrap();
     a_store.apply_head(&head).unwrap();
 
-    let (_, _, _, b_store, _, _) = run_sync(a_store, a_cache, Store::new(MemoryBackend::new()), KelCache::new());
+    let (_, _, _, b_store, _, _) = run_sync(
+        a_store,
+        a_cache,
+        Store::new(MemoryBackend::new()),
+        KelCache::new(),
+    );
     assert_eq!(
         b_store.resolve_head(&root.did(), "profile").unwrap(),
         Some(v2.id().clone())
@@ -228,6 +251,12 @@ fn orphan_root_carrier_is_absorbed_but_not_indexed() {
     // Once the signing device's own carrier is absorbed, the SAME root carrier
     // becomes envelope-provable and may finally be indexed — this is what the
     // sync layer's second pass relies on.
-    assert_eq!(Ingest::check(&mut cache, &dc), IngestOutcome::AcceptedCarrier);
-    assert_eq!(Ingest::check(&mut cache, &rc), IngestOutcome::AcceptedCarrier);
+    assert_eq!(
+        Ingest::check(&mut cache, &dc),
+        IngestOutcome::AcceptedCarrier
+    );
+    assert_eq!(
+        Ingest::check(&mut cache, &rc),
+        IngestOutcome::AcceptedCarrier
+    );
 }

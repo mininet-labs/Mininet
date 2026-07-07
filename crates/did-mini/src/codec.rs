@@ -14,10 +14,6 @@
 
 use crate::error::{IdentityError, Result};
 
-/// Absolute cap for a single length-prefixed blob in the identity wire profile.
-/// Tighter semantic caps are applied by the event/KEL decoders.
-pub(crate) const MAX_FIELD_BYTES: usize = 1 << 20; // 1 MiB
-
 /// Append-only writer over a byte buffer.
 #[derive(Debug, Default)]
 pub(crate) struct Writer {
@@ -77,7 +73,10 @@ impl<'a> Reader<'a> {
 
     pub(crate) fn u32(&mut self) -> Result<u32> {
         let end = self.pos.checked_add(4).ok_or(IdentityError::Truncated)?;
-        let slice = self.buf.get(self.pos..end).ok_or(IdentityError::Truncated)?;
+        let slice = self
+            .buf
+            .get(self.pos..end)
+            .ok_or(IdentityError::Truncated)?;
         let arr: [u8; 4] = slice.try_into().map_err(|_| IdentityError::Truncated)?;
         self.pos = end;
         Ok(u32::from_be_bytes(arr))
@@ -85,21 +84,16 @@ impl<'a> Reader<'a> {
 
     pub(crate) fn u64(&mut self) -> Result<u64> {
         let end = self.pos.checked_add(8).ok_or(IdentityError::Truncated)?;
-        let slice = self.buf.get(self.pos..end).ok_or(IdentityError::Truncated)?;
+        let slice = self
+            .buf
+            .get(self.pos..end)
+            .ok_or(IdentityError::Truncated)?;
         let arr: [u8; 8] = slice.try_into().map_err(|_| IdentityError::Truncated)?;
         self.pos = end;
         Ok(u64::from_be_bytes(arr))
     }
 
-    pub(crate) fn bytes(&mut self) -> Result<Vec<u8>> {
-        self.bytes_limited("bytes", MAX_FIELD_BYTES)
-    }
-
-    pub(crate) fn bytes_limited(
-        &mut self,
-        field: &'static str,
-        max: usize,
-    ) -> Result<Vec<u8>> {
+    pub(crate) fn bytes_limited(&mut self, field: &'static str, max: usize) -> Result<Vec<u8>> {
         let len = self.u32()? as usize;
         if len > max {
             return Err(IdentityError::FieldTooLarge {
@@ -109,7 +103,10 @@ impl<'a> Reader<'a> {
             });
         }
         let end = self.pos.checked_add(len).ok_or(IdentityError::Truncated)?;
-        let slice = self.buf.get(self.pos..end).ok_or(IdentityError::Truncated)?;
+        let slice = self
+            .buf
+            .get(self.pos..end)
+            .ok_or(IdentityError::Truncated)?;
         let out = slice.to_vec();
         self.pos = end;
         Ok(out)

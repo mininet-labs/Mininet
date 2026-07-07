@@ -27,6 +27,14 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod wall;
+
+pub use wall::{
+    publish_wall, publish_wall_linkage, resolve_wall, resolve_wall_linkage, PublicWall,
+    VisibilityPolicy, MAX_WALL_BIO_BYTES, MAX_WALL_LINKS, MAX_WALL_LINK_BYTES, MAX_WALL_NAME_BYTES,
+    MAX_WALL_PINNED,
+};
+
 use did_mini::{Controller, Did};
 use mini_objects::{Object, ObjectBuilder, ObjectId, ObjectType, Payload};
 use mini_store::{Backend, Store, StoreError};
@@ -51,6 +59,8 @@ pub enum SocialError {
     Object(mini_objects::ObjectError),
     /// Identity failure.
     Identity(did_mini::IdentityError),
+    /// A wall or wall-linkage object was structurally invalid.
+    BadWall,
 }
 
 impl core::fmt::Display for SocialError {
@@ -60,6 +70,7 @@ impl core::fmt::Display for SocialError {
             SocialError::Store(e) => write!(f, "store: {e}"),
             SocialError::Object(e) => write!(f, "object: {e}"),
             SocialError::Identity(e) => write!(f, "identity: {e}"),
+            SocialError::BadWall => write!(f, "structurally invalid wall or linkage object"),
         }
     }
 }
@@ -204,7 +215,10 @@ pub fn following<B: Backend>(store: &Store<B>, who: &Did) -> Result<Vec<Did>> {
         let obj = store.get(&id)?;
         if let Some((state, target)) = follow_edge(&obj) {
             let cand = (obj.sequence, obj.id().as_str().to_string());
-            match best.iter_mut().find(|(t, ..)| t.as_str() == target.as_str()) {
+            match best
+                .iter_mut()
+                .find(|(t, ..)| t.as_str() == target.as_str())
+            {
                 Some((_, s, i, st)) => {
                     if (cand.0, cand.1.as_str()) > (*s, i.as_str()) {
                         *s = cand.0;
@@ -335,12 +349,12 @@ pub fn feed<B: Backend>(
     Ok(items)
 }
 
-fn put_str(w: &mut Vec<u8>, s: &str) {
+pub(crate) fn put_str(w: &mut Vec<u8>, s: &str) {
     w.extend_from_slice(&(s.len() as u32).to_be_bytes());
     w.extend_from_slice(s.as_bytes());
 }
 
-fn get_str(b: &[u8], pos: &mut usize) -> Option<String> {
+pub(crate) fn get_str(b: &[u8], pos: &mut usize) -> Option<String> {
     if *pos + 4 > b.len() {
         return None;
     }

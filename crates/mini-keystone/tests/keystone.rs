@@ -52,9 +52,25 @@ fn demo_is_deterministic_per_identity_set() {
     let b = bob();
 
     let (mut a1, mut b1) = pair();
-    let r1 = run_demo(&a, &b, &mut a1, &mut b1, TransportKind::InProcess, 1_000_000).unwrap();
+    let r1 = run_demo(
+        &a,
+        &b,
+        &mut a1,
+        &mut b1,
+        TransportKind::InProcess,
+        1_000_000,
+    )
+    .unwrap();
     let (mut a2, mut b2) = pair();
-    let r2 = run_demo(&a, &b, &mut a2, &mut b2, TransportKind::InProcess, 1_000_000).unwrap();
+    let r2 = run_demo(
+        &a,
+        &b,
+        &mut a2,
+        &mut b2,
+        TransportKind::InProcess,
+        1_000_000,
+    )
+    .unwrap();
 
     assert_eq!(r1.initiator_root, r2.initiator_root);
     assert_eq!(r1.initiator_account, r2.initiator_account);

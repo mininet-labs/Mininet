@@ -20,6 +20,16 @@ slot.
 dirs, path-traversal-hardened keys). A SQLite backend slots in behind the same
 `Backend` trait at integration (D-0020), changing nothing above it.
 
+**Cache tiers / seed-on-view (founder decision, 2026-07-07):** watching
+content can naturally help seed it. `CacheTier` — `EphemeralCache`,
+`SeedCache`, `CommittedStorage`, `PrivateOnly`, `PinnedByOwner` — tracks how
+each object is treated; `Store::note_view` promotes an object toward
+`SeedCache` only when the device's `did-mini::BaseDeviceRole` policy, battery,
+metered-connection, and storage-budget checks all allow it. Encrypted content
+can never be promoted past `PrivateOnly`, `note_view` takes no viewer
+identity at all (opening content cannot mutate identity state), and pinned or
+committed tiers are never downgraded by a view. See `tests/cache.rs`.
+
 ```sh
 cargo test -p mini-store
 ```

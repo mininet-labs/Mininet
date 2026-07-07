@@ -216,9 +216,8 @@ fn derive_keys(
     responder_hello: &[u8],
     dh: &[u8; 32],
 ) -> Result<(AeadKey, AeadKey, [u8; 32])> {
-    let mut info = Vec::with_capacity(
-        TRAFFIC_INFO.len() + initiator_hello.len() + responder_hello.len(),
-    );
+    let mut info =
+        Vec::with_capacity(TRAFFIC_INFO.len() + initiator_hello.len() + responder_hello.len());
     info.extend_from_slice(TRAFFIC_INFO);
     info.extend_from_slice(initiator_hello);
     info.extend_from_slice(responder_hello);

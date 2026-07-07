@@ -84,6 +84,15 @@ impl ObjectType {
     /// Signed head pointer (single-author mutable state, SPEC-09 §3): payload =
     /// subject name, one `"target"` link = latest version.
     pub const HEAD: ObjectType = ObjectType::WellKnown(12);
+    /// A public wall / public profile document (founder decision, 2026-07-07):
+    /// a voluntary public-facing identity surface. Owned by whatever `did:mini`
+    /// root the user chooses to publish it under — a primary root, a device, or
+    /// an independent pseudonym root — and never the human-root itself.
+    pub const WALL: ObjectType = ObjectType::WellKnown(13);
+    /// A voluntary, self-published, signed linkage from a wall's owning DID to
+    /// another DID (e.g. a human-root or another wall). Publishing this is an
+    /// explicit user choice; its absence is the default and reveals nothing.
+    pub const WALL_LINKAGE: ObjectType = ObjectType::WellKnown(14);
 }
 
 /// The payload: the signature always covers the object; encryption only hides
@@ -332,8 +341,8 @@ pub fn verify_provenance(object: &Object, root: &Kel, device: &Kel) -> Result<Ca
 fn required_capability(t: &ObjectType) -> Capabilities {
     match t {
         ObjectType::WellKnown(tag) => match *tag {
-            1..=9 | 12 => Capabilities::POST, // content/community types + heads
-            _ => Capabilities::SIGN,          // forge/release & unknown well-known
+            1..=9 | 12..=14 => Capabilities::POST, // content/community types + heads/walls
+            _ => Capabilities::SIGN,               // forge/release & unknown well-known
         },
         ObjectType::Custom(_) => Capabilities::POST,
     }

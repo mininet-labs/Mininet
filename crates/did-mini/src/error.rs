@@ -38,9 +38,17 @@ pub enum IdentityError {
     /// establishment, or an out-of-spec field).
     BadEvent,
     /// A decoded field was larger than this wire profile permits.
-    FieldTooLarge { field: &'static str, max: usize, got: usize },
+    FieldTooLarge {
+        field: &'static str,
+        max: usize,
+        got: usize,
+    },
     /// A decoded vector had too many entries for this wire profile.
-    TooManyItems { field: &'static str, max: usize, got: usize },
+    TooManyItems {
+        field: &'static str,
+        max: usize,
+        got: usize,
+    },
     /// An establishment event had no keys.
     EmptyKeySet,
     /// An establishment threshold was zero or larger than the key set.
@@ -48,7 +56,10 @@ pub enum IdentityError {
     /// An establishment event repeated the same public key.
     DuplicateKey,
     /// A pre-rotation commitment set was empty or had an invalid next threshold.
-    InvalidNextThreshold { threshold: u32, commitment_count: usize },
+    InvalidNextThreshold {
+        threshold: u32,
+        commitment_count: usize,
+    },
     /// A string was not a valid `did:mini:<scid>` identifier.
     DidFormat,
     /// A device is not (or no longer) delegated by the claimed human-root, or the
@@ -75,23 +86,37 @@ impl fmt::Display for IdentityError {
             IdentityError::WrongSequence { expected, got } => {
                 write!(f, "out-of-order event: expected sn {expected}, got {got}")
             }
-            IdentityError::ScidMismatch => write!(f, "scid does not match inception (not authentic)"),
+            IdentityError::ScidMismatch => {
+                write!(f, "scid does not match inception (not authentic)")
+            }
             IdentityError::BrokenChain { sn } => write!(f, "broken kel chain at sn {sn}"),
             IdentityError::PreRotationMismatch { sn } => {
-                write!(f, "rotation at sn {sn} does not match pre-rotation commitment")
+                write!(
+                    f,
+                    "rotation at sn {sn} does not match pre-rotation commitment"
+                )
             }
             IdentityError::ThresholdNotMet { sn, needed, got } => {
-                write!(f, "signing threshold not met at sn {sn}: needed {needed}, got {got}")
+                write!(
+                    f,
+                    "signing threshold not met at sn {sn}: needed {needed}, got {got}"
+                )
             }
             IdentityError::BadEvent => write!(f, "structurally invalid event"),
             IdentityError::FieldTooLarge { field, max, got } => {
-                write!(f, "field {field} too large: max {max} bytes/items, got {got}")
+                write!(
+                    f,
+                    "field {field} too large: max {max} bytes/items, got {got}"
+                )
             }
             IdentityError::TooManyItems { field, max, got } => {
                 write!(f, "too many {field}: max {max}, got {got}")
             }
             IdentityError::EmptyKeySet => write!(f, "establishment event has no keys"),
-            IdentityError::InvalidThreshold { threshold, key_count } => write!(
+            IdentityError::InvalidThreshold {
+                threshold,
+                key_count,
+            } => write!(
                 f,
                 "invalid threshold {threshold} for key set of size {key_count}"
             ),
@@ -105,10 +130,9 @@ impl fmt::Display for IdentityError {
             ),
             IdentityError::DidFormat => write!(f, "not a valid did:mini identifier"),
             IdentityError::NotDelegated => write!(f, "device is not delegated by this root"),
-            IdentityError::SignatureThresholdNotMet { needed, got } => write!(
-                f,
-                "signature threshold not met: needed {needed}, got {got}"
-            ),
+            IdentityError::SignatureThresholdNotMet { needed, got } => {
+                write!(f, "signature threshold not met: needed {needed}, got {got}")
+            }
         }
     }
 }

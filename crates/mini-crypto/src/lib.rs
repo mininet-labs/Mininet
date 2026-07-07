@@ -39,9 +39,7 @@ pub mod multihash;
 pub mod suite;
 
 pub use aead::{AeadKey, AeadNonce, AeadSuite};
-pub use agreement::{
-    AgreementPublicKey, AgreementSecretKey, KeyAgreementSuite, SharedSecret,
-};
+pub use agreement::{AgreementPublicKey, AgreementSecretKey, KeyAgreementSuite, SharedSecret};
 pub use error::{CryptoError, Result};
 pub use hash::{HashAlgorithm, DEFAULT_HASH};
 pub use kdf::KdfSuite;

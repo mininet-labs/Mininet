@@ -47,10 +47,10 @@ mod oracle;
 pub use governance::*;
 pub use oracle::{IdentityOracle, KelDirectory};
 
+use crate::oracle::author_verified;
 use did_mini::{Controller, Did};
 use mini_media::{assemble, read_manifest, Manifest};
 use mini_objects::{Object, ObjectBuilder, ObjectId, ObjectType, Payload};
-use crate::oracle::author_verified;
 use mini_store::{Backend, Store, StoreError};
 
 /// File blob object type (≤ envelope payload cap; larger files use media
@@ -130,7 +130,10 @@ impl core::fmt::Display for ForgeError {
             ForgeError::ArtifactUnavailable => write!(f, "artifact incomplete or digest mismatch"),
             ForgeError::ForkDetected => write!(f, "governance fork detected; refusing adoption"),
             ForgeError::NotCanonical => {
-                write!(f, "release source commit is not the canonical governed head")
+                write!(
+                    f,
+                    "release source commit is not the canonical governed head"
+                )
             }
             ForgeError::Store(e) => write!(f, "store: {e}"),
             ForgeError::Object(e) => write!(f, "object: {e}"),
@@ -228,7 +231,9 @@ pub fn put_tree<B: Backend>(
         payload.extend_from_slice(e.target.as_str().as_bytes());
         builder = builder.link("entry", e.target.clone());
     }
-    let obj = builder.payload(Payload::Public(payload)).sign(human, device)?;
+    let obj = builder
+        .payload(Payload::Public(payload))
+        .sign(human, device)?;
     store.insert(&obj)?;
     Ok(obj.id().clone())
 }
@@ -347,7 +352,10 @@ pub fn resolve_branch<B: Backend>(
 
 /// Materialize the tree of `commit_id` as `(path, bytes)` pairs, recursing into
 /// subtrees (depth-capped).
-pub fn checkout<B: Backend>(store: &Store<B>, commit_id: &ObjectId) -> Result<Vec<(String, Vec<u8>)>> {
+pub fn checkout<B: Backend>(
+    store: &Store<B>,
+    commit_id: &ObjectId,
+) -> Result<Vec<(String, Vec<u8>)>> {
     let c = store.get(commit_id)?;
     if c.object_type != ObjectType::COMMIT {
         return Err(ForgeError::BadObject);
@@ -688,7 +696,11 @@ pub fn verify_governed_release<B: Backend>(
     if rel.object_type != ObjectType::RELEASE {
         return Err(ForgeError::BadObject);
     }
-    let claimed_project = rel.links.iter().find(|l| l.rel == "project").map(|l| &l.target);
+    let claimed_project = rel
+        .links
+        .iter()
+        .find(|l| l.rel == "project")
+        .map(|l| &l.target);
     if claimed_project != Some(project_id) {
         return Err(ForgeError::BadObject);
     }

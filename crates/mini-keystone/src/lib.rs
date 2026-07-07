@@ -49,12 +49,9 @@ impl Participant {
     ) -> Result<Self, DemoError> {
         let mut root = Controller::incept_single_from_seeds(&root_current, &root_next)
             .map_err(DemoError::Identity)?;
-        let device = Controller::incept_device_single_from_seeds(
-            &root.did(),
-            &device_current,
-            &device_next,
-        )
-        .map_err(DemoError::Identity)?;
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &device_current, &device_next)
+                .map_err(DemoError::Identity)?;
         root.delegate_device(&device.did(), Capabilities::primary())
             .map_err(DemoError::Identity)?;
         Ok(Participant { root, device })
@@ -187,7 +184,11 @@ pub fn run_demo(
         transport,
         location_commitment: None,
     };
-    let att = PresenceAttestation::new(fields.clone(), fields.sign(&a.device), fields.sign(&b.device));
+    let att = PresenceAttestation::new(
+        fields.clone(),
+        fields.sign(&a.device),
+        fields.sign(&b.device),
+    );
 
     // Each side verifies with ITS OWN replay guard and the binding IT derived.
     let policy = RangePolicy::ble_default();
@@ -197,7 +198,7 @@ pub fn run_demo(
         // Side A verifies using the peer logs it received over the channel.
         let ctx = VerifyContext {
             initiator_root: &a_root_pub,
-            responder_root: &peer_root_at_a,     // B's root, as received by A
+            responder_root: &peer_root_at_a, // B's root, as received by A
             initiator_device: &a_dev_pub,
             responder_device: &peer_device_at_a, // B's device, as received by A
             policy: &policy,
@@ -212,7 +213,7 @@ pub fn run_demo(
         let b_root_pub = b.root.kel();
         let b_dev_pub = b.device.kel();
         let ctx = VerifyContext {
-            initiator_root: &peer_root_at_b,     // A's root, as received by B
+            initiator_root: &peer_root_at_b, // A's root, as received by B
             responder_root: &b_root_pub,
             initiator_device: &peer_device_at_b, // A's device, as received by B
             responder_device: &b_dev_pub,

@@ -11,7 +11,8 @@ fn human(seed: u8) -> (Controller, Controller) {
     let device =
         Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
             .unwrap();
-    root.delegate_device(&device.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
     (root, device)
 }
 
@@ -19,7 +20,8 @@ fn second_device(root: &mut Controller, seed: u8) -> Controller {
     let device =
         Controller::incept_device_single_from_seeds(&root.did(), &[seed; 32], &[seed + 1; 32])
             .unwrap();
-    root.delegate_device(&device.did(), Capabilities::primary()).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
     device
 }
 
@@ -39,18 +41,65 @@ fn two_human_thread_converges_under_every_permutation() {
     let doc = root.id();
 
     let c1 = op_add(doc, doc, b"first!", 100, 1, &a_root.did(), &a_dev).unwrap();
-    let c2 = op_add(doc, c1.id(), b"reply to first", 200, 1, &b_root.did(), &b_dev).unwrap();
-    let c3 = op_add(doc, doc, b"another top-level", 150, 2, &a_root.did(), &a_dev).unwrap();
-    let e1 = op_edit(doc, c1.id(), b"first! (edited)", 300, 3, &a_root.did(), &a_dev).unwrap();
+    let c2 = op_add(
+        doc,
+        c1.id(),
+        b"reply to first",
+        200,
+        1,
+        &b_root.did(),
+        &b_dev,
+    )
+    .unwrap();
+    let c3 = op_add(
+        doc,
+        doc,
+        b"another top-level",
+        150,
+        2,
+        &a_root.did(),
+        &a_dev,
+    )
+    .unwrap();
+    let e1 = op_edit(
+        doc,
+        c1.id(),
+        b"first! (edited)",
+        300,
+        3,
+        &a_root.did(),
+        &a_dev,
+    )
+    .unwrap();
 
     let ops = [c1.clone(), c2.clone(), c3.clone(), e1.clone()];
     // All 24 permutations of 4 ops must produce identical state.
     let baseline = replay(doc, &ops);
     let idx = [
-        [0, 1, 2, 3], [0, 1, 3, 2], [0, 2, 1, 3], [0, 2, 3, 1], [0, 3, 1, 2], [0, 3, 2, 1],
-        [1, 0, 2, 3], [1, 0, 3, 2], [1, 2, 0, 3], [1, 2, 3, 0], [1, 3, 0, 2], [1, 3, 2, 0],
-        [2, 0, 1, 3], [2, 0, 3, 1], [2, 1, 0, 3], [2, 1, 3, 0], [2, 3, 0, 1], [2, 3, 1, 0],
-        [3, 0, 1, 2], [3, 0, 2, 1], [3, 1, 0, 2], [3, 1, 2, 0], [3, 2, 0, 1], [3, 2, 1, 0],
+        [0, 1, 2, 3],
+        [0, 1, 3, 2],
+        [0, 2, 1, 3],
+        [0, 2, 3, 1],
+        [0, 3, 1, 2],
+        [0, 3, 2, 1],
+        [1, 0, 2, 3],
+        [1, 0, 3, 2],
+        [1, 2, 0, 3],
+        [1, 2, 3, 0],
+        [1, 3, 0, 2],
+        [1, 3, 2, 0],
+        [2, 0, 1, 3],
+        [2, 0, 3, 1],
+        [2, 1, 0, 3],
+        [2, 1, 3, 0],
+        [2, 3, 0, 1],
+        [2, 3, 1, 0],
+        [3, 0, 1, 2],
+        [3, 0, 2, 1],
+        [3, 1, 0, 2],
+        [3, 1, 2, 0],
+        [3, 2, 0, 1],
+        [3, 2, 1, 0],
     ];
     for perm in idx {
         let shuffled: Vec<Object> = perm.iter().map(|&i| ops[i].clone()).collect();
@@ -62,7 +111,10 @@ fn two_human_thread_converges_under_every_permutation() {
     assert_eq!(top.len(), 2);
     assert_eq!(top[0].body, b"first! (edited)".to_vec());
     assert_eq!(top[1].body, b"another top-level".to_vec());
-    assert_eq!(baseline.children(c1.id())[0].body, b"reply to first".to_vec());
+    assert_eq!(
+        baseline.children(c1.id())[0].body,
+        b"reply to first".to_vec()
+    );
     assert!(baseline.rejected.is_empty());
     assert!(baseline.pending.is_empty());
 }
@@ -154,7 +206,16 @@ fn hostile_ops_are_excluded_not_fatal() {
 
     let good = op_add(doc, doc, b"good", 100, 1, &a_root.did(), &a_dev).unwrap();
     // Op for a DIFFERENT document.
-    let wrong_doc = op_add(other_root.id(), other_root.id(), b"x", 1, 1, &b_root.did(), &b_dev).unwrap();
+    let wrong_doc = op_add(
+        other_root.id(),
+        other_root.id(),
+        b"x",
+        1,
+        1,
+        &b_root.did(),
+        &b_dev,
+    )
+    .unwrap();
     // A CRDT_OP with garbage payload.
     let garbage = ObjectBuilder::new(ObjectType::CRDT_OP)
         .link("doc", doc.clone())
@@ -164,7 +225,15 @@ fn hostile_ops_are_excluded_not_fatal() {
     // A tombstone by a stranger.
     let stranger_tomb = op_tombstone(doc, good.id(), 300, 1, &b_root.did(), &b_dev).unwrap();
 
-    let state = replay(doc, &[good.clone(), wrong_doc.clone(), garbage.clone(), stranger_tomb.clone()]);
+    let state = replay(
+        doc,
+        &[
+            good.clone(),
+            wrong_doc.clone(),
+            garbage.clone(),
+            stranger_tomb.clone(),
+        ],
+    );
     assert_eq!(state.len(), 1);
     assert!(!state.node(good.id()).unwrap().tombstoned);
     for bad in [wrong_doc.id(), garbage.id(), stranger_tomb.id()] {

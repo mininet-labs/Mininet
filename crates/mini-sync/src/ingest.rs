@@ -4,9 +4,7 @@
 use std::collections::BTreeMap;
 
 use did_mini::{Controller, Did, Kel};
-use mini_objects::{
-    verify_provenance, Object, ObjectBuilder, ObjectType, Payload,
-};
+use mini_objects::{verify_provenance, Object, ObjectBuilder, ObjectType, Payload};
 
 /// Maximum KELs kept in one cache (DoS bound for hostile peers).
 pub const MAX_CACHED_KELS: usize = 10_000;

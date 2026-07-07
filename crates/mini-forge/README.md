@@ -23,6 +23,14 @@ no remote trigger, no path by which anyone can push code onto a device
 attestation rule is the labeled-provisional quorum; the chain replaces the
 counting, not the objects.
 
+**Protocol-repo approval floor (founder decision, 2026-07-07, D-0033).**
+`PROTOCOL_MIN_APPROVALS` is currently `2`: `valid_policy_for_protocol_repo`
+rejects any policy for a protocol-critical repo requiring fewer than 2
+maintainer approvals — no 1-of-1 canonical merge path — mirroring the
+existing `ADOPTION_MIN_ATTESTATIONS` release-attestation floor. This is a
+floor, not the final design: it upgrades to personhood-root quorum once
+SPEC-02 lands.
+
 Next batches: PR/review objects on `mini-crdt`, merge-as-governance quorum,
 git SHA-256 interop.
 

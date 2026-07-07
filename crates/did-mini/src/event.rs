@@ -25,9 +25,8 @@ use crate::codec::{Reader, Writer};
 use crate::delegation::{decode_seal, encode_seal, Seal};
 use crate::error::{IdentityError, Result};
 use crate::limits::{
-    MAX_ANCHORS, MAX_DID_BYTES, MAX_KEY_BYTES, MAX_KEYS, MAX_MULTIHASH_BYTES,
-    MAX_NEXT, MAX_PRIOR_BYTES, MAX_SCID_BYTES, MAX_SEALS, MAX_SIGNATURE_BYTES,
-    MAX_SIGNATURES, MAX_WITNESSES,
+    MAX_ANCHORS, MAX_DID_BYTES, MAX_KEYS, MAX_KEY_BYTES, MAX_MULTIHASH_BYTES, MAX_NEXT,
+    MAX_PRIOR_BYTES, MAX_SCID_BYTES, MAX_SEALS, MAX_SIGNATURES, MAX_SIGNATURE_BYTES, MAX_WITNESSES,
 };
 
 pub(crate) const TAG_ICP: u8 = 0x01;
@@ -35,7 +34,6 @@ pub(crate) const TAG_ROT: u8 = 0x02;
 pub(crate) const TAG_IXN: u8 = 0x03;
 pub(crate) const TAG_SEAL: u8 = 0x04;
 pub(crate) const TAG_DIP: u8 = 0x05;
-
 
 /// Establishment configuration carried by an inception or rotation event.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,7 +133,9 @@ impl Event {
         w.u64(self.sn);
         w.bytes(&self.prior);
         match &self.kind {
-            EventKind::Inception(est) | EventKind::Rotation(est) => encode_establishment(&mut w, est),
+            EventKind::Inception(est) | EventKind::Rotation(est) => {
+                encode_establishment(&mut w, est)
+            }
             EventKind::DelegatedInception {
                 establishment,
                 delegator,
@@ -238,7 +238,10 @@ pub(crate) fn decode(r: &mut Reader) -> Result<Event> {
             let mut anchors = Vec::with_capacity(n);
             for _ in 0..n {
                 let b = r.bytes_limited("anchor", 32)?;
-                let arr: [u8; 32] = b.as_slice().try_into().map_err(|_| IdentityError::BadEvent)?;
+                let arr: [u8; 32] = b
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| IdentityError::BadEvent)?;
                 anchors.push(arr);
             }
             EventKind::Interaction { anchors }
@@ -304,7 +307,6 @@ fn decode_establishment(r: &mut Reader) -> Result<Establishment> {
     validate_establishment(&est)?;
     Ok(est)
 }
-
 
 pub(crate) fn validate_establishment(est: &Establishment) -> Result<()> {
     if est.keys.is_empty() {
@@ -404,11 +406,7 @@ pub(crate) fn verify_threshold(event: &Event, keys: &[VerifyingKey], threshold: 
 /// Distinct by both index and public-key fingerprint, so a malformed key set that
 /// repeats a public key cannot inflate the count. Shared by event-threshold checks
 /// and detached message verification (e.g. presence attestations).
-pub(crate) fn count_valid_signers(
-    msg: &[u8],
-    keys: &[VerifyingKey],
-    sigs: &[IndexedSig],
-) -> u32 {
+pub(crate) fn count_valid_signers(msg: &[u8], keys: &[VerifyingKey], sigs: &[IndexedSig]) -> u32 {
     let mut seen_indices: Vec<u32> = Vec::new();
     let mut seen_keys: Vec<Vec<u8>> = Vec::new();
     let mut count: u32 = 0;

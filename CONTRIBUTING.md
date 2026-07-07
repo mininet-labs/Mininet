@@ -18,6 +18,12 @@ from inside the network and merge authority is governed, not granted by a platfo
   definition and is not a valid change — see `docs/INVARIANTS.md`.
 - **Default-deny on frozen domains.** If a change touches a Tier-F invariant and
   it's ambiguous whether it's permitted, the answer is no.
+- **Two approvals, for now (D-0033).** Protocol-critical repos — this one
+  included — require at least two distinct maintainer approvals before merge,
+  at least two independent release attestations before release, and at least
+  two approvals on crypto-sensitive AI-assisted code. There is no 1-of-1
+  canonical merge path. AI may draft sensitive code; a human review is always
+  required regardless. See `mini-forge::governance::PROTOCOL_MIN_APPROVALS`.
 
 ## Practical checklist for a PR
 

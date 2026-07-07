@@ -32,6 +32,16 @@ identities.
   duplicate keys, invalid next commitments, unknown capability bits, and
   signature-suite ambiguity before higher layers rely on the KEL.
 
+### Identity modes and the base device (founder decision, 2026-07-07)
+
+`IdentityMode` names the six ways a human may show up: `HumanRoot`,
+`BaseDevice`, `DeviceDid`, `PublicWall`, `PseudonymProfile`, and
+`AnonymousAction`. All but the ZK-dependent `AnonymousAction` are implemented
+today. `BaseDeviceRole` lets a device declare itself the user's recommended
+main device for storage/seeding/participation — it is operational metadata
+only, deliberately outside `Capabilities`, and cannot grant or imply a vote
+(see `base_device_role_never_requires_or_implies_capabilities`).
+
 ### Capabilities never multiply a human (P2)
 
 Capability scoping decides *which* device may act (sign, pay, post, attest, vote);
