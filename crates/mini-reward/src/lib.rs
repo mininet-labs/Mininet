@@ -29,10 +29,13 @@
 //!
 //! [`accrue_storage`] gives `mini-store::CacheTier::CommittedStorage` a reward
 //! path using the *exact same* P4 brakes as presence: diversity-weighted decay
-//! per repeat witness, a per-window rate cap, and maturation delay — see
-//! [`StorageWitness`] for the trust model this assumes. Storage/seeding earns
-//! value here, never voice: a [`StorageWitness`] carries no capability, no
-//! vote, and [`RewardAccount`] still has no field that could become one (P1).
+//! per repeat witness, a per-window rate cap, and maturation delay — fed by
+//! [`mini_storage::ServeVerdict`], the verified output of a mutually-signed
+//! storage-served receipt (`mini-storage`'s own crate docs describe the trust
+//! model, exactly mirroring how [`PresenceVerdict`] feeds [`accrue`]).
+//! Storage/seeding earns value here, never voice: a `ServeVerdict` carries no
+//! capability, no vote, and [`RewardAccount`] still has no field that could
+//! become one (P1).
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
@@ -41,6 +44,7 @@ use std::collections::{HashMap, HashSet};
 
 use did_mini::Did;
 use mini_presence::PresenceVerdict;
+use mini_storage::ServeVerdict;
 
 /// Parameters governing accrual. All integer, so accrual is exactly reproducible.
 #[derive(Debug, Clone)]
@@ -242,38 +246,17 @@ impl StorageRewardParams {
 
 const GIB: u64 = 1 << 30;
 
-/// A record that `host_root` had `bytes` of committed storage witnessed by
-/// `witness_root` (a peer who actually fetched/verified the content) at
-/// `at_ms`.
-///
-/// **Trust model:** exactly like [`PresenceVerdict`], this type is the
-/// **already-verified** input this crate expects — e.g. a mutually-signed
-/// storage-served receipt. The receipt-signing/verification pipeline that
-/// would connect `mini-store::CacheTier::CommittedStorage` to a real
-/// [`StorageWitness`] is a future `mini-store`/`mini-sync` batch and remains
-/// `pending` (see `docs/INVARIANTS.md`); this crate only adds the
-/// deterministic accrual math, the same relationship it already has with
-/// `mini-presence`. A host can never witness its own storage — `host_root ==
-/// witness_root` is ignored, the same defensive rule as presence's
-/// self-pairing check, so committing storage cannot pay yourself.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StorageWitness {
-    /// The identity root that hosts/serves the content.
-    pub host_root: Did,
-    /// The identity root that witnessed the commitment (e.g. fetched it).
-    pub witness_root: Did,
-    /// Bytes of content covered by this witnessed commitment.
-    pub bytes: u64,
-    /// When this commitment was witnessed (ms).
-    pub at_ms: u64,
-}
-
-/// Accrue one identity root's storage-commitment account from witnessed
-/// records, as of `now_ms`. Deterministic and order-independent, exactly like
-/// [`accrue`] — see [`StorageWitness`] for what "witnessed" means here.
+/// Accrue one identity root's storage-commitment account from verified serve
+/// records, as of `now_ms`. Deterministic and order-independent, exactly
+/// like [`accrue`]. `witnesses` are `mini_storage::ServeVerdict`s — the
+/// verified output of [`mini_storage::verify_serve`], the same relationship
+/// [`accrue`] has to [`PresenceVerdict`]. A host can never witness its own
+/// storage — `host_root == witness_root` is ignored defensively here too,
+/// even though `mini-storage`'s own verification already rejects it, so
+/// committing storage can never pay yourself.
 pub fn accrue_storage(
     identity_root: &Did,
-    witnesses: &[StorageWitness],
+    witnesses: &[ServeVerdict],
     params: &StorageRewardParams,
     now_ms: u64,
 ) -> RewardAccount {
@@ -313,7 +296,7 @@ pub fn accrue_storage(
 /// witness set, sorted by identifier for a stable, reproducible ledger —
 /// structurally parallel to [`ledger`].
 pub fn storage_ledger(
-    witnesses: &[StorageWitness],
+    witnesses: &[ServeVerdict],
     params: &StorageRewardParams,
     now_ms: u64,
 ) -> Vec<RewardAccount> {

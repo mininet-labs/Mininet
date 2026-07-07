@@ -393,7 +393,10 @@ name = "mini-reward"
 version = "0.0.1"
 dependencies = [
  "did-mini",
+ "mini-crypto",
+ "mini-objects",
  "mini-presence",
+ "mini-storage",
 ]
 
 [[package]]
@@ -403,6 +406,15 @@ dependencies = [
  "did-mini",
  "mini-objects",
  "mini-store",
+]
+
+[[package]]
+name = "mini-storage"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-objects",
 ]
 
 [[package]]
