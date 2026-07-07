@@ -297,6 +297,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-bootstrap"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-media",
+ "mini-objects",
+ "mini-store",
+]
+
+[[package]]
 name = "mini-crdt"
 version = "0.0.1"
 dependencies = [
@@ -401,6 +412,18 @@ dependencies = [
  "did-mini",
  "mini-bearer",
  "mini-crypto",
+ "mini-objects",
+ "mini-store",
+]
+
+[[package]]
+name = "mini-update"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-forge",
+ "mini-media",
  "mini-objects",
  "mini-store",
 ]

@@ -1,7 +1,12 @@
 # Mininet self-contained bootstrap and update path
 
-Status: accepted design target for PR-0001. Code crates still pending except the
-did:mini hardening that makes peer-exchanged identity logs safe to parse.
+Status: accepted design target for PR-0001. `mini-bootstrap` (capsule header,
+`GenesisSeed`, chunk-exchange want-lists) and `mini-update` (local adoption
+state machine over `mini-forge`'s release verification) implement the
+structural/logic layer and are fully testable offline; real BLE/local-Wi-Fi
+transport (`MINI/BT0`'s advertise/handshake/identity-exchange phases) is
+`mini-bearer`'s job and remains pending, along with the fuller genesis-file
+field schema below (see each crate's README for the precise boundary).
 
 ## Goal
 

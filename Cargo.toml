@@ -20,13 +20,15 @@ members = [
     "crates/mini-social",
     "crates/mini-media",
     "crates/mini-forge",
+    "crates/mini-bootstrap",
+    "crates/mini-update",
 ]
 
 [workspace.package]
 edition = "2021"
 rust-version = "1.83"
 license = "CC0-1.0"
-repository = "https://github.com/britak420/matej"
+repository = "https://github.com/britak420/mininet"
 authors = ["The Mininet contributors"]
 
 [profile.release]

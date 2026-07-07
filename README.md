@@ -92,8 +92,13 @@ mininet/
    before the chain. *(shipped)*
 6. `mini-keystone` — the composed end-to-end demo flow, one code path for CI
    (in-process) and phones (BLE / local Wi-Fi). *(shipped)*
-7. `mini-bootstrap` — Bluetooth chunk exchange for genesis/update bundles.
-8. `mini-update` — release-registry verification and reproducible bundle adoption.
+7. `mini-bootstrap` — the self-certifying genesis/update capsule header,
+   tiny broadcastable `GenesisSeed`, and chunk-exchange want-lists over
+   `mini-media`. *(structural piece shipped; real BLE/local-Wi-Fi transport
+   is `mini-bearer`'s job and remains pending.)*
+8. `mini-update` — local adoption-state machine wrapping `mini-forge`'s
+   release verification: evaluate, adopt, or explicitly refuse a candidate
+   release. No forced update, no kill path. *(shipped)*
 9. `mini-chain` — custom Rust chain adapting a proven Tendermint/CometBFT-style
    BFT, with equal validator power per verified human.
 

@@ -1,0 +1,17 @@
+[package]
+name = "mini-bootstrap"
+version = "0.0.1"
+description = "Self-contained bootstrap: GenesisSeed, peer cards, and the self-certifying genesis/update capsule header — no internet, no external service required."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }
+mini-media = { path = "../mini-media" }
