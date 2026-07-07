@@ -7,7 +7,7 @@ use mini_objects::{ObjectBuilder, ObjectType, Payload};
 use mini_social::{
     feed, followers, following, publish_profile, publish_wall, publish_wall_linkage,
     resolve_profile, resolve_wall, resolve_wall_linkage, set_follow, FeedFilter, FeedReason,
-    VisibilityPolicy,
+    SocialError, VisibilityPolicy,
 };
 use mini_store::{MemoryBackend, Store};
 
@@ -361,4 +361,90 @@ fn multiple_walls_are_unlinkable_by_default_and_unknown_walls_are_not_registered
     assert!(resolve_wall(&store, &never_published.did())
         .unwrap()
         .is_none());
+}
+
+#[test]
+fn resolve_wall_rejects_a_wall_head_pointing_at_a_non_wall_object() {
+    // A confused/adversarial "wall" head names the right subject string but
+    // targets an ordinary POST object, not a WALL object. resolve_wall must
+    // reject this rather than silently misparsing the POST's bytes as wall
+    // fields.
+    let (owner, device) = human(60);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let decoy = post(&mut store, &owner.did(), &device, b"not a wall", 100, 1);
+    let head = ObjectBuilder::new(ObjectType::HEAD)
+        .timestamp_ms(200)
+        .sequence(1)
+        .link("target", decoy.id().clone())
+        .payload(Payload::Public(b"wall".to_vec()))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.apply_head(&head).unwrap();
+
+    assert!(matches!(
+        resolve_wall(&store, &owner.did()),
+        Err(SocialError::BadWall)
+    ));
+}
+
+#[test]
+fn resolve_wall_linkage_rejects_a_linkage_head_pointing_at_a_non_linkage_object() {
+    let (owner, device) = human(61);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let decoy = post(&mut store, &owner.did(), &device, b"not a linkage", 100, 1);
+    let head = ObjectBuilder::new(ObjectType::HEAD)
+        .timestamp_ms(200)
+        .sequence(1)
+        .link("target", decoy.id().clone())
+        .payload(Payload::Public(b"wall-linkage".to_vec()))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.apply_head(&head).unwrap();
+
+    assert!(matches!(
+        resolve_wall_linkage(&store, &owner.did()),
+        Err(SocialError::BadWall)
+    ));
+}
+
+#[test]
+fn resolve_wall_rejects_a_wall_head_pointing_at_a_profile_object() {
+    // Same confusion, but against another WELL_KNOWN type (PROFILE) that also
+    // decodes as {name, bio, avatar} — close enough to a WALL payload shape
+    // that a naive implementation might "successfully" misparse it. The
+    // object_type guard must still catch it.
+    let (owner, device) = human(62);
+    let mut store = Store::new(MemoryBackend::new());
+
+    publish_profile(
+        &mut store,
+        &owner.did(),
+        &device,
+        "Ada",
+        "bio",
+        None,
+        100,
+        1,
+    )
+    .unwrap();
+    let profile_target = store
+        .resolve_head(&owner.did(), "profile")
+        .unwrap()
+        .unwrap();
+
+    let head = ObjectBuilder::new(ObjectType::HEAD)
+        .timestamp_ms(200)
+        .sequence(1)
+        .link("target", profile_target)
+        .payload(Payload::Public(b"wall".to_vec()))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.apply_head(&head).unwrap();
+
+    assert!(matches!(
+        resolve_wall(&store, &owner.did()),
+        Err(SocialError::BadWall)
+    ));
 }

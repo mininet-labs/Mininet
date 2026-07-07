@@ -24,6 +24,15 @@
 //! and rate caps only blunt farming; they do not prove humanness. And not money:
 //! the chain reward module (later) is the real thing; this stub deliberately has no
 //! transfer, no balance ledger, and no spend.
+//!
+//! ## Storage/seeding accrual (founder decision, 2026-07-07)
+//!
+//! [`accrue_storage`] gives `mini-store::CacheTier::CommittedStorage` a reward
+//! path using the *exact same* P4 brakes as presence: diversity-weighted decay
+//! per repeat witness, a per-window rate cap, and maturation delay — see
+//! [`StorageWitness`] for the trust model this assumes. Storage/seeding earns
+//! value here, never voice: a [`StorageWitness`] carries no capability, no
+//! vote, and [`RewardAccount`] still has no field that could become one (P1).
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
@@ -88,8 +97,9 @@ pub fn accrue(
     params: &RewardParams,
     now_ms: u64,
 ) -> RewardAccount {
-    // Collect this identity root's co-presence events as (counterparty, at_ms).
-    let mut events: Vec<(String, u64)> = Vec::new();
+    // Collect this identity root's co-presence events as (counterparty, at_ms,
+    // base points before repeat-decay).
+    let mut events: Vec<(String, u64, u64)> = Vec::new();
     for v in verdicts {
         let counterparty = if v.initiator_root.as_str() == identity_root.as_str() {
             &v.responder_root
@@ -101,8 +111,50 @@ pub fn accrue(
         if counterparty.as_str() == identity_root.as_str() {
             continue; // defensive: ignore self-pairings
         }
-        events.push((counterparty.as_str().to_string(), v.at_ms));
+        events.push((
+            counterparty.as_str().to_string(),
+            v.at_ms,
+            params.base_points,
+        ));
     }
+
+    let r = run_accrual_engine(
+        events,
+        params.max_repeats_per_counterparty,
+        params.window_ms,
+        params.max_points_per_window,
+        params.maturation_ms,
+        now_ms,
+    );
+    RewardAccount {
+        identity_root: identity_root.clone(),
+        accrued_points: r.accrued,
+        vested_points: r.vested,
+        distinct_counterparties: r.distinct,
+        event_count: r.event_count,
+    }
+}
+
+/// The shared accrual engine behind both [`accrue`] and [`accrue_storage`]:
+/// diversity-weighted repeat decay, a per-window rate cap, and a maturation
+/// delay (P4's three brakes), applied identically regardless of what kind of
+/// event is being accrued. `events` is `(counterparty, at_ms, base_points)`;
+/// ordering does not matter, the engine canonicalizes it.
+struct EngineResult {
+    accrued: u64,
+    vested: u64,
+    distinct: u32,
+    event_count: u32,
+}
+
+fn run_accrual_engine(
+    mut events: Vec<(String, u64, u64)>,
+    max_repeats_per_counterparty: u32,
+    window_ms: u64,
+    max_points_per_window: u64,
+    maturation_ms: u64,
+    now_ms: u64,
+) -> EngineResult {
     // Canonical order for reproducibility.
     events.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
 
@@ -113,49 +165,169 @@ pub fn accrue(
     let mut accrued: u64 = 0;
     let mut vested: u64 = 0;
 
-    for (counterparty, at_ms) in &events {
-        let at_ms = *at_ms;
+    for (counterparty, at_ms, base_points) in events {
         distinct.insert(counterparty.clone());
 
         let k = {
-            let entry = seen_counts.entry(counterparty.clone()).or_insert(0);
+            let entry = seen_counts.entry(counterparty).or_insert(0);
             let prior = *entry;
             *entry += 1;
             prior
         };
-        if k >= params.max_repeats_per_counterparty {
+        if k >= max_repeats_per_counterparty {
             continue;
         }
-        let raw = params.base_points >> k.min(63);
+        let raw = base_points >> k.min(63);
         if raw == 0 {
             continue;
         }
 
         // Per-window rate cap.
-        let credited = if params.window_ms == 0 {
+        let credited = if window_ms == 0 {
             raw
         } else {
-            let w = at_ms / params.window_ms;
+            let w = at_ms / window_ms;
             let used = window_used.entry(w).or_insert(0);
-            let room = params.max_points_per_window.saturating_sub(*used);
+            let room = max_points_per_window.saturating_sub(*used);
             let c = raw.min(room);
             *used += c;
             c
         };
 
         accrued = accrued.saturating_add(credited);
-        if at_ms.saturating_add(params.maturation_ms) <= now_ms {
+        if at_ms.saturating_add(maturation_ms) <= now_ms {
             vested = vested.saturating_add(credited);
         }
     }
 
-    RewardAccount {
-        identity_root: identity_root.clone(),
-        accrued_points: accrued,
-        vested_points: vested,
-        distinct_counterparties: distinct.len() as u32,
+    EngineResult {
+        accrued,
+        vested,
+        distinct: distinct.len() as u32,
         event_count,
     }
+}
+
+/// Parameters governing storage-commitment accrual — the same three P4 brakes
+/// as [`RewardParams`], scaled by committed bytes rather than a flat
+/// per-event amount.
+#[derive(Debug, Clone)]
+pub struct StorageRewardParams {
+    /// Points per committed gibibyte (2^30 bytes) for a fresh witness.
+    pub points_per_gib: u64,
+    /// After this many witnessed commitments from the *same* witness, further
+    /// ones give nothing (decay by halving before that, same as presence).
+    pub max_repeats_per_witness: u32,
+    /// Rate-cap window length in ms (`0` disables the cap).
+    pub window_ms: u64,
+    /// Maximum points that can accrue within any one window (the P4 rate brake).
+    pub max_points_per_window: u64,
+    /// A contribution only vests after this delay past its event time (P4).
+    pub maturation_ms: u64,
+}
+
+impl StorageRewardParams {
+    /// A conservative demo profile, structurally parallel to
+    /// [`RewardParams::demo_default`].
+    pub fn demo_default() -> Self {
+        StorageRewardParams {
+            points_per_gib: 100,
+            max_repeats_per_witness: 5,
+            window_ms: 3_600_000, // 1 hour
+            max_points_per_window: 5_000,
+            maturation_ms: 86_400_000, // 1 day
+        }
+    }
+}
+
+const GIB: u64 = 1 << 30;
+
+/// A record that `host_root` had `bytes` of committed storage witnessed by
+/// `witness_root` (a peer who actually fetched/verified the content) at
+/// `at_ms`.
+///
+/// **Trust model:** exactly like [`PresenceVerdict`], this type is the
+/// **already-verified** input this crate expects — e.g. a mutually-signed
+/// storage-served receipt. The receipt-signing/verification pipeline that
+/// would connect `mini-store::CacheTier::CommittedStorage` to a real
+/// [`StorageWitness`] is a future `mini-store`/`mini-sync` batch and remains
+/// `pending` (see `docs/INVARIANTS.md`); this crate only adds the
+/// deterministic accrual math, the same relationship it already has with
+/// `mini-presence`. A host can never witness its own storage — `host_root ==
+/// witness_root` is ignored, the same defensive rule as presence's
+/// self-pairing check, so committing storage cannot pay yourself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StorageWitness {
+    /// The identity root that hosts/serves the content.
+    pub host_root: Did,
+    /// The identity root that witnessed the commitment (e.g. fetched it).
+    pub witness_root: Did,
+    /// Bytes of content covered by this witnessed commitment.
+    pub bytes: u64,
+    /// When this commitment was witnessed (ms).
+    pub at_ms: u64,
+}
+
+/// Accrue one identity root's storage-commitment account from witnessed
+/// records, as of `now_ms`. Deterministic and order-independent, exactly like
+/// [`accrue`] — see [`StorageWitness`] for what "witnessed" means here.
+pub fn accrue_storage(
+    identity_root: &Did,
+    witnesses: &[StorageWitness],
+    params: &StorageRewardParams,
+    now_ms: u64,
+) -> RewardAccount {
+    let mut events: Vec<(String, u64, u64)> = Vec::new();
+    for w in witnesses {
+        if w.host_root.as_str() != identity_root.as_str() {
+            continue;
+        }
+        if w.witness_root.as_str() == identity_root.as_str() {
+            continue; // defensive: a host cannot witness (and pay) itself
+        }
+        let raw = (w.bytes / GIB).saturating_mul(params.points_per_gib);
+        if raw == 0 {
+            continue;
+        }
+        events.push((w.witness_root.as_str().to_string(), w.at_ms, raw));
+    }
+
+    let r = run_accrual_engine(
+        events,
+        params.max_repeats_per_witness,
+        params.window_ms,
+        params.max_points_per_window,
+        params.maturation_ms,
+        now_ms,
+    );
+    RewardAccount {
+        identity_root: identity_root.clone(),
+        accrued_points: r.accrued,
+        vested_points: r.vested,
+        distinct_counterparties: r.distinct,
+        event_count: r.event_count,
+    }
+}
+
+/// Accrue storage-commitment accounts for every host root appearing in the
+/// witness set, sorted by identifier for a stable, reproducible ledger —
+/// structurally parallel to [`ledger`].
+pub fn storage_ledger(
+    witnesses: &[StorageWitness],
+    params: &StorageRewardParams,
+    now_ms: u64,
+) -> Vec<RewardAccount> {
+    let mut roots: Vec<Did> = Vec::new();
+    for w in witnesses {
+        if !roots.iter().any(|x| x.as_str() == w.host_root.as_str()) {
+            roots.push(w.host_root.clone());
+        }
+    }
+    roots.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    roots
+        .iter()
+        .map(|h| accrue_storage(h, witnesses, params, now_ms))
+        .collect()
 }
 
 /// Accrue accounts for every identity root appearing in the verdict set, sorted by
