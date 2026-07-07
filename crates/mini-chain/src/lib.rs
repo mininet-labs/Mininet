@@ -38,6 +38,8 @@ mod vote;
 
 pub use block::BlockHeader;
 pub use error::{ChainError, Result};
-pub use finality::{verify_finality, QuorumCertificate, ValidatorOracle};
-pub use validator::ValidatorSet;
+pub use finality::{
+    verify_finality, QuorumCertificate, ValidatorOracle, MAX_VOTES_PER_CERTIFICATE,
+};
+pub use validator::{ValidatorSet, MAX_VALIDATORS};
 pub use vote::{sign_vote, verify_vote, Vote, VoteKind};

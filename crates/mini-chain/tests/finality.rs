@@ -6,9 +6,19 @@
 use did_mini::{Capabilities, Controller, Did};
 use mini_chain::{
     sign_vote, verify_finality, verify_vote, BlockHeader, ChainError, QuorumCertificate,
-    ValidatorOracle, ValidatorSet, VoteKind,
+    ValidatorOracle, ValidatorSet, VoteKind, MAX_VALIDATORS, MAX_VOTES_PER_CERTIFICATE,
 };
+use mini_crypto::{encoding, HashAlgorithm, Multihash};
 use std::collections::BTreeMap;
+
+/// A cheap, structurally-valid but otherwise meaningless `did:mini` — no
+/// asymmetric key generation, just a hash — for tests that need many
+/// distinct identifiers fast and don't need any of them to actually verify.
+fn fake_did(tag: u64) -> Did {
+    let mh = Multihash::of(HashAlgorithm::Blake3, &tag.to_be_bytes());
+    let scid = encoding::encode(encoding::BASE58BTC, &mh.to_bytes()).unwrap();
+    Did::from_scid(&scid).unwrap()
+}
 
 fn validator(seed: u8) -> (Controller, Controller) {
     let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
@@ -363,4 +373,56 @@ fn a_forged_or_altered_signature_is_rejected() {
         verify_vote(&forged, &b_root.kel(), &a_dev.kel()),
         Err(ChainError::Identity(_))
     ));
+}
+
+#[test]
+fn validator_set_rejects_more_than_the_cap() {
+    let roots: Vec<Did> = (0..=MAX_VALIDATORS as u64).map(fake_did).collect();
+    assert_eq!(roots.len(), MAX_VALIDATORS + 1);
+    assert_eq!(
+        ValidatorSet::new(roots).unwrap_err(),
+        ChainError::LimitExceeded
+    );
+
+    // Exactly at the cap still succeeds.
+    let ok: Vec<Did> = (0..MAX_VALIDATORS as u64).map(fake_did).collect();
+    assert!(ValidatorSet::new(ok).is_ok());
+}
+
+#[test]
+fn verify_finality_rejects_a_certificate_with_too_many_votes() {
+    let (a_root, a_dev) = validator(10);
+    let validators = ValidatorSet::new(vec![a_root.did()]).unwrap();
+    let header = genesis_header(&a_root.did());
+    let hash = header.hash();
+    let mut oracle = Directory::default();
+    oracle.insert(a_root.kel());
+    oracle.insert(a_dev.kel());
+
+    // A junk-stuffed certificate — none of these need to be individually
+    // valid, the cap must reject the certificate before any per-vote
+    // signature verification happens.
+    let votes: Vec<_> = (0..=MAX_VOTES_PER_CERTIFICATE)
+        .map(|i| {
+            sign_vote(
+                VoteKind::Precommit,
+                1,
+                i as u32,
+                hash,
+                &a_root.did(),
+                &a_dev,
+            )
+        })
+        .collect();
+    assert_eq!(votes.len(), MAX_VOTES_PER_CERTIFICATE + 1);
+    let qc = QuorumCertificate {
+        height: 1,
+        round: 0,
+        block_hash: hash,
+        votes,
+    };
+    assert_eq!(
+        verify_finality(&qc, &validators, &oracle).unwrap_err(),
+        ChainError::LimitExceeded
+    );
 }

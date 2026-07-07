@@ -10,9 +10,14 @@ use did_mini::Did;
 
 use crate::error::{ChainError, Result};
 
+/// Hard cap on validator-set size: an allocation/CPU bound applied before
+/// any processing, the same discipline `mini-forge::MAX_MAINTAINERS` and
+/// `mini-objects::MAX_LINKS` apply to their own untrusted collections.
+pub const MAX_VALIDATORS: usize = 10_000;
+
 /// A validator set: distinct identity roots, each with exactly one equal
-/// vote. Construction rejects an empty or duplicate-containing set so no
-/// caller can silently build an unsafe or double-counted set.
+/// vote. Construction rejects an empty, oversized, or duplicate-containing
+/// set so no caller can silently build an unsafe or double-counted set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatorSet {
     roots: Vec<Did>,
@@ -24,6 +29,9 @@ impl ValidatorSet {
     pub fn new(mut roots: Vec<Did>) -> Result<Self> {
         if roots.is_empty() {
             return Err(ChainError::EmptyValidatorSet);
+        }
+        if roots.len() > MAX_VALIDATORS {
+            return Err(ChainError::LimitExceeded);
         }
         roots.sort_by(|a, b| a.as_str().cmp(b.as_str()));
         let mut seen: HashSet<&str> = HashSet::with_capacity(roots.len());

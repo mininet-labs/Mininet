@@ -17,8 +17,16 @@ use std::collections::HashSet;
 use did_mini::{Did, Kel};
 
 use crate::error::{ChainError, Result};
-use crate::validator::ValidatorSet;
+use crate::validator::{ValidatorSet, MAX_VALIDATORS};
 use crate::vote::{verify_vote, Vote, VoteKind};
+
+/// Hard cap on votes accepted into one certificate-verification pass: an
+/// allocation/CPU bound applied *before* any signature verification, so a
+/// certificate stuffed with junk votes (duplicates, wrong phase/height,
+/// non-validators) cannot force unbounded crypto work. A well-formed
+/// certificate has at most one relevant vote per validator; this generous
+/// multiple leaves room for duplicates/noise without being unbounded.
+pub const MAX_VOTES_PER_CERTIFICATE: usize = 4 * MAX_VALIDATORS;
 
 /// Supplies verified KELs for validator roots and devices.
 ///
@@ -66,6 +74,9 @@ pub fn verify_finality(
     validators: &ValidatorSet,
     oracle: &dyn ValidatorOracle,
 ) -> Result<usize> {
+    if qc.votes.len() > MAX_VOTES_PER_CERTIFICATE {
+        return Err(ChainError::LimitExceeded);
+    }
     let mut counted: HashSet<String> = HashSet::new();
     for vote in &qc.votes {
         if vote.kind != VoteKind::Precommit {

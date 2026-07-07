@@ -17,8 +17,9 @@ pub enum ChainError {
     DeviceMismatch,
     /// The voting device is not delegated with `Capabilities::VOTE`.
     MissingVoteCapability,
-    /// A vote's transcript did not match its `kind`/`height`/`round`/`block_hash`.
-    Malformed,
+    /// A validator set or vote list exceeded this crate's hard cap for
+    /// untrusted input (allocation/CPU bound, applied before processing).
+    LimitExceeded,
     /// Too few distinct, currently-valid validator votes to reach quorum.
     QuorumNotMet {
         /// Distinct validator roots required (`> 2/3` of the set).
@@ -41,7 +42,7 @@ impl core::fmt::Display for ChainError {
             ChainError::MissingVoteCapability => {
                 write!(f, "voting device is not delegated with VOTE capability")
             }
-            ChainError::Malformed => write!(f, "vote transcript is malformed"),
+            ChainError::LimitExceeded => write!(f, "validator set or vote list exceeds its cap"),
             ChainError::QuorumNotMet { needed, got } => {
                 write!(f, "quorum not met: needed {needed}, got {got}")
             }
