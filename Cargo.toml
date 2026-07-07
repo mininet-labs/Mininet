@@ -28,7 +28,7 @@ members = [
 edition = "2021"
 rust-version = "1.83"
 license = "CC0-1.0"
-repository = "https://github.com/britak420/mininet"
+repository = "https://github.com/britak420/Mininet"
 authors = ["The Mininet contributors"]
 
 [profile.release]
