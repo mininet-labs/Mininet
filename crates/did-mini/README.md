@@ -42,6 +42,17 @@ main device for storage/seeding/participation — it is operational metadata
 only, deliberately outside `Capabilities`, and cannot grant or imply a vote
 (see `base_device_role_never_requires_or_implies_capabilities`).
 
+### Pairwise pseudonyms (SPEC-01 §10)
+
+`Controller::incept_pairwise_pseudonym(context)` deterministically derives an
+independent, ordinary `did:mini` root from a human's existing root plus an
+arbitrary context string (HKDF-SHA256 over the root's current key material,
+never leaving the device). Same root + same context always recovers the same
+pseudonym, with no extra seed storage; different contexts are unlinkable by
+default. This is what makes "one human, many public/pseudonymous surfaces"
+(see `mini-social::PublicWall`) a one-line call instead of hand-managing N
+random seeds. See `crates/did-mini/tests/pairwise.rs`.
+
 ### Capabilities never multiply a human (P2)
 
 Capability scoping decides *which* device may act (sign, pay, post, attest, vote);

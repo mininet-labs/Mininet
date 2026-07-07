@@ -14,6 +14,11 @@
 //! [`Controller::incept_device`], whose identifier commits to the human-root that
 //! delegates it. The human-root authorizes it with [`Controller::delegate_device`]
 //! and can [`Controller::revoke_device`] later.
+//!
+//! Pairwise pseudonyms (SPEC-01 §10): [`Controller::incept_pairwise_pseudonym`]
+//! deterministically mints an independent, unlinkable-by-default root per
+//! context from this root's key material, so one human can run many
+//! pseudonym identities as one function call each, not N hand-managed seeds.
 
 use mini_crypto::{SignatureSuite, SigningKey};
 
@@ -23,6 +28,11 @@ use crate::event::{self, Establishment, Event, EventKind, IndexedSig};
 use crate::kel::{Kel, KeyState};
 use crate::limits::{MAX_ANCHORS, MAX_SEALS};
 use crate::Did;
+
+/// Domain-separation salt for [`Controller::incept_pairwise_pseudonym`]'s
+/// HKDF derivation. Versioned in the string itself (`v1`) so a future
+/// derivation scheme can coexist without silently colliding with this one.
+const PAIRWISE_PSEUDONYM_SALT: &[u8] = b"mininet/did-mini/pairwise-pseudonym/v1";
 
 /// Holds an identity's secret keys and its event history.
 pub struct Controller {
@@ -71,6 +81,41 @@ impl Controller {
             vec![SigningKey::generate()?],
             1,
         )
+    }
+
+    /// Deterministically derive an independent pairwise pseudonym root from
+    /// this root's current key material and an arbitrary `context` (SPEC-01
+    /// §10; founder decision 2026-07-07): e.g. a counterparty's DID, a
+    /// community name, `b"wall:my-project"` — anything the caller wants to
+    /// keep stable to recover the *same* pseudonym again later, with no
+    /// extra seed storage. Different contexts yield unlinkable,
+    /// independent-looking roots; the same root + same context always yields
+    /// the same pseudonym.
+    ///
+    /// The derived root is an **ordinary, independent `did:mini` identity**
+    /// by every check this crate can run — its own SCID, KEL, and
+    /// pre-rotation commitments. Nothing in its wire form links it back to
+    /// this root; the derivation itself never leaves the device (G1) and the
+    /// KDF's pseudorandomness is what stands between an observer and
+    /// correlating the two, not any protocol-visible fact.
+    ///
+    /// Requires this root to be a single-key (1-of-1) identity, the common
+    /// case for `incept_single*` — there is no canonical "the" key to derive
+    /// from on a multi-key/threshold root, so those return
+    /// [`IdentityError::PairwiseRequiresSingleKey`].
+    pub fn incept_pairwise_pseudonym(&self, context: &[u8]) -> Result<Controller> {
+        if self.current.len() != 1 || self.current_threshold != 1 {
+            return Err(IdentityError::PairwiseRequiresSingleKey);
+        }
+        let ikm = self.current[0].to_seed_bytes();
+        let derived = mini_crypto::KdfSuite::HkdfSha256
+            .derive_bytes(Some(PAIRWISE_PSEUDONYM_SALT), &ikm, context, 64)
+            .map_err(IdentityError::Crypto)?;
+        let mut current_seed = [0u8; 32];
+        let mut next_seed = [0u8; 32];
+        current_seed.copy_from_slice(&derived[..32]);
+        next_seed.copy_from_slice(&derived[32..]);
+        Controller::incept_single_from_seeds(&current_seed, &next_seed)
     }
 
     /// Incept with an explicit current/next key set and thresholds.

@@ -12,7 +12,7 @@
 //! | [`IdentityMode::BaseDevice`] | The user's recommended main/static device for hosting, storage, and seeding. | implemented — [`crate::BaseDeviceRole`] |
 //! | [`IdentityMode::DeviceDid`] | A delegated device, capability-scoped to its human-root. | implemented — [`crate::delegation`] |
 //! | [`IdentityMode::PublicWall`] | A chosen public-facing profile, published under any DID the user picks. | implemented — `mini-social::PublicWall` |
-//! | [`IdentityMode::PseudonymProfile`] | A context identity: an independent `did:mini` root run without publishing a linkage to any other identity. | implemented structurally (any root can serve this role); dedicated pairwise-identifier tooling (SPEC-01 §10) is `pending` |
+//! | [`IdentityMode::PseudonymProfile`] | A context identity: an independent `did:mini` root run without publishing a linkage to any other identity. | implemented — [`crate::Controller::incept_pairwise_pseudonym`] (SPEC-01 §10) derives one deterministically per context, so it's a function call rather than a hand-managed seed |
 //! | [`IdentityMode::AnonymousAction`] | A nullifier/ZK-proved action revealing nothing beyond "some verified human did this once." | `pending` — SPEC-02 `PersonhoodOracle` |
 //!
 //! This is intentionally a plain, unsigned, non-wire enum: it is vocabulary

@@ -72,6 +72,9 @@ pub enum IdentityError {
         /// Distinct valid signatures found.
         got: u32,
     },
+    /// A pairwise pseudonym was requested from a multi-key/threshold root —
+    /// there is no canonical single key to derive from.
+    PairwiseRequiresSingleKey,
 }
 
 impl fmt::Display for IdentityError {
@@ -133,6 +136,10 @@ impl fmt::Display for IdentityError {
             IdentityError::SignatureThresholdNotMet { needed, got } => {
                 write!(f, "signature threshold not met: needed {needed}, got {got}")
             }
+            IdentityError::PairwiseRequiresSingleKey => write!(
+                f,
+                "pairwise pseudonym derivation requires a single-key (1-of-1) root"
+            ),
         }
     }
 }
