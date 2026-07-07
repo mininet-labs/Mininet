@@ -308,6 +308,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-chain"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+]
+
+[[package]]
 name = "mini-crdt"
 version = "0.0.1"
 dependencies = [

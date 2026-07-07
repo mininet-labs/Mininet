@@ -100,7 +100,11 @@ mininet/
    release verification: evaluate, adopt, or explicitly refuse a candidate
    release. No forced update, no kill path. *(shipped)*
 9. `mini-chain` — custom Rust chain adapting a proven Tendermint/CometBFT-style
-   BFT, with equal validator power per verified human.
+   BFT, with equal validator power per verified identity root, never stake.
+   *(finality-verification core shipped — `ValidatorSet`, `BlockHeader`,
+   `Vote`/quorum-certificate verification, `Capabilities::VOTE`'s first real
+   consumer; the networked consensus protocol and state machine remain
+   pending.)*
 
 See `docs/ROADMAP.md` for the full pack sequence and acceptance tests.
 
