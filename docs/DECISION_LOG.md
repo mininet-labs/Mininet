@@ -1066,6 +1066,24 @@ ships with that label, but is explicitly **not** a substitute for the
 human-authored, externally-audited version the whitepaper requires before
 real value or real personhood proofs depend on it.
 
+**All four now design-passed 2026-07-08 under this same rule, the last
+(`mini-value`) built most conservatively of all, per founder direction:**
+`mini-value::fee` (the whitepaper §8.4 fee mechanism — governed price
+history and the arithmetic converting a real-world value target to a MINI
+amount) is ordinary bookkeeping, fully implemented and tested, same shape
+as `mini_treasury::rate`. The three actual privacy primitives —
+`ring::RingSignatureScheme`, `stealth::StealthAddressScheme`,
+`confidential::ConfidentialAmountScheme` — are seams only, each with a
+`NoX` stub that **fails closed**: none of `NoRingSignature`,
+`NoStealthAddress`, or `NoConfidentialAmount` will sign, derive, commit, or
+verify anything as valid, so an absent real implementation can never be
+mistaken for a working one. This closes D-0034's four-item sequence: every
+item has either shipped in full (`mini-net`, UWB ranging) or shipped its
+safe half with the genuinely novel cryptography honestly stubbed
+(`mini-uniqueness`, `mini-spacetime`, `mini-treasury`, `mini-value`) — the
+human-authored, externally-audited work this point requires remains
+entirely ahead of this tree, not begun by proxy through any of these stubs.
+
 **6. New, smaller items noted for future tasks, not acted on in this entry:**
 onion-style multi-hop relay routing where "relays earn MINI for carrying it"
 (whitepaper §6) — `mini-bearer`'s current channel is direct two-party, not

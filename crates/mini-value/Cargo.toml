@@ -1,0 +1,12 @@
+[package]
+name = "mini-value"
+version = "0.0.1"
+description = "MINI transaction fee bookkeeping (whitepaper SS8.4) plus the trait seams for Monero-style transaction privacy (ring signatures, stealth addresses, confidential amounts) -- the privacy primitives themselves are deliberately not implemented here."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
