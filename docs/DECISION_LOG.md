@@ -1505,3 +1505,74 @@ a spec doesn't cover — are expected to be reasoned from. Per the
 directives' own Directive 17 ("future child" test) and Directive 13
 ("think in centuries"), that adoption is exactly the kind of decision this
 log exists to make permanent and attributable, not silently assumed.
+
+---
+
+### D-0044 — Master roadmap opened; first four audit issues closed; CI gained real dependency scanning and reproducibility checks  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** GitHub issue #92 (roadmap index), issues #8/#10/#29/#69/#71/#73, `docs/audits/`, `.github/workflows/ci.yml`.
+
+Founder direction: convert the founder's own CTO-level engineering
+roadmap (Phases 0-12, ~85 topics) into GitHub issues rather than a
+document only, "otherwise engineers will start solving local problems
+instead of building the civilization in the correct order." 84 issues
+opened plus a master hub/index issue (#92) substituting for a GitHub
+Project board, since no tool exists in this environment to create one
+directly. Also established `docs/FAILURE_BOOK.md` (founder proposal,
+issue #91) and `SECURITY.md`.
+
+**First batch of issues actually closed, not just filed** — chosen for
+being genuinely completable without external auditors, real hardware, or
+business decisions:
+
+- **#73 (dependency-vulnerability scanning) + #69 (reproducible builds)**,
+  closed together in `.github/workflows/ci.yml`. Reproducibility: verified
+  locally first (build the workspace twice from a clean target directory,
+  hash the example binaries, confirm byte-identical output) before writing
+  the CI job, rather than writing an untested job and hoping. Dependency
+  scanning: attempting a naive `cargo install cargo-audit --locked` surfaced
+  a real, non-obvious problem — the newest `cargo-audit` compatible with
+  this workspace's pinned toolchain (rustc 1.83.0) cannot parse the current
+  RustSec advisory database (it contains CVSS 4.0 entries a too-old
+  `rustsec` crate version doesn't understand), so it would have "passed" a
+  CI job that never actually scanned anything. Fixed by using the official
+  `rustsec/audit-check` GitHub Action instead, which ships its own prebuilt
+  binary decoupled from this repo's toolchain pin.
+- **#71 (memory-safety audit)** — confirmed all 22 crates carry
+  `#![forbid(unsafe_code)]`; audited the 40-crate external dependency tree
+  (sources already cached locally) for `unsafe` usage and found every
+  occurrence falls into one of four expected categories (SIMD intrinsics,
+  OS-syscall FFI for entropy, zeroize's core correctness requirement, or
+  build-time-only macro tooling) — none unexplained or obscure.
+- **#29 (CID integrity review)** — traced content-addressing end to end
+  across `mini-crypto::multihash` (algorithm downgrade/multicodec-confusion/
+  encoding-malleability all closed), `mini_objects::ObjectId` (id always
+  recomputed from parsed content, never trusted from the wire),
+  `mini_store::Store` (content-addressing re-checked on every read, not
+  just at insert), and `mini-media`'s chunked assembly (whole-payload
+  length + digest both checked, closing the truncation concern). PASS on
+  all four layers.
+- **#8 (constitutional audit)** — a 26-row PASS/PARTIAL/FAIL matrix
+  against every Tier-F row in `docs/INVARIANTS.md`, adding a
+  centralization-vector and trust-assumption column INVARIANTS.md itself
+  doesn't carry. Result: 18 PASS, 7 PARTIAL, 1 not-yet-built, **zero
+  violations** — every PARTIAL traces to the same root cause (the
+  networked chain and storage fabric not existing yet), which independently
+  confirms the roadmap's own Phase 4/Phase 5 prioritization rather than
+  surfacing a reason to reorder it.
+- **#10 (frozen invariants review)** — the sharper, four-adversarial-
+  question companion to #8 (institutional control? money buying
+  governance, even indirectly? second-class humans? freedom-removing
+  updates?), grouped thematically rather than row-by-row to avoid
+  repeating identical answers 26 times. Its one real finding: **Sybil-cost
+  economics is the sharpest "maybe" in the whole review** — an attacker
+  with capital can indirectly buy governance/value by mass-producing
+  verified-looking identities rather than by touching any balance-to-vote
+  mapping directly. Not a code defect (nothing today violates P1/P2), but
+  the clearest confirmation that Phase 2's Sybil-resistance work (#18/#20)
+  is correctly the roadmap's highest-priority open question, not merely
+  one item among many.
+
+All four audits are filed under `docs/audits/`, one file per issue,
+explicitly point-in-time and non-living (like this log and the Failure
+Book) — a future code change that could affect a verdict gets a *new*
+dated audit, not a silent edit to an old one.

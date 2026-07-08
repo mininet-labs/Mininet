@@ -46,7 +46,7 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0043` so far) and
+   architectural and policy decision, numbered `D-0001`–`D-0044` so far) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register mapped to code) are
    the two documents that outrank any comment or README, including this one.
    `CONTRIBUTING.md` has the PR/review checklist (two-approval floor, D-0033).
@@ -94,6 +94,7 @@ mininet/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
 │   ├── FAILURE_BOOK.md          every rejected design and abandoned approach, and why
+│   ├── audits/                  written audit deliverables for roadmap review issues
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code
 │   ├── ROADMAP.md               pack order from two-phone demo to full network
 │   ├── BETA_STATUS.md           near-term target: the two-phone keystone beta
@@ -212,9 +213,11 @@ documented at the crate level.
 6. **Consensus and chain networking.** `mini-chain` verifies finality given
    valid votes; the networked BFT protocol (proposing, voting, gossiping
    blocks across real peers) and the full state machine are not built yet.
-7. **Security posture at scale.** No dependency-vulnerability scanning is
-   wired into CI yet (`cargo audit` or equivalent), and the reproducible-
-   build CI job is present but disabled pending real infrastructure.
+7. **Security posture at scale.** Closed (D-0044): dependency-vulnerability
+   scanning (`rustsec/audit-check`) and a real same-machine reproducible-
+   build check both run in CI now. Still open: the full cross-machine,
+   K-independent-builder reproducibility SPEC-11 §8 ultimately wants, and
+   ongoing triage process for whatever the scanner eventually flags.
 8. **Abuse/moderation tooling at the edges.** Content rules are explicitly
    meant to live in user/community filters (constitution principle 10), but
    almost none of that tooling exists yet beyond `mini-social`'s follow
@@ -233,8 +236,6 @@ sequencing, which currently targets the much nearer two-phone keystone beta
 
 ## Suggested improvements (not yet decided, worth raising with the founder cohort)
 
-- Wire `cargo audit` (or `cargo deny`) into CI now, while the dependency tree
-  is still small — cheap today, much more valuable once it's not.
 - Consider standing up the DKG variant of FROST keygen before the trusted-
   dealer version ever gets used with anything of real value, even in a
   testnet — it's a smaller lift now than a migration later.

@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 22,
-    "files": 197,
-    "headings": 299,
+    "files": 202,
+    "headings": 329,
     "rust_symbols": 1803
   },
   "crates": {
@@ -154,7 +154,7 @@
       "title": "Summary"
     },
     {
-      "bytes": 1250,
+      "bytes": 3839,
       "group": "ci",
       "headings": [
         {
@@ -171,32 +171,32 @@
       "keywords": [
         "name",
         "run",
-        "check",
         "cargo",
+        "tmp",
+        "txt",
+        "uses",
+        "toolchain",
+        "cargo-audit",
         "build",
-        "least-privilege",
+        "release",
+        "repo",
+        "show",
+        "workspace",
+        "target",
         "default",
         "workflow",
-        "reads",
         "checks",
-        "repo",
-        "never",
         "needs",
         "write",
-        "anything",
         "releases",
-        "comments",
-        "pushes",
-        "warnings",
+        "contents",
+        "check",
         "runs-on",
-        "ubuntu-latest",
-        "steps",
-        "uses",
-        "actions"
+        "ubuntu-latest"
       ],
-      "lines": 46,
+      "lines": 102,
       "path": ".github/workflows/ci.yml",
-      "sha256": "8ec4f76a1cd767dd429ff3106650f6abd30b7c04e04497213c8d81cd99b88749",
+      "sha256": "003faab42a5dbb4bc8c8cdc6b3e85ddd518cee629bd8b0366a8861c49df59871",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
@@ -423,7 +423,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 19873,
+      "bytes": 19969,
       "group": "root",
       "headings": [
         {
@@ -448,47 +448,47 @@
         },
         {
           "level": 2,
-          "line": 142,
+          "line": 143,
           "text": "What we've built so far, grouped by theme"
         },
         {
           "level": 2,
-          "line": 176,
+          "line": 177,
           "text": "Path to a global launch \u2014 what is still missing"
         },
         {
           "level": 2,
-          "line": 234,
+          "line": 237,
           "text": "Suggested improvements (not yet decided, worth raising with the founder cohort)"
         },
         {
           "level": 2,
-          "line": 249,
+          "line": 250,
           "text": "Constitution summary"
         },
         {
           "level": 2,
-          "line": 270,
+          "line": 271,
           "text": "Identity, public walls, and base devices"
         },
         {
           "level": 2,
-          "line": 293,
+          "line": 294,
           "text": "Stack at a glance"
         },
         {
           "level": 2,
-          "line": 305,
+          "line": 306,
           "text": "Build & test"
         },
         {
           "level": 2,
-          "line": 316,
+          "line": 317,
           "text": "Contributing & review"
         },
         {
           "level": 2,
-          "line": 324,
+          "line": 325,
           "text": "License"
         }
       ],
@@ -518,9 +518,9 @@
         "live",
         "external"
       ],
-      "lines": 327,
+      "lines": 328,
       "path": "README.md",
-      "sha256": "6cbe357650c16610a688327d41e826d0019cfde6f83c4a36d2754d5bdefaf4d2",
+      "sha256": "30ff20ae59351875fd89cd17e2720ec0ac538d4776e2e0e00ddd111d80731793",
       "symbols": [],
       "title": "Mininet"
     },
@@ -16726,7 +16726,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 90823,
+      "bytes": 95282,
       "group": "docs",
       "headings": [
         {
@@ -16948,6 +16948,11 @@
           "level": 3,
           "line": 1465,
           "text": "D-0043 \u2014 `docs/FOUNDER_DIRECTIVES.md` adopted as a canonical document  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 1511,
+          "text": "D-0044 \u2014 Master roadmap opened; first four audit issues closed; CI gained real dependency scanning and reproducibility checks  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -16976,9 +16981,9 @@
         "hash",
         "sha-256"
       ],
-      "lines": 1508,
+      "lines": 1579,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "ce7bddcfedba665a0d610497ee6c4a2c2551ba37e02f398f1d96625e72a00abc",
+      "sha256": "55f3ce747abe223ca39f7ac23241dc5fc90240d67e8dbc92d27e449b352f9f20",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -17787,6 +17792,336 @@
       "sha256": "9902569179f579fb27ddeb6a04313328d590c2f064a4d894dcbbaaf2d473b8c3",
       "symbols": [],
       "title": "Mininet UI Beta \u2014 Roadmap, Epics, Sprints, Tasks"
+    },
+    {
+      "bytes": 1612,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Audits"
+        }
+      ],
+      "keywords": [
+        "github",
+        "issues",
+        "https",
+        "com",
+        "britak420",
+        "audits",
+        "file",
+        "pass",
+        "issue",
+        "closes",
+        "what",
+        "verdict",
+        "issue-8-constitutional-audit",
+        "issue-10-frozen-invariants-review",
+        "current",
+        "open",
+        "issue-29-cid-integrity-review",
+        "issue-71-memory-safety-audit",
+        "new",
+        "same",
+        "written",
+        "deliverables",
+        "review",
+        "audit-shaped"
+      ],
+      "lines": 22,
+      "path": "docs/audits/README.md",
+      "sha256": "f17f96b1b3506a0d64cb66b9afe019b108969f43ccab3ffdbb555b4dc65e803d",
+      "symbols": [],
+      "title": "Audits"
+    },
+    {
+      "bytes": 10904,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Frozen invariants review"
+        },
+        {
+          "level": 2,
+          "line": 12,
+          "text": "The four questions"
+        },
+        {
+          "level": 2,
+          "line": 20,
+          "text": "Method"
+        },
+        {
+          "level": 2,
+          "line": 30,
+          "text": "Group 1: Identity & devices (`did-mini`, self-certifying identifiers, delegation, pre-rotation)"
+        },
+        {
+          "level": 2,
+          "line": 45,
+          "text": "Group 2: Personhood & Sybil resistance (`mini-uniqueness`, presence, vouching graph) \u2014 **the sharpest \"maybe\" in this review**"
+        },
+        {
+          "level": 2,
+          "line": 73,
+          "text": "Group 3: Value & reward (`mini-value`, `mini-treasury`, `mini-reward`)"
+        },
+        {
+          "level": 2,
+          "line": 92,
+          "text": "Group 4: Consensus & chain (`mini-chain`, validator sets, finality)"
+        },
+        {
+          "level": 2,
+          "line": 110,
+          "text": "Group 5: Release, update & bootstrap (`mini-forge`, `mini-update`, `mini-bootstrap`)"
+        },
+        {
+          "level": 2,
+          "line": 134,
+          "text": "Group 6: Storage & seeding (`mini-store`, `mini-storage`, cache tiers)"
+        },
+        {
+          "level": 2,
+          "line": 147,
+          "text": "Group 7: AI's role (governance recommendations, code authorship, moderation)"
+        },
+        {
+          "level": 2,
+          "line": 166,
+          "text": "Top findings, ranked"
+        }
+      ],
+      "keywords": [
+        "group",
+        "identity",
+        "maybe",
+        "same",
+        "governance",
+        "humans",
+        "review",
+        "issue",
+        "but",
+        "path",
+        "second-class",
+        "invariants",
+        "four",
+        "questions",
+        "self-certifying",
+        "sybil",
+        "https",
+        "github",
+        "com",
+        "britak420",
+        "issues",
+        "today",
+        "answer",
+        "institutional"
+      ],
+      "lines": 190,
+      "path": "docs/audits/issue-10-frozen-invariants-review.md",
+      "sha256": "249746e3542cd5ac54cfa12b13ef9b98928d417e9c0baa21ac4459ab55c003ee",
+      "symbols": [],
+      "title": "Frozen invariants review"
+    },
+    {
+      "bytes": 5364,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Content-address (CID) integrity review"
+        },
+        {
+          "level": 2,
+          "line": 9,
+          "text": "1. `mini-crypto::multihash` \u2014 the base encoding"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "2. `mini_objects::ObjectId` \u2014 is the id ever trusted instead of recomputed?"
+        },
+        {
+          "level": 2,
+          "line": 51,
+          "text": "3. `mini_store::Store` \u2014 is content-addressing enforced on read, or only assumed?"
+        },
+        {
+          "level": 2,
+          "line": 66,
+          "text": "4. `mini_media` \u2014 chunked/large-content assembly"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "Summary"
+        }
+      ],
+      "keywords": [
+        "multihash",
+        "pass",
+        "algorithm",
+        "mini-crypto",
+        "digest",
+        "object",
+        "content",
+        "encoding",
+        "store",
+        "length",
+        "objectid",
+        "content-addressing",
+        "code",
+        "own",
+        "integrity",
+        "trusted",
+        "enforced",
+        "read",
+        "every",
+        "sha-1",
+        "path",
+        "parsed",
+        "never",
+        "both"
+      ],
+      "lines": 102,
+      "path": "docs/audits/issue-29-cid-integrity-review.md",
+      "sha256": "9c6aaa11d62a9213a5bdceb69633d51227049f4ea907c838bff7a01ae0039137",
+      "symbols": [],
+      "title": "Content-address (CID) integrity review"
+    },
+    {
+      "bytes": 6799,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Memory-safety audit across all crates"
+        },
+        {
+          "level": 2,
+          "line": 9,
+          "text": "1. Workspace `#![forbid(unsafe_code)]` coverage"
+        },
+        {
+          "level": 2,
+          "line": 25,
+          "text": "2. Dependency tree: does `unsafe` appear, and is it expected?"
+        },
+        {
+          "level": 2,
+          "line": 59,
+          "text": "3. Dependency-vulnerability scanning: a real finding from setting this up"
+        },
+        {
+          "level": 2,
+          "line": 94,
+          "text": "4. What this audit does *not* claim"
+        },
+        {
+          "level": 2,
+          "line": 109,
+          "text": "Verdict"
+        }
+      ],
+      "keywords": [
+        "audit",
+        "workspace",
+        "unsafe",
+        "forbid",
+        "unsafe_code",
+        "cargo",
+        "simd",
+        "real",
+        "every",
+        "each",
+        "cargo-audit",
+        "error",
+        "dependency",
+        "attribute",
+        "intrinsics",
+        "version",
+        "across",
+        "coverage",
+        "tree",
+        "does",
+        "expected",
+        "issue",
+        "guarantee",
+        "actually"
+      ],
+      "lines": 116,
+      "path": "docs/audits/issue-71-memory-safety-audit.md",
+      "sha256": "26cd6e1d9e4c4d13a9d49f3047ff8736068b93da30763bad2bd44251c8979ed8",
+      "symbols": [],
+      "title": "Memory-safety audit across all crates"
+    },
+    {
+      "bytes": 12761,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Constitutional audit"
+        },
+        {
+          "level": 2,
+          "line": 9,
+          "text": "Methodology and an important distinction"
+        },
+        {
+          "level": 2,
+          "line": 34,
+          "text": "The matrix"
+        },
+        {
+          "level": 2,
+          "line": 65,
+          "text": "Aggregate result"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "Recommendation"
+        }
+      ],
+      "keywords": [
+        "one",
+        "code",
+        "pass",
+        "audit",
+        "yet",
+        "future",
+        "invariant",
+        "could",
+        "would",
+        "built",
+        "every",
+        "what",
+        "guarantee",
+        "today",
+        "vote",
+        "identity",
+        "phase",
+        "partial",
+        "centralization",
+        "exists",
+        "human",
+        "exactly",
+        "distinction",
+        "matrix"
+      ],
+      "lines": 91,
+      "path": "docs/audits/issue-8-constitutional-audit.md",
+      "sha256": "060c4f2338ac5944cb5addfa095db9c1d0cdddf8e1937d7af8e860f8337d4de0",
+      "symbols": [],
+      "title": "Constitutional audit"
     },
     {
       "bytes": 326,
