@@ -1406,3 +1406,56 @@ point 5 areas: hybrid consensus (D-0039), personhood (D-0038), MINI
 transaction-privacy primitives (D-0036/D-0040), and treasury custody
 (this entry) — all now real, founder-reviewed prototypes pending external
 audit, none claimed as production-ready.
+
+---
+
+### D-0042 — `mini-bearer`: real TCP transport (`TcpBearer`) + a live multi-process gossip demo in `mini-net`  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** whitepaper §7/§8.1, `mini-bearer::tcp`, `mini-net::examples::gossip_live_demo`, root README's "Path to a global launch."
+
+Founder direction after reviewing the "path to a global launch" gap list:
+prioritize a real network transport over the next crypto prototype, since
+nothing in the workspace opened a socket before this — every demo so far
+(including the FROST live demo, D-0041) simulated multiple parties inside
+one process. Implemented:
+
+- `mini_bearer::TcpBearer` — a real [`Bearer`] over TCP, using the framing
+  (`encode_frame`/`FrameReader`) this crate already shipped for byte-stream
+  bearers but had never had a real one to use them. Constructed via
+  `connect` (dial out) or `from_stream` (wrap an accepted connection).
+  `BearerError` gained an `Io(String)` variant (kept a `String`, not the
+  raw `std::io::Error`, so the enum stays `Clone`/`PartialEq`/`Eq` like
+  every other error type in this tree). 6 new tests: loopback round-trip,
+  bidirectional traffic, back-to-back frame pipelining split correctly,
+  peer-close surfaces as `Closed`, `try_recv` polling semantics, oversized-
+  frame rejection.
+- `mini_net::examples::gossip_live_demo` — three genuinely separate OS
+  processes (not threads, not one process) relaying a message over real
+  `TcpBearer` connections: a hub process accepts N leaf connections (each
+  split via `TcpStream::try_clone` into an independent receive handle,
+  owned solely by its reader thread, and a shared send handle for
+  forwarding — no lock contention on the blocking `recv` path), runs
+  `mini_net::GossipRouter`'s existing dedup-flooding logic against real
+  inbound frames, and forwards new messages to every other connected leaf.
+  Run and manually verified end-to-end: a message sent by one leaf process
+  arrived at a second leaf process having genuinely crossed two real TCP
+  sockets and a separate relay process in between.
+
+**What this does and does not close.** This is a stand-in for local-Wi-Fi/
+relay IP connectivity, proven over real sockets for the first time in this
+workspace — it is explicitly **not** BLE (needs platform-native radio code
+this environment cannot build or test), not peer discovery (`RoutingTable`
+is unexercised by the demo), not a mesh (the demo is hub-and-spoke to keep
+process orchestration simple, though `GossipRouter`'s dedup logic itself
+doesn't care about topology), and carries no encryption at the bearer
+layer by design (`mini_bearer::Channel` is the layer that adds that,
+already demonstrated separately by the keystone demo). `mini-net`'s own
+library code stays transport-agnostic on purpose — `mini-bearer` is a
+`[dev-dependencies]`-only addition, used by the example, not the crate's
+public API.
+
+Updates the root README's status table (`mini-net`, `mini-bearer` both
+move from "no real transport" toward "a real one exists for IP-reachable
+connectivity") and the "Path to a global launch" list's item 2 accordingly
+— still open for BLE specifically, and for wiring this into
+`mini-bootstrap`/`mini-sync`, but no longer true that "nothing in this
+tree opens a socket."

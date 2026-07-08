@@ -6,10 +6,10 @@ concrete, copy-pasteable set of steps — what to run, what "pass" looks like,
 and what a red flag would look like — not a restatement of the design docs.
 
 Start with `docs/DECISION_LOG.md` if you haven't reviewed the founder
-decisions yet (`D-0036` through `D-0041` are the newest and highest-stakes:
-the AI-authorship policy override and the four cryptography prototypes it
-produced). This document assumes you've read those and just want to verify
-the claims.
+decisions yet (`D-0036` through `D-0041` are the AI-authorship policy
+override and the four cryptography prototypes it produced; `D-0042` is the
+first real network transport in this workspace). This document assumes
+you've read those and just want to verify the claims.
 
 ## 0. Prerequisites
 
@@ -46,11 +46,13 @@ bug, see that crate's README):
 cargo test --all --all-features --release
 ```
 
-## 2. The two live, runnable demos
+## 2. The three live, runnable demos
 
-Neither of these requires a phone or a second machine — both simulate
-multiple parties within one process, honestly labeled as such (see each
-demo's own doc comment for exactly what "live" does and doesn't mean).
+The keystone and FROST demos simulate multiple parties within one process
+(honestly labeled as such — see each demo's own doc comment for exactly
+what "live" does and doesn't mean). The gossip demo (§2c) is different: it
+requires three separate terminals because it's genuinely three separate OS
+processes talking over real sockets, not a simulation.
 
 ### 2a. The keystone demo (identity + presence + reward)
 
@@ -88,6 +90,36 @@ share slipped through verification), or either session hanging/panicking.
 Run it a few times — nonces and the group key are freshly randomized every
 run, so the specific hex output changes each time; the pass/fail *shape*
 should not.
+
+### 2c. The live multi-process gossip demo (real network transport)
+
+Three separate terminals (or three separate machines on the same network —
+swap `127.0.0.1` for a real address and it works unmodified):
+
+```sh
+# terminal 1
+cargo run -p mini-net --example gossip_live_demo -- hub 9000 2
+# terminal 2
+cargo run -p mini-net --example gossip_live_demo -- leaf 127.0.0.1:9000 alice --send "hello mininet"
+# terminal 3
+cargo run -p mini-net --example gossip_live_demo -- leaf 127.0.0.1:9000 bob --expect 1
+```
+
+**What you're checking:** this is the first demo in the repo that is
+*actually* multi-process rather than multi-thread-in-one-process — three
+independent `cargo run` invocations, each its own OS process, connected
+over real `mini_bearer::TcpBearer` TCP sockets. The message `alice` sends
+has to cross a real socket to the hub process, get deduplicated and
+forwarded by `mini_net::GossipRouter`, and cross a second real socket to
+reach `bob`. **Pass:** the hub's terminal prints `new message from leaf 0:
+"hello mininet" -- forwarding to other leaves`; `bob`'s terminal prints
+`received via gossip (1/1): "hello mininet"`; all three processes exit on
+their own once the message has passed through (no need to Ctrl+C). **Red
+flag:** `bob` printing nothing (message didn't relay), the hub printing
+`duplicate` on the very first send (dedup logic broken), or the demo
+hanging past a few seconds — TCP loopback delivery should be near-instant.
+Order doesn't matter for starting the two leaves, only that the hub starts
+first (it's the one binding the listening port).
 
 ## 3. Reviewing the cryptography prototypes specifically
 
@@ -128,6 +160,7 @@ D-0033 review floor.
 - [ ] `cargo test --all --all-features` clean, all 22 crates
 - [ ] Keystone demo (`cargo run -p mini-keystone --example keystone`) behaves as described in §2a
 - [ ] FROST live demo (`cargo run -p mini-treasury --example frost_live_demo`) behaves as described in §2b, including the adversarial-tamper session
+- [ ] Gossip live demo (`cargo run -p mini-net --example gossip_live_demo`, three terminals) behaves as described in §2c, including all three processes exiting cleanly on their own
 - [ ] Reviewed at least one cryptography prototype's module docs + hand-derived identity against its source paper (§3)
 - [ ] Any finding reported per §4, with severity noted
 

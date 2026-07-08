@@ -29,6 +29,10 @@ pub enum BearerError {
     CounterExhausted,
     /// A wrapped cryptographic error (bad key agreement, AEAD auth failure, KDF).
     Crypto(CryptoError),
+    /// A wrapped OS I/O error from a real socket-based bearer (e.g.
+    /// [`crate::tcp::TcpBearer`]). Carries the error's message rather than
+    /// the error itself so `BearerError` can stay `Clone`/`PartialEq`/`Eq`.
+    Io(String),
 }
 
 impl core::fmt::Display for BearerError {
@@ -50,6 +54,7 @@ impl core::fmt::Display for BearerError {
                 )
             }
             BearerError::Crypto(e) => write!(f, "crypto error: {e}"),
+            BearerError::Io(msg) => write!(f, "I/O error: {msg}"),
         }
     }
 }
@@ -59,5 +64,11 @@ impl std::error::Error for BearerError {}
 impl From<CryptoError> for BearerError {
     fn from(e: CryptoError) -> Self {
         BearerError::Crypto(e)
+    }
+}
+
+impl From<std::io::Error> for BearerError {
+    fn from(e: std::io::Error) -> Self {
+        BearerError::Io(e.to_string())
     }
 }

@@ -15,3 +15,9 @@ publish = false
 # Mininet-owned reimplementations of proven designs (Kademlia, epidemic
 # gossip broadcast), not a vendored third-party crate (D-0034 point 3).
 mini-crypto = { path = "../mini-crypto" }
+
+[dev-dependencies]
+# examples/gossip_live_demo.rs only -- this crate's own library code stays
+# transport-agnostic (D-0042); the live demo is what actually puts gossip
+# frames on a real socket, via mini-bearer's TcpBearer.
+mini-bearer = { path = "../mini-bearer" }

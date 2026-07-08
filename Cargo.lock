@@ -375,6 +375,7 @@ dependencies = [
 name = "mini-net"
 version = "0.0.1"
 dependencies = [
+ "mini-bearer",
  "mini-crypto",
 ]
 
