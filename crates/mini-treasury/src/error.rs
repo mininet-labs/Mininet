@@ -15,6 +15,27 @@ pub enum TreasuryError {
     /// A new rate entry's effective time was not strictly after the
     /// previous entry's.
     OutOfOrderRateEntry,
+    /// The OS CSPRNG failed to yield randomness.
+    Entropy,
+    /// A FROST threshold or participant count was zero, exceeded
+    /// [`crate::MAX_FROST_PARTICIPANTS`], or set a threshold above the
+    /// participant count.
+    InvalidFrostParameters,
+    /// Fewer signers took part in a FROST signing round than the
+    /// threshold requires.
+    NotEnoughSigners,
+    /// A FROST participant index was reused, zero (index 0 is reserved —
+    /// it is the secret-reconstruction point, never a signer), or absent
+    /// from the signing package it was looked up in.
+    InvalidFrostParticipant,
+    /// A FROST participant's key share failed its Feldman VSS
+    /// verification against the dealer's published commitments.
+    InvalidFrostShare,
+    /// A FROST signature share failed verification against its signer's
+    /// public verification share before aggregation.
+    InvalidFrostSignatureShare,
+    /// A compressed Ristretto point or scalar did not decode.
+    MalformedFrostEncoding,
 }
 
 impl fmt::Display for TreasuryError {
@@ -25,6 +46,25 @@ impl fmt::Display for TreasuryError {
             TreasuryError::NoRateInEffect => write!(f, "no governed rate in effect at this time"),
             TreasuryError::OutOfOrderRateEntry => {
                 write!(f, "rate entry is not strictly after the previous one")
+            }
+            TreasuryError::Entropy => write!(f, "OS CSPRNG failed to yield randomness"),
+            TreasuryError::InvalidFrostParameters => {
+                write!(f, "invalid FROST threshold/participant count")
+            }
+            TreasuryError::NotEnoughSigners => {
+                write!(f, "fewer signers than the FROST threshold requires")
+            }
+            TreasuryError::InvalidFrostParticipant => {
+                write!(f, "invalid or unknown FROST participant index")
+            }
+            TreasuryError::InvalidFrostShare => {
+                write!(f, "FROST key share failed Feldman VSS verification")
+            }
+            TreasuryError::InvalidFrostSignatureShare => {
+                write!(f, "FROST signature share failed verification")
+            }
+            TreasuryError::MalformedFrostEncoding => {
+                write!(f, "malformed FROST point/scalar encoding")
             }
         }
     }

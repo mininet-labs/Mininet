@@ -1177,3 +1177,232 @@ different real keys never collide. 32 tests total in `mini-value`.
 (this override does not extend to `mini-value::confidential`, the hybrid
 consensus, treasury custody, or the personhood ZK proof — all four remain
 governed by D-0035 point 5 unchanged).
+
+---
+
+### D-0037 — Founder policy change: D-0035 point 5 generalized to "human review, AI authorship permitted"  ·  *Accepted (supersedes D-0036's narrow scope)*
+**Date:** 2026-07-08 · **Refs:** D-0035 point 5, D-0036.
+
+D-0036 overrode D-0035 point 5 narrowly, for two named primitives in
+`mini-value`. Asked directly whether to keep re-litigating this per
+primitive or set a standing rule, **the founder cohort set a standing
+rule**: across all four D-0035 point 5 areas (hybrid consensus, treasury
+custody, the personhood ZK proof, and MINI's transaction-privacy
+primitives), the bar is now **human review, with AI permitted to author
+the code** — not human authorship with AI shut out, and not requiring a
+specialized external audit before further work proceeds. D-0036's
+narrower per-primitive override is superseded by this general rule, not
+separately tracked going forward.
+
+**What this changes:** AI-authored implementations of well-documented,
+existing cryptographic designs (confidential amounts/range proofs,
+proof-of-space-time challenge-response, treasury threshold-signature
+custody) may now proceed the same way `mini-value`'s ring signatures and
+stealth addresses did — built, tested, and shipped as founder-reviewed
+prototypes — without waiting on a specialized external audit as a
+precondition to keep building. An external audit remains desirable before
+any of this carries real value or real personhood determinations in
+production; it is no longer treated as a hard gate on development
+continuing.
+
+**What this does *not* change [important distinction, not a loophole]:**
+this is a policy about *who reviews and who authors*, not a claim that
+every remaining gap is now merely a process question. The personhood
+behavioral/location ZK proof (whitepaper §5, signal (b)) is explicitly
+described by the whitepaper itself as unsolved research — "has not yet
+been shipped anywhere" — which is a **research-feasibility** blocker, not
+an authorship-policy one. Relaxing who may author code does not make an
+unsolved cryptographic research problem solved; that signal stays
+unimplemented until a real, sound construction exists to author in the
+first place, regardless of who is permitted to write it.
+
+---
+
+### D-0038 — Founder redesign: open-ended, multi-signal `HumanStatus` accumulator, replacing reliance on any single silver-bullet signal  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** D-0037, whitepaper §5/§11, `mini-uniqueness::status`.
+
+Asked what to actually do about the personhood behavioral/location ZK
+proof being unsolved research (D-0037), the founder cohort didn't pick one
+of the offered options — they redirected the design itself: instead of a
+fixed three-signal fusion where one signal (behavioral entropy) is a
+research-grade unsolved problem, `mini-uniqueness::status` generalizes
+personhood into an **open-ended set of independently-weighted
+verification methods**, each optional, all adding up:
+
+- `SignalSource` is extensible (`External(u32)` catch-all) rather than a
+  closed enum of exactly three — new verification methods, including ones
+  not yet designed, can contribute without a breaking change.
+- `TrustWeights` encodes "us trusting our own the most": Mininet's own
+  physical-presence and vouching-graph signals default to the highest
+  weight; anything external starts low-trust, tunable by governance.
+- `HumanRecord` accumulates evidence (a derived score + timestamp per
+  source — never raw data, P5 unaffected) and computes one fused,
+  decayed score.
+- Promotion is two-stage and asymmetric on purpose: `VouchedHuman` is a
+  fast path reachable from modest trusted evidence (e.g. one genuine
+  vouch) so onboarding isn't blocked; `FullHuman` is reachable **only
+  automatically**, requiring a high fused score, several currently-live
+  *distinct* sources, and a minimum elapsed time since the record's first
+  evidence — never from stacking one very strong signal, and never
+  faster than the mandatory age floor regardless of score.
+
+**Why this is a real answer to the Sybil-cost problem, not a workaround:**
+no individual signal needs to be unbreakable. A farm must satisfy several
+independent methods, each with its own real-world cost, keep them from
+decaying, and wait out the minimum age — the same "by the time a fake
+operation is profitable it is nearly indistinguishable from genuine
+adoption" property the whitepaper states (§11), generalized from three
+fixed signals to as many as the network ends up supporting. This does
+**not** solve signal (b)'s underlying research problem (D-0037 stands:
+that stays unimplemented until a real construction exists) — it makes the
+*system* not depend on any one signal being unbreakable, behavioral
+entropy included. `confidence::fuse_confidence` (the original fixed
+three-signal fusion) is unchanged and still correct for what it does;
+`status` is the generalized model going forward. 9 new tests.
+
+---
+
+### D-0039 — `mini-spacetime`: Merkle/PDP storage proof implemented as the honest interim scheme  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** D-0037/D-0038, whitepaper §7/§8.1, `mini-spacetime::storage_proof`.
+
+Founder direction on the proof-of-space-time question: start with the
+simpler, well-documented construction now, treat full proof-of-replication
+as a separate, later, dedicated project. Implemented:
+
+- `merkle::MerkleTree`/`MerkleProof` — a domain-separated Merkle tree
+  (RFC 6962-style leaf/node prefix separation) over stored blocks.
+- `storage_proof::verify_storage_challenge` — a challenge response must
+  supply the *actual* block bytes, not just re-assert an already-published
+  digest, so answering requires genuinely holding the data.
+- `storage_proof::ProofHistory`/`StorageWindowPolicy` — repeated
+  successful responses, without too large a gap, over a real span of time
+  (month-scale default) before capacity counts as currently proven; a
+  stale most-recent response invalidates the whole streak, and letting the
+  gap run out demotes proven capacity back to `None`.
+- `storage_proof::MerkleStorageProof` implements
+  `proof::ProofOfSpaceTimeSource` for real, tying commitment + history +
+  policy together.
+
+**Explicitly, not implicitly, a partial answer.** This scheme proves
+*continuous possession*, not *replication uniqueness* — it cannot
+distinguish a thousand honest small devices each holding their own copy
+from one well-resourced server answering every challenge from a single
+copy, which is exactly the warehouse-consolidation attack the whitepaper's
+egalitarian "thousand cheap machines beat one warehouse" thesis (§7)
+depends on resisting. Real proof-of-replication (Filecoin-style
+sequential/time-locked encoding) is the construction that closes that gap
+and remains explicitly deferred, not silently dropped. 26 tests total in
+`mini-spacetime` (up from 9).
+
+---
+
+### D-0040 — `mini-value`: Bulletproofs range proof implemented for confidential amounts  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** D-0035 point 4, D-0036/D-0037, whitepaper §8, `mini-value::{bp_generators,bp_ipa,bp_range,confidential,confidential_impl}`.
+
+Founder direction: build the full Bulletproofs range proof, not a
+placeholder. Implemented:
+
+- `bp_generators` — deterministic, hash-derived (nothing-up-my-sleeve)
+  generators for the commitment/proof system (`blinding_generator`,
+  `value_generator`, `ipa_generator`, 64-long `g_vec`/`h_vec`), all
+  independent of `curve::basepoint()` (the signing-key generator) so the
+  commitment scheme never shares a discrete-log relationship with
+  anything signature-related.
+- `bp_ipa` — the generic inner product argument: recursive halving with
+  Fiat-Shamir challenges compressing an `O(n)` opening to an `O(log n)`-
+  size proof (`InnerProductProof`), with `prove`/`verify`.
+- `bp_range` — the full single-value range proof (`prove_range`/
+  `verify_range`/`RangeProof`): bit decomposition enforcing
+  `value ∈ [0, 2^64)`, blinded vector commitments `A`/`S`, the folded
+  polynomial `t(X) = <l(X), r(X)>`, commitments `T1`/`T2`, and the IPA to
+  compress the opening.
+- `confidential`/`confidential_impl::MininetConfidentialAmount` — the
+  `ConfidentialAmountScheme` trait redesigned around the real protocol
+  shape (`commit_with_proof`/`verify_range_proof`/`verify_balance`), and
+  its implementation. `verify_balance` needs no extra proof: Pedersen
+  commitments are additively homomorphic
+  (`C(v1,b1) + C(v2,b2) == C(v1+v2,b1+b2)`), so balance is exactly an
+  elliptic-curve point-sum equality check on the commitments themselves.
+
+Two load-bearing algebraic identities were hand-derived and checked
+term-by-term before writing any code, rather than trusted from memory of
+the paper: the IPA folding relation
+(`P_{i+1} = P_i + u_i²·L_i + u_i⁻²·R_i`), and the range-proof constant-term
+relation (`t0 = value·z² + delta(y,z)`, with
+`delta(y,z) = (z-z²)·Σyⁱ - z³·Σ2ⁱ`). Both are documented in `bp_range`'s
+module docs. This produced zero test failures across all four new/changed
+modules on first implementation. 59 tests total in `mini-value` (up from
+32); debug builds are noticeably slower for the range-proof tests
+(unoptimized big-integer curve arithmetic) — confirmed correct and fast
+(well under a second for the whole suite) under `cargo test --release`.
+
+**[FREEZE reminder — D-0036/D-0037 still applies.]** This is a founder-
+reviewed, AI-authored prototype, not an external-audit-equivalent. Range-
+proof soundness is exactly the class of property with no safe middle
+ground between "provably correct" and "silently exploitable" — treat
+`MininetConfidentialAmount` as pending a specialized cryptography audit
+before any real value depends on it, same bar as the stealth-address and
+ring-signature prototypes before it.
+
+---
+
+### D-0041 — `mini-treasury`: FROST threshold-signature custody + live multi-device demo  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** D-0035 point 5, D-0037, whitepaper §8.2/§10/§11, `mini-treasury::{frost_keygen,frost_sign}`, `examples/frost_live_demo.rs`.
+
+The last of the four D-0035 point 5 areas the founder asked to be worked
+on ("also wire a live multi-device signing demo," the larger of the two
+offered options). Implemented:
+
+- `frost_keygen::trusted_dealer_keygen` — Feldman-VSS Shamir secret
+  sharing: a group secret key `f(0)` split into `n` shares `f(i)`, any
+  `threshold` of which can later sign, each individually verifiable
+  against published coefficient commitments without trusting the dealer's
+  word.
+- `frost_sign` — the full two-round FROST protocol (Komlo & Goldberg):
+  round-1 nonce commitments, binding factors (`rho_i`) that close the
+  Drijvers et al. adaptive-nonce attack on naive two-round Schnorr
+  aggregation, round-2 responses weighted by each signer's Lagrange
+  coefficient, per-share verification before aggregation (attributable
+  failure, not just an unverifiable aggregate), and a final signature that
+  is byte-for-byte an ordinary Schnorr signature — no verifier needs to
+  know a threshold scheme produced it.
+- `examples/frost_live_demo.rs` — five genuinely separate OS threads (one
+  per committee device, each holding only its own share, moved into that
+  thread and never shared with another) talking to a coordinator only
+  through `std::sync::mpsc` channels, the same request/response shape a
+  real transport would carry. Runs two live sessions: a 3-of-5 payout with
+  two devices offline, and an adversarial session where one device's
+  reported share is tampered with in transit — caught and attributed by
+  per-share verification before any signature is produced.
+
+Two load-bearing identities were hand-derived and checked term-by-term
+before writing any code, the same discipline `mini_value::bp_range` used
+for Bulletproofs: individual-share verification
+(`z_i*G == R_i + c*lambda_i*Y_i`) and aggregate signature validity
+(`z*G == R + c*Y`, via Shamir reconstruction-in-the-exponent,
+`sum_i lambda_i*s_i = f(0)`). Both are documented in `frost_sign`'s module
+docs. 28 tests in `mini-treasury` (up from 9), all passing on first
+implementation.
+
+**Explicitly, not implicitly, a partial answer — three honest limits, not
+silently dropped:** (1) keygen is trusted-dealer, not distributed key
+generation — a production deployment needs DKG so no single party ever
+holds the full secret, even briefly; (2) `SigningNonces` are not
+zeroized on drop; (3) the live demo's channels stand in for a real network
+transport, which is not wired to `mini-net`/`mini-bearer` yet. None of
+these are silently glossed — each is stated in `frost_keygen`'s and the
+example's own doc comments.
+
+**[FREEZE reminder — D-0037 still applies.]** Founder-reviewed, AI-
+authored prototype, not an external-audit-equivalent — the whitepaper's
+own "permanent honeypot by nature" framing (§11) applies to this crate
+more than any other in the workspace. `receipt::ExternalReceiptOracle`
+(verifying real Bitcoin/Monero transactions actually arrived) remains
+completely out of scope here and is a separate integration surface, not
+something FROST closes.
+
+This closes out all four of the founder's originally-requested D-0035
+point 5 areas: hybrid consensus (D-0039), personhood (D-0038), MINI
+transaction-privacy primitives (D-0036/D-0040), and treasury custody
+(this entry) — all now real, founder-reviewed prototypes pending external
+audit, none claimed as production-ready.

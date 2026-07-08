@@ -24,10 +24,35 @@ and `docs/DECISION_LOG.md` D-0035 point 2 — superseding D-0034 point 2's
 
 ## Fusion and decay
 
-`confidence::fuse_confidence` combines whatever signals are available into
-one 0..=100 score, decaying each by its own evidence age first — confidence
-"must be continuously re-earned," not computed once. The weights and decay
+`confidence::fuse_confidence` fuses exactly these three fixed signals,
+matching the whitepaper's original description. The weights and decay
 curve are a tunable first cut, not a value the whitepaper specifies.
+
+## Beyond three signals: `status`
+
+Later founder direction generalized this into an **open-ended** system:
+any number of verification methods — Mininet's own, or external/future
+ones — can each contribute weighted evidence toward one `status::HumanStatus`:
+
+- `SignalSource` is extensible (an `External` catch-all means new methods
+  never need a crate release), and `TrustWeights` says how much each is
+  trusted — Mininet's own `PhysicalPresence`/`VouchingGraph` outweigh
+  anything external by default ("us trusting our own the most").
+- `HumanRecord` accumulates `SignalEvidence` (a derived strength score +
+  timestamp — never raw data) from whichever sources an identity has
+  satisfied.
+- An identity starts `Unverified`, reaches `VouchedHuman` quickly from
+  modest trusted evidence (e.g. one genuine vouch), and is promoted to
+  `FullHuman` **only automatically** — requiring a high fused score,
+  several currently-live distinct sources, *and* a minimum elapsed time
+  since first evidence, all at once. Letting evidence decay without
+  renewal demotes status back down.
+
+This sidesteps needing any single signal — particularly the still-
+unimplemented behavioral-entropy one — to be a cryptographic silver
+bullet. Sybil resistance instead comes from stacking independently
+costly-to-fake signals plus a mandatory re-earning window: a farm can't
+shortcut the clock no matter how many signals it stacks at once.
 
 ## Honest limits
 
