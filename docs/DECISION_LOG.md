@@ -4,6 +4,45 @@ The Phase 0/1 sprint backlog requires that *"every \[FREEZE\] choice is recorded
 with rationale."* This is that log. It also records the foundational stack choices
 so nothing is silently decided.
 
+## Scope rule (added D-0045 batch, per founder review)
+
+**This log records policy decisions only.** What's actually built, and how
+far along it is, belongs in `docs/STATUS.md` — a living document, updated
+as often as the tree changes. An entry's own "Implementation status" field
+(see template below) is a snapshot at the time the decision was made, not
+a substitute for `STATUS.md`; if the two ever disagree, `STATUS.md` wins,
+because it's revisited far more often than any individual entry is.
+
+This scope rule applies **going forward**. Entries before this rule
+(everything prior to D-0045) predate the template below and are not
+retroactively reformatted — this log is itself an append-only historical
+record (see D-0034's "no preservation duty for now-contradictory docs,"
+which applies to *other* documents' language, not to this log rewriting
+its own past). Where an old entry needs tightening or correction, a new
+entry supersedes it explicitly, the same way D-0045-D-0048 supersede/
+tighten D-0037/D-0039/D-0041 below, rather than editing history in place.
+
+## Entry template (D-0045 onward)
+
+```
+### D-00xx — Title  ·  *Accepted*
+**Date:** ... · **Refs:** ...
+
+**Decision:** what was decided, stated plainly.
+**Reason:** why, in a sentence or two — the full reasoning can be longer,
+but the one-line version should stand alone.
+**Constitutional impact:** which principle(s)/invariant(s) this touches,
+strengthens, or is constrained by. "None" is a valid, common answer.
+**Implementation status:** a snapshot — real detail lives in `docs/STATUS.md`.
+**Failure point:** the concrete way this could go wrong if the decision's
+assumption stops holding. "None identified" is a valid answer, but should
+be rare for anything touching a frozen domain.
+**Required follow-up:** what has to happen next, if anything, and who/what
+roadmap issue owns it.
+**Supersedes / superseded by:** explicit links both directions, so the
+history stays navigable without reading the whole log linearly.
+```
+
 Status legend:
 - **Accepted** — settled for this codebase.
 - **Provisional** — adopts the documented *recommendation* from
@@ -1576,3 +1615,196 @@ All four audits are filed under `docs/audits/`, one file per issue,
 explicitly point-in-time and non-living (like this log and the Failure
 Book) — a future code change that could affect a verdict gets a *new*
 dated audit, not a silent edit to an old one.
+
+---
+
+### D-0045 — Canonical money finality during outages  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Founder review of `docs/INVARIANTS.md`/`docs/DECISION_LOG.md`, Directive 4/5, `docs/INVARIANTS.md` §4 (M2/M3).
+
+**Decision:** local/offline value transfers are signed pending claims,
+never final ownership. Finality occurs only on canonical chain inclusion.
+Conflicting claims resolve strictly by canonical ordering; a later
+conflicting spend is rejected outright, never merged or reconciled with
+the earlier one.
+
+**Reason:** the whitepaper's offline-first design and the constitution's
+single-canonical-truth requirement (Directive 5: "money may never
+disagree") are in real tension unless this rule is stated explicitly and
+frozen. Without it, "offline-first" could be misread as license to treat
+a locally-exchanged promise as settled.
+
+**Constitutional impact:** directly implements Directive 4 ("the ledger
+must always answer... who owns what... with certainty") and Directive 5
+("during outages, users exchange signed promises — not final ownership").
+Adds frozen invariants **M2** and **M3** to `docs/INVARIANTS.md` §4.
+
+**Implementation status:** design-only. No code implements offline
+settlement or double-spend reconciliation yet — see
+`docs/STATUS.md` §4. This entry is the frozen constraint that design must
+satisfy when built, not a claim it exists.
+
+**Failure point:** if a future implementation ever lets a local
+committee, relay, or cache mark a transfer "accepted" in a wallet UI
+without clearly distinguishing that from canonical finality, users could
+reasonably believe a transaction is settled when it is not — a UX failure
+that becomes a constitutional violation if the distinction isn't
+enforced in the data model itself, not just in how it's displayed.
+
+**Required follow-up:** [roadmap #40](https://github.com/britak420/Mininet/issues/40)
+(double-spend reconciliation rules) and
+[#41](https://github.com/britak420/Mininet/issues/41) (offline transaction
+settlement model) must both satisfy this entry's frozen constraint as an
+explicit acceptance criterion.
+
+**Supersedes / superseded by:** none — first entry on this specific
+question; M2/M3 in `docs/INVARIANTS.md` are new rows, not amendments to
+existing ones.
+
+---
+
+### D-0046 — Fork legitimacy continuity  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Founder review, Directive 7, `docs/INVARIANTS.md` §5 (F1), `docs/FAILURE_BOOK.md`.
+
+**Decision:** forking the software is, and remains, free — anyone may
+copy this repository and build something different. Inheriting
+*Mininet's legitimacy* is not automatic and is not conferred by the code
+alone. A fork carries Mininet's legitimacy only if it preserves
+continuity of the frozen constitutional invariants, the personhood-root
+history, release-registry continuity, and canonical chain state. A code
+copy that breaks any of these is a different network, not Mininet under
+a new name.
+
+**Reason:** Directive 7 already states this in prose ("the canonical
+network is defined by continuous adherence to the Constitution... not by
+a repository or a trademark"); this entry makes it a checkable invariant
+with named continuity criteria, rather than leaving "legitimacy" as an
+undefined term someone could argue about later.
+
+**Constitutional impact:** directly implements Directive 7. Adds frozen
+invariant **F1** to `docs/INVARIANTS.md` §5. Does not restrict forking
+itself in any way — P3/P7 (no owner, nobody forced to participate) are
+unaffected; this entry is about what a fork *inherits*, never about
+whether forking is permitted.
+
+**Implementation status:** design-only / criteria-only. No code
+represents "legitimacy" as a concept yet, since there is no networked
+chain or release registry for continuity to be measured against —
+see [roadmap #57](https://github.com/britak420/Mininet/issues/57).
+
+**Failure point:** the criteria named here (invariants, personhood root,
+release registry, canonical chain state) are a starting list, not
+necessarily exhaustive. If a future fork preserved all four listed
+criteria but violated the *spirit* of continuity through some mechanism
+this entry didn't anticipate, the letter of F1 could be satisfied while
+its purpose was defeated — exactly the kind of gap `docs/FOUNDER_DIRECTIVES.md`
+exists to help a reviewer reason past.
+
+**Required follow-up:** [roadmap #57](https://github.com/britak420/Mininet/issues/57)
+(fork legitimacy criteria) owns turning this into a fully checkable
+definition once the release registry and chain exist to check it against.
+
+**Supersedes / superseded by:** none — first dedicated fork-legitimacy
+entry in this log; `docs/FAILURE_BOOK.md`'s Cosmos/Go and Flutter entries
+are related (paths not taken) but not the same question.
+
+---
+
+### D-0047 — Production audit gates (tightens D-0037)  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Founder review, tightens D-0036/D-0037, `docs/INVARIANTS.md` §9 (A1), `docs/audits/issue-8-constitutional-audit.md`.
+
+**Decision:** D-0037's AI-authorship permission stands unchanged — AI may
+still draft code across all four D-0035 point 5 domains, with mandatory
+human review. What changes: **external cryptography audit is now a hard
+gate for *production* use** — not "desirable before real value depends on
+it," as D-0037's original framing could be read — for four specific
+domains: MINI transaction-privacy primitives (`mini-value`), treasury
+custody (`mini-treasury`), consensus (`mini-chain`), and personhood
+proofs (`mini-uniqueness`). Passing tests is not audit. Founder review is
+not audit. Both remain necessary; neither is sufficient for production
+use of these four domains.
+
+**Reason:** founder review of this log flagged D-0037's original language
+as a red flag on its own terms — "audit only desirable" is exactly the
+kind of soft language that erodes under schedule pressure. A hard gate,
+stated plainly, closes that reading.
+
+**Constitutional impact:** does not weaken D-0037's authorship policy.
+Strengthens the practical protection around Directive 4/5 (money/
+finality certainty) and Directive 2 (assume every authority, including
+this project's own founders under time pressure, can drift). Adds frozen
+invariant **A1** to `docs/INVARIANTS.md` §9.
+
+**Implementation status:** no code path in this tree currently claims
+production-readiness for any of the four gated domains — every relevant
+crate (`mini-value`, `mini-treasury`, `mini-chain`'s eventual consensus,
+`mini-uniqueness`) is explicitly labeled prototype/founder-reviewed-only
+already. This entry keeps that true going forward rather than retrofits
+anything.
+
+**Failure point:** a gate stated in a document is only as strong as the
+process that checks it before a release. Until a release pipeline exists
+that can *mechanically* verify "has this had an external audit" before
+allowing a production flag, this remains a policy commitment enforced by
+review discipline, not by code — the same class of gap D-0033's
+2-approval floor has today, and no worse.
+
+**Required follow-up:** [roadmap #72](https://github.com/britak420/Mininet/issues/72)
+(external cryptography review coordination) owns actually engaging an
+auditor; the eventual release pipeline (Phase 9,
+[#65](https://github.com/britak420/Mininet/issues/65)-[#70](https://github.com/britak420/Mininet/issues/70))
+should encode this gate mechanically, not just in policy, once it exists.
+
+**Supersedes / superseded by:** tightens D-0037 (D-0037's authorship
+permission is unchanged and remains in effect; its audit language is
+superseded by this entry's hard-gate framing for the four named domains
+specifically — D-0037 still governs every other AI-authorship question).
+
+---
+
+### D-0048 — Trusted-dealer FROST sunset (P0)  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Founder review, D-0041, `docs/INVARIANTS.md` §4, `crates/mini-treasury/src/frost_keygen.rs`.
+
+**Decision:** D-0041's trusted-dealer FROST keygen (`mini_treasury::
+trusted_dealer_keygen`) is confirmed as **prototype-only, severity P0**
+— the highest-priority category this log uses for a known limitation.
+Production use of FROST threshold custody for any real treasury or
+bridge value requires (a) distributed key generation (DKG), so no single
+party ever holds the full secret at any point, even briefly, and (b)
+zeroized nonces (`SigningNonces` currently does not zeroize on drop —
+already stated as an honest limit in `frost_keygen.rs`'s module docs, now
+elevated to a frozen production blocker here).
+
+**Reason:** trusted-dealer keygen's exact failure mode is that one actor
+briefly holds the whole secret while splitting it. For a prototype this
+is an accepted, clearly-labeled limitation; for anything holding real
+treasury or bridge value it is unacceptable regardless of how briefly the
+exposure window is, or how trusted the dealer is assumed to be —
+Directive 2 ("assume every authority is compromisable") applies to the
+dealer role itself.
+
+**Constitutional impact:** reinforces D-0047's audit-gate framing
+specifically for treasury custody, the whitepaper's own named "permanent
+honeypot" risk (§11). No existing invariant is weakened; this entry adds
+specificity to what "production-ready" must mean for this one
+subsystem.
+
+**Implementation status:** trusted-dealer keygen is implemented, tested,
+and demonstrated live (D-0041's multi-process signing demo) —
+**exactly as a prototype**, which remains its correct classification. DKG
+is not implemented. Nonce zeroization is not implemented. See
+`docs/STATUS.md` §4.
+
+**Failure point:** if trusted-dealer keygen is ever used to generate a
+key for a committee that then custodies real value — even "just for a
+testnet," even "just temporarily" — the P0 exposure window becomes real
+regardless of intent. The risk is entirely in the gap between "this is
+labeled a prototype" and "someone uses it anyway under time pressure."
+
+**Required follow-up:** [roadmap #93](https://github.com/britak420/Mininet/issues/93)
+(FROST DKG + nonce zeroization, filed alongside this entry) owns closing
+this gap before any testnet or real treasury deployment.
+
+**Supersedes / superseded by:** does not supersede D-0041 (the FROST
+protocol design and trusted-dealer keygen's correctness as a prototype
+both stand); adds a severity classification and production blocker
+D-0041 itself did not state as explicitly.

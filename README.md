@@ -46,12 +46,16 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0044` so far) and
-   `docs/INVARIANTS.md` (the frozen-vs-tunable register mapped to code) are
-   the two documents that outrank any comment or README, including this one.
-   `CONTRIBUTING.md` has the PR/review checklist (two-approval floor, D-0033).
-   `docs/TESTING.md` has copy-pasteable verification steps and a reviewer
-   checklist, including how to review the cryptography prototypes below.
+   architectural and policy decision, numbered `D-0001`–`D-0048` so far —
+   policy only; see its own header for what belongs elsewhere) and
+   `docs/INVARIANTS.md` (the frozen-vs-tunable register, organized by
+   domain, with a hard-limitations section at the top) are the two
+   documents that outrank any comment or README, including this one.
+   `docs/STATUS.md` is the living account of what's actually built, kept
+   separate from the decision log on purpose. `CONTRIBUTING.md` has the
+   PR/review checklist (two-approval floor, D-0033). `docs/TESTING.md`
+   has copy-pasteable verification steps and a reviewer checklist,
+   including how to review the cryptography prototypes below.
    `docs/FAILURE_BOOK.md` records every rejected design and abandoned
    approach, and why — read it before re-proposing something that's
    already been tried.
@@ -95,7 +99,8 @@ mininet/
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
 │   ├── FAILURE_BOOK.md          every rejected design and abandoned approach, and why
 │   ├── audits/                  written audit deliverables for roadmap review issues
-│   ├── INVARIANTS.md            frozen/tunable register mapped to code
+│   ├── INVARIANTS.md            frozen/tunable register mapped to code, by domain
+│   ├── STATUS.md                living implementation-status account, by domain
 │   ├── ROADMAP.md               pack order from two-phone demo to full network
 │   ├── BETA_STATUS.md           near-term target: the two-phone keystone beta
 │   ├── NAVIGATION.md            how to use tools/mininet_nav.py
@@ -206,10 +211,12 @@ documented at the crate level.
    unsolved research. D-0038's multi-signal redesign makes the *system* not
    depend on this one signal, but it does not solve the underlying research
    problem — that remains open.
-5. **FROST distributed key generation.** The treasury custody prototype
-   uses trusted-dealer keygen, where one party briefly holds the whole
-   secret. A real deployment needs DKG, so no party ever holds it, even
-   briefly.
+5. **FROST distributed key generation — P0, per D-0048.** The treasury
+   custody prototype uses trusted-dealer keygen, where one party briefly
+   holds the whole secret. A real deployment needs DKG (and zeroized
+   nonces), so no party ever holds it, even briefly — this is now a
+   named, severity-classified production blocker, not just a noted gap.
+   Tracked at [roadmap #93](https://github.com/britak420/Mininet/issues/93).
 6. **Consensus and chain networking.** `mini-chain` verifies finality given
    valid votes; the networked BFT protocol (proposing, voting, gossiping
    blocks across real peers) and the full state machine are not built yet.
@@ -236,9 +243,6 @@ sequencing, which currently targets the much nearer two-phone keystone beta
 
 ## Suggested improvements (not yet decided, worth raising with the founder cohort)
 
-- Consider standing up the DKG variant of FROST keygen before the trusted-
-  dealer version ever gets used with anything of real value, even in a
-  testnet — it's a smaller lift now than a migration later.
 - Start the mobile/desktop client track in parallel with the remaining
   transport work (BLE, item 2 above), since neither blocks the other and
   both gate global launch equally.
