@@ -1,0 +1,13 @@
+[package]
+name = "mini-treasury"
+version = "0.0.1"
+description = "Community-governed BTC/XMR-to-MINI contribution bookkeeping (whitepaper SS8.2/SS10) -- rate governance and signer-set data model only; treasury custody and cross-chain receipt verification are explicitly out of scope here."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }

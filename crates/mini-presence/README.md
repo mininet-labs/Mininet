@@ -11,7 +11,9 @@ each proving control of an identity-rooted identity."
 One deterministic transcript (`AttestationFields::transcript`) binding: the
 session's **channel binding** (from `mini-bearer`), each device's `did:mini` and
 **KEL digest**, fresh **nonces**, the **time window**, the **round-trip range
-samples**, the **transport**, and an optional fuzzed location commitment.
+samples**, the **transport**, an optional fuzzed location commitment, and
+optional hardware (UWB) ranging evidence (`UwbRanging`) where a platform
+shell supplies it.
 
 ## What verification requires (both sides)
 
@@ -36,6 +38,12 @@ round-trip timing bound over the BLE / Wi-Fi link. With no dedicated ranging
 radio (a deliberate no-radio tradeoff) this is a *software* bound, weaker than
 hardware ranging, and plain RSSI is only a weak hint. This crate provides the
 signed, bound, replay-checked envelope those measurements slot into.
+
+Where a device has a UWB chip, `UwbRanging` layers a hardware-timed distance
+bound on top — **additive, never a replacement**: the RTT check above always
+runs regardless. `ranging::RangingSource` is the seam a platform shell fills
+in to supply a real measurement (D-0034 point 1); `NoUwb` is the reference
+fallback every device without a chip correctly uses today.
 
 ## Build & test
 

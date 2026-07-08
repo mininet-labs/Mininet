@@ -23,10 +23,19 @@ pub struct RangePolicy {
     /// replay guard's memory surviving restarts. `0` disables the check (a
     /// deliberate caller choice, e.g. offline re-verification of history).
     pub max_age_ms: u64,
+    /// Optional tighter distance bound, in centimeters, enforced only when
+    /// the attestation carries [`crate::attestation::UwbRanging`] evidence
+    /// (D-0034 point 1). `None` means this policy does not require or check
+    /// hardware ranging — the software RTT bound above is still always
+    /// enforced regardless of this setting. Additive, never a substitute for
+    /// the RTT check.
+    pub max_uwb_distance_cm: Option<u32>,
 }
 
 impl RangePolicy {
-    /// A conservative default for a BLE round-trip proximity bound.
+    /// A conservative default for a BLE round-trip proximity bound. No UWB
+    /// threshold by default — devices without a UWB chip must still pass on
+    /// software RTT alone.
     pub fn ble_default() -> Self {
         RangePolicy {
             max_rtt_ms: 50,
@@ -36,6 +45,7 @@ impl RangePolicy {
             // One day: with the guard persisted (see `ReplayGuard`), a nonce
             // only needs to be remembered for this window.
             max_age_ms: 86_400_000,
+            max_uwb_distance_cm: None,
         }
     }
 }
@@ -69,6 +79,12 @@ pub struct PresenceVerdict {
     pub responder_root: Did,
     /// Finish time of the attested session (ms).
     pub at_ms: u64,
+    /// Whether this presence was corroborated by hardware (UWB) ranging
+    /// evidence, not just the software RTT bound. Carried for downstream
+    /// consumers that want to weight hardware-ranged presence more heavily
+    /// (e.g. `mini-uniqueness`'s physical-presence signal) — this crate
+    /// itself treats both as valid presence once policy checks pass.
+    pub hardware_ranged: bool,
 }
 
 impl PresenceVerdict {
@@ -176,6 +192,16 @@ pub fn verify_presence(
         return Err(PresenceError::RangeExceeded);
     }
 
+    // Hardware (UWB) ranging: additive tightening only. The RTT bound above
+    // always applies regardless; this only adds a stricter check on top when
+    // both the policy asks for it and the attestation actually carries the
+    // evidence (D-0034 point 1 — devices without a UWB chip are unaffected).
+    if let (Some(max_cm), Some(uwb)) = (ctx.policy.max_uwb_distance_cm, &f.uwb) {
+        if uwb.distance_cm > max_cm {
+            return Err(PresenceError::UwbRangeExceeded);
+        }
+    }
+
     // The two nonces must differ (a party can't echo the other's nonce).
     if f.initiator.nonce == f.responder.nonce {
         return Err(PresenceError::Replay);
@@ -219,6 +245,7 @@ pub fn verify_presence(
         initiator_root: ctx.initiator_root.did(),
         responder_root: ctx.responder_root.did(),
         at_ms: f.finished_at_ms,
+        hardware_ranged: f.uwb.is_some(),
     })
 }
 

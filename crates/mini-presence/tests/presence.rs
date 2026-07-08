@@ -9,7 +9,7 @@ use did_mini::{Capabilities, Controller};
 use mini_bearer::{Initiator, Responder};
 use mini_presence::{
     kel_digest, verify_presence, AttestationFields, InMemoryReplayGuard, Party,
-    PresenceAttestation, PresenceError, RangePolicy, TransportKind, VerifyContext,
+    PresenceAttestation, PresenceError, RangePolicy, TransportKind, UwbRanging, VerifyContext,
     PRESENCE_VERSION,
 };
 
@@ -67,6 +67,7 @@ fn valid_attestation(
         rtt_samples_ms: vec![10, 12, 9, 11],
         transport: TransportKind::InProcess,
         location_commitment: None,
+        uwb: None,
     };
     let init_sig = fields.sign(init_device);
     let resp_sig = fields.sign(resp_device);
@@ -253,6 +254,140 @@ fn non_proximity_and_range_failures_are_rejected() {
         verify_presence(&few_att, &ctx, &mut r3),
         Err(PresenceError::NotEnoughRangeSamples)
     );
+}
+
+#[test]
+fn uwb_absence_does_not_affect_a_policy_without_a_uwb_threshold() {
+    // A device without a UWB chip attaches no evidence at all; a policy that
+    // never set max_uwb_distance_cm must not care (D-0034: additive, never
+    // required).
+    let (a_root, a_dev) = human([1; 32], [2; 32], [3; 32], [4; 32], Capabilities::primary());
+    let (b_root, b_dev) = human([5; 32], [6; 32], [7; 32], [8; 32], Capabilities::primary());
+    let binding = fresh_binding();
+    let att = valid_attestation(&a_dev, &b_dev, binding);
+    assert!(att.fields.uwb.is_none());
+
+    let (a_root_kel, b_root_kel) = (a_root.kel(), b_root.kel());
+    let (a_dev_kel, b_dev_kel) = (a_dev.kel(), b_dev.kel());
+    let policy = policy();
+    assert!(policy.max_uwb_distance_cm.is_none());
+    let ctx = VerifyContext {
+        initiator_root: &a_root_kel,
+        responder_root: &b_root_kel,
+        initiator_device: &a_dev_kel,
+        responder_device: &b_dev_kel,
+        policy: &policy,
+        now_ms: Some(2_000),
+        expected_binding: Some(binding),
+    };
+    let mut replay = InMemoryReplayGuard::new();
+    let verdict = verify_presence(&att, &ctx, &mut replay).unwrap();
+    assert!(!verdict.hardware_ranged);
+}
+
+#[test]
+fn uwb_evidence_within_policy_is_accepted_and_marked_hardware_ranged() {
+    let (a_root, a_dev) = human([1; 32], [2; 32], [3; 32], [4; 32], Capabilities::primary());
+    let (b_root, b_dev) = human([5; 32], [6; 32], [7; 32], [8; 32], Capabilities::primary());
+    let binding = fresh_binding();
+    let mut att = valid_attestation(&a_dev, &b_dev, binding);
+    att.fields.uwb = Some(UwbRanging {
+        distance_cm: 80,
+        sample_count: 3,
+    });
+    let att = resign(att, &a_dev, &b_dev);
+
+    let (a_root_kel, b_root_kel) = (a_root.kel(), b_root.kel());
+    let (a_dev_kel, b_dev_kel) = (a_dev.kel(), b_dev.kel());
+    let mut policy = policy();
+    policy.max_uwb_distance_cm = Some(150);
+    let ctx = VerifyContext {
+        initiator_root: &a_root_kel,
+        responder_root: &b_root_kel,
+        initiator_device: &a_dev_kel,
+        responder_device: &b_dev_kel,
+        policy: &policy,
+        now_ms: Some(2_000),
+        expected_binding: Some(binding),
+    };
+    let mut replay = InMemoryReplayGuard::new();
+    let verdict = verify_presence(&att, &ctx, &mut replay).unwrap();
+    assert!(verdict.hardware_ranged);
+}
+
+#[test]
+fn uwb_evidence_beyond_policy_is_rejected_even_though_rtt_alone_would_pass() {
+    let (a_root, a_dev) = human([1; 32], [2; 32], [3; 32], [4; 32], Capabilities::primary());
+    let (b_root, b_dev) = human([5; 32], [6; 32], [7; 32], [8; 32], Capabilities::primary());
+    let binding = fresh_binding();
+    let mut att = valid_attestation(&a_dev, &b_dev, binding);
+    // RTT samples are well within the default policy (max_rtt_ms: 50), but
+    // the UWB measurement itself exceeds a tighter policy threshold.
+    att.fields.uwb = Some(UwbRanging {
+        distance_cm: 500,
+        sample_count: 3,
+    });
+    let att = resign(att, &a_dev, &b_dev);
+
+    let (a_root_kel, b_root_kel) = (a_root.kel(), b_root.kel());
+    let (a_dev_kel, b_dev_kel) = (a_dev.kel(), b_dev.kel());
+    let mut policy = policy();
+    policy.max_uwb_distance_cm = Some(150);
+    let ctx = VerifyContext {
+        initiator_root: &a_root_kel,
+        responder_root: &b_root_kel,
+        initiator_device: &a_dev_kel,
+        responder_device: &b_dev_kel,
+        policy: &policy,
+        now_ms: Some(2_000),
+        expected_binding: Some(binding),
+    };
+    let mut replay = InMemoryReplayGuard::new();
+    assert_eq!(
+        verify_presence(&att, &ctx, &mut replay),
+        Err(PresenceError::UwbRangeExceeded)
+    );
+}
+
+#[test]
+fn tampering_with_uwb_distance_after_signing_breaks_the_signature() {
+    let (a_root, a_dev) = human([1; 32], [2; 32], [3; 32], [4; 32], Capabilities::primary());
+    let (b_root, b_dev) = human([5; 32], [6; 32], [7; 32], [8; 32], Capabilities::primary());
+    let binding = fresh_binding();
+    let mut att = valid_attestation(&a_dev, &b_dev, binding);
+    att.fields.uwb = Some(UwbRanging {
+        distance_cm: 50,
+        sample_count: 3,
+    });
+    let att = resign(att, &a_dev, &b_dev);
+
+    // A relay tampers with the already-signed distance, trying to make a far
+    // presence look close. The UWB field is part of the signed transcript,
+    // so this must break signature verification, not just the range check.
+    let mut tampered = att;
+    tampered.fields.uwb = Some(UwbRanging {
+        distance_cm: 5,
+        sample_count: 3,
+    });
+
+    let (a_root_kel, b_root_kel) = (a_root.kel(), b_root.kel());
+    let (a_dev_kel, b_dev_kel) = (a_dev.kel(), b_dev.kel());
+    let mut policy = policy();
+    policy.max_uwb_distance_cm = Some(150);
+    let ctx = VerifyContext {
+        initiator_root: &a_root_kel,
+        responder_root: &b_root_kel,
+        initiator_device: &a_dev_kel,
+        responder_device: &b_dev_kel,
+        policy: &policy,
+        now_ms: Some(2_000),
+        expected_binding: Some(binding),
+    };
+    let mut replay = InMemoryReplayGuard::new();
+    assert!(matches!(
+        verify_presence(&tampered, &ctx, &mut replay),
+        Err(PresenceError::Identity(_))
+    ));
 }
 
 #[test]

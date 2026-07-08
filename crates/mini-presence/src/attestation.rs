@@ -43,6 +43,26 @@ impl TransportKind {
     }
 }
 
+/// Optional hardware-backed ranging evidence, layered on top of the software
+/// RTT bound (D-0034 point 1). A UWB (ultra-wideband) chip already present in
+/// many phones gives a much tighter, hardware-timed distance bound than
+/// round-trip application-layer timing alone. This is **additive, not a
+/// replacement**: [`crate::verify::verify_presence`] always enforces the
+/// software RTT bound regardless, and only additionally enforces this
+/// tighter bound when both a policy threshold and this evidence are present.
+/// Devices without a UWB chip are unaffected — they simply never attach this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UwbRanging {
+    /// Measured distance in centimeters, from the platform's UWB stack.
+    pub distance_cm: u32,
+    /// Number of independent ranging exchanges this distance was derived
+    /// from. Not independently checked by this crate today (see
+    /// [`crate::ranging`]'s honest limit) — carried for a future policy that
+    /// wants to require a minimum sample count, same shape as
+    /// [`crate::verify::RangePolicy::min_rtt_samples`].
+    pub sample_count: u32,
+}
+
 /// One side of an attestation: which device, pinned to its KEL state, with a
 /// fresh nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -83,6 +103,10 @@ pub struct AttestationFields {
     pub transport: TransportKind,
     /// Optional fuzzed location commitment (a hash; no raw coordinates).
     pub location_commitment: Option<[u8; 32]>,
+    /// Optional hardware (UWB) ranging evidence — see [`UwbRanging`]. Present
+    /// only when at least one side's platform shell supplied it; absence is
+    /// normal and does not weaken the (always-enforced) software RTT bound.
+    pub uwb: Option<UwbRanging>,
 }
 
 impl AttestationFields {
@@ -105,6 +129,14 @@ impl AttestationFields {
             Some(commitment) => {
                 w.push(1);
                 w.extend_from_slice(commitment);
+            }
+            None => w.push(0),
+        }
+        match &self.uwb {
+            Some(uwb) => {
+                w.push(1);
+                w.extend_from_slice(&uwb.distance_cm.to_be_bytes());
+                w.extend_from_slice(&uwb.sample_count.to_be_bytes());
             }
             None => w.push(0),
         }

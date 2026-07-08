@@ -843,6 +843,18 @@ batch, because each opens a new crate:
    (native UWB APIs are not reachable from pure Rust) fits the existing
    UniFFI-shell architecture (D-0020): the Rust core defines the ranging
    trait/result type, each platform shell supplies the UWB measurement.
+   **Implemented 2026-07-08:** `mini_presence::UwbRanging` carries the
+   measurement as part of the signed transcript (tamper-evident once
+   signed); `RangePolicy::max_uwb_distance_cm` is an optional tighter bound
+   `verify_presence` enforces only when both the policy and the evidence are
+   present, alongside the RTT check, never instead of it;
+   `ranging::RangingSource` is the platform seam, with `NoUwb` as the
+   permanent, correct reference implementation for chip-less devices — no
+   real UWB adapter exists in this repo, the same honest-limit shape as
+   `mini-bearer`'s still-pending real BLE adapter. Tests:
+   `crates/mini-presence/tests/presence.rs` (four new cases: absence is a
+   no-op, in-policy acceptance, out-of-policy rejection even when RTT alone
+   would pass, and tamper detection on the signed UWB field).
 
 2. **Uniqueness/personhood: a custom in-house uniqueness graph — not a raw
    trust list, not an outside oracle, not biometrics.** Founder guidance: the
@@ -950,6 +962,24 @@ holds). `mini-uniqueness` (task pending) now has a real spec to build
 toward — signal (c) is done, signal (a) is a graph algorithm with prior art,
 signal (b) is genuine unsolved-elsewhere R&D.
 
+**Implemented 2026-07-08 (signals a and c; signal b deliberately stubbed):**
+`mini-uniqueness::vouch`/`verify` build mutual, signed vouch attestations
+between identity roots (mirroring `mini-presence`'s two-party pattern, minus
+the proximity requirement — vouching may ride any transport). `graph::VouchGraph`
+records them as an undirected graph; `graph::trust_scores` is a from-scratch,
+integer-only reimplementation of SybilRank's bounded power-iteration shape,
+propagating trust outward from a seed set so a Sybil cluster's internal
+edges don't help it — only edges into the trusted region do (test:
+`a_sybil_cluster_with_one_bridge_edge_scores_far_below_the_honest_region`).
+`confidence::fuse_confidence` combines the vouch-graph score and a caller-
+supplied presence-strength score (signal c, from `mini_presence::PresenceVerdict`)
+with per-signal time decay into one 0..=100 confidence value — weights and
+the decay curve are an explicitly tunable first cut, not whitepaper-specified.
+Signal (b) is `confidence::BehavioralEntropySource`, a seam only:
+`NoEntropySource` (always `None`) is the correct, permanent implementation
+until the human-authored, externally-audited proof this crate cannot build
+exists (D-0035 point 5). 18 tests across `mini-uniqueness`.
+
 **3. Consensus is a hybrid, not flat equal-weight-per-human as D-0008 alone
 implied.** Whitepaper §8.1: block-production weight comes from **proof-of-
 space-time** (concave reward curve + per-identity caps + geographic/network-
@@ -964,6 +994,26 @@ production half does not exist yet** — new consensus work, not a small
 addition, tracked as a new task rather than folded silently into D-0034's
 existing sequencing.
 
+**Design pass done 2026-07-08 (`mini-spacetime`), split by risk class —
+mirroring the same split `mini-uniqueness` made for its own novel-crypto
+signal:** the *scoring formula* (given already-proven capacity, how much
+should it weigh) is ordinary deterministic arithmetic and is fully
+implemented: `weight::proposer_weight` capped-then-square-rooted (concave:
+doubling capacity yields ~1.41x weight, verified by test, never 2x) with a
+bounded per-region diversity bonus, all integer (`isqrt`, from-scratch
+Newton's method) for exact reproducibility. The *cryptographic proof itself*
+— genuinely holding that capacity over a challenge period — is **not**
+attempted: `proof::ProofOfSpaceTimeSource` is a seam only, `NoProof` its
+correct permanent stand-in, per the whitepaper's own words ("the most
+demanding engineering in the value layer... implemented human-only and
+externally audited") and point 5 below. Structurally kept apart from
+`mini-chain`: `proposer_weight` returns a plain `u64` with no shared type
+with `ValidatorSet` and no path to `Capabilities::VOTE` — storage capacity
+can make a node likelier to *propose* a block, never make a vote count for
+more (P1, unchanged). Proposer rotation/leader-election, the state machine,
+and networking remain unbuilt, the same boundary `mini-chain` already
+states for its own half. 9 tests.
+
 **4. `mini-value` builds Monero-style privacy for the *one* MINI ledger, not
 a second currency.** D-0034 point 4's "separate spendable-value layer" wording
 is corrected by point 1 above: there is one currency. `mini-value`'s job is
@@ -975,6 +1025,27 @@ treasury in exchange for freshly issued MINI at a community-governed rate**
 gets value, zero extra voice), a *separate*, currently unbuilt mechanism
 (treasury custody, price governance, BTC/XMR receipt verification) from
 transaction privacy. Tracked as a new task, not conflated with `mini-value`.
+
+**Design pass done 2026-07-08 (`mini-treasury`), same risk-class split as
+`mini-uniqueness` and `mini-spacetime`:** the *bookkeeping and arithmetic*
+around a contribution are ordinary and fully implemented —
+`rate::RateHistory`/`mint_amount_micro` (a governed exchange-rate lookup and
+the multiplication that turns a contribution into a minted amount, all
+integer for exact reproducibility), `receipt::ContributionReceipt` (the
+record of a claimed contribution), and `signers::TreasurySignerSet`/
+`meets_threshold` (who is authorized to approve treasury actions and
+whether enough distinct authorized identities agreed — mirroring
+`mini-forge`'s governance approval-counting pattern exactly: no weight
+field, no path from signer membership to extra voting power, P1 unchanged).
+The *actually security-critical* pieces are explicitly **not** attempted,
+per the whitepaper's own words ("bridge and treasury custody is a permanent
+honeypot by nature," §11) and point 5 below: `receipt::ExternalReceiptOracle`
+(verifying a real Bitcoin/Monero transaction actually paid the treasury —
+real cross-chain engineering) and any real threshold-signature scheme over
+actual funds (`meets_threshold` answers "did enough people agree," never
+"here is a valid signature the treasury would accept" — no such scheme
+exists in this crate). `NoExternalReceiptOracle` is the correct, permanent
+stand-in until human-authored, externally-audited work exists. 11 tests.
 
 **5. [FREEZE, new, explicit] Human-only authorship + external audit for the
 highest-stakes cryptographic components.** Whitepaper §8.1 (hybrid
@@ -994,6 +1065,24 @@ code for these four may exist as a prototype/reference implementation and
 ships with that label, but is explicitly **not** a substitute for the
 human-authored, externally-audited version the whitepaper requires before
 real value or real personhood proofs depend on it.
+
+**All four now design-passed 2026-07-08 under this same rule, the last
+(`mini-value`) built most conservatively of all, per founder direction:**
+`mini-value::fee` (the whitepaper §8.4 fee mechanism — governed price
+history and the arithmetic converting a real-world value target to a MINI
+amount) is ordinary bookkeeping, fully implemented and tested, same shape
+as `mini_treasury::rate`. The three actual privacy primitives —
+`ring::RingSignatureScheme`, `stealth::StealthAddressScheme`,
+`confidential::ConfidentialAmountScheme` — are seams only, each with a
+`NoX` stub that **fails closed**: none of `NoRingSignature`,
+`NoStealthAddress`, or `NoConfidentialAmount` will sign, derive, commit, or
+verify anything as valid, so an absent real implementation can never be
+mistaken for a working one. This closes D-0034's four-item sequence: every
+item has either shipped in full (`mini-net`, UWB ranging) or shipped its
+safe half with the genuinely novel cryptography honestly stubbed
+(`mini-uniqueness`, `mini-spacetime`, `mini-treasury`, `mini-value`) — the
+human-authored, externally-audited work this point requires remains
+entirely ahead of this tree, not begun by proxy through any of these stubs.
 
 **6. New, smaller items noted for future tasks, not acted on in this entry:**
 onion-style multi-hop relay routing where "relays earn MINI for carrying it"

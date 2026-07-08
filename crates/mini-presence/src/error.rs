@@ -21,6 +21,9 @@ pub enum PresenceError {
     NotEnoughRangeSamples,
     /// The measured round-trip range exceeds the policy threshold.
     RangeExceeded,
+    /// Hardware (UWB) ranging evidence was present but exceeded the policy's
+    /// tighter distance threshold.
+    UwbRangeExceeded,
     /// A party's device identifier does not match the KEL supplied for it.
     DeviceMismatch,
     /// A party's KEL digest does not match the KEL supplied for it.
@@ -49,6 +52,9 @@ impl core::fmt::Display for PresenceError {
             PresenceError::BadTimeWindow => write!(f, "inconsistent or out-of-policy time window"),
             PresenceError::NotEnoughRangeSamples => write!(f, "too few range samples"),
             PresenceError::RangeExceeded => write!(f, "round-trip range exceeds policy"),
+            PresenceError::UwbRangeExceeded => {
+                write!(f, "hardware (UWB) ranging distance exceeds policy")
+            }
             PresenceError::DeviceMismatch => write!(f, "device identifier does not match its KEL"),
             PresenceError::KelDigestMismatch => write!(f, "KEL digest does not match its KEL"),
             PresenceError::MissingAttestCapability => {

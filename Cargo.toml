@@ -25,6 +25,10 @@ members = [
     "crates/mini-chain",
     "crates/mini-storage",
     "crates/mini-net",
+    "crates/mini-uniqueness",
+    "crates/mini-spacetime",
+    "crates/mini-treasury",
+    "crates/mini-value",
 ]
 
 [workspace.package]

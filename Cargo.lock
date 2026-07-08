@@ -416,6 +416,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-spacetime"
+version = "0.0.1"
+
+[[package]]
 name = "mini-storage"
 version = "0.0.1"
 dependencies = [
@@ -444,6 +448,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-treasury"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+]
+
+[[package]]
+name = "mini-uniqueness"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-presence",
+]
+
+[[package]]
 name = "mini-update"
 version = "0.0.1"
 dependencies = [
@@ -454,6 +473,10 @@ dependencies = [
  "mini-objects",
  "mini-store",
 ]
+
+[[package]]
+name = "mini-value"
+version = "0.0.1"
 
 [[package]]
 name = "opaque-debug"

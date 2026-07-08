@@ -33,6 +33,13 @@
 //! than hardware ranging, and plain RSSI is only a weak hint. This crate provides
 //! the signed, bound, replay-checked envelope those measurements slot into.
 //!
+//! Where a device has a UWB (ultra-wideband) chip, [`UwbRanging`] carries a
+//! hardware-timed distance measurement that *additionally* tightens the bound
+//! (D-0034 point 1) — never a replacement for the RTT check above, which
+//! `verify_presence` always enforces regardless. [`ranging::RangingSource`]
+//! is the seam a platform shell fills in to supply it; see that module's
+//! honest limit for what does and doesn't exist yet.
+//!
 //! ## Nonces: test fixtures vs. real use
 //!
 //! [`Party::nonce`] must be unpredictable in real use — generate it with
@@ -51,12 +58,15 @@
 
 mod attestation;
 mod error;
+mod ranging;
 mod verify;
 
 pub use attestation::{
-    kel_digest, AttestationFields, Party, PresenceAttestation, TransportKind, PRESENCE_VERSION,
+    kel_digest, AttestationFields, Party, PresenceAttestation, TransportKind, UwbRanging,
+    PRESENCE_VERSION,
 };
 pub use error::{PresenceError, Result};
+pub use ranging::{NoUwb, RangingError, RangingSource};
 pub use verify::{
     verify_presence, InMemoryReplayGuard, PresenceVerdict, RangePolicy, ReplayGuard, VerifyContext,
 };
