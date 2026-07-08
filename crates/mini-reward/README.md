@@ -25,12 +25,14 @@ shared engine — diversity-weighted decay per repeat witness, a per-window
 rate cap, and maturation delay — scaled by committed gibibytes instead of a
 flat per-event amount. A host can never witness (and pay) itself.
 
-**Trust model, stated plainly (mirrors `mini-presence`):** `StorageWitness` is
-the *already-verified* input this crate expects — e.g. a mutually-signed
-storage-served receipt. The signing/verification pipeline that would connect
-`CacheTier::CommittedStorage` to a real `StorageWitness` is a future
-`mini-store`/`mini-sync` batch and remains `pending`; this crate only adds
-the deterministic accrual math once such a record exists.
+**Trust model, stated plainly (mirrors `mini-presence`):** `witnesses` are
+`mini_storage::ServeVerdict`s — the verified output of `mini-storage`'s
+mutually-signed storage-served receipts, the exact same relationship
+`accrue`/`ledger` already have with `mini_presence::PresenceVerdict`. The
+receipt-signing/verification pipeline itself lives in `mini-storage`
+(shipped: two-party `ATTEST`-capable device signatures, replay resistance,
+freshness policy); automatic receipt emission as a side effect of a real
+`mini-sync` exchange remains `pending`.
 
 ## What it deliberately is not
 

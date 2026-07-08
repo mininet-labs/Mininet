@@ -368,7 +368,7 @@ alone is only a weak hint (SPEC-02).
 
 ---
 
-### D-0017 — Reward accrual stub (`mini-reward`): slow, diversity-weighted, non-spendable  ·  *Accepted*
+### D-0017 — Reward accrual stub (`mini-reward`): slow, diversity-weighted vesting toward MINI  ·  *Accepted, corrected 2026-07-08*
 **Date:** 2026-07-01 · **Refs:** SPEC-03 (demo value), constitution P1/P2/P4.
 
 Verified presence becomes visible value through a **pure function** over
@@ -377,13 +377,30 @@ Verified presence becomes visible value through a **pure function** over
 and cap; distinct counterparties pay full), **rate-capped per window**, and
 **matures on a delay** before vesting (P4: slow, presence-conditioned).
 
-[FREEZE] This stub is **not money and not a vote**: it has no transfer, no balance
-ledger, no spend, and a `RewardAccount` carries no governance weight (P1). It is a
-demo counter that the chain reward module replaces later; the freeze is that reward
-must never, in any implementation, translate into governance voice.
+**Correction (2026-07-08, whitepaper §8.3 confirms — see D-0035):** an earlier
+version of this entry called the stub "not money," describing it as a demo
+counter the chain reward module would later replace with a separate real
+currency. That was wrong. The whitepaper is explicit: there is **one**
+currency, MINI, and "a large genesis tranche represents the present value of
+the world and is distributed as each verified human's slowly-vesting share,
+conditioned on continuous human presence." `RewardAccount`'s accrual and
+maturation *is* that vesting mechanism, not a stand-in for it — `vested_points`
+are, in a full implementation, literally spendable MINI. Nothing about the
+accrual math changes; what changes is what the numbers *mean*.
+
+[FREEZE, unchanged and now more load-bearing, not less] Whatever this value
+becomes spendable as, it carries no governance weight, ever. `RewardAccount`
+has no vote-weight field today and must never grow one; MINI balance and
+voting eligibility are permanently separate axes (P1, whitepaper §3 "the
+central separation: voice and value"). This is the wall the whitepaper calls
+"the single decision that makes the whole vision hold" — it is not this
+crate's business to enforce spend/transfer (that is the future MINI ledger's
+job, `mini-value`/`mini-chain`, D-0034/D-0035), but it is this crate's business
+to never let accrual imply or carry a vote.
 
 Note: diversity-weighting and caps only *blunt* farming; they are not Sybil
-resistance, which remains personhood's job (SPEC-02).
+resistance, which remains personhood's job (SPEC-02, now specified in detail
+by the whitepaper's three-signal design — see D-0035).
 
 ---
 
@@ -800,3 +817,205 @@ Also formalized: the identity-mode taxonomy (`did-mini::IdentityMode` —
 
 None of the above changes P1/P2: money and infrastructure commitment still
 never buy a vote, and human status is still private and exactly one per human.
+
+---
+
+### D-0034 — Ranging (UWB), uniqueness graph, P2P networking (libp2p), and privacy-preserving value transfer: four founder decisions, phased  ·  *Accepted (founder directive, phased implementation)*
+**Date:** 2026-07-08 (founder cohort) · **Refs:** SPEC-02 (personhood, unimplemented),
+D-0008 (own what must be self-governed, adapt proven pieces), D-0009/D-0016
+(bearers, presence honest limits), D-0033, constitution P1/P2/P5.
+
+Same governing principle as D-0008/D-0009: **own the parts that encode our
+values and must be self-governed; adapt proven, audited open-source designs —
+into our own tree, never as a live framework dependency — where novelty is
+risk without value.** Four decisions, each phased rather than landed in one
+batch, because each opens a new crate:
+
+1. **Ranging: native UWB where available, software RTT elsewhere.**
+   Amends D-0016's honest limit, not D-0009's radio freeze — these are
+   different things. D-0009/D-0033 forbid a *long-range communications radio*
+   (LoRa/mesh radio) as a network bearer; UWB here is a *short-range ranging
+   sensor* already inside commodity phones (iPhone U-series, many Android
+   flagships), used only to tighten the existing two-device distance bound
+   inside an already-established presence session — it carries no traffic and
+   is never a bearer. Devices without UWB keep the current software RTT bound
+   as a fallback; this is additive, not a replacement. Platform bridging
+   (native UWB APIs are not reachable from pure Rust) fits the existing
+   UniFFI-shell architecture (D-0020): the Rust core defines the ranging
+   trait/result type, each platform shell supplies the UWB measurement.
+
+2. **Uniqueness/personhood: a custom in-house uniqueness graph — not a raw
+   trust list, not an outside oracle, not biometrics.** Founder guidance: the
+   co-presence attestations `mini-presence` already produces are each user's
+   *own* trusted contact list — real, useful, but not by themselves a
+   network-wide uniqueness proof (a user's own list is exactly what a sybil
+   would also produce). SPEC-02 personhood is built as our own graph-based
+   uniqueness algorithm layered on top of that attestation data (edges =
+   mutually-signed, range-bound co-presence pairs, per D-0016), not by
+   integrating an existing proof-of-personhood project (rejected: puts a
+   third party's graph/servers in the trust path) and not by biometrics
+   (rejected outright by P5: no raw personal data). **This is a design task
+   before it is a coding task** — the graph algorithm itself (how uniqueness
+   is scored/decided from an attestation graph, and how it resists sybil
+   clustering) needs its own written design pass, most likely its own SPEC
+   section, before a `mini-uniqueness` crate is built. Marked `pending`,
+   highest design risk of the four.
+
+3. **Wide-area networking: our own DHT + gossip, borrowing libp2p's proven
+   *designs*, not taking libp2p as a dependency.** D-0009 already anticipated
+   "wider-network gossip/DHT and the relay + DTN layer" as a later addition
+   on top of the bearer trait; this decision picks which *algorithms* that
+   layer is built from — a Kademlia-style routing table for peer discovery,
+   and an epidemic/gossipsub-style pub/sub broadcast for propagation — and
+   reimplements them as Mininet-owned code in a new `mini-net` crate, the
+   same "own what must be self-governed" stance as D-0008/D-0009: no
+   heavyweight external framework becomes load-bearing plumbing our peers
+   depend on, and no upstream project's release cadence, governance, or
+   supply chain sits on our critical path. This is a correction from an
+   earlier draft of this entry, which had proposed a live `libp2p` crate
+   dependency — founder guidance was explicit that "open-source tech that
+   works" (the Monero/Ripple/libp2p references) means *study and adapt the
+   design*, not depend on the project's code. **Scope boundary, so this
+   cannot quietly become an identity leak:** the transport-routing peer id
+   this layer generates is ephemeral, session-scoped, and never derived from
+   or bound to a `did:mini` root — it must never become a stable
+   cross-session identifier, which would undermine the anonymous-channel
+   invariant [FREEZE] in D-0015. `mini-net` sits behind the same kind of
+   narrow trait `mini-bearer` uses, so the wider-network relay stays
+   swappable and never load-bearing for trust.
+
+4. **Value transfer: a real spendable-value layer, Monero-style primitives,
+   built in-house.** `mini-reward` (D-0017) stays exactly as frozen — non-
+   spendable, no governance weight, never money buying voice (P1). This is a
+   *separate* layer for real transfers (e.g. paying for storage service,
+   tipping), explicitly not the reward/accrual system. Ring signatures,
+   stealth addresses, and RingCT-style confidential amounts are the chosen
+   primitives — reimplemented in our own `mini-crypto`-adjacent crate rather
+   than vendoring Monero's codebase, matching this project's existing pattern
+   of owning the primitive layer while following a proven design. **[FREEZE]
+   Same P1 boundary applies here as everywhere else: no balance, stake, or
+   payment in this layer may ever appear in a vote/quorum/access rule, and no
+   key in this layer may unmask a user.** Highest engineering-risk item of
+   the four (real value, real cryptography, real loss-of-funds surface) —
+   primitives ship with extensive test coverage first; no real-value
+   deployment before an external crypto review, mirroring the caution already
+   recorded for signature/hash agility (D-0003/D-0004).
+
+Sequencing (lowest-risk/most-scoped first, since all four are independent of
+each other and of the existing keystone critical path): `mini-net` first
+(mechanical, well-understood, unlocks real multi-device testing for
+everything else) — then ranging, then the uniqueness-graph design pass, then
+value transfer last (highest risk, most deliberation needed before code).
+
+---
+
+### D-0035 — Whitepaper reconciliation: MINI unification, three-signal personhood, hybrid consensus, human-only crypto core — and one open contradiction  ·  *Accepted where noted; one item explicitly OPEN*
+**Date:** 2026-07-08 · **Refs:** `Mininet_Whitepaper.pdf` v1.0 (founding document,
+received this date), D-0008/D-0009/D-0017/D-0033/D-0034.
+
+The founding whitepaper was shared for the first time this session. It is the
+senior document — the constitution's own six principles are drawn from it —
+so this entry reconciles it against decisions already made in this log.
+Most of it *confirms* what was already built or decided; one item
+*contradicts* an already-"closed" decision and is called out as genuinely
+open, not resolved here.
+
+**1. MINI is one currency; reward accrual is literally its slow-release
+mechanism (confirms and corrects D-0017 — see that entry's inline
+correction).** Whitepaper §8.3: "a large genesis tranche represents the
+present value of the world and is distributed as each verified human's
+slowly-vesting share, conditioned on continuous human presence." This *is*
+`mini-reward`'s accrual/maturation design, not a demo stand-in for it.
+`RewardAccount` was mischaracterized as "not money" — corrected in place.
+What does not change, and matters more now that the numbers are confirmed to
+be real value: MINI balance and voting weight are permanently different axes
+(whitepaper §3, "the central separation: voice and value" — the wall the
+whitepaper itself calls load-bearing for the entire project).
+
+**2. Personhood has a specified design; D-0034 point 2's "left to us"
+framing is superseded.** Whitepaper §5 specifies three fused signals: (a) a
+social-vouching graph (~100 non-clustered genuine connections, graph-
+community analysis to discount Sybil-farm clusters — a known technique
+family, e.g. SybilRank-style trust propagation); (b) on-device behavioral/
+location entropy, proved in zero-knowledge so raw sensor data never leaves
+the device — explicitly named the most research-intensive, not-yet-shipped-
+anywhere component; (c) physical-presence attestation — **exactly what
+`mini-presence` already implements**, named the strongest signal because two
+devices cannot be in two places at once. Confidence decays over time and
+must be continuously re-earned; value/governance unlock only as confidence
+stays high across months, not at a single verification moment. Cold start is
+a diverse founding cohort vouching for each other in person, diluting
+rapidly as the graph grows, with **no extra vote for being early** (P2 still
+holds). `mini-uniqueness` (task pending) now has a real spec to build
+toward — signal (c) is done, signal (a) is a graph algorithm with prior art,
+signal (b) is genuine unsolved-elsewhere R&D.
+
+**3. Consensus is a hybrid, not flat equal-weight-per-human as D-0008 alone
+implied.** Whitepaper §8.1: block-production weight comes from **proof-of-
+space-time** (concave reward curve + per-identity caps + geographic/network-
+diversity bonuses, so doubling capacity yields less than double reward —
+storage weight without letting storage buy governance), while **finality is
+anchored by a committee *sampled* from high-confidence verified humans**.
+`mini-chain`'s current skeleton (`ValidatorSet`, equal weight per verified
+identity root, `QuorumCertificate`/`verify_finality`) is the *finality-
+committee* half, reasonably faithful once sampling-from-personhood-pool
+replaces today's identity-root stand-in. The **proof-of-space-time block-
+production half does not exist yet** — new consensus work, not a small
+addition, tracked as a new task rather than folded silently into D-0034's
+existing sequencing.
+
+**4. `mini-value` builds Monero-style privacy for the *one* MINI ledger, not
+a second currency.** D-0034 point 4's "separate spendable-value layer" wording
+is corrected by point 1 above: there is one currency. `mini-value`'s job is
+transaction-privacy primitives (ring signatures, stealth addresses, RingCT-
+style confidential amounts) for `mini-chain`'s ledger — Bitcoin and Monero
+appear in the whitepaper as **external assets contributed to a community
+treasury in exchange for freshly issued MINI at a community-governed rate**
+(§8.2, "how the rich contribute" — permissionless, no seller, contributor
+gets value, zero extra voice), a *separate*, currently unbuilt mechanism
+(treasury custody, price governance, BTC/XMR receipt verification) from
+transaction privacy. Tracked as a new task, not conflated with `mini-value`.
+
+**5. [FREEZE, new, explicit] Human-only authorship + external audit for the
+highest-stakes cryptographic components.** Whitepaper §8.1 (hybrid
+consensus), §9/treasury custody, and §11 ("the cryptographic privacy core is
+written by humans, reviewed by humans, and audited externally, never
+delegated to automated tooling") state this as a founder requirement, not a
+suggestion. This project has, to date, had an AI author every crate
+including `mini-crypto`, `did-mini`, and `mini-presence`'s cryptographic
+logic, with external crypto review already tracked as a standing open item
+(D-0030/D-0031) — consistent in spirit, but the whitepaper makes it
+explicit and specifically names the hybrid consensus, treasury custody, and
+the personhood behavioral/location ZK proof as requiring human authorship
+before real deployment, not merely human review after the fact. Recorded
+here so it governs how `mini-uniqueness`'s signal (b), the proof-of-space-
+time consensus half, `mini-value`, and treasury custody get built: AI-authored
+code for these four may exist as a prototype/reference implementation and
+ships with that label, but is explicitly **not** a substitute for the
+human-authored, externally-audited version the whitepaper requires before
+real value or real personhood proofs depend on it.
+
+**6. New, smaller items noted for future tasks, not acted on in this entry:**
+onion-style multi-hop relay routing where "relays earn MINI for carrying it"
+(whitepaper §6) — `mini-bearer`'s current channel is direct two-party, not
+multi-hop, and `mini-net`'s gossip is flood-broadcast, not onion-routed
+unicast; an influence/rank system from referrals and contribution that
+"unlocks more ways to take part in running things" but **never adds vote
+weight** (§10) — nothing in the tree today; and a "reach floor" guarantee
+that no quantity of dislikes can fully bury a post (§8.4) — `mini-social`'s
+ranking is a user-chosen filter (D-0025 [FREEZE]) but does not yet guarantee
+a floor against a dislike-heavy filter choice.
+
+**7. [RESOLVED 2026-07-08 by founder cohort] LoRa/radio: D-0033 wins.**
+Whitepaper §6 lists "long-range low-power radio in the LoRa family" as one
+of the overlay's interchangeable bearers, on equal footing with Bluetooth
+and Wi-Fi — directly conflicting with D-0009/D-0033's *"radio/LoRa is
+permanently out of scope... a closed question, not an open one to revisit."*
+Put to the founder cohort directly rather than resolved by inference: the
+whitepaper's bearer list is **aspirational v1.0 language, not binding** —
+D-0009/D-0033 were made with real engineering-cost information the
+whitepaper draft didn't have, and stand as written. Radio/LoRa remains
+permanently excluded from `mini-bearer`/`mini-net`; this whitepaper mention
+is a known, deliberate divergence between the founding document and the
+implemented protocol, not an oversight, and should read that way if the
+whitepaper is ever revised.

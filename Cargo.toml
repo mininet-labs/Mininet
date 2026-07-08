@@ -23,6 +23,8 @@ members = [
     "crates/mini-bootstrap",
     "crates/mini-update",
     "crates/mini-chain",
+    "crates/mini-storage",
+    "crates/mini-net",
 ]
 
 [workspace.package]

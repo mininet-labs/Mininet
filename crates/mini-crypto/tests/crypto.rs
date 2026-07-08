@@ -378,3 +378,15 @@ fn secret_debug_impls_redact_key_material() {
     assert!(format!("{shared:?}").contains("redacted"));
     assert!(format!("{aead:?}").contains("redacted"));
 }
+
+#[test]
+fn random_32_is_not_all_zero_and_two_calls_differ() {
+    // Not a proof of entropy quality (that's the OS CSPRNG's job), just a
+    // sanity check that this actually calls into real randomness rather
+    // than e.g. silently returning a zeroed buffer.
+    let a = mini_crypto::random_32().unwrap();
+    let b = mini_crypto::random_32().unwrap();
+    assert_ne!(a, [0u8; 32]);
+    assert_ne!(b, [0u8; 32]);
+    assert_ne!(a, b);
+}

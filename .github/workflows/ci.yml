@@ -9,6 +9,11 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
 
+# Least-privilege default: this workflow only reads and checks the repo, it
+# never needs to write anything (no releases, no PR comments, no pushes).
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest

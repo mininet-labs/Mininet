@@ -1,7 +1,7 @@
 [package]
 name = "mini-reward"
 version = "0.0.1"
-description = "Deterministic, non-spendable local reward accrual from verified presence: slow, presence-conditioned, diversity-weighted (P4). A demo stub, not money."
+description = "Deterministic, non-spendable local reward accrual from verified presence and verified storage-served receipts: slow, diversity-weighted, presence/witness-conditioned (P4). A demo stub, not money."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -12,3 +12,8 @@ publish = false
 [dependencies]
 did-mini = { path = "../did-mini" }
 mini-presence = { path = "../mini-presence" }
+mini-storage = { path = "../mini-storage" }
+
+[dev-dependencies]
+mini-crypto = { path = "../mini-crypto" }
+mini-objects = { path = "../mini-objects" }

@@ -171,7 +171,10 @@ fn ledger_is_complete_sorted_and_order_independent() {
 
 // ---- storage-commitment accrual (founder decision, 2026-07-07) ----
 
-use mini_reward::{accrue_storage, storage_ledger, StorageRewardParams, StorageWitness};
+use mini_crypto::{encoding, HashAlgorithm, Multihash};
+use mini_objects::ObjectId;
+use mini_reward::{accrue_storage, storage_ledger, StorageRewardParams};
+use mini_storage::ServeVerdict;
 
 fn simple_storage() -> StorageRewardParams {
     StorageRewardParams {
@@ -183,10 +186,19 @@ fn simple_storage() -> StorageRewardParams {
     }
 }
 
-fn witnessed(host: &Did, witness: &Did, gib: u64, at_ms: u64) -> StorageWitness {
-    StorageWitness {
+/// A cheap, structurally-valid but otherwise meaningless content id — no
+/// object-signing needed, `accrue_storage` never inspects it.
+fn fake_content_id(tag: u64) -> ObjectId {
+    let mh = Multihash::of(HashAlgorithm::Blake3, &tag.to_be_bytes());
+    let s = encoding::encode(encoding::BASE58BTC, &mh.to_bytes()).unwrap();
+    ObjectId::parse(&s).unwrap()
+}
+
+fn witnessed(host: &Did, witness: &Did, gib: u64, at_ms: u64) -> ServeVerdict {
+    ServeVerdict {
         host_root: host.clone(),
         witness_root: witness.clone(),
+        content_id: fake_content_id(at_ms),
         bytes: gib * (1u64 << 30),
         at_ms,
     }
@@ -314,9 +326,10 @@ fn sub_gib_commitments_round_down_to_zero_points() {
     // Bytes-scaled accrual never gives points for a fractional GiB — this
     // keeps the accrual math from being gamed with many tiny "commitments".
     let (host, witness) = (human(1, 2), human(3, 4));
-    let ws = vec![StorageWitness {
+    let ws = vec![ServeVerdict {
         host_root: host.clone(),
         witness_root: witness.clone(),
+        content_id: fake_content_id(1),
         bytes: (1u64 << 30) - 1, // just under 1 GiB
         at_ms: 1_000,
     }];

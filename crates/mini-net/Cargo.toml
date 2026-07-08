@@ -1,0 +1,17 @@
+[package]
+name = "mini-net"
+version = "0.0.1"
+description = "Mininet's own wide-area peer discovery (Kademlia-style routing table) and gossip broadcast (dedup flooding), sitting behind the same narrow-trait pattern as mini-bearer's local transports."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Only the local randomness primitive (ephemeral peer id generation) — no
+# external P2P framework dependency. The routing/gossip algorithms below are
+# Mininet-owned reimplementations of proven designs (Kademlia, epidemic
+# gossip broadcast), not a vendored third-party crate (D-0034 point 3).
+mini-crypto = { path = "../mini-crypto" }
