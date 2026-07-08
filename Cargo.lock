@@ -308,6 +308,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-bounty"
+version = "0.0.1"
+dependencies = [
+ "mini-value",
+]
+
+[[package]]
 name = "mini-chain"
 version = "0.0.1"
 dependencies = [

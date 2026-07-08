@@ -1808,3 +1808,60 @@ this gap before any testnet or real treasury deployment.
 protocol design and trusted-dealer keygen's correctness as a prototype
 both stand); adds a severity classification and production blocker
 D-0041 itself did not state as explicitly.
+
+---
+
+### D-0049 — `mini-bounty`: anonymous developer bounty claims  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Founder direction (GitHub↔governance bridge discussion), D-0036/D-0037/D-0047, `crates/mini-bounty/`.
+
+**Decision:** build anonymous bounty claiming as a direct composition of
+two prototypes already built and reviewed in `mini-value` — linkable ring
+signatures (D-0036) prove membership in an approved-contributor set
+without revealing which member, and stealth addresses (D-0036) receive
+the payout — rather than designing new cryptography. A `BountyPool` holds
+every grant ever issued (claimed or not, so the ring never shrinks to
+unmask the last claimant); `claim`/`verify_claim` bind the ring signature
+to an exact `(pool_id, payout_address)` pair via a length-prefixed
+signed message; the key image prevents double-claiming, tracked by a
+`KeyImageLedger` mirroring `mini_presence::ReplayGuard`'s exact shape.
+
+**Reason:** the founder's GitHub↔governance bridge discussion asked
+specifically how a developer could claim a piece of a bounty "without
+everyone knowing who they were." That's precisely the anonymity property
+a linkable ring signature already provides for spending — the founder's
+own contribution-approval flow (GitHub PR approved → grant published →
+contributor claims) maps onto "one of N authorized keys signs" with no
+conceptual gap, so building new cryptography here would have been
+needless duplication (Directive 14: "the strongest protocol is usually
+the one that removed the most unnecessary parts").
+
+**Constitutional impact:** implements Directive 9 ("privacy is
+architecture... depend only on mathematics") for a new use case. Adds no
+new frozen invariant — governed by the same D-0036/D-0037/D-0047 regime
+every other `mini-value`-derived prototype already falls under. Explicitly
+does **not** claim anonymity from GitHub itself, only from Mininet and
+the public ledger — stated plainly in the crate's own docs to avoid
+overclaiming.
+
+**Implementation status:** real, tested (15 tests, all passing on first
+implementation — no new algebraic identity to hand-derive, since none of
+the underlying math changed). No GitHub integration exists — this is the
+claim cryptography only. See `docs/STATUS.md`.
+
+**Failure point:** a pool with too few grants provides little or no real
+anonymity (a ring of one is fully transparent) — this crate enforces no
+minimum ring size, leaving that judgment to the caller
+(`BountyPool::ring_size`). A funding process that mints one grant per
+pool rather than batching approvals would defeat the entire point without
+any code here reporting an error.
+
+**Required follow-up:** the GitHub-reading half (webhook/API integration
+that mints `BountyGrant`s from approved PRs) is unbuilt and not yet a
+filed roadmap issue — should be filed once the broader GitHub↔governance
+bridge design (proposal generation from commits, on-chain release
+registry linkage) is further along, since bounty-grant minting is one
+consumer of that same integration layer, not a separate one. Minimum
+ring-size policy (if any) is a governance/economics question, not a
+cryptography one — left open deliberately.
+
+**Supersedes / superseded by:** none — first entry on this question.

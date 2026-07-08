@@ -1,0 +1,18 @@
+[package]
+name = "mini-bounty"
+version = "0.0.1"
+description = "Anonymous developer-bounty claims: prove membership in an approved-contributor set and claim a payout without revealing which contributor you are, reusing mini-value's ring signatures and stealth addresses. Founder-overridden (D-0036/D-0037), AI-authored prototype pending external cryptography audit; production payouts additionally gated by D-0047."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# The anonymity-set proof (RingSignatureScheme) and payout addressing
+# (StealthAddressScheme) this crate composes are Mininet-owned prototypes
+# already built and reviewed in mini-value (D-0036) -- this crate adds no
+# new cryptographic primitive, only the bounty-pool/claim data model on
+# top of them.
+mini-value = { path = "../mini-value" }

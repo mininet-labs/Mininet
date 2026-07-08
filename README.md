@@ -10,7 +10,7 @@ switch, no law-enforcement backdoor, and no party that can unmask a user. The
 software is public domain, built Rust-first and in-house — proven designs are
 adapted into our own tree, never taken as a live external dependency.
 
-This repository is the **self-contained Rust core**: ~22 crates, no owner, no
+This repository is the **self-contained Rust core**: ~23 crates, no owner, no
 external dependency on any single company's infrastructure to keep running.
 
 > **Read this first, before anything else in this repository:**
@@ -46,7 +46,7 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0048` so far —
+   architectural and policy decision, numbered `D-0001`–`D-0049` so far —
    policy only; see its own header for what belongs elsewhere) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register, organized by
    domain, with a hard-limitations section at the top) are the two
@@ -93,7 +93,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 22 crates, see the table below
+├── crates/                 23 crates, see the table below
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
@@ -105,6 +105,7 @@ mininet/
 │   ├── BETA_STATUS.md           near-term target: the two-phone keystone beta
 │   ├── NAVIGATION.md            how to use tools/mininet_nav.py
 │   ├── BOOTSTRAP_AND_UPDATE.md  self-contained update + Bluetooth bootstrap spec
+│   ├── ADDRESSING.md            no-DNS universal addressing design (petnames, not domains)
 │   └── UI_BETA_PLAN.md          the eventual product/UI layer, not yet built
 ├── CONTRIBUTING.md          PR checklist, review floor, scope-of-a-batch rule
 └── .github/workflows/ci.yml  fmt + clippy + test on every PR (temporary mirror CI)
@@ -140,6 +141,7 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-uniqueness` | Personhood/uniqueness: open-ended multi-signal fusion + status | 🧪 fusion logic real (D-0038); the behavioral/location ZK signal itself is 🔬 unsolved research |
 | `mini-treasury` | Contribution bookkeeping + FROST threshold custody | 🧪 FROST + live multi-device demo (D-0041); trusted-dealer keygen, no DKG yet |
 | `mini-value` | MINI fee bookkeeping + transaction-privacy primitives | 🧪 stealth addresses, ring signatures, Bulletproofs confidential amounts (D-0036/D-0040) |
+| `mini-bounty` | Anonymous developer-bounty claims (ring signature + stealth address reuse) | 🧪 real, tested (D-0049); no GitHub integration, no minimum ring-size policy yet |
 
 See `docs/DECISION_LOG.md` for the reasoning and honest limits behind every
 🧪/🔬 entry, and each crate's own `README.md`/top-of-file doc comment for the
