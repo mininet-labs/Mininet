@@ -8,28 +8,34 @@
 //! the network can detect and reject a double-spend of the same output
 //! without ever learning which ring member spent it.
 //!
-//! ## Honest limit — do not implement this without a human cryptographer
+//! [`crate::ring_impl`] is a real (MLSAG-style linkable ring signature)
+//! implementation of this trait, per the founder override recorded in
+//! D-0036. [`NoRingSignature`] remains available as the fail-closed
+//! reference for anyone not opting into the prototype.
 //!
-//! Getting this subtly wrong is catastrophic in either direction: a flawed
-//! anonymity set can deanonymize the real signer, and a flawed key-image
-//! derivation can allow double-spends or accidentally link unrelated
-//! spends together. This is exactly the class of component the whitepaper
-//! (§11, on treasury/bridge custody) and D-0035 point 5 require human
-//! authorship and external audit for, extended here to transaction
-//! privacy generally. [`NoRingSignature`] is the only implementation in
-//! this repo: it signs nothing and **verifies nothing as valid**, fail-
-//! closed rather than fail-open, so an absent real implementation can
-//! never be mistaken for a working one.
+//! ## Honest limit [D-0036]
+//!
+//! This is a founder-overridden, AI-authored prototype, not the human-
+//! authored, externally-audited implementation D-0035 point 5 otherwise
+//! requires. Getting this subtly wrong is catastrophic in either
+//! direction: a flawed anonymity set can deanonymize the real signer, and
+//! a flawed key-image derivation can allow double-spends or accidentally
+//! link unrelated spends together. Treat
+//! [`crate::ring_impl::MininetRingSignature`] as a prototype pending a
+//! specialized external audit before any real value depends on it.
 
-/// A ring signature: the signature bytes plus the key image used for
-/// double-spend detection. Opaque byte blobs — this crate defines no
-/// internal structure for either, since that structure belongs to whatever
-/// concrete scheme a human-authored implementation adopts.
+/// A ring signature over an anonymity-set-sized ring: one challenge value
+/// (the Fiat-Shamir hash chain's anchor), one response scalar per ring
+/// member, and the key image used for double-spend detection. Each field
+/// is a compressed 32-byte scalar/point, opaque at this trait's level —
+/// the internal meaning belongs to whatever concrete scheme implements it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RingSignature {
-    /// Scheme-specific signature bytes.
-    pub signature_bytes: Vec<u8>,
-    /// Scheme-specific key image, for double-spend detection.
+    /// The Fiat-Shamir challenge chain's anchor value.
+    pub challenge: Vec<u8>,
+    /// One response scalar per ring member, same order as the ring.
+    pub responses: Vec<Vec<u8>>,
+    /// The key image, for double-spend detection.
     pub key_image: Vec<u8>,
 }
 
@@ -78,7 +84,8 @@ mod tests {
     fn no_ring_signature_never_verifies_anything_as_valid() {
         let scheme = NoRingSignature;
         let fake = RingSignature {
-            signature_bytes: vec![0u8; 32],
+            challenge: vec![0u8; 32],
+            responses: vec![vec![0u8; 32]],
             key_image: vec![0u8; 32],
         };
         assert!(!scheme.verify(&[vec![1, 2, 3]], b"message", &fake));

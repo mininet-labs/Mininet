@@ -1150,3 +1150,30 @@ is `mini-value::confidential`'s separate, still-fully-stubbed concern).
 Ristretto (not raw Edwards/Curve25519 points) is used specifically to
 avoid the cofactor-related subtle-bug class that ad-hoc protocols built
 directly on Edwards points are prone to.
+
+**Implemented 2026-07-08.** `stealth_impl::MininetStealthAddress`: the
+CryptoNote Diffie-Hellman construction (`P = H(rB)*G + A`, recognized via
+the symmetric `H(bR)`), with `derive_spend_scalar` completing the round
+trip (a recipient can actually reconstruct the one-time spending key, not
+just recognize the output) — kept as a separate function from the
+recognition trait since recognizing (view secret only) and spending (view
++ spend secret) are deliberately different privilege levels. `ring_impl::MininetRingSignature`:
+the AOS/MLSAG Fiat-Shamir hash-chain construction described above, with a
+deterministic key image `I = x*Hp(P)` for double-spend linkability. Both
+use BLAKE3's extendable-output function for hash-to-scalar/hash-to-point
+(wide 64-byte reduction, avoiding bias), and both fail closed on malformed
+input (wrong-length keys, empty rings, out-of-range indices) rather than
+panicking. Tests cover the real cryptographic properties, not just plumbing:
+stealth — recipient recognizes their own output, an outsider does not, two
+outputs to the same recipient are unlinkable on the wire yet both
+recognized, and the derived one-time key actually opens the one-time
+address; ring signature — a valid signature verifies regardless of which
+ring position was real, a tampered message/response/decoy each
+independently fail verification, the same real key produces the same key
+image across two different signings (double-spend detection) while two
+different real keys never collide. 32 tests total in `mini-value`.
+
+**Still explicitly a prototype, not a substitute for external audit**
+(this override does not extend to `mini-value::confidential`, the hybrid
+consensus, treasury custody, or the personhood ZK proof — all four remain
+governed by D-0035 point 5 unchanged).
