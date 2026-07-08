@@ -35,6 +35,18 @@
 //! later. Automatic receipt emission during a real `mini-sync` exchange is
 //! also `pending` — this crate verifies receipts, it does not yet produce
 //! them as a side effect of serving.
+//!
+//! ## Nonces: test fixtures vs. real use
+//!
+//! [`ReceiptFields::host_nonce`]/[`ReceiptFields::witness_nonce`] must be
+//! unpredictable in real use — generate them with [`mini_crypto::random_32`],
+//! never a fixed value. This crate's own test suite deliberately uses fixed
+//! byte arrays instead: tests need deterministic, reproducible inputs (e.g.
+//! deliberately setting both nonces equal to exercise replay rejection), and
+//! a nonce is not a secret the way a signing key is — its job is freshness,
+//! not confidentiality. That convention is specific to tests and must never
+//! be copied into real receipt-building code, where a predictable nonce
+//! defeats the replay resistance it exists to provide.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]

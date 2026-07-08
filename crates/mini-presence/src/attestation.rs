@@ -51,7 +51,13 @@ pub struct Party {
     pub device: Did,
     /// BLAKE3 digest of the device KEL at attestation time (see [`kel_digest`]).
     pub kel_digest: [u8; 32],
-    /// A fresh 32-byte nonce for replay resistance.
+    /// A fresh 32-byte nonce for replay resistance. **Must** come from a
+    /// cryptographically secure random source in real use — call
+    /// [`mini_crypto::random_32`], which is exactly what this field exists
+    /// to receive. A predictable nonce defeats replay resistance entirely.
+    /// This crate's own tests deliberately use fixed byte arrays instead,
+    /// precisely so tests are reproducible; that convention must never leak
+    /// into non-test code.
     pub nonce: [u8; 32],
 }
 

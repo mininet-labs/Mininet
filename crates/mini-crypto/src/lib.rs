@@ -36,6 +36,7 @@ pub mod hash;
 pub mod kdf;
 pub mod keys;
 pub mod multihash;
+pub mod random;
 pub mod suite;
 
 pub use aead::{AeadKey, AeadNonce, AeadSuite};
@@ -45,4 +46,5 @@ pub use hash::{HashAlgorithm, DEFAULT_HASH};
 pub use kdf::KdfSuite;
 pub use keys::{Signature, SigningKey, VerifyingKey};
 pub use multihash::Multihash;
+pub use random::random_32;
 pub use suite::SignatureSuite;

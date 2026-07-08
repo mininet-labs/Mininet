@@ -32,6 +32,19 @@
 //! radio (a deliberate no-radio tradeoff), this is a *software* bound — weaker
 //! than hardware ranging, and plain RSSI is only a weak hint. This crate provides
 //! the signed, bound, replay-checked envelope those measurements slot into.
+//!
+//! ## Nonces: test fixtures vs. real use
+//!
+//! [`Party::nonce`] must be unpredictable in real use — generate it with
+//! [`mini_crypto::random_32`], never a fixed value. This crate's own test
+//! suite deliberately uses fixed byte arrays (`[1u8; 32]`, `[21; 32]`, …)
+//! instead: tests need deterministic, reproducible inputs (e.g. "these two
+//! nonces are equal" to exercise replay rejection on purpose), and a nonce
+//! is not a secret the way a signing key is — its job is freshness, not
+//! confidentiality, so a fixed value in a test fixture leaks nothing. That
+//! convention is specific to tests and must never be copied into real
+//! attestation-building code, where a predictable nonce defeats the replay
+//! resistance it exists to provide.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]

@@ -26,9 +26,14 @@ pub struct ReceiptFields {
     pub host_device: Did,
     /// The receiving/witnessing device.
     pub witness_device: Did,
-    /// The host's fresh nonce, for replay resistance.
+    /// The host's fresh nonce, for replay resistance. **Must** come from a
+    /// cryptographically secure random source in real use — call
+    /// [`mini_crypto::random_32`]. A predictable nonce defeats replay
+    /// resistance entirely. This crate's own tests deliberately use fixed
+    /// byte arrays instead, precisely so tests are reproducible; that
+    /// convention must never leak into non-test code.
     pub host_nonce: [u8; 32],
-    /// The witness's fresh nonce, for replay resistance.
+    /// The witness's fresh nonce — same requirement as [`Self::host_nonce`].
     pub witness_nonce: [u8; 32],
     /// When the serve completed (device clock, ms).
     pub at_ms: u64,
