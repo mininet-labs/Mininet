@@ -843,6 +843,18 @@ batch, because each opens a new crate:
    (native UWB APIs are not reachable from pure Rust) fits the existing
    UniFFI-shell architecture (D-0020): the Rust core defines the ranging
    trait/result type, each platform shell supplies the UWB measurement.
+   **Implemented 2026-07-08:** `mini_presence::UwbRanging` carries the
+   measurement as part of the signed transcript (tamper-evident once
+   signed); `RangePolicy::max_uwb_distance_cm` is an optional tighter bound
+   `verify_presence` enforces only when both the policy and the evidence are
+   present, alongside the RTT check, never instead of it;
+   `ranging::RangingSource` is the platform seam, with `NoUwb` as the
+   permanent, correct reference implementation for chip-less devices — no
+   real UWB adapter exists in this repo, the same honest-limit shape as
+   `mini-bearer`'s still-pending real BLE adapter. Tests:
+   `crates/mini-presence/tests/presence.rs` (four new cases: absence is a
+   no-op, in-policy acceptance, out-of-policy rejection even when RTT alone
+   would pass, and tamper detection on the signed UWB field).
 
 2. **Uniqueness/personhood: a custom in-house uniqueness graph — not a raw
    trust list, not an outside oracle, not biometrics.** Founder guidance: the

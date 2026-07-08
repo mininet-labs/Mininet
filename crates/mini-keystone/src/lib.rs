@@ -183,6 +183,7 @@ pub fn run_demo(
         rtt_samples_ms: vec![9, 11, 10, 12],
         transport,
         location_commitment: None,
+        uwb: None,
     };
     let att = PresenceAttestation::new(
         fields.clone(),

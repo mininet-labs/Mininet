@@ -18,6 +18,7 @@ fn verdict(x: &Did, y: &Did, at_ms: u64) -> PresenceVerdict {
         initiator_root: x.clone(),
         responder_root: y.clone(),
         at_ms,
+        hardware_ranged: false,
     }
 }
 
