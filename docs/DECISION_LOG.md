@@ -1293,3 +1293,53 @@ depends on resisting. Real proof-of-replication (Filecoin-style
 sequential/time-locked encoding) is the construction that closes that gap
 and remains explicitly deferred, not silently dropped. 26 tests total in
 `mini-spacetime` (up from 9).
+
+---
+
+### D-0040 — `mini-value`: Bulletproofs range proof implemented for confidential amounts  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** D-0035 point 4, D-0036/D-0037, whitepaper §8, `mini-value::{bp_generators,bp_ipa,bp_range,confidential,confidential_impl}`.
+
+Founder direction: build the full Bulletproofs range proof, not a
+placeholder. Implemented:
+
+- `bp_generators` — deterministic, hash-derived (nothing-up-my-sleeve)
+  generators for the commitment/proof system (`blinding_generator`,
+  `value_generator`, `ipa_generator`, 64-long `g_vec`/`h_vec`), all
+  independent of `curve::basepoint()` (the signing-key generator) so the
+  commitment scheme never shares a discrete-log relationship with
+  anything signature-related.
+- `bp_ipa` — the generic inner product argument: recursive halving with
+  Fiat-Shamir challenges compressing an `O(n)` opening to an `O(log n)`-
+  size proof (`InnerProductProof`), with `prove`/`verify`.
+- `bp_range` — the full single-value range proof (`prove_range`/
+  `verify_range`/`RangeProof`): bit decomposition enforcing
+  `value ∈ [0, 2^64)`, blinded vector commitments `A`/`S`, the folded
+  polynomial `t(X) = <l(X), r(X)>`, commitments `T1`/`T2`, and the IPA to
+  compress the opening.
+- `confidential`/`confidential_impl::MininetConfidentialAmount` — the
+  `ConfidentialAmountScheme` trait redesigned around the real protocol
+  shape (`commit_with_proof`/`verify_range_proof`/`verify_balance`), and
+  its implementation. `verify_balance` needs no extra proof: Pedersen
+  commitments are additively homomorphic
+  (`C(v1,b1) + C(v2,b2) == C(v1+v2,b1+b2)`), so balance is exactly an
+  elliptic-curve point-sum equality check on the commitments themselves.
+
+Two load-bearing algebraic identities were hand-derived and checked
+term-by-term before writing any code, rather than trusted from memory of
+the paper: the IPA folding relation
+(`P_{i+1} = P_i + u_i²·L_i + u_i⁻²·R_i`), and the range-proof constant-term
+relation (`t0 = value·z² + delta(y,z)`, with
+`delta(y,z) = (z-z²)·Σyⁱ - z³·Σ2ⁱ`). Both are documented in `bp_range`'s
+module docs. This produced zero test failures across all four new/changed
+modules on first implementation. 59 tests total in `mini-value` (up from
+32); debug builds are noticeably slower for the range-proof tests
+(unoptimized big-integer curve arithmetic) — confirmed correct and fast
+(well under a second for the whole suite) under `cargo test --release`.
+
+**[FREEZE reminder — D-0036/D-0037 still applies.]** This is a founder-
+reviewed, AI-authored prototype, not an external-audit-equivalent. Range-
+proof soundness is exactly the class of property with no safe middle
+ground between "provably correct" and "silently exploitable" — treat
+`MininetConfidentialAmount` as pending a specialized cryptography audit
+before any real value depends on it, same bar as the stealth-address and
+ring-signature prototypes before it.
