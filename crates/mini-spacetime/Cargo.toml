@@ -1,0 +1,12 @@
+[package]
+name = "mini-spacetime"
+version = "0.0.1"
+description = "Block-production selection weight from committed storage capacity (whitepaper SS8.1's proof-of-space-time half of the hybrid consensus) -- deliberately separate from mini-chain's equal-weight-per-human finality voting."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]

@@ -994,6 +994,26 @@ production half does not exist yet** — new consensus work, not a small
 addition, tracked as a new task rather than folded silently into D-0034's
 existing sequencing.
 
+**Design pass done 2026-07-08 (`mini-spacetime`), split by risk class —
+mirroring the same split `mini-uniqueness` made for its own novel-crypto
+signal:** the *scoring formula* (given already-proven capacity, how much
+should it weigh) is ordinary deterministic arithmetic and is fully
+implemented: `weight::proposer_weight` capped-then-square-rooted (concave:
+doubling capacity yields ~1.41x weight, verified by test, never 2x) with a
+bounded per-region diversity bonus, all integer (`isqrt`, from-scratch
+Newton's method) for exact reproducibility. The *cryptographic proof itself*
+— genuinely holding that capacity over a challenge period — is **not**
+attempted: `proof::ProofOfSpaceTimeSource` is a seam only, `NoProof` its
+correct permanent stand-in, per the whitepaper's own words ("the most
+demanding engineering in the value layer... implemented human-only and
+externally audited") and point 5 below. Structurally kept apart from
+`mini-chain`: `proposer_weight` returns a plain `u64` with no shared type
+with `ValidatorSet` and no path to `Capabilities::VOTE` — storage capacity
+can make a node likelier to *propose* a block, never make a vote count for
+more (P1, unchanged). Proposer rotation/leader-election, the state machine,
+and networking remain unbuilt, the same boundary `mini-chain` already
+states for its own half. 9 tests.
+
 **4. `mini-value` builds Monero-style privacy for the *one* MINI ledger, not
 a second currency.** D-0034 point 4's "separate spendable-value layer" wording
 is corrected by point 1 above: there is one currency. `mini-value`'s job is
