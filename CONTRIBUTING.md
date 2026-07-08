@@ -14,6 +14,13 @@ reasons from. This applies equally to AI-assisted contributions: an AI
 drafting code under the D-0037 policy is expected to have read and be
 reasoning from the same seventeen directives a human contributor would.
 
+**Before proposing something novel, check `docs/FAILURE_BOOK.md`.** If an
+idea was already tried and rejected — a networking approach, a
+personhood construction, a chain-stack choice — it's recorded there with
+the actual reasoning, not just "we chose something else." Re-proposing a
+closed question wastes review time; re-proposing an open one with new
+information is exactly what the book is for.
+
 ## Principles that apply to contribution itself
 
 - **Voice / value wall (SPEC-11 §2 \[FREEZE\]).** Funding work is free and unequal;

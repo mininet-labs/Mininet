@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 22,
-    "files": 195,
-    "headings": 279,
+    "files": 197,
+    "headings": 299,
     "rust_symbols": 1803
   },
   "crates": {
@@ -201,7 +201,7 @@
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
     {
-      "bytes": 3212,
+      "bytes": 3615,
       "group": "root",
       "headings": [
         {
@@ -211,38 +211,42 @@
         },
         {
           "level": 2,
-          "line": 17,
+          "line": 24,
           "text": "Principles that apply to contribution itself"
         },
         {
           "level": 2,
-          "line": 36,
+          "line": 43,
           "text": "Practical checklist for a PR"
         },
         {
           "level": 2,
-          "line": 45,
+          "line": 52,
           "text": "Signing"
         },
         {
           "level": 2,
-          "line": 52,
+          "line": 59,
           "text": "Scope of a batch"
         }
       ],
       "keywords": [
         "contributing",
         "merge",
+        "one",
         "two",
         "cargo",
         "principles",
         "itself",
         "spec-11",
-        "one",
+        "reasoning",
         "every",
         "invariants",
+        "something",
+        "what",
         "human",
         "code",
+        "there",
         "frozen",
         "change",
         "approvals",
@@ -250,15 +254,11 @@
         "apply",
         "contribution",
         "practical",
-        "checklist",
-        "signing",
-        "scope",
-        "batch",
-        "domain"
+        "checklist"
       ],
-      "lines": 57,
+      "lines": 64,
       "path": "CONTRIBUTING.md",
-      "sha256": "76fddb63974aa89bbea79ee7f826c1de2472e417c9e5586aff90c2b70c667e00",
+      "sha256": "951cb61b93f1c445bb24fad9563ab4d5b83a3acabc2e420bf393849e9f69069a",
       "symbols": [],
       "title": "Contributing"
     },
@@ -423,7 +423,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 19615,
+      "bytes": 19873,
       "group": "root",
       "headings": [
         {
@@ -438,76 +438,76 @@
         },
         {
           "level": 2,
-          "line": 56,
+          "line": 59,
           "text": "Status at a glance"
         },
         {
           "level": 2,
-          "line": 82,
+          "line": 85,
           "text": "Repository map"
         },
         {
           "level": 2,
-          "line": 138,
+          "line": 142,
           "text": "What we've built so far, grouped by theme"
         },
         {
           "level": 2,
-          "line": 172,
+          "line": 176,
           "text": "Path to a global launch \u2014 what is still missing"
         },
         {
           "level": 2,
-          "line": 230,
+          "line": 234,
           "text": "Suggested improvements (not yet decided, worth raising with the founder cohort)"
         },
         {
           "level": 2,
-          "line": 245,
+          "line": 249,
           "text": "Constitution summary"
         },
         {
           "level": 2,
-          "line": 266,
+          "line": 270,
           "text": "Identity, public walls, and base devices"
         },
         {
           "level": 2,
-          "line": 289,
+          "line": 293,
           "text": "Stack at a glance"
         },
         {
           "level": 2,
-          "line": 301,
+          "line": 305,
           "text": "Build & test"
         },
         {
           "level": 2,
-          "line": 312,
+          "line": 316,
           "text": "Contributing & review"
         },
         {
           "level": 2,
-          "line": 320,
+          "line": 324,
           "text": "License"
         }
       ],
       "keywords": [
-        "cargo",
         "see",
+        "every",
+        "cargo",
         "real",
         "repository",
         "what",
-        "every",
         "review",
         "run",
         "one",
+        "read",
         "glance",
         "map",
         "still",
         "yet",
         "build",
-        "read",
         "three",
         "code",
         "status",
@@ -518,11 +518,73 @@
         "live",
         "external"
       ],
-      "lines": 323,
+      "lines": 327,
       "path": "README.md",
-      "sha256": "3c436eb208bcc92676106fb0adcb1cc8c253439696247cadc3642331c2762725",
+      "sha256": "6cbe357650c16610a688327d41e826d0019cfde6f83c4a36d2754d5bdefaf4d2",
       "symbols": [],
       "title": "Mininet"
+    },
+    {
+      "bytes": 3154,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Security Policy"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "Before anything else: read the honest limits"
+        },
+        {
+          "level": 2,
+          "line": 20,
+          "text": "Reporting a vulnerability"
+        },
+        {
+          "level": 2,
+          "line": 44,
+          "text": "What to expect"
+        },
+        {
+          "level": 2,
+          "line": 54,
+          "text": "Scope"
+        }
+      ],
+      "keywords": [
+        "security",
+        "anything",
+        "honest",
+        "what",
+        "scope",
+        "repository",
+        "issue",
+        "github",
+        "else",
+        "limits",
+        "cryptography",
+        "something",
+        "see",
+        "policy",
+        "read",
+        "reporting",
+        "vulnerability",
+        "expect",
+        "company",
+        "but",
+        "real",
+        "yet",
+        "report",
+        "prototypes"
+      ],
+      "lines": 63,
+      "path": "SECURITY.md",
+      "sha256": "7e723613421fd2c6747e937be0cbf026b6e15817eef451992612c03de2d95c7d",
+      "symbols": [],
+      "title": "Security Policy"
     },
     {
       "bytes": 909,
@@ -16921,6 +16983,118 @@
       "title": "Decision Log"
     },
     {
+      "bytes": 7417,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "The Mininet Failure Book"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "Why this exists, and how it differs from the Decision Log"
+        },
+        {
+          "level": 2,
+          "line": 23,
+          "text": "Entry format"
+        },
+        {
+          "level": 3,
+          "line": 29,
+          "text": "[Short name of the rejected/abandoned approach]"
+        },
+        {
+          "level": 2,
+          "line": 45,
+          "text": "Architecture & infrastructure"
+        },
+        {
+          "level": 3,
+          "line": 47,
+          "text": "Radio / LoRa as a core transport"
+        },
+        {
+          "level": 3,
+          "line": 58,
+          "text": "Cosmos SDK / Go chain stack"
+        },
+        {
+          "level": 3,
+          "line": 71,
+          "text": "Flutter for the client UI"
+        },
+        {
+          "level": 2,
+          "line": 80,
+          "text": "Personhood & identity"
+        },
+        {
+          "level": 3,
+          "line": 82,
+          "text": "Integrating an existing proof-of-personhood project"
+        },
+        {
+          "level": 3,
+          "line": 95,
+          "text": "Biometrics for personhood verification"
+        },
+        {
+          "level": 3,
+          "line": 105,
+          "text": "Fixed three-signal personhood fusion as the permanent design"
+        },
+        {
+          "level": 2,
+          "line": 124,
+          "text": "Implementation-level corrections"
+        },
+        {
+          "level": 3,
+          "line": 126,
+          "text": "`ConfidentialAmountScheme`'s original trait shape"
+        },
+        {
+          "level": 2,
+          "line": 145,
+          "text": "Open item"
+        }
+      ],
+      "keywords": [
+        "why",
+        "rejected",
+        "decision",
+        "design",
+        "personhood",
+        "what",
+        "entry",
+        "considered",
+        "tried",
+        "would",
+        "become",
+        "viable",
+        "again",
+        "project",
+        "founder",
+        "own",
+        "failure",
+        "log",
+        "radio",
+        "lora",
+        "chain",
+        "flutter",
+        "one",
+        "closed"
+      ],
+      "lines": 152,
+      "path": "docs/FAILURE_BOOK.md",
+      "sha256": "281d8a2ffec5f7f9fe6ac3a4f1630dd25b344d82440b71b8f0fa63f457fe48f9",
+      "symbols": [],
+      "title": "The Mininet Failure Book"
+    },
+    {
       "bytes": 10073,
       "group": "docs",
       "headings": [
@@ -17711,6 +17885,7 @@
     "Cargo.toml",
     "LICENSE",
     "README.md",
+    "SECURITY.md",
     "rust-toolchain.toml"
   ],
   "topics": {

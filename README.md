@@ -46,12 +46,15 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0042` so far) and
+   architectural and policy decision, numbered `D-0001`–`D-0043` so far) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register mapped to code) are
    the two documents that outrank any comment or README, including this one.
    `CONTRIBUTING.md` has the PR/review checklist (two-approval floor, D-0033).
    `docs/TESTING.md` has copy-pasteable verification steps and a reviewer
    checklist, including how to review the cryptography prototypes below.
+   `docs/FAILURE_BOOK.md` records every rejected design and abandoned
+   approach, and why — read it before re-proposing something that's
+   already been tried.
 
 ## Status at a glance
 
@@ -90,6 +93,7 @@ mininet/
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
+│   ├── FAILURE_BOOK.md          every rejected design and abandoned approach, and why
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code
 │   ├── ROADMAP.md               pack order from two-phone demo to full network
 │   ├── BETA_STATUS.md           near-term target: the two-phone keystone beta
