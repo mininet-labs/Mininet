@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 23,
-    "files": 212,
-    "headings": 387,
+    "files": 214,
+    "headings": 407,
     "rust_symbols": 1851
   },
   "crates": {
@@ -427,7 +427,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 21224,
+      "bytes": 21349,
       "group": "root",
       "headings": [
         {
@@ -452,47 +452,47 @@
         },
         {
           "level": 2,
-          "line": 157,
+          "line": 158,
           "text": "What we've built so far, grouped by theme"
         },
         {
           "level": 2,
-          "line": 191,
+          "line": 192,
           "text": "Path to a global launch \u2014 what is still missing"
         },
         {
           "level": 2,
-          "line": 253,
+          "line": 254,
           "text": "Suggested improvements (not yet decided, worth raising with the founder cohort)"
         },
         {
           "level": 2,
-          "line": 263,
+          "line": 264,
           "text": "Constitution summary"
         },
         {
           "level": 2,
-          "line": 284,
+          "line": 285,
           "text": "Identity, public walls, and base devices"
         },
         {
           "level": 2,
-          "line": 307,
+          "line": 308,
           "text": "Stack at a glance"
         },
         {
           "level": 2,
-          "line": 319,
+          "line": 320,
           "text": "Build & test"
         },
         {
           "level": 2,
-          "line": 330,
+          "line": 331,
           "text": "Contributing & review"
         },
         {
           "level": 2,
-          "line": 338,
+          "line": 339,
           "text": "License"
         }
       ],
@@ -522,9 +522,9 @@
         "human",
         "domain"
       ],
-      "lines": 341,
+      "lines": 342,
       "path": "README.md",
-      "sha256": "5b1a57a03deb4cf2c742b03770f0b04728a837a131393b60e867666da4e7e988",
+      "sha256": "345e8457646ee103570e77fe6178fedee58df13aaee11093413c18502e1e8c25",
       "symbols": [],
       "title": "Mininet"
     },
@@ -17351,7 +17351,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 114637,
+      "bytes": 120123,
       "group": "docs",
       "headings": [
         {
@@ -17623,6 +17623,16 @@
           "level": 3,
           "line": 1873,
           "text": "D-0050 \u2014 `docs/THREAT_MODEL.md` + the traceability chain convention  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 1934,
+          "text": "D-0051 \u2014 Bounty & review system: money funds work, never a decision  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 1981,
+          "text": "D-0052 \u2014 Fork legitimacy: four checkable continuity criteria  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -17632,13 +17642,13 @@
         "rust",
         "chain",
         "log",
-        "status",
-        "d-0045",
         "review",
+        "status",
+        "decision",
+        "d-0045",
         "entry",
         "stack",
         "freeze",
-        "decision",
         "on-device",
         "license",
         "default",
@@ -17651,9 +17661,9 @@
         "template",
         "language"
       ],
-      "lines": 1931,
+      "lines": 2023,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "fb7eb69d9a29a024178c18984fa8a655be939dc7a5c2392caa45aaf1eece40b8",
+      "sha256": "51a3b405263d75963ec93811c3baba8239d6e7cb99f07bd87be76d89480a25de",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -19026,6 +19036,170 @@
       "sha256": "060c4f2338ac5944cb5addfa095db9c1d0cdddf8e1937d7af8e860f8337d4de0",
       "symbols": [],
       "title": "Constitutional audit"
+    },
+    {
+      "bytes": 9087,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Bounty & review system design \u2014 money funds work, never a decision"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "Two authorities that must never touch"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "The structural wall (the part that's actually enforced today)"
+        },
+        {
+          "level": 2,
+          "line": 60,
+          "text": "The review side, as it exists in `mini-forge`"
+        },
+        {
+          "level": 2,
+          "line": 86,
+          "text": "The funding side, as it exists in `mini-bounty`"
+        },
+        {
+          "level": 2,
+          "line": 97,
+          "text": "End-to-end flow, and where the wall sits in it"
+        },
+        {
+          "level": 2,
+          "line": 125,
+          "text": "Adversarial questions"
+        },
+        {
+          "level": 2,
+          "line": 149,
+          "text": "Status and what remains"
+        }
+      ],
+      "keywords": [
+        "funding",
+        "merge",
+        "review",
+        "mini-forge",
+        "approval",
+        "wall",
+        "side",
+        "mini-bounty",
+        "root",
+        "money",
+        "never",
+        "one",
+        "design",
+        "decision",
+        "two",
+        "authority",
+        "balance",
+        "governance",
+        "identity",
+        "bounty",
+        "system",
+        "exists",
+        "voice",
+        "value"
+      ],
+      "lines": 166,
+      "path": "docs/design/bounty-and-review.md",
+      "sha256": "a9ad6cd6b83d99bf34cd1bdb5a2f81c0036d268222a52590ab37833713097e97",
+      "symbols": [],
+      "title": "Bounty & review system design \u2014 money funds work, never a decision"
+    },
+    {
+      "bytes": 8003,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
+        },
+        {
+          "level": 2,
+          "line": 12,
+          "text": "The distinction this document makes checkable"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "The four continuity criteria (all four required)"
+        },
+        {
+          "level": 3,
+          "line": 39,
+          "text": "C1 \u2014 Constitutional-invariant continuity"
+        },
+        {
+          "level": 3,
+          "line": 58,
+          "text": "C2 \u2014 Personhood-root history continuity"
+        },
+        {
+          "level": 3,
+          "line": 75,
+          "text": "C3 \u2014 Release-registry continuity"
+        },
+        {
+          "level": 3,
+          "line": 94,
+          "text": "C4 \u2014 Canonical chain-state continuity"
+        },
+        {
+          "level": 2,
+          "line": 111,
+          "text": "The edge case D-0046 flagged: letter vs. spirit"
+        },
+        {
+          "level": 2,
+          "line": 130,
+          "text": "What \"legitimacy\" does and does not buy"
+        },
+        {
+          "level": 2,
+          "line": 141,
+          "text": "Status"
+        }
+      ],
+      "keywords": [
+        "fork",
+        "continuity",
+        "canonical",
+        "same",
+        "governance",
+        "history",
+        "legitimate",
+        "checkable",
+        "case",
+        "legitimacy",
+        "criteria",
+        "what",
+        "makes",
+        "four",
+        "invariant",
+        "network",
+        "chain",
+        "one",
+        "invariants",
+        "check",
+        "release",
+        "document",
+        "confirm",
+        "personhood-root"
+      ],
+      "lines": 154,
+      "path": "docs/design/fork-legitimacy.md",
+      "sha256": "dc8f5b6fdb157bc2c772c9be619be32c7c1ba398929a92ebd3ca054cd91e0682",
+      "symbols": [],
+      "title": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
     },
     {
       "bytes": 326,

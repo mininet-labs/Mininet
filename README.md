@@ -50,7 +50,7 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0050` so far —
+   architectural and policy decision, numbered `D-0001`–`D-0052` so far —
    policy only; see its own header for what belongs elsewhere) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register, organized by
    domain, with a hard-limitations section at the top) are the two
@@ -105,6 +105,7 @@ mininet/
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
 │   ├── FAILURE_BOOK.md          every rejected design and abandoned approach, and why
 │   ├── THREAT_MODEL.md          civilization-scale threat catalog: human/technical/economic/political/civilization
+│   ├── design/                  design notes that close roadmap design issues (bounty/review wall, fork legitimacy)
 │   ├── audits/                  written audit deliverables for roadmap review issues
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, by domain, with a Directive-traceability column
 │   ├── STATUS.md                living implementation-status account, by domain

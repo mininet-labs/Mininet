@@ -1928,3 +1928,95 @@ capacity allows, rather than left only as prose. Not done in this entry
 to avoid filing issues faster than they can be meaningfully scoped.
 
 **Supersedes / superseded by:** none — first entry on this question.
+
+---
+
+### D-0051 — Bounty & review system: money funds work, never a decision  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Directive 16, P1, D-0033, D-0049, `docs/design/bounty-and-review.md`, [roadmap #66](https://github.com/britak420/Mininet/issues/66).
+
+**Decision:** the developer bounty system (`mini-bounty`, funding/value) and
+the code-review/merge system (`mini-forge`, review/voice) are kept as two
+crates with **no dependency edge between them in either direction**, so that
+funding a bounty can never express or influence a merge decision, and a
+merge decision can never read or be swayed by any balance. Publishing a
+`BountyGrant` sits strictly downstream of a completed merge — it records
+that an already-made decision happened, and can never cause one.
+
+**Reason:** roadmap #66's one hard requirement is that funding stays
+"completely separate from any merge/review authority — money funds work,
+never buys a decision." The strongest way to guarantee that is structural:
+`mini-bounty` depends only on `mini-value` and produces no `Capabilities`
+bit; `mini-forge` governance depends on no value crate and counts approvals
+per identity root ("no balance, stake, or payment"). Making the wall a
+property of the dependency graph means breaching it would require *adding* a
+large, obvious, reviewable dependency edge that trips the frozen-domain
+checklist — not a subtle runtime change someone could slip past review.
+
+**Constitutional impact:** implements Directive 16 and invariant **P1** (no
+balance maps to governance/vote weight) for the developer-contribution flow
+specifically. Adds no new frozen invariant — P1 already covers it; this
+entry documents the concrete design that realizes it and the tests that
+enforce it (`mini-forge` governance suite: per-root approval counting,
+two-approval protocol floor, deterministic competing-merge resolution).
+
+**Implementation status:** review side built & tested (`mini-forge`); funding
+side built & tested (`mini-bounty`, D-0049); the structural wall (no
+dependency edge) holds in the current tree and is verifiable by inspecting
+two `Cargo.toml` files. The GitHub-reading integration that would mint a
+grant from an approved PR is not built (noted in D-0049) and, when built,
+must sit downstream of the merge decision, never become an input to it.
+
+**Failure point:** the wall depends on the dependency graph staying acyclic
+between these crates. A future change that made merges consult funding (or
+funding grant approval capability) would breach P1; this is exactly what
+the frozen-domain review checklist exists to catch, but it is only as good
+as reviewers actually running the "does this add a value→governance edge?"
+check.
+
+**Supersedes / superseded by:** none — first dedicated bounty/review-wall
+entry; builds on D-0033 (two-approval floor) and D-0049 (mini-bounty).
+
+---
+
+### D-0052 — Fork legitimacy: four checkable continuity criteria  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Directive 7, F1, D-0046, `docs/design/fork-legitimacy.md`, [roadmap #57](https://github.com/britak420/Mininet/issues/57).
+
+**Decision:** a fork is the canonical Mininet if and only if it satisfies all
+four continuity criteria — C1 constitutional-invariant continuity, C2
+personhood-root history continuity, C3 release-registry continuity, C4
+canonical chain-state continuity — each stated as a concrete check with a
+named failure mode and a reason it is verifiable. Forking the software
+remains free (a legitimate derivative that is honest about being different
+is welcome); the criteria gate only whether a fork *inherits Mininet's
+legitimacy*, never whether forking is permitted.
+
+**Reason:** D-0046 froze the principle (F1) and explicitly deferred "a fully
+checkable definition" to roadmap #57. This entry discharges that: it turns
+D-0046's four named continuity criteria into conjunctive, chain-based
+(not snapshot-based) checks a reviewer can actually apply, and addresses
+D-0046's own flagged letter-vs-spirit gap by keeping Directive 7 as the
+tie-breaker for anything the four criteria don't anticipate.
+
+**Constitutional impact:** directly implements Directive 7 and makes
+invariant **F1** (`docs/INVARIANTS.md` §5) checkable. Adds no new frozen
+invariant — F1 already exists; this refines its meaning from "named criteria
+exist" to "here is how each criterion is checked." Reaffirms that legitimacy
+is a standard others verify and choose to honor, never one imposed by a kill
+switch, trademark, or admin key (which would violate P3).
+
+**Implementation status:** criteria complete (this document + F1 + D-0046).
+C1 (invariant tests) and C2 (`did:mini` verification) are runnable against
+the current tree today; C3 and C4 depend on a live, populated release
+registry and chain that exist as logic (`mini-forge`/`mini-chain`) but not
+yet as a running network, so running them at scale waits on the same
+networking work V1 and roadmap #36-#45 track.
+
+**Failure point:** the four criteria are not proven exhaustive — D-0046's
+warning stands that a fork could satisfy the letter while defeating the
+spirit. The mitigation (conjunctive + continuity-based criteria, Directive 7
+as residual tie-breaker) reduces but does not eliminate this; a genuinely
+novel continuity-severing mechanism would need a new criterion added here.
+
+**Supersedes / superseded by:** refines D-0046 (does not supersede it —
+D-0046's decision stands; this entry adds the checkable definition D-0046
+said #57 would own).
