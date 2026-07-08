@@ -1215,3 +1215,47 @@ an authorship-policy one. Relaxing who may author code does not make an
 unsolved cryptographic research problem solved; that signal stays
 unimplemented until a real, sound construction exists to author in the
 first place, regardless of who is permitted to write it.
+
+---
+
+### D-0038 — Founder redesign: open-ended, multi-signal `HumanStatus` accumulator, replacing reliance on any single silver-bullet signal  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** D-0037, whitepaper §5/§11, `mini-uniqueness::status`.
+
+Asked what to actually do about the personhood behavioral/location ZK
+proof being unsolved research (D-0037), the founder cohort didn't pick one
+of the offered options — they redirected the design itself: instead of a
+fixed three-signal fusion where one signal (behavioral entropy) is a
+research-grade unsolved problem, `mini-uniqueness::status` generalizes
+personhood into an **open-ended set of independently-weighted
+verification methods**, each optional, all adding up:
+
+- `SignalSource` is extensible (`External(u32)` catch-all) rather than a
+  closed enum of exactly three — new verification methods, including ones
+  not yet designed, can contribute without a breaking change.
+- `TrustWeights` encodes "us trusting our own the most": Mininet's own
+  physical-presence and vouching-graph signals default to the highest
+  weight; anything external starts low-trust, tunable by governance.
+- `HumanRecord` accumulates evidence (a derived score + timestamp per
+  source — never raw data, P5 unaffected) and computes one fused,
+  decayed score.
+- Promotion is two-stage and asymmetric on purpose: `VouchedHuman` is a
+  fast path reachable from modest trusted evidence (e.g. one genuine
+  vouch) so onboarding isn't blocked; `FullHuman` is reachable **only
+  automatically**, requiring a high fused score, several currently-live
+  *distinct* sources, and a minimum elapsed time since the record's first
+  evidence — never from stacking one very strong signal, and never
+  faster than the mandatory age floor regardless of score.
+
+**Why this is a real answer to the Sybil-cost problem, not a workaround:**
+no individual signal needs to be unbreakable. A farm must satisfy several
+independent methods, each with its own real-world cost, keep them from
+decaying, and wait out the minimum age — the same "by the time a fake
+operation is profitable it is nearly indistinguishable from genuine
+adoption" property the whitepaper states (§11), generalized from three
+fixed signals to as many as the network ends up supporting. This does
+**not** solve signal (b)'s underlying research problem (D-0037 stands:
+that stays unimplemented until a real construction exists) — it makes the
+*system* not depend on any one signal being unbreakable, behavioral
+entropy included. `confidence::fuse_confidence` (the original fixed
+three-signal fusion) is unchanged and still correct for what it does;
+`status` is the generalized model going forward. 9 new tests.
