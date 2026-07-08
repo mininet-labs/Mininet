@@ -18,19 +18,23 @@ external dependency on any single company's infrastructure to keep running.
 1. **Build it.** `cargo fmt --all && cargo clippy --all-targets --all-features
    --workspace -- -D warnings && cargo test --all --all-features` — all clean
    on this tree, `Cargo.lock` committed. See [Build & test](#build--test) below.
-2. **See it run.** Two runnable demos exist today (both library-level, no
-   phone/network required yet — see [Status at a glance](#status-at-a-glance)):
+2. **See it run.** Three runnable demos exist today — see
+   [Status at a glance](#status-at-a-glance):
    - `cargo run -p mini-keystone --example keystone` — two devices exchange
      identities, prove co-presence, and accrue reward, in-process.
    - `cargo run -p mini-treasury --example frost_live_demo` — five threads
      each holding one key share jointly sign a treasury payout live, then a
      second session shows a tampered share getting caught before it produces
      a bad signature.
+   - `cargo run -p mini-net --example gossip_live_demo` — three genuinely
+     separate OS processes gossiping a message over real TCP sockets (not
+     simulated in one process — see `crates/mini-net/README.md` for the
+     three-terminal walkthrough).
 3. **Find your way around.** `python3 tools/mininet_nav.py map` builds an
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 4. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0041` so far) and
+   architectural and policy decision, numbered `D-0001`–`D-0042` so far) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register mapped to code) are
    the two documents that outrank any comment or README, including this one.
    `CONTRIBUTING.md` has the PR/review checklist (two-approval floor, D-0033).
@@ -48,12 +52,18 @@ threshold custody (`mini-treasury`); Merkle/PDP storage proofs
 (`mini-spacetime`) — all AI-authored under an explicit founder policy
 (`D-0037`: AI may write this code, a human must review it, and it still needs
 a specialized external cryptography audit before any real value depends on
-it). **What doesn't exist yet, at all:** a real network transport (BLE/Wi-Fi/
-QUIC — everything today is in-process or channel-simulated), a mobile or
-desktop client app, and a solved construction for the personhood behavioral/
-location ZK proof (the whitepaper itself calls this open research, not
-engineering debt — see `mini-uniqueness`'s honest limit). None of this should
-be read as "ready for real people or real value" — see
+it). **What has a real network transport, for the first time (D-0042):**
+`mini-bearer::TcpBearer` moves frames over an actual TCP socket, and
+`mini-net`'s live demo gossips a message across three separate processes
+over it — real IP connectivity, not yet BLE (needs platform-native radio
+code no library crate can provide) and not yet wired into every crate that
+needs it (`mini-bootstrap`, `mini-sync`, the keystone demo are all still
+in-process only). **What doesn't exist yet, at all:** BLE/local-radio
+transport, a mobile or desktop client app, and a solved construction for
+the personhood behavioral/location ZK proof (the whitepaper itself calls
+this open research, not engineering debt — see `mini-uniqueness`'s honest
+limit). None of this should be read as "ready for real people or real
+value" — see
 [Path to a global launch](#path-to-a-global-launch-what-is-still-missing) for
 the full list.
 
@@ -87,10 +97,10 @@ partial/structural piece, real transport or a further layer still pending ·
 |---|---|---|
 | `mini-crypto` | Crypto-agile primitives: signatures, X25519, ChaCha20-Poly1305, HKDF, strong multihash | ✅ |
 | `did-mini` | KERI-style self-certifying identity: KEL, pre-rotation, device delegation | ✅ |
-| `mini-bearer` | Bearer trait + anonymous encrypted channel | 🚧 in-process only; BLE/Wi-Fi adapters pending |
+| `mini-bearer` | Bearer trait + anonymous encrypted channel + real `TcpBearer` | 🚧 real TCP transport (D-0042); BLE/Wi-Fi radio adapters still pending |
 | `mini-presence` | Mutually-signed, range-bound co-presence attestation | 🚧 alpha; active RTT challenge-response pending |
 | `mini-reward` | Deterministic, non-spendable local reward accrual | 🚧 alpha; demo stub, not money |
-| `mini-keystone` | The two-device demo harness (`cargo run --example keystone`) | 🚧 alpha; needs a real bearer to leave in-process |
+| `mini-keystone` | The two-device demo harness (`cargo run --example keystone`) | 🚧 alpha; still in-process only, not yet ported to `TcpBearer` |
 | `mini-objects` | Unified signed, content-addressed object envelope (SPEC-09) | ✅ |
 | `mini-store` | Local content-addressed store: blobs, indexes, head pointers | ✅ |
 | `mini-crdt` | Op-log CRDT for threads/docs, offline-first merge | ✅ |
@@ -100,7 +110,7 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-forge` | Repos, branches, releases + attestations, governed merge | ✅ logic complete; git SHA-256 interop pending |
 | `mini-bootstrap` | Self-certifying genesis/update capsule, chunked exchange | 🚧 protocol logic done; real transport is `mini-bearer`'s job |
 | `mini-update` | Local update-adoption state machine (no forced update, no kill path) | ✅ |
-| `mini-net` | Kademlia-style routing table + gossip broadcast | 🚧 protocol logic done; no socket transport wired yet |
+| `mini-net` | Kademlia-style routing table + gossip broadcast | 🚧 gossip proven live over real TCP (D-0042, `examples/gossip_live_demo.rs`); peer discovery/mesh routing still logic-only |
 | `mini-storage` | Mutually-signed storage-served receipts | ✅ |
 | `mini-chain` | BFT finality-verification core (`ValidatorSet`, quorum certs) | 🚧 finality core done; networked consensus + state machine pending |
 | `mini-spacetime` | Proof-of-space-time storage weight for block production | 🧪 Merkle/PDP proves continuous possession, not replication uniqueness (D-0039) |
@@ -158,11 +168,17 @@ documented at the crate level.
    storage proofs) is founder-reviewed AI-authored work, not
    audit-equivalent. This is the single largest gate before any real value
    or custody touches this code.
-2. **A real network transport.** Nothing in this tree opens a socket today.
-   `mini-bearer` has only an in-process channel; `mini-net`'s DHT/gossip and
-   `mini-bootstrap`'s capsule exchange are protocol logic without BLE/
-   Wi-Fi/QUIC underneath them. This is the difference between "two demo
-   threads" and "two phones in different countries."
+2. **A real network transport.** Partially closed (D-0042):
+   `mini-bearer::TcpBearer` moves frames over a real TCP socket, and
+   `mini-net`'s gossip demonstrably works across three separate processes
+   over it — proof the design holds under real message-passing, not just
+   in-process simulation. Still missing: BLE (needs platform-native radio
+   code, out of reach for a library workspace with no phone hardware),
+   `mini-bootstrap`'s capsule exchange and `mini-sync`'s replication aren't
+   wired to `TcpBearer` yet, and `mini-net`'s peer *discovery* (as opposed
+   to gossip) is still logic-only. This is the difference between "three
+   demo processes on loopback" and "phones in different countries" — closer
+   than before, not there yet.
 3. **A client people can actually install.** There is no mobile, desktop, or
    web application anywhere in this repository yet — `docs/UI_BETA_PLAN.md`
    is a plan, not code. Global launch needs an installable app, not a
@@ -202,15 +218,16 @@ sequencing, which currently targets the much nearer two-phone keystone beta
 
 - Wire `cargo audit` (or `cargo deny`) into CI now, while the dependency tree
   is still small — cheap today, much more valuable once it's not.
-- Add a `TESTING.md` with copy-pasteable steps for non-author reviewers to
-  independently verify each 🧪 prototype's claims (test suite, live demos,
-  and what a red flag would look like) rather than only reading the code.
 - Consider standing up the DKG variant of FROST keygen before the trusted-
   dealer version ever gets used with anything of real value, even in a
   testnet — it's a smaller lift now than a migration later.
-- Start the mobile/desktop client track in parallel with the transport work
-  (item 2 above), since neither blocks the other and both gate global
-  launch equally.
+- Start the mobile/desktop client track in parallel with the remaining
+  transport work (BLE, item 2 above), since neither blocks the other and
+  both gate global launch equally.
+- Wire `TcpBearer` into `mini-bootstrap` and `mini-sync` next, so genesis/
+  update capsule exchange and store-and-forward replication get the same
+  real-network proof `mini-net`'s gossip demo just got — the transport now
+  exists, only two of its intended consumers use it so far.
 
 ## Constitution summary
 

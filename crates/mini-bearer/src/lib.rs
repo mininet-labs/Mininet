@@ -44,6 +44,7 @@ mod bearer;
 mod channel;
 mod error;
 mod inprocess;
+mod tcp;
 
 pub use bearer::{encode_frame, Bearer, FrameReader, MAX_FRAME_BYTES, MAX_STREAM_BUFFER_BYTES};
 pub use channel::{
@@ -52,3 +53,4 @@ pub use channel::{
 };
 pub use error::{BearerError, Result};
 pub use inprocess::{pair, InProcessBearer};
+pub use tcp::TcpBearer;

@@ -18,7 +18,10 @@ and pass `cargo test --all --all-features` on a real toolchain today (see
 still missing for a real two-phone beta, in order:
 
 1. **Bearer adapters** — BLE and local-Wi-Fi/hotspot behind the existing
-   `Bearer` trait (device-side work; only the in-process bearer exists today).
+   `Bearer` trait (device-side work needing real phone hardware). D-0042
+   added a real `TcpBearer` (proven live in `mini-net`'s gossip demo), but
+   that's IP-network connectivity, not BLE — the keystone demo itself is
+   still in-process only and hasn't been ported to it yet.
 2. **Active range measurement** — the current RTT ceiling is a software
    thresholding hook over *reported* samples, not an active challenge-response
    measurement; no anti-relay claim is made until it is.
