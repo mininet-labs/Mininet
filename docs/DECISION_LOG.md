@@ -800,3 +800,92 @@ Also formalized: the identity-mode taxonomy (`did-mini::IdentityMode` —
 
 None of the above changes P1/P2: money and infrastructure commitment still
 never buy a vote, and human status is still private and exactly one per human.
+
+---
+
+### D-0034 — Ranging (UWB), uniqueness graph, P2P networking (libp2p), and privacy-preserving value transfer: four founder decisions, phased  ·  *Accepted (founder directive, phased implementation)*
+**Date:** 2026-07-08 (founder cohort) · **Refs:** SPEC-02 (personhood, unimplemented),
+D-0008 (own what must be self-governed, adapt proven pieces), D-0009/D-0016
+(bearers, presence honest limits), D-0033, constitution P1/P2/P5.
+
+Same governing principle as D-0008/D-0009: **own the parts that encode our
+values and must be self-governed; adapt proven, audited open-source designs —
+into our own tree, never as a live framework dependency — where novelty is
+risk without value.** Four decisions, each phased rather than landed in one
+batch, because each opens a new crate:
+
+1. **Ranging: native UWB where available, software RTT elsewhere.**
+   Amends D-0016's honest limit, not D-0009's radio freeze — these are
+   different things. D-0009/D-0033 forbid a *long-range communications radio*
+   (LoRa/mesh radio) as a network bearer; UWB here is a *short-range ranging
+   sensor* already inside commodity phones (iPhone U-series, many Android
+   flagships), used only to tighten the existing two-device distance bound
+   inside an already-established presence session — it carries no traffic and
+   is never a bearer. Devices without UWB keep the current software RTT bound
+   as a fallback; this is additive, not a replacement. Platform bridging
+   (native UWB APIs are not reachable from pure Rust) fits the existing
+   UniFFI-shell architecture (D-0020): the Rust core defines the ranging
+   trait/result type, each platform shell supplies the UWB measurement.
+
+2. **Uniqueness/personhood: a custom in-house uniqueness graph — not a raw
+   trust list, not an outside oracle, not biometrics.** Founder guidance: the
+   co-presence attestations `mini-presence` already produces are each user's
+   *own* trusted contact list — real, useful, but not by themselves a
+   network-wide uniqueness proof (a user's own list is exactly what a sybil
+   would also produce). SPEC-02 personhood is built as our own graph-based
+   uniqueness algorithm layered on top of that attestation data (edges =
+   mutually-signed, range-bound co-presence pairs, per D-0016), not by
+   integrating an existing proof-of-personhood project (rejected: puts a
+   third party's graph/servers in the trust path) and not by biometrics
+   (rejected outright by P5: no raw personal data). **This is a design task
+   before it is a coding task** — the graph algorithm itself (how uniqueness
+   is scored/decided from an attestation graph, and how it resists sybil
+   clustering) needs its own written design pass, most likely its own SPEC
+   section, before a `mini-uniqueness` crate is built. Marked `pending`,
+   highest design risk of the four.
+
+3. **Wide-area networking: our own DHT + gossip, borrowing libp2p's proven
+   *designs*, not taking libp2p as a dependency.** D-0009 already anticipated
+   "wider-network gossip/DHT and the relay + DTN layer" as a later addition
+   on top of the bearer trait; this decision picks which *algorithms* that
+   layer is built from — a Kademlia-style routing table for peer discovery,
+   and an epidemic/gossipsub-style pub/sub broadcast for propagation — and
+   reimplements them as Mininet-owned code in a new `mini-net` crate, the
+   same "own what must be self-governed" stance as D-0008/D-0009: no
+   heavyweight external framework becomes load-bearing plumbing our peers
+   depend on, and no upstream project's release cadence, governance, or
+   supply chain sits on our critical path. This is a correction from an
+   earlier draft of this entry, which had proposed a live `libp2p` crate
+   dependency — founder guidance was explicit that "open-source tech that
+   works" (the Monero/Ripple/libp2p references) means *study and adapt the
+   design*, not depend on the project's code. **Scope boundary, so this
+   cannot quietly become an identity leak:** the transport-routing peer id
+   this layer generates is ephemeral, session-scoped, and never derived from
+   or bound to a `did:mini` root — it must never become a stable
+   cross-session identifier, which would undermine the anonymous-channel
+   invariant [FREEZE] in D-0015. `mini-net` sits behind the same kind of
+   narrow trait `mini-bearer` uses, so the wider-network relay stays
+   swappable and never load-bearing for trust.
+
+4. **Value transfer: a real spendable-value layer, Monero-style primitives,
+   built in-house.** `mini-reward` (D-0017) stays exactly as frozen — non-
+   spendable, no governance weight, never money buying voice (P1). This is a
+   *separate* layer for real transfers (e.g. paying for storage service,
+   tipping), explicitly not the reward/accrual system. Ring signatures,
+   stealth addresses, and RingCT-style confidential amounts are the chosen
+   primitives — reimplemented in our own `mini-crypto`-adjacent crate rather
+   than vendoring Monero's codebase, matching this project's existing pattern
+   of owning the primitive layer while following a proven design. **[FREEZE]
+   Same P1 boundary applies here as everywhere else: no balance, stake, or
+   payment in this layer may ever appear in a vote/quorum/access rule, and no
+   key in this layer may unmask a user.** Highest engineering-risk item of
+   the four (real value, real cryptography, real loss-of-funds surface) —
+   primitives ship with extensive test coverage first; no real-value
+   deployment before an external crypto review, mirroring the caution already
+   recorded for signature/hash agility (D-0003/D-0004).
+
+Sequencing (lowest-risk/most-scoped first, since all four are independent of
+each other and of the existing keystone critical path): `mini-net` first
+(mechanical, well-understood, unlocks real multi-device testing for
+everything else) — then ranging, then the uniqueness-graph design pass, then
+value transfer last (highest risk, most deliberation needed before code).

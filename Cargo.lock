@@ -372,6 +372,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-net"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+]
+
+[[package]]
 name = "mini-objects"
 version = "0.0.1"
 dependencies = [
