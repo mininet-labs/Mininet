@@ -1006,13 +1006,16 @@ that no quantity of dislikes can fully bury a post (§8.4) — `mini-social`'s
 ranking is a user-chosen filter (D-0025 [FREEZE]) but does not yet guarantee
 a floor against a dislike-heavy filter choice.
 
-**7. [OPEN — genuinely unresolved, not decided here] LoRa/radio.**
+**7. [RESOLVED 2026-07-08 by founder cohort] LoRa/radio: D-0033 wins.**
 Whitepaper §6 lists "long-range low-power radio in the LoRa family" as one
 of the overlay's interchangeable bearers, on equal footing with Bluetooth
-and Wi-Fi. D-0009, reaffirmed by D-0033, states: *"radio/LoRa is permanently
-out of scope, not merely deferred past Phase 1 — this is a closed question,
-not an open one to revisit as the network scales."* These directly conflict:
-one names LoRa as a first-class bearer, the other closes it permanently.
-This is not resolved by inference or by seniority of document — the founder
-cohort must adjudicate directly which one stands, and `mini-net`/`mini-
-bearer` do not implement LoRa in either direction until that happens.
+and Wi-Fi — directly conflicting with D-0009/D-0033's *"radio/LoRa is
+permanently out of scope... a closed question, not an open one to revisit."*
+Put to the founder cohort directly rather than resolved by inference: the
+whitepaper's bearer list is **aspirational v1.0 language, not binding** —
+D-0009/D-0033 were made with real engineering-cost information the
+whitepaper draft didn't have, and stand as written. Radio/LoRa remains
+permanently excluded from `mini-bearer`/`mini-net`; this whitepaper mention
+is a known, deliberate divergence between the founding document and the
+implemented protocol, not an oversight, and should read that way if the
+whitepaper is ever revised.
