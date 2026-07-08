@@ -10,6 +10,11 @@ pub enum ValueError {
     /// A new rate entry's effective time was not strictly after the
     /// previous entry's.
     OutOfOrderRateEntry,
+    /// The local OS CSPRNG failed while generating cryptographic randomness.
+    Entropy,
+    /// A ring signature or stealth-address operation received malformed
+    /// input (e.g. an empty ring, or an out-of-range real-signer index).
+    InvalidInput,
 }
 
 impl fmt::Display for ValueError {
@@ -18,6 +23,10 @@ impl fmt::Display for ValueError {
             ValueError::NoRateInEffect => write!(f, "no governed fee rate in effect at this time"),
             ValueError::OutOfOrderRateEntry => {
                 write!(f, "rate entry is not strictly after the previous one")
+            }
+            ValueError::Entropy => write!(f, "failed to generate cryptographic randomness"),
+            ValueError::InvalidInput => {
+                write!(f, "invalid ring signature or stealth address input")
             }
         }
     }

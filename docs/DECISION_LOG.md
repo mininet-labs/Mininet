@@ -1108,3 +1108,72 @@ permanently excluded from `mini-bearer`/`mini-net`; this whitepaper mention
 is a known, deliberate divergence between the founding document and the
 implemented protocol, not an oversight, and should read that way if the
 whitepaper is ever revised.
+
+---
+
+### D-0036 — Founder override: AI-authored ring-signature/stealth-address prototype for `mini-value`, ahead of external audit  ·  *Accepted (explicit founder override of D-0035 point 5)*
+**Date:** 2026-07-08 · **Refs:** D-0035 point 5, whitepaper §5/§8/§11, D-0014.
+
+D-0035 point 5 recorded the whitepaper's own requirement that the highest-
+stakes cryptography — the hybrid consensus, treasury custody, the
+personhood ZK proof, and (this project's own extension) MINI's
+transaction-privacy primitives — be **written by humans and audited
+externally**, not AI-authored code with founder review standing in for
+that. The founder cohort was asked directly whether to hold that line or
+override it for this specific piece of work, with the tradeoff stated
+plainly. **Explicit founder decision: override, for now, for
+`mini-value`'s ring signatures and stealth addresses.** AI-authored code,
+reviewed by the founder and Michal, proceeds as a real (not stubbed)
+prototype. This is **not** a quiet retreat from D-0035 point 5's standard —
+that FREEZE stands unchanged for the other three areas (hybrid consensus,
+treasury custody, personhood ZK proof) and for `mini-value`'s own
+confidential-amounts primitive, none of which this override touches. It is
+a scoped, named exception, recorded so the gap between "founder-reviewed
+prototype" and "human-authored, externally-audited" is never confused with
+each other going forward: **this code must not be treated as production-
+ready or as satisfying D-0035 point 5 merely because it now exists and
+passes tests.** A specialized external cryptography audit remains a
+precondition before any real value depends on it.
+
+**Build approach, per founder direction ("use known tech and code but
+build everything custom"):** the raw elliptic-curve group (Ristretto over
+Curve25519, via `curve25519-dalek` — the same audited crate
+`ed25519-dalek`/`x25519-dalek` already build on, D-0014's established
+exception for primitive-layer math) is depended on rather than
+reimplemented; the actual stealth-address and linkable-ring-signature
+*protocols* — key derivation, challenge/response construction, key-image
+linkability — are Mininet-owned code referencing published designs
+(CryptoNote-style stealth addresses; MLSAG-style linkable ring signatures,
+the pre-CLSAG/Bulletproofs Monero scheme, chosen for being the simplest
+correctly-documented linkable ring construction and because amount-hiding
+is `mini-value::confidential`'s separate, still-fully-stubbed concern).
+Ristretto (not raw Edwards/Curve25519 points) is used specifically to
+avoid the cofactor-related subtle-bug class that ad-hoc protocols built
+directly on Edwards points are prone to.
+
+**Implemented 2026-07-08.** `stealth_impl::MininetStealthAddress`: the
+CryptoNote Diffie-Hellman construction (`P = H(rB)*G + A`, recognized via
+the symmetric `H(bR)`), with `derive_spend_scalar` completing the round
+trip (a recipient can actually reconstruct the one-time spending key, not
+just recognize the output) — kept as a separate function from the
+recognition trait since recognizing (view secret only) and spending (view
++ spend secret) are deliberately different privilege levels. `ring_impl::MininetRingSignature`:
+the AOS/MLSAG Fiat-Shamir hash-chain construction described above, with a
+deterministic key image `I = x*Hp(P)` for double-spend linkability. Both
+use BLAKE3's extendable-output function for hash-to-scalar/hash-to-point
+(wide 64-byte reduction, avoiding bias), and both fail closed on malformed
+input (wrong-length keys, empty rings, out-of-range indices) rather than
+panicking. Tests cover the real cryptographic properties, not just plumbing:
+stealth — recipient recognizes their own output, an outsider does not, two
+outputs to the same recipient are unlinkable on the wire yet both
+recognized, and the derived one-time key actually opens the one-time
+address; ring signature — a valid signature verifies regardless of which
+ring position was real, a tampered message/response/decoy each
+independently fail verification, the same real key produces the same key
+image across two different signings (double-spend detection) while two
+different real keys never collide. 32 tests total in `mini-value`.
+
+**Still explicitly a prototype, not a substitute for external audit**
+(this override does not extend to `mini-value::confidential`, the hybrid
+consensus, treasury custody, or the personhood ZK proof — all four remain
+governed by D-0035 point 5 unchanged).
