@@ -8,57 +8,54 @@ reach and storage but never a vote; governance is one verified human, one equal
 vote; there is no owner, no institution, no foundation, no admin key, no off
 switch, no law-enforcement backdoor, and no party that can unmask a user. The
 software is public domain, built Rust-first and in-house — proven designs are
-adapted into our own tree, never taken as a live external dependency. Privacy,
-data sovereignty, and the right to run locally are structural.
+adapted into our own tree, never taken as a live external dependency.
 
-This repository is the **self-contained Rust core**. It starts with identity
-because identity works offline before any chain, server, app store, DNS record, or
-website exists. The immediate demo remains simple and falsifiable: two ordinary
-phones in airplane mode form an encrypted Mininet link over Bluetooth, exchange
-verifiable did:mini identities, and produce a signed presence attestation.
+This repository is the **self-contained Rust core**: ~22 crates, no owner, no
+external dependency on any single company's infrastructure to keep running.
 
-## Current alpha honesty note
+## New here? Start with these four things
 
-This tree is an architecture alpha/protocol-logic preview. Forge quorums, release
-attestations, reward accrual, and keystone reports currently count **verified
-identity roots** and delegated devices. They do not yet prove one-human-one-vote;
-that requires SPEC-02 personhood and the future `PersonhoodOracle`.
+1. **Build it.** `cargo fmt --all && cargo clippy --all-targets --all-features
+   --workspace -- -D warnings && cargo test --all --all-features` — all clean
+   on this tree, `Cargo.lock` committed. See [Build & test](#build--test) below.
+2. **See it run.** Two runnable demos exist today (both library-level, no
+   phone/network required yet — see [Status at a glance](#status-at-a-glance)):
+   - `cargo run -p mini-keystone --example keystone` — two devices exchange
+     identities, prove co-presence, and accrue reward, in-process.
+   - `cargo run -p mini-treasury --example frost_live_demo` — five threads
+     each holding one key share jointly sign a treasury payout live, then a
+     second session shows a tampered share getting caught before it produces
+     a bad signature.
+3. **Find your way around.** `python3 tools/mininet_nav.py map` builds an
+   offline, searchable index of every crate, doc, and symbol in the tree — see
+   `docs/NAVIGATION.md`. No GitHub search or IDE required.
+4. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
+   architectural and policy decision, numbered `D-0001`–`D-0041` so far) and
+   `docs/INVARIANTS.md` (the frozen-vs-tunable register mapped to code) are
+   the two documents that outrank any comment or README, including this one.
+   `CONTRIBUTING.md` has the PR/review checklist (two-approval floor, D-0033).
+   `docs/TESTING.md` has copy-pasteable verification steps and a reviewer
+   checklist, including how to review the cryptography prototypes below.
 
-Release adoption must use `verify_governed_release`; `verify_release_artifact_only`
-checks only artifact/timelock/attestation facts and is not sufficient to install
-software. The physical two-phone beta still needs a real BLE/local-Wi-Fi bearer,
-active software RTT challenge-response, and persistent replay storage. A real Rust
-toolchain pass (`cargo fmt --all`, `cargo clippy --all-targets --all-features -- -D
-warnings`, `cargo test --all --all-features`) is clean and `Cargo.lock` is
-committed as of this tree.
+## Status at a glance
 
-## What makes this repo different
-
-Mininet must be able to survive the loss of every normal internet convenience.
-GitHub, DNS, app stores, package registries, websites, cloud object stores, and
-CDNs are mirrors only. They are not trust roots and are not required for core
-operation.
-
-The trust root is the chain plus the content-addressed fabric:
-
-1. **Genesis carries the bootstrap capsule.** A full genesis file contains the
-   constitution hash, chain schema descriptors, the first release manifest, and
-   the minimal source/binary bundle required to verify and sync the network.
-2. **Updates are governed releases.** A release is valid only when the chain's
-   release registry points to a content-addressed bundle, the reproducible-build
-   attestations match, the timelock has elapsed, and the constitution guard has
-   not rejected it.
-3. **Peers distribute updates.** A node fetches release bundles from any Mininet
-   peer over Bluetooth, local Wi-Fi/hotspot, optional relay, or later the storage
-   fabric. There is no privileged update server.
-4. **No forced updates.** A client may refuse an update and fork/exit. Protocol
-   compatibility may end at an activation height, but no remote party can push
-   code onto a device.
-
-A phone still needs *some executable or source interpreter* to run code at all;
-no protocol can make an operating system execute bytes from nothing. The Mininet
-promise is narrower and stronger: once any person has one verified copy, they can
-seed the next person using only local transport, including Bluetooth.
+**What's real and running:** identity, presence, storage, sync, the social
+layer, and the forge/release-governance logic are all working, tested Rust —
+see the repository map below for the per-crate breakdown. **What's a
+cryptography prototype, not a finished product:** stealth addresses, ring
+signatures, and Bulletproofs confidential amounts (`mini-value`); FROST
+threshold custody (`mini-treasury`); Merkle/PDP storage proofs
+(`mini-spacetime`) — all AI-authored under an explicit founder policy
+(`D-0037`: AI may write this code, a human must review it, and it still needs
+a specialized external cryptography audit before any real value depends on
+it). **What doesn't exist yet, at all:** a real network transport (BLE/Wi-Fi/
+QUIC — everything today is in-process or channel-simulated), a mobile or
+desktop client app, and a solved construction for the personhood behavioral/
+location ZK proof (the whitepaper itself calls this open research, not
+engineering debt — see `mini-uniqueness`'s honest limit). None of this should
+be read as "ready for real people or real value" — see
+[Path to a global launch](#path-to-a-global-launch-what-is-still-missing) for
+the full list.
 
 ## Repository map
 
@@ -66,55 +63,154 @@ seed the next person using only local transport, including Bluetooth.
 mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
-├── crates/
-│   ├── mini-crypto/        signatures, X25519, AEAD, HKDF, strong multihash
-│   ├── did-mini/           KERI-style KEL, pre-rotation, device delegation
-│   └── mini-bearer/        bearer trait + anonymous encrypted in-process channel
+├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
+├── crates/                 22 crates, see the table below
 ├── docs/
-│   ├── BOOTSTRAP_AND_UPDATE.md  self-contained update + Bluetooth bootstrap spec
+│   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
+│   ├── INVARIANTS.md            frozen/tunable register mapped to code
 │   ├── ROADMAP.md               pack order from two-phone demo to full network
-│   ├── DECISION_LOG.md          every stack and freeze choice with rationale
-│   └── INVARIANTS.md            frozen/tunable register mapped to code
-└── .github/workflows/ci.yml     temporary mirror CI until the internal forge lands
+│   ├── BETA_STATUS.md           near-term target: the two-phone keystone beta
+│   ├── NAVIGATION.md            how to use tools/mininet_nav.py
+│   ├── BOOTSTRAP_AND_UPDATE.md  self-contained update + Bluetooth bootstrap spec
+│   └── UI_BETA_PLAN.md          the eventual product/UI layer, not yet built
+├── CONTRIBUTING.md          PR checklist, review floor, scope-of-a-batch rule
+└── .github/workflows/ci.yml  fmt + clippy + test on every PR (temporary mirror CI)
 ```
 
-## Critical path
+Every crate below is a **library**, not a running binary, unless noted.
+Status tags: ✅ logic complete and tested · 🧪 real AI-authored crypto
+prototype, founder-reviewed, pending external audit (D-0036/D-0037) · 🚧
+partial/structural piece, real transport or a further layer still pending ·
+🔬 deliberately blocked on unsolved research, not an engineering gap.
 
-1. `mini-crypto` — cryptographic primitives, strong content addressing, and now
-   Pack 1 X25519/HKDF/ChaCha20-Poly1305 session primitives.
-2. `did-mini` — self-certifying identity, KEL verification, pre-rotation, M2
-   device delegation.
-3. `mini-bearer` — bearer trait plus anonymous encrypted sessions over an
-   in-process transport, then BLE/local-Wi-Fi adapters and optional pairwise
-   pseudonym authentication.
-4. `mini-presence` — range-bound, co-signed presence attestation. *(shipped)*
-5. `mini-reward` — deterministic, non-spendable, slowly-maturing value signal
-   before the chain. *(shipped)*
-6. `mini-keystone` — the composed end-to-end demo flow, one code path for CI
-   (in-process) and phones (BLE / local Wi-Fi). *(shipped)*
-7. `mini-bootstrap` — the self-certifying genesis/update capsule header,
-   tiny broadcastable `GenesisSeed`, and chunk-exchange want-lists over
-   `mini-media`. *(structural piece shipped; real BLE/local-Wi-Fi transport
-   is `mini-bearer`'s job and remains pending.)*
-8. `mini-update` — local adoption-state machine wrapping `mini-forge`'s
-   release verification: evaluate, adopt, or explicitly refuse a candidate
-   release. No forced update, no kill path. *(shipped)*
-9. `mini-chain` — custom Rust chain adapting a proven Tendermint/CometBFT-style
-   BFT, with equal validator power per verified identity root, never stake.
-   *(finality-verification core shipped — `ValidatorSet`, `BlockHeader`,
-   `Vote`/quorum-certificate verification, `Capabilities::VOTE`'s first real
-   consumer; the networked consensus protocol and state machine remain
-   pending.)*
+| Crate | What it does | Status |
+|---|---|---|
+| `mini-crypto` | Crypto-agile primitives: signatures, X25519, ChaCha20-Poly1305, HKDF, strong multihash | ✅ |
+| `did-mini` | KERI-style self-certifying identity: KEL, pre-rotation, device delegation | ✅ |
+| `mini-bearer` | Bearer trait + anonymous encrypted channel | 🚧 in-process only; BLE/Wi-Fi adapters pending |
+| `mini-presence` | Mutually-signed, range-bound co-presence attestation | 🚧 alpha; active RTT challenge-response pending |
+| `mini-reward` | Deterministic, non-spendable local reward accrual | 🚧 alpha; demo stub, not money |
+| `mini-keystone` | The two-device demo harness (`cargo run --example keystone`) | 🚧 alpha; needs a real bearer to leave in-process |
+| `mini-objects` | Unified signed, content-addressed object envelope (SPEC-09) | ✅ |
+| `mini-store` | Local content-addressed store: blobs, indexes, head pointers | ✅ |
+| `mini-crdt` | Op-log CRDT for threads/docs, offline-first merge | ✅ |
+| `mini-sync` | Bucketed reconciliation + verified ingest over any bearer | ✅ |
+| `mini-social` | Profiles, follow graph, explainable locally-computed feeds, public walls | ✅ |
+| `mini-media` | Chunked content-addressed media, progressive assembly | ✅ |
+| `mini-forge` | Repos, branches, releases + attestations, governed merge | ✅ logic complete; git SHA-256 interop pending |
+| `mini-bootstrap` | Self-certifying genesis/update capsule, chunked exchange | 🚧 protocol logic done; real transport is `mini-bearer`'s job |
+| `mini-update` | Local update-adoption state machine (no forced update, no kill path) | ✅ |
+| `mini-net` | Kademlia-style routing table + gossip broadcast | 🚧 protocol logic done; no socket transport wired yet |
+| `mini-storage` | Mutually-signed storage-served receipts | ✅ |
+| `mini-chain` | BFT finality-verification core (`ValidatorSet`, quorum certs) | 🚧 finality core done; networked consensus + state machine pending |
+| `mini-spacetime` | Proof-of-space-time storage weight for block production | 🧪 Merkle/PDP proves continuous possession, not replication uniqueness (D-0039) |
+| `mini-uniqueness` | Personhood/uniqueness: open-ended multi-signal fusion + status | 🧪 fusion logic real (D-0038); the behavioral/location ZK signal itself is 🔬 unsolved research |
+| `mini-treasury` | Contribution bookkeeping + FROST threshold custody | 🧪 FROST + live multi-device demo (D-0041); trusted-dealer keygen, no DKG yet |
+| `mini-value` | MINI fee bookkeeping + transaction-privacy primitives | 🧪 stealth addresses, ring signatures, Bulletproofs confidential amounts (D-0036/D-0040) |
 
-See `docs/ROADMAP.md` for the full pack sequence and acceptance tests.
+See `docs/DECISION_LOG.md` for the reasoning and honest limits behind every
+🧪/🔬 entry, and each crate's own `README.md`/top-of-file doc comment for the
+full detail — those are written to be the first thing a reviewer opens.
 
-**Honesty note (identity root, not personhood):** the forge counts quorums in
-*distinct verified `did:mini` identity roots*, not unique humans. `did:mini`
-(SPEC-01) proves cryptographic identity and device delegation; the Sybil / one-
-real-human problem is SPEC-02 personhood, which is not yet implemented. Until it
-is, no code path here should be read as "one human, one vote" — only "one
-verified identity root, one vote". The `IdentityOracle` seam is where a future
-`PersonhoodOracle` will slot in.
+## What we've built so far, grouped by theme
+
+- **Identity & presence.** Self-sovereign `did:mini` identity with no
+  central registry, device delegation, and physically-verified co-presence
+  between two nearby devices — the foundation everything else builds on.
+- **Content & social fabric.** A signed, content-addressed object model
+  underneath profiles, feeds, forums/CRDT docs, and chunked media — all
+  locally computed and explainable, no hidden ranking algorithm.
+- **Chain & release governance.** A BFT finality-verification core with
+  equal vote weight per verified identity root (never stake), plus a
+  governed release/update path with no forced-update or kill-switch path.
+- **Personhood & Sybil resistance.** Redesigned per founder direction
+  (D-0038) from a fixed three-signal proof into an open-ended, weighted
+  multi-signal accumulator — `VouchedHuman` as a fast onboarding path,
+  `FullHuman` reachable only automatically once several independent, live,
+  currently-valid signals and a minimum age all agree. This sidesteps rather
+  than solves the whitepaper's hardest open research problem (see below).
+- **Storage & space-time.** A Merkle/PDP challenge-response proof that a
+  device is still holding data it claims to store, feeding block-production
+  weight — explicitly proving continuous possession, not yet replication
+  uniqueness.
+- **Treasury & value privacy.** Real (prototype-grade) cryptography for both
+  of the whitepaper's highest-stakes domains: stealth addresses + linkable
+  ring signatures + Bulletproofs confidential amounts for the one MINI
+  ledger, and FROST threshold signatures (with a live multi-device demo) for
+  treasury custody.
+
+All of the cryptography above was authored under **D-0037**: the founder
+cohort's explicit, recorded decision to let AI draft this code as long as a
+human reviews it, rather than requiring human authorship from the start.
+That policy does not, and cannot, substitute for the external cryptography
+audit every 🧪 item above still needs before real value or real custody
+depends on it.
+
+## Path to a global launch — what is still missing
+
+This is the honest gap list between "the protocol logic works and is
+tested" and "people anywhere in the world can actually run and trust this
+network." Nothing below is secret or silently dropped — each is also
+documented at the crate level.
+
+1. **External cryptography audit.** Every 🧪 item in the table above
+   (stealth addresses, ring signatures, Bulletproofs, FROST, Merkle/PDP
+   storage proofs) is founder-reviewed AI-authored work, not
+   audit-equivalent. This is the single largest gate before any real value
+   or custody touches this code.
+2. **A real network transport.** Nothing in this tree opens a socket today.
+   `mini-bearer` has only an in-process channel; `mini-net`'s DHT/gossip and
+   `mini-bootstrap`'s capsule exchange are protocol logic without BLE/
+   Wi-Fi/QUIC underneath them. This is the difference between "two demo
+   threads" and "two phones in different countries."
+3. **A client people can actually install.** There is no mobile, desktop, or
+   web application anywhere in this repository yet — `docs/UI_BETA_PLAN.md`
+   is a plan, not code. Global launch needs an installable app, not a
+   library workspace.
+4. **The personhood ZK proof (signal (b)).** The whitepaper itself describes
+   on-device behavioral/location entropy proved in zero-knowledge as
+   unsolved research. D-0038's multi-signal redesign makes the *system* not
+   depend on this one signal, but it does not solve the underlying research
+   problem — that remains open.
+5. **FROST distributed key generation.** The treasury custody prototype
+   uses trusted-dealer keygen, where one party briefly holds the whole
+   secret. A real deployment needs DKG, so no party ever holds it, even
+   briefly.
+6. **Consensus and chain networking.** `mini-chain` verifies finality given
+   valid votes; the networked BFT protocol (proposing, voting, gossiping
+   blocks across real peers) and the full state machine are not built yet.
+7. **Security posture at scale.** No dependency-vulnerability scanning is
+   wired into CI yet (`cargo audit` or equivalent), and the reproducible-
+   build CI job is present but disabled pending real infrastructure.
+8. **Abuse/moderation tooling at the edges.** Content rules are explicitly
+   meant to live in user/community filters (constitution principle 10), but
+   almost none of that tooling exists yet beyond `mini-social`'s follow
+   graph and feed computation.
+9. **Load and adversarial testing at real scale.** Everything so far is
+   unit- and demo-tested on one machine. Sybil-cost economics, gossip
+   behavior under churn, and storage-proof behavior under real network
+   partitions are all untested against anything resembling global scale.
+
+None of these are quick fixes, and several (1, 2, 3, 6) are each
+substantial, multi-month efforts on their own. They are listed in roughly
+the order a global launch would need them resolved, not necessarily the
+order they'll be worked in — see `docs/ROADMAP.md` for the actual pack
+sequencing, which currently targets the much nearer two-phone keystone beta
+(`docs/BETA_STATUS.md`) before any of the above.
+
+## Suggested improvements (not yet decided, worth raising with the founder cohort)
+
+- Wire `cargo audit` (or `cargo deny`) into CI now, while the dependency tree
+  is still small — cheap today, much more valuable once it's not.
+- Add a `TESTING.md` with copy-pasteable steps for non-author reviewers to
+  independently verify each 🧪 prototype's claims (test suite, live demos,
+  and what a red flag would look like) rather than only reading the code.
+- Consider standing up the DKG variant of FROST keygen before the trusted-
+  dealer version ever gets used with anything of real value, even in a
+  testnet — it's a smaller lift now than a migration later.
+- Start the mobile/desktop client track in parallel with the transport work
+  (item 2 above), since neither blocks the other and both gate global
+  launch equally.
 
 ## Constitution summary
 
@@ -137,7 +233,7 @@ In short:
 
 The canonical enforcement map is `docs/INVARIANTS.md`.
 
-## Identity, public walls, and base devices (founder decisions, 2026-07-07)
+## Identity, public walls, and base devices
 
 A human's status is private, cold, and never public by default — but everyone
 is free to be public, pseudonymous, or anonymous with whatever *they* choose
@@ -150,16 +246,13 @@ to publish:
   status. One human may run **many** public, pseudonymous, or anonymous
   surfaces — unlinkable by default, linkable only if the user explicitly,
   voluntarily signs a linkage. See `crates/mini-social/src/wall.rs` and
-  `did-mini::IdentityMode` for the full taxonomy (`HumanRoot`, `BaseDevice`,
-  `DeviceDid`, `PublicWall`, `PseudonymProfile`, `AnonymousAction`).
+  `did-mini::IdentityMode` for the full taxonomy.
 - **One base/static device is recommended** per human — for hosting, storage,
   seeding, and participation (`did-mini::BaseDeviceRole`). It is operational
-  infrastructure, not political power: it is deliberately not a capability
-  and cannot buy governance weight.
+  infrastructure, not political power: it cannot buy governance weight.
 - **Watching helps seed it.** Opening public content naturally helps seed it
   to the network, unless the user disables that or content policy forbids it
-  — see `mini-store::CacheTier` and `Store::note_view`. Encrypted/private
-  content is never advertised, no matter the policy.
+  — see `mini-store::CacheTier` and `Store::note_view`.
 - **Money, storage, and reach never buy a vote.** Storage/seeding commitment
   earns value (`mini-reward`) and reach, never voice (P1).
 
@@ -171,8 +264,7 @@ to publish:
 - **Identity:** KERI-style did:mini autonomic identifiers.
 - **Networking core:** BLE + local Wi-Fi/hotspot/mDNS + optional relay;
   store-and-forward/delay-tolerant by default. Radio/LoRa is **permanently
-  out of scope** — a closed founder decision (2026-07-07, D-0033), not a
-  Phase-1 deferral.
+  out of scope** (D-0033).
 - **Forge/update:** internal content-addressed forge and on-chain release registry;
   GitHub/GitLab/etc. are temporary mirrors only.
 
@@ -180,12 +272,20 @@ to publish:
 
 ```sh
 cargo fmt --all
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --all-targets --all-features --workspace -- -D warnings
 cargo test --all --all-features
 ```
 
 All three are clean on this tree and `Cargo.lock` is committed for
 reproducible builds (D-0006).
+
+## Contributing & review
+
+See `CONTRIBUTING.md` for the PR checklist and the two-approval floor
+(D-0033). If your change touches a FREEZE domain (`docs/INVARIANTS.md`),
+it needs a `docs/DECISION_LOG.md` entry — look at the existing `D-0036`
+through `D-0041` entries for the expected shape (what was built, why, what
+it does *not* prove, and what's still pending).
 
 ## License
 
