@@ -1,7 +1,7 @@
 [package]
 name = "mini-treasury"
 version = "0.0.1"
-description = "Community-governed BTC/XMR-to-MINI contribution bookkeeping (whitepaper SS8.2/SS10) -- rate governance and signer-set data model only; treasury custody and cross-chain receipt verification are explicitly out of scope here."
+description = "Community-governed BTC/XMR-to-MINI contribution bookkeeping (whitepaper SS8.2/SS10) plus a founder-overridden (D-0037), AI-authored FROST threshold-signature custody prototype pending external cryptography audit; cross-chain receipt verification remains explicitly out of scope here."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -11,3 +11,9 @@ publish = false
 
 [dependencies]
 did-mini = { path = "../did-mini" }
+# Same audited primitive-layer crate ed25519-dalek/x25519-dalek already
+# build on (D-0014's precedent) -- the raw Ristretto group only. The FROST
+# threshold-signature protocol built on top is Mininet-owned (D-0037).
+curve25519-dalek = "4"
+blake3 = "1"
+mini-crypto = { path = "../mini-crypto" }

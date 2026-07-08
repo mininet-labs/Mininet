@@ -1343,3 +1343,66 @@ ground between "provably correct" and "silently exploitable" — treat
 `MininetConfidentialAmount` as pending a specialized cryptography audit
 before any real value depends on it, same bar as the stealth-address and
 ring-signature prototypes before it.
+
+---
+
+### D-0041 — `mini-treasury`: FROST threshold-signature custody + live multi-device demo  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** D-0035 point 5, D-0037, whitepaper §8.2/§10/§11, `mini-treasury::{frost_keygen,frost_sign}`, `examples/frost_live_demo.rs`.
+
+The last of the four D-0035 point 5 areas the founder asked to be worked
+on ("also wire a live multi-device signing demo," the larger of the two
+offered options). Implemented:
+
+- `frost_keygen::trusted_dealer_keygen` — Feldman-VSS Shamir secret
+  sharing: a group secret key `f(0)` split into `n` shares `f(i)`, any
+  `threshold` of which can later sign, each individually verifiable
+  against published coefficient commitments without trusting the dealer's
+  word.
+- `frost_sign` — the full two-round FROST protocol (Komlo & Goldberg):
+  round-1 nonce commitments, binding factors (`rho_i`) that close the
+  Drijvers et al. adaptive-nonce attack on naive two-round Schnorr
+  aggregation, round-2 responses weighted by each signer's Lagrange
+  coefficient, per-share verification before aggregation (attributable
+  failure, not just an unverifiable aggregate), and a final signature that
+  is byte-for-byte an ordinary Schnorr signature — no verifier needs to
+  know a threshold scheme produced it.
+- `examples/frost_live_demo.rs` — five genuinely separate OS threads (one
+  per committee device, each holding only its own share, moved into that
+  thread and never shared with another) talking to a coordinator only
+  through `std::sync::mpsc` channels, the same request/response shape a
+  real transport would carry. Runs two live sessions: a 3-of-5 payout with
+  two devices offline, and an adversarial session where one device's
+  reported share is tampered with in transit — caught and attributed by
+  per-share verification before any signature is produced.
+
+Two load-bearing identities were hand-derived and checked term-by-term
+before writing any code, the same discipline `mini_value::bp_range` used
+for Bulletproofs: individual-share verification
+(`z_i*G == R_i + c*lambda_i*Y_i`) and aggregate signature validity
+(`z*G == R + c*Y`, via Shamir reconstruction-in-the-exponent,
+`sum_i lambda_i*s_i = f(0)`). Both are documented in `frost_sign`'s module
+docs. 28 tests in `mini-treasury` (up from 9), all passing on first
+implementation.
+
+**Explicitly, not implicitly, a partial answer — three honest limits, not
+silently dropped:** (1) keygen is trusted-dealer, not distributed key
+generation — a production deployment needs DKG so no single party ever
+holds the full secret, even briefly; (2) `SigningNonces` are not
+zeroized on drop; (3) the live demo's channels stand in for a real network
+transport, which is not wired to `mini-net`/`mini-bearer` yet. None of
+these are silently glossed — each is stated in `frost_keygen`'s and the
+example's own doc comments.
+
+**[FREEZE reminder — D-0037 still applies.]** Founder-reviewed, AI-
+authored prototype, not an external-audit-equivalent — the whitepaper's
+own "permanent honeypot by nature" framing (§11) applies to this crate
+more than any other in the workspace. `receipt::ExternalReceiptOracle`
+(verifying real Bitcoin/Monero transactions actually arrived) remains
+completely out of scope here and is a separate integration surface, not
+something FROST closes.
+
+This closes out all four of the founder's originally-requested D-0035
+point 5 areas: hybrid consensus (D-0039), personhood (D-0038), MINI
+transaction-privacy primitives (D-0036/D-0040), and treasury custody
+(this entry) — all now real, founder-reviewed prototypes pending external
+audit, none claimed as production-ready.

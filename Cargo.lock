@@ -454,7 +454,10 @@ dependencies = [
 name = "mini-treasury"
 version = "0.0.1"
 dependencies = [
+ "blake3",
+ "curve25519-dalek",
  "did-mini",
+ "mini-crypto",
 ]
 
 [[package]]
