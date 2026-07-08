@@ -444,6 +444,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-uniqueness"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-presence",
+]
+
+[[package]]
 name = "mini-update"
 version = "0.0.1"
 dependencies = [

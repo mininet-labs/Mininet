@@ -962,6 +962,24 @@ holds). `mini-uniqueness` (task pending) now has a real spec to build
 toward — signal (c) is done, signal (a) is a graph algorithm with prior art,
 signal (b) is genuine unsolved-elsewhere R&D.
 
+**Implemented 2026-07-08 (signals a and c; signal b deliberately stubbed):**
+`mini-uniqueness::vouch`/`verify` build mutual, signed vouch attestations
+between identity roots (mirroring `mini-presence`'s two-party pattern, minus
+the proximity requirement — vouching may ride any transport). `graph::VouchGraph`
+records them as an undirected graph; `graph::trust_scores` is a from-scratch,
+integer-only reimplementation of SybilRank's bounded power-iteration shape,
+propagating trust outward from a seed set so a Sybil cluster's internal
+edges don't help it — only edges into the trusted region do (test:
+`a_sybil_cluster_with_one_bridge_edge_scores_far_below_the_honest_region`).
+`confidence::fuse_confidence` combines the vouch-graph score and a caller-
+supplied presence-strength score (signal c, from `mini_presence::PresenceVerdict`)
+with per-signal time decay into one 0..=100 confidence value — weights and
+the decay curve are an explicitly tunable first cut, not whitepaper-specified.
+Signal (b) is `confidence::BehavioralEntropySource`, a seam only:
+`NoEntropySource` (always `None`) is the correct, permanent implementation
+until the human-authored, externally-audited proof this crate cannot build
+exists (D-0035 point 5). 18 tests across `mini-uniqueness`.
+
 **3. Consensus is a hybrid, not flat equal-weight-per-human as D-0008 alone
 implied.** Whitepaper §8.1: block-production weight comes from **proof-of-
 space-time** (concave reward curve + per-identity caps + geographic/network-
