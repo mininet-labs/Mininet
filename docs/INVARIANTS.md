@@ -2,7 +2,9 @@
 
 This is the working mirror of the Constitution's canonical register (SPEC-00 §12).
 The Constitution governs; if this file and SPEC-00 ever disagree, **SPEC-00 wins**
-and this file is in error.
+and this file is in error. For *why* these invariants exist and how to reason
+about a case they don't obviously cover, see `docs/FOUNDER_DIRECTIVES.md` —
+that document sits underneath this one, not alongside it.
 
 The sprint's Definition of Done requires that frozen invariants are *"encoded as
 checks, not conventions."* The **Enforced by** column tracks exactly where each

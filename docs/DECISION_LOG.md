@@ -1459,3 +1459,49 @@ connectivity") and the "Path to a global launch" list's item 2 accordingly
 — still open for BLE specifically, and for wiring this into
 `mini-bootstrap`/`mini-sync`, but no longer true that "nothing in this
 tree opens a socket."
+
+---
+
+### D-0043 — `docs/FOUNDER_DIRECTIVES.md` adopted as a canonical document  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** the Constitution, `docs/INVARIANTS.md`, `CONTRIBUTING.md`, `.github/pull_request_template.md`, root `README.md`.
+
+Founder directive, verbatim in substance: this repository now carries a
+seventeen-directive founding document — *"MININET — Founder Directives:
+The Principles Behind Every Engineering Decision"* — as required first
+reading for every contributor, human or AI, before opening the codebase.
+
+**What this document is, and is deliberately not**, per its own preface:
+not the Constitution, not the Whitepaper, not a Specification. Those
+documents say *what* to build and *what may never be violated*. The
+Founder Directives say *why* — so that when a future engineer (the
+document's own framing: "40-100 years from now") meets a problem no
+existing Specification anticipated, and cannot ask a founder why a past
+choice was made, this document is that conversation. It does not amend,
+soften, or add to any Tier-F frozen invariant in `docs/INVARIANTS.md` —
+it explains the reasoning those invariants were built to protect.
+
+**What changed to wire it in:**
+- `docs/FOUNDER_DIRECTIVES.md` — the seventeen directives, verbatim, plus a
+  short closing section stating explicitly how the document relates to
+  the Constitution/Whitepaper/Specs/decision log (it sits underneath all
+  of them, not alongside).
+- Root `README.md` — a callout naming it required first reading, directly
+  under the opening paragraph, above every other pointer including the
+  build instructions; also added as item 1 of "New here?" (bumping the
+  prior four items down) and to the repository-map file tree.
+- `CONTRIBUTING.md` — required reading before the existing contribution
+  principles, with an explicit note that AI-assisted contributions under
+  D-0037 are expected to reason from the same directives a human
+  contributor would.
+- `.github/pull_request_template.md` — referenced in the top comment
+  alongside `docs/INVARIANTS.md`, and a reviewer-checklist line for
+  judgment calls that fall outside any existing spec or invariant.
+
+**Why this belongs in the decision log despite not being a protocol
+change.** Every other entry here records an architectural or cryptographic
+choice and its rationale. This entry records the adoption of the
+document that all *future* such entries — and every future judgment call
+a spec doesn't cover — are expected to be reasoned from. Per the
+directives' own Directive 17 ("future child" test) and Directive 13
+("think in centuries"), that adoption is exactly the kind of decision this
+log exists to make permanent and attributable, not silently assumed.

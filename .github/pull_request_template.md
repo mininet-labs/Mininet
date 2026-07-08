@@ -1,9 +1,11 @@
 <!--
 Mininet has no owner and no admin key (P3) — this template exists to make
 review fast and consistent while the on-chain forge isn't live yet
-(SPEC-11). See CONTRIBUTING.md for the full checklist and
-docs/INVARIANTS.md for the frozen/tunable register this PR is checked
-against. Delete this comment before submitting.
+(SPEC-11). See CONTRIBUTING.md for the full checklist, docs/INVARIANTS.md
+for the frozen/tunable register this PR is checked against, and
+docs/FOUNDER_DIRECTIVES.md for the reasoning behind both when a change
+falls outside anything either document anticipated. Delete this comment
+before submitting.
 -->
 
 ## Summary
@@ -47,5 +49,6 @@ need two human approvals, no exceptions.
 - [ ] I reviewed this as a maintainer, not just skimmed the diff
 - [ ] No balance, stake, or payment appears anywhere in a vote/quorum/access rule
 - [ ] No new path lets any single key or party unmask a user, force an update, or act as an owner/admin
+- [ ] For any judgment call not covered by a spec or invariant: it holds up against `docs/FOUNDER_DIRECTIVES.md` (name the directive if it's non-obvious)
 
 🤖 If this PR (or parts of it) were AI-drafted: note which parts, and confirm a human reviewed the crypto/identity/governance-sensitive portions line by line.

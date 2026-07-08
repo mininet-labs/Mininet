@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 22,
-    "files": 194,
-    "headings": 256,
+    "files": 195,
+    "headings": 279,
     "rust_symbols": 1803
   },
   "crates": {
@@ -97,27 +97,27 @@
   },
   "files": [
     {
-      "bytes": 2158,
+      "bytes": 2436,
       "group": "ci",
       "headings": [
         {
           "level": 2,
-          "line": 9,
+          "line": 11,
           "text": "Summary"
         },
         {
           "level": 2,
-          "line": 13,
+          "line": 15,
           "text": "Does this touch a frozen domain?"
         },
         {
           "level": 2,
-          "line": 28,
+          "line": 30,
           "text": "Test plan"
         },
         {
           "level": 2,
-          "line": 38,
+          "line": 40,
           "text": "Reviewer checklist (2-approval floor, D-0033)"
         }
       ],
@@ -132,6 +132,7 @@
         "owner",
         "admin",
         "invariants",
+        "change",
         "what",
         "changed",
         "tier",
@@ -144,12 +145,11 @@
         "key",
         "exists",
         "see",
-        "tunable",
-        "vote"
+        "tunable"
       ],
-      "lines": 52,
+      "lines": 55,
       "path": ".github/pull_request_template.md",
-      "sha256": "55f9a9f852fbb01157f7930a94672c5d0277999bb0e71e166ef3697b79da4dda",
+      "sha256": "87caedc9d11a46025089145f2754604ed055f457824ddc741589a72800fb90ba",
       "symbols": [],
       "title": "Summary"
     },
@@ -201,7 +201,7 @@
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
     {
-      "bytes": 2707,
+      "bytes": 3212,
       "group": "root",
       "headings": [
         {
@@ -211,22 +211,22 @@
         },
         {
           "level": 2,
-          "line": 9,
+          "line": 17,
           "text": "Principles that apply to contribution itself"
         },
         {
           "level": 2,
-          "line": 28,
+          "line": 36,
           "text": "Practical checklist for a PR"
         },
         {
           "level": 2,
-          "line": 37,
+          "line": 45,
           "text": "Signing"
         },
         {
           "level": 2,
-          "line": 44,
+          "line": 52,
           "text": "Scope of a batch"
         }
       ],
@@ -238,6 +238,11 @@
         "principles",
         "itself",
         "spec-11",
+        "one",
+        "every",
+        "invariants",
+        "human",
+        "code",
         "frozen",
         "change",
         "approvals",
@@ -249,16 +254,11 @@
         "signing",
         "scope",
         "batch",
-        "domain",
-        "owner",
-        "changes",
-        "network",
-        "until",
-        "authority"
+        "domain"
       ],
-      "lines": 49,
+      "lines": 57,
       "path": "CONTRIBUTING.md",
-      "sha256": "5805dbc10f59283bbcc607cbce37337128329dbf3f80ad430726821016772146",
+      "sha256": "76fddb63974aa89bbea79ee7f826c1de2472e417c9e5586aff90c2b70c667e00",
       "symbols": [],
       "title": "Contributing"
     },
@@ -423,7 +423,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 18773,
+      "bytes": 19615,
       "group": "root",
       "headings": [
         {
@@ -433,94 +433,94 @@
         },
         {
           "level": 2,
-          "line": 16,
-          "text": "New here? Start with these four things"
+          "line": 25,
+          "text": "New here? Start with these things"
         },
         {
           "level": 2,
-          "line": 44,
+          "line": 56,
           "text": "Status at a glance"
         },
         {
           "level": 2,
-          "line": 70,
+          "line": 82,
           "text": "Repository map"
         },
         {
           "level": 2,
-          "line": 125,
+          "line": 138,
           "text": "What we've built so far, grouped by theme"
         },
         {
           "level": 2,
-          "line": 159,
+          "line": 172,
           "text": "Path to a global launch \u2014 what is still missing"
         },
         {
           "level": 2,
-          "line": 217,
+          "line": 230,
           "text": "Suggested improvements (not yet decided, worth raising with the founder cohort)"
         },
         {
           "level": 2,
-          "line": 232,
+          "line": 245,
           "text": "Constitution summary"
         },
         {
           "level": 2,
-          "line": 253,
+          "line": 266,
           "text": "Identity, public walls, and base devices"
         },
         {
           "level": 2,
-          "line": 276,
+          "line": 289,
           "text": "Stack at a glance"
         },
         {
           "level": 2,
-          "line": 288,
+          "line": 301,
           "text": "Build & test"
         },
         {
           "level": 2,
-          "line": 299,
+          "line": 312,
           "text": "Contributing & review"
         },
         {
           "level": 2,
-          "line": 307,
+          "line": 320,
           "text": "License"
         }
       ],
       "keywords": [
-        "see",
         "cargo",
+        "see",
         "real",
+        "repository",
         "what",
-        "yet",
+        "every",
         "review",
         "run",
         "one",
         "glance",
-        "repository",
         "map",
+        "still",
+        "yet",
         "build",
-        "below",
-        "every",
+        "read",
+        "three",
         "code",
         "status",
-        "built",
-        "still",
-        "contributing",
-        "network",
+        "founder",
         "storage",
+        "human",
         "tree",
         "live",
         "external"
       ],
-      "lines": 310,
+      "lines": 323,
       "path": "README.md",
-      "sha256": "67084a4b2d06afe63f998cf2a997010776fc113f290478759d76cc2ee5fcd17b",
+      "sha256": "3c436eb208bcc92676106fb0adcb1cc8c253439696247cadc3642331c2762725",
       "symbols": [],
       "title": "Mininet"
     },
@@ -16664,7 +16664,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 88087,
+      "bytes": 90823,
       "group": "docs",
       "headings": [
         {
@@ -16881,6 +16881,11 @@
           "level": 3,
           "line": 1412,
           "text": "D-0042 \u2014 `mini-bearer`: real TCP transport (`TcpBearer`) + a live multi-process gossip demo in `mini-net`  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 1465,
+          "text": "D-0043 \u2014 `docs/FOUNDER_DIRECTIVES.md` adopted as a canonical document  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -16909,14 +16914,161 @@
         "hash",
         "sha-256"
       ],
-      "lines": 1462,
+      "lines": 1508,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "47500b16ee2b4ecdfae7f8f230720eaccfdf8331b741e5c40c27c97965440ee7",
+      "sha256": "ce7bddcfedba665a0d610497ee6c4a2c2551ba37e02f398f1d96625e72a00abc",
       "symbols": [],
       "title": "Decision Log"
     },
     {
-      "bytes": 11276,
+      "bytes": 10073,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "MININET \u2014 Founder Directives"
+        },
+        {
+          "level": 3,
+          "line": 3,
+          "text": "The Principles Behind Every Engineering Decision"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Preface"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "Directive 1 \u2014 Humanity Before Technology"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "Directive 2 \u2014 Assume Every Central Authority Will Eventually Fail"
+        },
+        {
+          "level": 2,
+          "line": 93,
+          "text": "Directive 3 \u2014 The Network Must Outlive Its Creators"
+        },
+        {
+          "level": 2,
+          "line": 115,
+          "text": "Directive 4 \u2014 Money Is Never Worth More Than Legitimacy"
+        },
+        {
+          "level": 2,
+          "line": 141,
+          "text": "Directive 5 \u2014 Canonical Truth Is Sacred"
+        },
+        {
+          "level": 2,
+          "line": 169,
+          "text": "Directive 6 \u2014 Design for Failure, Not Success"
+        },
+        {
+          "level": 2,
+          "line": 205,
+          "text": "Directive 7 \u2014 Forks Must Remain Free, But Legitimacy Must Be Earned"
+        },
+        {
+          "level": 2,
+          "line": 235,
+          "text": "Directive 8 \u2014 The Human Is the Root of Trust"
+        },
+        {
+          "level": 2,
+          "line": 265,
+          "text": "Directive 9 \u2014 Privacy Is Structural"
+        },
+        {
+          "level": 2,
+          "line": 285,
+          "text": "Directive 10 \u2014 Every Optimization Has a Cost"
+        },
+        {
+          "level": 2,
+          "line": 311,
+          "text": "Directive 11 \u2014 The Weakest Device Matters Most"
+        },
+        {
+          "level": 2,
+          "line": 329,
+          "text": "Directive 12 \u2014 AI Serves Humanity"
+        },
+        {
+          "level": 2,
+          "line": 355,
+          "text": "Directive 13 \u2014 Think in Centuries"
+        },
+        {
+          "level": 2,
+          "line": 377,
+          "text": "Directive 14 \u2014 Simplicity Is Security"
+        },
+        {
+          "level": 2,
+          "line": 395,
+          "text": "Directive 15 \u2014 Build for the Honest Majority, Defend Against the Malicious Minority"
+        },
+        {
+          "level": 2,
+          "line": 407,
+          "text": "Directive 16 \u2014 Preserve the Voice/Value Wall at All Costs"
+        },
+        {
+          "level": 2,
+          "line": 433,
+          "text": "Directive 17 \u2014 Every Decision Must Survive the \"Future Child\" Test"
+        },
+        {
+          "level": 2,
+          "line": 459,
+          "text": "Final Words"
+        },
+        {
+          "level": 2,
+          "line": 477,
+          "text": "How this document relates to everything else in this repository"
+        }
+      ],
+      "keywords": [
+        "directive",
+        "every",
+        "never",
+        "may",
+        "fail",
+        "humanity",
+        "legitimacy",
+        "trust",
+        "technology",
+        "canonical",
+        "human",
+        "build",
+        "constitution",
+        "temporary",
+        "one",
+        "directives",
+        "engineering",
+        "decision",
+        "eventually",
+        "money",
+        "against",
+        "what",
+        "does",
+        "continue"
+      ],
+      "lines": 498,
+      "path": "docs/FOUNDER_DIRECTIVES.md",
+      "sha256": "4fd614d2727877a4295637ef54fb7011dfa1963c35b4c401585ff7711e00dc1b",
+      "symbols": [],
+      "title": "MININET \u2014 Founder Directives"
+    },
+    {
+      "bytes": 11463,
       "group": "docs",
       "headings": [
         {
@@ -16926,22 +17078,22 @@
         },
         {
           "level": 2,
-          "line": 11,
+          "line": 13,
           "text": "Tier F \u2014 Frozen (unamendable by any vote)"
         },
         {
           "level": 2,
-          "line": 42,
+          "line": 44,
           "text": "Tier T \u2014 Tunable within limits (one-human-one-vote + timelock + bounds-check)"
         },
         {
           "level": 2,
-          "line": 56,
+          "line": 58,
           "text": "Tier O \u2014 Organic (permissionless; no vote)"
         },
         {
           "level": 3,
-          "line": 64,
+          "line": 66,
           "text": "How to use this file in review"
         }
       ],
@@ -16950,14 +17102,14 @@
         "spec-00",
         "pending",
         "frozen",
-        "partial",
         "one",
+        "partial",
+        "invariants",
         "root",
         "never",
         "did-mini",
         "device",
         "spec-01",
-        "invariants",
         "tier",
         "capabilities",
         "mini-crypto",
@@ -16971,9 +17123,9 @@
         "many",
         "devices"
       ],
-      "lines": 75,
+      "lines": 77,
       "path": "docs/INVARIANTS.md",
-      "sha256": "bfabb31e0306f72c032133c86e99fffd6cb32eb163c6a48068d97d8ec4945803",
+      "sha256": "6d2e1ab2f415f68fa5499c7903e57577b4cf813190535759907b4a1924dd6f70",
       "symbols": [],
       "title": "Invariants \u2014 frozen/tunable register, mapped to code"
     },

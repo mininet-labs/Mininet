@@ -6,6 +6,14 @@ forge is live (SPEC-11), we use GitHub as a temporary host. The intent is to
 migrate this very repository *into* Mininet, at which point pull requests are made
 from inside the network and merge authority is governed, not granted by a platform.
 
+**Before anything else, read `docs/FOUNDER_DIRECTIVES.md`.** It is not a
+rulebook alongside this one — it's the reasoning underneath every rule
+here and in `docs/INVARIANTS.md`. When a PR touches something no existing
+document anticipated, the directives are what a reviewer (human or AI)
+reasons from. This applies equally to AI-assisted contributions: an AI
+drafting code under the D-0037 policy is expected to have read and be
+reasoning from the same seventeen directives a human contributor would.
+
 ## Principles that apply to contribution itself
 
 - **Voice / value wall (SPEC-11 §2 \[FREEZE\]).** Funding work is free and unequal;

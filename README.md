@@ -13,12 +13,24 @@ adapted into our own tree, never taken as a live external dependency.
 This repository is the **self-contained Rust core**: ~22 crates, no owner, no
 external dependency on any single company's infrastructure to keep running.
 
-## New here? Start with these four things
+> **Read this first, before anything else in this repository:**
+> [`docs/FOUNDER_DIRECTIVES.md`](docs/FOUNDER_DIRECTIVES.md) — *MININET
+> Founder Directives: The Principles Behind Every Engineering Decision.*
+> It is not the Constitution, the Whitepaper, or a Specification — it is
+> the *why* underneath all three, written so that a century from now,
+> someone facing a problem no document anticipated can still reason the
+> way the founders would have. Every contributor, human or AI, reads this
+> before opening the codebase.
 
-1. **Build it.** `cargo fmt --all && cargo clippy --all-targets --all-features
+## New here? Start with these things
+
+1. **Read `docs/FOUNDER_DIRECTIVES.md`.** Seventeen directives, five
+   minutes, and every engineering judgment call in this repository — down
+   to the code review comments — is expected to trace back to them.
+2. **Build it.** `cargo fmt --all && cargo clippy --all-targets --all-features
    --workspace -- -D warnings && cargo test --all --all-features` — all clean
    on this tree, `Cargo.lock` committed. See [Build & test](#build--test) below.
-2. **See it run.** Three runnable demos exist today — see
+3. **See it run.** Three runnable demos exist today — see
    [Status at a glance](#status-at-a-glance):
    - `cargo run -p mini-keystone --example keystone` — two devices exchange
      identities, prove co-presence, and accrue reward, in-process.
@@ -30,10 +42,10 @@ external dependency on any single company's infrastructure to keep running.
      separate OS processes gossiping a message over real TCP sockets (not
      simulated in one process — see `crates/mini-net/README.md` for the
      three-terminal walkthrough).
-3. **Find your way around.** `python3 tools/mininet_nav.py map` builds an
+4. **Find your way around.** `python3 tools/mininet_nav.py map` builds an
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
-4. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
+5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
    architectural and policy decision, numbered `D-0001`–`D-0042` so far) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register mapped to code) are
    the two documents that outrank any comment or README, including this one.
@@ -76,6 +88,7 @@ mininet/
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
 ├── crates/                 22 crates, see the table below
 ├── docs/
+│   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code
 │   ├── ROADMAP.md               pack order from two-phone demo to full network
