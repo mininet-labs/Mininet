@@ -1177,3 +1177,41 @@ different real keys never collide. 32 tests total in `mini-value`.
 (this override does not extend to `mini-value::confidential`, the hybrid
 consensus, treasury custody, or the personhood ZK proof — all four remain
 governed by D-0035 point 5 unchanged).
+
+---
+
+### D-0037 — Founder policy change: D-0035 point 5 generalized to "human review, AI authorship permitted"  ·  *Accepted (supersedes D-0036's narrow scope)*
+**Date:** 2026-07-08 · **Refs:** D-0035 point 5, D-0036.
+
+D-0036 overrode D-0035 point 5 narrowly, for two named primitives in
+`mini-value`. Asked directly whether to keep re-litigating this per
+primitive or set a standing rule, **the founder cohort set a standing
+rule**: across all four D-0035 point 5 areas (hybrid consensus, treasury
+custody, the personhood ZK proof, and MINI's transaction-privacy
+primitives), the bar is now **human review, with AI permitted to author
+the code** — not human authorship with AI shut out, and not requiring a
+specialized external audit before further work proceeds. D-0036's
+narrower per-primitive override is superseded by this general rule, not
+separately tracked going forward.
+
+**What this changes:** AI-authored implementations of well-documented,
+existing cryptographic designs (confidential amounts/range proofs,
+proof-of-space-time challenge-response, treasury threshold-signature
+custody) may now proceed the same way `mini-value`'s ring signatures and
+stealth addresses did — built, tested, and shipped as founder-reviewed
+prototypes — without waiting on a specialized external audit as a
+precondition to keep building. An external audit remains desirable before
+any of this carries real value or real personhood determinations in
+production; it is no longer treated as a hard gate on development
+continuing.
+
+**What this does *not* change [important distinction, not a loophole]:**
+this is a policy about *who reviews and who authors*, not a claim that
+every remaining gap is now merely a process question. The personhood
+behavioral/location ZK proof (whitepaper §5, signal (b)) is explicitly
+described by the whitepaper itself as unsolved research — "has not yet
+been shipped anywhere" — which is a **research-feasibility** blocker, not
+an authorship-policy one. Relaxing who may author code does not make an
+unsolved cryptographic research problem solved; that signal stays
+unimplemented until a real, sound construction exists to author in the
+first place, regardless of who is permitted to write it.
