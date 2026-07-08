@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 23,
-    "files": 211,
-    "headings": 376,
+    "files": 212,
+    "headings": 387,
     "rust_symbols": 1851
   },
   "crates": {
@@ -427,7 +427,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 20586,
+      "bytes": 21224,
       "group": "root",
       "headings": [
         {
@@ -442,57 +442,57 @@
         },
         {
           "level": 2,
-          "line": 63,
+          "line": 69,
           "text": "Status at a glance"
         },
         {
           "level": 2,
-          "line": 89,
+          "line": 95,
           "text": "Repository map"
         },
         {
           "level": 2,
-          "line": 150,
+          "line": 157,
           "text": "What we've built so far, grouped by theme"
         },
         {
           "level": 2,
-          "line": 184,
+          "line": 191,
           "text": "Path to a global launch \u2014 what is still missing"
         },
         {
           "level": 2,
-          "line": 246,
+          "line": 253,
           "text": "Suggested improvements (not yet decided, worth raising with the founder cohort)"
         },
         {
           "level": 2,
-          "line": 256,
+          "line": 263,
           "text": "Constitution summary"
         },
         {
           "level": 2,
-          "line": 277,
+          "line": 284,
           "text": "Identity, public walls, and base devices"
         },
         {
           "level": 2,
-          "line": 300,
+          "line": 307,
           "text": "Stack at a glance"
         },
         {
           "level": 2,
-          "line": 312,
+          "line": 319,
           "text": "Build & test"
         },
         {
           "level": 2,
-          "line": 323,
+          "line": 330,
           "text": "Contributing & review"
         },
         {
           "level": 2,
-          "line": 331,
+          "line": 338,
           "text": "License"
         }
       ],
@@ -501,30 +501,30 @@
         "every",
         "cargo",
         "see",
+        "one",
         "repository",
         "review",
         "run",
-        "one",
-        "real",
+        "read",
         "status",
         "glance",
-        "still",
-        "yet",
         "build",
-        "read",
         "three",
+        "real",
+        "these",
         "map",
         "built",
+        "still",
         "founder",
         "own",
+        "its",
         "storage",
         "human",
-        "domain",
-        "tree"
+        "domain"
       ],
-      "lines": 334,
+      "lines": 341,
       "path": "README.md",
-      "sha256": "3ec7cec7d8deeb4200446e92cc4e14f95abe3134402826498288470ec69490f2",
+      "sha256": "5b1a57a03deb4cf2c742b03770f0b04728a837a131393b60e867666da4e7e988",
       "symbols": [],
       "title": "Mininet"
     },
@@ -17351,7 +17351,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 110933,
+      "bytes": 114637,
       "group": "docs",
       "headings": [
         {
@@ -17376,248 +17376,253 @@
         },
         {
           "level": 3,
-          "line": 54,
+          "line": 56,
           "text": "D-0001 \u2014 On-device core language: Rust; single-language stack  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 75,
+          "line": 77,
           "text": "D-0002 \u2014 License: CC0 1.0 (public-domain dedication)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 85,
+          "line": 87,
           "text": "D-0003 \u2014 Signature suite: Ed25519 default, behind a versioned tag  \u00b7  *Provisional*"
         },
         {
           "level": 3,
-          "line": 96,
+          "line": 98,
           "text": "D-0004 \u2014 Content-address hash: BLAKE3 default, SHA-256 interop, SHA-1 forbidden  \u00b7  *Accepted (freeze)*"
         },
         {
           "level": 3,
-          "line": 106,
+          "line": 108,
           "text": "D-0005 \u2014 Identity foundation: KERI-style autonomic identifiers  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 124,
+          "line": 126,
           "text": "D-0006 \u2014 Reproducibility hygiene: commit `Cargo.lock`, pin the toolchain  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 136,
+          "line": 138,
           "text": "D-0007 \u2014 did:mini wire profile: hand-rolled deterministic codec; BLAKE3 SAID-style SCID  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 164,
+          "line": 166,
           "text": "D-0008 \u2014 Chain framework (A1): custom Rust chain on an adapted proven BFT  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 194,
+          "line": 196,
           "text": "D-0009 \u2014 Networking core (A3): mesh + local Wi-Fi + optional relay; drop radio  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 223,
+          "line": 225,
           "text": "D-0010 \u2014 Device delegation model (M2): delegated inception + mutual seal  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 253,
+          "line": 255,
           "text": "D-0011 \u2014 Self-contained genesis and self-updating release registry  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 277,
+          "line": 279,
           "text": "D-0012 \u2014 Bluetooth-only bootstrap is a mandatory launch path  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 299,
+          "line": 301,
           "text": "D-0013 \u2014 did:mini wire hardening before first public release  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 324,
+          "line": 326,
           "text": "D-0014 \u2014 Pack 1 crypto primitives for Bluetooth/local encrypted sessions  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 350,
+          "line": 352,
           "text": "D-0015 \u2014 Bearer layer and anonymous encrypted channel (`mini-bearer`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 383,
+          "line": 385,
           "text": "D-0016 \u2014 Presence attestations (`mini-presence`): range-bound, mutually signed  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 410,
+          "line": 412,
           "text": "D-0017 \u2014 Reward accrual stub (`mini-reward`): slow, diversity-weighted vesting toward MINI  \u00b7  *Accepted, corrected 2026-07-08*"
         },
         {
           "level": 3,
-          "line": 446,
+          "line": 448,
           "text": "D-0018 \u2014 Keystone harness (`mini-keystone`): the beta is the composed flow  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 464,
+          "line": 466,
           "text": "D-0019 \u2014 UI beta stack: one Rust core, Flutter shell, WASM web, SPEC-09 objects  \u00b7  *Proposed (founder veto open)*"
         },
         {
           "level": 3,
-          "line": 484,
+          "line": 486,
           "text": "D-0020 \u2014 Sovereignty-first UI & distribution stack  \u00b7  *Accepted (founder directive)*"
         },
         {
           "level": 3,
-          "line": 511,
+          "line": 513,
           "text": "D-0021 \u2014 Unified object envelope (`mini-objects`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 526,
+          "line": 528,
           "text": "D-0022 \u2014 Local store & head pointers (`mini-store`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 542,
+          "line": 544,
           "text": "D-0023 \u2014 Op-log CRDT (`mini-crdt`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 561,
+          "line": 563,
           "text": "D-0024 \u2014 Replication & verified ingest (`mini-sync`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 581,
+          "line": 583,
           "text": "D-0025 \u2014 Social graph & explainable feeds (`mini-social`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 601,
+          "line": 603,
           "text": "D-0026 \u2014 Chunked media (`mini-media`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 613,
+          "line": 615,
           "text": "D-0027 \u2014 Forge core & release verification (`mini-forge`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 634,
+          "line": 636,
           "text": "D-0028 \u2014 Merge governance & self-amending maintainer chain (`mini-forge::governance`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 655,
+          "line": 657,
           "text": "D-0029 \u2014 External review integrated: hardening pass (Batches 7A/7B/7C-core)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 693,
+          "line": 695,
           "text": "D-0030 \u2014 Second review integrated: compile-readiness + honest quorum semantics  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 734,
+          "line": 736,
           "text": "D-0031 \u2014 Third review integrated: truth-sync + root-carrier provenance + repo self-description  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 784,
+          "line": 786,
           "text": "D-0032 \u2014 Parser strictness, artifact-only verifier rename, KEL cache caps, and repo-map restoration  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 812,
+          "line": 814,
           "text": "D-0033 \u2014 Founder decisions batch: public walls, base device, seed-on-view, 2-approval floor, radio/Cosmos closed for good  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 862,
+          "line": 864,
           "text": "D-0034 \u2014 Ranging (UWB), uniqueness graph, P2P networking (libp2p), and privacy-preserving value transfer: four founder decisions, phased  \u00b7  *Accepted (founder directive, phased implementation)*"
         },
         {
           "level": 3,
-          "line": 963,
+          "line": 965,
           "text": "D-0035 \u2014 Whitepaper reconciliation: MINI unification, three-signal personhood, hybrid consensus, human-only crypto core \u2014 and one open contradiction  \u00b7  *Accepted where noted; one item explicitly OPEN*"
         },
         {
           "level": 3,
-          "line": 1153,
+          "line": 1155,
           "text": "D-0036 \u2014 Founder override: AI-authored ring-signature/stealth-address prototype for `mini-value`, ahead of external audit  \u00b7  *Accepted (explicit founder override of D-0035 point 5)*"
         },
         {
           "level": 3,
-          "line": 1222,
+          "line": 1224,
           "text": "D-0037 \u2014 Founder policy change: D-0035 point 5 generalized to \"human review, AI authorship permitted\"  \u00b7  *Accepted (supersedes D-0036's narrow scope)*"
         },
         {
           "level": 3,
-          "line": 1260,
+          "line": 1262,
           "text": "D-0038 \u2014 Founder redesign: open-ended, multi-signal `HumanStatus` accumulator, replacing reliance on any single silver-bullet signal  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1304,
+          "line": 1306,
           "text": "D-0039 \u2014 `mini-spacetime`: Merkle/PDP storage proof implemented as the honest interim scheme  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1338,
+          "line": 1340,
           "text": "D-0040 \u2014 `mini-value`: Bulletproofs range proof implemented for confidential amounts  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1388,
+          "line": 1390,
           "text": "D-0041 \u2014 `mini-treasury`: FROST threshold-signature custody + live multi-device demo  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1451,
+          "line": 1453,
           "text": "D-0042 \u2014 `mini-bearer`: real TCP transport (`TcpBearer`) + a live multi-process gossip demo in `mini-net`  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1504,
+          "line": 1506,
           "text": "D-0043 \u2014 `docs/FOUNDER_DIRECTIVES.md` adopted as a canonical document  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1550,
+          "line": 1552,
           "text": "D-0044 \u2014 Master roadmap opened; first four audit issues closed; CI gained real dependency scanning and reproducibility checks  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1621,
+          "line": 1623,
           "text": "D-0045 \u2014 Canonical money finality during outages  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1665,
+          "line": 1667,
           "text": "D-0046 \u2014 Fork legitimacy continuity  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1712,
+          "line": 1714,
           "text": "D-0047 \u2014 Production audit gates (tightens D-0037)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1764,
+          "line": 1766,
           "text": "D-0048 \u2014 Trusted-dealer FROST sunset (P0)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1814,
+          "line": 1816,
           "text": "D-0049 \u2014 `mini-bounty`: anonymous developer bounty claims  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 1873,
+          "text": "D-0050 \u2014 `docs/THREAT_MODEL.md` + the traceability chain convention  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -17625,6 +17630,7 @@
         "founder",
         "core",
         "rust",
+        "chain",
         "log",
         "status",
         "d-0045",
@@ -17632,7 +17638,6 @@
         "entry",
         "stack",
         "freeze",
-        "chain",
         "decision",
         "on-device",
         "license",
@@ -17646,9 +17651,9 @@
         "template",
         "language"
       ],
-      "lines": 1868,
+      "lines": 1931,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d4c29138cd79ee407dcf7b5289631b6af7f7075e8974456300bb68a32730b18b",
+      "sha256": "fb7eb69d9a29a024178c18984fa8a655be939dc7a5c2392caa45aaf1eece40b8",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -17912,7 +17917,7 @@
       "title": "MININET \u2014 Founder Directives"
     },
     {
-      "bytes": 15669,
+      "bytes": 17369,
       "group": "docs",
       "headings": [
         {
@@ -17922,104 +17927,109 @@
         },
         {
           "level": 2,
-          "line": 22,
+          "line": 18,
+          "text": "The traceability chain"
+        },
+        {
+          "level": 2,
+          "line": 49,
           "text": "\u26a0 Hard, temporary limitations \u2014 read these before anything else"
         },
         {
           "level": 2,
-          "line": 53,
+          "line": 80,
           "text": "1. Voice / value \u2014 money and power stay separated"
         },
         {
           "level": 2,
-          "line": 63,
+          "line": 90,
           "text": "2. Personhood \u2014 read the hard limitation above first"
         },
         {
           "level": 2,
-          "line": 70,
+          "line": 97,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 80,
-          "text": "4. Money & finality \u2014 **new invariants added this pass**"
+          "line": 107,
+          "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 89,
-          "text": "5. Updates & forks \u2014 **new invariant added this pass**"
+          "line": 116,
+          "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 99,
+          "line": 126,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 108,
+          "line": 135,
           "text": "7. Storage \u2014 read the hard limitation above first"
         },
         {
           "level": 2,
-          "line": 114,
+          "line": 141,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 121,
-          "text": "9. AI & audit gates \u2014 **tightened this pass**"
+          "line": 148,
+          "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 128,
+          "line": 155,
           "text": "Foundational (cross-cutting, don't fit one domain above)"
         },
         {
           "level": 2,
-          "line": 136,
+          "line": 163,
           "text": "Tier T \u2014 Tunable within limits (one-human-one-vote + timelock + bounds-check)"
         },
         {
           "level": 2,
-          "line": 152,
+          "line": 179,
           "text": "Tier O \u2014 Organic (permissionless; no vote)"
         },
         {
           "level": 3,
-          "line": 160,
+          "line": 187,
           "text": "How to use this file in review"
         }
       ],
       "keywords": [
         "one",
-        "invariants",
-        "hard",
-        "read",
         "identity",
-        "spec-00",
-        "verified",
-        "above",
-        "storage",
-        "vote",
+        "invariants",
+        "read",
         "file",
-        "root",
-        "limitation",
-        "first",
-        "invariant",
-        "tree",
-        "partial",
-        "never",
-        "validator",
+        "chain",
+        "hard",
+        "spec-00",
         "weight",
+        "verified",
+        "voice",
+        "value",
+        "vote",
+        "enforced",
+        "tree",
+        "invariant",
+        "every",
+        "directive",
+        "governance",
+        "validator",
+        "root",
         "checklist",
         "these",
-        "voice",
-        "value"
+        "money"
       ],
-      "lines": 176,
+      "lines": 212,
       "path": "docs/INVARIANTS.md",
-      "sha256": "ea3a55547e07cdee459886938e32a6a3df74ab8912de68d7bfd05da9b2ae3577",
+      "sha256": "741a2be604f917710fad877bd94ed436a4f52706412eb35167cf7aab751b1608",
       "symbols": [],
       "title": "Invariants \u2014 the engineer's primary checklist"
     },
@@ -18467,6 +18477,88 @@
       "sha256": "6e3f17dcd97fd0b6dd019a93a814fa0e0b396aec1bd938ff856eb16d73290773",
       "symbols": [],
       "title": "Testing this repository"
+    },
+    {
+      "bytes": 17417,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Threat model \u2014 what could actually kill this"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "How this document is different from the other four"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "How to use this file"
+        },
+        {
+          "level": 2,
+          "line": 47,
+          "text": "1. Human threats \u2014 the people, not the machine, are the attack surface"
+        },
+        {
+          "level": 2,
+          "line": 62,
+          "text": "2. Technical threats \u2014 the machine"
+        },
+        {
+          "level": 2,
+          "line": 73,
+          "text": "3. Economic threats \u2014 the currency dying without anyone attacking it"
+        },
+        {
+          "level": 2,
+          "line": 82,
+          "text": "4. Political threats \u2014 states and infrastructure gatekeepers"
+        },
+        {
+          "level": 2,
+          "line": 91,
+          "text": "5. Civilization-scale threats \u2014 beyond any single actor"
+        },
+        {
+          "level": 2,
+          "line": 110,
+          "text": "What this document is not"
+        }
+      ],
+      "keywords": [
+        "threat",
+        "directive",
+        "what",
+        "founder",
+        "invariant",
+        "threats",
+        "invariants",
+        "document",
+        "answers",
+        "why",
+        "capture",
+        "how",
+        "exists",
+        "stop",
+        "point",
+        "because",
+        "model",
+        "different",
+        "four",
+        "file",
+        "people",
+        "machine",
+        "single",
+        "decision_log"
+      ],
+      "lines": 125,
+      "path": "docs/THREAT_MODEL.md",
+      "sha256": "04539c806a2a58924f4edb278cc8c365bf251d98aefd815d8c2cf30b7166174c",
+      "symbols": [],
+      "title": "Threat model \u2014 what could actually kill this"
     },
     {
       "bytes": 20636,

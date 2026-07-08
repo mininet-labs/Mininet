@@ -32,7 +32,9 @@ tighten D-0037/D-0039/D-0041 below, rather than editing history in place.
 **Reason:** why, in a sentence or two — the full reasoning can be longer,
 but the one-line version should stand alone.
 **Constitutional impact:** which principle(s)/invariant(s) this touches,
-strengthens, or is constrained by. "None" is a valid, common answer.
+strengthens, or is constrained by — cite them by ID (e.g. "Directive 4,
+M2") so the chain in `docs/INVARIANTS.md`'s traceability section resolves
+without guessing. "None" is a valid, common answer.
 **Implementation status:** a snapshot — real detail lives in `docs/STATUS.md`.
 **Failure point:** the concrete way this could go wrong if the decision's
 assumption stops holding. "None identified" is a valid answer, but should
@@ -1863,5 +1865,66 @@ registry linkage) is further along, since bounty-grant minting is one
 consumer of that same integration layer, not a separate one. Minimum
 ring-size policy (if any) is a governance/economics question, not a
 cryptography one — left open deliberately.
+
+**Supersedes / superseded by:** none — first entry on this question.
+
+---
+
+### D-0050 — `docs/THREAT_MODEL.md` + the traceability chain convention  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Founder direction ("holy trinity" review + threat-model request), `docs/THREAT_MODEL.md`, `docs/INVARIANTS.md`.
+
+**Decision:** adopt `docs/THREAT_MODEL.md` as the fifth canonical
+document (alongside `FOUNDER_DIRECTIVES.md`, `INVARIANTS.md`,
+`DECISION_LOG.md`, `FAILURE_BOOK.md`), cataloging civilization-scale
+threats across five categories (Human, Technical, Economic, Political,
+Civilization) rather than a conventional infosec checklist. Simultaneously
+adopt an explicit **traceability chain** convention: every load-bearing
+row in `INVARIANTS.md` now carries a stable ID and a **Directive** column,
+so the chain `Founder Directive → Invariant → Source (Spec/D-00xx) →
+Enforced by (crate + test)` is walkable in either direction. This entry's
+own **Constitutional impact** field demonstrates the convention it
+adopts, citing IDs directly rather than describing them in prose.
+
+**Reason:** the founder identified that the existing three documents
+(nicknamed the "holy trinity" — Directives/Invariants/Decision Log) plus
+`FAILURE_BOOK.md` still left two gaps: nothing cataloged *what could kill
+the project at civilization scale* (as opposed to what's already decided
+or already tried and rejected), and nothing let a reviewer mechanically
+walk from a founding value to the specific test that enforces it, or
+backward from a failing test to the principle it protects. Both gaps are
+about making the constitutional chain auditable rather than just
+documented in prose.
+
+**Constitutional impact:** Directive 13 ("Think in Centuries") directly
+motivates `THREAT_MODEL.md`'s civilization-scale category. Every existing
+invariant ID (P1-P6, M1-M3, F1, A1, V1-V4, PH1, ID1-ID5, U1-U3, PR1-PR2,
+S1, N1-N2, AI1, X1-X3) now has an explicit Directive citation in
+`INVARIANTS.md`; no invariant's *meaning* changed, only its traceability.
+Adds no new frozen invariant itself — this is a documentation-structure
+decision, not a protocol decision.
+
+**Implementation status:** both `docs/THREAT_MODEL.md` and the
+`INVARIANTS.md` Directive-column rewrite are complete and committed. Every
+Tier-F section (9 domains) plus the Foundational table carries the new
+column. `THREAT_MODEL.md` cross-references invariant IDs in its "Stopped
+by" column per threat, and honestly marks several as "Aspirational" or
+"Explicitly unresolved" (notably Sybil resistance, storage-consolidation
+resistance, governance-capture-by-coordination, and founder-authority
+limits) rather than overclaiming coverage.
+
+**Failure point:** a catalog of unresolved threats is only useful if it's
+kept current — `THREAT_MODEL.md` explicitly says a document like this
+that stops growing is a sign no one is looking anymore. If new threats
+are discovered but not added here, the document silently becomes
+decorative rather than load-bearing, the same risk every other canonical
+document in this project carries.
+
+**Required follow-up:** several `THREAT_MODEL.md` entries name gaps with
+no filed roadmap issue yet (coordinated-governance-capture detection,
+coercion-resistant voting, first-contact eclipse resistance, traffic
+obfuscation against ISP-level blocking, post-quantum migration path for
+live funds/identities). These should be triaged into roadmap issues as
+capacity allows, rather than left only as prose. Not done in this entry
+to avoid filing issues faster than they can be meaningfully scoped.
 
 **Supersedes / superseded by:** none — first entry on this question.

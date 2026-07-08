@@ -27,6 +27,10 @@ external dependency on any single company's infrastructure to keep running.
 1. **Read `docs/FOUNDER_DIRECTIVES.md`.** Seventeen directives, five
    minutes, and every engineering judgment call in this repository — down
    to the code review comments — is expected to trace back to them.
+   `docs/INVARIANTS.md` traces every frozen invariant back to one or more
+   of these directives explicitly (its "traceability chain" section);
+   `docs/THREAT_MODEL.md` catalogs what could kill the project at
+   civilization scale and which invariant, if any, is the defense.
 2. **Build it.** `cargo fmt --all && cargo clippy --all-targets --all-features
    --workspace -- -D warnings && cargo test --all --all-features` — all clean
    on this tree, `Cargo.lock` committed. See [Build & test](#build--test) below.
@@ -46,7 +50,7 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0049` so far —
+   architectural and policy decision, numbered `D-0001`–`D-0050` so far —
    policy only; see its own header for what belongs elsewhere) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register, organized by
    domain, with a hard-limitations section at the top) are the two
@@ -58,7 +62,9 @@ external dependency on any single company's infrastructure to keep running.
    including how to review the cryptography prototypes below.
    `docs/FAILURE_BOOK.md` records every rejected design and abandoned
    approach, and why — read it before re-proposing something that's
-   already been tried.
+   already been tried. `docs/THREAT_MODEL.md` records every adversary and
+   civilization-scale risk considered, whether or not it's resolved yet —
+   read it before claiming something is "secure" without qualification.
 
 ## Status at a glance
 
@@ -98,8 +104,9 @@ mininet/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
 │   ├── FAILURE_BOOK.md          every rejected design and abandoned approach, and why
+│   ├── THREAT_MODEL.md          civilization-scale threat catalog: human/technical/economic/political/civilization
 │   ├── audits/                  written audit deliverables for roadmap review issues
-│   ├── INVARIANTS.md            frozen/tunable register mapped to code, by domain
+│   ├── INVARIANTS.md            frozen/tunable register mapped to code, by domain, with a Directive-traceability column
 │   ├── STATUS.md                living implementation-status account, by domain
 │   ├── ROADMAP.md               pack order from two-phone demo to full network
 │   ├── BETA_STATUS.md           near-term target: the two-phone keystone beta
