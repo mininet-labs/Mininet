@@ -1,0 +1,36 @@
+//! Error type for `mini-treasury`.
+
+use core::fmt;
+
+/// Errors this crate can produce.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TreasuryError {
+    /// A signer set was empty, oversized, or contained a duplicate identity
+    /// root.
+    InvalidSignerSet,
+    /// A threshold was zero or exceeded the signer set's size.
+    InvalidThreshold,
+    /// No governed rate is in effect at the requested time.
+    NoRateInEffect,
+    /// A new rate entry's effective time was not strictly after the
+    /// previous entry's.
+    OutOfOrderRateEntry,
+}
+
+impl fmt::Display for TreasuryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TreasuryError::InvalidSignerSet => write!(f, "invalid treasury signer set"),
+            TreasuryError::InvalidThreshold => write!(f, "invalid signer threshold"),
+            TreasuryError::NoRateInEffect => write!(f, "no governed rate in effect at this time"),
+            TreasuryError::OutOfOrderRateEntry => {
+                write!(f, "rate entry is not strictly after the previous one")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TreasuryError {}
+
+/// Result alias for this crate.
+pub type Result<T> = core::result::Result<T, TreasuryError>;

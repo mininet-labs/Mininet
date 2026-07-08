@@ -448,6 +448,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-treasury"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+]
+
+[[package]]
 name = "mini-uniqueness"
 version = "0.0.1"
 dependencies = [

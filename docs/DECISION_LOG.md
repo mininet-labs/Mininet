@@ -1026,6 +1026,27 @@ gets value, zero extra voice), a *separate*, currently unbuilt mechanism
 (treasury custody, price governance, BTC/XMR receipt verification) from
 transaction privacy. Tracked as a new task, not conflated with `mini-value`.
 
+**Design pass done 2026-07-08 (`mini-treasury`), same risk-class split as
+`mini-uniqueness` and `mini-spacetime`:** the *bookkeeping and arithmetic*
+around a contribution are ordinary and fully implemented —
+`rate::RateHistory`/`mint_amount_micro` (a governed exchange-rate lookup and
+the multiplication that turns a contribution into a minted amount, all
+integer for exact reproducibility), `receipt::ContributionReceipt` (the
+record of a claimed contribution), and `signers::TreasurySignerSet`/
+`meets_threshold` (who is authorized to approve treasury actions and
+whether enough distinct authorized identities agreed — mirroring
+`mini-forge`'s governance approval-counting pattern exactly: no weight
+field, no path from signer membership to extra voting power, P1 unchanged).
+The *actually security-critical* pieces are explicitly **not** attempted,
+per the whitepaper's own words ("bridge and treasury custody is a permanent
+honeypot by nature," §11) and point 5 below: `receipt::ExternalReceiptOracle`
+(verifying a real Bitcoin/Monero transaction actually paid the treasury —
+real cross-chain engineering) and any real threshold-signature scheme over
+actual funds (`meets_threshold` answers "did enough people agree," never
+"here is a valid signature the treasury would accept" — no such scheme
+exists in this crate). `NoExternalReceiptOracle` is the correct, permanent
+stand-in until human-authored, externally-audited work exists. 11 tests.
+
 **5. [FREEZE, new, explicit] Human-only authorship + external audit for the
 highest-stakes cryptographic components.** Whitepaper §8.1 (hybrid
 consensus), §9/treasury custody, and §11 ("the cryptographic privacy core is
