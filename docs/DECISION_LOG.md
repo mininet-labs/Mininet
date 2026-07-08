@@ -1259,3 +1259,37 @@ that stays unimplemented until a real construction exists) — it makes the
 entropy included. `confidence::fuse_confidence` (the original fixed
 three-signal fusion) is unchanged and still correct for what it does;
 `status` is the generalized model going forward. 9 new tests.
+
+---
+
+### D-0039 — `mini-spacetime`: Merkle/PDP storage proof implemented as the honest interim scheme  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** D-0037/D-0038, whitepaper §7/§8.1, `mini-spacetime::storage_proof`.
+
+Founder direction on the proof-of-space-time question: start with the
+simpler, well-documented construction now, treat full proof-of-replication
+as a separate, later, dedicated project. Implemented:
+
+- `merkle::MerkleTree`/`MerkleProof` — a domain-separated Merkle tree
+  (RFC 6962-style leaf/node prefix separation) over stored blocks.
+- `storage_proof::verify_storage_challenge` — a challenge response must
+  supply the *actual* block bytes, not just re-assert an already-published
+  digest, so answering requires genuinely holding the data.
+- `storage_proof::ProofHistory`/`StorageWindowPolicy` — repeated
+  successful responses, without too large a gap, over a real span of time
+  (month-scale default) before capacity counts as currently proven; a
+  stale most-recent response invalidates the whole streak, and letting the
+  gap run out demotes proven capacity back to `None`.
+- `storage_proof::MerkleStorageProof` implements
+  `proof::ProofOfSpaceTimeSource` for real, tying commitment + history +
+  policy together.
+
+**Explicitly, not implicitly, a partial answer.** This scheme proves
+*continuous possession*, not *replication uniqueness* — it cannot
+distinguish a thousand honest small devices each holding their own copy
+from one well-resourced server answering every challenge from a single
+copy, which is exactly the warehouse-consolidation attack the whitepaper's
+egalitarian "thousand cheap machines beat one warehouse" thesis (§7)
+depends on resisting. Real proof-of-replication (Filecoin-style
+sequential/time-locked encoding) is the construction that closes that gap
+and remains explicitly deferred, not silently dropped. 26 tests total in
+`mini-spacetime` (up from 9).

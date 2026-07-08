@@ -418,6 +418,9 @@ dependencies = [
 [[package]]
 name = "mini-spacetime"
 version = "0.0.1"
+dependencies = [
+ "blake3",
+]
 
 [[package]]
 name = "mini-storage"
