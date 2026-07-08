@@ -1,43 +1,137 @@
-# Invariants — frozen/tunable register, mapped to code
+# Invariants — the engineer's primary checklist
 
-This is the working mirror of the Constitution's canonical register (SPEC-00 §12).
-The Constitution governs; if this file and SPEC-00 ever disagree, **SPEC-00 wins**
-and this file is in error.
+This is the working mirror of the Constitution's canonical register
+(SPEC-00 §12). The Constitution governs; if this file and SPEC-00 ever
+disagree, **SPEC-00 wins** and this file is in error. For *why* these
+invariants exist and how to reason about a case they don't obviously
+cover, see `docs/FOUNDER_DIRECTIVES.md` — that document sits underneath
+this one, not alongside it.
 
-The sprint's Definition of Done requires that frozen invariants are *"encoded as
-checks, not conventions."* The **Enforced by** column tracks exactly where each
-one becomes code. `pending` means the owning crate/module is not in the tree yet.
+The sprint's Definition of Done requires that frozen invariants are
+*"encoded as checks, not conventions."* The **Enforced by** column tracks
+exactly where each one becomes code. `pending` means the owning crate/
+module is not in the tree yet. **This file states current implementation
+status only where it's load-bearing for the invariant's meaning; the
+detailed, living account of what's built lives in `docs/STATUS.md` — this
+file's job is the checklist, not the narrative.**
 
-## Tier F — Frozen (unamendable by any vote)
+Tier F is organized into nine sections so a reviewer can jump straight to
+the domain a PR touches, rather than scanning one large table. Within
+each section, invariants are listed roughly most-load-bearing first.
+
+## ⚠ Hard, temporary limitations — read these before anything else
+
+Two gaps in the current tree are severe enough that treating them as
+ordinary "partial" rows would understate the risk. Both are honestly
+documented at the crate level already; this section exists so they can
+never be missed by only skimming a table.
+
+- **Every "verified identity" in this tree today is a verified `did:mini`
+  identity *root*, not a verified human.** Forge quorums, finality votes,
+  and reward accrual all count distinct identity roots. Nothing currently
+  prevents one human from controlling multiple roots except cost — and
+  whether that cost is actually high enough is Phase 2's open, unresolved
+  question ([roadmap #18](https://github.com/britak420/Mininet/issues/18),
+  [`docs/audits/issue-10-frozen-invariants-review.md`](audits/issue-10-frozen-invariants-review.md)).
+  **No code path anywhere in this tree may be read as enforcing
+  "one-human-one-vote" (P2) until personhood, not identity-root counting,
+  is what's actually verified.** This is not a note; it is a hard
+  constraint on how every quorum/vote-counting result in this codebase
+  must be described, in code comments, docs, and product copy alike.
+- **The proof-of-space-time storage scheme (`mini-spacetime`, D-0039)
+  proves continuous possession, not replication uniqueness.** A single
+  well-resourced server can answer every challenge for many claimed
+  identities from one copy of the data — it cannot yet be distinguished
+  from a thousand honest small devices each holding their own copy. This
+  is exactly the warehouse-consolidation attack the whitepaper's
+  egalitarian "thousand cheap machines beat one warehouse" thesis (§7)
+  depends on resisting. **No storage-reward or block-production-weight
+  claim may be read as resistant to storage consolidation until real
+  proof-of-replication ([roadmap #31](https://github.com/britak420/Mininet/issues/31))
+  lands.**
+
+## 1. Voice / value — money and power stay separated
 
 | # | Frozen invariant | Source | Enforced by |
 |---|---|---|---|
 | P1 | No balance maps to governance or validator vote weight | SPEC-00 P1 | partial — `mini-chain::ValidatorSet` has no weight field anywhere (equal per identity root by construction, not a balance-weighted count); `mini-forge::governance` quorums are likewise counted per identity root, never balance (test `author_never_counts_and_one_identity_root_counts_once`); full chain/consensus integration is `pending` |
-| P2 | One verified human, one **equal** vote; early grants no extra | SPEC-00 P2 | partial — `did-mini` binds many devices to one human-root with capability scoping that **cannot** create extra votes (`Capabilities`, test `capabilities_are_a_narrowing_bitset`); `mini-chain::verify_finality` counts a validator root **at most once** however many devices vote, and only a `Capabilities::VOTE`-delegated device's vote counts at all (tests `one_validator_voting_from_many_devices_still_counts_once`, `a_device_without_vote_capability_never_counts`) — `Capabilities::VOTE`'s first real consumer; the equal-vote **tally over real personhood** is `pending` (nullifier, personhood + gov) |
-| P3 | No owner/admin key; public-domain license; no off switch | SPEC-00 P3 | `LICENSE` (CC0); `pending` — genesis & release pipeline |
-| P4 | Slow, presence-conditioned vesting; never a lump sum | SPEC-00 P4 | partial — `mini-reward` accrual is rate-capped per window, diversity-weighted, and maturation-delayed before vesting (tests `per_window_rate_cap_slows_accrual`, `contributions_vest_only_after_maturation`, `diversity_beats_repetition`); the on-chain vesting module is `pending` |
-| P5 | No protocol requirement for raw personal data; ZK attestation only | SPEC-00 P5 | partial — `mini-crypto` keeps secrets on-device; `mini-bearer` gives an anonymous, forward-secret channel whose handshake carries no identity (test `distinct_sessions_have_distinct_bindings`, `handshake_agrees_on_binding_and_keys`); ZK personhood attestation still `pending` |
+| — | Instant deterministic finality via adapted Tendermint/CometBFT-style BFT quorum, equal validator weight per verified identity root | SPEC-05 + D-0008 | partial — `mini-chain::verify_finality` requires `>2/3` distinct, currently-delegated, `VOTE`-capable validator roots to precommit the same block/height/round before treating it as final; real networked consensus is `pending` — see [roadmap #36-#45](https://github.com/britak420/Mininet/issues/36) |
+| — | Storage/seeding earns value, never voice | SPEC-00 P1 + D-0033 | ✅ `mini-storage::verify_serve` / `mini-reward::accrue_storage`; see the storage warehouse-attack hard limitation above for the adjacent, unresolved risk |
+| — | Public profiles/walls do not create privilege | SPEC-09 §6.1 + D-0033 | ✅ `mini-social::PublicWall` requires only `Capabilities::POST`, never `VOTE`; no wall registry exists |
+| — | Base devices do not create governance weight | SPEC-01 §6 + D-0033 | ✅ `did-mini::BaseDeviceRole` carries no `Capabilities` bit and cannot grant one |
+
+## 2. Personhood — read the hard limitation above first
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| P2 | One verified human, one **equal** vote; early grants no extra | SPEC-00 P2 | partial — `did-mini` binds many devices to one human-root with capability scoping that cannot create extra votes; `mini-chain::verify_finality` counts a validator root at most once regardless of device count — **but see the hard limitation above: this is "one identity root, one vote" today, not yet "one human, one vote"** |
+| — | Co-presence is range-bound and mutually signed; relay can't fake it | SPEC-02/SPEC-03 | partial — `mini-presence` requires proximity transport, delegated `ATTEST` device, distinct-key signatures, channel binding, fresh nonces, RTT under policy; a tighter BLE/UWB ranging bound is `pending` — see [roadmap #17](https://github.com/britak420/Mininet/issues/17) |
+
+## 3. Identity & key custody
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| — | Keys never leave the device; no custodial recovery | SPEC-01 G1 | ✅ `mini-crypto::keys`/`agreement`/`aead` (export only via explicit methods; `Debug` redacts key material) + `did-mini::Controller` |
+| — | Self-certifying identifier; no central registry to verify | SPEC-01 §3/G8 | ✅ `did-mini` (`Kel::verify` re-derives the SCID from inception) |
+| — | Security-critical key events are pre-rotation-protected & anchored | SPEC-01 §16 | ✅ pre-rotation in `did-mini`; on-chain anchoring `pending` |
+| — | Many devices provably one human; mutual, revocable, capability-scoped | SPEC-01 §6/G3 | ✅ `did-mini::verify_delegation` (device claims root **and** root seals device; both required) |
+| — | KEL/device-delegation wire decoders reject malformed, oversized, and ambiguous input before verification | SPEC-01 + D-0013 | ✅ `did-mini` decoder caps, SCID validation, strict multihash lengths |
+
+## 4. Money & finality — **new invariants added this pass**
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| P4 | Slow, presence-conditioned vesting; never a lump sum | SPEC-00 P4 | partial — `mini-reward` accrual is rate-capped per window, diversity-weighted, maturation-delayed; on-chain vesting module is `pending` |
+| **M1** | **Money does not merge. CRDT/automatic conflict-resolution is forbidden for spendable value.** | Founder review (this entry), Directive 4/5 | `pending` — no CRDT-based value-merge path exists in `mini-value`/`mini-treasury` today (there is no code path here at all, spendable or otherwise, that resolves conflicting value claims by merging); this row exists so nothing built later takes that shortcut. `mini-crdt` is scoped explicitly to non-spendable content (threads/docs) and must never be extended to cover value. |
+| **M2** | **Offline/local payment is never final. It is a signed pending claim until canonical chain inclusion; wallets must distinguish pending / accepted / finalized.** | Founder review (this entry), Directive 5 | `pending` — the offline settlement model itself is `pending` ([roadmap #41](https://github.com/britak420/Mininet/issues/41)); this row is the frozen constraint that design must satisfy, not a claim it's built |
+| **M3** | **Canonical ordering alone decides conflicting spends (double-spends). No local committee, hotspot, relay, or cache may finalize ownership.** | Founder review (this entry), Directive 4/5 | `pending` — depends on [roadmap #40](https://github.com/britak420/Mininet/issues/40) (double-spend reconciliation rules) and the networked chain; this row is the frozen constraint that design must satisfy |
+
+## 5. Updates & forks — **new invariant added this pass**
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| P3 | No owner/admin key; public-domain license; no off switch | SPEC-00 P3 | partial — `LICENSE` (CC0); `pending` — genesis & release pipeline |
+| — | No forced auto-update / no off switch | SPEC-00 P3 + SPEC-11 | ✅ `mini-update::AdoptionState` — `evaluate` never mutates state, `adopt` always re-verifies from scratch, `refuse` is a normal, unblocked outcome |
+| — | Core software bootstrap and updates cannot rely on external services | SPEC-11 + D-0011 | partial — `mini-bootstrap::CapsuleHeader`/`GenesisSeed` + `mini-update::AdoptionState`; the release registry itself is `pending` |
+| — | Bluetooth-only identity + genesis/update chunk exchange must work with no internet | SPEC-03 keystone + D-0012 | partial — protocol-logic done in `mini-bootstrap`; real BLE/local-Wi-Fi transport is `pending` in `mini-bearer` (D-0042 shipped real TCP transport as a stand-in, proven live — see [roadmap #22](https://github.com/britak420/Mininet/issues/22) for what's still missing) |
+| **F1** | **Forking the software is free. Inheriting Mininet's legitimacy is not — it requires continuity of the frozen invariants, the personhood-root history, release-registry continuity, and canonical chain state. A code copy alone confers none of it.** | Founder review (this entry), Directive 7 | `pending` — no code enforces or even represents "legitimacy" as a concept yet, since there is nothing yet to fork off of in the networked-chain sense; this row is the frozen constraint any future fork-handling/registry design must satisfy, and the criterion `docs/FAILURE_BOOK.md`/decision-log entries should judge a claimed fork against |
+
+## 6. Privacy
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| P5 | No protocol requirement for raw personal data; ZK attestation only | SPEC-00 P5 | partial — `mini-crypto` keeps secrets on-device; `mini-bearer` gives an anonymous, forward-secret channel whose handshake carries no identity; ZK personhood attestation still `pending` |
 | P6 | No forced replication; no compelled decryption; device-only honored | SPEC-00 P6 | `pending` — storage fabric |
-| — | Crypto-agility: no signature, DH, AEAD, or KDF algorithm hard-wired for life | SPEC-01 §13 + D-0014 | ✅ `mini-crypto::suite`, `::agreement`, `::aead`, `::kdf` (versioned suite tags for signatures, X25519, ChaCha20-Poly1305, HKDF-SHA256) |
-| — | Strong-hash content addressing; never SHA-1 | SPEC-11 | ✅ `mini-crypto::hash` / `::multihash` (no SHA-1 variant; `0x11` rejected) |
-| — | Keys never leave the device; no custodial recovery | SPEC-01 G1 | ✅ `mini-crypto::keys` / `::agreement` / `::aead` (export only via explicit methods; `Debug` redacts signing, DH, shared-secret, and AEAD key material) + `did-mini::Controller` (secrets never enter any wire form; `Debug` redacts) |
-| — | Self-certifying identifier; no central registry to verify | SPEC-01 §3/G8 | ✅ `did-mini` (`Kel::verify` re-derives the SCID from inception; tests `scid_is_deterministic_and_self_certifying`, `tampered_identifier_is_rejected`) |
-| — | Security-critical key events are pre-rotation-protected & anchored | SPEC-01 §16 | ✅ pre-rotation in `did-mini` (`Kel::verify` reveal check; test `rotation_reveals_precommitted_keys_and_verifies`). On-chain anchoring `pending` (chain) |
-| — | Many devices provably one human; mutual, revocable, capability-scoped | SPEC-01 §6/G3 | ✅ `did-mini::verify_delegation` (device `dip` commits to root **and** root seals the device; both required); revocation + last-write-wins capabilities (tests `two_devices_one_human_with_capabilities`, `revocation_removes_a_device`, `device_claiming_wrong_root_is_rejected`) |
-| — | Co-presence is range-bound and mutually signed; relay can't fake it | SPEC-02/SPEC-03 | partial — `mini-presence` requires proximity transport, delegated `ATTEST` device, distinct-key signatures, channel binding, fresh nonces, RTT under policy (tests `valid_presence_names_both_humans`, `revoked_device_is_rejected`, `non_proximity_and_range_failures_are_rejected`); a tighter BLE / Wi-Fi round-trip timing bound (no ranging radio; a software bound) is `pending` |
-| — | Core software bootstrap and updates cannot rely on external services | SPEC-11 + D-0011 | partial — `mini-bootstrap::CapsuleHeader`/`GenesisSeed` implement the self-certifying capsule + chunk-exchange want-lists over `mini-media` (tests in `crates/mini-bootstrap/tests/bootstrap.rs`); `mini-update::AdoptionState` wraps `mini-forge`'s release verification into a local adoption record (tests in `crates/mini-update/tests/update.rs`); the release registry itself is `pending` (chain) |
-| — | Bluetooth-only identity + genesis/update chunk exchange must work with no internet | SPEC-03 keystone + D-0012 | partial — protocol documented in `docs/BOOTSTRAP_AND_UPDATE.md`; Pack 1 primitives in `mini-crypto::{agreement,kdf,aead}`; `mini-bootstrap` implements the transport-agnostic capsule/want-list mechanics; real BLE/local-Wi-Fi transport is `pending` in `mini-bearer` |
-| — | No forced auto-update / no off switch | SPEC-00 P3 + SPEC-11 | ✅ `mini-update::AdoptionState` — `evaluate` never mutates state, `adopt` always re-verifies from scratch rather than trusting a stale decision, and `refuse` is a normal outcome that never blocks ordinary operation (tests `adopt_fails_when_the_release_is_not_actually_adoptable`, `refusing_a_release_never_blocks_ordinary_operation_and_evaluate_reports_it`) |
-| — | KEL/device-delegation wire decoders reject malformed, oversized, and ambiguous input before verification | SPEC-01 + D-0013 | ✅ `did-mini` decoder caps, SCID validation, strict multihash lengths, duplicate-key/threshold validation, unknown capability-bit rejection |
-| — | Local encrypted channel primitives reject ambiguous or weak peer input | SPEC-03 + D-0014/D-0015 | ✅ `mini-crypto::agreement` rejects all-zero X25519 shared secrets and exact-length-checks public keys; `mini-crypto::aead` authenticates associated data; `mini-crypto::kdf` suite-tags HKDF; `mini-bearer::Channel` caps plaintext/ciphertext before crypto and rejects small-order handshakes |
-| — | Public profiles/walls do not create privilege | SPEC-09 §6.1 + D-0033 | ✅ `mini-social::PublicWall` — publishing a `WALL`/`WALL_LINKAGE` object requires only `Capabilities::POST`, never `VOTE`; no wall registry exists, so an unknown wall is `None`, not a new registration (tests `public_wall_never_needs_or_implies_a_vote_capability`, `multiple_walls_are_unlinkable_by_default_and_unknown_walls_are_not_registered`) |
-| — | Base devices do not create governance weight | SPEC-01 §6 + D-0033 | ✅ `did-mini::BaseDeviceRole` carries no `Capabilities` bit and cannot grant one (test `base_device_role_never_requires_or_implies_capabilities`); declaring a base device is advisory only |
-| — | Storage/seeding earns value, never voice | SPEC-00 P1 + D-0033 | ✅ `mini-storage::verify_serve` produces a `ServeVerdict` from a mutually-signed, `ATTEST`-capable, replay-checked storage-served receipt (tests in `crates/mini-storage/tests/storage.rs`); `mini-reward::accrue_storage` consumes it directly with the same P4 brakes as presence (diversity decay, rate cap, maturation; tests in `crates/mini-reward/tests/reward.rs`); automatic receipt emission as a side effect of a real `mini-sync` exchange, and durable storage-over-time proof, remain `pending` |
-| — | Seed-on-view is user-controlled and policy-bound | SPEC-00 P6 + D-0033 | ✅ `mini-store::Store::note_view` — disabled by `BaseDeviceRole::seed_on_view_enabled`, gated by battery/availability-window policy and by metered-connection/storage-budget conditions; encrypted content is never promoted past `CacheTier::PrivateOnly` (tests in `crates/mini-store/tests/cache.rs`) |
-| — | Radio/LoRa is not part of Mininet | D-0009 (amended) + D-0033 | ✅ documentation-enforced: the connectivity core is BLE + local Wi-Fi/hotspot/mDNS + optional internet relay + store-and-forward/DTN sync, permanently — no radio/LoRa bearer exists or is planned |
-| — | Core implementation language is Rust | D-0001 + D-0008 | ✅ the entire workspace (`Cargo.toml` members) is Rust; the future chain adapts proven BFT concepts in Rust, not Go/Cosmos |
-| — | Instant deterministic finality via adapted Tendermint/CometBFT-style BFT quorum, equal validator weight per verified identity root | SPEC-05 + D-0008 | partial — `mini-chain::verify_finality` requires `>2/3` distinct, currently-delegated, `VOTE`-capable validator roots to precommit the same block/height/round before treating it as final (tests in `crates/mini-chain/tests/finality.rs`); real networked consensus (proposer rotation, round timeouts/view-change, gossip) and state-machine execution are `pending` |
-| — | AI may draft sensitive code, but human review is mandatory | SPEC-11 §2 + D-0033 | partial — `mini-forge::governance::PROTOCOL_MIN_APPROVALS` / `valid_policy_for_protocol_repo` enforce a 2-approval floor with no 1-of-1 canonical merge path for protocol-critical repos; a dedicated "AI-assisted" flag on commits/PRs is `pending` |
+| — | Local encrypted channel primitives reject ambiguous or weak peer input | SPEC-03 + D-0014/D-0015 | ✅ `mini-crypto::agreement` rejects all-zero X25519 shared secrets; `mini-bearer::Channel` caps plaintext/ciphertext before crypto and rejects small-order handshakes |
+| — | Seed-on-view is user-controlled and policy-bound | SPEC-00 P6 + D-0033 | ✅ `mini-store::Store::note_view` — encrypted content never promoted past `CacheTier::PrivateOnly` |
+
+## 7. Storage — read the hard limitation above first
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| — | Proof-of-space-time backs block-production weight | Whitepaper §7/§8.1, D-0039 | partial — `mini-spacetime::storage_proof` (Merkle/PDP challenge-response) proves continuous possession; **does not** prove replication uniqueness — see the hard limitation section above |
+
+## 8. Networking
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| — | Radio/LoRa is not part of Mininet | D-0009 (amended) + D-0033 | ✅ documentation-enforced, permanently closed — see `docs/FAILURE_BOOK.md` |
+| — | Real transport now exists for IP-reachable connectivity (not BLE) | D-0042 | ✅ `mini_bearer::TcpBearer`, proven live via `mini-net`'s multi-process gossip demo; BLE/local-Wi-Fi radio adapters remain `pending` and need real phone hardware — see [roadmap #22](https://github.com/britak420/Mininet/issues/22) |
+
+## 9. AI & audit gates — **tightened this pass**
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| — | AI may draft sensitive code, but human review is mandatory | SPEC-11 §2 + D-0033/D-0037 | partial — `mini-forge::governance::PROTOCOL_MIN_APPROVALS` enforces a 2-approval floor with no 1-of-1 canonical merge path; a dedicated "AI-assisted" flag on commits/PRs is `pending` — see [roadmap #78](https://github.com/britak420/Mininet/issues/78) |
+| **A1** | **Production use — real value, real treasury custody, real consensus, real personhood proofs — requires external cryptography audit as a hard gate, not a desirable-but-optional step. Tests passing is not audit. Founder review is not audit.** | Founder review (this entry), tightens D-0037; see D-0047 | `pending` — no code path in this tree currently allows "production use" of any of these (everything is prototype-labeled and founder-reviewed only); this row exists so that remains true until an actual external audit occurs, not until someone decides it's no longer necessary |
+
+## Foundational (cross-cutting, don't fit one domain above)
+
+| # | Frozen invariant | Source | Enforced by |
+|---|---|---|---|
+| — | Core implementation language is Rust | D-0001 + D-0008 | ✅ the entire workspace is Rust |
+| — | Crypto-agility: no signature, DH, AEAD, or KDF algorithm hard-wired for life | SPEC-01 §13 + D-0014 | ✅ `mini-crypto::suite`/`agreement`/`aead`/`kdf` |
+| — | Strong-hash content addressing; never SHA-1 | SPEC-11 | ✅ `mini-crypto::hash`/`multihash` — verified end-to-end in `docs/audits/issue-29-cid-integrity-review.md` |
 
 ## Tier T — Tunable within limits (one-human-one-vote + timelock + bounds-check)
 
@@ -52,6 +146,8 @@ here so no module silently treats one as frozen or unbounded.
   timelock durations; treasury signer-set size — `pending` (chain).
 - Pinned toolchain version; K independent builders (within a frozen minimum) —
   see D-0006.
+- Which external audits count as satisfying **A1** (§9) and their cadence —
+  `pending`; the *requirement* is frozen, the *process* around it is tunable.
 
 ## Tier O — Organic (permissionless; no vote)
 
@@ -64,10 +160,15 @@ that they may not cause a Tier-F violation.
 ### How to use this file in review
 
 When a PR adds or changes a frozen-domain behavior, it should:
-1. Point to the SPEC-00 §12 line it implements.
+1. Point to the SPEC-00 §12 line it implements (or, for a founder-review-
+   sourced row like M1-M3/F1/A1 above, this file itself).
 2. Move the relevant **Enforced by** cell from `pending` to the concrete
    module path, ideally with a test name.
-3. Add a `D-00xx` decision-log entry if a \[FREEZE\] choice was made.
+3. Add a `D-00xx` decision-log entry if a \[FREEZE\] choice was made — see
+   `docs/DECISION_LOG.md`'s header for the current entry format.
+4. Update `docs/STATUS.md` if the change moves a subsystem's implementation
+   status — **not** this file's Enforced-by column alone, and **not** the
+   decision log.
 
 A frozen invariant should be impossible to express in code (Layer 1) wherever we
 can manage it, and rejected on validation (Layer 2) everywhere else — never left

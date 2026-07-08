@@ -13,12 +13,24 @@ adapted into our own tree, never taken as a live external dependency.
 This repository is the **self-contained Rust core**: ~22 crates, no owner, no
 external dependency on any single company's infrastructure to keep running.
 
-## New here? Start with these four things
+> **Read this first, before anything else in this repository:**
+> [`docs/FOUNDER_DIRECTIVES.md`](docs/FOUNDER_DIRECTIVES.md) — *MININET
+> Founder Directives: The Principles Behind Every Engineering Decision.*
+> It is not the Constitution, the Whitepaper, or a Specification — it is
+> the *why* underneath all three, written so that a century from now,
+> someone facing a problem no document anticipated can still reason the
+> way the founders would have. Every contributor, human or AI, reads this
+> before opening the codebase.
 
-1. **Build it.** `cargo fmt --all && cargo clippy --all-targets --all-features
+## New here? Start with these things
+
+1. **Read `docs/FOUNDER_DIRECTIVES.md`.** Seventeen directives, five
+   minutes, and every engineering judgment call in this repository — down
+   to the code review comments — is expected to trace back to them.
+2. **Build it.** `cargo fmt --all && cargo clippy --all-targets --all-features
    --workspace -- -D warnings && cargo test --all --all-features` — all clean
    on this tree, `Cargo.lock` committed. See [Build & test](#build--test) below.
-2. **See it run.** Three runnable demos exist today — see
+3. **See it run.** Three runnable demos exist today — see
    [Status at a glance](#status-at-a-glance):
    - `cargo run -p mini-keystone --example keystone` — two devices exchange
      identities, prove co-presence, and accrue reward, in-process.
@@ -30,16 +42,23 @@ external dependency on any single company's infrastructure to keep running.
      separate OS processes gossiping a message over real TCP sockets (not
      simulated in one process — see `crates/mini-net/README.md` for the
      three-terminal walkthrough).
-3. **Find your way around.** `python3 tools/mininet_nav.py map` builds an
+4. **Find your way around.** `python3 tools/mininet_nav.py map` builds an
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
-4. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0042` so far) and
-   `docs/INVARIANTS.md` (the frozen-vs-tunable register mapped to code) are
-   the two documents that outrank any comment or README, including this one.
-   `CONTRIBUTING.md` has the PR/review checklist (two-approval floor, D-0033).
-   `docs/TESTING.md` has copy-pasteable verification steps and a reviewer
-   checklist, including how to review the cryptography prototypes below.
+5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
+   architectural and policy decision, numbered `D-0001`–`D-0048` so far —
+   policy only; see its own header for what belongs elsewhere) and
+   `docs/INVARIANTS.md` (the frozen-vs-tunable register, organized by
+   domain, with a hard-limitations section at the top) are the two
+   documents that outrank any comment or README, including this one.
+   `docs/STATUS.md` is the living account of what's actually built, kept
+   separate from the decision log on purpose. `CONTRIBUTING.md` has the
+   PR/review checklist (two-approval floor, D-0033). `docs/TESTING.md`
+   has copy-pasteable verification steps and a reviewer checklist,
+   including how to review the cryptography prototypes below.
+   `docs/FAILURE_BOOK.md` records every rejected design and abandoned
+   approach, and why — read it before re-proposing something that's
+   already been tried.
 
 ## Status at a glance
 
@@ -76,8 +95,12 @@ mininet/
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
 ├── crates/                 22 crates, see the table below
 ├── docs/
+│   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
-│   ├── INVARIANTS.md            frozen/tunable register mapped to code
+│   ├── FAILURE_BOOK.md          every rejected design and abandoned approach, and why
+│   ├── audits/                  written audit deliverables for roadmap review issues
+│   ├── INVARIANTS.md            frozen/tunable register mapped to code, by domain
+│   ├── STATUS.md                living implementation-status account, by domain
 │   ├── ROADMAP.md               pack order from two-phone demo to full network
 │   ├── BETA_STATUS.md           near-term target: the two-phone keystone beta
 │   ├── NAVIGATION.md            how to use tools/mininet_nav.py
@@ -188,16 +211,20 @@ documented at the crate level.
    unsolved research. D-0038's multi-signal redesign makes the *system* not
    depend on this one signal, but it does not solve the underlying research
    problem — that remains open.
-5. **FROST distributed key generation.** The treasury custody prototype
-   uses trusted-dealer keygen, where one party briefly holds the whole
-   secret. A real deployment needs DKG, so no party ever holds it, even
-   briefly.
+5. **FROST distributed key generation — P0, per D-0048.** The treasury
+   custody prototype uses trusted-dealer keygen, where one party briefly
+   holds the whole secret. A real deployment needs DKG (and zeroized
+   nonces), so no party ever holds it, even briefly — this is now a
+   named, severity-classified production blocker, not just a noted gap.
+   Tracked at [roadmap #93](https://github.com/britak420/Mininet/issues/93).
 6. **Consensus and chain networking.** `mini-chain` verifies finality given
    valid votes; the networked BFT protocol (proposing, voting, gossiping
    blocks across real peers) and the full state machine are not built yet.
-7. **Security posture at scale.** No dependency-vulnerability scanning is
-   wired into CI yet (`cargo audit` or equivalent), and the reproducible-
-   build CI job is present but disabled pending real infrastructure.
+7. **Security posture at scale.** Closed (D-0044): dependency-vulnerability
+   scanning (`rustsec/audit-check`) and a real same-machine reproducible-
+   build check both run in CI now. Still open: the full cross-machine,
+   K-independent-builder reproducibility SPEC-11 §8 ultimately wants, and
+   ongoing triage process for whatever the scanner eventually flags.
 8. **Abuse/moderation tooling at the edges.** Content rules are explicitly
    meant to live in user/community filters (constitution principle 10), but
    almost none of that tooling exists yet beyond `mini-social`'s follow
@@ -216,11 +243,6 @@ sequencing, which currently targets the much nearer two-phone keystone beta
 
 ## Suggested improvements (not yet decided, worth raising with the founder cohort)
 
-- Wire `cargo audit` (or `cargo deny`) into CI now, while the dependency tree
-  is still small — cheap today, much more valuable once it's not.
-- Consider standing up the DKG variant of FROST keygen before the trusted-
-  dealer version ever gets used with anything of real value, even in a
-  testnet — it's a smaller lift now than a migration later.
 - Start the mobile/desktop client track in parallel with the remaining
   transport work (BLE, item 2 above), since neither blocks the other and
   both gate global launch equally.

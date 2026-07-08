@@ -6,9 +6,11 @@ show local reward accrual. We do **not** publish until the beta is complete.
 
 This is a narrower, nearer-term target than "global launch" — see the root
 `README.md`'s [Path to a global launch](../README.md#path-to-a-global-launch-what-is-still-missing)
-section for the full-network picture and `docs/DECISION_LOG.md` for every
-crate's individual status and honest limits. The full 22-crate map lives in
-the root README's repository-map table, not duplicated here.
+section for the full-network picture and `docs/STATUS.md` for the
+comprehensive, living implementation-status account organized by domain
+(voice/value, personhood, identity, money/finality, updates/forks,
+privacy, storage, networking, AI/audit gates). The full 22-crate map lives
+in the root README's repository-map table, not duplicated here.
 
 ## What stands between here and a demoable beta (honest list)
 

@@ -33,13 +33,69 @@ jobs:
       - name: Test
         run: cargo test --all --all-features
 
-  # Placeholder for SPEC-11's verified-reproducible release pipeline. A later
-  # batch turns this into a real K-independent-builder reproducibility check
-  # (build twice in clean environments; assert byte-identical artifacts).
-  reproducibility:
+  # Dependency-vulnerability scanning (roadmap #73). Uses the official
+  # RustSec action rather than `cargo install cargo-audit`, deliberately:
+  # a locally-`cargo install`ed cargo-audit compiles against *this repo's*
+  # pinned toolchain (rust-toolchain.toml, currently 1.83.0), and the
+  # newest cargo-audit compatible with that toolchain (0.21.2) cannot parse
+  # the current RustSec advisory database -- it contains CVSS 4.0 entries
+  # newer rustsec-crate releases understand and 0.21.2's does not, so it
+  # fails to even load the database, before checking a single dependency.
+  # Confirmed locally: `cargo install cargo-audit --version 0.21.2 --locked`
+  # then `cargo audit` errors on `error parsing .../RUSTSEC-2026-0041.md:
+  # unsupported CVSS version: 4.0`. This action ships its own prebuilt
+  # cargo-audit binary, decoupled from this repo's toolchain pin, so it
+  # isn't affected. Advisory-only for now: it reports, it doesn't fail the
+  # build, since this workspace has no process yet for triaging an
+  # advisory against an unreleasable pinned dependency version.
+  dependency-audit:
     runs-on: ubuntu-latest
-    if: false # enabled when the release pipeline batch lands
+    # This job alone needs to post a check-run result; every other job in
+    # this workflow stays on the top-level contents:read-only default.
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
-      - name: Reproducible build (placeholder)
-        run: echo "TODO: hermetic build + artifact hash comparison (SPEC-11 §8)"
+      - uses: rustsec/audit-check@v2
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # First real slice of SPEC-11's verified-reproducible release pipeline
+  # (roadmap #69): build the workspace twice from a clean target directory
+  # on the same runner and assert the example binaries are byte-identical.
+  # Honest limit: this is same-machine, same-toolchain reproducibility, not
+  # yet the full K-independent-builder, cross-machine check SPEC-11 §8
+  # ultimately wants -- that's real follow-up work, not this job pretending
+  # to be more than it is.
+  reproducibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: rustup show
+
+      - name: Build (pass 1)
+        run: cargo build --workspace --all-targets --release --locked
+
+      - name: Hash pass-1 artifacts
+        run: |
+          find target/release/examples -maxdepth 1 -type f -executable ! -name '*.d' \
+            | grep -vE -- '-[0-9a-f]{16}$' \
+            | sort | xargs sha256sum > /tmp/hashes-pass1.txt
+          cat /tmp/hashes-pass1.txt
+
+      - name: Clean and rebuild (pass 2)
+        run: |
+          rm -rf target
+          cargo build --workspace --all-targets --release --locked
+
+      - name: Hash pass-2 artifacts and compare
+        run: |
+          find target/release/examples -maxdepth 1 -type f -executable ! -name '*.d' \
+            | grep -vE -- '-[0-9a-f]{16}$' \
+            | sort | xargs sha256sum > /tmp/hashes-pass2.txt
+          cat /tmp/hashes-pass2.txt
+          diff /tmp/hashes-pass1.txt /tmp/hashes-pass2.txt \
+            && echo "Reproducible: identical artifact hashes across two clean builds."
