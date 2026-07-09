@@ -1,6 +1,6 @@
 # Legal counsel review — technical brief
 
-Gates [roadmap #96](https://github.com/britak420/Mininet/issues/96), P0.
+Gates [roadmap #96](../../issues/96), P0.
 **Founder action required: engage counsel.** This document is written so
 counsel can review the actual mechanism instead of reverse-engineering it
 from source — it is not a request for anyone in this repository, human or
@@ -8,7 +8,7 @@ AI, to give legal advice.
 
 ## The mechanism, plainly
 
-Mininet's contribution path (roadmap [#23](https://github.com/britak420/Mininet/issues/23),
+Mininet's contribution path (roadmap [#23](../../issues/23),
 SPEC-07) mints MINI from **verified deposits**, not sales:
 
 1. A contributor sends BTC to a treasury-controlled address, or completes
@@ -47,7 +47,7 @@ avoids.
   in response constitute money transmission requiring licensing? Does it
   matter that no party ever custodies the contributor's original BTC
   beyond the treasury's own multi-signature custody (see `mini-treasury`,
-  gated by [#93](https://github.com/britak420/Mininet/issues/93) before
+  gated by [#93](../../issues/93) before
   any real-value ceremony runs)?
 - **AML/KYC** — the protocol accepts pseudonymous BTC deposits with no
   identity verification step anywhere in the mechanism (that would

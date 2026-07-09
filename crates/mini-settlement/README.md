@@ -1,6 +1,6 @@
 # mini-settlement
 
-Offline transaction settlement (roadmap [#41](https://github.com/britak420/Mininet/issues/41)) —
+Offline transaction settlement (roadmap [#41](../../issues/41)) —
 founder direction, Directive 5: *"during outages, users exchange signed
 promises — not final ownership. Ownership changes only when accepted into
 canonical consensus."*

@@ -1652,9 +1652,9 @@ reasonably believe a transaction is settled when it is not — a UX failure
 that becomes a constitutional violation if the distinction isn't
 enforced in the data model itself, not just in how it's displayed.
 
-**Required follow-up:** [roadmap #40](https://github.com/britak420/Mininet/issues/40)
+**Required follow-up:** [roadmap #40](../../issues/40)
 (double-spend reconciliation rules) and
-[#41](https://github.com/britak420/Mininet/issues/41) (offline transaction
+[#41](../../issues/41) (offline transaction
 settlement model) must both satisfy this entry's frozen constraint as an
 explicit acceptance criterion.
 
@@ -1691,7 +1691,7 @@ whether forking is permitted.
 **Implementation status:** design-only / criteria-only. No code
 represents "legitimacy" as a concept yet, since there is no networked
 chain or release registry for continuity to be measured against —
-see [roadmap #57](https://github.com/britak420/Mininet/issues/57).
+see [roadmap #57](../../issues/57).
 
 **Failure point:** the criteria named here (invariants, personhood root,
 release registry, canonical chain state) are a starting list, not
@@ -1701,7 +1701,7 @@ this entry didn't anticipate, the letter of F1 could be satisfied while
 its purpose was defeated — exactly the kind of gap `docs/FOUNDER_DIRECTIVES.md`
 exists to help a reviewer reason past.
 
-**Required follow-up:** [roadmap #57](https://github.com/britak420/Mininet/issues/57)
+**Required follow-up:** [roadmap #57](../../issues/57)
 (fork legitimacy criteria) owns turning this into a fully checkable
 definition once the release registry and chain exist to check it against.
 
@@ -1750,10 +1750,10 @@ allowing a production flag, this remains a policy commitment enforced by
 review discipline, not by code — the same class of gap D-0033's
 2-approval floor has today, and no worse.
 
-**Required follow-up:** [roadmap #72](https://github.com/britak420/Mininet/issues/72)
+**Required follow-up:** [roadmap #72](../../issues/72)
 (external cryptography review coordination) owns actually engaging an
 auditor; the eventual release pipeline (Phase 9,
-[#65](https://github.com/britak420/Mininet/issues/65)-[#70](https://github.com/britak420/Mininet/issues/70))
+[#65](../../issues/65)-[#70](../../issues/70))
 should encode this gate mechanically, not just in policy, once it exists.
 
 **Supersedes / superseded by:** tightens D-0037 (D-0037's authorship
@@ -1802,7 +1802,7 @@ testnet," even "just temporarily" — the P0 exposure window becomes real
 regardless of intent. The risk is entirely in the gap between "this is
 labeled a prototype" and "someone uses it anyway under time pressure."
 
-**Required follow-up:** [roadmap #93](https://github.com/britak420/Mininet/issues/93)
+**Required follow-up:** [roadmap #93](../../issues/93)
 (FROST DKG + nonce zeroization, filed alongside this entry) owns closing
 this gap before any testnet or real treasury deployment.
 
@@ -1932,7 +1932,7 @@ to avoid filing issues faster than they can be meaningfully scoped.
 ---
 
 ### D-0051 — Bounty & review system: money funds work, never a decision  ·  *Accepted*
-**Date:** 2026-07-08 · **Refs:** Directive 16, P1, D-0033, D-0049, `docs/design/bounty-and-review.md`, [roadmap #66](https://github.com/britak420/Mininet/issues/66).
+**Date:** 2026-07-08 · **Refs:** Directive 16, P1, D-0033, D-0049, `docs/design/bounty-and-review.md`, [roadmap #66](../../issues/66).
 
 **Decision:** the developer bounty system (`mini-bounty`, funding/value) and
 the code-review/merge system (`mini-forge`, review/voice) are kept as two
@@ -1979,7 +1979,7 @@ entry; builds on D-0033 (two-approval floor) and D-0049 (mini-bounty).
 ---
 
 ### D-0052 — Fork legitimacy: four checkable continuity criteria  ·  *Accepted*
-**Date:** 2026-07-08 · **Refs:** Directive 7, F1, D-0046, `docs/design/fork-legitimacy.md`, [roadmap #57](https://github.com/britak420/Mininet/issues/57).
+**Date:** 2026-07-08 · **Refs:** Directive 7, F1, D-0046, `docs/design/fork-legitimacy.md`, [roadmap #57](../../issues/57).
 
 **Decision:** a fork is the canonical Mininet if and only if it satisfies all
 four continuity criteria — C1 constitutional-invariant continuity, C2
@@ -2024,7 +2024,7 @@ said #57 would own).
 ---
 
 ### D-0053 — Identity audit hardening: recovery, threshold policy, delegation-chain refusal  ·  *Accepted*
-**Date:** 2026-07-08 · **Refs:** Directive 2/6/8, invariants ID1/ID3, SPEC-01 §5/§6, `docs/audits/issue-12-did-mini-security-audit.md`, `docs/audits/issue-13-identity-recovery-audit.md`, [#12](https://github.com/britak420/Mininet/issues/12)/[#13](https://github.com/britak420/Mininet/issues/13).
+**Date:** 2026-07-08 · **Refs:** Directive 2/6/8, invariants ID1/ID3, SPEC-01 §5/§6, `docs/audits/issue-12-did-mini-security-audit.md`, `docs/audits/issue-13-identity-recovery-audit.md`, [#12](../../issues/12)/[#13](../../issues/13).
 
 **Decision:** three `did-mini` changes ship from the identity audit: (1) a
 real recovery path, `Controller::recover_from_kel`, reconstructing control
@@ -2066,7 +2066,7 @@ builds on the M1/M2 identity milestones.
 ---
 
 ### D-0054 — Personhood promotion requires a live seed-anchored signal  ·  *Accepted*
-**Date:** 2026-07-08 · **Refs:** Directive 8/15, invariant P2 (+ its hard limitation), SPEC-02 / whitepaper §11, `docs/audits/issue-18-sybil-social-graph-review.md`, [#18](https://github.com/britak420/Mininet/issues/18).
+**Date:** 2026-07-08 · **Refs:** Directive 8/15, invariant P2 (+ its hard limitation), SPEC-02 / whitepaper §11, `docs/audits/issue-18-sybil-social-graph-review.md`, [#18](../../issues/18).
 
 **Decision:** `mini-uniqueness`'s `PromotionPolicy` gains
 `full_required_sources` (default `[VouchingGraph]`): reaching `FullHuman`
@@ -2104,7 +2104,7 @@ on D-0038 (the multi-signal accumulator).
 ---
 
 ### D-0055 — `mini-settlement`: offline transaction settlement, implementing M1/M2/M3  ·  *Accepted*
-**Date:** 2026-07-09 · **Refs:** Directive 5, invariants M1/M2/M3, D-0045, `crates/mini-settlement/`, [roadmap #41](https://github.com/britak420/Mininet/issues/41).
+**Date:** 2026-07-09 · **Refs:** Directive 5, invariants M1/M2/M3, D-0045, `crates/mini-settlement/`, [roadmap #41](../../issues/41).
 
 **Decision:** build the offline settlement protocol as a nonce-based signed
 payment claim (`PaymentClaim`: payer, payee, amount, monotonic per-payer
@@ -2154,7 +2154,7 @@ still blur AcceptedLocal and Finalized visually, even though the types
 distinguish them; this is a client-implementation risk this crate cannot
 fully close from the protocol layer alone.
 
-**Required follow-up:** [roadmap #40](https://github.com/britak420/Mininet/issues/40)
+**Required follow-up:** [roadmap #40](../../issues/40)
 (double-spend reconciliation rules) should adopt this crate's
 `reconcile`/`CanonicalLedgerView` split as its own concrete mechanism
 rather than designing a separate one — the double-spend rule M3 requires
@@ -2170,7 +2170,7 @@ pending."
 ---
 
 ### D-0056 — External Legitimacy Gates: naming what more code cannot close  ·  *Accepted*
-**Date:** 2026-07-09 · **Refs:** Directive 2, Directive 6, `docs/gates/`, [roadmap #99](https://github.com/britak420/Mininet/issues/99).
+**Date:** 2026-07-09 · **Refs:** Directive 2, Directive 6, `docs/gates/`, [roadmap #99](../../issues/99).
 
 **Decision:** adopt an explicit category of roadmap issue — "external
 legitimacy gate" — for work where the blocker is not missing engineering
@@ -2179,7 +2179,7 @@ legal counsel), real hardware, or a founder decision on open research
 with no known construction. Each gate gets a scope package under
 `docs/gates/` (what needs review, the exact questions to answer, the hard
 constraints the review must respect) and is tracked on
-[#99](https://github.com/britak420/Mininet/issues/99), the same
+[#99](../../issues/99), the same
 milestone-substitute pattern hub #92 already uses. Labels
 `outside-help`/`launch-gate`/`not-code-only`/`external-review` mark the
 affected issues so they can't be accidentally "closed" with more Rust.
@@ -2226,3 +2226,64 @@ package's own "what closes this gate" section names the deliverable.
 
 **Supersedes / superseded by:** none — first entry establishing this
 convention.
+
+---
+
+### D-0057 — README as a human trust gateway; audience-door docs  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** Directive 1, Directive 13, founder review of the GitHub front page, `README.md`, `docs/HUMAN_START.md`/`DEVELOPER_START.md`/`AUDITOR_START.md`.
+
+**Decision:** restructure `README.md` from an engineering brief into a
+five-layer "century front door" — human promise, constitutional guarantees,
+current honest reality, proof/start paths, and an audience router — and move
+the deep engineering material (build commands, the runnable demos, the full
+crate table, the launch-gap list, the FREEZE-domain reading order) into three
+audience-specific door documents: `docs/HUMAN_START.md` (curious person),
+`docs/DEVELOPER_START.md` (build/run/navigate), `docs/AUDITOR_START.md`
+(invariants/threats/gates/how-to-verify). Also: converted every in-repo GitHub
+issue link to repo-relative form (`../../issues/N`) so links survive account
+renames, and updated the two spots that require an absolute owner name
+(`Cargo.toml` repository field, the CLAUDE.md rename note) to the current
+`mininet-labs/Mininet`.
+
+**Reason:** founder review observed the front page opened like an internal
+engineering dossier (founder directives, build commands, decision-log
+discipline) rather than a doorway a curious human, a hostile auditor, a new
+developer, and a future maintainer could each enter in the right order. For a
+project meant to serve people for centuries (Directive 13) and to put
+"humanity before technology" (Directive 1), the first screen must be a
+civilizational doorway, not a repository summary — while preserving, not
+diluting, the honesty about what is prototype and what is missing (that
+honesty is itself a standing norm, D-0037-adjacent). The relative-link
+conversion was prompted by the `britak420 → mininet-labs` account rename
+exposing how many absolute owner-scoped links the docs carried.
+
+**Constitutional impact:** implements Directive 1 (humanity before
+technology — the front page now speaks to a person first) and Directive 13
+(think in centuries — the doorway is written for a reader 100 years out). No
+frozen invariant touched; no code behavior changed. The honesty requirement is
+preserved and made *more* prominent (the "what exists / prototype / not ready"
+trio and the gates pointer are now first-screen, not buried).
+
+**Implementation status:** shipped. README restructured; three door docs
+created; all engineering detail preserved (moved, not deleted — the crate
+table, build/demo commands, and launch-gap list now live in
+`DEVELOPER_START.md`). Doc-comment-only source edits (relative links in two
+crate files) verified via the full workspace suite.
+
+**Failure point:** a slimmer README can drift out of sync with the door docs
+it now delegates to (e.g. the crate count, the D-number range). Mitigation:
+the door docs are the single source for their detail, and the README carries
+only summary claims that change rarely. A subtler risk: a "human-friendly"
+front page could soften the honest limitations into marketing — explicitly
+guarded against by keeping the "nothing here is ready for real people, real
+money, or real custody yet" line on the first screen.
+
+**Required follow-up:** none required. Optional, and only the founder can do
+it (repo settings, not a file in the tree): set the GitHub repo
+description/topics (currently "No description, website, or topics provided"),
+and — flagged during this session — a founder personal email is exposed in
+public merge-commit history, worth addressing via GitHub's private-email
+setting and a commit-author rename for a privacy-focused project.
+
+**Supersedes / superseded by:** none — refines the presentation established
+across earlier README updates without reversing any of their content.

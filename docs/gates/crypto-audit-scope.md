@@ -1,6 +1,6 @@
 # External cryptography audit — scope package
 
-Gates [roadmap #72](https://github.com/britak420/Mininet/issues/72), P0.
+Gates [roadmap #72](../../issues/72), P0.
 **Founder action required: engage a real applied-cryptography auditor or
 credentialed academic.** Nothing in this repository can close this gate —
 D-0037 explicitly states AI-authored, founder-reviewed crypto is not

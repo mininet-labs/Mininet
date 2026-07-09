@@ -1,6 +1,6 @@
 # Presence/ranging hardware validation — test protocol
 
-Gates [roadmap #97](https://github.com/britak420/Mininet/issues/97)
+Gates [roadmap #97](../../issues/97)
 (split from #22). **Founder action required: find a mobile engineer with
 real devices** — this cannot be built or tested from a sandboxed
 development environment with no phone hardware.

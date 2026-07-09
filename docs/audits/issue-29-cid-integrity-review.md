@@ -1,6 +1,6 @@
 # Content-address (CID) integrity review
 
-Tracks [roadmap issue #29](https://github.com/britak420/Mininet/issues/29)
+Tracks [roadmap issue #29](../../issues/29)
 (Phase 4.1). Scope, per the issue: audit every place content-addressing is
 used across `mini-crypto`, `mini-store`, `mini-objects`, and `mini-media`
 for integrity edge cases — hash-algorithm downgrade, multihash/multicodec
@@ -97,5 +97,5 @@ it does not cover provenance/signature verification (a separate concern,
 already noted as "the ingest pipeline's job" in `mini-store`'s own doc
 comments) or availability (a corrupted/missing chunk is *detected* here,
 not *recovered* — recovery is Phase 4's replication/self-healing work,
-[issues #30](https://github.com/britak420/Mininet/issues/30)/
-[#32](https://github.com/britak420/Mininet/issues/32)).
+[issues #30](../../issues/30)/
+[#32](../../issues/32)).

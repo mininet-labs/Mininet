@@ -1,7 +1,7 @@
 //! # mini-settlement
 //!
 //! Offline transaction settlement (SPEC-05, Directive 5, roadmap
-//! [#41](https://github.com/britak420/Mininet/issues/41)): the protocol for
+//! [#41](../../issues/41)): the protocol for
 //! *"during outages, users exchange signed promises — not final ownership.
 //! Ownership changes only when accepted into canonical consensus."*
 //!
@@ -27,7 +27,7 @@
 //!
 //! - **Not a ledger.** [`ledger::CanonicalLedgerView`] is a trait — the
 //!   real chain-execution engine that tracks actual finalized balances is
-//!   [roadmap #36-#45](https://github.com/britak420/Mininet/issues/36)'s
+//!   [roadmap #36-#45](../../issues/36)'s
 //!   job, not built here. This crate's protocol logic is fully specified
 //!   and tested against [`ledger::InMemoryLedgerView`] today, and plugs
 //!   into a real ledger later with no change to the reconciliation rules

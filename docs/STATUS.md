@@ -27,7 +27,7 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 - **partial** — BFT finality *verification* is shipped
   (`mini-chain::verify_finality`); the networked consensus protocol that
   produces the votes it verifies is **not started** (roadmap Phase 5,
-  [#36](https://github.com/britak420/Mininet/issues/36)-[#45](https://github.com/britak420/Mininet/issues/45)).
+  [#36](../../issues/36)-[#45](../../issues/45)).
 
 ## 2. Personhood
 
@@ -37,19 +37,19 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `FullHuman` now requires a *live* seed-anchored vouching-graph signal,
   closing a farm-saturation bypass — see
   `docs/audits/issue-18-sybil-social-graph-review.md`.
-- **reviewed** — presence attack review ([#17](https://github.com/britak420/Mininet/issues/17),
+- **reviewed** — presence attack review ([#17](../../issues/17),
   `docs/audits/issue-17-presence-attack-review.md`): replay/binding/clone
   defended; active relay is NOT defended by software RTT alone (needs UWB
   distance-bounding) — presence is safe only as a *weighted* signal.
 - **design-only / research-blocked** — signal (b), on-device behavioral/
   location entropy proved in zero-knowledge: the whitepaper itself calls
   this unsolved research. Not a code gap; a research gap
-  ([#21](https://github.com/britak420/Mininet/issues/21)).
+  ([#21](../../issues/21)).
 - **HARD LIMITATION, not partial** — every "verified identity" counted
   anywhere in this tree today is a verified `did:mini` root, not a
   verified human. See `docs/INVARIANTS.md`'s hard-limitation section.
   Sybil-resistance at real-world scale is unproven
-  ([#18](https://github.com/britak420/Mininet/issues/18)).
+  ([#18](../../issues/18)).
 - **partial** — co-presence attestation (`mini-presence`) is shipped;
   the software RTT bound has no hardware ranging backing it yet in
   production use (UWB trait scaffolded, not wired to real hardware).
@@ -59,17 +59,17 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 - **shipped** — `did-mini`: KEL, pre-rotation, device delegation,
   detached signing, decoder hardening, and now **lost-device/death
   recovery** (`Controller::recover_from_kel`, D-0053) from escrowed
-  next-key seeds. Security-audited ([#12](https://github.com/britak420/Mininet/issues/12),
-  [#13](https://github.com/britak420/Mininet/issues/13)): 3 findings fixed
+  next-key seeds. Security-audited ([#12](../../issues/12),
+  [#13](../../issues/13)): 3 findings fixed
   (threshold-policy rewrite, delegated-acting-as-root, seed scrubbing).
   Logic-complete, hardened, tested.
 - **partial / launch-blocking** — KEL freshness & duplicity detection: a
   stale root KEL still accepts a revoked device (audit #12 F4). Owned by
   M3 witnesses (SPEC-01 §7). Interim rule: pin highest sn seen per SCID.
 - **not started** — post-quantum migration path
-  ([#15](https://github.com/britak420/Mininet/issues/15)), device
+  ([#15](../../issues/15)), device
   hierarchy beyond current single-tier delegation
-  ([#14](https://github.com/britak420/Mininet/issues/14)), on-chain
+  ([#14](../../issues/14)), on-chain
   pre-rotation anchoring (needs the chain).
 
 ## 4. Money & finality
@@ -103,7 +103,7 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   shipped; real transport underneath it is not (see §8).
 - **not started** — the release registry (on-chain), and therefore
   everything that depends on it: governed release finality, the
-  emergency-update-path question ([#53](https://github.com/britak420/Mininet/issues/53)),
+  emergency-update-path question ([#53](../../issues/53)),
   and fork-legitimacy criteria (F1, `docs/INVARIANTS.md` §5) beyond the
   frozen statement of the requirement itself.
 
@@ -121,7 +121,7 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   challenge-response. Real, tested. **Proves possession, not replication
   uniqueness — see `docs/INVARIANTS.md`'s hard-limitation section.**
   Real proof-of-replication is **not started**
-  ([#31](https://github.com/britak420/Mininet/issues/31)).
+  ([#31](../../issues/31)).
 - **not started** — erasure coding, self-healing replication, cold/
   owner-only storage tiers, huge-file handling at scale (roadmap Phase 4).
 
@@ -133,7 +133,7 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   sockets; peer *discovery* (`RoutingTable`) is unexercised over a real
   transport; not a mesh.
 - **not started** — BLE/local-Wi-Fi radio adapters (needs real phone
-  hardware, [#22](https://github.com/britak420/Mininet/issues/22));
+  hardware, [#22](../../issues/22));
   `mini-bootstrap`/`mini-sync` are not yet wired to `TcpBearer` or any
   real transport; NAT traversal; local mesh routing.
 
@@ -148,7 +148,7 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   path in this tree currently claims production-readiness for any of
   these, so this is a frozen constraint on the future, not a retrofit.
 - **not started** — a dedicated "this PR was AI-assisted" flag on
-  commits/PRs ([#78](https://github.com/britak420/Mininet/issues/78));
+  commits/PRs ([#78](../../issues/78));
   an actual external audit engagement (not tracked in code at all —
   business/process work).
 

@@ -123,8 +123,10 @@ Find anything: `python3 tools/mininet_nav.py map` (see `docs/NAVIGATION.md`).
 
 - Scratch work goes in the session scratchpad, never committed.
 - `target/` noise: ignore it in searches (`--glob '!target'`).
-- The repo was renamed `britak420/matej` → `britak420/Mininet`; git remotes
-  may still use the old slug — both work.
+- The account/repo was renamed `britak420/matej` → `britak420/Mininet` →
+  `mininet-labs/Mininet`; git remotes may still use an old slug — GitHub
+  redirects them, so all work. In-repo doc links use repo-relative form
+  (`../../issues/N`) so they survive any future rename.
 - When the founder gives a large multi-part directive, create tasks
   (TaskCreate) immediately and tick them as you go; he reads the checklist.
 - When uncertain whether something is decided or open: DECISION_LOG first,

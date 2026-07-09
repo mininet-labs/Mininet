@@ -1,6 +1,6 @@
 # FROST distributed key generation — audit scope package
 
-Gates [roadmap #93](https://github.com/britak420/Mininet/issues/93), **P0**
+Gates [roadmap #93](../../issues/93), **P0**
 per D-0048. **Founder action required: same reviewer pool as
 `crypto-audit-scope.md`, but treat this as a separate audit scope** — a
 DKG bug is categorically worse than a signing bug: it can permanently

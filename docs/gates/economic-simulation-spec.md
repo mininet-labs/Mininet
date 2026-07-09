@@ -1,8 +1,8 @@
 # Treasury economics & long-term attack modeling — simulation spec
 
-Gates [roadmap #47](https://github.com/britak420/Mininet/issues/47)
+Gates [roadmap #47](../../issues/47)
 (treasury economic model audit) and
-[#50](https://github.com/britak420/Mininet/issues/50) (long-term inflation
+[#50](../../issues/50) (long-term inflation
 & whale-attack modeling). **Founder action required: engage
 mechanism-design/tokenomics specialists** — people who model adversarial
 systems (the Gauntlet/Chaos-Labs style of work other protocols commission),

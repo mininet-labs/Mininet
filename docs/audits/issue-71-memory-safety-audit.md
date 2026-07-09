@@ -1,6 +1,6 @@
 # Memory-safety audit across all crates
 
-Tracks [roadmap issue #71](https://github.com/britak420/Mininet/issues/71)
+Tracks [roadmap issue #71](../../issues/71)
 (Phase 10.1). Scope, per the issue: verify `#![forbid(unsafe_code)]`
 coverage across this workspace, and check whether that guarantee actually
 holds transitively — the attribute only forbids `unsafe` in *this
@@ -58,7 +58,7 @@ committed to at D-0014.
 
 ## 3. Dependency-vulnerability scanning: a real finding from setting this up
 
-Closing the loop with [issue #73](https://github.com/britak420/Mininet/issues/73)
+Closing the loop with [issue #73](../../issues/73)
 (this audit and that CI job were done together): actually installing and
 running `cargo audit` locally surfaced a genuine, non-obvious problem
 before it could land silently in CI. `cargo-audit` versions compatible
@@ -100,7 +100,7 @@ affected by this version-compatibility trap.
   tree is unexplained, obscure, or outside the expected pattern for a
   cryptography-adjacent Rust workspace.
 - **This audit did not run against updated/future dependency versions.**
-  See [issue #73](https://github.com/britak420/Mininet/issues/73) and the
+  See [issue #73](../../issues/73) and the
   new `dependency-audit` CI job (`.github/workflows/ci.yml`) for ongoing
   RustSec advisory scanning — that's the mechanism that catches a newly
   *discovered* problem in a dependency already in the tree, which this

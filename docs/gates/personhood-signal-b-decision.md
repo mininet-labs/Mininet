@@ -1,6 +1,6 @@
 # Human uniqueness proof research (signal b) — founder decision needed
 
-Gates [roadmap #21](https://github.com/britak420/Mininet/issues/21).
+Gates [roadmap #21](../../issues/21).
 **This is not an engineering backlog item.** The whitepaper itself calls
 on-device behavioral/location entropy proved in zero-knowledge *unsolved
 research*, and nothing in this repository — or, as far as this session's

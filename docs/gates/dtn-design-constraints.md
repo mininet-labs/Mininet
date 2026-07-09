@@ -1,6 +1,6 @@
 # Extreme-environment operation — DTN design constraints
 
-Gates [roadmap #28](https://github.com/britak420/Mininet/issues/28).
+Gates [roadmap #28](../../issues/28).
 **Founder action required: find delay-tolerant-networking (DTN) or
 satellite-networking domain expertise.** Engineering can reason about the
 protocol implications once someone with that background sets the actual

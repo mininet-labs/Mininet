@@ -1,9 +1,9 @@
 # Frozen invariants review
 
-Tracks [roadmap issue #10](https://github.com/britak420/Mininet/issues/10)
+Tracks [roadmap issue #10](../../issues/10)
 (Phase 0.3). Scope, per the issue: apply four adversarial questions to
 every Tier-F row in `docs/INVARIANTS.md` — not "is it currently
-enforced" (that's [issue #8](https://github.com/britak420/Mininet/issues/8)'s
+enforced" (that's [issue #8](../../issues/8)'s
 PASS/PARTIAL/FAIL matrix) but "even if today's code is correct, is there
 any path — direct, indirect, or contingent on something not yet built —
 by which this invariant erodes." A "maybe" answer gets a concrete attack
@@ -61,7 +61,7 @@ wrong."
    genuine adoption," §11). Whether this "maybe" is actually closed
    depends entirely on whether D-0038's multi-signal accumulator makes
    farming costlier than the value of the votes/rewards it produces at
-   real-world scale — precisely the open question [issue #18](https://github.com/britak420/Mininet/issues/18)
+   real-world scale — precisely the open question [issue #18](../../issues/18)
    exists to answer, not something this review can resolve by inspection
    alone.
 3. Second-class humans? **No** structurally, but the same Sybil vector
@@ -82,7 +82,7 @@ wrong."
    Group 2 also lets capital indirectly amplify *reward accrual*
    (parallelizing across many farmed identities), which isn't governance
    capture but is an adjacent form of the same underlying vulnerability —
-   worth tracking under the same umbrella as [#18](https://github.com/britak420/Mininet/issues/18)
+   worth tracking under the same umbrella as [#18](../../issues/18)
    rather than as a separate issue.
 3. Second-class humans? **No** structural differentiation; see the Sybil
    caveat above for the same indirect framing.
@@ -94,7 +94,7 @@ wrong."
 1. Institutional control? **No** in the code that exists (equal weight
    per identity root, by construction). **Contingent maybe:** the
    networked consensus protocol itself (proposer rotation, gossip, view
-   change) is not built yet ([#36](https://github.com/britak420/Mininet/issues/36)-[#45](https://github.com/britak420/Mininet/issues/45)).
+   change) is not built yet ([#36](../../issues/36)-[#45](../../issues/45)).
    A poorly-designed proposer-selection mechanism (e.g. one subtly
    favoring high-uptime, well-resourced nodes even without an explicit
    weight field) could reintroduce institutional-style influence through
@@ -114,7 +114,7 @@ wrong."
    maybe:** the release registry (on-chain, still `pending`) is exactly
    where institutional control could be smuggled in if its quorum/
    timelock rules were ever weakened "temporarily" for an emergency —
-   see [#53](https://github.com/britak420/Mininet/issues/53)'s explicit
+   see [#53](../../issues/53)'s explicit
    scope to review this before it's built, not after.
 2. Money buys governance? **No** direct path found in this group.
 3. Second-class humans? **No** direct path found.
@@ -128,7 +128,7 @@ wrong."
    enabling it either, since the registry doesn't exist yet. This is the
    single clearest example in this review of "PARTIAL today, becomes
    either PASS or a real violation depending entirely on how Phase 9
-   ([#65](https://github.com/britak420/Mininet/issues/65)-[#70](https://github.com/britak420/Mininet/issues/70))
+   ([#65](../../issues/65)-[#70](../../issues/70))
    is built."
 
 ## Group 6: Storage & seeding (`mini-store`, `mini-storage`, cache tiers)
@@ -139,7 +139,7 @@ wrong."
    not voice, by explicit design (P1 + D-0033).
 3. Second-class humans? **No** direct path — the egalitarian "thousand
    cheap machines" thesis is explicitly what Phase 4's replication-
-   uniqueness work ([#31](https://github.com/britak420/Mininet/issues/31))
+   uniqueness work ([#31](../../issues/31))
    exists to keep true rather than letting well-resourced warehouses
    quietly dominate storage reward.
 4. Updates remove freedom? **No** direct path found.
@@ -152,8 +152,8 @@ wrong."
    reviews" gradually becomes "the thing most humans just accept without
    reading," which is institutional control in practice even though
    Directive 12 is never technically violated on paper. This is exactly
-   why [#56](https://github.com/britak420/Mininet/issues/56) and
-   [#83](https://github.com/britak420/Mininet/issues/83) frame this as an
+   why [#56](../../issues/56) and
+   [#83](../../issues/83) frame this as an
    ongoing enforcement review, not a one-time check.
 2. Money buys governance? **No** direct path specific to AI.
 3. Second-class humans? **Maybe**, same gradual-drift framing as #1 —
@@ -168,8 +168,8 @@ wrong."
 1. **Sybil-cost economics (Group 2/3) is the single highest-leverage
    "maybe" in this entire review** — it's the indirect path by which
    money could buy both governance and value, and it's already tracked as
-   the roadmap's own top priority ([#18](https://github.com/britak420/Mininet/issues/18),
-   [#20](https://github.com/britak420/Mininet/issues/20)). This review's
+   the roadmap's own top priority ([#18](../../issues/18),
+   [#20](../../issues/20)). This review's
    contribution is naming it explicitly as a P1/P2-adjacent risk, not
    just a personhood-design question.
 2. **The release registry (Group 5) is the clearest "freedom-removing
