@@ -82,12 +82,18 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   multi-process demo. **Trusted-dealer keygen, not DKG** — flagged P0 in
   D-0048; see that entry before treating this as production-viable at any
   value level.
-- **not started** — the M1/M2/M3 invariants added to `docs/INVARIANTS.md`
-  this pass (money never CRDT-merges, offline payment is pending-not-final,
-  canonical ordering alone resolves double-spends) have no implementing
-  code yet. `mini-reward`'s accrual bookkeeping is ordinary, non-spendable
-  value and is unaffected by this gap; anything that becomes real,
-  spendable MINI is.
+- **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
+  offline settlement protocol is now real, tested code — signed
+  `PaymentClaim`s, the `SettlementState` wallet vocabulary
+  (pending/accepted/finalized as distinct types), local conflict detection
+  (`ClaimWatcher`), and canonical reconciliation (`reconcile`) proving
+  exactly one of two conflicting claims ever finalizes. 26 tests. **What's
+  still missing:** `CanonicalLedgerView` — the trait `reconcile` reads to
+  decide finality — has only a test-only in-memory implementation; a real
+  chain-backed ledger is roadmap #36-#45's job, tracked as #41's own
+  required follow-up and #40's (double-spend reconciliation rules)
+  concrete mechanism. `mini-reward`'s accrual bookkeeping remains ordinary,
+  non-spendable value, unaffected by and separate from this crate.
 
 ## 5. Updates & forks
 

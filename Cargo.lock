@@ -416,6 +416,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-settlement"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+]
+
+[[package]]
 name = "mini-social"
 version = "0.0.1"
 dependencies = [

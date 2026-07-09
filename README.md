@@ -10,7 +10,7 @@ switch, no law-enforcement backdoor, and no party that can unmask a user. The
 software is public domain, built Rust-first and in-house — proven designs are
 adapted into our own tree, never taken as a live external dependency.
 
-This repository is the **self-contained Rust core**: ~23 crates, no owner, no
+This repository is the **self-contained Rust core**: ~24 crates, no owner, no
 external dependency on any single company's infrastructure to keep running.
 
 > **Read this first, before anything else in this repository:**
@@ -50,7 +50,7 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0054` so far —
+   architectural and policy decision, numbered `D-0001`–`D-0055` so far —
    policy only; see its own header for what belongs elsewhere) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register, organized by
    domain, with a hard-limitations section at the top) are the two
@@ -99,7 +99,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 23 crates, see the table below
+├── crates/                 24 crates, see the table below
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── DECISION_LOG.md          every stack and freeze choice, with rationale (D-0001..)
@@ -150,6 +150,7 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-treasury` | Contribution bookkeeping + FROST threshold custody | 🧪 FROST + live multi-device demo (D-0041); trusted-dealer keygen, no DKG yet |
 | `mini-value` | MINI fee bookkeeping + transaction-privacy primitives | 🧪 stealth addresses, ring signatures, Bulletproofs confidential amounts (D-0036/D-0040) |
 | `mini-bounty` | Anonymous developer-bounty claims (ring signature + stealth address reuse) | 🧪 real, tested (D-0049); no GitHub integration, no minimum ring-size policy yet |
+| `mini-settlement` | Offline transaction settlement: signed pending payment claims, wallet state machine, double-spend reconciliation (M1/M2/M3) | 🧪 real, tested (D-0055); protocol only — `CanonicalLedgerView` has no real chain-backed implementation yet |
 
 See `docs/DECISION_LOG.md` for the reasoning and honest limits behind every
 🧪/🔬 entry, and each crate's own `README.md`/top-of-file doc comment for the
@@ -230,6 +231,13 @@ documented at the crate level.
 6. **Consensus and chain networking.** `mini-chain` verifies finality given
    valid votes; the networked BFT protocol (proposing, voting, gossiping
    blocks across real peers) and the full state machine are not built yet.
+   `mini-settlement` (D-0055, closes #41) implements the offline-payment
+   protocol M1/M2/M3 require — signed claims, the pending/accepted/
+   finalized wallet state machine, deterministic double-spend
+   reconciliation — but its `CanonicalLedgerView` (what actually decides a
+   claim is finalized) has only a test-only in-memory implementation; a
+   real chain-backed one needs this same networked consensus to exist
+   first.
 7. **Security posture at scale.** Closed (D-0044): dependency-vulnerability
    scanning (`rustsec/audit-check`) and a real same-machine reproducible-
    build check both run in CI now. Still open: the full cross-machine,

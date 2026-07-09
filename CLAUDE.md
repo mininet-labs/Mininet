@@ -60,6 +60,15 @@ shipping), `docs/design/` (design notes that close roadmap issues),
   (Directive 14).
 - **Never claim "one human, one vote."** Everything today counts identity
   roots. Say "identity root" until SPEC-02 personhood actually lands.
+- **Typed domains, never generic `sign(bytes)`/`finalize(state)`.** Any
+  function that exercises real authority (signing, finalizing money,
+  marking a status, adopting a release, deleting content) must take a
+  specific, named request type (`sign_release_attestation(ReleaseAttestation)`,
+  not `sign(&[u8])`) so the set of things that authority *can* do is fixed
+  at compile time, not by whatever bytes a caller assembles. A generic
+  authority-shaped signature is a standing invitation to grow an
+  undocumented capability later — reject it in review the same way a
+  voice/value dependency edge gets rejected.
 
 ## Workflow ritual (what the founder expects every batch)
 

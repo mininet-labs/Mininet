@@ -2100,3 +2100,69 @@ bypass; the default must not be emptied without a recorded decision.
 
 **Supersedes / superseded by:** none — first Sybil-hardening entry; builds
 on D-0038 (the multi-signal accumulator).
+
+---
+
+### D-0055 — `mini-settlement`: offline transaction settlement, implementing M1/M2/M3  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** Directive 5, invariants M1/M2/M3, D-0045, `crates/mini-settlement/`, [roadmap #41](https://github.com/britak420/Mininet/issues/41).
+
+**Decision:** build the offline settlement protocol as a nonce-based signed
+payment claim (`PaymentClaim`: payer, payee, amount, monotonic per-payer
+nonce, validity window, last-known-chain reference) with an explicit
+wallet-facing state machine (`SettlementState`: SignedLocal → AcceptedLocal
+→ PendingCanonical → Finalized | RejectedConflict | Expired), where only
+`Finalized` is ever final. Reconciliation (`reconcile`) reads an abstract
+`CanonicalLedgerView` trait rather than a real chain-execution engine —
+the same seam `mini-forge::KelDirectory` already uses for identity lookups
+— so the protocol's rules are fully specified and tested now, without
+waiting for roadmap #36-#45's networked consensus to exist first. Local
+double-spend detection (`ClaimWatcher`) is a separate, explicitly-labeled
+risk heuristic, never a source of finality.
+
+**Reason:** D-0045 froze M1/M2/M3 as constraints with no implementing
+code; #41 asked for "the concrete protocol" turning Directive 5's prose
+into something checkable. A nonce-based claim (not a UTXO/key-image model,
+not a payment channel) is the minimal primitive matching Directive 5's own
+wording ("signed promises"), reuses no new cryptography (only already-
+reviewed `mini-crypto` Ed25519/BLAKE3), and composes for free with
+anonymous addressing since this crate never inspects key contents beyond
+signature verification.
+
+**Constitutional impact:** implements Directive 5 and invariants M1, M2,
+and M3 directly. M1 by omission (no merge function exists anywhere in the
+crate's API surface); M2 via `SettlementState`/`WalletLabel` making the
+pending/accepted/finalized distinction a type rather than a UI convention
+(directly closing D-0045's own named failure point); M3 via `reconcile`
+never finalizing a claim except by reading a `CanonicalLedgerView`. Adds
+no new frozen invariant — M1/M2/M3 already existed; this is their first
+implementation.
+
+**Implementation status:** real, tested — 26 tests including an explicit
+double-spend-across-two-partitions integration scenario proving exactly
+one of two conflicting claims ever finalizes. `CanonicalLedgerView` has
+only a test-only in-memory implementation (`InMemoryLedgerView`); a real
+chain-backed implementation is roadmap #36-#45's job. Not yet wired to any
+real transport, wallet, or `mini-value` addressing — this batch is the
+protocol core only.
+
+**Failure point:** the whole construction depends on a future
+`CanonicalLedgerView` implementation actually enforcing nonce-ordering and
+balance sufficiency correctly at the chain-execution layer — this crate
+can only be as sound as whatever backs that trait. A wallet UI that reads
+`SettlementState` directly instead of going through `wallet_label()` could
+still blur AcceptedLocal and Finalized visually, even though the types
+distinguish them; this is a client-implementation risk this crate cannot
+fully close from the protocol layer alone.
+
+**Required follow-up:** [roadmap #40](https://github.com/britak420/Mininet/issues/40)
+(double-spend reconciliation rules) should adopt this crate's
+`reconcile`/`CanonicalLedgerView` split as its own concrete mechanism
+rather than designing a separate one — the double-spend rule M3 requires
+is already implemented here, gated only on a real ledger existing.
+Confidential-amount integration with `mini-value` and payment-channel
+constructions (if ever wanted) are both explicitly out of scope, noted as
+future work in the crate's own docs.
+
+**Supersedes / superseded by:** none — first implementation of M1/M2/M3;
+refines D-0045's "design-only" status to "protocol implemented, ledger
+pending."

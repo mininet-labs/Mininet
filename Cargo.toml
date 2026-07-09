@@ -30,6 +30,7 @@ members = [
     "crates/mini-treasury",
     "crates/mini-value",
     "crates/mini-bounty",
+    "crates/mini-settlement",
 ]
 
 [workspace.package]
