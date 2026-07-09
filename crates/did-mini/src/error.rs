@@ -75,6 +75,14 @@ pub enum IdentityError {
     /// A pairwise pseudonym was requested from a multi-key/threshold root —
     /// there is no canonical single key to derive from.
     PairwiseRequiresSingleKey,
+    /// The claimed delegator is itself a delegated (device) identity. Delegation
+    /// chains are rejected: every device must chain to a true (non-delegated)
+    /// root, or "one identity root" counting could be handed a device posing as
+    /// a root (SPEC-01 §6; device hierarchies are roadmap #14, not implicit).
+    RootIsDelegated,
+    /// Recovery keys did not match the KEL's standing pre-rotation commitments —
+    /// whoever supplied them does not hold the committed next keys.
+    RecoveryKeysMismatch,
 }
 
 impl fmt::Display for IdentityError {
@@ -139,6 +147,14 @@ impl fmt::Display for IdentityError {
             IdentityError::PairwiseRequiresSingleKey => write!(
                 f,
                 "pairwise pseudonym derivation requires a single-key (1-of-1) root"
+            ),
+            IdentityError::RootIsDelegated => write!(
+                f,
+                "delegator is itself a delegated identity: devices must chain to a true root"
+            ),
+            IdentityError::RecoveryKeysMismatch => write!(
+                f,
+                "recovery keys do not match the KEL's pre-rotation commitments"
             ),
         }
     }

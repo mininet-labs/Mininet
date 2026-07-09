@@ -33,7 +33,14 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 
 - **prototype** — `mini-uniqueness::status` (D-0038): open-ended
   multi-signal `HumanRecord`/`TrustWeights`/`PromotionPolicy` accumulator.
-  Real, tested code.
+  Real, tested code. Hardened per the #18 Sybil review (D-0054): reaching
+  `FullHuman` now requires a *live* seed-anchored vouching-graph signal,
+  closing a farm-saturation bypass — see
+  `docs/audits/issue-18-sybil-social-graph-review.md`.
+- **reviewed** — presence attack review ([#17](https://github.com/britak420/Mininet/issues/17),
+  `docs/audits/issue-17-presence-attack-review.md`): replay/binding/clone
+  defended; active relay is NOT defended by software RTT alone (needs UWB
+  distance-bounding) — presence is safe only as a *weighted* signal.
 - **design-only / research-blocked** — signal (b), on-device behavioral/
   location entropy proved in zero-knowledge: the whitepaper itself calls
   this unsolved research. Not a code gap; a research gap
@@ -50,7 +57,15 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 ## 3. Identity & key custody
 
 - **shipped** — `did-mini`: KEL, pre-rotation, device delegation,
-  detached signing, decoder hardening. Logic-complete, hardened, tested.
+  detached signing, decoder hardening, and now **lost-device/death
+  recovery** (`Controller::recover_from_kel`, D-0053) from escrowed
+  next-key seeds. Security-audited ([#12](https://github.com/britak420/Mininet/issues/12),
+  [#13](https://github.com/britak420/Mininet/issues/13)): 3 findings fixed
+  (threshold-policy rewrite, delegated-acting-as-root, seed scrubbing).
+  Logic-complete, hardened, tested.
+- **partial / launch-blocking** — KEL freshness & duplicity detection: a
+  stale root KEL still accepts a revoked device (audit #12 F4). Owned by
+  M3 witnesses (SPEC-01 §7). Interim rule: pin highest sn seen per SCID.
 - **not started** — post-quantum migration path
   ([#15](https://github.com/britak420/Mininet/issues/15)), device
   hierarchy beyond current single-tier delegation

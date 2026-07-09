@@ -50,7 +50,7 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0052` so far —
+   architectural and policy decision, numbered `D-0001`–`D-0054` so far —
    policy only; see its own header for what belongs elsewhere) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register, organized by
    domain, with a hard-limitations section at the top) are the two

@@ -21,6 +21,7 @@
 //! pseudonym identities as one function call each, not N hand-managed seeds.
 
 use mini_crypto::{SignatureSuite, SigningKey};
+use zeroize::Zeroize;
 
 use crate::delegation::{Capabilities, Seal};
 use crate::error::{IdentityError, Result};
@@ -107,15 +108,27 @@ impl Controller {
         if self.current.len() != 1 || self.current_threshold != 1 {
             return Err(IdentityError::PairwiseRequiresSingleKey);
         }
-        let ikm = self.current[0].to_seed_bytes();
-        let derived = mini_crypto::KdfSuite::HkdfSha256
-            .derive_bytes(Some(PAIRWISE_PSEUDONYM_SALT), &ikm, context, 64)
-            .map_err(IdentityError::Crypto)?;
+        let mut ikm = self.current[0].to_seed_bytes();
+        let derived = mini_crypto::KdfSuite::HkdfSha256.derive_bytes(
+            Some(PAIRWISE_PSEUDONYM_SALT),
+            &ikm,
+            context,
+            64,
+        );
+        ikm.zeroize();
+        let mut derived = derived.map_err(IdentityError::Crypto)?;
         let mut current_seed = [0u8; 32];
         let mut next_seed = [0u8; 32];
         current_seed.copy_from_slice(&derived[..32]);
         next_seed.copy_from_slice(&derived[32..]);
-        Controller::incept_single_from_seeds(&current_seed, &next_seed)
+        derived.zeroize();
+        let out = Controller::incept_single_from_seeds(&current_seed, &next_seed);
+        // Best-effort scrub of every local copy of secret material (issue #12
+        // audit): the root seed copy, the KDF output, and the derived seeds all
+        // leave no residue beyond the keys now held inside the controller.
+        current_seed.zeroize();
+        next_seed.zeroize();
+        out
     }
 
     /// Incept with an explicit current/next key set and thresholds.
@@ -240,6 +253,12 @@ impl Controller {
             keys: self.current.iter().map(|k| k.verifying_key()).collect(),
             threshold: self.current_threshold,
             sn: (self.events.len() as u64) - 1,
+            next_commitments: self
+                .next
+                .iter()
+                .map(|k| event::key_commitment(&k.verifying_key()))
+                .collect(),
+            next_threshold: self.next_threshold,
         }
     }
 
@@ -249,20 +268,43 @@ impl Controller {
     }
 
     /// Rotate to the pre-committed next keys, committing to a fresh next set
-    /// drawn from operating-system entropy.
+    /// drawn from operating-system entropy. The next-set threshold policy is
+    /// **preserved** across the rotation (a 2-of-3 identity stays 2-of-3) —
+    /// see [`Controller::rotate_with_next_and_threshold`] to change it.
     pub fn rotate(&mut self) -> Result<()> {
         let new_next = generate_like(&self.next)?;
-        self.rotate_with_next(new_next)
+        let threshold = self.next_threshold;
+        self.rotate_with_next_and_threshold(new_next, threshold)
     }
 
-    /// Rotate using an explicit next key set — deterministic, for tests.
+    /// Rotate using an explicit next key set, preserving the current
+    /// next-threshold policy — deterministic, for tests.
+    ///
+    /// Audit note (issue #12): this previously hardcoded the new next-set
+    /// threshold to N-of-N (`new_next.len()`), which silently converted any
+    /// M-of-N identity into N-of-N after its first rotation — changing the
+    /// availability/security policy chosen at inception and making every
+    /// future rotation fail if even one next key was lost. The threshold now
+    /// carries forward unchanged; `validate_establishment` rejects the
+    /// rotation explicitly if the preserved threshold cannot fit the new set.
     pub fn rotate_with_next(&mut self, new_next: Vec<SigningKey>) -> Result<()> {
+        let threshold = self.next_threshold;
+        self.rotate_with_next_and_threshold(new_next, threshold)
+    }
+
+    /// Rotate using an explicit next key set **and** an explicit threshold for
+    /// that set — the only way the M-of-N policy changes is this deliberate
+    /// call, never as a side effect of an ordinary rotation.
+    pub fn rotate_with_next_and_threshold(
+        &mut self,
+        new_next: Vec<SigningKey>,
+        new_next_threshold: u32,
+    ) -> Result<()> {
         if new_next.is_empty() {
             return Err(IdentityError::EmptyKeySet);
         }
         let new_current = self.next.clone();
         let new_current_threshold = self.next_threshold;
-        let new_next_threshold = new_next.len() as u32;
 
         let establishment = Establishment {
             keys: new_current.iter().map(|k| k.verifying_key()).collect(),
@@ -283,6 +325,95 @@ impl Controller {
         self.next = new_next;
         self.next_threshold = new_next_threshold;
         Ok(())
+    }
+
+    /// Recover control of an identity from its public KEL plus the escrowed
+    /// **next** secret keys — the lost-device recovery path (SPEC-01 §5's
+    /// pre-rotation, used as designed; issue #13).
+    ///
+    /// This is why pre-rotation exists: the *next* keys are committed but
+    /// unrevealed, so their seeds can live somewhere that is not the device —
+    /// a paper backup, a safe, an heir's envelope. When the device (holding
+    /// the current keys) is lost, stolen, or its holder dies, whoever holds
+    /// the next-key seeds reconstructs a controller from:
+    ///
+    ///   1. the identity's public KEL (fetched from any peer — it's public), and
+    ///   2. the escrowed next signing keys,
+    ///
+    /// and this function appends the recovery rotation: the escrowed keys are
+    /// revealed as the new current keys (they must hash to the KEL's standing
+    /// pre-rotation commitments, in order — otherwise
+    /// [`IdentityError::RecoveryKeysMismatch`]), and `new_next` /
+    /// `new_next_threshold` become the fresh escrow commitment. The old
+    /// device's keys are dead from this event onward: they can no longer
+    /// extend the KEL, because control now requires the newly revealed set.
+    ///
+    /// **What this is not:** it cannot recover an identity whose next-key
+    /// seeds are also lost (nothing can — that identity is permanently
+    /// orphaned, by design, because anything that could recover it without
+    /// the committed keys could also steal it), and it does not resolve
+    /// *races*: a thief holding the stolen device's current keys can keep
+    /// signing until peers see this recovery rotation, and if the thief
+    /// somehow also obtained the next seeds, whichever rotation a verifier
+    /// sees first wins that verifier — divergence detection is the witness
+    /// batch (M3). See `docs/audits/issue-13-identity-recovery-audit.md`.
+    pub fn recover_from_kel(
+        kel: &Kel,
+        recovered_next: Vec<SigningKey>,
+        new_next: Vec<SigningKey>,
+        new_next_threshold: u32,
+    ) -> Result<Controller> {
+        if recovered_next.is_empty() || new_next.is_empty() {
+            return Err(IdentityError::EmptyKeySet);
+        }
+        // The KEL must be internally valid before we extend it.
+        let state = kel.verify()?;
+
+        // The escrowed keys must be exactly the committed next set, in
+        // commitment order. Order-sensitive on purpose: the rotation verifier
+        // zips revealed keys with commitments positionally, so we surface a
+        // mismatch here rather than emit an event that can never verify.
+        if recovered_next.len() != state.next_commitments.len() {
+            return Err(IdentityError::RecoveryKeysMismatch);
+        }
+        for (k, commitment) in recovered_next.iter().zip(state.next_commitments.iter()) {
+            if &event::key_commitment(&k.verifying_key()) != commitment {
+                return Err(IdentityError::RecoveryKeysMismatch);
+            }
+        }
+
+        let suite = recovered_next[0].suite();
+        let mut ctrl = Controller {
+            scid: kel.scid().to_string(),
+            suite,
+            current: recovered_next,
+            current_threshold: state.next_threshold,
+            next: new_next,
+            next_threshold: new_next_threshold,
+            delegator: kel.delegator(),
+            events: kel.events().to_vec(),
+        };
+
+        let establishment = Establishment {
+            keys: ctrl.current.iter().map(|k| k.verifying_key()).collect(),
+            threshold: ctrl.current_threshold,
+            next: ctrl
+                .next
+                .iter()
+                .map(|k| event::key_commitment(&k.verifying_key()))
+                .collect(),
+            next_threshold: ctrl.next_threshold,
+            witnesses: Vec::new(),
+        };
+        event::validate_establishment(&establishment)?;
+
+        let signers = ctrl.current.clone();
+        ctrl.append(EventKind::Rotation(establishment), &signers);
+
+        // The result must verify end-to-end as an ordinary KEL — recovery
+        // produces a standard rotation, indistinguishable from a planned one.
+        ctrl.kel().verify()?;
+        Ok(ctrl)
     }
 
     /// Sign an arbitrary message with the current keys — for detached payloads

@@ -186,6 +186,7 @@ name = "did-mini"
 version = "0.0.1"
 dependencies = [
  "mini-crypto",
+ "zeroize",
 ]
 
 [[package]]

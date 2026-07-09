@@ -2020,3 +2020,83 @@ novel continuity-severing mechanism would need a new criterion added here.
 **Supersedes / superseded by:** refines D-0046 (does not supersede it —
 D-0046's decision stands; this entry adds the checkable definition D-0046
 said #57 would own).
+
+---
+
+### D-0053 — Identity audit hardening: recovery, threshold policy, delegation-chain refusal  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Directive 2/6/8, invariants ID1/ID3, SPEC-01 §5/§6, `docs/audits/issue-12-did-mini-security-audit.md`, `docs/audits/issue-13-identity-recovery-audit.md`, [#12](https://github.com/britak420/Mininet/issues/12)/[#13](https://github.com/britak420/Mininet/issues/13).
+
+**Decision:** three `did-mini` changes ship from the identity audit: (1) a
+real recovery path, `Controller::recover_from_kel`, reconstructing control
+from a public KEL + escrowed next-key seeds via an ordinary rotation — the
+lost-device/death recovery pre-rotation was always meant to enable; (2)
+rotation now preserves the standing M-of-N next-threshold instead of silently
+forcing N-of-N (policy changes require the new explicit
+`rotate_with_next_and_threshold`); (3) `verify_delegation` rejects a
+delegated identity acting as a delegator (`RootIsDelegated`), so no root
+counter can be fed a device posing as a root.
+
+**Reason:** the audit found #2 as a real bug (first rotation silently rewrote
+an identity's threshold policy and could brick future rotations), #3 as a
+cheap ambiguity worth closing, and #1 as a missing capability that left
+pre-rotation's whole purpose unreachable after device loss. All three are
+correctness/robustness fixes with new adversarial tests
+(`crates/did-mini/tests/recovery.rs`, 8 tests).
+
+**Constitutional impact:** strengthens invariants ID1 (keys never leave
+device — recovery uses escrowed seeds, no new export path) and ID3
+(pre-rotation) without changing their meaning. No frozen invariant altered.
+No wire-format change — previously emitted KELs still verify.
+
+**Implementation status:** shipped and tested; full workspace suite green.
+The launch-blocking gap named by the audit — KEL freshness / duplicity
+detection (stale-KEL revocation bypass) — is **not** fixed here; it is
+inherent to the pre-witness milestone and owned by M3 (SPEC-01 §7). Interim
+rule (fetch freshest KEL, pin highest sn per SCID) is documented in
+`verify_delegation`.
+
+**Failure point:** recovery depends on the holder actually escrowing the
+next-key seed off-device; an identity that loses both device and escrow is
+permanently orphaned by design. Client onboarding must enforce escrow — a
+product requirement recorded in the #13 audit, not code here.
+
+**Supersedes / superseded by:** none — first identity-hardening entry;
+builds on the M1/M2 identity milestones.
+
+---
+
+### D-0054 — Personhood promotion requires a live seed-anchored signal  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Directive 8/15, invariant P2 (+ its hard limitation), SPEC-02 / whitepaper §11, `docs/audits/issue-18-sybil-social-graph-review.md`, [#18](https://github.com/britak420/Mininet/issues/18).
+
+**Decision:** `mini-uniqueness`'s `PromotionPolicy` gains
+`full_required_sources` (default `[VouchingGraph]`): reaching `FullHuman`
+now requires the seed-anchored vouching-graph signal to be *live*, not just
+any N signals summing to a high score.
+
+**Reason:** the Sybil review found a farm-saturation bypass — because the
+fused score's denominator counts only sources with evidence, a farm could
+reach `FullHuman` on self-attestable physical presence (forgeable end-to-end
+per #17) plus one friendly `External` method, with zero connection to the
+honest graph. The vouching graph is the one signal a farm structurally
+cannot fake (trust propagates only from the seed cohort), so it must be
+mandatory rather than substitutable.
+
+**Constitutional impact:** hardens P2's *target* (one human, one vote) at
+the personhood layer, but does **not** resolve P2's standing hard limitation
+(identity-root ≠ verified human) — the "no longer cheap" claim remains
+unproven at production parameters. No frozen invariant changed; this tightens
+a tunable policy toward the invariant's intent.
+
+**Implementation status:** shipped and tested
+(`a_farm_cannot_reach_full_human_without_the_seed_anchored_vouch_signal`,
+`a_fully_decayed_vouch_signal_does_not_satisfy_the_required_gate`). Seed-set
+governance, threshold calibration, and at-scale simulation remain open
+(#11/#21).
+
+**Failure point:** a nation-state adversary who slowly earns *genuine*
+seed-anchored vouches via co-opted real humans still defeats this — the gate
+raises cost, it is not a wall. Emptying `full_required_sources` reopens the
+bypass; the default must not be emptied without a recorded decision.
+
+**Supersedes / superseded by:** none — first Sybil-hardening entry; builds
+on D-0038 (the multi-signal accumulator).
