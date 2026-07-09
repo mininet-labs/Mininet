@@ -36,6 +36,21 @@ pub enum TreasuryError {
     InvalidFrostSignatureShare,
     /// A compressed Ristretto point or scalar did not decode.
     MalformedFrostEncoding,
+    /// A DKG round-1 package's Schnorr proof of knowledge of its
+    /// constant-term commitment did not verify — either a rogue-key
+    /// attempt, a corrupted package, or a package replayed under a
+    /// different session context than it was created for.
+    DkgProofOfKnowledgeFailed,
+    /// A resharing round-1 package's constant-term commitment did not
+    /// equal `lambda_i * Y_i` for the claimed old participant — either a
+    /// forged or substituted contribution, not a genuine Lagrange-weighted
+    /// share of the old group secret.
+    ReshareInvalidContribution,
+    /// Resharing finalized to a group public key different from the old
+    /// committee's — the resulting key package must never be trusted;
+    /// this should be structurally impossible given verified inputs, and
+    /// is checked directly rather than only relied upon algebraically.
+    ReshareGroupKeyMismatch,
 }
 
 impl fmt::Display for TreasuryError {
@@ -65,6 +80,21 @@ impl fmt::Display for TreasuryError {
             }
             TreasuryError::MalformedFrostEncoding => {
                 write!(f, "malformed FROST point/scalar encoding")
+            }
+            TreasuryError::DkgProofOfKnowledgeFailed => {
+                write!(f, "DKG round-1 proof of knowledge did not verify")
+            }
+            TreasuryError::ReshareInvalidContribution => {
+                write!(
+                    f,
+                    "resharing contribution did not match the claimed old participant's weighted share"
+                )
+            }
+            TreasuryError::ReshareGroupKeyMismatch => {
+                write!(
+                    f,
+                    "resharing produced a different group public key than the old committee held"
+                )
             }
         }
     }

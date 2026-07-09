@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 24,
-    "files": 241,
-    "headings": 545,
-    "rust_symbols": 1960
+    "files": 243,
+    "headings": 547,
+    "rust_symbols": 2018
   },
   "crates": {
     "did-mini": {
@@ -508,7 +508,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 6248,
+      "bytes": 6304,
       "group": "root",
       "headings": [
         {
@@ -528,17 +528,17 @@
         },
         {
           "level": 2,
-          "line": 79,
+          "line": 80,
           "text": "Start here"
         },
         {
           "level": 2,
-          "line": 96,
+          "line": 97,
           "text": "The canonical documents"
         },
         {
           "level": 2,
-          "line": 120,
+          "line": 121,
           "text": "License"
         }
       ],
@@ -550,27 +550,27 @@
         "code",
         "what",
         "money",
+        "yet",
         "its",
         "work",
         "verified",
         "repository",
         "invariants",
         "design",
-        "yet",
         "today",
         "start",
         "here",
         "canonical",
         "owned",
-        "people",
         "identity",
         "infrastructure",
         "storage",
-        "vote"
+        "vote",
+        "key"
       ],
-      "lines": 124,
+      "lines": 125,
       "path": "README.md",
-      "sha256": "e5b36f2cfa80abee98c1b052aa30c66355bc9bd11e897de7a31932da4bb9407e",
+      "sha256": "cf498cd52592561cd66f3a38eb2dcb4aabf72f0994bc8238e09595c4b9646579",
       "symbols": [],
       "title": "Mininet"
     },
@@ -14412,7 +14412,7 @@
       "title": "Same audited primitive-layer crate ed25519-dalek/x25519-dalek already"
     },
     {
-      "bytes": 5301,
+      "bytes": 7607,
       "group": "crate:mini-treasury",
       "headings": [
         {
@@ -14433,53 +14433,58 @@
         {
           "level": 3,
           "line": 44,
+          "text": "Real distributed key generation and resharing (D-0059/D-0060, closes D-0048's DKG gap)"
+        },
+        {
+          "level": 3,
+          "line": 70,
           "text": "Live multi-device signing demo"
         },
         {
           "level": 3,
-          "line": 62,
+          "line": 88,
           "text": "Honest limits \u2014 read before trusting this with anything real"
         },
         {
           "level": 2,
-          "line": 80,
+          "line": 117,
           "text": "Deliberately not built here"
         },
         {
           "level": 2,
-          "line": 100,
+          "line": 138,
           "text": "Build & test"
         }
       ],
       "keywords": [
         "real",
-        "frost",
-        "custody",
-        "threshold",
-        "signing",
-        "here",
         "key",
-        "mini-treasury",
-        "bookkeeping",
-        "d-0037",
-        "prototype",
-        "live",
-        "demo",
+        "dkg",
+        "group",
+        "secret",
+        "participant",
+        "ordinary",
+        "threshold",
+        "resharing",
         "contribution",
         "signature",
-        "treasury",
-        "separate",
-        "secret",
-        "build",
-        "ordinary",
-        "read",
-        "rate",
+        "mini-treasury",
+        "bookkeeping",
+        "frost",
+        "custody",
+        "live",
+        "signing",
+        "honest",
+        "committee",
         "frost_sign",
-        "keygen"
+        "one",
+        "build",
+        "now",
+        "generation"
       ],
-      "lines": 107,
+      "lines": 145,
       "path": "crates/mini-treasury/README.md",
-      "sha256": "a0c5811f5038e07d6308c3ec59cb9e90cc02f648d041e7e1ec63b33c512d0821",
+      "sha256": "db5cbc9c87341907b482f87ffe036bd35637dfe7ef6e4dd0526215efe8aa5e17",
       "symbols": [],
       "title": "mini-treasury"
     },
@@ -14648,38 +14653,38 @@
       "title": "pub use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};"
     },
     {
-      "bytes": 3192,
+      "bytes": 4724,
       "group": "crate:mini-treasury",
       "headings": [],
       "keywords": [
         "treasuryerror",
-        "frost",
         "write",
+        "frost",
+        "participant",
         "fmt",
         "threshold",
+        "share",
         "error",
         "result",
         "signer",
         "failed",
-        "participant",
-        "share",
+        "package",
+        "key",
         "verification",
+        "did",
+        "old",
         "set",
         "rate",
+        "resharing",
         "invalid",
         "zero",
         "time",
         "entry",
-        "count",
-        "index",
-        "point",
-        "mini-treasury",
-        "display",
-        "std"
+        "count"
       ],
-      "lines": 77,
+      "lines": 107,
       "path": "crates/mini-treasury/src/error.rs",
-      "sha256": "c96c581124758dbc2dab0fd19a7fb8666f370732fa899f4e3b99886faafcd7e2",
+      "sha256": "2b969586fa6a2e07484c5d46897cad130377c42e74a26da6346ed356f4f28517",
       "symbols": [
         {
           "kind": "enum",
@@ -14688,26 +14693,268 @@
         },
         {
           "kind": "impl",
-          "line": 41,
+          "line": 56,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 42,
+          "line": 57,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 73,
+          "line": 103,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 76,
+          "line": 106,
           "name": "Result"
         }
       ],
       "title": "use core::fmt;"
+    },
+    {
+      "bytes": 35033,
+      "group": "crate:mini-treasury",
+      "headings": [],
+      "keywords": [
+        "participant",
+        "secret",
+        "every",
+        "polynomial",
+        "value",
+        "anyone",
+        "a_0",
+        "key",
+        "feldman",
+        "rebuttal",
+        "same",
+        "they",
+        "why",
+        "one",
+        "own",
+        "group",
+        "its",
+        "proof",
+        "honest",
+        "accused",
+        "complaint",
+        "exclusion",
+        "trusted_dealer_keygen",
+        "frost_sign"
+      ],
+      "lines": 885,
+      "path": "crates/mini-treasury/src/frost_dkg.rs",
+      "sha256": "4da50027d67355ecb7a3c26169b6522477799a26570843f499af491efa6ba705",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 109,
+          "name": "AcknowledgedUnauditedDkg"
+        },
+        {
+          "kind": "impl",
+          "line": 113,
+          "name": "AcknowledgedUnauditedDkg"
+        },
+        {
+          "kind": "fn",
+          "line": 115,
+          "name": "dkg_is_an_unaudited_ai_authored_prototype"
+        },
+        {
+          "kind": "const",
+          "line": 150,
+          "name": "POK_DOMAIN"
+        },
+        {
+          "kind": "struct",
+          "line": 211,
+          "name": "DkgRound1Secret"
+        },
+        {
+          "kind": "impl",
+          "line": 215,
+          "name": "core::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 216,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 223,
+          "name": "Drop"
+        },
+        {
+          "kind": "fn",
+          "line": 224,
+          "name": "drop"
+        },
+        {
+          "kind": "struct",
+          "line": 233,
+          "name": "DkgRound1Package"
+        },
+        {
+          "kind": "fn",
+          "line": 248,
+          "name": "dkg_round1"
+        },
+        {
+          "kind": "fn",
+          "line": 284,
+          "name": "verify_round1_package"
+        },
+        {
+          "kind": "fn",
+          "line": 309,
+          "name": "dkg_generate_round2_shares"
+        },
+        {
+          "kind": "fn",
+          "line": 324,
+          "name": "dkg_verify_received_share"
+        },
+        {
+          "kind": "struct",
+          "line": 339,
+          "name": "DkgComplaint"
+        },
+        {
+          "kind": "struct",
+          "line": 350,
+          "name": "DkgRebuttal"
+        },
+        {
+          "kind": "struct",
+          "line": 361,
+          "name": "DkgResolution"
+        },
+        {
+          "kind": "fn",
+          "line": 389,
+          "name": "dkg_resolve"
+        },
+        {
+          "kind": "fn",
+          "line": 438,
+          "name": "dkg_finalize"
+        },
+        {
+          "kind": "mod",
+          "line": 495,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 498,
+          "name": "ack"
+        },
+        {
+          "kind": "struct",
+          "line": 502,
+          "name": "Session"
+        },
+        {
+          "kind": "fn",
+          "line": 509,
+          "name": "run_round1"
+        },
+        {
+          "kind": "fn",
+          "line": 531,
+          "name": "exchange_round2"
+        },
+        {
+          "kind": "fn",
+          "line": 562,
+          "name": "finalize_all"
+        },
+        {
+          "kind": "fn",
+          "line": 583,
+          "name": "rejects_invalid_parameters"
+        },
+        {
+          "kind": "fn",
+          "line": 603,
+          "name": "a_full_honest_run_produces_matching_group_keys_and_verifiable_shares"
+        },
+        {
+          "kind": "fn",
+          "line": 628,
+          "name": "a_forged_round1_proof_of_knowledge_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 640,
+          "name": "a_round1_package_from_one_session_does_not_verify_under_a_different_context"
+        },
+        {
+          "kind": "fn",
+          "line": 650,
+          "name": "wrong_commitment_count_for_threshold_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 659,
+          "name": "a_tampered_share_fails_feldman_verification"
+        },
+        {
+          "kind": "fn",
+          "line": 667,
+          "name": "an_unrebutted_complaint_excludes_the_accused"
+        },
+        {
+          "kind": "fn",
+          "line": 679,
+          "name": "a_true_rebuttal_excludes_no_one_and_marks_the_complaint_false"
+        },
+        {
+          "kind": "fn",
+          "line": 697,
+          "name": "a_false_rebuttal_still_excludes_the_accused"
+        },
+        {
+          "kind": "fn",
+          "line": 713,
+          "name": "an_accuser_cannot_frame_an_honest_sender_who_correctly_rebuts"
+        },
+        {
+          "kind": "fn",
+          "line": 736,
+          "name": "complaint_referencing_an_unknown_participant_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 749,
+          "name": "finalize_fails_when_exclusions_drop_below_threshold"
+        },
+        {
+          "kind": "fn",
+          "line": 774,
+          "name": "a_missing_share_from_a_non_excluded_participant_is_rejected_not_silently_dropped"
+        },
+        {
+          "kind": "fn",
+          "line": 802,
+          "name": "an_equivocating_sender_is_caught_by_whichever_recipient_got_the_inconsistent_share"
+        },
+        {
+          "kind": "fn",
+          "line": 820,
+          "name": "finalize_excludes_a_misbehaving_participant_and_the_rest_still_converge"
+        },
+        {
+          "kind": "fn",
+          "line": 854,
+          "name": "a_finalized_dkg_key_signs_and_verifies_through_ordinary_frost_signing"
+        }
+      ],
+      "title": "use std::collections::{BTreeMap, BTreeSet};"
     },
     {
       "bytes": 9196,
@@ -14815,6 +15062,118 @@
         }
       ],
       "title": "use std::collections::BTreeMap;"
+    },
+    {
+      "bytes": 23023,
+      "group": "crate:mini-treasury",
+      "headings": [],
+      "keywords": [
+        "committee",
+        "old",
+        "secret",
+        "lambda_i",
+        "group",
+        "same",
+        "s_i",
+        "every",
+        "resharing",
+        "public",
+        "active",
+        "new",
+        "participant",
+        "value",
+        "shares",
+        "check",
+        "one",
+        "dkg",
+        "who",
+        "key",
+        "reconstructing",
+        "threshold-sized",
+        "subset",
+        "never"
+      ],
+      "lines": 564,
+      "path": "crates/mini-treasury/src/frost_reshare.rs",
+      "sha256": "d43aa48760af12d327a15fbea1af38cdf98a4ab0ff43ae0d3d418d0c2f879fec",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 93,
+          "name": "reshare_round1"
+        },
+        {
+          "kind": "fn",
+          "line": 148,
+          "name": "verify_reshare_round1_package"
+        },
+        {
+          "kind": "fn",
+          "line": 194,
+          "name": "reshare_finalize"
+        },
+        {
+          "kind": "mod",
+          "line": 254,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 262,
+          "name": "dkg_ack"
+        },
+        {
+          "kind": "fn",
+          "line": 266,
+          "name": "trusted_ack"
+        },
+        {
+          "kind": "fn",
+          "line": 274,
+          "name": "old_committee"
+        },
+        {
+          "kind": "struct",
+          "line": 278,
+          "name": "ReshareSession"
+        },
+        {
+          "kind": "fn",
+          "line": 283,
+          "name": "run_reshare_round1"
+        },
+        {
+          "kind": "fn",
+          "line": 320,
+          "name": "exchange_reshare_round2"
+        },
+        {
+          "kind": "fn",
+          "line": 347,
+          "name": "a_full_reshare_preserves_the_group_public_key_and_signs"
+        },
+        {
+          "kind": "fn",
+          "line": 416,
+          "name": "insufficient_old_quorum_is_rejected_at_finalize"
+        },
+        {
+          "kind": "fn",
+          "line": 451,
+          "name": "a_tampered_reshare_contribution_fails_verification"
+        },
+        {
+          "kind": "fn",
+          "line": 484,
+          "name": "a_misbehaving_old_sender_can_be_excluded_via_the_shared_dkg_complaint_machinery"
+        },
+        {
+          "kind": "fn",
+          "line": 552,
+          "name": "resharing_and_ordinary_dkg_round1_packages_share_a_type_but_not_a_finalize_path"
+        }
+      ],
+      "title": "use std::collections::{BTreeMap, BTreeSet};"
     },
     {
       "bytes": 21311,
@@ -15049,72 +15408,82 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 3983,
+      "bytes": 5462,
       "group": "crate:mini-treasury",
       "headings": [],
       "keywords": [
+        "frost_dkg",
         "rate",
+        "committee",
         "frost_keygen",
         "frost_sign",
-        "receipt",
-        "signature",
         "real",
-        "signers",
+        "key",
+        "dkg",
+        "frost_reshare",
+        "receipt",
         "contribution",
         "bookkeeping",
         "custody",
         "treasury",
-        "threshold",
-        "error",
         "ordinary",
-        "committee",
+        "signing",
         "here",
-        "d-0037",
-        "prototype",
-        "frost",
-        "key",
-        "curve",
-        "whitepaper",
-        "how",
-        "minted"
+        "signature",
+        "threshold",
+        "ever",
+        "secret",
+        "error",
+        "signers",
+        "separate"
       ],
-      "lines": 82,
+      "lines": 107,
       "path": "crates/mini-treasury/src/lib.rs",
-      "sha256": "c3d494a1244edfecb2c87c23d289297f13e64bd081b7218eaa337132380e505e",
+      "sha256": "4717601dab15689d13de8035a944d30101ce7d84290d51891257edd2bd0aba1b",
       "symbols": [
         {
           "kind": "mod",
-          "line": 60,
+          "line": 77,
           "name": "curve"
         },
         {
           "kind": "mod",
-          "line": 61,
+          "line": 78,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 62,
+          "line": 79,
+          "name": "frost_dkg"
+        },
+        {
+          "kind": "mod",
+          "line": 80,
           "name": "frost_keygen"
         },
         {
           "kind": "mod",
-          "line": 63,
+          "line": 81,
+          "name": "frost_reshare"
+        },
+        {
+          "kind": "mod",
+          "line": 82,
           "name": "frost_sign"
         },
         {
           "kind": "mod",
-          "line": 64,
+          "line": 83,
           "name": "rate"
         },
         {
           "kind": "mod",
-          "line": 65,
+          "line": 84,
           "name": "receipt"
         },
         {
           "kind": "mod",
-          "line": 66,
+          "line": 85,
           "name": "signers"
         }
       ],
@@ -18501,7 +18870,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 142401,
+      "bytes": 149214,
       "group": "docs",
       "headings": [
         {
@@ -18818,6 +19187,11 @@
           "level": 3,
           "line": 2347,
           "text": "D-0059 \u2014 `mini-treasury`: zeroize FROST nonces on drop, gate trusted-dealer keygen behind an explicit acknowledgment  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 2415,
+          "text": "D-0060 \u2014 `mini-treasury`: real FROST DKG (Pedersen) and committee resharing, closing D-0048's remaining implementation gap  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -18846,14 +19220,14 @@
         "rule",
         "template"
       ],
-      "lines": 2412,
+      "lines": 2522,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "c05c7f412eeb4870bf0fa910aa717ae8f7922c5a43ec8bc7aade436e5311eab1",
+      "sha256": "2b68add5662ab7517ca05fe005884c7796e78686ac0b05e3046268deb0ca7e17",
       "symbols": [],
       "title": "Decision Log"
     },
     {
-      "bytes": 10860,
+      "bytes": 11068,
       "group": "docs",
       "headings": [
         {
@@ -18923,9 +19297,9 @@
         "tools",
         "mininet_nav"
       ],
-      "lines": 161,
+      "lines": 164,
       "path": "docs/DEVELOPER_START.md",
-      "sha256": "86b1b0709fdad904e5101ebee14e194da1c3688794f7a9f8ee7fbb0837264750",
+      "sha256": "0c0acb5f38f63e3daa7f73fc3d8e37427cc4d3ddab4fef2d6a7bf66ed53c1db3",
       "symbols": [],
       "title": "Start here \u2014 for a developer"
     },
@@ -19614,7 +19988,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 8717,
+      "bytes": 8887,
       "group": "docs",
       "headings": [
         {
@@ -19644,44 +20018,44 @@
         },
         {
           "level": 2,
-          "line": 100,
+          "line": 103,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 112,
+          "line": 115,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 120,
+          "line": 123,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 130,
+          "line": 133,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 142,
+          "line": 145,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 157,
+          "line": 160,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 163,
+          "line": 166,
           "text": "Where to look for more detail"
         }
       ],
       "keywords": [
         "issues",
-        "status",
         "real",
+        "status",
         "code",
         "shipped",
         "tested",
@@ -19693,20 +20067,20 @@
         "implementation",
         "value",
         "identity",
+        "key",
         "finality",
-        "what",
         "per",
         "review",
         "pending",
+        "yet",
         "started",
         "governance",
-        "roadmap",
         "now",
         "signal"
       ],
-      "lines": 173,
+      "lines": 176,
       "path": "docs/STATUS.md",
-      "sha256": "735f55d4212617015a8b4b5f73fd9cc454676110d44b4722d6e0ec0a22c71b7b",
+      "sha256": "629533ea17443a9f0752b878b5d4f09d26d521f8678602c3a665efa8084df471",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -20993,7 +21367,7 @@
       "title": "External cryptography audit \u2014 scope package"
     },
     {
-      "bytes": 4109,
+      "bytes": 8503,
       "group": "docs",
       "headings": [
         {
@@ -21013,59 +21387,59 @@
         },
         {
           "level": 2,
-          "line": 28,
-          "text": "The Rust shape the implementation should take (for the auditor's context)"
-        },
-        {
-          "level": 2,
-          "line": 55,
-          "text": "The questions an auditor must answer"
+          "line": 34,
+          "text": "The Rust shape actually implemented (for the auditor's context)"
         },
         {
           "level": 2,
           "line": 78,
+          "text": "The questions an auditor must answer"
+        },
+        {
+          "level": 2,
+          "line": 119,
           "text": "Hard constraints on the review"
         },
         {
           "level": 2,
-          "line": 85,
-          "text": "Recommended architecture note for whoever builds this"
+          "line": 128,
+          "text": "Recommended architecture note for whoever wires this into a real deployment"
         },
         {
           "level": 2,
-          "line": 94,
+          "line": 137,
           "text": "What closes this gate"
         }
       ],
       "keywords": [
-        "key",
         "one",
-        "audit",
-        "auditor",
         "dkg",
-        "participant",
+        "real",
+        "context",
         "scope",
+        "auditor",
+        "mini-treasury",
+        "result",
+        "share",
+        "key",
+        "audit",
+        "package",
+        "why",
+        "separate",
         "signing",
         "review",
-        "implementation",
-        "share",
-        "separate",
-        "rust",
-        "hard",
-        "even",
-        "testonlytrusteddealer",
-        "does",
+        "shape",
+        "threshold",
+        "feldman",
         "frost",
         "generation",
-        "why",
         "ordinary",
-        "what",
-        "gate",
-        "founder"
+        "rust",
+        "actually"
       ],
-      "lines": 101,
+      "lines": 144,
       "path": "docs/gates/dkg-audit-scope.md",
-      "sha256": "503d766da6ee9473306c7039c15a7d15485db308ffa17567a98042697e178ac2",
+      "sha256": "35313204b81a5c29b3490a75c8230bff68efc6e60720cb2a27cba24841e970bf",
       "symbols": [],
       "title": "FROST distributed key generation \u2014 audit scope package"
     },

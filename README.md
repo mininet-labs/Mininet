@@ -66,7 +66,8 @@ so, everywhere, on purpose.
 - BLE / local-radio transport (needs real phone hardware)
 - full networked consensus and a live chain
 - external cryptography audit — the single largest gate before any real value
-- FROST distributed key generation (trusted-dealer keygen is a P0 blocker)
+- FROST distributed key generation is implemented and tested (Pedersen DKG
+  + committee resharing) but not yet externally audited
 - a solved, privacy-preserving personhood/liveness proof (open research, not
   engineering debt)
 - adversarial testing at real-world scale

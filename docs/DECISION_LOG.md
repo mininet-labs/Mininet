@@ -2409,3 +2409,113 @@ classification of trusted-dealer keygen stands exactly as written; this
 entry records that one of its two named implementation gaps (nonce
 zeroization) is now closed, and the other (DKG) is now harder to reach
 by accident while remaining open.
+
+---
+
+### D-0060 — `mini-treasury`: real FROST DKG (Pedersen) and committee resharing, closing D-0048's remaining implementation gap  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** Directive 2, Directive 14, Directive 15, D-0048, D-0059, [roadmap #93](../../issues/93), `docs/gates/dkg-audit-scope.md`, `crates/mini-treasury/src/frost_dkg.rs`, `crates/mini-treasury/src/frost_reshare.rs`.
+
+**Decision:** implement real distributed key generation
+(`frost_dkg`, Pedersen DKG per RFC 9591 §4) and committee resharing
+(`frost_reshare`, `KeygenMode::ReshareFromPreviousEpoch`) for
+`mini-treasury`'s FROST custody prototype:
+
+- **DKG:** every participant runs an independent Feldman VSS of their own
+  random polynomial; the group secret is the additive sum of every
+  non-excluded participant's contribution. No dealer, because there is no
+  single party — not even briefly — who ever holds the full secret. A
+  Schnorr proof of knowledge on each round-1 package's constant-term
+  commitment prevents rogue-key attacks (a participant choosing their
+  commitment as a function of others' already-published ones to bias the
+  group key).
+- **Misbehavior handling: exclude-and-continue via a self-verifying
+  complaint/rebuttal mechanism**, not abort-and-restart. A recipient whose
+  Feldman check on a received share fails may file a `DkgComplaint`; the
+  accused gets one chance to publicly re-disclose the same value
+  (`DkgRebuttal`) so every participant can independently verify the truth
+  — Feldman's equation has exactly one satisfying value for a fixed
+  commitment vector, so neither a genuinely bad sender nor a lying accuser
+  can produce a false-looking result. `dkg_resolve` is a pure function of
+  this public transcript: every honest participant computes the identical
+  exclusion set with no voting, no consensus round, no coordinator
+  authority beyond "everyone saw the same broadcast."
+- **Resharing:** an active, threshold-sized old-committee subset
+  redistributes the *same* group secret to a new (possibly differently
+  sized) committee via Lagrange-weighted sub-sharing
+  (`sum_i lambda_i*s_i == f(0)`, the identity `frost_sign::
+  lagrange_coefficient`'s own tests already check), reusing DKG's
+  commitment/proof-of-knowledge/complaint machinery unchanged.
+  `reshare_finalize` independently recomputes and checks the resulting
+  group public key against the old committee's, rather than only trusting
+  the algebra.
+- Both paths produce ordinary `KeyPackage`/`PublicKeyPackage` — identical
+  to `trusted_dealer_keygen`'s output — so `frost_sign` needed zero
+  changes; a DKG-or-reshared key signs through the existing FROST signing
+  code unmodified (directly tested, both paths).
+- Every DKG/reshare call site must pass an explicit
+  `AcknowledgedUnauditedDkg`, the same typed-authority pattern D-0059
+  established for `trusted_dealer_keygen`'s `AcknowledgedPrototypeOnly` —
+  a distinct type because the honest limit differs ("unaudited," not
+  "briefly centralized").
+
+**Reason:** D-0048 named two P0 gaps: nonce zeroization (closed by
+D-0059) and DKG itself. The founder's explicit direction on this batch —
+checked against Directive 2 ("if removing one entity destroys Mininet,
+the design has failed," applied narrowly: a DKG a single bad actor can
+indefinitely stall by repeatedly forcing full restarts is not resilient
+to one compromised participant) and Directive 15 ("welcome the honest
+majority without trusting the malicious minority") — was exclude-and-
+continue over abort-and-restart. Directive 14 (simplicity) is satisfied
+without inventing new consensus machinery, because Pedersen DKG's own
+complaint/rebuttal protocol (Pedersen 1991; Gennaro, Jarecki, Krawczyk &
+Rabin) is already self-verifying against public data — implementing it
+faithfully, rather than a bespoke voting mechanism, is both the simpler
+and the more resilient choice, not a tradeoff between them.
+
+**Constitutional impact:** implements Directive 2, Directive 14, and
+Directive 15 directly in the DKG misbehavior-handling design; upholds
+CLAUDE.md's typed-domain hard rule (`AcknowledgedUnauditedDkg`) and
+"no new cryptographic primitives" rule (Pedersen DKG, Feldman VSS, and
+Schnorr proofs of knowledge are all standard, already-composed
+constructions — no bespoke crypto invented). No frozen invariant
+touched. Does not itself close D-0048's P0 classification — see
+"Implementation status."
+
+**Implementation status:** shipped — 22 new tests across `frost_dkg.rs`
+(14) and `frost_reshare.rs` (8, covering the checklist in
+`docs/gates/dkg-audit-scope.md`: rogue-key rejection, malformed
+commitments, session-replay rejection, missing shares, equivocation,
+false-accusation resistance, resharing exclusion, tampered resharing
+contributions, and group-key preservation through a full DKG-or-reshare-
+then-sign round trip). All 50 `mini-treasury` tests pass; `cargo fmt`/
+`clippy -D warnings`/full workspace `cargo test --all-features` clean.
+`docs/gates/dkg-audit-scope.md` rewritten from a pre-implementation sketch
+to describe the real shape, so the auditor maps straight to source.
+
+**Failure point:** this is architecturally real but **not externally
+audited** — D-0048's P0 classification of the DKG gap is not closed by
+this entry, only its "not implemented at all" half. The complaint/
+rebuttal mechanism's soundness (can a malicious participant falsely
+accuse an honest one, or evade detection with a genuinely bad share) is
+the single highest-value claim for an external auditor to try to break —
+named explicitly as such in `dkg-audit-scope.md`. Resharing does **not**
+revoke the old committee's shares (an old holder who doesn't delete their
+key material can still reconstruct the secret after a "successful"
+reshare) — a documented, code-cannot-close operational gap, not a bug.
+No `TestOnlyTrustedDealer`-forbidden-at-mainnet runtime guard exists,
+because no deployment-mode concept exists yet for one to gate against.
+
+**Required follow-up:** [roadmap #93](../../issues/93) stays open —
+external cryptography audit of `frost_dkg`/`frost_reshare` specifically
+(separate scope from ordinary signing review, per D-0048's own framing).
+A real production/deployment-mode guard forbidding `trusted_dealer_keygen`
+outside tests is real follow-up work once #36-#45's chain/deployment
+concept exists. FROST DKG's own remaining audit-scope gaps: an
+aborting-mid-ceremony scenario beyond "share never arrives," and a
+dedicated FROST-signing-nonce-reuse-attempt test (currently only covered
+conceptually by D-0059's zeroize-on-drop).
+
+**Supersedes / superseded by:** does not supersede D-0048 — closes the
+DKG-implementation half of its two named gaps (nonce zeroization already
+closed by D-0059), leaving only the external-audit requirement itself
+open under #93.

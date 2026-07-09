@@ -113,7 +113,7 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-chain` | BFT finality-verification core (`ValidatorSet`, quorum certs) | 🚧 finality core done; networked consensus + state machine pending |
 | `mini-spacetime` | Proof-of-space-time storage weight for block production | 🧪 Merkle/PDP proves continuous possession, not replication uniqueness (D-0039) |
 | `mini-uniqueness` | Personhood/uniqueness: open-ended multi-signal fusion + status | 🧪 fusion logic real (D-0038); the behavioral/location ZK signal itself is 🔬 unsolved research |
-| `mini-treasury` | Contribution bookkeeping + FROST threshold custody | 🧪 FROST + live multi-device demo (D-0041); trusted-dealer keygen, no DKG yet |
+| `mini-treasury` | Contribution bookkeeping + FROST threshold custody | 🧪 FROST + live multi-device demo (D-0041); real DKG + resharing (D-0060), unaudited |
 | `mini-value` | MINI fee bookkeeping + transaction-privacy primitives | 🧪 stealth addresses, ring signatures, Bulletproofs confidential amounts (D-0036/D-0040) |
 | `mini-bounty` | Anonymous developer-bounty claims (ring signature + stealth address reuse) | 🧪 real, tested (D-0049); no GitHub integration, no minimum ring-size policy yet |
 | `mini-settlement` | Offline transaction settlement: signed pending claims, wallet state machine, double-spend reconciliation (M1/M2/M3) | 🧪 real, tested (D-0055); protocol only — `CanonicalLedgerView` has no real chain-backed impl yet |
@@ -142,8 +142,11 @@ tracked as external legitimacy gates ([`gates/`](gates/), issue [#99](../../issu
    entropy proved in zero-knowledge is unsolved research; D-0038 makes the
    system not depend on it, but doesn't solve it
    ([`gates/personhood-signal-b-decision.md`](gates/personhood-signal-b-decision.md), [#21](../../issues/21)).
-5. **FROST distributed key generation — P0 (D-0048).** Trusted-dealer keygen
-   briefly holds the whole secret; real deployment needs DKG
+5. **FROST distributed key generation — P0 (D-0048), implementation done, audit open.**
+   Real Pedersen DKG and committee resharing now exist and are tested
+   (D-0060); `trusted_dealer_keygen` remains only for tests/demos, gated
+   behind an explicit acknowledgment type either way. What's still missing
+   is the external review itself
    ([`gates/dkg-audit-scope.md`](gates/dkg-audit-scope.md), [#93](../../issues/93)).
 6. **Consensus and chain networking.** `mini-chain` verifies finality given
    votes; the networked BFT protocol and state machine aren't built.

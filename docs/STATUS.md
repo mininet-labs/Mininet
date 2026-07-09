@@ -79,11 +79,14 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   tested, founder-reviewed, **pending external audit** — see `docs/
   audits/issue-8-constitutional-audit.md`'s A1 row.
 - **prototype** — `mini-treasury`: FROST threshold signing (D-0041), live
-  multi-process demo. Nonces zeroize on drop and `trusted_dealer_keygen`
-  requires an explicit `AcknowledgedPrototypeOnly` (D-0059, closes D-0048's
-  nonce-zeroization gap). **Still trusted-dealer keygen, not DKG** — DKG
-  itself remains P0-open, roadmap #93; see D-0048/D-0059 before treating
-  this as production-viable at any value level.
+  multi-process demo, real distributed key generation and committee
+  resharing (D-0060, closes D-0048's DKG gap — Pedersen DKG with a
+  complaint/rebuttal exclusion mechanism, plus `ReshareFromPreviousEpoch`).
+  `trusted_dealer_keygen` remains, gated behind `AcknowledgedPrototypeOnly`,
+  for tests/demos only. Both DKG and resharing require
+  `AcknowledgedUnauditedDkg`; neither is externally audited yet — see
+  `docs/gates/dkg-audit-scope.md` before treating this as production-viable
+  at any value level.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is now real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary
