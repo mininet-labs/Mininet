@@ -65,9 +65,14 @@ transport, not DKG keygen).
   the whole secret while splitting it. A production deployment needs
   FROST's distributed key generation instead, so no single party — ever,
   anywhere — holds the full secret. Not implemented here; see
-  `frost_keygen`'s module docs.
-- **Nonces are not zeroized.** `SigningNonces` holding `d_i`/`e_i` in
-  plain memory until used is a real hardening gap for a production signer.
+  `frost_keygen`'s module docs. Every call site must explicitly pass an
+  `AcknowledgedPrototypeOnly` (issue #93) so this can't be reached by
+  accident — the type system, not just a comment, marks it prototype-only.
+- **Nonces are zeroized on drop, but this is still a prototype.**
+  `SigningNonces` scrubs `d_i`/`e_i` when dropped and redacts them from
+  `Debug` output (issue #93) — real hardening, not just documentation — but
+  it has not been reviewed for compiler-reordering/copy risk the way an
+  externally audited implementation would be.
 - **No network, no transport, no session/replay layer.** The demo's
   channels stand in for what `mini-net`/`mini-bearer` would carry in a
   deployed system; that wiring does not exist yet.

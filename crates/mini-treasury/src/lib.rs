@@ -46,7 +46,10 @@
 //! reviewed, not externally audited. Nothing in this crate should be read
 //! as "custody solved" for real funds until that audit happens, and until
 //! trusted-dealer keygen is replaced by real distributed key generation
-//! (see [`frost_keygen`]'s honest limit).
+//! (see [`frost_keygen`]'s honest limit — every call site must name
+//! [`frost_keygen::AcknowledgedPrototypeOnly`] explicitly, so this is never
+//! reachable by accident). [`frost_sign::SigningNonces`] zeroizes on drop
+//! and redacts its `Debug` output (issue #93).
 //!
 //! This crate is bookkeeping, governance-membership data, and a threshold-
 //! signature prototype — not a deployable treasury.
@@ -64,7 +67,8 @@ mod signers;
 
 pub use error::{Result, TreasuryError};
 pub use frost_keygen::{
-    trusted_dealer_keygen, KeyPackage, PublicKeyPackage, MAX_PARTICIPANTS as MAX_FROST_PARTICIPANTS,
+    trusted_dealer_keygen, AcknowledgedPrototypeOnly, KeyPackage, PublicKeyPackage,
+    MAX_PARTICIPANTS as MAX_FROST_PARTICIPANTS,
 };
 pub use frost_sign::{
     aggregate, round1_commit, round2_sign, verify, verify_signature_share, NonceCommitment,

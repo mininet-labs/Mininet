@@ -56,6 +56,7 @@
 use std::collections::BTreeMap;
 
 use curve25519_dalek::traits::Identity;
+use zeroize::Zeroize;
 
 use crate::curve::{
     basepoint, hash_to_scalar, random_scalar, CompressedRistretto, RistrettoPoint, Scalar,
@@ -67,12 +68,31 @@ use crate::frost_keygen::{KeyPackage, PublicKeyPackage};
 /// participant, between round 1 and round 2 — never transmitted, never
 /// reused across a second signature (reusing them leaks the secret share,
 /// the same catastrophic failure mode as nonce reuse in plain Schnorr/
-/// ECDSA). This prototype does not zeroize them on drop; a production
-/// implementation should.
-#[derive(Debug, Clone, Copy)]
+/// ECDSA). Deliberately **not** `Copy`/`Clone` — a self-zeroizing secret
+/// that could be silently duplicated would leave un-zeroized copies behind,
+/// defeating the point (issue #93); every call site holds exactly one
+/// instance, by move or by reference, never by copy. [`Drop`] scrubs both
+/// scalars; [`core::fmt::Debug`] is hand-written to redact them the same
+/// way `mini_crypto::SigningKey` redacts its secret half.
 pub struct SigningNonces {
     hiding: Scalar,
     binding: Scalar,
+}
+
+impl core::fmt::Debug for SigningNonces {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SigningNonces")
+            .field("hiding", &"[redacted]")
+            .field("binding", &"[redacted]")
+            .finish()
+    }
+}
+
+impl Drop for SigningNonces {
+    fn drop(&mut self) {
+        self.hiding.zeroize();
+        self.binding.zeroize();
+    }
 }
 
 /// A participant's public round-1 commitment `(D_i, E_i)`, safe to publish.
@@ -350,7 +370,29 @@ pub fn verify(signature: &Signature, message: &[u8], group_public_key: Ristretto
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::frost_keygen::trusted_dealer_keygen;
+    use crate::frost_keygen::{trusted_dealer_keygen, AcknowledgedPrototypeOnly};
+
+    fn ack() -> AcknowledgedPrototypeOnly {
+        AcknowledgedPrototypeOnly::insecure_trusted_dealer_keygen_is_not_production_ready()
+    }
+
+    #[test]
+    fn debug_output_redacts_both_secret_scalars() {
+        let (nonces, _commitment) = round1_commit(1).unwrap();
+        let debug_string = format!("{:?}", nonces);
+        assert!(debug_string.contains("[redacted]"));
+        // The redacted string must not contain either scalar's actual
+        // encoding -- spot-check by confirming the hiding/binding field
+        // values never appear as their own hex/byte representation.
+        assert!(!debug_string.contains(&format!("{:?}", nonces_hiding_bytes(&nonces))));
+    }
+
+    /// Test-only accessor: reaches into the private field so the redaction
+    /// test above can prove the real bytes are absent from `Debug` output,
+    /// without this crate's real API ever exposing the nonce scalar itself.
+    fn nonces_hiding_bytes(nonces: &SigningNonces) -> [u8; 32] {
+        *nonces.hiding.as_bytes()
+    }
 
     fn sign_with(
         signer_indices: &[u16],
@@ -381,7 +423,7 @@ mod tests {
 
     #[test]
     fn a_threshold_sized_subset_produces_a_valid_signature() {
-        let (shares, public) = trusted_dealer_keygen(5, 3).unwrap();
+        let (shares, public) = trusted_dealer_keygen(5, 3, ack()).unwrap();
         let message = b"send 10 BTC-equivalent MINI to treasury payout #42";
         let signature = sign_with(&[1, 2, 3], &shares, &public, 3, message);
         assert!(verify(&signature, message, public.group_public_key));
@@ -389,7 +431,7 @@ mod tests {
 
     #[test]
     fn a_different_threshold_sized_subset_also_produces_a_valid_signature() {
-        let (shares, public) = trusted_dealer_keygen(5, 3).unwrap();
+        let (shares, public) = trusted_dealer_keygen(5, 3, ack()).unwrap();
         let message = b"treasury payout #43";
         let signature = sign_with(&[2, 4, 5], &shares, &public, 3, message);
         assert!(verify(&signature, message, public.group_public_key));
@@ -397,7 +439,7 @@ mod tests {
 
     #[test]
     fn fewer_than_threshold_signers_are_rejected_at_package_construction() {
-        let (_, _public) = trusted_dealer_keygen(5, 3).unwrap();
+        let (_, _public) = trusted_dealer_keygen(5, 3, ack()).unwrap();
         let (_, c1) = round1_commit(1).unwrap();
         let (_, c2) = round1_commit(2).unwrap();
         let err = SigningPackage::new(3, b"msg".to_vec(), vec![c1, c2]).unwrap_err();
@@ -414,7 +456,7 @@ mod tests {
 
     #[test]
     fn a_tampered_signature_share_is_caught_before_aggregation() {
-        let (shares, public) = trusted_dealer_keygen(5, 3).unwrap();
+        let (shares, public) = trusted_dealer_keygen(5, 3, ack()).unwrap();
         let message = b"treasury payout #44";
         let signer_indices = [1, 2, 3];
 
@@ -442,7 +484,7 @@ mod tests {
 
     #[test]
     fn signature_fails_verification_under_a_different_message() {
-        let (shares, public) = trusted_dealer_keygen(5, 3).unwrap();
+        let (shares, public) = trusted_dealer_keygen(5, 3, ack()).unwrap();
         let message = b"treasury payout #45";
         let signature = sign_with(&[1, 2, 3], &shares, &public, 3, message);
         assert!(!verify(
@@ -454,8 +496,8 @@ mod tests {
 
     #[test]
     fn signature_fails_verification_under_a_different_group_key() {
-        let (shares, public_a) = trusted_dealer_keygen(5, 3).unwrap();
-        let (_, public_b) = trusted_dealer_keygen(5, 3).unwrap();
+        let (shares, public_a) = trusted_dealer_keygen(5, 3, ack()).unwrap();
+        let (_, public_b) = trusted_dealer_keygen(5, 3, ack()).unwrap();
         let message = b"treasury payout #47";
         let signature = sign_with(&[1, 2, 3], &shares, &public_a, 3, message);
         assert!(!verify(&signature, message, public_b.group_public_key));
@@ -480,7 +522,7 @@ mod tests {
 
     #[test]
     fn signature_round_trips_through_bytes() {
-        let (shares, public) = trusted_dealer_keygen(5, 3).unwrap();
+        let (shares, public) = trusted_dealer_keygen(5, 3, ack()).unwrap();
         let message = b"treasury payout #48";
         let signature = sign_with(&[1, 2, 3], &shares, &public, 3, message);
         let bytes = signature.to_bytes();

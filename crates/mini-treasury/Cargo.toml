@@ -14,6 +14,10 @@ did-mini = { path = "../did-mini" }
 # Same audited primitive-layer crate ed25519-dalek/x25519-dalek already
 # build on (D-0014's precedent) -- the raw Ristretto group only. The FROST
 # threshold-signature protocol built on top is Mininet-owned (D-0037).
-curve25519-dalek = "4"
+# "zeroize" is on by default upstream, but named explicitly here so this
+# crate's own zeroization guarantee (SigningNonces, issue #93) doesn't
+# depend on that staying true by accident.
+curve25519-dalek = { version = "4", features = ["zeroize"] }
 blake3 = "1"
 mini-crypto = { path = "../mini-crypto" }
+zeroize = "1" # zeroizes FROST round-1 nonces on drop (issue #93)

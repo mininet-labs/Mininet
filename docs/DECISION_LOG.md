@@ -2341,3 +2341,71 @@ a ban on the word, only a correction of one specific misuse.
 
 **Supersedes / superseded by:** corrects terminology used in D-0055's
 prose without reversing or amending D-0055's decision itself.
+
+---
+
+### D-0059 — `mini-treasury`: zeroize FROST nonces on drop, gate trusted-dealer keygen behind an explicit acknowledgment  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** D-0048, [roadmap #93](../../issues/93), `crates/mini-treasury/src/frost_sign.rs`, `crates/mini-treasury/src/frost_keygen.rs`, CLAUDE.md's typed-domain rule.
+
+**Decision:** two independent hardening changes to `mini-treasury`'s FROST
+prototype, both named as P0 gaps in D-0048:
+
+1. `SigningNonces` now implements `Drop` (zeroizing both scalars via
+   `curve25519-dalek`'s `zeroize` feature) and a hand-written `Debug` that
+   redacts them — the same redaction discipline `mini_crypto::SigningKey`
+   already uses. `Copy` is removed (`Drop` and `Copy` are mutually
+   exclusive in Rust, and `Copy` on a self-zeroizing secret would leave
+   un-zeroized duplicate copies behind, defeating the point); `Clone` is
+   also removed to keep every `SigningNonces` single-owner by construction.
+2. `trusted_dealer_keygen` now takes a required
+   `AcknowledgedPrototypeOnly` parameter, constructed only via
+   `AcknowledgedPrototypeOnly::insecure_trusted_dealer_keygen_is_not_production_ready()`
+   — the same typed-authority pattern CLAUDE.md requires for anything that
+   exercises real authority: a specific named type a reviewer can see in a
+   diff, not a bare function call easy to miss.
+
+**Reason:** D-0048 named both gaps explicitly as P0 blockers on real
+treasury value ("Nonce zeroization is not implemented" / trusted-dealer
+keygen's exposure window). This closes the nonce-zeroization half
+completely and adds real, compiler-enforced friction to the
+trusted-dealer-keygen half (not a substitute for DKG itself — see (3)
+below — but a mechanical guard against it being reached by accident or
+"just for a testnet, just temporarily," the exact failure mode D-0048's
+own failure point names).
+
+**Constitutional impact:** implements Directive 2 ("assume every
+authority is compromisable" — a party that briefly holds the whole secret
+should not be reachable without saying so out loud) and CLAUDE.md's
+typed-domain hard rule. No frozen invariant changed; FROST's signing
+math, wire format, and test-proven correctness (D-0041) are untouched —
+this is hardening around the existing protocol, not a new one.
+
+**Implementation status:** shipped. All `mini-treasury` tests updated to
+pass `AcknowledgedPrototypeOnly` explicitly; new test confirms `Debug`
+output on `SigningNonces` never contains the raw scalar bytes.
+`cargo fmt`/`clippy -D warnings`/`cargo test --workspace --all-features`
+clean. `examples/frost_live_demo.rs` updated to construct the
+acknowledgment once, at the one call site that needs it.
+
+**Failure point:** zeroization here is `curve25519-dalek`'s ordinary
+`Zeroize::zeroize()` on drop — best-effort, not a hardware-backed or
+compiler-reordering-proof guarantee (the same honest caveat every other
+zeroize use in this workspace carries, per CLAUDE.md's "no new
+cryptographic primitives" rule: this composes an existing reviewed
+mechanism rather than inventing one). `AcknowledgedPrototypeOnly` is a
+marker with zero runtime behavior — it stops accidental reachability, not
+a determined caller who explicitly decides to misuse a prototype in
+production; the real fix for that is D-0048's other half, DKG itself,
+which this entry does **not** implement.
+
+**Required follow-up:** [roadmap #93](../../issues/93) remains open for
+the DKG half — `DkgParticipant`/`DkgRound1`/`DkgRound2`/`DkgTranscript`
+replacing `trusted_dealer_keygen` for any production custody use, per
+`docs/gates/dkg-audit-scope.md`. This entry does not close #93, only its
+nonce-zeroization sub-scope.
+
+**Supersedes / superseded by:** does not supersede D-0048 — D-0048's P0
+classification of trusted-dealer keygen stands exactly as written; this
+entry records that one of its two named implementation gaps (nonce
+zeroization) is now closed, and the other (DKG) is now harder to reach
+by accident while remaining open.
