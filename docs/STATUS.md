@@ -112,7 +112,8 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 - **shipped** — `mini-update::AdoptionState` (local adoption state
   machine, no forced update, no kill path).
 - **partial** — `mini-bootstrap` (genesis/capsule protocol logic) is
-  shipped; real transport underneath it is not (see §8).
+  shipped, and now proven live over real TCP (D-0062, closes #23, see §8);
+  real BLE/Wi-Fi radio adapters remain not started (need phone hardware).
 - **not started** — the release registry (on-chain), and therefore
   everything that depends on it: governed release finality, the
   emergency-update-path question ([#53](../../issues/53)),
@@ -141,13 +142,17 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 
 - **shipped** — `mini_bearer::TcpBearer` (D-0042): real TCP transport,
   tested, proven live via `mini-net`'s three-process gossip demo.
+- **shipped** — `mini-bootstrap`/`mini-sync` proven live over real TCP
+  (D-0062, closes [#23](../../issues/23)): a genuinely fresh device (empty
+  store, empty `KelCache`) bootstraps a signed genesis capsule from a seed
+  peer over a real socket end to end, and `mini_sync::sync_bidirectional`'s
+  own "over any bearer" claim is now tested against `TcpBearer`, not just
+  `InProcessBearer`.
 - **partial** — `mini-net`'s gossip logic is proven live over real
   sockets; peer *discovery* (`RoutingTable`) is unexercised over a real
   transport; not a mesh.
 - **not started** — BLE/local-Wi-Fi radio adapters (needs real phone
-  hardware, [#22](../../issues/22));
-  `mini-bootstrap`/`mini-sync` are not yet wired to `TcpBearer` or any
-  real transport; NAT traversal; local mesh routing.
+  hardware, [#22](../../issues/22)); NAT traversal; local mesh routing.
 
 ## 9. AI & audit gates
 

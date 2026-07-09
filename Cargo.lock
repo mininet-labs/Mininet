@@ -302,10 +302,12 @@ name = "mini-bootstrap"
 version = "0.0.1"
 dependencies = [
  "did-mini",
+ "mini-bearer",
  "mini-crypto",
  "mini-media",
  "mini-objects",
  "mini-store",
+ "mini-sync",
 ]
 
 [[package]]

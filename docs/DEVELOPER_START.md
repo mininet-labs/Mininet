@@ -102,11 +102,11 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-objects` | Unified signed, content-addressed object envelope (SPEC-09) | ✅ |
 | `mini-store` | Local content-addressed store: blobs, indexes, head pointers | ✅ |
 | `mini-crdt` | Op-log CRDT for threads/docs, offline-first merge | ✅ |
-| `mini-sync` | Bucketed reconciliation + verified ingest over any bearer | ✅ |
+| `mini-sync` | Bucketed reconciliation + verified ingest over any bearer | ✅ proven live over real TCP (D-0062), not just in-process |
 | `mini-social` | Profiles, follow graph, explainable locally-computed feeds, public walls | ✅ |
 | `mini-media` | Chunked content-addressed media, progressive assembly | ✅ |
 | `mini-forge` | Repos, branches, releases + attestations, governed merge | ✅ logic complete; git SHA-256 interop pending |
-| `mini-bootstrap` | Self-certifying genesis/update capsule, chunked exchange | 🚧 protocol logic done; real transport is `mini-bearer`'s job |
+| `mini-bootstrap` | Self-certifying genesis/update capsule, chunked exchange | 🚧 live TCP bootstrap demo proves real-transport interop (D-0062); real BLE/Wi-Fi radio adapters need phone hardware (#22) |
 | `mini-update` | Local update-adoption state machine (no forced update, no kill path) | ✅ |
 | `mini-net` | Kademlia-style routing table + gossip broadcast | 🚧 gossip proven live over real TCP (D-0042); peer discovery/mesh routing still logic-only |
 | `mini-storage` | Mutually-signed storage-served receipts | ✅ |
@@ -133,10 +133,11 @@ tracked as external legitimacy gates ([`gates/`](gates/), issue [#99](../../issu
 1. **External cryptography audit.** Every 🧪 item above is founder-reviewed
    AI-authored work, not audit-equivalent — the single largest gate before any
    real value ([`gates/crypto-audit-scope.md`](gates/crypto-audit-scope.md), [#72](../../issues/72)).
-2. **A real network transport.** Partially closed (D-0042): `TcpBearer` +
-   live three-process gossip. Missing: BLE (needs phone hardware),
-   `mini-bootstrap`/`mini-sync` wiring to `TcpBearer`, and `mini-net` peer
-   *discovery* ([#97](../../issues/97), [#98](../../issues/98)).
+2. **A real network transport.** `TcpBearer` + live three-process gossip
+   (D-0042); `mini-bootstrap`/`mini-sync` now proven live over real TCP too
+   (D-0062, closes #23). Missing: real BLE/Wi-Fi radio adapters (need phone
+   hardware, [#97](../../issues/97)/[#98](../../issues/98)) and `mini-net`
+   peer *discovery* (`RoutingTable` isn't wired to real lookups yet).
 3. **A client people can actually install.** No mobile/desktop/web app exists
    yet — `UI_BETA_PLAN.md` is a plan, not code.
 4. **The personhood ZK proof (signal b).** On-device behavioral/location

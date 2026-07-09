@@ -2601,3 +2601,78 @@ happen.
 **Supersedes / superseded by:** does not supersede D-0045 or D-0055 — M1/
 M2/M3's meaning is unchanged; this closes the specific "real chain-backed
 implementation" gap both entries already named as outstanding.
+
+---
+
+### D-0062 — `mini-bootstrap`/`mini-sync`: proven live over real TCP, closing roadmap #23  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** Directive 14, [roadmap #23](../../issues/23), D-0042, `crates/mini-bootstrap/examples/bootstrap_live_demo.rs`, `crates/mini-sync/tests/sync_over_tcp.rs`.
+
+**Decision:** prove `mini-bootstrap` and `mini-sync` interoperate over a
+real socket, without adding any transport code to either crate's own
+library API:
+
+- `mini-sync` was already `Bearer`-generic (`sync_bidirectional`/
+  `serve_pull` take `&mut dyn Bearer`) — its own docs already claimed
+  "over any bearer." What was missing was a test actually exercising
+  `TcpBearer` instead of only `InProcessBearer`. Added
+  `tests/sync_over_tcp.rs`: two real threads, a real `TcpListener`/
+  `TcpStream` pair on localhost, the same `Channel` handshake and
+  `sync_bidirectional` call every other `mini-sync` test uses — proving a
+  fresh peer pulls everything over the real socket, and two peers with
+  disjoint content converge to an identical set.
+- `mini-bootstrap` was **not** transport-generic at all (by design — its
+  own crate docs say it never gets its own wire protocol; real transport
+  is explicitly `mini-bearer`'s job). Rather than write a new bootstrap-
+  specific wire protocol, `examples/bootstrap_live_demo.rs` composes three
+  already-real pieces exactly as a real device would: the seed peer sends
+  a `GenesisSeed` first (standing in for a BLE advertisement), the two
+  sides handshake a `mini_bearer::Channel`, then `mini_sync::
+  sync_bidirectional` pulls everything — the capsule header, its bundle
+  manifest, and every chunk are already just `mini_objects::Object`s in a
+  `mini_store::Store`, so ordinary bucketed set reconciliation is the
+  entire data-transfer mechanism. A genuinely fresh device (empty store,
+  empty `KelCache` — zero prior trust) reassembles and digest-verifies the
+  bundle, byte-identical to what the seed peer published.
+
+**Reason:** roadmap #23 asked to "prove a device can actually bootstrap
+from a peer over a real connection, not just in-process." Writing a new
+bootstrap-specific wire protocol would have duplicated what `mini-sync`
+already solved (Directive 14: the strongest protocol is the one that
+removed the most unnecessary parts) and would have contradicted
+`mini-bootstrap`'s own documented transport-agnostic design. Composing
+existing, already-tested pieces — rather than adding a fourth wire
+protocol to the workspace — was the smaller, more honest answer, and
+directly demonstrates why `mini-bootstrap` publishing ordinary
+content-addressed objects (not a bespoke format) was the right call back
+when it first shipped.
+
+**Constitutional impact:** none — no frozen invariant touched, no new
+cryptography (composes `mini-bearer::Channel`'s existing handshake/AEAD
+and `mini-sync`'s existing verified-ingest pipeline unchanged). Directive
+14 (simplicity) is the operative principle: the "gap" turned out to be a
+missing *demonstration*, not missing *code*, for `mini-sync`; and for
+`mini-bootstrap`, composition rather than a new protocol.
+
+**Implementation status:** shipped. `sync_over_tcp.rs`: 2 new tests, both
+passing. `bootstrap_live_demo.rs`: run manually as two real OS processes
+(`cargo run ... -- seed 9100` / `cargo run ... -- fresh 127.0.0.1:9100`)
+— confirmed producing byte-identical BLAKE3 digests on both sides over an
+actual TCP connection. `cargo fmt`/`clippy -D warnings`/full workspace
+`cargo test --all-features` clean.
+
+**Failure point:** TCP stands in for BLE — the demo proves the protocol
+pieces interoperate over a real socket, not that real BLE/Wi-Fi radio
+adapters work (those need actual phone hardware this environment doesn't
+have, roadmap #22, unchanged by this entry). One connection, one capsule:
+no peer discovery, no multi-peer store-and-forward resumption across many
+short encounters (that robustness testing is `mini-sync`'s own separate
+scope, roadmap #26).
+
+**Required follow-up:** roadmap #22 (real BLE/Wi-Fi radio `Bearer`
+implementations) remains the actual hardware-dependent blocker; once a
+real radio `Bearer` exists, this same `sync_bidirectional`/`Channel`
+composition should work unchanged, since neither `mini-bootstrap` nor
+`mini-sync` cares what implements `Bearer`.
+
+**Supersedes / superseded by:** none — first live-transport demonstration
+for these two crates.
