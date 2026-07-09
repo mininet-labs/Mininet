@@ -88,17 +88,24 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `docs/gates/dkg-audit-scope.md` before treating this as production-viable
   at any value level.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
-  offline settlement protocol is now real, tested code — signed
+  offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary
   (pending/accepted/finalized as distinct types), local conflict detection
   (`ClaimWatcher`), and canonical reconciliation (`reconcile`) proving
-  exactly one of two conflicting claims ever finalizes. 26 tests. **What's
-  still missing:** `CanonicalLedgerView` — the trait `reconcile` reads to
-  decide finality — has only a test-only in-memory implementation; a real
-  chain-backed ledger is roadmap #36-#45's job, tracked as #41's own
-  required follow-up and #40's (double-spend reconciliation rules)
-  concrete mechanism. `mini-reward`'s accrual bookkeeping remains ordinary,
-  non-spendable value, unaffected by and separate from this crate.
+  exactly one of two conflicting claims ever finalizes. `mini-reward`'s
+  accrual bookkeeping remains ordinary, non-spendable value, unaffected by
+  and separate from this crate.
+- **prototype** — `mini-execution` (D-0061, closes roadmap #40): a real,
+  chain-backed `CanonicalLedgerView` — `LedgerChain` only ever advances
+  settlement state behind a verified `mini_chain::QuorumCertificate`, never
+  speculatively. Closes `mini-settlement`'s own named gap: two independent
+  `LedgerChain`s fed the same finalized blocks are proven (not just
+  argued) to converge to bit-identical state (Directive 4), and a
+  double-spend across two competing block proposals is proven to resolve
+  to exactly one finalized winner end to end. Deliberately still not a
+  networked chain — no proposer rotation, no vote gossip — that remains
+  roadmap #36-#45's job; this crate answers "given a finalized block, what
+  changed" precisely, not "how do nodes agree on the next block."
 
 ## 5. Updates & forks
 

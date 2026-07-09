@@ -59,7 +59,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 24 crates, see the table below
+├── crates/                 25 crates, see the table below
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, with a Directive-traceability column
@@ -116,7 +116,8 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-treasury` | Contribution bookkeeping + FROST threshold custody | 🧪 FROST + live multi-device demo (D-0041); real DKG + resharing (D-0060), unaudited |
 | `mini-value` | MINI fee bookkeeping + transaction-privacy primitives | 🧪 stealth addresses, ring signatures, Bulletproofs confidential amounts (D-0036/D-0040) |
 | `mini-bounty` | Anonymous developer-bounty claims (ring signature + stealth address reuse) | 🧪 real, tested (D-0049); no GitHub integration, no minimum ring-size policy yet |
-| `mini-settlement` | Offline transaction settlement: signed pending claims, wallet state machine, double-spend reconciliation (M1/M2/M3) | 🧪 real, tested (D-0055); protocol only — `CanonicalLedgerView` has no real chain-backed impl yet |
+| `mini-settlement` | Offline transaction settlement: signed pending claims, wallet state machine, double-spend reconciliation (M1/M2/M3) | 🧪 real, tested (D-0055); `CanonicalLedgerView` now has a real chain-backed impl, see `mini-execution` |
+| `mini-execution` | Chain-backed `CanonicalLedgerView`: state only advances behind a verified quorum certificate | 🧪 real, tested (D-0061, closes #40); not networked consensus — that's `mini-chain`/`mini-net`'s job |
 
 See [`DECISION_LOG.md`](DECISION_LOG.md) for the reasoning and honest limits
 behind every 🧪/🔬 entry, and each crate's own `README.md`/top-of-file doc
@@ -148,10 +149,14 @@ tracked as external legitimacy gates ([`gates/`](gates/), issue [#99](../../issu
    behind an explicit acknowledgment type either way. What's still missing
    is the external review itself
    ([`gates/dkg-audit-scope.md`](gates/dkg-audit-scope.md), [#93](../../issues/93)).
-6. **Consensus and chain networking.** `mini-chain` verifies finality given
-   votes; the networked BFT protocol and state machine aren't built.
-   `mini-settlement` implements the offline-payment protocol M1/M2/M3 require,
-   but its `CanonicalLedgerView` needs a real chain behind it (#36-#45).
+6. **Consensus and chain networking — state machine done, networking open.**
+   `mini-chain` verifies finality given votes; `mini-execution` (D-0061,
+   closes #40) is the real state machine `mini-settlement`'s
+   `CanonicalLedgerView` needed, proving double-spend resolution and
+   cross-node convergence given a finalized block. What's still missing is
+   the *networked* BFT protocol itself — proposer rotation, vote gossip,
+   round timeouts/view-change — that produces those finalized blocks in the
+   first place (#36-#45).
 7. **Security posture at scale.** Closed (D-0044): dependency scanning +
    same-machine reproducible-build check in CI. Open: cross-machine
    K-independent-builder reproducibility (SPEC-11 §8), and CodeQL-alert triage.
