@@ -186,6 +186,7 @@ name = "did-mini"
 version = "0.0.1"
 dependencies = [
  "mini-crypto",
+ "zeroize",
 ]
 
 [[package]]
@@ -305,6 +306,13 @@ dependencies = [
  "mini-media",
  "mini-objects",
  "mini-store",
+]
+
+[[package]]
+name = "mini-bounty"
+version = "0.0.1"
+dependencies = [
+ "mini-value",
 ]
 
 [[package]]

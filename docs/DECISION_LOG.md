@@ -32,7 +32,9 @@ tighten D-0037/D-0039/D-0041 below, rather than editing history in place.
 **Reason:** why, in a sentence or two — the full reasoning can be longer,
 but the one-line version should stand alone.
 **Constitutional impact:** which principle(s)/invariant(s) this touches,
-strengthens, or is constrained by. "None" is a valid, common answer.
+strengthens, or is constrained by — cite them by ID (e.g. "Directive 4,
+M2") so the chain in `docs/INVARIANTS.md`'s traceability section resolves
+without guessing. "None" is a valid, common answer.
 **Implementation status:** a snapshot — real detail lives in `docs/STATUS.md`.
 **Failure point:** the concrete way this could go wrong if the decision's
 assumption stops holding. "None identified" is a valid answer, but should
@@ -1808,3 +1810,293 @@ this gap before any testnet or real treasury deployment.
 protocol design and trusted-dealer keygen's correctness as a prototype
 both stand); adds a severity classification and production blocker
 D-0041 itself did not state as explicitly.
+
+---
+
+### D-0049 — `mini-bounty`: anonymous developer bounty claims  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Founder direction (GitHub↔governance bridge discussion), D-0036/D-0037/D-0047, `crates/mini-bounty/`.
+
+**Decision:** build anonymous bounty claiming as a direct composition of
+two prototypes already built and reviewed in `mini-value` — linkable ring
+signatures (D-0036) prove membership in an approved-contributor set
+without revealing which member, and stealth addresses (D-0036) receive
+the payout — rather than designing new cryptography. A `BountyPool` holds
+every grant ever issued (claimed or not, so the ring never shrinks to
+unmask the last claimant); `claim`/`verify_claim` bind the ring signature
+to an exact `(pool_id, payout_address)` pair via a length-prefixed
+signed message; the key image prevents double-claiming, tracked by a
+`KeyImageLedger` mirroring `mini_presence::ReplayGuard`'s exact shape.
+
+**Reason:** the founder's GitHub↔governance bridge discussion asked
+specifically how a developer could claim a piece of a bounty "without
+everyone knowing who they were." That's precisely the anonymity property
+a linkable ring signature already provides for spending — the founder's
+own contribution-approval flow (GitHub PR approved → grant published →
+contributor claims) maps onto "one of N authorized keys signs" with no
+conceptual gap, so building new cryptography here would have been
+needless duplication (Directive 14: "the strongest protocol is usually
+the one that removed the most unnecessary parts").
+
+**Constitutional impact:** implements Directive 9 ("privacy is
+architecture... depend only on mathematics") for a new use case. Adds no
+new frozen invariant — governed by the same D-0036/D-0037/D-0047 regime
+every other `mini-value`-derived prototype already falls under. Explicitly
+does **not** claim anonymity from GitHub itself, only from Mininet and
+the public ledger — stated plainly in the crate's own docs to avoid
+overclaiming.
+
+**Implementation status:** real, tested (15 tests, all passing on first
+implementation — no new algebraic identity to hand-derive, since none of
+the underlying math changed). No GitHub integration exists — this is the
+claim cryptography only. See `docs/STATUS.md`.
+
+**Failure point:** a pool with too few grants provides little or no real
+anonymity (a ring of one is fully transparent) — this crate enforces no
+minimum ring size, leaving that judgment to the caller
+(`BountyPool::ring_size`). A funding process that mints one grant per
+pool rather than batching approvals would defeat the entire point without
+any code here reporting an error.
+
+**Required follow-up:** the GitHub-reading half (webhook/API integration
+that mints `BountyGrant`s from approved PRs) is unbuilt and not yet a
+filed roadmap issue — should be filed once the broader GitHub↔governance
+bridge design (proposal generation from commits, on-chain release
+registry linkage) is further along, since bounty-grant minting is one
+consumer of that same integration layer, not a separate one. Minimum
+ring-size policy (if any) is a governance/economics question, not a
+cryptography one — left open deliberately.
+
+**Supersedes / superseded by:** none — first entry on this question.
+
+---
+
+### D-0050 — `docs/THREAT_MODEL.md` + the traceability chain convention  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Founder direction ("holy trinity" review + threat-model request), `docs/THREAT_MODEL.md`, `docs/INVARIANTS.md`.
+
+**Decision:** adopt `docs/THREAT_MODEL.md` as the fifth canonical
+document (alongside `FOUNDER_DIRECTIVES.md`, `INVARIANTS.md`,
+`DECISION_LOG.md`, `FAILURE_BOOK.md`), cataloging civilization-scale
+threats across five categories (Human, Technical, Economic, Political,
+Civilization) rather than a conventional infosec checklist. Simultaneously
+adopt an explicit **traceability chain** convention: every load-bearing
+row in `INVARIANTS.md` now carries a stable ID and a **Directive** column,
+so the chain `Founder Directive → Invariant → Source (Spec/D-00xx) →
+Enforced by (crate + test)` is walkable in either direction. This entry's
+own **Constitutional impact** field demonstrates the convention it
+adopts, citing IDs directly rather than describing them in prose.
+
+**Reason:** the founder identified that the existing three documents
+(nicknamed the "holy trinity" — Directives/Invariants/Decision Log) plus
+`FAILURE_BOOK.md` still left two gaps: nothing cataloged *what could kill
+the project at civilization scale* (as opposed to what's already decided
+or already tried and rejected), and nothing let a reviewer mechanically
+walk from a founding value to the specific test that enforces it, or
+backward from a failing test to the principle it protects. Both gaps are
+about making the constitutional chain auditable rather than just
+documented in prose.
+
+**Constitutional impact:** Directive 13 ("Think in Centuries") directly
+motivates `THREAT_MODEL.md`'s civilization-scale category. Every existing
+invariant ID (P1-P6, M1-M3, F1, A1, V1-V4, PH1, ID1-ID5, U1-U3, PR1-PR2,
+S1, N1-N2, AI1, X1-X3) now has an explicit Directive citation in
+`INVARIANTS.md`; no invariant's *meaning* changed, only its traceability.
+Adds no new frozen invariant itself — this is a documentation-structure
+decision, not a protocol decision.
+
+**Implementation status:** both `docs/THREAT_MODEL.md` and the
+`INVARIANTS.md` Directive-column rewrite are complete and committed. Every
+Tier-F section (9 domains) plus the Foundational table carries the new
+column. `THREAT_MODEL.md` cross-references invariant IDs in its "Stopped
+by" column per threat, and honestly marks several as "Aspirational" or
+"Explicitly unresolved" (notably Sybil resistance, storage-consolidation
+resistance, governance-capture-by-coordination, and founder-authority
+limits) rather than overclaiming coverage.
+
+**Failure point:** a catalog of unresolved threats is only useful if it's
+kept current — `THREAT_MODEL.md` explicitly says a document like this
+that stops growing is a sign no one is looking anymore. If new threats
+are discovered but not added here, the document silently becomes
+decorative rather than load-bearing, the same risk every other canonical
+document in this project carries.
+
+**Required follow-up:** several `THREAT_MODEL.md` entries name gaps with
+no filed roadmap issue yet (coordinated-governance-capture detection,
+coercion-resistant voting, first-contact eclipse resistance, traffic
+obfuscation against ISP-level blocking, post-quantum migration path for
+live funds/identities). These should be triaged into roadmap issues as
+capacity allows, rather than left only as prose. Not done in this entry
+to avoid filing issues faster than they can be meaningfully scoped.
+
+**Supersedes / superseded by:** none — first entry on this question.
+
+---
+
+### D-0051 — Bounty & review system: money funds work, never a decision  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Directive 16, P1, D-0033, D-0049, `docs/design/bounty-and-review.md`, [roadmap #66](https://github.com/britak420/Mininet/issues/66).
+
+**Decision:** the developer bounty system (`mini-bounty`, funding/value) and
+the code-review/merge system (`mini-forge`, review/voice) are kept as two
+crates with **no dependency edge between them in either direction**, so that
+funding a bounty can never express or influence a merge decision, and a
+merge decision can never read or be swayed by any balance. Publishing a
+`BountyGrant` sits strictly downstream of a completed merge — it records
+that an already-made decision happened, and can never cause one.
+
+**Reason:** roadmap #66's one hard requirement is that funding stays
+"completely separate from any merge/review authority — money funds work,
+never buys a decision." The strongest way to guarantee that is structural:
+`mini-bounty` depends only on `mini-value` and produces no `Capabilities`
+bit; `mini-forge` governance depends on no value crate and counts approvals
+per identity root ("no balance, stake, or payment"). Making the wall a
+property of the dependency graph means breaching it would require *adding* a
+large, obvious, reviewable dependency edge that trips the frozen-domain
+checklist — not a subtle runtime change someone could slip past review.
+
+**Constitutional impact:** implements Directive 16 and invariant **P1** (no
+balance maps to governance/vote weight) for the developer-contribution flow
+specifically. Adds no new frozen invariant — P1 already covers it; this
+entry documents the concrete design that realizes it and the tests that
+enforce it (`mini-forge` governance suite: per-root approval counting,
+two-approval protocol floor, deterministic competing-merge resolution).
+
+**Implementation status:** review side built & tested (`mini-forge`); funding
+side built & tested (`mini-bounty`, D-0049); the structural wall (no
+dependency edge) holds in the current tree and is verifiable by inspecting
+two `Cargo.toml` files. The GitHub-reading integration that would mint a
+grant from an approved PR is not built (noted in D-0049) and, when built,
+must sit downstream of the merge decision, never become an input to it.
+
+**Failure point:** the wall depends on the dependency graph staying acyclic
+between these crates. A future change that made merges consult funding (or
+funding grant approval capability) would breach P1; this is exactly what
+the frozen-domain review checklist exists to catch, but it is only as good
+as reviewers actually running the "does this add a value→governance edge?"
+check.
+
+**Supersedes / superseded by:** none — first dedicated bounty/review-wall
+entry; builds on D-0033 (two-approval floor) and D-0049 (mini-bounty).
+
+---
+
+### D-0052 — Fork legitimacy: four checkable continuity criteria  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Directive 7, F1, D-0046, `docs/design/fork-legitimacy.md`, [roadmap #57](https://github.com/britak420/Mininet/issues/57).
+
+**Decision:** a fork is the canonical Mininet if and only if it satisfies all
+four continuity criteria — C1 constitutional-invariant continuity, C2
+personhood-root history continuity, C3 release-registry continuity, C4
+canonical chain-state continuity — each stated as a concrete check with a
+named failure mode and a reason it is verifiable. Forking the software
+remains free (a legitimate derivative that is honest about being different
+is welcome); the criteria gate only whether a fork *inherits Mininet's
+legitimacy*, never whether forking is permitted.
+
+**Reason:** D-0046 froze the principle (F1) and explicitly deferred "a fully
+checkable definition" to roadmap #57. This entry discharges that: it turns
+D-0046's four named continuity criteria into conjunctive, chain-based
+(not snapshot-based) checks a reviewer can actually apply, and addresses
+D-0046's own flagged letter-vs-spirit gap by keeping Directive 7 as the
+tie-breaker for anything the four criteria don't anticipate.
+
+**Constitutional impact:** directly implements Directive 7 and makes
+invariant **F1** (`docs/INVARIANTS.md` §5) checkable. Adds no new frozen
+invariant — F1 already exists; this refines its meaning from "named criteria
+exist" to "here is how each criterion is checked." Reaffirms that legitimacy
+is a standard others verify and choose to honor, never one imposed by a kill
+switch, trademark, or admin key (which would violate P3).
+
+**Implementation status:** criteria complete (this document + F1 + D-0046).
+C1 (invariant tests) and C2 (`did:mini` verification) are runnable against
+the current tree today; C3 and C4 depend on a live, populated release
+registry and chain that exist as logic (`mini-forge`/`mini-chain`) but not
+yet as a running network, so running them at scale waits on the same
+networking work V1 and roadmap #36-#45 track.
+
+**Failure point:** the four criteria are not proven exhaustive — D-0046's
+warning stands that a fork could satisfy the letter while defeating the
+spirit. The mitigation (conjunctive + continuity-based criteria, Directive 7
+as residual tie-breaker) reduces but does not eliminate this; a genuinely
+novel continuity-severing mechanism would need a new criterion added here.
+
+**Supersedes / superseded by:** refines D-0046 (does not supersede it —
+D-0046's decision stands; this entry adds the checkable definition D-0046
+said #57 would own).
+
+---
+
+### D-0053 — Identity audit hardening: recovery, threshold policy, delegation-chain refusal  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Directive 2/6/8, invariants ID1/ID3, SPEC-01 §5/§6, `docs/audits/issue-12-did-mini-security-audit.md`, `docs/audits/issue-13-identity-recovery-audit.md`, [#12](https://github.com/britak420/Mininet/issues/12)/[#13](https://github.com/britak420/Mininet/issues/13).
+
+**Decision:** three `did-mini` changes ship from the identity audit: (1) a
+real recovery path, `Controller::recover_from_kel`, reconstructing control
+from a public KEL + escrowed next-key seeds via an ordinary rotation — the
+lost-device/death recovery pre-rotation was always meant to enable; (2)
+rotation now preserves the standing M-of-N next-threshold instead of silently
+forcing N-of-N (policy changes require the new explicit
+`rotate_with_next_and_threshold`); (3) `verify_delegation` rejects a
+delegated identity acting as a delegator (`RootIsDelegated`), so no root
+counter can be fed a device posing as a root.
+
+**Reason:** the audit found #2 as a real bug (first rotation silently rewrote
+an identity's threshold policy and could brick future rotations), #3 as a
+cheap ambiguity worth closing, and #1 as a missing capability that left
+pre-rotation's whole purpose unreachable after device loss. All three are
+correctness/robustness fixes with new adversarial tests
+(`crates/did-mini/tests/recovery.rs`, 8 tests).
+
+**Constitutional impact:** strengthens invariants ID1 (keys never leave
+device — recovery uses escrowed seeds, no new export path) and ID3
+(pre-rotation) without changing their meaning. No frozen invariant altered.
+No wire-format change — previously emitted KELs still verify.
+
+**Implementation status:** shipped and tested; full workspace suite green.
+The launch-blocking gap named by the audit — KEL freshness / duplicity
+detection (stale-KEL revocation bypass) — is **not** fixed here; it is
+inherent to the pre-witness milestone and owned by M3 (SPEC-01 §7). Interim
+rule (fetch freshest KEL, pin highest sn per SCID) is documented in
+`verify_delegation`.
+
+**Failure point:** recovery depends on the holder actually escrowing the
+next-key seed off-device; an identity that loses both device and escrow is
+permanently orphaned by design. Client onboarding must enforce escrow — a
+product requirement recorded in the #13 audit, not code here.
+
+**Supersedes / superseded by:** none — first identity-hardening entry;
+builds on the M1/M2 identity milestones.
+
+---
+
+### D-0054 — Personhood promotion requires a live seed-anchored signal  ·  *Accepted*
+**Date:** 2026-07-08 · **Refs:** Directive 8/15, invariant P2 (+ its hard limitation), SPEC-02 / whitepaper §11, `docs/audits/issue-18-sybil-social-graph-review.md`, [#18](https://github.com/britak420/Mininet/issues/18).
+
+**Decision:** `mini-uniqueness`'s `PromotionPolicy` gains
+`full_required_sources` (default `[VouchingGraph]`): reaching `FullHuman`
+now requires the seed-anchored vouching-graph signal to be *live*, not just
+any N signals summing to a high score.
+
+**Reason:** the Sybil review found a farm-saturation bypass — because the
+fused score's denominator counts only sources with evidence, a farm could
+reach `FullHuman` on self-attestable physical presence (forgeable end-to-end
+per #17) plus one friendly `External` method, with zero connection to the
+honest graph. The vouching graph is the one signal a farm structurally
+cannot fake (trust propagates only from the seed cohort), so it must be
+mandatory rather than substitutable.
+
+**Constitutional impact:** hardens P2's *target* (one human, one vote) at
+the personhood layer, but does **not** resolve P2's standing hard limitation
+(identity-root ≠ verified human) — the "no longer cheap" claim remains
+unproven at production parameters. No frozen invariant changed; this tightens
+a tunable policy toward the invariant's intent.
+
+**Implementation status:** shipped and tested
+(`a_farm_cannot_reach_full_human_without_the_seed_anchored_vouch_signal`,
+`a_fully_decayed_vouch_signal_does_not_satisfy_the_required_gate`). Seed-set
+governance, threshold calibration, and at-scale simulation remain open
+(#11/#21).
+
+**Failure point:** a nation-state adversary who slowly earns *genuine*
+seed-anchored vouches via co-opted real humans still defeats this — the gate
+raises cost, it is not a wall. Emptying `full_required_sources` reopens the
+bypass; the default must not be emptied without a recorded decision.
+
+**Supersedes / superseded by:** none — first Sybil-hardening entry; builds
+on D-0038 (the multi-signal accumulator).

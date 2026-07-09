@@ -36,6 +36,12 @@ pub struct KeyState {
     pub threshold: u32,
     /// Sequence number of the latest event reflected in this state.
     pub sn: u64,
+    /// The standing pre-rotation commitments: multihash bytes of each *next*
+    /// key (SPEC-01 §5). This is what a recovery holder's escrowed next keys
+    /// must hash to — see [`crate::Controller::recover_from_kel`].
+    pub next_commitments: Vec<Vec<u8>>,
+    /// The threshold that will apply to the next key set once revealed.
+    pub next_threshold: u32,
 }
 
 /// A public, verifiable Key Event Log for one `did:mini` identity.
@@ -274,6 +280,8 @@ impl Kel {
             keys: cur_keys,
             threshold: cur_threshold,
             sn: (self.events.len() as u64) - 1,
+            next_commitments: next,
+            next_threshold,
         })
     }
 }
@@ -283,10 +291,32 @@ impl Kel {
 /// check, and it is *mutual*: the device's identifier commits to its delegator
 /// (its `dip`), and the root's KEL carries an unrevoked `Delegate` seal for the
 /// device. Neither side alone can fake the link.
+///
+/// The `root` must itself be a **non-delegated** identity: delegation chains
+/// (a device delegating sub-devices) are rejected with
+/// [`IdentityError::RootIsDelegated`], so no caller counting "one identity
+/// root" can be handed a device posing as a root. Device hierarchies, if ever
+/// wanted, are a deliberate future design ([roadmap #14]) — not something this
+/// check quietly permits today.
+///
+/// **Freshness is the caller's problem, stated loudly:** this function checks
+/// the root KEL *it is given*. A revoked device stays "delegated" in any stale
+/// copy of the root's KEL from before the revocation, so callers must obtain
+/// the freshest root KEL they can (and should pin the highest `sn` they have
+/// ever seen per SCID, refusing to go backwards). Witness receipts (SPEC-01
+/// §7, M3) will strengthen this; until then this is a documented limitation
+/// (see `docs/audits/issue-13-identity-recovery-audit.md`).
+///
+/// [roadmap #14]: https://github.com/britak420/Mininet/issues/14
 pub fn verify_delegation(root: &Kel, device: &Kel) -> Result<Capabilities> {
     // Both logs must be internally valid first.
     root.verify()?;
     device.verify()?;
+
+    // The root must be a true root: a delegated identity cannot delegate.
+    if root.delegator().is_some() {
+        return Err(IdentityError::RootIsDelegated);
+    }
 
     // The device must name this root as its delegator.
     let delegator = device.delegator().ok_or(IdentityError::NotDelegated)?;

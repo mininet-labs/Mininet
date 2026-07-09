@@ -15,6 +15,7 @@ publish = false
 # review and reproduce (SPEC-11). It has NO network or chain dependency — SPEC-01
 # G8: identity is verifiable peer-to-peer, the chain is only an optional anchor.
 mini-crypto = { path = "../mini-crypto" }
+zeroize = "1" # best-effort scrubbing of local seed copies (issue #12 audit)
 
 [dev-dependencies]
 # Tests reconstruct expected keys directly from seeds.

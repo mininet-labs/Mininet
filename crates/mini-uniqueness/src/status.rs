@@ -133,7 +133,7 @@ impl TrustWeights {
 /// the whitepaper specifies the shape (fast provisional trust, slow full
 /// promotion requiring sustained, diverse, aged evidence), not these exact
 /// numbers.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PromotionPolicy {
     /// Minimum fused score (0..=100) to reach `VouchedHuman`.
     pub vouched_score_threshold: u32,
@@ -149,19 +149,34 @@ pub struct PromotionPolicy {
     /// required for `FullHuman` — diversity of sustained evidence is
     /// itself part of the cost, so no single strong signal alone promotes.
     pub full_minimum_distinct_sources: usize,
+    /// Sources that MUST be live (non-decayed, non-zero) for `FullHuman`,
+    /// regardless of score. Issue #18's review found that without this, the
+    /// fused score can be saturated entirely by signals a Sybil farm can
+    /// self-attest between its own colluding devices (physical presence —
+    /// see issue #17: an attestation between two attacker devices is
+    /// forgeable end-to-end in software) plus a friendly `External` method:
+    /// the score's denominator only counts sources *with* evidence, so a
+    /// missing seed-anchored signal cost nothing. The vouching graph is the
+    /// one signal anchored *outside* the farm (trust propagates only from
+    /// the seed cohort — `crate::graph::trust_scores`), so the default
+    /// requires it. An empty vec restores the old, weaker behavior — a
+    /// deliberate caller choice, never the default.
+    pub full_required_sources: Vec<SignalSource>,
 }
 
 impl PromotionPolicy {
     /// A month-scale default: fast provisional trust, full status gated on
     /// roughly a month of sustained, diverse evidence — matching the
     /// whitepaper's "confidence... stays high across months rather than at
-    /// a single moment" (SS5).
+    /// a single moment" (SS5) — and always including the seed-anchored
+    /// vouching-graph signal (see `full_required_sources`).
     pub fn whitepaper_default() -> Self {
         PromotionPolicy {
             vouched_score_threshold: 30,
             full_score_threshold: 70,
             full_minimum_age_ms: 30 * 86_400_000,
             full_minimum_distinct_sources: 2,
+            full_required_sources: vec![SignalSource::VouchingGraph],
         }
     }
 }
@@ -234,13 +249,20 @@ impl HumanRecord {
     /// How many distinct sources currently contribute non-zero (not fully
     /// decayed) evidence at `now_ms`.
     pub fn distinct_live_sources(&self, decay: &DecayPolicy, now_ms: u64) -> usize {
+        self.live_sources(decay, now_ms).len()
+    }
+
+    /// The sources currently contributing non-zero (not fully decayed)
+    /// evidence at `now_ms`.
+    fn live_sources(&self, decay: &DecayPolicy, now_ms: u64) -> Vec<SignalSource> {
         self.latest_per_source()
             .into_iter()
             .filter(|(_, e)| {
                 let age = now_ms.saturating_sub(e.recorded_at_ms);
                 decay.weight_percent(age) > 0 && e.strength > 0
             })
-            .count()
+            .map(|(s, _)| s)
+            .collect()
     }
 
     /// This record's currently-supported [`HumanStatus`].
@@ -252,9 +274,18 @@ impl HumanRecord {
         now_ms: u64,
     ) -> HumanStatus {
         let score = self.score(weights, decay, now_ms);
+        let live = self.live_sources(decay, now_ms);
+        // Every policy-required source must itself be live — a farm cannot
+        // substitute self-attestable signals for the seed-anchored one(s)
+        // (issue #18 review; see PromotionPolicy::full_required_sources).
+        let required_live = policy
+            .full_required_sources
+            .iter()
+            .all(|req| live.contains(req));
         if score >= policy.full_score_threshold
             && self.age_ms(now_ms) >= policy.full_minimum_age_ms
-            && self.distinct_live_sources(decay, now_ms) >= policy.full_minimum_distinct_sources
+            && live.len() >= policy.full_minimum_distinct_sources
+            && required_live
         {
             HumanStatus::FullHuman
         } else if score >= policy.vouched_score_threshold {
@@ -439,6 +470,87 @@ mod tests {
         assert_eq!(weights.weight_for(SignalSource::External(42)), 20);
         weights.set_weight(SignalSource::External(42), 90);
         assert_eq!(weights.weight_for(SignalSource::External(42)), 90);
+    }
+
+    /// REGRESSION (issue #18 review, the farm-saturation attack): the fused
+    /// score's denominator only counts sources *with* evidence, so a Sybil
+    /// farm stacking maxed self-attestable presence (issue #17: forgeable
+    /// end-to-end between two colluding devices) plus one friendly External
+    /// method reaches score 100, two live sources, and any age — everything
+    /// the old policy checked — with ZERO connection to the honest vouching
+    /// graph. The required-sources gate must hold the line.
+    #[test]
+    fn a_farm_cannot_reach_full_human_without_the_seed_anchored_vouch_signal() {
+        let mut record = HumanRecord::new();
+        record.record(SignalEvidence {
+            source: SignalSource::PhysicalPresence,
+            strength: 100, // farm-internal presence, self-attested at will
+            recorded_at_ms: 0,
+        });
+        record.record(SignalEvidence {
+            source: SignalSource::External(666),
+            strength: 100, // a farm-friendly "verification" service
+            recorded_at_ms: 0,
+        });
+        let policy = PromotionPolicy::whitepaper_default();
+        let weights = TrustWeights::founder_default();
+        let d = decay();
+        let now = policy.full_minimum_age_ms * 2; // aged well past the gate
+
+        // The attack really does saturate every other check — score, age,
+        // and diversity all pass. Assert that explicitly so this test fails
+        // loudly if the scoring math changes and quietly reopens the hole.
+        assert!(record.score(&weights, &d, now) >= policy.full_score_threshold);
+        assert!(record.age_ms(now) >= policy.full_minimum_age_ms);
+        assert!(record.distinct_live_sources(&d, now) >= policy.full_minimum_distinct_sources);
+
+        // ...and yet: no live vouching-graph signal, no FullHuman.
+        assert_eq!(
+            record.status(&policy, &weights, &d, now),
+            HumanStatus::VouchedHuman
+        );
+
+        // The moment genuine seed-anchored vouch evidence exists (which a
+        // farm cannot mint — trust only propagates from the seed cohort),
+        // promotion works as designed.
+        record.record(SignalEvidence {
+            source: SignalSource::VouchingGraph,
+            strength: 80,
+            recorded_at_ms: now - 1,
+        });
+        assert_eq!(
+            record.status(&policy, &weights, &d, now),
+            HumanStatus::FullHuman
+        );
+    }
+
+    /// A decayed (stale) vouch signal does not satisfy the required-sources
+    /// gate: the anchor must be live, not merely historical.
+    #[test]
+    fn a_fully_decayed_vouch_signal_does_not_satisfy_the_required_gate() {
+        let mut record = HumanRecord::new();
+        let d = decay();
+        record.record(SignalEvidence {
+            source: SignalSource::VouchingGraph,
+            strength: 100,
+            recorded_at_ms: 0,
+        });
+        let now = d.zero_after_ms + 1; // vouch fully decayed
+        record.record(SignalEvidence {
+            source: SignalSource::PhysicalPresence,
+            strength: 100,
+            recorded_at_ms: now,
+        });
+        record.record(SignalEvidence {
+            source: SignalSource::External(7),
+            strength: 100,
+            recorded_at_ms: now,
+        });
+        let policy = PromotionPolicy::whitepaper_default();
+        assert_ne!(
+            record.status(&policy, &TrustWeights::founder_default(), &d, now),
+            HumanStatus::FullHuman
+        );
     }
 
     #[test]
