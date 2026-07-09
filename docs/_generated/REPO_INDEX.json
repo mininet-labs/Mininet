@@ -2,7 +2,7 @@
   "counts": {
     "crates": 24,
     "files": 241,
-    "headings": 540,
+    "headings": 541,
     "rust_symbols": 1949
   },
   "crates": {
@@ -10360,7 +10360,7 @@
       "title": "The only dependency: raw signing/verification and hashing. This crate is"
     },
     {
-      "bytes": 2701,
+      "bytes": 2707,
       "group": "crate:mini-settlement",
       "headings": [
         {
@@ -10411,38 +10411,38 @@
         "roadmap",
         "directive",
         "ownership",
-        "nonce",
+        "sequence",
         "mini-bounty",
         "ever"
       ],
       "lines": 59,
       "path": "crates/mini-settlement/README.md",
-      "sha256": "d9f86a22237a82d303448a9a4ddc635e0d6814f7995e6f41d7229dae6dc21c9e",
+      "sha256": "623c10fa89065d5c8b758146d438c59184fd86417f3eff57bdeb214e8d7e048d",
       "symbols": [],
       "title": "mini-settlement"
     },
     {
-      "bytes": 10631,
+      "bytes": 10688,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
         "payer",
         "claim",
         "msg",
-        "u64",
+        "sequence",
         "extend_from_slice",
-        "nonce",
         "payee",
+        "u64",
         "signed",
         "same",
         "key",
         "len",
-        "valid_until_ms",
         "last_known_chain",
         "to_be_bytes",
         "promise",
         "signature",
         "amount_micro",
+        "valid_until_ms",
         "see",
         "bytes",
         "vec",
@@ -10453,7 +10453,7 @@
       ],
       "lines": 318,
       "path": "crates/mini-settlement/src/claim.rs",
-      "sha256": "56d35a34a003bfa3db66a4af803cf9dd56b586e6d21209ec4bec49a0aeb2639d",
+      "sha256": "69903d749608c1efd6535d6bc8747dbe00d5ef7420d05e02ab6ae582c724bc32",
       "symbols": [
         {
           "kind": "const",
@@ -10518,7 +10518,7 @@
         {
           "kind": "fn",
           "line": 269,
-          "name": "two_claims_differing_only_by_nonce_have_different_digests"
+          "name": "two_claims_differing_only_by_sequence_have_different_digests"
         },
         {
           "kind": "fn",
@@ -10529,7 +10529,7 @@
       "title": "use mini_crypto::{HashAlgorithm, Signature, SignatureSuite, SigningKey, VerifyingKey};"
     },
     {
-      "bytes": 1770,
+      "bytes": 1776,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
@@ -10560,7 +10560,7 @@
       ],
       "lines": 47,
       "path": "crates/mini-settlement/src/error.rs",
-      "sha256": "151a72fcc7ef02581376ab843a6839cc26e66cab0e2d9cfe5b86a93922320536",
+      "sha256": "0f865f3b04afea99191ef323f857e295f410146275a85aa3cf6d60924f1bdaed",
       "symbols": [
         {
           "kind": "enum",
@@ -10591,19 +10591,19 @@
       "title": "use core::fmt;"
     },
     {
-      "bytes": 2597,
+      "bytes": 2633,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
         "payer",
         "finalized",
         "self",
-        "nonce",
+        "sequence",
         "canonicalledgerview",
         "inmemoryledgerview",
         "u64",
         "ledger",
-        "finalized_nonce",
+        "finalized_sequence",
         "real",
         "finalized_claim_digest",
         "option",
@@ -10622,7 +10622,7 @@
       ],
       "lines": 65,
       "path": "crates/mini-settlement/src/ledger.rs",
-      "sha256": "4421162de31c7be0cf92688ba988b6a8ce1fc1b001afced90975356a810b954b",
+      "sha256": "8ddd7f831acfb836f3e94e4a6903a978d6f59c26aa7ad9801553c042ce1d76c2",
       "symbols": [
         {
           "kind": "trait",
@@ -10632,7 +10632,7 @@
         {
           "kind": "fn",
           "line": 17,
-          "name": "finalized_nonce"
+          "name": "finalized_sequence"
         },
         {
           "kind": "fn",
@@ -10667,7 +10667,7 @@
         {
           "kind": "fn",
           "line": 51,
-          "name": "finalized_nonce"
+          "name": "finalized_sequence"
         },
         {
           "kind": "fn",
@@ -10745,7 +10745,7 @@
       "title": "mod claim;"
     },
     {
-      "bytes": 12400,
+      "bytes": 12480,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
@@ -10754,7 +10754,7 @@
         "never",
         "canonical",
         "ledger",
-        "nonce",
+        "sequence",
         "localacceptancepolicy",
         "payer",
         "recipient",
@@ -10763,20 +10763,20 @@
         "risk",
         "already",
         "digest",
-        "finalized_nonce",
+        "finalized_sequence",
         "reconcile",
-        "truth",
         "result",
         "policy",
         "u64",
         "pendingcanonical",
         "some",
+        "truth",
         "local",
         "may"
       ],
-      "lines": 287,
+      "lines": 289,
       "path": "crates/mini-settlement/src/reconcile.rs",
-      "sha256": "2df3de08331086e4c61e513e57019415429840192fb8a6d7cbd75ce5a8407a89",
+      "sha256": "d9daa362d5a14c69213069bbeff04ce268feb28a59baf02cc525dcb883f15063",
       "symbols": [
         {
           "kind": "struct",
@@ -10805,74 +10805,74 @@
         },
         {
           "kind": "mod",
-          "line": 119,
+          "line": 121,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 128,
           "name": "payer"
         },
         {
           "kind": "fn",
-          "line": 131,
+          "line": 133,
           "name": "a_claim_with_nothing_finalized_yet_is_pending"
         },
         {
           "kind": "fn",
-          "line": 141,
+          "line": 143,
           "name": "a_claim_that_matches_what_the_ledger_finalized_is_finalized"
         },
         {
           "kind": "fn",
-          "line": 156,
-          "name": "conflicting_claims_at_the_same_nonce_never_both_finalize"
+          "line": 158,
+          "name": "conflicting_claims_at_the_same_sequence_never_both_finalize"
         },
         {
           "kind": "fn",
-          "line": 184,
-          "name": "a_claim_superseded_by_a_later_finalized_nonce_is_rejected_not_pending"
+          "line": 186,
+          "name": "a_claim_superseded_by_a_later_finalized_sequence_is_rejected_not_pending"
         },
         {
           "kind": "fn",
-          "line": 201,
+          "line": 203,
           "name": "an_unresolved_claim_past_its_validity_window_expires"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 213,
           "name": "a_finalized_claim_past_its_validity_window_still_reports_finalized"
         },
         {
           "kind": "fn",
-          "line": 225,
+          "line": 227,
           "name": "local_acceptance_within_policy_threshold_is_accepted_but_never_reports_as_final"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 239,
           "name": "local_acceptance_above_policy_threshold_requires_waiting"
         },
         {
           "kind": "fn",
-          "line": 250,
+          "line": 252,
           "name": "never_accept_early_policy_never_returns_accepted_local"
         },
         {
           "kind": "fn",
-          "line": 261,
+          "line": 263,
           "name": "local_acceptance_rejects_a_second_conflicting_claim_at_the_same_slot"
         },
         {
           "kind": "fn",
-          "line": 276,
+          "line": 278,
           "name": "local_acceptance_rejects_a_forged_signature"
         }
       ],
       "title": "use crate::claim::{claim_digest, verify_claim_signature, PaymentClaim};"
     },
     {
-      "bytes": 5259,
+      "bytes": 5271,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
@@ -10891,7 +10891,7 @@
         "acceptedlocal",
         "ledger",
         "payer",
-        "nonce",
+        "sequence",
         "self",
         "vocabulary",
         "d-0045",
@@ -10903,7 +10903,7 @@
       ],
       "lines": 119,
       "path": "crates/mini-settlement/src/state.rs",
-      "sha256": "886a75cdad6e35585004c63943a8745f4604c719120506632c3810825ffe470c",
+      "sha256": "83076af56b583a5b72980d20e08f897eb0f2c5fa398ae594cae057a6bd9decb0",
       "symbols": [
         {
           "kind": "enum",
@@ -10949,12 +10949,12 @@
       "title": "pub enum SettlementState {"
     },
     {
-      "bytes": 4072,
+      "bytes": 4114,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
         "payer",
-        "nonce",
+        "sequence",
         "observe",
         "inmemoryclaimwatcher",
         "digest",
@@ -10980,7 +10980,7 @@
       ],
       "lines": 101,
       "path": "crates/mini-settlement/src/watcher.rs",
-      "sha256": "cb4a5c5e353933be7b7ce60127bf42c1c20c55cf6ab46f4ab2a11287f825031c",
+      "sha256": "1760e85334d4de2fec9e2175757f8ae1650be852d4fce7bd1f3d4985af22c328",
       "symbols": [
         {
           "kind": "trait",
@@ -11050,13 +11050,13 @@
         {
           "kind": "fn",
           "line": 94,
-          "name": "different_payers_or_different_nonces_never_conflict"
+          "name": "different_payers_or_different_sequences_never_conflict"
         }
       ],
       "title": "use std::collections::HashMap;"
     },
     {
-      "bytes": 5321,
+      "bytes": 5324,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
@@ -11087,7 +11087,7 @@
       ],
       "lines": 144,
       "path": "crates/mini-settlement/tests/offline_outage_scenario.rs",
-      "sha256": "a77baafbbfc3d1eacfcaee89922e09338642b284bfe5c7ff9e1550189b49e3f6",
+      "sha256": "defbe54b73cdcd0f2f6d2181e62408a6d93ab4e4e8b05e10218ff268f6181c8b",
       "symbols": [
         {
           "kind": "fn",
@@ -18431,7 +18431,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 135402,
+      "bytes": 138402,
       "group": "docs",
       "headings": [
         {
@@ -18738,6 +18738,11 @@
           "level": 3,
           "line": 2232,
           "text": "D-0057 \u2014 README as a human trust gateway; audience-door docs  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 2293,
+          "text": "D-0058 \u2014 `mini-settlement`: rename `nonce` field to `sequence` (terminology correction, not a design change)  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -18766,9 +18771,9 @@
         "rule",
         "template"
       ],
-      "lines": 2291,
+      "lines": 2344,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "f438222bed5eddab4243794e4a1bc9e00af510868af15b5260763cf8b905abe4",
+      "sha256": "b7a740a7e846033cb58cc7bd7064bbf7ec93224c8456ddba7836421530820243",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -20846,7 +20851,7 @@
       "title": "External legitimacy gates"
     },
     {
-      "bytes": 4386,
+      "bytes": 4389,
       "group": "docs",
       "headings": [
         {
@@ -20908,7 +20913,7 @@
       ],
       "lines": 51,
       "path": "docs/gates/crypto-audit-scope.md",
-      "sha256": "422fe03982b79662efe49a89292091bd02bab35369c5e00f8da2dd78d6589942",
+      "sha256": "62dd46b0fa4d99ab0cdc539fc7956649021d542e2c04dbce4639967ebaba4775",
       "symbols": [],
       "title": "External cryptography audit \u2014 scope package"
     },

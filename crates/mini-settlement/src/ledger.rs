@@ -12,14 +12,14 @@
 /// A real implementation is chain-backed; [`crate::InMemoryLedgerView`] is
 /// for tests only.
 pub trait CanonicalLedgerView {
-    /// The highest nonce this ledger has finalized a claim at for `payer`,
+    /// The highest sequence this ledger has finalized a claim at for `payer`,
     /// if any. `None` means this payer has never had a claim finalized.
-    fn finalized_nonce(&self, payer: &[u8]) -> Option<u64>;
+    fn finalized_sequence(&self, payer: &[u8]) -> Option<u64>;
 
     /// The digest ([`crate::claim_digest`]) of the claim this ledger
-    /// finalized for `payer` at exactly `nonce`, if any. Only meaningful
-    /// when `nonce <= finalized_nonce(payer)`.
-    fn finalized_claim_digest(&self, payer: &[u8], nonce: u64) -> Option<[u8; 32]>;
+    /// finalized for `payer` at exactly `sequence`, if any. Only meaningful
+    /// when `sequence <= finalized_sequence(payer)`.
+    fn finalized_claim_digest(&self, payer: &[u8], sequence: u64) -> Option<[u8; 32]>;
 }
 
 /// A trivial in-memory [`CanonicalLedgerView`] — test-only. Production
@@ -36,29 +36,29 @@ impl InMemoryLedgerView {
         Self::default()
     }
 
-    /// Record `digest` as finalized for `payer` at `nonce`. Test-only
+    /// Record `digest` as finalized for `payer` at `sequence`. Test-only
     /// helper — a real ledger reaches this state via actual chain
     /// execution and finality, not a direct setter.
-    pub fn finalize(&mut self, payer: &[u8], nonce: u64, digest: [u8; 32]) {
+    pub fn finalize(&mut self, payer: &[u8], sequence: u64, digest: [u8; 32]) {
         self.finalized
             .entry(payer.to_vec())
             .or_default()
-            .push((nonce, digest));
+            .push((sequence, digest));
     }
 }
 
 impl CanonicalLedgerView for InMemoryLedgerView {
-    fn finalized_nonce(&self, payer: &[u8]) -> Option<u64> {
+    fn finalized_sequence(&self, payer: &[u8]) -> Option<u64> {
         self.finalized
             .get(payer)
             .and_then(|entries| entries.iter().map(|(n, _)| *n).max())
     }
 
-    fn finalized_claim_digest(&self, payer: &[u8], nonce: u64) -> Option<[u8; 32]> {
+    fn finalized_claim_digest(&self, payer: &[u8], sequence: u64) -> Option<[u8; 32]> {
         self.finalized
             .get(payer)?
             .iter()
-            .find(|(n, _)| *n == nonce)
+            .find(|(n, _)| *n == sequence)
             .map(|(_, d)| *d)
     }
 }

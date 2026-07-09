@@ -2287,3 +2287,57 @@ setting and a commit-author rename for a privacy-focused project.
 
 **Supersedes / superseded by:** none — refines the presentation established
 across earlier README updates without reversing any of their content.
+
+---
+
+### D-0058 — `mini-settlement`: rename `nonce` field to `sequence` (terminology correction, not a design change)  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** D-0055, `crates/mini-settlement/`, GitHub code scanning (CodeQL) on PR #95.
+
+**Decision:** rename `PaymentClaim`'s `nonce: u64` field, and every
+identifier derived from it (`finalized_nonce` → `finalized_sequence`,
+`tampered_nonce` → `tampered_sequence`, related test names), to `sequence`
+throughout `mini-settlement`'s public API and docs. No field type, no
+ordering rule, no signed byte layout, and no test assertion changed —
+this is a rename only.
+
+**Reason:** GitHub's CodeQL scan flagged 42 "critical" alerts against
+`crates/mini-settlement/src/claim.rs` and `reconcile.rs` under
+`rust/hard-coded-cryptographic-value` (CWE-798), each one an integer
+literal passed into a parameter or field literally named `nonce`. All 42
+were false positives: `mini-settlement` has no cryptographic nonce
+anywhere — `mini_crypto::SigningKey::sign` is deterministic Ed25519
+signing with no caller-supplied nonce. `PaymentClaim.nonce` was always a
+monotonic per-payer *sequence number* for double-spend slot detection
+(D-0055's own claim-message docs already described it that way), and
+CodeQL's heuristic keys on the field/parameter *name*, not on any actual
+cryptographic use. Renaming to the name that already describes what the
+field does resolves the false positives and removes a name that would
+mislead the next reader (or the next CodeQL run) into assuming
+cryptographic content that was never there.
+
+**Constitutional impact:** none. No frozen invariant is touched — M1, M2,
+and M3 are enforced by `reconcile()`'s control flow and
+`SettlementState`'s type structure, neither of which this rename changes.
+Not a supersession of D-0055's protocol decision, only a correction to
+that entry's own prose, which called the field a "nonce" — read
+`sequence` wherever D-0055 says `nonce`; D-0055 itself is left unedited
+per this log's append-only rule.
+
+**Implementation status:** shipped — all 26 `mini-settlement` tests pass
+unchanged in substance (only names differ); `cargo fmt`/`clippy -D
+warnings` clean; `docs/gates/crypto-audit-scope.md`'s audit question
+about the claim-message tuple updated to say `sequence` so the auditor
+scope package matches the real field name.
+
+**Failure point:** none introduced — this is a pure rename with no
+behavioral surface. The only residual risk is documentation drift if a
+future edit reintroduces "nonce" language for this field without
+noticing the collision this entry records.
+
+**Required follow-up:** none. Once this lands, PR CodeQL should show zero
+alerts for `mini-settlement`; if a future crate genuinely needs a
+cryptographic nonce, name it plainly (`nonce`) there — this entry is not
+a ban on the word, only a correction of one specific misuse.
+
+**Supersedes / superseded by:** corrects terminology used in D-0055's
+prose without reversing or amending D-0055's decision itself.

@@ -8,7 +8,7 @@ canonical consensus."*
 ## The construction
 
 - **`PaymentClaim`** — a signed promise: payer, payee, amount, a monotonic
-  per-payer nonce, a validity window, and a reference to the chain state
+  per-payer sequence, a validity window, and a reference to the chain state
   the payer last saw. The message is length-prefixed and domain-tagged
   (`mini-settlement/payment-claim/v1`), the same discipline `mini-bounty`
   uses, so no two distinct claims can ever collide on the wire.
@@ -19,7 +19,7 @@ canonical consensus."*
   call to decide "is this money mine."
 - **`ClaimWatcher`** — local, offline-capable conflict detection: catches
   the cheapest double-spend attempt (a payer showing two different signed
-  claims for the same nonce to two different recipients) before either
+  claims for the same sequence to two different recipients) before either
   recipient wastes trust on it. Same shape as `mini_presence::ReplayGuard`.
 - **`CanonicalLedgerView`** — the seam to the not-yet-built chain-execution
   engine (roadmap #36-#45). `reconcile()` is fully specified and tested

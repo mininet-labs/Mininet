@@ -16,7 +16,7 @@ pub enum SettlementError {
     /// time, or was zero — every claim must have a real, bounded window.
     BadValidityWindow,
     /// This claim conflicts with a different claim already observed for
-    /// the same `(payer, nonce)` pair — see [`crate::ClaimWatcher`].
+    /// the same `(payer, sequence)` pair — see [`crate::ClaimWatcher`].
     ConflictsWithKnownClaim,
 }
 
@@ -34,7 +34,7 @@ impl fmt::Display for SettlementError {
             }
             SettlementError::ConflictsWithKnownClaim => write!(
                 f,
-                "a different claim was already observed for this (payer, nonce) pair"
+                "a different claim was already observed for this (payer, sequence) pair"
             ),
         }
     }

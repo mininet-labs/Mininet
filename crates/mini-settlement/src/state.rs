@@ -27,13 +27,13 @@ pub enum SettlementState {
     /// the claim. **Never final** — see [`SettlementState::is_final`].
     AcceptedLocal,
     /// Submitted toward canonical inclusion; the canonical ledger has not
-    /// yet resolved this claim's `(payer, nonce)` slot one way or another.
+    /// yet resolved this claim's `(payer, sequence)` slot one way or another.
     PendingCanonical,
     /// The canonical ledger has included **exactly this claim** at its
-    /// `(payer, nonce)` slot. This is the only state where value has
+    /// `(payer, sequence)` slot. This is the only state where value has
     /// actually moved.
     Finalized,
-    /// The canonical ledger resolved this claim's `(payer, nonce)` slot
+    /// The canonical ledger resolved this claim's `(payer, sequence)` slot
     /// with a **different** claim — M3's canonical-ordering rule in
     /// action. This claim is rejected outright; it is never merged,
     /// retried, or partially honored.
@@ -84,7 +84,7 @@ pub enum WalletLabel {
     AcceptedNotFinal,
     /// Canonically final. Value has moved.
     Finalized,
-    /// Lost to a conflicting claim at the same `(payer, nonce)`.
+    /// Lost to a conflicting claim at the same `(payer, sequence)`.
     Rejected,
     /// Timed out before resolution.
     Expired,

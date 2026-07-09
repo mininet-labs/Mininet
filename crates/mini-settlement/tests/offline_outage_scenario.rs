@@ -24,7 +24,7 @@ fn payer() -> SigningKey {
 fn a_double_spend_across_two_partitions_resolves_to_exactly_one_winner() {
     let payer = payer();
 
-    // Two conflicting claims at the same nonce -- the payer's outage-time
+    // Two conflicting claims at the same sequence -- the payer's outage-time
     // "signed promises," per Directive 5, made to two different merchants.
     let claim_to_merchant_a = mini_settlement::sign_claim(
         &payer,

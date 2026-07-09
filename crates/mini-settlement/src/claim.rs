@@ -7,13 +7,13 @@
 //! to keep every caller honest about the one fact this type alone cannot
 //! enforce: signing a claim moves nothing by itself.
 //!
-//! ## Why a nonce, not a UTXO/key-image
+//! ## Why a sequence, not a UTXO/key-image
 //!
 //! `mini-value` already has key-image machinery (ring signatures), but that
 //! solves a different problem — anonymity-set membership. Ordinary payment
 //! settlement doesn't need to hide *which* claim a payer signed, only to
 //! detect when a payer signs *two different* claims for the same spending
-//! slot. A monotonic nonce per payer is the direct, minimal primitive for
+//! slot. A monotonic sequence per payer is the direct, minimal primitive for
 //! that (the same shape Directive 5's own wording implies: "a promise," not
 //! "an anonymous proof of a promise") — and it composes with anonymous
 //! addressing for free: a caller free to make `payer`/`payee` a fresh
@@ -29,7 +29,7 @@ use crate::error::{Result, SettlementError};
 /// can coexist without ever being confused with this one.
 const CLAIM_DOMAIN: &[u8] = b"mini-settlement/payment-claim/v1";
 
-/// A signed payment claim: "I, `payer`, at nonce `nonce`, promise to pay
+/// A signed payment claim: "I, `payer`, at sequence `sequence`, promise to pay
 /// `amount_micro` to `payee`, valid until `valid_until_ms`, as of the chain
 /// state I last saw (`last_known_chain`)." Nothing about this type makes it
 /// final — see [`crate::SettlementState`] for what final actually requires.
@@ -45,9 +45,9 @@ pub struct PaymentClaim {
     /// Bulletproofs amounts — see the crate-level docs for why).
     pub amount_micro: u64,
     /// This payer's claim sequence number. Two claims from the same payer
-    /// with the same nonce but different content are, by construction, in
+    /// with the same sequence but different content are, by construction, in
     /// conflict — see [`crate::ClaimWatcher`] and [`crate::reconcile`].
-    pub nonce: u64,
+    pub sequence: u64,
     /// The claim expires (see [`crate::SettlementState::Expired`]) if it
     /// has not reached canonical inclusion by this device-clock time, in ms.
     pub valid_until_ms: u64,
@@ -68,7 +68,7 @@ fn claim_message(
     payer: &[u8],
     payee: &[u8],
     amount_micro: u64,
-    nonce: u64,
+    sequence: u64,
     valid_until_ms: u64,
     last_known_chain: &[u8],
 ) -> Vec<u8> {
@@ -90,7 +90,7 @@ fn claim_message(
     msg.extend_from_slice(&(payee.len() as u32).to_be_bytes());
     msg.extend_from_slice(payee);
     msg.extend_from_slice(&amount_micro.to_be_bytes());
-    msg.extend_from_slice(&nonce.to_be_bytes());
+    msg.extend_from_slice(&sequence.to_be_bytes());
     msg.extend_from_slice(&valid_until_ms.to_be_bytes());
     msg.extend_from_slice(&(last_known_chain.len() as u32).to_be_bytes());
     msg.extend_from_slice(last_known_chain);
@@ -105,7 +105,7 @@ pub fn sign_claim(
     payer: &SigningKey,
     payee: &[u8],
     amount_micro: u64,
-    nonce: u64,
+    sequence: u64,
     valid_until_ms: u64,
     last_known_chain: &[u8],
     now_ms: u64,
@@ -121,7 +121,7 @@ pub fn sign_claim(
         &payer_bytes,
         payee,
         amount_micro,
-        nonce,
+        sequence,
         valid_until_ms,
         last_known_chain,
     );
@@ -130,7 +130,7 @@ pub fn sign_claim(
         payer: payer_bytes,
         payee: payee.to_vec(),
         amount_micro,
-        nonce,
+        sequence,
         valid_until_ms,
         last_known_chain: last_known_chain.to_vec(),
         signature,
@@ -150,7 +150,7 @@ pub fn verify_claim_signature(claim: &PaymentClaim) -> Result<()> {
         &claim.payer,
         &claim.payee,
         claim.amount_micro,
-        claim.nonce,
+        claim.sequence,
         claim.valid_until_ms,
         &claim.last_known_chain,
     );
@@ -161,14 +161,14 @@ pub fn verify_claim_signature(claim: &PaymentClaim) -> Result<()> {
 
 /// A content digest of the claim's signed bytes — the identifier used to
 /// tell "the same claim, seen twice" from "two different claims at the
-/// same (payer, nonce)" (a real conflict). Two claims with the same digest
+/// same (payer, sequence)" (a real conflict). Two claims with the same digest
 /// are byte-identical in every field that was signed.
 pub fn claim_digest(claim: &PaymentClaim) -> [u8; 32] {
     let message = claim_message(
         &claim.payer,
         &claim.payee,
         claim.amount_micro,
-        claim.nonce,
+        claim.sequence,
         claim.valid_until_ms,
         &claim.last_known_chain,
     );
@@ -250,10 +250,10 @@ mod tests {
             SettlementError::BadSignature
         );
 
-        let mut tampered_nonce = claim.clone();
-        tampered_nonce.nonce = 7;
+        let mut tampered_sequence = claim.clone();
+        tampered_sequence.sequence = 7;
         assert_eq!(
-            verify_claim_signature(&tampered_nonce).unwrap_err(),
+            verify_claim_signature(&tampered_sequence).unwrap_err(),
             SettlementError::BadSignature
         );
 
@@ -266,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    fn two_claims_differing_only_by_nonce_have_different_digests() {
+    fn two_claims_differing_only_by_sequence_have_different_digests() {
         let a = sign_claim(
             &payer_key(),
             b"payee-a",

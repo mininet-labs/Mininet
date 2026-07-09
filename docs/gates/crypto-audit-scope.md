@@ -29,7 +29,7 @@ and unaudited.
   - Is nonce reuse detectable/prevented (the classic Schnorr/FROST nonce-reuse key-recovery attack)?
   - Does the live multi-process demo's session handling generalize safely to adversarial (not just faulty) co-signers?
 - **`mini-settlement`:**
-  - Is the claim-signing message construction (`claim_message` in `claim.rs`) actually collision-resistant against a chosen-field attack (can two different `(payer, payee, amount, nonce, ...)` tuples ever encode to the same signed bytes)?
+  - Is the claim-signing message construction (`claim_message` in `claim.rs`) actually collision-resistant against a chosen-field attack (can two different `(payer, payee, amount, sequence, ...)` tuples ever encode to the same signed bytes)?
   - Does `reconcile()`'s state machine have any path where a claim could be read as `Finalized` without a matching `CanonicalLedgerView` entry?
 - **`mini-bounty`:**
   - Does the length-prefixed `claim_message` binding actually prevent cross-pool replay and payout-address tampering, as claimed in the crate's own tests?
