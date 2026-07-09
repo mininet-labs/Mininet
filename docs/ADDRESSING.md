@@ -6,9 +6,9 @@ seriously about how any device, anywhere, connects to Mininet without a
 central naming authority.
 
 This is a design note, not yet an implementation. It exists so `mini-net`
-peer discovery ([roadmap #24](https://github.com/britak420/Mininet/issues/24))
+peer discovery ([roadmap #24](../../issues/24))
 and `mini-bootstrap`'s remaining transport wiring
-([#23](https://github.com/britak420/Mininet/issues/23)) get built toward
+([#23](../../issues/23)) get built toward
 a considered target instead of backing into a naming scheme by accident.
 
 ## The actual problem, named precisely
@@ -74,7 +74,7 @@ verification).
 a new device needs (a) *any* path into the DHT (see Bootstrap below) and
 (b) the target's Layer-1 address. Once both are in hand, discovery and
 transport (`TcpBearer` today; BLE/local-Wi-Fi once
-[#22](https://github.com/britak420/Mininet/issues/22) lands) do the rest
+[#22](../../issues/22) lands) do the rest
 — no domain, no fixed server, no certificate authority anywhere in the
 path.
 
@@ -153,5 +153,5 @@ elsewhere, but the *policy* details (bootstrap peer set composition and
 rotation, whether/how petname imports get UI treatment, whether a
 "canonical" public directory concept is worth building at the app layer)
 are open and belong to whoever builds `mini-net` peer discovery
-([#24](https://github.com/britak420/Mininet/issues/24)) and the eventual
+([#24](../../issues/24)) and the eventual
 client. Revisit as those land.

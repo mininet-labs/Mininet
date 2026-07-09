@@ -307,7 +307,7 @@ impl Kel {
 /// §7, M3) will strengthen this; until then this is a documented limitation
 /// (see `docs/audits/issue-13-identity-recovery-audit.md`).
 ///
-/// [roadmap #14]: https://github.com/britak420/Mininet/issues/14
+/// [roadmap #14]: ../../issues/14
 pub fn verify_delegation(root: &Kel, device: &Kel) -> Result<Capabilities> {
     // Both logs must be internally valid first.
     root.verify()?;

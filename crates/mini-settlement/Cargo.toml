@@ -1,0 +1,20 @@
+[package]
+name = "mini-settlement"
+version = "0.0.1"
+description = "Offline transaction settlement (SPEC-05, Directive 5, roadmap #41): signed pending payment claims that never become final ownership until canonical chain inclusion, with deterministic double-spend reconciliation. Implements frozen invariants M1/M2/M3."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# The only dependency: raw signing/verification and hashing. This crate is
+# deliberately decoupled from mini-value's stealth/ring modules and from
+# did-mini's KEL layer -- a payer/payee "authority" here is just a public
+# key, so callers choose what kind of key it is (a stealth one-time key,
+# a did:mini device key, whatever fits) without this crate taking a
+# position on addressing or anonymity. Its only job is the settlement
+# state machine and reconciliation rules M1/M2/M3 require.
+mini-crypto = { path = "../mini-crypto" }

@@ -58,7 +58,7 @@ never be missed by only skimming a table.
   and reward accrual all count distinct identity roots. Nothing currently
   prevents one human from controlling multiple roots except cost — and
   whether that cost is actually high enough is Phase 2's open, unresolved
-  question ([roadmap #18](https://github.com/britak420/Mininet/issues/18),
+  question ([roadmap #18](../../issues/18),
   [`docs/audits/issue-10-frozen-invariants-review.md`](audits/issue-10-frozen-invariants-review.md)).
   **No code path anywhere in this tree may be read as enforcing
   "one-human-one-vote" (P2) until personhood, not identity-root counting,
@@ -74,7 +74,7 @@ never be missed by only skimming a table.
   egalitarian "thousand cheap machines beat one warehouse" thesis (§7)
   depends on resisting. **No storage-reward or block-production-weight
   claim may be read as resistant to storage consolidation until real
-  proof-of-replication ([roadmap #31](https://github.com/britak420/Mininet/issues/31))
+  proof-of-replication ([roadmap #31](../../issues/31))
   lands.**
 
 ## 1. Voice / value — money and power stay separated
@@ -82,7 +82,7 @@ never be missed by only skimming a table.
 | # | Frozen invariant | Directive | Source | Enforced by |
 |---|---|---|---|---|
 | P1 | No balance maps to governance or validator vote weight | D16 | SPEC-00 P1 | partial — `mini-chain::ValidatorSet` has no weight field anywhere (equal per identity root by construction, not a balance-weighted count); `mini-forge::governance` quorums are likewise counted per identity root, never balance (test `author_never_counts_and_one_identity_root_counts_once`); full chain/consensus integration is `pending` |
-| V1 | Instant deterministic finality via adapted Tendermint/CometBFT-style BFT quorum, equal validator weight per verified identity root | D16, D8 | SPEC-05 + D-0008 | partial — `mini-chain::verify_finality` requires `>2/3` distinct, currently-delegated, `VOTE`-capable validator roots to precommit the same block/height/round before treating it as final; real networked consensus is `pending` — see [roadmap #36-#45](https://github.com/britak420/Mininet/issues/36) |
+| V1 | Instant deterministic finality via adapted Tendermint/CometBFT-style BFT quorum, equal validator weight per verified identity root | D16, D8 | SPEC-05 + D-0008 | partial — `mini-chain::verify_finality` requires `>2/3` distinct, currently-delegated, `VOTE`-capable validator roots to precommit the same block/height/round before treating it as final; real networked consensus is `pending` — see [roadmap #36-#45](../../issues/36) |
 | V2 | Storage/seeding earns value, never voice | D16 | SPEC-00 P1 + D-0033 | ✅ `mini-storage::verify_serve` / `mini-reward::accrue_storage`; see the storage warehouse-attack hard limitation above for the adjacent, unresolved risk |
 | V3 | Public profiles/walls do not create privilege | D16 | SPEC-09 §6.1 + D-0033 | ✅ `mini-social::PublicWall` requires only `Capabilities::POST`, never `VOTE`; no wall registry exists |
 | V4 | Base devices do not create governance weight | D16 | SPEC-01 §6 + D-0033 | ✅ `did-mini::BaseDeviceRole` carries no `Capabilities` bit and cannot grant one |
@@ -92,7 +92,7 @@ never be missed by only skimming a table.
 | # | Frozen invariant | Directive | Source | Enforced by |
 |---|---|---|---|---|
 | P2 | One verified human, one **equal** vote; early grants no extra | D8, D16 | SPEC-00 P2 | partial — `did-mini` binds many devices to one human-root with capability scoping that cannot create extra votes; `mini-chain::verify_finality` counts a validator root at most once regardless of device count — **but see the hard limitation above: this is "one identity root, one vote" today, not yet "one human, one vote"** |
-| PH1 | Co-presence is range-bound and mutually signed; relay can't fake it | D8, D15 | SPEC-02/SPEC-03 | partial — `mini-presence` requires proximity transport, delegated `ATTEST` device, distinct-key signatures, channel binding, fresh nonces, RTT under policy; a tighter BLE/UWB ranging bound is `pending` — see [roadmap #17](https://github.com/britak420/Mininet/issues/17) |
+| PH1 | Co-presence is range-bound and mutually signed; relay can't fake it | D8, D15 | SPEC-02/SPEC-03 | partial — `mini-presence` requires proximity transport, delegated `ATTEST` device, distinct-key signatures, channel binding, fresh nonces, RTT under policy; a tighter BLE/UWB ranging bound is `pending` — see [roadmap #17](../../issues/17) |
 
 ## 3. Identity & key custody
 
@@ -109,9 +109,9 @@ never be missed by only skimming a table.
 | # | Frozen invariant | Directive | Source | Enforced by |
 |---|---|---|---|---|
 | P4 | Slow, presence-conditioned vesting; never a lump sum | D4, D13 | SPEC-00 P4 | partial — `mini-reward` accrual is rate-capped per window, diversity-weighted, maturation-delayed; on-chain vesting module is `pending` |
-| M1 | **Money does not merge. CRDT/automatic conflict-resolution is forbidden for spendable value.** | D5, D4 | Founder review, D-0045 | `pending` — no CRDT-based value-merge path exists in `mini-value`/`mini-treasury` today (there is no code path here at all, spendable or otherwise, that resolves conflicting value claims by merging); this row exists so nothing built later takes that shortcut. `mini-crdt` is scoped explicitly to non-spendable content (threads/docs) and must never be extended to cover value. |
-| M2 | **Offline/local payment is never final. It is a signed pending claim until canonical chain inclusion; wallets must distinguish pending / accepted / finalized.** | D5 | Founder review, D-0045 | `pending` — the offline settlement model itself is `pending` ([roadmap #41](https://github.com/britak420/Mininet/issues/41)); this row is the frozen constraint that design must satisfy, not a claim it's built |
-| M3 | **Canonical ordering alone decides conflicting spends (double-spends). No local committee, hotspot, relay, or cache may finalize ownership.** | D5, D4 | Founder review, D-0045 | `pending` — depends on [roadmap #40](https://github.com/britak420/Mininet/issues/40) (double-spend reconciliation rules) and the networked chain; this row is the frozen constraint that design must satisfy |
+| M1 | **Money does not merge. CRDT/automatic conflict-resolution is forbidden for spendable value.** | D5, D4 | Founder review, D-0045 | ✅ `mini-settlement` (D-0055) has no merge function anywhere in its API — `reconcile()` only ever answers "did this exact claim win," never "combine these claims"; `mini-crdt` remains scoped explicitly to non-spendable content (threads/docs) and must never be extended to cover value |
+| M2 | **Offline/local payment is never final. It is a signed pending claim until canonical chain inclusion; wallets must distinguish pending / accepted / finalized.** | D5 | Founder review, D-0045 | ✅ `mini-settlement::SettlementState`/`WalletLabel` (D-0055) make the distinction a type — `is_final()` is true only for `Finalized`, never `AcceptedLocal`; `CanonicalLedgerView` (the real chain-execution backing) is `pending`, tracked by [roadmap #41](../../issues/41) |
+| M3 | **Canonical ordering alone decides conflicting spends (double-spends). No local committee, hotspot, relay, or cache may finalize ownership.** | D5, D4 | Founder review, D-0045 | ✅ `mini-settlement::reconcile` (D-0055) only ever finalizes a claim by reading a `CanonicalLedgerView`; test `conflicting_claims_at_the_same_nonce_never_both_finalize` proves exactly one of two conflicting claims resolves. A real chain-backed `CanonicalLedgerView` is `pending`, tracked by [roadmap #40](../../issues/40) |
 
 ## 5. Updates & forks
 
@@ -120,7 +120,7 @@ never be missed by only skimming a table.
 | P3 | No owner/admin key; public-domain license; no off switch | D2, D3 | SPEC-00 P3 | partial — `LICENSE` (CC0); `pending` — genesis & release pipeline |
 | U1 | No forced auto-update / no off switch | D3, D2 | SPEC-00 P3 + SPEC-11 | ✅ `mini-update::AdoptionState` — `evaluate` never mutates state, `adopt` always re-verifies from scratch, `refuse` is a normal, unblocked outcome |
 | U2 | Core software bootstrap and updates cannot rely on external services | D2, D3 | SPEC-11 + D-0011 | partial — `mini-bootstrap::CapsuleHeader`/`GenesisSeed` + `mini-update::AdoptionState`; the release registry itself is `pending` |
-| U3 | Bluetooth-only identity + genesis/update chunk exchange must work with no internet | D11, D6 | SPEC-03 keystone + D-0012 | partial — protocol-logic done in `mini-bootstrap`; real BLE/local-Wi-Fi transport is `pending` in `mini-bearer` (D-0042 shipped real TCP transport as a stand-in, proven live — see [roadmap #22](https://github.com/britak420/Mininet/issues/22) for what's still missing) |
+| U3 | Bluetooth-only identity + genesis/update chunk exchange must work with no internet | D11, D6 | SPEC-03 keystone + D-0012 | partial — protocol-logic done in `mini-bootstrap`; real BLE/local-Wi-Fi transport is `pending` in `mini-bearer` (D-0042 shipped real TCP transport as a stand-in, proven live — see [roadmap #22](../../issues/22) for what's still missing) |
 | F1 | **Forking the software is free. Inheriting Mininet's legitimacy is not — it requires continuity of the frozen invariants, the personhood-root history, release-registry continuity, and canonical chain state. A code copy alone confers none of it.** | D7 | Founder review, D-0046 | `pending` — no code enforces or even represents "legitimacy" as a concept yet, since there is nothing yet to fork off of in the networked-chain sense; this row is the frozen constraint any future fork-handling/registry design must satisfy, and the criterion `docs/FAILURE_BOOK.md`/decision-log entries should judge a claimed fork against |
 
 ## 6. Privacy
@@ -143,13 +143,13 @@ never be missed by only skimming a table.
 | # | Frozen invariant | Directive | Source | Enforced by |
 |---|---|---|---|---|
 | N1 | Radio/LoRa is not part of Mininet | D14, D10 | D-0009 (amended) + D-0033 | ✅ documentation-enforced, permanently closed — see `docs/FAILURE_BOOK.md` |
-| N2 | Real transport now exists for IP-reachable connectivity (not BLE) | D2, D6 | D-0042 | ✅ `mini_bearer::TcpBearer`, proven live via `mini-net`'s multi-process gossip demo; BLE/local-Wi-Fi radio adapters remain `pending` and need real phone hardware — see [roadmap #22](https://github.com/britak420/Mininet/issues/22) |
+| N2 | Real transport now exists for IP-reachable connectivity (not BLE) | D2, D6 | D-0042 | ✅ `mini_bearer::TcpBearer`, proven live via `mini-net`'s multi-process gossip demo; BLE/local-Wi-Fi radio adapters remain `pending` and need real phone hardware — see [roadmap #22](../../issues/22) |
 
 ## 9. AI & audit gates
 
 | # | Frozen invariant | Directive | Source | Enforced by |
 |---|---|---|---|---|
-| AI1 | AI may draft sensitive code, but human review is mandatory | D12 | SPEC-11 §2 + D-0033/D-0037 | partial — `mini-forge::governance::PROTOCOL_MIN_APPROVALS` enforces a 2-approval floor with no 1-of-1 canonical merge path; a dedicated "AI-assisted" flag on commits/PRs is `pending` — see [roadmap #78](https://github.com/britak420/Mininet/issues/78) |
+| AI1 | AI may draft sensitive code, but human review is mandatory | D12 | SPEC-11 §2 + D-0033/D-0037 | partial — `mini-forge::governance::PROTOCOL_MIN_APPROVALS` enforces a 2-approval floor with no 1-of-1 canonical merge path; a dedicated "AI-assisted" flag on commits/PRs is `pending` — see [roadmap #78](../../issues/78) |
 | A1 | **Production use — real value, real treasury custody, real consensus, real personhood proofs — requires external cryptography audit as a hard gate, not a desirable-but-optional step. Tests passing is not audit. Founder review is not audit.** | D12, D4 | Founder review, D-0047 | `pending` — no code path in this tree currently allows "production use" of any of these (everything is prototype-labeled and founder-reviewed only); this row exists so that remains true until an actual external audit occurs, not until someone decides it's no longer necessary |
 
 ## Foundational (cross-cutting, don't fit one domain above)

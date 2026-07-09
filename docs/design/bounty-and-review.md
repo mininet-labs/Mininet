@@ -1,6 +1,6 @@
 # Bounty & review system design — money funds work, never a decision
 
-Closes [roadmap #66](https://github.com/britak420/Mininet/issues/66) (Phase
+Closes [roadmap #66](../../issues/66) (Phase
 9.2). The issue's one hard requirement: *"funding a bounty must remain
 completely separate from any merge/review authority — money funds work,
 never buys a decision."* This document shows how the system is structured

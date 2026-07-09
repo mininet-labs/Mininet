@@ -1,6 +1,6 @@
 # Fork legitimacy criteria — what makes a fork *the* Mininet
 
-Closes [roadmap #57](https://github.com/britak420/Mininet/issues/57) (Phase
+Closes [roadmap #57](../../issues/57) (Phase
 7.6). D-0046 froze the *principle* (invariant **F1**) and explicitly handed
 this issue the job of turning it into "a fully checkable definition." This
 document is that definition.

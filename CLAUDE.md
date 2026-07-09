@@ -60,6 +60,15 @@ shipping), `docs/design/` (design notes that close roadmap issues),
   (Directive 14).
 - **Never claim "one human, one vote."** Everything today counts identity
   roots. Say "identity root" until SPEC-02 personhood actually lands.
+- **Typed domains, never generic `sign(bytes)`/`finalize(state)`.** Any
+  function that exercises real authority (signing, finalizing money,
+  marking a status, adopting a release, deleting content) must take a
+  specific, named request type (`sign_release_attestation(ReleaseAttestation)`,
+  not `sign(&[u8])`) so the set of things that authority *can* do is fixed
+  at compile time, not by whatever bytes a caller assembles. A generic
+  authority-shaped signature is a standing invitation to grow an
+  undocumented capability later — reject it in review the same way a
+  voice/value dependency edge gets rejected.
 
 ## Workflow ritual (what the founder expects every batch)
 
@@ -114,8 +123,10 @@ Find anything: `python3 tools/mininet_nav.py map` (see `docs/NAVIGATION.md`).
 
 - Scratch work goes in the session scratchpad, never committed.
 - `target/` noise: ignore it in searches (`--glob '!target'`).
-- The repo was renamed `britak420/matej` → `britak420/Mininet`; git remotes
-  may still use the old slug — both work.
+- The account/repo was renamed `britak420/matej` → `britak420/Mininet` →
+  `mininet-labs/Mininet`; git remotes may still use an old slug — GitHub
+  redirects them, so all work. In-repo doc links use repo-relative form
+  (`../../issues/N`) so they survive any future rename.
 - When the founder gives a large multi-part directive, create tasks
   (TaskCreate) immediately and tick them as you go; he reads the checklist.
 - When uncertain whether something is decided or open: DECISION_LOG first,
