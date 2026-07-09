@@ -2166,3 +2166,63 @@ future work in the crate's own docs.
 **Supersedes / superseded by:** none — first implementation of M1/M2/M3;
 refines D-0045's "design-only" status to "protocol implemented, ledger
 pending."
+
+---
+
+### D-0056 — External Legitimacy Gates: naming what more code cannot close  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** Directive 2, Directive 6, `docs/gates/`, [roadmap #99](https://github.com/britak420/Mininet/issues/99).
+
+**Decision:** adopt an explicit category of roadmap issue — "external
+legitimacy gate" — for work where the blocker is not missing engineering
+effort but a genuine need for outside authority (cryptography audit,
+legal counsel), real hardware, or a founder decision on open research
+with no known construction. Each gate gets a scope package under
+`docs/gates/` (what needs review, the exact questions to answer, the hard
+constraints the review must respect) and is tracked on
+[#99](https://github.com/britak420/Mininet/issues/99), the same
+milestone-substitute pattern hub #92 already uses. Labels
+`outside-help`/`launch-gate`/`not-code-only`/`external-review` mark the
+affected issues so they can't be accidentally "closed" with more Rust.
+
+**Reason:** without this distinction, a roadmap built entirely from
+GitHub issues risks looking complete once every issue *engineering can
+act on* is closed, while the gates that actually determine whether
+Mininet is safe for real value, real personhood claims, or real legal
+operation stay invisible inside the same undifferentiated list. Naming
+the boundary — what code can prepare versus what only an auditor,
+counsel, a specialist, or the founder can close — is itself a form of the
+honesty-over-polish discipline this project already applies to crate-
+level claims (D-0037, D-0047), extended to the roadmap's own shape.
+
+**Constitutional impact:** implements Directive 2 (assume central
+authorities fail — including implicitly trusting AI-authored engineering
+as sufficient for gates that structurally require independent human
+judgment) and Directive 6 (design for failure — a roadmap that can't
+distinguish "done" from "code-complete but unreviewed" is designed to
+fail quietly). Adds no new frozen invariant; this is a process/roadmap
+convention, not a protocol rule.
+
+**Implementation status:** seven gates identified and scoped this pass:
+external cryptography audit (#72), FROST DKG audit (#93), legal counsel
+review (#96, newly filed), personhood signal-(b) research decision (#21),
+presence/ranging hardware validation (#97, split from #22), treasury
+economics/whale-attack modeling (#47/#50), and DTN/extreme-environment
+design constraints (#28). #22 split into #97 (presence/ranging, a
+security-relevant signal) and #98 (local Wi-Fi data bearer, ordinary
+connectivity) because the two have different security requirements and
+conflating them risked treating "reachable" as "physically nearby."
+
+**Failure point:** a gate's scope package can be mistaken for the gate
+itself being closed — checking a box on #99 must require the *named
+outside action* (auditor sign-off, counsel opinion, a founder decision
+recorded as its own D-number) to have actually happened, never merely
+that engineering finished writing the handoff document. This is stated
+explicitly on #99 itself specifically to prevent that failure mode.
+
+**Required follow-up:** the founder engaging each named outside party
+(auditor, counsel, tokenomics specialist, DTN expert) or making the one
+decision that's the founder's alone (#21's signal-(b) path). Each
+package's own "what closes this gate" section names the deliverable.
+
+**Supersedes / superseded by:** none — first entry establishing this
+convention.

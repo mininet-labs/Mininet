@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 24,
-    "files": 230,
-    "headings": 471,
+    "files": 238,
+    "headings": 524,
     "rust_symbols": 1949
   },
   "crates": {
@@ -508,7 +508,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 22045,
+      "bytes": 22398,
       "group": "root",
       "headings": [
         {
@@ -523,63 +523,63 @@
         },
         {
           "level": 2,
-          "line": 69,
+          "line": 72,
           "text": "Status at a glance"
         },
         {
           "level": 2,
-          "line": 95,
+          "line": 98,
           "text": "Repository map"
         },
         {
           "level": 2,
-          "line": 159,
+          "line": 163,
           "text": "What we've built so far, grouped by theme"
         },
         {
           "level": 2,
-          "line": 193,
+          "line": 197,
           "text": "Path to a global launch \u2014 what is still missing"
         },
         {
           "level": 2,
-          "line": 262,
+          "line": 266,
           "text": "Suggested improvements (not yet decided, worth raising with the founder cohort)"
         },
         {
           "level": 2,
-          "line": 272,
+          "line": 276,
           "text": "Constitution summary"
         },
         {
           "level": 2,
-          "line": 293,
+          "line": 297,
           "text": "Identity, public walls, and base devices"
         },
         {
           "level": 2,
-          "line": 316,
+          "line": 320,
           "text": "Stack at a glance"
         },
         {
           "level": 2,
-          "line": 328,
+          "line": 332,
           "text": "Build & test"
         },
         {
           "level": 2,
-          "line": 339,
+          "line": 343,
           "text": "Contributing & review"
         },
         {
           "level": 2,
-          "line": 347,
+          "line": 351,
           "text": "License"
         }
       ],
       "keywords": [
-        "what",
         "every",
+        "what",
         "cargo",
         "see",
         "one",
@@ -590,8 +590,9 @@
         "status",
         "glance",
         "build",
-        "three",
+        "external",
         "real",
+        "cryptography",
         "these",
         "map",
         "built",
@@ -600,12 +601,11 @@
         "own",
         "its",
         "storage",
-        "human",
-        "domain"
+        "never"
       ],
-      "lines": 350,
+      "lines": 354,
       "path": "README.md",
-      "sha256": "4b45f9e701164bbeb2539d88b19f136b01a372308024b59de1a25f0151cabce0",
+      "sha256": "c8092fbc1a9825eae13898b333dde293fe5de631c27eeb1103bca30729f738c7",
       "symbols": [],
       "title": "Mininet"
     },
@@ -18389,7 +18389,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 128632,
+      "bytes": 132117,
       "group": "docs",
       "headings": [
         {
@@ -18686,6 +18686,11 @@
           "level": 3,
           "line": 2106,
           "text": "D-0055 \u2014 `mini-settlement`: offline transaction settlement, implementing M1/M2/M3  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 2172,
+          "text": "D-0056 \u2014 External Legitimacy Gates: naming what more code cannot close  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -18702,21 +18707,21 @@
         "entry",
         "stack",
         "freeze",
+        "what",
         "on-device",
         "license",
         "default",
         "one",
         "audit",
-        "what",
         "date",
         "refs",
         "scope",
         "rule",
         "template"
       ],
-      "lines": 2169,
+      "lines": 2229,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "8b20f49e57329d2a26a550055c42eed059b1431df4414bd9a3a51675627292a0",
+      "sha256": "0d81b1fe6c40c83660344eeb92bcbe4a46669eeac3245dc74908f0bf564cf416",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -20606,6 +20611,562 @@
       "sha256": "dc8f5b6fdb157bc2c772c9be619be32c7c1ba398929a92ebd3ca054cd91e0682",
       "symbols": [],
       "title": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
+    },
+    {
+      "bytes": 2264,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "External legitimacy gates"
+        }
+      ],
+      "keywords": [
+        "issues",
+        "https",
+        "github",
+        "com",
+        "britak420",
+        "gates",
+        "engage",
+        "outside",
+        "cryptography",
+        "auditor",
+        "file",
+        "package",
+        "review",
+        "external",
+        "legitimacy",
+        "scope",
+        "requires",
+        "counsel",
+        "tokenomics",
+        "specialist",
+        "real",
+        "founder",
+        "research",
+        "what"
+      ],
+      "lines": 30,
+      "path": "docs/gates/README.md",
+      "sha256": "9be8d87d2d12816ae82012d6787484ec9d152b7f1e3c1aa508cfc50d3ea925db",
+      "symbols": [],
+      "title": "External legitimacy gates"
+    },
+    {
+      "bytes": 4417,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "External cryptography audit \u2014 scope package"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "Scope \u2014 crates to review"
+        },
+        {
+          "level": 2,
+          "line": 19,
+          "text": "The questions an auditor must answer"
+        },
+        {
+          "level": 2,
+          "line": 38,
+          "text": "What's already done, so the auditor isn't starting from zero"
+        },
+        {
+          "level": 2,
+          "line": 44,
+          "text": "Hard constraints on the review"
+        },
+        {
+          "level": 2,
+          "line": 48,
+          "text": "What closes this gate"
+        }
+      ],
+      "keywords": [
+        "auditor",
+        "ring",
+        "scope",
+        "what",
+        "already",
+        "does",
+        "actually",
+        "review",
+        "questions",
+        "answer",
+        "isn",
+        "new",
+        "audits",
+        "audit",
+        "zero",
+        "gate",
+        "stealth",
+        "frost",
+        "signing",
+        "signature",
+        "across",
+        "key",
+        "claim",
+        "claimed"
+      ],
+      "lines": 51,
+      "path": "docs/gates/crypto-audit-scope.md",
+      "sha256": "d226702756a2e86345086fb117f5629af85b7b9eb85a6babbd68cc7612a96a7a",
+      "symbols": [],
+      "title": "External cryptography audit \u2014 scope package"
+    },
+    {
+      "bytes": 4140,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "FROST distributed key generation \u2014 audit scope package"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "Why this is separate from ordinary signing review"
+        },
+        {
+          "level": 2,
+          "line": 20,
+          "text": "Scope"
+        },
+        {
+          "level": 2,
+          "line": 28,
+          "text": "The Rust shape the implementation should take (for the auditor's context)"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "The questions an auditor must answer"
+        },
+        {
+          "level": 2,
+          "line": 78,
+          "text": "Hard constraints on the review"
+        },
+        {
+          "level": 2,
+          "line": 85,
+          "text": "Recommended architecture note for whoever builds this"
+        },
+        {
+          "level": 2,
+          "line": 94,
+          "text": "What closes this gate"
+        }
+      ],
+      "keywords": [
+        "key",
+        "one",
+        "audit",
+        "auditor",
+        "dkg",
+        "participant",
+        "scope",
+        "signing",
+        "review",
+        "implementation",
+        "share",
+        "separate",
+        "rust",
+        "hard",
+        "even",
+        "testonlytrusteddealer",
+        "does",
+        "frost",
+        "generation",
+        "why",
+        "ordinary",
+        "what",
+        "gate",
+        "founder"
+      ],
+      "lines": 101,
+      "path": "docs/gates/dkg-audit-scope.md",
+      "sha256": "1adad6bce1d256705a59e19efe09d34f89ed80d1c06b874addb43989a77888ad",
+      "symbols": [],
+      "title": "FROST distributed key generation \u2014 audit scope package"
+    },
+    {
+      "bytes": 4552,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Extreme-environment operation \u2014 DTN design constraints"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "Why \"extreme environment\" isn't one problem"
+        },
+        {
+          "level": 2,
+          "line": 31,
+          "text": "What's already compatible, so the expert isn't starting from zero"
+        },
+        {
+          "level": 2,
+          "line": 45,
+          "text": "What needs real design work once the expert engages"
+        },
+        {
+          "level": 2,
+          "line": 64,
+          "text": "The one design rule already clear without needing the expert"
+        },
+        {
+          "level": 2,
+          "line": 77,
+          "text": "Questions the domain expert should answer"
+        },
+        {
+          "level": 2,
+          "line": 89,
+          "text": "What closes this gate"
+        }
+      ],
+      "keywords": [
+        "design",
+        "expert",
+        "already",
+        "what",
+        "work",
+        "regimes",
+        "dtn",
+        "isn",
+        "one",
+        "domain",
+        "bundle",
+        "needs",
+        "latency",
+        "disaster",
+        "satellite",
+        "lunar",
+        "relay",
+        "mars",
+        "existing",
+        "model",
+        "operation",
+        "constraints",
+        "problem",
+        "real"
+      ],
+      "lines": 95,
+      "path": "docs/gates/dtn-design-constraints.md",
+      "sha256": "c29334293bf4cc9b683b00c5d618127dc00391239b9a96c513db4fd975fd2a5a",
+      "symbols": [],
+      "title": "Extreme-environment operation \u2014 DTN design constraints"
+    },
+    {
+      "bytes": 4415,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Treasury economics & long-term attack modeling \u2014 simulation spec"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "Why philosophy alone doesn't close this"
+        },
+        {
+          "level": 2,
+          "line": 21,
+          "text": "What engineering should build before the specialist arrives"
+        },
+        {
+          "level": 3,
+          "line": 43,
+          "text": "Metrics the harness should report"
+        },
+        {
+          "level": 3,
+          "line": 57,
+          "text": "Invariant checks the simulation should assert, not just report"
+        },
+        {
+          "level": 2,
+          "line": 77,
+          "text": "Questions the specialist must answer"
+        },
+        {
+          "level": 2,
+          "line": 93,
+          "text": "What closes this gate"
+        }
+      ],
+      "keywords": [
+        "what",
+        "treasury",
+        "simulation",
+        "specialist",
+        "report",
+        "concentration",
+        "actually",
+        "attack",
+        "harness",
+        "just",
+        "reward",
+        "storage",
+        "simulated",
+        "sybil",
+        "realistic",
+        "long-term",
+        "modeling",
+        "spec",
+        "alone",
+        "doesn",
+        "invariant",
+        "questions",
+        "value",
+        "curves"
+      ],
+      "lines": 99,
+      "path": "docs/gates/economic-simulation-spec.md",
+      "sha256": "5cedb3985bb550bd80d19b894856bff7a73a16797ba49e6d4f359708cb8cb132",
+      "symbols": [],
+      "title": "Treasury economics & long-term attack modeling \u2014 simulation spec"
+    },
+    {
+      "bytes": 4141,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Presence/ranging hardware validation \u2014 test protocol"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "What's already built (so the tester isn't starting from zero)"
+        },
+        {
+          "level": 2,
+          "line": 23,
+          "text": "What needs building"
+        },
+        {
+          "level": 2,
+          "line": 34,
+          "text": "Required hardware"
+        },
+        {
+          "level": 2,
+          "line": 44,
+          "text": "Test protocol \u2014 what must be demonstrated before this gate closes"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "Hard rule this implementation must respect"
+        },
+        {
+          "level": 2,
+          "line": 76,
+          "text": "What closes this gate"
+        }
+      ],
+      "keywords": [
+        "uwb",
+        "hardware",
+        "what",
+        "ranging",
+        "real",
+        "rtt",
+        "presence",
+        "protocol",
+        "gate",
+        "implementation",
+        "devices",
+        "software",
+        "closes",
+        "rangingsource",
+        "android",
+        "already",
+        "built",
+        "isn",
+        "needs",
+        "building",
+        "required",
+        "hard",
+        "platform",
+        "behavior"
+      ],
+      "lines": 83,
+      "path": "docs/gates/hardware-test-protocol.md",
+      "sha256": "eb59e75ff556e2b32e253e6750b58389551f7aaa87963a6315c19c60383bc908",
+      "symbols": [],
+      "title": "Presence/ranging hardware validation \u2014 test protocol"
+    },
+    {
+      "bytes": 4908,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Legal counsel review \u2014 technical brief"
+        },
+        {
+          "level": 2,
+          "line": 9,
+          "text": "The mechanism, plainly"
+        },
+        {
+          "level": 2,
+          "line": 28,
+          "text": "Why direct XMR isn't accepted directly"
+        },
+        {
+          "level": 2,
+          "line": 39,
+          "text": "What counsel needs to evaluate"
+        },
+        {
+          "level": 2,
+          "line": 67,
+          "text": "Related documents this brief doesn't duplicate"
+        },
+        {
+          "level": 2,
+          "line": 78,
+          "text": "Hard constraint on the review"
+        },
+        {
+          "level": 2,
+          "line": 91,
+          "text": "What closes this gate"
+        }
+      ],
+      "keywords": [
+        "counsel",
+        "btc",
+        "legal",
+        "what",
+        "review",
+        "mechanism",
+        "xmr",
+        "does",
+        "gates",
+        "brief",
+        "gate",
+        "contribution",
+        "cryptographic",
+        "admin",
+        "real",
+        "jurisdiction",
+        "protocol",
+        "technical",
+        "direct",
+        "isn",
+        "accepted",
+        "doesn",
+        "constraint",
+        "https"
+      ],
+      "lines": 96,
+      "path": "docs/gates/legal-review-brief.md",
+      "sha256": "0df28dad74200015d9d9ff0e8813f208f3749fbe42760c6d7400fbb5bf1c3bc0",
+      "symbols": [],
+      "title": "Legal counsel review \u2014 technical brief"
+    },
+    {
+      "bytes": 4586,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Human uniqueness proof research (signal b) \u2014 founder decision needed"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "Why the system doesn't block on this today"
+        },
+        {
+          "level": 2,
+          "line": 24,
+          "text": "The three options, argued honestly"
+        },
+        {
+          "level": 3,
+          "line": 26,
+          "text": "Option A \u2014 deprioritize signal (b) permanently for launch (recommended)"
+        },
+        {
+          "level": 3,
+          "line": 40,
+          "text": "Option B \u2014 fund academic research"
+        },
+        {
+          "level": 3,
+          "line": 56,
+          "text": "Option C \u2014 TEE attestation interim"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "The Rust shape, regardless of which option is chosen"
+        },
+        {
+          "level": 2,
+          "line": 89,
+          "text": "Hard rules regardless of which option the founder picks"
+        },
+        {
+          "level": 2,
+          "line": 100,
+          "text": "What closes this gate"
+        }
+      ],
+      "keywords": [
+        "signal",
+        "option",
+        "research",
+        "attestation",
+        "proof",
+        "founder",
+        "today",
+        "behavioral",
+        "device",
+        "launch",
+        "regardless",
+        "what",
+        "raw",
+        "personhood",
+        "decision",
+        "why",
+        "system",
+        "doesn",
+        "three",
+        "options",
+        "honestly",
+        "tee",
+        "rust",
+        "chosen"
+      ],
+      "lines": 105,
+      "path": "docs/gates/personhood-signal-b-decision.md",
+      "sha256": "b83005ac1709e2c30d904f687497c812cad494753733d30eb68527fb01e64d15",
+      "symbols": [],
+      "title": "Human uniqueness proof research (signal b) \u2014 founder decision needed"
     },
     {
       "bytes": 326,

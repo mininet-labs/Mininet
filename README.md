@@ -50,7 +50,7 @@ external dependency on any single company's infrastructure to keep running.
    offline, searchable index of every crate, doc, and symbol in the tree — see
    `docs/NAVIGATION.md`. No GitHub search or IDE required.
 5. **Read before you touch a FREEZE domain.** `docs/DECISION_LOG.md` (every
-   architectural and policy decision, numbered `D-0001`–`D-0055` so far —
+   architectural and policy decision, numbered `D-0001`–`D-0056` so far —
    policy only; see its own header for what belongs elsewhere) and
    `docs/INVARIANTS.md` (the frozen-vs-tunable register, organized by
    domain, with a hard-limitations section at the top) are the two
@@ -65,6 +65,9 @@ external dependency on any single company's infrastructure to keep running.
    already been tried. `docs/THREAT_MODEL.md` records every adversary and
    civilization-scale risk considered, whether or not it's resolved yet —
    read it before claiming something is "secure" without qualification.
+   `docs/gates/` (D-0056) names the work more code cannot close — external
+   cryptography audit, legal counsel, real hardware, open research — so a
+   scoped handoff package is never mistaken for the gate itself closing.
 
 ## Status at a glance
 
@@ -106,6 +109,7 @@ mininet/
 │   ├── FAILURE_BOOK.md          every rejected design and abandoned approach, and why
 │   ├── THREAT_MODEL.md          civilization-scale threat catalog: human/technical/economic/political/civilization
 │   ├── design/                  design notes that close roadmap design issues (bounty/review wall, fork legitimacy)
+│   ├── gates/                   external legitimacy gates — audit/legal/hardware/research handoff packages (D-0056)
 │   ├── audits/                  written audit deliverables for roadmap review issues
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, by domain, with a Directive-traceability column
 │   ├── STATUS.md                living implementation-status account, by domain
