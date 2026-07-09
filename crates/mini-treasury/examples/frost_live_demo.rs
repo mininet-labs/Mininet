@@ -41,8 +41,9 @@ use std::thread;
 use std::time::Duration;
 
 use mini_treasury::{
-    aggregate, round1_commit, round2_sign, trusted_dealer_keygen, verify, KeyPackage,
-    NonceCommitment, PublicKeyPackage, Signature, SigningPackage,
+    aggregate, round1_commit, round2_sign, trusted_dealer_keygen, verify,
+    AcknowledgedPrototypeOnly, KeyPackage, NonceCommitment, PublicKeyPackage, Signature,
+    SigningPackage,
 };
 
 // mini_treasury deliberately keeps its curve module private (see
@@ -250,7 +251,8 @@ fn main() {
     step(format!(
         "[dealer] generating a {n}-signer, {threshold}-of-{n} threshold group key"
     ));
-    let (key_packages, public) = trusted_dealer_keygen(n, threshold).unwrap();
+    let ack = AcknowledgedPrototypeOnly::insecure_trusted_dealer_keygen_is_not_production_ready();
+    let (key_packages, public) = trusted_dealer_keygen(n, threshold, ack).unwrap();
     step(format!(
         "[dealer] group public key: {}",
         hex(public.group_public_key.compress().as_bytes())

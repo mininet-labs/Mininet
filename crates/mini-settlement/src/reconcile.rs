@@ -48,7 +48,7 @@ impl LocalAcceptancePolicy {
 ///
 /// Returns `Err` only for structural problems (bad signature, or an
 /// outright conflict with a *different* claim already seen at this exact
-/// `(payer, nonce)` — the cheapest double-spend attempt, catchable
+/// `(payer, sequence)` — the cheapest double-spend attempt, catchable
 /// entirely offline). A `Result::Ok` here is never a claim of finality;
 /// only [`reconcile`] can produce [`SettlementState::Finalized`].
 pub fn evaluate_local_acceptance(
@@ -64,7 +64,7 @@ pub fn evaluate_local_acceptance(
     }
 
     let digest = claim_digest(claim);
-    if !watcher.observe(&claim.payer, claim.nonce, digest) {
+    if !watcher.observe(&claim.payer, claim.sequence, digest) {
         return Err(SettlementError::ConflictsWithKnownClaim);
     }
 
@@ -87,21 +87,23 @@ pub fn reconcile(
     verify_claim_signature(claim)?;
 
     let digest = claim_digest(claim);
-    let outcome = match ledger.finalized_nonce(&claim.payer) {
+    let outcome = match ledger.finalized_sequence(&claim.payer) {
         None => SettlementState::PendingCanonical,
-        Some(finalized_nonce) if finalized_nonce < claim.nonce => SettlementState::PendingCanonical,
-        Some(finalized_nonce) if finalized_nonce == claim.nonce => {
-            match ledger.finalized_claim_digest(&claim.payer, claim.nonce) {
+        Some(finalized_sequence) if finalized_sequence < claim.sequence => {
+            SettlementState::PendingCanonical
+        }
+        Some(finalized_sequence) if finalized_sequence == claim.sequence => {
+            match ledger.finalized_claim_digest(&claim.payer, claim.sequence) {
                 Some(finalized_digest) if finalized_digest == digest => SettlementState::Finalized,
                 // Either a different claim finalized at this slot, or the
-                // ledger claims a finalized nonce with no matching digest
+                // ledger claims a finalized sequence with no matching digest
                 // on record — either way, this exact claim did not win,
                 // and it is rejected outright, never merged with whatever
                 // did (M1).
                 _ => SettlementState::RejectedConflict,
             }
         }
-        // The canonical ledger has already moved past this nonce without
+        // The canonical ledger has already moved past this sequence without
         // ever finalizing this claim -- superseded, not merely pending.
         Some(_) => SettlementState::RejectedConflict,
     };
@@ -149,11 +151,11 @@ mod tests {
     }
 
     /// THE core double-spend case (M3): two claims, same payer, same
-    /// nonce, different payees/amounts. The canonical ledger finalizes
+    /// sequence, different payees/amounts. The canonical ledger finalizes
     /// exactly one. The other is rejected outright -- never merged,
     /// never partially honored, never averaged.
     #[test]
-    fn conflicting_claims_at_the_same_nonce_never_both_finalize() {
+    fn conflicting_claims_at_the_same_sequence_never_both_finalize() {
         let claim_a = sign_claim(&payer(), b"merchant-a", 5_000, 0, 10_000, b"chain-1", 0).unwrap();
         let claim_b = sign_claim(&payer(), b"merchant-b", 5_000, 0, 10_000, b"chain-1", 0).unwrap();
         assert_ne!(crate::claim_digest(&claim_a), crate::claim_digest(&claim_b));
@@ -181,13 +183,13 @@ mod tests {
     }
 
     #[test]
-    fn a_claim_superseded_by_a_later_finalized_nonce_is_rejected_not_pending() {
+    fn a_claim_superseded_by_a_later_finalized_sequence_is_rejected_not_pending() {
         let claim = sign_claim(&payer(), b"payee", 1_000, 0, 10_000, b"chain-1", 0).unwrap();
         let later = sign_claim(&payer(), b"payee-2", 2_000, 1, 10_000, b"chain-1", 0).unwrap();
         let mut ledger = InMemoryLedgerView::new();
-        // Nonce 1 finalized; nonce 0 was apparently never included as this
-        // exact claim (e.g. a different nonce-0 claim finalized earlier,
-        // or nonce 0 was consumed by something else entirely) -- either
+        // Sequence 1 finalized; sequence 0 was apparently never included as this
+        // exact claim (e.g. a different sequence-0 claim finalized earlier,
+        // or sequence 0 was consumed by something else entirely) -- either
         // way, an observer must not keep reporting PendingCanonical
         // forever for a slot the canonical ledger has moved past.
         ledger.finalize(&claim.payer, 1, crate::claim_digest(&later));

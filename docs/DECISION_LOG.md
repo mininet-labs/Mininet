@@ -2287,3 +2287,235 @@ setting and a commit-author rename for a privacy-focused project.
 
 **Supersedes / superseded by:** none — refines the presentation established
 across earlier README updates without reversing any of their content.
+
+---
+
+### D-0058 — `mini-settlement`: rename `nonce` field to `sequence` (terminology correction, not a design change)  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** D-0055, `crates/mini-settlement/`, GitHub code scanning (CodeQL) on PR #95.
+
+**Decision:** rename `PaymentClaim`'s `nonce: u64` field, and every
+identifier derived from it (`finalized_nonce` → `finalized_sequence`,
+`tampered_nonce` → `tampered_sequence`, related test names), to `sequence`
+throughout `mini-settlement`'s public API and docs. No field type, no
+ordering rule, no signed byte layout, and no test assertion changed —
+this is a rename only.
+
+**Reason:** GitHub's CodeQL scan flagged 42 "critical" alerts against
+`crates/mini-settlement/src/claim.rs` and `reconcile.rs` under
+`rust/hard-coded-cryptographic-value` (CWE-798), each one an integer
+literal passed into a parameter or field literally named `nonce`. All 42
+were false positives: `mini-settlement` has no cryptographic nonce
+anywhere — `mini_crypto::SigningKey::sign` is deterministic Ed25519
+signing with no caller-supplied nonce. `PaymentClaim.nonce` was always a
+monotonic per-payer *sequence number* for double-spend slot detection
+(D-0055's own claim-message docs already described it that way), and
+CodeQL's heuristic keys on the field/parameter *name*, not on any actual
+cryptographic use. Renaming to the name that already describes what the
+field does resolves the false positives and removes a name that would
+mislead the next reader (or the next CodeQL run) into assuming
+cryptographic content that was never there.
+
+**Constitutional impact:** none. No frozen invariant is touched — M1, M2,
+and M3 are enforced by `reconcile()`'s control flow and
+`SettlementState`'s type structure, neither of which this rename changes.
+Not a supersession of D-0055's protocol decision, only a correction to
+that entry's own prose, which called the field a "nonce" — read
+`sequence` wherever D-0055 says `nonce`; D-0055 itself is left unedited
+per this log's append-only rule.
+
+**Implementation status:** shipped — all 26 `mini-settlement` tests pass
+unchanged in substance (only names differ); `cargo fmt`/`clippy -D
+warnings` clean; `docs/gates/crypto-audit-scope.md`'s audit question
+about the claim-message tuple updated to say `sequence` so the auditor
+scope package matches the real field name.
+
+**Failure point:** none introduced — this is a pure rename with no
+behavioral surface. The only residual risk is documentation drift if a
+future edit reintroduces "nonce" language for this field without
+noticing the collision this entry records.
+
+**Required follow-up:** none. Once this lands, PR CodeQL should show zero
+alerts for `mini-settlement`; if a future crate genuinely needs a
+cryptographic nonce, name it plainly (`nonce`) there — this entry is not
+a ban on the word, only a correction of one specific misuse.
+
+**Supersedes / superseded by:** corrects terminology used in D-0055's
+prose without reversing or amending D-0055's decision itself.
+
+---
+
+### D-0059 — `mini-treasury`: zeroize FROST nonces on drop, gate trusted-dealer keygen behind an explicit acknowledgment  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** D-0048, [roadmap #93](../../issues/93), `crates/mini-treasury/src/frost_sign.rs`, `crates/mini-treasury/src/frost_keygen.rs`, CLAUDE.md's typed-domain rule.
+
+**Decision:** two independent hardening changes to `mini-treasury`'s FROST
+prototype, both named as P0 gaps in D-0048:
+
+1. `SigningNonces` now implements `Drop` (zeroizing both scalars via
+   `curve25519-dalek`'s `zeroize` feature) and a hand-written `Debug` that
+   redacts them — the same redaction discipline `mini_crypto::SigningKey`
+   already uses. `Copy` is removed (`Drop` and `Copy` are mutually
+   exclusive in Rust, and `Copy` on a self-zeroizing secret would leave
+   un-zeroized duplicate copies behind, defeating the point); `Clone` is
+   also removed to keep every `SigningNonces` single-owner by construction.
+2. `trusted_dealer_keygen` now takes a required
+   `AcknowledgedPrototypeOnly` parameter, constructed only via
+   `AcknowledgedPrototypeOnly::insecure_trusted_dealer_keygen_is_not_production_ready()`
+   — the same typed-authority pattern CLAUDE.md requires for anything that
+   exercises real authority: a specific named type a reviewer can see in a
+   diff, not a bare function call easy to miss.
+
+**Reason:** D-0048 named both gaps explicitly as P0 blockers on real
+treasury value ("Nonce zeroization is not implemented" / trusted-dealer
+keygen's exposure window). This closes the nonce-zeroization half
+completely and adds real, compiler-enforced friction to the
+trusted-dealer-keygen half (not a substitute for DKG itself — see (3)
+below — but a mechanical guard against it being reached by accident or
+"just for a testnet, just temporarily," the exact failure mode D-0048's
+own failure point names).
+
+**Constitutional impact:** implements Directive 2 ("assume every
+authority is compromisable" — a party that briefly holds the whole secret
+should not be reachable without saying so out loud) and CLAUDE.md's
+typed-domain hard rule. No frozen invariant changed; FROST's signing
+math, wire format, and test-proven correctness (D-0041) are untouched —
+this is hardening around the existing protocol, not a new one.
+
+**Implementation status:** shipped. All `mini-treasury` tests updated to
+pass `AcknowledgedPrototypeOnly` explicitly; new test confirms `Debug`
+output on `SigningNonces` never contains the raw scalar bytes.
+`cargo fmt`/`clippy -D warnings`/`cargo test --workspace --all-features`
+clean. `examples/frost_live_demo.rs` updated to construct the
+acknowledgment once, at the one call site that needs it.
+
+**Failure point:** zeroization here is `curve25519-dalek`'s ordinary
+`Zeroize::zeroize()` on drop — best-effort, not a hardware-backed or
+compiler-reordering-proof guarantee (the same honest caveat every other
+zeroize use in this workspace carries, per CLAUDE.md's "no new
+cryptographic primitives" rule: this composes an existing reviewed
+mechanism rather than inventing one). `AcknowledgedPrototypeOnly` is a
+marker with zero runtime behavior — it stops accidental reachability, not
+a determined caller who explicitly decides to misuse a prototype in
+production; the real fix for that is D-0048's other half, DKG itself,
+which this entry does **not** implement.
+
+**Required follow-up:** [roadmap #93](../../issues/93) remains open for
+the DKG half — `DkgParticipant`/`DkgRound1`/`DkgRound2`/`DkgTranscript`
+replacing `trusted_dealer_keygen` for any production custody use, per
+`docs/gates/dkg-audit-scope.md`. This entry does not close #93, only its
+nonce-zeroization sub-scope.
+
+**Supersedes / superseded by:** does not supersede D-0048 — D-0048's P0
+classification of trusted-dealer keygen stands exactly as written; this
+entry records that one of its two named implementation gaps (nonce
+zeroization) is now closed, and the other (DKG) is now harder to reach
+by accident while remaining open.
+
+---
+
+### D-0060 — `mini-treasury`: real FROST DKG (Pedersen) and committee resharing, closing D-0048's remaining implementation gap  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** Directive 2, Directive 14, Directive 15, D-0048, D-0059, [roadmap #93](../../issues/93), `docs/gates/dkg-audit-scope.md`, `crates/mini-treasury/src/frost_dkg.rs`, `crates/mini-treasury/src/frost_reshare.rs`.
+
+**Decision:** implement real distributed key generation
+(`frost_dkg`, Pedersen DKG per RFC 9591 §4) and committee resharing
+(`frost_reshare`, `KeygenMode::ReshareFromPreviousEpoch`) for
+`mini-treasury`'s FROST custody prototype:
+
+- **DKG:** every participant runs an independent Feldman VSS of their own
+  random polynomial; the group secret is the additive sum of every
+  non-excluded participant's contribution. No dealer, because there is no
+  single party — not even briefly — who ever holds the full secret. A
+  Schnorr proof of knowledge on each round-1 package's constant-term
+  commitment prevents rogue-key attacks (a participant choosing their
+  commitment as a function of others' already-published ones to bias the
+  group key).
+- **Misbehavior handling: exclude-and-continue via a self-verifying
+  complaint/rebuttal mechanism**, not abort-and-restart. A recipient whose
+  Feldman check on a received share fails may file a `DkgComplaint`; the
+  accused gets one chance to publicly re-disclose the same value
+  (`DkgRebuttal`) so every participant can independently verify the truth
+  — Feldman's equation has exactly one satisfying value for a fixed
+  commitment vector, so neither a genuinely bad sender nor a lying accuser
+  can produce a false-looking result. `dkg_resolve` is a pure function of
+  this public transcript: every honest participant computes the identical
+  exclusion set with no voting, no consensus round, no coordinator
+  authority beyond "everyone saw the same broadcast."
+- **Resharing:** an active, threshold-sized old-committee subset
+  redistributes the *same* group secret to a new (possibly differently
+  sized) committee via Lagrange-weighted sub-sharing
+  (`sum_i lambda_i*s_i == f(0)`, the identity `frost_sign::
+  lagrange_coefficient`'s own tests already check), reusing DKG's
+  commitment/proof-of-knowledge/complaint machinery unchanged.
+  `reshare_finalize` independently recomputes and checks the resulting
+  group public key against the old committee's, rather than only trusting
+  the algebra.
+- Both paths produce ordinary `KeyPackage`/`PublicKeyPackage` — identical
+  to `trusted_dealer_keygen`'s output — so `frost_sign` needed zero
+  changes; a DKG-or-reshared key signs through the existing FROST signing
+  code unmodified (directly tested, both paths).
+- Every DKG/reshare call site must pass an explicit
+  `AcknowledgedUnauditedDkg`, the same typed-authority pattern D-0059
+  established for `trusted_dealer_keygen`'s `AcknowledgedPrototypeOnly` —
+  a distinct type because the honest limit differs ("unaudited," not
+  "briefly centralized").
+
+**Reason:** D-0048 named two P0 gaps: nonce zeroization (closed by
+D-0059) and DKG itself. The founder's explicit direction on this batch —
+checked against Directive 2 ("if removing one entity destroys Mininet,
+the design has failed," applied narrowly: a DKG a single bad actor can
+indefinitely stall by repeatedly forcing full restarts is not resilient
+to one compromised participant) and Directive 15 ("welcome the honest
+majority without trusting the malicious minority") — was exclude-and-
+continue over abort-and-restart. Directive 14 (simplicity) is satisfied
+without inventing new consensus machinery, because Pedersen DKG's own
+complaint/rebuttal protocol (Pedersen 1991; Gennaro, Jarecki, Krawczyk &
+Rabin) is already self-verifying against public data — implementing it
+faithfully, rather than a bespoke voting mechanism, is both the simpler
+and the more resilient choice, not a tradeoff between them.
+
+**Constitutional impact:** implements Directive 2, Directive 14, and
+Directive 15 directly in the DKG misbehavior-handling design; upholds
+CLAUDE.md's typed-domain hard rule (`AcknowledgedUnauditedDkg`) and
+"no new cryptographic primitives" rule (Pedersen DKG, Feldman VSS, and
+Schnorr proofs of knowledge are all standard, already-composed
+constructions — no bespoke crypto invented). No frozen invariant
+touched. Does not itself close D-0048's P0 classification — see
+"Implementation status."
+
+**Implementation status:** shipped — 22 new tests across `frost_dkg.rs`
+(14) and `frost_reshare.rs` (8, covering the checklist in
+`docs/gates/dkg-audit-scope.md`: rogue-key rejection, malformed
+commitments, session-replay rejection, missing shares, equivocation,
+false-accusation resistance, resharing exclusion, tampered resharing
+contributions, and group-key preservation through a full DKG-or-reshare-
+then-sign round trip). All 50 `mini-treasury` tests pass; `cargo fmt`/
+`clippy -D warnings`/full workspace `cargo test --all-features` clean.
+`docs/gates/dkg-audit-scope.md` rewritten from a pre-implementation sketch
+to describe the real shape, so the auditor maps straight to source.
+
+**Failure point:** this is architecturally real but **not externally
+audited** — D-0048's P0 classification of the DKG gap is not closed by
+this entry, only its "not implemented at all" half. The complaint/
+rebuttal mechanism's soundness (can a malicious participant falsely
+accuse an honest one, or evade detection with a genuinely bad share) is
+the single highest-value claim for an external auditor to try to break —
+named explicitly as such in `dkg-audit-scope.md`. Resharing does **not**
+revoke the old committee's shares (an old holder who doesn't delete their
+key material can still reconstruct the secret after a "successful"
+reshare) — a documented, code-cannot-close operational gap, not a bug.
+No `TestOnlyTrustedDealer`-forbidden-at-mainnet runtime guard exists,
+because no deployment-mode concept exists yet for one to gate against.
+
+**Required follow-up:** [roadmap #93](../../issues/93) stays open —
+external cryptography audit of `frost_dkg`/`frost_reshare` specifically
+(separate scope from ordinary signing review, per D-0048's own framing).
+A real production/deployment-mode guard forbidding `trusted_dealer_keygen`
+outside tests is real follow-up work once #36-#45's chain/deployment
+concept exists. FROST DKG's own remaining audit-scope gaps: an
+aborting-mid-ceremony scenario beyond "share never arrives," and a
+dedicated FROST-signing-nonce-reuse-attempt test (currently only covered
+conceptually by D-0059's zeroize-on-drop).
+
+**Supersedes / superseded by:** does not supersede D-0048 — closes the
+DKG-implementation half of its two named gaps (nonce zeroization already
+closed by D-0059), leaving only the external-audit requirement itself
+open under #93.

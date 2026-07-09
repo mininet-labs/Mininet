@@ -37,6 +37,29 @@ use crate::error::{Result, TreasuryError};
 /// network-wide validator set.
 pub const MAX_PARTICIPANTS: u16 = 100;
 
+/// A caller's explicit, typed acknowledgment that [`trusted_dealer_keygen`]
+/// briefly centralizes trust in one party (this module's own honest limit,
+/// D-0037, [roadmap issue #93](../../issues/93)) and that using it commits
+/// to replacing it with real distributed key generation before any
+/// production custody use. Constructing this **is** the acknowledgment —
+/// there is no other way to call [`trusted_dealer_keygen`], so a caller
+/// cannot reach it by accident, only by writing this type's name out loud
+/// (the same typed-authority discipline this repo's `CLAUDE.md` requires
+/// for anything that exercises real authority: a specific named request
+/// type, never a bare call a reviewer could miss in a diff).
+#[derive(Debug, Clone, Copy)]
+pub struct AcknowledgedPrototypeOnly {
+    _private: (),
+}
+
+impl AcknowledgedPrototypeOnly {
+    /// Name it, don't hide it: calling this long name is itself the
+    /// acknowledgment that trusted-dealer keygen is not production-ready.
+    pub const fn insecure_trusted_dealer_keygen_is_not_production_ready() -> Self {
+        AcknowledgedPrototypeOnly { _private: () }
+    }
+}
+
 /// One participant's share of the group secret key, plus what they need to
 /// sign: their own index, secret share, and the group's public key.
 /// Nothing here reveals the group secret or any other participant's share.
@@ -65,10 +88,12 @@ pub struct PublicKeyPackage {
 /// `threshold` of which can later produce a valid signature under the
 /// returned group public key. See the module's honest limit: this is
 /// trusted-dealer keygen, not DKG — the dealer (this function, for the
-/// instant it runs) holds the whole secret.
+/// instant it runs) holds the whole secret. `_ack` proves the caller
+/// deliberately chose this over real DKG — see [`AcknowledgedPrototypeOnly`].
 pub fn trusted_dealer_keygen(
     n: u16,
     threshold: u16,
+    _ack: AcknowledgedPrototypeOnly,
 ) -> Result<(Vec<KeyPackage>, PublicKeyPackage)> {
     if n == 0 || n > MAX_PARTICIPANTS || threshold == 0 || threshold > n {
         return Err(TreasuryError::InvalidFrostParameters);
@@ -117,29 +142,33 @@ mod tests {
 
     use super::*;
 
+    fn ack() -> AcknowledgedPrototypeOnly {
+        AcknowledgedPrototypeOnly::insecure_trusted_dealer_keygen_is_not_production_ready()
+    }
+
     #[test]
     fn rejects_invalid_parameters() {
         assert_eq!(
-            trusted_dealer_keygen(0, 1).unwrap_err(),
+            trusted_dealer_keygen(0, 1, ack()).unwrap_err(),
             TreasuryError::InvalidFrostParameters
         );
         assert_eq!(
-            trusted_dealer_keygen(5, 0).unwrap_err(),
+            trusted_dealer_keygen(5, 0, ack()).unwrap_err(),
             TreasuryError::InvalidFrostParameters
         );
         assert_eq!(
-            trusted_dealer_keygen(3, 4).unwrap_err(),
+            trusted_dealer_keygen(3, 4, ack()).unwrap_err(),
             TreasuryError::InvalidFrostParameters
         );
         assert_eq!(
-            trusted_dealer_keygen(MAX_PARTICIPANTS + 1, 1).unwrap_err(),
+            trusted_dealer_keygen(MAX_PARTICIPANTS + 1, 1, ack()).unwrap_err(),
             TreasuryError::InvalidFrostParameters
         );
     }
 
     #[test]
     fn every_share_is_individually_feldman_verifiable() {
-        let (shares, public) = trusted_dealer_keygen(5, 3).unwrap();
+        let (shares, public) = trusted_dealer_keygen(5, 3, ack()).unwrap();
         for share in &shares {
             let expected = *public.verifying_shares.get(&share.index).unwrap();
             assert_eq!(
@@ -160,7 +189,7 @@ mod tests {
         // group public key -- proves f(0) is well-defined regardless of
         // which signers participate, the property FROST signing itself
         // relies on (see frost_sign::lagrange_coefficient).
-        let (shares, public) = trusted_dealer_keygen(5, 3).unwrap();
+        let (shares, public) = trusted_dealer_keygen(5, 3, ack()).unwrap();
 
         let reconstruct = |subset: &[&KeyPackage]| -> RistrettoPoint {
             let indices: Vec<Scalar> = subset.iter().map(|s| Scalar::from(s.index)).collect();
@@ -186,8 +215,8 @@ mod tests {
 
     #[test]
     fn distinct_keygen_runs_produce_distinct_keys() {
-        let (_, public_a) = trusted_dealer_keygen(3, 2).unwrap();
-        let (_, public_b) = trusted_dealer_keygen(3, 2).unwrap();
+        let (_, public_a) = trusted_dealer_keygen(3, 2, ack()).unwrap();
+        let (_, public_b) = trusted_dealer_keygen(3, 2, ack()).unwrap();
         assert_ne!(
             public_a.group_public_key.compress(),
             public_b.group_public_key.compress()

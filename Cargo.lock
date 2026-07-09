@@ -474,6 +474,7 @@ dependencies = [
  "curve25519-dalek",
  "did-mini",
  "mini-crypto",
+ "zeroize",
 ]
 
 [[package]]

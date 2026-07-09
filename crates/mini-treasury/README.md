@@ -41,6 +41,32 @@ hand-derived and checked term-by-term before implementation — documented
 in `frost_sign`'s module docs, same discipline `mini_value::bp_range` used
 for Bulletproofs.
 
+### Real distributed key generation and resharing (D-0059/D-0060, closes D-0048's DKG gap)
+
+- `frost_dkg` — Pedersen DKG (RFC 9591 §4): every participant runs an
+  independent Feldman VSS of their own random value; the group secret is
+  the *sum* of every non-excluded participant's contribution. No dealer,
+  because there is no single party who ever holds the whole secret, not
+  even briefly. A misbehaving participant is handled via a self-verifying
+  complaint/rebuttal mechanism (`DkgComplaint`/`DkgRebuttal`/
+  `dkg_resolve`) — the honest majority can exclude them and finish key
+  generation without any new consensus/voting machinery, and a false
+  accuser cannot frame an honest participant who correctly rebuts. A
+  Schnorr proof of knowledge on every round-1 package prevents rogue-key
+  attacks (a participant choosing their commitment as a function of
+  others' to bias the group key).
+- `frost_reshare` — committee rotation: an active old-committee subset
+  redistributes the *same* group secret to a new committee via
+  Lagrange-weighted sub-sharing, reusing `frost_dkg`'s commitment/
+  complaint machinery unchanged. `reshare_finalize` independently
+  recomputes and checks the resulting group public key against the old
+  one rather than only trusting the algebra.
+
+Both DKG and resharing produce ordinary `KeyPackage`/`PublicKeyPackage`
+values — identical to what `trusted_dealer_keygen` produces — so
+`frost_sign` needs no DKG-specific code path at all; a full round-trip
+(DKG or resharing, then an ordinary FROST signature) is directly tested.
+
 ### Live multi-device signing demo
 
 ```sh
@@ -61,16 +87,32 @@ transport, not DKG keygen).
 
 ### Honest limits — read before trusting this with anything real
 
-- **Trusted-dealer keygen, not DKG.** `trusted_dealer_keygen` briefly holds
-  the whole secret while splitting it. A production deployment needs
-  FROST's distributed key generation instead, so no single party — ever,
-  anywhere — holds the full secret. Not implemented here; see
-  `frost_keygen`'s module docs.
-- **Nonces are not zeroized.** `SigningNonces` holding `d_i`/`e_i` in
-  plain memory until used is a real hardening gap for a production signer.
-- **No network, no transport, no session/replay layer.** The demo's
-  channels stand in for what `mini-net`/`mini-bearer` would carry in a
-  deployed system; that wiring does not exist yet.
+- **`trusted_dealer_keygen` still briefly holds the whole secret while
+  splitting it** — kept for tests/demos, not for production. `frost_dkg`
+  is the production path now, but see the next point.
+- **DKG and resharing are real, tested, and architecturally sound — and
+  still unaudited.** Every call site must explicitly pass an
+  `AcknowledgedPrototypeOnly` or `AcknowledgedUnauditedDkg` (issue #93) so
+  none of these paths is reachable by accident — the type system, not
+  just a comment, marks them prototype-only pending
+  `docs/gates/dkg-audit-scope.md`'s external review.
+- **Resharing does not revoke the old committee's shares.** Old
+  participants still physically hold working key material after a
+  reshare; only actually deleting it completes a real rotation. This
+  module has no way to enforce or verify that deletion — see
+  `frost_reshare`'s own module docs.
+- **Nonces (signing) and coefficients (DKG/reshare) are zeroized on drop,
+  but this is still a prototype.** `SigningNonces` and `DkgRound1Secret`
+  scrub their secret scalars when dropped and redact them from `Debug`
+  output (issue #93) — real hardening, not just documentation — but
+  neither has been reviewed for compiler-reordering/copy risk the way an
+  externally audited implementation would be.
+- **No network, no transport, no session/replay layer.** Round-1/round-2
+  data (signing nonces, commitments, shares, DKG packages) are plain
+  values the caller must transport over its own confidential,
+  authenticated channel — the demo's channels stand in for what
+  `mini-net`/`mini-bearer` would carry in a deployed system; that wiring
+  does not exist yet.
 
 ## Deliberately not built here
 
@@ -85,9 +127,10 @@ D-0037's authorship-policy change for this specific gap:
   This is a separate integration surface entirely, not something FROST or
   any signing scheme closes.
 
-**[FREEZE reminder — D-0037]** The FROST prototype above is founder-
-reviewed, not externally audited. Nothing in this crate should be read as
-"custody solved" for real funds until that audit happens.
+**[FREEZE reminder — D-0037]** Every primitive above — signing, DKG, and
+resharing alike — is founder-reviewed, not externally audited. Nothing in
+this crate should be read as "custody solved" for real funds until that
+audit happens (`docs/gates/dkg-audit-scope.md` for the DKG-specific scope).
 
 This crate is bookkeeping, governance-membership data, and a threshold-
 signature prototype — not a deployable treasury.
