@@ -2676,3 +2676,66 @@ composition should work unchanged, since neither `mini-bootstrap` nor
 
 **Supersedes / superseded by:** none — first live-transport demonstration
 for these two crates.
+
+---
+
+### D-0063 — Clarify "no new cryptographic primitives": published, real-world-proven constructions are composition, not invention  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** Directive 2, Directive 14, founder direction, CLAUDE.md's hard-rules section, [roadmap #31](../../issues/31).
+
+**Decision:** when scoping real proof-of-replication for `mini-spacetime`'s
+named gap (#31), the founder explicitly directed: *"we absolutely should
+implement crypto that has been proven working as tech for other projects,
+but we should keep governance rather than outsource the whole system, that
+is why you must do the coding for all crypto at first as you can use tech
+from several projects."* This clarifies (does not weaken) CLAUDE.md's "no
+new cryptographic primitives" rule: implementing an already-published,
+peer-reviewed, real-world-deployed construction **end-to-end in-house** —
+Filecoin's SDR (Stacked Depth-Robust Graphs) proof-of-replication being
+the immediate case, `mini-value`'s Bulletproofs (D-0036/D-0040) the
+existing precedent already in the tree — is composition of prior art the
+wider field has already analyzed, not invention of new cryptography. What
+remains forbidden, unchanged, is a genuinely novel, unreviewed
+cryptographic design nobody outside this repo has ever scrutinized.
+CLAUDE.md's hard-rules section is updated to state this distinction
+explicitly, so future sessions don't have to re-derive it.
+
+**Reason:** Directive 2 ("assume every central authority will eventually
+fail... every dependency should be assumed temporary") argues against
+*depending on* another project's running code/service for a security-
+critical primitive — vendoring or wrapping an external library still
+means trusting that project's maintainers, release process, and supply
+chain indefinitely. Implementing the same published construction
+ourselves keeps the code inside this repo's own governance and audit
+boundary (D-0037/D-0047) while still only ever using techniques that have
+already survived real-world adversarial deployment (Filecoin mainnet, in
+SDR's case) — the opposite of inventing something new and untested.
+Directive 14 (simplicity) is not in tension with this: SDR is not simpler
+than not-having-replication-proof, but among constructions that solve the
+replication-uniqueness problem at all, it is the one with the most
+real-world scrutiny, which is the relevant "simplicity" comparison here
+(fewest unknowns), not raw line count.
+
+**Constitutional impact:** clarifies, does not weaken, CLAUDE.md's hard
+rule (not a Tier-F `docs/INVARIANTS.md` row, so no invariant is touched).
+Applies going forward to any future primitive-selection decision, not
+just #31 — the test is "has this construction survived real-world
+adversarial deployment and independent publication," not "did we invent
+it here."
+
+**Implementation status:** rule text updated in `CLAUDE.md`. The actual
+proof-of-replication implementation this unblocks is `mini-porep`,
+recorded separately as D-0064.
+
+**Failure point:** "proven working for other projects" is a judgment call
+per construction, not a blanket license — a scheme with only academic
+publication and no real-world deployment history is a weaker claim than
+SDR's Filecoin-mainnet track record, and should be named as such
+explicitly (per the honesty-over-polish rule) rather than implicitly
+treated as equally proven. This entry does not pre-approve every
+published construction; it approves the *category* of reasoning.
+
+**Required follow-up:** none — this is a standing interpretive
+clarification, not a task.
+
+**Supersedes / superseded by:** none — clarifies CLAUDE.md's existing
+rule rather than replacing it.

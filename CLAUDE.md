@@ -24,7 +24,7 @@ source of truth is the network governing itself (mini-forge).
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0052 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0062 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -55,9 +55,17 @@ shipping), `docs/design/` (design notes that close roadmap issues),
   NOT audited, NOT anonymous, NOT enforced. Overclaiming is treated as a
   bug. Prototypes stay gated behind D-0037/D-0047 (external audit before
   real value) — never soften that language.
-- **No new cryptographic primitives** when composition of existing reviewed
-  ones (mini-crypto, mini-value D-0036) suffices. Simplicity is security
-  (Directive 14).
+- **No inventing cryptography.** Composing already-reviewed *primitives*
+  (mini-crypto's Ed25519/X25519/AEAD/BLAKE3) or implementing an already-
+  *published, peer-reviewed, real-world-deployed construction* end-to-end
+  in-house (Bulletproofs in mini-value D-0036/D-0040; SDR-style proof-of-
+  replication in mini-porep D-0063) is fine — that's composition of prior
+  art the wider field has already vetted, done ourselves rather than
+  outsourced to another project's codebase, to keep governance in-house
+  (D-0063). What's forbidden is a *genuinely novel, unreviewed*
+  cryptographic design nobody outside this repo has ever analyzed.
+  Simplicity is security (Directive 14): prefer the smaller, well-trodden
+  construction over a bespoke one whenever either would do.
 - **Never claim "one human, one vote."** Everything today counts identity
   roots. Say "identity root" until SPEC-02 personhood actually lands.
 - **Typed domains, never generic `sign(bytes)`/`finalize(state)`.** Any
@@ -104,7 +112,9 @@ shipping), `docs/design/` (design notes that close roadmap issues),
   prototypes). `mini-bounty` composes them for anonymous dev bounties.
 - `mini-treasury` — FROST threshold custody; real DKG + resharing now
   exist (D-0059/D-0060) but are unaudited (#93). `mini-spacetime` —
-  storage proofs (possession only).
+  possession-only storage proofs (Merkle/PDP). `mini-porep` — real
+  proof-of-replication (D-0063, closes #31): sequential SDR-style sealing
+  distinguishes many honest holders from one warehouse; unaudited.
 - `mini-forge` — code governance: per-root approvals, 2-approval protocol
   floor, KelDirectory oracle. `mini-net` — DHT/gossip over real TCP.
 - `mini-bearer`/`mini-bootstrap`/`mini-sync`/`mini-update` — transport,
