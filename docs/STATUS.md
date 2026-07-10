@@ -188,10 +188,37 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   custody, consensus, and personhood proofs specifically. No code
   path in this tree currently claims production-readiness for any of
   these, so this is a frozen constraint on the future, not a retrofit.
-- **not started** — a dedicated "this PR was AI-assisted" flag on
-  commits/PRs ([#78](../../issues/78));
-  an actual external audit engagement (not tracked in code at all —
-  business/process work).
+- **shipped** — a dedicated "this PR was AI-assisted" flag on PRs
+  ([#78](../../issues/78)): `mini_forge::declare_ai_assistance`/
+  `ai_assistance` (D-0067) — a signed, PR-author-only, purely
+  informational declaration naming an accountable human owner, never
+  counted toward merge quorum. `mini_forge::record_findings`/
+  `list_findings` (D-0067) similarly makes free-text review findings a
+  real, queryable object instead of PR-description prose.
+- **not started** — an actual external audit engagement (not tracked in
+  code at all — business/process work).
+
+## 10. Self-hosted forge spine (D-0066, tracking issue #102)
+
+Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
+external-audit-driven development-sequencing initiative
+(`docs/design/self-hosted-forge-spine.md`), currently the top priority per
+CLAUDE.md until its Batch 4 lands.
+
+- **shipped** — Batch 1's first exit-condition demonstration: `mini-cli`
+  (D-0067), a real command-line tool (`identity`/`kel`/`repo`/`pr`
+  subcommands) over already-real `mini-forge::governance` primitives.
+  `tests/two_developers.rs` proves three independent `mini` homes,
+  sharing only a filesystem `--store` path (no networking, no daemon),
+  reach a governed 2-of-3 merge and correctly refuse to merge under
+  insufficient quorum first.
+- **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
+  machine-readable `STATUS.md`/roadmap generation, live `mini sync`
+  (Batch 1's remaining deferred items); `mini-pipeline`/WASI sandboxing
+  (Batch 2); TUF-style release verification (Batch 3); `mini-installer`
+  (Batch 4, the audit's most safety-critical named gap — `mini-update::
+  AdoptionState::adopt` today records a decision, nothing executes,
+  fetches, or installs); Mininet-as-primary-forge P2P sync (Batch 5).
 
 ## What has no client, at all
 

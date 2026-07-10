@@ -326,6 +326,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-cli"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-forge",
+ "mini-objects",
+ "mini-store",
+]
+
+[[package]]
 name = "mini-crdt"
 version = "0.0.1"
 dependencies = [

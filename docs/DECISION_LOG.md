@@ -2902,3 +2902,181 @@ batch.
 
 **Supersedes / superseded by:** none — first erasure-coding/self-healing
 implementation in this tree.
+
+---
+
+### D-0066 — Adopt external audit's sequencing: pause horizontal crate breadth, build the vertical self-hosted developer spine first  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** founder-adopted external technical assessment (2026-07-10), Directive 1, Directive 2, Directive 14, roadmap hub #92.
+
+**Decision:** a founder-commissioned external auditor reviewed the repository
+and delivered a technical assessment, which the founder has adopted as
+direction. Its central finding: implementation breadth (identity,
+presence, storage rewards, confidential value, treasury custody,
+settlement, finality verification, social objects, forge) has run ahead
+of *vertical integration* — there is no complete path from a developer's
+change through review, governed merge, reproducible build, release
+finality, safe installation, health check, and rollback. This session
+adopts the auditor's recommended re-sequencing: pause opening new
+horizontal protocol-prototype crates for unstarted roadmap phases, and
+build that one narrow vertical "forge loop" end to end first, in the
+six-batch order the report lays out (see
+`docs/design/self-hosted-forge-spine.md` for the adapted plan):
+1. developer spine (CLI + local daemon + Git bridge + proposal/review/
+   merge metadata + machine-readable status), 2. in-house
+   WASI/Wasmtime-sandboxed build pipeline, 3. TUF-style release
+   verification (root/targets/snapshot/timestamp, expiry, rollback
+   protection, independent-builder quorum), 4. a real transactional
+   installer (`mini-installer`: stage → preflight → atomic activate →
+   health-check → rollback), 5. making Mininet itself the primary forge
+   (P2P proposal/review sync, so development survives a GitHub outage),
+   6. only then resume broader protocol work (networked consensus, real
+   BLE/UWB, personhood research, economics, anonymous value,
+   proof-of-replication depth).
+
+**Correction to the audit for the record:** the report states there is
+"no complete vertical path" and separately recommends building a
+"proposal/review/merge" object model as the first concrete PR, describing
+it as new work. `crates/mini-forge/src/governance.rs` already implements
+this: `propose()` creates a PR object binding an exact `head` commit and
+`base` chain position; `approve()` records a verdict **bound to the exact
+head commit reviewed** (invalidated by any later commit swap, exactly the
+property the report asks for); `merge()`/`amend()` record chain entries;
+`resolve_project()` deterministically walks the chain and counts quorum
+in distinct verified identity roots, excluding the author, with fork
+detection. This is real, tested, already-shipped code (predates this
+session). What the report correctly identifies as missing around it:
+review objects carry only an approve/reject bit, not free-text findings
+or CI/test attestations bound to the reviewed commit; there is no
+AI-assistance/human-owner metadata field; there is no way for a human to
+actually drive any of this without hand-writing Rust against the library
+API (no CLI, no daemon). Per Directive 14 and the honesty-over-polish
+rule, the follow-up work in Batch 1 extends this existing model rather
+than replacing it with a new one — see `docs/design/
+self-hosted-forge-spine.md` for the itemized delta.
+
+**Reason:** Directive 1/2 (build for centuries, assume every external
+authority is temporary) is best served by a working self-sufficient
+loop, not more prototype breadth that still depends on GitHub as the
+de facto authority. Directive 14 (simplicity/composition of proven
+constructions) is exactly why the report's recommendations (TUF-style
+release metadata, WASI/Wasmtime sandboxing, in-toto/SLSA-style
+provenance, Noise-framework handshakes) are the right shape: compose
+already-published, real-world-deployed designs rather than invent new
+ones, the same reasoning already recorded in D-0063 for `mini-porep` and
+D-0065 for `mini-erasure`, now applied to the release/update layer where
+the stakes (arbitrary code execution on a user's device) are highest in
+the whole system.
+
+**Constitutional impact:** does not touch any Tier-F `docs/INVARIANTS.md`
+row by itself — this is a development-sequencing decision, not a change
+to any frozen guarantee. It does re-affirm two existing FREEZE rules the
+new work must never cross: no forced update / no kill path (mini-update's
+existing invariant — `mini-installer` executes only what a device owner
+already locally approved), and the voice/value wall (P1) — none of the
+new forge-spine objects may ever gain vote weight from balance or
+payment.
+
+**Implementation status:** design doc and roadmap tracking added this
+batch (`docs/design/self-hosted-forge-spine.md`, roadmap hub #92 update,
+new tracking issue for the spine). `mini-cli` (Batch 1's first concrete
+deliverable) is being built in this same PR — see the crate's own
+README/decision-log follow-up entry for what shipped.
+
+**Failure point:** re-sequencing does not itself close any gap; if this
+batch stalls after the planning/tracking work, the actual auditor-
+identified problem (no installable, safely-updatable client) remains
+exactly as open as before. The exit condition for Batch 1
+("two developers can exchange a signed proposed commit, review the exact
+commit, and reach a governed canonical branch head without GitHub being
+the authority") is the honest bar for calling this decision's intent
+fulfilled, not merely opening a CLI crate.
+
+**Required follow-up:** Batches 2-6 as scoped in `docs/design/
+self-hosted-forge-spine.md`; the roadmap's existing horizontal items
+(#33-#96 and beyond) resume only after Batch 4's installer exit condition
+is met, per the auditor's explicit sequencing recommendation.
+
+**Supersedes / superseded by:** none directly, but changes this
+session's own prior operating assumption (continue through roadmap
+breadth batch-by-batch) — that assumption is superseded by this entry's
+sequencing for all future batches until Batch 4 completes.
+
+---
+
+### D-0067 — `mini-cli` + `mini-forge` review metadata: Batch 1's developer spine, first exit-condition demonstration  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0066, `docs/design/self-hosted-forge-spine.md`, tracking issue #102.
+
+**Decision:** ship `mini-cli` (a new binary crate, the `mini` command) and
+extend `mini-forge::governance` with two new, purely informational object
+types — `declare_ai_assistance`/`ai_assistance` and
+`record_findings`/`list_findings` — completing Batch 1 of the self-hosted
+forge spine. `mini-cli` wraps `did-mini`/`mini-forge`/`mini-store`/
+`mini-objects` in real commands (`identity init/show`, `kel export/trust`,
+`repo init/track/commit/checkout/branch/status`, `pr propose/approve/
+merge/ai-assisted/findings`) with a hand-rolled argument parser (no new
+dependency, matching this workspace's existing "avoid a dependency where a
+few dozen lines of plain Rust do the job" convention). Identity persists
+across CLI invocations by replaying a deterministic inception +
+device-delegation sequence from an on-disk seed file
+(`SigningKey::to_seed_bytes`/`incept_single_from_seeds`); two `mini` homes
+exchange signed objects via a shared `--store` filesystem path (a synced
+folder, a USB stick — any medium that copies files), no new networking
+code. `tests/two_developers.rs` demonstrates Batch 1's exit condition
+directly: three independent homes reach a governed 2-of-3 merge, correctly
+refusing to merge under insufficient quorum first, then converging on
+identical canonical state as seen from a fully independent third home.
+
+**Reason:** Batch 1's exit condition ("two developers can exchange a
+signed proposed commit, review the exact commit, and reach a governed
+canonical branch head without GitHub being the authority") requires a
+human-usable tool, not just a library API — `mini-forge::governance`
+already had the correct object model (predates this session, corrected in
+D-0066) but nobody could drive it without hand-writing Rust. The AI-
+assistance/findings additions answer the audit's real (not duplicated)
+gap: reviews previously carried only an approve/reject bit. Both are
+implemented as new, separate object types rather than changed payloads on
+`propose`/`approve`, specifically so none of ~45 existing call sites in
+`mini-forge`'s own test suite needed to change — Directive 14's "smaller
+diff, well-trodden path" preference over a larger, riskier rewrite of
+already-hardened quorum-counting logic.
+
+**Constitutional impact:** the AI-assistance/findings objects are
+explicitly, structurally excluded from quorum counting (never linked into
+`quorum()`'s counting logic at all) — P1's voice/value wall precedent
+("money never buys merge") extended to "metadata never buys merge"
+either. No Tier-F `docs/INVARIANTS.md` row touched. Advances D-0066's
+Batch 1 toward its stated exit condition (not yet fully closed — see
+Required follow-up).
+
+**Implementation status:** real, tested code. `mini-forge`: 21 governance
+tests (6 new, including AI-assistance quorum-neutrality, rejection of an
+AI-assisted declaration with no named human owner, and a non-author's
+declaration on someone else's PR not being read back). `mini-cli`: 9 unit
+tests (identity persistence round-trip, project aliasing) + 2 integration
+tests (the full three-home governed-merge scenario, and an explicit
+"untrusted author's project cannot be resolved" refusal case) + a manual
+end-to-end shell smoke test during development that caught a real bug
+(see Failure point) before the automated test was written.
+
+**Failure point:** while building this, `mini kel export`/`trust`
+initially handled only the human root's KEL. `mini-forge::oracle::
+author_verified` needs *both* the human root's KEL and the signing
+device's own KEL (`mini_objects::verify_provenance(object, root, device)`)
+— exporting only the human KEL made every object silently unverifiable
+from another home (`ForgeError::BadObject`, "malformed forge object")
+despite the human KEL itself being correctly trusted. Fixed by bundling
+both KELs in one `kel export`/`kel trust` exchange. Documented in
+`mini-cli`'s own module docs as the reason both are required, not papered
+over as an implementation detail. Remaining, named, honest gaps: no key
+rotation from the CLI (full KEL persistence needed, not just seeds), no
+`mini-devd` daemon, no live network sync (`mini sync`), no Git bridge, no
+machine-readable status generation — all named explicitly in `docs/
+design/self-hosted-forge-spine.md` as deferred fast-follows, none
+blocking Batch 1's demonstrated exit condition.
+
+**Required follow-up:** the deferred Batch 1 items above; Batch 2
+(`mini-pipeline`, WASI/Wasmtime-sandboxed builds) is the next major piece
+per the spine's sequencing.
+
+**Supersedes / superseded by:** none — first CLI and first review-metadata
+extension in this tree.

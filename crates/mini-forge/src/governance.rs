@@ -241,6 +241,226 @@ pub fn approve<B: Backend>(
     Ok(obj)
 }
 
+/// AI-assistance declaration object type: optional metadata a proposer may
+/// attach to their own PR.
+pub const AI_ASSIST_TYPE: &str = "mini/pr-ai-assist";
+/// Review findings object type: optional free-text findings a reviewer may
+/// attach alongside (or instead of) an approval verdict.
+pub const FINDINGS_TYPE: &str = "mini/review-findings";
+/// Maximum findings-text bytes.
+pub const MAX_FINDINGS_BYTES: usize = 4096;
+
+/// Declare whether `pr_id` (a PR authored by `human`) was AI-assisted, and
+/// if so, which human takes review/ownership responsibility for it —
+/// exactly the metadata `CONTRIBUTING.md`'s existing AI-authorship
+/// convention already asks reviewers to look for in prose, made a real,
+/// queryable signed object instead. **Purely informational: never counted
+/// toward quorum** — the same separation `mini-reward` accrual keeps from
+/// `mini-chain` voice (P1). Only the PR's own author may make this
+/// declaration meaningfully (see [`ai_assistance`]); anyone else's
+/// declaration on someone else's PR is simply not read back.
+#[allow(clippy::too_many_arguments)]
+pub fn declare_ai_assistance<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    pr_id: &ObjectId,
+    ai_assisted: bool,
+    human_owner: Option<&Did>,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    if ai_assisted != human_owner.is_some() {
+        // AI-assisted work must name an accountable human; declaring "not
+        // AI-assisted" with an owner attached would be an ambiguous claim.
+        return Err(ForgeError::BadObject);
+    }
+    let mut payload = vec![u8::from(ai_assisted)];
+    put_str(&mut payload, human_owner.map(Did::as_str).unwrap_or(""));
+    let obj = ObjectBuilder::new(ObjectType::Custom(AI_ASSIST_TYPE.to_string()))
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(payload))
+        .link("pr", pr_id.clone())
+        .sign(human, device)?;
+    store.insert(&obj)?;
+    Ok(obj)
+}
+
+/// A parsed AI-assistance declaration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AiAssistance {
+    /// Whether the PR's author declared the change AI-assisted.
+    pub ai_assisted: bool,
+    /// The human taking review/ownership responsibility, if AI-assisted.
+    pub human_owner: Option<Did>,
+}
+
+/// Read back `pr_id`'s AI-assistance declaration, if its own author signed
+/// one. If the author signed more than one (e.g. correcting an earlier
+/// claim), the most recent by `(timestamp_ms, sequence)` wins — callers
+/// must not average or merge conflicting claims.
+pub fn ai_assistance<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    pr_id: &ObjectId,
+) -> Result<Option<AiAssistance>> {
+    let pr = store.get(pr_id)?;
+    let mut best: Option<(u64, u64, AiAssistance)> = None;
+    for id in store.linking_to(pr_id)? {
+        let obj = match store.get(&id) {
+            Ok(o) => o,
+            Err(_) => continue,
+        };
+        if obj.object_type != ObjectType::Custom(AI_ASSIST_TYPE.to_string()) {
+            continue;
+        }
+        // Only the PR's own author's declaration is a claim about the PR.
+        if obj.author_human.as_str() != pr.author_human.as_str() {
+            continue;
+        }
+        if !author_verified(oracle, &obj) {
+            continue;
+        }
+        let Some(parsed) = parse_ai_assist_payload(&obj) else {
+            continue;
+        };
+        let better = match &best {
+            None => true,
+            Some((t, s, _)) => (obj.timestamp_ms, obj.sequence) > (*t, *s),
+        };
+        if better {
+            best = Some((obj.timestamp_ms, obj.sequence, parsed));
+        }
+    }
+    Ok(best.map(|(_, _, a)| a))
+}
+
+fn parse_ai_assist_payload(obj: &Object) -> Option<AiAssistance> {
+    let b = match &obj.payload {
+        Payload::Public(b) => b,
+        Payload::Encrypted(_) => return None,
+    };
+    let ai_assisted = match b.first().copied()? {
+        0 => false,
+        1 => true,
+        _ => return None,
+    };
+    let mut off = 1usize;
+    let owner_str = take_str(b, &mut off)?;
+    if off != b.len() {
+        return None; // strict: no trailing bytes
+    }
+    if ai_assisted {
+        if owner_str.is_empty() {
+            return None;
+        }
+        Some(AiAssistance {
+            ai_assisted,
+            human_owner: Some(Did::parse(&owner_str).ok()?),
+        })
+    } else {
+        if !owner_str.is_empty() {
+            return None;
+        }
+        Some(AiAssistance {
+            ai_assisted,
+            human_owner: None,
+        })
+    }
+}
+
+/// Record free-text review findings on `pr_id`, tied to the exact
+/// `reviewed_head` commit — the same commit-binding discipline [`approve`]
+/// uses, so findings cannot be silently reattributed to a later, different
+/// commit. Independent of the approve/reject verdict: a reviewer may leave
+/// findings whether or not they approve. **Never affects quorum counting**
+/// — informational only, read back with [`list_findings`].
+#[allow(clippy::too_many_arguments)]
+pub fn record_findings<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    pr_id: &ObjectId,
+    reviewed_head: &ObjectId,
+    findings: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    if findings.is_empty() || findings.len() > MAX_FINDINGS_BYTES {
+        return Err(ForgeError::FieldTooLarge);
+    }
+    let mut payload = Vec::new();
+    put_str(&mut payload, reviewed_head.as_str());
+    put_str(&mut payload, findings);
+    let obj = ObjectBuilder::new(ObjectType::Custom(FINDINGS_TYPE.to_string()))
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(payload))
+        .link("pr", pr_id.clone())
+        .link("reviewed", reviewed_head.clone())
+        .sign(human, device)?;
+    store.insert(&obj)?;
+    Ok(obj)
+}
+
+/// One recorded findings entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Findings {
+    /// The identity root that recorded these findings.
+    pub reviewer: Did,
+    /// The exact commit these findings were written against.
+    pub reviewed_head: ObjectId,
+    /// The findings text.
+    pub text: String,
+}
+
+/// All author-verified findings recorded against `pr_id`. Order is
+/// whatever the store's link index yields; callers wanting a stable order
+/// should sort by `(timestamp_ms, sequence)` themselves.
+pub fn list_findings<B: Backend>(
+    store: &Store<B>,
+    oracle: &dyn IdentityOracle,
+    pr_id: &ObjectId,
+) -> Result<Vec<Findings>> {
+    let mut out = Vec::new();
+    for id in store.linking_to(pr_id)? {
+        let obj = match store.get(&id) {
+            Ok(o) => o,
+            Err(_) => continue,
+        };
+        if obj.object_type != ObjectType::Custom(FINDINGS_TYPE.to_string()) {
+            continue;
+        }
+        if !author_verified(oracle, &obj) {
+            continue;
+        }
+        let b = match &obj.payload {
+            Payload::Public(b) => b,
+            Payload::Encrypted(_) => continue,
+        };
+        let mut off = 0usize;
+        let Some(reviewed_str) = take_str(b, &mut off) else {
+            continue;
+        };
+        let Some(text) = take_str(b, &mut off) else {
+            continue;
+        };
+        if off != b.len() {
+            continue;
+        }
+        let Ok(reviewed_head) = ObjectId::parse(&reviewed_str) else {
+            continue;
+        };
+        out.push(Findings {
+            reviewer: obj.author_human.clone(),
+            reviewed_head,
+            text,
+        });
+    }
+    Ok(out)
+}
+
 /// Record a merge of `pr_id` as the chain entry after `prev` (the project id
 /// or the current tip). Validity is judged at [`resolve_project`] time against
 /// the policy as of `prev`.
