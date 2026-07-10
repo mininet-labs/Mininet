@@ -179,11 +179,18 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   proof — see the crate's own README for the honest limits in full.
 - **prototype** — `mini-erasure` (D-0065, closes [#30](../../issues/30)
   and [#32](../../issues/32)): systematic Reed-Solomon erasure coding over
-  `GF(2^8)` (Vandermonde generator matrix, Gauss-Jordan decode from any
-  `k` of `n` shards) plus a self-healing repair layer — `plan_repair`/
-  `repair` detect missing *or corrupted* (BLAKE3-verified) shards and
-  regenerate exactly the missing ones. Real, tested (27 tests incl. an
-  end-to-end two-outage healing cycle), founder-reviewed. Proves the
+  `GF(2^8)` (normalized Vandermonde generator matrix, Gauss-Jordan decode
+  from any `k` of `n` shards) plus a self-healing repair layer —
+  `plan_repair`/`repair` detect missing *or corrupted* (BLAKE3-verified)
+  shards and regenerate exactly the missing ones. An external review
+  found the originally-shipped generator matrix (raw parity rows appended
+  below an identity block) did not actually have the MDS property for
+  all accepted parameters — a concrete counterexample failed to
+  reconstruct from a within-tolerance shard loss; fixed in D-0072 by
+  normalizing a full Vandermonde matrix against its own top block
+  instead. Real, tested (29 tests incl. an end-to-end two-outage healing
+  cycle, the fixed counterexample as a permanent regression, and a
+  randomized larger-configuration sample), founder-reviewed. Proves the
   coding/repair logic only — actually distributing regenerated shards to
   network holders is `mini-net`/`mini-store`'s unstarted job.
 - **not started** — cold/owner-only storage tiers, huge-file handling at
@@ -305,11 +312,20 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   environment, not yet a live distributed system. Honest limits: Unix-only
   (`symlink`/`rename` activation), no process supervision, no real
   package-manager/OS integration — see §5 for the full detail; 10 tests.
+- **shipped** — Batch 5, first piece: `mini sync listen`/`mini sync
+  connect` (`mini-cli::sync`), live network peer exchange over a real TCP
+  `mini_bearer` + `mini_sync` connection — Batch 1's remaining deferred
+  item. `tests/network_sync.rs` proves two `mini` homes with completely
+  independent, unshared stores reach the same governed merge purely over
+  the network. `listen` accepts one peer by default or exactly `--repeat
+  <n>` peers sequentially (no daemon, no concurrency, no signal-based
+  shutdown); `connect` always dials exactly one peer.
 - **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
-  machine-readable `STATUS.md`/roadmap generation, live `mini sync`
-  (Batch 1's remaining deferred items); wiring `mini-installer` into an
-  actual running system (Batch 4's own named next step, the caller's job
-  by design); Mininet-as-primary-forge P2P sync (Batch 5).
+  machine-readable `STATUS.md`/roadmap generation (Batch 1's remaining
+  deferred items); wiring `mini-installer` into an actual running system
+  (Batch 4's own named next step, the caller's job by design); the rest of
+  Batch 5 (local object indexing at scale, distributed build workers,
+  GitHub import/export mirror automation).
 
 ## What has no client, at all
 

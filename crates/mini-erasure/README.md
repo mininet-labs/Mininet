@@ -25,13 +25,19 @@ coding all use it instead of naive copies.
   crate only ever inverts small matrices, never a per-byte hot path, so
   simplicity wins over log/antilog tables).
 - `matrix.rs` — dense `GF(2^8)` matrices, Gauss-Jordan inversion, and the
-  systematic Vandermonde generator matrix: a `(k+m) x k` matrix whose top
-  `k` rows are the identity (so the first `k` output shards are the
-  original data, unencoded) and whose bottom `m` rows are Vandermonde
-  coefficients. Every `k`-row subset of a Vandermonde matrix is invertible
-  (the maximum-distance-separable property), which is exactly what lets
-  reconstruction use *any* `k` of the `k+m` shards, not just the first
-  `k`.
+  systematic generator matrix: a `(k+m) x k` matrix whose top `k` rows are
+  the identity (so the first `k` output shards are the original data,
+  unencoded) and whose bottom `m` rows are parity coefficients. Built by
+  taking a full `(k+m) x k` Vandermonde matrix and normalizing it against
+  its own top `k x k` block (`G = V * V_top^-1`) — appending *raw*
+  Vandermonde parity rows below a separate identity block does **not**
+  actually have the maximum-distance-separable (MDS) property in general
+  (an external review caught a real, concrete counterexample where that
+  naive construction was singular for a valid within-tolerance shard
+  loss; `matrix.rs`'s own doc comment on `generator_matrix` has the full
+  argument for why normalizing fixes it). Every `k`-row subset of the
+  normalized matrix is invertible, which is what lets reconstruction use
+  *any* `k` of the `k+m` shards, not just the first `k`.
 - `code.rs` — `encode()`/`reconstruct()`: split data into shards, multiply
   by the generator matrix, and invert the submatrix of whichever `k`
   shards survive to recover the original.

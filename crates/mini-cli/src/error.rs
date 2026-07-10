@@ -21,6 +21,8 @@ pub enum CliError {
     Store(String),
     /// A `mini-objects` operation failed.
     Object(String),
+    /// A `mini-bearer`/`mini-sync` network sync operation failed.
+    Sync(String),
     /// The command line itself was malformed (missing/unknown flag, wrong
     /// argument count).
     Usage(String),
@@ -44,6 +46,7 @@ impl fmt::Display for CliError {
             CliError::Forge(e) => write!(f, "forge error: {e}"),
             CliError::Store(e) => write!(f, "store error: {e}"),
             CliError::Object(e) => write!(f, "object error: {e}"),
+            CliError::Sync(e) => write!(f, "sync error: {e}"),
             CliError::Usage(e) => write!(f, "usage error: {e}"),
         }
     }

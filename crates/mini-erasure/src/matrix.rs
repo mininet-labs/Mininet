@@ -1,12 +1,14 @@
 //! Small dense matrices over `GF(2^8)`, and the systematic Reed-Solomon
-//! generator matrix built from them: a Vandermonde-derived `(k + m) x k`
-//! matrix whose top `k x k` block is the identity (so the first `k` output
-//! rows are exactly the original data, unencoded -- "systematic" coding),
-//! and whose bottom `m` rows are the parity coefficients. Any `k` rows of
-//! this matrix form a `k x k` submatrix that is guaranteed invertible
-//! (the Vandermonde/MDS property), which is exactly what lets
-//! [`crate::code::reconstruct`] recover the original data from *any* `k`
-//! of the `k + m` shards, not just the first `k`.
+//! generator matrix built from them: a `(k + m) x k` matrix whose top
+//! `k x k` block is the identity (so the first `k` output rows are exactly
+//! the original data, unencoded -- "systematic" coding), and whose bottom
+//! `m` rows are parity coefficients. **Every** `k x k` submatrix of this
+//! matrix -- not just the top block -- is invertible (the MDS property),
+//! which is exactly what lets [`crate::code::reconstruct`] recover the
+//! original data from *any* `k` of the `k + m` shards, not just the first
+//! `k`. See [`generator_matrix`]'s own doc comment for why the naive
+//! "append raw Vandermonde parity rows below an identity block" approach
+//! does *not* actually have this property, and what's done instead.
 
 use crate::gf256;
 
@@ -151,26 +153,48 @@ impl Matrix {
 }
 
 /// The `(data_shards + parity_shards) x data_shards` systematic generator
-/// matrix: the top `data_shards` rows are the identity, the bottom
-/// `parity_shards` rows are Vandermonde coefficients `x_i^j` for distinct
-/// nonzero `x_i` (one per parity row, `x_i = data_shards + row_offset + 1`
-/// so no parity row ever collides with a value already used by the
-/// identity block). Every `k x k` submatrix of a Vandermonde matrix is
-/// invertible, which is the MDS (maximum-distance-separable) property
-/// that lets [`crate::code::reconstruct`] use *any* `k` of the `n` rows.
+/// matrix. Built by taking a full `n x k` Vandermonde matrix `V` (row `i`
+/// is `[x_i^0, x_i^1, ..., x_i^{k-1}]` for `n` distinct nonzero `x_i`, here
+/// `x_i = i + 1`) and normalizing it against its own top `k x k` block:
+/// `G = V * V_top^-1`. This is *not* the same as simply appending raw,
+/// un-normalized Vandermonde parity rows below an identity block --
+/// appending raw rows does not have the MDS property in general (a
+/// concrete counterexample: `data_shards=4, parity_shards=6`, the rows
+/// selected by shard indices `[1, 4, 5, 9]` of the naive construction form
+/// a *singular* matrix, so reconstruction from exactly `data_shards`
+/// surviving shards can fail even though the loss is within the nominal
+/// `parity_shards` tolerance -- this was a real, shipped bug, not a
+/// hypothetical one; the fix here is what closes it).
+///
+/// Why normalizing preserves the MDS property: for any `k`-row subset `S`,
+/// selecting rows of `G = V * V_top^-1` is the same as selecting the same
+/// rows of `V` first (row selection commutes with right-multiplication),
+/// so `G[S] = V[S] * V_top^-1`. `V[S]` is invertible for *every* subset
+/// `S` (the classic Vandermonde-determinant fact -- nonzero as long as all
+/// `x_i` are distinct, true over any field including `GF(2^8)`), and
+/// `V_top^-1` is a fixed invertible matrix, so the product `G[S]` is
+/// invertible too, for every `S`, not just the identity block. Taking
+/// `S = 0..k` recovers `G[0..k] = V_top * V_top^-1 = I`, so the systematic
+/// (identity-top-block) property still holds by construction.
 pub fn generator_matrix(data_shards: usize, parity_shards: usize) -> Matrix {
     let n = data_shards + parity_shards;
-    let mut g = Matrix::zeros(n, data_shards);
-    for i in 0..data_shards {
-        g.set(i, i, 1);
-    }
-    for p in 0..parity_shards {
-        let x = (data_shards + p + 1) as u8;
+    let mut v = Matrix::zeros(n, data_shards);
+    for i in 0..n {
+        // Safe: callers cap `data_shards + parity_shards <= 255`
+        // (`ErasureParams::new`), so `i + 1` never exceeds `u8::MAX`, and
+        // every value here is nonzero and distinct, which is all the
+        // Vandermonde-determinant argument above needs.
+        let x = (i + 1) as u8;
         for j in 0..data_shards {
-            g.set(data_shards + p, j, gf256::pow(x, j as u32));
+            v.set(i, j, gf256::pow(x, j as u32));
         }
     }
-    g
+    let top_rows: Vec<usize> = (0..data_shards).collect();
+    let top = v.select_rows(&top_rows);
+    let top_inv = top
+        .invert()
+        .expect("Vandermonde top block is always invertible for distinct nonzero x_i");
+    v.mul(&top_inv)
 }
 
 #[cfg(test)]
@@ -198,17 +222,79 @@ mod tests {
 
     #[test]
     fn every_k_row_subset_of_the_generator_is_invertible() {
-        let data_shards = 4;
-        let parity_shards = 3;
-        let g = generator_matrix(data_shards, parity_shards);
-        let n = data_shards + parity_shards;
+        // Exhaustive (all C(n, k) subsets, not sampled) across several
+        // (data_shards, parity_shards) pairs, including a parity count
+        // large enough that the old naive "raw Vandermonde parity rows
+        // appended below an identity block" construction was singular for
+        // some subsets (see `a_previously_singular_subset_is_now_invertible`
+        // for the exact counterexample that caught it).
+        for (data_shards, parity_shards) in [(4, 3), (3, 4), (2, 6), (5, 2)] {
+            let g = generator_matrix(data_shards, parity_shards);
+            let n = data_shards + parity_shards;
+            for subset in combinations(n, data_shards) {
+                let sub = g.select_rows(&subset);
+                assert!(
+                    sub.invert().is_some(),
+                    "data_shards={data_shards} parity_shards={parity_shards} \
+                     subset {subset:?} produced a singular matrix"
+                );
+            }
+        }
+    }
 
-        // All C(n, k) subsets for small n -- exhaustive, not sampled.
-        for subset in combinations(n, data_shards) {
+    /// The exact counterexample an external review found against the
+    /// previous "append raw Vandermonde parity rows below an identity
+    /// block" construction: with `data_shards=4, parity_shards=6`, the
+    /// four rows at indices `[1, 4, 5, 9]` formed a rank-3 (singular)
+    /// matrix under the old code, meaning reconstruction from those four
+    /// surviving shards -- a loss well within the nominal
+    /// `parity_shards` tolerance -- would incorrectly fail. Confirmed
+    /// reproducible against the old construction before fixing it; now a
+    /// permanent regression test.
+    #[test]
+    fn a_previously_singular_subset_is_now_invertible() {
+        let g = generator_matrix(4, 6);
+        let survivors = [1usize, 4, 5, 9];
+        let sub = g.select_rows(&survivors);
+        assert!(
+            sub.invert().is_some(),
+            "known-bad subset {survivors:?} is singular again"
+        );
+    }
+
+    #[test]
+    fn every_k_row_subset_is_invertible_for_a_larger_randomized_configuration() {
+        // Not exhaustive at this size (C(20, 10) is too large to enumerate
+        // in a unit test), but samples broadly across the shard-index
+        // space with a fixed seed so failures are reproducible.
+        let data_shards = 10;
+        let parity_shards = 10;
+        let n = data_shards + parity_shards;
+        let g = generator_matrix(data_shards, parity_shards);
+
+        let mut state: u64 = 0xC0FFEE;
+        let mut next = || {
+            // xorshift64 -- deterministic, no external dependency needed
+            // for a test-only PRNG.
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+
+        for _ in 0..500 {
+            let mut indices: Vec<usize> = (0..n).collect();
+            // Partial Fisher-Yates shuffle, just enough to pick
+            // `data_shards` distinct indices.
+            for i in 0..data_shards {
+                let j = i + (next() as usize % (n - i));
+                indices.swap(i, j);
+            }
+            let subset: Vec<usize> = indices[0..data_shards].to_vec();
             let sub = g.select_rows(&subset);
             assert!(
                 sub.invert().is_some(),
-                "subset {subset:?} produced a singular matrix"
+                "randomized subset {subset:?} produced a singular matrix"
             );
         }
     }
