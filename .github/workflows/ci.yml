@@ -62,6 +62,23 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  # License/advisory/source policy for the whole resolved dependency
+  # graph (D-0069 dependency-governance requirement, first exercised by
+  # mini-build-runner-wasmtime's Wasmtime dependency). Config lives in
+  # `deny.toml` at the repo root. `continue-on-error: true` for the same
+  # reason `dependency-audit` above has it: `deny.toml` was authored
+  # without a local `cargo-deny` binary to verify it against, so a first
+  # real CI run establishes the baseline rather than blocking merges on
+  # an unverified config.
+  dependency-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        continue-on-error: true
+        with:
+          command: check
+
   # First real slice of SPEC-11's verified-reproducible release pipeline
   # (roadmap #69): build the workspace twice from a clean target directory
   # on the same runner and assert the example binaries are byte-identical.

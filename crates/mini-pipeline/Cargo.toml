@@ -1,0 +1,16 @@
+[package]
+name = "mini-pipeline"
+version = "0.0.1"
+description = "Pure pipeline manifest, policy, capability, and execution-plan types (self-hosted forge spine Batch 2b.1, D-0069) -- deliberately has NO Wasmtime dependency. The isolated executor lives entirely in mini-build-runner-wasmtime; this crate only describes what is allowed, never runs anything."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-objects = { path = "../mini-objects" }
+
+[dev-dependencies]
+did-mini = { path = "../did-mini" }

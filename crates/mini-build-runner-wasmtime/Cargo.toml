@@ -1,0 +1,41 @@
+[package]
+name = "mini-build-runner-wasmtime"
+version = "0.0.1"
+description = "The isolated build runner (self-hosted forge spine Batch 2b.2, D-0069) -- the ONLY crate in this tree permitted to link wasmtime/wasmtime-wasi. Executes one wasm-component pipeline step under a deny-by-default capability boundary and reports an ExecutionResult. mini-cli, mini-forge, mini-chain, identity, and ordinary node binaries never depend on this crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mini-build-runner-wasmtime"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+blake3 = "1"
+mini-pipeline = { path = "../mini-pipeline" }
+mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
+# Exact patch versions pinned deliberately (D-0069 dependency-governance
+# requirement): this is the one crate in the tree where an unreviewed
+# transitive upgrade is a real security event, not routine maintenance.
+# Never `cargo update -p wasmtime` on autopilot -- bump in a reviewed
+# commit that re-runs the Batch 2b.3 adversarial suite.
+wasmtime = { version = "=27.0.0", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasmtime-wasi = { version = "=27.0.0", default-features = false }
+# Implements a deterministic RngCore for `random:deterministic` steps
+# (seeded from the execution plan's own digest, never OS entropy). Pulled
+# in transitively by wasmtime-wasi's own `cap-rand` dependency already;
+# declared directly here only so this crate can name the `RngCore`/`Error`
+# types without guessing which version cap-rand resolved to.
+rand_core = "0.6"
+
+[dev-dependencies]
+tempfile = "3"
+# Only needed to mint a validly-signed `ObjectId` for the Batch 2b.3
+# adversarial suite's `StepKind::NativeTool` fixture (criterion 11) --
+# never a dependency of this crate's actual runner logic.
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }

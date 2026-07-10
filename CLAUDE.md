@@ -9,9 +9,9 @@ when a convention changes, change it here in the same PR.
 ## What this project is
 
 Mininet: a constitutional P2P protocol — identity, personhood, money,
-storage, governance — built in Rust as ~29 `mini-*` crates (one, `mini-cli`,
-is a binary), designed to outlive its creators (think in centuries, not
-releases). The founder directs
+storage, governance — built in Rust as ~32 `mini-*` crates (two,
+`mini-cli` and `mini-build-runner-wasmtime`, are binaries), designed to
+outlive its creators (think in centuries, not releases). The founder directs
 via chat and merges via GitHub PRs. GitHub is the UAT/mirror; the long-term
 source of truth is the network governing itself (mini-forge).
 
@@ -25,7 +25,7 @@ source of truth is the network governing itself (mini-forge).
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0068 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0069 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -127,9 +127,17 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   self-hosted forge spine Batch 1, #102). `mini-provenance` — SLSA/in-toto
   build provenance signed objects + independent-builder agreement
   counting (D-0068, spine Batch 2a); records/counts claims, runs no build
-  itself — sandboxed execution (Batch 2b, needs Wasmtime) is a deliberately
-  deferred, not-yet-decided dependency question. `mini-net` — DHT/gossip
-  over real TCP.
+  itself. `mini-pipeline`/`mini-pipeline-protocol` — pure pipeline
+  manifest/policy/capability types and content-addressed request/result
+  messages (D-0069, spine Batch 2b.1); no Wasmtime dependency, ever.
+  `mini-build-runner-wasmtime` — the isolated Wasmtime executor for
+  `wasm-component` pipeline steps (D-0069, spine Batch 2b.2/2b.3); the
+  ONLY crate in this tree permitted to link `wasmtime`/`wasmtime-wasi`,
+  deny-by-default capability model, fuel/epoch/memory limits, 12-point
+  adversarial exit-criteria suite driving the real compiled binary.
+  `native-tool` (raw shell) pipeline steps remain unsandboxed and never
+  trusted-provenance-eligible until a separate OS-isolated mechanism is
+  designed and decided. `mini-net` — DHT/gossip over real TCP.
 - `mini-bearer`/`mini-bootstrap`/`mini-sync`/`mini-update` — transport,
   BLE-first bootstrap, CRDT sync, self-contained updates.
 - `mini-store`/`mini-storage`/`mini-reward`/`mini-social`/`mini-objects`/

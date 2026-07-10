@@ -36,6 +36,9 @@ members = [
     "crates/mini-erasure",
     "crates/mini-cli",
     "crates/mini-provenance",
+    "crates/mini-pipeline",
+    "crates/mini-pipeline-protocol",
+    "crates/mini-build-runner-wasmtime",
 ]
 
 [workspace.package]

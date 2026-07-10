@@ -3149,3 +3149,77 @@ require Batch 2b to proceed and may be the next piece instead.
 
 **Supersedes / superseded by:** none — first build-provenance
 implementation in this tree.
+
+---
+
+### D-0069 — Adopt Wasmtime as the reference executor for untrusted pipeline components, isolated to a dedicated runner  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0066, D-0068, `docs/design/self-hosted-forge-spine.md`, tracking issue #102.
+
+**Decision:** *"Adopt Wasmtime as Mininet's reference executor for
+untrusted pipeline components. Wasmtime shall be isolated in a dedicated
+build-runner process and shall not become a dependency of Mininet's
+identity, chain, forge-policy, update-verification, or ordinary node
+binaries. Pipeline capability declarations must be enforced by
+construction with deny-by-default host interfaces; metadata-only
+capability claims do not qualify for trusted provenance. Wasmtime
+execution covers WebAssembly components only and is not represented as a
+complete sandbox for arbitrary native toolchains. Native build tools
+remain prohibited from trusted pipelines until a separate digest-pinned,
+OS-isolated execution mechanism is implemented. The dependency is
+accepted because sandboxing attacker-controlled build logic is a
+specialist security boundary where an established implementation is safer
+than a smaller Mininet-specific replacement."* — founder decision,
+resolving the dependency question D-0068 left explicitly open.
+
+**Reason:** the two rejected alternatives were each worse in a specific,
+named way. Metadata-only capability declarations (`capabilities =
+["network:none"]` on an otherwise-unrestricted process) would describe
+desired behavior without enforcing it — the opposite of this tree's
+honesty-over-polish rule, and explicitly barred from ever producing a
+trusted build attestation. A home-grown OS sandbox (namespaces/seccomp/
+Landlock on Linux, sandbox/AppContainer elsewhere) would become its own
+multi-platform security project, and Wasmtime's import-based guest
+capability boundary is the portable, already-adversarially-tested
+alternative — this is Directive 14's "prefer the established, well-
+trodden construction" reasoning (already applied to `mini-porep`'s SDR
+construction, D-0063, and `mini-erasure`'s Reed-Solomon field arithmetic,
+D-0065) now applied to a sandbox runtime instead of a cryptographic or
+coding-theory construction. Architecturally isolating Wasmtime to one
+replaceable binary (`mini-build-runner-wasmtime`) rather than the core is
+what makes the large dependency acceptable at all: only machines
+volunteering as build workers ever link it, never `mini-cli`, `mini-forge`,
+`mini-chain`, identity, or the eventual update-verification/installer path.
+
+**Constitutional impact:** no Tier-F `docs/INVARIANTS.md` row touched
+directly, but this decision sets a standing constraint on all Batch 2b
+work: Wasmtime may never appear in the dependency graph of any
+identity/chain/forge-governance/update-verification/ordinary-node crate,
+checked the same way the voice/value wall (P1) is checked on every
+`Cargo.toml` diff. A `wasm-component` pipeline step may earn a trusted
+build-provenance record (`mini-provenance`, D-0068); a `native-tool` (raw
+shell) step may never earn one until its own separate OS-isolated
+mechanism exists and is decided the same explicit way this decision was.
+
+**Implementation status:** design only as of this entry — see
+`docs/design/self-hosted-forge-spine.md`'s expanded Batch 2b section for
+the full architecture (three-crate split, deny-by-default capability
+model, out-of-process execution, resource limits, trimmed Wasmtime
+feature set, dependency-governance checklist, the twelve-point exit
+criteria). Implementation tracked as this session's immediate next work.
+
+**Failure point:** Wasmtime does not, by itself, sandbox arbitrary native
+build tools (`cargo build`, `npm install`, `bash build.sh` are host
+processes, not Wasm guest instructions) — stated explicitly so this
+decision is never later read as "the Rust build is now hermetic." Batch
+2b's `wasm-component` step class is the only trusted-attestation-eligible
+path until a separate native-tool sandbox is designed and decided.
+
+**Required follow-up:** implement in the sequence the founder specified —
+2b.1 (pure `mini-pipeline` manifest/policy types, no Wasmtime dependency),
+2b.2 (the isolated `mini-build-runner-wasmtime` process), 2b.3 (adversarial
+capability/resource tests against the twelve-point exit criteria) — before
+Batch 3 (TUF-style release verification) resumes, though Batch 3 does not
+strictly depend on 2b's completion.
+
+**Supersedes / superseded by:** resolves D-0068's "Required follow-up"
+(the Wasmtime dependency question left open pending founder input).
