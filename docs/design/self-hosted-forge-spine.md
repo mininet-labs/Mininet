@@ -289,7 +289,9 @@ Batch 2b.3: adversarial capability/resource tests (the 12 criteria above) -- shi
         v
 Batch 3: TUF-style release verification -- shipped, D-0070
         v
-Batch 4: real installation -- next
+Batch 4: real installation (mini-installer) -- shipped, D-0071
+        v
+Batch 5: Mininet as the primary forge -- next
 ```
 
 ## Batch 3 — release verification (shipped)
@@ -356,16 +358,63 @@ not depend on. A caller that never constructs a `FreshnessPolicy`/
 `ProvenancePolicy` or calls `evaluate_with_provenance` sees no behavior
 change from before Batch 3.
 
-## Batch 4 — real installation
+## Batch 4 — real installation (shipped)
 
 `mini-installer`, separated from `mini-update` (which stays policy/intent
-only, per the existing no-forced-update/no-kill-path freeze). State
+only, per the existing no-forced-update/no-kill-path freeze). This was the
+audit's most safety-critical, most honestly-named gap —
+`mini-update::AdoptionState::adopt` verifies a release and records a
+decision, but nothing in that crate executes, fetches, or installs
+anything, deliberately. `mini-installer` is the separate layer that
+actually does, built as a type-state pipeline over the exact named state
 machine: `Discovered → Verified → Downloading → Staged → PreflightPassed →
 AwaitingOwnerApproval → Activating → HealthChecking → Active` or
-`RolledBack`. This is the audit's most safety-critical, most honestly-named
-gap — `mini-update::AdoptionState::adopt` today records a decision, nothing
-executes, fetches, or installs. Not started; the largest remaining piece of
-this whole plan.
+`RolledBack`.
+
+- `Installer::stage` fetches real bytes from the store
+  (`mini_media::assemble`, genuine chunk reassembly, not a stub) and writes
+  them to a real local staging directory, re-verifying the digest
+  independently of `mini-media`'s own internal check.
+- `Installer::preflight` re-reads and re-verifies the staged bytes on disk
+  immediately before activation, catching staging-directory corruption or
+  tampering in between.
+- `Installer::activate` atomically flips a `current` symlink to the staged
+  release (temp-symlink + `rename`, atomic on one filesystem) — but only
+  given an explicit, caller-constructed `OwnerApproval` naming that exact
+  release id (the typed-domain rule: no generic "approve" call). Records
+  the previous target as a real file, so rollback survives a process
+  restart, not just an in-memory value.
+- `Installer::health_check` runs a caller-supplied predicate (this crate
+  cannot know what "healthy" means for arbitrary software — the same
+  caller-supplied-policy pattern as `mini_update::FreshnessPolicy`) and
+  automatically rolls back to whatever was running before on failure,
+  clearing the `current` pointer entirely rather than leaving it on
+  known-unhealthy software if there was nothing to fall back to.
+- `Installer::rollback` is directly callable too, consumes the recorded
+  "previous" pointer on success so repeated calls fail cleanly instead of
+  toggling between two releases.
+
+**Honest limits, stated in the crate's own docs:** Unix-only
+(`std::os::unix::fs::symlink`); no process supervision (staging + a
+pointer flip only — starting/stopping/restarting a process is the
+caller's job); no real package-manager/OS integration (activation means a
+symlink under an installer-owned directory changes target, not that any
+running system has been touched). 10 adversarial/integration tests against
+real files on real disk.
+
+**Batch 6's stated exit condition** — "a deliberately broken release
+detected, auto-recovered, with a verifiable event history in a test
+environment" — is demonstrated by
+`a_failed_health_check_rolls_back_to_the_previous_release` and
+`a_failed_health_check_on_the_first_ever_activation_leaves_nothing_active`:
+a release whose caller-supplied health check deliberately fails is
+detected (`HealthCheckOutcome::RolledBack`/`FailedWithNoPriorRelease`),
+auto-recovered (the `current` pointer is atomically restored, verified via
+`Installer::current()`), with the `ActivationRecord`/`HealthCheckOutcome`
+values themselves standing in for the "verifiable event history" in this
+test environment — a real local disk, not a simulated one, though not yet
+a running distributed system with real network partitions or concurrent
+installers racing each other.
 
 ## Batch 5 — Mininet as the primary forge
 

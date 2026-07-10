@@ -125,14 +125,27 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   computed distinct-identity-root count alongside the existing
   attestation quorum). 25 tests across `mini-forge`/`mini-update` combined
   cover every new gate's rejection and passing paths.
+- **shipped** — `mini-installer` (D-0071, self-hosted forge spine Batch 4):
+  real local staging (`mini_media::assemble` against the actual store,
+  independent digest re-verification), preflight (re-verifies staged bytes
+  on disk immediately before activation), owner-approved atomic activation
+  (`OwnerApproval` is a typed request naming the exact release id, never a
+  generic "approve"; activation is a real `symlink`/`rename` swap), a
+  caller-supplied health check, and automatic rollback on a failed check
+  (clearing `current` entirely rather than leaving it on known-unhealthy
+  software if there was nothing to fall back to). Unix-only; no process
+  supervision; no real package-manager/OS integration -- honest limits
+  stated in the crate's own docs. 10 adversarial/integration tests against
+  real files on real disk.
 - **partial** — `mini-bootstrap` (genesis/capsule protocol logic) is
   shipped, and now proven live over real TCP (D-0062, closes #23, see §8);
   real BLE/Wi-Fi radio adapters remain not started (need phone hardware).
 - **not started** — the emergency-update-path question
   ([#53](../../issues/53)) and fork-legitimacy criteria (F1,
   `docs/INVARIANTS.md` §5) beyond the frozen statement of the requirement
-  itself; real installation (Batch 4, `mini-installer` — nothing today
-  executes, fetches, or installs anything, see §10).
+  itself; wiring `mini-installer` into an actual running system (service
+  restart, binary-on-`PATH` swap, etc. -- that integration is deliberately
+  the caller's job, layered on top of this crate's atomic pointer flip).
 
 ## 6. Privacy
 
@@ -216,8 +229,11 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 
 Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
 external-audit-driven development-sequencing initiative
-(`docs/design/self-hosted-forge-spine.md`), currently the top priority per
-CLAUDE.md until its Batch 4 lands.
+(`docs/design/self-hosted-forge-spine.md`). Batches 1-4 (developer →
+review → governed merge → reproducible build → release finality → safe
+install → rollback) are now shipped end to end; per CLAUDE.md, what comes
+next — Batch 5 (Mininet as primary forge) vs. resuming Batch 6's
+horizontal roadmap breadth — is a founder priority call, not decided here.
 
 - **shipped** — Batch 1's first exit-condition demonstration: `mini-cli`
   (D-0067), a real command-line tool (`identity`/`kel`/`repo`/`pr`
@@ -274,13 +290,26 @@ CLAUDE.md until its Batch 4 lands.
   `mini-provenance::independent_agreement` as a second,
   independently-computed distinct-identity-root count alongside the
   existing attestation quorum). See §5 for the full detail; 25 tests.
+- **shipped** — Batch 4: real installation, `mini-installer` (D-0071), the
+  audit's most safety-critical named gap. Type-state pipeline over the
+  exact named state machine (`Discovered → ... → Active`/`RolledBack`):
+  real staging from the store (`mini_media::assemble`, independent digest
+  re-verification), preflight re-checking staged bytes on disk, owner-
+  approved atomic activation (`OwnerApproval` is a typed request naming
+  the exact release id — the typed-domain rule, not a generic "approve"),
+  a caller-supplied health check with automatic rollback on failure (never
+  leaving a known-unhealthy release marked `current`). Batch 6's exit
+  condition (a deliberately broken release detected and auto-recovered
+  with a verifiable event history) is demonstrated in this crate's own
+  test suite, honestly caveated as a real local disk in a test
+  environment, not yet a live distributed system. Honest limits: Unix-only
+  (`symlink`/`rename` activation), no process supervision, no real
+  package-manager/OS integration — see §5 for the full detail; 10 tests.
 - **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
   machine-readable `STATUS.md`/roadmap generation, live `mini sync`
-  (Batch 1's remaining deferred items); `mini-installer` (Batch 4, the
-  audit's most safety-critical named gap —
-  `mini-update::AdoptionState::adopt` today records a decision, nothing
-  executes, fetches, or installs); Mininet-as-primary-forge P2P sync
-  (Batch 5).
+  (Batch 1's remaining deferred items); wiring `mini-installer` into an
+  actual running system (Batch 4's own named next step, the caller's job
+  by design); Mininet-as-primary-forge P2P sync (Batch 5).
 
 ## What has no client, at all
 

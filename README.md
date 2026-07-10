@@ -39,7 +39,7 @@ code, and frozen. A full, code-mapped register is in
 
 ## What exists today — honestly
 
-This repository is the **self-contained Rust core**: ~32 crates, no external
+This repository is the **self-contained Rust core**: ~33 crates, no external
 dependency on any single company's infrastructure to keep running. Nothing
 here is ready for real people, real money, or real custody yet — and it says
 so, everywhere, on purpose.
@@ -66,6 +66,11 @@ so, everywhere, on purpose.
   freshness/staleness bound, and an optional independent
   build-provenance quorum layered in front of `mini-forge`'s existing
   timelocked release/attestation gate
+- `mini-installer` (D-0071): real local staging/preflight/owner-approved
+  activation/health-check/rollback over an already-verified release —
+  atomic symlink-based activation, automatic rollback on a failed health
+  check, still no forced update (activation always requires an explicit,
+  typed `OwnerApproval` naming the exact release id)
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential
@@ -121,7 +126,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; `D-0001`–`D-0070` so far).
+   and when it was superseded* (append-only; `D-0001`–`D-0071` so far).
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
    rejected, and why* — read before re-proposing something.
 5. [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — *what could kill the

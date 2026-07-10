@@ -3303,3 +3303,87 @@ next piece of this plan — none of Batch 3's gates change the fact that
 
 **Supersedes / superseded by:** none — first implementation of these four
 gates in this tree.
+
+---
+
+### D-0071 — Ship self-hosted forge spine Batch 4: real installation, `mini-installer`  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0066, D-0070, `docs/design/self-hosted-forge-spine.md`, tracking issue #102, `docs/INVARIANTS.md` U1.
+
+**Decision:** ship a new `mini-installer` crate implementing the design
+doc's named state machine — `Discovered → Verified → Downloading → Staged
+→ PreflightPassed → AwaitingOwnerApproval → Activating → HealthChecking →
+Active` or `RolledBack` — as a real, type-state pipeline over an
+already-verified `mini_forge::VerifiedRelease` (from `mini-update`/
+`mini-forge`, which this crate never re-derives trust from). `stage()`
+fetches genuine bytes from the store (`mini_media::assemble`) and
+independently re-verifies the digest; `preflight()` re-reads and
+re-verifies the staged bytes on disk immediately before activation;
+`activate()` atomically flips a `current` symlink (temp-symlink +
+`rename`) but only given an explicit, caller-constructed `OwnerApproval`
+naming the exact release id it authorizes (the typed-domain rule:
+authority-exercising functions take a specific named request type, never
+a generic "approve"); `health_check()` runs a caller-supplied predicate
+and automatically rolls back to whatever was running before on failure,
+clearing `current` entirely (never leaving known-unhealthy software
+marked active) if there was nothing to fall back to; `rollback()` is
+directly callable and consumes its recorded pointer so repeated calls
+fail cleanly instead of toggling between two releases.
+
+**Reason:** the founder-adopted external audit named this the plan's most
+safety-critical, most honestly-named gap — `mini-update::AdoptionState::
+adopt` verifies and records a decision, but nothing in that crate
+executes, fetches, or installs, by design (the no-forced-update freeze).
+A separate crate is the only way to add real installation without
+weakening that freeze: `mini-update` stays exactly what its own docs
+already claimed it was, and the new capability (actually touching disk)
+lives somewhere its own honest limits can be stated plainly, rather than
+retrofitting `mini-update` into something its docs no longer accurately
+describe. The typed `OwnerApproval` requirement is Directive 14's
+composition-over-novelty instinct applied to authority, not cryptography:
+reuse the tree's existing typed-domain convention (CLAUDE.md) instead of
+inventing a bespoke authorization mechanism for this one crate.
+
+**Constitutional impact:** touches Tier-F row U1 (`docs/INVARIANTS.md`,
+"No forced auto-update / no off switch") — its "Enforced by" cell is
+updated to name `mini-installer::Installer::activate`'s `OwnerApproval`
+requirement alongside `mini-update::AdoptionState`'s existing entry. No
+weakening: `activate` cannot be called without a caller-constructed
+approval naming the exact release id, this crate never constructs one
+itself, and a failed health check moves the device *backward* to known-
+good software (or to nothing, if there was nothing before), never
+forward — automatic rollback-to-safety is not a forced-update path.
+
+**Implementation status:** shipped and tested — `mini-installer` (10
+adversarial/integration tests against real files on real disk: full happy
+path, digest mismatch at staging, on-disk corruption caught at preflight,
+mismatched `OwnerApproval` refused, staged directory removed mid-flight
+refused, failed health check rolling back to the prior release, failed
+health check on the very first activation leaving nothing active,
+rollback with nothing to undo erroring cleanly, rollback not toggling
+back and forth, a full upgrade-then-rollback round trip). See
+`docs/STATUS.md` §5/§10 for the living detail.
+
+**Failure point:** Unix-only (`std::os::unix::fs::symlink`) — no Windows
+support exists. No process supervision — this crate stages files and
+flips a pointer; it does not start, stop, restart, or supervise any
+process, so "activation" alone does not make newly staged software
+actually run anywhere. No real package-manager/OS integration — wiring
+the atomic pointer flip into an actual running system is explicitly left
+to the caller. The health-check predicate is entirely caller-supplied;
+this crate cannot itself judge whether newly activated software is
+healthy, the same caller-supplied-policy pattern already accepted for
+`mini_update::FreshnessPolicy`.
+
+**Required follow-up:** wiring `mini-installer` into an actual running
+system (service restart, binary-on-`PATH` swap, Windows support) is
+explicitly out of scope and left to whatever concrete deployment target
+adopts this crate next. Batch 6's stated exit condition (a deliberately
+broken release detected and auto-recovered with a verifiable event
+history) is demonstrated in this crate's own test suite, honestly
+caveated as a real local disk in a test environment, not yet a live
+distributed system — Batch 5 (Mininet as the primary forge) vs. resuming
+Batch 6's horizontal roadmap breadth is the founder's next priority call,
+not decided by this entry.
+
+**Supersedes / superseded by:** none — first implementation of real
+installation in this tree.
