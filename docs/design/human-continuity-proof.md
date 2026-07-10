@@ -121,6 +121,16 @@ communications, community/professional org) via private membership in a
 governance-published Merkle set — an attacker-controlled site gets no
 trust weight merely for using HTTPS.
 
+**Predicate allowlist**, stated explicitly rather than left implicit:
+account controlled for more than N months; account has non-zero history;
+account has a paid subscription or durable reputation; account was not
+freshly created this week; account is linked to device continuity (§7).
+**Forbidden, permanently:** raw browsing history, full account contents,
+private messages, and any financial/medical/sexual/political browsing
+fact — anything that would convert this signal into surveillance
+infrastructure is out of scope by construction, not by policy that could
+later be relaxed.
+
 ## 6. Government accreditation — optional, capped, never sovereign
 
 A person may privately prove: valid + non-revoked credential, an age
@@ -162,7 +172,12 @@ least one outside relationship exists, and the household doesn't
 recursively create unlimited trust. Scoring saturates fast: first
 household relationship gets limited weight, second smaller, further
 ones add nothing — preventing ten mutually-vouching devices in one
-household from becoming ten fully verified identities.
+household from becoming ten fully verified identities. Vouches are
+bounded and reputation-affecting for the voucher — a pattern of vouches
+that later turn out fraudulent degrades the voucher's own future
+vouching weight — but never financially confiscatory for an honest
+mistake; this is a trust-graph consequence, not a balance seizure, so it
+does not touch D-0074's no-confiscation guarantee.
 
 ## 9. Temporary live-data proof
 
@@ -286,16 +301,29 @@ Narrowly scoped tracks, not "solve proof of humanity":
   sensor input without mandatory vendor attestation, permanent hardware
   allowlists, raw-data upload, or excluding old devices — a formal
   impossibility/limitation result is a valuable outcome here too.
+  Candidate signals to evaluate, all as *continuity* evidence for a
+  physical agent moving through the world, never as identification:
+  accelerometer/gyroscope continuity, coarse movement entropy, BLE/Wi-Fi
+  neighborhood change over time, device secure-enclave/hardware
+  attestation where available, and charging/screen/session rhythms as
+  weak local features. The design principle for all of them: prove
+  costly physical continuity, never identify a person.
 - **C — private co-presence diversity:** possession of credentials from
   ≥ k distinct witnesses across ≥ m epochs over ≥ d elapsed time with no
   reused event, without revealing witnesses, times, places, or the
   social graph.
 - **D — blind uniqueness credentials:** OPRF-based issuance letting
   governments/institutions issue a one-per-person binding anchor without
-  learning the resulting nullifier or identity.
+  learning the resulting nullifier or identity. Flow: the person collects
+  attestations, attestations become blind credentials, each epoch
+  produces a nullifier preventing double-use, the resulting proof reveals
+  only a score band or eligibility, never raw signal details, and signals
+  decay over time and must be refreshed — no verifier ever learns the
+  user's full signal graph, only its own corner of it.
 - **E — coercion/puppeteering modeling:** identity rental, credential
   surrender, controlled voting, purchased vouches, household control,
-  employer/state coercion.
+  employer/state coercion, and coerced identity markets specifically
+  (someone renting or selling access to an already-matured identity).
 - **F — weak-device proving:** benchmark every proposed proof on the
   oldest supported phone and low-cost home hardware.
 
@@ -317,6 +345,23 @@ Narrowly scoped tracks, not "solve proof of humanity":
    Sybils, nation-state production, stolen credentials, long-term
    credential rental — production weights get selected from simulation,
    not intuition.
+
+## Threats catalogue
+
+The adversary list every signal class and every implementation phase
+above must be checked against, gathered in one place rather than left
+scattered per-section: account buying, phone/device farms, fake
+households, relay attacks (§ "Home/device continuity" and `docs/gates/
+hardware-test-protocol.md`'s relay drills), collusive vouch rings (§8),
+coerced identity markets (Research Track E), government ID farms
+(§6's cap exists specifically because of this), data leakage from
+overly rich proofs (§13's privacy requirements), permanent tracking via
+poorly-scoped nullifiers (§10's design goal is exactly to prevent this),
+and reward structures that make an attack profitable despite friction
+(§12's cost-vs-value framing, and D-0074's vesting/anti-whale design for
+the economic side of the same problem). Phase 5's adversarial simulation
+should be scored against this list explicitly, not reconstructed from
+scratch when that phase starts.
 
 ## What remains open
 

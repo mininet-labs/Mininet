@@ -80,3 +80,71 @@ whichever the launch target actually needs) passing the test protocol
 above, with the relay-attack drill result documented honestly in a new
 dated entry under `docs/audits/`, cross-referenced from
 `docs/audits/issue-17-presence-attack-review.md`.
+
+## Detailed test matrix (2026-07-10) — for whoever runs the hardware
+
+The five numbered requirements above are the pass/fail bar; this section
+is the actual step-by-step protocol to run against them, so two
+independent testers can execute it and get comparable logs.
+
+**Minimum hardware:** 2 Android phones (ideally API 33+), 2 iPhones, a
+laptop for logs, a tape measure, two indoor rooms plus one outdoor space.
+**Better:** 3+ of each, a Raspberry Pi or ESP32 BLE board (relay-drill
+proxy), a second router/hotspot, hallway/stairwell/cafe/outdoor access.
+
+**Per-device data to log:** model, OS version, UWB support, BLE version,
+battery-optimization state, foreground/background app state, distance
+estimate, RSSI, latency, packet loss, timestamp, environment notes,
+device position (hand/pocket/bag/behind wall).
+
+**Test environments:** same room at 1m/3m/5m; adjacent room through a
+wall; hallway line-of-sight; stairwell/multi-floor; outdoor open area;
+crowded BLE/Wi-Fi area; phone in pocket/bag; moving user.
+
+**Test classes:**
+
+- **T1 — honest same-room baseline.** Place devices at measured
+  distances, record 60s per distance, repeat 3×. Pass: signal
+  distinguishes near vs. far better than random, variance low enough to
+  be useful as a weak signal.
+- **T2 — wall/floor false-positive.** One phone stays in the test room,
+  the other moves behind a wall / upstairs / downstairs / into the
+  hallway; log RSSI/ranging/latency. Pass: if wall/floor presence looks
+  like same-room presence, the signal's weight must be set low.
+- **T3 — pocket/bag/body blocking.** Repeat the baseline with the phone
+  in hand, pocket, backpack, under a table. Pass: if normal carrying
+  behavior breaks the signal, require retries or a lower weight.
+- **T4 — BLE relay drill** (the specific drill named in requirement 3
+  above). Use a laptop/ESP32/Pi as a BLE proxy if available, otherwise a
+  manual delayed-relay experiment with two phones and network messaging.
+  Measure added latency, success rate, and whether the protocol detects
+  impossible timing.
+- **T5 — internet relay drill.** Device A near the verifier, device B
+  remote (another room/network); relay the challenge/response over the
+  internet or local network; measure whether the verifier accepts. If it
+  reliably accepts, BLE/UWB cannot be treated as a strong signal.
+- **T6 — multi-sybil phone farm.** Place multiple devices in one area,
+  attempt repeated presence proofs, measure duplicate/farm detectability.
+
+**Log schema** — `docs/gates/hardware-test-log-template.csv` (shared with
+the #98 Wi-Fi bearer protocol): `issue, test_id, run_id, timestamp_utc,
+verifier_device, prover_device, os_pair, environment, distance_m,
+wall_or_obstacle, device_position, signal_type, rssi_dbm,
+range_estimate_m, latency_ms, packet_loss_pct, success,
+suspected_false_positive, notes`.
+
+**Acceptance criteria specifically for this detailed matrix:** at least 2
+Android + 2 iPhone devices tested; same-room, wall, outdoor, and
+pocket/bag cases all logged; at least one relay drill (T4 or T5)
+attempted; results classify BLE/UWB as strong/medium/weak/unusable; the
+final protocol recommendation caps its trust contribution accordingly —
+this feeds directly into `docs/design/human-continuity-proof.md`'s §3
+"Repeated physical co-presence" weight (currently capped at 20/100) and
+should adjust that cap if the hardware results warrant it.
+
+**Expected outcome, stated in advance so a surprising result gets
+noticed rather than rationalized:** BLE alone is likely weak-to-medium
+local evidence; UWB, where available, is stronger for ranging but not
+universal; relay resistance depends on timing, secure hardware, and
+protocol design; the system should end up treating BLE/UWB as local
+freshness evidence, never identity.
