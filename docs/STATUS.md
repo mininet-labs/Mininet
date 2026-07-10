@@ -320,10 +320,18 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   the network. `listen` accepts one peer by default or exactly `--repeat
   <n>` peers sequentially (no daemon, no concurrency, no signal-based
   shutdown); `connect` always dials exactly one peer.
-- **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
-  machine-readable `STATUS.md`/roadmap generation (Batch 1's remaining
-  deferred items); wiring `mini-installer` into an actual running system
-  (Batch 4's own named next step, the caller's job by design); the rest of
+- **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
+  Batch 1's remaining deferred item. Exports a commit chain (commit → tree
+  → blobs, recursively through every ancestor) as real git SHA-256-object-
+  format bytes/ids — verified in `tests/git_export.rs` against the actual
+  `git` binary (`git hash-object`, `git mktree`, `git commit-tree`), not
+  just self-consistency. Export only, one direction; import (parsing an
+  arbitrary git repository into this tree's own signed object model)
+  remains genuinely unstarted.
+- **not started** — `mini-devd` (local daemon), machine-readable
+  `STATUS.md`/roadmap generation (Batch 1's remaining deferred items);
+  wiring `mini-installer` into an actual running system (Batch 4's own
+  named next step, the caller's job by design); the rest of
   Batch 5 (local object indexing at scale, distributed build workers,
   GitHub import/export mirror automation).
 

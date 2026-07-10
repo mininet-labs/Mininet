@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 33,
-    "files": 324,
+    "files": 326,
     "headings": 673,
-    "rust_symbols": 2735
+    "rust_symbols": 2761
   },
   "crates": {
     "did-mini": {
@@ -245,7 +245,7 @@
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
     {
-      "bytes": 13327,
+      "bytes": 13425,
       "group": "root",
       "headings": [
         {
@@ -280,17 +280,17 @@
         },
         {
           "level": 2,
-          "line": 172,
+          "line": 173,
           "text": "Current priority (D-0066 \u2014 Batches 1-4 shipped; 5 vs. 6 is the founder's call)"
         },
         {
           "level": 2,
-          "line": 193,
+          "line": 194,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 202,
+          "line": 203,
           "text": "Session hygiene for the agent"
         }
       ],
@@ -320,9 +320,9 @@
         "human",
         "entries"
       ],
-      "lines": 214,
+      "lines": 215,
       "path": "CLAUDE.md",
-      "sha256": "e8465608d069b37548ce1b7452c7607b3581db0598a77bb87659ac924dc2295e",
+      "sha256": "20e5e1549f3a77ec59c476a82476e75e62b49ab5878ddb5fae1ee935aeb70dac",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
@@ -10214,7 +10214,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 1925,
+      "bytes": 2757,
       "group": "crate:mini-forge",
       "headings": [
         {
@@ -10224,36 +10224,158 @@
         }
       ],
       "keywords": [
-        "objects",
+        "git",
         "mini-forge",
+        "objects",
+        "signed",
+        "one",
+        "commit",
         "artifact",
+        "object",
         "path",
-        "quorum",
         "floor",
+        "sha-256",
+        "real",
         "spec-11",
         "trees",
         "commits",
-        "signed",
         "content-addressed",
+        "repository",
         "checks",
+        "per",
+        "verified",
+        "identity",
         "once",
-        "never",
-        "freeze",
-        "lands",
-        "forge",
-        "core",
-        "groundwork",
-        "building",
-        "inside",
-        "repos",
-        "files",
-        "nested"
+        "author",
+        "never"
       ],
-      "lines": 38,
+      "lines": 49,
       "path": "crates/mini-forge/README.md",
-      "sha256": "c2a6c3c828cc5807d9093a1cadf4f18e452019bc70d4bbda84eb1096acfb2732",
+      "sha256": "d06c987008081c405544c6c5175a8844d4fa084c9d7e8752a0c3c100f01abfe0",
       "symbols": [],
       "title": "mini-forge"
+    },
+    {
+      "bytes": 11267,
+      "group": "crate:mini-forge",
+      "headings": [],
+      "keywords": [
+        "git",
+        "bytes",
+        "tree",
+        "kind",
+        "framed",
+        "mini-forge",
+        "real",
+        "len",
+        "gitobjectkind",
+        "sha-256",
+        "commit",
+        "object",
+        "name",
+        "body",
+        "string",
+        "vec",
+        "gitobject",
+        "one",
+        "forgeerror",
+        "as_bytes",
+        "push",
+        "hex_encode",
+        "frame",
+        "export"
+      ],
+      "lines": 303,
+      "path": "crates/mini-forge/src/git_export.rs",
+      "sha256": "4ffb578d3c1738eb8f8fada229dcf59f070785b7f15bc03cbb02201fa559ec7c",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 45,
+          "name": "MAX_EXPORT_COMMITS"
+        },
+        {
+          "kind": "struct",
+          "line": 52,
+          "name": "GitObject"
+        },
+        {
+          "kind": "enum",
+          "line": 61,
+          "name": "GitObjectKind"
+        },
+        {
+          "kind": "fn",
+          "line": 67,
+          "name": "hex_encode"
+        },
+        {
+          "kind": "fn",
+          "line": 75,
+          "name": "hex_decode"
+        },
+        {
+          "kind": "fn",
+          "line": 93,
+          "name": "frame"
+        },
+        {
+          "kind": "fn",
+          "line": 122,
+          "name": "git_tree_sort_key"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "export_file"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "export_tree"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "synthetic_identity"
+        },
+        {
+          "kind": "fn",
+          "line": 185,
+          "name": "export_commit_rec"
+        },
+        {
+          "kind": "fn",
+          "line": 249,
+          "name": "export_commit_chain"
+        },
+        {
+          "kind": "mod",
+          "line": 261,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 265,
+          "name": "hex_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 272,
+          "name": "hex_decode_rejects_odd_length_and_non_hex"
+        },
+        {
+          "kind": "fn",
+          "line": 278,
+          "name": "blob_framing_matches_a_known_git_sha256_vector"
+        },
+        {
+          "kind": "fn",
+          "line": 294,
+          "name": "git_tree_sort_places_a_prefix_file_before_its_sibling_directory"
+        }
+      ],
+      "title": "use std::collections::BTreeMap;"
     },
     {
       "bytes": 31199,
@@ -10508,7 +10630,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 27397,
+      "bytes": 27594,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -10524,8 +10646,10 @@
         "result",
         "its",
         "type",
+        "git_export",
         "governance",
         "checkout",
+        "verified",
         "identity",
         "bytes",
         "max_tree_depth",
@@ -10533,241 +10657,244 @@
         "core",
         "attest",
         "objects",
-        "files",
-        "head",
-        "branch"
+        "files"
       ],
-      "lines": 759,
+      "lines": 763,
       "path": "crates/mini-forge/src/lib.rs",
-      "sha256": "98877adabe1e38f569c2be743a0e85a9d8fefdeba1bad8c781240f37c9ab4558",
+      "sha256": "7b8399450e9ae829c966adc1db003d9642bd7202323a4ac4ccb801afe7ca2cad",
       "symbols": [
         {
           "kind": "mod",
-          "line": 45,
+          "line": 47,
+          "name": "git_export"
+        },
+        {
+          "kind": "mod",
+          "line": 48,
           "name": "governance"
         },
         {
           "kind": "mod",
-          "line": 46,
+          "line": 49,
           "name": "oracle"
         },
         {
           "kind": "mod",
-          "line": 47,
+          "line": 50,
           "name": "release"
-        },
-        {
-          "kind": "const",
-          "line": 63,
-          "name": "FILE_TYPE"
-        },
-        {
-          "kind": "const",
-          "line": 65,
-          "name": "TREE_TYPE"
         },
         {
           "kind": "const",
           "line": 67,
-          "name": "ATTEST_TYPE"
+          "name": "FILE_TYPE"
         },
         {
           "kind": "const",
           "line": 69,
-          "name": "MAX_TREE_ENTRIES"
+          "name": "TREE_TYPE"
         },
         {
           "kind": "const",
           "line": 71,
+          "name": "ATTEST_TYPE"
+        },
+        {
+          "kind": "const",
+          "line": 73,
+          "name": "MAX_TREE_ENTRIES"
+        },
+        {
+          "kind": "const",
+          "line": 75,
           "name": "MAX_TREE_DEPTH"
         },
         {
           "kind": "const",
-          "line": 74,
+          "line": 78,
           "name": "MAX_CHECKOUT_FILES"
         },
         {
           "kind": "const",
-          "line": 76,
+          "line": 80,
           "name": "MAX_CHECKOUT_BYTES"
         },
         {
           "kind": "const",
-          "line": 78,
+          "line": 82,
           "name": "MAX_MESSAGE_BYTES"
         },
         {
           "kind": "const",
-          "line": 80,
+          "line": 84,
           "name": "MAX_VERSION_BYTES"
         },
         {
           "kind": "type",
-          "line": 83,
+          "line": 87,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 88,
+          "line": 92,
           "name": "ForgeError"
         },
         {
           "kind": "impl",
-          "line": 130,
+          "line": 134,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 131,
+          "line": 135,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 163,
+          "line": 167,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 164,
+          "line": 168,
           "name": "From<StoreError>"
         },
         {
           "kind": "fn",
-          "line": 165,
+          "line": 169,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 169,
+          "line": 173,
           "name": "From<mini_objects::ObjectError>"
         },
         {
           "kind": "fn",
-          "line": 170,
+          "line": 174,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 174,
+          "line": 178,
           "name": "From<mini_media::MediaError>"
         },
         {
           "kind": "fn",
-          "line": 175,
+          "line": 179,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 179,
+          "line": 183,
           "name": "From<did_mini::IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 184,
           "name": "from"
         },
         {
           "kind": "struct",
-          "line": 196,
+          "line": 200,
           "name": "TreeEntry"
         },
         {
           "kind": "fn",
-          "line": 206,
+          "line": 210,
           "name": "put_file"
         },
         {
           "kind": "fn",
-          "line": 221,
+          "line": 225,
           "name": "put_tree"
         },
         {
           "kind": "fn",
-          "line": 259,
+          "line": 263,
           "name": "read_tree"
         },
         {
           "kind": "fn",
-          "line": 312,
+          "line": 316,
           "name": "commit"
         },
         {
           "kind": "fn",
-          "line": 339,
+          "line": 343,
           "name": "set_branch"
         },
         {
           "kind": "fn",
-          "line": 360,
+          "line": 364,
           "name": "resolve_branch"
         },
         {
           "kind": "fn",
-          "line": 373,
+          "line": 377,
           "name": "checkout"
         },
         {
           "kind": "struct",
-          "line": 399,
+          "line": 403,
           "name": "Budget"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 409,
           "name": "walk"
         },
         {
           "kind": "fn",
-          "line": 459,
+          "line": 463,
           "name": "release"
         },
         {
           "kind": "fn",
-          "line": 526,
+          "line": 530,
           "name": "attest"
         },
         {
           "kind": "struct",
-          "line": 547,
+          "line": 551,
           "name": "ReleasePolicy"
         },
         {
           "kind": "const",
-          "line": 558,
+          "line": 562,
           "name": "ADOPTION_MIN_ATTESTATIONS"
         },
         {
           "kind": "const",
-          "line": 561,
+          "line": 565,
           "name": "ADOPTION_MIN_TIMELOCK_MS"
         },
         {
           "kind": "impl",
-          "line": 563,
+          "line": 567,
           "name": "ReleasePolicy"
         },
         {
           "kind": "fn",
-          "line": 566,
+          "line": 570,
           "name": "validate_for_adoption"
         },
         {
           "kind": "struct",
-          "line": 578,
+          "line": 582,
           "name": "VerifiedRelease"
         },
         {
           "kind": "fn",
-          "line": 597,
+          "line": 601,
           "name": "verify_release_artifact_only"
         },
         {
           "kind": "fn",
-          "line": 688,
+          "line": 692,
           "name": "verify_governed_release"
         }
       ],
-      "title": "mod governance;"
+      "title": "mod git_export;"
     },
     {
       "bytes": 4200,
@@ -11059,6 +11186,83 @@
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Did};"
+    },
+    {
+      "bytes": 9967,
+      "group": "crate:mini-forge",
+      "headings": [],
+      "keywords": [
+        "git",
+        "unwrap",
+        "str",
+        "args",
+        "out",
+        "to_string",
+        "std",
+        "repo",
+        "child",
+        "path",
+        "env",
+        "new",
+        "string",
+        "stdio",
+        "status",
+        "stdout",
+        "name",
+        "command",
+        "controller",
+        "seed",
+        "push",
+        "stdin",
+        "piped",
+        "input"
+      ],
+      "lines": 320,
+      "path": "crates/mini-forge/tests/git_export.rs",
+      "sha256": "ed1ba93b6bfc968776044f07753ae2806044d4e9a011dbd33c34a7e6a803f8b5",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 18,
+          "name": "human"
+        },
+        {
+          "kind": "fn",
+          "line": 28,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 44,
+          "name": "sha256_git_repo"
+        },
+        {
+          "kind": "fn",
+          "line": 58,
+          "name": "git_hash_blob"
+        },
+        {
+          "kind": "fn",
+          "line": 75,
+          "name": "git_mktree"
+        },
+        {
+          "kind": "fn",
+          "line": 100,
+          "name": "git_commit_tree"
+        },
+        {
+          "kind": "fn",
+          "line": 135,
+          "name": "a_single_commit_matches_real_git_exactly"
+        },
+        {
+          "kind": "fn",
+          "line": 202,
+          "name": "a_two_commit_chain_with_a_subdirectory_matches_real_git"
+        }
+      ],
+      "title": "use std::io::Write;"
     },
     {
       "bytes": 35883,
@@ -26306,7 +26510,7 @@
       "title": "Decision Log"
     },
     {
-      "bytes": 14350,
+      "bytes": 14431,
       "group": "docs",
       "headings": [
         {
@@ -26378,7 +26582,7 @@
       ],
       "lines": 183,
       "path": "docs/DEVELOPER_START.md",
-      "sha256": "924a0863377401b73fbe0a15b6828a0a90529575300051e70d28120cd0730d6e",
+      "sha256": "0c04fd820cff01fbe4700790ba67aa2bd5c58ba1b63b2e2b92bdd1460cc144ea",
       "symbols": [],
       "title": "Start here \u2014 for a developer"
     },
@@ -27067,7 +27271,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 20514,
+      "bytes": 21041,
       "group": "docs",
       "headings": [
         {
@@ -27127,12 +27331,12 @@
         },
         {
           "level": 2,
-          "line": 330,
+          "line": 338,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 336,
+          "line": 344,
           "text": "Where to look for more detail"
         }
       ],
@@ -27162,9 +27366,9 @@
         "signal",
         "audits"
       ],
-      "lines": 346,
+      "lines": 354,
       "path": "docs/STATUS.md",
-      "sha256": "9acd5a02c10b011c0a3eaab8259da48e80e2e7f2b9687131b79f502d88a80ec3",
+      "sha256": "819955d5b140eb48069f6c1c069c0836916012e6e818416f740fbe168419a3c8",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -28342,7 +28546,7 @@
       "title": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
     },
     {
-      "bytes": 25457,
+      "bytes": 25801,
       "group": "docs",
       "headings": [
         {
@@ -28362,74 +28566,74 @@
         },
         {
           "level": 2,
-          "line": 85,
+          "line": 90,
           "text": "Batch 2 \u2014 in-house scripting and builds"
         },
         {
           "level": 3,
-          "line": 91,
+          "line": 96,
           "text": "Batch 2a \u2014 build provenance (shipped, D-0068)"
         },
         {
           "level": 3,
-          "line": 115,
+          "line": 120,
           "text": "Batch 2b \u2014 sandboxed execution (shipped, D-0069: Wasmtime, isolated)"
         },
         {
           "level": 2,
-          "line": 300,
+          "line": 305,
           "text": "Batch 3 \u2014 release verification (shipped)"
         },
         {
           "level": 2,
-          "line": 364,
+          "line": 369,
           "text": "Batch 4 \u2014 real installation (shipped)"
         },
         {
           "level": 2,
-          "line": 422,
+          "line": 427,
           "text": "Batch 5 \u2014 Mininet as the primary forge"
         },
         {
           "level": 2,
-          "line": 430,
+          "line": 435,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 439,
+          "line": 444,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
       "keywords": [
         "batch",
-        "real",
-        "audit",
-        "merge",
         "commit",
+        "real",
+        "merge",
+        "audit",
         "shipped",
         "review",
         "already",
+        "against",
         "object",
         "approve",
+        "export",
         "forge",
         "spine",
-        "build",
+        "objects",
         "report",
+        "genuinely",
         "missing",
-        "against",
-        "mini-forge",
-        "export",
+        "model",
+        "chain",
         "daemon",
         "sync",
-        "adapted",
-        "external",
-        "d-0066",
-        "developer"
+        "git",
+        "adapted"
       ],
-      "lines": 457,
+      "lines": 462,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "d2ea9fef045d1ae738cb6313cb8fa612ce932b059abb0b55ad918f46b121b091",
+      "sha256": "c337e5c89fe700670a6ce56ccaddbc3c65df151be04dfc3c95a6eda3eb796294",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },

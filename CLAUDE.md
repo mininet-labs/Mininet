@@ -128,7 +128,8 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   independently-attested release registry plus rollback protection and a
   release transparency log (`release` module: `Version`,
   `check_no_rollback`, `list_releases`, `detect_equivocation`; D-0070,
-  spine Batch 3). `mini-cli` — the
+  spine Batch 3); git SHA-256 export bridge (`git_export`, real-git-
+  verified, export-only — import unstarted). `mini-cli` — the
   `mini` binary, a real developer tool over `mini-forge` (D-0067,
   self-hosted forge spine Batch 1, #102); `mini sync listen`/`connect`
   (spine Batch 5) reaches the same governed merge over a real TCP

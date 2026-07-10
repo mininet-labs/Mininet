@@ -31,7 +31,18 @@ existing `ADOPTION_MIN_ATTESTATIONS` release-attestation floor. This is a
 floor, not the final design: it upgrades to personhood-root quorum once
 SPEC-02 lands.
 
-Next batches: PR/review objects on `mini-crdt`, merge-as-governance quorum,
-git SHA-256 interop.
+**Git SHA-256 export bridge** (`git_export`, closes a self-hosted-forge-spine
+Batch 1 deferred item). Exports a commit chain (commit → tree → blobs,
+recursively through every ancestor) as real objects in git's SHA-256 object
+format (`git init --object-format=sha256`) — the exact `"<kind> <len>\0<body>"`
+framing and SHA-256 hashing real `git` computes, verified in
+`tests/git_export.rs` against the actual `git` binary (`git hash-object`,
+`git mktree`, `git commit-tree`), not just self-consistency. Export only, one
+direction — import (parsing an arbitrary git repository into this tree's
+signed object model) is a different, harder problem and is not attempted
+here. Git requires an author name/email mini-forge has no equivalent of;
+this module synthesizes a deterministic, clearly-non-routable identity
+(`mini:<scid> <<scid>@mininet.invalid>`, `.invalid` per RFC 2606) rather than
+inventing or requiring a real one.
 
 License: CC0-1.0 (public domain).
