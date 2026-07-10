@@ -1,0 +1,20 @@
+[package]
+name = "mini-installer"
+version = "0.0.1"
+description = "Real, local installation state machine over a mini-update-verified release: staging, preflight, owner-approved activation, health check, and rollback. Separate from mini-update, which stays policy/intent only."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+mini-forge = { path = "../mini-forge" }
+mini-media = { path = "../mini-media" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }
+
+[dev-dependencies]
+did-mini = { path = "../did-mini" }

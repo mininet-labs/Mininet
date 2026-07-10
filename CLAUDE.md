@@ -9,7 +9,7 @@ when a convention changes, change it here in the same PR.
 ## What this project is
 
 Mininet: a constitutional P2P protocol — identity, personhood, money,
-storage, governance — built in Rust as ~32 `mini-*` crates (two,
+storage, governance — built in Rust as ~33 `mini-*` crates (two,
 `mini-cli` and `mini-build-runner-wasmtime`, are binaries), designed to
 outlive its creators (think in centuries, not releases). The founder directs
 via chat and merges via GitHub PRs. GitHub is the UAT/mirror; the long-term
@@ -25,7 +25,7 @@ source of truth is the network governing itself (mini-forge).
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0070 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0071 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -149,27 +149,43 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   gate (`ProvenancePolicy` + `evaluate_with_provenance`, over
   `mini-provenance`) in front of `mini-forge`'s release verification
   (D-0070, spine Batch 3); still no forced update, no kill path, nothing
-  here executes/fetches/installs anything.
+  here executes/fetches/installs anything. `mini-installer` — the separate
+  layer that actually does (D-0071, spine Batch 4): stage/preflight/
+  activate/health-check/rollback over an already-verified release, a
+  type-state pipeline mirroring `Discovered → ... → Active` or
+  `RolledBack`; `activate` requires a caller-constructed `OwnerApproval`
+  naming the exact release id (typed-domain rule), and a failed health
+  check auto-rolls-back to whatever was already running rather than
+  forcing anything forward. Unix-only (symlink/rename activation), no
+  process supervision, no real package-manager/OS integration.
 - `mini-store`/`mini-storage`/`mini-reward`/`mini-social`/`mini-objects`/
   `mini-media`/`mini-crdt`/`mini-keystone` — storage tiers, receipts,
   rewards, walls, object model, the two-device keystone demo.
 
 Find anything: `python3 tools/mininet_nav.py map` (see `docs/NAVIGATION.md`).
 
-## Current priority (D-0066, supersedes the item below until Batch 4 lands)
+## Current priority (D-0066 — Batches 1-4 shipped; 5 vs. 6 is the founder's call)
 
-A founder-adopted external audit found implementation breadth has run ahead
-of vertical integration: no complete path exists from developer change →
-review → governed merge → reproducible build → release finality → safe
-install → rollback. **Until Batch 4 of `docs/design/
-self-hosted-forge-spine.md` is done, new work goes there, not into more
-horizontal roadmap breadth** — see that doc for the six-batch plan and what
-in each batch is already real vs. genuinely missing. Do not re-propose
-"build a proposal/review/merge object model" as new work: it already
-exists in `mini-forge::governance` (`propose`/`approve`/`merge`/`amend`/
-`resolve_project`), predating the audit.
+A founder-adopted external audit found implementation breadth had run
+ahead of vertical integration: no complete path existed from developer
+change → review → governed merge → reproducible build → release finality
+→ safe install → rollback. Batches 1-4 of `docs/design/
+self-hosted-forge-spine.md` are now shipped, closing that path end to end
+(`mini-cli` → `mini-provenance`/`mini-build-runner-wasmtime` →
+`mini-forge::release` rollback/transparency-log/freshness/provenance
+gates → `mini-installer`'s real stage/activate/health-check/rollback).
+Batch 6's stated exit condition — a deliberately broken release detected
+and auto-recovered with a verifiable event history — is demonstrated in
+`mini-installer`'s own test suite, honestly caveated as a real local disk
+in a test environment, not yet a live distributed system. **Do not
+re-propose "build a proposal/review/merge object model" as new work: it
+already exists in `mini-forge::governance`** (`propose`/`approve`/`merge`/
+`amend`/`resolve_project`), predating the audit. What's next — Batch 5
+(Mininet as the primary forge, P2P sync) vs. resuming Batch 6's horizontal
+roadmap breadth — is a priority call for the founder to make, not
+something to pick unilaterally; see the design doc for what each entails.
 
-## Current launch blockers (keep these in view once Batch 4 lands and horizontal work resumes)
+## Current launch blockers (keep these in view as horizontal work resumes)
 
 1. Sybil/personhood economics — #18, the sharpest open question.
 2. KEL freshness/witnesses (M3) — stale-KEL revocation gap, audit #12 F4.

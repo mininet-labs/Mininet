@@ -64,7 +64,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 32 crates, see the table below
+├── crates/                 33 crates, see the table below
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, with a Directive-traceability column
@@ -113,6 +113,7 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-forge` | Repos, branches, releases + attestations, governed merge, rollback protection + release transparency log | ✅ logic complete (D-0070, self-hosted forge spine Batch 3, #102); git SHA-256 interop pending |
 | `mini-bootstrap` | Self-certifying genesis/update capsule, chunked exchange | 🚧 live TCP bootstrap demo proves real-transport interop (D-0062); real BLE/Wi-Fi radio adapters need phone hardware (#22) |
 | `mini-update` | Local update-adoption state machine (no forced update, no kill path); freshness bound + optional independent build-provenance quorum gate | ✅ D-0070, self-hosted forge spine Batch 3, #102 |
+| `mini-installer` | Real local install pipeline over an already-verified release: stage/preflight/owner-approved activate/health-check/rollback | ✅ real, tested (D-0071, self-hosted forge spine Batch 4, #102); Unix-only, no process supervision, no real package-manager/OS integration |
 | `mini-net` | Kademlia-style routing table + gossip broadcast | 🚧 gossip proven live over real TCP (D-0042); peer discovery/mesh routing still logic-only |
 | `mini-storage` | Mutually-signed storage-served receipts | ✅ |
 | `mini-chain` | BFT finality-verification core (`ValidatorSet`, quorum certs) | 🚧 finality core done; networked consensus + state machine pending |

@@ -1198,6 +1198,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-installer"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-forge",
+ "mini-media",
+ "mini-objects",
+ "mini-store",
+]
+
+[[package]]
 name = "mini-keystone"
 version = "0.0.1"
 dependencies = [
