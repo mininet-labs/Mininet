@@ -321,7 +321,7 @@ pub(crate) fn validate_establishment(est: &Establishment) -> Result<()> {
     let mut seen_keys: Vec<Vec<u8>> = Vec::new();
     for key in &est.keys {
         let fp = key_fingerprint(key);
-        if seen_keys.iter().any(|seen| *seen == fp) {
+        if seen_keys.contains(&fp) {
             return Err(IdentityError::DuplicateKey);
         }
         seen_keys.push(fp);
@@ -341,7 +341,7 @@ pub(crate) fn validate_establishment(est: &Establishment) -> Result<()> {
     let mut seen_next: Vec<&[u8]> = Vec::new();
     for commitment in &est.next {
         Multihash::from_bytes(commitment)?;
-        if seen_next.iter().any(|seen| *seen == commitment.as_slice()) {
+        if seen_next.contains(&commitment.as_slice()) {
             return Err(IdentityError::BadEvent);
         }
         seen_next.push(commitment.as_slice());
@@ -416,7 +416,7 @@ pub(crate) fn count_valid_signers(msg: &[u8], keys: &[VerifyingKey], sigs: &[Ind
             continue;
         }
         let fp = key_fingerprint(&keys[idx]);
-        if seen_keys.iter().any(|seen| *seen == fp) {
+        if seen_keys.contains(&fp) {
             continue;
         }
         if keys[idx].verify(msg, &s.signature).is_ok() {

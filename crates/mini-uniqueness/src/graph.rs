@@ -186,7 +186,7 @@ mod tests {
         graph.add_verdict(&verdict(&seed, &b));
         graph.add_verdict(&verdict(&b, &c));
 
-        let scores = trust_scores(&graph, &[seed.clone()], 2);
+        let scores = trust_scores(&graph, std::slice::from_ref(&seed), 2);
         // Round 1: all of seed's mass (degree 1) flows entirely to b, so
         // `trust` after round 1 is `{b: TRUST_SCALE}` (mass fully moves each
         // round, it does not accumulate at the sender — see trust_scores'
@@ -225,7 +225,7 @@ mod tests {
         graph.add_verdict(&verdict(&honest[0], &sybils[0]));
 
         let iterations = recommended_iterations(graph.node_count());
-        let scores = trust_scores(&graph, &[seed.clone()], iterations);
+        let scores = trust_scores(&graph, std::slice::from_ref(&seed), iterations);
 
         let honest_avg: u64 = honest
             .iter()

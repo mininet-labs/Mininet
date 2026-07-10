@@ -1,0 +1,53 @@
+# cargo-deny configuration (D-0069 dependency-governance requirement for
+# mini-build-runner-wasmtime, the first crate in this workspace to pull in
+# a dependency tree large enough -- Wasmtime plus its own transitive
+# graph -- that license/advisory drift stops being something a human can
+# eyeball in a `cargo tree` diff). Scoped to the whole workspace, not just
+# that one crate, since cargo-deny operates on the resolved dependency
+# graph as a whole.
+#
+# Honesty note: the `cargo-deny` binary is not available in the sandbox
+# this file was authored in, so this configuration has not been run
+# locally -- it is written from the licenses/advisories actually declared
+# in `cargo tree`'s output for this workspace's dependencies, not
+# verified end-to-end. The CI job wiring this in (`.github/workflows/
+# ci.yml`) runs `continue-on-error: true` for the same reason the
+# `dependency-audit` job does: until a first real CI run establishes a
+# baseline, a false-positive failure here must not block merges.
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+ignore = []
+
+[licenses]
+version = 2
+# Every license actually in use across this workspace's dependency graph
+# at the time of writing (mini-crypto/did-mini's curve25519-dalek stack,
+# mini-value's Bulletproofs machinery, and now Wasmtime's own tree via
+# mini-build-runner-wasmtime). CC0-1.0 is this workspace's own license
+# (see root Cargo.toml `[workspace.package]`).
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+deny = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

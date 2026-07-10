@@ -1,0 +1,14 @@
+[package]
+name = "mini-pipeline-protocol"
+version = "0.0.1"
+description = "Content-addressed, length-delimited request/result messages between a pipeline coordinator and an isolated build runner (self-hosted forge spine Batch 2b.1, D-0069). No Wasmtime dependency -- this is the wire format both sides of the process boundary share."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+blake3 = "1"
+mini-pipeline = { path = "../mini-pipeline" }

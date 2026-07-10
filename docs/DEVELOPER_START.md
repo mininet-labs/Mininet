@@ -41,7 +41,7 @@ GitHub search or IDE required.
 ## Before you touch a FREEZE domain
 
 [`DECISION_LOG.md`](DECISION_LOG.md) (every architectural/policy decision,
-`D-0001`–`D-0067`, policy only) and [`INVARIANTS.md`](INVARIANTS.md) (the
+`D-0001`–`D-0068`, policy only) and [`INVARIANTS.md`](INVARIANTS.md) (the
 frozen-vs-tunable register, by domain, with a hard-limitations section at the
 top) outrank any comment or README. [`STATUS.md`](STATUS.md) is the living
 account of what's actually built. [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
@@ -64,7 +64,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 28 crates, see the table below
+├── crates/                 32 crates, see the table below
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, with a Directive-traceability column
@@ -126,6 +126,10 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-porep` | Real proof-of-replication: Stacked Depth-Robust Graph sealing + registration audit + ongoing challenge-response | 🧪 real, tested (D-0064, closes #31); simplified DRG, probabilistic (non-SNARK) audit, unaudited |
 | `mini-erasure` | Systematic Reed-Solomon erasure coding over GF(2^8) + self-healing shard repair | 🧪 real, tested (D-0065, closes #30/#32); coding/repair logic only, not wired to real network distribution |
 | `mini-cli` | `mini` command-line tool: identity/repo/PR over `mini-forge` — a **binary**, not a library | 🚧 real, tested (D-0067, self-hosted forge spine Batch 1, #102); no daemon, no key rotation, no live network sync yet |
+| `mini-provenance` | SLSA/in-toto-style build provenance as signed objects; independent-builder agreement counting | 🚧 real, tested (D-0068, self-hosted forge spine Batch 2a, #102); records/counts build claims only, runs no build itself |
+| `mini-pipeline` | Pure pipeline manifest/policy/capability/execution-plan types | ✅ real, tested (D-0069, self-hosted forge spine Batch 2b.1); no Wasmtime dependency, deliberately, permanently |
+| `mini-pipeline-protocol` | Content-addressed request/result messages + length-delimited framing for the coordinator/runner IPC channel | ✅ real, tested (D-0069, self-hosted forge spine Batch 2b.1); no Wasmtime dependency |
+| `mini-build-runner-wasmtime` | Isolated Wasmtime executor for untrusted `wasm-component` pipeline steps — a **binary**, not a library | 🚧 real, tested (D-0069, self-hosted forge spine Batch 2b.2/2b.3, #102); the ONLY crate permitted to link `wasmtime`/`wasmtime-wasi`; `native-tool` (raw shell) steps stay unsandboxed and are never trusted-provenance-eligible until a separate OS-isolated mechanism exists |
 
 See [`DECISION_LOG.md`](DECISION_LOG.md) for the reasoning and honest limits
 behind every 🧪/🔬 entry, and each crate's own `README.md`/top-of-file doc

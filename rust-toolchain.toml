@@ -1,7 +1,21 @@
 # Pinning the toolchain is part of moving toward reproducible builds (SPEC-11).
 # The exact channel is a TUNABLE detail; pinning *something* is the frozen-spirit
 # requirement. Bump deliberately, in a reviewed commit, and re-verify builds.
+#
+# Bumped 1.83.0 -> 1.94.1 for mini-build-runner-wasmtime (D-0069, self-hosted
+# forge spine Batch 2b): Wasmtime's own dependency tree (idna_adapter, via
+# wasmtime-wasi's networking support) requires Cargo's `edition2024` feature,
+# stabilized in Rust 1.85. Only mini-build-runner-wasmtime and its two
+# dependency-only crates (mini-pipeline, mini-pipeline-protocol) need this;
+# every other crate in the workspace was re-verified against the newer
+# compiler (`cargo fmt --all`, `cargo clippy --all-targets --all-features
+# --workspace -- -D warnings`, `cargo test --workspace --all-features`, all
+# clean). The newer clippy added lints the old toolchain didn't have
+# (`manual_contains`, `manual_div_ceil`, `cloned_ref_to_slice_refs`); three
+# pre-existing call sites in did-mini, mini-spacetime, and mini-uniqueness
+# needed small non-behavioral rewrites to satisfy them -- not "unchanged,"
+# but no crate's logic or test coverage changed, only lint-clean phrasing.
 [toolchain]
-channel = "1.83.0"
+channel = "1.94.1"
 components = ["rustfmt", "clippy"]
 profile = "minimal"

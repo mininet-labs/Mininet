@@ -1,0 +1,54 @@
+[package]
+name = "mini-build-runner-wasmtime"
+version = "0.0.1"
+description = "The isolated build runner (self-hosted forge spine Batch 2b.2, D-0069) -- the ONLY crate in this tree permitted to link wasmtime/wasmtime-wasi. Executes one wasm-component pipeline step under a deny-by-default capability boundary and reports an ExecutionResult. mini-cli, mini-forge, mini-chain, identity, and ordinary node binaries never depend on this crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mini-build-runner-wasmtime"
+path = "src/main.rs"
+
+[dependencies]
+blake3 = "1"
+mini-pipeline = { path = "../mini-pipeline" }
+mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
+# Exact patch versions pinned deliberately (D-0069 dependency-governance
+# requirement): this is the one crate in the tree where an unreviewed
+# transitive upgrade is a real security event, not routine maintenance.
+# Never `cargo update -p wasmtime` on autopilot -- bump in a reviewed
+# commit that re-runs the Batch 2b.3 adversarial suite.
+#
+# Bumped 27.0.0 -> 46.0.1 (2026-07-10, same PR, before merge): the
+# dependency-audit CI job flagged that 27.0.0 carries multiple open
+# RustSec advisories against wasmtime-wasi specifically, including two
+# that bypass the exact boundary this crate exists to enforce --
+# GHSA-2r75-cxrj-cmph (`path_open(TRUNCATE)` bypasses `FilePerms::WRITE`)
+# and GHSA-4ch3-9j33-3pmj (hard links/renames bypass `FilePerms` for the
+# destination) -- plus a long list of Wasmtime-core traps/panics/
+# sandbox-escape issues (patched only from 36.0.7/42.0.2/43.0.1 onward).
+# 46.0.1 is the first version with all of them fixed; see this crate's
+# README for what changed in the WASI Preview 2 API surface across the
+# jump.
+wasmtime = { version = "=46.0.1", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasmtime-wasi = { version = "=46.0.1", default-features = false }
+# `random.rs`'s `DeterministicRng` (for `random:deterministic` steps)
+# implements `rand_core::TryRng<Error = Infallible>`, which blanket-
+# implements the `Rng` trait `WasiCtxBuilder::secure_random`/
+# `insecure_random` require (`wasmtime_wasi::Rng` is a re-export of the
+# same trait). Version pinned to match what wasmtime-wasi 46.0.1 itself
+# resolves to, so there is exactly one `rand_core` in the dependency
+# graph, not two incompatible major versions.
+rand_core = "=0.10.1"
+
+[dev-dependencies]
+tempfile = "3"
+# Only needed to mint a validly-signed `ObjectId` for the Batch 2b.3
+# adversarial suite's `StepKind::NativeTool` fixture (criterion 11) --
+# never a dependency of this crate's actual runner logic.
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }

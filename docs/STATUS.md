@@ -212,13 +212,45 @@ CLAUDE.md until its Batch 4 lands.
   sharing only a filesystem `--store` path (no networking, no daemon),
   reach a governed 2-of-3 merge and correctly refuse to merge under
   insufficient quorum first.
+- **shipped** — Batch 2a: `mini-provenance` (D-0068). SLSA/in-toto-style
+  build provenance as real, signed objects; `independent_agreement()`
+  generalizes `mini_forge::release`'s independent-attestation pattern to
+  the build stage, before a release is even proposed, with the subject's
+  own author correctly excluded. 8 tests. Directly answers the audit's
+  named critique that this repo's same-runner clean-rebuild CI check must
+  never be called independent reproducibility.
+- **shipped** — Batch 2b: `mini-pipeline` + `mini-pipeline-protocol` +
+  `mini-build-runner-wasmtime` (D-0069). Wasmtime adopted as the reference
+  executor for untrusted `wasm-component` pipeline steps, isolated to a
+  dedicated runner process — `mini-cli`/`mini-forge`/`mini-chain`/identity/
+  ordinary nodes never link Wasmtime. Deny-by-default capability model
+  (filesystem/network structurally absent unless declared; clock/random
+  are declared *policy*, not structurally removable in the `wasi:cli/
+  command` world — stated honestly in the crate's own docs); fuel as the
+  primary CPU limit, epoch interruption as an emergency wall-clock stop,
+  a `ResourceLimiter` for memory; content-addressed component/workspace
+  inputs re-verified by hash before execution. `tests/adversarial.rs`
+  drives the real compiled binary as a subprocess against real,
+  freshly-compiled WASI Preview 2 components and demonstrates 10 of
+  D-0069's 12 exit criteria directly (signed-component execution,
+  structural fs/network denial, path-traversal/symlink-escape refusal,
+  fuel/memory/stdout limits actually enforced, provenance-field
+  completeness, cross-invocation reproducibility); criterion 9 (runner
+  crash doesn't corrupt the forge/provenance store) is demonstrated only
+  partially, at this crate's own boundary, not against real `mini-forge`/
+  `mini-provenance` storage; criterion 11 (native tools never
+  trusted-provenance-eligible) is a `mini-pipeline` structural guarantee.
+  `StepKind::NativeTool` (`cargo build`, `npm install`, ...) remains
+  explicitly unsandboxed and never trusted-provenance-eligible until a
+  separate, digest-pinned, OS-isolated execution mechanism is designed
+  and decided the same explicit way D-0069 was.
 - **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
   machine-readable `STATUS.md`/roadmap generation, live `mini sync`
-  (Batch 1's remaining deferred items); `mini-pipeline`/WASI sandboxing
-  (Batch 2); TUF-style release verification (Batch 3); `mini-installer`
-  (Batch 4, the audit's most safety-critical named gap — `mini-update::
-  AdoptionState::adopt` today records a decision, nothing executes,
-  fetches, or installs); Mininet-as-primary-forge P2P sync (Batch 5).
+  (Batch 1's remaining deferred items); TUF-style release verification
+  (Batch 3); `mini-installer` (Batch 4, the audit's most safety-critical
+  named gap — `mini-update::AdoptionState::adopt` today records a
+  decision, nothing executes, fetches, or installs); Mininet-as-primary-
+  forge P2P sync (Batch 5).
 
 ## What has no client, at all
 

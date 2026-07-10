@@ -24,6 +24,14 @@ jobs:
       - name: Show toolchain
         run: rustup show
 
+      # mini-build-runner-wasmtime's adversarial suite (D-0069, Batch 2b.3)
+      # compiles real guest fixtures with `rustc --target wasm32-wasip2` at
+      # test time; the target isn't part of rust-toolchain.toml's
+      # `components` list (that's for rustfmt/clippy, not cross-compile
+      # targets) so it needs its own explicit install step here.
+      - name: Install wasm32-wasip2 target
+        run: rustup target add wasm32-wasip2
+
       - name: Format
         run: cargo fmt --all -- --check
 
@@ -36,8 +44,10 @@ jobs:
   # Dependency-vulnerability scanning (roadmap #73). Uses the official
   # RustSec action rather than `cargo install cargo-audit`, deliberately:
   # a locally-`cargo install`ed cargo-audit compiles against *this repo's*
-  # pinned toolchain (rust-toolchain.toml, currently 1.83.0), and the
-  # newest cargo-audit compatible with that toolchain (0.21.2) cannot parse
+  # pinned toolchain (rust-toolchain.toml; this was written against 1.83.0,
+  # since bumped for Wasmtime -- see that file's own history), and the
+  # newest cargo-audit compatible with the toolchain at the time (0.21.2)
+  # could not parse
   # the current RustSec advisory database -- it contains CVSS 4.0 entries
   # newer rustsec-crate releases understand and 0.21.2's does not, so it
   # fails to even load the database, before checking a single dependency.
@@ -61,6 +71,23 @@ jobs:
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # License/advisory/source policy for the whole resolved dependency
+  # graph (D-0069 dependency-governance requirement, first exercised by
+  # mini-build-runner-wasmtime's Wasmtime dependency). Config lives in
+  # `deny.toml` at the repo root. `continue-on-error: true` for the same
+  # reason `dependency-audit` above has it: `deny.toml` was authored
+  # without a local `cargo-deny` binary to verify it against, so a first
+  # real CI run establishes the baseline rather than blocking merges on
+  # an unverified config.
+  dependency-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        continue-on-error: true
+        with:
+          command: check
 
   # First real slice of SPEC-11's verified-reproducible release pipeline
   # (roadmap #69): build the workspace twice from a clean target directory
