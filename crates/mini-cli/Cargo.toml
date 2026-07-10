@@ -21,3 +21,18 @@ mini-forge = { path = "../mini-forge" }
 mini-objects = { path = "../mini-objects" }
 mini-store = { path = "../mini-store" }
 mini-sync = { path = "../mini-sync" }
+
+# Test-only: the self-hosted-spine E2E harness (tests/self_hosted_spine_e2e.rs)
+# drives mini-media/mini-provenance/mini-installer in-process (no CLI wiring
+# exists yet for build/release/install -- that gap is the harness's own
+# finding) and mini-build-runner-wasmtime strictly as a subprocess, per that
+# crate's own "never link Wasmtime outside itself" rule (D-0069).
+[dev-dependencies]
+blake3 = "1"
+mini-build-runner-wasmtime = { path = "../mini-build-runner-wasmtime" }
+mini-installer = { path = "../mini-installer" }
+mini-media = { path = "../mini-media" }
+mini-pipeline = { path = "../mini-pipeline" }
+mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
+mini-provenance = { path = "../mini-provenance" }
+tempfile = "3"

@@ -32,12 +32,12 @@
 
 mod cli;
 mod error;
-mod identity;
+pub mod identity;
 mod pr;
 mod project;
 mod repo;
 mod sequence;
-mod store;
+pub mod store;
 mod sync;
 
 pub use cli::run;

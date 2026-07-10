@@ -24,6 +24,7 @@ const SEED_FILE_LEN: usize = 64; // current_seed(32) || next_seed(32)
 
 /// The reconstructed local identity: a human root and its one delegated
 /// device, ready to sign.
+#[derive(Debug)]
 pub struct Identity {
     pub human: Controller,
     pub device: Controller,
