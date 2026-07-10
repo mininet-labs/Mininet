@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 33,
-    "files": 326,
-    "headings": 673,
+    "files": 329,
+    "headings": 728,
     "rust_symbols": 2761
   },
   "crates": {
@@ -322,7 +322,7 @@
       ],
       "lines": 215,
       "path": "CLAUDE.md",
-      "sha256": "20e5e1549f3a77ec59c476a82476e75e62b49ab5878ddb5fae1ee935aeb70dac",
+      "sha256": "42ea9dad099b86d7feca411687580ee473a6a0c981419ad6c14dcdc9d6e50e89",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
@@ -611,7 +611,7 @@
       ],
       "lines": 146,
       "path": "README.md",
-      "sha256": "503116100993e79af1c9396b63db91e116ab4f3ad3e756c65a673671cb4f199f",
+      "sha256": "4de750e5c0763f3ff769817e7d786b862b50443ce90059bf5e8a08d07f31aa1e",
       "symbols": [],
       "title": "Mininet"
     },
@@ -26093,7 +26093,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 205731,
+      "bytes": 218567,
       "group": "docs",
       "headings": [
         {
@@ -26475,6 +26475,21 @@
           "level": 3,
           "line": 3393,
           "text": "D-0072 \u2014 Fix `mini-erasure`'s generator matrix: naive Vandermonde-append did not have the promised MDS property  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 3465,
+          "text": "D-0073 \u2014 Treasury economic model: XRPL/XMR two-bridge design replaces BTC/XMR framing  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 3527,
+          "text": "D-0074 \u2014 Long-term issuance envelope and formal anti-whale wall  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 3601,
+          "text": "D-0075 \u2014 Private Human Continuity Proof redefines personhood signal (b)  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -26503,9 +26518,9 @@
         "date",
         "refs"
       ],
-      "lines": 3462,
+      "lines": 3682,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "2c9fff129bfd78f4989567d4932a36abe6f18e63c58cbd28a8d666709315c3ff",
+      "sha256": "bdfde90b2bc7ef4a02da26fc0374da3feac90384895d80905899df8836d7fbbd",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -27271,7 +27286,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 21041,
+      "bytes": 22019,
       "group": "docs",
       "headings": [
         {
@@ -27291,84 +27306,84 @@
         },
         {
           "level": 2,
-          "line": 57,
+          "line": 60,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 75,
+          "line": 78,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 110,
+          "line": 124,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 150,
+          "line": 164,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 158,
+          "line": 172,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 199,
+          "line": 213,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 215,
+          "line": 229,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 235,
+          "line": 249,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 338,
+          "line": 352,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 344,
+          "line": 358,
           "text": "Where to look for more detail"
         }
       ],
       "keywords": [
         "issues",
-        "real",
         "status",
-        "code",
+        "real",
         "shipped",
-        "tested",
+        "code",
         "partial",
-        "prototype",
-        "audit",
-        "gap",
-        "see",
         "implementation",
+        "audit",
+        "tested",
+        "prototype",
+        "yet",
+        "see",
         "value",
         "identity",
         "key",
         "finality",
         "per",
         "review",
-        "pending",
-        "yet",
+        "gap",
+        "design",
         "started",
         "governance",
         "signal",
         "audits"
       ],
-      "lines": 354,
+      "lines": 368,
       "path": "docs/STATUS.md",
-      "sha256": "819955d5b140eb48069f6c1c069c0836916012e6e818416f740fbe168419a3c8",
+      "sha256": "51583e15833929869456b0d0869bb2063aa5d1b4c2cea0c0db665e27a999dcfa",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -27480,7 +27495,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 17355,
+      "bytes": 17987,
       "group": "docs",
       "headings": [
         {
@@ -27557,7 +27572,7 @@
       ],
       "lines": 125,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "df73cc9eaee8fb28cd6b27f90fa0184eb96f8a1aa48f4e9505a7e25233c76f98",
+      "sha256": "3837b16acadd234107d4c6d36e23410d289f4dd561d4a95d16d44c170204d0d3",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -28546,6 +28561,260 @@
       "title": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
     },
     {
+      "bytes": 18276,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Private Human Continuity Proof \u2014 founder decision (D-0075)"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "The redefinition"
+        },
+        {
+          "level": 2,
+          "line": 46,
+          "text": "1. Identity-secret architecture"
+        },
+        {
+          "level": 2,
+          "line": 57,
+          "text": "2. Evidence stamps"
+        },
+        {
+          "level": 2,
+          "line": 70,
+          "text": "3. Signal classes and interim weights"
+        },
+        {
+          "level": 2,
+          "line": 91,
+          "text": "4. Independence discipline"
+        },
+        {
+          "level": 2,
+          "line": 105,
+          "text": "5. Authenticated web-life continuity \u2014 narrow predicates, not browsing history"
+        },
+        {
+          "level": 2,
+          "line": 124,
+          "text": "6. Government accreditation \u2014 optional, capped, never sovereign"
+        },
+        {
+          "level": 2,
+          "line": 140,
+          "text": "7. Home/device continuity"
+        },
+        {
+          "level": 2,
+          "line": 155,
+          "text": "8. Family/household relationships"
+        },
+        {
+          "level": 2,
+          "line": 167,
+          "text": "9. Temporary live-data proof"
+        },
+        {
+          "level": 2,
+          "line": 181,
+          "text": "10. Two nullifier layers"
+        },
+        {
+          "level": 2,
+          "line": 195,
+          "text": "11. Slow vesting tied to evidence maturity"
+        },
+        {
+          "level": 2,
+          "line": 220,
+          "text": "12. Why this makes farms expensive, and what it still can't stop"
+        },
+        {
+          "level": 2,
+          "line": 252,
+          "text": "13. Privacy requirements (mandatory, not aspirational)"
+        },
+        {
+          "level": 2,
+          "line": 265,
+          "text": "14. Weak-device architecture"
+        },
+        {
+          "level": 2,
+          "line": 278,
+          "text": "Research program"
+        },
+        {
+          "level": 2,
+          "line": 302,
+          "text": "Implementation phases"
+        },
+        {
+          "level": 2,
+          "line": 321,
+          "text": "What remains open"
+        }
+      ],
+      "keywords": [
+        "signal",
+        "evidence",
+        "continuity",
+        "one",
+        "human",
+        "proof",
+        "government",
+        "hidden",
+        "identity",
+        "live",
+        "control",
+        "private",
+        "architecture",
+        "never",
+        "family",
+        "already",
+        "d-0054",
+        "vouching",
+        "same",
+        "independent",
+        "humans",
+        "founder",
+        "decision",
+        "classes"
+      ],
+      "lines": 335,
+      "path": "docs/design/human-continuity-proof.md",
+      "sha256": "2fa965cbc2944ad835c2acfb948e5157b5b79dd0a2770b1fdd838d9289be6a63",
+      "symbols": [],
+      "title": "Private Human Continuity Proof \u2014 founder decision (D-0075)"
+    },
+    {
+      "bytes": 12145,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "Position"
+        },
+        {
+          "level": 2,
+          "line": 21,
+          "text": "1. Human Share as a perpetual right"
+        },
+        {
+          "level": 2,
+          "line": 39,
+          "text": "2. Annual issuance envelope \u2014 3% ceiling, three channels"
+        },
+        {
+          "level": 2,
+          "line": 54,
+          "text": "3. Human Share formula"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "4. Presence, inactivity, accessibility"
+        },
+        {
+          "level": 2,
+          "line": 87,
+          "text": "5. Slow vesting"
+        },
+        {
+          "level": 2,
+          "line": 99,
+          "text": "6. Long-term concentration effect (why this is deliberate)"
+        },
+        {
+          "level": 2,
+          "line": 112,
+          "text": "7. No founder/investor/institution multiplier"
+        },
+        {
+          "level": 2,
+          "line": 122,
+          "text": "8. Formal anti-whale wall"
+        },
+        {
+          "level": 2,
+          "line": 136,
+          "text": "9. Vote-buying resistance"
+        },
+        {
+          "level": 2,
+          "line": 148,
+          "text": "10. Paid attention vs. governance attention"
+        },
+        {
+          "level": 2,
+          "line": 159,
+          "text": "11. Storage/infrastructure concentration"
+        },
+        {
+          "level": 2,
+          "line": 171,
+          "text": "12. Contribution/reputation rank"
+        },
+        {
+          "level": 2,
+          "line": 183,
+          "text": "13. What Mininet deliberately does not attempt"
+        },
+        {
+          "level": 2,
+          "line": 194,
+          "text": "What remains open"
+        },
+        {
+          "level": 3,
+          "line": 203,
+          "text": "Required 200-year simulation suite (not yet built or run)"
+        }
+      ],
+      "keywords": [
+        "human",
+        "share",
+        "founder",
+        "issuance",
+        "ceiling",
+        "presence",
+        "remains",
+        "annual",
+        "vesting",
+        "wealth",
+        "future",
+        "hardware",
+        "person",
+        "may",
+        "cannot",
+        "epoch",
+        "accrual",
+        "design",
+        "long-term",
+        "inflation",
+        "resistance",
+        "decision",
+        "position",
+        "perpetual"
+      ],
+      "lines": 230,
+      "path": "docs/design/inflation-and-whale-resistance.md",
+      "sha256": "ad4e27548f85a44145a23409a34c50b12d0f70a37ba21d664d4b95a104b8553a",
+      "symbols": [],
+      "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
+    },
+    {
       "bytes": 25801,
       "group": "docs",
       "headings": [
@@ -28636,6 +28905,123 @@
       "sha256": "c337e5c89fe700670a6ce56ccaddbc3c65df151be04dfc3c95a6eda3eb796294",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
+    },
+    {
+      "bytes": 12097,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Treasury economic model \u2014 founder decision (D-0073)"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "Why this supersedes the BTC/XMR framing"
+        },
+        {
+          "level": 2,
+          "line": 27,
+          "text": "1. Four separate economic mechanisms, never conflated"
+        },
+        {
+          "level": 2,
+          "line": 40,
+          "text": "2. Bridge-liquidity reserve allocation"
+        },
+        {
+          "level": 2,
+          "line": 72,
+          "text": "3. No guaranteed redemption"
+        },
+        {
+          "level": 2,
+          "line": 81,
+          "text": "4. Treasury-contribution epochs"
+        },
+        {
+          "level": 2,
+          "line": 92,
+          "text": "5. Contribution valuation"
+        },
+        {
+          "level": 2,
+          "line": 107,
+          "text": "6. Reserve-protection spread and vesting"
+        },
+        {
+          "level": 2,
+          "line": 118,
+          "text": "7. Issuance ceilings"
+        },
+        {
+          "level": 2,
+          "line": 135,
+          "text": "8. Contribution receipts"
+        },
+        {
+          "level": 2,
+          "line": 150,
+          "text": "9. Cellular treasury custody"
+        },
+        {
+          "level": 2,
+          "line": 166,
+          "text": "10. Signer selection and rotation"
+        },
+        {
+          "level": 2,
+          "line": 180,
+          "text": "11. Governance controls \u2014 explicit allow/deny list"
+        },
+        {
+          "level": 2,
+          "line": 196,
+          "text": "12. Influence and recognition"
+        },
+        {
+          "level": 2,
+          "line": 207,
+          "text": "13. Required economic stress tests (pre-mass-launch gate, not yet run)"
+        },
+        {
+          "level": 2,
+          "line": 225,
+          "text": "What remains open"
+        }
+      ],
+      "keywords": [
+        "treasury",
+        "xmr",
+        "contribution",
+        "reserve",
+        "btc",
+        "may",
+        "economic",
+        "never",
+        "bridge",
+        "liquidity",
+        "epoch",
+        "governance",
+        "mechanism",
+        "xrpl",
+        "xrp",
+        "market",
+        "founder",
+        "redemption",
+        "settlement",
+        "ordinary",
+        "value",
+        "assets",
+        "design",
+        "model"
+      ],
+      "lines": 239,
+      "path": "docs/design/treasury-economic-model.md",
+      "sha256": "56f3f3c2be787624e2f56981fe21cf683089f39dfab78850b0de984c3c0cf39d",
+      "symbols": [],
+      "title": "Treasury economic model \u2014 founder decision (D-0073)"
     },
     {
       "bytes": 1985,
@@ -28896,7 +29282,7 @@
       "title": "Extreme-environment operation \u2014 DTN design constraints"
     },
     {
-      "bytes": 4353,
+      "bytes": 5132,
       "group": "docs",
       "headings": [
         {
@@ -28906,46 +29292,50 @@
         },
         {
           "level": 2,
-          "line": 11,
+          "line": 23,
           "text": "Why philosophy alone doesn't close this"
         },
         {
           "level": 2,
-          "line": 21,
+          "line": 33,
           "text": "What engineering should build before the specialist arrives"
         },
         {
           "level": 3,
-          "line": 43,
+          "line": 55,
           "text": "Metrics the harness should report"
         },
         {
           "level": 3,
-          "line": 57,
+          "line": 69,
           "text": "Invariant checks the simulation should assert, not just report"
         },
         {
           "level": 2,
-          "line": 77,
+          "line": 89,
           "text": "Questions the specialist must answer"
         },
         {
           "level": 2,
-          "line": 93,
+          "line": 105,
           "text": "What closes this gate"
         }
       ],
       "keywords": [
         "what",
-        "treasury",
         "simulation",
+        "treasury",
         "specialist",
+        "harness",
         "report",
         "concentration",
         "actually",
         "attack",
-        "harness",
         "just",
+        "questions",
+        "gate",
+        "design",
+        "vesting",
         "reward",
         "storage",
         "simulated",
@@ -28955,15 +29345,11 @@
         "modeling",
         "spec",
         "alone",
-        "doesn",
-        "invariant",
-        "questions",
-        "value",
-        "curves"
+        "doesn"
       ],
-      "lines": 99,
+      "lines": 111,
       "path": "docs/gates/economic-simulation-spec.md",
-      "sha256": "40f9c430b0d60f2283cad4978b2d795aaee2c99d65b7780b528b86d3128f0386",
+      "sha256": "9e67ce2e0135ac7ddc4c1f45d8f67f80048d43955ecd7d2278770198f1312e46",
       "symbols": [],
       "title": "Treasury economics & long-term attack modeling \u2014 simulation spec"
     },
@@ -29112,7 +29498,7 @@
       "title": "Legal counsel review \u2014 technical brief"
     },
     {
-      "bytes": 4555,
+      "bytes": 5311,
       "group": "docs",
       "headings": [
         {
@@ -29122,74 +29508,74 @@
         },
         {
           "level": 2,
-          "line": 13,
+          "line": 25,
           "text": "Why the system doesn't block on this today"
         },
         {
           "level": 2,
-          "line": 24,
+          "line": 36,
           "text": "The three options, argued honestly"
         },
         {
           "level": 3,
-          "line": 26,
+          "line": 38,
           "text": "Option A \u2014 deprioritize signal (b) permanently for launch (recommended)"
         },
         {
           "level": 3,
-          "line": 40,
+          "line": 52,
           "text": "Option B \u2014 fund academic research"
         },
         {
           "level": 3,
-          "line": 56,
+          "line": 68,
           "text": "Option C \u2014 TEE attestation interim"
         },
         {
           "level": 2,
-          "line": 68,
+          "line": 80,
           "text": "The Rust shape, regardless of which option is chosen"
         },
         {
           "level": 2,
-          "line": 89,
+          "line": 101,
           "text": "Hard rules regardless of which option the founder picks"
         },
         {
           "level": 2,
-          "line": 100,
+          "line": 112,
           "text": "What closes this gate"
         }
       ],
       "keywords": [
         "signal",
-        "option",
         "research",
-        "attestation",
+        "option",
         "proof",
-        "founder",
-        "today",
+        "attestation",
         "behavioral",
+        "founder",
+        "why",
+        "today",
         "device",
+        "doesn",
         "launch",
         "regardless",
-        "what",
-        "raw",
         "personhood",
+        "human",
         "decision",
-        "why",
         "system",
-        "doesn",
         "three",
         "options",
         "honestly",
+        "fund",
         "tee",
-        "rust",
-        "chosen"
+        "interim",
+        "rust"
       ],
-      "lines": 105,
+      "lines": 117,
       "path": "docs/gates/personhood-signal-b-decision.md",
-      "sha256": "ce19215bde0fee875f65103397a201a3450478088c8937e8263fbefc267b1737",
+      "sha256": "a979b2dd084565d2e5bbee7e6241231bdad639a59f1271602e7d039b76a49216",
       "symbols": [],
       "title": "Human uniqueness proof research (signal b) \u2014 founder decision needed"
     },

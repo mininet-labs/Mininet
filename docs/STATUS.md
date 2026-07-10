@@ -41,10 +41,13 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `docs/audits/issue-17-presence-attack-review.md`): replay/binding/clone
   defended; active relay is NOT defended by software RTT alone (needs UWB
   distance-bounding) — presence is safe only as a *weighted* signal.
-- **design-only / research-blocked** — signal (b), on-device behavioral/
-  location entropy proved in zero-knowledge: the whitepaper itself calls
-  this unsolved research. Not a code gap; a research gap
-  ([#21](../../issues/21)).
+- **design-only / research-blocked** — signal (b), redefined by D-0075
+  from raw behavioral/location entropy into a "Private Human Continuity
+  Proof" (`docs/design/human-continuity-proof.md`). The redefinition is
+  decided; no `EvidenceStamp` type, pairwise-pseudonym derivation,
+  nullifier registry, or aggregate ZK proof exists yet. Not a code gap
+  alone anymore — five implementation phases plus a separate funded
+  research program (Tracks A-F) ([#21](../../issues/21)).
 - **HARD LIMITATION, not partial** — every "verified identity" counted
   anywhere in this tree today is a verified `did:mini` root, not a
   verified human. See `docs/INVARIANTS.md`'s hard-limitation section.
@@ -87,6 +90,17 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `AcknowledgedUnauditedDkg`; neither is externally audited yet — see
   `docs/gates/dkg-audit-scope.md` before treating this as production-viable
   at any value level.
+- **design decided, unimplemented** — the treasury economic model (D-0073,
+  `docs/design/treasury-economic-model.md`: XRPL/XMR bridge split,
+  contribution epochs, oracle/vesting/issuance-ceiling mechanism) and the
+  long-term issuance/anti-whale model (D-0074, `docs/design/
+  inflation-and-whale-resistance.md`: 3%/2%/0.75%/0.25% envelope, formal
+  anti-whale governance-input wall) replace the whitepaper's original BTC/
+  XMR framing and #50's open question. Neither's parameters are wired into
+  `mini-treasury::rate`/`receipt` or a chain state machine yet, and neither
+  has run the adversarial simulation suite `docs/gates/
+  economic-simulation-spec.md` still requires before real value depends on
+  the calibration.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary

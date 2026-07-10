@@ -1,6 +1,18 @@
 # Human uniqueness proof research (signal b) — founder decision needed
 
 Gates [roadmap #21](../../issues/21).
+
+**Update (D-0075, 2026-07-10):** the founder has since decided this — not
+by picking one of Option A/B/C below cleanly, but by **redefining signal
+(b) itself** into a "Private Human Continuity Proof." See `docs/design/
+human-continuity-proof.md` for the full construction (evidence stamps,
+pairwise pseudonyms, nullifiers, signal-class weights, vesting schedule,
+research program) and D-0075 in `docs/DECISION_LOG.md`. The options below
+are kept for their historical argument (why a single behavioral/location
+classifier doesn't work, why TEE-only is philosophically weak) but are no
+longer the live decision space — closest in spirit to a hybrid of B
+(fund research) plus a conservative interim implementation, not a
+standalone choice of A, B, or C.
 **This is not an engineering backlog item.** The whitepaper itself calls
 on-device behavioral/location entropy proved in zero-knowledge *unsolved
 research*, and nothing in this repository — or, as far as this session's

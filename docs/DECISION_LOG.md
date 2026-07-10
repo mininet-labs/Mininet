@@ -3459,3 +3459,223 @@ engagement").
 **Supersedes / superseded by:** corrects a defect in the construction
 D-0065 shipped; does not supersede D-0065's broader decision to build
 Reed-Solomon in-house.
+
+---
+
+### D-0073 — Treasury economic model: XRPL/XMR two-bridge design replaces BTC/XMR framing  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** roadmap #47, D-0008 (XRPL settlement bridge),
+`docs/gates/economic-simulation-spec.md`, `docs/design/
+treasury-economic-model.md`, Directive 16 (P1 voice/value wall).
+
+**Decision:** the whitepaper's original "BTC/XMR-to-MINI contribution
+mechanism" framing is superseded by a three-part model: XRPL is Mininet's
+public/banking-adjacent settlement bridge (already D-0008), Monero is its
+private/censorship-resistant liquidity bridge, and treasury-contribution
+minting is a distinct transaction type from ordinary bridge trading —
+never silently conflated in the wallet UI. Bitcoin has no required role:
+disabled at launch, may never become a primary bridge, pricing reference,
+governance asset, or mandatory reserve. Full parameters (50/40/10 reserve
+split and operating bands, monthly contribution epochs, weighted-median
+valuation with ≥3 independent sources, 5% reserve-protection spread,
+90-day linear vesting, 0.25%/yr issuance ceiling with a 1%-per-human-per-
+epoch sub-cap, cellular ≤10%-per-vault custody, and an explicit governance
+may/may-not list) are recorded in `docs/design/
+treasury-economic-model.md` rather than duplicated here.
+
+**Reason:** external capital must be able to enter Mininet and receive
+economic value without ever purchasing political authority — the same
+requirement Directive 16 already states for value/voice generally, applied
+concretely to the bridge and treasury-contribution mechanisms specifically,
+which the original BTC/XMR framing left unspecified.
+
+**Constitutional impact:** applies Directive 16 / P1 (voice/value wall) to
+the treasury-contribution and custody layer specifically — no contribution
+size, custody role, or oracle role may ever translate into governance
+weight (§11–§12 of the design doc). No `docs/INVARIANTS.md` row changes;
+this is calibration and mechanism design within the existing wall, not a
+new invariant.
+
+**Implementation status:** design only. `mini-treasury::rate`/`receipt`
+already exist as prototypes (D-0041/D-0055) but do not yet implement the
+epoch mechanism, the swap-vs-contribution transaction-type split, the
+weighted-median oracle, the 5%/90-day parameters, or cellular vault
+custody described here. See `docs/STATUS.md`.
+
+**Failure point:** the specific numeric parameters (reserve split, spread,
+ceilings) are founder-set starting values, not values a simulation or an
+external mechanism-design specialist has yet validated — `docs/gates/
+economic-simulation-spec.md` still gates that calibration work, and
+`docs/gates/dkg-audit-scope.md`/#93 still gates the chain-specific FROST/
+XRP and FROST/XMR custody integration audits this design depends on.
+
+**Required follow-up:** build the deterministic simulation harness and run
+the 16-scenario stress list in `docs/design/treasury-economic-model.md`
+§13; engage a mechanism-design/tokenomics specialist per `docs/gates/
+economic-simulation-spec.md`; design external-receipt verification for
+XRPL and XMR; implement the swap/contribution transaction-type split in
+`mini-treasury`; external audit of chain-specific custody integrations
+before any real value moves. Roadmap #47 stays open, retitled to
+"Treasury contribution, XRPL/XMR bridge-liquidity, and reserve-allocation
+audit," tracking exactly this follow-up.
+
+**Supersedes / superseded by:** supersedes the interpretation of #47 as a
+BTC/XMR contribution mechanism; does not supersede D-0008 (XRPL as
+settlement bridge), which this decision builds directly on.
+
+---
+
+### D-0074 — Long-term issuance envelope and formal anti-whale wall  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** roadmap #50, `docs/gates/
+economic-simulation-spec.md`, `docs/design/inflation-and-whale-resistance.md`,
+Directive 16, Directive 17 (future-child test), Directive 13 (century
+timescale), P1.
+
+**Decision:** total gross annual MINI issuance is capped at **3%** of
+circulating supply, split into three channels that can never be
+reallocated into each other without a constitutional amendment: a
+protected **2%/yr Human Share floor** (equal per active verified human,
+365-day linear vesting, no wealth/age/hardware/history input in the
+formula), up to **0.75%/yr** for concave, capped, per-human-limited
+network-service rewards, and up to **0.25%/yr** for the treasury-
+contribution mechanism (D-0073). Unused channel capacity expires rather
+than accumulating. A formal anti-whale wall is adopted: MINI balance in
+any form (direct, historical, delegated, locked, liquidity supplied,
+contributions, fees paid, a balance-purchased credential, or any
+wealth-derived proxy) must never be read by any function determining
+vote weight, proposal eligibility/ordering, quorum, finality weight or
+committee selection, treasury-signer eligibility, constitutional-review
+authority, identity/personhood confidence, dispute/appeal rights,
+moderation authority, governance-feed visibility, or protocol-update
+approval. Full parameters, formulas, and the required 200-year adversarial
+simulation suite are recorded in `docs/design/
+inflation-and-whale-resistance.md`.
+
+**Reason:** an unbounded or uncapped-channel emission schedule could let a
+large early holder's position translate into disproportionate influence
+over time even without any single governance-weight rule being violated —
+the same concern `docs/THREAT_MODEL.md`'s "whale concentration" row
+already named as an open, undecided distributional question. Bounding the
+envelope and enumerating every governance input balance must never touch
+closes that gap explicitly rather than leaving it implicit in "money never
+buys voice."
+
+**Constitutional impact:** directly implements Directive 16 ("not
+directly, not indirectly, not accidentally") as an enumerated technical
+checklist rather than a general principle; implements Directive 17 (a
+later-born human's Human Share formula has no birth-date-dependent
+penalty); reinforces Directive 13 by using the annual-ceiling/vesting
+design specifically to prevent a founding generation from retaining a
+fixed share of the economy over century timescales. No `docs/
+INVARIANTS.md` row changes — this calibrates P1 rather than creating a
+new invariant; `docs/THREAT_MODEL.md`'s whale-concentration and
+treasury-capture rows are updated to cite this entry (see below).
+
+**Implementation status:** design only. No `crates/mini-reward` or chain
+state-machine code yet enforces the 3%/2%/0.75%/0.25% split, the 365-day
+vesting window, or the enumerated anti-whale-wall checklist as a compile-
+time or runtime guarantee — see `docs/STATUS.md`.
+
+**Failure point:** the specific ceiling percentages and vesting window are
+founder-set starting parameters pending the 200-year simulation suite in
+`docs/design/inflation-and-whale-resistance.md`; the anti-whale wall as
+enumerated here constrains *protocol-native* governance inputs only — it
+cannot prevent off-protocol vote-buying/coercion, which is why §9 of the
+design doc separately calls for receipt-free ballots as a further,
+not-yet-built mitigation.
+
+**Required follow-up:** build the simulation harness and run the
+population/whale-position/behavior/shock matrix in `docs/design/
+inflation-and-whale-resistance.md`; engage the same mechanism-design
+specialist as D-0073 per `docs/gates/economic-simulation-spec.md`; wire
+the enumerated anti-whale-wall checklist into `mini-chain`/`mini-forge`
+as actual code-level guarantees, not just a design list; design and
+implement receipt-free governance ballots. Roadmap #50 stays open,
+tracking exactly this follow-up.
+
+**Supersedes / superseded by:** none — first decision resolving #50's
+open question; builds on D-0074's own dependency on D-0073 for the
+treasury-contribution channel's parameters.
+
+---
+
+### D-0075 — Private Human Continuity Proof redefines personhood signal (b)  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** roadmap #21, D-0038, D-0054, `docs/gates/
+personhood-signal-b-decision.md`, `docs/design/human-continuity-proof.md`,
+Directives 8, 9, 11, 13, 15, 17.
+
+**Decision:** the whitepaper's behavioral/location-entropy signal is
+redefined, not permanently dropped nor implemented as originally
+specified. It becomes a **Private Human Continuity Proof**: an optional
+signal accumulating expiring evidence from independent classes (seed-
+connected human vouching, repeated physical presence, home/device
+continuity, government/external credentials, authenticated web-life
+continuity, household relations, ephemeral live interaction), each
+capped, none individually sufficient. No raw behavioral, browsing,
+location, credential, biometric, family, or graph data ever enters the
+network — only a zero-knowledge aggregate proof plus anti-reuse
+nullifiers (an epoch-claim nullifier and a per-anchor binding nullifier).
+Evidence maturity governs *vesting speed* of the Human Share (D-0074), on
+a 10%/25%/50%/75%/100% schedule over 365 days — never the total
+entitlement or any governance weight. Full construction, signal weights,
+and the research program are recorded in `docs/design/
+human-continuity-proof.md`.
+
+**Reason:** a single behavioral/location classifier cannot prove global
+human uniqueness and would create unacceptable surveillance/exclusion
+risk, matching `personhood-signal-b-decision.md`'s own conclusion that no
+known construction satisfies private + weak-device-friendly + platform-
+vendor-independent simultaneously. A diverse, time-separated evidence
+collection cannot make Sybils impossible either, but can convert mass
+identity creation from a cheap digital action into the expensive
+maintenance of many credible human-life footprints — the same economic
+argument the whitepaper already makes for the system as a whole (§11),
+extended to this one optional signal rather than left unsolved and idle.
+
+**Constitutional impact:** strengthens Directive 8 (human-rooted vouching
+stays the required legitimacy anchor — D-0054's live-vouching requirement
+is unchanged, this signal only adds to the score); strengthens Directive 9
+(only aggregate predicates leave the device, never raw life data);
+strengthens Directive 11 (mandatory no-government/no-biometric/no-modern-
+hardware/offline-heavy paths, §11 of the design doc); strengthens
+Directive 13 (expiring, replaceable, versioned evidence methods instead
+of one permanent technology dependency); strengthens Directive 17 (a
+future child is not disadvantaged by government, wealth, hardware,
+family structure, mobility, or which companies they can reach). No
+`docs/INVARIANTS.md` row changes — extends D-0038's existing open-ended
+accumulator architecture rather than creating a new invariant.
+
+**Implementation status:** design only. `mini-uniqueness::status`
+(D-0038) and its `SignalSource::External` extension point already exist
+and can host this signal without a breaking change, but no
+`EvidenceStamp` type, pairwise-pseudonym derivation, nullifier registry,
+or aggregate ZK proof exists yet. See `docs/STATUS.md`.
+
+**Failure point:** stated plainly and not softened — paid or coerced
+genuine humans, corrupt credential issuers, and a sufficiently patient
+nation-state can still eventually satisfy this policy's thresholds; the
+system raises cost and improves detection, it does not mathematically
+prove one biological human has exactly one identity. The specific
+per-signal weights and thresholds in §3 of the design doc are founder-set
+starting parameters pending adversarial simulation (Phase 5 of the design
+doc), not validated values.
+
+**Required follow-up:** implement the evidence/nullifier framework
+(Phase 1 of the design doc); prototype web and home-device continuity
+(Phase 2); build the aggregate ZK statement (Phase 3); fund Research
+Tracks A-F (private TLS predicates, sensor provenance, blind uniqueness
+credentials, private co-presence diversity, coercion modeling,
+weak-device benchmarking); calibrate all thresholds via adversarial
+simulation before any of it becomes load-bearing; preserve
+`VouchingGraph` as a required live `FullHuman` source (D-0054) unless a
+later recorded decision provides an equally human-rooted replacement.
+Roadmap #21 stays open, retitled to "Private human-continuity proof
+research — optional behavioral, web, device, and credential evidence,"
+as a research-and-integration issue, not a launch blocker.
+
+**Supersedes / superseded by:** supersedes the interpretation of signal
+(b) as a single behavioral/location silver bullet, and updates `docs/
+gates/personhood-signal-b-decision.md`'s Option A/B/C framing (this
+decision is a redefinition, not a selection among the three). D-0038
+remains controlling for the open-ended multi-signal accumulator
+architecture this signal is hosted inside; D-0054 remains controlling for
+the live-vouching requirement.
