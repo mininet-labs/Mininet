@@ -32,6 +32,9 @@ members = [
     "crates/mini-bounty",
     "crates/mini-settlement",
     "crates/mini-execution",
+    "crates/mini-porep",
+    "crates/mini-erasure",
+    "crates/mini-cli",
 ]
 
 [workspace.package]

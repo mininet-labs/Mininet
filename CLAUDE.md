@@ -9,8 +9,9 @@ when a convention changes, change it here in the same PR.
 ## What this project is
 
 Mininet: a constitutional P2P protocol — identity, personhood, money,
-storage, governance — built in Rust as ~25 `mini-*` crates, designed to
-outlive its creators (think in centuries, not releases). The founder directs
+storage, governance — built in Rust as ~28 `mini-*` crates (one, `mini-cli`,
+is a binary), designed to outlive its creators (think in centuries, not
+releases). The founder directs
 via chat and merges via GitHub PRs. GitHub is the UAT/mirror; the long-term
 source of truth is the network governing itself (mini-forge).
 
@@ -24,7 +25,7 @@ source of truth is the network governing itself (mini-forge).
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0052 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0067 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -35,9 +36,10 @@ source of truth is the network governing itself (mini-forge).
    economic/political/civilization) with per-threat "stopped by" invariants.
 
 Supporting: `docs/STATUS.md` (living what's-built account — update it when
-shipping), `docs/design/` (design notes that close roadmap issues),
-`docs/audits/` (audit deliverables, `issue-N-*.md` naming), `docs/ADDRESSING.md`
-(no-DNS addressing), README's repo map.
+shipping), `docs/design/` (design notes that close roadmap issues —
+`self-hosted-forge-spine.md` is the current top priority, D-0066),
+`docs/audits/` (audit deliverables, `issue-N-*.md` naming),
+`docs/ADDRESSING.md` (no-DNS addressing), README's repo map.
 
 ## Hard rules (violating any of these is the only real failure mode)
 
@@ -55,9 +57,17 @@ shipping), `docs/design/` (design notes that close roadmap issues),
   NOT audited, NOT anonymous, NOT enforced. Overclaiming is treated as a
   bug. Prototypes stay gated behind D-0037/D-0047 (external audit before
   real value) — never soften that language.
-- **No new cryptographic primitives** when composition of existing reviewed
-  ones (mini-crypto, mini-value D-0036) suffices. Simplicity is security
-  (Directive 14).
+- **No inventing cryptography.** Composing already-reviewed *primitives*
+  (mini-crypto's Ed25519/X25519/AEAD/BLAKE3) or implementing an already-
+  *published, peer-reviewed, real-world-deployed construction* end-to-end
+  in-house (Bulletproofs in mini-value D-0036/D-0040; SDR-style proof-of-
+  replication in mini-porep D-0064) is fine — that's composition of prior
+  art the wider field has already vetted, done ourselves rather than
+  outsourced to another project's codebase, to keep governance in-house
+  (D-0063). What's forbidden is a *genuinely novel, unreviewed*
+  cryptographic design nobody outside this repo has ever analyzed.
+  Simplicity is security (Directive 14): prefer the smaller, well-trodden
+  construction over a bespoke one whenever either would do.
 - **Never claim "one human, one vote."** Everything today counts identity
   roots. Say "identity root" until SPEC-02 personhood actually lands.
 - **Typed domains, never generic `sign(bytes)`/`finalize(state)`.** Any
@@ -104,9 +114,18 @@ shipping), `docs/design/` (design notes that close roadmap issues),
   prototypes). `mini-bounty` composes them for anonymous dev bounties.
 - `mini-treasury` — FROST threshold custody; real DKG + resharing now
   exist (D-0059/D-0060) but are unaudited (#93). `mini-spacetime` —
-  storage proofs (possession only).
+  possession-only storage proofs (Merkle/PDP). `mini-porep` — real
+  proof-of-replication (D-0064, closes #31): sequential SDR-style sealing
+  distinguishes many honest holders from one warehouse; unaudited.
+  `mini-erasure` — Reed-Solomon erasure coding + self-healing shard repair
+  (D-0065, closes #30/#32); coding logic only, not wired to real network
+  distribution.
 - `mini-forge` — code governance: per-root approvals, 2-approval protocol
-  floor, KelDirectory oracle. `mini-net` — DHT/gossip over real TCP.
+  floor, KelDirectory oracle, plus informational (never quorum-counted)
+  AI-assistance declarations and review findings (D-0067). `mini-cli` — the
+  `mini` binary, a real developer tool over `mini-forge` (D-0067,
+  self-hosted forge spine Batch 1, #102). `mini-net` — DHT/gossip over
+  real TCP.
 - `mini-bearer`/`mini-bootstrap`/`mini-sync`/`mini-update` — transport,
   BLE-first bootstrap, CRDT sync, self-contained updates.
 - `mini-store`/`mini-storage`/`mini-reward`/`mini-social`/`mini-objects`/
@@ -115,11 +134,25 @@ shipping), `docs/design/` (design notes that close roadmap issues),
 
 Find anything: `python3 tools/mininet_nav.py map` (see `docs/NAVIGATION.md`).
 
-## Current launch blockers (keep these in view when prioritizing)
+## Current priority (D-0066, supersedes the item below until Batch 4 lands)
+
+A founder-adopted external audit found implementation breadth has run ahead
+of vertical integration: no complete path exists from developer change →
+review → governed merge → reproducible build → release finality → safe
+install → rollback. **Until Batch 4 of `docs/design/
+self-hosted-forge-spine.md` is done, new work goes there, not into more
+horizontal roadmap breadth** — see that doc for the six-batch plan and what
+in each batch is already real vs. genuinely missing. Do not re-propose
+"build a proposal/review/merge object model" as new work: it already
+exists in `mini-forge::governance` (`propose`/`approve`/`merge`/`amend`/
+`resolve_project`), predating the audit.
+
+## Current launch blockers (keep these in view once Batch 4 lands and horizontal work resumes)
 
 1. Sybil/personhood economics — #18, the sharpest open question.
 2. KEL freshness/witnesses (M3) — stale-KEL revocation gap, audit #12 F4.
-3. FROST DKG — #93 (P0, D-0048).
+3. FROST DKG — implemented and tested (D-0059/D-0060); external audit still
+   open, #93 (P0, D-0048).
 4. Real BLE transport + client app — needs hardware, not startable here.
 5. External crypto audit — #72, gates everything value-bearing (D-0047).
 

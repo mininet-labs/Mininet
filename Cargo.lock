@@ -326,6 +326,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-cli"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-forge",
+ "mini-objects",
+ "mini-store",
+]
+
+[[package]]
 name = "mini-crdt"
 version = "0.0.1"
 dependencies = [
@@ -346,6 +357,13 @@ dependencies = [
  "sha2",
  "x25519-dalek",
  "zeroize",
+]
+
+[[package]]
+name = "mini-erasure"
+version = "0.0.1"
+dependencies = [
+ "blake3",
 ]
 
 [[package]]
@@ -405,6 +423,14 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "mini-crypto",
+]
+
+[[package]]
+name = "mini-porep"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "mini-spacetime",
 ]
 
 [[package]]

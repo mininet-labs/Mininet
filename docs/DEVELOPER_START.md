@@ -15,7 +15,7 @@ cargo fmt --all \
 All clean on this tree, `Cargo.lock` committed. Toolchain is pinned
 (`rust-toolchain.toml`) for reproducible-build hygiene.
 
-## See it run — three demos that exist today
+## See it run — four demos that exist today
 
 - `cargo run -p mini-keystone --example keystone` — two devices exchange
   identities, prove co-presence, and accrue reward, in-process.
@@ -26,6 +26,11 @@ All clean on this tree, `Cargo.lock` committed. Toolchain is pinned
   separate OS processes gossiping a message over real TCP sockets (not
   simulated in one process — see `crates/mini-net/README.md` for the
   three-terminal walkthrough).
+- `cargo run -p mini-cli -- identity init` (and `repo`/`pr` subcommands) —
+  the actual `mini` developer tool: three independent identities on a
+  shared store path can propose, review, and governed-merge a commit with
+  no GitHub involved — see `crates/mini-cli/README.md` and
+  `crates/mini-cli/tests/two_developers.rs` for the full walkthrough.
 
 ## Find your way around
 
@@ -36,7 +41,7 @@ GitHub search or IDE required.
 ## Before you touch a FREEZE domain
 
 [`DECISION_LOG.md`](DECISION_LOG.md) (every architectural/policy decision,
-`D-0001`–`D-0057`, policy only) and [`INVARIANTS.md`](INVARIANTS.md) (the
+`D-0001`–`D-0067`, policy only) and [`INVARIANTS.md`](INVARIANTS.md) (the
 frozen-vs-tunable register, by domain, with a hard-limitations section at the
 top) outrank any comment or README. [`STATUS.md`](STATUS.md) is the living
 account of what's actually built. [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
@@ -59,7 +64,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 25 crates, see the table below
+├── crates/                 28 crates, see the table below
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, with a Directive-traceability column
@@ -118,6 +123,9 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-bounty` | Anonymous developer-bounty claims (ring signature + stealth address reuse) | 🧪 real, tested (D-0049); no GitHub integration, no minimum ring-size policy yet |
 | `mini-settlement` | Offline transaction settlement: signed pending claims, wallet state machine, double-spend reconciliation (M1/M2/M3) | 🧪 real, tested (D-0055); `CanonicalLedgerView` now has a real chain-backed impl, see `mini-execution` |
 | `mini-execution` | Chain-backed `CanonicalLedgerView`: state only advances behind a verified quorum certificate | 🧪 real, tested (D-0061, closes #40); not networked consensus — that's `mini-chain`/`mini-net`'s job |
+| `mini-porep` | Real proof-of-replication: Stacked Depth-Robust Graph sealing + registration audit + ongoing challenge-response | 🧪 real, tested (D-0064, closes #31); simplified DRG, probabilistic (non-SNARK) audit, unaudited |
+| `mini-erasure` | Systematic Reed-Solomon erasure coding over GF(2^8) + self-healing shard repair | 🧪 real, tested (D-0065, closes #30/#32); coding/repair logic only, not wired to real network distribution |
+| `mini-cli` | `mini` command-line tool: identity/repo/PR over `mini-forge` — a **binary**, not a library | 🚧 real, tested (D-0067, self-hosted forge spine Batch 1, #102); no daemon, no key rotation, no live network sync yet |
 
 See [`DECISION_LOG.md`](DECISION_LOG.md) for the reasoning and honest limits
 behind every 🧪/🔬 entry, and each crate's own `README.md`/top-of-file doc

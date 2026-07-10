@@ -1,0 +1,21 @@
+[package]
+name = "mini-cli"
+version = "0.0.1"
+description = "The developer spine (D-0066, docs/design/self-hosted-forge-spine.md): a real command-line tool over did-mini/mini-forge/mini-store so a human can actually drive identity, repo, and governed-review operations without hand-writing Rust against the library API."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mini"
+path = "src/main.rs"
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-crypto = { path = "../mini-crypto" }
+mini-forge = { path = "../mini-forge" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }

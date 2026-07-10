@@ -2676,3 +2676,407 @@ composition should work unchanged, since neither `mini-bootstrap` nor
 
 **Supersedes / superseded by:** none — first live-transport demonstration
 for these two crates.
+
+---
+
+### D-0063 — Clarify "no new cryptographic primitives": published, real-world-proven constructions are composition, not invention  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** Directive 2, Directive 14, founder direction, CLAUDE.md's hard-rules section, [roadmap #31](../../issues/31).
+
+**Decision:** when scoping real proof-of-replication for `mini-spacetime`'s
+named gap (#31), the founder explicitly directed: *"we absolutely should
+implement crypto that has been proven working as tech for other projects,
+but we should keep governance rather than outsource the whole system, that
+is why you must do the coding for all crypto at first as you can use tech
+from several projects."* This clarifies (does not weaken) CLAUDE.md's "no
+new cryptographic primitives" rule: implementing an already-published,
+peer-reviewed, real-world-deployed construction **end-to-end in-house** —
+Filecoin's SDR (Stacked Depth-Robust Graphs) proof-of-replication being
+the immediate case, `mini-value`'s Bulletproofs (D-0036/D-0040) the
+existing precedent already in the tree — is composition of prior art the
+wider field has already analyzed, not invention of new cryptography. What
+remains forbidden, unchanged, is a genuinely novel, unreviewed
+cryptographic design nobody outside this repo has ever scrutinized.
+CLAUDE.md's hard-rules section is updated to state this distinction
+explicitly, so future sessions don't have to re-derive it.
+
+**Reason:** Directive 2 ("assume every central authority will eventually
+fail... every dependency should be assumed temporary") argues against
+*depending on* another project's running code/service for a security-
+critical primitive — vendoring or wrapping an external library still
+means trusting that project's maintainers, release process, and supply
+chain indefinitely. Implementing the same published construction
+ourselves keeps the code inside this repo's own governance and audit
+boundary (D-0037/D-0047) while still only ever using techniques that have
+already survived real-world adversarial deployment (Filecoin mainnet, in
+SDR's case) — the opposite of inventing something new and untested.
+Directive 14 (simplicity) is not in tension with this: SDR is not simpler
+than not-having-replication-proof, but among constructions that solve the
+replication-uniqueness problem at all, it is the one with the most
+real-world scrutiny, which is the relevant "simplicity" comparison here
+(fewest unknowns), not raw line count.
+
+**Constitutional impact:** clarifies, does not weaken, CLAUDE.md's hard
+rule (not a Tier-F `docs/INVARIANTS.md` row, so no invariant is touched).
+Applies going forward to any future primitive-selection decision, not
+just #31 — the test is "has this construction survived real-world
+adversarial deployment and independent publication," not "did we invent
+it here."
+
+**Implementation status:** rule text updated in `CLAUDE.md`. The actual
+proof-of-replication implementation this unblocks is `mini-porep`,
+recorded separately as D-0064.
+
+**Failure point:** "proven working for other projects" is a judgment call
+per construction, not a blanket license — a scheme with only academic
+publication and no real-world deployment history is a weaker claim than
+SDR's Filecoin-mainnet track record, and should be named as such
+explicitly (per the honesty-over-polish rule) rather than implicitly
+treated as equally proven. This entry does not pre-approve every
+published construction; it approves the *category* of reasoning.
+
+**Required follow-up:** none — this is a standing interpretive
+clarification, not a task.
+
+**Supersedes / superseded by:** none — clarifies CLAUDE.md's existing
+rule rather than replacing it.
+
+---
+
+### D-0064 — `mini-porep`: real proof-of-replication (Stacked Depth-Robust Graph sealing), closes roadmap #31  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0063, D-0037/D-0038/D-0039, [roadmap #31](../../issues/31).
+
+**Decision:** ship a new crate, `mini-porep`, implementing a real (if
+deliberately simplified) Filecoin-style Stacked Depth-Robust Graph (SDR)
+proof-of-replication: `drg.rs` generates a per-layer depth-robust parent
+graph (one sequential predecessor plus ~5 pseudorandom long-range
+back-edges, degree 6); `seal.rs` computes stacked layered labels over that
+graph (`label(0,i) = H(replica_id,0,i,D_i)`; `label(L,i) = H(replica_id,
+L, i, [same-layer DRG parent labels], label(L-1,i))` for `L >= 1`) and the
+final XOR-encoded replica (`R_i = label(num_layers,i) XOR D_i`);
+`audit.rs` provides a registration-time probabilistic audit (random
+`(layer,node)` challenges, direct hash recomputation against
+pre-published Merkle roots) as the explicit substitute for a zk-SNARK
+sealing circuit, which was judged too large and too risky to build
+correctly from scratch this pass; `challenge.rs` provides ongoing
+possession challenge-response by directly composing
+`mini_spacetime::MerkleStorageProof`/`StorageCommitment` against the
+sealed replica's own root (reuse, not duplication, of the existing PDP
+machinery — same storage-risk domain), and `PorepStorageProof` implements
+`mini_spacetime::ProofOfSpaceTimeSource` so `mini_spacetime::
+proposer_weight` requires zero changes to consume it.
+
+**Reason:** `mini_spacetime::storage_proof`'s own docs name the gap this
+closes explicitly: Merkle/PDP possession challenges cannot distinguish a
+thousand honest small devices each holding their own copy from one
+warehouse machine holding a single copy and answering every challenge on
+behalf of many claimed identities — exactly the attack the whitepaper's
+"a thousand cheap, scattered machines outcompete one warehouse" thesis
+depends on resisting. Making sealing genuinely, provably sequential
+(shortcutting layer `L` requires having already computed all of layer
+`L-1`, transitively down to layer 0) means producing `k` replicas costs
+approximately `k` times the real work, closing the shortcut a
+warehouse would otherwise exploit. Per D-0063's founder-directed
+clarification, implementing this specific published, peer-reviewed,
+real-world-deployed (Filecoin mainnet) construction end-to-end in-house is
+composition of prior art, not invention of new cryptography, and keeps
+the code inside this repo's own governance boundary rather than depending
+on an external project's runtime.
+
+**Constitutional impact:** advances `docs/STATUS.md` §7 (Storage) from
+"real proof-of-replication is not started (#31)" to prototype/real-code
+status; does not touch any Tier-F `docs/INVARIANTS.md` row. Continues to
+respect the hard limitation that proof-of-space-time proves possession
+(now: possession of a genuinely, provably sequentially-sealed replica),
+not replication uniqueness at the level of "verified human," which
+remains a separate, unsolved Sybil question (Directive-traced hard
+limitation, unchanged).
+
+**Implementation status:** real, tested code — 30 unit tests across
+`drg`/`seal`/`audit`/`challenge`, including adversarial coverage: tampered
+labels/parent-labels/data-nodes fail verification, a response fabricated
+against a different replica's commitment fails, claiming a top-layer
+replica leaf below the top layer fails, a "lazy prover" who fabricates
+self-consistent-but-fake Merkle-committed labels without ever running the
+real hash chain fails the audit, and changing an early data node
+demonstrably ripples through to the final layer's labels (the sequential-
+dependency property the whole construction rests on). Founder-reviewed
+AI-authored prototype, **not externally audited** — same D-0047 gate every
+other `mini-value`/`mini-treasury` prototype in this tree already carries.
+
+**Failure point:** the DRG is a **simplified** construction — a sequential
+edge plus pseudorandom long-range edges, degree 6 — not a byte-for-byte
+reproduction of Filecoin's production `BucketGraph` probability-weighted
+bucket-sampling distribution (reproducing that exact distribution from
+memory was judged too much precision risk to get right from scratch). The
+registration audit is **probabilistic, not succinct**: it is real spot-
+check evidence, not a single small universally-checkable proof, and it is
+non-zero-knowledge (reveals plaintext intermediate labels for challenged
+indices) — accepted here because sealing isn't trying to keep data
+confidential. Neither gap is hidden; both are stated in `mini-porep`'s own
+crate docs and README per the honesty-over-polish rule.
+
+**Required follow-up:** external cryptography audit (#72/#93's existing
+gate, D-0047) before any real value or consensus weight depends on this;
+wiring `PorepStorageProof` into an actual `mini-chain`/`mini-net` proposer-
+selection path is separate future work, not part of this batch (this
+crate only proves the `ProofOfSpaceTimeSource` seam is satisfied, the same
+scope boundary `mini_spacetime::storage_proof` already drew for itself).
+
+**Supersedes / superseded by:** none — first real proof-of-replication
+implementation in this tree.
+
+---
+
+### D-0065 — `mini-erasure`: systematic Reed-Solomon erasure coding + self-healing repair, closes roadmap #30 and #32  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0063 (same in-house-composition reasoning applied to coding theory), [roadmap #30](../../issues/30), [roadmap #32](../../issues/32).
+
+**Decision:** ship a new crate, `mini-erasure`, implementing systematic
+Reed-Solomon erasure coding over `GF(2^8)` and a self-healing repair
+layer built on it, per the founder's explicit "both together" scope
+decision (erasure coding and self-healing storage tackled as one batch,
+not sequenced). `gf256.rs` implements standard `GF(2^8)` arithmetic (the
+same field, same reduction polynomial, used by QR codes, PDF417, and
+RAID6); `matrix.rs` builds the systematic Vandermonde generator matrix
+(top `k` rows identity, bottom `m` rows Vandermonde coefficients — the
+maximum-distance-separable property guaranteeing every `k`-row subset
+inverts) and Gauss-Jordan inversion over that field; `code.rs` is
+`encode()`/`reconstruct()` — split data into `data_shards` pieces, compute
+`parity_shards` more, recover from any `data_shards` of the
+`data_shards + parity_shards` total; `health.rs` is the self-healing
+layer — `plan_repair()` reports which shard indices can't currently be
+trusted (missing, or present but failing a BLAKE3 integrity check, the
+two treated identically), and `repair()` reconstructs the original data
+and regenerates exactly the missing shards, ready for a caller to
+redistribute.
+
+**Reason:** plain replication tolerates `N-1` losses at `N x` storage
+cost; systematic Reed-Solomon tolerates `parity_shards` losses at only
+`(data_shards+parity_shards)/data_shards x` cost, the standard reason
+every large-scale storage system (RAID6, Backblaze, Ceph, IPFS's optional
+erasure coding) uses it instead of naive copies — directly serving
+Directive 1/3's "cheap, ordinary hardware, at real-world scale" framing
+for roadmap Phase 4's storage layer. Detecting loss and regenerating
+exactly the missing pieces (rather than re-uploading a whole file, or
+worse, silently trusting a present-but-corrupted shard) is what makes the
+loss-tolerance self-*healing* rather than merely loss-*tolerant* — closing
+#32 as the natural consequence of #30's coding scheme, which is why the
+founder scoped them as one batch. Coded in-house (not depended on as a
+library) for the same reasoning D-0063 gives for `mini-porep`'s
+cryptography: composing an already-published, real-world-deployed
+construction ourselves keeps it inside this repo's own governance
+boundary. Erasure coding is coding theory, not cryptography, so CLAUDE.md's
+crypto-invention hard rule does not technically apply here — but the same
+Directive 14 "prefer the well-trodden construction" reasoning does, and is
+followed the same way without needing a rule amendment.
+
+**Constitutional impact:** advances `docs/STATUS.md` §7 (Storage) from
+"not started" to real, tested code for both #30 and #32; touches no
+Tier-F `docs/INVARIANTS.md` row (storage redundancy mechanics are not a
+frozen domain).
+
+**Implementation status:** real, tested code — 27 tests: exhaustive
+reconstruction from every valid `k`-of-`n` shard subset for small
+parameters (not sampled), non-shard-aligned data lengths round-tripping
+exactly, a corrupted (not just missing) shard being caught and healed
+identically, losing more than `parity_shards` holders failing cleanly
+with a typed error rather than silently returning wrong data, and an
+end-to-end two-separate-outage healing cycle that still reconstructs to
+the exact original bytes afterward. Founder-reviewed AI-authored
+prototype.
+
+**Failure point:** this crate proves the erasure-coding and repair
+*logic*. Deciding which peer should hold a regenerated shard and
+transferring it to them is a distribution problem, not a coding-theory
+one, and is explicitly out of scope — `mini-net`/`mini-store`'s job,
+unstarted. `gf256::inv` is brute-force search over 255 candidates rather
+than log/antilog tables; correct and adequately fast for matrices this
+crate's small `data_shards` values ever produce, but not tuned for
+per-byte throughput at scale — a later performance pass, not a
+correctness gap.
+
+**Required follow-up:** wiring `mini-erasure` into `mini-store`/`mini-net`
+so shards are actually distributed to and repaired across real network
+holders is separate future work; a storage economic-incentive review for
+who gets paid to hold parity shards remains roadmap #33, untouched by this
+batch.
+
+**Supersedes / superseded by:** none — first erasure-coding/self-healing
+implementation in this tree.
+
+---
+
+### D-0066 — Adopt external audit's sequencing: pause horizontal crate breadth, build the vertical self-hosted developer spine first  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** founder-adopted external technical assessment (2026-07-10), Directive 1, Directive 2, Directive 14, roadmap hub #92.
+
+**Decision:** a founder-commissioned external auditor reviewed the repository
+and delivered a technical assessment, which the founder has adopted as
+direction. Its central finding: implementation breadth (identity,
+presence, storage rewards, confidential value, treasury custody,
+settlement, finality verification, social objects, forge) has run ahead
+of *vertical integration* — there is no complete path from a developer's
+change through review, governed merge, reproducible build, release
+finality, safe installation, health check, and rollback. This session
+adopts the auditor's recommended re-sequencing: pause opening new
+horizontal protocol-prototype crates for unstarted roadmap phases, and
+build that one narrow vertical "forge loop" end to end first, in the
+six-batch order the report lays out (see
+`docs/design/self-hosted-forge-spine.md` for the adapted plan):
+1. developer spine (CLI + local daemon + Git bridge + proposal/review/
+   merge metadata + machine-readable status), 2. in-house
+   WASI/Wasmtime-sandboxed build pipeline, 3. TUF-style release
+   verification (root/targets/snapshot/timestamp, expiry, rollback
+   protection, independent-builder quorum), 4. a real transactional
+   installer (`mini-installer`: stage → preflight → atomic activate →
+   health-check → rollback), 5. making Mininet itself the primary forge
+   (P2P proposal/review sync, so development survives a GitHub outage),
+   6. only then resume broader protocol work (networked consensus, real
+   BLE/UWB, personhood research, economics, anonymous value,
+   proof-of-replication depth).
+
+**Correction to the audit for the record:** the report states there is
+"no complete vertical path" and separately recommends building a
+"proposal/review/merge" object model as the first concrete PR, describing
+it as new work. `crates/mini-forge/src/governance.rs` already implements
+this: `propose()` creates a PR object binding an exact `head` commit and
+`base` chain position; `approve()` records a verdict **bound to the exact
+head commit reviewed** (invalidated by any later commit swap, exactly the
+property the report asks for); `merge()`/`amend()` record chain entries;
+`resolve_project()` deterministically walks the chain and counts quorum
+in distinct verified identity roots, excluding the author, with fork
+detection. This is real, tested, already-shipped code (predates this
+session). What the report correctly identifies as missing around it:
+review objects carry only an approve/reject bit, not free-text findings
+or CI/test attestations bound to the reviewed commit; there is no
+AI-assistance/human-owner metadata field; there is no way for a human to
+actually drive any of this without hand-writing Rust against the library
+API (no CLI, no daemon). Per Directive 14 and the honesty-over-polish
+rule, the follow-up work in Batch 1 extends this existing model rather
+than replacing it with a new one — see `docs/design/
+self-hosted-forge-spine.md` for the itemized delta.
+
+**Reason:** Directive 1/2 (build for centuries, assume every external
+authority is temporary) is best served by a working self-sufficient
+loop, not more prototype breadth that still depends on GitHub as the
+de facto authority. Directive 14 (simplicity/composition of proven
+constructions) is exactly why the report's recommendations (TUF-style
+release metadata, WASI/Wasmtime sandboxing, in-toto/SLSA-style
+provenance, Noise-framework handshakes) are the right shape: compose
+already-published, real-world-deployed designs rather than invent new
+ones, the same reasoning already recorded in D-0063 for `mini-porep` and
+D-0065 for `mini-erasure`, now applied to the release/update layer where
+the stakes (arbitrary code execution on a user's device) are highest in
+the whole system.
+
+**Constitutional impact:** does not touch any Tier-F `docs/INVARIANTS.md`
+row by itself — this is a development-sequencing decision, not a change
+to any frozen guarantee. It does re-affirm two existing FREEZE rules the
+new work must never cross: no forced update / no kill path (mini-update's
+existing invariant — `mini-installer` executes only what a device owner
+already locally approved), and the voice/value wall (P1) — none of the
+new forge-spine objects may ever gain vote weight from balance or
+payment.
+
+**Implementation status:** design doc and roadmap tracking added this
+batch (`docs/design/self-hosted-forge-spine.md`, roadmap hub #92 update,
+new tracking issue for the spine). `mini-cli` (Batch 1's first concrete
+deliverable) is being built in this same PR — see the crate's own
+README/decision-log follow-up entry for what shipped.
+
+**Failure point:** re-sequencing does not itself close any gap; if this
+batch stalls after the planning/tracking work, the actual auditor-
+identified problem (no installable, safely-updatable client) remains
+exactly as open as before. The exit condition for Batch 1
+("two developers can exchange a signed proposed commit, review the exact
+commit, and reach a governed canonical branch head without GitHub being
+the authority") is the honest bar for calling this decision's intent
+fulfilled, not merely opening a CLI crate.
+
+**Required follow-up:** Batches 2-6 as scoped in `docs/design/
+self-hosted-forge-spine.md`; the roadmap's existing horizontal items
+(#33-#96 and beyond) resume only after Batch 4's installer exit condition
+is met, per the auditor's explicit sequencing recommendation.
+
+**Supersedes / superseded by:** none directly, but changes this
+session's own prior operating assumption (continue through roadmap
+breadth batch-by-batch) — that assumption is superseded by this entry's
+sequencing for all future batches until Batch 4 completes.
+
+---
+
+### D-0067 — `mini-cli` + `mini-forge` review metadata: Batch 1's developer spine, first exit-condition demonstration  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0066, `docs/design/self-hosted-forge-spine.md`, tracking issue #102.
+
+**Decision:** ship `mini-cli` (a new binary crate, the `mini` command) and
+extend `mini-forge::governance` with two new, purely informational object
+types — `declare_ai_assistance`/`ai_assistance` and
+`record_findings`/`list_findings` — completing Batch 1 of the self-hosted
+forge spine. `mini-cli` wraps `did-mini`/`mini-forge`/`mini-store`/
+`mini-objects` in real commands (`identity init/show`, `kel export/trust`,
+`repo init/track/commit/checkout/branch/status`, `pr propose/approve/
+merge/ai-assisted/findings`) with a hand-rolled argument parser (no new
+dependency, matching this workspace's existing "avoid a dependency where a
+few dozen lines of plain Rust do the job" convention). Identity persists
+across CLI invocations by replaying a deterministic inception +
+device-delegation sequence from an on-disk seed file
+(`SigningKey::to_seed_bytes`/`incept_single_from_seeds`); two `mini` homes
+exchange signed objects via a shared `--store` filesystem path (a synced
+folder, a USB stick — any medium that copies files), no new networking
+code. `tests/two_developers.rs` demonstrates Batch 1's exit condition
+directly: three independent homes reach a governed 2-of-3 merge, correctly
+refusing to merge under insufficient quorum first, then converging on
+identical canonical state as seen from a fully independent third home.
+
+**Reason:** Batch 1's exit condition ("two developers can exchange a
+signed proposed commit, review the exact commit, and reach a governed
+canonical branch head without GitHub being the authority") requires a
+human-usable tool, not just a library API — `mini-forge::governance`
+already had the correct object model (predates this session, corrected in
+D-0066) but nobody could drive it without hand-writing Rust. The AI-
+assistance/findings additions answer the audit's real (not duplicated)
+gap: reviews previously carried only an approve/reject bit. Both are
+implemented as new, separate object types rather than changed payloads on
+`propose`/`approve`, specifically so none of ~45 existing call sites in
+`mini-forge`'s own test suite needed to change — Directive 14's "smaller
+diff, well-trodden path" preference over a larger, riskier rewrite of
+already-hardened quorum-counting logic.
+
+**Constitutional impact:** the AI-assistance/findings objects are
+explicitly, structurally excluded from quorum counting (never linked into
+`quorum()`'s counting logic at all) — P1's voice/value wall precedent
+("money never buys merge") extended to "metadata never buys merge"
+either. No Tier-F `docs/INVARIANTS.md` row touched. Advances D-0066's
+Batch 1 toward its stated exit condition (not yet fully closed — see
+Required follow-up).
+
+**Implementation status:** real, tested code. `mini-forge`: 21 governance
+tests (6 new, including AI-assistance quorum-neutrality, rejection of an
+AI-assisted declaration with no named human owner, and a non-author's
+declaration on someone else's PR not being read back). `mini-cli`: 9 unit
+tests (identity persistence round-trip, project aliasing) + 2 integration
+tests (the full three-home governed-merge scenario, and an explicit
+"untrusted author's project cannot be resolved" refusal case) + a manual
+end-to-end shell smoke test during development that caught a real bug
+(see Failure point) before the automated test was written.
+
+**Failure point:** while building this, `mini kel export`/`trust`
+initially handled only the human root's KEL. `mini-forge::oracle::
+author_verified` needs *both* the human root's KEL and the signing
+device's own KEL (`mini_objects::verify_provenance(object, root, device)`)
+— exporting only the human KEL made every object silently unverifiable
+from another home (`ForgeError::BadObject`, "malformed forge object")
+despite the human KEL itself being correctly trusted. Fixed by bundling
+both KELs in one `kel export`/`kel trust` exchange. Documented in
+`mini-cli`'s own module docs as the reason both are required, not papered
+over as an implementation detail. Remaining, named, honest gaps: no key
+rotation from the CLI (full KEL persistence needed, not just seeds), no
+`mini-devd` daemon, no live network sync (`mini sync`), no Git bridge, no
+machine-readable status generation — all named explicitly in `docs/
+design/self-hosted-forge-spine.md` as deferred fast-follows, none
+blocking Batch 1's demonstrated exit condition.
+
+**Required follow-up:** the deferred Batch 1 items above; Batch 2
+(`mini-pipeline`, WASI/Wasmtime-sandboxed builds) is the next major piece
+per the spine's sequencing.
+
+**Supersedes / superseded by:** none — first CLI and first review-metadata
+extension in this tree.

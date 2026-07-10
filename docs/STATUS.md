@@ -133,10 +133,34 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 - **prototype** — `mini-spacetime::storage_proof` (D-0039): Merkle/PDP
   challenge-response. Real, tested. **Proves possession, not replication
   uniqueness — see `docs/INVARIANTS.md`'s hard-limitation section.**
-  Real proof-of-replication is **not started**
-  ([#31](../../issues/31)).
-- **not started** — erasure coding, self-healing replication, cold/
-  owner-only storage tiers, huge-file handling at scale (roadmap Phase 4).
+- **prototype** — `mini-porep` (D-0064, closes [#31](../../issues/31)):
+  real Filecoin-style Stacked Depth-Robust Graph (SDR) proof-of-
+  replication, coded in-house from the published construction (D-0063).
+  Sequential stacked layered labeling + a registration-time probabilistic
+  audit (the honest substitute for a zk-SNARK sealing circuit) close the
+  replication-uniqueness gap the line above names: producing `k` sealed
+  replicas now costs approximately `k` times the real sequential sealing
+  work, so a warehouse cannot cheaply fake holding many independent
+  copies. Ongoing possession is proven by composing (not duplicating)
+  `mini-spacetime`'s own PDP challenge-response against the sealed
+  replica's root; implements `ProofOfSpaceTimeSource` so
+  `mini_spacetime::proposer_weight` needs no changes. Real, tested (30
+  unit tests incl. adversarial cases), founder-reviewed,
+  **unaudited** — same D-0047 gate as every other prototype here. DRG is a
+  simplified construction, not parameter-identical with Filecoin's
+  production `BucketGraph`; the audit is probabilistic, not a succinct
+  proof — see the crate's own README for the honest limits in full.
+- **prototype** — `mini-erasure` (D-0065, closes [#30](../../issues/30)
+  and [#32](../../issues/32)): systematic Reed-Solomon erasure coding over
+  `GF(2^8)` (Vandermonde generator matrix, Gauss-Jordan decode from any
+  `k` of `n` shards) plus a self-healing repair layer — `plan_repair`/
+  `repair` detect missing *or corrupted* (BLAKE3-verified) shards and
+  regenerate exactly the missing ones. Real, tested (27 tests incl. an
+  end-to-end two-outage healing cycle), founder-reviewed. Proves the
+  coding/repair logic only — actually distributing regenerated shards to
+  network holders is `mini-net`/`mini-store`'s unstarted job.
+- **not started** — cold/owner-only storage tiers, huge-file handling at
+  scale (roadmap Phase 4).
 
 ## 8. Networking
 
@@ -164,10 +188,37 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   custody, consensus, and personhood proofs specifically. No code
   path in this tree currently claims production-readiness for any of
   these, so this is a frozen constraint on the future, not a retrofit.
-- **not started** — a dedicated "this PR was AI-assisted" flag on
-  commits/PRs ([#78](../../issues/78));
-  an actual external audit engagement (not tracked in code at all —
-  business/process work).
+- **shipped** — a dedicated "this PR was AI-assisted" flag on PRs
+  ([#78](../../issues/78)): `mini_forge::declare_ai_assistance`/
+  `ai_assistance` (D-0067) — a signed, PR-author-only, purely
+  informational declaration naming an accountable human owner, never
+  counted toward merge quorum. `mini_forge::record_findings`/
+  `list_findings` (D-0067) similarly makes free-text review findings a
+  real, queryable object instead of PR-description prose.
+- **not started** — an actual external audit engagement (not tracked in
+  code at all — business/process work).
+
+## 10. Self-hosted forge spine (D-0066, tracking issue #102)
+
+Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
+external-audit-driven development-sequencing initiative
+(`docs/design/self-hosted-forge-spine.md`), currently the top priority per
+CLAUDE.md until its Batch 4 lands.
+
+- **shipped** — Batch 1's first exit-condition demonstration: `mini-cli`
+  (D-0067), a real command-line tool (`identity`/`kel`/`repo`/`pr`
+  subcommands) over already-real `mini-forge::governance` primitives.
+  `tests/two_developers.rs` proves three independent `mini` homes,
+  sharing only a filesystem `--store` path (no networking, no daemon),
+  reach a governed 2-of-3 merge and correctly refuse to merge under
+  insufficient quorum first.
+- **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
+  machine-readable `STATUS.md`/roadmap generation, live `mini sync`
+  (Batch 1's remaining deferred items); `mini-pipeline`/WASI sandboxing
+  (Batch 2); TUF-style release verification (Batch 3); `mini-installer`
+  (Batch 4, the audit's most safety-critical named gap — `mini-update::
+  AdoptionState::adopt` today records a decision, nothing executes,
+  fetches, or installs); Mininet-as-primary-forge P2P sync (Batch 5).
 
 ## What has no client, at all
 

@@ -7,10 +7,11 @@ use did_mini::{Capabilities, Controller, Did};
 use mini_crdt::{op_add, replay};
 use mini_crypto::HashAlgorithm;
 use mini_forge::{
-    amend, approve, attest, commit, merge, project, propose, put_file, put_tree, release,
-    resolve_project, valid_policy_for_protocol_repo, verify_governed_release, ForgeError,
-    KelDirectory, Policy, ReleasePolicy, TreeEntry, ADOPTION_MIN_ATTESTATIONS, CHAIN_TYPE,
-    PROJECT_TYPE, PROTOCOL_MIN_APPROVALS,
+    ai_assistance, amend, approve, attest, commit, declare_ai_assistance, list_findings, merge,
+    project, propose, put_file, put_tree, record_findings, release, resolve_project,
+    valid_policy_for_protocol_repo, verify_governed_release, ForgeError, KelDirectory, Policy,
+    ReleasePolicy, TreeEntry, ADOPTION_MIN_ATTESTATIONS, CHAIN_TYPE, PROJECT_TYPE,
+    PROTOCOL_MIN_APPROVALS,
 };
 use mini_media::publish_media;
 use mini_objects::{Object, ObjectBuilder, ObjectId, ObjectType, Payload};
@@ -1161,4 +1162,353 @@ fn protocol_floor_projects_actually_require_two_distinct_approvers_to_merge() {
         resolve_project(&store, &oracle, proj.id()).unwrap().entries,
         1
     );
+}
+
+#[test]
+fn ai_assistance_declaration_is_informational_and_does_not_affect_quorum() {
+    let mut w = world();
+    let head = a_commit(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"fix", 1);
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "fix bug",
+        head.id(),
+        &w.proj,
+        200,
+        1,
+    )
+    .unwrap();
+
+    // No declaration yet.
+    assert_eq!(ai_assistance(&w.store, &w.oracle(), pr.id()).unwrap(), None);
+
+    // The PR's own author declares AI assistance with a human owner.
+    declare_ai_assistance(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        pr.id(),
+        true,
+        Some(&w.a.0.did()),
+        210,
+        1,
+    )
+    .unwrap();
+    let decl = ai_assistance(&w.store, &w.oracle(), pr.id())
+        .unwrap()
+        .unwrap();
+    assert!(decl.ai_assisted);
+    assert_eq!(decl.human_owner, Some(w.a.0.did()));
+
+    // Merging still only needs ordinary quorum -- the declaration changes
+    // nothing about what counts.
+    approve(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        pr.id(),
+        head.id(),
+        true,
+        300,
+        1,
+    )
+    .unwrap();
+    approve(
+        &mut w.store,
+        &w.b.0.did(),
+        &w.b.1,
+        pr.id(),
+        head.id(),
+        true,
+        301,
+        1,
+    )
+    .unwrap();
+    merge(
+        &mut w.store,
+        &w.c.0.did(),
+        &w.c.1,
+        &w.proj,
+        &w.proj,
+        pr.id(),
+        400,
+        1,
+    )
+    .unwrap();
+    let state = resolve_project(&w.store, &w.oracle(), &w.proj).unwrap();
+    assert_eq!(state.entries, 1);
+}
+
+#[test]
+fn ai_assisted_without_a_human_owner_is_rejected() {
+    let mut w = world();
+    let head = a_commit(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"fix", 1);
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "fix bug",
+        head.id(),
+        &w.proj,
+        200,
+        1,
+    )
+    .unwrap();
+    assert!(matches!(
+        declare_ai_assistance(
+            &mut w.store,
+            &w.contrib.0.did(),
+            &w.contrib.1,
+            pr.id(),
+            true,
+            None,
+            210,
+            1
+        ),
+        Err(ForgeError::BadObject)
+    ));
+    assert!(matches!(
+        declare_ai_assistance(
+            &mut w.store,
+            &w.contrib.0.did(),
+            &w.contrib.1,
+            pr.id(),
+            false,
+            Some(&w.a.0.did()),
+            210,
+            1,
+        ),
+        Err(ForgeError::BadObject)
+    ));
+}
+
+#[test]
+fn a_non_authors_ai_assistance_claim_on_someone_elses_pr_is_not_read_back() {
+    let mut w = world();
+    let head = a_commit(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"fix", 1);
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "fix bug",
+        head.id(),
+        &w.proj,
+        200,
+        1,
+    )
+    .unwrap();
+    // Maintainer 'a' is not the PR's author, but signs a declaration anyway.
+    declare_ai_assistance(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        pr.id(),
+        true,
+        Some(&w.a.0.did()),
+        210,
+        1,
+    )
+    .unwrap();
+    assert_eq!(ai_assistance(&w.store, &w.oracle(), pr.id()).unwrap(), None);
+}
+
+#[test]
+fn findings_are_recorded_independent_of_verdict_and_never_affect_quorum() {
+    let mut w = world();
+    let head = a_commit(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"fix", 1);
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "fix bug",
+        head.id(),
+        &w.proj,
+        200,
+        1,
+    )
+    .unwrap();
+
+    // 'a' requests changes (verdict = false) but still leaves findings.
+    approve(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        pr.id(),
+        head.id(),
+        false,
+        300,
+        1,
+    )
+    .unwrap();
+    record_findings(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        pr.id(),
+        head.id(),
+        "the error path leaks a secret in its Debug impl",
+        301,
+        1,
+    )
+    .unwrap();
+
+    // 'b' approves cleanly, no findings.
+    approve(
+        &mut w.store,
+        &w.b.0.did(),
+        &w.b.1,
+        pr.id(),
+        head.id(),
+        true,
+        310,
+        1,
+    )
+    .unwrap();
+
+    // 'c' approves and also leaves findings.
+    approve(
+        &mut w.store,
+        &w.c.0.did(),
+        &w.c.1,
+        pr.id(),
+        head.id(),
+        true,
+        320,
+        1,
+    )
+    .unwrap();
+    record_findings(
+        &mut w.store,
+        &w.c.0.did(),
+        &w.c.1,
+        pr.id(),
+        head.id(),
+        "looks good once the above is fixed",
+        321,
+        1,
+    )
+    .unwrap();
+
+    let findings = list_findings(&w.store, &w.oracle(), pr.id()).unwrap();
+    assert_eq!(findings.len(), 2);
+    assert!(findings.iter().all(|f| f.reviewed_head == *head.id()));
+    let from_a = findings.iter().find(|f| f.reviewer == w.a.0.did()).unwrap();
+    assert_eq!(
+        from_a.text,
+        "the error path leaks a secret in its Debug impl"
+    );
+    let from_c = findings.iter().find(|f| f.reviewer == w.c.0.did()).unwrap();
+    assert_eq!(from_c.text, "looks good once the above is fixed");
+
+    // Quorum is unaffected: 'a' rejected (doesn't count), 'b' and 'c'
+    // approved -- exactly 2, the world's policy threshold -- regardless of
+    // either recording findings.
+    merge(
+        &mut w.store,
+        &w.b.0.did(),
+        &w.b.1,
+        &w.proj,
+        &w.proj,
+        pr.id(),
+        400,
+        1,
+    )
+    .unwrap();
+    let state = resolve_project(&w.store, &w.oracle(), &w.proj).unwrap();
+    assert_eq!(state.entries, 1);
+}
+
+#[test]
+fn findings_reattributed_to_a_different_commit_are_rejected_by_construction() {
+    // record_findings signs the reviewed_head into the object itself, the
+    // same binding discipline `approve` uses -- there is no call that lets
+    // findings be silently moved to a different commit after the fact.
+    let mut w = world();
+    let head = a_commit(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"fix", 1);
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "fix bug",
+        head.id(),
+        &w.proj,
+        200,
+        1,
+    )
+    .unwrap();
+    let other_head = a_commit(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"other", 2);
+
+    record_findings(
+        &mut w.store,
+        &w.a.0.did(),
+        &w.a.1,
+        pr.id(),
+        head.id(),
+        "findings against the real head",
+        300,
+        1,
+    )
+    .unwrap();
+
+    let findings = list_findings(&w.store, &w.oracle(), pr.id()).unwrap();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].reviewed_head, *head.id());
+    assert_ne!(findings[0].reviewed_head, *other_head.id());
+}
+
+#[test]
+fn empty_or_oversized_findings_are_rejected() {
+    let mut w = world();
+    let head = a_commit(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"fix", 1);
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "fix bug",
+        head.id(),
+        &w.proj,
+        200,
+        1,
+    )
+    .unwrap();
+    assert!(matches!(
+        record_findings(
+            &mut w.store,
+            &w.a.0.did(),
+            &w.a.1,
+            pr.id(),
+            head.id(),
+            "",
+            300,
+            1
+        ),
+        Err(ForgeError::FieldTooLarge)
+    ));
+    let too_long = "x".repeat(5000);
+    assert!(matches!(
+        record_findings(
+            &mut w.store,
+            &w.a.0.did(),
+            &w.a.1,
+            pr.id(),
+            head.id(),
+            &too_long,
+            300,
+            1
+        ),
+        Err(ForgeError::FieldTooLarge)
+    ));
 }
