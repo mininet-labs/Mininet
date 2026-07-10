@@ -8,6 +8,18 @@ mechanism-design/tokenomics specialists** — people who model adversarial
 systems (the Gauntlet/Chaos-Labs style of work other protocols commission),
 not token-launch marketing consultants.
 
+**Update (D-0073/D-0074, 2026-07-10):** the founder has since fixed the
+design parameters this gate was originally scoped to help *invent* —
+`docs/design/treasury-economic-model.md` (#47: the XRPL/XMR bridge split,
+epoch/oracle/vesting/issuance-ceiling mechanism) and `docs/design/
+inflation-and-whale-resistance.md` (#50: the 3%/2%/0.75%/0.25% issuance
+envelope, 365-day vesting, and the enumerated anti-whale governance-input
+wall) are now founder-set starting parameters, not open questions. This
+gate's remaining job is **calibration and adversarial validation** of
+those specific numbers — the simulation harness and stress-test/shock
+matrices below are unchanged and still required before the parameters are
+treated as safe, not superseded by the two decisions above.
+
 ## Why philosophy alone doesn't close this
 
 The specs already preserve the right shape: voice/value separation (P1),

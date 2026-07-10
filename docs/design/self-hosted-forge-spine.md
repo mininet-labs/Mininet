@@ -63,9 +63,14 @@ key-seed export (`SigningKey::to_seed_bytes`) for on-device persistence.
   event subscriptions, neither of which Batch 1's exit condition requires.
   Tracked as a fast-follow once the CLI's command surface has proven out in
   practice.
-- Git SHA-256 import/export bridge — deferred past this batch (already
-  named as pending in `mini-forge`'s own docs before this audit; real work,
-  not re-scoped here).
+- Git SHA-256 export bridge — shipped: `mini_forge::git_export` exports a
+  commit chain (commit → tree → blobs, recursively through every ancestor)
+  as real git SHA-256-object-format bytes/ids, verified in
+  `tests/git_export.rs` against the actual `git` binary. Export only, one
+  direction — import (parsing an arbitrary git repository into this
+  tree's own signed object model) remains genuinely unstarted, a
+  materially different problem than emitting bytes from objects this
+  store already trusts.
 - Machine-readable `STATUS.md`/roadmap generation — deferred; the manual
   three-document reconciliation problem the audit names is real, but lower
   urgency than giving developers a working tool.

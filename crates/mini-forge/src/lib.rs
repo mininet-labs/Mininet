@@ -10,7 +10,9 @@
 //! hosting service. Branches are signed head pointers
 //! (`subject = "branch.<name>"`), converging by the store's LWW rule. Trees
 //! *link* their entries, so the sync want-list pulls a whole repo from a single
-//! commit id. (Bit-exact git SHA-256 interop is a later, additive mapping.)
+//! commit id. Bit-exact git SHA-256 export ([`git_export`]) exists, verified
+//! against the real `git` binary; import is a different problem and is not
+//! attempted.
 //!
 //! ## The release registry encodes the guarantees
 //!
@@ -42,9 +44,11 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod git_export;
 mod governance;
 mod oracle;
 mod release;
+pub use git_export::{export_commit_chain, GitObject, GitObjectKind, MAX_EXPORT_COMMITS};
 pub use governance::*;
 pub use oracle::{IdentityOracle, KelDirectory};
 pub use release::{

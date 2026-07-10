@@ -41,10 +41,13 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `docs/audits/issue-17-presence-attack-review.md`): replay/binding/clone
   defended; active relay is NOT defended by software RTT alone (needs UWB
   distance-bounding) — presence is safe only as a *weighted* signal.
-- **design-only / research-blocked** — signal (b), on-device behavioral/
-  location entropy proved in zero-knowledge: the whitepaper itself calls
-  this unsolved research. Not a code gap; a research gap
-  ([#21](../../issues/21)).
+- **design-only / research-blocked** — signal (b), redefined by D-0075
+  from raw behavioral/location entropy into a "Private Human Continuity
+  Proof" (`docs/design/human-continuity-proof.md`). The redefinition is
+  decided; no `EvidenceStamp` type, pairwise-pseudonym derivation,
+  nullifier registry, or aggregate ZK proof exists yet. Not a code gap
+  alone anymore — five implementation phases plus a separate funded
+  research program (Tracks A-F) ([#21](../../issues/21)).
 - **HARD LIMITATION, not partial** — every "verified identity" counted
   anywhere in this tree today is a verified `did:mini` root, not a
   verified human. See `docs/INVARIANTS.md`'s hard-limitation section.
@@ -87,6 +90,17 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `AcknowledgedUnauditedDkg`; neither is externally audited yet — see
   `docs/gates/dkg-audit-scope.md` before treating this as production-viable
   at any value level.
+- **design decided, unimplemented** — the treasury economic model (D-0073,
+  `docs/design/treasury-economic-model.md`: XRPL/XMR bridge split,
+  contribution epochs, oracle/vesting/issuance-ceiling mechanism) and the
+  long-term issuance/anti-whale model (D-0074, `docs/design/
+  inflation-and-whale-resistance.md`: 3%/2%/0.75%/0.25% envelope, formal
+  anti-whale governance-input wall) replace the whitepaper's original BTC/
+  XMR framing and #50's open question. Neither's parameters are wired into
+  `mini-treasury::rate`/`receipt` or a chain state machine yet, and neither
+  has run the adversarial simulation suite `docs/gates/
+  economic-simulation-spec.md` still requires before real value depends on
+  the calibration.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary
@@ -320,10 +334,18 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   the network. `listen` accepts one peer by default or exactly `--repeat
   <n>` peers sequentially (no daemon, no concurrency, no signal-based
   shutdown); `connect` always dials exactly one peer.
-- **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
-  machine-readable `STATUS.md`/roadmap generation (Batch 1's remaining
-  deferred items); wiring `mini-installer` into an actual running system
-  (Batch 4's own named next step, the caller's job by design); the rest of
+- **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
+  Batch 1's remaining deferred item. Exports a commit chain (commit → tree
+  → blobs, recursively through every ancestor) as real git SHA-256-object-
+  format bytes/ids — verified in `tests/git_export.rs` against the actual
+  `git` binary (`git hash-object`, `git mktree`, `git commit-tree`), not
+  just self-consistency. Export only, one direction; import (parsing an
+  arbitrary git repository into this tree's own signed object model)
+  remains genuinely unstarted.
+- **not started** — `mini-devd` (local daemon), machine-readable
+  `STATUS.md`/roadmap generation (Batch 1's remaining deferred items);
+  wiring `mini-installer` into an actual running system (Batch 4's own
+  named next step, the caller's job by design); the rest of
   Batch 5 (local object indexing at scale, distributed build workers,
   GitHub import/export mirror automation).
 
