@@ -222,7 +222,14 @@ fn dispatch_sync(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
         "listen" => {
             let addr = extract_flag(&mut args, "--addr")
                 .ok_or_else(|| CliError::Usage("--addr required".to_string()))?;
-            sync::listen(home, store_path, &addr)
+            let repeat: u32 = extract_flag(&mut args, "--repeat")
+                .map(|s| {
+                    s.parse()
+                        .map_err(|_| CliError::Usage("bad --repeat".to_string()))
+                })
+                .transpose()?
+                .unwrap_or(1);
+            sync::listen(home, store_path, &addr, repeat)
         }
         "connect" => {
             let addr = next(&mut args, "sync connect")?;

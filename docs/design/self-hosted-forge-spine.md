@@ -77,8 +77,10 @@ key-seed export (`SigningKey::to_seed_bytes`) for on-device persistence.
   the same governed merge purely over a real TCP connection — the same
   governance-loop claim Batch 1's exit condition proved over a shared
   `FsBackend` directory, now proved again with no shared filesystem at
-  all. One connection per invocation, then the process exits (no daemon
-  yet — see `mini-cli`'s own module docs).
+  all. `listen` accepts one peer by default or exactly `--repeat <n>`
+  peers, sequentially and one at a time, then the process exits (no
+  daemon, no concurrency, no signal-based shutdown yet — see `mini-cli`'s
+  own module docs).
 
 ## Batch 2 — in-house scripting and builds
 

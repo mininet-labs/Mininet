@@ -77,6 +77,74 @@ fn free_loopback_addr() -> String {
 }
 
 #[test]
+fn listen_with_repeat_serves_multiple_peers_sequentially() {
+    let hub_home = tempdir("hub-home");
+    let hub_store = tempdir("hub-store");
+    let spoke1_home = tempdir("spoke1-home");
+    let spoke1_store = tempdir("spoke1-store");
+    let spoke2_home = tempdir("spoke2-home");
+    let spoke2_store = tempdir("spoke2-store");
+
+    run(&["--home", hub_home.to_str().unwrap(), "identity", "init"]);
+    run(&["--home", spoke1_home.to_str().unwrap(), "identity", "init"]);
+    run(&["--home", spoke2_home.to_str().unwrap(), "identity", "init"]);
+
+    let addr = free_loopback_addr();
+    let hub_home_str = hub_home.to_str().unwrap().to_string();
+    let hub_store_str = hub_store.to_str().unwrap().to_string();
+    let listen_addr = addr.clone();
+    let server = thread::spawn(move || {
+        mini_cli::run(&[
+            "--home".to_string(),
+            hub_home_str,
+            "--store".to_string(),
+            hub_store_str,
+            "sync".to_string(),
+            "listen".to_string(),
+            "--addr".to_string(),
+            listen_addr,
+            "--repeat".to_string(),
+            "2".to_string(),
+        ])
+        .unwrap()
+    });
+
+    // Two entirely separate peers connect to the same listener in
+    // sequence -- `--repeat 2` must serve both, one at a time, not just
+    // the first before exiting.
+    let out1 = run_with_retry(&[
+        "--home",
+        spoke1_home.to_str().unwrap(),
+        "--store",
+        spoke1_store.to_str().unwrap(),
+        "sync",
+        "connect",
+        &addr,
+    ]);
+    assert!(out1.contains("accepted"), "spoke1: {out1}");
+
+    let out2 = run_with_retry(&[
+        "--home",
+        spoke2_home.to_str().unwrap(),
+        "--store",
+        spoke2_store.to_str().unwrap(),
+        "sync",
+        "connect",
+        &addr,
+    ]);
+    assert!(out2.contains("accepted"), "spoke2: {out2}");
+
+    let server_report = server.join().unwrap();
+    let lines: Vec<&str> = server_report.lines().collect();
+    assert_eq!(
+        lines.len(),
+        2,
+        "expected exactly 2 served connections: {server_report}"
+    );
+    assert!(lines.iter().all(|l| l.contains("accepted")));
+}
+
+#[test]
 fn two_homes_with_independent_stores_converge_over_a_real_tcp_sync() {
     let alice_home = tempdir("alice-home");
     let alice_store = tempdir("alice-store");

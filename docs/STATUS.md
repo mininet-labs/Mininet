@@ -317,7 +317,9 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   `mini_bearer` + `mini_sync` connection — Batch 1's remaining deferred
   item. `tests/network_sync.rs` proves two `mini` homes with completely
   independent, unshared stores reach the same governed merge purely over
-  the network. One connection per invocation (no daemon yet).
+  the network. `listen` accepts one peer by default or exactly `--repeat
+  <n>` peers sequentially (no daemon, no concurrency, no signal-based
+  shutdown); `connect` always dials exactly one peer.
 - **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
   machine-readable `STATUS.md`/roadmap generation (Batch 1's remaining
   deferred items); wiring `mini-installer` into an actual running system

@@ -6,11 +6,14 @@
 //! filesystem path, only network reachability, to reach the same governed
 //! merge Batch 1's exit condition already proved over a shared `--store`.
 //!
-//! **Honest limit:** one connection per invocation, then the process
-//! exits. There is no daemon (`mini-devd`) yet, so `listen` blocks for
-//! exactly one peer and `connect` dials exactly one peer — real
-//! background/repeated sync needs the daemon this crate's own docs
-//! already name as deferred (`crate` module docs).
+//! **Honest limit:** a bounded, known number of connections per
+//! invocation, then the process exits. `listen` accepts one peer by
+//! default, or exactly `--repeat <n>` peers, sequentially, one at a time
+//! (never concurrently) — not a real daemon: no signal-based shutdown, no
+//! indefinite `--repeat`, no concurrent connection handling. `connect`
+//! always dials exactly one peer. Real background/indefinite sync still
+//! needs the daemon this crate's own docs already name as deferred
+//! (`crate` module docs).
 
 use std::net::TcpListener;
 use std::path::Path;
@@ -59,36 +62,45 @@ fn format_report(peer: &str, report: &IngestReport) -> String {
     )
 }
 
-/// `mini sync listen --addr <host:port>` — bind, block for exactly one
-/// peer, and serve as [`SyncRole::Responder`] (serves the peer's pull
-/// first, then pulls its own).
-pub fn listen(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
+/// `mini sync listen --addr <host:port> [--repeat <n>]` — bind, then
+/// accept and serve `times` peers, sequentially and one at a time (never
+/// concurrently), each as [`SyncRole::Responder`] (serves the peer's pull
+/// first, then pulls its own). `times` defaults to `1` when unset by the
+/// caller (see [`crate::cli`]'s dispatch, which passes `1` for a bare
+/// `mini sync listen`); `0` is treated the same as `1` here, so this
+/// function alone can never block forever with no peer served at all.
+pub fn listen(home: &Path, store_path: &Path, addr: &str, times: u32) -> Result<String> {
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
     seed_own_kel_carriers(&identity, &mut store)?;
     let mut cache = build_kel_cache(home, &identity)?;
 
     let listener = TcpListener::bind(addr).map_err(|e| CliError::Io(e.to_string()))?;
-    let (stream, peer) = listener.accept().map_err(|e| CliError::Io(e.to_string()))?;
-    let mut bearer = TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
+    let mut reports = Vec::with_capacity(times.max(1) as usize);
+    for _ in 0..times.max(1) {
+        let (stream, peer) = listener.accept().map_err(|e| CliError::Io(e.to_string()))?;
+        let mut bearer =
+            TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
 
-    let hello = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
-    let (mut chan, response) =
-        Responder::respond(&hello).map_err(|e| CliError::Sync(e.to_string()))?;
-    bearer
-        .send(&response)
+        let hello = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+        let (mut chan, response) =
+            Responder::respond(&hello).map_err(|e| CliError::Sync(e.to_string()))?;
+        bearer
+            .send(&response)
+            .map_err(|e| CliError::Sync(e.to_string()))?;
+
+        let report = sync_bidirectional(
+            &mut bearer,
+            &mut chan,
+            &mut store,
+            &mut cache,
+            SyncRole::Responder,
+        )
         .map_err(|e| CliError::Sync(e.to_string()))?;
+        reports.push(format_report(&peer.to_string(), &report));
+    }
 
-    let report = sync_bidirectional(
-        &mut bearer,
-        &mut chan,
-        &mut store,
-        &mut cache,
-        SyncRole::Responder,
-    )
-    .map_err(|e| CliError::Sync(e.to_string()))?;
-
-    Ok(format_report(&peer.to_string(), &report))
+    Ok(reports.join("\n"))
 }
 
 /// `mini sync connect <host:port>` — dial exactly one peer and sync as
