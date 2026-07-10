@@ -69,15 +69,16 @@ key-seed export (`SigningKey::to_seed_bytes`) for on-device persistence.
 - Machine-readable `STATUS.md`/roadmap generation — deferred; the manual
   three-document reconciliation problem the audit names is real, but lower
   urgency than giving developers a working tool.
-- Live network peer exchange for the CLI (`mini sync`) — deferred as a
-  near-zero-effort fast-follow: `mini_bearer::TcpBearer` +
-  `mini_sync::sync_bidirectional` already proved this composition live
-  (D-0062, `mini-bootstrap`'s demo). Batch 1's own exit-condition
-  demonstration instead uses a shared `FsBackend` directory (content-
-  addressed signed objects are safe to share via any medium — a synced
-  folder, a USB stick, later real `mini-sync` — the transport is
-  interchangeable and out of scope for what Batch 1 is actually proving,
-  which is the governance loop itself).
+- Live network peer exchange for the CLI (`mini sync listen`/`mini sync
+  connect`) — shipped as part of Batch 5: `mini-cli::sync` wires
+  `mini_bearer::TcpBearer` + `mini_sync::sync_bidirectional` exactly the
+  composition D-0062 already proved live. `tests/network_sync.rs` proves
+  two `mini` homes with *completely independent, unshared* stores reach
+  the same governed merge purely over a real TCP connection — the same
+  governance-loop claim Batch 1's exit condition proved over a shared
+  `FsBackend` directory, now proved again with no shared filesystem at
+  all. One connection per invocation, then the process exits (no daemon
+  yet — see `mini-cli`'s own module docs).
 
 ## Batch 2 — in-house scripting and builds
 

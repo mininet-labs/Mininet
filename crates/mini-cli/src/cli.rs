@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use did_mini::Did;
 
 use crate::error::{CliError, Result};
-use crate::{identity, pr, repo, store};
+use crate::{identity, pr, repo, store, sync};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|a| a == flag)?;
@@ -73,6 +73,7 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<Str
         "kel" => dispatch_kel(home, args),
         "repo" => dispatch_repo(home, store_path, args),
         "pr" => dispatch_pr(home, store_path, args),
+        "sync" => dispatch_sync(home, store_path, args),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
 }
@@ -211,6 +212,24 @@ fn dispatch_pr(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<
         }
         other => Err(CliError::Usage(format!(
             "unknown `pr` subcommand: {other:?}"
+        ))),
+    }
+}
+
+fn dispatch_sync(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+    let noun = next(&mut args, "sync")?;
+    match noun.as_str() {
+        "listen" => {
+            let addr = extract_flag(&mut args, "--addr")
+                .ok_or_else(|| CliError::Usage("--addr required".to_string()))?;
+            sync::listen(home, store_path, &addr)
+        }
+        "connect" => {
+            let addr = next(&mut args, "sync connect")?;
+            sync::connect(home, store_path, &addr)
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `sync` subcommand: {other:?}"
         ))),
     }
 }

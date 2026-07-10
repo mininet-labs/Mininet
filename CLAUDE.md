@@ -130,7 +130,10 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   `check_no_rollback`, `list_releases`, `detect_equivocation`; D-0070,
   spine Batch 3). `mini-cli` — the
   `mini` binary, a real developer tool over `mini-forge` (D-0067,
-  self-hosted forge spine Batch 1, #102). `mini-provenance` — SLSA/in-toto
+  self-hosted forge spine Batch 1, #102); `mini sync listen`/`connect`
+  (spine Batch 5) reaches the same governed merge over a real TCP
+  connection with no shared filesystem, one connection per invocation, no
+  daemon yet. `mini-provenance` — SLSA/in-toto
   build provenance signed objects + independent-builder agreement
   counting (D-0068, spine Batch 2a); records/counts claims, runs no build
   itself. `mini-pipeline`/`mini-pipeline-protocol` — pure pipeline

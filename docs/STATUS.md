@@ -312,11 +312,18 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   environment, not yet a live distributed system. Honest limits: Unix-only
   (`symlink`/`rename` activation), no process supervision, no real
   package-manager/OS integration — see §5 for the full detail; 10 tests.
+- **shipped** — Batch 5, first piece: `mini sync listen`/`mini sync
+  connect` (`mini-cli::sync`), live network peer exchange over a real TCP
+  `mini_bearer` + `mini_sync` connection — Batch 1's remaining deferred
+  item. `tests/network_sync.rs` proves two `mini` homes with completely
+  independent, unshared stores reach the same governed merge purely over
+  the network. One connection per invocation (no daemon yet).
 - **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
-  machine-readable `STATUS.md`/roadmap generation, live `mini sync`
-  (Batch 1's remaining deferred items); wiring `mini-installer` into an
-  actual running system (Batch 4's own named next step, the caller's job
-  by design); Mininet-as-primary-forge P2P sync (Batch 5).
+  machine-readable `STATUS.md`/roadmap generation (Batch 1's remaining
+  deferred items); wiring `mini-installer` into an actual running system
+  (Batch 4's own named next step, the caller's job by design); the rest of
+  Batch 5 (local object indexing at scale, distributed build workers,
+  GitHub import/export mirror automation).
 
 ## What has no client, at all
 

@@ -8,19 +8,19 @@
 //!
 //! Batch 1's exit condition: two developers can exchange a signed proposed
 //! commit, review the exact commit, and reach a governed canonical branch
-//! head without GitHub being the authority. This crate is the tool; the
-//! "exchange" itself uses a shared `--store` path (a synced folder, a USB
-//! stick, anything that copies files) rather than new networking code —
-//! content-addressed signed objects are safe to share via any medium, and
-//! live network sync is a deliberate fast-follow (see `crate::store`'s
-//! module docs).
+//! head without GitHub being the authority. That exchange can use either a
+//! shared `--store` path (a synced folder, a USB stick, anything that
+//! copies files — content-addressed signed objects are safe to share via
+//! any medium) or, as of `mini sync` (Batch 5, `crate::sync`), a real TCP
+//! connection between two `mini` homes with no shared filesystem at all.
 //!
 //! ## Honest limits
 //!
 //! - No key rotation from the CLI yet (`crate::identity`'s module docs).
 //! - No daemon (`mini-devd`): every invocation is a fresh process reading
 //!   local files: acceptable for solo/small-group use, not for background
-//!   sync or live event subscriptions.
+//!   sync or live event subscriptions. `mini sync` handles exactly one
+//!   connection per invocation, then exits (`crate::sync`'s module docs).
 //! - The per-home sequence counter (`crate::sequence`) is not safe for
 //!   concurrent invocations against the same home.
 //! - `repo branch --set` is a raw, ungoverned pointer move (the same
@@ -38,6 +38,7 @@ mod project;
 mod repo;
 mod sequence;
 mod store;
+mod sync;
 
 pub use cli::run;
 pub use error::{CliError, Result};

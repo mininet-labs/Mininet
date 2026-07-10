@@ -5,10 +5,9 @@
 //! (a synced folder, a USB stick, anything that copies files) can exchange
 //! signed objects with no networking code at all — content-addressed
 //! signed objects are safe to share via any medium. Live network sync
-//! (`mini sync`, reusing `mini_bearer`/`mini_sync` the way
-//! `mini-bootstrap`'s live demo already proved, D-0062) is a deliberate
-//! fast-follow, not required for this crate's exit condition — see
-//! `docs/design/self-hosted-forge-spine.md`.
+//! (`mini sync`, `crate::sync`, reusing `mini_bearer`/`mini_sync` the way
+//! `mini-bootstrap`'s live demo already proved, D-0062) is the fast-follow
+//! this module's docs used to name as deferred — now real, see `crate::sync`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,6 +15,7 @@ use std::path::{Path, PathBuf};
 use did_mini::Kel;
 use mini_forge::KelDirectory;
 use mini_store::{FsBackend, Store};
+use mini_sync::KelCache;
 
 use crate::error::{CliError, Result};
 use crate::identity::Identity;
@@ -81,4 +81,30 @@ pub fn build_oracle(home: &Path, identity: &Identity) -> Result<KelDirectory> {
         }
     }
     Ok(dir)
+}
+
+/// Build the [`KelCache`] `mini_sync`'s ingest pipeline checks incoming
+/// objects' authors against — the same trust set as [`build_oracle`]
+/// (this identity's own human + device KELs, plus every KEL this home has
+/// explicitly trusted), just in `mini-sync`'s own cache type rather than
+/// `mini-forge`'s `KelDirectory`. Two separate oracle types because the
+/// two crates each define their own minimal trait/struct rather than
+/// sharing one across a dependency edge neither strictly needs.
+pub fn build_kel_cache(home: &Path, identity: &Identity) -> Result<KelCache> {
+    let mut cache = KelCache::new();
+    cache.insert_verified(identity.human.kel());
+    cache.insert_verified(identity.device.kel());
+
+    let trusted_dir = trusted_kels_dir(home);
+    if trusted_dir.exists() {
+        for entry in fs::read_dir(&trusted_dir).map_err(|e| CliError::Io(e.to_string()))? {
+            let entry = entry.map_err(|e| CliError::Io(e.to_string()))?;
+            let bytes = fs::read(entry.path()).map_err(|e| CliError::Io(e.to_string()))?;
+            let kel = Kel::from_bytes(&bytes).map_err(|e| CliError::Identity(e.to_string()))?;
+            if kel.verify().is_ok() {
+                cache.insert_verified(kel);
+            }
+        }
+    }
+    Ok(cache)
 }
