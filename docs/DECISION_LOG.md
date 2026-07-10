@@ -2519,3 +2519,160 @@ conceptually by D-0059's zeroize-on-drop).
 DKG-implementation half of its two named gaps (nonce zeroization already
 closed by D-0059), leaving only the external-audit requirement itself
 open under #93.
+
+---
+
+### D-0061 — `mini-execution`: a real, chain-backed `CanonicalLedgerView`, closing roadmap #40  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** Directive 4, D-0045, D-0055, [roadmap #40](../../issues/40), [roadmap #41](../../issues/41), `crates/mini-execution/`.
+
+**Decision:** build the smallest deterministic state machine that ties
+`mini-chain`'s finality verification to `mini-settlement`'s reconciliation
+— a new crate, `mini-execution`, rather than adding execution logic to
+either existing crate (keeping `mini-chain` scoped to finality math and
+`mini-settlement` scoped to protocol logic, each independently
+reviewable, per this tree's established crate-boundary discipline):
+
+- **`LedgerState`** — for each payer, only the *latest* finalized
+  `(sequence, digest)` pair, because that is deliberately everything
+  `mini_settlement::reconcile` ever reads from a `CanonicalLedgerView`.
+  Implements `CanonicalLedgerView` directly; `commitment()` gives a block
+  header's `state_root` real, checkable meaning (BLAKE3 over the
+  canonically-sorted entries — `BTreeMap` iteration order makes this
+  commitment order-independent by construction).
+- **`apply_block`** — the state transition: within one block body, claims
+  are processed in order (the canonical order M3 requires); a claim wins
+  its `(payer, sequence)` slot only by strictly exceeding that payer's
+  current high-water-mark. A bad signature, a stale or already-decided
+  sequence, or a second claim at a just-taken slot is silently dropped —
+  never merged, never partially honored (M1).
+- **`LedgerChain`** — the one property that matters most: settlement state
+  only ever advances behind a real, verified `mini_chain::QuorumCertificate`
+  (`verify_finality`). There is no preview/tentative-apply path. Chain
+  continuity (height, `prev_hash`) and state-root honesty (the header must
+  match what the body actually produces) are both checked explicitly
+  before any state change, not assumed.
+
+**Reason:** D-0055 named this as its own required follow-up (`#40`'s
+concrete mechanism), and `docs/INVARIANTS.md`'s M2/M3 rows have carried
+"a real chain-backed `CanonicalLedgerView` is `pending`" since D-0055
+shipped. Directive 4's exact test — "if two honest nodes can produce
+different answers after reconciliation, the design is wrong" — was
+previously only argued from the type system (M1/M2/M3's structure); this
+batch makes it a property two independent `LedgerChain` instances
+actually satisfy, checked by test.
+
+**Constitutional impact:** implements Directive 4 directly and closes
+M2/M3's "real chain-backed ledger" gap named in D-0045/D-0055. No frozen
+invariant weakened — `reconcile`'s own rules (M1/M2/M3) are unchanged;
+this crate is what makes them real instead of hypothetical. No new
+cryptography (composes `mini-chain::verify_finality` and
+`mini-settlement::verify_claim_signature`/`claim_digest`; the only new
+content is deterministic bookkeeping and one content hash), so this is
+not gated behind D-0047.
+
+**Implementation status:** shipped — 14 tests (8 unit, 6 integration).
+The integration suite directly proves: a double-spend across two
+competing block-body proposals resolves to exactly one finalized winner
+end to end (claim → block → real quorum certificate →
+`LedgerChain::apply_finalized_block` → `mini_settlement::reconcile`
+reading the resulting `LedgerState`); two independent `LedgerChain`s fed
+the identical finalized-block sequence converge to bit-identical state
+commitments; an unfinalized block (below-quorum votes), a wrong height, a
+wrong parent hash, and a dishonest `state_root` are each rejected without
+changing state. `cargo fmt`/`clippy -D warnings`/full workspace
+`cargo test --all-features` clean.
+
+**Failure point:** this is the state-machine piece only — it is **not**
+networked consensus. Given a `(header, body, qc)` triple, this crate
+answers "is this the next state" precisely; it has no opinion on how a
+real network produces proposer rotation, vote gossip, or round timeouts/
+view-change to actually generate that triple in the first place. Those
+remain roadmap #36-#45's job, unchanged by this entry. `mini-execution`
+also knows exactly one transaction type (`PaymentClaim`) — a real chain's
+full state machine (governance, storage receipts, bounty claims) is
+further, separate work.
+
+**Required follow-up:** [roadmap #36-#45](../../issues/36) — the
+networked BFT protocol itself. Once that exists, wiring it to
+`LedgerChain::apply_finalized_block` is the remaining integration step;
+this entry's state-machine logic does not need to change for that to
+happen.
+
+**Supersedes / superseded by:** does not supersede D-0045 or D-0055 — M1/
+M2/M3's meaning is unchanged; this closes the specific "real chain-backed
+implementation" gap both entries already named as outstanding.
+
+---
+
+### D-0062 — `mini-bootstrap`/`mini-sync`: proven live over real TCP, closing roadmap #23  ·  *Accepted*
+**Date:** 2026-07-09 · **Refs:** Directive 14, [roadmap #23](../../issues/23), D-0042, `crates/mini-bootstrap/examples/bootstrap_live_demo.rs`, `crates/mini-sync/tests/sync_over_tcp.rs`.
+
+**Decision:** prove `mini-bootstrap` and `mini-sync` interoperate over a
+real socket, without adding any transport code to either crate's own
+library API:
+
+- `mini-sync` was already `Bearer`-generic (`sync_bidirectional`/
+  `serve_pull` take `&mut dyn Bearer`) — its own docs already claimed
+  "over any bearer." What was missing was a test actually exercising
+  `TcpBearer` instead of only `InProcessBearer`. Added
+  `tests/sync_over_tcp.rs`: two real threads, a real `TcpListener`/
+  `TcpStream` pair on localhost, the same `Channel` handshake and
+  `sync_bidirectional` call every other `mini-sync` test uses — proving a
+  fresh peer pulls everything over the real socket, and two peers with
+  disjoint content converge to an identical set.
+- `mini-bootstrap` was **not** transport-generic at all (by design — its
+  own crate docs say it never gets its own wire protocol; real transport
+  is explicitly `mini-bearer`'s job). Rather than write a new bootstrap-
+  specific wire protocol, `examples/bootstrap_live_demo.rs` composes three
+  already-real pieces exactly as a real device would: the seed peer sends
+  a `GenesisSeed` first (standing in for a BLE advertisement), the two
+  sides handshake a `mini_bearer::Channel`, then `mini_sync::
+  sync_bidirectional` pulls everything — the capsule header, its bundle
+  manifest, and every chunk are already just `mini_objects::Object`s in a
+  `mini_store::Store`, so ordinary bucketed set reconciliation is the
+  entire data-transfer mechanism. A genuinely fresh device (empty store,
+  empty `KelCache` — zero prior trust) reassembles and digest-verifies the
+  bundle, byte-identical to what the seed peer published.
+
+**Reason:** roadmap #23 asked to "prove a device can actually bootstrap
+from a peer over a real connection, not just in-process." Writing a new
+bootstrap-specific wire protocol would have duplicated what `mini-sync`
+already solved (Directive 14: the strongest protocol is the one that
+removed the most unnecessary parts) and would have contradicted
+`mini-bootstrap`'s own documented transport-agnostic design. Composing
+existing, already-tested pieces — rather than adding a fourth wire
+protocol to the workspace — was the smaller, more honest answer, and
+directly demonstrates why `mini-bootstrap` publishing ordinary
+content-addressed objects (not a bespoke format) was the right call back
+when it first shipped.
+
+**Constitutional impact:** none — no frozen invariant touched, no new
+cryptography (composes `mini-bearer::Channel`'s existing handshake/AEAD
+and `mini-sync`'s existing verified-ingest pipeline unchanged). Directive
+14 (simplicity) is the operative principle: the "gap" turned out to be a
+missing *demonstration*, not missing *code*, for `mini-sync`; and for
+`mini-bootstrap`, composition rather than a new protocol.
+
+**Implementation status:** shipped. `sync_over_tcp.rs`: 2 new tests, both
+passing. `bootstrap_live_demo.rs`: run manually as two real OS processes
+(`cargo run ... -- seed 9100` / `cargo run ... -- fresh 127.0.0.1:9100`)
+— confirmed producing byte-identical BLAKE3 digests on both sides over an
+actual TCP connection. `cargo fmt`/`clippy -D warnings`/full workspace
+`cargo test --all-features` clean.
+
+**Failure point:** TCP stands in for BLE — the demo proves the protocol
+pieces interoperate over a real socket, not that real BLE/Wi-Fi radio
+adapters work (those need actual phone hardware this environment doesn't
+have, roadmap #22, unchanged by this entry). One connection, one capsule:
+no peer discovery, no multi-peer store-and-forward resumption across many
+short encounters (that robustness testing is `mini-sync`'s own separate
+scope, roadmap #26).
+
+**Required follow-up:** roadmap #22 (real BLE/Wi-Fi radio `Bearer`
+implementations) remains the actual hardware-dependent blocker; once a
+real radio `Bearer` exists, this same `sync_bidirectional`/`Channel`
+composition should work unchanged, since neither `mini-bootstrap` nor
+`mini-sync` cares what implements `Bearer`.
+
+**Supersedes / superseded by:** none — first live-transport demonstration
+for these two crates.

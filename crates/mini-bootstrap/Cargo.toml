@@ -15,3 +15,10 @@ did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-store = { path = "../mini-store" }
 mini-media = { path = "../mini-media" }
+
+# Transport/sync are dev-only: mini-bootstrap's own library code stays
+# transport-agnostic (see lib.rs's crate docs) -- only the live demo
+# composes them with a real Bearer.
+[dev-dependencies]
+mini-bearer = { path = "../mini-bearer" }
+mini-sync = { path = "../mini-sync" }

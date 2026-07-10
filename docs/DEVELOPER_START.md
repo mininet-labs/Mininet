@@ -59,7 +59,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 24 crates, see the table below
+├── crates/                 25 crates, see the table below
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, with a Directive-traceability column
@@ -102,11 +102,11 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-objects` | Unified signed, content-addressed object envelope (SPEC-09) | ✅ |
 | `mini-store` | Local content-addressed store: blobs, indexes, head pointers | ✅ |
 | `mini-crdt` | Op-log CRDT for threads/docs, offline-first merge | ✅ |
-| `mini-sync` | Bucketed reconciliation + verified ingest over any bearer | ✅ |
+| `mini-sync` | Bucketed reconciliation + verified ingest over any bearer | ✅ proven live over real TCP (D-0062), not just in-process |
 | `mini-social` | Profiles, follow graph, explainable locally-computed feeds, public walls | ✅ |
 | `mini-media` | Chunked content-addressed media, progressive assembly | ✅ |
 | `mini-forge` | Repos, branches, releases + attestations, governed merge | ✅ logic complete; git SHA-256 interop pending |
-| `mini-bootstrap` | Self-certifying genesis/update capsule, chunked exchange | 🚧 protocol logic done; real transport is `mini-bearer`'s job |
+| `mini-bootstrap` | Self-certifying genesis/update capsule, chunked exchange | 🚧 live TCP bootstrap demo proves real-transport interop (D-0062); real BLE/Wi-Fi radio adapters need phone hardware (#22) |
 | `mini-update` | Local update-adoption state machine (no forced update, no kill path) | ✅ |
 | `mini-net` | Kademlia-style routing table + gossip broadcast | 🚧 gossip proven live over real TCP (D-0042); peer discovery/mesh routing still logic-only |
 | `mini-storage` | Mutually-signed storage-served receipts | ✅ |
@@ -116,7 +116,8 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-treasury` | Contribution bookkeeping + FROST threshold custody | 🧪 FROST + live multi-device demo (D-0041); real DKG + resharing (D-0060), unaudited |
 | `mini-value` | MINI fee bookkeeping + transaction-privacy primitives | 🧪 stealth addresses, ring signatures, Bulletproofs confidential amounts (D-0036/D-0040) |
 | `mini-bounty` | Anonymous developer-bounty claims (ring signature + stealth address reuse) | 🧪 real, tested (D-0049); no GitHub integration, no minimum ring-size policy yet |
-| `mini-settlement` | Offline transaction settlement: signed pending claims, wallet state machine, double-spend reconciliation (M1/M2/M3) | 🧪 real, tested (D-0055); protocol only — `CanonicalLedgerView` has no real chain-backed impl yet |
+| `mini-settlement` | Offline transaction settlement: signed pending claims, wallet state machine, double-spend reconciliation (M1/M2/M3) | 🧪 real, tested (D-0055); `CanonicalLedgerView` now has a real chain-backed impl, see `mini-execution` |
+| `mini-execution` | Chain-backed `CanonicalLedgerView`: state only advances behind a verified quorum certificate | 🧪 real, tested (D-0061, closes #40); not networked consensus — that's `mini-chain`/`mini-net`'s job |
 
 See [`DECISION_LOG.md`](DECISION_LOG.md) for the reasoning and honest limits
 behind every 🧪/🔬 entry, and each crate's own `README.md`/top-of-file doc
@@ -132,10 +133,11 @@ tracked as external legitimacy gates ([`gates/`](gates/), issue [#99](../../issu
 1. **External cryptography audit.** Every 🧪 item above is founder-reviewed
    AI-authored work, not audit-equivalent — the single largest gate before any
    real value ([`gates/crypto-audit-scope.md`](gates/crypto-audit-scope.md), [#72](../../issues/72)).
-2. **A real network transport.** Partially closed (D-0042): `TcpBearer` +
-   live three-process gossip. Missing: BLE (needs phone hardware),
-   `mini-bootstrap`/`mini-sync` wiring to `TcpBearer`, and `mini-net` peer
-   *discovery* ([#97](../../issues/97), [#98](../../issues/98)).
+2. **A real network transport.** `TcpBearer` + live three-process gossip
+   (D-0042); `mini-bootstrap`/`mini-sync` now proven live over real TCP too
+   (D-0062, closes #23). Missing: real BLE/Wi-Fi radio adapters (need phone
+   hardware, [#97](../../issues/97)/[#98](../../issues/98)) and `mini-net`
+   peer *discovery* (`RoutingTable` isn't wired to real lookups yet).
 3. **A client people can actually install.** No mobile/desktop/web app exists
    yet — `UI_BETA_PLAN.md` is a plan, not code.
 4. **The personhood ZK proof (signal b).** On-device behavioral/location
@@ -148,10 +150,14 @@ tracked as external legitimacy gates ([`gates/`](gates/), issue [#99](../../issu
    behind an explicit acknowledgment type either way. What's still missing
    is the external review itself
    ([`gates/dkg-audit-scope.md`](gates/dkg-audit-scope.md), [#93](../../issues/93)).
-6. **Consensus and chain networking.** `mini-chain` verifies finality given
-   votes; the networked BFT protocol and state machine aren't built.
-   `mini-settlement` implements the offline-payment protocol M1/M2/M3 require,
-   but its `CanonicalLedgerView` needs a real chain behind it (#36-#45).
+6. **Consensus and chain networking — state machine done, networking open.**
+   `mini-chain` verifies finality given votes; `mini-execution` (D-0061,
+   closes #40) is the real state machine `mini-settlement`'s
+   `CanonicalLedgerView` needed, proving double-spend resolution and
+   cross-node convergence given a finalized block. What's still missing is
+   the *networked* BFT protocol itself — proposer rotation, vote gossip,
+   round timeouts/view-change — that produces those finalized blocks in the
+   first place (#36-#45).
 7. **Security posture at scale.** Closed (D-0044): dependency scanning +
    same-machine reproducible-build check in CI. Open: cross-machine
    K-independent-builder reproducibility (SPEC-11 §8), and CodeQL-alert triage.

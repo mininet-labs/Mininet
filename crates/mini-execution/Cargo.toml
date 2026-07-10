@@ -1,0 +1,18 @@
+[package]
+name = "mini-execution"
+version = "0.0.1"
+description = "The smallest deterministic state machine that ties mini-chain's finality verification to mini-settlement's offline-payment reconciliation -- a real, chain-backed CanonicalLedgerView. No networking, no proposer rotation: those stay mini-chain's and mini-net's job."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+mini-chain = { path = "../mini-chain" }
+mini-settlement = { path = "../mini-settlement" }
+
+[dev-dependencies]
+did-mini = { path = "../did-mini" }

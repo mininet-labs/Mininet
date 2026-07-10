@@ -9,7 +9,7 @@ when a convention changes, change it here in the same PR.
 ## What this project is
 
 Mininet: a constitutional P2P protocol — identity, personhood, money,
-storage, governance — built in Rust as ~23 `mini-*` crates, designed to
+storage, governance — built in Rust as ~25 `mini-*` crates, designed to
 outlive its creators (think in centuries, not releases). The founder directs
 via chat and merges via GitHub PRs. GitHub is the UAT/mirror; the long-term
 source of truth is the network governing itself (mini-forge).
@@ -97,10 +97,14 @@ shipping), `docs/design/` (design notes that close roadmap issues),
 - `mini-presence` / `mini-uniqueness` — co-presence attestation / personhood
   signal fusion (Sybil resistance = THE open question, roadmap #18).
 - `mini-chain` — BFT finality verification, equal weight per identity root.
+  `mini-settlement` — offline payment claims, M1/M2/M3 (D-0055).
+  `mini-execution` — chain-backed `CanonicalLedgerView` tying the two
+  together (D-0061, closes #40); still not networked consensus (#36-#45).
 - `mini-value` — stealth addresses, ring signatures, Bulletproofs (D-0036
   prototypes). `mini-bounty` composes them for anonymous dev bounties.
-- `mini-treasury` — FROST threshold custody (trusted-dealer keygen is P0
-  gap, D-0048/#93). `mini-spacetime` — storage proofs (possession only).
+- `mini-treasury` — FROST threshold custody; real DKG + resharing now
+  exist (D-0059/D-0060) but are unaudited (#93). `mini-spacetime` —
+  storage proofs (possession only).
 - `mini-forge` — code governance: per-root approvals, 2-approval protocol
   floor, KelDirectory oracle. `mini-net` — DHT/gossip over real TCP.
 - `mini-bearer`/`mini-bootstrap`/`mini-sync`/`mini-update` — transport,

@@ -31,9 +31,12 @@
 //! bundle, build-recipe hash, initial verifier KEL roots, rescue-bundle
 //! hashes) is **not** all represented as distinct fields yet — that richer
 //! schema is `pending`, the same honesty convention used throughout this
-//! tree. Real BLE/local-Wi-Fi transport and the `MINI/BT0` handshake phases
-//! are `mini-bearer`'s job and are also `pending`; this crate is
-//! transport-agnostic and testable fully offline.
+//! tree. Real BLE/local-Wi-Fi *radio* adapters are `mini-bearer`'s job and
+//! remain `pending` (need real phone hardware, roadmap #22) — but real-
+//! transport interop of the protocol pieces here is proven, over TCP as a
+//! stand-in radio, by `examples/bootstrap_live_demo.rs` (D-0062, closes
+//! roadmap #23). This crate itself stays transport-agnostic and testable
+//! fully offline by design; it never gets its own wire protocol.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]

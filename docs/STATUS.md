@@ -88,24 +88,32 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `docs/gates/dkg-audit-scope.md` before treating this as production-viable
   at any value level.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
-  offline settlement protocol is now real, tested code — signed
+  offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary
   (pending/accepted/finalized as distinct types), local conflict detection
   (`ClaimWatcher`), and canonical reconciliation (`reconcile`) proving
-  exactly one of two conflicting claims ever finalizes. 26 tests. **What's
-  still missing:** `CanonicalLedgerView` — the trait `reconcile` reads to
-  decide finality — has only a test-only in-memory implementation; a real
-  chain-backed ledger is roadmap #36-#45's job, tracked as #41's own
-  required follow-up and #40's (double-spend reconciliation rules)
-  concrete mechanism. `mini-reward`'s accrual bookkeeping remains ordinary,
-  non-spendable value, unaffected by and separate from this crate.
+  exactly one of two conflicting claims ever finalizes. `mini-reward`'s
+  accrual bookkeeping remains ordinary, non-spendable value, unaffected by
+  and separate from this crate.
+- **prototype** — `mini-execution` (D-0061, closes roadmap #40): a real,
+  chain-backed `CanonicalLedgerView` — `LedgerChain` only ever advances
+  settlement state behind a verified `mini_chain::QuorumCertificate`, never
+  speculatively. Closes `mini-settlement`'s own named gap: two independent
+  `LedgerChain`s fed the same finalized blocks are proven (not just
+  argued) to converge to bit-identical state (Directive 4), and a
+  double-spend across two competing block proposals is proven to resolve
+  to exactly one finalized winner end to end. Deliberately still not a
+  networked chain — no proposer rotation, no vote gossip — that remains
+  roadmap #36-#45's job; this crate answers "given a finalized block, what
+  changed" precisely, not "how do nodes agree on the next block."
 
 ## 5. Updates & forks
 
 - **shipped** — `mini-update::AdoptionState` (local adoption state
   machine, no forced update, no kill path).
 - **partial** — `mini-bootstrap` (genesis/capsule protocol logic) is
-  shipped; real transport underneath it is not (see §8).
+  shipped, and now proven live over real TCP (D-0062, closes #23, see §8);
+  real BLE/Wi-Fi radio adapters remain not started (need phone hardware).
 - **not started** — the release registry (on-chain), and therefore
   everything that depends on it: governed release finality, the
   emergency-update-path question ([#53](../../issues/53)),
@@ -134,13 +142,17 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 
 - **shipped** — `mini_bearer::TcpBearer` (D-0042): real TCP transport,
   tested, proven live via `mini-net`'s three-process gossip demo.
+- **shipped** — `mini-bootstrap`/`mini-sync` proven live over real TCP
+  (D-0062, closes [#23](../../issues/23)): a genuinely fresh device (empty
+  store, empty `KelCache`) bootstraps a signed genesis capsule from a seed
+  peer over a real socket end to end, and `mini_sync::sync_bidirectional`'s
+  own "over any bearer" claim is now tested against `TcpBearer`, not just
+  `InProcessBearer`.
 - **partial** — `mini-net`'s gossip logic is proven live over real
   sockets; peer *discovery* (`RoutingTable`) is unexercised over a real
   transport; not a mesh.
 - **not started** — BLE/local-Wi-Fi radio adapters (needs real phone
-  hardware, [#22](../../issues/22));
-  `mini-bootstrap`/`mini-sync` are not yet wired to `TcpBearer` or any
-  real transport; NAT traversal; local mesh routing.
+  hardware, [#22](../../issues/22)); NAT traversal; local mesh routing.
 
 ## 9. AI & audit gates
 
