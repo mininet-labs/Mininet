@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 33,
-    "files": 331,
-    "headings": 746,
+    "files": 334,
+    "headings": 783,
     "rust_symbols": 2761
   },
   "crates": {
@@ -29705,6 +29705,302 @@
       "sha256": "e2ac294cf47285e62bd65a9fbaa85a5ea69060640caa0189af0e194e530289d5",
       "symbols": [],
       "title": "Local Wi-Fi bearer \u2014 validation protocol"
+    },
+    {
+      "bytes": 4311,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Issue closure rules"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "General rule"
+        },
+        {
+          "level": 2,
+          "line": 19,
+          "text": "Closure labels"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "Required closure evidence, by category"
+        },
+        {
+          "level": 3,
+          "line": 34,
+          "text": "Code-closeable"
+        },
+        {
+          "level": 3,
+          "line": 39,
+          "text": "Spec-closeable"
+        },
+        {
+          "level": 3,
+          "line": 45,
+          "text": "Simulation-closeable"
+        },
+        {
+          "level": 3,
+          "line": 54,
+          "text": "Hardware-gated"
+        },
+        {
+          "level": 3,
+          "line": 59,
+          "text": "External-gated"
+        },
+        {
+          "level": 3,
+          "line": 64,
+          "text": "Founder-decision-gated"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "False-closure examples \u2014 do not do these"
+        }
+      ],
+      "keywords": [
+        "close",
+        "closure",
+        "issue",
+        "evidence",
+        "because",
+        "required",
+        "these",
+        "external",
+        "founder",
+        "general",
+        "category",
+        "examples",
+        "closed",
+        "gates",
+        "its",
+        "questions",
+        "hardware",
+        "model",
+        "entry",
+        "decision",
+        "review",
+        "planning",
+        "rules",
+        "rule"
+      ],
+      "lines": 96,
+      "path": "docs/planning/ISSUE_CLOSURE_RULES.md",
+      "sha256": "86c4c5576603a60789d2b977f48620bbc75ad97ebdbe4cc2b8cd20d37df3ffa4",
+      "symbols": [],
+      "title": "Issue closure rules"
+    },
+    {
+      "bytes": 6556,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Phase dependency graph"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Spine dependency"
+        },
+        {
+          "level": 2,
+          "line": 34,
+          "text": "Dependency graph"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "Do-not-code-before list (still applies going forward)"
+        },
+        {
+          "level": 3,
+          "line": 70,
+          "text": "Do not code treasury/governance economics before"
+        },
+        {
+          "level": 3,
+          "line": 78,
+          "text": "Do not code strong personhood rewards before"
+        },
+        {
+          "level": 3,
+          "line": 84,
+          "text": "Do not code BLE/UWB as proof before"
+        },
+        {
+          "level": 3,
+          "line": 91,
+          "text": "Do not code local Wi-Fi as identity before"
+        },
+        {
+          "level": 3,
+          "line": 98,
+          "text": "Do not code disaster/global finality before"
+        },
+        {
+          "level": 2,
+          "line": 107,
+          "text": "Recommended order from here"
+        }
+      ],
+      "keywords": [
+        "shipped",
+        "code",
+        "dependency",
+        "real",
+        "started",
+        "yet",
+        "protocol",
+        "governance",
+        "identity",
+        "review",
+        "done",
+        "gates",
+        "hardware",
+        "them",
+        "written",
+        "graph",
+        "spine",
+        "list",
+        "economics",
+        "finality",
+        "objects",
+        "mini-forge",
+        "rollback",
+        "installer"
+      ],
+      "lines": 130,
+      "path": "docs/planning/PHASE_DEPENDENCY_GRAPH.md",
+      "sha256": "bafe763e1a38cc9807ff1e8d4c4ba77e2e87c0ec4149ec09ea376bc4b4294aea",
+      "symbols": [],
+      "title": "Phase dependency graph"
+    },
+    {
+      "bytes": 6393,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Pre-coding issue matrix"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "Closure categories"
+        },
+        {
+          "level": 2,
+          "line": 23,
+          "text": "Priority coordination issues \u2014 current state (2026-07-10)"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "High-risk issue table \u2014 current state"
+        },
+        {
+          "level": 2,
+          "line": 51,
+          "text": "Phase-level pre-coding questions (forward-looking, still open)"
+        },
+        {
+          "level": 3,
+          "line": 56,
+          "text": "Phase 0-2: founder intent, identity, personhood"
+        },
+        {
+          "level": 3,
+          "line": 62,
+          "text": "Phase 3: transport and offline operation"
+        },
+        {
+          "level": 3,
+          "line": 67,
+          "text": "Phase 4: storage"
+        },
+        {
+          "level": 3,
+          "line": 73,
+          "text": "Phase 5: consensus"
+        },
+        {
+          "level": 3,
+          "line": 78,
+          "text": "Phase 6: economics"
+        },
+        {
+          "level": 3,
+          "line": 83,
+          "text": "Phase 7: governance"
+        },
+        {
+          "level": 3,
+          "line": 88,
+          "text": "Phase 8: object model"
+        },
+        {
+          "level": 3,
+          "line": 93,
+          "text": "Phase 9: forge and release"
+        },
+        {
+          "level": 3,
+          "line": 98,
+          "text": "Phase 10: security and abuse"
+        },
+        {
+          "level": 3,
+          "line": 103,
+          "text": "Phase 11: AI"
+        },
+        {
+          "level": 3,
+          "line": 108,
+          "text": "Phase 12: survivability"
+        }
+      ],
+      "keywords": [
+        "phase",
+        "done",
+        "gates",
+        "design",
+        "issue",
+        "matrix",
+        "current",
+        "what",
+        "pre-coding",
+        "simulation",
+        "external",
+        "issues",
+        "state",
+        "forge",
+        "close",
+        "needs",
+        "batch",
+        "spec",
+        "same",
+        "already",
+        "closure",
+        "open",
+        "founder",
+        "identity"
+      ],
+      "lines": 113,
+      "path": "docs/planning/PRE_CODING_ISSUE_MATRIX.md",
+      "sha256": "3a4c23b5d9586586fa8cb3e8a526d715944a3aa8ce45b0a4d6e794a97e4e4807",
+      "symbols": [],
+      "title": "Pre-coding issue matrix"
     },
     {
       "bytes": 1297,
