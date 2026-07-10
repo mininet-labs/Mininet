@@ -32,6 +32,28 @@ invariants constrain the *rules*, not the *numbers* plugged into them.
 
 ## What engineering should build before the specialist arrives
 
+**Update (2026-07-10):** a first-pass harness now exists —
+`tools/sim/tokenomics_sim.py`, a dependency-free Python sweep, run and
+verified working in this session (576 scenarios, 130 pass / 446 fail
+against the failure thresholds below). It is deliberately a starting
+point for the eventual specialist to extend, not the `crates/
+mini-econ-sim` Rust harness described below, and it has one honest,
+load-bearing limitation stated in its own docstring: it models reward
+flow as proportional to existing holdings across actor classes (whale/
+sybil/honest/insider), not D-0074's actual Human Share mechanic (equal
+MINI per active verified human, independent of prior balance). That
+means it is *structurally incapable* of showing D-0074's real
+flattening effect — running it at D-0074's actual adopted split
+(0.667/0.25/0.083 of the 3% ceiling, i.e. the 2%/0.75%/0.25% channels)
+still flags `excessive_concentration` even with zero sybils and zero
+whale buying, purely because the harness can't represent Human Share's
+per-human equality. **Do not read that as a finding that D-0074 fails
+its own baseline** — it's a known harness gap, not a result. A real
+`mini-econ-sim` (Rust, matching the `Actor` enum below) that actually
+models per-human equal issuance is still the eventual target; the
+Python harness closes the "nothing runnable exists yet" gap in the
+meantime.
+
 A deterministic simulation harness (`crates/mini-econ-sim`, not yet
 built) so a mechanism-design reviewer has something to actually run
 adversarial scenarios against, rather than reasoning from spec prose
@@ -51,6 +73,49 @@ pub enum Actor {
     LateAdopter,
 }
 ```
+
+### Adversary classes the harness (Python or eventual Rust) should model
+
+- **A1 — passive whale:** accumulates but doesn't attack governance;
+  measures concentration/voting-power drift.
+- **A2 — active governance attacker:** buys/earns/borrows enough MINI
+  to pass monetary/governance changes.
+- **A3 — sybil farmer:** many pseudo-humans/devices/households farming
+  issuance and rewards.
+- **A4 — treasury drainer:** optimizes proposals/grants/rewards to
+  extract treasury funds without durable network value.
+- **A5 — liquidity attacker:** thin-market or temporary price
+  manipulation distorting governance or economic assumptions.
+- **A6 — cartel attacker:** multiple semi-independent accounts
+  coordinating while avoiding obvious common ownership.
+- **A7 — honest long-term participant:** the control group — a
+  builder/host/human node contributing real work, holding long-term.
+
+### Parameter sweep (already run by `tools/sim/tokenomics_sim.py`)
+
+| Parameter | Values swept |
+|---|---|
+| Split | D-0074's actual 0.667/0.25/0.083, plus 50/40/10, 45/45/10, 60/30/10 |
+| Inflation ceiling | 1%, 2%, 3% (D-0074's adopted ceiling), 5% |
+| Vesting period | 0, 12, 36 months |
+| Whale purchase rate | none, low, medium |
+| Sybil count | 0, 100, 1,000, 10,000 |
+
+### Failure thresholds the harness checks per scenario
+
+1. A single whale reaches decisive governance power within a plausible
+   budget window.
+2. Sybil rewards exceed sybil operating cost while sybils hold a
+   material (>5%) share.
+3. Treasury balance is depleted under the modeled spend rate.
+4. Any single actor class exceeds 50% proportional share
+   (`top_actor_share` — see the honest limitation above before reading
+   too much into this one specifically).
+
+A parameter set "passes" only if none of the above hold — 130/576 did
+in this first run. The full CSV is reproducible (`python3 tools/sim/
+tokenomics_sim.py`) but not itself committed, since it's a large
+regenerable artifact, not source.
 
 ### Metrics the harness should report
 

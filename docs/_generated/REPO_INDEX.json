@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 33,
-    "files": 329,
-    "headings": 728,
+    "files": 334,
+    "headings": 783,
     "rust_symbols": 2761
   },
   "crates": {
@@ -28561,7 +28561,7 @@
       "title": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
     },
     {
-      "bytes": 18276,
+      "bytes": 21122,
       "group": "docs",
       "headings": [
         {
@@ -28601,62 +28601,67 @@
         },
         {
           "level": 2,
-          "line": 124,
+          "line": 134,
           "text": "6. Government accreditation \u2014 optional, capped, never sovereign"
         },
         {
           "level": 2,
-          "line": 140,
+          "line": 150,
           "text": "7. Home/device continuity"
         },
         {
           "level": 2,
-          "line": 155,
+          "line": 165,
           "text": "8. Family/household relationships"
         },
         {
           "level": 2,
-          "line": 167,
+          "line": 182,
           "text": "9. Temporary live-data proof"
         },
         {
           "level": 2,
-          "line": 181,
+          "line": 196,
           "text": "10. Two nullifier layers"
         },
         {
           "level": 2,
-          "line": 195,
+          "line": 210,
           "text": "11. Slow vesting tied to evidence maturity"
         },
         {
           "level": 2,
-          "line": 220,
+          "line": 235,
           "text": "12. Why this makes farms expensive, and what it still can't stop"
         },
         {
           "level": 2,
-          "line": 252,
+          "line": 267,
           "text": "13. Privacy requirements (mandatory, not aspirational)"
         },
         {
           "level": 2,
-          "line": 265,
+          "line": 280,
           "text": "14. Weak-device architecture"
         },
         {
           "level": 2,
-          "line": 278,
+          "line": 293,
           "text": "Research program"
         },
         {
           "level": 2,
-          "line": 302,
+          "line": 330,
           "text": "Implementation phases"
         },
         {
           "level": 2,
-          "line": 321,
+          "line": 349,
+          "text": "Threats catalogue"
+        },
+        {
+          "level": 2,
+          "line": 366,
           "text": "What remains open"
         }
       ],
@@ -28686,9 +28691,9 @@
         "decision",
         "classes"
       ],
-      "lines": 335,
+      "lines": 380,
       "path": "docs/design/human-continuity-proof.md",
-      "sha256": "2fa965cbc2944ad835c2acfb948e5157b5b79dd0a2770b1fdd838d9289be6a63",
+      "sha256": "2b4314315373bf5dce71d1b26020b13493d093fc4aadfea3453b2ac39756a797",
       "symbols": [],
       "title": "Private Human Continuity Proof \u2014 founder decision (D-0075)"
     },
@@ -29210,7 +29215,7 @@
       "title": "FROST distributed key generation \u2014 audit scope package"
     },
     {
-      "bytes": 4521,
+      "bytes": 9154,
       "group": "docs",
       "headings": [
         {
@@ -29247,42 +29252,67 @@
           "level": 2,
           "line": 89,
           "text": "What closes this gate"
+        },
+        {
+          "level": 2,
+          "line": 96,
+          "text": "Engineering's own reasoning, pending the expert (2026-07-10)"
+        },
+        {
+          "level": 3,
+          "line": 103,
+          "text": "Network modes"
+        },
+        {
+          "level": 3,
+          "line": 127,
+          "text": "Message-class priority under partition"
+        },
+        {
+          "level": 3,
+          "line": 140,
+          "text": "Finality and conflict-resolution rules (the one part already clear without the expert)"
+        },
+        {
+          "level": 3,
+          "line": 160,
+          "text": "MVP boundary (a recommendation, not a decision \u2014 the expert can move this line)"
         }
       ],
       "keywords": [
-        "design",
         "expert",
+        "design",
         "already",
         "what",
+        "one",
         "work",
         "regimes",
         "dtn",
         "isn",
-        "one",
-        "domain",
-        "bundle",
         "needs",
+        "domain",
+        "engineering",
         "latency",
         "disaster",
+        "bundle",
+        "partition",
+        "finality",
+        "actual",
+        "regime",
         "satellite",
+        "normal",
         "lunar",
         "relay",
-        "mars",
-        "existing",
-        "model",
-        "operation",
-        "constraints",
-        "problem",
-        "real"
+        "mars"
       ],
-      "lines": 95,
+      "lines": 179,
       "path": "docs/gates/dtn-design-constraints.md",
-      "sha256": "35f89c114ce3661fc8fcf5d3dd3fb3b7a2426e05ab4bfc37f8f5cde56cfa7fd9",
+      "sha256": "a22cfb9223fae70319595e3d5aa788eaf5f75a4459b3115f15f504a0ae64ad46",
       "symbols": [],
       "title": "Extreme-environment operation \u2014 DTN design constraints"
     },
     {
-      "bytes": 5132,
+      "bytes": 8498,
       "group": "docs",
       "headings": [
         {
@@ -29302,59 +29332,74 @@
         },
         {
           "level": 3,
-          "line": 55,
+          "line": 77,
+          "text": "Adversary classes the harness (Python or eventual Rust) should model"
+        },
+        {
+          "level": 3,
+          "line": 94,
+          "text": "Parameter sweep (already run by `tools/sim/tokenomics_sim.py`)"
+        },
+        {
+          "level": 3,
+          "line": 104,
+          "text": "Failure thresholds the harness checks per scenario"
+        },
+        {
+          "level": 3,
+          "line": 120,
           "text": "Metrics the harness should report"
         },
         {
           "level": 3,
-          "line": 69,
+          "line": 134,
           "text": "Invariant checks the simulation should assert, not just report"
         },
         {
           "level": 2,
-          "line": 89,
+          "line": 154,
           "text": "Questions the specialist must answer"
         },
         {
           "level": 2,
-          "line": 105,
+          "line": 170,
           "text": "What closes this gate"
         }
       ],
       "keywords": [
-        "what",
-        "simulation",
-        "treasury",
-        "specialist",
         "harness",
-        "report",
-        "concentration",
-        "actually",
-        "attack",
-        "just",
-        "questions",
-        "gate",
-        "design",
-        "vesting",
-        "reward",
-        "storage",
-        "simulated",
-        "sybil",
-        "realistic",
+        "d-0074",
+        "whale",
+        "treasury",
         "long-term",
+        "simulation",
+        "rust",
+        "governance",
+        "doesn",
+        "specialist",
+        "python",
+        "eventual",
+        "model",
+        "run",
+        "vesting",
+        "below",
+        "human",
+        "attack",
         "modeling",
         "spec",
         "alone",
-        "doesn"
+        "what",
+        "classes",
+        "parameter"
       ],
-      "lines": 111,
+      "lines": 176,
       "path": "docs/gates/economic-simulation-spec.md",
-      "sha256": "9e67ce2e0135ac7ddc4c1f45d8f67f80048d43955ecd7d2278770198f1312e46",
+      "sha256": "ef5a134dcd30e5bb81e63d6cecdac622b8cf8952375d3d0527dbf7bc6277f14b",
       "symbols": [],
       "title": "Treasury economics & long-term attack modeling \u2014 simulation spec"
     },
     {
-      "bytes": 4110,
+      "bytes": 7900,
       "group": "docs",
       "headings": [
         {
@@ -29391,6 +29436,11 @@
           "level": 2,
           "line": 76,
           "text": "What closes this gate"
+        },
+        {
+          "level": 2,
+          "line": 84,
+          "text": "Detailed test matrix (2026-07-10) \u2014 for whoever runs the hardware"
         }
       ],
       "keywords": [
@@ -29400,28 +29450,28 @@
         "ranging",
         "real",
         "rtt",
-        "presence",
         "protocol",
+        "presence",
         "gate",
         "implementation",
         "devices",
         "software",
+        "android",
+        "ble",
+        "two",
         "closes",
         "rangingsource",
-        "android",
+        "above",
+        "distance",
+        "actual",
         "already",
         "built",
         "isn",
-        "needs",
-        "building",
-        "required",
-        "hard",
-        "platform",
-        "behavior"
+        "needs"
       ],
-      "lines": 83,
+      "lines": 151,
       "path": "docs/gates/hardware-test-protocol.md",
-      "sha256": "1752dd63539dd6ed22479ae23c0814c34f043b49143d940f825b47c846776d06",
+      "sha256": "50dc1401e67781f7ddfd4ab387966c487a4c76d498b5e3d3394551896dc2d0bc",
       "symbols": [],
       "title": "Presence/ranging hardware validation \u2014 test protocol"
     },
@@ -29580,6 +29630,379 @@
       "title": "Human uniqueness proof research (signal b) \u2014 founder decision needed"
     },
     {
+      "bytes": 3667,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Local Wi-Fi bearer \u2014 validation protocol"
+        },
+        {
+          "level": 2,
+          "line": 9,
+          "text": "What Wi-Fi bearer can and cannot prove"
+        },
+        {
+          "level": 2,
+          "line": 21,
+          "text": "Hardware"
+        },
+        {
+          "level": 2,
+          "line": 27,
+          "text": "Test classes"
+        },
+        {
+          "level": 2,
+          "line": 45,
+          "text": "Log schema"
+        },
+        {
+          "level": 2,
+          "line": 53,
+          "text": "Acceptance criteria"
+        },
+        {
+          "level": 2,
+          "line": 64,
+          "text": "Recommended design, pending the actual test results"
+        },
+        {
+          "level": 2,
+          "line": 72,
+          "text": "What closes this gate"
+        }
+      ],
+      "keywords": [
+        "local",
+        "wi-fi",
+        "bearer",
+        "home",
+        "gates",
+        "router",
+        "network",
+        "tunnel",
+        "useful",
+        "what",
+        "hardware",
+        "device",
+        "context",
+        "vpn",
+        "hotspot",
+        "signal",
+        "evidence",
+        "challenge",
+        "protocol",
+        "design",
+        "results",
+        "same",
+        "phones",
+        "node"
+      ],
+      "lines": 78,
+      "path": "docs/gates/wifi-bearer-test-protocol.md",
+      "sha256": "e2ac294cf47285e62bd65a9fbaa85a5ea69060640caa0189af0e194e530289d5",
+      "symbols": [],
+      "title": "Local Wi-Fi bearer \u2014 validation protocol"
+    },
+    {
+      "bytes": 4311,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Issue closure rules"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "General rule"
+        },
+        {
+          "level": 2,
+          "line": 19,
+          "text": "Closure labels"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "Required closure evidence, by category"
+        },
+        {
+          "level": 3,
+          "line": 34,
+          "text": "Code-closeable"
+        },
+        {
+          "level": 3,
+          "line": 39,
+          "text": "Spec-closeable"
+        },
+        {
+          "level": 3,
+          "line": 45,
+          "text": "Simulation-closeable"
+        },
+        {
+          "level": 3,
+          "line": 54,
+          "text": "Hardware-gated"
+        },
+        {
+          "level": 3,
+          "line": 59,
+          "text": "External-gated"
+        },
+        {
+          "level": 3,
+          "line": 64,
+          "text": "Founder-decision-gated"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "False-closure examples \u2014 do not do these"
+        }
+      ],
+      "keywords": [
+        "close",
+        "closure",
+        "issue",
+        "evidence",
+        "because",
+        "required",
+        "these",
+        "external",
+        "founder",
+        "general",
+        "category",
+        "examples",
+        "closed",
+        "gates",
+        "its",
+        "questions",
+        "hardware",
+        "model",
+        "entry",
+        "decision",
+        "review",
+        "planning",
+        "rules",
+        "rule"
+      ],
+      "lines": 96,
+      "path": "docs/planning/ISSUE_CLOSURE_RULES.md",
+      "sha256": "86c4c5576603a60789d2b977f48620bbc75ad97ebdbe4cc2b8cd20d37df3ffa4",
+      "symbols": [],
+      "title": "Issue closure rules"
+    },
+    {
+      "bytes": 6556,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Phase dependency graph"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Spine dependency"
+        },
+        {
+          "level": 2,
+          "line": 34,
+          "text": "Dependency graph"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "Do-not-code-before list (still applies going forward)"
+        },
+        {
+          "level": 3,
+          "line": 70,
+          "text": "Do not code treasury/governance economics before"
+        },
+        {
+          "level": 3,
+          "line": 78,
+          "text": "Do not code strong personhood rewards before"
+        },
+        {
+          "level": 3,
+          "line": 84,
+          "text": "Do not code BLE/UWB as proof before"
+        },
+        {
+          "level": 3,
+          "line": 91,
+          "text": "Do not code local Wi-Fi as identity before"
+        },
+        {
+          "level": 3,
+          "line": 98,
+          "text": "Do not code disaster/global finality before"
+        },
+        {
+          "level": 2,
+          "line": 107,
+          "text": "Recommended order from here"
+        }
+      ],
+      "keywords": [
+        "shipped",
+        "code",
+        "dependency",
+        "real",
+        "started",
+        "yet",
+        "protocol",
+        "governance",
+        "identity",
+        "review",
+        "done",
+        "gates",
+        "hardware",
+        "them",
+        "written",
+        "graph",
+        "spine",
+        "list",
+        "economics",
+        "finality",
+        "objects",
+        "mini-forge",
+        "rollback",
+        "installer"
+      ],
+      "lines": 130,
+      "path": "docs/planning/PHASE_DEPENDENCY_GRAPH.md",
+      "sha256": "bafe763e1a38cc9807ff1e8d4c4ba77e2e87c0ec4149ec09ea376bc4b4294aea",
+      "symbols": [],
+      "title": "Phase dependency graph"
+    },
+    {
+      "bytes": 6393,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Pre-coding issue matrix"
+        },
+        {
+          "level": 2,
+          "line": 8,
+          "text": "Closure categories"
+        },
+        {
+          "level": 2,
+          "line": 23,
+          "text": "Priority coordination issues \u2014 current state (2026-07-10)"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "High-risk issue table \u2014 current state"
+        },
+        {
+          "level": 2,
+          "line": 51,
+          "text": "Phase-level pre-coding questions (forward-looking, still open)"
+        },
+        {
+          "level": 3,
+          "line": 56,
+          "text": "Phase 0-2: founder intent, identity, personhood"
+        },
+        {
+          "level": 3,
+          "line": 62,
+          "text": "Phase 3: transport and offline operation"
+        },
+        {
+          "level": 3,
+          "line": 67,
+          "text": "Phase 4: storage"
+        },
+        {
+          "level": 3,
+          "line": 73,
+          "text": "Phase 5: consensus"
+        },
+        {
+          "level": 3,
+          "line": 78,
+          "text": "Phase 6: economics"
+        },
+        {
+          "level": 3,
+          "line": 83,
+          "text": "Phase 7: governance"
+        },
+        {
+          "level": 3,
+          "line": 88,
+          "text": "Phase 8: object model"
+        },
+        {
+          "level": 3,
+          "line": 93,
+          "text": "Phase 9: forge and release"
+        },
+        {
+          "level": 3,
+          "line": 98,
+          "text": "Phase 10: security and abuse"
+        },
+        {
+          "level": 3,
+          "line": 103,
+          "text": "Phase 11: AI"
+        },
+        {
+          "level": 3,
+          "line": 108,
+          "text": "Phase 12: survivability"
+        }
+      ],
+      "keywords": [
+        "phase",
+        "done",
+        "gates",
+        "design",
+        "issue",
+        "matrix",
+        "current",
+        "what",
+        "pre-coding",
+        "simulation",
+        "external",
+        "issues",
+        "state",
+        "forge",
+        "close",
+        "needs",
+        "batch",
+        "spec",
+        "same",
+        "already",
+        "closure",
+        "open",
+        "founder",
+        "identity"
+      ],
+      "lines": 113,
+      "path": "docs/planning/PRE_CODING_ISSUE_MATRIX.md",
+      "sha256": "3a4c23b5d9586586fa8cb3e8a526d715944a3aa8ce45b0a4d6e794a97e4e4807",
+      "symbols": [],
+      "title": "Pre-coding issue matrix"
+    },
+    {
       "bytes": 1297,
       "group": "root",
       "headings": [
@@ -29729,6 +30152,42 @@
       "lines": 453,
       "path": "tools/mininet_nav.py",
       "sha256": "9f335e46184b7442bfdad6b503b0449546141c3eb703c1c4b65b3cea5dc7478d",
+      "symbols": [],
+      "title": "\"\"\""
+    },
+    {
+      "bytes": 7444,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "float",
+        "supply",
+        "honest",
+        "treasury",
+        "import",
+        "whale",
+        "public_float",
+        "else",
+        "monthly_issuance",
+        "append",
+        "reasons",
+        "tokenomics_sim",
+        "d-0074",
+        "scenario",
+        "treasury_spend_rate",
+        "sybil_count",
+        "treasury_runway_years",
+        "whale_share",
+        "sybil_share",
+        "sybils",
+        "locked_rewards",
+        "max",
+        "sybil_reward",
+        "tools"
+      ],
+      "lines": 218,
+      "path": "tools/sim/tokenomics_sim.py",
+      "sha256": "14d290b9e0e1c4dad53ac8bf53f65227989aa21f567102a619ba676597e89a88",
       "symbols": [],
       "title": "\"\"\""
     }

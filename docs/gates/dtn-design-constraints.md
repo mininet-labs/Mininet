@@ -92,3 +92,87 @@ A design document from the engaged expert scoping which regimes are
 in-scope and what the transport/custody model should look like for them,
 turned into a new roadmap issue (or issues) for the actual implementation
 — this file is the constraint-gathering step, not the design itself.
+
+## Engineering's own reasoning, pending the expert (2026-07-10)
+
+The following is engineering working out the protocol-safety implications
+*without* inventing the actual latency/regime numbers the expert must
+still supply — it narrows what the expert needs to decide, it doesn't
+replace them.
+
+### Network modes
+
+- **Mode 1 — normal internet.** Fast sync, normal settlement/governance,
+  software updates allowed, global finality available. Today's default.
+- **Mode 2 — local partition / disaster mode.** Allowed: local messages,
+  local identity continuity, local storage/compute coordination,
+  emergency coordination, local reputation logs, delayed settlement
+  queues, signed local attestations. **Forbidden, no exceptions:**
+  irreversible global monetary changes, treasury drains, permanent
+  governance capture, or any claim that becomes final without a
+  post-reconnection challenge window.
+- **Mode 3 — delay-tolerant/satellite.** High latency, intermittent
+  contact, expensive/asymmetric bandwidth, partial data availability.
+  Store-and-forward bundles (RFC 9171-style, see the trait sketch above),
+  custody transfer, content-addressed messages, priority classes,
+  delayed finality, longer challenge windows, compact state summaries,
+  signed checkpoints.
+- **Mode 4 — interplanetary extrapolation.** Not built in any MVP; used
+  only as a design constraint so Mode 2/3 choices don't accidentally
+  foreclose it — very long latency, no synchronous consensus, strong
+  local autonomy, eventual reconciliation, and critically: **local
+  governance must never be able to pretend it's global governance**, the
+  same discipline Mode 2 already requires at disaster-mesh timescales.
+
+### Message-class priority under partition
+
+| Class | Priority | Partition behavior |
+|---|---|---|
+| Emergency coordination | Highest | local-first, archived later |
+| Identity continuity | High | local attestation, delayed global reconciliation |
+| Storage availability | High | local proofs, delayed settlement |
+| Compute tasks | Medium | local execution, delayed settlement |
+| Social messages | Medium | store-and-forward |
+| Governance discussion | Medium | allowed as discussion only, never binding |
+| Treasury/governance execution | Restricted | requires global finality — blocked during partition |
+| Monetary parameter changes | Restricted | blocked during uncertain partition |
+
+### Finality and conflict-resolution rules (the one part already clear without the expert)
+
+1. Local finality is never global finality — a partitioned region's
+   locally-agreed state is provisional until reconnection, full stop.
+2. Provisional records must carry origin, time, local quorum, and an
+   explicit challenge window.
+3. Reconnection triggers reconciliation, fraud checks, and conflict
+   resolution before any provisional record becomes canonical.
+4. High-risk operations (treasury, governance, monetary parameters) get
+   an *extended* delay after reconnection, not the standard one — a
+   partition is exactly the condition under which those operations are
+   most dangerous to rush.
+5. Deterministic conflict classes: duplicate messages resolve by content-
+   hash de-duplication; conflicting identity claims freeze trust-score
+   increase until resolved (not confidence *reduction* — a claimed
+   conflict shouldn't itself be punitive without adjudication); storage
+   claims require delayed proof/audit; reward claims vest only after
+   reconciliation; governance votes count only under globally valid
+   epoch rules, never under a partition's local rules.
+
+### MVP boundary (a recommendation, not a decision — the expert can move this line)
+
+**Plausibly buildable now, disaster-mesh scale, without expert input on
+the harder regimes:** store-and-forward messaging model, signed local
+logs, a delayed-settlement queue, a partition flag threaded through
+existing state, local-only emergency mode, and the restriction list above
+enforced on treasury/governance/monetary operations specifically.
+
+**Defer until the expert scopes it:** full satellite integration,
+interplanetary consensus, autonomous partition treasuries, a complex
+mesh-routing stack, and any bespoke DTN implementation beyond adapting
+RFC 9171 as already recommended above.
+
+This reasoning doesn't close the gate — the expert still needs to confirm
+which regimes are actually near-term (disaster mesh vs. LEO satellite are
+the plausible candidates per the latency table above) and whether RFC
+9171 fits Mininet's object model cleanly. It exists so that whoever gets
+engaged has a concrete starting draft to correct rather than a blank
+page.
