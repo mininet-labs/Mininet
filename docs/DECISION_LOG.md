@@ -3080,3 +3080,72 @@ per the spine's sequencing.
 
 **Supersedes / superseded by:** none — first CLI and first review-metadata
 extension in this tree.
+
+---
+
+### D-0068 — `mini-provenance`: build provenance as signed objects (Batch 2a); Batch 2b (WASI/Wasmtime sandbox) deferred pending an explicit dependency decision  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0066, `docs/design/self-hosted-forge-spine.md`, tracking issue #102.
+
+**Decision:** split Batch 2 of the self-hosted forge spine in two. Ship
+`mini-provenance` now (Batch 2a): `record_provenance()` signs a builder's
+environment digest, a commands/pipeline-recipe digest, every output digest
+produced, network-enabled status, and a self-declared reproducibility
+group, tied to a subject `ObjectId` (a commit or artifact);
+`independent_agreement()` counts **distinct verified identity roots** —
+excluding the subject's own author — that agree on a given output digest,
+generalizing `mini_forge::verify_release_artifact_only`'s existing
+independent-attestation pattern from *release* artifacts to the *build*
+stage, before a release is even proposed. Defer Batch 2b (running build
+steps inside WASI Preview 2 / the WebAssembly Component Model via
+Wasmtime, with per-component declared capabilities) — that requires
+embedding Wasmtime, a large dependency (cranelift JIT codegen, the
+component model, ~20+ transitive crates), a genuine departure from every
+dependency choice made elsewhere in this tree (no `rand`, no `clap`,
+`mini-spacetime` depends on `blake3` alone, `mini-erasure`/`mini-cli`
+hand-roll rather than reach for a crate). That tradeoff is named
+explicitly rather than decided silently mid-session; `mini-pipeline`'s
+manifest format is documented as a design, not implemented, until it is.
+
+**Reason:** the founder-adopted external audit's specific, verifiable
+critique was that this repository's current CI same-runner clean-rebuild
+comparison "must never be called independent reproducibility." That
+critique is answered directly by making "builder X reproduced digest D"
+into a real, signed, independently-countable claim — exactly the pattern
+`mini_forge::release` already uses for cut releases, now available before
+a release exists at all. Introducing Wasmtime, by contrast, is not
+answering a named critique with a proportionate fix; it is a large,
+hard-to-reverse supply-chain decision on a project whose own audit is
+specifically concerned about supply-chain minimalism (SLSA/in-toto
+provenance, independent builders) — the kind of consequential,
+architecture-shaping choice Directive 14 (simplicity, prefer the smaller
+well-trodden path) and this session's standing practice both treat as
+worth a deliberate decision, not a default.
+
+**Constitutional impact:** no Tier-F `docs/INVARIANTS.md` row touched.
+`independent_agreement`'s exclusion of the subject's own author mirrors
+P1's "author never counts toward the quorum that approves their own work"
+pattern, extended from merge quorum to build-provenance agreement.
+
+**Implementation status:** real, tested code — 8 tests: rejection of
+zero-output and finished-before-started claims, a full store round-trip,
+three independent builders correctly counted, the subject's own author's
+self-build correctly excluded, one builder signing from two devices still
+counting once, disagreeing output digests not counted toward an unrelated
+expected digest, and an unvouched builder (oracle never learns their KEL)
+not counted at all.
+
+**Failure point:** as stated in the crate's own docs — this proves
+*distinct identity roots* agree, not *administratively independent
+infrastructure*; three containers on one host under three keys one person
+controls look identical to this crate. Named, not hidden, the same caveat
+`mini_forge::release`'s docs already carry. Nothing in this crate executes
+a build; it only records and counts claims about builds that ran
+elsewhere, by whatever means (currently: nothing in this tree runs one).
+
+**Required follow-up:** Batch 2b (WASI/Wasmtime sandboxed execution)
+remains open pending an explicit founder decision on the Wasmtime
+dependency; Batch 3 (TUF-style release verification) does not strictly
+require Batch 2b to proceed and may be the next piece instead.
+
+**Supersedes / superseded by:** none — first build-provenance
+implementation in this tree.

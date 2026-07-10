@@ -443,6 +443,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-provenance"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-forge",
+ "mini-objects",
+ "mini-store",
+]
+
+[[package]]
 name = "mini-reward"
 version = "0.0.1"
 dependencies = [

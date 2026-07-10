@@ -212,13 +212,27 @@ CLAUDE.md until its Batch 4 lands.
   sharing only a filesystem `--store` path (no networking, no daemon),
   reach a governed 2-of-3 merge and correctly refuse to merge under
   insufficient quorum first.
+- **shipped** — Batch 2a: `mini-provenance` (D-0068). SLSA/in-toto-style
+  build provenance as real, signed objects; `independent_agreement()`
+  generalizes `mini_forge::release`'s independent-attestation pattern to
+  the build stage, before a release is even proposed, with the subject's
+  own author correctly excluded. 8 tests. Directly answers the audit's
+  named critique that this repo's same-runner clean-rebuild CI check must
+  never be called independent reproducibility.
+- **deferred, explicit decision pending** — Batch 2b: running build steps
+  inside WASI/Wasmtime sandboxing. Needs a large new dependency (Wasmtime:
+  cranelift JIT, component model, ~20+ transitive crates) — a genuine
+  departure from this workspace's consistent minimal-dependency pattern,
+  named as a founder-level tradeoff rather than decided silently
+  (D-0068). No build step in this tree runs under a false claim of
+  capability isolation.
 - **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
   machine-readable `STATUS.md`/roadmap generation, live `mini sync`
-  (Batch 1's remaining deferred items); `mini-pipeline`/WASI sandboxing
-  (Batch 2); TUF-style release verification (Batch 3); `mini-installer`
-  (Batch 4, the audit's most safety-critical named gap — `mini-update::
-  AdoptionState::adopt` today records a decision, nothing executes,
-  fetches, or installs); Mininet-as-primary-forge P2P sync (Batch 5).
+  (Batch 1's remaining deferred items); TUF-style release verification
+  (Batch 3); `mini-installer` (Batch 4, the audit's most safety-critical
+  named gap — `mini-update::AdoptionState::adopt` today records a
+  decision, nothing executes, fetches, or installs); Mininet-as-primary-
+  forge P2P sync (Batch 5).
 
 ## What has no client, at all
 

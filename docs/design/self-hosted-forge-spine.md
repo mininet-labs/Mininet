@@ -81,13 +81,52 @@ key-seed export (`SigningKey::to_seed_bytes`) for on-device persistence.
 
 ## Batch 2 — in-house scripting and builds
 
-`mini-pipeline`: a declarative build/automation engine executing developer
-hooks and build steps inside WASI Preview 2 / the WebAssembly Component
-Model via Wasmtime, with per-component declared capabilities
-(`workspace:read`, `network:none`, `secrets:none`, etc.) rather than ambient
-filesystem/network/secret access. Produces in-toto/SLSA-style provenance
-(exact source object, dependency lock digest, builder identity/environment
-digest, commands run, output digests, reproducibility group). Not started.
+Split into two parts once the actual engineering cost of each became clear
+(the same "adapt the plan to what's real" discipline this whole document
+exists to apply):
+
+### Batch 2a — build provenance (shipped, D-0068)
+
+`mini-provenance`: SLSA/in-toto-style build provenance as real, tested,
+signed objects — `record_provenance()`/`list_provenance()` capture a
+builder's environment digest, commands-run digest, output digests,
+reproducibility group, and whether networking was enabled, tied to a
+subject (a commit or artifact `ObjectId`). `independent_agreement()`
+generalizes `mini-forge::verify_release_artifact_only`'s existing
+"N distinct verified identity roots agree" pattern to the *build* stage,
+before a release is even proposed — directly addressing the audit's named
+critique that the current CI's same-runner double-build check must never
+be described as independent reproducibility. No new dependency: this is
+signing and counting, the same primitives every other crate in this tree
+already uses.
+
+**Honest limit, stated once here rather than re-derived per caller:** code
+can verify *distinct identity roots* agree on a digest. It cannot verify
+*administratively independent infrastructure* — three containers on one
+host, signed by three different keys the same person controls, look
+identical to this crate. That gap is a policy/process fact about who
+controls which signing key, not a code gap; `mini-forge`'s own release-
+attestation docs already carry the same caveat, and it applies here
+unchanged.
+
+### Batch 2b — sandboxed execution (deferred, needs an explicit decision)
+
+The audit's actual "in-house scripting, not unrestricted shell scripts"
+ask requires *running* build steps inside WASI Preview 2 / the WebAssembly
+Component Model with per-component declared capabilities
+(`workspace:read`, `network:none`, `secrets:none`) instead of ambient
+access. Doing that for real means embedding Wasmtime — a large dependency
+(cranelift JIT codegen, the component model, ~20+ transitive crates) that
+is a genuine departure from every dependency choice made elsewhere in this
+tree (no `rand`, no `clap`, `mini-spacetime` depends on `blake3` alone,
+`mini-erasure`/`mini-cli` hand-roll rather than reach for a crate). That
+tradeoff — real sandboxing versus a large new supply-chain surface, on a
+project whose own audit is concerned about supply-chain minimalism — is a
+founder-level call, not a default to make silently mid-session. Deferred
+until that's confirmed explicitly. Until then, `mini-pipeline`'s manifest
+format (`workspace:read`, `network:none`, etc.) is documented as a design,
+not implemented, and no build step in this tree runs unsandboxed code
+under a false claim of capability isolation.
 
 ## Batch 3 — release verification
 
