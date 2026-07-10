@@ -61,6 +61,11 @@ so, everywhere, on purpose.
   real compiled binary (D-0069). Only this one crate ever links Wasmtime;
   raw shell/native-tool build steps stay unsandboxed and are never
   trusted-provenance-eligible
+- TUF-adapted release verification (D-0070): rollback protection, a
+  release transparency log with equivocation detection, a device-local
+  freshness/staleness bound, and an optional independent
+  build-provenance quorum layered in front of `mini-forge`'s existing
+  timelocked release/attestation gate
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential
@@ -116,7 +121,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; `D-0001`–`D-0069` so far).
+   and when it was superseded* (append-only; `D-0001`–`D-0070` so far).
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
    rejected, and why* — read before re-proposing something.
 5. [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — *what could kill the

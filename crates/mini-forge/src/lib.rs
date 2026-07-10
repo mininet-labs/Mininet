@@ -44,8 +44,13 @@
 
 mod governance;
 mod oracle;
+mod release;
 pub use governance::*;
 pub use oracle::{IdentityOracle, KelDirectory};
+pub use release::{
+    check_no_rollback, detect_equivocation, list_releases, release_version, Equivocation, Version,
+    MAX_VERSION_COMPONENTS,
+};
 
 use crate::oracle::author_verified;
 use did_mini::{Controller, Did};
@@ -106,6 +111,12 @@ pub enum ForgeError {
     /// The release's source commit is not the canonical governed branch head
     /// (or the branch does not exist in governance).
     NotCanonical,
+    /// A version string failed to parse as dotted-numeric
+    /// (`release::Version::parse`).
+    BadVersion,
+    /// The candidate release's version is not strictly greater than the
+    /// currently running release's version (`release::check_no_rollback`).
+    RollbackRejected,
     /// Store failure.
     Store(StoreError),
     /// Object build failure.
@@ -133,6 +144,13 @@ impl core::fmt::Display for ForgeError {
                 write!(
                     f,
                     "release source commit is not the canonical governed head"
+                )
+            }
+            ForgeError::BadVersion => write!(f, "malformed version string"),
+            ForgeError::RollbackRejected => {
+                write!(
+                    f,
+                    "candidate version is not an upgrade over the running version"
                 )
             }
             ForgeError::Store(e) => write!(f, "store: {e}"),
@@ -478,7 +496,7 @@ pub fn release<B: Backend>(
 }
 
 /// Parsed release payload: (version, branch, artifact digest, recipe digest).
-fn parse_release_payload(rel: &Object) -> Result<(String, String, [u8; 32], [u8; 32])> {
+pub(crate) fn parse_release_payload(rel: &Object) -> Result<(String, String, [u8; 32], [u8; 32])> {
     let b = match &rel.payload {
         Payload::Public(b) => b,
         Payload::Encrypted(_) => return Err(ForgeError::BadObject),

@@ -14,6 +14,7 @@ did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-store = { path = "../mini-store" }
 mini-forge = { path = "../mini-forge" }
+mini-provenance = { path = "../mini-provenance" }
 
 [dev-dependencies]
 mini-crypto = { path = "../mini-crypto" }

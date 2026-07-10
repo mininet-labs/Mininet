@@ -25,7 +25,7 @@ source of truth is the network governing itself (mini-forge).
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0069 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0070 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -122,7 +122,11 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   distribution.
 - `mini-forge` — code governance: per-root approvals, 2-approval protocol
   floor, KelDirectory oracle, plus informational (never quorum-counted)
-  AI-assistance declarations and review findings (D-0067). `mini-cli` — the
+  AI-assistance declarations and review findings (D-0067); timelocked,
+  independently-attested release registry plus rollback protection and a
+  release transparency log (`release` module: `Version`,
+  `check_no_rollback`, `list_releases`, `detect_equivocation`; D-0070,
+  spine Batch 3). `mini-cli` — the
   `mini` binary, a real developer tool over `mini-forge` (D-0067,
   self-hosted forge spine Batch 1, #102). `mini-provenance` — SLSA/in-toto
   build provenance signed objects + independent-builder agreement
@@ -139,7 +143,13 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   trusted-provenance-eligible until a separate OS-isolated mechanism is
   designed and decided. `mini-net` — DHT/gossip over real TCP.
 - `mini-bearer`/`mini-bootstrap`/`mini-sync`/`mini-update` — transport,
-  BLE-first bootstrap, CRDT sync, self-contained updates.
+  BLE-first bootstrap, CRDT sync, self-contained updates. `mini-update`'s
+  `AdoptionState` layers device-local freshness/staleness bounds
+  (`FreshnessPolicy`) and an optional independent build-provenance quorum
+  gate (`ProvenancePolicy` + `evaluate_with_provenance`, over
+  `mini-provenance`) in front of `mini-forge`'s release verification
+  (D-0070, spine Batch 3); still no forced update, no kill path, nothing
+  here executes/fetches/installs anything.
 - `mini-store`/`mini-storage`/`mini-reward`/`mini-social`/`mini-objects`/
   `mini-media`/`mini-crdt`/`mini-keystone` — storage tiers, receipts,
   rewards, walls, object model, the two-device keystone demo.

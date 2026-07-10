@@ -287,18 +287,74 @@ Batch 2b.2: isolated Wasmtime runner (mini-build-runner-wasmtime) -- shipped
         v
 Batch 2b.3: adversarial capability/resource tests (the 12 criteria above) -- shipped
         v
-Batch 3: TUF-style release verification -- next
+Batch 3: TUF-style release verification -- shipped, D-0070
+        v
+Batch 4: real installation -- next
 ```
 
-## Batch 3 — release verification
+## Batch 3 — release verification (shipped)
 
 Adapt TUF's role separation (root / targets / snapshot / timestamp,
 delegated roles) rather than inventing a new trust model — Mininet's
 existing release-registry design (timelock + independent attestation counts
 in `mini-forge::release`/`verify_governed_release`) already covers part of
-this; missing are metadata expiry, rollback protection, a release
+this; missing were metadata expiry, rollback protection, a release
 transparency log, and requiring builder quorum from *administratively
-independent* builders (not three containers on one host). Not started.
+independent* builders (not three containers on one host). Adapted to
+Mininet's identity-root/governance model rather than TUF's PKI role
+separation, per Directive 14: reuse the existing object/index machinery
+instead of inventing a parallel signed-metadata format. Four pieces:
+
+1. **Rollback protection** (`mini_forge::release::{Version, check_no_rollback}`).
+   A comparable dotted-numeric `Version` type (strict parsing — no empty/
+   leading-zero/non-numeric components, capped at 8 components) with
+   component-wise, zero-padding comparison so `"1.2" > "1.1.9"` compares
+   correctly. `AdoptionState` compares the candidate's version against
+   whatever it is currently running before touching any other gate, and
+   refuses a non-upgrade (including an exact-version replay) as
+   `ForgeError::RollbackRejected` / `AdoptionDecision::Rejected`.
+2. **Release transparency log** (`mini_forge::release::{list_releases,
+   detect_equivocation}`). No separate signed snapshot metadata format —
+   the object store's own append-only, content-addressed nature already
+   *is* the transparency log; these functions are the missing query
+   surface over it. `detect_equivocation` flags any two `RELEASE` objects
+   for the same project/branch that claim the same version but disagree on
+   the artifact digest — the Certificate-Transparency-style property that
+   no single observer's view is trusted as complete, but two observers
+   comparing logs will disagree about what "version 1.2.3" was.
+3. **Freshness / metadata-expiry** (`mini_update::FreshnessPolicy`). Not a
+   separately signed "timestamp role" object, since Mininet has no
+   analogous PKI role to sign one — instead an explicit, caller-supplied
+   `last_synced_ms` compared against the policy's `now_ms`, refusing an
+   adoption decision as `AdoptionDecision::ViewTooStale` /
+   `AdoptError::ViewTooStale` if the device's own view of the network is
+   too stale to trust, checked before any governance gate runs. Adapted
+   rationale, stated once here: the thing being bounded is "how recently
+   did *this device* last sync," not "how old is a repository's signed
+   claim of currency." A `FRESHNESS_MAX_ALLOWED_STALENESS_MS` ceiling (30
+   days, provisional) stops a caller from weakening the check into
+   meaninglessness, the downward-only mirror of
+   `mini_forge::ADOPTION_MIN_TIMELOCK_MS`'s upward-only floor.
+4. **Independent build-provenance quorum** (`mini_update::ProvenancePolicy`
+   + `AdoptionState::evaluate_with_provenance`). An additional, optional
+   gate wiring `mini_provenance::independent_agreement` over the release's
+   source commit, alongside — never instead of — `mini-forge`'s existing
+   release-attestation quorum: two independently-computed distinct-
+   identity-root counts as defense in depth rather than trusting one
+   mechanism alone. Same honest limit repeated verbatim from
+   `mini-provenance`'s own docs: this counts **distinct identity roots**,
+   not *administratively independent infrastructure* — three containers on
+   one host under keys one person controls are indistinguishable from
+   three real builders to any code in this tree.
+
+All four are additive gates layered in front of
+`mini_forge::verify_governed_release` (itself unmodified) rather than
+folded inside it, since that function is deliberately stateless and these
+gates need either `mini-update`'s own device-local state (`running`,
+`last_synced_ms`) or a second crate (`mini-provenance`) `mini-forge` must
+not depend on. A caller that never constructs a `FreshnessPolicy`/
+`ProvenancePolicy` or calls `evaluate_with_provenance` sees no behavior
+change from before Batch 3.
 
 ## Batch 4 — real installation
 
