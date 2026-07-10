@@ -1367,6 +1367,7 @@ dependencies = [
  "mini-forge",
  "mini-media",
  "mini-objects",
+ "mini-provenance",
  "mini-store",
 ]
 

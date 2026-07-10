@@ -110,15 +110,29 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 ## 5. Updates & forks
 
 - **shipped** — `mini-update::AdoptionState` (local adoption state
-  machine, no forced update, no kill path).
+  machine, no forced update, no kill path) over `mini-forge`'s release
+  registry: timelocked, independently-attested `RELEASE` objects
+  (`mini_forge::release`/`verify_governed_release`), plus, as of D-0070
+  (self-hosted forge spine Batch 3), four additional layered gates —
+  rollback protection (`Version`, `check_no_rollback`), a release
+  transparency log (`list_releases`, `detect_equivocation` for
+  same-version/different-digest equivocation), a device-local freshness/
+  staleness bound (`FreshnessPolicy`, refuses adoption on too-stale a
+  synced view before any governance check runs), and an optional
+  independent build-provenance quorum (`ProvenancePolicy` +
+  `AdoptionState::evaluate_with_provenance`, wiring
+  `mini-provenance::independent_agreement` as a second, independently-
+  computed distinct-identity-root count alongside the existing
+  attestation quorum). 25 tests across `mini-forge`/`mini-update` combined
+  cover every new gate's rejection and passing paths.
 - **partial** — `mini-bootstrap` (genesis/capsule protocol logic) is
   shipped, and now proven live over real TCP (D-0062, closes #23, see §8);
   real BLE/Wi-Fi radio adapters remain not started (need phone hardware).
-- **not started** — the release registry (on-chain), and therefore
-  everything that depends on it: governed release finality, the
-  emergency-update-path question ([#53](../../issues/53)),
-  and fork-legitimacy criteria (F1, `docs/INVARIANTS.md` §5) beyond the
-  frozen statement of the requirement itself.
+- **not started** — the emergency-update-path question
+  ([#53](../../issues/53)) and fork-legitimacy criteria (F1,
+  `docs/INVARIANTS.md` §5) beyond the frozen statement of the requirement
+  itself; real installation (Batch 4, `mini-installer` — nothing today
+  executes, fetches, or installs anything, see §10).
 
 ## 6. Privacy
 
@@ -244,13 +258,29 @@ CLAUDE.md until its Batch 4 lands.
   explicitly unsandboxed and never trusted-provenance-eligible until a
   separate, digest-pinned, OS-isolated execution mechanism is designed
   and decided the same explicit way D-0069 was.
+- **shipped** — Batch 3: TUF-adapted release verification (D-0070). Four
+  gates layered in front of `mini_forge::verify_governed_release`, unmodified
+  underneath: rollback protection (`mini_forge::release::{Version,
+  check_no_rollback}`, strict dotted-numeric parsing, zero-padded
+  component comparison); a release transparency log
+  (`mini_forge::release::{list_releases, detect_equivocation}`, built on
+  the object store's own append-only nature — no separate signed snapshot
+  format); a device-local freshness/staleness bound
+  (`mini_update::FreshnessPolicy`, refuses adoption on a too-stale synced
+  view before any governance check runs, capped by
+  `FRESHNESS_MAX_ALLOWED_STALENESS_MS`); and an optional independent
+  build-provenance quorum (`mini_update::ProvenancePolicy` +
+  `AdoptionState::evaluate_with_provenance`, wiring
+  `mini-provenance::independent_agreement` as a second,
+  independently-computed distinct-identity-root count alongside the
+  existing attestation quorum). See §5 for the full detail; 25 tests.
 - **not started** — `mini-devd` (local daemon), Git SHA-256 bridge,
   machine-readable `STATUS.md`/roadmap generation, live `mini sync`
-  (Batch 1's remaining deferred items); TUF-style release verification
-  (Batch 3); `mini-installer` (Batch 4, the audit's most safety-critical
-  named gap — `mini-update::AdoptionState::adopt` today records a
-  decision, nothing executes, fetches, or installs); Mininet-as-primary-
-  forge P2P sync (Batch 5).
+  (Batch 1's remaining deferred items); `mini-installer` (Batch 4, the
+  audit's most safety-critical named gap —
+  `mini-update::AdoptionState::adopt` today records a decision, nothing
+  executes, fetches, or installs); Mininet-as-primary-forge P2P sync
+  (Batch 5).
 
 ## What has no client, at all
 

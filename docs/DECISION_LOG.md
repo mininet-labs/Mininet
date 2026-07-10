@@ -3223,3 +3223,83 @@ strictly depend on 2b's completion.
 
 **Supersedes / superseded by:** resolves D-0068's "Required follow-up"
 (the Wasmtime dependency question left open pending founder input).
+
+---
+
+### D-0070 — Ship self-hosted forge spine Batch 3: TUF-adapted release verification (rollback protection, transparency log, freshness, provenance quorum)  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0066, D-0068, D-0069, `docs/design/self-hosted-forge-spine.md`, tracking issue #102.
+
+**Decision:** ship Batch 3 of the self-hosted forge spine as four additive
+gates layered in front of `mini_forge::verify_governed_release` rather
+than a rewrite of it: (1) `mini_forge::release::{Version,
+check_no_rollback}` — a strict dotted-numeric version type and
+component-wise, zero-padded comparison refusing any non-upgrade; (2)
+`mini_forge::release::{list_releases, detect_equivocation}` — a release
+transparency log built directly on the object store's existing append-
+only, content-addressed nature (no separate signed snapshot metadata
+format), flagging any two releases for the same project/branch that claim
+the same version but disagree on the artifact digest; (3)
+`mini_update::FreshnessPolicy` — refuses an adoption decision if the
+device's own caller-supplied `last_synced_ms` is too stale relative to a
+policy-bounded ceiling (`FRESHNESS_MAX_ALLOWED_STALENESS_MS`, 30 days
+provisional), checked before any governance gate runs; (4)
+`mini_update::ProvenancePolicy` + `AdoptionState::evaluate_with_provenance`
+— an optional additional gate requiring `mini_provenance::
+independent_agreement` over the release's source commit to meet a
+threshold, alongside (never instead of) `mini-forge`'s existing release-
+attestation quorum. Adapted from TUF's root/targets/snapshot/timestamp
+role separation to Mininet's identity-root/governance model, per
+Directive 14: reuse existing object/index machinery instead of inventing
+a parallel signed-metadata format.
+
+**Reason:** the design doc's Batch 3 note named four concrete gaps against
+TUF's role separation, all real and worth closing, none requiring a new
+trust model — Mininet already has timelock + independent-attestation-
+quorum release verification (`mini-forge::release`/
+`verify_governed_release`); what was missing was rollback protection, a
+queryable transparency log, a freshness/staleness bound, and a second,
+independently-computed build-provenance quorum as defense in depth. Each
+gate is layered in front of, not folded inside, the existing verification
+function, because that function is deliberately stateless and these gates
+each need either `mini-update`'s own device-local state or a second crate
+(`mini-provenance`) that `mini-forge` must not depend on — keeping a
+caller that never touches the new types seeing identical behavior to
+before this batch.
+
+**Constitutional impact:** no Tier-F `docs/INVARIANTS.md` row touched or
+weakened. Reinforces the existing "no forced updates" freeze
+(`mini-update`'s module doc comment, unchanged in substance): all four
+gates are additional reasons `evaluate`/`adopt` can refuse or defer, never
+a new path that installs, fetches, or executes anything — `AdoptionState`
+still only records what the device owner explicitly chose. The
+provenance-quorum gate repeats `mini-provenance`'s (D-0068) honest limit
+verbatim: it counts distinct identity roots, not administratively
+independent infrastructure.
+
+**Implementation status:** shipped and tested — `mini-forge::release`
+(`Version`, `check_no_rollback`, `list_releases`, `detect_equivocation`,
+11 unit + integration tests), `mini_update::{FreshnessPolicy,
+ProvenancePolicy, AdoptError, AdoptionState::evaluate_with_provenance}`
+(14 integration tests covering every new gate's rejection and passing
+paths plus every pre-existing path still working unchanged). See
+`docs/STATUS.md` for the living detail.
+
+**Failure point:** the freshness ceiling and the provenance-quorum
+threshold are both caller-supplied policy values with only a loose upper
+bound enforced in code (`FreshnessPolicy::validate`) — a device owner (or
+a compromised client) can still choose values that make either gate
+practically meaningless (a huge `max_staleness_ms` just under the
+ceiling, or `min_independent_builders: 0`), the same class of "policy
+value, not a code guarantee" caveat every timelock/quorum knob in this
+tree already carries. `list_releases`/`detect_equivocation` are
+read-only reporting: nothing in this batch automatically refuses an
+equivocating release on a caller's behalf, since detection and adoption
+policy are deliberately kept separate.
+
+**Required follow-up:** Batch 4 (`mini-installer`, the state machine
+that actually executes/downloads/activates a verified release) is the
+next piece of this plan — none of Batch 3's gates change the fact that
+`mini-update::AdoptionState::adopt` today only records a decision.
+
+**Supersedes / superseded by:** none — first implementation of these four
+gates in this tree.

@@ -110,9 +110,9 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-sync` | Bucketed reconciliation + verified ingest over any bearer | ✅ proven live over real TCP (D-0062), not just in-process |
 | `mini-social` | Profiles, follow graph, explainable locally-computed feeds, public walls | ✅ |
 | `mini-media` | Chunked content-addressed media, progressive assembly | ✅ |
-| `mini-forge` | Repos, branches, releases + attestations, governed merge | ✅ logic complete; git SHA-256 interop pending |
+| `mini-forge` | Repos, branches, releases + attestations, governed merge, rollback protection + release transparency log | ✅ logic complete (D-0070, self-hosted forge spine Batch 3, #102); git SHA-256 interop pending |
 | `mini-bootstrap` | Self-certifying genesis/update capsule, chunked exchange | 🚧 live TCP bootstrap demo proves real-transport interop (D-0062); real BLE/Wi-Fi radio adapters need phone hardware (#22) |
-| `mini-update` | Local update-adoption state machine (no forced update, no kill path) | ✅ |
+| `mini-update` | Local update-adoption state machine (no forced update, no kill path); freshness bound + optional independent build-provenance quorum gate | ✅ D-0070, self-hosted forge spine Batch 3, #102 |
 | `mini-net` | Kademlia-style routing table + gossip broadcast | 🚧 gossip proven live over real TCP (D-0042); peer discovery/mesh routing still logic-only |
 | `mini-storage` | Mutually-signed storage-served receipts | ✅ |
 | `mini-chain` | BFT finality-verification core (`ValidatorSet`, quorum certs) | 🚧 finality core done; networked consensus + state machine pending |
