@@ -2,8 +2,8 @@
   "counts": {
     "crates": 33,
     "files": 322,
-    "headings": 672,
-    "rust_symbols": 2718
+    "headings": 673,
+    "rust_symbols": 2720
   },
   "crates": {
     "did-mini": {
@@ -245,7 +245,7 @@
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
     {
-      "bytes": 12949,
+      "bytes": 13144,
       "group": "root",
       "headings": [
         {
@@ -280,17 +280,17 @@
         },
         {
           "level": 2,
-          "line": 167,
+          "line": 169,
           "text": "Current priority (D-0066 \u2014 Batches 1-4 shipped; 5 vs. 6 is the founder's call)"
         },
         {
           "level": 2,
-          "line": 188,
+          "line": 190,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 197,
+          "line": 199,
           "text": "Session hygiene for the agent"
         }
       ],
@@ -320,9 +320,9 @@
         "human",
         "entries"
       ],
-      "lines": 209,
+      "lines": 211,
       "path": "CLAUDE.md",
-      "sha256": "88ceead45c8db08aac975b824f3805fe045887b01c74e6de1327bfa512ad4d00",
+      "sha256": "202ad1ef8ab9c6dc011687a21543d151042dd3012a1e9318dfeeecd7cadaad2b",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
@@ -611,7 +611,7 @@
       ],
       "lines": 146,
       "path": "README.md",
-      "sha256": "1234c96c89be413b84da53d79e46bbcac31c90af88d7ae29bc03f4458a7eabd9",
+      "sha256": "503116100993e79af1c9396b63db91e116ab4f3ad3e756c65a673671cb4f199f",
       "symbols": [],
       "title": "Mininet"
     },
@@ -8698,7 +8698,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 3489,
+      "bytes": 3971,
       "group": "crate:mini-erasure",
       "headings": [
         {
@@ -8718,39 +8718,39 @@
         },
         {
           "level": 2,
-          "line": 53,
+          "line": 59,
           "text": "Scope boundary"
         }
       ],
       "keywords": [
         "coding",
         "same",
+        "matrix",
         "erasure",
         "shards",
         "replication",
-        "matrix",
-        "mini-erasure",
         "construction",
+        "mini-erasure",
         "parity_shards",
         "data",
+        "own",
+        "shard",
+        "why",
         "just",
         "boundary",
         "systematic",
         "self-healing",
         "repair",
+        "full",
         "data_shards",
-        "vandermonde",
+        "parity",
+        "rows",
         "original",
-        "shard",
-        "missing",
-        "why",
-        "scope",
-        "reed-solomon",
-        "issues"
+        "missing"
       ],
-      "lines": 69,
+      "lines": 75,
       "path": "crates/mini-erasure/README.md",
-      "sha256": "f837750439bb4c8c409730c0d848ecc9c87ddd340650d21407584083371f0ba4",
+      "sha256": "7b2ffefeba1562427819231c62a77d1cf5ee7da2d170c3f2289ac0b433ec8c10",
       "symbols": [],
       "title": "mini-erasure"
     },
@@ -9195,7 +9195,7 @@
       "title": "mod code;"
     },
     {
-      "bytes": 8555,
+      "bytes": 13047,
       "group": "crate:mini-erasure",
       "headings": [],
       "keywords": [
@@ -9203,20 +9203,20 @@
         "matrix",
         "cols",
         "usize",
-        "col",
         "rows",
+        "col",
         "pivot_col",
-        "get",
         "row",
+        "get",
         "factor",
-        "set",
         "data",
         "out",
         "work",
+        "identity",
+        "set",
         "mul",
         "inverse",
         "zeros",
-        "identity",
         "gf256",
         "other",
         "swap_rows",
@@ -9224,133 +9224,143 @@
         "add_scaled_row",
         "row_indices"
       ],
-      "lines": 267,
+      "lines": 353,
       "path": "crates/mini-erasure/src/matrix.rs",
-      "sha256": "7457c636fe072ac0d8465a4c0344e008b6f0572b852d46a1970b0cdb5692ec49",
+      "sha256": "bd68c6a426bb6d2090235e2360225892dab4953bd1fb445df2d95aad878a2baa",
       "symbols": [
         {
           "kind": "struct",
-          "line": 15,
+          "line": 17,
           "name": "Matrix"
         },
         {
           "kind": "impl",
-          "line": 21,
+          "line": 23,
           "name": "Matrix"
         },
         {
           "kind": "fn",
-          "line": 23,
+          "line": 25,
           "name": "zeros"
         },
         {
           "kind": "fn",
-          "line": 32,
+          "line": 34,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 40,
+          "line": 42,
           "name": "rows"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 46,
           "name": "cols"
         },
         {
           "kind": "fn",
-          "line": 48,
+          "line": 50,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 52,
+          "line": 54,
           "name": "set"
         },
         {
           "kind": "fn",
-          "line": 58,
+          "line": 60,
           "name": "select_rows"
         },
         {
           "kind": "fn",
-          "line": 69,
+          "line": 71,
           "name": "row"
         },
         {
           "kind": "fn",
-          "line": 74,
+          "line": 76,
           "name": "mul"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 98,
           "name": "invert"
         },
         {
           "kind": "fn",
-          "line": 130,
+          "line": 132,
           "name": "swap_rows"
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 138,
           "name": "scale_row"
         },
         {
           "kind": "fn",
-          "line": 144,
+          "line": 146,
           "name": "add_scaled_row"
         },
         {
           "kind": "fn",
-          "line": 161,
+          "line": 179,
           "name": "generator_matrix"
         },
         {
           "kind": "mod",
-          "line": 177,
+          "line": 201,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 181,
+          "line": 205,
           "name": "identity_times_anything_is_itself"
         },
         {
           "kind": "fn",
-          "line": 189,
+          "line": 213,
           "name": "generator_top_block_is_identity"
         },
         {
           "kind": "fn",
-          "line": 200,
+          "line": 224,
           "name": "every_k_row_subset_of_the_generator_is_invertible"
         },
         {
           "kind": "fn",
-          "line": 217,
+          "line": 255,
+          "name": "a_previously_singular_subset_is_now_invertible"
+        },
+        {
+          "kind": "fn",
+          "line": 266,
+          "name": "every_k_row_subset_is_invertible_for_a_larger_randomized_configuration"
+        },
+        {
+          "kind": "fn",
+          "line": 303,
           "name": "inverse_of_identity_is_identity"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 309,
           "name": "matrix_times_its_inverse_is_identity"
         },
         {
           "kind": "fn",
-          "line": 234,
+          "line": 320,
           "name": "a_singular_matrix_has_no_inverse"
         },
         {
           "kind": "fn",
-          "line": 243,
+          "line": 329,
           "name": "combinations"
         },
         {
           "kind": "fn",
-          "line": 246,
+          "line": 332,
           "name": "go"
         }
       ],
@@ -25730,7 +25740,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 201613,
+      "bytes": 205731,
       "group": "docs",
       "headings": [
         {
@@ -26107,6 +26117,11 @@
           "level": 3,
           "line": 3309,
           "text": "D-0071 \u2014 Ship self-hosted forge spine Batch 4: real installation, `mini-installer`  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 3393,
+          "text": "D-0072 \u2014 Fix `mini-erasure`'s generator matrix: naive Vandermonde-append did not have the promised MDS property  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
@@ -26135,9 +26150,9 @@
         "date",
         "refs"
       ],
-      "lines": 3390,
+      "lines": 3462,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "e67874e2c7de32caf3051baf2acc4e1c657de48e517b0966c3f1965bbc239a46",
+      "sha256": "2c9fff129bfd78f4989567d4932a36abe6f18e63c58cbd28a8d666709315c3ff",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -26903,7 +26918,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 19409,
+      "bytes": 19894,
       "group": "docs",
       "headings": [
         {
@@ -26948,27 +26963,27 @@
         },
         {
           "level": 2,
-          "line": 192,
+          "line": 199,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 208,
+          "line": 215,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 228,
+          "line": 235,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 314,
+          "line": 321,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 320,
+          "line": 327,
           "text": "Where to look for more detail"
         }
       ],
@@ -26998,9 +27013,9 @@
         "signal",
         "audits"
       ],
-      "lines": 330,
+      "lines": 337,
       "path": "docs/STATUS.md",
-      "sha256": "847b1d96c37f27cceeb8654ecb150ace44742db13fe26a24964ad731720527bc",
+      "sha256": "e5622d76ce2896137b086c466d4c5e8f7532b20844058ed964249af8be425dbb",
       "symbols": [],
       "title": "Implementation status"
     },

@@ -3387,3 +3387,75 @@ not decided by this entry.
 
 **Supersedes / superseded by:** none — first implementation of real
 installation in this tree.
+
+---
+
+### D-0072 — Fix `mini-erasure`'s generator matrix: naive Vandermonde-append did not have the promised MDS property  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0065, `crates/mini-erasure/src/matrix.rs`.
+
+**Decision:** replace `mini-erasure::matrix::generator_matrix`'s
+construction. D-0065 shipped it as an identity block (for `data_shards`)
+with raw, un-normalized Vandermonde coefficient rows (`x_i^j`) appended
+below it for the `parity_shards` rows. An external code review found a
+concrete, reproducible counterexample: with `data_shards=4,
+parity_shards=6`, the four rows at shard indices `[1, 4, 5, 9]` formed a
+rank-3 (singular) matrix, meaning reconstruction from those four
+surviving shards — a loss well within the nominal `parity_shards=6`
+tolerance — would incorrectly fail with `SingularSubmatrix`. This was
+independently reproduced against the exact shipped code before any fix
+was written (`sub matrix: [0,1,0,0] [1,5,17,85] [1,6,20,120]
+[1,10,68,146]`, confirmed singular). The fix builds a full
+`(data_shards + parity_shards) x data_shards` Vandermonde matrix `V` and
+normalizes it against its own top `data_shards x data_shards` block:
+`G = V * V_top^-1`. `matrix.rs`'s own doc comment on `generator_matrix`
+carries the full argument for why this — and not the naive append —
+actually has the maximum-distance-separable (MDS) property for *every*
+`k`-row subset, not just the identity block.
+
+**Reason:** the naive construction's flaw is a standard, well-known trap
+in do-it-yourself Reed-Solomon implementations — appending unrelated rows
+below an identity block does not preserve the Vandermonde-determinant
+argument that any `k` rows of a *single, consistent* Vandermonde matrix
+are linearly independent, because the identity rows and the raw parity
+rows are not expressed in the same basis. Normalizing the full matrix
+against its own top block puts every row through the same linear map,
+which is what actually preserves the MDS property for arbitrary subsets.
+This is exactly the kind of mathematical-correctness bug D-0065's own
+"in-house, well-trodden construction" framing (Directive 14) depends on
+getting right — composing a published construction only holds if the
+composition is actually equivalent to the published one, which the
+original code was not.
+
+**Constitutional impact:** none new — reinforces Directive 4
+(correctness/determinism over implementation speed) against the same
+crate D-0065 already cited it for. No `docs/INVARIANTS.md` row changes;
+`mini-erasure` was never itself a listed invariant, only supporting
+infrastructure for storage-fabric rows still marked `pending`.
+
+**Implementation status:** fixed and tested — the exact counterexample is
+now a permanent regression test
+(`a_previously_singular_subset_is_now_invertible`), the pre-existing
+exhaustive all-subsets test now runs across four `(data_shards,
+parity_shards)` pairs instead of one, and a new randomized test samples
+500 subsets of a larger `(10, 10)` configuration with a fixed seed for
+reproducibility. All 29 `mini-erasure` tests (unit + integration) pass,
+including the crate's pre-existing `self_healing_cycle.rs` integration
+suite, unmodified.
+
+**Failure point:** this fix addresses the generator-matrix construction
+specifically; it does not constitute an external cryptographic/coding-
+theory audit of this crate (still explicitly not done — see
+`docs/STATUS.md`). The same external review raised several further
+findings (execution-provenance binding, WASI capability-contract
+precision, CI gate strictness, PoRep construction rigor, and others)
+that are explicitly deferred to the pre-mass-launch external audit
+process per standing founder direction, not addressed in this entry.
+
+**Required follow-up:** none scoped here; the deferred findings above
+remain tracked informally pending the external audit engagement
+(`docs/STATUS.md` §9's "not started — an actual external audit
+engagement").
+
+**Supersedes / superseded by:** corrects a defect in the construction
+D-0065 shipped; does not supersede D-0065's broader decision to build
+Reed-Solomon in-house.

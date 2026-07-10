@@ -25,7 +25,7 @@ source of truth is the network governing itself (mini-forge).
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0071 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0072 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -118,8 +118,10 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   proof-of-replication (D-0064, closes #31): sequential SDR-style sealing
   distinguishes many honest holders from one warehouse; unaudited.
   `mini-erasure` — Reed-Solomon erasure coding + self-healing shard repair
-  (D-0065, closes #30/#32); coding logic only, not wired to real network
-  distribution.
+  (D-0065, closes #30/#32; generator-matrix MDS bug an external review
+  found fixed in D-0072 — normalize the full Vandermonde matrix against
+  its own top block, don't just append raw parity rows to an identity
+  block); coding logic only, not wired to real network distribution.
 - `mini-forge` — code governance: per-root approvals, 2-approval protocol
   floor, KelDirectory oracle, plus informational (never quorum-counted)
   AI-assistance declarations and review findings (D-0067); timelocked,

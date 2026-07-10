@@ -179,11 +179,18 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   proof — see the crate's own README for the honest limits in full.
 - **prototype** — `mini-erasure` (D-0065, closes [#30](../../issues/30)
   and [#32](../../issues/32)): systematic Reed-Solomon erasure coding over
-  `GF(2^8)` (Vandermonde generator matrix, Gauss-Jordan decode from any
-  `k` of `n` shards) plus a self-healing repair layer — `plan_repair`/
-  `repair` detect missing *or corrupted* (BLAKE3-verified) shards and
-  regenerate exactly the missing ones. Real, tested (27 tests incl. an
-  end-to-end two-outage healing cycle), founder-reviewed. Proves the
+  `GF(2^8)` (normalized Vandermonde generator matrix, Gauss-Jordan decode
+  from any `k` of `n` shards) plus a self-healing repair layer —
+  `plan_repair`/`repair` detect missing *or corrupted* (BLAKE3-verified)
+  shards and regenerate exactly the missing ones. An external review
+  found the originally-shipped generator matrix (raw parity rows appended
+  below an identity block) did not actually have the MDS property for
+  all accepted parameters — a concrete counterexample failed to
+  reconstruct from a within-tolerance shard loss; fixed in D-0072 by
+  normalizing a full Vandermonde matrix against its own top block
+  instead. Real, tested (29 tests incl. an end-to-end two-outage healing
+  cycle, the fixed counterexample as a permanent regression, and a
+  randomized larger-configuration sample), founder-reviewed. Proves the
   coding/repair logic only — actually distributing regenerated shards to
   network holders is `mini-net`/`mini-store`'s unstarted job.
 - **not started** — cold/owner-only storage tiers, huge-file handling at
