@@ -16,7 +16,7 @@
 //! calls the guest makes.
 //!
 //! `wasi:clocks/monotonic-clock` and `wasi:random/random` are **not**
-//! structurally removable this way: `wasmtime_wasi::bindings::sync::
+//! structurally removable this way: `wasmtime_wasi::p2::bindings::sync::
 //! Command` binds the full `wasi:cli/command` world, which treats clocks
 //! and secure randomness as ambient interfaces every command gets, not
 //! interfaces a world can selectively omit without hand-authoring a
@@ -42,11 +42,12 @@ use mini_pipeline::{Capability, ResourceLimits};
 use mini_pipeline_protocol::{ExitStatus, ResourceExceeded};
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Store};
-use wasmtime_wasi::bindings::sync::Command;
-use wasmtime_wasi::pipe::MemoryOutputPipe;
+use wasmtime_wasi::p2::add_to_linker_sync;
+use wasmtime_wasi::p2::bindings::sync::Command;
+use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
+use wasmtime_wasi::sockets::SocketAddrUse;
 use wasmtime_wasi::{
-    add_to_linker_sync, DirPerms, FilePerms, ResourceTable, SocketAddrUse, WasiCtx, WasiCtxBuilder,
-    WasiView,
+    DirPerms, FilePerms, ResourceTable, WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView,
 };
 
 use crate::error::{Result, RunnerError};
@@ -81,11 +82,11 @@ struct RunnerState {
 }
 
 impl WasiView for RunnerState {
-    fn table(&mut self) -> &mut ResourceTable {
-        &mut self.table
-    }
-    fn ctx(&mut self) -> &mut WasiCtx {
-        &mut self.wasi
+    fn ctx(&mut self) -> WasiCtxView<'_> {
+        WasiCtxView {
+            ctx: &mut self.wasi,
+            table: &mut self.table,
+        }
     }
 }
 
@@ -149,7 +150,7 @@ pub fn execute(
     });
 
     let start = Instant::now();
-    let run_result = (|| -> anyhow::Result<std::result::Result<(), ()>> {
+    let run_result = (|| -> wasmtime::Result<std::result::Result<(), ()>> {
         let command = Command::instantiate(&mut store, &component, &linker)?;
         command.wasi_cli_run().call_run(&mut store)
     })();
@@ -202,7 +203,7 @@ pub fn execute(
     })
 }
 
-fn classify_outcome(run_result: anyhow::Result<std::result::Result<(), ()>>) -> ExitStatus {
+fn classify_outcome(run_result: wasmtime::Result<std::result::Result<(), ()>>) -> ExitStatus {
     match run_result {
         Ok(Ok(())) => ExitStatus::Success,
         Ok(Err(())) => ExitStatus::GuestTrap(

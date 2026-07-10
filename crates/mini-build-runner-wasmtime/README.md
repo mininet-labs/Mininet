@@ -40,7 +40,7 @@ means the socket address-check closure has an empty allow-list, so every
 connection attempt is refused.
 
 `wasi:clocks/monotonic-clock` and `wasi:random/random` are **not**
-structurally removable this way — `wasmtime_wasi::bindings::sync::
+structurally removable this way — `wasmtime_wasi::p2::bindings::sync::
 Command` binds the full `wasi:cli/command` world, which treats clocks and
 randomness as ambient interfaces every command gets, not interfaces a
 world can selectively omit without hand-authoring a narrower WIT world (a
@@ -89,16 +89,25 @@ way D-0069 decided Wasmtime.
 ## Dependency governance
 
 `wasmtime`/`wasmtime-wasi` are pinned to an exact patch version
-(`=27.0.0`) in `Cargo.toml` — never bump on autopilot; a version bump is a
-reviewed commit that re-runs the adversarial suite below. Feature set is
-trimmed (`default-features = false`, `["cranelift", "runtime", "std"]`
-requested; `wasmtime-wasi`'s own `Cargo.toml` additionally forces on
+(`=46.0.1`) in `Cargo.toml` — never bump on autopilot; a version bump is a
+reviewed commit that re-runs the adversarial suite below. (Bumped once
+already, from the original `27.0.0`, before this crate ever merged: the
+`dependency-audit` CI job flagged several open RustSec advisories against
+`wasmtime-wasi` 27.0.0 that bypass `FilePerms` enforcement directly —
+exactly the boundary this crate exists to guarantee — plus a long list of
+Wasmtime-core trap/panic/sandbox-escape issues. `46.0.1` is the first
+version with all of them fixed.) Feature set is trimmed
+(`default-features = false`, `["cranelift", "runtime", "std"]` requested;
+`wasmtime-wasi`'s own `Cargo.toml` additionally forces on
 `component-model`/`async` regardless of what's requested — the actual
 resolved set, checked via `cargo tree -e features`, is `async,
-component-model, cranelift, once_cell, runtime, rustix, std`, excluding
-Wasmtime's `cache`, `gc`/`gc-drc`/`gc-null`, `wat`, `profiling`,
-`parallel-compilation`, `pooling-allocator`, `demangle`, `addr2line`,
-`coredump`, `debug-builtins`, and `threads` defaults).
+component-model, cranelift, once_cell, runtime, std,
+wasmtime-jit-icache-coherence, wasmtime-unwinder`, excluding Wasmtime's
+`anyhow`, `backtrace`, `cache`, `gc`/`gc-copying`/`gc-drc`/`gc-null`,
+`wat`, `profiling`, `parallel-compilation`, `pooling-allocator`,
+`demangle`, `addr2line`, `coredump`, `debug-builtins`,
+`component-model-async`, `threads`, `stack-switching`, `debug`,
+`compile-time-builtins`, and `wit-parser` defaults).
 
 Compiles untrusted Wasm bytes directly inside this isolated process (not
 via a separate trusted precompiler) — Wasmtime's own documentation warns

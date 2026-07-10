@@ -9,7 +9,11 @@
 //! function, here used directly since this crate has no `mini-crypto`
 //! dependency) rather than inventing a new PRNG design.
 
-use rand_core::{Error, RngCore};
+use std::convert::Infallible;
+
+#[cfg(test)]
+use rand_core::Rng as _;
+use rand_core::TryRng;
 
 pub struct DeterministicRng {
     key: [u8; 32],
@@ -30,20 +34,8 @@ impl DeterministicRng {
         self.counter += 1;
         *hasher.finalize().as_bytes()
     }
-}
 
-impl RngCore for DeterministicRng {
-    fn next_u32(&mut self) -> u32 {
-        let block = self.next_block();
-        u32::from_le_bytes(block[0..4].try_into().expect("4 bytes"))
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        let block = self.next_block();
-        u64::from_le_bytes(block[0..8].try_into().expect("8 bytes"))
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn fill(&mut self, dest: &mut [u8]) {
         let mut filled = 0;
         while filled < dest.len() {
             let block = self.next_block();
@@ -52,9 +44,27 @@ impl RngCore for DeterministicRng {
             filled += n;
         }
     }
+}
 
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
+// `wasmtime_wasi::Rng` (== `rand_core::Rng`) is a blanket impl over
+// `TryRng<Error = Infallible>` -- implement the fallible trait with an
+// infallible error type and `Rng` (and its `next_u32`/`next_u64`/
+// `fill_bytes` methods used below and by `wasmtime-wasi`) come for free.
+impl TryRng for DeterministicRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Infallible> {
+        let block = self.next_block();
+        Ok(u32::from_le_bytes(block[0..4].try_into().expect("4 bytes")))
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Infallible> {
+        let block = self.next_block();
+        Ok(u64::from_le_bytes(block[0..8].try_into().expect("8 bytes")))
+    }
+
+    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Infallible> {
+        self.fill(dst);
         Ok(())
     }
 }

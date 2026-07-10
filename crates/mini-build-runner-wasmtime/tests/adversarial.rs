@@ -333,7 +333,7 @@ fn criterion_10_the_result_carries_the_full_provenance_field_list() {
         EXECUTION_SECURITY_WASMTIME_ISOLATED
     );
     assert_ne!(result.runner_binary_digest, [0u8; 32]);
-    assert_eq!(result.wasmtime_version, "27.0.0");
+    assert_eq!(result.wasmtime_version, "46.0.1");
     assert_ne!(result.runtime_config_digest, [0u8; 32]);
     assert_eq!(result.capabilities_granted, capabilities);
     assert_eq!(result.exit_status, ExitStatus::Success);

@@ -27,11 +27,11 @@ use mini_build_runner_wasmtime::error::{Result, RunnerError};
 use mini_build_runner_wasmtime::sandbox;
 
 /// The exact Wasmtime version this runner is built against -- kept as a
-/// literal in lockstep with `Cargo.toml`'s `=27.0.0` pin (D-0069
+/// literal in lockstep with `Cargo.toml`'s `=46.0.1` pin (D-0069
 /// dependency-governance requirement: this string travels into every
 /// provenance record, so it must never silently drift from what was
 /// actually compiled in).
-const WASMTIME_VERSION: &str = "27.0.0";
+const WASMTIME_VERSION: &str = "46.0.1";
 
 /// Refuses any single message over 256 MiB before allocating a buffer for
 /// it -- generous enough for a real component or workspace manifest,
