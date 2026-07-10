@@ -408,6 +408,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-porep"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "mini-spacetime",
+]
+
+[[package]]
 name = "mini-presence"
 version = "0.0.1"
 dependencies = [

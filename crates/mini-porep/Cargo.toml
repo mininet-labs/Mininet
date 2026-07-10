@@ -1,0 +1,14 @@
+[package]
+name = "mini-porep"
+version = "0.0.1"
+description = "Real proof-of-replication (Filecoin-style Stacked Depth-Robust Graph sealing), coded in-house from the published construction rather than depended on as a library (D-0063) -- closes the replication-uniqueness gap mini-spacetime's Merkle/PDP possession proof names but does not close."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+blake3 = "1"
+mini-spacetime = { path = "../mini-spacetime" }

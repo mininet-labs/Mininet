@@ -9,7 +9,7 @@ when a convention changes, change it here in the same PR.
 ## What this project is
 
 Mininet: a constitutional P2P protocol — identity, personhood, money,
-storage, governance — built in Rust as ~25 `mini-*` crates, designed to
+storage, governance — built in Rust as ~26 `mini-*` crates, designed to
 outlive its creators (think in centuries, not releases). The founder directs
 via chat and merges via GitHub PRs. GitHub is the UAT/mirror; the long-term
 source of truth is the network governing itself (mini-forge).
@@ -24,7 +24,7 @@ source of truth is the network governing itself (mini-forge).
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0062 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0064 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -59,7 +59,7 @@ shipping), `docs/design/` (design notes that close roadmap issues),
   (mini-crypto's Ed25519/X25519/AEAD/BLAKE3) or implementing an already-
   *published, peer-reviewed, real-world-deployed construction* end-to-end
   in-house (Bulletproofs in mini-value D-0036/D-0040; SDR-style proof-of-
-  replication in mini-porep D-0063) is fine — that's composition of prior
+  replication in mini-porep D-0064) is fine — that's composition of prior
   art the wider field has already vetted, done ourselves rather than
   outsourced to another project's codebase, to keep governance in-house
   (D-0063). What's forbidden is a *genuinely novel, unreviewed*
@@ -113,7 +113,7 @@ shipping), `docs/design/` (design notes that close roadmap issues),
 - `mini-treasury` — FROST threshold custody; real DKG + resharing now
   exist (D-0059/D-0060) but are unaudited (#93). `mini-spacetime` —
   possession-only storage proofs (Merkle/PDP). `mini-porep` — real
-  proof-of-replication (D-0063, closes #31): sequential SDR-style sealing
+  proof-of-replication (D-0064, closes #31): sequential SDR-style sealing
   distinguishes many honest holders from one warehouse; unaudited.
 - `mini-forge` — code governance: per-root approvals, 2-approval protocol
   floor, KelDirectory oracle. `mini-net` — DHT/gossip over real TCP.

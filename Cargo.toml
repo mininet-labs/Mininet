@@ -32,6 +32,7 @@ members = [
     "crates/mini-bounty",
     "crates/mini-settlement",
     "crates/mini-execution",
+    "crates/mini-porep",
 ]
 
 [workspace.package]

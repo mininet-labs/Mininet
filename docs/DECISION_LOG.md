@@ -2739,3 +2739,88 @@ clarification, not a task.
 
 **Supersedes / superseded by:** none — clarifies CLAUDE.md's existing
 rule rather than replacing it.
+
+---
+
+### D-0064 — `mini-porep`: real proof-of-replication (Stacked Depth-Robust Graph sealing), closes roadmap #31  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0063, D-0037/D-0038/D-0039, [roadmap #31](../../issues/31).
+
+**Decision:** ship a new crate, `mini-porep`, implementing a real (if
+deliberately simplified) Filecoin-style Stacked Depth-Robust Graph (SDR)
+proof-of-replication: `drg.rs` generates a per-layer depth-robust parent
+graph (one sequential predecessor plus ~5 pseudorandom long-range
+back-edges, degree 6); `seal.rs` computes stacked layered labels over that
+graph (`label(0,i) = H(replica_id,0,i,D_i)`; `label(L,i) = H(replica_id,
+L, i, [same-layer DRG parent labels], label(L-1,i))` for `L >= 1`) and the
+final XOR-encoded replica (`R_i = label(num_layers,i) XOR D_i`);
+`audit.rs` provides a registration-time probabilistic audit (random
+`(layer,node)` challenges, direct hash recomputation against
+pre-published Merkle roots) as the explicit substitute for a zk-SNARK
+sealing circuit, which was judged too large and too risky to build
+correctly from scratch this pass; `challenge.rs` provides ongoing
+possession challenge-response by directly composing
+`mini_spacetime::MerkleStorageProof`/`StorageCommitment` against the
+sealed replica's own root (reuse, not duplication, of the existing PDP
+machinery — same storage-risk domain), and `PorepStorageProof` implements
+`mini_spacetime::ProofOfSpaceTimeSource` so `mini_spacetime::
+proposer_weight` requires zero changes to consume it.
+
+**Reason:** `mini_spacetime::storage_proof`'s own docs name the gap this
+closes explicitly: Merkle/PDP possession challenges cannot distinguish a
+thousand honest small devices each holding their own copy from one
+warehouse machine holding a single copy and answering every challenge on
+behalf of many claimed identities — exactly the attack the whitepaper's
+"a thousand cheap, scattered machines outcompete one warehouse" thesis
+depends on resisting. Making sealing genuinely, provably sequential
+(shortcutting layer `L` requires having already computed all of layer
+`L-1`, transitively down to layer 0) means producing `k` replicas costs
+approximately `k` times the real work, closing the shortcut a
+warehouse would otherwise exploit. Per D-0063's founder-directed
+clarification, implementing this specific published, peer-reviewed,
+real-world-deployed (Filecoin mainnet) construction end-to-end in-house is
+composition of prior art, not invention of new cryptography, and keeps
+the code inside this repo's own governance boundary rather than depending
+on an external project's runtime.
+
+**Constitutional impact:** advances `docs/STATUS.md` §7 (Storage) from
+"real proof-of-replication is not started (#31)" to prototype/real-code
+status; does not touch any Tier-F `docs/INVARIANTS.md` row. Continues to
+respect the hard limitation that proof-of-space-time proves possession
+(now: possession of a genuinely, provably sequentially-sealed replica),
+not replication uniqueness at the level of "verified human," which
+remains a separate, unsolved Sybil question (Directive-traced hard
+limitation, unchanged).
+
+**Implementation status:** real, tested code — 30 unit tests across
+`drg`/`seal`/`audit`/`challenge`, including adversarial coverage: tampered
+labels/parent-labels/data-nodes fail verification, a response fabricated
+against a different replica's commitment fails, claiming a top-layer
+replica leaf below the top layer fails, a "lazy prover" who fabricates
+self-consistent-but-fake Merkle-committed labels without ever running the
+real hash chain fails the audit, and changing an early data node
+demonstrably ripples through to the final layer's labels (the sequential-
+dependency property the whole construction rests on). Founder-reviewed
+AI-authored prototype, **not externally audited** — same D-0047 gate every
+other `mini-value`/`mini-treasury` prototype in this tree already carries.
+
+**Failure point:** the DRG is a **simplified** construction — a sequential
+edge plus pseudorandom long-range edges, degree 6 — not a byte-for-byte
+reproduction of Filecoin's production `BucketGraph` probability-weighted
+bucket-sampling distribution (reproducing that exact distribution from
+memory was judged too much precision risk to get right from scratch). The
+registration audit is **probabilistic, not succinct**: it is real spot-
+check evidence, not a single small universally-checkable proof, and it is
+non-zero-knowledge (reveals plaintext intermediate labels for challenged
+indices) — accepted here because sealing isn't trying to keep data
+confidential. Neither gap is hidden; both are stated in `mini-porep`'s own
+crate docs and README per the honesty-over-polish rule.
+
+**Required follow-up:** external cryptography audit (#72/#93's existing
+gate, D-0047) before any real value or consensus weight depends on this;
+wiring `PorepStorageProof` into an actual `mini-chain`/`mini-net` proposer-
+selection path is separate future work, not part of this batch (this
+crate only proves the `ProofOfSpaceTimeSource` seam is satisfied, the same
+scope boundary `mini_spacetime::storage_proof` already drew for itself).
+
+**Supersedes / superseded by:** none — first real proof-of-replication
+implementation in this tree.

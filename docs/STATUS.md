@@ -133,8 +133,23 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 - **prototype** — `mini-spacetime::storage_proof` (D-0039): Merkle/PDP
   challenge-response. Real, tested. **Proves possession, not replication
   uniqueness — see `docs/INVARIANTS.md`'s hard-limitation section.**
-  Real proof-of-replication is **not started**
-  ([#31](../../issues/31)).
+- **prototype** — `mini-porep` (D-0064, closes [#31](../../issues/31)):
+  real Filecoin-style Stacked Depth-Robust Graph (SDR) proof-of-
+  replication, coded in-house from the published construction (D-0063).
+  Sequential stacked layered labeling + a registration-time probabilistic
+  audit (the honest substitute for a zk-SNARK sealing circuit) close the
+  replication-uniqueness gap the line above names: producing `k` sealed
+  replicas now costs approximately `k` times the real sequential sealing
+  work, so a warehouse cannot cheaply fake holding many independent
+  copies. Ongoing possession is proven by composing (not duplicating)
+  `mini-spacetime`'s own PDP challenge-response against the sealed
+  replica's root; implements `ProofOfSpaceTimeSource` so
+  `mini_spacetime::proposer_weight` needs no changes. Real, tested (30
+  unit tests incl. adversarial cases), founder-reviewed,
+  **unaudited** — same D-0047 gate as every other prototype here. DRG is a
+  simplified construction, not parameter-identical with Filecoin's
+  production `BucketGraph`; the audit is probabilistic, not a succinct
+  proof — see the crate's own README for the honest limits in full.
 - **not started** — erasure coding, self-healing replication, cold/
   owner-only storage tiers, huge-file handling at scale (roadmap Phase 4).
 
