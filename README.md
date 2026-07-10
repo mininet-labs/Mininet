@@ -39,7 +39,7 @@ code, and frozen. A full, code-mapped register is in
 
 ## What exists today — honestly
 
-This repository is the **self-contained Rust core**: ~26 crates, no external
+This repository is the **self-contained Rust core**: ~27 crates, no external
 dependency on any single company's infrastructure to keep running. Nothing
 here is ready for real people, real money, or real custody yet — and it says
 so, everywhere, on purpose.
@@ -58,7 +58,8 @@ so, everywhere, on purpose.
   amounts (`mini-value`)
 - FROST threshold custody (`mini-treasury`)
 - Merkle/PDP storage proofs (`mini-spacetime`); real proof-of-replication,
-  Stacked Depth-Robust Graph sealing (`mini-porep`)
+  Stacked Depth-Robust Graph sealing (`mini-porep`); Reed-Solomon erasure
+  coding + self-healing shard repair (`mini-erasure`)
 - anonymous developer-bounty claims (`mini-bounty`); offline settlement
   protocol (`mini-settlement`)
 
@@ -106,7 +107,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; `D-0001`–`D-0064` so far).
+   and when it was superseded* (append-only; `D-0001`–`D-0065` so far).
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
    rejected, and why* — read before re-proposing something.
 5. [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — *what could kill the

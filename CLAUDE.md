@@ -9,7 +9,7 @@ when a convention changes, change it here in the same PR.
 ## What this project is
 
 Mininet: a constitutional P2P protocol — identity, personhood, money,
-storage, governance — built in Rust as ~26 `mini-*` crates, designed to
+storage, governance — built in Rust as ~27 `mini-*` crates, designed to
 outlive its creators (think in centuries, not releases). The founder directs
 via chat and merges via GitHub PRs. GitHub is the UAT/mirror; the long-term
 source of truth is the network governing itself (mini-forge).
@@ -24,7 +24,7 @@ source of truth is the network governing itself (mini-forge).
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0064 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0065 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -115,6 +115,9 @@ shipping), `docs/design/` (design notes that close roadmap issues),
   possession-only storage proofs (Merkle/PDP). `mini-porep` — real
   proof-of-replication (D-0064, closes #31): sequential SDR-style sealing
   distinguishes many honest holders from one warehouse; unaudited.
+  `mini-erasure` — Reed-Solomon erasure coding + self-healing shard repair
+  (D-0065, closes #30/#32); coding logic only, not wired to real network
+  distribution.
 - `mini-forge` — code governance: per-root approvals, 2-approval protocol
   floor, KelDirectory oracle. `mini-net` — DHT/gossip over real TCP.
 - `mini-bearer`/`mini-bootstrap`/`mini-sync`/`mini-update` — transport,

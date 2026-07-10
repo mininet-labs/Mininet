@@ -150,8 +150,17 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   simplified construction, not parameter-identical with Filecoin's
   production `BucketGraph`; the audit is probabilistic, not a succinct
   proof — see the crate's own README for the honest limits in full.
-- **not started** — erasure coding, self-healing replication, cold/
-  owner-only storage tiers, huge-file handling at scale (roadmap Phase 4).
+- **prototype** — `mini-erasure` (D-0065, closes [#30](../../issues/30)
+  and [#32](../../issues/32)): systematic Reed-Solomon erasure coding over
+  `GF(2^8)` (Vandermonde generator matrix, Gauss-Jordan decode from any
+  `k` of `n` shards) plus a self-healing repair layer — `plan_repair`/
+  `repair` detect missing *or corrupted* (BLAKE3-verified) shards and
+  regenerate exactly the missing ones. Real, tested (27 tests incl. an
+  end-to-end two-outage healing cycle), founder-reviewed. Proves the
+  coding/repair logic only — actually distributing regenerated shards to
+  network holders is `mini-net`/`mini-store`'s unstarted job.
+- **not started** — cold/owner-only storage tiers, huge-file handling at
+  scale (roadmap Phase 4).
 
 ## 8. Networking
 

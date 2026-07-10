@@ -36,7 +36,7 @@ GitHub search or IDE required.
 ## Before you touch a FREEZE domain
 
 [`DECISION_LOG.md`](DECISION_LOG.md) (every architectural/policy decision,
-`D-0001`–`D-0064`, policy only) and [`INVARIANTS.md`](INVARIANTS.md) (the
+`D-0001`–`D-0065`, policy only) and [`INVARIANTS.md`](INVARIANTS.md) (the
 frozen-vs-tunable register, by domain, with a hard-limitations section at the
 top) outrank any comment or README. [`STATUS.md`](STATUS.md) is the living
 account of what's actually built. [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
@@ -59,7 +59,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 26 crates, see the table below
+├── crates/                 27 crates, see the table below
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, with a Directive-traceability column
@@ -119,6 +119,7 @@ partial/structural piece, real transport or a further layer still pending ·
 | `mini-settlement` | Offline transaction settlement: signed pending claims, wallet state machine, double-spend reconciliation (M1/M2/M3) | 🧪 real, tested (D-0055); `CanonicalLedgerView` now has a real chain-backed impl, see `mini-execution` |
 | `mini-execution` | Chain-backed `CanonicalLedgerView`: state only advances behind a verified quorum certificate | 🧪 real, tested (D-0061, closes #40); not networked consensus — that's `mini-chain`/`mini-net`'s job |
 | `mini-porep` | Real proof-of-replication: Stacked Depth-Robust Graph sealing + registration audit + ongoing challenge-response | 🧪 real, tested (D-0064, closes #31); simplified DRG, probabilistic (non-SNARK) audit, unaudited |
+| `mini-erasure` | Systematic Reed-Solomon erasure coding over GF(2^8) + self-healing shard repair | 🧪 real, tested (D-0065, closes #30/#32); coding/repair logic only, not wired to real network distribution |
 
 See [`DECISION_LOG.md`](DECISION_LOG.md) for the reasoning and honest limits
 behind every 🧪/🔬 entry, and each crate's own `README.md`/top-of-file doc

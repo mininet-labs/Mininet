@@ -2824,3 +2824,81 @@ scope boundary `mini_spacetime::storage_proof` already drew for itself).
 
 **Supersedes / superseded by:** none — first real proof-of-replication
 implementation in this tree.
+
+---
+
+### D-0065 — `mini-erasure`: systematic Reed-Solomon erasure coding + self-healing repair, closes roadmap #30 and #32  ·  *Accepted*
+**Date:** 2026-07-10 · **Refs:** D-0063 (same in-house-composition reasoning applied to coding theory), [roadmap #30](../../issues/30), [roadmap #32](../../issues/32).
+
+**Decision:** ship a new crate, `mini-erasure`, implementing systematic
+Reed-Solomon erasure coding over `GF(2^8)` and a self-healing repair
+layer built on it, per the founder's explicit "both together" scope
+decision (erasure coding and self-healing storage tackled as one batch,
+not sequenced). `gf256.rs` implements standard `GF(2^8)` arithmetic (the
+same field, same reduction polynomial, used by QR codes, PDF417, and
+RAID6); `matrix.rs` builds the systematic Vandermonde generator matrix
+(top `k` rows identity, bottom `m` rows Vandermonde coefficients — the
+maximum-distance-separable property guaranteeing every `k`-row subset
+inverts) and Gauss-Jordan inversion over that field; `code.rs` is
+`encode()`/`reconstruct()` — split data into `data_shards` pieces, compute
+`parity_shards` more, recover from any `data_shards` of the
+`data_shards + parity_shards` total; `health.rs` is the self-healing
+layer — `plan_repair()` reports which shard indices can't currently be
+trusted (missing, or present but failing a BLAKE3 integrity check, the
+two treated identically), and `repair()` reconstructs the original data
+and regenerates exactly the missing shards, ready for a caller to
+redistribute.
+
+**Reason:** plain replication tolerates `N-1` losses at `N x` storage
+cost; systematic Reed-Solomon tolerates `parity_shards` losses at only
+`(data_shards+parity_shards)/data_shards x` cost, the standard reason
+every large-scale storage system (RAID6, Backblaze, Ceph, IPFS's optional
+erasure coding) uses it instead of naive copies — directly serving
+Directive 1/3's "cheap, ordinary hardware, at real-world scale" framing
+for roadmap Phase 4's storage layer. Detecting loss and regenerating
+exactly the missing pieces (rather than re-uploading a whole file, or
+worse, silently trusting a present-but-corrupted shard) is what makes the
+loss-tolerance self-*healing* rather than merely loss-*tolerant* — closing
+#32 as the natural consequence of #30's coding scheme, which is why the
+founder scoped them as one batch. Coded in-house (not depended on as a
+library) for the same reasoning D-0063 gives for `mini-porep`'s
+cryptography: composing an already-published, real-world-deployed
+construction ourselves keeps it inside this repo's own governance
+boundary. Erasure coding is coding theory, not cryptography, so CLAUDE.md's
+crypto-invention hard rule does not technically apply here — but the same
+Directive 14 "prefer the well-trodden construction" reasoning does, and is
+followed the same way without needing a rule amendment.
+
+**Constitutional impact:** advances `docs/STATUS.md` §7 (Storage) from
+"not started" to real, tested code for both #30 and #32; touches no
+Tier-F `docs/INVARIANTS.md` row (storage redundancy mechanics are not a
+frozen domain).
+
+**Implementation status:** real, tested code — 27 tests: exhaustive
+reconstruction from every valid `k`-of-`n` shard subset for small
+parameters (not sampled), non-shard-aligned data lengths round-tripping
+exactly, a corrupted (not just missing) shard being caught and healed
+identically, losing more than `parity_shards` holders failing cleanly
+with a typed error rather than silently returning wrong data, and an
+end-to-end two-separate-outage healing cycle that still reconstructs to
+the exact original bytes afterward. Founder-reviewed AI-authored
+prototype.
+
+**Failure point:** this crate proves the erasure-coding and repair
+*logic*. Deciding which peer should hold a regenerated shard and
+transferring it to them is a distribution problem, not a coding-theory
+one, and is explicitly out of scope — `mini-net`/`mini-store`'s job,
+unstarted. `gf256::inv` is brute-force search over 255 candidates rather
+than log/antilog tables; correct and adequately fast for matrices this
+crate's small `data_shards` values ever produce, but not tuned for
+per-byte throughput at scale — a later performance pass, not a
+correctness gap.
+
+**Required follow-up:** wiring `mini-erasure` into `mini-store`/`mini-net`
+so shards are actually distributed to and repaired across real network
+holders is separate future work; a storage economic-incentive review for
+who gets paid to hold parity shards remains roadmap #33, untouched by this
+batch.
+
+**Supersedes / superseded by:** none — first erasure-coding/self-healing
+implementation in this tree.

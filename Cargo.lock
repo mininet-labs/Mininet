@@ -349,6 +349,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-erasure"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+]
+
+[[package]]
 name = "mini-execution"
 version = "0.0.1"
 dependencies = [
