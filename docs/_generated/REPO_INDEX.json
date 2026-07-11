@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 33,
-    "files": 346,
+    "files": 347,
     "headings": 790,
-    "rust_symbols": 2940
+    "rust_symbols": 2963
   },
   "crates": {
     "did-mini": {
@@ -611,7 +611,7 @@
       ],
       "lines": 146,
       "path": "README.md",
-      "sha256": "b7033b405df3a52d742a66dc8bb7bf87fb0fa869ac8df8adbb91d86a7b29b4af",
+      "sha256": "7cbd4ce80bba735fe83daff342316411bd241cdf0f13a9c2f9a13cda0bb7e066",
       "symbols": [],
       "title": "Mininet"
     },
@@ -7468,6 +7468,158 @@
       "title": "use std::net::TcpListener;"
     },
     {
+      "bytes": 14202,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "home",
+        "run",
+        "alice",
+        "to_str",
+        "string",
+        "bob",
+        "tag",
+        "carol",
+        "std",
+        "format",
+        "tempdir",
+        "str",
+        "project",
+        "store",
+        "pathbuf",
+        "args",
+        "to_string",
+        "store_flag",
+        "did_of",
+        "fail",
+        "mini_cli",
+        "file",
+        "time"
+      ],
+      "lines": 481,
+      "path": "crates/mini-cli/tests/adversarial_release_install.rs",
+      "sha256": "f5797417dc01f8d0cf81015091ab9bcd002e406f284145faf582b35df2d204b7",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 13,
+          "name": "common"
+        },
+        {
+          "kind": "fn",
+          "line": 20,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 33,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 38,
+          "name": "run_err"
+        },
+        {
+          "kind": "fn",
+          "line": 43,
+          "name": "did_of"
+        },
+        {
+          "kind": "fn",
+          "line": 54,
+          "name": "last_word"
+        },
+        {
+          "kind": "fn",
+          "line": 58,
+          "name": "hex"
+        },
+        {
+          "kind": "fn",
+          "line": 62,
+          "name": "real_now_ms"
+        },
+        {
+          "kind": "fn",
+          "line": 69,
+          "name": "past_timelock_now_ms"
+        },
+        {
+          "kind": "struct",
+          "line": 77,
+          "name": "Setup"
+        },
+        {
+          "kind": "fn",
+          "line": 87,
+          "name": "governed_release"
+        },
+        {
+          "kind": "fn",
+          "line": 247,
+          "name": "attest"
+        },
+        {
+          "kind": "fn",
+          "line": 261,
+          "name": "verify_err"
+        },
+        {
+          "kind": "fn",
+          "line": 279,
+          "name": "release_verify_fails_with_only_one_real_attester"
+        },
+        {
+          "kind": "fn",
+          "line": 292,
+          "name": "self_attestation_never_counts_toward_quorum"
+        },
+        {
+          "kind": "fn",
+          "line": 307,
+          "name": "duplicate_attestations_from_the_same_identity_only_count_once"
+        },
+        {
+          "kind": "fn",
+          "line": 322,
+          "name": "an_attestation_with_the_wrong_digest_does_not_count"
+        },
+        {
+          "kind": "fn",
+          "line": 336,
+          "name": "release_verify_rejects_before_the_timelock_elapses"
+        },
+        {
+          "kind": "fn",
+          "line": 351,
+          "name": "release_verify_rejects_a_branch_the_release_did_not_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 365,
+          "name": "release_verify_succeeds_only_once_every_real_condition_is_met"
+        },
+        {
+          "kind": "fn",
+          "line": 391,
+          "name": "installer_activate_before_preflight_fails_cleanly"
+        },
+        {
+          "kind": "fn",
+          "line": 433,
+          "name": "installer_preflight_on_a_release_that_was_never_staged_fails_cleanly"
+        },
+        {
+          "kind": "fn",
+          "line": 453,
+          "name": "installer_health_check_requires_exactly_one_of_healthy_or_unhealthy"
+        }
+      ],
+      "title": "mod common;"
+    },
+    {
       "bytes": 8023,
       "group": "crate:mini-cli",
       "headings": [],
@@ -7545,7 +7697,7 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 16311,
+      "bytes": 16401,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -7554,83 +7706,83 @@
         "run",
         "build",
         "tempdir",
+        "own",
         "common",
         "release",
         "real",
-        "own",
         "str",
         "time",
         "string",
         "cli",
         "library",
+        "already",
+        "file",
         "component",
-        "to_str",
         "did_of",
         "last_word",
         "real_now_ms",
         "install_runner_next_to_this_test_binary",
         "self_hosted_spine_e2e",
-        "already",
         "install",
         "right"
       ],
-      "lines": 525,
+      "lines": 527,
       "path": "crates/mini-cli/tests/cli_spine_commands.rs",
-      "sha256": "0a2e3be6f96bd6ca7beb1751a0406df4a29ec6ca65fd82193f322d796d8ffe9a",
+      "sha256": "6d1d09d8c6383785e869dffa8b1a1b4898553277dd04aa7fdfbdfeb225f3449b",
       "symbols": [
         {
           "kind": "mod",
-          "line": 23,
+          "line": 25,
           "name": "common"
         },
         {
           "kind": "fn",
-          "line": 31,
+          "line": 33,
           "name": "tempdir"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 46,
           "name": "run"
         },
         {
           "kind": "fn",
-          "line": 49,
+          "line": 51,
           "name": "did_of"
         },
         {
           "kind": "fn",
-          "line": 60,
+          "line": 62,
           "name": "last_word"
         },
         {
           "kind": "fn",
-          "line": 64,
+          "line": 66,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 68,
+          "line": 70,
           "name": "real_now_ms"
         },
         {
           "kind": "fn",
-          "line": 80,
+          "line": 82,
           "name": "past_timelock_now_ms"
         },
         {
           "kind": "fn",
-          "line": 94,
+          "line": 96,
           "name": "install_runner_next_to_this_test_binary"
         },
         {
           "kind": "fn",
-          "line": 107,
+          "line": 109,
           "name": "build_run_drives_the_real_wasmtime_runner_subprocess"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 152,
           "name": "release_provenance_and_installer_commands_drive_a_real_install"
         }
       ],
@@ -27463,7 +27615,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 233778,
+      "bytes": 237190,
       "group": "docs",
       "headings": [
         {
@@ -27878,12 +28030,12 @@
         "rust",
         "chain",
         "decision",
+        "release",
         "status",
         "d-0045",
         "entry",
         "stack",
         "freeze",
-        "release",
         "audit",
         "roadmap",
         "what",
@@ -27893,9 +28045,9 @@
         "one",
         "provenance"
       ],
-      "lines": 3937,
+      "lines": 3997,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "4049eb3c1e80c7fe6dbfbaff0bd022b92b72e7f156942df72c08851b00bf0c2f",
+      "sha256": "b9e5348fc35f3870e50a51929b34827476851155ebfd8208e11d46afb41a511a",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -28661,7 +28813,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 24685,
+      "bytes": 25510,
       "group": "docs",
       "headings": [
         {
@@ -28721,12 +28873,12 @@
         },
         {
           "level": 2,
-          "line": 393,
+          "line": 405,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 399,
+          "line": 411,
           "text": "Where to look for more detail"
         }
       ],
@@ -28756,9 +28908,9 @@
         "signal",
         "audits"
       ],
-      "lines": 409,
+      "lines": 421,
       "path": "docs/STATUS.md",
-      "sha256": "f5559cc1249625339087ab5e3362d8db2d04ac6e8c13134407db071b620527cd",
+      "sha256": "e84e44fbe6b7e7169b57f56e6f9552236962c1826fbdb525b21050bb6d2f2924",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -30195,7 +30347,7 @@
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
     },
     {
-      "bytes": 28899,
+      "bytes": 29649,
       "group": "docs",
       "headings": [
         {
@@ -30240,17 +30392,17 @@
         },
         {
           "level": 2,
-          "line": 473,
+          "line": 485,
           "text": "Batch 5 \u2014 Mininet as the primary forge"
         },
         {
           "level": 2,
-          "line": 481,
+          "line": 493,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 490,
+          "line": 502,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -30280,9 +30432,9 @@
         "git",
         "adapted"
       ],
-      "lines": 508,
+      "lines": 520,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "b1439403df9e0cecf1faa5ec32122cf4b229fa423ad60f7a487689cb7499e862",
+      "sha256": "a4ec42d56badf8c824eade7dce4128bfe34723446a97812a47d17d73a8583747",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
