@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 33,
-    "files": 344,
+    "files": 346,
     "headings": 790,
-    "rust_symbols": 2904
+    "rust_symbols": 2940
   },
   "crates": {
     "did-mini": {
@@ -245,7 +245,7 @@
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
     {
-      "bytes": 14032,
+      "bytes": 14505,
       "group": "root",
       "headings": [
         {
@@ -280,17 +280,17 @@
         },
         {
           "level": 2,
-          "line": 181,
+          "line": 189,
           "text": "Current priority (D-0066 \u2014 Batches 1-4 shipped; 5 vs. 6 is the founder's call)"
         },
         {
           "level": 2,
-          "line": 202,
+          "line": 210,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 211,
+          "line": 219,
           "text": "Session hygiene for the agent"
         }
       ],
@@ -320,9 +320,9 @@
         "human",
         "entries"
       ],
-      "lines": 223,
+      "lines": 231,
       "path": "CLAUDE.md",
-      "sha256": "f3732d191693dac7321135935844a880dc6e577d5b34f28c692c2d8677e30fac",
+      "sha256": "b7079ec73d5074ac64e370dc4bd35771d04de259d94a554fa9d2d141da34ff2c",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
@@ -611,7 +611,7 @@
       ],
       "lines": 146,
       "path": "README.md",
-      "sha256": "0f1aae4430ea4bb78d8b58a8789a78a351c613df269d4b429694edb3f875e18e",
+      "sha256": "b7033b405df3a52d742a66dc8bb7bf87fb0fa869ac8df8adbb91d86a7b29b4af",
       "symbols": [],
       "title": "Mininet"
     },
@@ -6051,7 +6051,7 @@
       "title": "mini-cli"
     },
     {
-      "bytes": 9976,
+      "bytes": 10849,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -6063,9 +6063,9 @@
         "path",
         "map_err",
         "store_dir",
-        "binary",
         "build",
         "run",
+        "binary",
         "other",
         "dir",
         "component",
@@ -6080,227 +6080,230 @@
         "its",
         "workspace"
       ],
-      "lines": 248,
+      "lines": 270,
       "path": "crates/mini-cli/src/build.rs",
-      "sha256": "fa6f9a3d8e74558114e423b384307845408a88dd97448923ffc50e6eba06bd12",
+      "sha256": "862216ee68148edca2c1a76486f193b5ccd735341851dfdeb7909e40bb4b34c6",
       "symbols": [
         {
           "kind": "const",
-          "line": 18,
+          "line": 19,
           "name": "MAX_RESULT_BYTES"
         },
         {
           "kind": "const",
-          "line": 19,
+          "line": 20,
           "name": "HARD_TIMEOUT"
         },
         {
           "kind": "const",
-          "line": 20,
+          "line": 21,
           "name": "RUNNER_BIN_NAME"
         },
         {
           "kind": "fn",
-          "line": 27,
+          "line": 28,
           "name": "runner_binary_path"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 40,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 43,
+          "line": 44,
           "name": "parse_capability"
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 72,
           "name": "run"
         },
         {
           "kind": "fn",
-          "line": 193,
+          "line": 215,
           "name": "mini_build_runner_wasmtime_content_store_hash"
         },
         {
           "kind": "fn",
-          "line": 214,
+          "line": 236,
           "name": "collect_files"
         },
         {
           "kind": "fn",
-          "line": 233,
+          "line": 255,
           "name": "parse_capabilities"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 259,
           "name": "default_limits"
         }
       ],
       "title": "use std::path::{Path, PathBuf};"
     },
     {
-      "bytes": 20118,
+      "bytes": 22448,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "args",
+        "json",
         "home",
         "string",
         "vec",
         "store_path",
-        "next",
-        "repo",
         "path",
         "pathbuf",
-        "clierror",
         "identity",
-        "extract_flag",
-        "result",
         "flag",
-        "map",
+        "reject_json",
+        "result",
+        "other",
+        "next",
+        "clierror",
         "pos",
         "usage",
-        "other",
         "noun",
-        "name",
+        "extract_flag",
+        "map",
+        "err",
+        "kel",
         "dispatch",
-        "store",
-        "remove",
-        "err"
+        "command"
       ],
-      "lines": 498,
+      "lines": 562,
       "path": "crates/mini-cli/src/cli.rs",
-      "sha256": "fd60ed21d48d07159b224d5100c6ff696f1c28887f992988277854f26955a1ae",
+      "sha256": "6987a2f74c849d526e589c9fc787e969b011298f6c60ea1c7789ab6960a0b544",
       "symbols": [
         {
           "kind": "fn",
-          "line": 15,
+          "line": 16,
           "name": "extract_flag"
         },
         {
           "kind": "fn",
-          "line": 24,
+          "line": 25,
           "name": "extract_flag_multi"
         },
         {
           "kind": "fn",
-          "line": 32,
+          "line": 33,
           "name": "extract_bool_flag"
         },
         {
           "kind": "fn",
-          "line": 41,
+          "line": 42,
           "name": "default_home"
         },
         {
           "kind": "fn",
-          "line": 48,
+          "line": 49,
           "name": "dirs_home"
         },
         {
           "kind": "fn",
-          "line": 54,
+          "line": 61,
           "name": "run"
         },
         {
           "kind": "fn",
-          "line": 66,
+          "line": 74,
+          "name": "reject_json"
+        },
+        {
+          "kind": "fn",
+          "line": 84,
           "name": "dispatch"
         },
         {
           "kind": "fn",
-          "line": 85,
+          "line": 118,
           "name": "dispatch_identity"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 129,
           "name": "dispatch_kel"
         },
         {
           "kind": "fn",
-          "line": 110,
+          "line": 143,
           "name": "dispatch_repo"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 196,
           "name": "dispatch_pr"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 256,
           "name": "dispatch_sync"
         },
         {
           "kind": "fn",
-          "line": 248,
+          "line": 281,
           "name": "extract_u64_flag"
         },
         {
           "kind": "fn",
-          "line": 257,
+          "line": 290,
           "name": "extract_u32_flag"
         },
         {
           "kind": "fn",
-          "line": 266,
+          "line": 299,
           "name": "required_u64_flag"
         },
         {
           "kind": "fn",
-          "line": 270,
+          "line": 303,
           "name": "required_path_flag"
         },
         {
           "kind": "fn",
-          "line": 276,
+          "line": 309,
           "name": "dispatch_build"
         },
         {
           "kind": "fn",
-          "line": 325,
+          "line": 360,
           "name": "dispatch_release"
         },
         {
           "kind": "fn",
-          "line": 387,
+          "line": 431,
           "name": "dispatch_provenance"
         },
         {
           "kind": "fn",
-          "line": 428,
+          "line": 479,
           "name": "dispatch_installer"
         },
         {
           "kind": "fn",
-          "line": 492,
+          "line": 556,
           "name": "next"
         }
       ],
       "title": "use std::path::{Path, PathBuf};"
     },
     {
-      "bytes": 2709,
+      "bytes": 3779,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "clierror",
         "error",
         "write",
-        "string",
         "identity",
+        "string",
         "failed",
         "operation",
         "fmt",
         "result",
         "sync",
-        "init",
-        "run",
         "forge",
         "store",
         "object",
@@ -6309,14 +6312,16 @@
         "installer",
         "build",
         "usage",
-        "mini-cli",
+        "self",
         "display",
-        "std",
-        "type"
+        "error_code",
+        "init",
+        "run",
+        "alreadyinitialized"
       ],
-      "lines": 72,
+      "lines": 97,
       "path": "crates/mini-cli/src/error.rs",
-      "sha256": "bd0d7d1ecfb2779dd3d71b28aed7aa019dd08668d426edc970a65ddfd54329f4",
+      "sha256": "69ed591154654a6e9a5b57abc9d429acecbb6a6a270fa4d7dd313389e2308053",
       "symbols": [
         {
           "kind": "enum",
@@ -6336,11 +6341,21 @@
         {
           "kind": "impl",
           "line": 68,
+          "name": "CliError"
+        },
+        {
+          "kind": "fn",
+          "line": 73,
+          "name": "error_code"
+        },
+        {
+          "kind": "impl",
+          "line": 93,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 71,
+          "line": 96,
           "name": "Result"
         }
       ],
@@ -6504,125 +6519,272 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 9310,
+      "bytes": 11769,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "installer",
-        "release",
+        "staged",
         "path",
-        "to_string",
-        "clierror",
+        "str",
+        "release",
+        "release_id",
+        "jsonvalue",
         "device_root",
         "release_ref",
-        "staged",
-        "release_id",
-        "result",
-        "map_err",
-        "str",
         "version",
+        "result",
+        "field",
         "passed",
+        "clierror",
+        "commandresult",
         "open",
         "stage",
         "preflight",
-        "activate",
         "log",
+        "map_err",
+        "to_string",
         "u64",
         "parse_release",
-        "mini_installer",
-        "own",
-        "ownerapproval"
+        "activate"
       ],
-      "lines": 246,
+      "lines": 303,
       "path": "crates/mini-cli/src/installer.rs",
-      "sha256": "3317792935f4068eec0fb6f7c890bd37ffa38861b008ecb1a029c5890293ad25",
+      "sha256": "c85d087945260b4a0f4164ae7c5211cd5ee6495ff96ce3f8663d4171f13b497c",
       "symbols": [
         {
           "kind": "fn",
-          "line": 29,
+          "line": 30,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 33,
+          "line": 34,
           "name": "parse_release"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 47,
           "name": "stage"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 88,
+          "name": "hex"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
           "name": "preflight"
         },
         {
           "kind": "fn",
-          "line": 107,
+          "line": 123,
           "name": "activate"
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 162,
           "name": "health_check"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 210,
           "name": "rollback"
         },
         {
           "kind": "fn",
-          "line": 184,
+          "line": 223,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 239,
           "name": "history"
         },
         {
           "kind": "fn",
-          "line": 226,
+          "line": 281,
           "name": "verify_log"
         }
       ],
       "title": "use std::path::Path;"
     },
     {
-      "bytes": 1933,
+      "bytes": 6440,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "out",
+        "jsonvalue",
+        "string",
+        "str",
+        "push",
+        "self",
+        "push_str",
+        "to_string",
+        "fields",
+        "kind",
+        "json",
+        "render",
+        "vec",
+        "number",
+        "write",
+        "commandresult",
+        "bool",
+        "object",
+        "human",
+        "escape_into",
+        "new",
+        "null",
+        "items",
+        "error_code"
+      ],
+      "lines": 199,
+      "path": "crates/mini-cli/src/json.rs",
+      "sha256": "a25a8228b0c04a96b636512c46962c98b1524c2e0b0710d0e17a4b56e3ec2844",
+      "symbols": [
+        {
+          "kind": "enum",
+          "line": 16,
+          "name": "JsonValue"
+        },
+        {
+          "kind": "impl",
+          "line": 25,
+          "name": "JsonValue"
+        },
+        {
+          "kind": "fn",
+          "line": 26,
+          "name": "str"
+        },
+        {
+          "kind": "fn",
+          "line": 30,
+          "name": "num"
+        },
+        {
+          "kind": "fn",
+          "line": 34,
+          "name": "opt_str"
+        },
+        {
+          "kind": "fn",
+          "line": 41,
+          "name": "strs"
+        },
+        {
+          "kind": "fn",
+          "line": 47,
+          "name": "render"
+        },
+        {
+          "kind": "fn",
+          "line": 53,
+          "name": "write"
+        },
+        {
+          "kind": "fn",
+          "line": 91,
+          "name": "escape_into"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "ok_envelope"
+        },
+        {
+          "kind": "fn",
+          "line": 116,
+          "name": "err_envelope"
+        },
+        {
+          "kind": "struct",
+          "line": 132,
+          "name": "CommandResult"
+        },
+        {
+          "kind": "impl",
+          "line": 137,
+          "name": "CommandResult"
+        },
+        {
+          "kind": "fn",
+          "line": 138,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 145,
+          "name": "field"
+        },
+        {
+          "kind": "fn",
+          "line": 150,
+          "name": "render"
+        },
+        {
+          "kind": "mod",
+          "line": 160,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 164,
+          "name": "strings_are_escaped"
+        },
+        {
+          "kind": "fn",
+          "line": 170,
+          "name": "ok_envelope_shape"
+        },
+        {
+          "kind": "fn",
+          "line": 185,
+          "name": "err_envelope_shape"
+        },
+        {
+          "kind": "fn",
+          "line": 194,
+          "name": "null_and_array_render"
+        }
+      ],
+      "title": "pub enum JsonValue {"
+    },
+    {
+      "bytes": 3566,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "sync",
-        "repo",
+        "error",
+        "json",
         "cli",
+        "repo",
+        "parts",
         "identity",
         "sequence",
-        "error",
         "store",
+        "same",
+        "command",
+        "string",
+        "skip_next",
+        "json_error_envelope",
         "batch",
+        "two",
+        "false",
+        "kind",
+        "continue",
         "build",
         "installer",
         "project",
         "provenance",
-        "release",
-        "library",
-        "mini-forge",
-        "against",
-        "two",
-        "exchange",
-        "signed",
-        "commit",
-        "governed",
-        "canonical",
-        "branch",
-        "shared"
+        "release"
       ],
-      "lines": 49,
+      "lines": 94,
       "path": "crates/mini-cli/src/lib.rs",
-      "sha256": "ab0c712a6ca0f43baad028fa6c41225971f467de79b9c4c40b71f80f44a1df0b",
+      "sha256": "9602ee36967538adfc4b5f1eae03c230f6cbc4a355d3785907abe60fff6ec3ca",
       "symbols": [
         {
           "kind": "mod",
@@ -6652,59 +6814,76 @@
         {
           "kind": "mod",
           "line": 38,
-          "name": "pr"
+          "name": "json"
         },
         {
           "kind": "mod",
           "line": 39,
-          "name": "project"
+          "name": "pr"
         },
         {
           "kind": "mod",
           "line": 40,
-          "name": "provenance"
+          "name": "project"
         },
         {
           "kind": "mod",
           "line": 41,
-          "name": "release"
+          "name": "provenance"
         },
         {
           "kind": "mod",
           "line": 42,
-          "name": "repo"
+          "name": "release"
         },
         {
           "kind": "mod",
           "line": 43,
-          "name": "sequence"
+          "name": "repo"
         },
         {
           "kind": "mod",
           "line": 44,
-          "name": "store"
+          "name": "sequence"
         },
         {
           "kind": "mod",
           "line": 45,
+          "name": "store"
+        },
+        {
+          "kind": "mod",
+          "line": 46,
           "name": "sync"
+        },
+        {
+          "kind": "fn",
+          "line": 60,
+          "name": "json_error_envelope"
+        },
+        {
+          "kind": "fn",
+          "line": 68,
+          "name": "command_kind"
         }
       ],
       "title": "mod build;"
     },
     {
-      "bytes": 492,
+      "bytes": 761,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
+        "args",
+        "mini_cli",
         "exitcode",
         "main",
-        "args",
+        "json",
         "process",
-        "mini_cli",
         "run",
         "std",
         "output",
+        "println",
         "mini-cli",
         "thin",
         "entry",
@@ -6718,13 +6897,11 @@
         "spawning",
         "subprocesses",
         "vec",
-        "string",
-        "env",
-        "skip"
+        "string"
       ],
-      "lines": 19,
+      "lines": 27,
       "path": "crates/mini-cli/src/main.rs",
-      "sha256": "98fea299a16c87f402fbbd392b9bfc9a86e66c94d73b0880e589711cd9fb1e67",
+      "sha256": "6c7e1d036e061dc2c976603e6aa7256e2717ef75bb029f187c810a46ff5a5a9c",
       "symbols": [
         {
           "kind": "fn",
@@ -6894,139 +7071,139 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 4314,
+      "bytes": 4857,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
+        "str",
+        "field",
         "hex",
         "provenance",
         "clierror",
-        "str",
-        "identity",
-        "output",
         "subject",
+        "identity",
+        "jsonvalue",
+        "output",
         "parse_hex32",
         "path",
         "store",
-        "field",
         "format",
         "map_err",
         "home",
         "to_string",
         "output_digests",
-        "bad_hex",
-        "record",
-        "verify",
-        "out",
-        "result",
+        "as_str",
+        "agreement",
+        "commandresult",
         "len",
-        "string",
-        "store_path"
+        "u64",
+        "min_agreement",
+        "expected_output"
       ],
-      "lines": 132,
+      "lines": 140,
       "path": "crates/mini-cli/src/provenance.rs",
-      "sha256": "a469e096a136d241ed60022838ba8a1c4c498849e16dd508135c2b44a0881bb8",
+      "sha256": "39b1212d62f3fcd5aebe23e1759d5b285554a56ab1a328346ff54dddc361d17a",
       "symbols": [
         {
           "kind": "fn",
-          "line": 14,
+          "line": 15,
           "name": "parse_hex32"
         },
         {
           "kind": "fn",
-          "line": 29,
+          "line": 30,
           "name": "bad_hex"
         },
         {
           "kind": "fn",
-          "line": 33,
+          "line": 34,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 41,
+          "line": 42,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 101,
+          "line": 105,
           "name": "verify"
         }
       ],
       "title": "use std::path::Path;"
     },
     {
-      "bytes": 6637,
+      "bytes": 7590,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "str",
-        "home",
         "identity",
         "release",
-        "clierror",
+        "field",
+        "home",
         "path",
+        "clierror",
         "sequence",
         "store",
         "map_err",
-        "to_string",
-        "now_ms",
         "hex",
-        "field",
+        "jsonvalue",
+        "digest",
+        "version",
         "store_path",
+        "to_string",
         "seq",
+        "obj",
+        "release_id",
         "attest",
         "result",
+        "commandresult",
         "format",
-        "digest",
-        "parse_hex32",
-        "bad_hex",
-        "create",
-        "verify_governed_release",
-        "object"
+        "as_str"
       ],
-      "lines": 209,
+      "lines": 233,
       "path": "crates/mini-cli/src/release.rs",
-      "sha256": "a9cbc874c62342d5b88803a1ff2a6386bdd658c6ef0583da96213a1c1d313127",
+      "sha256": "d5af5d3abd695d7723f43178e560663d2ee3de4d623a834d943f99cf1a850c9c",
       "symbols": [
         {
           "kind": "fn",
-          "line": 20,
+          "line": 21,
           "name": "parse_hex32"
         },
         {
           "kind": "fn",
-          "line": 35,
+          "line": 36,
           "name": "bad_hex"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 40,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 47,
           "name": "create"
         },
         {
           "kind": "fn",
-          "line": 101,
+          "line": 105,
           "name": "attest_release"
         },
         {
           "kind": "fn",
-          "line": 132,
+          "line": 140,
           "name": "verified_release"
         },
         {
           "kind": "fn",
-          "line": 161,
+          "line": 169,
           "name": "verify"
         },
         {
           "kind": "fn",
-          "line": 193,
+          "line": 208,
           "name": "list"
         }
       ],
@@ -7289,6 +7466,83 @@
         }
       ],
       "title": "use std::net::TcpListener;"
+    },
+    {
+      "bytes": 8023,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "run",
+        "to_str",
+        "home",
+        "alice",
+        "json",
+        "tempdir",
+        "std",
+        "str",
+        "release",
+        "store",
+        "json_field",
+        "real",
+        "key",
+        "rest",
+        "bob",
+        "create_json",
+        "envelope",
+        "mini_cli",
+        "field",
+        "create",
+        "to_string",
+        "find",
+        "doc"
+      ],
+      "lines": 244,
+      "path": "crates/mini-cli/tests/cli_json_output.rs",
+      "sha256": "6e0dd345a5a5efebbc182ffd2daddb76d844ae7a1ff8ba1ce1f93480453ba8d4",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 19,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 32,
+          "name": "run"
+        },
+        {
+          "kind": "fn",
+          "line": 37,
+          "name": "did_of"
+        },
+        {
+          "kind": "fn",
+          "line": 53,
+          "name": "json_field"
+        },
+        {
+          "kind": "fn",
+          "line": 70,
+          "name": "release_create_json_output_chains_directly_into_attest_without_text_scraping"
+        },
+        {
+          "kind": "fn",
+          "line": 187,
+          "name": "json_is_rejected_for_commands_that_do_not_support_it_yet"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "mini_binary"
+        },
+        {
+          "kind": "fn",
+          "line": 213,
+          "name": "compiled_binary_prints_a_json_error_envelope_on_failure"
+        }
+      ],
+      "title": "use std::fs;"
     },
     {
       "bytes": 16311,
@@ -27209,7 +27463,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 228657,
+      "bytes": 233778,
       "group": "docs",
       "headings": [
         {
@@ -27629,19 +27883,19 @@
         "entry",
         "stack",
         "freeze",
+        "release",
         "audit",
         "roadmap",
         "what",
         "on-device",
         "license",
         "default",
-        "release",
         "one",
-        "date"
+        "provenance"
       ],
-      "lines": 3851,
+      "lines": 3937,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "24f795f74e033af990df94803b333009b8abfeb75bd9deb4959ef8da33a35261",
+      "sha256": "4049eb3c1e80c7fe6dbfbaff0bd022b92b72e7f156942df72c08851b00bf0c2f",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -28407,7 +28661,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 23730,
+      "bytes": 24685,
       "group": "docs",
       "headings": [
         {
@@ -28467,12 +28721,12 @@
         },
         {
           "level": 2,
-          "line": 378,
+          "line": 393,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 384,
+          "line": 399,
           "text": "Where to look for more detail"
         }
       ],
@@ -28502,9 +28756,9 @@
         "signal",
         "audits"
       ],
-      "lines": 394,
+      "lines": 409,
       "path": "docs/STATUS.md",
-      "sha256": "4b6512fbb55a43786af6fc068ebebcaaabae463a4e7dbf6cdad3f84c4d8ba52f",
+      "sha256": "f5559cc1249625339087ab5e3362d8db2d04ac6e8c13134407db071b620527cd",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -29941,7 +30195,7 @@
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
     },
     {
-      "bytes": 27853,
+      "bytes": 28899,
       "group": "docs",
       "headings": [
         {
@@ -29986,17 +30240,17 @@
         },
         {
           "level": 2,
-          "line": 457,
+          "line": 473,
           "text": "Batch 5 \u2014 Mininet as the primary forge"
         },
         {
           "level": 2,
-          "line": 465,
+          "line": 481,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 474,
+          "line": 490,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -30026,9 +30280,9 @@
         "git",
         "adapted"
       ],
-      "lines": 492,
+      "lines": 508,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "1adaa25331d7ed18fb7c31632f07718f748858cf0308e2442e3a7fd80ecc81f1",
+      "sha256": "b1439403df9e0cecf1faa5ec32122cf4b229fa423ad60f7a487689cb7499e862",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },

@@ -13,6 +13,7 @@ use mini_forge::{
 use mini_objects::ObjectId;
 
 use crate::error::{CliError, Result};
+use crate::json::{CommandResult, JsonValue};
 use crate::project as project_alias;
 use crate::sequence;
 use crate::store::open_store;
@@ -52,7 +53,7 @@ pub fn create(
     commit_ref: &str,
     artifact_path: &Path,
     recipe_digest_hex: &str,
-) -> Result<String> {
+) -> Result<CommandResult> {
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
     let human = identity.human_did();
@@ -91,10 +92,13 @@ pub fn create(
     )
     .map_err(|e| CliError::Forge(e.to_string()))?;
 
-    Ok(format!(
+    Ok(CommandResult::new(format!(
         "release {version:?} created: {}",
         obj.id().as_str()
     ))
+    .field("release_id", JsonValue::str(obj.id().as_str()))
+    .field("version", JsonValue::str(version))
+    .field("artifact_digest", JsonValue::str(hex(&manifest.digest))))
 }
 
 /// `mini release attest <release-id> --artifact-digest <hex>`
@@ -103,7 +107,7 @@ pub fn attest_release(
     store_path: &Path,
     release_ref: &str,
     artifact_digest_hex: &str,
-) -> Result<String> {
+) -> Result<CommandResult> {
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
     let release_id = ObjectId::parse(release_ref).map_err(|e| CliError::Object(e.to_string()))?;
@@ -121,7 +125,11 @@ pub fn attest_release(
     )
     .map_err(|e| CliError::Forge(e.to_string()))?;
 
-    Ok(format!("attestation recorded: {}", obj.id().as_str()))
+    Ok(
+        CommandResult::new(format!("attestation recorded: {}", obj.id().as_str()))
+            .field("attestation_id", JsonValue::str(obj.id().as_str()))
+            .field("release_id", JsonValue::str(release_id.as_str())),
+    )
 }
 
 /// Shared core of `mini release verify` and `mini installer stage`: neither
@@ -167,7 +175,7 @@ pub fn verify(
     min_attestations: Option<u32>,
     timelock_ms: Option<u64>,
     now_ms: Option<u64>,
-) -> Result<String> {
+) -> Result<CommandResult> {
     let verified = verified_release(
         home,
         store_path,
@@ -179,30 +187,46 @@ pub fn verify(
         now_ms,
     )?;
 
-    Ok(format!(
+    Ok(CommandResult::new(format!(
         "verified: release {} version {:?}, {} independent attester(s), artifact digest {}",
         verified.id.as_str(),
         verified.version,
         verified.attesters,
         hex(&verified.artifact.digest)
     ))
+    .field("release_id", JsonValue::str(verified.id.as_str()))
+    .field("version", JsonValue::str(&verified.version))
+    .field("attesters", JsonValue::num(verified.attesters as u64))
+    .field(
+        "artifact_digest",
+        JsonValue::str(hex(&verified.artifact.digest)),
+    ))
 }
 
 /// `mini release list <project> --branch <b>` -- the transparency log is
 /// the object store itself (D-0070); this just prints it.
-pub fn list(home: &Path, store_path: &Path, project_ref: &str, branch: &str) -> Result<String> {
+pub fn list(
+    home: &Path,
+    store_path: &Path,
+    project_ref: &str,
+    branch: &str,
+) -> Result<CommandResult> {
     let store = open_store(store_path)?;
     let project_id = project_alias::resolve(home, project_ref)?;
     let releases =
         list_releases(&store, &project_id, branch).map_err(|e| CliError::Forge(e.to_string()))?;
-    if releases.is_empty() {
-        return Ok(format!(
-            "no releases recorded for {project_ref:?} / {branch}"
-        ));
-    }
-    let mut out = String::new();
-    for obj in &releases {
-        out.push_str(&format!("{}\n", obj.id().as_str()));
-    }
-    Ok(out)
+    let ids: Vec<String> = releases
+        .iter()
+        .map(|o| o.id().as_str().to_string())
+        .collect();
+    let human = if releases.is_empty() {
+        format!("no releases recorded for {project_ref:?} / {branch}")
+    } else {
+        let mut out = String::new();
+        for id in &ids {
+            out.push_str(&format!("{id}\n"));
+        }
+        out
+    };
+    Ok(CommandResult::new(human).field("release_ids", JsonValue::strs(ids)))
 }

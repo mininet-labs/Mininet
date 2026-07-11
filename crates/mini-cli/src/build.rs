@@ -14,6 +14,7 @@ use mini_pipeline::{Capability, ResourceLimits};
 use mini_pipeline_protocol::{read_framed, write_framed, ExecutionRequest, ExecutionResult};
 
 use crate::error::{CliError, Result};
+use crate::json::{CommandResult, JsonValue};
 
 const MAX_RESULT_BYTES: usize = 64 * 1024 * 1024;
 const HARD_TIMEOUT: Duration = Duration::from_secs(120);
@@ -75,7 +76,7 @@ pub fn run(
     artifacts_dir: &Path,
     capabilities: Vec<Capability>,
     limits: ResourceLimits,
-) -> Result<String> {
+) -> Result<CommandResult> {
     let component = std::fs::read(component_path).map_err(|e| CliError::Io(e.to_string()))?;
 
     std::fs::create_dir_all(store_dir.join("objects")).map_err(|e| CliError::Io(e.to_string()))?;
@@ -181,7 +182,28 @@ pub fn run(
     for d in &result.output_digests {
         out.push_str(&format!("output_digest: {}\n", hex(d)));
     }
-    Ok(out)
+
+    let output_digest_hexes: Vec<String> = result.output_digests.iter().map(hex).collect();
+    Ok(CommandResult::new(out)
+        .field(
+            "exit_status",
+            JsonValue::str(format!("{:?}", result.exit_status)),
+        )
+        .field(
+            "execution_security",
+            JsonValue::str(result.execution_security.to_string()),
+        )
+        .field("fuel_consumed", JsonValue::num(result.fuel_consumed))
+        .field("wall_clock_ms", JsonValue::num(result.wall_clock_ms))
+        .field(
+            "runner_binary_digest",
+            JsonValue::str(hex(&result.runner_binary_digest)),
+        )
+        .field(
+            "runtime_config_digest",
+            JsonValue::str(hex(&result.runtime_config_digest)),
+        )
+        .field("output_digests", JsonValue::strs(output_digest_hexes)))
 }
 
 /// Content-address a directory the same way the runner verifies workspace

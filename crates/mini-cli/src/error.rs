@@ -65,6 +65,31 @@ impl fmt::Display for CliError {
     }
 }
 
+impl CliError {
+    /// A stable, machine-readable snake_case identifier for `--json`
+    /// error output (`crate::json::err_envelope`'s `error_code` field) --
+    /// stable across releases (a scraper matches on this), unlike the
+    /// free-text `Display` message which stays free to change wording.
+    pub fn error_code(&self) -> &'static str {
+        match self {
+            CliError::AlreadyInitialized => "already_initialized",
+            CliError::NotInitialized => "not_initialized",
+            CliError::CorruptSeedFile => "corrupt_seed_file",
+            CliError::Io(_) => "io",
+            CliError::Identity(_) => "identity",
+            CliError::Forge(_) => "forge",
+            CliError::Store(_) => "store",
+            CliError::Object(_) => "object",
+            CliError::Sync(_) => "sync",
+            CliError::Media(_) => "media",
+            CliError::Provenance(_) => "provenance",
+            CliError::Installer(_) => "installer",
+            CliError::Build(_) => "build",
+            CliError::Usage(_) => "usage",
+        }
+    }
+}
+
 impl std::error::Error for CliError {}
 
 /// Result alias for this crate.

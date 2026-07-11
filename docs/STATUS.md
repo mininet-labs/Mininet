@@ -348,10 +348,25 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   stateless CLI can't otherwise cross — each refusing to reconstruct
   anything the log doesn't show genuinely happened. Proven through the
   real text-based CLI (not direct library calls) in
-  `crates/mini-cli/tests/cli_spine_commands.rs`. Honest limit: no
-  `--json` output yet, so any value threaded from one command's output
-  into the next command's input is scraped out of human-readable text —
-  the explicit next PR in the stack.
+  `crates/mini-cli/tests/cli_spine_commands.rs`.
+- **shipped** — stable `--json` output for `build`/`release`/
+  `provenance`/`installer` (D-0078), closing the gap the D-0077 bullet
+  above used to name. A global `--json` flag makes those commands emit
+  `{"ok":true,"kind":"<verb.noun>",...fields}` /
+  `{"ok":false,"kind":...,"error_code":...,"message":...}` instead of
+  human text, with a real typed field per created/inspected object (a
+  release id, a digest, an attester count) — a caller now chains
+  commands by reading a field, never by scraping a human sentence.
+  Hand-rolled emitter (`crate::json`, no `serde`/`serde_json`
+  dependency, matching this workspace's established encoding
+  convention). `identity`/`kel`/`repo`/`pr`/`sync` still have no
+  `--json` support and cleanly reject the flag (a scripting caller must
+  never silently get human text back). `crates/mini-cli/tests/
+  cli_json_output.rs` proves a real field extracted from one command's
+  JSON chains directly into a second command, and drives the actual
+  compiled `mini` binary as a subprocess to prove the error-envelope
+  path (which lives in `main.rs`, outside `mini_cli::run`'s own
+  `Result<String>` contract).
 - **shipped** — Batch 5, first piece: `mini sync listen`/`mini sync
   connect` (`mini-cli::sync`), live network peer exchange over a real TCP
   `mini_bearer` + `mini_sync` connection — Batch 1's remaining deferred

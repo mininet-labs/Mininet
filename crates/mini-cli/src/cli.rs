@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use did_mini::Did;
 
 use crate::error::{CliError, Result};
+use crate::json::CommandResult;
 use crate::{build, identity, installer, pr, provenance, release, repo, store, sync};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
@@ -50,9 +51,16 @@ fn dirs_home() -> Option<PathBuf> {
 }
 
 /// Run one CLI invocation. `raw_args` is everything after the program
-/// name. Returns the human-readable output to print on success.
+/// name. Returns the human-readable output to print on success -- or, if
+/// `--json` is present, a single-line JSON document for the commands that
+/// support it (`build`/`release`/`provenance`/`installer`; see
+/// `crate::json`'s module docs). `--json` on any other command is a clean
+/// usage error rather than a silently-ignored flag, since a scripting
+/// caller trusting `--json` to always produce parseable output must never
+/// get human text back without being told.
 pub fn run(raw_args: &[String]) -> Result<String> {
     let mut args: Vec<String> = raw_args.to_vec();
+    let json = extract_bool_flag(&mut args, "--json");
     let home = extract_flag(&mut args, "--home")
         .map(PathBuf::from)
         .unwrap_or_else(default_home);
@@ -60,24 +68,49 @@ pub fn run(raw_args: &[String]) -> Result<String> {
         .map(PathBuf::from)
         .unwrap_or_else(|| home.join("store"));
 
-    dispatch(&home, &store_path, args)
+    dispatch(&home, &store_path, args, json)
 }
 
-fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+fn reject_json(json: bool, verb: &str) -> Result<()> {
+    if json {
+        Err(CliError::Usage(format!(
+            "--json is not yet supported for `mini {verb}` commands"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
+fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -> Result<String> {
     if args.is_empty() {
         return Err(CliError::Usage("no command given".to_string()));
     }
     let verb = args.remove(0);
     match verb.as_str() {
-        "identity" => dispatch_identity(home, args),
-        "kel" => dispatch_kel(home, args),
-        "repo" => dispatch_repo(home, store_path, args),
-        "pr" => dispatch_pr(home, store_path, args),
-        "sync" => dispatch_sync(home, store_path, args),
-        "build" => dispatch_build(args),
-        "release" => dispatch_release(home, store_path, args),
-        "provenance" => dispatch_provenance(home, store_path, args),
-        "installer" => dispatch_installer(home, store_path, args),
+        "identity" => {
+            reject_json(json, "identity")?;
+            dispatch_identity(home, args)
+        }
+        "kel" => {
+            reject_json(json, "kel")?;
+            dispatch_kel(home, args)
+        }
+        "repo" => {
+            reject_json(json, "repo")?;
+            dispatch_repo(home, store_path, args)
+        }
+        "pr" => {
+            reject_json(json, "pr")?;
+            dispatch_pr(home, store_path, args)
+        }
+        "sync" => {
+            reject_json(json, "sync")?;
+            dispatch_sync(home, store_path, args)
+        }
+        "build" => dispatch_build(args, json),
+        "release" => dispatch_release(home, store_path, args, json),
+        "provenance" => dispatch_provenance(home, store_path, args, json),
+        "installer" => dispatch_installer(home, store_path, args, json),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
 }
@@ -273,10 +306,11 @@ fn required_path_flag(args: &mut Vec<String>, flag: &str) -> Result<PathBuf> {
         .ok_or_else(|| CliError::Usage(format!("{flag} required")))
 }
 
-fn dispatch_build(mut args: Vec<String>) -> Result<String> {
+fn dispatch_build(mut args: Vec<String>, json: bool) -> Result<String> {
     let noun = next(&mut args, "build")?;
     match noun.as_str() {
         "run" => {
+            let kind = "build.run";
             let component = required_path_flag(&mut args, "--component")?;
             let store_dir = required_path_flag(&mut args, "--store-dir")?;
             let scratch_dir = required_path_flag(&mut args, "--scratch-dir")?;
@@ -315,6 +349,7 @@ fn dispatch_build(mut args: Vec<String>) -> Result<String> {
                 capabilities,
                 limits,
             )
+            .map(|r: CommandResult| r.render(json, kind))
         }
         other => Err(CliError::Usage(format!(
             "unknown `build` subcommand: {other:?}"
@@ -322,7 +357,12 @@ fn dispatch_build(mut args: Vec<String>) -> Result<String> {
     }
 }
 
-fn dispatch_release(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+fn dispatch_release(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
     let noun = next(&mut args, "release")?;
     match noun.as_str() {
         "create" => {
@@ -346,12 +386,14 @@ fn dispatch_release(home: &Path, store_path: &Path, mut args: Vec<String>) -> Re
                 &artifact,
                 &recipe_digest,
             )
+            .map(|r: CommandResult| r.render(json, "release.create"))
         }
         "attest" => {
             let release_id = next(&mut args, "release attest")?;
             let artifact_digest = extract_flag(&mut args, "--artifact-digest")
                 .ok_or_else(|| CliError::Usage("--artifact-digest required".to_string()))?;
             release::attest_release(home, store_path, &release_id, &artifact_digest)
+                .map(|r: CommandResult| r.render(json, "release.attest"))
         }
         "verify" => {
             let release_id = next(&mut args, "release verify")?;
@@ -371,12 +413,14 @@ fn dispatch_release(home: &Path, store_path: &Path, mut args: Vec<String>) -> Re
                 timelock_ms,
                 now_ms,
             )
+            .map(|r: CommandResult| r.render(json, "release.verify"))
         }
         "list" => {
             let project = next(&mut args, "release list")?;
             let branch = extract_flag(&mut args, "--branch")
                 .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
             release::list(home, store_path, &project, &branch)
+                .map(|r: CommandResult| r.render(json, "release.list"))
         }
         other => Err(CliError::Usage(format!(
             "unknown `release` subcommand: {other:?}"
@@ -384,7 +428,12 @@ fn dispatch_release(home: &Path, store_path: &Path, mut args: Vec<String>) -> Re
     }
 }
 
-fn dispatch_provenance(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+fn dispatch_provenance(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
     let noun = next(&mut args, "provenance")?;
     match noun.as_str() {
         "record" => {
@@ -411,6 +460,7 @@ fn dispatch_provenance(home: &Path, store_path: &Path, mut args: Vec<String>) ->
                 started_ms,
                 finished_ms,
             )
+            .map(|r: CommandResult| r.render(json, "provenance.record"))
         }
         "verify" => {
             let subject = next(&mut args, "provenance verify")?;
@@ -418,6 +468,7 @@ fn dispatch_provenance(home: &Path, store_path: &Path, mut args: Vec<String>) ->
                 .ok_or_else(|| CliError::Usage("--output required".to_string()))?;
             let min_agreement = extract_u32_flag(&mut args, "--min-agreement")?.unwrap_or(1);
             provenance::verify(home, store_path, &subject, &output, min_agreement)
+                .map(|r: CommandResult| r.render(json, "provenance.verify"))
         }
         other => Err(CliError::Usage(format!(
             "unknown `provenance` subcommand: {other:?}"
@@ -425,7 +476,12 @@ fn dispatch_provenance(home: &Path, store_path: &Path, mut args: Vec<String>) ->
     }
 }
 
-fn dispatch_installer(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+fn dispatch_installer(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
     let noun = next(&mut args, "installer")?;
     let device_root = required_path_flag(&mut args, "--device-root")?;
     match noun.as_str() {
@@ -450,16 +506,19 @@ fn dispatch_installer(home: &Path, store_path: &Path, mut args: Vec<String>) -> 
                 now_ms,
                 timestamp_ms,
             )
+            .map(|r: CommandResult| r.render(json, "installer.stage"))
         }
         "preflight" => {
             let release_id = next(&mut args, "installer preflight")?;
             let timestamp_ms = required_u64_flag(&mut args, "--timestamp-ms")?;
             installer::preflight(&device_root, &release_id, timestamp_ms)
+                .map(|r: CommandResult| r.render(json, "installer.preflight"))
         }
         "activate" => {
             let release_id = next(&mut args, "installer activate")?;
             let approved_at_ms = required_u64_flag(&mut args, "--approved-at-ms")?;
             installer::activate(&device_root, &release_id, approved_at_ms)
+                .map(|r: CommandResult| r.render(json, "installer.activate"))
         }
         "health-check" => {
             let release_id = next(&mut args, "installer health-check")?;
@@ -472,17 +531,22 @@ fn dispatch_installer(home: &Path, store_path: &Path, mut args: Vec<String>) -> 
             }
             let timestamp_ms = required_u64_flag(&mut args, "--timestamp-ms")?;
             installer::health_check(&device_root, &release_id, healthy, timestamp_ms)
+                .map(|r: CommandResult| r.render(json, "installer.health-check"))
         }
         "rollback" => {
             let timestamp_ms = required_u64_flag(&mut args, "--timestamp-ms")?;
             installer::rollback(&device_root, timestamp_ms)
+                .map(|r: CommandResult| r.render(json, "installer.rollback"))
         }
-        "status" => installer::status(&device_root),
+        "status" => installer::status(&device_root)
+            .map(|r: CommandResult| r.render(json, "installer.status")),
         "history" => {
             let release_id = extract_flag(&mut args, "--release");
             installer::history(&device_root, release_id.as_deref())
+                .map(|r: CommandResult| r.render(json, "installer.history"))
         }
-        "verify-log" => installer::verify_log(&device_root),
+        "verify-log" => installer::verify_log(&device_root)
+            .map(|r: CommandResult| r.render(json, "installer.verify-log")),
         other => Err(CliError::Usage(format!(
             "unknown `installer` subcommand: {other:?}"
         ))),
