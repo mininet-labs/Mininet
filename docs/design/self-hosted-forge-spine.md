@@ -458,6 +458,18 @@ must keep `Err` meaning "the command failed" for every existing Rust
 caller. `identity`/`kel`/`repo`/`pr`/`sync` still have no `--json`
 support and cleanly reject the flag — named follow-up, not a silent gap.
 
+**Adversarial CLI fixtures (D-0079):** `crates/mini-cli/tests/
+adversarial_release_install.rs` drives `release`/`installer` through the
+real CLI against specifically adversarial inputs (a lone real attester,
+an author self-attesting their own release, a duplicate attestation from
+one identity, a wrong-digest attestation, a too-early or wrong-branch
+`release verify`, `installer activate` before `preflight`, `installer
+preflight` on a never-staged release) — proving D-0077's CLI-level state
+reconstruction introduces no bypass of any safety property `mini-forge`/
+`mini-installer`'s own library-level suites already established, plus a
+sanity-anchor test proving the identical setup verifies successfully
+once every condition is genuinely met.
+
 **Batch 6's stated exit condition** — "a deliberately broken release
 detected, auto-recovered, with a verifiable event history in a test
 environment" — is now demonstrated two ways: the typed return values

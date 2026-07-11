@@ -367,6 +367,18 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   compiled `mini` binary as a subprocess to prove the error-envelope
   path (which lives in `main.rs`, outside `mini_cli::run`'s own
   `Result<String>` contract).
+- **shipped** — adversarial `release`/`installer` CLI fixtures (D-0079),
+  fulfilling the follow-up D-0077/D-0078 both named. 10 tests drive the
+  real CLI against specifically adversarial inputs — a lone real
+  attester, an author's self-attestation, a duplicate attestation from
+  one identity, an attestation naming the wrong digest, a too-early
+  `release verify`, a wrong-branch `release verify`, `installer activate`
+  before `preflight`, `installer preflight` on a never-staged release —
+  proving D-0077's CLI-level state reconstruction introduces no bypass
+  of any safety property the underlying libraries already enforce. A
+  tenth sanity-anchor test confirms the identical setup verifies
+  successfully once every condition is genuinely met, so the failures
+  above are proven to fail for the right reason.
 - **shipped** — Batch 5, first piece: `mini sync listen`/`mini sync
   connect` (`mini-cli::sync`), live network peer exchange over a real TCP
   `mini_bearer` + `mini_sync` connection — Batch 1's remaining deferred

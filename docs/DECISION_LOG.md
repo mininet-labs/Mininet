@@ -3934,3 +3934,63 @@ D-0077's own sequencing).
 
 **Supersedes / superseded by:** none. Fulfills the follow-up D-0077
 named; does not alter D-0077's command surface or D-0076's event log.
+
+### D-0079 — Adversarial `release`/`installer` CLI fixtures  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** D-0077 ("Required follow-up: ...
+adversarial release/install CLI fixtures, the PR after that"),
+`crates/mini-cli/tests/adversarial_release_install.rs`.
+
+**Decision:** ten new tests drive `mini release`/`mini installer`
+through the real text-based CLI (`mini_cli::run`, not direct
+`mini_forge`/`mini_installer` calls) against specifically adversarial
+inputs, proving the CLI layer added in D-0077 introduces no bypass of
+any safety property `mini-forge`'s/`mini-installer`'s own library-level
+adversarial suites already established: a lone real attester is refused
+(`need 2 independent attestations, got 1`); a release author's
+self-attestation of their own release never counts toward quorum; two
+attestation calls from the *same* identity still count once, not twice;
+an attestation naming a digest that doesn't match the release's real
+artifact digest is silently excluded rather than counted; `release
+verify` refuses before the adoption timelock elapses and refuses a
+branch the release didn't actually claim; and, on the installer side,
+calling `activate` before `preflight`, or `preflight` on a release that
+was never `stage`d, both fail cleanly with the expected
+`InstallerError` variant rather than silently proceeding or panicking.
+A tenth "sanity anchor" test confirms the identical setup *does* verify
+successfully once every condition above is genuinely met — so the
+failure tests above are proven to fail for the right reason, not
+merely because something else broke.
+
+**Reason:** D-0077's CLI wrappers reconstruct governance/attestation
+state (via `release::verified_release`) and installer pipeline state
+(via the new cross-process reconstruction methods) from scratch on
+every invocation; a wiring bug in that reconstruction path could
+plausibly weaken a check that the underlying library enforces correctly
+in-process, without any existing test catching it, since neither
+`mini-forge`'s nor `mini-installer`'s own suites go through the CLI at
+all, and `cli_spine_commands.rs`/`cli_json_output.rs` only exercise
+happy paths.
+
+**Constitutional impact:** none — no behavior changed, only proven.
+Confirms (does not alter) that self-attestation exclusion and
+attestation deduplication, both load-bearing for the "N distinct
+verified identity roots, author excluded" adoption quorum pattern
+(mirrored from `mini_forge::release` into `mini_provenance` per D-0068),
+survive the CLI's re-derivation of that state on every invocation.
+
+**Implementation status:** shipped, all 10 tests passing on first run
+against the real CLI (no implementation changes were needed — the
+adversarial fixtures confirmed D-0077's reconstruction logic was
+already correct, not that it needed fixing). Full workspace `cargo test
+--workspace --all-features` green.
+
+**Failure point:** these fixtures cover `release`/`installer` only, the
+two command groups D-0077's own follow-up named — `repo`/`pr`'s CLI
+layer (governed merge quorum, author-exclusion in PR approval counting)
+has its own adversarial coverage from earlier batches
+(`two_developers.rs`'s untrusted-author test, `mini-forge::governance`'s
+own suite) but nothing analogous to this file's "attack the CLI
+reconstruction path specifically" framing.
+
+**Supersedes / superseded by:** none. Fulfills the follow-up D-0077 and
+D-0078 both named.

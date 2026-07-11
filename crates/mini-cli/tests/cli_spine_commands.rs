@@ -15,10 +15,12 @@
 //! functions with the right arguments and gets the right real-world
 //! result back.
 //!
-//! No `--json` output exists yet (that is #112) -- every value threaded
-//! from one command's output into the next command's input is scraped out
-//! of today's human-readable text, the same `last_word`/`did_of` approach
-//! `two_developers.rs` and `self_hosted_spine_e2e.rs` already use.
+//! This file predates `--json` output (#112, `cli_json_output.rs`) and
+//! keeps using `last_word`/`did_of` text scraping to thread values between
+//! commands, the same approach `two_developers.rs` and
+//! `self_hosted_spine_e2e.rs` already use -- left as-is rather than
+//! rewritten, since it was already passing and `--json` coverage lives in
+//! its own dedicated test file.
 
 mod common;
 
