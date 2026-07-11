@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 33,
-    "files": 336,
-    "headings": 788,
-    "rust_symbols": 2784
+    "files": 338,
+    "headings": 789,
+    "rust_symbols": 2832
   },
   "crates": {
     "did-mini": {
@@ -7092,7 +7092,7 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 21315,
+      "bytes": 23414,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
@@ -7104,30 +7104,30 @@
         "unwrap",
         "cli",
         "mini_cli",
-        "build",
-        "yet",
-        "home",
+        "common",
         "run",
+        "build",
+        "home",
         "one",
         "calls",
+        "yet",
         "store",
+        "process",
         "path",
         "string",
-        "common",
         "governed",
         "install",
         "mini_forge",
         "mini_installer",
-        "against",
-        "installer"
+        "against"
       ],
-      "lines": 635,
+      "lines": 695,
       "path": "crates/mini-cli/tests/self_hosted_spine_e2e.rs",
-      "sha256": "12e582d15812d15bfa138f93ebc80f8dbed0b29e49bbea88c327b90b80eaef94",
+      "sha256": "e691f6e18399076f86e2689a81c8c97c22b2cc4ae1d4cc1934c1548e65f7f424",
       "symbols": [
         {
           "kind": "mod",
-          "line": 37,
+          "line": 35,
           "name": "common"
         },
         {
@@ -11842,38 +11842,38 @@
       "title": "mini-installer"
     },
     {
-      "bytes": 2457,
+      "bytes": 3036,
       "group": "crate:mini-installer",
       "headings": [],
       "keywords": [
         "installererror",
         "error",
-        "staged",
         "write",
+        "staged",
         "std",
         "fmt",
         "release",
+        "installer",
+        "log",
+        "self",
         "mini_media",
         "mediaerror",
+        "installlogerror",
         "core",
         "media",
-        "installer",
-        "self",
         "objectid",
         "artifact",
         "match",
         "disk",
         "approved",
+        "back",
         "display",
         "bytes",
-        "expected",
-        "digest",
-        "staging",
-        "time"
+        "expected"
       ],
-      "lines": 67,
+      "lines": 80,
       "path": "crates/mini-installer/src/error.rs",
-      "sha256": "92db06dcfee41b97d62c42fdf43ec03641b77472a7aa11a31a4eecae9499322d",
+      "sha256": "768d7f417bab70312f11f3ac09eb94dad94ad5bf64a6f7119b8a2e3a30892c05",
       "symbols": [
         {
           "kind": "enum",
@@ -11882,18 +11882,8 @@
         },
         {
           "kind": "impl",
-          "line": 31,
-          "name": "From<std::io::Error>"
-        },
-        {
-          "kind": "fn",
-          "line": 32,
-          "name": "from"
-        },
-        {
-          "kind": "impl",
           "line": 37,
-          "name": "From<mini_media::MediaError>"
+          "name": "From<std::io::Error>"
         },
         {
           "kind": "fn",
@@ -11903,195 +11893,519 @@
         {
           "kind": "impl",
           "line": 43,
-          "name": "core::fmt::Display"
+          "name": "From<mini_media::MediaError>"
         },
         {
           "kind": "fn",
           "line": 44,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 49,
+          "name": "From<crate::InstallLogError>"
+        },
+        {
+          "kind": "fn",
+          "line": 50,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 55,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 56,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 66,
+          "line": 79,
           "name": "std::error::Error"
         }
       ],
       "title": "use mini_objects::ObjectId;"
     },
     {
-      "bytes": 16112,
+      "bytes": 27443,
       "group": "crate:mini-installer",
       "headings": [],
       "keywords": [
+        "installeventkind",
+        "ownerapproved",
+        "self",
+        "discovered",
+        "verified",
+        "tag",
+        "std",
         "installer",
-        "stage",
-        "never",
-        "release",
-        "already",
+        "failedwithnopriorrelease",
         "staged",
-        "ownerapproval",
-        "activate",
-        "design",
-        "real",
-        "mini-update",
-        "state",
-        "named",
-        "caller",
-        "each",
-        "const",
-        "str",
-        "error",
-        "current_link",
-        "previous_marker",
-        "staged_dir",
-        "installstate",
         "preflightpassed",
-        "new"
+        "awaitingownerapproval",
+        "activating",
+        "event",
+        "nothing",
+        "one",
+        "match",
+        "rolledback",
+        "healthcheckstarted",
+        "healthcheckpassed",
+        "installlogerror",
+        "what",
+        "type-state",
+        "log"
       ],
-      "lines": 384,
-      "path": "crates/mini-installer/src/lib.rs",
-      "sha256": "1507e794a888e0c5e55b42a4d04c8f21e684ecf7c4275cd71bcaf3ba560a1086",
+      "lines": 715,
+      "path": "crates/mini-installer/src/event_log.rs",
+      "sha256": "eae9bb91e2456ff87f6aae227ed6a33a21200cb424e95f24a379689685bcd680",
       "symbols": [
         {
-          "kind": "mod",
-          "line": 66,
-          "name": "error"
-        },
-        {
-          "kind": "const",
-          "line": 78,
-          "name": "CURRENT_LINK"
-        },
-        {
-          "kind": "const",
-          "line": 79,
-          "name": "PREVIOUS_MARKER"
-        },
-        {
-          "kind": "const",
-          "line": 80,
-          "name": "STAGED_DIR"
-        },
-        {
-          "kind": "const",
-          "line": 81,
-          "name": "ARTIFACT_FILE"
+          "kind": "type",
+          "line": 29,
+          "name": "EventHash"
         },
         {
           "kind": "enum",
-          "line": 90,
-          "name": "InstallState"
-        },
-        {
-          "kind": "struct",
-          "line": 102,
-          "name": "StagedRelease"
-        },
-        {
-          "kind": "struct",
-          "line": 114,
-          "name": "PreflightPassed"
-        },
-        {
-          "kind": "struct",
-          "line": 126,
-          "name": "OwnerApproval"
+          "line": 44,
+          "name": "InstallEventKind"
         },
         {
           "kind": "impl",
-          "line": 131,
-          "name": "OwnerApproval"
+          "line": 61,
+          "name": "InstallEventKind"
         },
         {
           "kind": "fn",
-          "line": 132,
-          "name": "new"
+          "line": 62,
+          "name": "tag"
+        },
+        {
+          "kind": "fn",
+          "line": 81,
+          "name": "from_tag"
+        },
+        {
+          "kind": "fn",
+          "line": 105,
+          "name": "valid_predecessors"
         },
         {
           "kind": "struct",
-          "line": 144,
-          "name": "ActivationRecord"
+          "line": 140,
+          "name": "InstallEvent"
         },
         {
-          "kind": "enum",
-          "line": 153,
-          "name": "HealthCheckOutcome"
-        },
-        {
-          "kind": "struct",
-          "line": 172,
-          "name": "Installer"
-        },
-        {
-          "kind": "impl",
-          "line": 176,
-          "name": "Installer"
+          "kind": "fn",
+          "line": 154,
+          "name": "signable_bytes"
         },
         {
           "kind": "fn",
           "line": 178,
-          "name": "new"
+          "name": "push_str"
         },
         {
           "kind": "fn",
-          "line": 185,
-          "name": "staged_dir"
-        },
-        {
-          "kind": "fn",
-          "line": 189,
-          "name": "current_link"
+          "line": 183,
+          "name": "push_opt_str"
         },
         {
           "kind": "fn",
           "line": 193,
+          "name": "push_opt_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 204,
+          "name": "take_str"
+        },
+        {
+          "kind": "fn",
+          "line": 219,
+          "name": "take_opt_str"
+        },
+        {
+          "kind": "fn",
+          "line": 232,
+          "name": "take_opt_bytes32"
+        },
+        {
+          "kind": "impl",
+          "line": 258,
+          "name": "InstallEvent"
+        },
+        {
+          "kind": "fn",
+          "line": 265,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 306,
+          "name": "recompute_hash"
+        },
+        {
+          "kind": "fn",
+          "line": 321,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 346,
+          "name": "decode_body"
+        },
+        {
+          "kind": "enum",
+          "line": 468,
+          "name": "InstallLogError"
+        },
+        {
+          "kind": "impl",
+          "line": 532,
+          "name": "std::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 533,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 583,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "struct",
+          "line": 589,
+          "name": "VerifiedInstallHistory"
+        },
+        {
+          "kind": "impl",
+          "line": 593,
+          "name": "VerifiedInstallHistory"
+        },
+        {
+          "kind": "fn",
+          "line": 595,
+          "name": "for_release"
+        },
+        {
+          "kind": "fn",
+          "line": 607,
+          "name": "verify_install_event_log"
+        }
+      ],
+      "title": "use std::fs::{self, OpenOptions};"
+    },
+    {
+      "bytes": 26008,
+      "group": "crate:mini-installer",
+      "headings": [],
+      "keywords": [
+        "installer",
+        "never",
+        "log",
+        "ownerapproval",
+        "activate",
+        "already",
+        "one",
+        "caller",
+        "event_log",
+        "stage",
+        "design",
+        "release",
+        "anything",
+        "real",
+        "mini-update",
+        "staged",
+        "new",
+        "rollback",
+        "decision",
+        "since",
+        "doc",
+        "verified",
+        "disk",
+        "failed"
+      ],
+      "lines": 666,
+      "path": "crates/mini-installer/src/lib.rs",
+      "sha256": "197ded5eca8ad191c3207383e809f6236a205cfaeb89034d325997ff1c204cf7",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 86,
+          "name": "error"
+        },
+        {
+          "kind": "mod",
+          "line": 87,
+          "name": "event_log"
+        },
+        {
+          "kind": "const",
+          "line": 103,
+          "name": "CURRENT_LINK"
+        },
+        {
+          "kind": "const",
+          "line": 104,
+          "name": "PREVIOUS_MARKER"
+        },
+        {
+          "kind": "const",
+          "line": 105,
+          "name": "STAGED_DIR"
+        },
+        {
+          "kind": "const",
+          "line": 106,
+          "name": "ARTIFACT_FILE"
+        },
+        {
+          "kind": "const",
+          "line": 107,
+          "name": "EVENT_LOG_FILE"
+        },
+        {
+          "kind": "enum",
+          "line": 116,
+          "name": "InstallState"
+        },
+        {
+          "kind": "struct",
+          "line": 128,
+          "name": "StagedRelease"
+        },
+        {
+          "kind": "struct",
+          "line": 141,
+          "name": "PreflightPassed"
+        },
+        {
+          "kind": "struct",
+          "line": 154,
+          "name": "OwnerApproval"
+        },
+        {
+          "kind": "impl",
+          "line": 159,
+          "name": "OwnerApproval"
+        },
+        {
+          "kind": "fn",
+          "line": 160,
+          "name": "new"
+        },
+        {
+          "kind": "struct",
+          "line": 172,
+          "name": "ActivationRecord"
+        },
+        {
+          "kind": "enum",
+          "line": 182,
+          "name": "HealthCheckOutcome"
+        },
+        {
+          "kind": "struct",
+          "line": 201,
+          "name": "Installer"
+        },
+        {
+          "kind": "impl",
+          "line": 205,
+          "name": "Installer"
+        },
+        {
+          "kind": "fn",
+          "line": 207,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 214,
+          "name": "staged_dir"
+        },
+        {
+          "kind": "fn",
+          "line": 218,
+          "name": "current_link"
+        },
+        {
+          "kind": "fn",
+          "line": 222,
           "name": "previous_marker"
         },
         {
           "kind": "fn",
-          "line": 199,
+          "line": 226,
+          "name": "event_log_path"
+        },
+        {
+          "kind": "fn",
+          "line": 234,
+          "name": "event_log"
+        },
+        {
+          "kind": "fn",
+          "line": 243,
+          "name": "version_of"
+        },
+        {
+          "kind": "fn",
+          "line": 259,
+          "name": "append_event"
+        },
+        {
+          "kind": "fn",
+          "line": 289,
           "name": "current"
         },
         {
           "kind": "fn",
-          "line": 221,
+          "line": 316,
           "name": "stage"
         },
         {
           "kind": "fn",
-          "line": 249,
+          "line": 379,
           "name": "preflight"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 438,
           "name": "activate"
         },
         {
           "kind": "fn",
-          "line": 310,
+          "line": 500,
           "name": "health_check"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 579,
           "name": "rollback"
         },
         {
           "kind": "fn",
-          "line": 366,
+          "line": 586,
+          "name": "rollback_internal"
+        },
+        {
+          "kind": "fn",
+          "line": 648,
           "name": "swap_current"
         },
         {
           "kind": "fn",
-          "line": 377,
+          "line": 659,
           "name": "remove_if_present"
         }
       ],
       "title": "mod error;"
     },
     {
-      "bytes": 11766,
+      "bytes": 15432,
+      "group": "crate:mini-installer",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "store",
+        "installer",
+        "installeventkind",
+        "seed",
+        "root",
+        "events",
+        "new",
+        "std",
+        "a_verified_release",
+        "controller",
+        "objectid",
+        "memorybackend",
+        "did",
+        "dev",
+        "dir",
+        "tempdir",
+        "human",
+        "real",
+        "version",
+        "kinds",
+        "pipeline",
+        "verifiedrelease",
+        "ownerapproval"
+      ],
+      "lines": 462,
+      "path": "crates/mini-installer/tests/event_log.rs",
+      "sha256": "e430ef4064666a3f6be96ae0c410078abcf0e5b731b7a02854a24046d15cc198",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 19,
+          "name": "tempdir"
+        },
+        {
+          "kind": "fn",
+          "line": 32,
+          "name": "human"
+        },
+        {
+          "kind": "fn",
+          "line": 42,
+          "name": "a_verified_release"
+        },
+        {
+          "kind": "fn",
+          "line": 77,
+          "name": "kinds"
+        },
+        {
+          "kind": "fn",
+          "line": 87,
+          "name": "fake_release_id"
+        },
+        {
+          "kind": "fn",
+          "line": 95,
+          "name": "good_install_records_a_complete_event_chain"
+        },
+        {
+          "kind": "fn",
+          "line": 132,
+          "name": "broken_release_records_health_failure_and_rollback"
+        },
+        {
+          "kind": "fn",
+          "line": 197,
+          "name": "activation_without_owner_approval_is_not_representable"
+        },
+        {
+          "kind": "fn",
+          "line": 237,
+          "name": "tampered_event_hash_fails_verification"
+        },
+        {
+          "kind": "fn",
+          "line": 260,
+          "name": "deleted_middle_event_fails_verification"
+        },
+        {
+          "kind": "fn",
+          "line": 285,
+          "name": "rollback_without_failed_health_check_or_reason_fails_verification"
+        },
+        {
+          "kind": "fn",
+          "line": 391,
+          "name": "stale_rollback_target_fails_verification"
+        }
+      ],
+      "title": "use std::fs;"
+    },
+    {
+      "bytes": 11913,
       "group": "crate:mini-installer",
       "headings": [],
       "keywords": [
@@ -12122,7 +12436,7 @@
       ],
       "lines": 319,
       "path": "crates/mini-installer/tests/installer.rs",
-      "sha256": "9c36c3a95ac478c001c429abe76357de1812a89acf452a931a07d95d98964d5f",
+      "sha256": "9cc8ac0b987acb82d4319d8c6f5e48a6a4ca0bb20b93cb905f07a6097684bb86",
       "symbols": [
         {
           "kind": "fn",
@@ -26308,7 +26622,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 218567,
+      "bytes": 222870,
       "group": "docs",
       "headings": [
         {
@@ -26705,13 +27019,18 @@
           "level": 3,
           "line": 3601,
           "text": "D-0075 \u2014 Private Human Continuity Proof redefines personhood signal (b)  \u00b7  *Accepted*"
+        },
+        {
+          "level": 3,
+          "line": 3685,
+          "text": "D-0076 \u2014 `mini-installer` gains a persisted, hash-chained event log, separate from and subordinate to its type-state pipeline  \u00b7  *Accepted*"
         }
       ],
       "keywords": [
         "accepted",
         "founder",
-        "core",
         "log",
+        "core",
         "batch",
         "review",
         "rust",
@@ -26733,9 +27052,9 @@
         "date",
         "refs"
       ],
-      "lines": 3682,
+      "lines": 3756,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "bdfde90b2bc7ef4a02da26fc0374da3feac90384895d80905899df8836d7fbbd",
+      "sha256": "bd1b304038fc70af057bb95b8dce4b32d68efa3b4146e0fae788c7c9610896ce",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -27501,7 +27820,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 22019,
+      "bytes": 22454,
       "group": "docs",
       "headings": [
         {
@@ -27536,37 +27855,37 @@
         },
         {
           "level": 2,
-          "line": 164,
+          "line": 167,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 172,
+          "line": 175,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 213,
+          "line": 216,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 229,
+          "line": 232,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 249,
+          "line": 252,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 352,
+          "line": 358,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 358,
+          "line": 364,
           "text": "Where to look for more detail"
         }
       ],
@@ -27596,9 +27915,9 @@
         "signal",
         "audits"
       ],
-      "lines": 368,
+      "lines": 374,
       "path": "docs/STATUS.md",
-      "sha256": "51583e15833929869456b0d0869bb2063aa5d1b4c2cea0c0db665e27a999dcfa",
+      "sha256": "150aedcde734108290927782bb37bc4cab302863896d0d18568ac055849d80b6",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -29035,7 +29354,7 @@
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
     },
     {
-      "bytes": 25801,
+      "bytes": 26374,
       "group": "docs",
       "headings": [
         {
@@ -29080,17 +29399,17 @@
         },
         {
           "level": 2,
-          "line": 427,
+          "line": 435,
           "text": "Batch 5 \u2014 Mininet as the primary forge"
         },
         {
           "level": 2,
-          "line": 435,
+          "line": 443,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 444,
+          "line": 452,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -29120,9 +29439,9 @@
         "git",
         "adapted"
       ],
-      "lines": 462,
+      "lines": 470,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "c337e5c89fe700670a6ce56ccaddbc3c65df151be04dfc3c95a6eda3eb796294",
+      "sha256": "085caa5da2df431fa8a01c1598cb9d5fa4d24e4b16b5a1f50048844129c5bb0f",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },

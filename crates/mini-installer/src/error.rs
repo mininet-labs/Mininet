@@ -26,6 +26,12 @@ pub enum InstallerError {
     /// The `current` symlink (or the `previous` marker) exists but does
     /// not point at / name a well-formed object id.
     CorruptCurrentLink,
+    /// Appending to or reading back the persisted event log failed --
+    /// distinct from every error above, since those are about the
+    /// install *action* failing, while this is about the durable record
+    /// of actions failing (see `crate::event_log`'s module docs on why
+    /// that's a separate concern).
+    Log(crate::InstallLogError),
 }
 
 impl From<std::io::Error> for InstallerError {
@@ -37,6 +43,12 @@ impl From<std::io::Error> for InstallerError {
 impl From<mini_media::MediaError> for InstallerError {
     fn from(e: mini_media::MediaError) -> Self {
         InstallerError::Media(e)
+    }
+}
+
+impl From<crate::InstallLogError> for InstallerError {
+    fn from(e: crate::InstallLogError) -> Self {
+        InstallerError::Log(e)
     }
 }
 
@@ -59,6 +71,7 @@ impl core::fmt::Display for InstallerError {
             InstallerError::CorruptCurrentLink => {
                 write!(f, "current/previous pointer is corrupt")
             }
+            InstallerError::Log(e) => write!(f, "installer event log error: {e}"),
         }
     }
 }

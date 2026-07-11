@@ -3679,3 +3679,77 @@ decision is a redefinition, not a selection among the three). D-0038
 remains controlling for the open-ended multi-signal accumulator
 architecture this signal is hosted inside; D-0054 remains controlling for
 the live-vouching requirement.
+
+---
+
+### D-0076 — `mini-installer` gains a persisted, hash-chained event log, separate from and subordinate to its type-state pipeline  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #102 (self-hosted forge spine
+Batch 4), PR #109 (self-hosted spine E2E harness, whose own module docs
+first named this gap), `docs/design/self-hosted-forge-spine.md` Batch 4
+section, `crates/mini-installer/src/event_log.rs`.
+
+**Decision:** `mini-installer`'s existing type-state pipeline (`Discovered
+→ ... → Active` or `RolledBack`, D-0071) stays the sole in-process
+authority for what the installer is allowed to do — this decision adds
+nothing to that authority. Alongside it, every real transition
+(`Installer::stage`/`preflight`/`activate`/`health_check`/`rollback`) now
+also appends a record to a durable, append-only, hash-chained event log
+on disk, queryable after any process exit via a new `Installer::event_log`
+reader and a standalone `verify_install_event_log` function that
+independently checks hash-chain integrity, sequence contiguity, and
+per-release state-machine validity (rejecting invalid transitions,
+unexplained rollbacks, and stale rollback targets). `StagedRelease`/
+`PreflightPassed`/`ActivationRecord` gained a `version: String` field so
+later pipeline stages can recover a release's version without a
+side-channel lookup; `Installer::stage`/`preflight`/`health_check`/
+`rollback` gained a `timestamp_ms: u64` parameter (matching this
+workspace's existing no-internal-`SystemTime::now()` convention) since
+`activate` already had one via `OwnerApproval::approved_at_ms`.
+
+**Reason:** a type-state pipeline is a real, compiler-enforced
+correctness mechanism *while a process is running*, but it leaves nothing
+behind for a fresh process, an auditor, or a future `mini installer
+history`/`verify-log` CLI command to inspect once that process exits —
+exactly the gap PR #109's own E2E harness named as unproven when it
+first drove the full spine. A self-updating system needs durable evidence
+of what it did to itself, not just correctness of what it's doing right
+now.
+
+**Constitutional impact:** implements the same "typed domain, never
+generic sign/finalize" discipline (CLAUDE.md hard rule) at the evidence
+layer: `InstallEvent` is a specific, named record type, not an open
+`serde_json::Value` blob a caller could shape into anything. No
+`docs/INVARIANTS.md` row changes — this adds evidence, it does not touch
+the installer's authority model (U1, no-forced-update/no-kill-path)
+which the boundary rule below exists specifically to protect.
+
+**Implementation status:** shipped. `crates/mini-installer/src/
+event_log.rs` (encode/decode, hash chaining, the verifier), wired into
+every existing `Installer` method; 7 new adversarial tests
+(`tests/event_log.rs`) plus the 10 pre-existing `tests/installer.rs`
+tests updated for the new method signatures; `crates/mini-cli/tests/
+self_hosted_spine_e2e.rs` reopens the log from disk post-hoc and asserts
+the exact event-kind sequence for both the good and the deliberately
+broken release.
+
+**Failure point:** the log's append path re-reads the entire log on every
+write to derive the next sequence number and hash-chain link (no
+in-memory counter, matching this crate's existing "no in-memory state to
+get out of sync with a process restart" design) — fine for a device's
+real lifetime event count, but a caller than logs pathologically often
+would see this degrade linearly. No encryption or access control on the
+log file itself; anyone who can read the installer's root directory can
+read the full install history (matches this crate's existing "real local
+files, not a service" trust model — no new exposure beyond what already
+existed for `current`/`previous`).
+
+**Required follow-up:** wire `Installer::event_log`/
+`verify_install_event_log` into a real `mini installer history`/`mini
+installer verify-log` CLI command once CLI wiring for build/release/
+install exists (the next PR in this stack); consider whether a device
+with a very long install history needs a compaction/rotation policy
+before that becomes a real CLI surface most users touch.
+
+**Supersedes / superseded by:** none — first decision on this specific
+gap. Builds directly on D-0071 (mini-installer itself) without altering
+its authority model.

@@ -23,13 +23,11 @@
 //!
 //! ## What this does not (yet) prove
 //!
-//! - No persisted, queryable installer event log exists yet (`mini_installer`
-//!   is a type-state pipeline: each function's return type *is* the proof
-//!   a step happened, checked at compile time, but there's no `Vec<Event>`
-//!   a caller can inspect after the fact). This test asserts on the real
-//!   typed return values (`ActivationRecord`, `HealthCheckOutcome`) as the
-//!   closest existing analogue -- adding a real event log is separate,
-//!   necessary follow-up work.
+//! - `mini_installer` now persists a hash-chained event log alongside its
+//!   type-state pipeline (Phase 13 below reopens it from disk and verifies
+//!   it independently) -- but nothing here has exercised that log surviving
+//!   a real process restart mid-pipeline, only a fresh `Installer` handle
+//!   reading it back within the same test process.
 //! - Runs against `FsBackend` on one machine with three home directories
 //!   sharing one store path -- not yet a live, concurrent, multi-machine
 //!   network (that's Batch 5).
@@ -44,7 +42,9 @@ use mini_forge::{
     attest, check_no_rollback, release, verify_governed_release, ReleasePolicy, Version,
     ADOPTION_MIN_ATTESTATIONS, ADOPTION_MIN_TIMELOCK_MS,
 };
-use mini_installer::{HealthCheckOutcome, Installer, OwnerApproval};
+use mini_installer::{
+    verify_install_event_log, HealthCheckOutcome, InstallEventKind, Installer, OwnerApproval,
+};
 use mini_objects::ObjectId;
 use mini_pipeline::{Capability, ResourceLimits};
 use mini_provenance::{independent_agreement, record_provenance, BuildProvenance};
@@ -481,8 +481,8 @@ fn self_hosted_spine_survives_broken_release_and_rolls_back() {
     let installer = Installer::new(&device_root).unwrap();
     assert!(installer.current().unwrap().is_none());
 
-    let staged_v1 = installer.stage(&store_handle, &verified_v1).unwrap();
-    let passed_v1 = installer.preflight(&staged_v1).unwrap();
+    let staged_v1 = installer.stage(&store_handle, &verified_v1, 9250).unwrap();
+    let passed_v1 = installer.preflight(&staged_v1, 9260).unwrap();
     let activation_v1 = installer
         .activate(&passed_v1, &OwnerApproval::new(release_v1_id.clone(), 9300))
         .unwrap();
@@ -490,7 +490,9 @@ fn self_hosted_spine_survives_broken_release_and_rolls_back() {
         activation_v1.previous, None,
         "first-ever activation has nothing to roll back to"
     );
-    let outcome_v1 = installer.health_check(activation_v1, || true).unwrap();
+    let outcome_v1 = installer
+        .health_check(activation_v1, || true, 9310)
+        .unwrap();
     assert_eq!(
         outcome_v1,
         HealthCheckOutcome::Active(release_v1_id.clone())
@@ -587,8 +589,8 @@ fn self_hosted_spine_survives_broken_release_and_rolls_back() {
     );
 
     // ---- Phase 11: install the broken release -> health check fails ---
-    let staged_v2 = installer.stage(&store_handle, &verified_v2).unwrap();
-    let passed_v2 = installer.preflight(&staged_v2).unwrap();
+    let staged_v2 = installer.stage(&store_handle, &verified_v2, 9650).unwrap();
+    let passed_v2 = installer.preflight(&staged_v2, 9660).unwrap();
     let activation_v2 = installer
         .activate(&passed_v2, &OwnerApproval::new(release_v2_id.clone(), 9700))
         .unwrap();
@@ -604,7 +606,9 @@ fn self_hosted_spine_survives_broken_release_and_rolls_back() {
     );
 
     // ---- Phase 12: rollback, and the evidence trail that it happened --
-    let outcome_v2 = installer.health_check(activation_v2, || false).unwrap();
+    let outcome_v2 = installer
+        .health_check(activation_v2, || false, 9710)
+        .unwrap();
     assert_eq!(
         outcome_v2,
         HealthCheckOutcome::RolledBack {
@@ -619,14 +623,70 @@ fn self_hosted_spine_survives_broken_release_and_rolls_back() {
         "after rollback the device must be running the last-known-good release, not nothing and not the broken one"
     );
 
-    // The observable evidence trail this test can assert on today (no
-    // persisted event-log type exists yet -- see this file's module docs):
-    // activation_v1.previous == None, activation_v2.previous == Some(v1),
-    // and outcome_v2 naming both the failed and restored release ids by
-    // value, not just a boolean. Together they reconstruct exactly the
-    // sequence the founder directive asks this harness to prove:
-    // stage -> preflight -> owner-approved activate -> health check ->
-    // (fail) -> automatic rollback to the prior known-good release.
+    // ---- Phase 13: reopen the persisted event log from disk and assert
+    // the complete, verified evidence trail -- not just the typed return
+    // values above, but the durable record a fresh process (a `mini
+    // installer history` CLI command, once one exists) would read back.
+    let installer_reopened = Installer::new(&device_root).unwrap();
+    let events = installer_reopened.event_log().unwrap();
+    let verified_history =
+        verify_install_event_log(&events).expect("the real installer's own log must verify clean");
+
+    let v1_event_kinds: Vec<InstallEventKind> = verified_history
+        .for_release(&release_v1_id)
+        .iter()
+        .map(|e| e.kind)
+        .collect();
+    assert_eq!(
+        v1_event_kinds,
+        vec![
+            InstallEventKind::Discovered,
+            InstallEventKind::Verified,
+            InstallEventKind::Staged,
+            InstallEventKind::PreflightPassed,
+            InstallEventKind::AwaitingOwnerApproval,
+            InstallEventKind::OwnerApproved,
+            InstallEventKind::Activating,
+            InstallEventKind::HealthCheckStarted,
+            InstallEventKind::HealthCheckPassed,
+            // v1 is the release v2's rollback restored -- it gets its own
+            // trailing PreviousReleaseActive event once that happens.
+            InstallEventKind::PreviousReleaseActive,
+        ],
+        "the good release's persisted event chain must match its real lifecycle exactly"
+    );
+
+    let v2_event_kinds: Vec<InstallEventKind> = verified_history
+        .for_release(&release_v2_id)
+        .iter()
+        .map(|e| e.kind)
+        .collect();
+    assert_eq!(
+        v2_event_kinds,
+        vec![
+            InstallEventKind::Discovered,
+            InstallEventKind::Verified,
+            InstallEventKind::Staged,
+            InstallEventKind::PreflightPassed,
+            InstallEventKind::AwaitingOwnerApproval,
+            InstallEventKind::OwnerApproved,
+            InstallEventKind::Activating,
+            InstallEventKind::HealthCheckStarted,
+            InstallEventKind::HealthCheckFailed,
+            InstallEventKind::RollbackStarted,
+            InstallEventKind::RolledBack,
+        ],
+        "the broken release's persisted event chain must record the failure and rollback exactly"
+    );
+
+    // PreviousReleaseActive is recorded against the *restored* release
+    // (v1), immediately after v2's RolledBack -- the log's own way of
+    // saying "and here is what ended up running instead."
+    assert_eq!(
+        events.last().unwrap().kind,
+        InstallEventKind::PreviousReleaseActive
+    );
+    assert_eq!(events.last().unwrap().release_id, release_v1_id);
 
     for dir in [&store, &alice, &bob, &carol, &device_root, &src_dir] {
         fs::remove_dir_all(dir).ok();

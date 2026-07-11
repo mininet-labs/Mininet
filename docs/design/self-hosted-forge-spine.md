@@ -401,28 +401,36 @@ AwaitingOwnerApproval → Activating → HealthChecking → Active` or
 - `Installer::rollback` is directly callable too, consumes the recorded
   "previous" pointer on success so repeated calls fail cleanly instead of
   toggling between two releases.
+- Every step above also appends to a real, persisted, hash-chained event
+  log (`event_log.rs`, D-0076) — durable evidence queryable after any
+  process exit, distinct from the in-process type-state values. Boundary
+  rule, load-bearing: the log is evidence of what happened, never
+  permission for anything to happen — `Installer::activate` still refuses
+  to run without a real `OwnerApproval` regardless of what the log says.
+  `verify_install_event_log` independently checks hash-chain integrity,
+  sequence contiguity, per-release state-machine validity, and rejects
+  unexplained/stale rollback claims.
 
 **Honest limits, stated in the crate's own docs:** Unix-only
 (`std::os::unix::fs::symlink`); no process supervision (staging + a
 pointer flip only — starting/stopping/restarting a process is the
 caller's job); no real package-manager/OS integration (activation means a
 symlink under an installer-owned directory changes target, not that any
-running system has been touched). 10 adversarial/integration tests against
-real files on real disk.
+running system has been touched). 17 adversarial/integration tests
+(`tests/installer.rs`, `tests/event_log.rs`) against real files on real
+disk.
 
 **Batch 6's stated exit condition** — "a deliberately broken release
 detected, auto-recovered, with a verifiable event history in a test
-environment" — is demonstrated by
-`a_failed_health_check_rolls_back_to_the_previous_release` and
-`a_failed_health_check_on_the_first_ever_activation_leaves_nothing_active`:
-a release whose caller-supplied health check deliberately fails is
-detected (`HealthCheckOutcome::RolledBack`/`FailedWithNoPriorRelease`),
-auto-recovered (the `current` pointer is atomically restored, verified via
-`Installer::current()`), with the `ActivationRecord`/`HealthCheckOutcome`
-values themselves standing in for the "verifiable event history" in this
-test environment — a real local disk, not a simulated one, though not yet
-a running distributed system with real network partitions or concurrent
-installers racing each other.
+environment" — is now demonstrated two ways: the typed return values
+(`a_failed_health_check_rolls_back_to_the_previous_release`,
+`a_failed_health_check_on_the_first_ever_activation_leaves_nothing_active`)
+*and*, since D-0076, an actual persisted, hash-chained, independently
+verifiable event log a fresh process can reopen from disk and check —
+`crates/mini-cli/tests/self_hosted_spine_e2e.rs`'s own Phase 13 does
+exactly that against a real end-to-end run. Still a real local disk, not
+a simulated one, and still not yet a running distributed system with real
+network partitions or concurrent installers racing each other.
 
 ## Batch 5 — Mininet as the primary forge
 

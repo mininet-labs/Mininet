@@ -147,10 +147,13 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   generic "approve"; activation is a real `symlink`/`rename` swap), a
   caller-supplied health check, and automatic rollback on a failed check
   (clearing `current` entirely rather than leaving it on known-unhealthy
-  software if there was nothing to fall back to). Unix-only; no process
-  supervision; no real package-manager/OS integration -- honest limits
-  stated in the crate's own docs. 10 adversarial/integration tests against
-  real files on real disk.
+  software if there was nothing to fall back to), and, since D-0076, a
+  persisted, hash-chained, independently-verifiable event log alongside
+  the in-process type-state pipeline (`verify_install_event_log`; the log
+  is evidence of what happened, never permission for anything to happen).
+  Unix-only; no process supervision; no real package-manager/OS
+  integration -- honest limits stated in the crate's own docs. 17
+  adversarial/integration tests against real files on real disk.
 - **partial** — `mini-bootstrap` (genesis/capsule protocol logic) is
   shipped, and now proven live over real TCP (D-0062, closes #23, see §8);
   real BLE/Wi-Fi radio adapters remain not started (need phone hardware).
@@ -323,9 +326,12 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   condition (a deliberately broken release detected and auto-recovered
   with a verifiable event history) is demonstrated in this crate's own
   test suite, honestly caveated as a real local disk in a test
-  environment, not yet a live distributed system. Honest limits: Unix-only
+  environment, not yet a live distributed system — and, since D-0076,
+  "verifiable event history" is now a real persisted, hash-chained,
+  independently-verifiable log (`verify_install_event_log`), not just
+  typed in-process return values. Honest limits: Unix-only
   (`symlink`/`rename` activation), no process supervision, no real
-  package-manager/OS integration — see §5 for the full detail; 10 tests.
+  package-manager/OS integration — see §5 for the full detail; 17 tests.
 - **shipped** — Batch 5, first piece: `mini sync listen`/`mini sync
   connect` (`mini-cli::sync`), live network peer exchange over a real TCP
   `mini_bearer` + `mini_sync` connection — Batch 1's remaining deferred
