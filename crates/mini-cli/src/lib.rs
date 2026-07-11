@@ -30,11 +30,15 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod build;
 mod cli;
 mod error;
 pub mod identity;
+mod installer;
 mod pr;
 mod project;
+mod provenance;
+mod release;
 mod repo;
 mod sequence;
 pub mod store;

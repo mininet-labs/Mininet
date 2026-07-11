@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use did_mini::Did;
 
 use crate::error::{CliError, Result};
-use crate::{identity, pr, repo, store, sync};
+use crate::{build, identity, installer, pr, provenance, release, repo, store, sync};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|a| a == flag)?;
@@ -74,6 +74,10 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<Str
         "repo" => dispatch_repo(home, store_path, args),
         "pr" => dispatch_pr(home, store_path, args),
         "sync" => dispatch_sync(home, store_path, args),
+        "build" => dispatch_build(args),
+        "release" => dispatch_release(home, store_path, args),
+        "provenance" => dispatch_provenance(home, store_path, args),
+        "installer" => dispatch_installer(home, store_path, args),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
 }
@@ -237,6 +241,250 @@ fn dispatch_sync(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
         }
         other => Err(CliError::Usage(format!(
             "unknown `sync` subcommand: {other:?}"
+        ))),
+    }
+}
+
+fn extract_u64_flag(args: &mut Vec<String>, flag: &str) -> Result<Option<u64>> {
+    extract_flag(args, flag)
+        .map(|s| {
+            s.parse()
+                .map_err(|_| CliError::Usage(format!("bad {flag}")))
+        })
+        .transpose()
+}
+
+fn extract_u32_flag(args: &mut Vec<String>, flag: &str) -> Result<Option<u32>> {
+    extract_flag(args, flag)
+        .map(|s| {
+            s.parse()
+                .map_err(|_| CliError::Usage(format!("bad {flag}")))
+        })
+        .transpose()
+}
+
+fn required_u64_flag(args: &mut Vec<String>, flag: &str) -> Result<u64> {
+    extract_u64_flag(args, flag)?.ok_or_else(|| CliError::Usage(format!("{flag} required")))
+}
+
+fn required_path_flag(args: &mut Vec<String>, flag: &str) -> Result<PathBuf> {
+    extract_flag(args, flag)
+        .map(PathBuf::from)
+        .ok_or_else(|| CliError::Usage(format!("{flag} required")))
+}
+
+fn dispatch_build(mut args: Vec<String>) -> Result<String> {
+    let noun = next(&mut args, "build")?;
+    match noun.as_str() {
+        "run" => {
+            let component = required_path_flag(&mut args, "--component")?;
+            let store_dir = required_path_flag(&mut args, "--store-dir")?;
+            let scratch_dir = required_path_flag(&mut args, "--scratch-dir")?;
+            let artifacts_dir = required_path_flag(&mut args, "--artifacts-dir")?;
+            let capabilities =
+                build::parse_capabilities(extract_flag_multi(&mut args, "--capability"))?;
+
+            let mut limits = build::default_limits();
+            if let Some(v) = extract_u64_flag(&mut args, "--max-fuel")? {
+                limits.max_fuel = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-memory-bytes")? {
+                limits.max_memory_bytes = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-wall-clock-ms")? {
+                limits.max_wall_clock_ms = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-output-bytes")? {
+                limits.max_output_bytes = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-stdout-bytes")? {
+                limits.max_stdout_bytes = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-stderr-bytes")? {
+                limits.max_stderr_bytes = v;
+            }
+            if let Some(v) = extract_u32_flag(&mut args, "--max-open-files")? {
+                limits.max_open_files = v;
+            }
+
+            build::run(
+                &component,
+                &store_dir,
+                &scratch_dir,
+                &artifacts_dir,
+                capabilities,
+                limits,
+            )
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `build` subcommand: {other:?}"
+        ))),
+    }
+}
+
+fn dispatch_release(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+    let noun = next(&mut args, "release")?;
+    match noun.as_str() {
+        "create" => {
+            let project = next(&mut args, "release create")?;
+            let branch = extract_flag(&mut args, "--branch")
+                .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
+            let version = extract_flag(&mut args, "--version")
+                .ok_or_else(|| CliError::Usage("--version required".to_string()))?;
+            let commit = extract_flag(&mut args, "--commit")
+                .ok_or_else(|| CliError::Usage("--commit required".to_string()))?;
+            let artifact = required_path_flag(&mut args, "--artifact")?;
+            let recipe_digest = extract_flag(&mut args, "--recipe-digest")
+                .ok_or_else(|| CliError::Usage("--recipe-digest required".to_string()))?;
+            release::create(
+                home,
+                store_path,
+                &project,
+                &branch,
+                &version,
+                &commit,
+                &artifact,
+                &recipe_digest,
+            )
+        }
+        "attest" => {
+            let release_id = next(&mut args, "release attest")?;
+            let artifact_digest = extract_flag(&mut args, "--artifact-digest")
+                .ok_or_else(|| CliError::Usage("--artifact-digest required".to_string()))?;
+            release::attest_release(home, store_path, &release_id, &artifact_digest)
+        }
+        "verify" => {
+            let release_id = next(&mut args, "release verify")?;
+            let project = next(&mut args, "release verify")?;
+            let branch = extract_flag(&mut args, "--branch")
+                .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
+            let min_attestations = extract_u32_flag(&mut args, "--min-attestations")?;
+            let timelock_ms = extract_u64_flag(&mut args, "--timelock-ms")?;
+            let now_ms = extract_u64_flag(&mut args, "--now-ms")?;
+            release::verify(
+                home,
+                store_path,
+                &release_id,
+                &project,
+                &branch,
+                min_attestations,
+                timelock_ms,
+                now_ms,
+            )
+        }
+        "list" => {
+            let project = next(&mut args, "release list")?;
+            let branch = extract_flag(&mut args, "--branch")
+                .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
+            release::list(home, store_path, &project, &branch)
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `release` subcommand: {other:?}"
+        ))),
+    }
+}
+
+fn dispatch_provenance(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+    let noun = next(&mut args, "provenance")?;
+    match noun.as_str() {
+        "record" => {
+            let subject = next(&mut args, "provenance record")?;
+            let environment_digest = extract_flag(&mut args, "--environment-digest")
+                .ok_or_else(|| CliError::Usage("--environment-digest required".to_string()))?;
+            let commands_digest = extract_flag(&mut args, "--commands-digest")
+                .ok_or_else(|| CliError::Usage("--commands-digest required".to_string()))?;
+            let outputs = extract_flag_multi(&mut args, "--output");
+            let group = extract_flag(&mut args, "--group")
+                .ok_or_else(|| CliError::Usage("--group required".to_string()))?;
+            let network_enabled = extract_bool_flag(&mut args, "--network-enabled");
+            let started_ms = required_u64_flag(&mut args, "--started-ms")?;
+            let finished_ms = required_u64_flag(&mut args, "--finished-ms")?;
+            provenance::record(
+                home,
+                store_path,
+                &subject,
+                &environment_digest,
+                &commands_digest,
+                &outputs,
+                &group,
+                network_enabled,
+                started_ms,
+                finished_ms,
+            )
+        }
+        "verify" => {
+            let subject = next(&mut args, "provenance verify")?;
+            let output = extract_flag(&mut args, "--output")
+                .ok_or_else(|| CliError::Usage("--output required".to_string()))?;
+            let min_agreement = extract_u32_flag(&mut args, "--min-agreement")?.unwrap_or(1);
+            provenance::verify(home, store_path, &subject, &output, min_agreement)
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `provenance` subcommand: {other:?}"
+        ))),
+    }
+}
+
+fn dispatch_installer(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+    let noun = next(&mut args, "installer")?;
+    let device_root = required_path_flag(&mut args, "--device-root")?;
+    match noun.as_str() {
+        "stage" => {
+            let release_id = next(&mut args, "installer stage")?;
+            let project = next(&mut args, "installer stage")?;
+            let branch = extract_flag(&mut args, "--branch")
+                .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
+            let min_attestations = extract_u32_flag(&mut args, "--min-attestations")?;
+            let timelock_ms = extract_u64_flag(&mut args, "--timelock-ms")?;
+            let now_ms = extract_u64_flag(&mut args, "--now-ms")?;
+            let timestamp_ms = required_u64_flag(&mut args, "--timestamp-ms")?;
+            installer::stage(
+                home,
+                store_path,
+                &device_root,
+                &release_id,
+                &project,
+                &branch,
+                min_attestations,
+                timelock_ms,
+                now_ms,
+                timestamp_ms,
+            )
+        }
+        "preflight" => {
+            let release_id = next(&mut args, "installer preflight")?;
+            let timestamp_ms = required_u64_flag(&mut args, "--timestamp-ms")?;
+            installer::preflight(&device_root, &release_id, timestamp_ms)
+        }
+        "activate" => {
+            let release_id = next(&mut args, "installer activate")?;
+            let approved_at_ms = required_u64_flag(&mut args, "--approved-at-ms")?;
+            installer::activate(&device_root, &release_id, approved_at_ms)
+        }
+        "health-check" => {
+            let release_id = next(&mut args, "installer health-check")?;
+            let healthy = extract_bool_flag(&mut args, "--healthy");
+            let unhealthy = extract_bool_flag(&mut args, "--unhealthy");
+            if healthy == unhealthy {
+                return Err(CliError::Usage(
+                    "exactly one of --healthy or --unhealthy is required".to_string(),
+                ));
+            }
+            let timestamp_ms = required_u64_flag(&mut args, "--timestamp-ms")?;
+            installer::health_check(&device_root, &release_id, healthy, timestamp_ms)
+        }
+        "rollback" => {
+            let timestamp_ms = required_u64_flag(&mut args, "--timestamp-ms")?;
+            installer::rollback(&device_root, timestamp_ms)
+        }
+        "status" => installer::status(&device_root),
+        "history" => {
+            let release_id = extract_flag(&mut args, "--release");
+            installer::history(&device_root, release_id.as_deref())
+        }
+        "verify-log" => installer::verify_log(&device_root),
+        other => Err(CliError::Usage(format!(
+            "unknown `installer` subcommand: {other:?}"
         ))),
     }
 }

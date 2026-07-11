@@ -5,6 +5,14 @@
 //! spawning its compiled binary as a subprocess and speaking
 //! `mini-pipeline-protocol` over stdin/stdout (D-0069) — so this is a
 //! deliberate, small, test-only copy, not a shared library dependency.
+//!
+//! Shared across multiple `tests/*.rs` binaries via `mod common;` --
+//! each binary compiles its own copy, and no single test file uses every
+//! item here (`cli_spine_commands.rs`'s `build run` test only needs
+//! [`compile_guest`], while `self_hosted_spine_e2e.rs` also uses the
+//! lower-level [`ComponentStore`]/[`SandboxRequest`]/[`run_in_sandbox`]),
+//! hence the blanket allow rather than per-binary dead-code warnings.
+#![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -22,7 +30,7 @@ const HARD_TEST_TIMEOUT: Duration = Duration::from_secs(20);
 /// so this locates (building if necessary) its compiled binary the way a
 /// cross-package integration test has to: ask Cargo to build exactly that
 /// bin target, then resolve it under the workspace's own target directory.
-fn runner_binary_path() -> PathBuf {
+pub fn runner_binary_path() -> PathBuf {
     let status = Command::new(env!("CARGO"))
         .args([
             "build",

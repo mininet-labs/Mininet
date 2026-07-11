@@ -23,6 +23,15 @@ pub enum CliError {
     Object(String),
     /// A `mini-bearer`/`mini-sync` network sync operation failed.
     Sync(String),
+    /// A `mini-media` operation failed.
+    Media(String),
+    /// A `mini-provenance` operation failed.
+    Provenance(String),
+    /// A `mini-installer` operation failed.
+    Installer(String),
+    /// Spawning or speaking `mini-pipeline-protocol` to the real
+    /// `mini-build-runner-wasmtime` binary failed.
+    Build(String),
     /// The command line itself was malformed (missing/unknown flag, wrong
     /// argument count).
     Usage(String),
@@ -47,6 +56,10 @@ impl fmt::Display for CliError {
             CliError::Store(e) => write!(f, "store error: {e}"),
             CliError::Object(e) => write!(f, "object error: {e}"),
             CliError::Sync(e) => write!(f, "sync error: {e}"),
+            CliError::Media(e) => write!(f, "media error: {e}"),
+            CliError::Provenance(e) => write!(f, "provenance error: {e}"),
+            CliError::Installer(e) => write!(f, "installer error: {e}"),
+            CliError::Build(e) => write!(f, "build error: {e}"),
             CliError::Usage(e) => write!(f, "usage error: {e}"),
         }
     }

@@ -401,28 +401,58 @@ AwaitingOwnerApproval → Activating → HealthChecking → Active` or
 - `Installer::rollback` is directly callable too, consumes the recorded
   "previous" pointer on success so repeated calls fail cleanly instead of
   toggling between two releases.
+- Every step above also appends to a real, persisted, hash-chained event
+  log (`event_log.rs`, D-0076) — durable evidence queryable after any
+  process exit, distinct from the in-process type-state values. Boundary
+  rule, load-bearing: the log is evidence of what happened, never
+  permission for anything to happen — `Installer::activate` still refuses
+  to run without a real `OwnerApproval` regardless of what the log says.
+  `verify_install_event_log` independently checks hash-chain integrity,
+  sequence contiguity, per-release state-machine validity, and rejects
+  unexplained/stale rollback claims.
 
 **Honest limits, stated in the crate's own docs:** Unix-only
 (`std::os::unix::fs::symlink`); no process supervision (staging + a
 pointer flip only — starting/stopping/restarting a process is the
 caller's job); no real package-manager/OS integration (activation means a
 symlink under an installer-owned directory changes target, not that any
-running system has been touched). 10 adversarial/integration tests against
-real files on real disk.
+running system has been touched). 25 adversarial/integration tests
+(`tests/installer.rs`, `tests/event_log.rs`,
+`tests/cross_process_reconstruction.rs`) against real files on real disk.
+
+**CLI wiring (D-0077):** `mini build run`/`release create|attest|verify|
+list`/`provenance record|verify`/`installer stage|preflight|activate|
+health-check|rollback|status|history|verify-log` now exist as real `mini`
+subcommands (`crates/mini-cli/src/{build,release,provenance,
+installer}.rs`), closing the gap PR #109's own module docs first named
+("no CLI subcommand yet"). `mini installer <step>` solves the
+cross-process type-state problem — each invocation is a fresh process
+that cannot hold a `StagedRelease`/`PreflightPassed`/`ActivationRecord`
+value the way an in-process caller can — via three new `Installer`
+methods (`staged_release`/`preflight_passed`/`activation_record`) that
+reconstruct the minimal typed value from disk state and the persisted
+D-0076 event log, refusing unless the log shows the release genuinely
+completed the expected prior step; `staged_release`'s digest comes from
+the log's `Staged` event rather than re-hashing the file, preserving
+`preflight`'s tamper check rather than trivially satisfying it.
+`crates/mini-cli/tests/cli_spine_commands.rs` proves both `mini build
+run` (a real subprocess spawn of the compiled Wasmtime runner) and the
+full release/provenance/installer chain through the real text-based CLI.
+No `--json` output exists yet — command chaining scrapes human-readable
+text (`last_word`, matching `two_developers.rs`'s existing precedent) —
+the explicit next PR in the stack.
 
 **Batch 6's stated exit condition** — "a deliberately broken release
 detected, auto-recovered, with a verifiable event history in a test
-environment" — is demonstrated by
-`a_failed_health_check_rolls_back_to_the_previous_release` and
-`a_failed_health_check_on_the_first_ever_activation_leaves_nothing_active`:
-a release whose caller-supplied health check deliberately fails is
-detected (`HealthCheckOutcome::RolledBack`/`FailedWithNoPriorRelease`),
-auto-recovered (the `current` pointer is atomically restored, verified via
-`Installer::current()`), with the `ActivationRecord`/`HealthCheckOutcome`
-values themselves standing in for the "verifiable event history" in this
-test environment — a real local disk, not a simulated one, though not yet
-a running distributed system with real network partitions or concurrent
-installers racing each other.
+environment" — is now demonstrated two ways: the typed return values
+(`a_failed_health_check_rolls_back_to_the_previous_release`,
+`a_failed_health_check_on_the_first_ever_activation_leaves_nothing_active`)
+*and*, since D-0076, an actual persisted, hash-chained, independently
+verifiable event log a fresh process can reopen from disk and check —
+`crates/mini-cli/tests/self_hosted_spine_e2e.rs`'s own Phase 13 does
+exactly that against a real end-to-end run. Still a real local disk, not
+a simulated one, and still not yet a running distributed system with real
+network partitions or concurrent installers racing each other.
 
 ## Batch 5 — Mininet as the primary forge
 

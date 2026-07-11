@@ -14,25 +14,26 @@ name = "mini"
 path = "src/main.rs"
 
 [dependencies]
+blake3 = "1"
 did-mini = { path = "../did-mini" }
 mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
 mini-forge = { path = "../mini-forge" }
-mini-objects = { path = "../mini-objects" }
-mini-store = { path = "../mini-store" }
-mini-sync = { path = "../mini-sync" }
-
-# Test-only: the self-hosted-spine E2E harness (tests/self_hosted_spine_e2e.rs)
-# drives mini-media/mini-provenance/mini-installer in-process (no CLI wiring
-# exists yet for build/release/install -- that gap is the harness's own
-# finding) and mini-build-runner-wasmtime strictly as a subprocess, per that
-# crate's own "never link Wasmtime outside itself" rule (D-0069).
-[dev-dependencies]
-blake3 = "1"
-mini-build-runner-wasmtime = { path = "../mini-build-runner-wasmtime" }
 mini-installer = { path = "../mini-installer" }
 mini-media = { path = "../mini-media" }
+mini-objects = { path = "../mini-objects" }
+# Only for the Capability/ResourceLimits request types and the
+# ExecutionRequest/ExecutionResult wire framing `mini build run` speaks to
+# the real mini-build-runner-wasmtime binary over a pipe -- mini-cli never
+# links mini-build-runner-wasmtime itself (D-0069's "never link Wasmtime
+# outside that one crate" rule); it locates and spawns the binary as a
+# real subprocess (see `crate::build::runner_binary_path`).
 mini-pipeline = { path = "../mini-pipeline" }
 mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
 mini-provenance = { path = "../mini-provenance" }
+mini-store = { path = "../mini-store" }
+mini-sync = { path = "../mini-sync" }
+
+[dev-dependencies]
+mini-build-runner-wasmtime = { path = "../mini-build-runner-wasmtime" }
 tempfile = "3"

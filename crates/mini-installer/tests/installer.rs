@@ -84,16 +84,16 @@ fn the_happy_path_stages_activates_and_passes_health_check() {
     let installer = Installer::new(&dir).unwrap();
     assert!(installer.current().unwrap().is_none());
 
-    let staged = installer.stage(&store, &verified).unwrap();
+    let staged = installer.stage(&store, &verified, 100).unwrap();
     assert_eq!(staged.digest, verified.artifact.digest);
 
-    let passed = installer.preflight(&staged).unwrap();
+    let passed = installer.preflight(&staged, 200).unwrap();
     let approval = OwnerApproval::new(verified.id.clone(), 500);
     let activation = installer.activate(&passed, &approval).unwrap();
     assert_eq!(activation.previous, None);
     assert_eq!(installer.current().unwrap(), Some(verified.id.clone()));
 
-    let outcome = installer.health_check(activation, || true).unwrap();
+    let outcome = installer.health_check(activation, || true, 400).unwrap();
     assert_eq!(outcome, HealthCheckOutcome::Active(verified.id.clone()));
     assert_eq!(installer.current().unwrap(), Some(verified.id));
 
@@ -108,7 +108,7 @@ fn staging_a_release_whose_bytes_dont_match_the_claimed_digest_is_refused() {
     verified.artifact.digest = [0xAAu8; 32]; // claim a digest the real bytes don't match
 
     let installer = Installer::new(&dir).unwrap();
-    let err = installer.stage(&store, &verified).unwrap_err();
+    let err = installer.stage(&store, &verified, 100).unwrap_err();
     // `mini_media::assemble` itself catches this (it re-verifies the
     // digest internally before this crate gets a chance to), so the error
     // arrives wrapped as `Media(DigestMismatch)` rather than this crate's
@@ -130,12 +130,12 @@ fn preflight_catches_staged_artifact_corruption_on_disk() {
     let verified = a_verified_release(&mut store, 12, b"trustworthy bytes", "1.0.0");
 
     let installer = Installer::new(&dir).unwrap();
-    let staged = installer.stage(&store, &verified).unwrap();
+    let staged = installer.stage(&store, &verified, 100).unwrap();
 
     // Simulate corruption/tampering of the staging directory after staging.
     fs::write(&staged.path, b"tampered").unwrap();
 
-    let err = installer.preflight(&staged).unwrap_err();
+    let err = installer.preflight(&staged, 200).unwrap_err();
     assert!(matches!(err, InstallerError::DigestMismatch));
 
     fs::remove_dir_all(&dir).ok();
@@ -149,8 +149,8 @@ fn activate_refuses_an_approval_naming_a_different_release() {
     let other = a_verified_release(&mut store, 14, b"binary v2", "2.0.0");
 
     let installer = Installer::new(&dir).unwrap();
-    let staged = installer.stage(&store, &verified).unwrap();
-    let passed = installer.preflight(&staged).unwrap();
+    let staged = installer.stage(&store, &verified, 100).unwrap();
+    let passed = installer.preflight(&staged, 200).unwrap();
 
     let wrong_approval = OwnerApproval::new(other.id.clone(), 500);
     let err = installer.activate(&passed, &wrong_approval).unwrap_err();
@@ -167,8 +167,8 @@ fn activate_refuses_when_the_staged_directory_no_longer_exists() {
     let verified = a_verified_release(&mut store, 15, b"binary v1", "1.0.0");
 
     let installer = Installer::new(&dir).unwrap();
-    let staged = installer.stage(&store, &verified).unwrap();
-    let passed = installer.preflight(&staged).unwrap();
+    let staged = installer.stage(&store, &verified, 100).unwrap();
+    let passed = installer.preflight(&staged, 200).unwrap();
 
     // Simulate the staged directory having been removed between preflight
     // and activation (disk cleanup race, tampering, etc.).
@@ -190,23 +190,23 @@ fn a_failed_health_check_rolls_back_to_the_previous_release() {
 
     let installer = Installer::new(&dir).unwrap();
 
-    let staged_a = installer.stage(&store, &a).unwrap();
-    let passed_a = installer.preflight(&staged_a).unwrap();
+    let staged_a = installer.stage(&store, &a, 100).unwrap();
+    let passed_a = installer.preflight(&staged_a, 200).unwrap();
     let activation_a = installer
         .activate(&passed_a, &OwnerApproval::new(a.id.clone(), 500))
         .unwrap();
-    let outcome_a = installer.health_check(activation_a, || true).unwrap();
+    let outcome_a = installer.health_check(activation_a, || true, 400).unwrap();
     assert_eq!(outcome_a, HealthCheckOutcome::Active(a.id.clone()));
 
-    let staged_b = installer.stage(&store, &b).unwrap();
-    let passed_b = installer.preflight(&staged_b).unwrap();
+    let staged_b = installer.stage(&store, &b, 100).unwrap();
+    let passed_b = installer.preflight(&staged_b, 200).unwrap();
     let activation_b = installer
         .activate(&passed_b, &OwnerApproval::new(b.id.clone(), 600))
         .unwrap();
     assert_eq!(activation_b.previous, Some(a.id.clone()));
     assert_eq!(installer.current().unwrap(), Some(b.id.clone()));
 
-    let outcome_b = installer.health_check(activation_b, || false).unwrap();
+    let outcome_b = installer.health_check(activation_b, || false, 400).unwrap();
     assert_eq!(
         outcome_b,
         HealthCheckOutcome::RolledBack {
@@ -226,14 +226,14 @@ fn a_failed_health_check_on_the_first_ever_activation_leaves_nothing_active() {
     let a = a_verified_release(&mut store, 18, b"binary v1", "1.0.0");
 
     let installer = Installer::new(&dir).unwrap();
-    let staged = installer.stage(&store, &a).unwrap();
-    let passed = installer.preflight(&staged).unwrap();
+    let staged = installer.stage(&store, &a, 100).unwrap();
+    let passed = installer.preflight(&staged, 200).unwrap();
     let activation = installer
         .activate(&passed, &OwnerApproval::new(a.id.clone(), 500))
         .unwrap();
     assert_eq!(installer.current().unwrap(), Some(a.id.clone()));
 
-    let outcome = installer.health_check(activation, || false).unwrap();
+    let outcome = installer.health_check(activation, || false, 400).unwrap();
     assert_eq!(
         outcome,
         HealthCheckOutcome::FailedWithNoPriorRelease { failed: a.id }
@@ -250,7 +250,7 @@ fn a_failed_health_check_on_the_first_ever_activation_leaves_nothing_active() {
 fn rollback_with_nothing_to_roll_back_to_errors_cleanly() {
     let dir = tempdir("nothing-to-rollback");
     let installer = Installer::new(&dir).unwrap();
-    let err = installer.rollback().unwrap_err();
+    let err = installer.rollback(700).unwrap_err();
     assert!(matches!(err, InstallerError::NoPriorActivation));
 
     fs::remove_dir_all(&dir).ok();
@@ -264,25 +264,25 @@ fn rollback_does_not_toggle_back_and_forth_on_repeated_calls() {
     let b = a_verified_release(&mut store, 20, b"binary v2", "2.0.0");
 
     let installer = Installer::new(&dir).unwrap();
-    let staged_a = installer.stage(&store, &a).unwrap();
-    let passed_a = installer.preflight(&staged_a).unwrap();
+    let staged_a = installer.stage(&store, &a, 100).unwrap();
+    let passed_a = installer.preflight(&staged_a, 200).unwrap();
     installer
         .activate(&passed_a, &OwnerApproval::new(a.id.clone(), 500))
         .unwrap();
 
-    let staged_b = installer.stage(&store, &b).unwrap();
-    let passed_b = installer.preflight(&staged_b).unwrap();
+    let staged_b = installer.stage(&store, &b, 100).unwrap();
+    let passed_b = installer.preflight(&staged_b, 200).unwrap();
     installer
         .activate(&passed_b, &OwnerApproval::new(b.id.clone(), 600))
         .unwrap();
 
-    let restored = installer.rollback().unwrap();
+    let restored = installer.rollback(700).unwrap();
     assert_eq!(restored, a.id);
     assert_eq!(installer.current().unwrap(), Some(a.id.clone()));
 
     // A second rollback call in a row has nothing recorded to undo -- it
     // must fail cleanly, not silently swap back to `b`.
-    let err = installer.rollback().unwrap_err();
+    let err = installer.rollback(700).unwrap_err();
     assert!(matches!(err, InstallerError::NoPriorActivation));
     assert_eq!(installer.current().unwrap(), Some(a.id));
 
@@ -297,20 +297,20 @@ fn an_upgrade_then_explicit_rollback_round_trips_correctly() {
     let b = a_verified_release(&mut store, 22, b"binary v2", "2.0.0");
 
     let installer = Installer::new(&dir).unwrap();
-    let staged_a = installer.stage(&store, &a).unwrap();
-    let passed_a = installer.preflight(&staged_a).unwrap();
+    let staged_a = installer.stage(&store, &a, 100).unwrap();
+    let passed_a = installer.preflight(&staged_a, 200).unwrap();
     installer
         .activate(&passed_a, &OwnerApproval::new(a.id.clone(), 500))
         .unwrap();
 
-    let staged_b = installer.stage(&store, &b).unwrap();
-    let passed_b = installer.preflight(&staged_b).unwrap();
+    let staged_b = installer.stage(&store, &b, 100).unwrap();
+    let passed_b = installer.preflight(&staged_b, 200).unwrap();
     installer
         .activate(&passed_b, &OwnerApproval::new(b.id.clone(), 600))
         .unwrap();
     assert_eq!(installer.current().unwrap(), Some(b.id.clone()));
 
-    let restored = installer.rollback().unwrap();
+    let restored = installer.rollback(700).unwrap();
     assert_eq!(restored, a.id);
     assert_eq!(installer.current().unwrap(), Some(a.id));
 
