@@ -1138,13 +1138,21 @@ dependencies = [
 name = "mini-cli"
 version = "0.0.1"
 dependencies = [
+ "blake3",
  "did-mini",
  "mini-bearer",
+ "mini-build-runner-wasmtime",
  "mini-crypto",
  "mini-forge",
+ "mini-installer",
+ "mini-media",
  "mini-objects",
+ "mini-pipeline",
+ "mini-pipeline-protocol",
+ "mini-provenance",
  "mini-store",
  "mini-sync",
+ "tempfile",
 ]
 
 [[package]]
