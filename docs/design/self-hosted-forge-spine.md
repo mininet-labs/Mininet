@@ -438,9 +438,25 @@ the log's `Staged` event rather than re-hashing the file, preserving
 `crates/mini-cli/tests/cli_spine_commands.rs` proves both `mini build
 run` (a real subprocess spawn of the compiled Wasmtime runner) and the
 full release/provenance/installer chain through the real text-based CLI.
-No `--json` output exists yet — command chaining scrapes human-readable
-text (`last_word`, matching `two_developers.rs`'s existing precedent) —
-the explicit next PR in the stack.
+
+**Stable `--json` output (D-0078):** a global `--json` flag makes those
+same four command groups emit `{"ok":true,"kind":"<verb.noun>",
+...fields}` / `{"ok":false,"kind":...,"error_code":...,"message":...}`
+instead of human text, hand-rolled (`crate::json`, no `serde`/
+`serde_json`) rather than pulling in a dependency, matching this
+workspace's established encoding convention. Every command that creates
+or inspects a specific object exposes that value as a real typed field
+(`release create`'s `release_id`, `installer stage`'s `digest`,
+`provenance verify`'s `agreement` count) — `crates/mini-cli/tests/
+cli_json_output.rs` proves a real field extracted from `release create`'s
+JSON output chains directly into `release attest` with no text parsing
+at all, and drives the actual compiled `mini` binary as a subprocess to
+prove the error-envelope path, which lives in `main.rs`
+(`mini_cli::json_error_envelope`/`command_kind`) rather than
+`mini_cli::run` itself, since that function's `Result<String>` contract
+must keep `Err` meaning "the command failed" for every existing Rust
+caller. `identity`/`kel`/`repo`/`pr`/`sync` still have no `--json`
+support and cleanly reject the flag — named follow-up, not a silent gap.
 
 **Batch 6's stated exit condition** — "a deliberately broken release
 detected, auto-recovered, with a verifiable event history in a test

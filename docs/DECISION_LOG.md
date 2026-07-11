@@ -3848,3 +3848,89 @@ after that).
 **Supersedes / superseded by:** none. Builds on D-0069 (Wasmtime
 isolation), D-0071 (mini-installer), D-0076 (event log) without altering
 any of their authority models.
+
+### D-0078 — `mini-cli` gains stable `--json` output for build/release/provenance/installer, hand-rolled  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** D-0077's own "Required follow-up",
+`crates/mini-cli/src/json.rs`, `crates/mini-cli/tests/cli_json_output.rs`.
+
+**Decision:** a global `--json` flag makes `mini build run`/`release
+create|attest|verify|list`/`provenance record|verify`/`installer
+stage|preflight|activate|health-check|rollback|status|history|
+verify-log` emit a single-line, machine-parseable JSON document instead
+of human text: `{"ok":true,"kind":"<verb.noun>",...fields}` on success,
+`{"ok":false,"kind":"<verb.noun>","error_code":"...","message":"..."}`
+on failure. Every command that creates or inspects a specific object
+(`release create`'s `release_id`, `installer stage`'s `digest`,
+`provenance verify`'s `agreement` count) exposes that value as a real
+typed JSON field — a caller chains commands by reading a field, never
+by re-parsing a human sentence with `last_word()`-style text scraping.
+
+No `serde`/`serde_json` dependency: `crate::json` is a hand-rolled
+emitter (`JsonValue` enum, single `render()` method, no parser — this
+crate only ever produces JSON, never consumes its own output), matching
+this workspace's established convention (`mini-forge`'s git-object
+framing, `mini-installer`'s event log encoding) of a few dozen lines of
+plain Rust over a dependency where one would do the job.
+
+`--json` is a clean usage error (`CliError::Usage`) on `identity`/`kel`/
+`repo`/`pr`/`sync` — none of those commands' internals were touched;
+scope stayed to exactly the commands D-0077's own follow-up named. A
+scripting caller passing `--json` must never silently get human text
+back with no indication — an explicit rejection is safer than a partial,
+undocumented contract.
+
+**Reason:** D-0077 shipped the CLI commands themselves but explicitly
+named this as unfinished: its own PR body says every value threaded
+between commands in `cli_spine_commands.rs` "is scraped out of today's
+human-readable text" and calls that "the explicit next PR in the stack."
+A stable machine-readable contract is what actually lets an external
+tool (a CI pipeline, a future `mini-devd` daemon, a second implementation
+in another language) drive this spine without depending on prose wording
+that is free to change.
+
+**Constitutional impact:** none — presentation-layer output formatting
+only. No `docs/INVARIANTS.md` row changes; no new authority, no new
+access path to anything the commands didn't already do. The
+`CliError::error_code()` mapping is new public surface (a stable
+snake_case identifier per error variant) but carries no capability.
+
+**Implementation status:** shipped. `crate::json::{JsonValue,
+CommandResult, ok_envelope, err_envelope}`; `CliError::error_code()`;
+`mini_cli::json_error_envelope`/`command_kind` (used by `main.rs`, since
+`mini_cli::run`'s `Result<String>` contract keeps `Err` meaning "the
+command failed" for every existing Rust caller — turning a failure into
+`Ok(json_string)` there would silently break that for any in-process
+embedder or test, so the error-envelope rendering lives at the actual
+process/stdout boundary instead). `build`/`release`/`provenance`/
+`installer` module functions now return `CommandResult` (human text +
+typed fields) instead of a bare `String`; `cli.rs`'s dispatch renders
+either representation based on the flag. 4 unit tests (`json.rs`) plus
+3 new integration tests (`cli_json_output.rs`): a real field
+(`release_id`) extracted from one command's JSON output and fed directly
+into a second command with no text parsing; `--json` cleanly rejected
+for an unsupported command; the actual compiled `mini` binary (not
+`mini_cli::run` in-process) spawned as a real subprocess to prove the
+error envelope path in `main.rs` itself. Full workspace `cargo test
+--workspace --all-features` green, no regressions — every pre-existing
+text-based test still passes unchanged, since `--json` defaults to off
+and `CommandResult::render(false, _)` returns exactly the prior human
+string.
+
+**Failure point:** `command_kind()` (best-effort "what command was this"
+label for a failed `--json` invocation, computed in `main.rs` from raw
+args by skipping known global value-flags) is a heuristic, not a parse
+of the same grammar `cli.rs`'s dispatch actually uses — a future global
+flag added to `run()` without updating `command_kind()`'s skip-list would
+make the `kind` field on some error envelopes wrong (never absent,
+always a best-effort guess). `identity`/`kel`/`repo`/`pr`/`sync` still
+have no `--json` support at all; a caller wanting structured output for
+those must still scrape text.
+
+**Required follow-up:** extend `--json` to `identity`/`kel`/`repo`/`pr`/
+`sync` once there is a real caller that needs it (matching this batch's
+own scoping rule — build only what the next real integration needs);
+adversarial release/install CLI fixtures (the PR after that, per
+D-0077's own sequencing).
+
+**Supersedes / superseded by:** none. Fulfills the follow-up D-0077
+named; does not alter D-0077's command surface or D-0076's event log.

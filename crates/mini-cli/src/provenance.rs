@@ -8,6 +8,7 @@ use std::path::Path;
 use mini_provenance::{independent_agreement, record_provenance, BuildProvenance};
 
 use crate::error::{CliError, Result};
+use crate::json::{CommandResult, JsonValue};
 use crate::sequence;
 use crate::store::open_store;
 
@@ -49,7 +50,7 @@ pub fn record(
     network_enabled: bool,
     started_ms: u64,
     finished_ms: u64,
-) -> Result<String> {
+) -> Result<CommandResult> {
     let identity = crate::identity::load_or_init(home)?;
     let mut store = open_store(store_path)?;
 
@@ -89,12 +90,15 @@ pub fn record(
     )
     .map_err(|e| CliError::Provenance(e.to_string()))?;
 
-    Ok(format!(
+    Ok(CommandResult::new(format!(
         "provenance recorded: {}\n  subject: {}\n  {} output digest(s)",
         obj.id().as_str(),
         subject.as_str(),
         output_digests.len()
     ))
+    .field("provenance_id", JsonValue::str(obj.id().as_str()))
+    .field("subject_id", JsonValue::str(subject.as_str()))
+    .field("output_count", JsonValue::num(output_digests.len() as u64)))
 }
 
 /// `mini provenance verify <subject-id> --output <hex> [--min-agreement N]`
@@ -104,7 +108,7 @@ pub fn verify(
     subject_ref: &str,
     output_digest_hex: &str,
     min_agreement: u32,
-) -> Result<String> {
+) -> Result<CommandResult> {
     let identity = crate::identity::load_or_init(home)?;
     let store = open_store(store_path)?;
     let oracle = crate::store::build_oracle(home, &identity)?;
@@ -123,9 +127,13 @@ pub fn verify(
         )));
     }
 
-    Ok(format!(
+    Ok(CommandResult::new(format!(
         "verified: {agreement} independent identity root(s) agree on output {} for subject {}",
         hex(&expected_output),
         subject.as_str()
     ))
+    .field("subject_id", JsonValue::str(subject.as_str()))
+    .field("output_digest", JsonValue::str(hex(&expected_output)))
+    .field("agreement", JsonValue::num(agreement as u64))
+    .field("min_agreement", JsonValue::num(min_agreement as u64)))
 }

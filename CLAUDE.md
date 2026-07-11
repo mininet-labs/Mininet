@@ -141,8 +141,16 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   reconstruct minimal typed pipeline state from the persisted event log
   across separate CLI invocations (`Installer::staged_release`/
   `preflight_passed`/`activation_record`), since a process boundary can't
-  carry a type-state value the way an in-process caller can; no `--json`
-  output yet, so command chaining scrapes human-readable text. `mini-provenance` — SLSA/in-toto
+  carry a type-state value the way an in-process caller can; a global
+  `--json` flag (D-0078) makes those four command groups emit a
+  single-line `{"ok":true,"kind":...,...fields}` /
+  `{"ok":false,"kind":...,"error_code":...,"message":...}` envelope
+  instead of human text — hand-rolled (`crate::json`, no serde), a real
+  typed field per created/inspected object (a release id, a digest, an
+  attester count) so chaining reads a field instead of scraping a
+  sentence; `identity`/`kel`/`repo`/`pr`/`sync` still have no `--json`
+  support and cleanly reject the flag rather than silently ignoring it.
+  `mini-provenance` — SLSA/in-toto
   build provenance signed objects + independent-builder agreement
   counting (D-0068, spine Batch 2a); records/counts claims, runs no build
   itself. `mini-pipeline`/`mini-pipeline-protocol` — pure pipeline
