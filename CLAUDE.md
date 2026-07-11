@@ -134,7 +134,15 @@ shipping), `docs/design/` (design notes that close roadmap issues —
   self-hosted forge spine Batch 1, #102); `mini sync listen`/`connect`
   (spine Batch 5) reaches the same governed merge over a real TCP
   connection with no shared filesystem, one connection per invocation, no
-  daemon yet. `mini-provenance` — SLSA/in-toto
+  daemon yet; `mini build run`/`release create|attest|verify|list`/
+  `provenance record|verify`/`installer stage|preflight|activate|
+  health-check|rollback|status|history|verify-log` (D-0077) wire the rest
+  of the spine into real subcommands — `installer`'s subcommands
+  reconstruct minimal typed pipeline state from the persisted event log
+  across separate CLI invocations (`Installer::staged_release`/
+  `preflight_passed`/`activation_record`), since a process boundary can't
+  carry a type-state value the way an in-process caller can; no `--json`
+  output yet, so command chaining scrapes human-readable text. `mini-provenance` — SLSA/in-toto
   build provenance signed objects + independent-builder agreement
   counting (D-0068, spine Batch 2a); records/counts claims, runs no build
   itself. `mini-pipeline`/`mini-pipeline-protocol` — pure pipeline

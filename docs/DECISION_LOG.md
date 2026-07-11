@@ -3753,3 +3753,98 @@ before that becomes a real CLI surface most users touch.
 **Supersedes / superseded by:** none — first decision on this specific
 gap. Builds directly on D-0071 (mini-installer itself) without altering
 its authority model.
+
+### D-0077 — `mini-cli` gains real `build`/`release`/`provenance`/`installer` subcommands  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #102 (self-hosted forge spine
+Batch 4/5 boundary), PR #109 (E2E harness whose own module docs first
+named "no CLI subcommand yet" as the gap), D-0076 (installer event log),
+`crates/mini-cli/src/{build,release,provenance,installer}.rs`,
+`crates/mini-cli/tests/cli_spine_commands.rs`.
+
+**Decision:** `mini` gains four new top-level commands, each a thin
+wrapper over an already-real library, none re-implementing or weakening
+anything the library already enforces: `mini build run` spawns the real
+`mini-build-runner-wasmtime` binary as a genuine subprocess (never linked
+in-process — `mini-cli`'s own dependency on it stays `[dev-dependencies]`
+only, preserving D-0069's "only that one crate links Wasmtime" boundary)
+and speaks real `mini-pipeline-protocol` framing over its stdin/stdout;
+`mini release create/attest/verify/list` wraps `mini_forge::release`/
+`attest`/`verify_governed_release`/`list_releases`; `mini provenance
+record/verify` wraps `mini_provenance::record_provenance`/
+`independent_agreement`; `mini installer stage/preflight/activate/
+health-check/rollback/status/history/verify-log` drives the real
+`mini_installer::Installer` pipeline one step per CLI invocation.
+
+The installer commands solve a problem the type-state pipeline was never
+designed for: each `mini installer <step>` is a fresh process, so it
+cannot hold a `StagedRelease`/`PreflightPassed`/`ActivationRecord` value
+across invocations the way an in-process caller (the E2E harness) can.
+Three new `Installer` methods — `staged_release`, `preflight_passed`,
+`activation_record` — reconstruct the minimal typed value from the
+installer's own disk state and persisted (D-0076) event log, each
+refusing (`InstallerError::{NoSuchRelease,WrongState,NotCurrentlyActive}`)
+unless the log's own record shows the release genuinely completed the
+expected prior step. `staged_release`'s reconstructed digest comes from
+the log's `Staged` event, not from re-hashing the file on disk right now
+— preserving the exact tamper check `preflight` exists to perform, rather
+than having it trivially agree with itself. `mini installer activate`
+constructs the `OwnerApproval` itself, right there, naming exactly the
+release id on the command line — invoking the command *is* the explicit
+device-owner action; nothing reads one from the log or anywhere else
+(unchanged from D-0071/D-0076's boundary rule: the log is evidence, never
+permission).
+
+**Reason:** PR #109's own module docs named this exactly: "There is no
+CLI subcommand yet for build/provenance/release/install… CLI/`--json`
+wiring for release/install is real, separate follow-up work, not yet
+done." A constitutional protocol meant to outlive its creators cannot
+stay a set of library calls only its own test suite exercises — a real
+developer needs to type `mini release create` and have it work.
+
+**Constitutional impact:** upholds CLAUDE.md's typed-domain rule (`mini
+installer activate` builds a real, request-shaped `OwnerApproval`, never
+a generic "approve" flag) and the D-0069 Wasmtime-isolation boundary
+(`mini build run` spawns, never links, the runner). No
+`docs/INVARIANTS.md` row changes — this is a new access path onto
+already-governed authority, not new authority.
+
+**Implementation status:** shipped. Four new `mini-cli` modules plus
+`cli.rs` dispatch wiring; three new `Installer` reconstruction methods
+(`crates/mini-installer/src/lib.rs`) plus three new `InstallerError`
+variants; `crates/mini-installer/tests/cross_process_reconstruction.rs`
+(8 new tests covering the reconstruction methods directly, including the
+tamper-preservation case); `crates/mini-cli/tests/
+cli_spine_commands.rs` (2 new tests: one drives `mini build run` against
+a real compiled guest component through the real runner subprocess, one
+drives release/attest/verify/list, provenance record/verify, and the
+full installer stage→preflight→activate→health-check→verify-log→history
+chain through the real text-based CLI, plus a standalone `mini installer
+rollback` failing cleanly with nothing to roll back to). Full workspace
+`cargo test --workspace --all-features` green (no regressions).
+`self_hosted_spine_e2e.rs` deliberately left calling `mini_forge`/
+`mini_media`/`mini_provenance`/`mini_installer` directly rather than
+rewired onto the new CLI surface — see its own updated module docs for
+why (no `--json` output exists yet, so re-threading its rich internal
+assertions through today's human-readable text would be fragile
+scraping, not a stronger proof).
+
+**Failure point:** every value threaded from one CLI command's output
+into the next command's input is scraped out of human-readable text
+(`last_word`, matching `two_developers.rs`'s existing precedent) — brittle
+against future output-format changes, and exactly the gap the next PR
+(stable `--json` output) exists to close. `mini build run`'s CLI-only
+directory-content-hashing helper duplicates (rather than depends on)
+`mini-build-runner-wasmtime::content_store::hash_directory_tree`'s
+byte-for-byte encoding, per D-0069's subprocess-only boundary — verified
+to match (little-endian length prefix) during this batch, but the two
+implementations are not statically guaranteed to stay in sync if either
+changes independently.
+
+**Required follow-up:** stable `--json` output for all of these commands
+(next PR in the stack), replacing text-scraping with a real machine-
+readable contract; adversarial release/install CLI fixtures (the PR
+after that).
+
+**Supersedes / superseded by:** none. Builds on D-0069 (Wasmtime
+isolation), D-0071 (mini-installer), D-0076 (event log) without altering
+any of their authority models.

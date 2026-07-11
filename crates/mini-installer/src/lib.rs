@@ -284,6 +284,104 @@ impl Installer {
         Ok(event)
     }
 
+    /// Find the most recently recorded event for `release_id`, or
+    /// [`InstallerError::NoSuchRelease`] if the log has none.
+    fn last_event_for(&self, release_id: &ObjectId) -> Result<InstallEvent, InstallerError> {
+        self.event_log()?
+            .into_iter()
+            .rev()
+            .find(|e| &e.release_id == release_id)
+            .ok_or_else(|| InstallerError::NoSuchRelease(release_id.clone()))
+    }
+
+    /// Reconstruct a [`StagedRelease`] for `release_id` from this
+    /// installer's own disk state and persisted event log, for a caller
+    /// (e.g. a stateless CLI) that cannot hold the typed value
+    /// [`Self::stage`] returned across a process boundary. The recovered
+    /// `digest` comes from the log's `Staged` event, not from re-hashing
+    /// the file on disk right now -- [`Self::preflight`] still
+    /// independently re-reads and re-hashes the file itself, so this
+    /// preserves the exact tamper check the type-state pipeline exists to
+    /// perform rather than trivially satisfying it against itself.
+    pub fn staged_release(&self, release_id: &ObjectId) -> Result<StagedRelease, InstallerError> {
+        let last = self.last_event_for(release_id)?;
+        if last.kind != InstallEventKind::Staged {
+            return Err(InstallerError::WrongState {
+                release_id: release_id.clone(),
+                expected: InstallEventKind::Staged,
+                found: last.kind,
+            });
+        }
+        let digest = last
+            .artifact_digest
+            .ok_or(InstallerError::CorruptCurrentLink)?;
+        let version = last.to_version.ok_or(InstallerError::CorruptCurrentLink)?;
+        let path = self.staged_dir(release_id).join(ARTIFACT_FILE);
+        let len = fs::metadata(&path)?.len();
+        Ok(StagedRelease {
+            release_id: release_id.clone(),
+            version,
+            digest,
+            len,
+            path,
+            state: InstallState::Staged,
+        })
+    }
+
+    /// Reconstruct a [`PreflightPassed`] for `release_id` the same way
+    /// [`Self::staged_release`] does for [`StagedRelease`], for a caller
+    /// that cannot hold the typed value [`Self::preflight`] returned
+    /// across a process boundary.
+    pub fn preflight_passed(
+        &self,
+        release_id: &ObjectId,
+    ) -> Result<PreflightPassed, InstallerError> {
+        let last = self.last_event_for(release_id)?;
+        if last.kind != InstallEventKind::AwaitingOwnerApproval {
+            return Err(InstallerError::WrongState {
+                release_id: release_id.clone(),
+                expected: InstallEventKind::AwaitingOwnerApproval,
+                found: last.kind,
+            });
+        }
+        let version = last.to_version.ok_or(InstallerError::CorruptCurrentLink)?;
+        Ok(PreflightPassed {
+            release_id: release_id.clone(),
+            version,
+            state: InstallState::PreflightPassed,
+        })
+    }
+
+    /// Reconstruct an [`ActivationRecord`] for `release_id`, requiring that
+    /// it is genuinely the release `current` points at right now (reads
+    /// the real symlink, not the log) -- for a caller that cannot hold the
+    /// typed value [`Self::activate`] returned across a process boundary,
+    /// most importantly [`Self::health_check`].
+    pub fn activation_record(
+        &self,
+        release_id: &ObjectId,
+    ) -> Result<ActivationRecord, InstallerError> {
+        if self.current()?.as_ref() != Some(release_id) {
+            return Err(InstallerError::NotCurrentlyActive(release_id.clone()));
+        }
+        let version = self
+            .version_of(release_id)?
+            .ok_or(InstallerError::CorruptCurrentLink)?;
+        let previous = match fs::read_to_string(self.previous_marker()) {
+            Ok(raw) => {
+                Some(ObjectId::parse(raw.trim()).map_err(|_| InstallerError::CorruptCurrentLink)?)
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => return Err(e.into()),
+        };
+        Ok(ActivationRecord {
+            release_id: release_id.clone(),
+            version,
+            previous,
+            state: InstallState::Active,
+        })
+    }
+
     /// The release id `current` points at, if anything has ever been
     /// activated. Reads the real filesystem, never cached state.
     pub fn current(&self) -> Result<Option<ObjectId>, InstallerError> {

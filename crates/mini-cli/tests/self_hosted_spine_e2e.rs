@@ -8,18 +8,24 @@
 //!
 //! ## Where this drives the real `mini` binary's logic vs. calls libraries directly
 //!
-//! `mini-cli` today wires `identity`/`kel`/`repo`/`pr`/`sync` (see
-//! `cli.rs`) -- everything through the governed merge goes through
-//! [`mini_cli::run`], exactly as a developer would type it. There is
-//! **no CLI subcommand yet** for build/provenance/release/install, so
-//! everything from "build release in sandbox" onward calls `mini_forge`,
-//! `mini_media`, `mini_provenance`, and `mini_installer` directly in-process
-//! against the *same* on-disk `--store` the CLI calls wrote to, and drives
-//! `mini-build-runner-wasmtime` as a genuine subprocess (never linked
-//! in-process, per that crate's own D-0069 boundary rule). **This is
-//! exactly the gap this harness exists to expose**: the pieces compose
-//! correctly at the library level today; CLI/`--json` wiring for
-//! release/install is real, separate follow-up work, not yet done.
+//! `mini-cli` wires `identity`/`kel`/`repo`/`pr`/`sync`/`build`/`release`/
+//! `provenance`/`installer` (see `cli.rs`) -- everything through the
+//! governed merge goes through [`mini_cli::run`], exactly as a developer
+//! would type it. `build`/`release`/`provenance`/`installer` CLI
+//! subcommands now exist too (#111) -- proven end to end, through the
+//! real text-based CLI interface rather than direct library calls, by
+//! `cli_spine_commands.rs`. This file predates that CLI surface and keeps
+//! calling `mini_forge`, `mini_media`, `mini_provenance`, and
+//! `mini_installer` directly in-process for everything from "build release
+//! in sandbox" onward, still against the *same* on-disk `--store` the CLI
+//! calls wrote to, and still driving `mini-build-runner-wasmtime` as a
+//! genuine subprocess (never linked in-process, per that crate's own
+//! D-0069 boundary rule) -- deliberately left as-is rather than rewired,
+//! since no `--json` output exists yet (#112) and re-threading this
+//! harness's rich internal assertions (exact `InstallEventKind` sequences,
+//! `ReleasePolicy` timelock edge cases) through today's human-readable CLI
+//! text would be fragile scraping, not a stronger proof than what it
+//! already demonstrates at the library level.
 //!
 //! ## What this does not (yet) prove
 //!

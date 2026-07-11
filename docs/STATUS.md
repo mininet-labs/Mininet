@@ -331,7 +331,27 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   independently-verifiable log (`verify_install_event_log`), not just
   typed in-process return values. Honest limits: Unix-only
   (`symlink`/`rename` activation), no process supervision, no real
-  package-manager/OS integration — see §5 for the full detail; 17 tests.
+  package-manager/OS integration — see §5 for the full detail; 25 tests
+  (17 pipeline/event-log tests plus 8 covering the cross-process
+  reconstruction methods D-0077 added).
+- **shipped** — `mini build`/`release`/`provenance`/`installer` CLI
+  subcommands (D-0077), closing PR #109's own named gap ("no CLI
+  subcommand yet"). `mini build run` spawns the real
+  `mini-build-runner-wasmtime` binary as a genuine subprocess (never
+  linked in-process, preserving D-0069's isolation boundary); `mini
+  release`/`provenance` thinly wrap the already-real `mini-forge`/
+  `mini-provenance` library calls; `mini installer <step>` drives the
+  real `Installer` pipeline one step per CLI invocation, using three new
+  `Installer` methods (`staged_release`/`preflight_passed`/
+  `activation_record`) to reconstruct minimal typed pipeline state from
+  the persisted D-0076 event log across the process boundary a
+  stateless CLI can't otherwise cross — each refusing to reconstruct
+  anything the log doesn't show genuinely happened. Proven through the
+  real text-based CLI (not direct library calls) in
+  `crates/mini-cli/tests/cli_spine_commands.rs`. Honest limit: no
+  `--json` output yet, so any value threaded from one command's output
+  into the next command's input is scraped out of human-readable text —
+  the explicit next PR in the stack.
 - **shipped** — Batch 5, first piece: `mini sync listen`/`mini sync
   connect` (`mini-cli::sync`), live network peer exchange over a real TCP
   `mini_bearer` + `mini_sync` connection — Batch 1's remaining deferred

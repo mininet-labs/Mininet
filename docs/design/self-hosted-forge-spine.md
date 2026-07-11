@@ -416,9 +416,31 @@ AwaitingOwnerApproval → Activating → HealthChecking → Active` or
 pointer flip only — starting/stopping/restarting a process is the
 caller's job); no real package-manager/OS integration (activation means a
 symlink under an installer-owned directory changes target, not that any
-running system has been touched). 17 adversarial/integration tests
-(`tests/installer.rs`, `tests/event_log.rs`) against real files on real
-disk.
+running system has been touched). 25 adversarial/integration tests
+(`tests/installer.rs`, `tests/event_log.rs`,
+`tests/cross_process_reconstruction.rs`) against real files on real disk.
+
+**CLI wiring (D-0077):** `mini build run`/`release create|attest|verify|
+list`/`provenance record|verify`/`installer stage|preflight|activate|
+health-check|rollback|status|history|verify-log` now exist as real `mini`
+subcommands (`crates/mini-cli/src/{build,release,provenance,
+installer}.rs`), closing the gap PR #109's own module docs first named
+("no CLI subcommand yet"). `mini installer <step>` solves the
+cross-process type-state problem — each invocation is a fresh process
+that cannot hold a `StagedRelease`/`PreflightPassed`/`ActivationRecord`
+value the way an in-process caller can — via three new `Installer`
+methods (`staged_release`/`preflight_passed`/`activation_record`) that
+reconstruct the minimal typed value from disk state and the persisted
+D-0076 event log, refusing unless the log shows the release genuinely
+completed the expected prior step; `staged_release`'s digest comes from
+the log's `Staged` event rather than re-hashing the file, preserving
+`preflight`'s tamper check rather than trivially satisfying it.
+`crates/mini-cli/tests/cli_spine_commands.rs` proves both `mini build
+run` (a real subprocess spawn of the compiled Wasmtime runner) and the
+full release/provenance/installer chain through the real text-based CLI.
+No `--json` output exists yet — command chaining scrapes human-readable
+text (`last_word`, matching `two_developers.rs`'s existing precedent) —
+the explicit next PR in the stack.
 
 **Batch 6's stated exit condition** — "a deliberately broken release
 detected, auto-recovered, with a verifiable event history in a test
