@@ -246,14 +246,20 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
     }
 
     /// Validate a proposal's *value* against this node's own chain state:
-    /// right height, right parent, and a `state_root` this node can reproduce
-    /// by applying the body. Returns the value's block hash and whether it is
+    /// right height, right parent, deterministic logical timestamp, and a
+    /// `state_root` this node can reproduce by applying the body. Consensus
+    /// time is the block height, not proposer-supplied wall time: this field
+    /// therefore cannot bias selection, fees, rewards, or timelocks.
+    /// Returns the value's block hash and whether it is
     /// valid. An authentic proposal whose value is invalid is still reported
     /// (with `valid = false`) so the round can prevote `nil` for it.
     fn validate_proposal(&self, p: &Proposal) -> ([u8; 32], bool) {
         let header = &p.header;
         let hash = header.hash();
-        if header.height != self.current_height() || header.prev_hash != self.chain.tip_hash() {
+        if header.height != self.current_height()
+            || header.prev_hash != self.chain.tip_hash()
+            || header.timestamp_ms != header.height
+        {
             return (hash, false);
         }
         match apply_block(self.chain.state(), &p.body) {
@@ -353,7 +359,7 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
                 height,
                 prev_hash: self.chain.tip_hash(),
                 state_root: next.commitment(),
-                timestamp_ms: height, // ordering hint only; nothing verifies it
+                timestamp_ms: height, // deterministic logical consensus time
                 proposer: self.root.clone(),
             };
             (header, body)
@@ -500,7 +506,7 @@ mod tests {
 
     /// A signed, valid height-1 proposal built by fixture signer `by_idx`,
     /// claiming to be round 0's proposer.
-    fn proposal_from(fx: &Fx, by_idx: usize) -> ConsensusMessage {
+    fn proposal_from_at(fx: &Fx, by_idx: usize, timestamp_ms: u64) -> ConsensusMessage {
         let genesis = LedgerChain::genesis();
         let b = body();
         let next = apply_block(genesis.state(), &b).unwrap();
@@ -508,11 +514,15 @@ mod tests {
             height: 1,
             prev_hash: genesis.tip_hash(),
             state_root: next.commitment(),
-            timestamp_ms: 1,
+            timestamp_ms,
             proposer: fx.signers[by_idx].0.did(),
         };
         let (root, device) = &fx.signers[by_idx];
         ConsensusMessage::Proposal(sign_proposal(0, -1, header, b, &root.did(), device))
+    }
+
+    fn proposal_from(fx: &Fx, by_idx: usize) -> ConsensusMessage {
+        proposal_from_at(fx, by_idx, 1)
     }
 
     fn prevoted(emits: &[Emit]) -> bool {
@@ -553,6 +563,22 @@ mod tests {
     }
 
     #[test]
+    fn proposer_wall_clock_cannot_control_consensus_time() {
+        let fx = fixture();
+        let p_idx = proposer_index(&fx, 1, 0);
+        let mut node = a_node(&fx, (p_idx + 1) % 4);
+        let _ = node.start().unwrap();
+
+        // This is genuinely signed by the designated proposer, but attempts
+        // to push protocol time far into the future. Consensus time at height
+        // 1 is exactly 1, so the value is invalid and receives no prevote.
+        let emits = node
+            .on_message(proposal_from_at(&fx, p_idx, u64::MAX))
+            .unwrap();
+        assert!(!prevoted(&emits));
+    }
+
+    #[test]
     fn a_proposal_with_a_forged_signature_is_dropped() {
         let fx = fixture();
         let p_idx = proposer_index(&fx, 1, 0);
@@ -588,3 +614,4 @@ mod tests {
         );
     }
 }
+
