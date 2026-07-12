@@ -427,6 +427,22 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   one connection — independently runs `release verify` and the full
   `installer stage → preflight → activate → health-check` sequence to a
   genuinely active, passing install.
+- **shipped** — the no-GitHub outage demo (D-0081). `tools/
+  no_github_outage_demo.sh` is a real, narrated shell script — driving
+  the compiled `mini` binary, never a library call — that carries three
+  identities through the entire spine in one continuous run: identity,
+  KEL trust, governed merge, release, two independent attestations,
+  install, a passing health check — then a second, deliberately broken
+  release through the identical path that fails its health check,
+  auto-rolls back with no manual intervention, and leaves an
+  independently-verifiable clean event log. Exercised by `cargo test
+  --workspace` via `tests/no_github_outage_demo.rs`, which runs the
+  script itself as a real subprocess so a broken demo fails CI like any
+  other regression. Honest limit: this environment has no controlled
+  way to actually sever GitHub reachability and verify nothing breaks —
+  the claim rests on the codebase's dependency graph (no GitHub-API
+  client dependency exists anywhere) plus this script's own successful
+  run, not a live firewall drill.
 - **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
   Batch 1's remaining deferred item. Exports a commit chain (commit → tree
   → blobs, recursively through every ancestor) as real git SHA-256-object-

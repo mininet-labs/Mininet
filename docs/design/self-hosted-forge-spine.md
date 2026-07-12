@@ -507,6 +507,19 @@ genuinely active install. No new replication code was needed; this closes
 the gap between "the protocol is generic" and "someone actually drove a
 release through it."
 
+**No-GitHub outage demo shipped (D-0081).** `tools/
+no_github_outage_demo.sh` is a real, narrated shell script driving the
+compiled `mini` binary through the entire spine in one continuous run —
+identity, KEL trust, governed merge, release, two independent
+attestations, a passing install, then a deliberately broken second
+release that fails health-check, auto-rolls back, and leaves a clean,
+independently-verifiable event log. `tests/no_github_outage_demo.rs`
+runs it as a real subprocess so it stays exercised by `cargo test
+--workspace`. Nothing in this codebase has ever made a network call to
+GitHub, so the honest claim is narrower than a firewall drill: read and
+run this one script to see the whole developer lifecycle, including
+failure recovery, complete without GitHub ever being named or required.
+
 **Remaining, not started:** local object indexing at scale, distributed
 build workers, native release retrieval, GitHub import/export mirror
 automation.
