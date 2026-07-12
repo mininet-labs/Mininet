@@ -43,4 +43,3 @@ impl BlockHeader {
         HashAlgorithm::Blake3.digest(&self.canonical_bytes())
     }
 }
-
