@@ -25,9 +25,29 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   (`did-mini::BaseDeviceRole`) all confirmed to create no governance
   weight.
 - **partial** — BFT finality *verification* is shipped
-  (`mini-chain::verify_finality`); the networked consensus protocol that
-  produces the votes it verifies is **not started** (roadmap Phase 5,
-  [#36](../../issues/36)-[#45](../../issues/45)).
+  (`mini-chain::verify_finality`), and `mini-consensus` now runs it as a
+  **networked, multi-round Tendermint protocol** across processes (D-0200
+  through D-0203): a full implementation of Algorithm 1 from
+  Buchman/Kwon/Milosevic (arXiv:1807.04938) — proposer rotation,
+  prevote/precommit steps, `nil` votes, `lockedValue`/`validValue` locking,
+  POLC re-proposal, and round-timeout **view-change** — with the state
+  machine kept clock- and socket-free and driven over a real, non-blocking
+  `mini-bearer` TCP mesh. Two real-socket tests pass repeatedly: four
+  independent ledgers converge to bit-identical state, and a four-validator
+  cluster with **one proposer permanently offline** still finalizes every
+  height by viewing-change to a fresh proposer (`tests/networked_consensus.rs`).
+  Safety (never two conflicting decisions at one height) is complete,
+  **proposals are signed** (D-0202: a node accepts a proposal only from a
+  `VOTE`-capable device of the exact `proposer_for(height, round)`, closing
+  the front-running gap), and the mesh is **non-blocking and buffered**
+  (D-0203, so a wedged peer cannot back-pressure honest nodes). The
+  **remaining gaps are liveness/DoS and deployment, not correctness**:
+  past-round votes are not re-gossiped, no equivocation evidence is collected
+  yet, links are cleartext with no discovery/reconnect, and the demonstration
+  is threads over loopback. Application-level vote re-gossip, equivocation
+  evidence, secured/discovered links, and dynamic validator sets are the named
+  next slices (roadmap Phase 5, [#36](../../issues/36)-[#45](../../issues/45);
+  `docs/design/networked-consensus.md`).
 
 ## 2. Personhood
 

@@ -27,6 +27,9 @@ pub enum ChainError {
         /// Distinct validator roots actually counted.
         got: usize,
     },
+    /// A vote's wire encoding was truncated, over-long, or otherwise
+    /// malformed (decode-side only — see [`crate::Vote::from_wire_bytes`]).
+    Malformed,
     /// Identity/KEL verification failure.
     Identity(IdentityError),
 }
@@ -46,6 +49,7 @@ impl core::fmt::Display for ChainError {
             ChainError::QuorumNotMet { needed, got } => {
                 write!(f, "quorum not met: needed {needed}, got {got}")
             }
+            ChainError::Malformed => write!(f, "vote wire encoding is malformed"),
             ChainError::Identity(e) => write!(f, "identity: {e}"),
         }
     }

@@ -1156,6 +1156,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-consensus"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-bearer",
+ "mini-chain",
+ "mini-crypto",
+ "mini-execution",
+ "mini-settlement",
+]
+
+[[package]]
 name = "mini-crdt"
 version = "0.0.1"
 dependencies = [
