@@ -1,9 +1,9 @@
 {
   "$schema": "./current-phase.schema.json",
   "schema_version": 1,
-  "status": "unrecorded",
-  "phase": null,
-  "decision_ref": null,
-  "effective_at": null,
+  "status": "active",
+  "phase": "founder-guarded",
+  "decision_ref": "D-0083",
+  "effective_at": "2026-07-12T21:40:00Z",
   "superseded_by": null
 }

@@ -88,6 +88,7 @@ def activate_candidate(temp_root: Path) -> tuple[Path, Path, dict[str, Path]]:
             f"**Activation decision:** {decision}",
         "**Activation decision registry:** None in this candidate":
             "**Activation decision registry:** docs/DECISION_LOG.md",
+        "D-0084": decision,
     }
     for old, new in replacements.items():
         charter_text = charter_text.replace(old, new)
@@ -105,6 +106,12 @@ def activate_candidate(temp_root: Path) -> tuple[Path, Path, dict[str, Path]]:
     ).replace(
         "**Activated charter digest:** None in this template",
         f"**Activated charter digest:** {charter_digest}",
+    )
+    adapter_text = adapter_text.replace("D-0084", decision)
+    adapter_text = __import__("re").sub(
+        r"(?m)^\*\*Activated charter digest:\*\* [0-9a-f]{64}$",
+        f"**Activated charter digest:** {charter_digest}",
+        adapter_text,
     )
     adapter.write_text(adapter_text, encoding="utf-8")
     adapter_digest = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -230,7 +237,16 @@ class ProposalClassificationTests(unittest.TestCase):
         )
 
     def test_model_specific_loaders_require_sensitive_class(self) -> None:
-        for path in ("CLAUDE.md", ".github/copilot-instructions.md"):
+        for path in (
+            "CLAUDE.md",
+            "nested/CLAUDE.local.md",
+            ".claude/rules/security.md",
+            ".github/copilot-instructions.md",
+            ".github/instructions/rust.instructions.md",
+            ".cursor/rules/security.mdc",
+            "nested/.cursor/rules/review.md",
+            "nested/AGENTS.override.md",
+        ):
             with self.subTest(path=path):
                 errors, _ = validate(proposal("Documentation only"), [path])
                 self.assertIn(
@@ -258,10 +274,14 @@ class ProposalClassificationTests(unittest.TestCase):
 
 class PackagedBaselineTests(unittest.TestCase):
     def test_candidate_template_baseline(self) -> None:
-        errors: list[str] = []
-        warnings: list[str] = []
-        CHECKER.validate_baseline(TEMPLATE_ROOT, errors, warnings)
-        self.assertEqual([], errors)
+        with tempfile.TemporaryDirectory() as temp:
+            temp_root = Path(temp)
+            root = copy_fixture(temp_root / "candidate")
+            canonical_root = copy_fixture(temp_root / "canonical")
+            errors: list[str] = []
+            warnings: list[str] = []
+            CHECKER.validate_baseline(root, errors, warnings, canonical_root)
+            self.assertEqual([], errors)
 
     def test_known_claude_conflicts_fail(self) -> None:
         errors: list[str] = []
@@ -305,6 +325,29 @@ class ActivatedBaselineTests(unittest.TestCase):
     def test_valid_activated_state(self) -> None:
         errors, _ = self.validate_active()
         self.assertEqual([], errors)
+
+    def test_first_activation_can_use_a_canonical_base_without_v11_artifacts(self) -> None:
+        def preactivation_base(temp_root, paths):
+            preactivation = temp_root / "preactivation"
+            shutil.copytree(paths["canonical_root"], preactivation)
+            for relative in (
+                CHECKER.ACTIVATION_RECORD_PATH,
+                CHECKER.ACTIVATION_SCHEMA_PATH,
+                CHECKER.ACTIVATION_DECISION_SCHEMA_PATH,
+                CHECKER.PHASE_RECORD_PATH,
+                CHECKER.PHASE_SCHEMA_PATH,
+            ):
+                path = preactivation / relative
+                if path.exists():
+                    path.unlink()
+            return preactivation
+
+        errors, warnings = self.validate_active(
+            canonical_override=preactivation_base,
+            candidate_activation=True,
+        )
+        self.assertEqual([], errors)
+        self.assertTrue(any("proposal data only" in warning for warning in warnings))
 
     def test_charter_digest_drift_fails(self) -> None:
         def mutate(paths):
@@ -580,6 +623,76 @@ class RuntimeInstructionSurfaceTests(unittest.TestCase):
 
         errors = self.validate_runtime(mutate)
         self.assertTrue(any("candidate adds untrusted instruction surfaces" in error for error in errors))
+
+    def test_every_supported_nested_instruction_surface_is_rejected(self) -> None:
+        surfaces = (
+            "nested/CLAUDE.md",
+            "nested/CLAUDE.local.md",
+            ".claude/CLAUDE.md",
+            ".claude/rules/security.md",
+            ".github/instructions/rust.instructions.md",
+            ".cursor/rules/security.mdc",
+            "nested/.cursor/rules/review.md",
+            "nested/GEMINI.md",
+            "nested/AGENTS.override.md",
+        )
+
+        for surface in surfaces:
+            with self.subTest(surface=surface):
+                def mutate(candidate, _canonical, relative=surface):
+                    loader = candidate / relative
+                    loader.parent.mkdir(parents=True, exist_ok=True)
+                    loader.write_text("untrusted instructions\n", encoding="utf-8")
+
+                errors = self.validate_runtime(mutate)
+                self.assertTrue(
+                    any("candidate adds untrusted instruction surfaces" in error for error in errors),
+                    errors,
+                )
+
+    def test_symlinked_instruction_surface_is_rejected(self) -> None:
+        def mutate(candidate, _canonical):
+            target = candidate / "payload.md"
+            target.write_text("untrusted instructions\n", encoding="utf-8")
+            link = candidate / "CLAUDE.md"
+            try:
+                link.symlink_to(target)
+            except OSError as exc:
+                self.skipTest(f"symlinks unavailable: {exc}")
+
+        errors = self.validate_runtime(mutate)
+        self.assertTrue(any("must not be a symbolic link" in error for error in errors), errors)
+
+
+class BootstrapOperatingProfileTests(unittest.TestCase):
+    def validate_state(self, mutate=None, now=None) -> list[str]:
+        with tempfile.TemporaryDirectory() as temp:
+            root = copy_fixture(Path(temp) / "candidate")
+            state_path = root / CHECKER.BOOTSTRAP_STATE_PATH
+            if mutate:
+                data = json.loads(state_path.read_text(encoding="utf-8"))
+                mutate(data)
+                state_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            errors: list[str] = []
+            CHECKER.validate_bootstrap_operating_state(root, errors, now)
+            return errors
+
+    def test_active_founder_only_state_passes(self) -> None:
+        self.assertEqual([], self.validate_state(now=dt.datetime(2026, 7, 13, tzinfo=dt.timezone.utc)))
+
+    def test_calendar_expiry_fails_closed(self) -> None:
+        errors = self.validate_state(now=dt.datetime(2026, 10, 13, tzinfo=dt.timezone.utc))
+        self.assertTrue(any("has expired" in error for error in errors), errors)
+
+    def test_recorded_transition_triggers_fail_closed(self) -> None:
+        mutations = (
+            lambda data: data.update(independent_non_founder_human_maintainers=2),
+            lambda data: data.update(production_release_candidate=True),
+            lambda data: data.update(forge_canonical=True),
+        )
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                self.assertTrue(self.validate_state(mutate, dt.datetime(2026, 7, 13, tzinfo=dt.timezone.utc)))
 
 
 if __name__ == "__main__":

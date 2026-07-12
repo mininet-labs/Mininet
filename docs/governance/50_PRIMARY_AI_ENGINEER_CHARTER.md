@@ -1,17 +1,17 @@
 # Primary AI Engineer Charter
 
 **Document ID:** GOV-AI-050  
-**Status:** Proposed operational bootstrap charter  
+**Status:** Operational bootstrap charter; active  
 **Version:** 1.1  
-**Authority class:** Unclassified pending independent review; proposed as operational and non-authorizing  
+**Authority class:** Operational and non-authorizing  
 **Applies to:** Founder-guarded or maintainer-assisted bootstrap only after exact-state activation  
-**Proposing identity:** To be bound by the adopting proposal  
+**Proposing identity:** Founder bootstrap custodian  
 **Supersedes:** None  
 **Superseded by:** None  
 **Machine-readable summary:** `50_PRIMARY_AI_ENGINEER_CHARTER.summary.json`  
-**Activation decision:** None in this candidate  
-**Activation decision registry:** None in this candidate  
-**Activation:** Inclusion in this package does not activate this charter. Activation requires independent effect-based classification and an exact-state canonical decision naming the charter digest under the current Mininet authority and review process.
+**Activation decision:** D-0084  
+**Activation decision registry:** docs/DECISION_LOG.md  
+**Activation:** D-0084 activates this exact charter digest for the active founder-guarded phase. A changed copy remains inactive until a later exact-state canonical activation Decision binds it.
 
 ## 1. Nature of this charter
 
@@ -335,11 +335,11 @@ A conforming session adapter shall:
 
 File presence proves only that guidance is available. It does not prove that a model read, understood, or obeyed it. Conformance therefore requires proposal records, exact-state review, permission boundaries, and governance tests in addition to a session file.
 
-In this v1.1 candidate, `repository-template/AGENTS.md` is a proposed adapter template. It is not installed or activated by this package, and this package does not claim that any AI model has loaded, understood, or obeyed it.
+In the accepted v1.1 deployment, repository-root `AGENTS.md` is the activated adapter. `repository-template/AGENTS.md` remains a deployment template. Activation proves a canonical policy decision and content binding; it does not prove that any AI model loaded, understood, or obeyed the instructions.
 
 ## 19. Traceability and tests
 
-This charter is proposed as an operational interpretation of the existing Constitution, Founder Directives, frozen invariants, and governance rules. That classification must be independently confirmed from its effect. If an adopting proposal retains or introduces an exclusive legitimacy role, reallocates authority, or changes a constitutional rule, it must use the higher classification and process. The charter creates no new frozen invariant and no new source of authority. An adopting proposal must cite the exact current directive, invariant, and decision identifiers affected by activation.
+This charter is activated as an operational interpretation of the existing Constitution, Founder Directives, frozen invariants, and governance rules. D-0084 confirms that effect classification for this exact state. If a later proposal retains or introduces an exclusive legitimacy role, reallocates authority, or changes a constitutional rule, it must use the higher classification and process. The charter creates no new frozen invariant and no new source of authority. A later adopting proposal must cite the exact current directive, invariant, and decision identifiers affected by activation.
 
 Minimum governance tests are:
 

@@ -246,13 +246,7 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 
 - **shipped** — `mini_bearer::TcpBearer` (D-0042): real TCP transport,
   tested, proven live via `mini-net`'s three-process gossip demo.
-- **shipped** — `mini-bootstrap`/`mini-sync` proven live over real TCP
-  (D-0062, closes [#23](../../issues/23)): a genuinely fresh device (empty
-  store, empty `KelCache`) bootstraps a signed genesis capsule from a seed
-  peer over a real socket end to end, and `mini_sync::sync_bidirectional`'s
-  own "over any bearer" claim is now tested against `TcpBearer`, not just
-  `InProcessBearer`.
-- **partial** — `mini-net`'s gossip logic is proven live over real
+- **shipped** — `mini-boo׍m�G����ƭy�ive over real
   sockets; peer *discovery* (`RoutingTable`) is unexercised over a real
   transport; not a mesh.
 - **not started** — BLE/local-Wi-Fi radio adapters (needs real phone
@@ -457,16 +451,19 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   named next step, the caller's job by design); the rest of
   Batch 5 (local object indexing at scale, distributed build workers,
   GitHub import/export mirror automation).
-- **specified, not implemented** — the founder-supplied Governance Pack
-  v1.0 (`docs/governance/`, `forge-native/`, `governance/`; D-0082): ~50
+- **partly active, mostly specified** — the founder-supplied Governance Pack
+  v1.0 plus the v1.1 charter delta (`docs/governance/`, `forge-native/`,
+  `governance/`; D-0082–D-0084): ~50
   normative process/specification documents, five RFCs, and JSON Schemas
   for a future signed Forge-native governance-object encoding, all
   explicitly subordinate to `docs/FOUNDER_DIRECTIVES.md`/
   `docs/INVARIANTS.md`/`docs/DECISION_LOG.md`. The only things actually
-  *active* are additive and non-blocking: new GitHub issue forms, a
-  `CODEOWNERS.template` (not live — the teams it names don't exist yet),
-  and a `governance-policy.yml` CI job that checks the policy config
-  stays well-formed, `continue-on-error: true`. See
+  *active* are the GitHub issue forms, the content-addressed non-authorizing
+  Primary AI Engineer Charter and `AGENTS.md` adapter, security/dependency
+  settings, a temporary Founder-operated pull-request-only `main` profile,
+  a blocking candidate baseline, a canonical base-branch evaluator for later
+  PRs, and live CODEOWNERS routing to the Founder with zero required approval.
+  The scoped-team `CODEOWNERS.template` remains inert until those humans exist. See
   `docs/GOVERNANCE_PACK_INTEGRATION.md` for the full compatibility
   matrix and what's staged vs. founder-only.
 

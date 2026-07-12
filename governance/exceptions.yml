@@ -1,5 +1,23 @@
 version: 1
-exceptions: []
+exceptions:
+  - id: GOV-EX-0001
+    scope: founder-only-repository-main-integration-quorum
+    owner: founder-bootstrap-custodian
+    reason: >-
+      D-0083 permits one Founder-operated GitHub main integration path while
+      no second independent human maintainer is available.
+    mitigation: >-
+      Pull requests, blocking checks, resolved conversations, exact-head
+      evidence, public AI-assistance disclosure, zero AI approval weight, and
+      a Founder-only mechanical merge. Production release and Forge
+      canonicalization retain the D-0033 two-human floor.
+    expires: 2026-10-12
+    decision: D-0083
+    state: governance/bootstrap-operating-state.json
+    sunset_on_first:
+      - two_independent_human_maintainers_appointed
+      - production_release_candidate
+      - forge_becomes_canonical
 # Example:
 # - id: DEP-EX-0001
 #   scope: RUSTSEC-YYYY-NNNN

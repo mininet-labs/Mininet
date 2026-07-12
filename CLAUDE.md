@@ -19,10 +19,12 @@ current: when a convention changes, change it in the same proposal.
 Mininet: a constitutional P2P protocol — identity, personhood, money,
 storage, governance — built in Rust as ~33 `mini-*` crates (two,
 `mini-cli` and `mini-build-runner-wasmtime`, are binaries), designed to
-outlive its creators (think in centuries, not releases). The founder directs
-via chat and currently performs GitHub PR merges. GitHub is the temporary
-operational canonical surface until a governed Forge cutover; it is never
-constitutional authority. The long-term source of truth is the network
+outlive its creators (think in centuries, not releases). The founder may give
+engineering direction via chat and currently performs the mechanical GitHub
+PR merge action under the active bootstrap operating decision. Chat direction
+is task authorization, not AI approval or protocol authority. GitHub is the
+temporary operational canonical surface until a governed Forge cutover; it is
+never constitutional authority. The long-term source of truth is the network
 governing itself (`mini-forge`).
 
 ## Canonical sources — load what the task requires
@@ -40,7 +42,7 @@ not authority precedence.
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0075 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0084 so far. **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
@@ -68,8 +70,11 @@ what's activated vs. staged vs. founder-only),
   governance/review crates (mini-forge, mini-chain voting) in either
   direction. Check `Cargo.toml` diffs for this on every PR.
 - **Frozen invariants are frozen.** Adding rules is fine; weakening any
-  Tier-F row in INVARIANTS.md is not, without an explicit founder decision
-  recorded as a D-number.
+  Tier-F row in INVARIANTS.md requires the lawful constitutional amendment
+  and unfreezing process, an exact-state canonical Decision, and every
+  applicable external gate. Founder direction, repository ownership, the
+  temporary D-0083 integration exception, or ambiguity cannot substitute for
+  that process; ambiguity defaults to denial.
 - **Append-only history:** never rewrite merged commits, never reformat old
   decision-log entries, never delete a threat/failure entry (mark
   resolved/superseded instead).
@@ -102,8 +107,10 @@ what's activated vs. staged vs. founder-only),
 
 ## Workflow ritual (what the founder expects every batch)
 
-1. Work on the designated `claude/...` branch; founder merges PRs himself
-   ("I merged" = sync from main and continue).
+1. Work on the designated contribution branch; while D-0083 is active, the
+   Founder performs the mechanical GitHub merge after the PR's required
+   checks and exact-head review evidence are complete ("I merged" = sync
+   from main and continue). AI reviews carry zero approval weight.
 2. Batch related work into one PR; update the PR title/body as scope grows.
 3. Before every commit: `cargo fmt --all` →
    `cargo clippy --all-targets --all-features --workspace -- -D warnings` →

@@ -1,0 +1,39 @@
+name: governance-canonical
+
+# This workflow is evaluated from the canonical base branch. It never executes
+# candidate code; the candidate checkout is untrusted data inspected by the
+# base branch's checker. Keep permissions read-only and add no secrets.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  canonical-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out canonical evaluator
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .canonical
+          persist-credentials: false
+      - name: Check out proposal as untrusted data
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .candidate
+          persist-credentials: false
+      - name: Test the canonical evaluator
+        working-directory: .canonical
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - name: Evaluate proposal with canonical code
+        run: >-
+          python3 .canonical/tools/check_governance.py
+          --mode baseline
+          --root .candidate
+          --canonical-root .canonical
+          --candidate-activation

@@ -3,17 +3,17 @@
     "id": "GOV-AI-050",
     "title": "Primary AI Engineer Charter",
     "version": "1.1",
-    "status": "draft",
-    "authority_class": "unclassified-proposed-operational-non-authorizing",
+    "status": "operational",
+    "authority_class": "operational-non-authorizing",
     "source": "docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.md",
-    "source_sha256": null,
+    "source_sha256": "b101222fb95a71bf9e609e81a77e35426ab16d4a6a9c8fce53d1d7bf7b57df45",
     "supersedes": [],
     "superseded_by": []
   },
   "traceability": {
     "constitution": ["SPEC-00"],
     "invariants": [],
-    "decisions": [],
+    "decisions": ["D-0084"],
     "directives": ["docs/FOUNDER_DIRECTIVES.md"]
   },
   "actors": [
@@ -82,8 +82,8 @@
     "creates_governance_weight": false
   },
   "implementation": {
-    "github_bootstrap": "protected AGENTS.md adapter, trust-before-load runtime comparison, external three-content-digest activation record, structured final Decision, separately supplied canonical checkpoint, current-phase/time gates, and reconciled tool-native loaders",
+    "github_bootstrap": "protected AGENTS.md adapter, trust-before-load runtime comparison, external four-artifact activation record, structured final Decision, separately supplied canonical checkpoint, current-phase/time gates, and reconciled tool-native loaders",
     "forge_target": "content-addressed charter and active authority-profile objects",
-    "maturity": "specified-not-activated"
+    "maturity": "specified-and-activated"
   }
 }

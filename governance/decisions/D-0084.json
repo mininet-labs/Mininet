@@ -1,0 +1,19 @@
+{
+  "$schema": "../ai-charter-activation-decision.schema.json",
+  "schema_version": 1,
+  "object_type": "ai-charter-activation-decision",
+  "decision_ref": "D-0084",
+  "status": "final",
+  "classification": "operational",
+  "activation_record_sha256": "171d320f04ddc19dc7b328e8567613159acdcbb8e3d60e082972f5a9539e1331",
+  "activation_artifacts_sha256": "9595de5754e5de55f6be3c3113c1d4ab9e265b3198e08112fe9ca96e3a4dc8c8",
+  "charter_sha256": "b101222fb95a71bf9e609e81a77e35426ab16d4a6a9c8fce53d1d7bf7b57df45",
+  "summary_sha256": "b69fcfb88a41893bcbad3b722fc613d1d84d1810903c392c82f55d83aae7f302",
+  "adapter_sha256": "34a921a3cd962ac160796b79b6dfed6da1e2b7883d5a2a95f62323044a492101",
+  "phase": "founder-guarded",
+  "effective_at": "2026-07-12T21:40:00Z",
+  "cooling_required": false,
+  "cooling_completed_at": null,
+  "cooling_basis": "The Founder explicitly selected D-0083's bounded bootstrap profile; the charter is non-authorizing, content-addressed, and separately supersedable, so an additional cooling interval is not required.",
+  "superseded_by": null
+}

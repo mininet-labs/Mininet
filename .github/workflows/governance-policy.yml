@@ -1,14 +1,15 @@
 name: governance-policy
 
-# Staged rollout, Phase A ("Observe") of the Governance Pack's own
-# docs/governance/27_REPOSITORY_INTEGRATION_PLAN.md: validate that the
+# Blocking bootstrap baseline: validate that the
 # governance policy artifacts (governance/policy.yml, governance/
 # exceptions.yml, governance/document-summary.schema.json, a PR template,
 # a CODEOWNERS or CODEOWNERS.template) exist and stay well-formed.
-# continue-on-error: true for the same reason ci.yml's dependency-audit/
-# dependency-deny jobs have it -- this is a first real run establishing
-# the baseline, not something to block merges on before anyone has
-# verified it against this repo's actual history.
+# D-0083 makes this candidate-side job a required GitHub integration check.
+# After D-0084 lands, governance-canonical.yml supplies the trust boundary by
+# running canonical code against the proposal as data. The wider
+# proposal-metadata job remains staged until the expanded PR template is
+# adopted; this baseline is no longer advisory but is not the canonical
+# evaluator by itself.
 #
 # The pack's second job (proposal-metadata) validates a PR body against
 # 13 required section headings that this repo's live .github/
@@ -32,7 +33,6 @@ permissions:
 jobs:
   governance-baseline:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:

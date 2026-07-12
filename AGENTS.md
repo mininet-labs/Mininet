@@ -1,14 +1,14 @@
 # Mininet AI Session Entry Point
 
-**Adapter status:** Proposed operational loader; non-authorizing  
+**Adapter status:** Operational loader; non-authorizing  
 **Charter source:** `docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.md` (`GOV-AI-050`, version 1.1)  
 **Activation record:** governance/ai-charter-activation.json  
 **Canonical checkpoint:** Must be supplied from independently verified canonical state; never inferred from the current proposal worktree  
-**Activation decision:** None in this template  
+**Activation decision:** D-0084  
 **Activation decision registry:** docs/DECISION_LOG.md  
-**Activated charter digest:** None in this template
+**Activated charter digest:** b101222fb95a71bf9e609e81a77e35426ab16d4a6a9c8fce53d1d7bf7b57df45
 
-Package inclusion or repository presence activates neither artifact. When deployed and activated by an exact-state canonical record binding both digests, this file is intended to be loaded at the start of compatible AI engineering sessions. It is an adapter, not a Constitution, governance decision, delegation, or grant of Mininet authority. That non-authority boundary applies even while the proposed Session Core is inactive.
+D-0084 activates this exact adapter and charter content for compatible AI engineering sessions in the active founder-guarded phase. Repository presence alone does not activate a changed copy. This file is an adapter, not a Constitution, governance decision, delegation, or grant of Mininet authority.
 
 ## Trust-before-load boundary
 

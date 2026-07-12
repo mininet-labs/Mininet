@@ -68,4 +68,22 @@ A temporary founder veto may reject a change that violates frozen principles or 
 
 ## Bootstrap limitation
 
-Founder bypass is an emergency bootstrap mechanism, not a second canonical route. Every use must be public in the project record, narrowly scoped, independently reviewed afterward, and incapable of forcing owner adoption or bypassing frozen invariants.
+D-0083 creates one explicit, temporary exception to D-0033 for GitHub `main`
+integration during the founder-only bootstrap period. While it is active, the
+Founder may perform the mechanical merge of a pull request after required
+checks, resolved conversations, exact-head inspection, and public disclosure
+of AI assistance. No AI review counts as human approval or quorum.
+
+This exception is not permission to weaken a frozen invariant, publish a
+production release, lower the Forge protocol floor, bypass an external audit,
+or force owner adoption. It ends at the earliest of 2026-10-12T23:59:59Z, the
+appointment of two independent human maintainers, preparation of a production
+release candidate, or Forge becoming canonical. On sunset, D-0033's normal
+two-human floor returns automatically and canonical merges stop until the
+repository rules match it. Renewal requires a new exact-state Decision before
+expiry; silence never renews it.
+
+`governance/bootstrap-operating-state.json` is the fail-closed machine record
+for the expiry and earlier triggers. The validator can enforce only what that
+record truthfully states; maintainer appointment, production claims, and Forge
+cutover must be recorded immediately when they occur.

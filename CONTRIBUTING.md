@@ -24,7 +24,8 @@ information is exactly what the book is for.
 ## Principles that apply to contribution itself
 
 - **Voice / value wall (SPEC-11 §2 \[FREEZE\]).** Funding work is free and unequal;
-  *deciding* what merges is equal and one-human-one-vote. No bounty, sponsorship,
+  *deciding* what merges is equal per verified identity root today. One verified
+  human/one vote is the SPEC-02 target after personhood is implemented. No bounty, sponsorship,
   or holding may ever confer merge authority, counted reviewer standing, or
   governance weight. Money can fund every bounty in existence and buy zero control.
 - **No founder privilege over the constitution.** The six frozen principles bind
@@ -33,12 +34,17 @@ information is exactly what the book is for.
   definition and is not a valid change — see `docs/INVARIANTS.md`.
 - **Default-deny on frozen domains.** If a change touches a Tier-F invariant and
   it's ambiguous whether it's permitted, the answer is no.
-- **Two approvals, for now (D-0033).** Protocol-critical repos — this one
-  included — require at least two distinct maintainer approvals before merge,
-  at least two independent release attestations before release, and at least
-  two approvals on crypto-sensitive AI-assisted code. There is no 1-of-1
-  canonical merge path. AI may draft sensitive code; a human review is always
-  required regardless. See `mini-forge::governance::PROTOCOL_MIN_APPROVALS`.
+- **Normal two-approval floor; temporary Founder-only repository exception
+  (D-0033, D-0083).** D-0033 normally requires at least two distinct
+  maintainer approvals for this protocol repository. D-0083 temporarily
+  permits the Founder to merge a checked pull request into GitHub `main`
+  without those two approvals during the founder-only bootstrap window. This
+  temporary rule supersedes D-0033's repository-approval floor while the
+  Founder is the only human contributor. It expires on 2026-10-12 or earlier on a listed transition
+  trigger. It does not lower `mini-forge::governance::PROTOCOL_MIN_APPROVALS`,
+  the two-attestation release floor, crypto audit gates, or the requirements
+  for Forge canonicalization and production release. AI review is evidence
+  and carries zero approval weight under both rules.
 
 ## Practical checklist for a PR
 
