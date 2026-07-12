@@ -316,6 +316,35 @@ mod tests {
     }
 
     #[test]
+    fn signed_vote_cannot_be_replayed_in_another_context() {
+        let (root, device) = voter();
+        let vote = sign_vote(
+            VoteKind::Prevote,
+            7,
+            2,
+            [0xAA; 32],
+            &root.did(),
+            &device,
+        );
+
+        let mut wrong_phase = vote.clone();
+        wrong_phase.kind = VoteKind::Precommit;
+        assert!(verify_vote(&wrong_phase, &root.kel(), &device.kel()).is_err());
+
+        let mut wrong_height = vote.clone();
+        wrong_height.height += 1;
+        assert!(verify_vote(&wrong_height, &root.kel(), &device.kel()).is_err());
+
+        let mut wrong_round = vote.clone();
+        wrong_round.round += 1;
+        assert!(verify_vote(&wrong_round, &root.kel(), &device.kel()).is_err());
+
+        let mut wrong_block = vote;
+        wrong_block.block_hash[0] ^= 1;
+        assert!(verify_vote(&wrong_block, &root.kel(), &device.kel()).is_err());
+    }
+
+    #[test]
     fn a_truncated_frame_is_rejected_not_panicked() {
         let (root, device) = voter();
         let bytes =
@@ -360,3 +389,4 @@ mod tests {
         );
     }
 }
+
