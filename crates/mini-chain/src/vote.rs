@@ -318,14 +318,7 @@ mod tests {
     #[test]
     fn signed_vote_cannot_be_replayed_in_another_context() {
         let (root, device) = voter();
-        let vote = sign_vote(
-            VoteKind::Prevote,
-            7,
-            2,
-            [0xAA; 32],
-            &root.did(),
-            &device,
-        );
+        let vote = sign_vote(VoteKind::Prevote, 7, 2, [0xAA; 32], &root.did(), &device);
 
         let mut wrong_phase = vote.clone();
         wrong_phase.kind = VoteKind::Precommit;
