@@ -44,6 +44,9 @@ impl PriceHistory {
     /// Record a new governed price. Entries must arrive in strictly
     /// increasing `effective_at_ms` order.
     pub fn add_entry(&mut self, entry: PriceEntry) -> Result<()> {
+        if entry.micro_mini_per_micro_cent == 0 {
+            return Err(ValueError::ZeroPrice);
+        }
         if let Some(last) = self.entries.last() {
             if entry.effective_at_ms <= last.effective_at_ms {
                 return Err(ValueError::OutOfOrderRateEntry);
@@ -103,6 +106,43 @@ mod tests {
     fn price_lookup_before_any_entry_fails() {
         let history = PriceHistory::new();
         assert_eq!(history.price_at(0), Err(ValueError::NoRateInEffect));
+    }
+
+    #[test]
+    fn a_zero_price_entry_is_rejected() {
+        // Fee-manipulation finding (roadmap #44): a governed price of zero
+        // would make every fee free regardless of the real-world value
+        // target, defeating the whole mechanism. Never a legitimate value.
+        let mut history = PriceHistory::new();
+        let err = history
+            .add_entry(PriceEntry {
+                effective_at_ms: 100,
+                micro_mini_per_micro_cent: 0,
+            })
+            .unwrap_err();
+        assert_eq!(err, ValueError::ZeroPrice);
+        assert_eq!(
+            history.price_at(100),
+            Err(ValueError::NoRateInEffect),
+            "the rejected zero-price entry must not have been recorded"
+        );
+
+        // A zero price is rejected even when it would otherwise be a
+        // perfectly well-ordered entry following a real one.
+        history
+            .add_entry(PriceEntry {
+                effective_at_ms: 100,
+                micro_mini_per_micro_cent: 1_000_000,
+            })
+            .unwrap();
+        let err = history
+            .add_entry(PriceEntry {
+                effective_at_ms: 200,
+                micro_mini_per_micro_cent: 0,
+            })
+            .unwrap_err();
+        assert_eq!(err, ValueError::ZeroPrice);
+        assert_eq!(history.price_at(200).unwrap(), 1_000_000);
     }
 
     #[test]

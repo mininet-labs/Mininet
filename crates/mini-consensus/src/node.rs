@@ -256,6 +256,14 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
         if header.height != self.current_height() || header.prev_hash != self.chain.tip_hash() {
             return (hash, false);
         }
+        // A proposer-controlled timestamp that doesn't strictly advance is
+        // rejected here, at prevote time, before the round wastes a step on
+        // it — `LedgerChain::apply_finalized_block` enforces the same rule
+        // unconditionally, so this is a cheap early filter, not the
+        // authoritative check (roadmap #44's timestamp-attack finding).
+        if header.timestamp_ms <= self.chain.last_timestamp_ms() {
+            return (hash, false);
+        }
         match apply_block(self.chain.state(), &p.body) {
             Ok(next) if next.commitment() == header.state_root => (hash, true),
             _ => (hash, false),
@@ -585,6 +593,54 @@ mod tests {
         assert!(
             !prevoted(&emits),
             "a proposal whose signer is not a delegated device of the claimed root must be dropped"
+        );
+    }
+
+    #[test]
+    fn a_proposal_whose_timestamp_does_not_strictly_advance_is_prevoted_nil() {
+        // Timestamp-attack finding (roadmap #44): a fresh node's chain
+        // starts at genesis, whose `last_timestamp_ms()` is 0. A height-1
+        // proposal claiming `timestamp_ms: 0` does not strictly exceed
+        // that. It is still an authentic proposal (correct signature,
+        // correct designated proposer), so per the round driver's own
+        // rules it is prevoted `nil` rather than silently dropped --
+        // exactly like a wrong height or wrong parent hash's value
+        // already is, never the proposal's own (invalid) hash.
+        let fx = fixture();
+        let p_idx = proposer_index(&fx, 1, 0);
+        let mut node = a_node(&fx, (p_idx + 1) % 4);
+        let _ = node.start().unwrap();
+
+        let genesis = LedgerChain::genesis();
+        let b = body();
+        let next = apply_block(genesis.state(), &b).unwrap();
+        let header = BlockHeader {
+            height: 1,
+            prev_hash: genesis.tip_hash(),
+            state_root: next.commitment(),
+            timestamp_ms: 0, // does not strictly exceed genesis's 0
+            proposer: fx.signers[p_idx].0.did(),
+        };
+        let bad_hash = header.hash();
+        let (root, device) = &fx.signers[p_idx];
+        let proposal = sign_proposal(0, -1, header, b, &root.did(), device);
+
+        let emits = node
+            .on_message(ConsensusMessage::Proposal(proposal))
+            .unwrap();
+        let prevote_target = emits.iter().find_map(|e| match e {
+            Emit::Broadcast(ConsensusMessage::Vote(v))
+                if v.height == 1 && v.kind == VoteKind::Prevote =>
+            {
+                Some(v.block_hash)
+            }
+            _ => None,
+        });
+        assert_eq!(
+            prevote_target,
+            Some(crate::round::NIL),
+            "a proposal whose timestamp does not strictly advance must be prevoted nil, \
+             never for its own (invalid) hash: {bad_hash:?}"
         );
     }
 }

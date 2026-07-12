@@ -149,6 +149,17 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   networked chain — no proposer rotation, no vote gossip — that remains
   roadmap #36-#45's job; this crate answers "given a finalized block, what
   changed" precisely, not "how do nodes agree on the next block."
+- **shipped** — consensus edge-case attack review (D-0083, closes roadmap
+  #44): `LedgerChain::apply_finalized_block` now rejects a non-monotonic
+  `timestamp_ms` (mirrored as an early filter in `mini-consensus`'s
+  `validate_proposal`); `mini_chain::Vote`'s signed transcript gained a
+  domain-separation tag it was the one signed-transcript type in this
+  workspace missing; `mini_value::fee::PriceHistory` rejects a governed
+  price of zero. All three are hardening within already-decided
+  constructions — see `docs/THREAT_MODEL.md` §2 for the honest
+  status/limits of each (real wall-clock freshness bounds, a
+  multi-deployment chain-id concept, and a price rate-limit bound all
+  remain explicit, undecided follow-up, not silently claimed as done).
 
 ## 5. Updates & forks
 
