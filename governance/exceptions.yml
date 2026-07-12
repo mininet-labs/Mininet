@@ -1,0 +1,10 @@
+version: 1
+exceptions: []
+# Example:
+# - id: DEP-EX-0001
+#   scope: RUSTSEC-YYYY-NNNN
+#   owner: did:mini:example-pseudonym
+#   reason: No patched compatible version; affected code path is unreachable.
+#   mitigation: Disable the affected feature and add a regression test.
+#   expires: 2026-09-01
+#   decision: D-00XX

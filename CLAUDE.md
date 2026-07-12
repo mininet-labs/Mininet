@@ -38,6 +38,11 @@ source of truth is the network governing itself (mini-forge).
 Supporting: `docs/STATUS.md` (living what's-built account — update it when
 shipping), `docs/design/` (design notes that close roadmap issues —
 `self-hosted-forge-spine.md` is the current top priority, D-0066),
+`docs/governance/` (the founder-supplied Governance Pack — normative
+process/specification material, explicitly **subordinate** to the five
+canonical documents above; never edit it into a rival constitution — see
+`docs/GOVERNANCE_PACK_INTEGRATION.md` for the compatibility matrix and
+what's activated vs. staged vs. founder-only),
 `docs/audits/` (audit deliverables, `issue-N-*.md` naming),
 `docs/ADDRESSING.md` (no-DNS addressing), README's repo map.
 

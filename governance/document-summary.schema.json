@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mininet.invalid/schemas/governance-document-summary-v1.json",
+  "title": "Mininet governance document summary",
+  "type": "object",
+  "required": ["document", "traceability", "requirements"],
+  "properties": {
+    "document": {
+      "type": "object",
+      "required": ["id", "title", "version", "status", "authority_class"],
+      "properties": {
+        "id": {"type": "string", "minLength": 3},
+        "title": {"type": "string", "minLength": 3},
+        "version": {"type": "string"},
+        "status": {"enum": ["draft", "experimental", "operational", "normative", "constitutional", "superseded"]},
+        "authority_class": {"type": "string"},
+        "supersedes": {"type": "array", "items": {"type": "string"}},
+        "superseded_by": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "traceability": {
+      "type": "object",
+      "required": ["constitution", "invariants", "decisions"],
+      "properties": {
+        "constitution": {"type": "array", "items": {"type": "string"}},
+        "invariants": {"type": "array", "items": {"type": "string"}},
+        "decisions": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "level", "enforcement"],
+        "properties": {
+          "id": {"type": "string"},
+          "level": {"enum": ["MUST", "MUST_NOT", "SHOULD", "SHOULD_NOT", "MAY"]},
+          "enforcement": {"type": "array", "items": {"type": "string"}},
+          "tests": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

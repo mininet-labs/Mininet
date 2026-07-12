@@ -1,0 +1,25 @@
+{
+  "object_type": "mininet.gov/change-proposal/v1",
+  "network_id": "mininet-bootstrap",
+  "project_id": "mininet-core",
+  "payload": {
+    "base_head": "blake3:BASE",
+    "proposed_head": "blake3:PROPOSED",
+    "description_digest": "blake3:DESCRIPTION",
+    "affected_domains": [
+      "forge",
+      "governance"
+    ],
+    "risk_class": "protocol-critical",
+    "evidence_plan": [
+      "workspace-tests",
+      "adversarial-review"
+    ],
+    "claim_commitment": "blake3:OPTIONAL_CLAIM"
+  },
+  "author_key": "did:mini:anonymous-proposal-key#1",
+  "key_lineage_ref": "kel:OPTIONAL",
+  "signature_suite": "ed25519",
+  "signature": "BASE64_SIGNATURE",
+  "supersedes": []
+}

@@ -1,0 +1,19 @@
+{
+  "kind": "mininet.governance.amendment-proposal",
+  "version": 1,
+  "parent_digest": "blake3:parent-example",
+  "proposed_digest": "blake3:proposal-example",
+  "classification": "constitutional",
+  "impact": [
+    "INV-U1",
+    "owner adoption",
+    "release governance"
+  ],
+  "migration": "No automatic migration; owner choices preserved.",
+  "activation": {
+    "cooling_period_days": 30,
+    "requires_finality": true
+  },
+  "author": "did:mini:example",
+  "signature": "ed25519:example"
+}

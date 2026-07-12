@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GovernanceConformanceClaim",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "version",
+    "profile",
+    "package_digest",
+    "evidence",
+    "exceptions",
+    "issued_at",
+    "reassess_by",
+    "issuer",
+    "signature"
+  ],
+  "properties": {
+    "kind": {
+      "const": "mininet.governance.conformance-claim"
+    },
+    "version": {
+      "const": 1
+    },
+    "profile": {
+      "enum": [
+        "bootstrap",
+        "hybrid",
+        "forge-primary",
+        "protocol-sovereign"
+      ]
+    },
+    "package_digest": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "issued_at": {
+      "type": "string"
+    },
+    "reassess_by": {
+      "type": "string"
+    },
+    "issuer": {
+      "type": "string"
+    },
+    "signature": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,42 @@
+name: governance-policy
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  governance-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      # Before activation, replace mutable action tags with reviewed full commit SHAs.
+      - uses: actions/checkout@v4
+      - name: Validate governance policy baseline
+        run: python3 tools/check_governance.py --mode baseline
+
+  proposal-metadata:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Save proposal body and changed paths
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '%s' "$PR_BODY" > /tmp/proposal-body.md
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/changed-paths.txt
+      - name: Validate proposal metadata
+        run: |
+          python3 tools/check_governance.py \
+            --mode proposal \
+            --proposal-body /tmp/proposal-body.md \
+            --changed-paths /tmp/changed-paths.txt

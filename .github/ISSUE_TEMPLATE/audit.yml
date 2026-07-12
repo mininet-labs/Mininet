@@ -1,0 +1,25 @@
+name: External audit or legitimacy gate
+description: Define an external review that code and internal tests cannot replace.
+title: "gate: "
+labels: [external-gate, audit]
+body:
+  - type: textarea
+    id: scope
+    attributes: {label: Exact scope and exclusions}
+    validations: {required: true}
+  - type: textarea
+    id: competence
+    attributes: {label: Required reviewer competence and independence}
+    validations: {required: true}
+  - type: textarea
+    id: deliverables
+    attributes: {label: Required public/private deliverables}
+    validations: {required: true}
+  - type: textarea
+    id: closure
+    attributes: {label: Objective closure criteria}
+    validations: {required: true}
+  - type: textarea
+    id: conflict
+    attributes: {label: Conflict-of-interest and funding disclosure}
+    validations: {required: true}

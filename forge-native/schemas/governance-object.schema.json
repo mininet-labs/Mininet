@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mininet.example/governance-object.schema.json",
+  "title": "Mininet Governance Object Envelope",
+  "type": "object",
+  "required": [
+    "object_type",
+    "network_id",
+    "project_id",
+    "payload",
+    "author_key",
+    "signature_suite",
+    "signature"
+  ],
+  "properties": {
+    "object_type": {
+      "type": "string",
+      "pattern": "^mininet\\.gov/[a-z0-9-]+/v[0-9]+$"
+    },
+    "network_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object"
+    },
+    "author_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "key_lineage_ref": {
+      "type": "string"
+    },
+    "signature_suite": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

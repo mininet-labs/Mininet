@@ -1,0 +1,33 @@
+name: Bug report
+description: Report reproducible incorrect behavior.
+title: "bug: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Legal identity is not required. Do not include secrets or unnecessary personal data.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations: {required: true}
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+    validations: {required: true}
+  - type: input
+    id: invariant
+    attributes:
+      label: Affected invariant or safety property
+      placeholder: INV-... or unknown
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and exact revision
+    validations: {required: true}

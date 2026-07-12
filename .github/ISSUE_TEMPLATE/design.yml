@@ -1,0 +1,25 @@
+name: Design or decision proposal
+description: Propose an architectural or constitutional decision before implementation.
+title: "design: "
+labels: [design, decision-needed]
+body:
+  - type: textarea
+    id: question
+    attributes: {label: Decision required}
+    validations: {required: true}
+  - type: textarea
+    id: constraints
+    attributes: {label: Founder directives, invariants and constraints}
+    validations: {required: true}
+  - type: textarea
+    id: options
+    attributes: {label: Options considered, description: Include the strongest case against the preferred option.}
+    validations: {required: true}
+  - type: textarea
+    id: failure
+    attributes: {label: Failure modes and reversibility}
+    validations: {required: true}
+  - type: textarea
+    id: evidence
+    attributes: {label: Evidence needed before acceptance}
+    validations: {required: true}

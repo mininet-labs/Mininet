@@ -4567,3 +4567,98 @@ something to pick unilaterally.
 **Supersedes / superseded by:** none. Composes D-0078's `--json`
 contract and D-0080's sync proof into one narrated artifact without
 altering either.
+
+---
+
+### D-0082 — Integrate the founder-supplied Governance Pack v1.0 as subordinate, supplementary process material  ·  *Accepted*
+**Date:** 2026-07-12 · **Refs:** `docs/GOVERNANCE_PACK_INTEGRATION.md`
+(full compatibility matrix), `docs/governance/*` (50 docs, `CHANGELOG.md`,
+`RFC-0001`–`RFC-0005`), `forge-native/schemas+examples`, `governance/`
+(policy config), `tools/check_governance.py`, CLAUDE.md's founder
+"AI Contributor Transition Plan" instruction.
+
+**Decision:** land the founder-supplied `mininet-governance-pack-v1.0.zip`
+(83 files) as a new, explicitly subordinate documentation/tooling layer:
+`docs/governance/` (the pack's ~50 normative process/specification
+documents plus its RFCs and changelog, copied verbatim), `forge-native/`
+(five JSON Schemas + three worked examples for a future signed Forge
+governance-object encoding, verbatim, all validated as parseable JSON),
+and a new top-level `governance/` policy-config directory
+(`policy.yml`/`exceptions.yml`/`document-summary.schema.json`) plus
+`tools/check_governance.py`, the pack's reference validator. On the
+GitHub-facing side: `.github/ISSUE_TEMPLATE/*` (new issue forms, purely
+additive — none existed before) and `.github/CODEOWNERS.template` (kept
+as a template, not a live `CODEOWNERS`, since the GitHub teams it
+references don't exist yet) are activated; a `governance-policy.yml` CI
+workflow is activated but trimmed to only its `governance-baseline` job
+(`continue-on-error: true`, matching `ci.yml`'s existing
+`dependency-audit`/`dependency-deny` advisory pattern). The pack's
+expanded 13-heading PR template and its second CI job
+(`proposal-metadata`, which hard-requires those headings) are staged at
+`repository-template/` — present, reviewable, verbatim — but **not**
+wired into any live path, because this repo's actual
+`.github/pull_request_template.md` doesn't produce those headings yet and
+wiring the checker in regardless would fail on every PR by construction.
+
+**Reason:** the founder's own transition-plan instructions require (1)
+reading every existing governance-related document first, (2) building an
+explicit compatibility matrix per pack document (already exists / overlaps
+/ supersedes / supplements / conflicts) before adding anything, and (3)
+never silently replacing documentation or inverting the constitutional
+hierarchy. `docs/GOVERNANCE_PACK_INTEGRATION.md` is that matrix,
+maintained as a living document for future pack versions (v1.1 was
+flagged as forthcoming).
+
+**Constitutional impact:** none — the pack's own `docs/governance/
+00_GOVERNANCE_INDEX.md` and `01_DEVELOPMENT_CONSTITUTION.md` both state
+explicitly that the pack is subordinate to `SPEC-00`/`docs/INVARIANTS.md`/
+`docs/DECISION_LOG.md` and "does not create a second Constitution." This
+PR changes none of `docs/FOUNDER_DIRECTIVES.md`, `docs/INVARIANTS.md`, or
+any prior `docs/DECISION_LOG.md` entry — verified byte-identical before
+and after. No voice/value edge; no new authority granted to anyone or
+anything (the CI job that runs is read-only and advisory; the CODEOWNERS
+file that would grant real review-routing authority is deliberately kept
+inert).
+
+**Implementation status:** shipped as documentation, schemas, and
+non-blocking tooling only — explicitly **not** claimed as implemented
+governance. `python3 tools/check_governance.py --mode baseline` passes
+clean (0 errors, 0 warnings) against this repo's real tree. All eight
+`forge-native/` JSON files parse. `docs/_generated/*` regenerated to
+index the new files. One field deliberately deviated from the pack as
+shipped: `.github/ISSUE_TEMPLATE/config.yml`'s `blank_issues_enabled`
+was changed from the pack's `false` to `true`, to avoid silently
+disabling the free-form issue creation the founder has used for the
+existing #8–#93 roadmap issues — recorded explicitly in
+`docs/GOVERNANCE_PACK_INTEGRATION.md`'s "Deviated from the pack" section
+rather than adopted silently.
+
+**Failure point:** stated plainly. Every pack document not already backed
+by real code in this tree (the large majority — see the compatibility
+matrix's "specified only" / "net-new" rows) is exactly that: a design
+proposal, not evidence of enforcement, per the pack's own truth-boundary
+language quoted in `docs/GOVERNANCE_PACK_INTEGRATION.md`. `governance/
+policy.yml`'s `protected_paths` and `.github/CODEOWNERS.template`
+reference GitHub teams (`reviewers-constitution`, `security-stewards`,
+...) that do not exist; nothing in this repository grants them any real
+review-routing authority until the founder creates those teams and
+promotes the template to a live `CODEOWNERS` file. Three numbering
+systems (`D-00xx`/`D-02xx`, `SPEC-xx`, and the pack's new `RFC-000x`) now
+coexist in this repository with different authority levels — flagged
+explicitly so a future contributor does not conflate an RFC reference
+with an accepted decision.
+
+**Required follow-up:** founder-privileged GitHub setup (team creation,
+branch rulesets, CODEOWNERS activation — `docs/governance/
+13_REPOSITORY_OWNER_SETUP_GUIDE.md` and `repository-template/
+GITHUB_RULESETS_BLUEPRINT.md` have the concrete steps); a founder decision
+on whether/when to adopt the expanded PR template and wire in the
+`proposal-metadata` CI job (Phase B of the pack's own `27_
+REPOSITORY_INTEGRATION_PLAN.md`); reconciling `38_
+V05_V06_IMPLEMENTATION_BACKLOG.md`'s parallel backlog against the
+existing GitHub roadmap (#8–#93, hub #92) rather than letting two
+backlogs drift independently; repeating this same read-everything-first,
+build-a-matrix-first process for the promised v1.1 pack.
+
+**Supersedes / superseded by:** none. Supplements every existing
+canonical document without altering any of them.

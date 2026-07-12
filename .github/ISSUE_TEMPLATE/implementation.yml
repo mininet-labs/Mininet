@@ -1,0 +1,31 @@
+name: Implementation proposal
+description: Propose a bounded implementation change.
+title: "impl: "
+labels: [implementation, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes: {label: Problem, description: "What concrete gap does this close?"}
+    validations: {required: true}
+  - type: textarea
+    id: scope
+    attributes: {label: Proposed scope, description: Include explicit non-goals.}
+    validations: {required: true}
+  - type: input
+    id: directives
+    attributes: {label: Founder directives, placeholder: D1, D4, ...}
+    validations: {required: true}
+  - type: input
+    id: invariants
+    attributes: {label: Invariants, placeholder: INV-... or none with explanation}
+    validations: {required: true}
+  - type: textarea
+    id: evidence
+    attributes: {label: Acceptance evidence and tests}
+    validations: {required: true}
+  - type: dropdown
+    id: ai
+    attributes:
+      label: Expected AI assistance
+      options: [None, Planning, Implementation, Adversarial review, Multiple roles]
+    validations: {required: true}
