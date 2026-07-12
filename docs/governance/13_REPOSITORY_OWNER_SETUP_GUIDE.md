@@ -1,6 +1,7 @@
 # Current Repository Owner Setup Guide
 
 **Status:** Practical bootstrap checklist  
+**Version:** 1.1  
 **Audience:** Current owner of `mininet-labs/mininet`  
 **Scope:** GitHub and operational setup only; it intentionally excludes committing or pushing these documentation files.
 
@@ -49,15 +50,20 @@ Target `main` and enable:
 1. Restrict deletions.
 2. Block force pushes.
 3. Require a pull request before merging.
-4. Require at least two approvals for protocol-critical work. During the two-engineer phase, one approval may come from the non-author engineer and the second from the founder or third independent reviewer.
-5. Dismiss stale approvals after new commits.
-6. Require approval of the most recent reviewable push.
-7. Require review from Code Owners.
-8. Require all conversations to be resolved.
-9. Require status checks to pass.
-10. Require the branch to be up to date, or later enable a correctly configured merge queue.
-11. Require signed commits once all active maintainers have signing configured.
-12. Prevent bypass for ordinary maintainers. Keep founder bypass only as temporary emergency access and document every use.
+4. While D-0083 is active, set required approvals to 0. The Founder performs
+   the merge; AI review is evidence with zero approval weight.
+5. Require all conversations to be resolved.
+6. Require `check`, `reproducibility`, and `governance-baseline` to pass.
+7. Require the branch to be up to date.
+8. Restrict deletion and force push; add no bypass actor.
+9. After D-0084 is on `main`, require `canonical-governance`, which executes
+   the base branch's checker against the proposal as untrusted data.
+
+At D-0083 sunset, replace steps 4–9 with the normal D-0033 profile: two
+independent human approvals, stale-approval dismissal, approval of the latest
+reviewable push, Code Owner review by real scoped teams, canonical checks, and
+no ordinary bypass. Require signed commits once all active maintainers have
+signing configured.
 
 Do not permit direct pushes to `main` for engineers or AI accounts.
 
@@ -157,6 +163,10 @@ Until the file is committed, keep an equivalent owner map in repository settings
 4. Require a named persistent human or governance identity to accept ownership of the final proposal; the identity may be pseudonymous.
 5. Encourage separate AI author, adversary, and simplifier passes.
 6. Require human inspection of final exact digest for security-critical work.
+7. Install the root `AGENTS.md` adapter only in the exact proposal that activates its named charter digest, or after that charter is already canonical.
+8. Require model-specific session loaders to reference `AGENTS.md` and remove contradictory or authority-expanding instructions.
+9. Route changes to `AGENTS.md`, model-specific loaders, and `docs/governance/**` through constitutional reviewers with at least a protocol-critical path floor.
+10. Keep activation in an external record that binds the charter, adapter, and summary digests; never put the adapter's expected digest inside the adapter itself.
 
 ## 14. Establish the two-engineer integration workflow
 

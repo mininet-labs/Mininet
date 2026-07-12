@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mininet.invalid/schemas/ai-charter-activation-decision-v1.json",
+  "title": "Mininet Primary AI Engineer Charter activation Decision",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "object_type",
+    "decision_ref",
+    "status",
+    "classification",
+    "activation_record_sha256",
+    "activation_artifacts_sha256",
+    "charter_sha256",
+    "summary_sha256",
+    "adapter_sha256",
+    "phase",
+    "effective_at",
+    "cooling_required",
+    "cooling_completed_at",
+    "cooling_basis",
+    "superseded_by"
+  ],
+  "properties": {
+    "$schema": {"const": "../ai-charter-activation-decision.schema.json"},
+    "schema_version": {"const": 1},
+    "object_type": {"const": "ai-charter-activation-decision"},
+    "decision_ref": {"type": "string", "minLength": 1},
+    "status": {"const": "final"},
+    "classification": {
+      "description": "Effect classification independently assigned to the activation proposal. Activation is necessarily at least operational.",
+      "enum": ["operational", "protocol-governance", "constitutional"]
+    },
+    "activation_record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "activation_artifacts_sha256": {
+      "description": "Versioned, domain-separated SHA-256 commitment to the activation record, charter, adapter, and summary digests. It is the activation artifact set, not a digest of the wider proposal.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "charter_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "summary_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "adapter_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "phase": {"enum": ["founder-guarded", "maintainer-assisted"]},
+    "effective_at": {"type": "string", "format": "date-time"},
+    "cooling_required": {"type": "boolean"},
+    "cooling_completed_at": {"type": ["string", "null"], "format": "date-time"},
+    "cooling_basis": {"type": "string", "minLength": 1},
+    "superseded_by": {"type": ["string", "null"], "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"cooling_required": {"const": true}}},
+      "then": {"properties": {"cooling_completed_at": {"type": "string", "format": "date-time"}}}
+    },
+    {
+      "if": {"properties": {"cooling_required": {"const": false}}},
+      "then": {"properties": {"cooling_completed_at": {"type": "null"}}}
+    }
+  ],
+  "additionalProperties": false
+}

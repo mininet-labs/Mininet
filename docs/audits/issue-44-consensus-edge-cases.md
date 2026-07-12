@@ -67,4 +67,4 @@ Evidence: `zero_rate_is_rejected_at_ingress_and_at_quote_time`,
 This closes #44's caller-context attack review and the concrete defects found
 by it. It does not close economic governance capture (#43), fee-oracle design
 (#49), state sync (#45), or external cryptographic review gates.
-
+

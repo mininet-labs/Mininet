@@ -1,0 +1,55 @@
+name: governance-canonical
+
+# This workflow is evaluated from the canonical base branch. It never executes
+# candidate code. A GitHub-generated source archive is treated as untrusted
+# data inspected by the base branch's checker. Keep permissions read-only and
+# add no repository or environment secrets.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  canonical-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out canonical evaluator
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .canonical
+          persist-credentials: false
+      - name: Download proposal archive as untrusted data
+        env:
+          CANDIDATE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir .candidate
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${CANDIDATE_REPOSITORY}/tarball/${CANDIDATE_SHA}" \
+            --output "${RUNNER_TEMP}/candidate.tar.gz"
+          tar --extract --gzip \
+            --file "${RUNNER_TEMP}/candidate.tar.gz" \
+            --directory .candidate \
+            --strip-components 1 \
+            --no-same-owner \
+            --no-same-permissions
+      - name: Test the canonical evaluator
+        working-directory: .canonical
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - name: Evaluate proposal with canonical code
+        run: >-
+          python3 .canonical/tools/check_governance.py
+          --mode baseline
+          --root .candidate
+          --canonical-root .canonical
+          --candidate-activation

@@ -4662,3 +4662,97 @@ build-a-matrix-first process for the promised v1.1 pack.
 
 **Supersedes / superseded by:** none. Supplements every existing
 canonical document without altering any of them.
+
+---
+
+### D-0083 — Temporary Founder-guarded GitHub integration exception  ·  *Accepted (explicit Founder bootstrap override; temporary)*
+**Date:** 2026-07-12 · **Refs:** D-0033, D-0082,
+`governance/policy.yml`, `governance/exceptions.yml`, Founder instruction in
+the recorded PR session.
+
+**Decision:** temporarily and explicitly supersede D-0033's repository
+approval floor for integration into GitHub `main` during the founder-only
+bootstrap window. This is the current repository approval rule while the
+Founder is the only human contributor.
+The Founder is the sole mechanical GitHub merge operator. A pull request may
+merge without two independent human approvals after its required checks pass,
+review conversations are resolved, the final head is inspected, AI assistance
+is disclosed, and the Founder accepts responsibility for that exact state.
+AI agents may engineer, test, and review; their combined approval weight is
+zero.
+
+This is a real procedural weakening of D-0033, not a claim that one AI or one
+Founder equals independent quorum. Its narrow purpose is to keep engineering
+moving until independent human maintainers join. It does **not** lower
+`mini-forge::governance::PROTOCOL_MIN_APPROVALS`, the two-attestation governed
+release floor, cryptography audit gates, owner-adoption freedom, any Tier-F
+invariant, or the quorum needed for Forge canonicalization or a production
+release.
+
+The exception ends at the earliest recorded occurrence of:
+
+1. 2026-10-12T23:59:59Z;
+2. appointment of two independent human maintainers able to review the same
+   exact state;
+3. preparation of any release represented as production-ready; or
+4. Mininet Forge becoming the canonical integration surface.
+
+`governance/bootstrap-operating-state.json` records these trigger facts. The
+blocking validator fails when the expiry arrives or any earlier trigger is
+recorded. External reality still requires an honest update to that record;
+the file cannot discover appointments, release claims, or Forge cutover by
+itself. On sunset, D-0033's normal two-human floor returns without another
+Decision. If platform rules have not yet been updated, canonical merges must
+stop until they match. Renewal requires a new D-number before expiry; silence
+cannot renew it. Each use must remain visible in its pull request and preserve
+the head digest, checks, adverse AI findings, and Founder merge action.
+
+**Constitutional impact:** temporary, scoped weakening of D-0033's GitHub
+integration procedure; no frozen principle or participant-adoption right is
+weakened.
+
+**Implementation status:** represented in `governance/policy.yml` and
+`governance/exceptions.yml`, with trigger facts in
+`governance/bootstrap-operating-state.json`; enforced on GitHub through a pull-request-only
+`main` ruleset with blocking checks, zero required approvals, no force pushes,
+and no branch deletion. AI remains non-authorizing.
+
+**Supersedes / superseded by:** partially supersedes D-0033 for GitHub `main`
+integration only and only until the first sunset condition. D-0033 remains in
+force everywhere else and resumes fully at sunset.
+
+---
+
+### D-0084 — Activate the Primary AI Engineer Charter v1.1  ·  *Accepted (operational, non-authorizing)*
+**Date:** 2026-07-12 · **Refs:** D-0082, D-0083, `GOV-AI-050`,
+`governance/ai-charter-activation.json`,
+`governance/decisions/D-0084.json`, `governance/current-phase.json`.
+
+**Decision:** recognize the `founder-guarded` phase recorded by D-0083 and
+activate the exact v1.1 Primary AI Engineer Charter, repository-root
+`AGENTS.md` adapter, and machine-readable summary bound by the structured
+final Decision at `governance/decisions/D-0084.json`. Classification is
+operational. The charter coordinates engineering work and grants no AI
+approval, quorum, merge, canonicalization, release, administration, secret,
+treasury, constitutional, or owner-adoption authority.
+
+No cooling interval is required: the Founder explicitly selected the bounded
+bootstrap profile, the charter is non-authorizing, the activation is
+content-addressed and reversible only by a later recorded Decision, and the
+temporary canonical-integration authority is separately and visibly governed
+by D-0083.
+
+The activated charter remains applicable only while the canonical phase is
+`founder-guarded` or `maintainer-assisted` and all activation digests and time
+gates verify from a separately trusted canonical checkpoint. A changed
+instruction surface cannot activate itself. Append-only supersession uses:
+
+`AI-Charter-Activation-Superseded: D-0084 -> <new-decision>`
+
+**Implementation status:** activated for the exact digests in the structured
+Decision. Presence of a different local file or proposal branch is not
+activation and does not prove model compliance.
+
+**Supersedes / superseded by:** activates the v1.1 charter introduced by
+D-0082; superseded only by a later exact-state Decision and the append-only
+marker above.

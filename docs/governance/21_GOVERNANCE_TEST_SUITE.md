@@ -1,7 +1,7 @@
 # Governance Test Suite
 
 **Status:** Normative scenario catalogue  
-**Version:** 0.3
+**Version:** 1.1
 
 ## 1. Test format
 
@@ -164,13 +164,30 @@ A governance feature SHOULD NOT be described as operational until its applicable
 **When:** proposals cross group boundaries.  
 **Then:** scoped review occurs within groups, integration representatives evaluate cross-domain effects, and no single maintainer must review everything.
 
-## 9. Exit criteria
+## 9. AI session charter and adapter
 
-The governance test suite is mature enough for v1.0 only when:
+The scenarios `GOV-AI-050-01` through `GOV-AI-050-06` defined in Document 50 Section 19 are incorporated into this catalogue by reference. They cover:
+
+- exact activation-record, adapter, charter, summary, and authority-boundary integrity;
+- rejection of self-consistent activation data that is not present in the separately verified canonical checkpoint;
+- trust-before-load rejection of changed or newly introduced worktree instruction surfaces;
+- structured final Decision, current-phase, cooling-basis, effective-time, and append-only supersession checks;
+- denial of AI self-approval and quorum;
+- precedence when a higher source conflicts;
+- safe phase transition without Founder Authority passing to AI;
+- model and session-loader replacement; and
+- proactive engineering scope boundaries.
+
+Repository validator unit tests cover file presence, adapter/summary identity, three content digests and structured-Decision consistency, canonical-checkpoint separation, trust-before-load instruction-surface equality, branch self-activation rejection, phase/time/cooling gates, append-only supersession, explicit Authority-grant patterns, review routing, policy protection, and protected-path proposal classification. Those structural tests do not prove checkpoint legitimacy or model behavior. Until the applicable behavioral scenarios have recorded evidence, the charter and adapter may be described as specified or packaged, but not behaviorally verified or activated.
+
+## 10. Exit criteria
+
+The governance test suite is mature enough for v1.1 only when:
 
 - every constitutional invariant has positive and adversarial scenarios;
 - all authority classes have scope and revocation tests;
 - GitHub-loss and founder-loss drills pass;
 - Forge can execute and preserve the same semantics;
 - anonymous contribution and compensation are demonstrated without compulsory identity;
-- owner refusal and rollback are demonstrated end to end.
+- owner refusal and rollback are demonstrated end to end;
+- an activated AI session adapter passes the applicable `GOV-AI-050-*` scenarios, including tool replacement and self-approval denial.

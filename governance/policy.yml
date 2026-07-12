@@ -1,5 +1,5 @@
 version: 1
-policy_id: mininet-bootstrap-governance-v0.4
+policy_id: mininet-bootstrap-governance-v1.1
 authority:
   higher_documents:
     - docs/FOUNDER_DIRECTIVES.md
@@ -8,11 +8,47 @@ authority:
   github_role: temporary_enforcement_adapter
   forge_target: signed_governance_policy_object
 
+bootstrap_operating_profile:
+  id: founder-guarded-github-exception-v1
+  status: active
+  authority_decision: D-0083
+  effective_at: 2026-07-12T21:40:00Z
+  expires_at: 2026-10-12T23:59:59Z
+  scope: github-main-integration-only
+  canonical_branch: main
+  require_pull_request: true
+  require_status_checks: true
+  require_conversation_resolution: true
+  block_direct_push: true
+  block_force_push: true
+  block_branch_deletion: true
+  founder_is_merge_operator: true
+  minimum_required_human_approvals: 0
+  ai_approval_weight: 0
+  preserves:
+    - mini_forge_protocol_min_approvals
+    - governed_release_attestation_floor
+    - cryptography_external_audit_gates
+    - owner_adoption
+    - frozen_invariants
+    - forge_canonicalization_quorum
+  sunset_on_first:
+    - expiry_time
+    - two_independent_human_maintainers_appointed
+    - production_release_candidate
+    - forge_becomes_canonical
+  on_sunset: restore_d_0033_and_block_until_rules_match
+
+repository_approval_floor:
+  source_decision: D-0033
+  normal_minimum_independent_human_approvals: 2
+  lowered_only_by_active_exception: D-0083
+
 change_classes:
   documentation:
-    minimum_independent_approvals: 1
+    minimum_independent_approvals: 2
   ordinary:
-    minimum_independent_approvals: 1
+    minimum_independent_approvals: 2
   protocol-critical:
     minimum_independent_approvals: 2
   cryptography-sensitive:
@@ -25,6 +61,42 @@ change_classes:
     retrospective_required: true
 
 protected_paths:
+  - glob: "**/AGENTS.md"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/AGENTS.override.md"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/CLAUDE.md"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/CLAUDE.local.md"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/.claude/rules/**"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/GEMINI.md"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/.cursorrules"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/.cursor/rules/**"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/.github/copilot-instructions.md"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: "**/.github/instructions/**"
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: docs/governance/**
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: governance/**
+    class: protocol-critical
+    owners: [reviewers-constitution]
   - glob: docs/FOUNDER_DIRECTIVES.md
     class: constitutional
     owners: [reviewers-constitution]

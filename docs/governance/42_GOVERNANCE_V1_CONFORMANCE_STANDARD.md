@@ -2,7 +2,7 @@
 
 **Status:** Normative
 
-**Version:** 1.0
+**Version:** 1.1
 
 ## Normative interpretation
 
@@ -10,9 +10,9 @@ This document is subordinate to `docs/FOUNDER_DIRECTIVES.md`, frozen invariants,
 
 Identity disclosure is never presumed. Anonymous, pseudonymous, and public participation remain valid unless a narrowly scoped role requires continuity or delegated authority. Persistent cryptographic accountability does not imply legal-name disclosure.
 
-## Meaning of v1.0
+## Meaning of v1.x
 
-Version 1.0 means the governance model is constitutionally complete enough to operate without the Founder or GitHub. It does not mean every mechanism is implemented, audited, activated, or socially mature.
+Version 1.x means the governance model is constitutionally complete enough to operate without the Founder or GitHub. It does not mean every mechanism is implemented, audited, activated, or socially mature.
 
 A deployment MUST distinguish:
 
@@ -34,6 +34,7 @@ Founder remains the final GitHub guardian. Required:
 - no forced update path;
 - traceable decisions and exceptions;
 - contributor privacy choices.
+- when the named Primary AI Engineer role is claimed or used, an exact activated standing charter and protected session adapter that grant no Authority by role. Other AI-assisted work may use the pre-activation workflow in Document 04 without claiming that role.
 
 ### Hybrid Profile
 
@@ -78,6 +79,7 @@ A project MUST NOT claim Forge-primary or protocol-sovereign conformance merely 
 - one founder can recover the system;
 - AI produced reviews;
 - a governance document exists;
+- a session file exists or claims that a model read it;
 - tests pass without independent operators;
 - anonymous signatures are mistaken for unlinkability.
 

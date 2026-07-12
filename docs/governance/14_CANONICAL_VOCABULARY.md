@@ -1,7 +1,7 @@
 # Canonical Governance Vocabulary
 
 **Status:** Normative terminology profile  
-**Version:** 0.3
+**Version:** 1.1
 
 ## Relationship to the ontology
 
@@ -22,6 +22,10 @@ The terms below have one meaning throughout this governance pack. Platform-speci
 **Public identity** — A pseudonymous or organizational identity voluntarily linked to a public person or institution. Public attribution grants no correctness privilege.
 
 **AI agent** — An automated system that may create proposals, analysis, tests, attacks, or review evidence. It does not satisfy a human approval or governance quorum unless a future constitutional amendment explicitly creates a different class of authority.
+
+**Primary AI Engineer** — A temporary, session-scoped AI coordination role for engineering preparation under an activated exact charter and authorized task. “Primary” grants no Authority, review independence, continuity right, Approval, quorum, Canonicalization, release, administration, or Owner Adoption.
+
+**Session adapter** — A repository or tool file that loads activated engineering guidance and current context. It is not Delegation, Authority, or proof that a model complied.
 
 ## Work and evidence
 

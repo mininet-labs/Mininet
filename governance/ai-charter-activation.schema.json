@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mininet.invalid/schemas/ai-charter-activation-v1.json",
+  "title": "Mininet Primary AI Engineer Charter activation record",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "record_id",
+    "status",
+    "decision_ref",
+    "decision_registry",
+    "decision_record",
+    "phase",
+    "phase_record",
+    "effective_at",
+    "charter",
+    "summary",
+    "adapter",
+    "superseded_by",
+    "rollback_decision_required"
+  ],
+  "properties": {
+    "$schema": {"const": "./ai-charter-activation.schema.json"},
+    "schema_version": {"const": 1},
+    "record_id": {"const": "mininet-primary-ai-engineer-charter"},
+    "status": {"enum": ["proposed", "active"]},
+    "decision_ref": {"type": ["string", "null"], "minLength": 1},
+    "decision_registry": {"type": "string", "minLength": 1},
+    "decision_record": {"type": ["string", "null"], "minLength": 1},
+    "phase": {
+      "type": ["string", "null"],
+      "enum": [null, "founder-guarded", "maintainer-assisted"]
+    },
+    "phase_record": {"const": "governance/current-phase.json"},
+    "effective_at": {"type": ["string", "null"], "format": "date-time"},
+    "charter": {
+      "type": "object",
+      "required": ["id", "version", "path", "sha256"],
+      "properties": {
+        "id": {"const": "GOV-AI-050"},
+        "version": {"const": "1.1"},
+        "path": {"const": "docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.md"},
+        "sha256": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"const": "docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.summary.json"},
+        "sha256": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "adapter": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"const": "AGENTS.md"},
+        "sha256": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "superseded_by": {"type": "null"},
+    "rollback_decision_required": {"const": true}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "proposed"}}},
+      "then": {
+        "properties": {
+          "decision_ref": {"type": "null"},
+          "decision_record": {"type": "null"},
+          "phase": {"type": "null"},
+          "effective_at": {"type": "null"},
+          "charter": {"properties": {"sha256": {"type": "null"}}},
+          "summary": {"properties": {"sha256": {"type": "null"}}},
+          "adapter": {"properties": {"sha256": {"type": "null"}}},
+          "superseded_by": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "active"}}},
+      "then": {
+        "properties": {
+          "decision_ref": {"type": "string", "minLength": 1},
+          "decision_record": {"type": "string", "minLength": 1},
+          "phase": {"enum": ["founder-guarded", "maintainer-assisted"]},
+          "effective_at": {"type": "string", "format": "date-time"},
+          "charter": {
+            "properties": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+          },
+          "summary": {
+            "properties": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+          },
+          "adapter": {
+            "properties": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

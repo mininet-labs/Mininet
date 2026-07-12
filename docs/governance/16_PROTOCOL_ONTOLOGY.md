@@ -1,7 +1,7 @@
 # Mininet Governance Protocol Ontology
 
 **Status:** Normative definitions  
-**Version:** 0.3
+**Version:** 1.1
 
 ## 1. Rule of interpretation
 
@@ -26,6 +26,9 @@ A Pseudonymous Identity voluntarily associated with a public person or organizat
 
 ### AI Agent
 An automated system producing Artifacts, Proposals, Evidence, Reviews, or operational actions under a defined scope. An AI Agent does not satisfy human or governance quorum unless a future constitutional amendment explicitly creates such authority.
+
+### Primary AI Engineer
+A temporary, session-scoped subtype of AI Agent responsible for coordinating engineering preparation within an authorized task after activation of an exact standing charter. “Primary” grants no Authority, continuity right, review independence, Approval, quorum, Canonicalization, release, administration, treasury, secret, emergency power, or Owner Adoption. The role expires with its task or session and cannot inherit Founder or governance Authority.
 
 ### Owner
 The sovereign controller of a local device, installation, identity, or voluntary policy. The Owner alone controls local Adoption except where control was explicitly and revocably delegated.
@@ -209,3 +212,6 @@ The following statements are normative:
 - Tests are not External Audit.
 - Identity Root is not Verified Human.
 - Payment is not Political Voice.
+- Engineering Stewardship is not Authority.
+- Session Adapter is not Delegation.
+- AI Coordination is not Independent Review.

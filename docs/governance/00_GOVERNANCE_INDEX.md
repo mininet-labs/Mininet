@@ -1,7 +1,7 @@
 # Mininet Governance Index
 
 **Status:** Normative governance map for the bootstrap period  
-**Version:** 0.3  
+**Version:** 1.1  
 **Applies to:** GitHub bootstrap, Mininet Forge, and successor collaboration systems  
 **Canonical precedence:** This pack does not replace `SPEC-00`, `docs/INVARIANTS.md`, or accepted entries in `docs/DECISION_LOG.md`.
 
@@ -52,6 +52,7 @@ When two sources disagree, use this precedence until an accepted constitutional 
 | `20_FAILURE_MODES_AND_CONTINUITY.md` | Threat catalogue and continuity requirements. |
 | `21_GOVERNANCE_TEST_SUITE.md` | Positive, adversarial, recovery, and scaling scenarios. |
 | `22_MACHINE_READABLE_SUMMARIES.md` | Experimental structured summary schema and validation direction. |
+| `50_PRIMARY_AI_ENGINEER_CHARTER.md` | Proposed, model-independent, non-authorizing bootstrap engineering charter and session-adapter conformance boundary. |
 | `RFC-0001_PROTOCOL_GOVERNANCE.md` | Platform-independent governance protocol proposal. |
 | `CHANGELOG.md` | Versioned changes to this pack. |
 
@@ -75,6 +76,7 @@ When a novel situation is not explicitly covered, prefer the interpretation that
 6. keeps forks technically free without counterfeiting continuity;
 7. preserves explicit owner choice over software adoption;
 8. describes current implementation honestly, especially personhood and cryptographic maturity.
+9. treats engineering autonomy as preparation of evidence, never as approval or protocol authority.
 
 ## Current hard honesty requirements
 
@@ -83,6 +85,7 @@ When a novel situation is not explicitly covered, prefer the interpretation that
 - GitHub remains operationally canonical until Forge transition gates are actually satisfied.
 - A governed release may be offered, but only an owner may activate it.
 - Anonymous contribution is permitted; higher-risk authority may require persistent cryptographic continuity without requiring public legal identity.
+- A session adapter or AI charter does not prove model compliance and does not grant the AI authority.
 
 
 ## v0.5–v0.6 specifications
@@ -101,6 +104,14 @@ When a novel situation is not explicitly covered, prefer the interpretation that
 - `RFC-0002_FORGE_GOVERNANCE_OBJECTS.md`
 - `RFC-0003_WORKING_GROUP_GOVERNANCE.md`
 
+
+## Version 1.1 compatible operational guidance
+
+- [50 — Primary AI Engineer Charter](50_PRIMARY_AI_ENGINEER_CHARTER.md)
+- [50 — Machine-readable charter summary](50_PRIMARY_AI_ENGINEER_CHARTER.summary.json)
+- `repository-template/AGENTS.md` — proposed non-authorizing repository-root session adapter; file presence is not activation.
+
+The charter becomes canonical only through an exact-state activation decision. Session adapters are operational projections. They MUST identify the activated charter and digest, preserve its authority boundary, and MUST NOT silently become a higher source of authority.
 
 ## Version 1 completion documents
 

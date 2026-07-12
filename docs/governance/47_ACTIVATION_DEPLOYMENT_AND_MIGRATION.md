@@ -2,7 +2,7 @@
 
 **Status:** Normative operational specification
 
-**Version:** 1.0
+**Version:** 1.1
 
 ## Normative interpretation
 
@@ -12,7 +12,7 @@ Identity disclosure is never presumed. Anonymous, pseudonymous, and public parti
 
 ## Activation is separate from publication
 
-Publishing v1.0 documentation does not activate all rules. Activation requires a canonical decision identifying:
+Publishing v1.x documentation does not activate its rules. Activation requires a canonical decision identifying:
 
 - exact governance package digest;
 - conformance profile;
@@ -27,6 +27,8 @@ Publishing v1.0 documentation does not activate all rules. Activation requires a
 ### Phase A — Documentation alignment
 
 Repository guidance references one hierarchy and vocabulary. Contradictory legacy rules are removed or explicitly superseded.
+
+The Document 50 charter and repository-root adapter MUST be deployed in one exact-state proposal, or the adapter MUST identify an already adopted charter. The external record at `governance/ai-charter-activation.json` must identify the charter ID, version, charter digest, adapter digest, summary digest, applicable phase, effective time, stable Decision reference, structured final Decision path, and deterministic registry path. Activation MUST be evaluated from a separately verified canonical checkpoint, never the proposal worktree. Before proposal-worktree instructions are parsed, a hardened launcher MUST execute the canonical checker's `runtime` mode and reject any instruction-surface drift. The structured Decision must bind the activation-record digest, all three content digests, their versioned domain-separated activation-artifact-set digest, effect classification, truthful cooling basis, phase, time, and absence of an append-only supersession marker. That four-file commitment does not replace the canonical process's separate binding to the wider Exact Proposal State. File presence does not prove activation or model compliance. Existing model-specific loaders must contain the reviewed authority boundary, contain no explicit authority grant, and retain only tool-specific or current-code context.
 
 ### Phase B — Observe-only enforcement
 

@@ -1,6 +1,7 @@
 # GitHub-to-Forge Authority Mapping
 
 **Status:** Migration specification
+**Version:** 1.1
 
 ## 1. Purpose
 
@@ -22,6 +23,7 @@ This document prevents accidental transfer of GitHub platform assumptions into M
 | Issue | Problem/Research/Bounty object | Issue mutability and deletion require archival mapping |
 | Team | WorkingGroup membership/delegation | Platform membership is not governance by itself |
 | Admin | Bootstrap operator | Must not become a permanent constitutional role |
+| `AGENTS.md` or model-specific session loader | Activated content-addressed Charter reference plus execution context | A file or prompt is not Delegation, Approval, or proof of model compliance; adapters must bind the exact charter and activation Decision |
 
 ## 3. Dual-running phase
 
@@ -49,6 +51,7 @@ Forge may become canonical only after demonstrating:
 10. operation during a complete GitHub outage;
 11. founder/platform admin inability to rewrite accepted history unilaterally;
 12. clear user-visible declaration of the source of truth.
+13. content-addressed, model-neutral standing engineering guidance whose replacement cannot change Authority or Canonical History.
 
 ## 5. Decommission
 
