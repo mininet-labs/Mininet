@@ -387,6 +387,17 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   the network. `listen` accepts one peer by default or exactly `--repeat
   <n>` peers sequentially (no daemon, no concurrency, no signal-based
   shutdown); `connect` always dials exactly one peer.
+- **shipped** — Batch 5, second piece: the full spine reaches a peer
+  purely over `mini sync`, not just the governed merge (D-0080). No new
+  code — `mini_sync::sync_bidirectional` already replicates every signed
+  object in the store type-agnostically — but `tests/
+  network_sync_release.rs` is the first proof of it: three identities do
+  governance/release/attestation entirely in one local store, a fourth
+  identity whose store has never touched that filesystem connects once
+  over real loopback TCP, and then — using only what arrived over that
+  one connection — independently runs `release verify` and the full
+  `installer stage → preflight → activate → health-check` sequence to a
+  genuinely active, passing install.
 - **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
   Batch 1's remaining deferred item. Exports a commit chain (commit → tree
   → blobs, recursively through every ancestor) as real git SHA-256-object-

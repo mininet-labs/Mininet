@@ -488,7 +488,28 @@ P2P proposal/review synchronization (reusing `mini-sync`/`mini-net`, no new
 wire protocol needed per the same composition insight D-0062 already
 proved), local object indexing at scale, distributed build workers, native
 release retrieval, GitHub import/export mirror automation so the roles
-eventually invert (GitHub becomes the read-only mirror). Not started.
+eventually invert (GitHub becomes the read-only mirror).
+
+**First two pieces shipped.** `mini sync listen`/`connect` (`crate::sync`)
+reaches a governed merge over a real TCP connection with no shared
+filesystem (`tests/network_sync.rs`). **Full spine over sync (D-0080):**
+`mini_sync::sync_bidirectional` already replicates every signed object in
+the store type-agnostically (`store.all_ids()`, no filtering by object
+type) — `crates/mini-cli/tests/network_sync_release.rs` proves this
+extends all the way through release/attestation/install, not just
+governance: three identities do commit → PR → review → merge → `release
+create` → two independent `release attest` calls entirely in one local
+store, a fourth identity whose store has never touched that filesystem
+connects once over real loopback TCP, and then — using only what arrived
+over that connection — independently runs `release verify` and the full
+`installer stage → preflight → activate → health-check` sequence to a
+genuinely active install. No new replication code was needed; this closes
+the gap between "the protocol is generic" and "someone actually drove a
+release through it."
+
+**Remaining, not started:** local object indexing at scale, distributed
+build workers, native release retrieval, GitHub import/export mirror
+automation.
 
 ## Batch 6 — resume horizontal breadth
 

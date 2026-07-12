@@ -3994,3 +3994,68 @@ reconstruction path specifically" framing.
 
 **Supersedes / superseded by:** none. Fulfills the follow-up D-0077 and
 D-0078 both named.
+
+### D-0080 — Prove the full spine (governed merge -> release -> install) reaches a peer over `mini sync` alone  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #102 (self-hosted forge spine
+Batch 5), D-0062 (the original `mini-bootstrap`/`mini-sync` live-TCP
+demo whose composition insight this reuses), `tests/network_sync.rs`
+(Batch 5's first piece, governed-merge-over-the-wire only),
+`crates/mini-cli/tests/network_sync_release.rs`.
+
+**Decision:** one new test proves `mini_sync::sync_bidirectional`
+already replicates the *entire* self-hosted forge spine over a real TCP
+connection with zero shared filesystem, not just the governed-merge
+slice `network_sync.rs` already covered: three identities (Alice,
+Carol, Dave) do every authoring/review/attestation step in one local
+store — commit, PR, review, merge, `release create`, two independent
+`release attest` calls — and a fourth, Bob, whose store has *never*
+touched that filesystem, connects once over loopback TCP
+(`mini sync connect`/`listen`) and then, using only what arrived over
+that connection, independently runs `release verify` (real governance +
+attestation-quorum + timelock resolution) and the full
+`installer stage → preflight → activate → health-check` sequence to a
+genuinely active, passing install. No new replication code was written
+— `mini_sync::sync_bidirectional` iterates `store.all_ids()`, type-
+agnostic over every signed object, exactly as it always has; this test
+exists to demonstrate that fact for release/attestation/install objects
+specifically, the same way `network_sync.rs` already demonstrated it for
+commits/PRs/reviews.
+
+**Reason:** the roadmap named this milestone explicitly ("sync:
+replicate proposal/review/merge/release objects over Mininet-native
+sync... no new wire protocol needed per the same composition insight
+D-0062 already proved") but no test had actually driven a release
+through `mini sync` before, and — more importantly — nothing had ever
+proven a receiving peer could *install* from purely-synced data. A
+`mini_sync` bug narrow enough to only affect release/attestation/
+installer object types (a filter, an allowlist, a type check somewhere)
+would have shipped invisibly without this.
+
+**Constitutional impact:** none — confirms existing behavior, adds no
+new code path. Reaffirms that `mini_sync`'s trust boundary (out-of-band
+`kel trust`, unchanged since D-0062) is what actually gates which
+objects a peer accepts, not object type — the same "identity, not
+schema, is the security boundary" property release/installer verification
+already relies on.
+
+**Implementation status:** shipped, test passing on first run — no
+`mini-sync`/`mini-cli` implementation changes were needed. Full
+workspace `cargo test --workspace --all-features` green (110 test
+results, 0 failures).
+
+**Failure point:** this is one scenario, not an adversarial suite — it
+does not prove a *malicious* peer can't abuse `sync` to smuggle a bad
+release into a store (that is `mini-forge`'s/`mini-installer`'s own
+verification job at read time, already covered by D-0079, and untouched
+by this test). `mini sync`'s own honest limits (one bounded connection
+per invocation, no daemon, no witness/discovery layer) are unchanged and
+still apply.
+
+**Required follow-up:** the no-GitHub outage demo (next in the roadmap
+sequence) is the natural place to combine this with adversarial-fixture-
+style pressure — a release proposed, reviewed, merged, released, and
+installed with GitHub genuinely unreachable throughout.
+
+**Supersedes / superseded by:** none. Extends D-0062's composition
+insight and Batch 5's first piece (`network_sync.rs`) without altering
+either.
