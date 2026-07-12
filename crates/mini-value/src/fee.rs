@@ -181,10 +181,7 @@ mod tests {
             }),
             Err(ValueError::ZeroFeeRate)
         );
-        assert_eq!(
-            fee_in_micro_mini(1, 0),
-            Err(ValueError::ZeroFeeRate)
-        );
+        assert_eq!(fee_in_micro_mini(1, 0), Err(ValueError::ZeroFeeRate));
     }
 
     #[test]
