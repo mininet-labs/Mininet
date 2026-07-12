@@ -1,0 +1,25 @@
+name: Research question
+description: Track an unresolved question without pretending it is engineering debt.
+title: "research: "
+labels: [research, open-question]
+body:
+  - type: textarea
+    id: question
+    attributes: {label: Research question}
+    validations: {required: true}
+  - type: textarea
+    id: known
+    attributes: {label: What is already known or rejected}
+    validations: {required: true}
+  - type: textarea
+    id: falsification
+    attributes: {label: "What result would falsify the leading approach?"}
+    validations: {required: true}
+  - type: textarea
+    id: privacy
+    attributes: {label: Sovereignty, privacy and coercion risks}
+    validations: {required: true}
+  - type: textarea
+    id: deliverable
+    attributes: {label: Acceptable research deliverable}
+    validations: {required: true}

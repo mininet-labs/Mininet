@@ -1,0 +1,38 @@
+name: governance-policy
+
+# Staged rollout, Phase A ("Observe") of the Governance Pack's own
+# docs/governance/27_REPOSITORY_INTEGRATION_PLAN.md: validate that the
+# governance policy artifacts (governance/policy.yml, governance/
+# exceptions.yml, governance/document-summary.schema.json, a PR template,
+# a CODEOWNERS or CODEOWNERS.template) exist and stay well-formed.
+# continue-on-error: true for the same reason ci.yml's dependency-audit/
+# dependency-deny jobs have it -- this is a first real run establishing
+# the baseline, not something to block merges on before anyone has
+# verified it against this repo's actual history.
+#
+# The pack's second job (proposal-metadata) validates a PR body against
+# 13 required section headings that this repo's live .github/
+# pull_request_template.md does not yet produce -- wiring it in now would
+# "fail" on every PR by construction, which is noise, not signal. It
+# stays staged at repository-template/.github/workflows/
+# governance-policy.yml (the pack's original, unmodified, two-job file)
+# until the expanded proposal template is adopted -- a founder decision,
+# not something to activate unilaterally. See docs/
+# GOVERNANCE_PACK_INTEGRATION.md.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  governance-baseline:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate governance policy baseline
+        run: python3 tools/check_governance.py --mode baseline

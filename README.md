@@ -140,7 +140,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0081`,
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0082`,
    plus the networking/consensus track's reserved `D-0200`–`D-0205` — see the
    log's "Decision-number allocation across parallel tracks").
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
@@ -152,7 +152,12 @@ to people who will never meet them:
 Living detail: [`docs/STATUS.md`](docs/STATUS.md) (what's actually built, by
 domain), [`docs/gates/`](docs/gates/) (external legitimacy gates),
 [`docs/audits/`](docs/audits/) (review deliverables),
-[`docs/design/`](docs/design/) (design notes). Find anything offline:
+[`docs/design/`](docs/design/) (design notes),
+[`docs/governance/`](docs/governance/) (the founder-supplied Governance
+Pack — normative process/specification material, subordinate to the five
+documents above; see
+[`docs/GOVERNANCE_PACK_INTEGRATION.md`](docs/GOVERNANCE_PACK_INTEGRATION.md)
+for what's activated, staged, or founder-only). Find anything offline:
 `python3 tools/mininet_nav.py map` (see [`docs/NAVIGATION.md`](docs/NAVIGATION.md)).
 
 ## License

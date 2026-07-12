@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AmendmentProposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "version",
+    "parent_digest",
+    "proposed_digest",
+    "classification",
+    "impact",
+    "migration",
+    "activation",
+    "author",
+    "signature"
+  ],
+  "properties": {
+    "kind": {
+      "const": "mininet.governance.amendment-proposal"
+    },
+    "version": {
+      "const": 1
+    },
+    "parent_digest": {
+      "type": "string",
+      "minLength": 16
+    },
+    "proposed_digest": {
+      "type": "string",
+      "minLength": 16
+    },
+    "classification": {
+      "enum": [
+        "editorial",
+        "operational",
+        "constitutional",
+        "frozen-invariant"
+      ]
+    },
+    "impact": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "migration": {
+      "type": "string",
+      "minLength": 1
+    },
+    "activation": {
+      "type": "object"
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

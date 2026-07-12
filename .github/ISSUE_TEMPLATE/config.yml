@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Private security report
+    url: https://github.com/mininet-labs/Mininet/security/advisories/new
+    about: Report a genuinely new vulnerability privately. Known audit gaps belong in public issues.
+  - name: Broad discussion
+    url: https://github.com/mininet-labs/Mininet/discussions
+    about: Discuss ideas that are not yet actionable change proposals.

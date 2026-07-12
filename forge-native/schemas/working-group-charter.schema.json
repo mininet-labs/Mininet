@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkingGroupCharter payload",
+  "type": "object",
+  "required": [
+    "group_id",
+    "name",
+    "purpose",
+    "domain_paths",
+    "autonomous_actions",
+    "reserved_actions",
+    "term_policy",
+    "appeal_policy",
+    "lifecycle"
+  ],
+  "properties": {
+    "group_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "domain_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "autonomous_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reserved_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "term_policy": {
+      "type": "string"
+    },
+    "appeal_policy": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "enum": [
+        "proposed",
+        "incubating",
+        "active",
+        "mature",
+        "suspended",
+        "splitting",
+        "merging",
+        "retired"
+      ]
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BountyOffer payload",
+  "type": "object",
+  "required": [
+    "bounty_id",
+    "problem_digest",
+    "acceptance_criteria_digest",
+    "funding_commitment",
+    "reward",
+    "review_policy",
+    "claim_modes",
+    "dispute_policy"
+  ],
+  "properties": {
+    "bounty_id": {
+      "type": "string"
+    },
+    "problem_digest": {
+      "type": "string"
+    },
+    "acceptance_criteria_digest": {
+      "type": "string"
+    },
+    "funding_commitment": {
+      "type": "string"
+    },
+    "reward": {
+      "type": "object",
+      "required": [
+        "asset",
+        "amount"
+      ],
+      "properties": {
+        "asset": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "review_policy": {
+      "type": "string"
+    },
+    "claim_modes": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "public",
+          "pseudonymous",
+          "unlinked",
+          "selective-disclosure"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "dispute_policy": {
+      "type": "string"
+    },
+    "deadline": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "multiple_awards": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

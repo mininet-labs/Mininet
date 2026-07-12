@@ -1,0 +1,30 @@
+name: Contributor bounty
+description: Fund work without buying authority or requiring legal identity.
+title: "bounty: "
+labels: [bounty, funding-proposal]
+body:
+  - type: textarea
+    id: deliverable
+    attributes: {label: Deliverable and exact acceptance criteria}
+    validations: {required: true}
+  - type: textarea
+    id: evidence
+    attributes: {label: Required tests, review and evidence}
+    validations: {required: true}
+  - type: input
+    id: amount
+    attributes: {label: Proposed amount and asset}
+    validations: {required: true}
+  - type: textarea
+    id: privacy
+    attributes: {label: Private or anonymous claim method}
+    validations: {required: true}
+  - type: checkboxes
+    id: separation
+    attributes:
+      label: Constitutional separation
+      options:
+        - label: Payment grants no vote, review standing, merge right or release authority.
+          required: true
+        - label: Technical acceptance and payment authorization are separate decisions.
+          required: true

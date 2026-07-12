@@ -1,0 +1,36 @@
+{
+  "object_type": "mininet.gov/working-group-charter/v1",
+  "network_id": "mininet-bootstrap",
+  "project_id": "mininet-core",
+  "payload": {
+    "group_id": "wg-forge-build-release",
+    "name": "Forge, Build, and Release",
+    "purpose": "Maintain Forge proposal, build provenance, release verification, and installer boundaries.",
+    "domain_paths": [
+      "crates/mini-forge/**",
+      "crates/mini-provenance/**",
+      "crates/mini-update/**",
+      "crates/mini-installer/**"
+    ],
+    "autonomous_actions": [
+      "ordinary implementation review",
+      "test maintenance"
+    ],
+    "reserved_actions": [
+      "invariant amendment",
+      "forced adoption",
+      "release root rotation"
+    ],
+    "term_policy": "12-month expiring delegation with staggered renewal",
+    "appeal_policy": "fresh cross-group panel then governance",
+    "lifecycle": "incubating",
+    "dependencies": [
+      "wg-identity",
+      "wg-security"
+    ]
+  },
+  "author_key": "did:mini:bootstrap-governance#1",
+  "signature_suite": "ed25519",
+  "signature": "BASE64_SIGNATURE",
+  "supersedes": []
+}

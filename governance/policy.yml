@@ -1,0 +1,108 @@
+version: 1
+policy_id: mininet-bootstrap-governance-v0.4
+authority:
+  higher_documents:
+    - docs/FOUNDER_DIRECTIVES.md
+    - docs/INVARIANTS.md
+    - docs/DECISION_LOG.md
+  github_role: temporary_enforcement_adapter
+  forge_target: signed_governance_policy_object
+
+change_classes:
+  documentation:
+    minimum_independent_approvals: 1
+  ordinary:
+    minimum_independent_approvals: 1
+  protocol-critical:
+    minimum_independent_approvals: 2
+  cryptography-sensitive:
+    minimum_independent_approvals: 2
+    external_audit_before_production_claim: true
+  constitutional:
+    minimum_independent_approvals: 2
+    constitutional_process_required: true
+  emergency:
+    retrospective_required: true
+
+protected_paths:
+  - glob: docs/FOUNDER_DIRECTIVES.md
+    class: constitutional
+    owners: [reviewers-constitution]
+  - glob: docs/INVARIANTS.md
+    class: constitutional
+    owners: [reviewers-constitution]
+  - glob: docs/DECISION_LOG.md
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: crates/mini-crypto/**
+    class: cryptography-sensitive
+    owners: [reviewers-value-crypto]
+  - glob: crates/mini-value/**
+    class: cryptography-sensitive
+    owners: [reviewers-value-crypto]
+  - glob: crates/mini-treasury/**
+    class: cryptography-sensitive
+    owners: [reviewers-value-crypto]
+  - glob: crates/mini-identity/**
+    class: protocol-critical
+    owners: [reviewers-identity]
+  - glob: crates/mini-consensus/**
+    class: protocol-critical
+    owners: [reviewers-consensus]
+  - glob: crates/mini-chain/**
+    class: protocol-critical
+    owners: [reviewers-consensus]
+  - glob: crates/mini-forge/**
+    class: protocol-critical
+    owners: [reviewers-forge-release]
+  - glob: crates/mini-provenance/**
+    class: protocol-critical
+    owners: [reviewers-forge-release]
+  - glob: crates/mini-update/**
+    class: protocol-critical
+    owners: [reviewers-forge-release]
+  - glob: crates/mini-installer/**
+    class: protocol-critical
+    owners: [reviewers-forge-release]
+  - glob: .github/workflows/**
+    class: protocol-critical
+    owners: [security-stewards]
+  - glob: deny.toml
+    class: protocol-critical
+    owners: [security-stewards]
+
+proposal:
+  required_sections:
+    - Change class
+    - Exact state
+    - Summary
+    - Founder directives
+    - Invariants
+    - Decision log
+    - Evidence and tests
+    - AI assistance
+    - Security and privacy
+    - Dependencies
+    - Release and adoption
+    - Compensation
+    - Reviewer attestations
+  exact_state_binding: true
+  ai_counts_as_approval: false
+  legal_identity_required: false
+
+frozen_domain:
+  require_invariant_reference: true
+  require_decision_reference: true
+  default_on_ambiguity: reject
+
+constitutional_prohibitions:
+  - money_or_balance_grants_governance_weight
+  - permanent_owner_or_admin_key
+  - forced_update_activation
+  - hidden_unmasking_path
+  - kill_switch
+
+exceptions:
+  file: governance/exceptions.yml
+  require_owner: true
+  require_expiry: true
