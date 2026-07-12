@@ -1,0 +1,18 @@
+[package]
+name = "mini-consensus"
+version = "0.0.1"
+description = "The networked BFT consensus round: deterministic proposer selection, an order-insensitive prevote/precommit round driver, and quorum-certificate formation, run across real processes over a real transport -- the layer that carries mini-chain's finality and mini-execution's application off a single machine. Round-0 happy path only: multi-round view-change on proposer failure is not yet built."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+mini-chain = { path = "../mini-chain" }
+mini-settlement = { path = "../mini-settlement" }
+mini-execution = { path = "../mini-execution" }
+mini-bearer = { path = "../mini-bearer" }

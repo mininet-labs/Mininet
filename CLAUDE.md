@@ -90,7 +90,11 @@ shipping), `docs/design/` (design notes that close roadmap issues —
    `cargo test --workspace --all-features` → regenerate the nav index:
    `python3 tools/mininet_nav.py build`.
 4. Ship each decision as a D-number; bump README's `D-0001–D-00xx` range and
-   repo map when docs/crates are added.
+   repo map when docs/crates are added. **Parallel tracks are banded** to
+   avoid colliding on the same next number: the main/operational line uses
+   `D-00xx`; the networking & consensus track (roadmap #36–#45) allocates
+   from `D-0200` up. Full policy at the top of `docs/DECISION_LOG.md`
+   ("Decision-number allocation across parallel tracks").
 5. GitHub issues: the roadmap is #8–#93 with hub/index issue **#92** — keep
    its checklist current. Close issues only when merged work genuinely
    discharges them; use "Ready to close once PR #N merges" comments and let

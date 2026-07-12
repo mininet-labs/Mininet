@@ -22,6 +22,28 @@ its own past). Where an old entry needs tightening or correction, a new
 entry supersedes it explicitly, the same way D-0045-D-0048 supersede/
 tighten D-0037/D-0039/D-0041 below, rather than editing history in place.
 
+## Decision-number allocation across parallel tracks (added D-0200 batch)
+
+When two agent tracks develop at once, both appending here, they collided on
+the same next number (both grabbed `D-0076` before either merged). To stop
+that permanently without racing to renumber on every rebase, decision numbers
+are **banded by track**:
+
+- **Main sequence (`D-00xx`)** — the primary/operational line. The
+  self-hosted-forge-and-operational track continues it: `…D-0077`, then
+  `D-0078`, `D-0079`, … The gap from `D-0080` up to `D-0199` is this line's
+  to grow into.
+- **`D-02xx` — the networking & consensus track** (roadmap #36–#45:
+  `mini-consensus`, `mini-net`, transports). It allocates from `D-0200`
+  upward, so it never collides with the main sequence regardless of merge
+  order.
+
+The bands are a coordination convenience, not a hierarchy — a `D-02xx`
+decision carries exactly the same authority as any other, and cross-track
+references (`Refs:` / `Supersedes:`) point across bands freely. If a third
+track appears, give it the next free hundreds band (`D-03xx`) and add it here.
+The intentional gap between the bands is expected; it is not missing history.
+
 ## Entry template (D-0045 onward)
 
 ```
@@ -4059,3 +4081,301 @@ installed with GitHub genuinely unreachable throughout.
 **Supersedes / superseded by:** none. Extends D-0062's composition
 insight and Batch 5's first piece (`network_sync.rs`) without altering
 either.
+
+---
+
+### D-0200 — Networked BFT consensus round (`mini-consensus`), round-0 slice  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #36–#45, #92, D-0008, D-0055,
+D-0061, `docs/design/networked-consensus.md`, Directive 4, Directive 14,
+INVARIANTS P1/P2.
+
+**Decision:** add a new crate, `mini-consensus`, that carries
+`mini-chain`'s finality math and `mini-execution`'s state machine off a
+single machine for the first time. It contributes exactly the pieces
+`mini-chain`'s and `mini-execution`'s own docs named as their explicit
+non-goals: a canonical bounded **wire codec** for the two messages a
+round exchanges (a block proposal, and a signed `mini_chain::Vote`); a
+pure, deterministic, order-insensitive **round driver** (`Round`) that
+selects a proposer deterministically (`proposer_for`) and, from proposals
+and votes arriving in any order, drives prevote → precommit → quorum
+certificate; a **`ConsensusNode`** that ties one round per height to a
+`mini_execution::LedgerChain`, advancing only behind a certificate its own
+execution layer re-verifies; and a real **`TcpMesh`** transport over
+`mini_bearer::TcpBearer` with a `run_to_height` loop. A companion
+integration test runs four validator nodes in four OS threads, each with
+an independent ledger sharing no memory or filesystem, to bit-identical
+finalized state over a real socket mesh. This decision covers the
+**round-0 happy path only** — a single round per height, assuming the
+height's proposer is online and honest.
+
+**Reason:** the audit that produced D-0066 found implementation breadth had
+outrun vertical integration; the settlement/execution vertical
+(D-0055/D-0061) explicitly ended at "given a `(header, body, qc)` triple
+from *somewhere* (a real network, eventually)." Nothing produced that
+triple across a process boundary. This is the smallest honest slice that
+does, reusing only already-decided constructions (D-0008's Tendermint-
+style `>2/3`-distinct-roots finality, D-0015's TCP bearer) so it composes
+prior art rather than inventing anything (Directive 14: prefer the
+smaller, well-trodden construction).
+
+**Constitutional impact:** upholds Directive 4 (the integration test proves
+independent honest nodes converge on bit-identical state — the property
+Directive 4 demands of the real network this stands in for); preserves
+P1/P2 (finality is still exactly `mini_chain::verify_finality`'s equal-
+weight-per-identity-root, `>2/3`-distinct rule — this crate counts one
+root at most once at every layer and adds no weight field, no stake, no
+new authority); honors the typed-domain rule (votes are signed only via
+`mini_chain::sign_vote`'s typed request, never a generic `sign(bytes)`;
+the private `Vote::signature` field's invariant is kept local to
+`mini-chain` even though votes now cross a wire). No voice/value edge:
+`mini-consensus` depends on no value crate. No `docs/INVARIANTS.md` row
+changes — this is new networking/protocol code atop frozen finality math,
+not a change to what "final" means.
+
+**Implementation status:** shipped and tested — 17 unit tests
+(wire round-trip/truncation/bounds, round happy-path/reordering/dedup,
+node proposal-validation/buffering) plus a 4-node real-TCP convergence
+integration test; `mini-chain` gains `Vote::to_wire_bytes`/`from_wire_bytes`
+and a `ChainError::Malformed` variant; `mini_execution::SettlementBlockBody`
+gains `PartialEq`/`Eq`. `cargo fmt`/`clippy -D warnings`/`test` all clean
+for the touched crates (the pre-existing `mini-build-runner-wasmtime`
+adversarial suite still needs a `wasm32-wasip2` toolchain this environment
+lacks — unrelated).
+
+**Failure point:** stated plainly and not softened — **round-0 only, no
+liveness under proposer failure.** There is no round timeout, no `nil`
+prevote, no view-change to a fresh proposer, so a single silent or
+equivocating proposer stalls its height (it never *finalizes the wrong
+thing* — safety holds — it just makes no progress). No equivocation
+evidence/slashing, no dynamic validator set, and `TcpMesh` is a cleartext,
+discovery-free, no-reconnect pipe (no `mini_bearer::Channel` authenticated
+encryption, no `mini-net` overlay yet). "Multi-process/multi-machine" is
+demonstrated as threads over loopback, not machines over the internet.
+
+**Required follow-up:** implement Tendermint-style view-change (round
+timeouts, `nil` prevotes, proposer rotation across rounds) so a crashed
+proposer no longer stalls a height — the single largest gap before this is
+a live protocol; wrap `TcpMesh` in `mini_bearer::Channel` for
+authenticated, encrypted links and route peer discovery through
+`mini-net`; add equivocation evidence; wire dynamic validator-set changes.
+Keep roadmap #36–#45 open (this discharges the "networked consensus that
+produces the triple" piece, not view-change or transport hardening); mark
+🟡 in #92, not closed.
+
+**Supersedes / superseded by:** supersedes nothing. Extends D-0008
+(finality math), D-0055 (offline settlement claims), and D-0061
+(chain-backed `CanonicalLedgerView`) by adding the networking layer they
+each deferred; does not alter any of them.
+
+---
+
+### D-0201 — `mini-consensus` gains Tendermint view-change (multi-round, locking, timeouts): a crashed proposer no longer stalls a height  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #36–#45, #92, D-0200, D-0008,
+`docs/design/networked-consensus.md`, arXiv:1807.04938, Directive 4,
+Directive 14, INVARIANTS P1/P2.
+
+**Decision:** replace `mini-consensus`'s round-0-only driver with a
+faithful implementation of the full, published Tendermint consensus
+algorithm — Buchman, Kwon & Milosevic, *"The latest gossip on BFT
+consensus"* (arXiv:1807.04938), Algorithm 1, the construction CometBFT
+runs in production. The `Round` state machine now runs **multiple rounds**
+per height with the complete `upon`-rule set (each citing the paper's line
+numbers), `lockedValue`/`lockedRound` + `validValue`/`validRound` locking,
+`nil` prevotes/precommits (the all-zero block-hash sentinel, which
+`verify_finality` never counts toward a real certificate), POLC
+re-proposal, and the `f+1`-higher-round skip. Timeouts stay **clock-free
+in the state machine**: it emits `ScheduleTimeout` intents that the host
+(`ConsensusNode`/`net::run_to_height`) turns into real timers whose
+durations widen with the round, and feeds back as `on_timeout`. Result:
+when a height's proposer is silent or crashed, honest nodes time out,
+prevote/precommit `nil`, and roll to the next round with a fresh proposer,
+instead of stalling.
+
+**Reason:** the D-0200 slice's single largest named gap and stated next
+step was exactly this — "no liveness under proposer failure." A partial or
+homegrown view-change would be worse than none, because cross-round
+*safety* (never two conflicting decisions at one height) depends on the
+locking rules being exactly right; so the decision is to adopt the
+peer-reviewed algorithm wholesale rather than invent one (Directive 14,
+and the project's standing "compose vetted prior art, don't design novel
+mechanisms" rule applied to consensus, not just cryptography).
+
+**Constitutional impact:** upholds Directive 4 — a new networked test
+(three online validators of a four-validator set, the fourth permanently
+offline) proves the cluster survives a crashed proposer *via view-change
+over a real socket mesh* and still converges to bit-identical state;
+preserves P1/P2 — finality is still exactly `verify_finality`'s equal-
+weight, `>2/3`-distinct-roots rule, unchanged; `nil` and multi-round add
+no weight, no stake, no new authority, and one root is still counted at
+most once at every layer. Votes remain signed only through the typed
+`mini_chain::sign_vote` request (now also over the `nil` sentinel), never a
+generic `sign(bytes)`. No voice/value edge. No `docs/INVARIANTS.md` row
+changes — new liveness machinery around frozen finality math.
+
+**Implementation status:** shipped and tested. `round.rs` is a full
+rewrite to Algorithm 1 (7 pure state-machine tests: happy-path decide,
+silent-proposer→round-advance, locking-forbids-a-conflicting-prevote,
+locked-value-re-prevote-with-POLC, `f+1` skip, order-insensitive decide);
+`node.rs`/`net.rs` gained `nil` signing, per-round proposing/re-proposing
+from a `BodySource`, and a real widening-timeout clock; the proposal wire
+message gained `round` and `valid_round` fields. Both networked tests
+(happy-path convergence and crashed-proposer view-change) pass repeatedly
+over loopback TCP. `cargo fmt`/`clippy -D warnings`/`test` clean for the
+crate.
+
+**Failure point:** stated plainly. Safety holds in full; the residual gaps
+are liveness/DoS and deployment, not correctness: **proposals are
+unsigned** at this layer, so a Byzantine node can waste a round by
+front-running the proposer (never finalize a wrong block — an unwanted
+value simply fails to gather `2f+1` honest prevotes — but it can slow a
+height); vote **gossip is single-hop broadcast**, not full re-gossip of
+past rounds, so the POLC-re-proposal path depends on those prevotes still
+being reachable (the crash-recovery path does not, and is what the test
+exercises); a **truly dead peer eventually back-pressures** the blocking
+TCP `send` (the test sidesteps this by not meshing to the offline node —
+the online set is exactly quorum); still **no equivocation evidence, no
+dynamic validator set, no authenticated/encrypted links** (`TcpMesh` is
+cleartext), and the demonstration is threads over loopback, not machines
+over the internet.
+
+**Required follow-up:** sign proposals (close the front-running/DoS
+surface); add gossip re-delivery of past-round votes so POLC re-proposal is
+robust on a lossy network; make `TcpMesh` broadcast non-blocking (or move
+to `mini_bearer::Channel`) so a dead peer cannot back-pressure honest
+nodes; wrap links in authenticated encryption and route discovery through
+`mini-net`; add equivocation evidence and dynamic validator-set changes.
+Keep roadmap #36–#45 open; mark 🟡 in #92.
+
+**Supersedes / superseded by:** supersedes D-0200's round-0-only round
+driver (its wire codec, node/execution integration, and TCP mesh are
+carried forward and extended, not replaced). Does not alter D-0008,
+D-0055, or D-0061.
+
+---
+
+### D-0202 — `mini-consensus` proposals are now signed by the round proposer (closes the front-running gap)  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #36–#45, #92, D-0201, D-0200,
+`docs/design/networked-consensus.md`, Directive 14, the typed-domain rule
+(CLAUDE.md), INVARIANTS P1/P2.
+
+**Decision:** consensus proposals are now authenticated. A `Proposal`
+carries the current round's `proposer_root`, the delegated
+`proposer_device` that signed it, and a signature over a typed transcript
+binding `(domain, height, round, valid_round, block_hash, proposer_root)`
+— built by `wire::sign_proposal` and checked by `wire::verify_proposal`
+(the signature field is private, so a `Proposal` cannot be constructed
+except by signing). A node accepts a proposal for `(height, round)` only
+if its `proposer_root` is exactly `proposer_for(height, round)`'s
+selection *and* the signature verifies as a `VOTE`-capable delegated
+device of that root; anything else is dropped before the value is even
+considered. `proposer_root` is deliberately the *current round's*
+proposer, distinct from the value's own `header.proposer`, so a
+re-proposed `validValue` (built by an earlier round's proposer) is
+re-signed by whoever legitimately re-proposes it.
+
+**Reason:** the D-0201 view-change slice's top stated follow-up and largest
+residual gap — proposals were unsigned, so a Byzantine node could
+front-run the designated proposer with its own valid value and waste a
+round (a liveness/DoS attack; never a safety hole, but a real one). Signed
+proposals close it with no new cryptography — composing `did_mini`'s
+existing delegation/signing exactly as `mini_chain::sign_vote` already
+does (Directive 14).
+
+**Constitutional impact:** honors the typed-domain rule — proposing is now
+a specific, named, signed request (`sign_proposal` over a domain-tagged
+transcript), never a generic `sign(bytes)`, the same discipline
+`sign_vote`/`sign_release_attestation` follow; preserves P1/P2 and
+finality (unchanged — `verify_finality` still decides what is final; this
+only gates which proposals a round will *consider*). Reuses the existing
+`Capabilities::VOTE` for proposing rather than inventing a capability
+(equal-validator duty). No voice/value edge; no `docs/INVARIANTS.md` row
+changes.
+
+**Implementation status:** shipped and tested. `wire::Proposal` gains
+`proposer_root`/`proposer_device`/`signature` and typed
+`sign_proposal`/`verify_proposal`; the node authenticates every incoming
+proposal and signs its own (and re-signs on re-proposal). Three new node
+tests (designated-proposer proposal is prevoted; a valid proposal from the
+*wrong* proposer is dropped; a proposal whose signer is not a delegated
+device of the claimed root is dropped) plus a wire verify/tamper test; the
+happy-path and crashed-proposer view-change networked tests still pass.
+`cargo fmt`/`clippy -D warnings`/`test` clean. The crate-level docs, stale
+since D-0201, were corrected in the same change to describe the
+multi-round, view-change, signed-proposal reality.
+
+**Failure point:** stated plainly. Front-running is closed, but the other
+D-0201 residuals stand and are not correctness bugs: vote broadcast is
+still single-hop (no past-round re-gossip, so POLC re-proposal is only as
+robust as the links are lossless); a truly dead peer can still
+back-pressure the blocking TCP `send`; there is still no equivocation
+evidence (a proposer that signs two different values for one round is
+detectable now — both are signed — but this crate does not yet collect or
+act on that proof); the validator set is static; and `TcpMesh` remains
+cleartext with no discovery. Still threads over loopback, not machines
+over the internet.
+
+**Required follow-up:** collect proposer/vote equivocation as slashable
+evidence (now that both are signed, double-signing is provable); robust
+vote gossip (re-deliver past-round votes; non-blocking broadcast); wrap
+links in `mini_bearer::Channel` and route discovery through `mini-net`;
+dynamic validator sets. Keep roadmap #36–#45 open; mark 🟡 in #92.
+
+**Supersedes / superseded by:** extends D-0201 (adds proposal
+authentication to its round engine, wire, and node) without altering its
+locking, view-change, or finality semantics. Supersedes nothing.
+
+---
+
+### D-0203 — `mini-consensus` transport is non-blocking and buffered: a dead peer can no longer back-pressure honest nodes  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #36–#45, #92, D-0200, D-0202,
+`docs/design/networked-consensus.md`, Directive 4.
+
+**Decision:** `net::TcpMesh` no longer sends over blocking
+`mini_bearer::TcpBearer` links. Each link is now a non-blocking socket
+with a bounded per-link outbound buffer (`MAX_LINK_OUTBOUND_BYTES`),
+framed with `mini_bearer`'s public `encode_frame`/`FrameReader`. A
+broadcast queues bytes and flushes as far as the socket accepts right now;
+partial writes and `WouldBlock` leave the remainder buffered, and a peer
+that has stopped reading fills its buffer and then has further frames
+dropped best-effort — it can never block or back-pressure the sender.
+Receiving is likewise non-blocking. `broadcast`/`poll` keep their
+signatures, so the node and round layers are untouched.
+
+**Reason:** the D-0202 residual list named this precisely — "a truly dead
+peer eventually back-pressures the blocking TCP `send`," which the
+crashed-proposer test only sidestepped by not meshing to the offline node.
+With blocking writes, once a wedged peer's receive window fills, an honest
+node's `write_all` blocks and the whole node stalls — a real liveness
+hole. Non-blocking buffered links close it with no protocol change,
+composing `mini_bearer`'s existing framing rather than adding a new
+transport primitive.
+
+**Constitutional impact:** none at the invariant level — this is transport
+robustness, not consensus semantics. It strengthens Directive 4's
+liveness posture (an honest node's progress no longer depends on every
+peer draining its socket). Finality, locking, and vote/proposal
+authentication are untouched; the consensus payload stays
+self-authenticating, so the non-blocking best-effort transport can drop or
+delay a frame but never forge or reorder a *decision*.
+
+**Implementation status:** shipped and tested. `net::TcpMesh` rewritten
+around a private non-blocking buffered `Link`; a deterministic unit test
+(`a_peer_that_never_reads_cannot_block_us_or_grow_our_buffer_past_the_cap`)
+offers 64 MiB to a peer that reads nothing and asserts the call never
+blocks and the outbound buffer stays within its cap. Both networked tests
+(happy-path convergence and crashed-proposer view-change) still pass.
+`cargo fmt`/`clippy -D warnings`/`test` clean.
+
+**Failure point:** the buffer cap means a *slow* honest peer that briefly
+falls far enough behind loses the frames dropped past the cap — acceptable
+because vote/proposal delivery is best-effort and safety never depends on
+any single message, but it underscores the still-open **application-level
+re-gossip** gap (D-0202's residual #1): a genuinely dropped past-round vote
+is not re-delivered, so the POLC-re-proposal path is only as robust as the
+links are lossless. This decision fixes the *transport* half of "robust
+vote gossip"; the re-flooding half remains.
+
+**Supersedes / superseded by:** extends D-0200's `TcpMesh` (replaces its
+blocking `TcpBearer` links with non-blocking buffered ones) without
+altering the D-0201/D-0202 round engine, wire, or node. Supersedes
+nothing.

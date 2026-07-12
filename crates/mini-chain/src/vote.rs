@@ -12,8 +12,20 @@
 //! layer up in [`crate::finality::verify_finality`]).
 
 use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};
+use mini_crypto::{Signature, SignatureSuite};
 
 use crate::error::{ChainError, Result};
+
+/// Hard cap on device signatures accepted in one wire-encoded vote: a
+/// well-formed vote carries a single device's signature(s); this generous
+/// bound stops a malformed frame from forcing an unbounded allocation
+/// before any verification runs (the same discipline
+/// [`crate::MAX_VOTES_PER_CERTIFICATE`] applies one layer up).
+const MAX_SIGS_PER_VOTE: usize = 16;
+
+/// Hard cap on the length of a `did:mini` string accepted from the wire —
+/// far above any real SCID, purely an allocation bound on untrusted input.
+const MAX_DID_BYTES: usize = 512;
 
 /// The two Tendermint-style voting phases. Only [`VoteKind::Precommit`]
 /// counts toward finality ([`crate::finality::verify_finality`]);
@@ -73,6 +85,146 @@ impl Vote {
     pub fn signature(&self) -> &[IndexedSig] {
         &self.signature
     }
+
+    /// Canonical wire bytes for this vote: domain-tagged, every field width-
+    /// or length-prefixed, so no two distinct votes ever encode alike and the
+    /// exact same bytes are produced on every platform (the same discipline
+    /// [`BlockHeader::canonical_bytes`](crate::BlockHeader::canonical_bytes)
+    /// and `did_mini`'s own codec use).
+    ///
+    /// A signed vote is inherently a *network* object — this is the layer at
+    /// which `did:mini` votes leave a device — so its wire form lives here in
+    /// `mini-chain` rather than being reconstructed field-by-field by every
+    /// networking crate that must carry it. Keeping it here also keeps the
+    /// private [`Vote::signature`] field's invariant local: the only way to
+    /// obtain a `Vote` is still [`sign_vote`] or a round-trip through these
+    /// two methods, never an ad-hoc struct literal in another crate.
+    pub fn to_wire_bytes(&self) -> Vec<u8> {
+        let mut w = Vec::new();
+        w.extend_from_slice(b"mini-chain/vote/v1");
+        w.push(self.kind.to_byte());
+        w.extend_from_slice(&self.height.to_be_bytes());
+        w.extend_from_slice(&self.round.to_be_bytes());
+        w.extend_from_slice(&self.block_hash);
+        put_str(&mut w, self.validator_root.as_str());
+        put_str(&mut w, self.validator_device.as_str());
+        w.extend_from_slice(&(self.signature.len() as u32).to_be_bytes());
+        for sig in &self.signature {
+            w.extend_from_slice(&sig.index.to_be_bytes());
+            w.push(sig.signature.suite().tag());
+            w.extend_from_slice(&sig.signature.to_bytes());
+        }
+        w
+    }
+
+    /// Reconstruct a vote from [`Vote::to_wire_bytes`]. Purely structural:
+    /// it validates the framing (domain tag, bounds, no trailing bytes) but
+    /// makes **no** trust decision — a decoded vote is exactly as untrusted
+    /// as one that arrived any other way, and [`verify_vote`] remains the
+    /// only thing that decides whether it counts.
+    pub fn from_wire_bytes(bytes: &[u8]) -> Result<Self> {
+        let mut r = SliceReader::new(bytes);
+        let domain = r.take(b"mini-chain/vote/v1".len())?;
+        if domain != b"mini-chain/vote/v1" {
+            return Err(ChainError::Malformed);
+        }
+        let kind = match r.u8()? {
+            0 => VoteKind::Prevote,
+            1 => VoteKind::Precommit,
+            _ => return Err(ChainError::Malformed),
+        };
+        let height = r.u64()?;
+        let round = r.u32()?;
+        let mut block_hash = [0u8; 32];
+        block_hash.copy_from_slice(r.take(32)?);
+        let validator_root = take_did(&mut r)?;
+        let validator_device = take_did(&mut r)?;
+        let sig_count = r.u32()? as usize;
+        if sig_count > MAX_SIGS_PER_VOTE {
+            return Err(ChainError::Malformed);
+        }
+        let mut signature = Vec::with_capacity(sig_count);
+        for _ in 0..sig_count {
+            let index = r.u32()?;
+            let suite = SignatureSuite::from_tag(r.u8()?).map_err(|_| ChainError::Malformed)?;
+            let sig_bytes = r.take(suite.signature_len())?;
+            let sig =
+                Signature::from_suite_bytes(suite, sig_bytes).map_err(|_| ChainError::Malformed)?;
+            signature.push(IndexedSig {
+                index,
+                signature: sig,
+            });
+        }
+        if !r.finished() {
+            return Err(ChainError::Malformed);
+        }
+        Ok(Vote {
+            kind,
+            height,
+            round,
+            block_hash,
+            validator_root,
+            validator_device,
+            signature,
+        })
+    }
+}
+
+/// Append a length-prefixed UTF-8 string (`u32` big-endian length, then bytes).
+fn put_str(w: &mut Vec<u8>, s: &str) {
+    w.extend_from_slice(&(s.len() as u32).to_be_bytes());
+    w.extend_from_slice(s.as_bytes());
+}
+
+/// Read a length-prefixed, bounded `did:mini` string and parse it.
+fn take_did(r: &mut SliceReader<'_>) -> Result<Did> {
+    let len = r.u32()? as usize;
+    if len > MAX_DID_BYTES {
+        return Err(ChainError::Malformed);
+    }
+    let s = core::str::from_utf8(r.take(len)?).map_err(|_| ChainError::Malformed)?;
+    Did::parse(s).map_err(|_| ChainError::Malformed)
+}
+
+/// A minimal cursor over untrusted bytes: every read is bounds-checked and
+/// returns [`ChainError::Malformed`] on truncation, so a short or lying
+/// frame can never index out of range or over-allocate.
+struct SliceReader<'a> {
+    buf: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> SliceReader<'a> {
+    fn new(buf: &'a [u8]) -> Self {
+        SliceReader { buf, pos: 0 }
+    }
+
+    fn take(&mut self, n: usize) -> Result<&'a [u8]> {
+        let end = self.pos.checked_add(n).ok_or(ChainError::Malformed)?;
+        let slice = self.buf.get(self.pos..end).ok_or(ChainError::Malformed)?;
+        self.pos = end;
+        Ok(slice)
+    }
+
+    fn u8(&mut self) -> Result<u8> {
+        Ok(self.take(1)?[0])
+    }
+
+    fn u32(&mut self) -> Result<u32> {
+        let mut a = [0u8; 4];
+        a.copy_from_slice(self.take(4)?);
+        Ok(u32::from_be_bytes(a))
+    }
+
+    fn u64(&mut self) -> Result<u64> {
+        let mut a = [0u8; 8];
+        a.copy_from_slice(self.take(8)?);
+        Ok(u64::from_be_bytes(a))
+    }
+
+    fn finished(&self) -> bool {
+        self.pos == self.buf.len()
+    }
 }
 
 /// Sign a vote with a delegated device. Does not itself check that `device`
@@ -118,4 +270,93 @@ pub fn verify_vote(vote: &Vote, root_kel: &Kel, device_kel: &Kel) -> Result<()> 
     let transcript = Vote::transcript(vote.kind, vote.height, vote.round, &vote.block_hash);
     device_kel.verify_message(&transcript, &vote.signature)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use did_mini::Capabilities;
+
+    fn voter() -> (Controller, Controller) {
+        let mut root = Controller::incept_single_from_seeds(&[7u8; 32], &[8u8; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[9u8; 32], &[10u8; 32])
+                .unwrap();
+        root.delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+        (root, device)
+    }
+
+    #[test]
+    fn a_signed_vote_survives_a_wire_round_trip_byte_for_byte() {
+        let (root, device) = voter();
+        let vote = sign_vote(
+            VoteKind::Precommit,
+            42,
+            3,
+            [0xABu8; 32],
+            &root.did(),
+            &device,
+        );
+        let bytes = vote.to_wire_bytes();
+        let back = Vote::from_wire_bytes(&bytes).unwrap();
+        assert_eq!(vote, back);
+        // And the round-tripped vote still verifies against the real KELs --
+        // decoding preserves the signature, not just the structural fields.
+        verify_vote(&back, &root.kel(), &device.kel()).unwrap();
+    }
+
+    #[test]
+    fn prevote_and_precommit_both_round_trip() {
+        let (root, device) = voter();
+        for kind in [VoteKind::Prevote, VoteKind::Precommit] {
+            let vote = sign_vote(kind, 1, 0, [1u8; 32], &root.did(), &device);
+            assert_eq!(Vote::from_wire_bytes(&vote.to_wire_bytes()).unwrap(), vote);
+        }
+    }
+
+    #[test]
+    fn a_truncated_frame_is_rejected_not_panicked() {
+        let (root, device) = voter();
+        let bytes =
+            sign_vote(VoteKind::Precommit, 1, 0, [1u8; 32], &root.did(), &device).to_wire_bytes();
+        for cut in 0..bytes.len() {
+            assert_eq!(
+                Vote::from_wire_bytes(&bytes[..cut]).unwrap_err(),
+                ChainError::Malformed
+            );
+        }
+    }
+
+    #[test]
+    fn trailing_garbage_after_a_valid_vote_is_rejected() {
+        let (root, device) = voter();
+        let mut bytes =
+            sign_vote(VoteKind::Precommit, 1, 0, [1u8; 32], &root.did(), &device).to_wire_bytes();
+        bytes.push(0);
+        assert_eq!(
+            Vote::from_wire_bytes(&bytes).unwrap_err(),
+            ChainError::Malformed
+        );
+    }
+
+    #[test]
+    fn an_absurd_signature_count_is_rejected_before_allocating() {
+        // A frame that claims u32::MAX signatures must fail on the bound, not
+        // try to reserve capacity for billions of entries.
+        let (root, device) = voter();
+        let good =
+            sign_vote(VoteKind::Precommit, 1, 0, [1u8; 32], &root.did(), &device).to_wire_bytes();
+        // The signature count is the last u32 before the signature entries.
+        // Rebuild the prefix and splice in a huge count.
+        let mut bytes = good.clone();
+        let count_pos = bytes.len()
+            - (4 + 1 + SignatureSuite::Ed25519.signature_len()) // one sig entry
+            - 4; // the count field itself
+        bytes[count_pos..count_pos + 4].copy_from_slice(&u32::MAX.to_be_bytes());
+        assert_eq!(
+            Vote::from_wire_bytes(&bytes).unwrap_err(),
+            ChainError::Malformed
+        );
+    }
 }

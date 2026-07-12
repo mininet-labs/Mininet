@@ -13,7 +13,7 @@ use mini_settlement::PaymentClaim;
 pub const MAX_CLAIMS_PER_BLOCK: usize = 100_000;
 
 /// An ordered list of claims proposed for inclusion at one height.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SettlementBlockBody {
     pub claims: Vec<PaymentClaim>,
 }
