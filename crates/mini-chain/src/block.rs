@@ -16,7 +16,9 @@ pub struct BlockHeader {
     /// Commitment to the post-block application state (content-addressed,
     /// meaning left to the state machine that eventually anchors here).
     pub state_root: [u8; 32],
-    /// Proposer-claimed creation time (ms). Ordering hint, not a proof.
+    /// Protocol timestamp. `mini-consensus` fixes this to the block height as
+    /// deterministic logical time; other consumers must define and validate
+    /// their own policy and must never treat caller wall time as proof.
     pub timestamp_ms: u64,
     /// The proposing validator's identity root.
     pub proposer: Did,
@@ -41,3 +43,4 @@ impl BlockHeader {
         HashAlgorithm::Blake3.digest(&self.canonical_bytes())
     }
 }
+
