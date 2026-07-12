@@ -1,0 +1,28 @@
+{
+  "$schema": "./ai-charter-activation.schema.json",
+  "schema_version": 1,
+  "record_id": "mininet-primary-ai-engineer-charter",
+  "status": "proposed",
+  "decision_ref": null,
+  "decision_registry": "docs/DECISION_LOG.md",
+  "decision_record": null,
+  "phase": null,
+  "phase_record": "governance/current-phase.json",
+  "effective_at": null,
+  "charter": {
+    "id": "GOV-AI-050",
+    "version": "1.1",
+    "path": "docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.md",
+    "sha256": null
+  },
+  "summary": {
+    "path": "docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.summary.json",
+    "sha256": null
+  },
+  "adapter": {
+    "path": "AGENTS.md",
+    "sha256": null
+  },
+  "superseded_by": null,
+  "rollback_decision_required": true
+}

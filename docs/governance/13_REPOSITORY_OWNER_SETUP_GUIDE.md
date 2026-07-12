@@ -1,6 +1,7 @@
 # Current Repository Owner Setup Guide
 
 **Status:** Practical bootstrap checklist  
+**Version:** 1.1  
 **Audience:** Current owner of `mininet-labs/mininet`  
 **Scope:** GitHub and operational setup only; it intentionally excludes committing or pushing these documentation files.
 
@@ -157,6 +158,10 @@ Until the file is committed, keep an equivalent owner map in repository settings
 4. Require a named persistent human or governance identity to accept ownership of the final proposal; the identity may be pseudonymous.
 5. Encourage separate AI author, adversary, and simplifier passes.
 6. Require human inspection of final exact digest for security-critical work.
+7. Install the root `AGENTS.md` adapter only in the exact proposal that activates its named charter digest, or after that charter is already canonical.
+8. Require model-specific session loaders to reference `AGENTS.md` and remove contradictory or authority-expanding instructions.
+9. Route changes to `AGENTS.md`, model-specific loaders, and `docs/governance/**` through constitutional reviewers with at least a protocol-critical path floor.
+10. Keep activation in an external record that binds the charter, adapter, and summary digests; never put the adapter's expected digest inside the adapter itself.
 
 ## 14. Establish the two-engineer integration workflow
 

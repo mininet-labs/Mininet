@@ -15,6 +15,35 @@ and anonymous compensation; v0.6 working-group governance and maintainer
 rotation," built on an earlier v0.4 this repository had not previously
 received. A v1.1 was flagged by the founder as forthcoming.
 
+## v1.1 delta under review
+
+Version 1.1 adds the proposed, model-neutral Primary AI Engineer Charter
+(`GOV-AI-050`), a repository-root `AGENTS.md` session adapter, an external
+activation record, phase and structured-Decision schemas, trust-before-load
+runtime validation, and adversarial validator tests. These artifacts remain
+proposed and inactive until the exact activation fields, digests, classification,
+Decision, phase, and canonical checkpoint satisfy their own Activation Gate.
+File presence does not activate the role or grant AI authority.
+
+The accepted D-0082 deployment, not the original ZIP bytes, is the v1.1
+integration baseline. An exact comparison found that all 65 governance and
+Forge files landed byte-for-byte; nine template artifacts were activated
+unchanged; and three were retained unchanged under `repository-template/`.
+Five live paths intentionally differ from the ZIP and are preserved:
+
+- `.github/ISSUE_TEMPLATE/config.yml` keeps free-form issues enabled;
+- the implementation and research forms retain two YAML quoting fixes;
+- the live concise pull-request template is not replaced by the staged
+  13-heading template; and
+- the live governance workflow remains the adapted, advisory baseline-only
+  rollout rather than enabling proposal-metadata enforcement.
+
+The v1.1 workflow adaptation pins its checkout action, runs the validator's
+unit tests, and supplies separate canonical checkouts while retaining
+`continue-on-error: true`. Promoting governance checks to blocking, installing
+live CODEOWNERS, activating the charter, and changing the bootstrap approval
+profile remain separate decisions.
+
 ## Precedence — never inverted
 
 The pack is explicit about its own subordination, and this integration

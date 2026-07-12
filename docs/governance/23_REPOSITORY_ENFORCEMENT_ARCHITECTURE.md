@@ -1,7 +1,7 @@
 # Repository Enforcement Architecture
 
 **Status:** Normative bootstrap specification  
-**Version:** 0.4
+**Version:** 1.1
 
 ## 1. Purpose
 
@@ -33,6 +33,8 @@ Repository automation MUST NOT create authority beyond the higher documents. If 
 
 Path classification is a routing aid, not proof that a change is safe. Proposal authors and reviewers MUST raise classification when semantics require it.
 
+The repository-root `AGENTS.md`, model-specific session loaders, and `docs/governance/**` have a `protocol-critical` path floor because they can shape engineering behavior. Effect-based classification still controls: a change that reallocates legitimacy or Authority is constitutional even when placed in an operational file.
+
 ## 5. Required proposal evidence
 
 Every proposal MUST declare:
@@ -53,9 +55,9 @@ A proposal MAY preserve contributor anonymity. GitHub account metadata is platfo
 
 CI MAY verify formatting, schemas, files, metadata, tests, dependency policy and exact commit state. CI cannot establish that a reviewer is a unique human, that an external audit is competent, or that a pseudonym maps to a legal person. Such claims MUST remain evidence objects or governance decisions, not inferred facts.
 
-## 7. Fail-closed rules
+## 7. Target fail-closed rules
 
-The governance check MUST fail when:
+The complete governance enforcement architecture MUST fail when:
 
 - required proposal metadata is absent;
 - protected paths lack their declared review class;
@@ -63,7 +65,10 @@ The governance check MUST fail when:
 - AI-authored sensitive work claims AI approval as quorum;
 - a forced-update or owner/admin path is declared or detected by explicit policy patterns without an approved constitutional exception;
 - dependency exceptions have no owner or expiry;
-- a normative governance document omits a stable ID or authority class.
+- a normative governance document omits a stable ID or authority class;
+- an activated AI session adapter does not match the exact charter identity and digest, expands AI Authority, or lacks constitutional review routing.
+
+The v1.1 reference validator implements only the subset stated in Document 26. Unimplemented target rules remain conformance gaps; this list MUST NOT be cited as evidence that the packaged checker already enforces them.
 
 ## 8. Bootstrap limitations
 

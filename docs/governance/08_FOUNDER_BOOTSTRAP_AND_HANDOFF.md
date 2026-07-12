@@ -1,10 +1,17 @@
 # Founder Bootstrap and Handoff
 
 **Status:** Temporary constitutional operating guide
+**Version:** 1.1
 
 ## Role
 
 The founder presently defends the canonical mainline because independent governance and self-hosted infrastructure are not yet mature. This is a custodial responsibility, not ownership of the protocol.
+
+## Relationship with AI engineering
+
+An activated Primary AI Engineer Charter may assign broad engineering preparation and coordination to an AI, but it MUST NOT define Founder Authority, serve as a fallback authority profile, or make the AI a successor. Founder-specific Approval, veto, Canonicalization, release, administration, appointment, secret, or transition actions exist only where the current canonical phase, policy, delegation, and succession records assign them.
+
+The Founder evaluates alignment with recorded directives and supplies only those Founder-specific Decisions required by current policy. Independent Review, exact-state binding, amendment gates, and external audit requirements remain applicable. New or changed vision enters through the applicable Proposal or amendment process rather than personal preference or a session instruction.
 
 ## Founder duties now
 

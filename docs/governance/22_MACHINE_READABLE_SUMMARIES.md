@@ -1,7 +1,7 @@
 # Machine-Readable Governance Summaries
 
 **Status:** Experimental specification  
-**Version:** 0.3
+**Version:** 1.1
 
 ## 1. Purpose
 
@@ -91,9 +91,14 @@ Tooling SHOULD reject or warn when:
 
 Summaries SHOULD be stored beside their documents or generated deterministically. Once Forge governance adopts them as protocol objects, summaries SHOULD be content-addressed and signed or included in the document digest.
 
+For new v1.1 summaries, the deterministic package convention is `<document-stem>.summary.json` beside the Markdown source. The summary SHOULD include a `document.source` repository-relative path and conform to `governance/document-summary.schema.json` after repository integration. Document 50 follows this convention. Legacy documents remain under the migration rule below and are not falsely represented as having summary instances.
+
+The reference validator currently performs exact identity and activation-state checks for the Document 50 summary only. It does not yet implement general JSON Schema validation or require summaries for the legacy corpus.
+
 ## 6. Migration path
 
-1. v0.3: schema documented; summaries optional.
-2. v0.4: summaries generated for governance pack and checked in CI.
-3. v0.5: Forge imports summaries and validates references.
-4. Later: governance decides whether structured summaries become normative objects.
+1. v0.3: the summary format was documented and summaries remained optional.
+2. v0.4: schema and validator scaffolding were introduced without pack-wide summary instances or general instance validation.
+3. v1.1: Document 50 becomes the first packaged summary instance with exact identity and activation-state checks.
+4. Future: migrate the legacy corpus, implement general schema/reference validation, and test Forge import before claiming pack-wide or Forge-native summary enforcement.
+5. Later governance may decide whether structured summaries become normative objects.

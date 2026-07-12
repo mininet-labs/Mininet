@@ -2,7 +2,7 @@
 
 **Status:** Normative release checklist
 
-**Version:** 1.0
+**Version:** 1.1
 
 ## Normative interpretation
 
@@ -18,7 +18,8 @@ A v1 governance release candidate MUST be checked for:
 
 - canonical founder directives and frozen invariants remain superior;
 - no document grants itself authority;
-- supersession and version rules are explicit.
+- supersession and version rules are explicit;
+- every session adapter identifies the charter's actual proposed or activated status and grants no independent Authority.
 
 ### Sovereignty
 
@@ -48,7 +49,8 @@ A v1 governance release candidate MUST be checked for:
 - signatures are not described as anonymity;
 - unaudited cryptography remains experimental;
 - specified mechanisms are not described as activated enforcement;
-- open research remains explicit.
+- open research remains explicit;
+- file presence is not described as proof that an AI loaded, understood, or obeyed the charter.
 
 ### Operability
 
@@ -56,8 +58,10 @@ A v1 governance release candidate MUST be checked for:
 - two contributors can work without self-approval;
 - hundreds can coordinate through domains and integration;
 - exceptions expire;
-- machine-readable policy can be validated;
-- conformance claims include evidence.
+- machine-readable policy is present, and implemented validation coverage and gaps are stated honestly;
+- conformance claims include evidence;
+- charter and adapter deployment preserves a resolvable path to every higher-authority source.
+- a proposal worktree cannot serve as its own canonical activation checkpoint, and a bare Decision identifier cannot substitute for a structured final exact-state Decision.
 
 ## Sign-off classes
 

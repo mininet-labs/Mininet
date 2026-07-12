@@ -1,5 +1,5 @@
 version: 1
-policy_id: mininet-bootstrap-governance-v0.4
+policy_id: mininet-bootstrap-governance-v1.1
 authority:
   higher_documents:
     - docs/FOUNDER_DIRECTIVES.md
@@ -25,6 +25,30 @@ change_classes:
     retrospective_required: true
 
 protected_paths:
+  - glob: AGENTS.md
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: CLAUDE.md
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: GEMINI.md
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: .cursorrules
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: .cursor/rules/**
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: .github/copilot-instructions.md
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: docs/governance/**
+    class: protocol-critical
+    owners: [reviewers-constitution]
+  - glob: governance/**
+    class: protocol-critical
+    owners: [reviewers-constitution]
   - glob: docs/FOUNDER_DIRECTIVES.md
     class: constitutional
     owners: [reviewers-constitution]

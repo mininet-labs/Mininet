@@ -2,7 +2,7 @@
 
 **Status:** Living normative mapping
 
-**Version:** 1.0
+**Version:** 1.1
 
 ## Normative interpretation
 
@@ -18,6 +18,7 @@ This map prevents governance prose from being mistaken for enforcement. Every hi
 |---|---|---|---|
 | exact-state proposals and reviews | `mini-forge` object validation | negative tests for stale approvals | specified; existing foundation |
 | AI cannot satisfy human/governance quorum | merge policy and identity-role validation | mixed human/AI quorum tests | specified |
+| AI session charter and adapter | protected root `AGENTS.md`, canonical trust-before-load comparison, external three-content-digest activation record, structured final Decision, separate canonical checkpoint, current-phase/time gates, proposal policy, and tool-permission boundaries | `GOV-AI-050-01` through `GOV-AI-050-06` | charter, adapters, schemas, and structural/adversarial tests packaged; not activated |
 | voluntary adoption | `mini-update` and `mini-installer` typed owner approval | rejection without exact owner approval | existing foundation |
 | trusted Wasm provenance | isolated runner + signed execution provenance | adversarial runner tests | partial foundation |
 | rollback/freshness/transparency | release verifier | stale, equivocation, rollback tests | existing foundation |
