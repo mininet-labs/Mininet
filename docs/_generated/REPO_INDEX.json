@@ -2,7 +2,7 @@
   "counts": {
     "crates": 34,
     "files": 455,
-    "headings": 1622,
+    "headings": 1623,
     "rust_symbols": 3222
   },
   "crates": {
@@ -501,7 +501,7 @@
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
     {
-      "bytes": 1395,
+      "bytes": 2166,
       "group": "ci",
       "headings": [
         {
@@ -512,43 +512,48 @@
         {
           "level": 1,
           "line": 4,
-          "text": "candidate code; the candidate checkout is untrusted data inspected by the"
+          "text": "candidate code. A GitHub-generated source archive is treated as untrusted"
         },
         {
           "level": 1,
           "line": 5,
-          "text": "base branch's checker. Keep permissions read-only and add no secrets."
+          "text": "data inspected by the base branch's checker. Keep permissions read-only and"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "add no repository or environment secrets."
         }
       ],
       "keywords": [
         "canonical",
+        "github",
         "candidate",
         "base",
         "name",
         "branch",
-        "checkout",
-        "github",
         "code",
+        "archive",
         "untrusted",
         "data",
         "permissions",
+        "event",
+        "pull_request",
+        "run",
+        "header",
+        "tar",
         "governance-canonical",
         "workflow",
         "evaluated",
         "never",
         "executes",
-        "inspected",
-        "checker",
-        "keep",
-        "read-only",
-        "add",
-        "secrets",
-        "read",
-        "check"
+        "github-generated",
+        "source",
+        "treated"
       ],
-      "lines": 40,
+      "lines": 56,
       "path": ".github/workflows/governance-canonical.yml",
-      "sha256": "82dbe1bae66ffb4c27089383f5bf8bd101d62635e1c168fe29f0a1e83d091c2c",
+      "sha256": "4a9e42f65f151bd84d4617f43bafaa821f6ab31d8a6e776d5efb671b4fd9fc8e",
       "symbols": [],
       "title": "This workflow is evaluated from the canonical base branch. It never executes"
     },
