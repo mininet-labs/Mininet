@@ -197,4 +197,4 @@ mod tests {
         assert_eq!(history.fee_at(500, 100).unwrap(), 1_000);
     }
 }
-
+
