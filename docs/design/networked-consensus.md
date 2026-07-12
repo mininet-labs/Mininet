@@ -1,4 +1,4 @@
-# Networked BFT consensus — `mini-consensus` (D-0200 through D-0204)
+# Networked BFT consensus — `mini-consensus` (D-0200 through D-0205)
 
 This document records the design of the first layer in this tree that runs
 consensus across a process boundary: `mini-consensus`. It is the split the
@@ -25,11 +25,12 @@ the same wall:
 Nothing produced the `(header, body, qc)` triple, agreed among separate
 processes, over a wire. `mini-consensus` is that missing *somewhere*.
 
-## What shipped (round-0 slice)
+## What shipped — the four layers
 
 Four layers, each testable in isolation, thinnest-honest-slice first — the
 same shape `mini-chain` used to land finality math before the network that
-needs it:
+needs it. (The round engine below is the full multi-round Tendermint of
+D-0201, not the original round-0 driver it superseded.)
 
 1. **Wire (`wire.rs`).** A canonical, domain-tagged, length-prefixed,
    *bounded* codec for the two messages a round exchanges: a `Proposal`
@@ -107,13 +108,13 @@ can no longer front-run the designated proposer to waste a round. The
 remaining gaps are liveness/DoS, transport-security, and deployment, not
 correctness:
 
-- **Single-hop vote broadcast, not full gossip.** The host broadcasts each
-  vote once; it does not re-gossip past rounds' votes. The crash-recovery path
-  (a silent proposer) does not depend on that and is what the tests exercise;
-  the POLC-re-proposal path (line 28) does, so it is only as robust as the
-  links are lossless. (The *transport* no longer loses traffic to a slow peer —
-  see the next point — but a genuinely partitioned/dropped message is still not
-  re-gossiped.)
+- **No state-sync for a node that missed a whole height.** Messages are now
+  dedup-flooded (re-gossiped) across the mesh (D-0205), so a partial but
+  connected graph is live and a peer that missed a *directly-sent* message
+  still gets it by relay. But re-gossip only re-delivers messages *still
+  circulating* — a node that was down for an entire height and missed those
+  messages will not catch up from flooding alone; a snapshot/catch-up protocol
+  is separate, later work.
 - **Equivocation is detected but not punished (D-0204).** A validator that
   double-signs (two different votes for one `(height, round, phase)`) is now
   caught: it is counted at most once and its conflicting second vote is
@@ -131,24 +132,24 @@ correctness:
 
 ## Next slices (in priority order)
 
-1. **Robust vote re-gossip** — re-deliver past-round votes so POLC re-proposal
-   holds even when a message is dropped or a node joins late. (The transport
-   half of this — non-blocking, buffered broadcast so a dead peer cannot
-   back-pressure honest nodes — is **shipped**, D-0203; what remains is
-   application-level re-flooding of votes a peer may have missed. This also
-   makes equivocation detection complete, since a node would then see both
-   halves of a distant double-sign.)
-2. **Act on equivocation** — a slashing/governance layer that *consumes* the
+1. **State-sync / catch-up** — let a node that was down for an entire height
+   (and so missed the messages that are no longer circulating) recover the
+   finalized state from a peer. Re-gossip (D-0205) covers messages still in
+   flight; this covers the ones that are gone.
+2. **Peer discovery** — route the topology through `mini-net`'s overlay
+   instead of a caller-supplied address/edge list, so nodes *learn* their
+   neighbors rather than being handed them.
+3. **Act on equivocation** — a slashing/governance layer that *consumes* the
    `EquivocationEvidence` this crate now produces (D-0204); also collect
    proposal-equivocation, not just vote-equivocation.
-3. **Secured, discovered links** — wrap links in `mini_bearer::Channel`
-   authenticated encryption; route discovery through `mini-net`'s overlay
-   instead of a hardcoded address list.
-4. **Dynamic validator sets.**
+4. **Secured links** — wrap links in `mini_bearer::Channel` authenticated
+   encryption.
+5. **Dynamic validator sets.**
 
 None of these change what "final" means (frozen in `mini-chain`); they add the
 security, robustness, and operational machinery layered around it. View-change
 (the round-0 slice's largest gap) is **shipped** (D-0201), signed proposals
 (view-change's largest residual) are **shipped** (D-0202), a non-blocking
-buffered mesh (no dead-peer back-pressure) is **shipped** (D-0203), and
-equivocation *detection* with verifiable evidence is **shipped** (D-0204).
+buffered mesh (no dead-peer back-pressure) is **shipped** (D-0203),
+equivocation *detection* with verifiable evidence is **shipped** (D-0204), and
+message re-gossip over partial (connected) meshes is **shipped** (D-0205).

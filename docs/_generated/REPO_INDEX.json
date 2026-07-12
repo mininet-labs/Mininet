@@ -3,7 +3,7 @@
     "crates": 34,
     "files": 358,
     "headings": 795,
-    "rust_symbols": 3210
+    "rust_symbols": 3221
   },
   "crates": {
     "did-mini": {
@@ -553,7 +553,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 8664,
+      "bytes": 8823,
       "group": "root",
       "headings": [
         {
@@ -573,17 +573,17 @@
         },
         {
           "level": 2,
-          "line": 113,
+          "line": 115,
           "text": "Start here"
         },
         {
           "level": 2,
-          "line": 130,
+          "line": 132,
           "text": "The canonical documents"
         },
         {
           "level": 2,
-          "line": 156,
+          "line": 158,
           "text": "License"
         }
       ],
@@ -596,26 +596,26 @@
         "money",
         "what",
         "verified",
-        "vote",
         "design",
-        "yet",
         "update",
         "signed",
         "today",
         "owned",
         "identity",
+        "vote",
         "path",
         "switch",
         "github",
         "repository",
         "code",
         "invariants",
+        "yet",
         "forced",
-        "independent"
+        "consensus"
       ],
-      "lines": 160,
+      "lines": 162,
       "path": "README.md",
-      "sha256": "979bc49481adac87b79319e898074c144faef11abe69fb6cd4a5ac08e5260065",
+      "sha256": "cd35ef96763cdc6b0e78e4a7189f1b446b994ef26f4f6e2b91e5ea96e37a3b6c",
       "symbols": [],
       "title": "Mininet"
     },
@@ -8655,137 +8655,172 @@
       "title": "mod error;"
     },
     {
-      "bytes": 14832,
+      "bytes": 19394,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
-        "self",
-        "outbound",
-        "link",
-        "out_pos",
-        "never",
         "peer",
-        "non-blocking",
-        "stream",
-        "flush",
-        "mini_bearer",
-        "socket",
-        "buffer",
-        "new",
-        "real",
-        "consensus",
-        "every",
-        "block",
+        "self",
+        "message",
         "std",
-        "len",
-        "max_link_outbound_bytes",
-        "queue",
+        "new",
+        "seencache",
+        "link",
+        "consensus",
+        "never",
+        "usize",
+        "order",
+        "capacity",
         "tcpmesh",
+        "mini_bearer",
+        "time",
+        "node",
+        "its",
+        "every",
+        "socket",
+        "seen",
+        "collections",
+        "insert",
         "broadcast",
-        "mesh"
+        "real"
       ],
-      "lines": 381,
+      "lines": 483,
       "path": "crates/mini-consensus/src/net.rs",
-      "sha256": "9edd672eb2e8dc24c758acd7d0a35abfe578705d9cda666c019445decd7284ca",
+      "sha256": "d7dea3f2374bd0e5157936caefbadc0564b2eec6bbda5f7bb0621b6d5fa499a5",
       "symbols": [
         {
           "kind": "const",
-          "line": 47,
+          "line": 52,
           "name": "MAX_LINK_OUTBOUND_BYTES"
         },
         {
           "kind": "const",
-          "line": 50,
-          "name": "READ_CHUNK_BYTES"
-        },
-        {
-          "kind": "struct",
-          "line": 56,
-          "name": "Link"
-        },
-        {
-          "kind": "impl",
-          "line": 65,
-          "name": "Link"
+          "line": 57,
+          "name": "MAX_SEEN_MESSAGES"
         },
         {
           "kind": "fn",
-          "line": 66,
+          "line": 62,
+          "name": "message_id"
+        },
+        {
+          "kind": "struct",
+          "line": 71,
+          "name": "SeenCache"
+        },
+        {
+          "kind": "impl",
+          "line": 77,
+          "name": "SeenCache"
+        },
+        {
+          "kind": "fn",
+          "line": 78,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 88,
+          "name": "insert"
+        },
+        {
+          "kind": "const",
+          "line": 103,
+          "name": "READ_CHUNK_BYTES"
+        },
+        {
+          "kind": "struct",
+          "line": 109,
+          "name": "Link"
+        },
+        {
+          "kind": "impl",
+          "line": 118,
+          "name": "Link"
+        },
+        {
+          "kind": "fn",
+          "line": 119,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 137,
           "name": "queue"
         },
         {
           "kind": "fn",
-          "line": 99,
+          "line": 152,
           "name": "flush"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 178,
           "name": "service"
         },
         {
           "kind": "struct",
-          "line": 158,
+          "line": 211,
           "name": "TcpMesh"
         },
         {
           "kind": "impl",
-          "line": 162,
+          "line": 215,
           "name": "TcpMesh"
         },
         {
           "kind": "fn",
-          "line": 176,
+          "line": 229,
           "name": "establish"
         },
         {
           "kind": "fn",
-          "line": 200,
+          "line": 255,
+          "name": "establish_topology"
+        },
+        {
+          "kind": "fn",
+          "line": 284,
           "name": "broadcast"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 295,
           "name": "poll"
         },
         {
           "kind": "fn",
-          "line": 220,
+          "line": 304,
           "name": "connect_with_retry"
         },
         {
           "kind": "const",
-          "line": 243,
+          "line": 327,
           "name": "TIMEOUT_BASE"
         },
         {
           "kind": "struct",
-          "line": 247,
+          "line": 331,
           "name": "Timer"
         },
         {
           "kind": "fn",
-          "line": 263,
+          "line": 347,
           "name": "run_to_height"
         },
         {
           "kind": "fn",
-          "line": 322,
+          "line": 416,
           "name": "handle_emits"
         },
         {
           "kind": "mod",
-          "line": 351,
+          "line": 453,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 355,
+          "line": 457,
           "name": "a_peer_that_never_reads_cannot_block_us_or_grow_our_buffer_past_the_cap"
         }
       ],
@@ -9628,7 +9663,7 @@
       "title": "use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 9383,
+      "bytes": 12414,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -9646,20 +9681,20 @@
         "vec",
         "oracle",
         "insert",
+        "target_height",
         "seed",
         "new",
         "map",
         "collect",
-        "target_height",
         "real",
         "listener",
         "mesh",
         "std",
         "clone"
       ],
-      "lines": 230,
+      "lines": 303,
       "path": "crates/mini-consensus/tests/networked_consensus.rs",
-      "sha256": "5b55c88dc4108e54a57e5aacb222d8c87e3b0dfd0bba5d4e960581bd29ddc4df",
+      "sha256": "c3c7a57e6f5d240678098d14b5c929efc2af88a1c7d3c74667391ea26b50ac17",
       "symbols": [
         {
           "kind": "fn",
@@ -9730,6 +9765,26 @@
           "kind": "const",
           "line": 165,
           "name": "TARGET_HEIGHT"
+        },
+        {
+          "kind": "fn",
+          "line": 238,
+          "name": "four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip"
+        },
+        {
+          "kind": "const",
+          "line": 239,
+          "name": "N"
+        },
+        {
+          "kind": "const",
+          "line": 240,
+          "name": "TARGET_HEIGHT"
+        },
+        {
+          "kind": "fn",
+          "line": 243,
+          "name": "neighbors"
         }
       ],
       "title": "use std::collections::BTreeMap;"
@@ -29223,7 +29278,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 263142,
+      "bytes": 266447,
       "group": "docs",
       "headings": [
         {
@@ -29640,22 +29695,22 @@
         "chain",
         "release",
         "roadmap",
+        "mini-consensus",
         "status",
         "d-0045",
         "entry",
         "stack",
         "audit",
         "what",
-        "mini-consensus",
         "on-device",
         "one",
         "provenance",
         "point",
         "spine"
       ],
-      "lines": 4440,
+      "lines": 4496,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "c7722671f54a7de389bc1010a1cdb709fe24f4b7ca1c198d597609995a389854",
+      "sha256": "fbe86231c9220c9a2f55c78145ee446a33aa3ffa5eb13cf7ccbfa30975cfc547",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -30421,7 +30476,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 27971,
+      "bytes": 28305,
       "group": "docs",
       "headings": [
         {
@@ -30436,89 +30491,89 @@
         },
         {
           "level": 2,
-          "line": 56,
+          "line": 61,
           "text": "2. Personhood"
         },
         {
           "level": 2,
-          "line": 84,
+          "line": 89,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 102,
+          "line": 107,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 148,
+          "line": 153,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 191,
+          "line": 196,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 199,
+          "line": 204,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 240,
+          "line": 245,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 256,
+          "line": 261,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 276,
+          "line": 281,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 440,
+          "line": 445,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 446,
+          "line": 451,
           "text": "Where to look for more detail"
         }
       ],
       "keywords": [
         "status",
-        "shipped",
-        "real",
         "code",
         "implementation",
-        "issues",
-        "one",
-        "partial",
-        "yet",
+        "real",
         "height",
-        "identity",
+        "one",
+        "shipped",
+        "issues",
         "review",
         "two",
+        "partial",
         "gap",
         "design",
+        "yet",
         "governance",
         "proposer",
-        "vote",
+        "mesh",
         "equivocation",
         "signal",
         "verified",
         "voice",
         "value",
-        "personhood"
+        "personhood",
+        "identity"
       ],
-      "lines": 456,
+      "lines": 461,
       "path": "docs/STATUS.md",
-      "sha256": "9860d768b10b1f1fb586f1b9eb9a1ca59efe510baa3e79294c487a55770b0b60",
+      "sha256": "c2493b06dfad8e0c3c74c2787413bc0e9fff5793d6c4fa3599053f654d16789c",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -31955,13 +32010,13 @@
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
     },
     {
-      "bytes": 9333,
+      "bytes": 9401,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Networked BFT consensus \u2014 `mini-consensus` (D-0200 through D-0204)"
+          "text": "Networked BFT consensus \u2014 `mini-consensus` (D-0200 through D-0205)"
         },
         {
           "level": 2,
@@ -31971,16 +32026,16 @@
         {
           "level": 2,
           "line": 28,
-          "text": "What shipped (round-0 slice)"
+          "text": "What shipped \u2014 the four layers"
         },
         {
           "level": 2,
-          "line": 100,
+          "line": 101,
           "text": "Honest limits (the part that is not built)"
         },
         {
           "level": 2,
-          "line": 132,
+          "line": 133,
           "text": "Next slices (in priority order)"
         }
       ],
@@ -31989,7 +32044,6 @@
         "consensus",
         "its",
         "vote",
-        "every",
         "real",
         "votes",
         "block",
@@ -32000,21 +32054,22 @@
         "state",
         "header",
         "wire",
+        "every",
         "never",
         "node",
         "design",
         "through",
         "what",
-        "round-0",
+        "four",
+        "layers",
         "honest",
-        "one",
-        "mini-chain"
+        "one"
       ],
-      "lines": 155,
+      "lines": 156,
       "path": "docs/design/networked-consensus.md",
-      "sha256": "f4c40a07410bf41c383da38d15b3f2bb352bb29cec21b0b8ccc339e5ea57e8d8",
+      "sha256": "d301bbdc559ecf033a58384cca89845cb1ddb35b5d541034f3ba2c1d02e468cc",
       "symbols": [],
-      "title": "Networked BFT consensus \u2014 `mini-consensus` (D-0200 through D-0204)"
+      "title": "Networked BFT consensus \u2014 `mini-consensus` (D-0200 through D-0205)"
     },
     {
       "bytes": 30903,

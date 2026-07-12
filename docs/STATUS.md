@@ -40,17 +40,22 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   **proposals are signed** (D-0202: a node accepts a proposal only from a
   `VOTE`-capable device of the exact `proposer_for(height, round)`, closing
   the front-running gap), the mesh is **non-blocking and buffered**
-  (D-0203, so a wedged peer cannot back-pressure honest nodes), and
+  (D-0203, so a wedged peer cannot back-pressure honest nodes),
   **equivocation is detected** (D-0204: a validator that double-signs one
   `(height, round, phase)` is counted at most once and its conflicting vote
-  is surfaced as verifiable `EquivocationEvidence`). The **remaining gaps
-  are liveness/DoS and deployment, not correctness**: past-round votes are
-  not re-gossiped, the equivocation evidence is produced but nothing
-  *consumes* it yet (no slashing), links are cleartext with no
-  discovery/reconnect, and the demonstration is threads over loopback.
-  Application-level vote re-gossip, acting on equivocation,
-  secured/discovered links, and dynamic validator sets are the named next
-  slices (roadmap Phase 5, [#36](../../issues/36)-[#45](../../issues/45);
+  is surfaced as verifiable `EquivocationEvidence`), and messages are
+  **dedup-flooded (re-gossiped)** so consensus is live over any *connected*
+  graph, not just a full mesh (D-0205 — proven by a real-socket four-node
+  *line* topology test where endpoints reach quorum only via relay). The
+  **remaining gaps are liveness/DoS and deployment, not correctness**:
+  there is no state-sync for a node that was down a whole height (re-gossip
+  only re-delivers messages still circulating), the equivocation evidence
+  is produced but nothing *consumes* it yet (no slashing), peers are
+  supplied not discovered, links are cleartext, and the demonstration is
+  threads over loopback. State-sync/catch-up, peer discovery via
+  `mini-net`, acting on equivocation, secured links, and dynamic validator
+  sets are the named next slices (roadmap Phase 5,
+  [#36](../../issues/36)-[#45](../../issues/45);
   `docs/design/networked-consensus.md`).
 
 ## 2. Personhood

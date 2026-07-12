@@ -4437,3 +4437,59 @@ vote-equivocation is.
 **Supersedes / superseded by:** extends D-0201's round engine (adds
 per-phase first-vote counting and equivocation surfacing) and builds on
 D-0201/D-0202's signed votes/proposals. Supersedes nothing.
+
+---
+
+### D-0205 — `mini-consensus` re-gossips messages and runs over partial (connected) meshes  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #36–#45, #92, D-0200, D-0203,
+`mini-net::GossipRouter` (the dedup-flood shape this reuses),
+`docs/design/networked-consensus.md`, Directive 4.
+
+**Decision:** `net::run_to_height` now **dedup-floods** every consensus
+message: the first time a node sees a message (id = BLAKE3 of its canonical
+wire bytes, tracked in a bounded `SeenCache`) it re-broadcasts it across its
+own edges and processes it; a repeat is dropped. A node also marks its own
+outgoing messages seen, so a copy flooded back is not re-flooded. Paired
+with a new `TcpMesh::establish_topology`, which builds an arbitrary
+(partial) edge set rather than only a full mesh, this makes consensus live
+over **any connected graph** — a vote reaches a non-adjacent peer purely by
+relay.
+
+**Reason:** the D-0203 residual list's top item was "robust vote gossip";
+D-0203 shipped its transport half (non-blocking sends), and this ships the
+application half. It is the difference between "every validator must be
+directly connected to every other" and "the validator graph need only be
+connected," which is what any real P2P deployment requires. Reuses the
+"forward once, then drop duplicates" design `mini-net::GossipRouter`
+already owns rather than inventing a new one (Directive 14).
+
+**Constitutional impact:** none at the invariant level — this is message
+propagation, not consensus semantics. It strengthens Directive 4's liveness
+posture (honest nodes converge without a complete graph). Finality,
+locking, signing, and equivocation detection are unchanged; re-gossiped
+messages are re-verified on receipt exactly as directly-delivered ones are,
+so flooding a tampered or duplicate message changes nothing.
+
+**Implementation status:** shipped and tested. `net.rs` gains `SeenCache` +
+`message_id` + re-gossip in the run loop, and `TcpMesh::establish_topology`.
+A new real-socket test runs a four-node **line** 0—1—2—3 (endpoints share no
+link) and asserts all four still finalize and converge — and it was
+confirmed to *stall* when the re-broadcast is removed, so it genuinely
+exercises relay. Both full-mesh tests still pass. `cargo fmt`/`clippy -D
+warnings`/`test` clean.
+
+**Failure point:** stated plainly. Re-gossip re-delivers messages *still
+circulating*; it is **not state-sync** — a node that was down for a whole
+height and missed those messages entirely will not catch up from flooding
+alone (a snapshot/catch-up protocol is separate, later work). The
+`SeenCache` is bounded, so on a very long-running or high-volume node an id
+evicted long ago could be re-processed once more (harmless — the round
+layer is idempotent and re-verifies). Flooding also multiplies traffic on
+dense graphs (every node re-sends every new message once); fine at this
+scale, a gossip-degree/fanout limit is future tuning. Still threads over
+loopback, not machines over the internet, and peer *discovery* is still not
+built — the topology is supplied, not learned.
+
+**Supersedes / superseded by:** extends D-0200's `TcpMesh`/`run_to_height`
+(adds partial topologies and re-gossip) and completes the application half
+of the "robust vote gossip" work D-0203 began. Supersedes nothing.
