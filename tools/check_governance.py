@@ -232,10 +232,16 @@ def instruction_surfaces(root: Path, errors: list[str] | None = None) -> dict[st
     for directory, names, files in os.walk(root, followlinks=False):
         directory_path = Path(directory)
         relative_directory = directory_path.relative_to(root)
+        symlinked_directories = [name for name in names if (directory_path / name).is_symlink()]
+        if errors is not None:
+            for name in symlinked_directories:
+                relative = (relative_directory / name).as_posix()
+                fail(errors, f"instruction traversal directory must not be a symbolic link: {relative}")
         names[:] = [
             name for name in names
             if name not in INSTRUCTION_EXCLUDED_PARTS
             and not name.startswith(".canonical-checkpoint")
+            and name not in symlinked_directories
         ]
         for name in files:
             relative = relative_directory / name
@@ -374,4 +380,627 @@ def validate_session_charter(
                 fail(errors, "canonical root must be separate from the proposal worktree")
                 return
             canonical_source_root = resolve_charter_root(canonical_repository_root)
-            canonical_activation_path = canonical_repository_root / ACTIVATION_RECORDçž9¶‰žËkºwµçy¼µ½½±¥¹œ•¥Í¥½¸µÕÍÐÍ•Ð½½±¥¹}½µÁ±•Ñ•‘}…ÐÑ¼¹Õ±°ˆ¤((€€€€€€€¥˜¹½Ð…‘…ÁÑ•É}É•¥ÍÑÉä½È…‘…ÁÑ•É}É•¥ÍÑÉä¥¸¥¹…Ñ¥Ù•}Ù…±Õ•Ìè(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰…Ñ¥Ù…Ñ•9QL¹µÉ•ÅÕ¥É•Ì…¸…Ñ¥Ù…Ñ¥½¸‘•¥Í¥½¸É•¥ÍÑÉäˆ¤(€€€€€€€•±¥˜¡…ÉÑ•É}É•¥ÍÑÉä€„ô…‘…ÁÑ•É}É•¥ÍÑÉä½È…Ñ¥Ù…Ñ¥½¹}É•½É¹•Ð ‰‘•¥Í¥½¹}É•¥ÍÑÉäˆ¤€„ô…‘…ÁÑ•É}É•¥ÍÑÉäè(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰9QL¹µ…¹¡…ÉÑ•È…Ñ¥Ù…Ñ¥½¸‘•¥Í¥½¸É•¥ÍÑÉ¥•Ì‘¼¹½Ðµ…Ñ ˆ¤(€€€€€€€•±Í”è(€€€€€€€€€€€É•¥ÍÑÉå}Á…Ñ €ôÍ…™•}É•Á½}Á…Ñ  (€€€€€€€€€€€€€€€…¹½¹¥…±}Í½ÕÉ•}É½½Ð°(€€€€€€€€€€€€€€€…‘…ÁÑ•É}É•¥ÍÑÉä°(€€€€€€€€€€€€€€€€‰…Ñ¥Ù…Ñ¥½¸•¥Í¥½¸É•¥ÍÑÉäÁ…Ñ ˆ°(€€€€€€€€€€€€€€€•ÉÉ½ÉÌ°(€€€€€€€€€€€€¤(€€€€€€€€€€€¥˜É•¥ÍÑÉå}Á…Ñ …¹¹½ÐÉ•¥ÍÑÉå}Á…Ñ ¹¥Í}™¥±” ¤è(€€€€€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰…Ñ¥Ù…Ñ¥½¸•¥Í¥½¸É•¥ÍÑÉä‘½•Ì¹½Ð•á¥ÍÐ¥¸…¹½¹¥…°ÍÑ…Ñ”ˆ¤(€€€€€€€€€€€•±¥˜É•¥ÍÑÉå}Á…Ñ …¹‘•¥Í¥½¹}É•½É‘}Á…Ñ è(€€€€€€€€€€€€€€€É•¥ÍÑÉå}Ñ•áÐ€ôÉ•¥ÍÑÉå}Á…Ñ ¹É•…‘}Ñ•áÐ¡•¹½‘¥¹œô‰ÕÑ˜´àˆ¤(€€€€€€€€€€€€€€€‘•¥Í¥½¹}É•˜€ôÍÑÈ¡…Ñ¥Ù…Ñ¥½¸¤(€€€€€€€€€€€€€€€‘•¥Í¥½¹}É•°€ôÍÑÈ¡…Ñ¥Ù…Ñ¥½¹}É•½É¹•Ð ‰‘•¥Í¥½¹}É•½Éˆ¤¤(€€€€€€€€€€€€€€€¥˜‘•¥Í¥½¹}É•˜¹½Ð¥¸É•¥ÍÑÉå}Ñ•áÐ½È‘•¥Í¥½¹}É•°¹½Ð¥¸É•¥ÍÑÉå}Ñ•áÐè(€€€€€€€€€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰…Ñ¥Ù…Ñ¥½¸É•¥ÍÑÉä‘½•Ì¹½Ð¥¹‘•àÑ¡”ÍÑÉÕÑÕÉ•™¥¹…°•¥Í¥½¸ˆ¤(€€€€€€€€€€€€€€€ÍÕÁ•ÉÍ•ÍÍ¥½¸€ôÉ”¹Í•…É  (€€€€€€€€€€€€€€€€€€€É˜‰y$µ¡…ÉÑ•ÈµÑ¥Ù…Ñ¥½¸µMÕÁ•ÉÍ•‘•éqÌ¨ˆ(€€€€€€€€€€€€€€€€€€€É˜‰íÉ”¹•Í…Á”¡‘•¥Í¥½¹}É•˜¥õqÌ¨´ùqÌ¨¡qL¬¥qÌ¨ˆ°(€€€€€€€€€€€€€€€€€€€É•¥ÍÑÉå}Ñ•áÐ°(€€€€€€€€€€€€€€€€€€€É”¹4°(€€€€€€€€€€€€€€€€¤(€€€€€€€€€€€€€€€¥˜ÍÕÁ•ÉÍ•ÍÍ¥½¸è(€€€€€€€€€€€€€€€€€€€™…¥° (€€€€€€€€€€€€€€€€€€€€€€€•ÉÉ½ÉÌ°(€€€€€€€€€€€€€€€€€€€€€€€˜‰…Ñ¥Ù…Ñ¥½¸•¥Í¥½¸¥ÌÍÕÁ•ÉÍ•‘•‰äíÍÕÁ•ÉÍ•ÍÍ¥½¸¹É½ÕÀ Ä¥ôˆ°(€€€€€€€€€€€€€€€€€€€€¤((€€€€€€€¥˜‘½Õµ•¹Ð¹•Ð ‰ÍÑ…ÑÕÌˆ¤¹½Ð¥¸ì‰½Á•É…Ñ¥½¹…°ˆ°€‰¹½Éµ…Ñ¥Ù”‰ôè(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰…Ñ¥Ù…Ñ•9QL¹µÉ•ÅÕ¥É•Ì…¸½Á•É…Ñ¥½¹…°½È¹½Éµ…Ñ¥Ù”¡…ÉÑ•ÈÍÕµµ…Éäˆ¤(€€€€€€€‘•¥Í¥½¹Ì€ôÑÉ…•…‰¥±¥Ñä¹•Ð ‰‘•¥Í¥½¹Ìˆ°mt¤(€€€€€€€¥˜…Ñ¥Ù…Ñ¥½¸¹½Ð¥¸‘•¥Í¥½¹Ìè(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰…Ñ¥Ù…Ñ•¡…ÉÑ•ÈÍÕµµ…Éä‘½•Ì¹½Ð¥Ñ”¥ÑÌ…Ñ¥Ù…Ñ¥½¸‘•¥Í¥½¸ˆ¤(€€€•±Í”è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰$¡…ÉÑ•È…Ñ¥Ù…Ñ¥½¸É•½ÉÍÑ…ÑÕÌµÕÍÐ‰”ÁÉ½Á½Í•½È…Ñ¥Ù”ˆ¤((€€€½‘•½Ý¹•ÉÌ€ôÉ½½Ð€¼€ˆ¹¥Ñ¡Õˆ½==]9ILˆ(€€€¥˜É•½É‘}ÍÑ…ÑÕÌ€ôô€‰…Ñ¥Ù”ˆ…¹¹½Ð½‘•½Ý¹•ÉÌ¹¥Í}™¥±” ¤è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰…Ñ¥Ù…Ñ•$¡…ÉÑ•ÈÉ•ÅÕ¥É•Ì…¸¥¹ÍÑ…±±•€¹¥Ñ¡Õˆ½==]9ILˆ¤(€€€¥˜¹½Ð½‘•½Ý¹•ÉÌ¹¥Í}™¥±” ¤…¹É•½É‘}ÍÑ…ÑÕÌ€ôô€‰ÁÉ½Á½Í•ˆè(€€€€€€€½‘•½Ý¹•ÉÌ€ôÉ½½Ð€¼€ˆ¹¥Ñ¡Õˆ½==]9IL¹Ñ•µÁ±…Ñ”ˆ(€€€¥˜½‘•½Ý¹•ÉÌ¹¥Í}™¥±” ¤è(€€€€€€€½Ý¹•ÉÍ}Ñ•áÐ€ô½‘•½Ý¹•ÉÌ¹É•…‘}Ñ•áÐ¡•¹½‘¥¹œô‰ÕÑ˜´àˆ¤(€€€€€€€É½ÕÑ•Ì€ôì(€€€€€€€€€€€€ˆ¨¨½9QL¹µˆèÈ‰yp©p¨½9QMp¹µ‘qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨½9QL¹½Ù•ÉÉ¥‘”¹µˆèÈ‰yp©p¨½9QMp¹½Ù•ÉÉ¥‘•p¹µ‘qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨½1U¹µˆèÈ‰yp©p¨½1Up¹µ‘qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨½1U¹±½…°¹µˆèÈ‰yp©p¨½1Up¹±½…±p¹µ‘qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨¼¹±…Õ‘”½ÉÕ±•Ì¼ˆèÈ‰yp©p¨½p¹±…Õ‘”½ÉÕ±•Ì½qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨½5%9$¹µˆèÈ‰yp©p¨½5%9%p¹µ‘qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨¼¹ÕÉÍ½ÉÉÕ±•ÌˆèÈ‰yp©p¨½p¹ÕÉÍ½ÉÉÕ±•ÍqÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨¼¹ÕÉÍ½È½ÉÕ±•Ì¼ˆèÈ‰yp©p¨½p¹ÕÉÍ½È½ÉÕ±•Ì½qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€‰½Ù•É¹…¹”¼ˆèÈ‰x½½Ù•É¹…¹”½qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€‰‘½Ì½½Ù•É¹…¹”¼ˆèÈ‰x½‘½Ì½½Ù•É¹…¹”½qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨¼¹¥Ñ¡Õˆ½½Á¥±½Ðµ¥¹ÍÑÉÕÑ¥½¹Ì¹µˆè(€€€€€€€€€€€€€€€È‰yp©p¨½p¹¥Ñ¡Õˆ½½Á¥±½Ðµ¥¹ÍÑÉÕÑ¥½¹Íp¹µ‘qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€€€€€€ˆ¨¨¼¹¥Ñ¡Õˆ½¥¹ÍÑÉÕÑ¥½¹Ì¼ˆè(€€€€€€€€€€€€€€€È‰yp©p¨½p¹¥Ñ¡Õˆ½¥¹ÍÑÉÕÑ¥½¹Ì½qÌ¬¸©É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°(€€€€€€€ô(€€€€€€€™½ÈÉ½ÕÑ•‘}Á…Ñ °Á…ÑÑ•É¸¥¸É½ÕÑ•Ì¹¥Ñ•µÌ ¤è(€€€€€€€€€€€™½Õ¹‘•É}Á…ÑÑ•É¸€ôÁ…ÑÑ•É¸¹É•Á±…” (€€€€€€€€€€€€€€€€‰É•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¸ˆ°€ˆ üéÉ•Ù¥•Ý•ÉÌµ½¹ÍÑ¥ÑÕÑ¥½¹ñµ¥¹¥¹•Ðµ±…‰Ì üéqqÍð¤¤ˆ(€€€€€€€€€€€€¤(€€€€€€€€€€€¥˜¹½ÐÉ”¹Í•…É ¡™½Õ¹‘•É}Á…ÑÑ•É¸°½Ý¹•ÉÍ}Ñ•áÐ°É”¹4¤è(€€€€€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰==]9IL‘½•Ì¹½ÐÉ½ÕÑ”íÉ½ÕÑ•‘}Á…Ñ¡ôÑ¼½¹ÍÑ¥ÑÕÑ¥½¹…°É•Ù¥•Üˆ¤(€€€€€€€•¹•É¥}¥Ñ¡Õˆ€ô½Ý¹•ÉÍ}Ñ•áÐ¹™¥¹ ˆ¼¹¥Ñ¡Õˆ¼ˆ¤(€€€€€€€½Á¥±½Ñ}É½ÕÑ”€ô½Ý¹•ÉÍ}Ñ•áÐ¹™¥¹ ˆ¨¨¼¹¥Ñ¡Õˆ½½Á¥±½Ðµ¥¹ÍÑÉÕÑ¥½¹Ì¹µˆ¤(€€€€€€€¥˜•¹•É¥}¥Ñ¡Õˆ€øô€À…¹½Á¥±½Ñ}É½ÕÑ”€ðô•¹•É¥}¥Ñ¡Õˆè(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰ÍÁ•¥™¥Œ½Á¥±½Ð==]9ILÉ½ÕÑ”µÕÍÐ™½±±½ÜÑ¡”•¹•É¥Œ€¹¥Ñ¡ÕˆÉ½ÕÑ”ˆ¤((€€€Á½±¥ä€ôÉ½½Ð€¼€‰½Ù•É¹…¹”½Á½±¥ä¹åµ°ˆ(€€€¥˜Á½±¥ä¹¥Í}™¥±” ¤è(€€€€€€€Á½±¥å}Ñ•áÐ€ôÁ½±¥ä¹É•…‘}Ñ•áÐ¡•¹½‘¥¹œô‰ÕÑ˜´àˆ¤(€€€€€€€™½È±½ˆ¥¸€ (€€€€€€€€€€€€ˆ¨¨½9QL¹µˆ°€ˆ¨¨½9QL¹½Ù•ÉÉ¥‘”¹µˆ°€ˆ¨¨½1U¹µˆ°(€€€€€€€€€€€€ˆ¨¨½1U¹±½…°¹µˆ°€ˆ¨¨¼¹±…Õ‘”½ÉÕ±•Ì¼¨¨ˆ°€ˆ¨¨½5%9$¹µˆ°(€€€€€€€€€€€€ˆ¨¨¼¹ÕÉÍ½ÉÉÕ±•Ìˆ°€ˆ¨¨¼¹ÕÉÍ½È½ÉÕ±•Ì¼¨¨ˆ°(€€€€€€€€€€€€ˆ¨¨¼¹¥Ñ¡Õˆ½½Á¥±½Ðµ¥¹ÍÑÉÕÑ¥½¹Ì¹µˆ°€ˆ¨¨¼¹¥Ñ¡Õˆ½¥¹ÍÑÉÕÑ¥½¹Ì¼¨¨ˆ°(€€€€€€€€€€€€‰‘½Ì½½Ù•É¹…¹”¼¨¨ˆ°€‰½Ù•É¹…¹”¼¨¨ˆ°(€€€€€€€€¤è(€€€€€€€€€€€¥˜¹½ÐÉ”¹Í•…É  (€€€€€€€€€€€€€€€É˜‰yqÌ¨´ýqÌ©±½ˆéqÌ©lp‰týíÉ”¹•Í…Á”¡±½ˆ¥õlp‰týqÌ¨ˆ°(€€€€€€€€€€€€€€€Á½±¥å}Ñ•áÐ°(€€€€€€€€€€€€€€€É”¹4°(€€€€€€€€€€€€¤è(€€€€€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰½Ù•É¹…¹”Á½±¥ä‘½•Ì¹½ÐÁÉ½Ñ•Ðí±½‰ôˆ¤((€€€ÍÕÉ™…•Ì€ô¥¹ÍÑÉÕÑ¥½¹}ÍÕÉ™…•Ì¡É½½Ð°•ÉÉ½ÉÌ¤(€€€¥˜É•½É‘}ÍÑ…ÑÕÌ€ôô€‰…Ñ¥Ù”ˆ…¹…¹½¹¥…±}É•Á½Í¥Ñ½Éå}É½½Ð¥Ì¹½Ð9½¹”è(€€€€€€€…¹½¹¥…±}ÍÕÉ™…•Ì€ô¥¹ÍÑÉÕÑ¥½¹}ÍÕÉ™…•Ì¡…¹½¹¥…±}É•Á½Í¥Ñ½Éå}É½½Ð°•ÉÉ½ÉÌ¤(€€€€€€€±½…±}Á…Ñ¡Ì€ôÍ•Ð¡ÍÕÉ™…•Ì¤€´ì‰9QL¹µ‰ô(€€€€€€€…¹½¹¥…±}Á…Ñ¡Ì€ôÍ•Ð¡…¹½¹¥…±}ÍÕÉ™…•Ì¤€´ì‰9QL¹µ‰ô(€€€€€€€¥˜±½…±}Á…Ñ¡Ì€„ô…¹½¹¥…±}Á…Ñ¡Ìè(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰…Ñ¥Ù”Ý½É­ÑÉ•”¥¹ÍÑÉÕÑ¥½¸µÍÕÉ™…”Í•Ð‘¥™™•ÉÌ™É½´…¹½¹¥…°ÍÑ…Ñ”ˆ¤(€€€€€€€™½È±½…‘•É}¹…µ”¥¸Í½ÉÑ•¡±½…±}Á…Ñ¡Ì€˜…¹½¹¥…±}Á…Ñ¡Ì¤è(€€€€€€€€€€€¥˜ÍÕÉ™…•Ím±½…‘•É}¹…µ•t¹É•…‘}‰åÑ•Ì ¤€„ô…¹½¹¥…±}ÍÕÉ™…•Ím±½…‘•É}¹…µ•t¹É•…‘}‰åÑ•Ì ¤è(€€€€€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰…Ñ¥Ù”Ý½É­ÑÉ•”¥¹ÍÑÉÕÑ¥½¸ÍÕÉ™…”‘¥™™•ÉÌ™É½´…¹½¹¥…°ÍÑ…Ñ”èí±½…‘•É}¹…µ•ôˆ¤(€€€™½È±½…‘•É}¹…µ”°±½…‘•È¥¸ÍÕÉ™…•Ì¹¥Ñ•µÌ ¤è(€€€€€€€¥˜±½…‘•É}¹…µ”€„ô€‰9QL¹µˆè(€€€€€€€€€€€Ù…±¥‘…Ñ•}µ½‘•±}ÍÁ•¥™¥}±½…‘•È (€€€€€€€€€€€€€€€±½…‘•É}¹…µ”°(€€€€€€€€€€€€€€€±½…‘•È¹É•…‘}Ñ•áÐ¡•¹½‘¥¹œô‰ÕÑ˜´àˆ¤°(€€€€€€€€€€€€€€€•ÉÉ½ÉÌ°(€€€€€€€€€€€€€€€Ý…É¹¥¹Ì°(€€€€€€€€€€€€€€€É•ÅÕ¥É•}…•¹ÑÍ}É•™•É•¹”õÉ•½É‘}ÍÑ…ÑÕÌ€ôô€‰…Ñ¥Ù”ˆ°(€€€€€€€€€€€€¤(()‘•˜Ù…±¥‘…Ñ•}‰½½ÑÍÑÉ…Á}½Á•É…Ñ¥¹}ÍÑ…Ñ” (€€€É½½ÐèA…Ñ °(€€€•ÉÉ½ÉÌè±¥ÍÑmÍÑÉt°(€€€¹½Üè‘Ð¹‘…Ñ•Ñ¥µ”ð9½¹”€ô9½¹”°(¤€´ø9½¹”è(€€€ÍÑ…Ñ•}Á…Ñ €ôÉ½½Ð€¼	==QMQIA}MQQ}AQ (€€€Í¡•µ…}Á…Ñ €ôÉ½½Ð€¼	==QMQIA}MQQ}M!5}AQ (€€€¥˜¹½ÐÍÑ…Ñ•}Á…Ñ ¹¥Í}™¥±” ¤è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰µ¥ÍÍ¥¹œÉ•ÅÕ¥É•½Ù•É¹…¹”…ÉÑ¥™…Ðèí	==QMQIA}MQQ}AQ ¹…Í}Á½Í¥à ¥ôˆ¤(€€€€€€€É•ÑÕÉ¸(€€€¥˜¹½ÐÍ¡•µ…}Á…Ñ ¹¥Í}™¥±” ¤è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰µ¥ÍÍ¥¹œÉ•ÅÕ¥É•½Ù•É¹…¹”…ÉÑ¥™…Ðèí	==QMQIA}MQQ}M!5}AQ ¹…Í}Á½Í¥à ¥ôˆ¤(€€€€€€€É•ÑÕÉ¸(€€€ÍÑ…Ñ”€ôÉ•…‘}©Í½¹}½‰©•Ð¡ÍÑ…Ñ•}Á…Ñ °€‰‰½½ÑÍÑÉ…À½Á•É…Ñ¥¹œÍÑ…Ñ”ˆ°•ÉÉ½ÉÌ¤(€€€Í¡•µ„€ôÉ•…‘}©Í½¹}½‰©•Ð¡Í¡•µ…}Á…Ñ °€‰‰½½ÑÍÑÉ…À½Á•É…Ñ¥¹œÍÑ…Ñ”Í¡•µ„ˆ°•ÉÉ½ÉÌ¤(€€€¥˜ÍÑ…Ñ”¥Ì9½¹”½ÈÍ¡•µ„¥Ì9½¹”è(€€€€€€€É•ÑÕÉ¸(€€€•áÁ•Ñ•€ôì(€€€€€€€€ˆ‘Í¡•µ„ˆè€ˆ¸½‰½½ÑÍÑÉ…Àµ½Á•É…Ñ¥¹œµÍÑ…Ñ”¹Í¡•µ„¹©Í½¸ˆ°(€€€€€€€€‰Í¡•µ…}Ù•ÉÍ¥½¸ˆè€Ä°(€€€€€€€€‰ÁÉ½™¥±•}¥ˆè€‰™½Õ¹‘•ÈµÕ…É‘•µ¥Ñ¡Õˆµ•á•ÁÑ¥½¸µØÄˆ°(€€€€€€€€‰‘•¥Í¥½¹}É•˜ˆè€‰´ÀÀàÌˆ°(€€€€€€€€‰ÍÑ…ÑÕÌˆè€‰…Ñ¥Ù”ˆ°(€€€€€€€€‰ÍÕÁ•ÉÍ•‘•‘}‰äˆè9½¹”°(€€€ô(€€€™½È™¥•±°Ù…±Õ”¥¸•áÁ•Ñ•¹¥Ñ•µÌ ¤è(€€€€€€€¥˜ÍÑ…Ñ”¹•Ð¡™¥•±¤€„ôÙ…±Õ”è(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰‰½½ÑÍÑÉ…À½Á•É…Ñ¥¹œÍÑ…Ñ”í™¥•±‘ôµÕÍÐ‰”íÙ…±Õ”…Éôˆ¤(€€€¡•­}Ñ¥µ”€ô¹½Ü½È‘Ð¹‘…Ñ•Ñ¥µ”¹¹½Ü¡‘Ð¹Ñ¥µ•é½¹”¹ÕÑŒ¤(€€€¥˜¡•­}Ñ¥µ”¹Ñé¥¹™¼¥Ì9½¹”è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰‰½½ÑÍÑÉ…À½Á•É…Ñ¥¹œµÍÑ…Ñ”Ù…±¥‘…Ñ¥½¸Ñ¥µ”µÕÍÐ¥¹±Õ‘”„Ñ¥µ•é½¹”ˆ¤(€€€€€€€É•ÑÕÉ¸(€€€¡•­}Ñ¥µ”€ô¡•­}Ñ¥µ”¹…ÍÑ¥µ•é½¹”¡‘Ð¹Ñ¥µ•é½¹”¹ÕÑŒ¤(€€€•™™•Ñ¥Ù”€ôÁ…ÉÍ•}¥¹ÍÑ…¹Ð¡ÍÑ…Ñ”¹•Ð ‰•™™•Ñ¥Ù•}…Ðˆ¤°€‰‰½½ÑÍÑÉ…ÀÁÉ½™¥±”•™™•Ñ¥Ù”Ñ¥µ”ˆ°•ÉÉ½ÉÌ¤(€€€•áÁ¥Éä€ôÁ…ÉÍ•}¥¹ÍÑ…¹Ð¡ÍÑ…Ñ”¹•Ð ‰•áÁ¥É•Í}…Ðˆ¤°€‰‰½½ÑÍÑÉ…ÀÁÉ½™¥±”•áÁ¥ÉäÑ¥µ”ˆ°•ÉÉ½ÉÌ¤(€€€¥˜•™™•Ñ¥Ù”…¹•™™•Ñ¥Ù”€ø¡•­}Ñ¥µ”è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰´ÀÀàÌ‰½½ÑÍÑÉ…ÀÁÉ½™¥±”¥Ì¹½Ðå•Ð•™™•Ñ¥Ù”ˆ¤(€€€¥˜•áÁ¥Éä…¹•áÁ¥Éä€ð¡•­}Ñ¥µ”è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰´ÀÀàÌ‰½½ÑÍÑÉ…ÀÁÉ½™¥±”¡…Ì•áÁ¥É•ìÉ•ÍÑ½É”Ñ¡”´ÀÀÌÌÉÕ±•Í•Ðˆ¤(€€€µ…¥¹Ñ…¥¹•ÉÌ€ôÍÑ…Ñ”¹•Ð ‰¥¹‘•Á•¹‘•¹Ñ}¹½¹}™½Õ¹‘•É}¡Õµ…¹}µ…¥¹Ñ…¥¹•ÉÌˆ¤(€€€¥˜¹½Ð¥Í¥¹ÍÑ…¹”¡µ…¥¹Ñ…¥¹•ÉÌ°¥¹Ð¤½È¥Í¥¹ÍÑ…¹”¡µ…¥¹Ñ…¥¹•ÉÌ°‰½½°¤½Èµ…¥¹Ñ…¥¹•ÉÌ€ð€Àè(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰‰½½ÑÍÑÉ…À½Á•É…Ñ¥¹œÍÑ…Ñ”É•ÅÕ¥É•Ì„¹½¸µ¹•…Ñ¥Ù”µ…¥¹Ñ…¥¹•È½Õ¹Ðˆ¤(€€€•±¥˜µ…¥¹Ñ…¥¹•ÉÌ€øô€Èè(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰´ÀÀàÌÍÕ¹Í•ÐÉ•…¡•èÑÝ¼¥¹‘•Á•¹‘•¹Ð¡Õµ…¸µ…¥¹Ñ…¥¹•ÉÌ…É”É•½É‘•ˆ¤(€€€¥˜ÍÑ…Ñ”¹•Ð ‰ÁÉ½‘ÕÑ¥½¹}É•±•…Í•}…¹‘¥‘…Ñ”ˆ¤¥Ì¹½Ð…±Í”è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰´ÀÀàÌÍÕ¹Í•ÐÉ•…¡•èÁÉ½‘ÕÑ¥½¸É•±•…Í”…¹‘¥‘…Ñ”¥ÌÉ•½É‘•ˆ¤(€€€¥˜ÍÑ…Ñ”¹•Ð ‰™½É•}…¹½¹¥…°ˆ¤¥Ì¹½Ð…±Í”è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰´ÀÀàÌÍÕ¹Í•ÐÉ•…¡•è½É”…¹½¹¥…±¥é…Ñ¥½¸¥ÌÉ•½É‘•ˆ¤(€€€Á½±¥å}Á…Ñ €ôÉ½½Ð€¼€‰½Ù•É¹…¹”½Á½±¥ä¹åµ°ˆ(€€€¥˜Á½±¥å}Á…Ñ ¹¥Í}™¥±” ¤è(€€€€€€€Á½±¥ä€ôÁ½±¥å}Á…Ñ ¹É•…‘}Ñ•áÐ¡•¹½‘¥¹œô‰ÕÑ˜´àˆ¤(€€€€€€€™½Èµ…É­•È¥¸€ (€€€€€€€€€€€€‰¹½Éµ…±}µ¥¹¥µÕµ}¥¹‘•Á•¹‘•¹Ñ}¡Õµ…¹}…ÁÁÉ½Ù…±Ìè€Èˆ°(€€€€€€€€€€€€‰…ÕÑ¡½É¥Ñå}‘•¥Í¥½¸è´ÀÀàÌˆ°(€€€€€€€€€€€€‰µ¥¹¥µÕµ}É•ÅÕ¥É•‘}¡Õµ…¹}…ÁÁÉ½Ù…±Ìè€Àˆ°(€€€€€€€€¤è(€€€€€€€€€€€¥˜µ…É­•È¹½Ð¥¸Á½±¥äè(€€€€€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰½Ù•É¹…¹”Á½±¥ä±…­Ì‰½½ÑÍÑÉ…À™±½½Èµ…É­•Èèíµ…É­•Éôˆ¤(()‘•˜Ù…±¥‘…Ñ•}‰…Í•±¥¹” (€€€É½½ÐèA…Ñ °(€€€•ÉÉ½ÉÌè±¥ÍÑmÍÑÉt°(€€€Ý…É¹¥¹Ìè±¥ÍÑmÍÑÉt°(€€€…¹½¹¥…±}É½½ÐèA…Ñ ð9½¹”€ô9½¹”°(€€€¹½Üè‘Ð¹‘…Ñ•Ñ¥µ”ð9½¹”€ô9½¹”°(€€€…¹‘¥‘…Ñ•}…Ñ¥Ù…Ñ¥½¸è‰½½°€ô…±Í”°(¤€´ø9½¹”è(€€€É•ÅÕ¥É•€ôl(€€€€€€€É½½Ð€¼€‰½Ù•É¹…¹”½Á½±¥ä¹åµ°ˆ°(€€€€€€€É½½Ð€¼€‰½Ù•É¹…¹”½•á•ÁÑ¥½¹Ì¹åµ°ˆ°(€€€€€€€É½½Ð€¼€‰½Ù•É¹…¹”½‘½Õµ•¹ÐµÍÕµµ…Éä¹Í¡•µ„¹©Í½¸ˆ°(€€€€€€€É½½Ð€¼€ˆ¹¥Ñ¡Õˆ½ÁÕ±±}É•ÅÕ•ÍÑ}Ñ•µÁ±…Ñ”¹µˆ°(€€€€€€€É½½Ð€¼	==QMQIA}MQQ}AQ °(€€€€€€€É½½Ð€¼	==QMQIA}MQQ}M!5}AQ °(€€€t(€€€™½ÈÁ…Ñ ¥¸É•ÅÕ¥É•è(€€€€€€€¥˜¹½ÐÁ…Ñ ¹¥Í}™¥±” ¤è(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰µ¥ÍÍ¥¹œÉ•ÅÕ¥É•½Ù•É¹…¹”…ÉÑ¥™…ÐèíÁ…Ñ ¹É•±…Ñ¥Ù•}Ñ¼¡É½½Ð¥ôˆ¤((€€€Í¡•µ„€ôÉ½½Ð€¼€‰½Ù•É¹…¹”½‘½Õµ•¹ÐµÍÕµµ…Éä¹Í¡•µ„¹©Í½¸ˆ(€€€¥˜Í¡•µ„¹¥Í}™¥±” ¤è(€€€€€€€ÑÉäè(€€€€€€€€€€€©Í½¸¹±½…‘Ì¡Í¡•µ„¹É•…‘}Ñ•áÐ¡•¹½‘¥¹œô‰ÕÑ˜´àˆ¤¤(€€€€€€€•á•ÁÐ©Í½¸¹)M=9•½‘•ÉÉ½È…Ì•áŒè(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰¥¹Ù…±¥)M=8Í¡•µ„èí•áôˆ¤((€€€•á•ÁÑ¥½¹Ì€ôÉ½½Ð€¼€‰½Ù•É¹…¹”½•á•ÁÑ¥½¹Ì¹åµ°ˆ(€€€¥˜•á•ÁÑ¥½¹Ì¹¥Í}™¥±” ¤è(€€€€€€€Ñ•áÐ€ô•á•ÁÑ¥½¹Ì¹É•…‘}Ñ•áÐ¡•¹½‘¥¹œô‰ÕÑ˜´àˆ¤(€€€€€€€™½Èµ…Ñ ¥¸É”¹™¥¹‘¥Ñ•È¡È‰•áÁ¥É•ÌéqÌ¨¡q‘ìÑôµq‘ìÉôµq‘ìÉô¤ˆ°Ñ•áÐ¤è(€€€€€€€€€€€•áÁ¥Éä€ô‘Ð¹‘…Ñ”¹™É½µ¥Í½™½Éµ…Ð¡µ…Ñ ¹É½ÕÀ Ä¤¤(€€€€€€€€€€€¥˜•áÁ¥Éä€ð‘Ð¹‘…Ñ”¹Ñ½‘…ä ¤è(€€€€€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰•áÁ¥É•½Ù•É¹…¹”•á•ÁÑ¥½¸èí•áÁ¥Éåôˆ¤(€€€€€€€¥˜€‰•á•ÁÑ¥½¹Ìèˆ¹½Ð¥¸Ñ•áÐè(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰•á•ÁÑ¥½¹Ì¹åµ°±…­Ì…¸•á•ÁÑ¥½¹Ì±¥ÍÐˆ¤((€€€½‘•½Ý¹•ÉÌ€ôÉ½½Ð€¼€ˆ¹¥Ñ¡Õˆ½==]9ILˆ(€€€Ñ•µÁ±…Ñ”€ôÉ½½Ð€¼€ˆ¹¥Ñ¡Õˆ½==]9IL¹Ñ•µÁ±…Ñ”ˆ(€€€¥˜¹½Ð½‘•½Ý¹•ÉÌ¹•á¥ÍÑÌ ¤…¹¹½ÐÑ•µÁ±…Ñ”¹•á¥ÍÑÌ ¤è(€€€€€€€Ý…É¹¥¹Ì¹…ÁÁ•¹ ‰¹¼==]9IL½È==]9IL¹Ñ•µÁ±…Ñ”™½Õ¹ˆ¤((€€€Ù…±¥‘…Ñ•}Í•ÍÍ¥½¹}¡…ÉÑ•È (€€€€€€€É½½Ð°•ÉÉ½ÉÌ°Ý…É¹¥¹Ì°…¹½¹¥…±}É½½Ð°¹½Ü°…¹‘¥‘…Ñ•}…Ñ¥Ù…Ñ¥½¸(€€€€¤(€€€Ù…±¥‘…Ñ•}‰½½ÑÍÑÉ…Á}½Á•É…Ñ¥¹}ÍÑ…Ñ”¡É½½Ð°•ÉÉ½ÉÌ°¹½Ü¤(()‘•˜Ù…±¥‘…Ñ•}ÁÉ½Á½Í…°¡‰½‘äèÍÑÈ°¡…¹•è±¥ÍÑmÍÑÉt°•ÉÉ½ÉÌè±¥ÍÑmÍÑÉt°Ý…É¹¥¹Ìè±¥ÍÑmÍÑÉt¤€´ø9½¹”è(€€€¥˜¹½Ð‰½‘ä¹ÍÑÉ¥À ¤è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰ÁÉ½Á½Í…°‰½‘ä¥Ì•µÁÑä½ÈÕ¹…Ù…¥±…‰±”ˆ¤(€€€€€€€É•ÑÕÉ¸(€€€™½È¡•…‘¥¹œ¥¸IEU%I}!%9Lè(€€€€€€€¥˜¹½ÐÉ”¹Í•…É ¡É˜‰xŒŒ­qÌ­íÉ”¹•Í…Á”¡¡•…‘¥¹œ¥õqÌ¨ˆ°‰½‘ä°É”¹$ðÉ”¹4¤è(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°˜‰µ¥ÍÍ¥¹œÁÉ½Á½Í…°¡•…‘¥¹œèí¡•…‘¥¹ôˆ¤((€€€Í•±•Ñ•‘}±…ÍÍ•Ì€ô!-}!9}1ML¹™¥¹‘…±°¡‰½‘ä¤(€€€¥˜±•¸¡Í•±•Ñ•‘}±…ÍÍ•Ì¤€„ô€Äè(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰ÁÉ½Á½Í…°µÕÍÐÍ•±•Ð•á…Ñ±ä½¹”¡…¹”±…ÍÌ¡•­‰½àˆ¤(€€€Í•±•Ñ•‘}±…ÍÌ€ôÍ•±•Ñ•‘}±…ÍÍ•ÍlÁt¥˜±•¸¡Í•±•Ñ•‘}±…ÍÍ•Ì¤€ôô€Ä•±Í”9½¹”((€€€¥˜€‰IA1}]%Q!}%91}%MPˆ¥¸‰½‘äè(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰•á…ÐÍÑ…Ñ”ÍÑ¥±°½¹Ñ…¥¹ÌÑ¡”Ñ•µÁ±…Ñ”Á±…•¡½±‘•Èˆ¤((€€€ÁÉ½Ñ•Ñ•€ô…¹ä (€€€€€€€¥Í}¥¹ÍÑÉÕÑ¥½¹}ÍÕÉ™…•}Á…Ñ ¡Á…Ñ ¤(€€€€€€€½È…¹ä¡Á…Ñ €ôôÀ½ÈÁ…Ñ ¹ÍÑ…ÉÑÍÝ¥Ñ ¡À¤™½ÈÀ¥¸AI=QQ}AI%aL¤(€€€€€€€™½ÈÁ…Ñ ¥¸¡…¹•(€€€€¤(€€€Ñ¥•É}˜€ô…¹ä¡…¹ä¡Á…Ñ €ôôÀ½ÈÁ…Ñ ¹ÍÑ…ÉÑÍÝ¥Ñ ¡À¤™½ÈÀ¥¸Q%I}}AI%aL¤™½ÈÁ…Ñ ¥¸¡…¹•¤(€€€¥˜ÁÉ½Ñ•Ñ•…¹Í•±•Ñ•‘}±…ÍÌ¹½Ð¥¸M9M%Q%Y}!9}1MMLè(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰ÁÉ½Ñ•Ñ•Á…Ñ¡Ì¡…¹•Ý¥Ñ¡½ÕÐ„Í•¹Í¥Ñ¥Ù”¡…¹”±…ÍÍ¥™¥…Ñ¥½¸ˆ¤(€€€¥˜Ñ¥•É}˜è(€€€€€€€¥˜¹½ÐÉ”¹Í•…É ¡È‰q‰%9XµmµhÀ´äµt­qˆˆ°‰½‘ä¤è(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰Q¥•ÈµÁ…Ñ ¡…¹•Ý¥Ñ¡½ÕÐ…¸¥¹Ù…É¥…¹Ð¥‘•¹Ñ¥™¥•Èˆ¤(€€€€€€€¥˜¹½ÐÉ”¹Í•…É ¡È‰q‰µq‘ìÑõqˆˆ°‰½‘ä¤è(€€€€€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰Q¥•ÈµÁ…Ñ ¡…¹•Ý¥Ñ¡½ÕÐ„‘•¥Í¥½¸¥‘•¹Ñ¥™¥•Èˆ¤((€€€™½È¹…µ”°Á…ÑÑ•É¸¥¸AI=!%	%Q}1%5L¹¥Ñ•µÌ ¤è(€€€€€€€¥˜Á…ÑÑ•É¸¹Í•…É ¡‰½‘ä¤…¹¹½ÐÉ”¹Í•…É ¡È‰É•©•Ññ™½É‰¥‘ñµÕÍÐ¹½Ññ¹¼Á…Ñ¡ñ‘½•Ì¹½Ðˆ°‰½‘ä°É”¹$¤è(€€€€€€€€€€€Ý…É¹¥¹Ì¹…ÁÁ•¹¡˜‰ÁÉ½Á½Í…°µ…ä½¹Ñ…¥¸ÁÉ½¡¥‰¥Ñ•½¹ÍÑ¥ÑÕÑ¥½¹…°±…¥´èí¹…µ•ôˆ¤((€€€¥˜É”¹Í•…É ¡È‰$…ÍÍ¥ÍÑ•ˆ°‰½‘ä°É”¹$¤…¹¹½ÐÉ”¹Í•…É ¡È‰Á•ÉÍ¥ÍÑ•¹Ð¸©¥‘•¹Ñ¥Ñåñ¡Õµ…¹ñÁÍ•Õ‘½¹åµ½ÕÌˆ°‰½‘ä°É”¹$ðÉ”¹L¤è(€€€€€€€™…¥°¡•ÉÉ½ÉÌ°€‰$µ…ÍÍ¥ÍÑ•ÁÉ½Á½Í…°±…­Ì„Á•ÉÍ¥ÍÑ•¹ÐÍÕ‰µ¥ÑÑ¥¹œ½…ÕÑ¡½É¥é¥¹œ¥‘•¹Ñ¥Ñä‘•±…É…Ñ¥½¸ˆ¤(()‘•˜µ…¥¸ ¤€´ø¥¹Ðè(€€€Á…ÉÍ•È€ô…ÉÁ…ÉÍ”¹ÉÕµ•¹ÑA…ÉÍ•È ¤(€€€Á…ÉÍ•È¹…‘‘}…ÉÕµ•¹Ð ˆ´µÉ½½Ðˆ°‘•™…Õ±Ðôˆ¸ˆ¤(€€€Á…ÉÍ•È¹…‘‘}…ÉÕµ•¹Ð (€€€€€€€€ˆ´µµ½‘”ˆ°(€€€€€€€¡½¥•Ìô ‰‰…Í•±¥¹”ˆ°€‰ÁÉ½Á½Í…°ˆ°€‰ÉÕ¹Ñ¥µ”ˆ°€‰ÍÑÉ¥Ðˆ¤°(€€€€€€€‘•™…Õ±Ðô‰‰…Í•±¥¹”ˆ°(€€€€¤(€€€Á…ÉÍ•È¹…‘‘}…ÉÕµ•¹Ð ˆ´µÁÉ½Á½Í…°µ‰½‘äˆ¤(€€€Á…ÉÍ•È¹…‘‘}…ÉÕµ•¹Ð ˆ´µ¡…¹•µÁ…Ñ¡Ìˆ°¡•±Àô‰¹•Ý±¥¹”µ‘•±¥µ¥Ñ•¡…¹•µÁ…Ñ ™¥±”ˆ¤(€€€Á…ÉÍ•È¹…‘‘}…ÉÕµ•¹Ð (€€€€€€€€ˆ´µ…¹½¹¥…°µÉ½½Ðˆ°(€€€€€€€¡•±Àô (€€€€€€€€€€€€‰Í•Á…É…Ñ”°¥¹‘•Á•¹‘•¹Ñ±äÙ•É¥™¥•…¹½¹¥…°É•Á½Í¥Ñ½Éä¡•­Á½¥¹Ðì€ˆ(€€€€€€€€€€€€‰É•ÅÕ¥É•Ý¡•¸Ñ¡”Ý½É­ÑÉ•”…Ñ¥Ù…Ñ¥½¸É•½É¥Ì…Ñ¥Ù”ˆ(€€€€€€€€¤°(€€€€¤(€€€Á…ÉÍ•È¹…‘‘}…ÉÕµ•¹Ð (€€€€€€€€ˆ´µ…¹‘¥‘…Ñ”µ…Ñ¥Ù…Ñ¥½¸ˆ°(€€€€€€€…Ñ¥½¸ô‰ÍÑ½É•}ÑÉÕ”ˆ°(€€€€€€€¡•±Àô (€€€€€€€€€€€€‰Ù…±¥‘…Ñ”„¹½¹…¹½¹¥…°…Ñ¥Ù…Ñ¥½¸ÁÉ½Á½Í…°ÍÑÉÕÑÕÉ…±±äÝ¥Ñ¡½ÕÐ€ˆ(€€€€€€€€€€€€‰ÑÉ•…Ñ¥¹œ¥ÑÌM•ÍÍ¥½¸½É”…Ì…Ñ¥Ù”ˆ(€€€€€€€€¤°(€€€€¤(€€€…ÉÌ€ôÁ…ÉÍ•È¹Á…ÉÍ•}…ÉÌ ¤((€€€É½½Ð€ôA…Ñ ¡…ÉÌ¹É½½Ð¤¹É•Í½±Ù” ¤(€€€•ÉÉ½ÉÌè±¥ÍÑmÍÑÉt€ômt(€€€Ý…É¹¥¹Ìè±¥ÍÑmÍÑÉt€ômt(€€€…¹½¹¥…±}É½½Ð€ôA…Ñ ¡…ÉÌ¹…¹½¹¥…±}É½½Ð¤¹É•Í½±Ù” ¤¥˜…ÉÌ¹…¹½¹¥…±}É½½Ð•±Í”9½¹”(€€€¥˜…ÉÌ¹µ½‘”€ôô€‰ÉÕ¹Ñ¥µ”ˆè(€€€€€€€Ù…±¥‘…Ñ•}ÉÕ¹Ñ¥µ•}¥¹ÍÑÉÕÑ¥½¹}ÍÕÉ™…•Ì¡É½½Ð°…¹½¹¥…±}É½½Ð°•ÉÉ½ÉÌ¤(€€€€€€€¥˜•ÉÉ½ÉÌè(€€€€€€€€€€€™½Èµ•ÍÍ…”¥¸•ÉÉ½ÉÌè(€€€€€€€€€€€€€€€ÁÉ¥¹Ð¡˜‰•ÉÉ½Èèíµ•ÍÍ…•ôˆ°™¥±”õÍåÌ¹ÍÑ‘•ÉÈ¤(€€€€€€€€€€€É•ÑÕÉ¸€Ä(€€€Ù…±¥‘…Ñ•}‰…Í•±¥¹” (€€€€€€€É½½Ð°(€€€€€€€•ÉÉ½ÉÌ°(€€€€€€€Ý…É¹¥¹Ì°(€€€€€€€…¹½¹¥…±}É½½Ð°(€€€€€€€…¹‘¥‘…Ñ•}…Ñ¥Ù…Ñ¥½¸õ…ÉÌ¹…¹‘¥‘…Ñ•}…Ñ¥Ù…Ñ¥½¸°(€€€€¤((€€€¥˜…ÉÌ¹µ½‘”¥¸ì‰ÁÉ½Á½Í…°ˆ°€‰ÍÑÉ¥Ð‰ôè(€€€€€€€‰½‘ä€ôÉ•…‘}½ÁÑ¥½¹…°¡…ÉÌ¹ÁÉ½Á½Í…±}‰½‘ä¤½È½Ì¹•Ñ•¹Ø ‰AI}	=dˆ°€ˆˆ¤(€€€€€€€¡…¹•€ôÉ•…‘}½ÁÑ¥½¹…°¡…ÉÌ¹¡…¹•‘}Á…Ñ¡Ì¤¹ÍÁ±¥Ñ±¥¹•Ì ¤¥˜…ÉÌ¹¡…¹•‘}Á…Ñ¡Ì•±Í”mt(€€€€€€€Ù…±¥‘…Ñ•}ÁÉ½Á½Í…°¡‰½‘ä°mÀ¹ÍÑÉ¥À ¤™½ÈÀ¥¸¡…¹•¥˜À¹ÍÑÉ¥À ¥t°•ÉÉ½ÉÌ°Ý…É¹¥¹Ì¤((€€€™½Èµ•ÍÍ…”¥¸Ý…É¹¥¹Ìè(€€€€€€€ÁÉ¥¹Ð¡˜‰Ý…É¹¥¹œèíµ•ÍÍ…•ôˆ¤(€€€™½Èµ•ÍÍ…”¥¸•ÉÉ½ÉÌè(€€€€€€€ÁÉ¥¹Ð¡˜‰•ÉÉ½Èèíµ•ÍÍ…•ôˆ°™¥±”õÍåÌ¹ÍÑ‘•ÉÈ¤(€€€¥˜…ÉÌ¹µ½‘”€ôô€‰ÍÑÉ¥Ðˆ…¹Ý…É¹¥¹Ìè(€€€€€€€É•ÑÕÉ¸€Ä(€€€É•ÑÕÉ¸€Ä¥˜•ÉÉ½ÉÌ•±Í”€À(()¥˜}}¹…µ•}|€ôô€‰}}µ…¥¹}|ˆè(€€€É…¥Í”MåÍÑ•µá¥Ð¡µ…¥¸ ¤¤
+            canonical_activation_path = canonical_repository_root / ACTIVATION_RECORD_PATH
+            if not canonical_activation_path.is_file() and candidate_activation:
+                canonical_activation_path = None
+            else:
+                canonical_record = read_json_object(
+                    canonical_activation_path,
+                    "canonical AI charter activation record",
+                    errors,
+                )
+                if canonical_record is None:
+                    return
+                if activation_path.read_bytes() == canonical_activation_path.read_bytes():
+                    activation_record = canonical_record
+                elif not candidate_activation:
+                    fail(errors, "worktree activation record does not match the canonical checkpoint")
+                    return
+        if candidate_activation and (
+            canonical_activation_path is None
+            or activation_path.read_bytes() != canonical_activation_path.read_bytes()
+        ):
+            warnings.append(
+                "activation artifacts are structurally valid proposal data only; "
+                "the Session Core is not active before canonicalization"
+            )
+            canonical_repository_root = root
+            canonical_source_root = source_root
+            canonical_activation_path = activation_path
+            activation_record = local_activation_record
+    elif local_record_status != "proposed":
+        fail(errors, "worktree AI charter activation status must be proposed or active")
+
+    document = summary.get("document", {})
+    traceability = summary.get("traceability", {})
+    if not isinstance(document, dict) or not isinstance(traceability, dict):
+        fail(errors, "AI charter summary document and traceability must be objects")
+        return
+    expected = {
+        "id": CHARTER_ID,
+        "version": CHARTER_VERSION,
+        "source": CHARTER_PATH.as_posix(),
+    }
+    for field, value in expected.items():
+        if document.get(field) != value:
+            fail(errors, f"AI charter summary {field} must be {value!r}")
+
+    adapter_markers = (
+        CHARTER_PATH.as_posix(), CHARTER_ID, f"version {CHARTER_VERSION}",
+        ACTIVATION_RECORD_PATH.as_posix(), "grants no approval",
+    )
+    for marker in adapter_markers:
+        if marker not in adapter:
+            fail(errors, f"AGENTS.md lacks required charter marker: {marker}")
+
+    charter_markers = (
+        f"**Document ID:** {CHARTER_ID}", f"**Version:** {CHARTER_VERSION}",
+        "does not grant protocol authority", "AI work is evidence",
+        "not a fallback authority profile",
+    )
+    for marker in charter_markers:
+        if marker not in charter:
+            fail(errors, f"AI charter lacks required authority marker: {marker}")
+    validate_no_authority_grants("AGENTS.md", adapter, errors)
+    validate_no_authority_grants("AI charter", charter, errors)
+
+    activation = metadata_value(adapter, "Activation decision")
+    adapter_status = metadata_value(adapter, "Adapter status")
+    adapter_record = metadata_value(adapter, "Activation record")
+    adapter_registry = metadata_value(adapter, "Activation decision registry")
+    digest = metadata_value(adapter, "Activated charter digest")
+    charter_activation = metadata_value(charter, "Activation decision")
+    charter_status = metadata_value(charter, "Status")
+    charter_authority = metadata_value(charter, "Authority class")
+    charter_registry = metadata_value(charter, "Activation decision registry")
+    inactive_values = {None, "None", "None in this template", "None in this candidate"}
+
+    record_charter = activation_record.get("charter", {})
+    record_summary = activation_record.get("summary", {})
+    record_adapter = activation_record.get("adapter", {})
+    if not all(isinstance(value, dict) for value in (record_charter, record_summary, record_adapter)):
+        fail(errors, "activation record charter, summary, and adapter fields must be objects")
+        return
+    record_expected = {
+        "$schema": "./ai-charter-activation.schema.json",
+        "schema_version": 1,
+        "record_id": "mininet-primary-ai-engineer-charter",
+        "decision_registry": adapter_registry,
+        "phase_record": PHASE_RECORD_PATH.as_posix(),
+        "rollback_decision_required": True,
+    }
+    for field, value in record_expected.items():
+        if activation_record.get(field) != value:
+            fail(errors, f"AI charter activation record {field} must be {value!r}")
+    if adapter_record != ACTIVATION_RECORD_PATH.as_posix():
+        fail(errors, "AGENTS.md activation record path is not canonical")
+    for field, value in {
+        "id": CHARTER_ID,
+        "version": CHARTER_VERSION,
+        "path": CHARTER_PATH.as_posix(),
+    }.items():
+        if record_charter.get(field) != value:
+            fail(errors, f"activation record charter {field} must be {value!r}")
+    if record_adapter.get("path") != "AGENTS.md":
+        fail(errors, "activation record adapter path must be 'AGENTS.md'")
+    if record_summary.get("path") != CHARTER_SUMMARY_PATH.as_posix():
+        fail(errors, "activation record summary path is not canonical")
+
+    record_status = activation_record.get("status")
+    if record_status == "proposed":
+        if not adapter_status or not adapter_status.startswith("Proposed operational loader"):
+            fail(errors, "unactivated AGENTS.md must declare proposed adapter status")
+        if activation not in inactive_values:
+            fail(errors, "proposed activation record conflicts with activated AGENTS.md")
+        if digest not in inactive_values:
+            fail(errors, "inactive AGENTS.md must not declare an activated charter digest")
+        if charter_activation not in inactive_values:
+            fail(errors, "inactive AGENTS.md conflicts with an activated charter declaration")
+        if not charter_status or not charter_status.startswith("Proposed operational"):
+            fail(errors, "unactivated charter must declare proposed status")
+        if not charter_authority or "Unclassified" not in charter_authority:
+            fail(errors, "unactivated charter must preserve pending effect classification")
+        if document.get("status") != "draft":
+            fail(errors, "unactivated AGENTS.md requires a draft charter summary")
+        if document.get("source_sha256") is not None:
+            fail(errors, "unactivated charter summary source_sha256 must be null")
+        for field in ("decision_ref", "decision_record", "phase", "effective_at"):
+            if activation_record.get(field) is not None:
+                fail(errors, f"proposed activation record {field} must be null")
+        if any(
+            record.get("sha256") is not None
+            for record in (record_charter, record_summary, record_adapter)
+        ):
+            fail(errors, "proposed activation record must not contain activated digests")
+        if activation_record.get("superseded_by") is not None:
+            fail(errors, "proposed activation record must not identify supersession")
+        expected_phase_template = {
+            "$schema": "./current-phase.schema.json",
+            "schema_version": 1,
+            "status": "unrecorded",
+            "phase": None,
+            "decision_ref": None,
+            "effective_at": None,
+            "superseded_by": None,
+        }
+        for field, value in expected_phase_template.items():
+            if phase_template.get(field) != value:
+                fail(errors, f"proposed phase record {field} must be {value!r}")
+    elif record_status == "active":
+        if activation in inactive_values:
+            fail(errors, "bound activation record requires AGENTS.md Decision metadata")
+        if adapter_status != "Operational loader; non-authorizing":
+            fail(errors, "activated AGENTS.md must declare operational non-authorizing status")
+        if activation_record.get("decision_ref") != activation:
+            fail(errors, "AGENTS.md and activation record decisions do not match")
+        if charter_activation != activation:
+            fail(errors, "AGENTS.md and charter activation decisions do not match")
+        if not charter_status or not charter_status.startswith("Operational"):
+            fail(errors, "activated charter must declare operational status")
+        if not charter_authority or re.search(r"unclassified|proposed", charter_authority, re.I):
+            fail(errors, "activated charter requires a confirmed effect classification")
+        if canonical_repository_root is None or canonical_source_root is None or canonical_activation_path is None:
+            fail(errors, "active charter validation lacks a canonical checkpoint")
+            return
+        check_time = now or dt.datetime.now(dt.timezone.utc)
+        if check_time.tzinfo is None:
+            fail(errors, "validation time must include a timezone")
+            return
+        check_time = check_time.astimezone(dt.timezone.utc)
+        if activation_record.get("phase") not in {"founder-guarded", "maintainer-assisted"}:
+            fail(errors, "active charter record has an inapplicable or missing phase")
+        if activation_record.get("superseded_by") is not None:
+            fail(errors, "active charter record is superseded")
+        activation_effective = parse_instant(
+            activation_record.get("effective_at"),
+            "activation effective time",
+            errors,
+        )
+        if activation_effective and activation_effective > check_time:
+            fail(errors, "AI charter activation effective time has not arrived")
+
+        record_charter_digest = record_charter.get("sha256")
+        record_summary_digest = record_summary.get("sha256")
+        record_adapter_digest = record_adapter.get("sha256")
+        if not digest or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            fail(errors, "activated AGENTS.md requires a lowercase SHA-256 charter digest")
+        if digest != record_charter_digest:
+            fail(errors, "AGENTS.md and activation record charter digests do not match")
+        if not isinstance(record_charter_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", record_charter_digest):
+            fail(errors, "activation record requires a lowercase SHA-256 charter digest")
+        elif record_charter_digest != hashlib.sha256(charter_path.read_bytes()).hexdigest():
+            fail(errors, "activated charter digest does not match the charter file")
+        if not isinstance(record_adapter_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", record_adapter_digest):
+            fail(errors, "activation record requires a lowercase SHA-256 adapter digest")
+        elif record_adapter_digest != hashlib.sha256(adapter_path.read_bytes()).hexdigest():
+            fail(errors, "activated adapter digest does not match AGENTS.md")
+        if not isinstance(record_summary_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", record_summary_digest):
+            fail(errors, "activation record requires a lowercase SHA-256 summary digest")
+        elif record_summary_digest != hashlib.sha256(summary_path.read_bytes()).hexdigest():
+            fail(errors, "activated summary digest does not match the charter summary")
+        if document.get("source_sha256") != record_charter_digest:
+            fail(errors, "activated charter summary does not bind the charter digest")
+
+        phase_record_path = safe_repo_path(
+            canonical_repository_root,
+            activation_record.get("phase_record"),
+            "canonical phase record path",
+            errors,
+        )
+        phase_record = (
+            read_json_object(phase_record_path, "canonical phase record", errors)
+            if phase_record_path else None
+        )
+        if phase_record is not None:
+            if phase_record.get("status") != "active":
+                fail(errors, "canonical phase record is not active")
+            if phase_record.get("superseded_by") is not None:
+                fail(errors, "canonical phase record is superseded")
+            if phase_record.get("phase") != activation_record.get("phase"):
+                fail(errors, "canonical phase does not match charter activation phase")
+            phase_effective = parse_instant(
+                phase_record.get("effective_at"),
+                "canonical phase effective time",
+                errors,
+            )
+            if phase_effective and phase_effective > check_time:
+                fail(errors, "canonical governance phase is not yet effective")
+
+        decision_record_path = safe_repo_path(
+            canonical_repository_root,
+            activation_record.get("decision_record"),
+            "structured activation Decision path",
+            errors,
+        )
+        decision = (
+            read_json_object(decision_record_path, "structured activation Decision", errors)
+            if decision_record_path else None
+        )
+        activation_record_digest = hashlib.sha256(canonical_activation_path.read_bytes()).hexdigest()
+        if decision is not None:
+            decision_expected = {
+                "$schema": "../ai-charter-activation-decision.schema.json",
+                "schema_version": 1,
+                "object_type": "ai-charter-activation-decision",
+                "decision_ref": activation,
+                "status": "final",
+                "activation_record_sha256": activation_record_digest,
+                "charter_sha256": record_charter_digest,
+                "summary_sha256": record_summary_digest,
+                "adapter_sha256": record_adapter_digest,
+                "phase": activation_record.get("phase"),
+                "effective_at": activation_record.get("effective_at"),
+                "superseded_by": None,
+            }
+            for field, value in decision_expected.items():
+                if decision.get(field) != value:
+                    fail(errors, f"structured activation Decision {field} must be {value!r}")
+            classification = decision.get("classification")
+            if classification not in {
+                "operational", "protocol-governance", "constitutional",
+            }:
+                fail(errors, "structured activation Decision has an invalid classification")
+            else:
+                if not isinstance(charter_authority, str) or not re.search(
+                    rf"\b{re.escape(classification)}\b", charter_authority, re.I
+                ):
+                    fail(
+                        errors,
+                        "charter authority class does not match the activation Decision classification",
+                    )
+                expected_summary_authority = f"{classification}-non-authorizing"
+                if document.get("authority_class") != expected_summary_authority:
+                    fail(
+                        errors,
+                        "charter summary authority class does not match the activation Decision classification",
+                    )
+            exact_digest = activation_artifacts_digest(
+                activation_record_digest,
+                str(record_charter_digest),
+                str(record_adapter_digest),
+                str(record_summary_digest),
+            )
+            if decision.get("activation_artifacts_sha256") != exact_digest:
+                fail(errors, "structured activation Decision does not bind the activation artifacts")
+            decision_effective = parse_instant(
+                decision.get("effective_at"),
+                "Decision effective time",
+                errors,
+            )
+            if decision_effective and decision_effective > check_time:
+                fail(errors, "structured activation Decision is not yet effective")
+            cooling_required = decision.get("cooling_required")
+            cooling_basis = decision.get("cooling_basis")
+            if not isinstance(cooling_basis, str) or not cooling_basis.strip():
+                fail(errors, "structured activation Decision requires a cooling basis")
+            if not isinstance(cooling_required, bool):
+                fail(errors, "structured activation Decision cooling_required must be boolean")
+            elif cooling_required:
+                cooling_complete = parse_instant(
+                    decision.get("cooling_completed_at"),
+                    "Decision cooling completion time",
+                    errors,
+                )
+                if cooling_complete and cooling_complete > check_time:
+                    fail(errors, "structured activation Decision cooling period is incomplete")
+            elif decision.get("cooling_completed_at") is not None:
+                fail(errors, "no-cooling Decision must set cooling_completed_at to null")
+
+        if not adapter_registry or adapter_registry in inactive_values:
+            fail(errors, "activated AGENTS.md requires an activation decision registry")
+        elif charter_registry != adapter_registry or activation_record.get("decision_registry") != adapter_registry:
+            fail(errors, "AGENTS.md and charter activation decision registries do not match")
+        else:
+            registry_path = safe_repo_path(
+                canonical_source_root,
+                adapter_registry,
+                "activation Decision registry path",
+                errors,
+            )
+            if registry_path and not registry_path.is_file():
+                fail(errors, "activation Decision registry does not exist in canonical state")
+            elif registry_path and decision_record_path:
+                registry_text = registry_path.read_text(encoding="utf-8")
+                decision_ref = str(activation)
+                decision_rel = str(activation_record.get("decision_record"))
+                if decision_ref not in registry_text or decision_rel not in registry_text:
+                    fail(errors, "activation registry does not index the structured final Decision")
+                supersession = re.search(
+                    rf"^AI-Charter-Activation-Superseded:\s*"
+                    rf"{re.escape(decision_ref)}\s*->\s*(\S+)\s*$",
+                    registry_text,
+                    re.M,
+                )
+                if supersession:
+                    fail(
+                        errors,
+                        f"activation Decision is superseded by {supersession.group(1)}",
+                    )
+
+        if document.get("status") not in {"operational", "normative"}:
+            fail(errors, "activated AGENTS.md requires an operational or normative charter summary")
+        decisions = traceability.get("decisions", [])
+        if activation not in decisions:
+            fail(errors, "activated charter summary does not cite its activation decision")
+    else:
+        fail(errors, "AI charter activation record status must be proposed or active")
+
+    codeowners = root / ".github/CODEOWNERS"
+    if record_status == "active" and not codeowners.is_file():
+        fail(errors, "activated AI charter requires an installed .github/CODEOWNERS")
+    if not codeowners.is_file() and record_status == "proposed":
+        codeowners = root / ".github/CODEOWNERS.template"
+    if codeowners.is_file():
+        owners_text = codeowners.read_text(encoding="utf-8")
+        routes = {
+            "**/AGENTS.md": r"^\*\*/AGENTS\.md\s+.*reviewers-constitution",
+            "**/AGENTS.override.md": r"^\*\*/AGENTS\.override\.md\s+.*reviewers-constitution",
+            "**/CLAUDE.md": r"^\*\*/CLAUDE\.md\s+.*reviewers-constitution",
+            "**/CLAUDE.local.md": r"^\*\*/CLAUDE\.local\.md\s+.*reviewers-constitution",
+            "**/.claude/rules/": r"^\*\*/\.claude/rules/\s+.*reviewers-constitution",
+            "**/GEMINI.md": r"^\*\*/GEMINI\.md\s+.*reviewers-constitution",
+            "**/.cursorrules": r"^\*\*/\.cursorrules\s+.*reviewers-constitution",
+            "**/.cursor/rules/": r"^\*\*/\.cursor/rules/\s+.*reviewers-constitution",
+            "governance/": r"^/governance/\s+.*reviewers-constitution",
+            "docs/governance/": r"^/docs/governance/\s+.*reviewers-constitution",
+            "**/.github/copilot-instructions.md":
+                r"^\*\*/\.github/copilot-instructions\.md\s+.*reviewers-constitution",
+            "**/.github/instructions/":
+                r"^\*\*/\.github/instructions/\s+.*reviewers-constitution",
+        }
+        for routed_path, pattern in routes.items():
+            founder_pattern = pattern.replace(
+                "reviewers-constitution", "(?:reviewers-constitution|@mininet-labs(?:\\s|$))"
+            )
+            if not re.search(founder_pattern, owners_text, re.M):
+                fail(errors, f"CODEOWNERS does not route {routed_path} to constitutional review")
+        generic_github = owners_text.find("/.github/")
+        copilot_route = owners_text.find("**/.github/copilot-instructions.md")
+        if generic_github >= 0 and copilot_route <= generic_github:
+            fail(errors, "specific Copilot CODEOWNERS route must follow the generic .github route")
+
+    policy = root / "governance/policy.yml"
+    if policy.is_file():
+        policy_text = policy.read_text(encoding="utf-8")
+        for glob in (
+            "**/AGENTS.md", "**/AGENTS.override.md", "**/CLAUDE.md",
+            "**/CLAUDE.local.md", "**/.claude/rules/**", "**/GEMINI.md",
+            "**/.cursorrules", "**/.cursor/rules/**",
+            "**/.github/copilot-instructions.md", "**/.github/instructions/**",
+            "docs/governance/**", "governance/**",
+        ):
+            if not re.search(
+                rf"^\s*-?\s*glob:\s*['\"]?{re.escape(glob)}['\"]?\s*$",
+                policy_text,
+                re.M,
+            ):
+                fail(errors, f"governance policy does not protect {glob}")
+
+    surfaces = instruction_surfaces(root, errors)
+    if record_status == "active" and canonical_repository_root is not None:
+        canonical_surfaces = instruction_surfaces(canonical_repository_root, errors)
+        local_paths = set(surfaces) - {"AGENTS.md"}
+        canonical_paths = set(canonical_surfaces) - {"AGENTS.md"}
+        if local_paths != canonical_paths:
+            fail(errors, "active worktree instruction-surface set differs from canonical state")
+        for loader_name in sorted(local_paths & canonical_paths):
+            if surfaces[loader_name].read_bytes() != canonical_surfaces[loader_name].read_bytes():
+                fail(errors, f"active worktree instruction surface differs from canonical state: {loader_name}")
+    for loader_name, loader in surfaces.items():
+        if loader_name != "AGENTS.md":
+            validate_model_specific_loader(
+                loader_name,
+                loader.read_text(encoding="utf-8"),
+                errors,
+                warnings,
+                require_agents_reference=record_status == "active",
+            )
+
+
+def validate_bootstrap_operating_state(
+    root: Path,
+    errors: list[str],
+    now: dt.datetime | None = None,
+) -> None:
+    state_path = root / BOOTSTRAP_STATE_PATH
+    schema_path = root / BOOTSTRAP_STATE_SCHEMA_PATH
+    if not state_path.is_file():
+        fail(errors, f"missing required governance artifact: {BOOTSTRAP_STATE_PATH.as_posix()}")
+        return
+    if not schema_path.is_file():
+        fail(errors, f"missing required governance artifact: {BOOTSTRAP_STATE_SCHEMA_PATH.as_posix()}")
+        return
+    state = read_json_object(state_path, "bootstrap operating state", errors)
+    schema = read_json_object(schema_path, "bootstrap operating state schema", errors)
+    if state is None or schema is None:
+        return
+    expected = {
+        "$schema": "./bootstrap-operating-state.schema.json",
+        "schema_version": 1,
+        "profile_id": "founder-guarded-github-exception-v1",
+        "decision_ref": "D-0083",
+        "status": "active",
+        "superseded_by": None,
+    }
+    for field, value in expected.items():
+        if state.get(field) != value:
+            fail(errors, f"bootstrap operating state {field} must be {value!r}")
+    check_time = now or dt.datetime.now(dt.timezone.utc)
+    if check_time.tzinfo is None:
+        fail(errors, "bootstrap operating-state validation time must include a timezone")
+        return
+    check_time = check_time.astimezone(dt.timezone.utc)
+    effective = parse_instant(state.get("effective_at"), "bootstrap profile effective time", errors)
+    expiry = parse_instant(state.get("expires_at"), "bootstrap profile expiry time", errors)
+    if effective and effective > check_time:
+        fail(errors, "D-0083 bootstrap profile is not yet effective")
+    if expiry and expiry < check_time:
+        fail(errors, "D-0083 bootstrap profile has expired; restore the D-0033 ruleset")
+    maintainers = state.get("independent_non_founder_human_maintainers")
+    if not isinstance(maintainers, int) or isinstance(maintainers, bool) or maintainers < 0:
+        fail(errors, "bootstrap operating state requires a non-negative maintainer count")
+    elif maintainers >= 2:
+        fail(errors, "D-0083 sunset reached: two independent human maintainers are recorded")
+    if state.get("production_release_candidate") is not False:
+        fail(errors, "D-0083 sunset reached: production release candidate is recorded")
+    if state.get("forge_canonical") is not False:
+        fail(errors, "D-0083 sunset reached: Forge canonicalization is recorded")
+    policy_path = root / "governance/policy.yml"
+    if policy_path.is_file():
+        policy = policy_path.read_text(encoding="utf-8")
+        for marker in (
+            "normal_minimum_independent_human_approvals: 2",
+            "authority_decision: D-0083",
+            "minimum_required_human_approvals: 0",
+        ):
+            if marker not in policy:
+                fail(errors, f"governance policy lacks bootstrap floor marker: {marker}")
+
+
+def validate_baseline(
+    root: Path,
+    errors: list[str],
+    warnings: list[str],
+    canonical_root: Path | None = None,
+    now: dt.datetime | None = None,
+    candidate_activation: bool = False,
+) -> None:
+    required = [
+        root / "governance/policy.yml",
+        root / "governance/exceptions.yml",
+        root / "governance/document-summary.schema.json",
+        root / ".github/pull_request_template.md",
+        root / BOOTSTRAP_STATE_PATH,
+        root / BOOTSTRAP_STATE_SCHEMA_PATH,
+    ]
+    for path in required:
+        if not path.is_file():
+            fail(errors, f"missing required governance artifact: {path.relative_to(root)}")
+
+    schema = root / "governance/document-summary.schema.json"
+    if schema.is_file():
+        try:
+            json.loads(schema.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            fail(errors, f"invalid JSON schema: {exc}")
+
+    exceptions = root / "governance/exceptions.yml"
+    if exceptions.is_file():
+        text = exceptions.read_text(encoding="utf-8")
+        for match in re.finditer(r"expires:\s*(\d{4}-\d{2}-\d{2})", text):
+            expiry = dt.date.fromisoformat(match.group(1))
+            if expiry < dt.date.today():
+                fail(errors, f"expired governance exception: {expiry}")
+        if "exceptions:" not in text:
+            fail(errors, "exceptions.yml lacks an exceptions list")
+
+    codeowners = root / ".github/CODEOWNERS"
+    template = root / ".github/CODEOWNERS.template"
+    if not codeowners.exists() and not template.exists():
+        warnings.append("no CODEOWNERS or CODEOWNERS.template found")
+
+    validate_session_charter(
+        root, errors, warnings, canonical_root, now, candidate_activation
+    )
+    validate_bootstrap_operating_state(root, errors, now)
+
+
+def validate_proposal(body: str, changed: list[str], errors: list[str], warnings: list[str]) -> None:
+    if not body.strip():
+        fail(errors, "proposal body is empty or unavailable")
+        return
+    for heading in REQUIRED_HEADINGS:
+        if not re.search(rf"^##+\s+{re.escape(heading)}\s*$", body, re.I | re.M):
+            fail(errors, f"missing proposal heading: {heading}")
+
+    selected_classes = CHECKED_CHANGE_CLASS.findall(body)
+    if len(selected_classes) != 1:
+        fail(errors, "proposal must select exactly one change class checkbox")
+    selected_class = selected_classes[0] if len(selected_classes) == 1 else None
+
+    if "REPLACE_WITH_FINAL_DIGEST" in body:
+        fail(errors, "exact state still contains the template placeholder")
+
+    protected = any(
+        is_instruction_surface_path(path)
+        or any(path == p or path.startswith(p) for p in PROTECTED_PREFIXES)
+        for path in changed
+    )
+    tier_f = any(any(path == p or path.startswith(p) for p in TIER_F_PREFIXES) for path in changed)
+    if protected and selected_class not in SENSITIVE_CHANGE_CLASSES:
+        fail(errors, "protected paths changed without a sensitive change classification")
+    if tier_f:
+        if not re.search(r"\bINV-[A-Z0-9-]+\b", body):
+            fail(errors, "Tier-F path changed without an invariant identifier")
+        if not re.search(r"\bD-\d{4}\b", body):
+            fail(errors, "Tier-F path changed without a decision identifier")
+
+    for name, pattern in PROHIBITED_CLAIMS.items():
+        if pattern.search(body) and not re.search(r"reject|forbid|must not|no path|does not", body, re.I):
+            warnings.append(f"proposal may contain prohibited constitutional claim: {name}")
+
+    if re.search(r"AI assisted", body, re.I) and not re.search(r"persistent.*identity|human|pseudonymous", body, re.I | re.S):
+        fail(errors, "AI-assisted proposal lacks a persistent submitting/authorizing identity declaration")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", default=".")
+    parser.add_argument(
+        "--mode",
+        choices=("baseline", "proposal", "runtime", "strict"),
+        default="baseline",
+    )
+    parser.add_argument("--proposal-body")
+    parser.add_argument("--changed-paths", help="newline-delimited changed-path file")
+    parser.add_argument(
+        "--canonical-root",
+        help=(
+            "separate, independently verified canonical repository checkpoint; "
+            "required when the worktree activation record is active"
+        ),
+    )
+    parser.add_argument(
+        "--candidate-activation",
+        action="store_true",
+        help=(
+            "validate a noncanonical activation proposal structurally without "
+            "treating its Session Core as active"
+        ),
+    )
+    args = parser.parse_args()
+
+    root = Path(args.root).resolve()
+    errors: list[str] = []
+    warnings: list[str] = []
+    canonical_root = Path(args.canonical_root).resolve() if args.canonical_root else None
+    if args.mode == "runtime":
+        validate_runtime_instruction_surfaces(root, canonical_root, errors)
+        if errors:
+            for message in errors:
+                print(f"error: {message}", file=sys.stderr)
+            return 1
+    validate_baseline(
+        root,
+        errors,
+        warnings,
+        canonical_root,
+        candidate_activation=args.candidate_activation,
+    )
+
+    if args.mode in {"proposal", "strict"}:
+        body = read_optional(args.proposal_body) or os.getenv("PR_BODY", "")
+        changed = read_optional(args.changed_paths).splitlines() if args.changed_paths else []
+        validate_proposal(body, [p.strip() for p in changed if p.strip()], errors, warnings)
+
+    for message in warnings:
+        print(f"warning: {message}")
+    for message in errors:
+        print(f"error: {message}", file=sys.stderr)
+    if args.mode == "strict" and warnings:
+        return 1
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

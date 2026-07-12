@@ -246,7 +246,13 @@ explicitly founder-reviewed only, pending external audit) Â· **design-only**
 
 - **shipped** â€” `mini_bearer::TcpBearer` (D-0042): real TCP transport,
   tested, proven live via `mini-net`'s three-process gossip demo.
-- **shipped** â€” `mini-boo×m¢G§²ÚîÆ­yÜive over real
+- **shipped** â€” `mini-bootstrap`/`mini-sync` proven live over real TCP
+  (D-0062, closes [#23](../../issues/23)): a genuinely fresh device (empty
+  store, empty `KelCache`) bootstraps a signed genesis capsule from a seed
+  peer over a real socket end to end, and `mini_sync::sync_bidirectional`'s
+  own "over any bearer" claim is now tested against `TcpBearer`, not just
+  `InProcessBearer`.
+- **partial** â€” `mini-net`'s gossip logic is proven live over real
   sockets; peer *discovery* (`RoutingTable`) is unexercised over a real
   transport; not a mesh.
 - **not started** â€” BLE/local-Wi-Fi radio adapters (needs real phone

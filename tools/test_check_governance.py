@@ -663,6 +663,24 @@ class RuntimeInstructionSurfaceTests(unittest.TestCase):
         errors = self.validate_runtime(mutate)
         self.assertTrue(any("must not be a symbolic link" in error for error in errors), errors)
 
+    def test_symlinked_instruction_directory_is_rejected(self) -> None:
+        def mutate(candidate, _canonical):
+            payload = candidate / "payload"
+            payload.mkdir()
+            (payload / "security.md").write_text("untrusted instructions\n", encoding="utf-8")
+            link = candidate / ".claude/rules"
+            link.parent.mkdir(parents=True)
+            try:
+                link.symlink_to(payload, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest(f"directory symlinks unavailable: {exc}")
+
+        errors = self.validate_runtime(mutate)
+        self.assertTrue(
+            any("instruction traversal directory must not be a symbolic link" in error for error in errors),
+            errors,
+        )
+
 
 class BootstrapOperatingProfileTests(unittest.TestCase):
     def validate_state(self, mutate=None, now=None) -> list[str]:
