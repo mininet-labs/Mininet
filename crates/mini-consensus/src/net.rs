@@ -18,9 +18,14 @@
 //!   finalized block. Do not run a bare mesh on a hostile network and expect
 //!   liveness.
 //! - **No discovery, no NAT traversal, no reconnect.** Every peer's address
-//!   must be known up front and the mesh is built once, fully connected,
-//!   before consensus starts. Overlay routing/gossip (`mini-net`) and a real
-//!   bearer that redials are separate, later work.
+//!   must be known up front and the mesh is built once, before consensus
+//!   starts. It need not be *fully connected*, though: [`TcpMesh::establish_topology`]
+//!   builds an arbitrary edge set, and [`run_to_height`] dedup-floods
+//!   (re-gossips) every message across those edges, so any **connected** graph
+//!   is live — a vote reaches a non-adjacent peer via relay. Overlay peer
+//!   *discovery* (`mini-net`) and a bearer that redials are still separate,
+//!   later work; so is state-sync for a node that was down and missed a whole
+//!   height (re-gossip only re-delivers messages still circulating).
 //! - **Best-effort, non-blocking broadcast.** Every link is a non-blocking
 //!   socket with a bounded per-link outbound buffer. A broadcast queues bytes
 //!   and flushes whatever the socket accepts right now; a slow or wedged peer
@@ -45,6 +50,54 @@ use crate::wire::ConsensusMessage;
 /// wedged peer from a source of back-pressure into a harmless best-effort
 /// drop. Generous enough that a briefly-slow honest peer never loses traffic.
 const MAX_LINK_OUTBOUND_BYTES: usize = 8 * 1024 * 1024;
+
+/// How many recently-seen message ids the re-gossip dedup remembers. Bounded
+/// so a flood of distinct messages cannot grow it without limit (the same
+/// stance `mini-net`'s `GossipRouter` takes toward its own seen-cache).
+const MAX_SEEN_MESSAGES: usize = 65_536;
+
+/// A content id for a consensus message: the BLAKE3 digest of its canonical
+/// wire bytes. Re-encoding is deterministic, so two copies of the same message
+/// — whoever relayed it — hash identically and dedup.
+fn message_id(msg: &ConsensusMessage) -> [u8; 32] {
+    mini_crypto::HashAlgorithm::Blake3.digest(&msg.to_wire_bytes())
+}
+
+/// A bounded set of recently-seen message ids for dedup-flooding gossip.
+/// Returns whether an id is *new* (should be forwarded and processed) or a
+/// repeat (dropped). Oldest ids are evicted once the cap is reached — the same
+/// "forward once, then drop duplicates" shape gossipsub's message cache uses.
+#[derive(Debug)]
+struct SeenCache {
+    seen: std::collections::HashSet<[u8; 32]>,
+    order: std::collections::VecDeque<[u8; 32]>,
+    capacity: usize,
+}
+
+impl SeenCache {
+    fn new(capacity: usize) -> Self {
+        SeenCache {
+            seen: std::collections::HashSet::new(),
+            order: std::collections::VecDeque::new(),
+            capacity: capacity.max(1),
+        }
+    }
+
+    /// Record `id`. Returns `true` the first time (forward it), `false` on a
+    /// repeat (already gossiped — drop it).
+    fn insert(&mut self, id: [u8; 32]) -> bool {
+        if !self.seen.insert(id) {
+            return false;
+        }
+        self.order.push_back(id);
+        if self.order.len() > self.capacity {
+            if let Some(old) = self.order.pop_front() {
+                self.seen.remove(&old);
+            }
+        }
+        true
+    }
+}
 
 /// Read-chunk size for draining a socket per syscall.
 const READ_CHUNK_BYTES: usize = 16 * 1024;
@@ -178,16 +231,47 @@ impl TcpMesh {
         addrs: &[SocketAddr],
         listener: &TcpListener,
     ) -> Result<Self> {
-        let n = addrs.len();
-        let mut links = Vec::with_capacity(n.saturating_sub(1));
-        // Dial every higher-indexed peer, with a short retry so a listener
-        // that is bound but momentarily slow to back-log the connection does
-        // not spuriously fail setup.
-        for addr in addrs.iter().take(n).skip(local_index + 1) {
-            links.push(Link::new(connect_with_retry(addr)?)?);
+        // A full mesh: adjacent to every other node.
+        let neighbors: Vec<usize> = (0..addrs.len()).filter(|&j| j != local_index).collect();
+        Self::establish_topology(local_index, addrs, listener, &neighbors)
+    }
+
+    /// Build the local node's links for an arbitrary **partial** topology:
+    /// `neighbors` is the set of peer indices this node shares an edge with (a
+    /// full mesh is just "everyone else", which [`TcpMesh::establish`] passes).
+    ///
+    /// The same deadlock-free convention as the full mesh, restricted to edges
+    /// that exist: node `i` dials each neighbor `j > i` and accepts one inbound
+    /// connection for each neighbor `j < i`. The topology must be *consistent*
+    /// (if `i` lists `j`, then `j` must list `i`) or a node will wait forever
+    /// for an accept that never comes — the caller owns that; a well-formed
+    /// undirected graph always satisfies it.
+    ///
+    /// A partial mesh only stays *live* if the graph is **connected**: a vote
+    /// reaches a non-adjacent node only because [`run_to_height`] re-gossips
+    /// (dedup-floods) every message it has not seen before across its own
+    /// edges. On a disconnected graph a partition simply cannot hear each
+    /// other, exactly as on any real network.
+    pub fn establish_topology(
+        local_index: usize,
+        addrs: &[SocketAddr],
+        listener: &TcpListener,
+        neighbors: &[usize],
+    ) -> Result<Self> {
+        let mut links = Vec::with_capacity(neighbors.len());
+        // Dial each higher-indexed neighbor.
+        let mut higher: Vec<usize> = neighbors
+            .iter()
+            .copied()
+            .filter(|&j| j > local_index)
+            .collect();
+        higher.sort_unstable();
+        for j in higher {
+            links.push(Link::new(connect_with_retry(&addrs[j])?)?);
         }
-        // Accept one inbound connection from every lower-indexed peer.
-        for _ in 0..local_index {
+        // Accept one inbound connection for each lower-indexed neighbor.
+        let accept_count = neighbors.iter().filter(|&&j| j < local_index).count();
+        for _ in 0..accept_count {
             let (stream, _) = listener.accept().map_err(mini_bearer::BearerError::from)?;
             links.push(Link::new(stream)?);
         }
@@ -271,9 +355,10 @@ where
 {
     let deadline = Instant::now() + timeout;
     let mut timers: Vec<Timer> = Vec::new();
+    let mut seen = SeenCache::new(MAX_SEEN_MESSAGES);
 
     // Kick off round 0 of the first height.
-    handle_emits(node.start()?, mesh, &mut timers);
+    handle_emits(node.start()?, mesh, &mut timers, &mut seen);
 
     loop {
         if node.finalized_height() >= target_height {
@@ -287,8 +372,17 @@ where
 
         for msg in mesh.poll() {
             did_work = true;
+            // Dedup-flood re-gossip: the first time this node sees a message,
+            // it re-broadcasts it across its own edges (so a non-adjacent peer
+            // hears it via relay) and processes it; a repeat is dropped. This
+            // is what makes a *partial* mesh — any connected graph — live, and
+            // what lets a peer that missed a directly-sent vote still get it.
+            if !seen.insert(message_id(&msg)) {
+                continue;
+            }
+            let _ = mesh.broadcast(&msg);
             let emits = node.on_message(msg)?;
-            handle_emits(emits, mesh, &mut timers);
+            handle_emits(emits, mesh, &mut timers, &mut seen);
         }
 
         // Fire any elapsed timers. Stale ones (for a finished height) are no-ops
@@ -310,7 +404,7 @@ where
         for t in ready {
             did_work = true;
             let emits = node.on_timeout(t.height, t.round, t.step)?;
-            handle_emits(emits, mesh, &mut timers);
+            handle_emits(emits, mesh, &mut timers, &mut seen);
         }
 
         if !did_work {
@@ -319,10 +413,18 @@ where
     }
 }
 
-fn handle_emits(emits: Vec<Emit>, mesh: &mut TcpMesh, timers: &mut Vec<Timer>) {
+fn handle_emits(
+    emits: Vec<Emit>,
+    mesh: &mut TcpMesh,
+    timers: &mut Vec<Timer>,
+    seen: &mut SeenCache,
+) {
     for emit in emits {
         match emit {
             Emit::Broadcast(msg) => {
+                // Mark our own outgoing message as seen so a copy flooded back
+                // by a peer is deduped rather than re-flooded again.
+                seen.insert(message_id(&msg));
                 // Best-effort; a dropped link is not fatal (gossip semantics).
                 let _ = mesh.broadcast(&msg);
             }
@@ -339,6 +441,10 @@ fn handle_emits(emits: Vec<Emit>, mesh: &mut TcpMesh, timers: &mut Vec<Timer>) {
                 });
             }
             Emit::Committed { .. } => {}
+            // Detected double-signing is surfaced for a future slashing layer.
+            // This loop has nowhere to route it yet, so it is dropped here;
+            // callers that want it drive the node directly and read the emit.
+            Emit::Equivocation(_) => {}
         }
     }
 }

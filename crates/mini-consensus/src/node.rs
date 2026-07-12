@@ -83,6 +83,11 @@ pub enum Emit {
         /// The post-application state commitment.
         commitment: [u8; 32],
     },
+    /// A validator root was caught double-signing. The evidence is surfaced
+    /// for a future slashing/governance layer; the current node takes no action
+    /// on it beyond reporting (the equivocator was already counted at most
+    /// once, so finality is unaffected).
+    Equivocation(crate::evidence::EquivocationEvidence),
 }
 
 /// A validator node: a chain, plus the Tendermint driver for its next height.
@@ -306,6 +311,9 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
                         round,
                         step,
                     });
+                }
+                Action::Equivocation(evidence) => {
+                    emits.push(Emit::Equivocation(evidence));
                 }
                 Action::Decided(qc) => {
                     self.commit(qc, emits)?;

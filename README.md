@@ -51,17 +51,20 @@ so, everywhere, on purpose.
   walls
 - BFT finality-verification core; governed release/update path (no forced
   update, no kill switch)
-- networked BFT consensus (`mini-consensus`, D-0200–D-0203): a real
+- networked BFT consensus (`mini-consensus`, D-0200–D-0205): a real
   multi-round Tendermint protocol (Buchman/Kwon/Milosevic Algorithm 1) run
   over a real, non-blocking TCP socket mesh — **signed** proposals, signed
   votes (incl. `nil`), locking, quorum certificate, and `mini-execution`
   application all crossing a wire. Independent ledgers converge to
-  bit-identical state, and a cluster survives a **crashed proposer** by
-  round-timeout **view-change** to a fresh one. Safety is complete, proposals
-  are authenticated (front-running closed), and a wedged peer cannot
-  back-pressure honest nodes; remaining gaps are liveness/DoS and deployment
-  (no past-round vote re-gossip, no equivocation evidence yet, cleartext
-  loopback links)
+  bit-identical state; a cluster survives a **crashed proposer** by
+  round-timeout **view-change**; and messages are **re-gossiped**, so
+  consensus is live over any *connected* graph, not just a full mesh (proven
+  by a four-node line topology). Safety is complete, proposals are
+  authenticated (front-running closed), a wedged peer cannot back-pressure
+  honest nodes, and **double-signing is detected** as verifiable evidence;
+  remaining gaps are liveness/DoS and deployment (no state-sync for a node
+  that missed a whole height, no slashing layer yet, peers supplied not
+  discovered, cleartext loopback links)
 - a real TCP transport with a live three-process gossip demo
 - `mini`, a real command-line developer tool (`mini-cli`): three
   independent identities on a shared store path can propose, review, and
@@ -138,7 +141,7 @@ to people who will never meet them:
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
    and when it was superseded* (append-only; main sequence `D-0001`–`D-0080`,
-   plus the networking/consensus track's reserved `D-0200`–`D-0203` — see the
+   plus the networking/consensus track's reserved `D-0200`–`D-0205` — see the
    log's "Decision-number allocation across parallel tracks").
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
    rejected, and why* — read before re-proposing something.

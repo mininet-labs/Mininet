@@ -227,3 +227,76 @@ fn a_crashed_proposer_is_survived_by_view_change_and_the_cluster_still_converges
     let genesis = mini_execution::LedgerChain::genesis().state().commitment();
     assert_ne!(reference, genesis, "no block was really applied");
 }
+
+/// Consensus over a **partial** mesh: a four-node *line* 0—1—2—3, where the
+/// endpoints (0 and 3) share no direct link. A vote from node 0 reaches node 3
+/// only because every node dedup-floods (re-gossips) each message it has not
+/// seen across its own edges. Without that re-gossip the endpoints would never
+/// gather a quorum and the height would stall; with it, all four converge —
+/// proving consensus no longer needs a *complete* graph, only a connected one.
+#[test]
+fn four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip() {
+    const N: usize = 4; // quorum = 3
+    const TARGET_HEIGHT: u64 = 3;
+
+    // Undirected line edges: 0-1, 1-2, 2-3. Each node's neighbor set.
+    fn neighbors(i: usize) -> Vec<usize> {
+        match i {
+            0 => vec![1],
+            3 => vec![2],
+            k => vec![k - 1, k + 1],
+        }
+    }
+
+    let signers: Vec<(Controller, Controller)> =
+        (0..N as u8).map(|i| validator(10 + i * 10)).collect();
+    let mut oracle = Directory::default();
+    for (root, device) in &signers {
+        oracle.insert(root.kel());
+        oracle.insert(device.kel());
+    }
+    let validators = ValidatorSet::new(signers.iter().map(|(r, _)| r.did()).collect()).unwrap();
+
+    let listeners: Vec<TcpListener> = (0..N)
+        .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
+        .collect();
+    let addrs: Vec<SocketAddr> = listeners.iter().map(|l| l.local_addr().unwrap()).collect();
+
+    let mut handles = Vec::new();
+    for (index, (listener, (root, device))) in
+        listeners.into_iter().zip(signers.into_iter()).enumerate()
+    {
+        let addrs = addrs.clone();
+        let validators = validators.clone();
+        let oracle = oracle.clone();
+        let root_did = root.did();
+        handles.push(thread::spawn(move || {
+            let mut mesh =
+                TcpMesh::establish_topology(index, &addrs, &listener, &neighbors(index)).unwrap();
+            let mut node = ConsensusNode::new(NodeConfig {
+                root: root_did,
+                device,
+                validators,
+                oracle,
+                body_source: Box::new(block_body),
+            });
+            run_to_height(&mut node, &mut mesh, TARGET_HEIGHT, Duration::from_secs(90))
+                .expect("a connected (if partial) mesh must finalize via re-gossip");
+            (node.finalized_height(), node.commitment())
+        }));
+    }
+
+    let results: Vec<(u64, [u8; 32])> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+    for (height, _) in &results {
+        assert_eq!(*height, TARGET_HEIGHT, "a node on the line stopped short");
+    }
+    let reference = results[0].1;
+    for (i, (_, commitment)) in results.iter().enumerate() {
+        assert_eq!(
+            *commitment, reference,
+            "line node {i} diverged — re-gossip failed to propagate a quorum"
+        );
+    }
+    let genesis = mini_execution::LedgerChain::genesis().state().commitment();
+    assert_ne!(reference, genesis, "no block was really applied");
+}
