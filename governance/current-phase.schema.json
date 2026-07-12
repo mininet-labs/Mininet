@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mininet.invalid/schemas/current-governance-phase-v1.json",
+  "title": "Mininet current governance phase record",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "status",
+    "phase",
+    "decision_ref",
+    "effective_at",
+    "superseded_by"
+  ],
+  "properties": {
+    "$schema": {"const": "./current-phase.schema.json"},
+    "schema_version": {"const": 1},
+    "status": {"enum": ["unrecorded", "active", "superseded"]},
+    "phase": {
+      "type": ["string", "null"],
+      "enum": [null, "founder-guarded", "maintainer-assisted", "working-group", "hybrid", "forge-primary", "protocol-sovereign"]
+    },
+    "decision_ref": {"type": ["string", "null"], "minLength": 1},
+    "effective_at": {"type": ["string", "null"], "format": "date-time"},
+    "superseded_by": {"type": ["string", "null"], "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "unrecorded"}}},
+      "then": {
+        "properties": {
+          "phase": {"type": "null"},
+          "decision_ref": {"type": "null"},
+          "effective_at": {"type": "null"},
+          "superseded_by": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "active"}}},
+      "then": {
+        "properties": {
+          "phase": {"type": "string"},
+          "decision_ref": {"type": "string", "minLength": 1},
+          "effective_at": {"type": "string", "format": "date-time"},
+          "superseded_by": {"type": "null"}
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

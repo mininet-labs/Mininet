@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 34,
-    "files": 441,
-    "headings": 1577,
+    "files": 455,
+    "headings": 1623,
     "rust_symbols": 3222
   },
   "crates": {
@@ -454,7 +454,7 @@
       "title": "Summary"
     },
     {
-      "bytes": 5115,
+      "bytes": 5393,
       "group": "ci",
       "headings": [
         {
@@ -472,16 +472,14 @@
         "name",
         "run",
         "cargo",
-        "target",
         "uses",
+        "target",
         "repo",
         "toml",
         "toolchain",
         "install",
         "cargo-audit",
         "build",
-        "release",
-        "tmp",
         "needs",
         "check",
         "runs-on",
@@ -489,146 +487,272 @@
         "steps",
         "actions",
         "checkout",
+        "bd71901bbe5b1630ceea73d27597364c9af683",
         "rustup",
         "show",
         "real",
-        "against"
+        "against",
+        "dependency"
       ],
       "lines": 129,
       "path": ".github/workflows/ci.yml",
-      "sha256": "d9b2ec5d40d22d4173497b460bd6b5d84de4293f609b557ddbdaa0b668a8daf4",
+      "sha256": "018a7df6a9816488d299a4ee51874c5e12fc7a65f8b825409776ccb05f10dbd8",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
     {
-      "bytes": 1523,
+      "bytes": 2166,
       "group": "ci",
       "headings": [
         {
           "level": 1,
           "line": 3,
-          "text": "Staged rollout, Phase A (\"Observe\") of the Governance Pack's own"
+          "text": "This workflow is evaluated from the canonical base branch. It never executes"
         },
         {
           "level": 1,
           "line": 4,
-          "text": "docs/governance/27_REPOSITORY_INTEGRATION_PLAN.md: validate that the"
+          "text": "candidate code. A GitHub-generated source archive is treated as untrusted"
         },
         {
           "level": 1,
           "line": 5,
-          "text": "governance policy artifacts (governance/policy.yml, governance/"
+          "text": "data inspected by the base branch's checker. Keep permissions read-only and"
         },
         {
           "level": 1,
           "line": 6,
+          "text": "add no repository or environment secrets."
+        }
+      ],
+      "keywords": [
+        "canonical",
+        "github",
+        "candidate",
+        "base",
+        "name",
+        "branch",
+        "code",
+        "archive",
+        "untrusted",
+        "data",
+        "permissions",
+        "event",
+        "pull_request",
+        "run",
+        "header",
+        "tar",
+        "governance-canonical",
+        "workflow",
+        "evaluated",
+        "never",
+        "executes",
+        "github-generated",
+        "source",
+        "treated"
+      ],
+      "lines": 56,
+      "path": ".github/workflows/governance-canonical.yml",
+      "sha256": "4a9e42f65f151bd84d4617f43bafaa821f6ab31d8a6e776d5efb671b4fd9fc8e",
+      "symbols": [],
+      "title": "This workflow is evaluated from the canonical base branch. It never executes"
+    },
+    {
+      "bytes": 2784,
+      "group": "ci",
+      "headings": [
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Blocking bootstrap baseline: validate that the"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "governance policy artifacts (governance/policy.yml, governance/"
+        },
+        {
+          "level": 1,
+          "line": 5,
           "text": "exceptions.yml, governance/document-summary.schema.json, a PR template,"
         },
         {
           "level": 1,
-          "line": 7,
+          "line": 6,
           "text": "a CODEOWNERS or CODEOWNERS.template) exist and stay well-formed."
         },
         {
           "level": 1,
+          "line": 7,
+          "text": "D-0083 makes this candidate-side job a required GitHub integration check."
+        },
+        {
+          "level": 1,
           "line": 8,
-          "text": "continue-on-error: true for the same reason ci.yml's dependency-audit/"
+          "text": "After D-0084 lands, governance-canonical.yml supplies the trust boundary by"
         },
         {
           "level": 1,
           "line": 9,
-          "text": "dependency-deny jobs have it -- this is a first real run establishing"
+          "text": "running canonical code against the proposal as data. The wider"
         },
         {
           "level": 1,
           "line": 10,
-          "text": "the baseline, not something to block merges on before anyone has"
+          "text": "proposal-metadata job remains staged until the expanded PR template is"
         },
         {
           "level": 1,
           "line": 11,
-          "text": "verified it against this repo's actual history."
+          "text": "adopted; this baseline is no longer advisory but is not the canonical"
         },
         {
           "level": 1,
-          "line": 13,
-          "text": "The pack's second job (proposal-metadata) validates a PR body against"
+          "line": 12,
+          "text": "evaluator by itself."
         },
         {
           "level": 1,
           "line": 14,
-          "text": "13 required section headings that this repo's live .github/"
+          "text": "The pack's second job (proposal-metadata) validates a PR body against"
         },
         {
           "level": 1,
           "line": 15,
-          "text": "pull_request_template.md does not yet produce -- wiring it in now would"
+          "text": "13 required section headings that this repo's live .github/"
         },
         {
           "level": 1,
           "line": 16,
-          "text": "\"fail\" on every PR by construction, which is noise, not signal. It"
+          "text": "pull_request_template.md does not yet produce -- wiring it in now would"
         },
         {
           "level": 1,
           "line": 17,
-          "text": "stays staged at repository-template/.github/workflows/"
+          "text": "\"fail\" on every PR by construction, which is noise, not signal. It"
         },
         {
           "level": 1,
           "line": 18,
-          "text": "governance-policy.yml (the pack's original, unmodified, two-job file)"
+          "text": "stays staged at repository-template/.github/workflows/"
         },
         {
           "level": 1,
           "line": 19,
-          "text": "until the expanded proposal template is adopted -- a founder decision,"
+          "text": "governance-policy.yml (the pack's original, unmodified, two-job file)"
         },
         {
           "level": 1,
           "line": 20,
-          "text": "not something to activate unilaterally. See docs/"
+          "text": "until the expanded proposal template is adopted -- a founder decision,"
         },
         {
           "level": 1,
           "line": 21,
+          "text": "not something to activate unilaterally. See docs/"
+        },
+        {
+          "level": 1,
+          "line": 22,
           "text": "GOVERNANCE_PACK_INTEGRATION.md."
         }
       ],
       "keywords": [
+        "github",
         "governance",
         "yml",
-        "pack",
-        "template",
-        "github",
-        "policy",
-        "governance-policy",
-        "staged",
-        "codeowners",
         "baseline",
-        "something",
-        "against",
-        "repo",
-        "workflows",
+        "template",
+        "canonical",
+        "policy",
+        "job",
+        "name",
+        "proposal",
+        "governance-policy",
         "validate",
-        "continue-on-error",
-        "true",
-        "jobs",
-        "run",
-        "rollout",
-        "phase",
-        "observe",
-        "own",
-        "repository_integration_plan"
+        "codeowners",
+        "required",
+        "check",
+        "against",
+        "proposal-metadata",
+        "staged",
+        "until",
+        "expanded",
+        "adopted",
+        "pack",
+        "pull_request",
+        "push"
       ],
-      "lines": 39,
+      "lines": 69,
       "path": ".github/workflows/governance-policy.yml",
-      "sha256": "0986ec4b9ecd3256c80a5fb85dcc51ba7eac2d98763f5f73066d616a0464256d",
+      "sha256": "4dfcc5a4d2fa7bfb9eb5b969dd6d6bf05b4178e7a1e8d2563318bf3e557c3402",
       "symbols": [],
-      "title": "Staged rollout, Phase A (\"Observe\") of the Governance Pack's own"
+      "title": "Blocking bootstrap baseline: validate that the"
     },
     {
-      "bytes": 15841,
+      "bytes": 7879,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Mininet AI Session Entry Point"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "Trust-before-load boundary"
+        },
+        {
+          "level": 2,
+          "line": 25,
+          "text": "Activation gate"
+        },
+        {
+          "level": 2,
+          "line": 38,
+          "text": "Activated session core"
+        },
+        {
+          "level": 2,
+          "line": 52,
+          "text": "Session entry"
+        }
+      ],
+      "keywords": [
+        "canonical",
+        "current",
+        "session",
+        "charter",
+        "worktree",
+        "activation",
+        "governance",
+        "proposal",
+        "decision",
+        "its",
+        "checkpoint",
+        "gate",
+        "record",
+        "digest",
+        "authority",
+        "require",
+        "adapter",
+        "phase",
+        "work",
+        "time",
+        "entry",
+        "trust-before-load",
+        "boundary",
+        "activated"
+      ],
+      "lines": 76,
+      "path": "AGENTS.md",
+      "sha256": "34a921a3cd962ac160796b79b6dfed6da1e2b7883d5a2a95f62323044a492101",
+      "symbols": [],
+      "title": "Mininet AI Session Entry Point"
+    },
+    {
+      "bytes": 17298,
       "group": "root",
       "headings": [
         {
@@ -638,79 +762,79 @@
         },
         {
           "level": 2,
-          "line": 9,
+          "line": 17,
           "text": "What this project is"
         },
         {
           "level": 2,
-          "line": 18,
-          "text": "The five canonical documents \u2014 read order for any non-trivial task"
+          "line": 30,
+          "text": "Canonical sources \u2014 load what the task requires"
         },
         {
           "level": 2,
-          "line": 49,
+          "line": 66,
           "text": "Hard rules (violating any of these is the only real failure mode)"
         },
         {
           "level": 2,
-          "line": 88,
+          "line": 108,
           "text": "Workflow ritual (what the founder expects every batch)"
         },
         {
           "level": 2,
-          "line": 111,
+          "line": 133,
           "text": "Codebase map (the 30-second version)"
         },
         {
           "level": 2,
-          "line": 198,
+          "line": 220,
           "text": "Current priority (D-0066 \u2014 Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)"
         },
         {
           "level": 2,
-          "line": 230,
+          "line": 252,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 239,
+          "line": 261,
           "text": "Session hygiene for the agent"
         }
       ],
       "keywords": [
-        "never",
         "what",
+        "never",
+        "canonical",
         "every",
-        "governance",
-        "directive",
-        "claude",
-        "agent",
-        "project",
-        "rules",
-        "real",
-        "failure",
+        "constitutional",
+        "context",
         "founder",
         "current",
-        "design",
+        "authority",
         "invariants",
-        "one",
-        "five",
-        "canonical",
-        "documents",
-        "hard",
-        "these",
-        "keep",
-        "constitutional",
-        "identity"
+        "governance",
+        "direction",
+        "claude",
+        "agent",
+        "failure",
+        "work",
+        "session",
+        "agents",
+        "directive",
+        "project",
+        "sources",
+        "task",
+        "requires",
+        "hard"
       ],
-      "lines": 251,
+      "lines": 273,
       "path": "CLAUDE.md",
-      "sha256": "c19274174c5fb1070f8e963917e6ace5d3525c510a5df2db078ab4dfc56bee9b",
+      "sha256": "877085699165fd82a2a8a388c26a95e52e4f8aba5dceb13db061f41202a73f67",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
     {
-      "bytes": 3615,
+      "bytes": 4072,
       "group": "root",
       "headings": [
         {
@@ -725,49 +849,49 @@
         },
         {
           "level": 2,
-          "line": 43,
+          "line": 49,
           "text": "Practical checklist for a PR"
         },
         {
           "level": 2,
-          "line": 52,
+          "line": 58,
           "text": "Signing"
         },
         {
           "level": 2,
-          "line": 59,
+          "line": 65,
           "text": "Scope of a batch"
         }
       ],
       "keywords": [
-        "contributing",
-        "merge",
         "one",
-        "two",
+        "contributing",
+        "human",
         "cargo",
         "principles",
         "itself",
         "spec-11",
+        "temporary",
+        "repository",
+        "merge",
         "reasoning",
         "every",
         "invariants",
         "something",
         "what",
-        "human",
-        "code",
-        "there",
+        "founder",
         "frozen",
         "change",
-        "approvals",
-        "least",
+        "floor",
+        "d-0033",
         "apply",
         "contribution",
         "practical",
         "checklist"
       ],
-      "lines": 64,
+      "lines": 70,
       "path": "CONTRIBUTING.md",
-      "sha256": "951cb61b93f1c445bb24fad9563ab4d5b83a3acabc2e420bf393849e9f69069a",
+      "sha256": "fbad800ae4b2b2d535385315dad45cd171d47a30577d6f87186c099a0eaf19bf",
       "symbols": [],
       "title": "Contributing"
     },
@@ -994,7 +1118,7 @@
       ],
       "lines": 167,
       "path": "README.md",
-      "sha256": "01d247af46fc66f4787270a4ca80f4e5f734e5e3bf86a874c2a24e68bc0e194f",
+      "sha256": "4d9fd1b7d5baf15b71da2bd5e132a449a056a34f0cbe7f6a7bb917e0ec6f6735",
       "symbols": [],
       "title": "Mininet"
     },
@@ -29699,7 +29823,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 276418,
+      "bytes": 281344,
       "group": "docs",
       "headings": [
         {
@@ -30127,11 +30251,11 @@
         "on-device",
         "one",
         "provenance",
-        "point"
+        "explicit"
       ],
-      "lines": 4665,
+      "lines": 4759,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "a3d6962ce188dfe69604894a6b207e868cf3b1ecd3cb909987f20e764ea435d0",
+      "sha256": "2fe2496685fdce687ba4769bfb71eb0bfbab36e3d9c98360c42ef6dc4b956881",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -30472,7 +30596,7 @@
       "title": "MININET \u2014 Founder Directives"
     },
     {
-      "bytes": 17494,
+      "bytes": 19561,
       "group": "docs",
       "headings": [
         {
@@ -30488,68 +30612,73 @@
         {
           "level": 2,
           "line": 18,
+          "text": "v1.1 delta and bootstrap activation"
+        },
+        {
+          "level": 2,
+          "line": 49,
           "text": "Precedence \u2014 never inverted"
         },
         {
           "level": 2,
-          "line": 40,
+          "line": 71,
           "text": "Truth boundary (quoting the pack's own words)"
         },
         {
           "level": 2,
-          "line": 55,
+          "line": 86,
           "text": "Three numbering systems now coexist \u2014 by design, not collision"
         },
         {
           "level": 2,
-          "line": 69,
-          "text": "What was activated vs. staged vs. left to the founder"
+          "line": 100,
+          "text": "What is active, staged, and still owner-dependent"
         },
         {
           "level": 2,
-          "line": 97,
+          "line": 130,
           "text": "Compatibility matrix"
         },
         {
           "level": 2,
-          "line": 159,
+          "line": 193,
           "text": "Verification performed"
         },
         {
           "level": 2,
-          "line": 166,
-          "text": "Next time a pack version lands (v1.1+)"
+          "line": 200,
+          "text": "Next time a pack version lands (v1.2+)"
         }
       ],
       "keywords": [
         "pack",
         "governance",
         "own",
-        "what",
-        "spec-00",
-        "founder",
-        "five",
-        "json",
-        "forge-native",
-        "yml",
         "integration",
-        "three",
-        "design",
+        "spec-00",
+        "what",
+        "five",
+        "does",
         "file",
         "new",
-        "repository",
-        "does",
+        "founder",
+        "its",
+        "template",
+        "live",
         "document",
-        "github",
+        "activation",
         "boundary",
-        "numbering",
+        "quoting",
+        "three",
         "now",
-        "collision",
-        "activated"
+        "design",
+        "staged",
+        "version",
+        "zip"
       ],
-      "lines": 172,
+      "lines": 206,
       "path": "docs/GOVERNANCE_PACK_INTEGRATION.md",
-      "sha256": "3c42a9615e28662e4d49e9660ade0194e2327bac6290459f959e6cbec49c2288",
+      "sha256": "7bd06dc9680149e3ae4eff97d725122f6f830a450dcf36ef7526bd5dc473f759",
       "symbols": [],
       "title": "Governance Pack integration (v1.0)"
     },
@@ -30979,7 +31108,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 30171,
+      "bytes": 30418,
       "group": "docs",
       "headings": [
         {
@@ -31039,12 +31168,12 @@
         },
         {
           "level": 2,
-          "line": 473,
+          "line": 476,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 479,
+          "line": 482,
           "text": "Where to look for more detail"
         }
       ],
@@ -31074,9 +31203,9 @@
         "personhood",
         "identity"
       ],
-      "lines": 489,
+      "lines": 492,
       "path": "docs/STATUS.md",
-      "sha256": "2ceef672453250a034f99a21844b74becdd580e8045d0038f5a38a8f1304dd16",
+      "sha256": "b9b5decc9fd392068ce09e643ba1c759b5eb81ed6cc821fde414d7d55457516c",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -33559,7 +33688,7 @@
       "title": "Architecture of Mininet Governance"
     },
     {
-      "bytes": 7748,
+      "bytes": 8722,
       "group": "docs",
       "headings": [
         {
@@ -33584,49 +33713,54 @@
         },
         {
           "level": 2,
-          "line": 58,
+          "line": 59,
           "text": "Universal lifecycle"
         },
         {
           "level": 2,
-          "line": 66,
+          "line": 67,
           "text": "Interpretation rules"
         },
         {
           "level": 2,
-          "line": 79,
+          "line": 81,
           "text": "Current hard honesty requirements"
         },
         {
           "level": 2,
-          "line": 88,
+          "line": 91,
           "text": "v0.5\u2013v0.6 specifications"
         },
         {
           "level": 2,
-          "line": 105,
+          "line": 108,
+          "text": "Version 1.1 compatible operational guidance"
+        },
+        {
+          "level": 2,
+          "line": 116,
           "text": "Version 1 completion documents"
         }
       ],
       "keywords": [
         "governance",
-        "rules",
         "github",
         "canonical",
-        "authority",
-        "constitutional",
+        "rules",
+        "bootstrap",
         "evidence",
+        "authority",
         "implementation",
         "documents",
         "lifecycle",
-        "interpretation",
-        "bootstrap",
         "pack",
         "spec-00",
         "accepted",
+        "constitutional",
         "normative",
         "current",
         "specifications",
+        "version",
         "forge",
         "invariants",
         "changes",
@@ -33634,9 +33768,9 @@
         "governed",
         "owner"
       ],
-      "lines": 120,
+      "lines": 131,
       "path": "docs/governance/00_GOVERNANCE_INDEX.md",
-      "sha256": "aa7323a7577297a81f5f42e835cf5116d7714198478e516913c7de3299d11640",
+      "sha256": "0ceefb607582b2bc5a2a36a3cc7071c5869a0718463f345ca7b4ca2f5618e16e",
       "symbols": [],
       "title": "Mininet Governance Index"
     },
@@ -34027,7 +34161,7 @@
       "title": "Founder Directive and Governance Traceability"
     },
     {
-      "bytes": 5527,
+      "bytes": 6388,
       "group": "docs",
       "headings": [
         {
@@ -34037,102 +34171,107 @@
         },
         {
           "level": 2,
-          "line": 5,
+          "line": 6,
           "text": "Core rule"
         },
         {
           "level": 2,
-          "line": 9,
+          "line": 10,
+          "text": "Standing engineering coordinator"
+        },
+        {
+          "level": 2,
+          "line": 18,
           "text": "Standard roles"
         },
         {
           "level": 3,
-          "line": 11,
+          "line": 20,
           "text": "AI Author"
         },
         {
           "level": 3,
-          "line": 15,
+          "line": 24,
           "text": "AI Adversary"
         },
         {
           "level": 3,
-          "line": 19,
+          "line": 28,
           "text": "AI Simplifier"
         },
         {
           "level": 3,
-          "line": 23,
+          "line": 32,
           "text": "AI Integration Reviewer"
         },
         {
           "level": 3,
-          "line": 27,
+          "line": 36,
           "text": "Human Technical Reviewer"
         },
         {
           "level": 3,
-          "line": 31,
+          "line": 40,
           "text": "Human/Governance Legitimizer"
         },
         {
           "level": 2,
-          "line": 35,
+          "line": 44,
           "text": "Workbook for every material proposal"
         },
         {
           "level": 3,
-          "line": 37,
+          "line": 46,
           "text": "Section A \u2014 Proposal"
         },
         {
           "level": 3,
-          "line": 47,
+          "line": 56,
           "text": "Section B \u2014 Claims"
         },
         {
           "level": 3,
-          "line": 57,
+          "line": 66,
           "text": "Section C \u2014 AI author self-check"
         },
         {
           "level": 3,
-          "line": 67,
+          "line": 76,
           "text": "Section D \u2014 Independent AI attack pass"
         },
         {
           "level": 3,
-          "line": 84,
+          "line": 93,
           "text": "Section E \u2014 Simplification pass"
         },
         {
           "level": 3,
-          "line": 91,
+          "line": 100,
           "text": "Section F \u2014 Human review"
         },
         {
           "level": 2,
-          "line": 104,
+          "line": 113,
           "text": "Two-contributor pattern"
         },
         {
           "level": 2,
-          "line": 113,
+          "line": 122,
           "text": "Hundred-contributor pattern"
         },
         {
           "level": 2,
-          "line": 117,
+          "line": 126,
           "text": "AI attribution"
         },
         {
           "level": 2,
-          "line": 121,
+          "line": 130,
           "text": "AI permissions"
         },
         {
           "level": 2,
-          "line": 125,
+          "line": 134,
           "text": "Required final-record fields"
         }
       ],
@@ -34140,31 +34279,31 @@
         "human",
         "section",
         "proposal",
-        "author",
         "review",
+        "author",
+        "reviewer",
         "evidence",
         "did",
         "governance",
-        "reviewer",
+        "workbook",
         "adversary",
-        "every",
         "pass",
         "required",
-        "identity",
-        "workbook",
-        "integration",
-        "pattern",
-        "work",
-        "public",
         "authority",
+        "integration",
+        "independent",
+        "may",
+        "work",
+        "role",
+        "identity",
         "attacks",
-        "simplifier",
-        "claims",
-        "independent"
+        "standing",
+        "coordinator",
+        "roles"
       ],
-      "lines": 128,
+      "lines": 137,
       "path": "docs/governance/04_AI_HUMAN_COLLABORATION_WORKBOOK.md",
-      "sha256": "f1cbd8f77916f8e104d5ab95b3fd5b076b742151597cb073fbbde363141a0506",
+      "sha256": "da836a11cd0aae8e86f9160e847b157aa833a68f1b7e2ea037a270dfa0559b98",
       "symbols": [],
       "title": "AI and Human Collaboration Workbook"
     },
@@ -34480,7 +34619,7 @@
       "title": "Release and Owner Adoption"
     },
     {
-      "bytes": 3083,
+      "bytes": 4941,
       "group": "docs",
       "headings": [
         {
@@ -34490,37 +34629,42 @@
         },
         {
           "level": 2,
-          "line": 5,
+          "line": 6,
           "text": "Role"
         },
         {
           "level": 2,
-          "line": 9,
+          "line": 10,
+          "text": "Relationship with AI engineering"
+        },
+        {
+          "level": 2,
+          "line": 16,
           "text": "Founder duties now"
         },
         {
           "level": 2,
-          "line": 23,
+          "line": 30,
           "text": "Founder must not"
         },
         {
           "level": 2,
-          "line": 34,
+          "line": 41,
           "text": "Delegation ladder"
         },
         {
           "level": 2,
-          "line": 46,
+          "line": 53,
           "text": "Handoff evidence"
         },
         {
           "level": 2,
-          "line": 58,
+          "line": 65,
           "text": "Founder veto during bootstrap"
         },
         {
           "level": 2,
-          "line": 62,
+          "line": 69,
           "text": "Bootstrap limitation"
         }
       ],
@@ -34528,31 +34672,31 @@
         "founder",
         "delegation",
         "bootstrap",
-        "constitutional",
-        "governance",
-        "handoff",
-        "veto",
         "independent",
-        "frozen",
-        "evidence",
-        "canonical",
-        "ownership",
-        "power",
-        "work",
         "release",
-        "pseudonymous",
-        "public",
-        "domain",
-        "role",
-        "duties",
-        "now",
-        "ladder",
+        "governance",
+        "veto",
+        "constitutional",
+        "canonical",
+        "handoff",
+        "may",
+        "authority",
+        "review",
+        "frozen",
+        "forge",
+        "engineering",
+        "evidence",
         "during",
-        "limitation"
+        "temporary",
+        "ownership",
+        "protocol",
+        "appointment",
+        "policy",
+        "required"
       ],
-      "lines": 65,
+      "lines": 90,
       "path": "docs/governance/08_FOUNDER_BOOTSTRAP_AND_HANDOFF.md",
-      "sha256": "360db0e78a7e1b77d5aa38d82a2bc7449c53caf0695588ddfb1fc1bc7769e702",
+      "sha256": "ea4bab5745470425f3c47d901f2c73df9151a8343e81e75865fb786aa3e4a643",
       "symbols": [],
       "title": "Founder Bootstrap and Handoff"
     },
@@ -34945,7 +35089,7 @@
       "title": "Anonymous Contribution and Compensation"
     },
     {
-      "bytes": 11806,
+      "bytes": 12540,
       "group": "docs",
       "headings": [
         {
@@ -34955,107 +35099,107 @@
         },
         {
           "level": 2,
-          "line": 7,
+          "line": 8,
           "text": "1. Secure the organization owner account"
         },
         {
           "level": 2,
-          "line": 15,
+          "line": 16,
           "text": "2. Set organization-wide security policy"
         },
         {
           "level": 2,
-          "line": 27,
+          "line": 28,
           "text": "3. Create teams before granting direct access"
         },
         {
           "level": 2,
-          "line": 43,
+          "line": 44,
           "text": "4. Protect `main` with a ruleset"
         },
         {
           "level": 2,
-          "line": 64,
+          "line": 70,
           "text": "5. Protect integration branches"
         },
         {
           "level": 2,
-          "line": 77,
+          "line": 83,
           "text": "6. Protect release branches and tags"
         },
         {
           "level": 2,
-          "line": 87,
+          "line": 93,
           "text": "7. Configure required CI checks"
         },
         {
           "level": 2,
-          "line": 104,
+          "line": 110,
           "text": "8. Configure security features"
         },
         {
           "level": 2,
-          "line": 116,
+          "line": 122,
           "text": "9. Configure environments and secrets"
         },
         {
           "level": 2,
-          "line": 132,
+          "line": 138,
           "text": "10. Set merge methods"
         },
         {
           "level": 2,
-          "line": 138,
+          "line": 144,
           "text": "11. Prepare CODEOWNERS"
         },
         {
           "level": 2,
-          "line": 144,
+          "line": 150,
           "text": "12. Open contributor intake"
         },
         {
           "level": 2,
-          "line": 152,
+          "line": 158,
           "text": "13. Configure AI-assisted development rules"
         },
         {
           "level": 2,
-          "line": 161,
+          "line": 171,
           "text": "14. Establish the two-engineer integration workflow"
         },
         {
           "level": 2,
-          "line": 177,
+          "line": 187,
           "text": "15. Prepare for ten to one hundred contributors"
         },
         {
           "level": 2,
-          "line": 189,
+          "line": 199,
           "text": "16. Set up compensation governance"
         },
         {
           "level": 2,
-          "line": 199,
+          "line": 209,
           "text": "17. Founder emergency access"
         },
         {
           "level": 2,
-          "line": 213,
+          "line": 223,
           "text": "18. Audit cadence"
         },
         {
           "level": 2,
-          "line": 230,
+          "line": 240,
           "text": "19. Begin hybrid Forge operation when ready"
         },
         {
           "level": 2,
-          "line": 243,
+          "line": 253,
           "text": "20. Reduce founder authority deliberately"
         },
         {
           "level": 2,
-          "line": 256,
+          "line": 266,
           "text": "v0.2 owner verification checkpoint"
         }
       ],
@@ -35064,35 +35208,35 @@
         "owner",
         "security",
         "create",
+        "main",
         "integration",
+        "set",
         "release",
         "configure",
         "enable",
-        "main",
-        "set",
-        "access",
         "protect",
         "checks",
+        "review",
         "repository",
         "organization",
+        "teams",
+        "access",
         "ruleset",
         "github",
-        "review",
         "current",
         "account",
-        "teams",
         "branches",
         "tags",
-        "founder"
+        "restrict"
       ],
-      "lines": 259,
+      "lines": 269,
       "path": "docs/governance/13_REPOSITORY_OWNER_SETUP_GUIDE.md",
-      "sha256": "fa2b4b1782fdba704919bf82df65bec2410a6123625fe260cce727ce9b6bf25d",
+      "sha256": "e9b325599385b18dbf5e8cb65f05d45fca74396ff8af6c4ef8dd31aa12ba0362",
       "symbols": [],
       "title": "Current Repository Owner Setup Guide"
     },
     {
-      "bytes": 6148,
+      "bytes": 6641,
       "group": "docs",
       "headings": [
         {
@@ -35117,64 +35261,64 @@
         },
         {
           "level": 2,
-          "line": 26,
+          "line": 30,
           "text": "Work and evidence"
         },
         {
           "level": 2,
-          "line": 42,
+          "line": 46,
           "text": "Authority and legitimacy"
         },
         {
           "level": 2,
-          "line": 62,
+          "line": 66,
           "text": "Releases and user choice"
         },
         {
           "level": 2,
-          "line": 76,
+          "line": 80,
           "text": "Identity honesty"
         },
         {
           "level": 2,
-          "line": 82,
+          "line": 86,
           "text": "Platform mappings"
         }
       ],
       "keywords": [
-        "identity",
         "authority",
-        "may",
+        "identity",
         "review",
-        "governance",
         "evidence",
-        "release",
-        "canonical",
+        "may",
+        "governance",
         "public",
         "proposal",
         "state",
+        "canonical",
         "work",
         "persistent",
-        "history",
-        "does",
+        "approval",
         "ontology",
         "continuity",
-        "legitimacy",
         "but",
         "human",
         "pseudonymous",
-        "approval",
+        "history",
+        "does",
+        "authorized",
+        "release",
         "integration",
-        "owner"
+        "vocabulary"
       ],
-      "lines": 94,
+      "lines": 98,
       "path": "docs/governance/14_CANONICAL_VOCABULARY.md",
-      "sha256": "ad5164e2371460562d97602dd91d849eddecc95fba2129bdd2f09a2e5ba385f0",
+      "sha256": "f269d0425274bf6fafca3c19e04e8118b38b2232d97f957c95ce7147b53197ff",
       "symbols": [],
       "title": "Canonical Governance Vocabulary"
     },
     {
-      "bytes": 2775,
+      "bytes": 3183,
       "group": "docs",
       "headings": [
         {
@@ -35184,18 +35328,23 @@
         },
         {
           "level": 2,
-          "line": 27,
+          "line": 29,
           "text": "Review procedure"
         }
       ],
       "keywords": [
         "governance",
         "matrix",
+        "review",
         "rule",
         "forge",
-        "review",
         "enforcement",
         "policy",
+        "doc",
+        "proposal",
+        "agents",
+        "procedural",
+        "authority",
         "approval",
         "release",
         "consistency",
@@ -35205,23 +35354,18 @@
         "source",
         "rfc-0001",
         "decision",
+        "protected",
         "explicit",
-        "proposal",
-        "path",
-        "identity",
-        "branch",
-        "plus",
-        "approvals",
-        "independent"
+        "path"
       ],
-      "lines": 36,
+      "lines": 38,
       "path": "docs/governance/15_CONSISTENCY_MATRIX.md",
-      "sha256": "e1c3c82f7847bb7d116b95b7981cd5b17ff3d3b918cb02540867ffefbbb69e72",
+      "sha256": "94913679ba4d854a7c5d7948c1f898c470cbb134b6356eb378af739923b73ce7",
       "symbols": [],
       "title": "Governance Consistency Matrix"
     },
     {
-      "bytes": 9486,
+      "bytes": 10094,
       "group": "docs",
       "headings": [
         {
@@ -35272,296 +35416,301 @@
         {
           "level": 3,
           "line": 30,
-          "text": "Owner"
+          "text": "Primary AI Engineer"
         },
         {
           "level": 3,
           "line": 33,
-          "text": "Maintainer"
+          "text": "Owner"
         },
         {
           "level": 3,
           "line": 36,
-          "text": "Governor"
+          "text": "Maintainer"
         },
         {
           "level": 3,
           "line": 39,
-          "text": "Founder / Bootstrap Guardian"
+          "text": "Governor"
         },
         {
           "level": 3,
           "line": 42,
+          "text": "Founder / Bootstrap Guardian"
+        },
+        {
+          "level": 3,
+          "line": 45,
           "text": "Working Group"
         },
         {
           "level": 2,
-          "line": 45,
+          "line": 48,
           "text": "3. Artifacts and evidence"
         },
         {
           "level": 3,
-          "line": 47,
+          "line": 50,
           "text": "Artifact"
         },
         {
           "level": 3,
-          "line": 50,
+          "line": 53,
           "text": "Proposal"
         },
         {
           "level": 3,
-          "line": 53,
+          "line": 56,
           "text": "Exact Proposal State"
         },
         {
           "level": 3,
-          "line": 56,
+          "line": 59,
           "text": "Evidence"
         },
         {
           "level": 3,
-          "line": 59,
+          "line": 62,
           "text": "Claim"
         },
         {
           "level": 3,
-          "line": 62,
+          "line": 65,
           "text": "Review"
         },
         {
           "level": 3,
-          "line": 65,
+          "line": 68,
           "text": "Adversarial Review"
         },
         {
           "level": 3,
-          "line": 68,
+          "line": 71,
           "text": "Approval"
         },
         {
           "level": 3,
-          "line": 71,
+          "line": 74,
           "text": "Responsibility Acceptance"
         },
         {
           "level": 3,
-          "line": 74,
+          "line": 77,
           "text": "Provenance"
         },
         {
           "level": 3,
-          "line": 77,
+          "line": 80,
           "text": "Audit"
         },
         {
           "level": 2,
-          "line": 80,
+          "line": 83,
           "text": "4. Authority and legitimacy"
         },
         {
           "level": 3,
-          "line": 82,
+          "line": 85,
           "text": "Authority"
         },
         {
           "level": 3,
-          "line": 85,
+          "line": 88,
           "text": "Scope"
         },
         {
           "level": 3,
-          "line": 88,
+          "line": 91,
           "text": "Delegation"
         },
         {
           "level": 3,
-          "line": 91,
+          "line": 94,
           "text": "Revocation"
         },
         {
           "level": 3,
-          "line": 94,
+          "line": 97,
           "text": "Quorum"
         },
         {
           "level": 3,
-          "line": 97,
+          "line": 100,
           "text": "Decision"
         },
         {
           "level": 3,
-          "line": 100,
+          "line": 103,
           "text": "Legitimacy"
         },
         {
           "level": 3,
-          "line": 103,
+          "line": 106,
           "text": "Canonicalization"
         },
         {
           "level": 3,
-          "line": 106,
+          "line": 109,
           "text": "Canonical History"
         },
         {
           "level": 3,
-          "line": 109,
+          "line": 112,
           "text": "Continuity"
         },
         {
           "level": 3,
-          "line": 112,
+          "line": 115,
           "text": "Fork"
         },
         {
           "level": 3,
-          "line": 115,
+          "line": 118,
           "text": "Exit"
         },
         {
           "level": 2,
-          "line": 118,
+          "line": 121,
           "text": "5. Development and integration"
         },
         {
           "level": 3,
-          "line": 120,
+          "line": 123,
           "text": "Implementation"
         },
         {
           "level": 3,
-          "line": 123,
+          "line": 126,
           "text": "Integration"
         },
         {
           "level": 3,
-          "line": 126,
+          "line": 129,
           "text": "Integration Candidate"
         },
         {
           "level": 3,
-          "line": 129,
+          "line": 132,
           "text": "Canonical Branch"
         },
         {
           "level": 3,
-          "line": 132,
+          "line": 135,
           "text": "Merge"
         },
         {
           "level": 3,
-          "line": 135,
+          "line": 138,
           "text": "Working Branch"
         },
         {
           "level": 2,
-          "line": 138,
+          "line": 141,
           "text": "6. Release and adoption"
         },
         {
           "level": 3,
-          "line": 140,
+          "line": 143,
           "text": "Build"
         },
         {
           "level": 3,
-          "line": 143,
+          "line": 146,
           "text": "Trusted Build"
         },
         {
           "level": 3,
-          "line": 146,
+          "line": 149,
           "text": "Release Candidate"
         },
         {
           "level": 3,
-          "line": 149,
+          "line": 152,
           "text": "Governed Release"
         },
         {
           "level": 3,
-          "line": 152,
+          "line": 155,
           "text": "Availability"
         },
         {
           "level": 3,
-          "line": 155,
+          "line": 158,
           "text": "Owner Approval"
         },
         {
           "level": 3,
-          "line": 158,
+          "line": 161,
           "text": "Adoption"
         },
         {
           "level": 3,
-          "line": 161,
+          "line": 164,
           "text": "Refusal"
         },
         {
           "level": 3,
-          "line": 164,
+          "line": 167,
           "text": "Rollback"
         },
         {
           "level": 2,
-          "line": 167,
+          "line": 170,
           "text": "7. Compensation"
         },
         {
           "level": 3,
-          "line": 169,
+          "line": 172,
           "text": "Bounty"
         },
         {
           "level": 3,
-          "line": 172,
+          "line": 175,
           "text": "Claimant"
         },
         {
           "level": 3,
-          "line": 175,
+          "line": 178,
           "text": "Acceptance Criteria"
         },
         {
           "level": 3,
-          "line": 178,
+          "line": 181,
           "text": "Compensation Decision"
         },
         {
           "level": 3,
-          "line": 181,
+          "line": 184,
           "text": "Payment Address"
         },
         {
           "level": 3,
-          "line": 184,
+          "line": 187,
           "text": "Dispute"
         },
         {
           "level": 2,
-          "line": 187,
+          "line": 190,
           "text": "8. Political equality and identity honesty"
         },
         {
           "level": 3,
-          "line": 189,
+          "line": 192,
           "text": "Identity Root"
         },
         {
           "level": 3,
-          "line": 192,
+          "line": 195,
           "text": "Personhood Evidence"
         },
         {
           "level": 3,
-          "line": 195,
+          "line": 198,
           "text": "Political Voice"
         },
         {
           "level": 2,
-          "line": 198,
+          "line": 201,
           "text": "9. Reserved relation statements"
         }
       ],
@@ -35573,27 +35722,27 @@
         "evidence",
         "proposal",
         "state",
-        "scope",
+        "exact",
         "contributor",
         "public",
-        "exact",
-        "legitimacy",
-        "authorized",
-        "artifact",
         "approval",
-        "decision",
+        "scope",
+        "agent",
+        "owner",
+        "artifact",
+        "legitimacy",
         "integration",
         "may",
         "persistent",
+        "authorized",
         "anonymous",
-        "agent",
-        "owner",
         "working",
-        "claim"
+        "claim",
+        "acceptance"
       ],
-      "lines": 212,
+      "lines": 218,
       "path": "docs/governance/16_PROTOCOL_ONTOLOGY.md",
-      "sha256": "5e658e105086d6329d29876f6e25758384f7fee60ece7d81408c02b8a3f45bbd",
+      "sha256": "73a4e71d2ad5dd52dbd2217a1f4e161d49a6fdaff745fa65c1320d876416b563",
       "symbols": [],
       "title": "Mininet Governance Protocol Ontology"
     },
@@ -36066,7 +36215,7 @@
       "title": "Governance Failure Modes and Continuity Requirements"
     },
     {
-      "bytes": 6892,
+      "bytes": 8538,
       "group": "docs",
       "headings": [
         {
@@ -36227,7 +36376,12 @@
         {
           "level": 2,
           "line": 167,
-          "text": "9. Exit criteria"
+          "text": "9. AI session charter and adapter"
+        },
+        {
+          "level": 2,
+          "line": 183,
+          "text": "10. Exit criteria"
         }
       ],
       "keywords": [
@@ -36256,14 +36410,14 @@
         "sponsor",
         "unavailable"
       ],
-      "lines": 177,
+      "lines": 194,
       "path": "docs/governance/21_GOVERNANCE_TEST_SUITE.md",
-      "sha256": "4b78274c00ba5c221167472e55139dd9759cfe69c05ba36ed91cd7e62c32e94c",
+      "sha256": "05eeb7b743afe3300ef7d59203531ffd74af2874545c17620e0d5fcfd5022659",
       "symbols": [],
       "title": "Governance Test Suite"
     },
     {
-      "bytes": 2943,
+      "bytes": 3914,
       "group": "docs",
       "headings": [
         {
@@ -36298,44 +36452,44 @@
         },
         {
           "level": 2,
-          "line": 94,
+          "line": 98,
           "text": "6. Migration path"
         }
       ],
       "keywords": [
         "summaries",
+        "document",
+        "summary",
         "governance",
         "authority",
-        "document",
-        "status",
-        "references",
-        "machine-readable",
         "schema",
+        "validation",
+        "status",
+        "source",
+        "enforcement",
+        "identity",
+        "machine-readable",
         "required",
         "rules",
         "storage",
-        "version",
-        "claims",
-        "transitions",
-        "evidence",
-        "enforcement",
-        "purpose",
-        "recommended",
-        "fields",
-        "validation",
-        "signing",
         "migration",
         "path",
-        "tooling"
+        "version",
+        "references",
+        "claims",
+        "transitions",
+        "documents",
+        "evidence",
+        "json"
       ],
-      "lines": 100,
+      "lines": 105,
       "path": "docs/governance/22_MACHINE_READABLE_SUMMARIES.md",
-      "sha256": "a5d0b0b97e346df4368d3f97c27c83c6f4f2f8b0f726cb0075fea5e218422658",
+      "sha256": "91f12fa6fcff9dcd858e43d464ca9c1d86c468114a6f712a2d1882b5596ca769",
       "symbols": [],
       "title": "Machine-Readable Governance Summaries"
     },
     {
-      "bytes": 4650,
+      "bytes": 5383,
       "group": "docs",
       "headings": [
         {
@@ -36365,59 +36519,59 @@
         },
         {
           "level": 2,
-          "line": 36,
+          "line": 38,
           "text": "5. Required proposal evidence"
         },
         {
           "level": 2,
-          "line": 52,
+          "line": 54,
           "text": "6. CI truth boundary"
         },
         {
           "level": 2,
-          "line": 56,
-          "text": "7. Fail-closed rules"
+          "line": 58,
+          "text": "7. Target fail-closed rules"
         },
         {
           "level": 2,
-          "line": 68,
+          "line": 73,
           "text": "8. Bootstrap limitations"
         },
         {
           "level": 2,
-          "line": 72,
+          "line": 77,
           "text": "9. Migration requirement"
         }
       ],
       "keywords": [
+        "constitutional",
         "governance",
         "proposal",
-        "constitutional",
-        "change",
         "evidence",
-        "github",
-        "repository",
         "enforcement",
+        "change",
+        "review",
+        "repository",
+        "github",
+        "metadata",
+        "authority",
         "bootstrap",
         "policy",
-        "review",
-        "metadata",
-        "forge",
+        "path",
         "required",
+        "target",
+        "rules",
         "automation",
         "claims",
-        "path",
         "protected",
-        "authority",
+        "classification",
         "class",
-        "classes",
-        "truth",
-        "rules",
-        "normative"
+        "architecture",
+        "classes"
       ],
-      "lines": 75,
+      "lines": 80,
       "path": "docs/governance/23_REPOSITORY_ENFORCEMENT_ARCHITECTURE.md",
-      "sha256": "d1e1f00312037b2e11a36bf0b5d91a26027be44e9b5fa29836fc0e4c4208c58d",
+      "sha256": "b13324c9c12c8c917a4b4932b72d4c9d4faee5f1457061a3910fb08ea5ef65a8",
       "symbols": [],
       "title": "Repository Enforcement Architecture"
     },
@@ -36504,7 +36658,7 @@
       "title": "Proposal Metadata Specification"
     },
     {
-      "bytes": 1852,
+      "bytes": 2039,
       "group": "docs",
       "headings": [
         {
@@ -36529,23 +36683,23 @@
         },
         {
           "level": 2,
-          "line": 35,
+          "line": 36,
           "text": "4. Scaling"
         },
         {
           "level": 2,
-          "line": 39,
+          "line": 40,
           "text": "5. Anti-capture rules"
         }
       ],
       "keywords": [
         "review",
         "teams",
-        "codeowners",
         "routing",
-        "team",
         "constitutional",
         "require",
+        "codeowners",
+        "team",
         "domain",
         "path",
         "changes",
@@ -36564,14 +36718,14 @@
         "two",
         "cryptography"
       ],
-      "lines": 42,
+      "lines": 43,
       "path": "docs/governance/25_CODEOWNERS_AND_REVIEW_ROUTING.md",
-      "sha256": "c06d2f52129a08a91c69f125a9f68fadc1091970cfa0b776860935add3bde6fa",
+      "sha256": "5adcd4013fd628e180bb245f1b48f3b59b520eb4059cf8d8bc9a5464e2f90a17",
       "symbols": [],
       "title": "CODEOWNERS and Review Routing"
     },
     {
-      "bytes": 1626,
+      "bytes": 4047,
       "group": "docs",
       "headings": [
         {
@@ -36591,54 +36745,54 @@
         },
         {
           "level": 2,
-          "line": 23,
+          "line": 34,
           "text": "3. Modes"
         },
         {
           "level": 2,
-          "line": 29,
+          "line": 43,
           "text": "4. Security"
         },
         {
           "level": 2,
-          "line": 33,
+          "line": 47,
           "text": "5. Adoption sequence"
         }
       ],
       "keywords": [
         "checks",
-        "governance",
-        "specification",
-        "policy",
-        "validation",
-        "baseline",
+        "canonical",
+        "blocking",
         "proposal",
-        "purpose",
-        "modes",
-        "security",
-        "adoption",
-        "sequence",
-        "repository",
-        "proposals",
-        "review",
+        "governance",
         "schema",
+        "validation",
+        "active",
+        "does",
+        "specification",
+        "required",
+        "review",
+        "policy",
         "pull-request",
         "body",
+        "supplied",
         "path",
-        "requirements",
-        "paths",
-        "warnings",
-        "validates",
-        "make"
+        "summary",
+        "agents",
+        "adapter",
+        "checkpoint",
+        "activation",
+        "every",
+        "baseline"
       ],
-      "lines": 41,
+      "lines": 55,
       "path": "docs/governance/26_GOVERNANCE_CI_SPECIFICATION.md",
-      "sha256": "f7269f2d3195dbd49ba6cfd364769e177c1007c34b0bc59b37d2099fab4cc280",
+      "sha256": "c33077d7c320368141870f1a43d74ef7d9f2eb1ebda0eca7508ee4411c6bd0d5",
       "symbols": [],
       "title": "Governance CI Specification"
     },
     {
-      "bytes": 1882,
+      "bytes": 2417,
       "group": "docs",
       "headings": [
         {
@@ -36653,22 +36807,22 @@
         },
         {
           "level": 2,
-          "line": 14,
+          "line": 16,
           "text": "Phase B \u2014 Enforce basic integrity"
         },
         {
           "level": 2,
-          "line": 22,
+          "line": 25,
           "text": "Phase C \u2014 Enforce sensitive domains"
         },
         {
           "level": 2,
-          "line": 30,
+          "line": 33,
           "text": "Phase D \u2014 Scale"
         },
         {
           "level": 2,
-          "line": 38,
+          "line": 41,
           "text": "Phase E \u2014 Forge equivalence"
         }
       ],
@@ -36679,10 +36833,13 @@
         "forge",
         "enforce",
         "changes",
+        "governance",
         "plan",
         "github",
         "proposal",
-        "governance",
+        "agents",
+        "adapter",
+        "authority",
         "repository",
         "observe",
         "basic",
@@ -36691,16 +36848,13 @@
         "domains",
         "scale",
         "equivalence",
+        "execution",
         "teams",
-        "merge",
-        "rights",
-        "policy",
-        "names",
-        "baseline"
+        "merge"
       ],
-      "lines": 46,
+      "lines": 50,
       "path": "docs/governance/27_REPOSITORY_INTEGRATION_PLAN.md",
-      "sha256": "35e31196c0284d18451a868a54336cba059a2d77ff5f97aa78cf27ffe6ed333c",
+      "sha256": "b2bc0f886cd9c32f7a8a87168a8f3d1e3942f7b6aab3499207323cbdf00cba18",
       "symbols": [],
       "title": "Repository Integration Plan"
     },
@@ -37568,7 +37722,7 @@
       "title": "Scaling Development from Two Contributors to Thousands"
     },
     {
-      "bytes": 2815,
+      "bytes": 3222,
       "group": "docs",
       "headings": [
         {
@@ -37578,27 +37732,27 @@
         },
         {
           "level": 2,
-          "line": 5,
+          "line": 6,
           "text": "1. Purpose"
         },
         {
           "level": 2,
-          "line": 9,
+          "line": 10,
           "text": "2. Mapping table"
         },
         {
           "level": 2,
-          "line": 26,
+          "line": 28,
           "text": "3. Dual-running phase"
         },
         {
           "level": 2,
-          "line": 36,
+          "line": 38,
           "text": "4. Cutover gates"
         },
         {
           "level": 2,
-          "line": 53,
+          "line": 56,
           "text": "5. Decommission"
         }
       ],
@@ -37609,15 +37763,15 @@
         "mapping",
         "forge",
         "review",
-        "does",
-        "constitutional",
         "approval",
+        "does",
+        "delegation",
+        "canonical",
+        "constitutional",
         "policy",
         "may",
-        "delegation",
         "release",
         "object",
-        "canonical",
         "recovery",
         "governance",
         "github-to-forge",
@@ -37628,9 +37782,9 @@
         "cutover",
         "gates"
       ],
-      "lines": 56,
+      "lines": 59,
       "path": "docs/governance/37_GITHUB_TO_FORGE_AUTHORITY_MAPPING.md",
-      "sha256": "68b6d7f4ef837a2d5566fc6bcca66c64af9c1e66b34363295b2e05b1b305b18e",
+      "sha256": "ca67b5d3c2feaa71684996bcfa88e4f7c461184153f3e95712b7bc6cb0d9d8f2",
       "symbols": [],
       "title": "GitHub-to-Forge Authority Mapping"
     },
@@ -37958,7 +38112,7 @@
       "title": "External Review and Public Challenge"
     },
     {
-      "bytes": 3007,
+      "bytes": 3326,
       "group": "docs",
       "headings": [
         {
@@ -37974,7 +38128,7 @@
         {
           "level": 2,
           "line": 13,
-          "text": "Meaning of v1.0"
+          "text": "Meaning of v1.x"
         },
         {
           "level": 2,
@@ -37988,27 +38142,27 @@
         },
         {
           "level": 3,
-          "line": 38,
+          "line": 39,
           "text": "Hybrid Profile"
         },
         {
           "level": 3,
-          "line": 48,
+          "line": 49,
           "text": "Forge-Primary Profile"
         },
         {
           "level": 3,
-          "line": 59,
+          "line": 60,
           "text": "Protocol-Sovereign Profile"
         },
         {
           "level": 2,
-          "line": 72,
+          "line": 73,
           "text": "Prohibited conformance claims"
         },
         {
           "level": 2,
-          "line": 84,
+          "line": 86,
           "text": "Evidence bundle"
         }
       ],
@@ -38018,29 +38172,29 @@
         "profile",
         "canonical",
         "github",
+        "authority",
         "founder",
         "required",
-        "authority",
+        "role",
         "review",
         "normative",
         "forge-primary",
         "protocol-sovereign",
+        "claims",
+        "document",
         "continuity",
+        "activated",
         "claim",
         "independent",
         "tested",
         "standard",
         "interpretation",
         "meaning",
-        "profiles",
-        "bootstrap",
-        "hybrid",
-        "prohibited",
-        "claims"
+        "profiles"
       ],
-      "lines": 87,
+      "lines": 89,
       "path": "docs/governance/42_GOVERNANCE_V1_CONFORMANCE_STANDARD.md",
-      "sha256": "22ace787797b77ba2b4493f46ea205f38326b324132514c3099c1dfafe3458ab",
+      "sha256": "699da8f7d7b76396688d7f3c97ea3273ca363f45cfa6c3e55e889a37f2266857",
       "symbols": [],
       "title": "Governance v1 Conformance Standard"
     },
@@ -38271,7 +38425,7 @@
       "title": "Governance Security and Privacy Model"
     },
     {
-      "bytes": 2762,
+      "bytes": 3177,
       "group": "docs",
       "headings": [
         {
@@ -38291,12 +38445,12 @@
         },
         {
           "level": 2,
-          "line": 32,
+          "line": 33,
           "text": "Update rule"
         },
         {
           "level": 2,
-          "line": 36,
+          "line": 37,
           "text": "Honesty rule"
         }
       ],
@@ -38304,17 +38458,17 @@
         "rule",
         "specified",
         "governance",
+        "canonical",
         "implementation",
         "evidence",
         "foundation",
+        "policy",
         "map",
         "normative",
         "status",
-        "canonical",
         "authority",
         "existing",
         "human",
-        "policy",
         "conformance",
         "interpretation",
         "purpose",
@@ -38326,14 +38480,14 @@
         "amendment",
         "disclosure"
       ],
-      "lines": 39,
+      "lines": 40,
       "path": "docs/governance/46_IMPLEMENTATION_CONFORMANCE_MAP.md",
-      "sha256": "2f628badbc1af8dbb1bd3c8340b1da4a5bd43ad554cd98732d006204d643ffe8",
+      "sha256": "a4998311609e046f0452a43a924428f8029b58c7a8691236816f2e79b9352122",
       "symbols": [],
       "title": "Implementation Conformance Map"
     },
     {
-      "bytes": 2390,
+      "bytes": 3710,
       "group": "docs",
       "headings": [
         {
@@ -38363,69 +38517,69 @@
         },
         {
           "level": 3,
-          "line": 31,
+          "line": 33,
           "text": "Phase B \u2014 Observe-only enforcement"
         },
         {
           "level": 3,
-          "line": 35,
+          "line": 37,
           "text": "Phase C \u2014 Bootstrap blocking"
         },
         {
           "level": 3,
-          "line": 39,
+          "line": 41,
           "text": "Phase D \u2014 Hybrid Forge"
         },
         {
           "level": 3,
-          "line": 43,
+          "line": 45,
           "text": "Phase E \u2014 Forge-primary"
         },
         {
           "level": 3,
-          "line": 47,
+          "line": 49,
           "text": "Phase F \u2014 Protocol-sovereign"
         },
         {
           "level": 2,
-          "line": 51,
+          "line": 53,
           "text": "Migration safety"
         },
         {
           "level": 2,
-          "line": 62,
+          "line": 64,
           "text": "Rollback"
         }
       ],
       "keywords": [
         "phase",
         "canonical",
-        "governance",
         "activation",
+        "governance",
+        "digest",
         "deployment",
         "migration",
+        "authority",
         "blocking",
         "forge",
         "rollback",
+        "does",
+        "decision",
+        "charter",
         "normative",
+        "separate",
         "documentation",
         "enforcement",
         "bootstrap",
         "repository",
-        "authority",
+        "time",
         "exceptions",
-        "transition",
-        "interpretation",
-        "separate",
-        "publication",
-        "phases",
-        "alignment",
-        "observe-only",
-        "hybrid"
+        "adapter",
+        "proposal"
       ],
-      "lines": 65,
+      "lines": 67,
       "path": "docs/governance/47_ACTIVATION_DEPLOYMENT_AND_MIGRATION.md",
-      "sha256": "66b2525743b1dfad768d8758cad97e2068f98a1899ed135a137d328de7ac984b",
+      "sha256": "ab8c936ac3f4b296ddc3e927b43f484076bc980e4f666d1f02c4d4bc26c52c09",
       "symbols": [],
       "title": "Governance Activation, Deployment, and Migration"
     },
@@ -38502,7 +38656,7 @@
       "title": "Post-v1 Evolution and Open Research"
     },
     {
-      "bytes": 2612,
+      "bytes": 3158,
       "group": "docs",
       "headings": [
         {
@@ -38527,32 +38681,32 @@
         },
         {
           "level": 3,
-          "line": 23,
+          "line": 24,
           "text": "Sovereignty"
         },
         {
           "level": 3,
-          "line": 30,
+          "line": 31,
           "text": "Authority"
         },
         {
           "level": 3,
-          "line": 37,
+          "line": 38,
           "text": "Continuity"
         },
         {
           "level": 3,
-          "line": 45,
+          "line": 46,
           "text": "Honesty"
         },
         {
           "level": 3,
-          "line": 53,
+          "line": 55,
           "text": "Operability"
         },
         {
           "level": 2,
-          "line": 62,
+          "line": 66,
           "text": "Sign-off classes"
         }
       ],
@@ -38564,32 +38718,272 @@
         "canonical",
         "path",
         "audit",
+        "cannot",
+        "described",
         "confirms",
         "normative",
         "continuity",
         "repository",
         "identity",
         "remain",
+        "charter",
         "owner",
         "remains",
         "evidence",
-        "described",
         "interpretation",
         "hierarchy",
         "sovereignty",
         "honesty",
-        "operability",
-        "classes",
-        "version"
+        "operability"
       ],
-      "lines": 71,
+      "lines": 75,
       "path": "docs/governance/49_V1_RELEASE_AUDIT_AND_SIGNOFF.md",
-      "sha256": "be24087f0e49fbcb4095b85af054778d4a7a5295b568f5b83430358e3283ad52",
+      "sha256": "049c2a480534833d91d2a3388d3d8b3fb8b44609fd37c36fd668328cfd777f04",
       "symbols": [],
       "title": "Governance v1 Release Audit and Sign-off"
     },
     {
-      "bytes": 5052,
+      "bytes": 24822,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Primary AI Engineer Charter"
+        },
+        {
+          "level": 2,
+          "line": 16,
+          "text": "1. Nature of this charter"
+        },
+        {
+          "level": 2,
+          "line": 35,
+          "text": "2. Mission"
+        },
+        {
+          "level": 2,
+          "line": 49,
+          "text": "3. Constitutional boundary"
+        },
+        {
+          "level": 2,
+          "line": 71,
+          "text": "4. Relationship with the Founder"
+        },
+        {
+          "level": 2,
+          "line": 87,
+          "text": "5. Engineering stewardship"
+        },
+        {
+          "level": 2,
+          "line": 110,
+          "text": "6. Proactive work and scope"
+        },
+        {
+          "level": 2,
+          "line": 124,
+          "text": "7. Engineering standard"
+        },
+        {
+          "level": 2,
+          "line": 145,
+          "text": "8. Protocol-first engineering"
+        },
+        {
+          "level": 2,
+          "line": 167,
+          "text": "9. Proposal discipline"
+        },
+        {
+          "level": 2,
+          "line": 189,
+          "text": "10. Documentation is engineering"
+        },
+        {
+          "level": 2,
+          "line": 206,
+          "text": "11. Governance is protocol engineering"
+        },
+        {
+          "level": 2,
+          "line": 214,
+          "text": "12. AI collaboration"
+        },
+        {
+          "level": 2,
+          "line": 232,
+          "text": "13. Owner-only and authorizing tasks"
+        },
+        {
+          "level": 2,
+          "line": 250,
+          "text": "14. Honesty and maturity"
+        },
+        {
+          "level": 2,
+          "line": 267,
+          "text": "15. Decision principle"
+        },
+        {
+          "level": 2,
+          "line": 283,
+          "text": "16. Session completion and continuity"
+        },
+        {
+          "level": 2,
+          "line": 311,
+          "text": "17. Standing objective"
+        },
+        {
+          "level": 2,
+          "line": 319,
+          "text": "18. Implementation and conformance"
+        },
+        {
+          "level": 2,
+          "line": 340,
+          "text": "19. Traceability and tests"
+        }
+      ],
+      "keywords": [
+        "charter",
+        "engineer",
+        "authority",
+        "engineering",
+        "governance",
+        "constitutional",
+        "founder",
+        "phase",
+        "work",
+        "decision",
+        "bootstrap",
+        "activation",
+        "applicable",
+        "primary",
+        "protocol",
+        "session",
+        "founder-guarded",
+        "canonical",
+        "current",
+        "its",
+        "policy",
+        "mission",
+        "document",
+        "activated"
+      ],
+      "lines": 354,
+      "path": "docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.md",
+      "sha256": "b101222fb95a71bf9e609e81a77e35426ab16d4a6a9c8fce53d1d7bf7b57df45",
+      "symbols": [],
+      "title": "Primary AI Engineer Charter"
+    },
+    {
+      "bytes": 2910,
+      "group": "docs",
+      "headings": [],
+      "keywords": [
+        "level",
+        "enforcement",
+        "type",
+        "identity_modes",
+        "authority",
+        "false",
+        "governance",
+        "primary_ai_engineer_charter",
+        "charter",
+        "pseudonymous",
+        "public",
+        "active-policy-only",
+        "session-adapter-validation",
+        "must_not",
+        "summary",
+        "json",
+        "document",
+        "gov-ai-050",
+        "title",
+        "primary",
+        "engineer",
+        "version",
+        "status",
+        "operational"
+      ],
+      "lines": 90,
+      "path": "docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.summary.json",
+      "sha256": "b69fcfb88a41893bcbad3b722fc613d1d84d1810903c392c82f55d83aae7f302",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 4182,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Primary AI Engineer Charter \u2014 Activation and Operations Checklist"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "Bound activation artifacts"
+        },
+        {
+          "level": 2,
+          "line": 31,
+          "text": "Candidate verification"
+        },
+        {
+          "level": 2,
+          "line": 51,
+          "text": "Canonical and session verification"
+        },
+        {
+          "level": 2,
+          "line": 75,
+          "text": "D-0083 operating checks"
+        },
+        {
+          "level": 2,
+          "line": 94,
+          "text": "Changes, rollback, and supersession"
+        }
+      ],
+      "keywords": [
+        "governance",
+        "canonical",
+        "json",
+        "activation",
+        "d-0083",
+        "d-0084",
+        "candidate",
+        "state",
+        "schema",
+        "github",
+        "proposal",
+        "python3",
+        "tools",
+        "mode",
+        "charter",
+        "verification",
+        "checks",
+        "decision",
+        "checkout",
+        "check_governance",
+        "canonical-root",
+        "worktree",
+        "checklist",
+        "bound"
+      ],
+      "lines": 108,
+      "path": "docs/governance/ACTIVATION_CHECKLIST_v1.1.md",
+      "sha256": "c25caa2af3b37eccba0860e297d617678afba4e2edbe4eae2ae410239ef8fae9",
+      "symbols": [],
+      "title": "Primary AI Engineer Charter \u2014 Activation and Operations Checklist"
+    },
+    {
+      "bytes": 6743,
       "group": "docs",
       "headings": [
         {
@@ -38600,68 +38994,73 @@
         {
           "level": 2,
           "line": 3,
+          "text": "v1.1 \u2014 Standing AI engineering charter"
+        },
+        {
+          "level": 2,
+          "line": 19,
           "text": "v1.0 \u2014 Constitutional completion and continuity"
         },
         {
           "level": 2,
-          "line": 18,
+          "line": 34,
           "text": "v0.3 \u2014 Governance protocol engineering foundation"
         },
         {
           "level": 2,
-          "line": 30,
+          "line": 46,
           "text": "v0.2 \u2014 Internal consistency and repository alignment"
         },
         {
           "level": 2,
-          "line": 44,
+          "line": 60,
           "text": "v0.1 \u2014 Initial governance pack"
         },
         {
           "level": 2,
-          "line": 48,
+          "line": 64,
           "text": "v0.4 \u2014 Repository enforcement integration"
         },
         {
           "level": 2,
-          "line": 59,
+          "line": 75,
           "text": "v0.5 \u2014 Forge-native governance and anonymous compensation"
         },
         {
           "level": 2,
-          "line": 67,
+          "line": 83,
           "text": "v0.6 \u2014 Working-group governance and maintainer rotation"
         }
       ],
       "keywords": [
         "added",
         "governance",
-        "constitutional",
-        "enforcement",
-        "integration",
-        "defined",
+        "charter",
         "authority",
+        "engineering",
+        "constitutional",
         "continuity",
-        "repository",
-        "compensation",
-        "github",
-        "pack",
-        "anonymous",
-        "clarified",
-        "pseudonymous",
-        "protocol",
-        "working-group",
-        "release",
         "review",
+        "session",
+        "activation",
+        "clarified",
+        "pack",
+        "protocol",
+        "enforcement",
+        "compensation",
+        "release",
+        "amendment",
+        "canonical",
+        "forge",
+        "pseudonymous",
         "changelog",
         "consistency",
-        "initial",
-        "forge-native",
-        "maintainer"
+        "repository",
+        "integration"
       ],
-      "lines": 75,
+      "lines": 91,
       "path": "docs/governance/CHANGELOG.md",
-      "sha256": "3345f234e77dde06e64d5a67eefbd4aac37385afd79390ebb1898a901a43dc63",
+      "sha256": "d4fabd563075a3487b73a7fc945f8184f2e97eb35b1fd04ddebac5c2d474de67",
       "symbols": [],
       "title": "Governance Pack Changelog"
     },
@@ -39665,6 +40064,283 @@
       "title": "{"
     },
     {
+      "bytes": 2528,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "const",
+        "activation",
+        "properties",
+        "pattern",
+        "a-f",
+        "cooling_required",
+        "cooling_completed_at",
+        "ai-charter-activation-decision",
+        "json",
+        "classification",
+        "minlength",
+        "format",
+        "date-time",
+        "null",
+        "https",
+        "charter",
+        "schema_version",
+        "object_type",
+        "decision_ref",
+        "status",
+        "activation_record_sha256"
+      ],
+      "lines": 63,
+      "path": "governance/ai-charter-activation-decision.schema.json",
+      "sha256": "cc14c1869aed56b6fc1a02c0ad06a50f742cb19f1d75cd6e94010741384f0f4b",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 986,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "governance",
+        "json",
+        "path",
+        "sha256",
+        "ai-charter-activation",
+        "schema",
+        "d-0084",
+        "primary_ai_engineer_charter",
+        "summary",
+        "schema_version",
+        "record_id",
+        "mininet-primary-ai-engineer-charter",
+        "status",
+        "active",
+        "decision_ref",
+        "decision_registry",
+        "decision_log",
+        "decision_record",
+        "decisions",
+        "phase",
+        "founder-guarded",
+        "phase_record",
+        "current-phase",
+        "effective_at"
+      ],
+      "lines": 29,
+      "path": "governance/ai-charter-activation.json",
+      "sha256": "171d320f04ddc19dc7b328e8567613159acdcbb8e3d60e082972f5a9539e1331",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 3747,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "null",
+        "properties",
+        "string",
+        "const",
+        "sha256",
+        "path",
+        "pattern",
+        "a-f",
+        "schema",
+        "json",
+        "charter",
+        "summary",
+        "minlength",
+        "governance",
+        "object",
+        "required",
+        "status",
+        "decision_ref",
+        "decision_record",
+        "phase",
+        "effective_at",
+        "adapter",
+        "additionalproperties"
+      ],
+      "lines": 116,
+      "path": "governance/ai-charter-activation.schema.json",
+      "sha256": "f83260677e33fc18804d6769b3669b51f66ca2986dbb4efffc5ba85aa039b766",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 459,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "bootstrap-operating-state",
+        "json",
+        "schema",
+        "t21",
+        "false",
+        "governance",
+        "schema_version",
+        "profile_id",
+        "founder-guarded-github-exception-v1",
+        "decision_ref",
+        "d-0083",
+        "status",
+        "active",
+        "effective_at",
+        "expires_at",
+        "t23",
+        "independent_non_founder_human_maintainers",
+        "production_release_candidate",
+        "forge_canonical",
+        "last_verified_at",
+        "superseded_by",
+        "null"
+      ],
+      "lines": 15,
+      "path": "governance/bootstrap-operating-state.json",
+      "sha256": "20d6f7ab07d227d7d5d359d2f12e900f4bb6b22ac645d7d021f88b74f865d4eb",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1298,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "schema",
+        "const",
+        "string",
+        "json",
+        "format",
+        "date-time",
+        "bootstrap-operating-state",
+        "https",
+        "schema_version",
+        "profile_id",
+        "decision_ref",
+        "status",
+        "effective_at",
+        "expires_at",
+        "independent_non_founder_human_maintainers",
+        "production_release_candidate",
+        "forge_canonical",
+        "last_verified_at",
+        "superseded_by",
+        "boolean",
+        "governance",
+        "json-schema",
+        "org"
+      ],
+      "lines": 36,
+      "path": "governance/bootstrap-operating-state.schema.json",
+      "sha256": "208f5293a33c9e29fd23d68ec2c534517702389ca7f640f726124a63593dc648",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 217,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "current-phase",
+        "json",
+        "schema",
+        "governance",
+        "schema_version",
+        "status",
+        "active",
+        "phase",
+        "founder-guarded",
+        "decision_ref",
+        "d-0083",
+        "effective_at",
+        "t21",
+        "superseded_by",
+        "null"
+      ],
+      "lines": 10,
+      "path": "governance/current-phase.json",
+      "sha256": "db1b607d473398433124cc54a62cd741c7127a01c235a9112e92d8419eb9b155",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1631,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "null",
+        "string",
+        "schema",
+        "phase",
+        "properties",
+        "status",
+        "decision_ref",
+        "effective_at",
+        "superseded_by",
+        "const",
+        "json",
+        "minlength",
+        "governance",
+        "current-phase",
+        "https",
+        "schema_version",
+        "enum",
+        "unrecorded",
+        "active",
+        "format",
+        "date-time",
+        "json-schema",
+        "org"
+      ],
+      "lines": 53,
+      "path": "governance/current-phase.schema.json",
+      "sha256": "2138a24db3f07446a5a812c02279f3f421b20f61865059868f7ac3595c0a2808",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1065,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "d-0084",
+        "json",
+        "schema",
+        "ai-charter-activation-decision",
+        "null",
+        "governance",
+        "decisions",
+        "schema_version",
+        "object_type",
+        "decision_ref",
+        "status",
+        "final",
+        "classification",
+        "operational",
+        "activation_record_sha256",
+        "activation_artifacts_sha256",
+        "charter_sha256",
+        "summary_sha256",
+        "adapter_sha256",
+        "phase",
+        "founder-guarded",
+        "effective_at",
+        "t21",
+        "cooling_required"
+      ],
+      "lines": 20,
+      "path": "governance/decisions/D-0084.json",
+      "sha256": "ac37b936bc75d139d641a69ee846723100e4ad649238a41a360f0178bb005d5e",
+      "symbols": [],
+      "title": "{"
+    },
+    {
       "bytes": 1766,
       "group": "root",
       "headings": [],
@@ -39701,84 +40377,84 @@
       "title": "{"
     },
     {
-      "bytes": 319,
+      "bytes": 1121,
       "group": "root",
       "headings": [
         {
           "level": 1,
-          "line": 3,
+          "line": 21,
           "text": "Example:"
         },
         {
           "level": 1,
-          "line": 4,
+          "line": 22,
           "text": "- id: DEP-EX-0001"
         },
         {
           "level": 1,
-          "line": 5,
+          "line": 23,
           "text": "scope: RUSTSEC-YYYY-NNNN"
         },
         {
           "level": 1,
-          "line": 6,
+          "line": 24,
           "text": "owner: did:mini:example-pseudonym"
         },
         {
           "level": 1,
-          "line": 7,
+          "line": 25,
           "text": "reason: No patched compatible version; affected code path is unreachable."
         },
         {
           "level": 1,
-          "line": 8,
+          "line": 26,
           "text": "mitigation: Disable the affected feature and add a regression test."
         },
         {
           "level": 1,
-          "line": 9,
+          "line": 27,
           "text": "expires: 2026-09-01"
         },
         {
           "level": 1,
-          "line": 10,
+          "line": 28,
           "text": "decision: D-00XX"
         }
       ],
       "keywords": [
         "affected",
+        "scope",
+        "owner",
+        "reason",
         "version",
+        "path",
+        "mitigation",
+        "expires",
+        "decision",
+        "governance",
         "exceptions",
         "example",
         "dep-ex-0001",
-        "scope",
         "rustsec-yyyy-nnnn",
-        "owner",
         "did",
         "example-pseudonym",
-        "reason",
         "patched",
         "compatible",
         "code",
-        "path",
         "unreachable",
-        "mitigation",
         "disable",
         "feature",
         "add",
-        "regression",
-        "expires",
-        "decision",
-        "d-00xx"
+        "regression"
       ],
-      "lines": 11,
+      "lines": 29,
       "path": "governance/exceptions.yml",
-      "sha256": "3b48e0a5d620cf858dd3e844322ce3f2a9b965e38901dab8e80baa39095355c7",
+      "sha256": "23e0a1badb47260ec984e1ee4074b8383173653fca98342272565d7165bf958d",
       "symbols": [],
       "title": "Example:"
     },
     {
-      "bytes": 2969,
+      "bytes": 5229,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -39786,30 +40462,30 @@
         "glob",
         "owners",
         "protocol-critical",
+        "reviewers-constitution",
         "true",
         "minimum_independent_approvals",
         "cryptography-sensitive",
         "reviewers-forge-release",
+        "governance",
         "invariants",
         "constitutional",
-        "reviewers-constitution",
+        "claude",
+        "github",
         "reviewers-value-crypto",
-        "governance",
-        "yml",
         "founder_directives",
         "decision_log",
+        "d-0083",
+        "agents",
+        "rules",
         "reviewers-consensus",
         "security-stewards",
         "false",
-        "exceptions",
-        "policy",
-        "version",
-        "policy_id",
-        "mininet-bootstrap-governance-v0"
+        "policy"
       ],
-      "lines": 109,
+      "lines": 181,
       "path": "governance/policy.yml",
-      "sha256": "44fe2d202f3d3cd0657d63f4e3034b42680823791a084ac736dd14a5bae30e39",
+      "sha256": "918f2f885b5cc177f24f945def1567adde75f31aa9b1051f275bc38eea2cb683",
       "symbols": [],
       "title": "version: 1"
     },
@@ -39921,43 +40597,43 @@
       "title": "Change proposal"
     },
     {
-      "bytes": 1307,
+      "bytes": 2268,
       "group": "root",
       "headings": [],
       "keywords": [
         "github",
-        "pull_request",
         "name",
-        "tmp",
-        "run",
-        "proposal",
+        "pull_request",
         "event",
+        "sha",
+        "uses",
+        "actions",
+        "checkout",
+        "bd71901bbe5b1630ceea73d27597364c9af683",
+        "persist-credentials",
+        "false",
+        "base",
+        "canonical-checkpoint",
+        "run",
+        "tmp",
+        "python3",
+        "tools",
+        "proposal",
         "proposal-body",
         "changed-paths",
         "governance-policy",
         "read",
         "runs-on",
-        "ubuntu-latest",
-        "steps",
-        "uses",
-        "actions",
-        "checkout",
-        "validate",
-        "baseline",
-        "python3",
-        "tools",
-        "check_governance",
-        "mode",
-        "body"
+        "ubuntu-latest"
       ],
-      "lines": 43,
+      "lines": 65,
       "path": "repository-template/.github/workflows/governance-policy.yml",
-      "sha256": "be335e57e967f8153aeef08af8bb71d9c8ea359d2b758f205ce2b074a3beea88",
+      "sha256": "947cea829e297f3c581d61ffa96106e4ef5ac40fdbf22d9534114b80679f9ce3",
       "symbols": [],
       "title": "name: governance-policy"
     },
     {
-      "bytes": 1193,
+      "bytes": 2015,
       "group": "root",
       "headings": [
         {
@@ -39971,45 +40647,55 @@
           "text": "`main`"
         },
         {
+          "level": 3,
+          "line": 7,
+          "text": "Active founder-only profile (D-0083)"
+        },
+        {
+          "level": 3,
+          "line": 19,
+          "text": "Sunset target (D-0033)"
+        },
+        {
           "level": 2,
-          "line": 18,
+          "line": 37,
           "text": "`integration/*`"
         },
         {
           "level": 2,
-          "line": 26,
+          "line": 45,
           "text": "`release/*` and `v*`"
         }
       ],
       "keywords": [
         "require",
-        "approvals",
-        "blueprint",
-        "release",
         "active",
+        "approvals",
+        "target",
+        "required",
+        "checks",
         "block",
         "deletion",
-        "github",
-        "rulesets",
+        "governance",
+        "blueprint",
         "main",
-        "integration",
+        "d-0083",
+        "sunset",
+        "d-0033",
+        "release",
         "pull",
         "request",
-        "required",
-        "dismiss",
-        "stale",
-        "checks",
-        "rust",
-        "dependency",
+        "check",
         "force",
         "pushes",
-        "restrict",
-        "independent",
-        "governance"
+        "github",
+        "rulesets",
+        "founder-only",
+        "profile"
       ],
-      "lines": 33,
+      "lines": 52,
       "path": "repository-template/GITHUB_RULESETS_BLUEPRINT.md",
-      "sha256": "027412e8cdf2b0dac3c03045c2646330e0e44983175469096844d5197ba2262e",
+      "sha256": "c6195804437fea38df2d352a8a34fc2a1b87ce8cb4facf9890e6189fb7702e6c",
       "symbols": [],
       "title": "GitHub Rulesets Blueprint"
     },
@@ -40131,38 +40817,38 @@
       "title": "Pinning the toolchain is part of moving toward reproducible builds (SPEC-11)."
     },
     {
-      "bytes": 5979,
+      "bytes": 47028,
       "group": "tools",
       "headings": [],
       "keywords": [
-        "path",
-        "errors",
-        "body",
-        "fail",
-        "root",
         "governance",
-        "str",
-        "list",
+        "path",
         "import",
-        "exceptions",
-        "search",
         "json",
+        "compile",
+        "return",
+        "root",
         "schema",
-        "codeowners",
-        "changed",
-        "proposal",
-        "def",
-        "template",
+        "str",
+        "repository",
+        "human",
+        "constitutional",
+        "canonical",
+        "founder",
+        "invariants",
+        "security",
+        "release",
         "github",
-        "none",
-        "warnings",
-        "yml",
-        "heading",
-        "identity"
+        "owner",
+        "admin",
+        "charter_path",
+        "agents",
+        "def",
+        "design"
       ],
-      "lines": 143,
+      "lines": 1007,
       "path": "tools/check_governance.py",
-      "sha256": "99465ccfba99ce78eb2e545ff76c3f47aa0f57e1650fa22dbbbda73bcda61449",
+      "sha256": "6e4253aadf11d7759db6f9d109a1ea2e9ded78f277a8a12de7fe00805a3eddf2",
       "symbols": [],
       "title": "\"\"\"Reference Mininet bootstrap governance validator."
     },
@@ -40409,11 +41095,54 @@
       "sha256": "14d290b9e0e1c4dad53ac8bf53f65227989aa21f567102a619ba676597e89a88",
       "symbols": [],
       "title": "\"\"\""
+    },
+    {
+      "bytes": 29257,
+      "group": "tools",
+      "headings": [
+        {
+          "level": 2,
+          "line": 292,
+          "text": "The five canonical documents \u2014 read order for any non-trivial task"
+        }
+      ],
+      "keywords": [
+        "decision",
+        "import",
+        "str",
+        "charter",
+        "path",
+        "none",
+        "adapter_text",
+        "checker",
+        "operational",
+        "activation",
+        "adapter",
+        "summary_data",
+        "spec",
+        "list",
+        "candidate",
+        "encoding",
+        "utf-8",
+        "status",
+        "replace",
+        "loader",
+        "def",
+        "destination",
+        "summary",
+        "body"
+      ],
+      "lines": 718,
+      "path": "tools/test_check_governance.py",
+      "sha256": "c3d12eb80657cc17a54fb8db1a34a3f072b8afb6a32ccb28ba2b4dc354762fc6",
+      "symbols": [],
+      "title": "The five canonical documents \u2014 read order for any non-trivial task"
     }
   ],
   "format": "mininet.repo_index.v1",
   "purpose": "Offline navigation/search metadata. Regenerate with tools/mininet_nav.py build.",
   "root_files": [
+    "AGENTS.md",
     "CLAUDE.md",
     "CONTRIBUTING.md",
     "Cargo.lock",
@@ -40430,6 +41159,14 @@
     "forge-native/schemas/conformance-claim.schema.json",
     "forge-native/schemas/governance-object.schema.json",
     "forge-native/schemas/working-group-charter.schema.json",
+    "governance/ai-charter-activation-decision.schema.json",
+    "governance/ai-charter-activation.json",
+    "governance/ai-charter-activation.schema.json",
+    "governance/bootstrap-operating-state.json",
+    "governance/bootstrap-operating-state.schema.json",
+    "governance/current-phase.json",
+    "governance/current-phase.schema.json",
+    "governance/decisions/D-0084.json",
     "governance/document-summary.schema.json",
     "governance/exceptions.yml",
     "governance/policy.yml",

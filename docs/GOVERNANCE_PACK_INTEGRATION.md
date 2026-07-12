@@ -15,6 +15,37 @@ and anonymous compensation; v0.6 working-group governance and maintainer
 rotation," built on an earlier v0.4 this repository had not previously
 received. A v1.1 was flagged by the founder as forthcoming.
 
+## v1.1 delta and bootstrap activation
+
+Version 1.1 adds the model-neutral Primary AI Engineer Charter
+(`GOV-AI-050`), a repository-root `AGENTS.md` session adapter, an external
+activation record, phase and structured-Decision schemas, trust-before-load
+runtime validation, and adversarial validator tests. D-0084 activates the
+charter for the founder-guarded phase using exact content digests and a final
+structured Decision. The role remains non-authorizing: file presence alone
+does not activate a changed copy and grants no AI authority.
+
+The accepted D-0082 deployment, not the original ZIP bytes, is the v1.1
+integration baseline. An exact comparison found that all 65 governance and
+Forge files landed byte-for-byte; nine template artifacts were activated
+unchanged; and three were retained unchanged under `repository-template/`.
+Five live paths intentionally differ from the ZIP and are preserved:
+
+- `.github/ISSUE_TEMPLATE/config.yml` keeps free-form issues enabled;
+- the implementation and research forms retain two YAML quoting fixes;
+- the live concise pull-request template is not replaced by the staged
+  13-heading template; and
+- the live candidate governance workflow remains the adapted, blocking baseline-only
+  rollout rather than enabling proposal-metadata enforcement.
+
+The v1.1 workflow adaptation pins its checkout action, runs the validator's
+unit tests, and supplies separate canonical checkouts. D-0083 promotes the
+baseline job to a blocking check and defines a temporary Founder-operated
+GitHub integration profile. A live CODEOWNERS routes to the Founder during
+D-0083; the staged team-routed template remains deferred until those humans
+exist. `governance-canonical.yml` becomes the trusted base-branch evaluator
+after D-0084 is on `main`.
+
 ## Precedence — never inverted
 
 The pack is explicit about its own subordination, and this integration
@@ -66,16 +97,18 @@ crate/test; where it doesn't, it says "specified only."
   different authority (RFCs here are proposals *within* the pack, not
   accepted decisions).
 
-## What was activated vs. staged vs. left to the founder
+## What is active, staged, and still owner-dependent
 
-**Activated (live, in this PR):**
+**Deployed by D-0082 and updated by D-0083/D-0084:**
 - `docs/governance/*.md` (50 docs + `CHANGELOG.md` + `RFC-0001`–`RFC-0005`) — copied verbatim, purely additive.
 - `forge-native/schemas/*.json` + `forge-native/examples/*.json` — copied verbatim; all five schemas and three examples validated as parseable JSON.
-- `governance/policy.yml`, `governance/exceptions.yml`, `governance/document-summary.schema.json` — the pack's machine-readable policy config, at repo root (distinct from `docs/governance/`, which is the human-readable spec set — this mirrors the pack's own layout).
+- `governance/policy.yml`, `governance/exceptions.yml`, `governance/bootstrap-operating-state.json` and schemas — machine-readable policy and fail-closed D-0083 trigger state at repo root.
 - `tools/check_governance.py` — the pack's reference validator, standard-library only. Run locally: `python3 tools/check_governance.py --mode baseline` (currently passes clean, 0 errors, 0 warnings).
-- `.github/workflows/governance-policy.yml` — **only** the `governance-baseline` job, with `continue-on-error: true` (matching the existing `dependency-audit`/`dependency-deny` advisory pattern already in `.github/workflows/ci.yml`). This is genuinely Phase A ("Observe") of the pack's own `27_REPOSITORY_INTEGRATION_PLAN.md`.
+- `.github/workflows/governance-policy.yml` — the baseline job is now blocking under D-0083; proposal-metadata remains staged until the expanded PR template is adopted.
+- `.github/workflows/governance-canonical.yml` — after first canonicalization, runs the base branch's checker against proposal bytes without executing candidate code.
 - `.github/ISSUE_TEMPLATE/*.yml` (bug/design/research/implementation/audit/bounty forms) — purely additive; no issue forms existed before.
-- `.github/CODEOWNERS.template` — added as a **template**, not a live `CODEOWNERS` file (see Owner tasks below).
+- `.github/CODEOWNERS` — temporary D-0083 routing to the verified Founder user `@mininet-labs`; review routing creates no approval weight.
+- `.github/CODEOWNERS.template` — future scoped-team routing, still inert until the named human teams exist.
 
 **Deviated from the pack as shipped (and why):**
 - `.github/ISSUE_TEMPLATE/config.yml` shipped with `blank_issues_enabled: false`. Changed to `true`. Disabling free-form issues would have silently changed how the founder has been filing issues (#8–#93) with no warning — "never break existing onboarding" overrides adopting this one field verbatim. Revisit once the issue-form set is actually in regular use.
@@ -84,14 +117,14 @@ crate/test; where it doesn't, it says "specified only."
 
 **Staged (present in the repo, inert, not wired into any live path):**
 - `repository-template/.github/pull_request_template.md` — the pack's expanded proposal template (13 required sections). Adopting it live would change what every future PR looks like; that's a founder call (Phase B/C of the pack's own plan), not something to activate unilaterally. Kept verbatim for review.
-- `repository-template/.github/workflows/governance-policy.yml` — the pack's original, unmodified, two-job file (baseline + proposal-metadata), kept so the `proposal-metadata` job can be copied into `.github/workflows/` verbatim the moment the expanded template above is adopted — no rewriting needed then.
+- `repository-template/.github/workflows/governance-policy.yml` — the two-job v1.1-safe template (baseline + proposal-metadata), with immutable action pins, a separate canonical checkpoint, candidate-activation checks, and validator tests. It may be adapted when the expanded template is adopted; it is not a verbatim v1.0 copy target.
 - `repository-template/GITHUB_RULESETS_BLUEPRINT.md` — branch-protection/ruleset configuration guidance; entirely owner-privileged GitHub settings, see below.
 
-**Left entirely to the founder (repository-owner privileges, per this repo's own standing rule that AI never takes these actions unilaterally):**
-- Creating the GitHub teams (`core-maintainers`, `reviewers-constitution`, `reviewers-identity`, `reviewers-consensus`, `reviewers-forge-release`, `reviewers-value-crypto`, `reviewers-storage`, `security-stewards`) that `.github/CODEOWNERS.template` and `governance/policy.yml`'s `protected_paths` reference. Until those teams exist, renaming `CODEOWNERS.template` → `CODEOWNERS` would route reviews to nobody.
-- Branch protection / rulesets on `main` (`repository-template/GITHUB_RULESETS_BLUEPRINT.md` has the concrete configuration).
+**Still owner-dependent:**
+- Creating the GitHub teams (`core-maintainers`, `reviewers-constitution`, `reviewers-identity`, `reviewers-consensus`, `reviewers-forge-release`, `reviewers-value-crypto`, `reviewers-storage`, `security-stewards`) and replacing the temporary Founder routes with the scoped template at D-0083 sunset.
+- Replacing D-0083's temporary Founder-operated `main` ruleset at its sunset with D-0033's normal two-human approval floor.
 - Deciding whether/when to adopt the expanded PR template and the `proposal-metadata` CI job (Phase B+).
-- Everything in `docs/governance/13_REPOSITORY_OWNER_SETUP_GUIDE.md` that requires GitHub admin access this environment does not have: secrets, deploy keys, security-advisory settings, Dependabot/code-scanning toggles, discussions/wiki/pages settings, protected release environments.
+- Secrets, deploy keys, release credentials, protected release environments, and other sensitive owner-held material. Private vulnerability reporting, dependency graph, Dependabot alerts/security grouping, branch-update suggestions, and merged-branch cleanup are active.
 - Any decision to treat a `docs/governance/` document as promoted to constitutional status — that is an amendment (`docs/governance/39_CONSTITUTIONAL_AMENDMENT_PROTOCOL.md`), never a documentation PR.
 
 ## Compatibility matrix
@@ -128,7 +161,7 @@ plainly, matching the pack's own truth-boundary language above).
 | `22_MACHINE_READABLE_SUMMARIES.md` | `docs/_generated/*` (`mininet_nav.py`'s index) | Adjacent — different purpose (doc metadata vs. code/symbol index); supplements |
 | `23_REPOSITORY_ENFORCEMENT_ARCHITECTURE.md` | `ci.yml`'s existing staged-advisory pattern | Overlaps — this repo independently arrived at the same "observe before block" pattern; confirms, doesn't conflict |
 | `24_PROPOSAL_METADATA_SPECIFICATION.md` | `.github/pull_request_template.md` (shorter, different field set) | Differs — kept staged, not activated live (see Deviations) |
-| `25_CODEOWNERS_AND_REVIEW_ROUTING.md` | *(none — no CODEOWNERS existed)* | Net-new; landed as `.github/CODEOWNERS.template` (inert) |
+| `25_CODEOWNERS_AND_REVIEW_ROUTING.md` | D-0083 live Founder route plus future team template | Net-new; `.github/CODEOWNERS` routes to the Founder with zero required approval, while `.github/CODEOWNERS.template` stages the later scoped-team model |
 | `26_GOVERNANCE_CI_SPECIFICATION.md` | `.github/workflows/governance-policy.yml` | Activated (baseline job only) |
 | `27_REPOSITORY_INTEGRATION_PLAN.md` | This integration | Phase A steps 2/3/5 done this PR; step 1 (teams) and step 4 (CI-baseline recording) plus Phases B–E remain founder decisions |
 | `28_FORGE_NATIVE_GOVERNANCE_OBJECTS.md` | `mini-forge`'s existing (unsigned) governance objects; `forge-native/schemas/*.json` | Specified only — schemas describe a future signed-object encoding nothing in this repo implements or consumes yet |
@@ -153,6 +186,7 @@ plainly, matching the pack's own truth-boundary language above).
 | `47_ACTIVATION_DEPLOYMENT_AND_MIGRATION.md` | This PR | Activated — this PR is exactly this document's Phase A |
 | `48_POST_V1_EVOLUTION_AND_OPEN_RESEARCH.md` | `docs/FAILURE_BOOK.md` (opposite direction — rejected paths, not future ones) | Adjacent; net-new |
 | `49_V1_RELEASE_AUDIT_AND_SIGNOFF.md` | *(none — describes the pack's own authoring process)* | Informational only; no repo action needed |
+| `50_PRIMARY_AI_ENGINEER_CHARTER.md` | `AGENTS.md`, `governance/ai-charter-activation.json`, D-0084 | Activated as an operational, model-neutral, non-authorizing bootstrap charter; exact digests and phase are externally bound |
 | `CHANGELOG.md` | *(none — pack's own version history)* | Informational |
 | `RFC-0001`–`RFC-0005` | *(none — no RFC series existed)* | Net-new numbering series; specified only |
 
@@ -161,9 +195,9 @@ plainly, matching the pack's own truth-boundary language above).
 - All five `forge-native/schemas/*.json` and three `forge-native/examples/*.json` parsed with `python3 -m json.load` — valid.
 - `python3 tools/check_governance.py --mode baseline` — exit 0, no errors, no warnings, against this repo's actual current tree (not the pack's own isolated copy).
 - `docs/_generated/*` regenerated via `python3 tools/mininet_nav.py build` to index the new files.
-- No existing file's constitutional meaning changed. `docs/FOUNDER_DIRECTIVES.md`, `docs/INVARIANTS.md`, `docs/DECISION_LOG.md`'s prior entries, `CONTRIBUTING.md`, `SECURITY.md`, and the live `.github/pull_request_template.md` are byte-identical to before this PR.
+- D-0082's original deployment changed no prior constitutional meaning. D-0083 is a later, explicit, temporary procedural weakening of D-0033 for GitHub `main` integration only; D-0084 separately activates the non-authorizing charter. The exact activation procedure and rollback commands are recorded in `docs/governance/ACTIVATION_CHECKLIST_v1.1.md`.
 
-## Next time a pack version lands (v1.1+)
+## Next time a pack version lands (v1.2+)
 
 1. Diff the new zip's `MANIFEST.json` against this repo's `docs/governance/CHANGELOG.md` to find what actually changed.
 2. Re-run this compatibility matrix exercise for new/changed documents only — don't re-derive rows that haven't changed.

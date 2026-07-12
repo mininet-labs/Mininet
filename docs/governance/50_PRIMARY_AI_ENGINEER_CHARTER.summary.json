@@ -1,0 +1,89 @@
+{
+  "document": {
+    "id": "GOV-AI-050",
+    "title": "Primary AI Engineer Charter",
+    "version": "1.1",
+    "status": "operational",
+    "authority_class": "operational-non-authorizing",
+    "source": "docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.md",
+    "source_sha256": "b101222fb95a71bf9e609e81a77e35426ab16d4a6a9c8fce53d1d7bf7b57df45",
+    "supersedes": [],
+    "superseded_by": []
+  },
+  "traceability": {
+    "constitution": ["SPEC-00"],
+    "invariants": [],
+    "decisions": ["D-0084"],
+    "directives": ["docs/FOUNDER_DIRECTIVES.md"]
+  },
+  "actors": [
+    {
+      "type": "PrimaryAIEngineer",
+      "base_type": "AIAgent",
+      "identity_modes": ["automated"],
+      "authority": "none-by-role"
+    },
+    {
+      "type": "FounderBootstrapGuardian",
+      "identity_modes": ["pseudonymous", "public"],
+      "authority": "active-policy-only"
+    },
+    {
+      "type": "ApplicableHumanOrGovernanceAuthority",
+      "identity_modes": ["pseudonymous", "public"],
+      "authority": "active-policy-only"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "GOV-AI-050-PRECEDENCE",
+      "level": "MUST",
+      "enforcement": ["exact-state-governance-review", "session-adapter-validation"],
+      "tests": ["GOV-AI-050-03"]
+    },
+    {
+      "id": "GOV-AI-050-NO-AUTHORITY",
+      "level": "MUST_NOT",
+      "enforcement": ["repository-permission-boundary", "quorum-policy", "session-adapter-validation"],
+      "tests": ["GOV-AI-050-01", "GOV-AI-050-02"]
+    },
+    {
+      "id": "GOV-AI-050-PHASE-SCOPE",
+      "level": "MUST",
+      "enforcement": ["active-phase-record", "delegation-and-succession-policy"],
+      "tests": ["GOV-AI-050-04"]
+    },
+    {
+      "id": "GOV-AI-050-MODEL-INDEPENDENCE",
+      "level": "MUST",
+      "enforcement": ["model-neutral-canonical-charter", "replaceable-session-adapter"],
+      "tests": ["GOV-AI-050-05"]
+    },
+    {
+      "id": "GOV-AI-050-SCOPE",
+      "level": "MUST_NOT",
+      "enforcement": ["authorized-task-scope", "external-action-permission-boundary"],
+      "tests": ["GOV-AI-050-06"]
+    },
+    {
+      "id": "GOV-AI-050-HONESTY",
+      "level": "MUST",
+      "enforcement": ["proposal-metadata", "authorized-review"],
+      "tests": ["GOV-REVIEW-001"]
+    }
+  ],
+  "privacy": {
+    "compulsory_disclosures": [],
+    "optional_disclosures": ["public-attribution"],
+    "personal_data_collection_authorized": false
+  },
+  "compensation": {
+    "creates_payment_right": false,
+    "creates_governance_weight": false
+  },
+  "implementation": {
+    "github_bootstrap": "protected AGENTS.md adapter, trust-before-load runtime comparison, external four-artifact activation record, structured final Decision, separately supplied canonical checkpoint, current-phase/time gates, and reconciled tool-native loaders",
+    "forge_target": "content-addressed charter and active authority-profile objects",
+    "maturity": "specified-and-activated"
+  }
+}

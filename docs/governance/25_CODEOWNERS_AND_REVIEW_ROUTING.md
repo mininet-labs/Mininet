@@ -1,7 +1,7 @@
 # CODEOWNERS and Review Routing
 
 **Status:** Operational bootstrap specification  
-**Version:** 0.4
+**Version:** 1.1
 
 ## 1. Purpose
 
@@ -30,6 +30,7 @@ Every critical domain SHOULD have at least two active reviewers and a succession
 - Cryptography requires qualified cryptography review and honest audit-gate status.
 - Forge, provenance, update and installer changes require cross-review because their trust boundaries compose.
 - CI and dependency-policy changes require security review.
+- The standing AI charter, root `AGENTS.md`, and model-specific session loaders require constitutional review routing because instruction drift can change effective engineering behavior.
 - Cross-domain changes require all materially affected owners.
 
 ## 4. Scaling

@@ -1,7 +1,7 @@
 # Repository Integration Plan
 
 **Status:** Owner execution plan  
-**Version:** 0.4
+**Version:** 1.1
 
 ## Phase A — Observe
 
@@ -10,6 +10,8 @@
 3. Add governance policy and validator in non-blocking mode.
 4. Record the current CI check names and baseline failures.
 5. Confirm that anonymous/pseudonymous participation language is visible.
+6. Propose Document 50 and the root `AGENTS.md` adapter in one exact-state change, or make the adapter identify an already adopted charter digest.
+7. Reconcile each model-specific loader with `AGENTS.md`; retain only tool and current-code context that does not redefine Authority.
 
 ## Phase B — Enforce basic integrity
 
@@ -18,6 +20,7 @@
 3. Require format, Clippy, tests and governance-baseline checks.
 4. Require stale approval dismissal and latest-state approval.
 5. Activate CODEOWNERS review routing.
+6. Protect `AGENTS.md`, model-specific loaders, and `docs/governance/**` with a protocol-critical path floor.
 
 ## Phase C — Enforce sensitive domains
 
@@ -43,3 +46,4 @@
 4. Reproduce CI evidence through signed build attestations.
 5. Demonstrate development during a GitHub outage.
 6. Govern the switch of canonical authority from GitHub to Forge.
+7. Replace platform-specific session loading with a content-addressed charter object, activation Decision, and model-neutral execution adapter.

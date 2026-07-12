@@ -457,16 +457,19 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   named next step, the caller's job by design); the rest of
   Batch 5 (local object indexing at scale, distributed build workers,
   GitHub import/export mirror automation).
-- **specified, not implemented** — the founder-supplied Governance Pack
-  v1.0 (`docs/governance/`, `forge-native/`, `governance/`; D-0082): ~50
+- **partly active, mostly specified** — the founder-supplied Governance Pack
+  v1.0 plus the v1.1 charter delta (`docs/governance/`, `forge-native/`,
+  `governance/`; D-0082–D-0084): ~50
   normative process/specification documents, five RFCs, and JSON Schemas
   for a future signed Forge-native governance-object encoding, all
   explicitly subordinate to `docs/FOUNDER_DIRECTIVES.md`/
   `docs/INVARIANTS.md`/`docs/DECISION_LOG.md`. The only things actually
-  *active* are additive and non-blocking: new GitHub issue forms, a
-  `CODEOWNERS.template` (not live — the teams it names don't exist yet),
-  and a `governance-policy.yml` CI job that checks the policy config
-  stays well-formed, `continue-on-error: true`. See
+  *active* are the GitHub issue forms, the content-addressed non-authorizing
+  Primary AI Engineer Charter and `AGENTS.md` adapter, security/dependency
+  settings, a temporary Founder-operated pull-request-only `main` profile,
+  a blocking candidate baseline, a canonical base-branch evaluator for later
+  PRs, and live CODEOWNERS routing to the Founder with zero required approval.
+  The scoped-team `CODEOWNERS.template` remains inert until those humans exist. See
   `docs/GOVERNANCE_PACK_INTEGRATION.md` for the full compatibility
   matrix and what's staged vs. founder-only.
 

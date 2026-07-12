@@ -2,6 +2,15 @@
 # CODEOWNERS routes review; branch rulesets determine required approval counts.
 
 *                                      @mininet-labs/core-maintainers
+**/AGENTS.md                           @mininet-labs/reviewers-constitution
+**/AGENTS.override.md                  @mininet-labs/reviewers-constitution
+**/CLAUDE.md                           @mininet-labs/reviewers-constitution
+**/CLAUDE.local.md                     @mininet-labs/reviewers-constitution
+**/.claude/rules/                      @mininet-labs/reviewers-constitution
+**/GEMINI.md                           @mininet-labs/reviewers-constitution
+**/.cursorrules                        @mininet-labs/reviewers-constitution
+**/.cursor/rules/                      @mininet-labs/reviewers-constitution
+/governance/                           @mininet-labs/reviewers-constitution
 /docs/FOUNDER_DIRECTIVES.md            @mininet-labs/reviewers-constitution
 /docs/INVARIANTS.md                    @mininet-labs/reviewers-constitution
 /docs/DECISION_LOG.md                  @mininet-labs/reviewers-constitution
@@ -20,5 +29,7 @@
 /crates/mini-erasure/                  @mininet-labs/reviewers-storage
 /crates/mini-spacetime/                @mininet-labs/reviewers-storage
 /.github/                              @mininet-labs/security-stewards
+**/.github/copilot-instructions.md     @mininet-labs/reviewers-constitution
+**/.github/instructions/               @mininet-labs/reviewers-constitution
 /deny.toml                             @mininet-labs/security-stewards
 /Cargo.lock                            @mininet-labs/security-stewards

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mininet.invalid/schemas/bootstrap-operating-state-v1.json",
+  "title": "Mininet Founder-guarded bootstrap operating state",
+  "type": "object",
+  "required": [
+    "$schema",
+    "schema_version",
+    "profile_id",
+    "decision_ref",
+    "status",
+    "effective_at",
+    "expires_at",
+    "independent_non_founder_human_maintainers",
+    "production_release_candidate",
+    "forge_canonical",
+    "last_verified_at",
+    "superseded_by"
+  ],
+  "properties": {
+    "$schema": {"const": "./bootstrap-operating-state.schema.json"},
+    "schema_version": {"const": 1},
+    "profile_id": {"const": "founder-guarded-github-exception-v1"},
+    "decision_ref": {"const": "D-0083"},
+    "status": {"enum": ["active", "sunset", "superseded"]},
+    "effective_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "independent_non_founder_human_maintainers": {"type": "integer", "minimum": 0},
+    "production_release_candidate": {"type": "boolean"},
+    "forge_canonical": {"type": "boolean"},
+    "last_verified_at": {"type": "string", "format": "date-time"},
+    "superseded_by": {"type": ["string", "null"], "minLength": 1}
+  },
+  "additionalProperties": false
+}

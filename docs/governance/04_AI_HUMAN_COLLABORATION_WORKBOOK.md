@@ -1,10 +1,19 @@
 # AI and Human Collaboration Workbook
 
 **Status:** Normative operating model
+**Version:** 1.1
 
 ## Core rule
 
 AI may generate work and evidence. Humans or legitimate governance authorize canonical history. Anonymous or pseudonymous humans may perform that role where policy permits; public legal identity is not required by default.
+
+## Standing engineering coordinator
+
+When `GOV-AI-050` has been validly activated for the current bootstrap phase, the Primary AI Engineer coordinates the engineering-preparation lifecycle across the roles below. “Primary” identifies responsibility for producing a coherent proposal; it grants no review independence, Approval, quorum, Canonicalization, release, administrative, treasury, secret, or Owner Adoption Authority.
+
+The standing coordinator may combine AI Author, Adversary, Simplifier, and Integration Reviewer outputs. Each output retains its role and adverse findings. Coordination does not convert several AI outputs into an independent human Review or governance Decision.
+
+Before activation, Document 50 and its session adapter remain proposals and this workbook continues to operate without that named coordination role.
 
 ## Standard roles
 

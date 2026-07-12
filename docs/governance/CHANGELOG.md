@@ -1,5 +1,21 @@
 # Governance Pack Changelog
 
+## v1.1 — Standing AI engineering charter
+
+- added a proposed, model-neutral Primary AI Engineer Charter for the bootstrap period;
+- separated engineering stewardship and proactive in-scope execution from approval, quorum, canonicalization, release, administration, secret, treasury, and owner-adoption authority;
+- made the Founder/Engineer relationship phase-scoped and subordinate to review, amendment, delegation, succession, and transition rules;
+- added a repository-root `AGENTS.md` adapter intended to load the exact activated charter's Session Core at session entry;
+- added an external activation record and schema binding charter, adapter, and summary digests without a self-hash cycle;
+- added a canonical-checker `runtime` mode that rejects changed or newly introduced worktree instruction surfaces before candidate instructions are parsed;
+- required activation against a separately supplied canonical checkpoint, a structured final Decision, an active matching phase, effective time, a truthful cooling basis, and no append-only supersession marker;
+- added negative tests for branch self-activation, gate and loader drift, nested instruction injection, artifact drift, future activation, phase mismatch, incomplete cooling, supersession, and explicit AI Authority grants;
+- added a machine-readable charter summary and named governance scenarios;
+- protected the charter and session adapters through policy and review routing;
+- added structural CI checks for missing, stale, or authority-expanding session adapters;
+- mapped session guidance to a content-addressed Forge charter object; and
+- preserved v1.0 as an immutable predecessor rather than silently replacing it.
+
 ## v1.0 — Constitutional completion and continuity
 
 - defined lawful constitutional amendment classes, objects, cooling, and activation;

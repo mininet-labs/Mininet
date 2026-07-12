@@ -1,0 +1,34 @@
+# D-0083 temporary Founder-guarded routing. This file routes review but does
+# not create approval weight; the active GitHub ruleset requires zero approvals.
+# Replace @mininet-labs with the scoped human teams in CODEOWNERS.template when
+# D-0083 sunsets and D-0033's two-human floor returns.
+
+*                                      @mininet-labs
+**/AGENTS.md                           @mininet-labs
+**/AGENTS.override.md                  @mininet-labs
+**/CLAUDE.md                           @mininet-labs
+**/CLAUDE.local.md                     @mininet-labs
+**/.claude/rules/                      @mininet-labs
+**/GEMINI.md                           @mininet-labs
+**/.cursorrules                        @mininet-labs
+**/.cursor/rules/                      @mininet-labs
+/governance/                           @mininet-labs
+/docs/FOUNDER_DIRECTIVES.md            @mininet-labs
+/docs/INVARIANTS.md                    @mininet-labs
+/docs/DECISION_LOG.md                  @mininet-labs
+/docs/governance/                      @mininet-labs
+/crates/mini-identity/                 @mininet-labs
+/crates/mini-consensus/                @mininet-labs
+/crates/mini-chain/                    @mininet-labs
+/crates/mini-forge/                    @mininet-labs
+/crates/mini-provenance/               @mininet-labs
+/crates/mini-update/                   @mininet-labs
+/crates/mini-installer/                @mininet-labs
+/crates/mini-crypto/                   @mininet-labs
+/crates/mini-value/                    @mininet-labs
+/crates/mini-treasury/                 @mininet-labs
+/.github/                              @mininet-labs
+**/.github/copilot-instructions.md     @mininet-labs
+**/.github/instructions/               @mininet-labs
+/deny.toml                             @mininet-labs
+/Cargo.lock                            @mininet-labs
