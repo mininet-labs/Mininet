@@ -1118,7 +1118,7 @@
       ],
       "lines": 170,
       "path": "README.md",
-      "sha256": "830b9b3974d7d6aa238ec5b1dce1211d946b5b97ae6dbaa788088853e60f0ba6",
+      "sha256": "b6902e3e7d1cd62dae19ec0c3c937890aa161eb2b71b6df17abe3fad81f196cf",
       "symbols": [],
       "title": "Mininet"
     },
@@ -26598,7 +26598,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 3457,
+      "bytes": 3470,
       "group": "crate:mini-uniqueness",
       "headings": [
         {
@@ -26660,7 +26660,7 @@
       ],
       "lines": 73,
       "path": "crates/mini-uniqueness/README.md",
-      "sha256": "f841e012ff0a38f0624630e3b1c491c2f20e106e82cba2356e25097af2bab83f",
+      "sha256": "a02b49d48a4668f1df499d42df76901475d3bab5da78a93a5ef64ef26ebc0aa6",
       "symbols": [],
       "title": "mini-uniqueness"
     },
@@ -27021,7 +27021,7 @@
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 3530,
+      "bytes": 3543,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
@@ -27052,7 +27052,7 @@
       ],
       "lines": 68,
       "path": "crates/mini-uniqueness/src/lib.rs",
-      "sha256": "a694ee8cfa879fb895cd9a7bb7df73a65996cc08401c2aea5076223159f39722",
+      "sha256": "cc1a2fe5d7566a7b5b01776736d967571e09b953d6c46034a2e8545b3bf4dc30",
       "symbols": [
         {
           "kind": "mod",
@@ -27088,7 +27088,7 @@
       "title": "mod confidence;"
     },
     {
-      "bytes": 23170,
+      "bytes": 23765,
       "group": "crate:mini-uniqueness",
       "headings": [],
       "keywords": [
@@ -27117,9 +27117,9 @@
         "new",
         "record"
       ],
-      "lines": 575,
+      "lines": 581,
       "path": "crates/mini-uniqueness/src/status.rs",
-      "sha256": "12fce9f4cd861b188f8a45d7f930ac27021a080f237bd92364d1f0043cac3f3d",
+      "sha256": "af978171fdbd17afea0bfb0b4a4e17ba53eb128fc81a518b8081f1d832aa5c88",
       "symbols": [
         {
           "kind": "enum",
@@ -27173,127 +27173,127 @@
         },
         {
           "kind": "enum",
-          "line": 186,
+          "line": 192,
           "name": "HumanStatus"
         },
         {
           "kind": "struct",
-          "line": 200,
+          "line": 206,
           "name": "HumanRecord"
         },
         {
           "kind": "impl",
-          "line": 204,
+          "line": 210,
           "name": "HumanRecord"
         },
         {
           "kind": "fn",
-          "line": 206,
+          "line": 212,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 217,
           "name": "record"
         },
         {
           "kind": "fn",
-          "line": 216,
+          "line": 222,
           "name": "first_evidence_at_ms"
         },
         {
           "kind": "fn",
-          "line": 222,
+          "line": 228,
           "name": "age_ms"
         },
         {
           "kind": "fn",
-          "line": 232,
+          "line": 238,
           "name": "score"
         },
         {
           "kind": "fn",
-          "line": 251,
+          "line": 257,
           "name": "distinct_live_sources"
         },
         {
           "kind": "fn",
-          "line": 257,
+          "line": 263,
           "name": "live_sources"
         },
         {
           "kind": "fn",
-          "line": 269,
+          "line": 275,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 299,
+          "line": 305,
           "name": "latest_per_source"
         },
         {
           "kind": "mod",
-          "line": 316,
+          "line": 322,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 319,
+          "line": 325,
           "name": "decay"
         },
         {
           "kind": "fn",
-          "line": 327,
+          "line": 333,
           "name": "empty_record_is_unverified"
         },
         {
           "kind": "fn",
-          "line": 339,
+          "line": 345,
           "name": "a_single_modest_vouch_reaches_vouched_human_quickly"
         },
         {
           "kind": "fn",
-          "line": 356,
-          "name": "full_human_is_never_reached_before_the_minimum_age_even_with_a_high_score"
+          "line": 362,
+          "name": "evidence_qualified_human_is_never_reached_before_the_minimum_age_even_with_a_high_score"
         },
         {
           "kind": "fn",
-          "line": 380,
-          "name": "full_human_is_never_reached_from_a_single_source_no_matter_how_strong"
+          "line": 386,
+          "name": "evidence_qualified_human_is_never_reached_from_a_single_source_no_matter_how_strong"
         },
         {
           "kind": "fn",
-          "line": 399,
-          "name": "full_human_is_reached_with_enough_score_age_and_source_diversity"
+          "line": 405,
+          "name": "evidence_qualified_human_is_reached_with_enough_score_age_and_source_diversity"
         },
         {
           "kind": "fn",
-          "line": 422,
-          "name": "stale_evidence_decays_and_can_demote_full_human_back_down"
+          "line": 428,
+          "name": "stale_evidence_decays_and_can_demote_evidence_qualified_human_back_down"
         },
         {
           "kind": "fn",
-          "line": 455,
+          "line": 461,
           "name": "our_own_sources_outweigh_external_by_default"
         },
         {
           "kind": "fn",
-          "line": 468,
+          "line": 474,
           "name": "an_external_source_can_still_contribute_and_be_reweighted"
         },
         {
           "kind": "fn",
-          "line": 483,
-          "name": "a_farm_cannot_reach_full_human_without_the_seed_anchored_vouch_signal"
+          "line": 489,
+          "name": "a_farm_cannot_reach_evidence_qualified_human_without_the_seed_anchored_vouch_signal"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 536,
           "name": "a_fully_decayed_vouch_signal_does_not_satisfy_the_required_gate"
         },
         {
           "kind": "fn",
-          "line": 557,
+          "line": 563,
           "name": "later_evidence_from_the_same_source_replaces_the_earlier_one"
         }
       ],
@@ -29883,7 +29883,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 293922,
+      "bytes": 298011,
       "group": "docs",
       "headings": [
         {
@@ -30313,9 +30313,9 @@
         "provenance",
         "explicit"
       ],
-      "lines": 4962,
+      "lines": 5033,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "ff0cb02ea49b87c09868bd11002c482941f09cb6b30bb7442b1a5ab74258114e",
+      "sha256": "326534cea94b21e82be0830bfcd2f5260b6f9c9e7ca954e1c11b61045820299a",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -31168,7 +31168,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 31866,
+      "bytes": 32094,
       "group": "docs",
       "headings": [
         {
@@ -31188,84 +31188,84 @@
         },
         {
           "level": 2,
-          "line": 98,
+          "line": 101,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 116,
+          "line": 119,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 173,
+          "line": 176,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 216,
+          "line": 219,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 224,
+          "line": 227,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 265,
+          "line": 268,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 281,
+          "line": 284,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 301,
+          "line": 304,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 496,
+          "line": 499,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 502,
+          "line": 505,
           "text": "Where to look for more detail"
         }
       ],
       "keywords": [
         "status",
         "real",
+        "review",
         "one",
         "code",
         "height",
         "implementation",
-        "review",
         "shipped",
         "now",
+        "founder",
         "two",
         "governance",
         "proposer",
         "mesh",
+        "still",
         "closing",
         "equivocation",
         "validator",
         "consensus",
         "issues",
-        "signal",
         "voice",
         "value",
         "personhood",
-        "finality",
-        "storage"
+        "finality"
       ],
-      "lines": 512,
+      "lines": 515,
       "path": "docs/STATUS.md",
-      "sha256": "0496c22a8600932c27f995d482f5dcc13f15aee24498b284e8add19471d55115",
+      "sha256": "4321019a33c2f24f302bd552ab68d6a1a16aeb8fd08ddcb0af673171f5c45b24",
       "symbols": [],
       "title": "Implementation status"
     },

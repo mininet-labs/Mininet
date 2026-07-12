@@ -72,9 +72,12 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 - **prototype** — `mini-uniqueness::status` (D-0038): open-ended
   multi-signal `HumanRecord`/`TrustWeights`/`PromotionPolicy` accumulator.
   Real, tested code. Hardened per the #18 Sybil review (D-0054): reaching
-  `FullHuman` now requires a *live* seed-anchored vouching-graph signal,
+  `EvidenceQualifiedHuman` now requires a *live* seed-anchored vouching-graph signal,
   closing a farm-saturation bypass — see
-  `docs/audits/issue-18-sybil-social-graph-review.md`.
+  `docs/audits/issue-18-sybil-social-graph-review.md`. Renamed from
+  `FullHuman` (D-0086, founder review's `personhood-honesty` finding):
+  the old name could read as a verified-personhood guarantee this crate
+  does not provide — Sybil resistance is still unsolved.
 - **reviewed** — presence attack review ([#17](../../issues/17),
   `docs/audits/issue-17-presence-attack-review.md`): replay/binding/clone
   defended; active relay is NOT defended by software RTT alone (needs UWB

@@ -4959,3 +4959,74 @@ recording all of the above honestly (✅/Partial, not overclaimed).
 work (`mini-consensus`) and D-0055/D-0061's settlement/execution work
 without altering either's existing behavior for any previously-valid
 input.
+
+---
+
+### D-0086 — Rename `HumanStatus::FullHuman` to `EvidenceQualifiedHuman` (personhood-honesty naming fix)  ·  *Accepted*
+**Date:** 2026-07-12 · **Refs:** founder review
+`Mininet_In_Depth_Review_20260712.md` (`personhood-honesty` finding),
+`crates/mini-uniqueness/src/status.rs`, `docs/INVARIANTS.md`'s hard
+limitations section, `docs/DECISION_LOG.md` D-0054 (the original
+`HumanStatus` accumulator), Directive 4, "Honesty over polish" (CLAUDE.md).
+
+**Decision:** rename the `HumanStatus` enum variant `FullHuman` to
+`EvidenceQualifiedHuman` across `mini-uniqueness` (`status.rs`, `lib.rs`),
+its five directly-named test functions, and the one current-state doc
+reference in `crates/mini-uniqueness/README.md`. A doc comment on the
+enum now states plainly why: this crate cannot yet distinguish one human
+from several colluding identity roots (Sybil resistance is the still-open
+question `docs/INVARIANTS.md` names as a hard, temporary limitation at
+its top), so no variant name may imply a certainty — "full," "verified" —
+the evidence doesn't support. `VouchedHuman` and `Unverified` were already
+honestly named; only the top tier overclaimed.
+
+This is a pure rename: no field, threshold, promotion rule, decay
+behavior, or public function signature changes. `PromotionPolicy`'s
+internal tuning-knob field names (`full_score_threshold`,
+`full_minimum_age_ms`, `full_minimum_distinct_sources`,
+`full_required_sources`) are deliberately left as-is — they are private
+configuration knobs, not the public-facing status claim the review
+flagged. Historical references to `FullHuman` in `docs/DECISION_LOG.md`
+(append-only, never edited), `docs/design/human-continuity-proof.md`,
+`docs/gates/personhood-signal-b-decision.md`, and
+`docs/audits/issue-18-sybil-social-graph-review.md` are left unchanged as
+an accurate record of what was true when each was written.
+
+**Reason:** the founder review's exact words: *"The current naming is
+also dangerous: `HumanStatus::FullHuman` can sound stronger than the
+evidence justifies. Until the mechanism resists duplicate roots, this
+should be named `EvidenceQualifiedIdentity` or similar."* `EvidenceQualifiedHuman`
+was chosen over the review's suggested `EvidenceQualifiedIdentity` to keep
+the noun consistent with its sibling variants (`VouchedHuman`,
+`Unverified` — implicitly of a human) and the crate's existing
+`HumanRecord`/`HumanStatus` naming family, while still landing on the
+same "evidence-qualified, not verified" framing the review asked for.
+
+**Constitutional impact:** direct compliance with CLAUDE.md's "Honesty
+over polish" hard rule and the "Never claim 'one human, one vote'"
+rule's spirit — no code path anywhere in this tree now uses a status
+name that could be read as a personhood guarantee this system does not
+provide. No `docs/INVARIANTS.md` row changes: this does not touch the
+Sybil-resistance mechanism itself, only its self-description. No
+voice/value edge — `mini-uniqueness` has no dependency on any value
+crate in either direction, unaffected by this change.
+
+**Implementation status:** shipped. `cargo fmt --all`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and `cargo test
+--workspace --all-features` all pass unchanged in behavior (test count
+and outcomes identical; five test functions renamed to match, not
+rewritten). `python3 tools/mininet_nav.py build` regenerated the nav
+index.
+
+**Failure point:** if a future PR reintroduces a status name implying
+verified personhood (`FullHuman`, `VerifiedHuman`, or similar) anywhere
+in this tree, that is the exact regression this Decision closes —
+`docs/INVARIANTS.md`'s Sybil-unsolved limitation still applies to every
+`HumanStatus` variant, including this one.
+
+**Required follow-up:** none code-side. The underlying Sybil-resistance
+question (roadmap #18) remains open and is not advanced by this naming
+fix — it only prevents the naming from overstating progress on it.
+
+**Supersedes / superseded by:** none. Purely a naming clarification on
+top of D-0054's `HumanStatus` accumulator; does not alter its behavior.
