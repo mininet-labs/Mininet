@@ -572,10 +572,20 @@ mod tests {
         // This is genuinely signed by the designated proposer, but attempts
         // to push protocol time far into the future. Consensus time at height
         // 1 is exactly 1, so the value is invalid and receives no prevote.
-        let emits = node
-            .on_message(proposal_from_at(&fx, p_idx, u64::MAX))
-            .unwrap();
-        assert!(!prevoted(&emits));
+        let proposal = proposal_from_at(&fx, p_idx, u64::MAX);
+        let malicious_hash = match &proposal {
+            ConsensusMessage::Proposal(p) => p.header.hash(),
+            _ => unreachable!(),
+        };
+        let emits = node.on_message(proposal).unwrap();
+        assert!(!emits.iter().any(|emit| {
+            matches!(emit, Emit::Broadcast(ConsensusMessage::Vote(v))
+                if v.kind == VoteKind::Prevote && v.block_hash == malicious_hash)
+        }));
+        assert!(emits.iter().any(|emit| {
+            matches!(emit, Emit::Broadcast(ConsensusMessage::Vote(v))
+                if v.kind == VoteKind::Prevote && v.block_hash == crate::NIL)
+        }));
     }
 
     #[test]
