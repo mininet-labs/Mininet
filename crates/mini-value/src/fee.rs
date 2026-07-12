@@ -44,6 +44,9 @@ impl PriceHistory {
     /// Record a new governed price. Entries must arrive in strictly
     /// increasing `effective_at_ms` order.
     pub fn add_entry(&mut self, entry: PriceEntry) -> Result<()> {
+        if entry.micro_mini_per_micro_cent == 0 {
+            return Err(ValueError::ZeroFeeRate);
+        }
         if let Some(last) = self.entries.last() {
             if entry.effective_at_ms <= last.effective_at_ms {
                 return Err(ValueError::OutOfOrderRateEntry);
@@ -63,15 +66,28 @@ impl PriceHistory {
             .map(|e| e.micro_mini_per_micro_cent)
             .ok_or(ValueError::NoRateInEffect)
     }
+
+    /// Quote a fee using the governed price in effect at the protocol-selected
+    /// time. Keeping lookup and checked arithmetic in one API prevents callers
+    /// from accidentally applying a current rate to historical work.
+    pub fn fee_at(&self, fee_target_micro_cents: u64, at_ms: u64) -> Result<u64> {
+        fee_in_micro_mini(fee_target_micro_cents, self.price_at(at_ms)?)
+    }
 }
 
 /// Micro-MINI owed for a fee whose real-world value target is
 /// `fee_target_micro_cents` micro-cents, at `micro_mini_per_micro_cent`
 /// (`PRICE_SCALE`'s fixed point). `u128` internally so a large target at a
 /// large price cannot silently overflow.
-pub fn fee_in_micro_mini(fee_target_micro_cents: u64, micro_mini_per_micro_cent: u64) -> u64 {
+pub fn fee_in_micro_mini(
+    fee_target_micro_cents: u64,
+    micro_mini_per_micro_cent: u64,
+) -> Result<u64> {
+    if micro_mini_per_micro_cent == 0 {
+        return Err(ValueError::ZeroFeeRate);
+    }
     let product = (fee_target_micro_cents as u128) * (micro_mini_per_micro_cent as u128);
-    (product / PRICE_SCALE as u128) as u64
+    u64::try_from(product / PRICE_SCALE as u128).map_err(|_| ValueError::FeeOverflow)
 }
 
 #[cfg(test)]
@@ -130,9 +146,9 @@ mod tests {
 
     #[test]
     fn fee_scales_with_price_and_target() {
-        assert_eq!(fee_in_micro_mini(1_000, PRICE_SCALE), 1_000);
-        assert_eq!(fee_in_micro_mini(1_000, PRICE_SCALE * 2), 2_000);
-        assert_eq!(fee_in_micro_mini(0, PRICE_SCALE), 0);
+        assert_eq!(fee_in_micro_mini(1_000, PRICE_SCALE).unwrap(), 1_000);
+        assert_eq!(fee_in_micro_mini(1_000, PRICE_SCALE * 2).unwrap(), 2_000);
+        assert_eq!(fee_in_micro_mini(0, PRICE_SCALE).unwrap(), 0);
     }
 
     #[test]
@@ -142,14 +158,46 @@ mod tests {
         let target = 1_000u64;
         let price_before = PRICE_SCALE;
         let price_after_mini_halves = PRICE_SCALE * 2;
-        let fee_before = fee_in_micro_mini(target, price_before);
-        let fee_after = fee_in_micro_mini(target, price_after_mini_halves);
+        let fee_before = fee_in_micro_mini(target, price_before).unwrap();
+        let fee_after = fee_in_micro_mini(target, price_after_mini_halves).unwrap();
         assert_eq!(fee_after, fee_before * 2);
     }
 
     #[test]
-    fn fee_does_not_overflow_at_large_values() {
-        let fee = fee_in_micro_mini(u64::MAX, u64::MAX);
-        assert!(fee > 0);
+    fn fee_overflow_is_rejected_instead_of_truncated() {
+        assert_eq!(
+            fee_in_micro_mini(u64::MAX, u64::MAX),
+            Err(ValueError::FeeOverflow)
+        );
+    }
+
+    #[test]
+    fn zero_rate_is_rejected_at_ingress_and_at_quote_time() {
+        let mut history = PriceHistory::new();
+        assert_eq!(
+            history.add_entry(PriceEntry {
+                effective_at_ms: 1,
+                micro_mini_per_micro_cent: 0,
+            }),
+            Err(ValueError::ZeroFeeRate)
+        );
+        assert_eq!(
+            fee_in_micro_mini(1, 0),
+            Err(ValueError::ZeroFeeRate)
+        );
+    }
+
+    #[test]
+    fn fee_at_binds_lookup_and_checked_arithmetic() {
+        let mut history = PriceHistory::new();
+        history
+            .add_entry(PriceEntry {
+                effective_at_ms: 100,
+                micro_mini_per_micro_cent: PRICE_SCALE * 2,
+            })
+            .unwrap();
+        assert_eq!(history.fee_at(500, 99), Err(ValueError::NoRateInEffect));
+        assert_eq!(history.fee_at(500, 100).unwrap(), 1_000);
     }
 }
+
