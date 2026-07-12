@@ -27,6 +27,22 @@ const MAX_SIGS_PER_VOTE: usize = 16;
 /// far above any real SCID, purely an allocation bound on untrusted input.
 const MAX_DID_BYTES: usize = 512;
 
+/// Domain tag prepended to every signed vote transcript (roadmap #44's
+/// domain-confusion/replay finding). `did_mini::Controller::sign_message`
+/// signs whatever bytes it is given, with no domain concept of its own —
+/// every other signed transcript in this workspace prepends its own fixed
+/// tag (`mini-consensus/proposal/v1`, `mini-settlement/payment-claim/v1`,
+/// `mini-bounty/claim/v1`, ...) so that a signature over one domain's
+/// transcript can never be replayed as a valid signature over another's,
+/// even if the two transcripts' remaining fields happened to collide
+/// byte-for-byte. `Vote::transcript` was the one exception, signing a bare
+/// `kind || height || round || block_hash` with no such tag. Deliberately
+/// distinct from [`Vote::to_wire_bytes`]'s own `"mini-chain/vote/v1"`
+/// framing tag (that one is never signed, only used to parse an already-
+/// decoded wire frame) — the same separation `mini-consensus::wire` keeps
+/// between its own `DOMAIN` (framing) and `PROPOSAL_SIGN_DOMAIN` (signing).
+const VOTE_SIGN_DOMAIN: &[u8] = b"mini-chain/vote-sign/v1";
+
 /// The two Tendermint-style voting phases. Only [`VoteKind::Precommit`]
 /// counts toward finality ([`crate::finality::verify_finality`]);
 /// `Prevote` exists so the type is honest about the two-phase protocol even
@@ -73,7 +89,8 @@ impl Vote {
     /// the vote to be unambiguous and unforgeable across heights/rounds/
     /// blocks/phases.
     fn transcript(kind: VoteKind, height: u64, round: u32, block_hash: &[u8; 32]) -> Vec<u8> {
-        let mut w = Vec::with_capacity(1 + 8 + 4 + 32);
+        let mut w = Vec::with_capacity(VOTE_SIGN_DOMAIN.len() + 1 + 8 + 4 + 32);
+        w.extend_from_slice(VOTE_SIGN_DOMAIN);
         w.push(kind.to_byte());
         w.extend_from_slice(&height.to_be_bytes());
         w.extend_from_slice(&round.to_be_bytes());
@@ -338,6 +355,47 @@ mod tests {
             Vote::from_wire_bytes(&bytes).unwrap_err(),
             ChainError::Malformed
         );
+    }
+
+    #[test]
+    fn a_signature_over_the_undomained_legacy_layout_does_not_verify_as_a_vote() {
+        // Domain-confusion/replay regression (roadmap #44): before
+        // VOTE_SIGN_DOMAIN existed, the signed transcript was a bare
+        // `kind || height || round || block_hash` with no tag identifying
+        // it as a vote. Prove that a signature over exactly that undomained
+        // layout is now rejected -- the domain tag is not decorative.
+        let (root, device) = voter();
+        let kind = VoteKind::Precommit;
+        let height = 42u64;
+        let round = 3u32;
+        let block_hash = [0xABu8; 32];
+
+        let mut legacy_transcript = Vec::new();
+        legacy_transcript.push(kind.to_byte());
+        legacy_transcript.extend_from_slice(&height.to_be_bytes());
+        legacy_transcript.extend_from_slice(&round.to_be_bytes());
+        legacy_transcript.extend_from_slice(&block_hash);
+        let legacy_signature = device.sign_message(&legacy_transcript);
+
+        let forged = Vote {
+            kind,
+            height,
+            round,
+            block_hash,
+            validator_root: root.did(),
+            validator_device: device.did(),
+            signature: legacy_signature,
+        };
+        assert!(
+            verify_vote(&forged, &root.kel(), &device.kel()).is_err(),
+            "a signature over the undomained legacy transcript must not verify as a vote"
+        );
+
+        // The real, domain-tagged transcript for the identical fields does
+        // verify -- confirming the rejection above is about the missing
+        // domain tag, not some unrelated mistake in the test fixture.
+        let genuine = sign_vote(kind, height, round, block_hash, &root.did(), &device);
+        verify_vote(&genuine, &root.kel(), &device.kel()).unwrap();
     }
 
     #[test]

@@ -24,6 +24,13 @@ pub enum ExecutionError {
     /// — an allocation/CPU bound applied before processing, the same
     /// discipline `mini-chain::MAX_VOTES_PER_CERTIFICATE` applies.
     TooManyClaims,
+    /// A candidate block's `timestamp_ms` did not strictly exceed the
+    /// previous finalized block's — a proposer-controlled field is
+    /// otherwise free to stay flat or run backwards with no consequence
+    /// (roadmap #44's timestamp-attack finding). Every honest node enforces
+    /// this identically, so it can never itself cause two honest chains to
+    /// disagree (Directive 4) — a block either commits everywhere or nowhere.
+    NonMonotonicTimestamp { previous: u64, got: u64 },
 }
 
 impl fmt::Display for ExecutionError {
@@ -43,6 +50,10 @@ impl fmt::Display for ExecutionError {
                 )
             }
             ExecutionError::TooManyClaims => write!(f, "block body exceeds the claim-count cap"),
+            ExecutionError::NonMonotonicTimestamp { previous, got } => write!(
+                f,
+                "block timestamp_ms {got} does not strictly exceed the previous block's {previous}"
+            ),
         }
     }
 }

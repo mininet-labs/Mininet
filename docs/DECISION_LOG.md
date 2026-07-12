@@ -4756,3 +4756,115 @@ activation and does not prove model compliance.
 **Supersedes / superseded by:** activates the v1.1 charter introduced by
 D-0082; superseded only by a later exact-state Decision and the append-only
 marker above.
+
+---
+
+### D-0085 — Consensus edge-case attack review: timestamps, replay, fee manipulation (closes #44)  ·  *Accepted*
+**Date:** 2026-07-12 · **Refs:** roadmap #44, `crates/mini-chain/src/vote.rs`,
+`crates/mini-execution/src/chain.rs`, `crates/mini-execution/src/error.rs`,
+`crates/mini-consensus/src/node.rs`, `crates/mini-value/src/fee.rs`,
+`crates/mini-value/src/error.rs`, `docs/THREAT_MODEL.md` §2, CLAUDE.md's
+typed-domain rule, Directive 4, Directive 14.
+
+**Decision:** a real, code-first review of the three attack classes
+issue #44 named as sharing one root cause ("trusting caller-supplied
+context without independent verification"), fixing what was actually
+found rather than only cataloging it:
+
+1. **Timestamps.** `BlockHeader::timestamp_ms` was proposer-controlled
+   and completely unchecked. `LedgerChain::apply_finalized_block` (the
+   one authoritative, unconditional gate every honest chain applies) now
+   rejects a header whose `timestamp_ms` does not strictly exceed the
+   previous finalized block's, returning a new
+   `ExecutionError::NonMonotonicTimestamp`. `mini-consensus`'s
+   `validate_proposal` mirrors the identical check at prevote time as a
+   cheap early filter (rejecting before a round wastes a step on it), via
+   a new `LedgerChain::last_timestamp_ms()` getter.
+2. **Replay (domain confusion).** Every *other* signed transcript in this
+   workspace (`mini-consensus::wire::Proposal`, `mini-settlement::claim`,
+   `mini-bounty::claim`) already prepends a fixed ASCII domain tag before
+   signing — `Vote::transcript` was the one exception, signing a bare
+   `kind || height || round || block_hash` with no tag identifying it as
+   a vote, since `did_mini::Controller::sign_message` has no domain
+   concept of its own. A new `VOTE_SIGN_DOMAIN` constant closes the gap,
+   deliberately distinct from `Vote::to_wire_bytes`'s own framing tag
+   (the same separation `mini-consensus::wire` already keeps between its
+   `DOMAIN` and `PROPOSAL_SIGN_DOMAIN`).
+3. **Fee manipulation.** `mini_value::fee::PriceHistory::add_entry`
+   accepted a governed price of `0`, which would make every fee free
+   regardless of the real-world value target. A new `ValueError::ZeroPrice`
+   variant rejects it unconditionally.
+
+**Reason:** issue #44 asked for a review; a review that only documents
+"this is trusted but shouldn't be" without fixing what's fixable inside
+existing crate boundaries would leave the same exploitable gaps in place
+under a green checkmark. All three fixes compose only what already
+exists in this tree (an existing error-enum pattern, an existing
+domain-tag convention, an existing rejection pattern in the same
+function) — no new cryptography, no new wire fields, no new public API
+surface beyond one getter and two error variants (Directive 14).
+
+**Constitutional impact:** strengthens Directive 4 (two honest chains
+enforcing the same monotonicity rule can never disagree because of it —
+the check is unconditional and identical on every node) and the
+typed-domain rule (CLAUDE.md) directly — `Vote::transcript` now matches
+every sibling signed transcript's domain-separation discipline instead of
+being the one exception. No `docs/INVARIANTS.md` row changes: these are
+hardening fixes within already-decided constructions, not new invariants.
+No voice/value edge — the fee fix rejects an objectively-broken value
+(zero), it does not add or change any authorization/governance rule
+(this crate still has, and states it has, no opinion on *who* may call
+`add_entry`).
+
+**Implementation status:** shipped and tested. Four new adversarial
+tests, one per finding plus the domain-confusion regression: `mini-chain`
+proves a signature over the pre-fix undomained transcript layout no
+longer verifies as a vote (while the real domain-tagged signature still
+does, isolating the assertion to the domain tag specifically);
+`mini-execution` proves a height-2 block with the identical `timestamp_ms`
+as height-1 is rejected with the chain correctly not advancing;
+`mini-consensus` proves an authentic, correctly-signed, wrong-proposer
+timestamp gets prevoted `nil` (not silently dropped, and never for its
+own invalid hash) — verified against the *networked* real-TCP-mesh tests
+too, confirming the monotonicity check doesn't break real convergence
+(production code already always sets `timestamp_ms: height`, which is
+naturally strictly increasing); `mini-value` proves a zero-price entry is
+rejected and never recorded, both as a first entry and as a follow-on
+entry after a real one. Full workspace `cargo test --workspace
+--all-features` green (114 test-binary results, 0 failures) after the
+change; `cargo fmt`/`clippy -D warnings` clean.
+
+**Failure point:** stated plainly, per finding. *Timestamps:* this closes
+monotonicity only, not a real wall-clock freshness/skew bound — no
+wall-clock semantics exist anywhere in this tree yet (`timestamp_ms` is
+still documented as "ordering hint," not real time), so inventing a
+clock-skew check now would be premature relative to that larger
+undecided design question. *Replay:* this closes same-workspace
+cross-domain confusion (a vote signature can no longer be replayed as
+anything else, or vice versa); it does **not** add a chain-id/network-id
+concept, so a validly-signed vote from one *separate deployment* of this
+protocol (e.g. a testnet sharing a validator set with a devnet) remains
+structurally identical to one from another — no such multi-deployment
+concept exists anywhere in this codebase today, and introducing one is
+materially larger, protocol-wide, wire-breaking work belonging to its own
+decision, not bundled into this review. *Fee:* only the zero-price defect
+is fixed; there is still no rate-limit/max-jump bound between consecutive
+governed prices, and this crate still enforces no authorization on who
+may call `add_entry` at all — both are genuine policy questions for
+whoever wires real fee governance, not something to invent unilaterally
+here.
+
+**Required follow-up:** a real wall-clock freshness bound for
+`timestamp_ms` once this tree adopts real wall-clock semantics; a
+chain-id/network-id concept threaded through `Vote`/`Proposal`/
+`PaymentClaim` transcripts if/when multiple separate deployments of this
+protocol are expected to coexist (materially larger, its own decision);
+a rate-limit/max-jump bound on governed price changes, and real
+authorization enforcement on `PriceHistory::add_entry`, both founder/
+governance-policy calls. `docs/THREAT_MODEL.md` §2 gained three new rows
+recording all of the above honestly (✅/Partial, not overclaimed).
+
+**Supersedes / superseded by:** none. Extends D-0200-D-0203's consensus
+work (`mini-consensus`) and D-0055/D-0061's settlement/execution work
+without altering either's existing behavior for any previously-valid
+input.

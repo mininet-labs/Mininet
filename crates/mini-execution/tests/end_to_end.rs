@@ -349,3 +349,82 @@ fn wrong_height_and_wrong_parent_are_both_rejected() {
         .unwrap_err();
     assert_eq!(err2, ExecutionError::WrongParent);
 }
+
+#[test]
+fn a_timestamp_that_does_not_strictly_advance_is_rejected() {
+    // Timestamp-attack finding (roadmap #44): `BlockHeader::timestamp_ms`
+    // is proposer-controlled and otherwise unchecked. A block whose
+    // timestamp does not strictly exceed the previous finalized block's
+    // must never be applied, even with a real quorum certificate --
+    // flat or backwards time could otherwise bias any downstream logic
+    // that assumes monotonic block time.
+    let fx = fixture();
+    let mut chain = LedgerChain::genesis();
+
+    let payer = SigningKey::from_seed(&[0x99; 32]);
+    let claim_1 = sign_claim(&payer, b"merchant", 100, 0, 10_000, b"chain-1", 0).unwrap();
+    let body_1 = SettlementBlockBody::new(vec![claim_1]);
+    let next_state_1 = mini_execution::apply_block(chain.state(), &body_1).unwrap();
+    let header_1 = BlockHeader {
+        height: 1,
+        prev_hash: chain.tip_hash(),
+        state_root: next_state_1.commitment(),
+        timestamp_ms: 1_000,
+        proposer: fx.signers[0].0.did(),
+    };
+    let hash_1 = header_1.hash();
+    let votes_1 = fx.signers[..3]
+        .iter()
+        .map(|(root, device)| sign_vote(VoteKind::Precommit, 1, 0, hash_1, &root.did(), device))
+        .collect();
+    let qc_1 = QuorumCertificate {
+        height: 1,
+        round: 0,
+        block_hash: hash_1,
+        votes: votes_1,
+    };
+    chain
+        .apply_finalized_block(&header_1, &body_1, &qc_1, &fx.validators, &fx.oracle)
+        .unwrap();
+    assert_eq!(chain.last_timestamp_ms(), 1_000);
+
+    // Height 2, claiming the SAME timestamp as height 1 -- not strictly
+    // greater, so it must be rejected even though everything else about it
+    // (height, parent, state root, quorum) is perfectly valid.
+    let claim_2 = sign_claim(&payer, b"merchant", 100, 1, 10_000, b"chain-1", 0).unwrap();
+    let body_2 = SettlementBlockBody::new(vec![claim_2]);
+    let next_state_2 = mini_execution::apply_block(chain.state(), &body_2).unwrap();
+    let header_2 = BlockHeader {
+        height: 2,
+        prev_hash: chain.tip_hash(),
+        state_root: next_state_2.commitment(),
+        timestamp_ms: 1_000, // flat, not advancing
+        proposer: fx.signers[0].0.did(),
+    };
+    let hash_2 = header_2.hash();
+    let votes_2 = fx.signers[..3]
+        .iter()
+        .map(|(root, device)| sign_vote(VoteKind::Precommit, 2, 0, hash_2, &root.did(), device))
+        .collect();
+    let qc_2 = QuorumCertificate {
+        height: 2,
+        round: 0,
+        block_hash: hash_2,
+        votes: votes_2,
+    };
+    let err = chain
+        .apply_finalized_block(&header_2, &body_2, &qc_2, &fx.validators, &fx.oracle)
+        .unwrap_err();
+    assert_eq!(
+        err,
+        ExecutionError::NonMonotonicTimestamp {
+            previous: 1_000,
+            got: 1_000,
+        }
+    );
+    assert_eq!(
+        chain.height(),
+        1,
+        "the chain must not advance on a non-monotonic timestamp"
+    );
+}
