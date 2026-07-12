@@ -4496,6 +4496,97 @@ of the "robust vote gossip" work D-0203 began. Supersedes nothing.
 
 ---
 
+### D-0206 — `mini-consensus` links are now confidential and tamper-evident: `mini_bearer::Channel` wired into `TcpMesh`  ·  *Accepted*
+**Date:** 2026-07-12 · **Refs:** roadmap #36–#45, `crates/mini-consensus/src/net.rs`,
+`mini_bearer::Channel`/`Initiator`/`Responder`, the founder-supplied
+2026-07-12 in-depth review (`5.3 Connectivity`/`5.4 Consensus`: "wire
+authenticated encrypted channels into consensus now; do not wait for the
+full mixnet"), D-0203, Directive 14.
+
+**Decision:** every [`TcpMesh`] link now completes a `mini_bearer::Channel`
+handshake (ephemeral X25519 + HKDF-SHA256 + ChaCha20-Poly1305, forward-
+secret, anonymous — the exact same construction `mini-sync`/`mini-cli`'s
+`sync connect`/`listen` already use, composed here rather than reinvented)
+before any consensus byte crosses the wire. The dialer is always the
+handshake initiator, the accepter always the responder — the same
+asymmetry `establish_topology` already uses to stay deadlock-free, now
+extended to the application-level handshake too, not just the TCP
+connect. Every `queue()`d frame is sealed through the link's `Channel`
+(with a fixed `CONSENSUS_AAD` domain tag, the same discipline `mini-sync`'s
+`SYNC_AAD` follows) before framing; every received frame is opened before
+being handed to `ConsensusMessage::from_wire_bytes`. The handshake itself
+is a small, bounded blocking exchange (bounded by a new
+`HANDSHAKE_TIMEOUT`) that runs before the socket switches to non-blocking
+mode for ordinary operation — everything after the handshake keeps
+D-0203's non-blocking, never-back-pressured behavior unchanged.
+
+**Reason:** `mini_bearer::Channel` already existed, already composes only
+reviewed primitives, and was already wired into `mini-sync`/`mini-cli`'s
+sync protocol — `mini-consensus` was the one real-network transport in
+this tree that still moved votes and proposals as a cleartext pipe, a gap
+this crate's own docs and D-0203's "Required follow-up" already named.
+The founder's 2026-07-12 review named this the correct next step ahead of
+a full mixnet ("wire authenticated encrypted channels into consensus now;
+do not wait"), and closing it required no new cryptography — composition
+only (Directive 14).
+
+**Constitutional impact:** none at the invariant level — this is
+transport confidentiality, not consensus semantics. `Channel`'s handshake
+is deliberately anonymous (proves nothing about which validator is on the
+other end), so it adds no authentication, authority, or identity beyond
+what the self-authenticating signed payload already provides; finality,
+locking, signing, and equivocation detection are entirely unchanged, and
+every consensus payload is re-verified after decryption exactly as it was
+after cleartext delivery before. No `docs/INVARIANTS.md` row changes.
+
+**Implementation status:** shipped and tested. A new adversarial test
+(`queued_frames_cross_the_wire_as_ciphertext_never_plaintext`) sends a
+distinctive plaintext marker and proves it never appears verbatim in the
+raw bytes that actually cross a real loopback socket, then proves that
+isn't mere corruption by decoding the same bytes through the real channel
+and recovering the exact original marker — the concrete regression this
+decision closes. The existing `a_peer_that_never_reads_...` liveness test
+was updated to complete a real handshake on both sides first (the
+outbound-buffer-capacity property it tests is otherwise unaffected). All
+three existing real-socket networked tests (full mesh, partial line mesh
+via re-gossip, crashed-proposer view-change) pass unmodified — the
+handshake is fully transparent to `TcpMesh::establish`/`establish_topology`'s
+public API and `run_to_height`'s driver loop, neither of which changed.
+`cargo fmt`/`clippy -D warnings`/`test` clean.
+
+**Failure point:** stated plainly. This closes eavesdropping and
+tampering by an on-path observer, not Sybil connections — there is still
+no discovery, so a malicious *first* connection from an unknown address
+is exactly as possible as before; `Channel`'s handshake proves the two
+ends share a fresh private session, never *which* validator is on the
+other end. The blocking handshake means link establishment is no longer
+instant-return the way a bare TCP `connect` was (a dialer now genuinely
+waits on the peer's application-level response, not just the kernel's
+accept backlog) — bounded by the new `HANDSHAKE_TIMEOUT`, and the
+dial-only-higher-indexed-peers convention keeps the wait graph acyclic,
+so this remains deadlock-free, just no longer free of latency. A single
+decryption failure on a link (garbage, or a peer whose channel state
+somehow desynced) permanently strands that link — `Channel` requires
+strict in-order processing with no resync mechanism — which degrades
+that link to the same fate a silently-dead peer already had; safety never
+depends on it since payloads are still independently self-authenticating.
+
+**Required follow-up:** peer discovery and NAT traversal (`mini-net`'s
+job, unstarted for consensus specifically); a link that dies from a
+desync should eventually be redialed rather than staying permanently
+inert for the life of the process (no reconnect logic exists anywhere in
+`TcpMesh` yet, encrypted or not — a pre-existing gap this decision doesn't
+change); the review's broader `5.3`/`5.4` asks (formal BFT modeling,
+dynamic validator sets, state sync, chaos testing at real scale) remain
+entirely open and are much larger, separate work.
+
+**Supersedes / superseded by:** extends D-0203's non-blocking `TcpMesh`
+(the handshake precedes, and does not alter, its non-blocking buffered
+send/receive behavior) without altering D-0200/D-0201/D-0202/D-0204/D-0205's
+round engine, wire format, or re-gossip logic. Supersedes nothing.
+
+---
+
 ### D-0081 — No-GitHub outage demo: a real, narrated, runnable script through the whole spine  ·  *Accepted*
 **Date:** 2026-07-12 · **Refs:** roadmap #102 (self-hosted forge spine),
 `tools/no_github_outage_demo.sh`, `crates/mini-cli/tests/

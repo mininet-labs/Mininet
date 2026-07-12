@@ -46,16 +46,25 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   is surfaced as verifiable `EquivocationEvidence`), and messages are
   **dedup-flooded (re-gossiped)** so consensus is live over any *connected*
   graph, not just a full mesh (D-0205 — proven by a real-socket four-node
-  *line* topology test where endpoints reach quorum only via relay). The
-  **remaining gaps are liveness/DoS and deployment, not correctness**:
-  there is no state-sync for a node that was down a whole height (re-gossip
-  only re-delivers messages still circulating), the equivocation evidence
-  is produced but nothing *consumes* it yet (no slashing), peers are
-  supplied not discovered, links are cleartext, and the demonstration is
-  threads over loopback. State-sync/catch-up, peer discovery via
-  `mini-net`, acting on equivocation, secured links, and dynamic validator
-  sets are the named next slices (roadmap Phase 5,
-  [#36](../../issues/36)-[#45](../../issues/45);
+  *line* topology test where endpoints reach quorum only via relay), and
+  every link is now **confidential and tamper-evident**: each one runs a
+  real `mini_bearer::Channel` handshake (ephemeral X25519 + HKDF-SHA256 +
+  ChaCha20-Poly1305, forward-secret, anonymous) before any consensus byte
+  crosses the wire, so an on-path observer can no longer read votes or
+  proposals in cleartext or forge a frame the AEAD tag won't catch (D-0206,
+  closing the founder's 2026-07-12 in-depth review's `5.3`/`5.4` "wire
+  authenticated encrypted channels into consensus now" finding — no new
+  cryptography, the same construction `mini-sync`/`mini-cli`'s `sync
+  connect`/`listen` already use). The **remaining gaps are liveness/DoS and
+  deployment, not correctness**: there is no state-sync for a node that
+  was down a whole height (re-gossip only re-delivers messages still
+  circulating), the equivocation evidence is produced but nothing
+  *consumes* it yet (no slashing), peers are supplied not discovered,
+  `Channel`'s handshake is anonymous so it proves nothing about *which*
+  validator is on the other end, and the demonstration is threads over
+  loopback. State-sync/catch-up, peer discovery via `mini-net`, acting on
+  equivocation, and dynamic validator sets are the named next slices
+  (roadmap Phase 5, [#36](../../issues/36)-[#45](../../issues/45);
   `docs/design/networked-consensus.md`).
 
 ## 2. Personhood

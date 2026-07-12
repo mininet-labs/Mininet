@@ -9,3 +9,7 @@
 *.swp
 .idea/
 .vscode/
+
+# Python bytecode cache (tools/*.py: mininet_nav.py, check_governance.py)
+__pycache__/
+*.pyc
