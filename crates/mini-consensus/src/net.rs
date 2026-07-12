@@ -339,6 +339,10 @@ fn handle_emits(emits: Vec<Emit>, mesh: &mut TcpMesh, timers: &mut Vec<Timer>) {
                 });
             }
             Emit::Committed { .. } => {}
+            // Detected double-signing is surfaced for a future slashing layer.
+            // This loop has nowhere to route it yet, so it is dropped here;
+            // callers that want it drive the node directly and read the emit.
+            Emit::Equivocation(_) => {}
         }
     }
 }

@@ -1,4 +1,4 @@
-# Networked BFT consensus — `mini-consensus` (D-0200, D-0201, D-0202, D-0203)
+# Networked BFT consensus — `mini-consensus` (D-0200 through D-0204)
 
 This document records the design of the first layer in this tree that runs
 consensus across a process boundary: `mini-consensus`. It is the split the
@@ -114,9 +114,13 @@ correctness:
   links are lossless. (The *transport* no longer loses traffic to a slow peer —
   see the next point — but a genuinely partitioned/dropped message is still not
   re-gossiped.)
-- **No equivocation evidence or slashing.** A double-signer is counted at most
-  once and cannot forge a quorum, but the attempt is neither detected nor
-  punished.
+- **Equivocation is detected but not punished (D-0204).** A validator that
+  double-signs (two different votes for one `(height, round, phase)`) is now
+  caught: it is counted at most once and its conflicting second vote is
+  surfaced as verifiable `EquivocationEvidence`. But nothing *consumes* that
+  evidence yet — there is no slashing, no ejection — and proposal-equivocation
+  (two proposals for one round) is not yet collected. Detection, not
+  enforcement.
 - **Static validator set.** Fixed for a run; on-chain set changes are later
   work.
 - **`TcpMesh` is transport, not discovery or security.** Cleartext, addresses
@@ -131,10 +135,12 @@ correctness:
    holds even when a message is dropped or a node joins late. (The transport
    half of this — non-blocking, buffered broadcast so a dead peer cannot
    back-pressure honest nodes — is **shipped**, D-0203; what remains is
-   application-level re-flooding of votes a peer may have missed.)
-2. **Equivocation evidence** — now that proposals *and* votes are signed, a
-   validator that double-signs (two proposals, or two prevotes/precommits, for
-   one round) leaves cryptographic proof; collect and act on it.
+   application-level re-flooding of votes a peer may have missed. This also
+   makes equivocation detection complete, since a node would then see both
+   halves of a distant double-sign.)
+2. **Act on equivocation** — a slashing/governance layer that *consumes* the
+   `EquivocationEvidence` this crate now produces (D-0204); also collect
+   proposal-equivocation, not just vote-equivocation.
 3. **Secured, discovered links** — wrap links in `mini_bearer::Channel`
    authenticated encryption; route discovery through `mini-net`'s overlay
    instead of a hardcoded address list.
@@ -143,5 +149,6 @@ correctness:
 None of these change what "final" means (frozen in `mini-chain`); they add the
 security, robustness, and operational machinery layered around it. View-change
 (the round-0 slice's largest gap) is **shipped** (D-0201), signed proposals
-(view-change's largest residual) are **shipped** (D-0202), and a non-blocking
-buffered mesh (no dead-peer back-pressure) is **shipped** (D-0203).
+(view-change's largest residual) are **shipped** (D-0202), a non-blocking
+buffered mesh (no dead-peer back-pressure) is **shipped** (D-0203), and
+equivocation *detection* with verifiable evidence is **shipped** (D-0204).

@@ -95,6 +95,7 @@
 #![warn(missing_debug_implementations)]
 
 mod error;
+mod evidence;
 mod node;
 mod round;
 mod wire;
@@ -102,6 +103,7 @@ mod wire;
 pub mod net;
 
 pub use error::{ConsensusError, Result};
+pub use evidence::{verify_equivocation, EquivocationEvidence};
 pub use node::{ConsensusNode, Emit, NodeConfig};
 pub use round::{proposer_for, Action, Round, Step, NIL};
 pub use wire::{sign_proposal, verify_proposal, ConsensusMessage, Proposal, MAX_MESSAGE_BYTES};

@@ -4379,3 +4379,61 @@ vote gossip"; the re-flooding half remains.
 blocking `TcpBearer` links with non-blocking buffered ones) without
 altering the D-0201/D-0202 round engine, wire, or node. Supersedes
 nothing.
+
+---
+
+### D-0204 — `mini-consensus` detects and surfaces validator equivocation (double-signing) as verifiable evidence  ·  *Accepted*
+**Date:** 2026-07-11 · **Refs:** roadmap #36–#45, #92, D-0201, D-0202,
+`docs/design/networked-consensus.md`, Directive 4, INVARIANTS P2.
+
+**Decision:** now that every vote is signed (D-0201) and every proposal
+too (D-0202), `mini-consensus` detects when a validator root double-signs
+— two *different* votes for the same `(height, round, phase)` — and
+surfaces it as a portable `EquivocationEvidence` (the two conflicting
+signed votes), verifiable by anyone via `verify_equivocation`. The
+`Round` now records each root's *first* vote per phase and counts only
+that: a conflicting second vote is dropped from the tally (not merged) and
+returned as `Action::Equivocation`, which the node re-emits as
+`Emit::Equivocation`. Detection and proof only — no slashing, no
+validator-set mutation, no finality gated on it.
+
+**Reason:** the D-0202 residual list named equivocation evidence as a next
+slice, and signed proposals/votes make it essentially free: double-signing
+is now cryptographically provable. It also tightens the tally — previously
+an equivocating root's two votes could each land in a *different* hash's
+prevote set (never enough to push either past quorum, since each hash
+dedupes by root, but untidy); counting only the first vote per phase makes
+"one root, at most once" (P2) hold per-phase, not just per-hash.
+
+**Constitutional impact:** strengthens P2's "counted at most once" posture
+(now enforced per phase, and a violation is *detected*, not merely
+diluted) and Directive 4's accountability posture. No invariant is
+weakened and none is added: finality is still exactly
+`mini_chain::verify_finality`, and an equivocator could never manufacture a
+quorum before or after this change — the difference is that its attempt is
+now surfaced as evidence rather than silently absorbed. No
+`docs/INVARIANTS.md` row changes; no voice/value edge.
+
+**Implementation status:** shipped and tested. New `mini_consensus::evidence`
+module (`EquivocationEvidence` + `verify_equivocation`); `Round` gains
+per-root first-vote tracking and `Action::Equivocation`; node gains
+`Emit::Equivocation`. Six new tests: genuine evidence verifies; identical
+votes, votes at different slots, votes from different roots, and a forged
+second vote are all rejected as non-evidence; and a `Round`-level test
+proves a double-signing root is reported *and* its first vote still counts
+exactly once toward quorum (the second does not). `cargo fmt`/`clippy -D
+warnings`/`test` clean; the happy-path and view-change networked tests
+still pass.
+
+**Failure point:** stated plainly. This is detection, not enforcement —
+there is no slashing, no automatic ejection, and nothing consumes the
+evidence yet, so a double-signer pays no penalty beyond being provably
+caught. Evidence is only produced for votes a node actually *receives*;
+without full vote re-gossip (still open) a node may never see both halves
+of a distant equivocation. And proposal-equivocation (a proposer signing
+two different proposals for one round) is not yet collected here — only
+vote-equivocation is.
+
+**Supersedes / superseded by:** extends D-0201's round engine (adds
+per-phase first-vote counting and equivocation surfacing) and builds on
+D-0201/D-0202's signed votes/proposals. Supersedes nothing.

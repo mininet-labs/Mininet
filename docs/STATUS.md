@@ -39,14 +39,18 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   Safety (never two conflicting decisions at one height) is complete,
   **proposals are signed** (D-0202: a node accepts a proposal only from a
   `VOTE`-capable device of the exact `proposer_for(height, round)`, closing
-  the front-running gap), and the mesh is **non-blocking and buffered**
-  (D-0203, so a wedged peer cannot back-pressure honest nodes). The
-  **remaining gaps are liveness/DoS and deployment, not correctness**:
-  past-round votes are not re-gossiped, no equivocation evidence is collected
-  yet, links are cleartext with no discovery/reconnect, and the demonstration
-  is threads over loopback. Application-level vote re-gossip, equivocation
-  evidence, secured/discovered links, and dynamic validator sets are the named
-  next slices (roadmap Phase 5, [#36](../../issues/36)-[#45](../../issues/45);
+  the front-running gap), the mesh is **non-blocking and buffered**
+  (D-0203, so a wedged peer cannot back-pressure honest nodes), and
+  **equivocation is detected** (D-0204: a validator that double-signs one
+  `(height, round, phase)` is counted at most once and its conflicting vote
+  is surfaced as verifiable `EquivocationEvidence`). The **remaining gaps
+  are liveness/DoS and deployment, not correctness**: past-round votes are
+  not re-gossiped, the equivocation evidence is produced but nothing
+  *consumes* it yet (no slashing), links are cleartext with no
+  discovery/reconnect, and the demonstration is threads over loopback.
+  Application-level vote re-gossip, acting on equivocation,
+  secured/discovered links, and dynamic validator sets are the named next
+  slices (roadmap Phase 5, [#36](../../issues/36)-[#45](../../issues/45);
   `docs/design/networked-consensus.md`).
 
 ## 2. Personhood

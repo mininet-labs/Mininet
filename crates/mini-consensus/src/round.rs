@@ -28,23 +28,30 @@
 //! is a `2^-256` BLAKE3 event and would merely read as `nil` — never a safety
 //! problem.)
 //!
-//! ## Honest limits that remain
+//! ## Accountability and honest limits that remain
 //!
 //! Safety — never two conflicting decisions at one height — is what locking
-//! buys and is implemented here in full. Proposals are **not signed** at this
-//! layer: a valid but unauthenticated value is accepted for its round, a
-//! liveness/DoS surface (a Byzantine node can waste a round by front-running
-//! the proposer) but never a safety hole — an unwanted value simply fails to
-//! gather `2f+1` honest prevotes and the height rolls on. The host broadcasts
-//! each vote once (no full re-gossip of past rounds), so the POLC-re-proposal
-//! path (line 28) depends on those prevotes still being reachable; the
-//! crash-recovery path (a silent proposer) does not, and is what the networked
-//! test exercises.
+//! buys and is implemented here in full. One identity root is counted **at
+//! most once per phase**: its first prevote/precommit is authoritative, and a
+//! conflicting second one is not tallied but surfaced as
+//! [`Action::Equivocation`] (D-0204), verifiable proof the root double-signed,
+//! for a future slashing layer that does not exist yet. Proposal authenticity
+//! is the *host's* responsibility (the node checks [`crate::wire::verify_proposal`]
+//! and [`proposer_for`] before calling [`Round::on_proposal`], D-0202), so this
+//! layer trusts that a proposal it is told about really came from the round's
+//! proposer.
+//!
+//! The host broadcasts each vote once (no full re-gossip of past rounds), so
+//! the POLC-re-proposal path (line 28) depends on those prevotes still being
+//! reachable; the crash-recovery path (a silent proposer) does not, and is
+//! what the networked test exercises.
 
 use std::collections::{HashMap, HashSet};
 
 use did_mini::Did;
 use mini_chain::{verify_vote, QuorumCertificate, ValidatorOracle, ValidatorSet, Vote, VoteKind};
+
+use crate::evidence::EquivocationEvidence;
 
 /// The `nil` value id — a prevote/precommit for "no block this round". Never a
 /// real block hash for finality (see the module docs).
@@ -119,6 +126,12 @@ pub enum Action {
     },
     /// This height is decided: apply the block behind this certificate.
     Decided(QuorumCertificate),
+    /// A validator root double-signed at this `(height, round, kind)`. The
+    /// evidence is surfaced for a future slashing/governance layer; it does
+    /// **not** change this round's outcome (the equivocator was already
+    /// counted at most once — its conflicting second vote is dropped from the
+    /// tally, not merged).
+    Equivocation(EquivocationEvidence),
 }
 
 /// A value proposed at a round: its id (block hash), the `validRound` it
@@ -141,6 +154,12 @@ struct RoundVotes {
     /// Every distinct root that sent *any* message at this round — the basis
     /// for the `f+1`-higher-round skip (line 55).
     participants: HashSet<String>,
+    /// The *first* prevote each root cast this round, kept so a second,
+    /// different prevote from the same root is detected as equivocation (and
+    /// dropped from the tally rather than counted twice).
+    prevote_by_root: HashMap<String, Vote>,
+    /// The first precommit each root cast this round — same purpose.
+    precommit_by_root: HashMap<String, Vote>,
 }
 
 impl RoundVotes {
@@ -305,7 +324,11 @@ impl Round {
     /// re-verified against `oracle`; a vote that fails verification or comes
     /// from a non-validator is ignored. Votes for *any* round are accepted and
     /// filed by their own round (past rounds feed POLC; future rounds feed the
-    /// `f+1` skip). One root counts at most once per (round, id).
+    /// `f+1` skip). One root counts **at most once per (round, phase)**: its
+    /// first vote is authoritative, and a second, *different* vote for the same
+    /// slot is not tallied — instead it is surfaced as
+    /// [`Action::Equivocation`] (proof the root double-signed), while an exact
+    /// duplicate is silently dropped.
     pub fn on_vote(&mut self, vote: Vote, oracle: &dyn ValidatorOracle) -> Vec<Action> {
         if !self.accept_vote(&vote, oracle) {
             return Vec::new();
@@ -315,6 +338,27 @@ impl Round {
         let id = vote.block_hash;
         let tally = self.votes.entry(round).or_default();
         tally.participants.insert(scid.clone());
+
+        let by_root = match vote.kind {
+            VoteKind::Prevote => &mut tally.prevote_by_root,
+            VoteKind::Precommit => &mut tally.precommit_by_root,
+            _ => return Vec::new(),
+        };
+        if let Some(prior) = by_root.get(&scid) {
+            // This root already voted in this phase this round.
+            if prior.block_hash == id {
+                return Vec::new(); // exact duplicate — no-op
+            }
+            // Conflicting second vote: equivocation. Keep the first in the
+            // tally, do not count this one, and surface the proof.
+            let evidence = EquivocationEvidence {
+                first: prior.clone(),
+                second: vote,
+            };
+            return vec![Action::Equivocation(evidence)];
+        }
+        by_root.insert(scid.clone(), vote.clone());
+
         match vote.kind {
             VoteKind::Prevote => {
                 tally.prevotes.entry(id).or_default().insert(scid);
@@ -896,5 +940,53 @@ mod tests {
         let a = round.on_proposal(0, id, -1, true);
         assert!(a.iter().any(|x| matches!(x, Action::Decided(_))));
         assert!(round.is_decided());
+    }
+
+    #[test]
+    fn a_double_signing_root_is_reported_and_counted_only_once() {
+        let fx = fixture(4); // quorum 3
+        let mut round = non_proposer_round(&fx, 1);
+        round.start();
+        let (id_a, id_b) = ([0xAA; 32], [0xBB; 32]);
+
+        // Validator 0 prevotes A, then prevotes B at the same (height, round):
+        // the second is reported as equivocation and NOT tallied.
+        round.on_vote(vote(&fx, 0, VoteKind::Prevote, 1, 0, id_a), &fx.oracle);
+        let actions = round.on_vote(vote(&fx, 0, VoteKind::Prevote, 1, 0, id_b), &fx.oracle);
+
+        let reported = actions
+            .iter()
+            .find_map(|x| match x {
+                Action::Equivocation(ev) => Some(ev.clone()),
+                _ => None,
+            })
+            .expect("a conflicting second prevote must be reported as equivocation");
+        assert!(crate::evidence::verify_equivocation(&reported, &fx.oracle));
+
+        // Its two prevotes did not both count: A has the root, B does not.
+        round.on_proposal(0, id_a, -1, true);
+        // Only validators 1 and 2 additionally prevote A → 3 distinct incl. v0.
+        let mut precommitted = false;
+        for i in 1..3 {
+            for act in round.on_vote(vote(&fx, i, VoteKind::Prevote, 1, 0, id_a), &fx.oracle) {
+                if act
+                    == (Action::SignPrecommit {
+                        round: 0,
+                        target: id_a,
+                    })
+                {
+                    precommitted = true;
+                }
+            }
+        }
+        assert!(
+            precommitted,
+            "the equivocator's first (A) prevote still counts once toward A's quorum"
+        );
+
+        // An exact duplicate of an already-counted vote is a silent no-op, not
+        // equivocation.
+        let dup = round.on_vote(vote(&fx, 1, VoteKind::Prevote, 1, 0, id_a), &fx.oracle);
+        assert!(!dup.iter().any(|x| matches!(x, Action::Equivocation(_))));
     }
 }
