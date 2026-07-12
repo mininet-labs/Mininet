@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 34,
-    "files": 358,
-    "headings": 795,
-    "rust_symbols": 3221
+    "files": 360,
+    "headings": 822,
+    "rust_symbols": 3222
   },
   "crates": {
     "did-mini": {
@@ -249,7 +249,7 @@
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
     {
-      "bytes": 14818,
+      "bytes": 15506,
       "group": "root",
       "headings": [
         {
@@ -285,16 +285,16 @@
         {
           "level": 2,
           "line": 193,
-          "text": "Current priority (D-0066 \u2014 Batches 1-4 shipped; 5 vs. 6 is the founder's call)"
+          "text": "Current priority (D-0066 \u2014 Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)"
         },
         {
           "level": 2,
-          "line": 214,
+          "line": 225,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 223,
+          "line": 234,
           "text": "Session hygiene for the agent"
         }
       ],
@@ -324,9 +324,9 @@
         "human",
         "entries"
       ],
-      "lines": 235,
+      "lines": 246,
       "path": "CLAUDE.md",
-      "sha256": "e5587a16b1bc9fc3d900c7ca6d1a94b62d36fcc7ad2a0cace0952af1aaea7d60",
+      "sha256": "0eaedc4e7db006ae89375fe7834fc228dc9a709ea80914b77d8810d92cc87e0a",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
@@ -615,7 +615,7 @@
       ],
       "lines": 162,
       "path": "README.md",
-      "sha256": "cd35ef96763cdc6b0e78e4a7189f1b446b994ef26f4f6e2b91e5ea96e37a3b6c",
+      "sha256": "7e8ae6dd66c4cb96bf1cec743b9553f5ee54c655d3e8e3b9d6cb77bb891a9759",
       "symbols": [],
       "title": "Mininet"
     },
@@ -8167,6 +8167,48 @@
         }
       ],
       "title": "use std::fs;"
+    },
+    {
+      "bytes": 2012,
+      "group": "crate:mini-cli",
+      "headings": [],
+      "keywords": [
+        "script",
+        "demo",
+        "output",
+        "stdout",
+        "mini-cli",
+        "no_github_outage_demo",
+        "no-github",
+        "outage",
+        "expected",
+        "assert",
+        "stderr",
+        "marker",
+        "the_full_no_github_outage_demo_script_runs_clean",
+        "tools",
+        "real",
+        "std",
+        "command",
+        "manifest_dir",
+        "env",
+        "repo_root",
+        "path",
+        "new",
+        "parent",
+        "expect"
+      ],
+      "lines": 55,
+      "path": "crates/mini-cli/tests/no_github_outage_demo.rs",
+      "sha256": "cbfb801bf1e35d9d2c44ee28e632b621db9e4145992e52d6735273d3cce397c0",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 16,
+          "name": "the_full_no_github_outage_demo_script_runs_clean"
+        }
+      ],
+      "title": "use std::process::Command;"
     },
     {
       "bytes": 23833,
@@ -29278,7 +29320,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 266447,
+      "bytes": 270707,
       "group": "docs",
       "headings": [
         {
@@ -29686,10 +29728,10 @@
         "accepted",
         "founder",
         "batch",
+        "real",
         "decision",
         "log",
         "core",
-        "real",
         "review",
         "rust",
         "chain",
@@ -29702,15 +29744,15 @@
         "stack",
         "audit",
         "what",
+        "spine",
         "on-device",
         "one",
         "provenance",
-        "point",
-        "spine"
+        "point"
       ],
-      "lines": 4496,
+      "lines": 4570,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "fbe86231c9220c9a2f55c78145ee446a33aa3ffa5eb13cf7ccbfa30975cfc547",
+      "sha256": "a7b74f15f27905101aaf6b834215e4ab131c0584cc3a75b2da6875c939d75a4c",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -30476,7 +30518,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 28305,
+      "bytes": 29378,
       "group": "docs",
       "headings": [
         {
@@ -30536,12 +30578,12 @@
         },
         {
           "level": 2,
-          "line": 445,
+          "line": 461,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 451,
+          "line": 467,
           "text": "Where to look for more detail"
         }
       ],
@@ -30571,9 +30613,9 @@
         "personhood",
         "identity"
       ],
-      "lines": 461,
+      "lines": 477,
       "path": "docs/STATUS.md",
-      "sha256": "c2493b06dfad8e0c3c74c2787413bc0e9fff5793d6c4fa3599053f654d16789c",
+      "sha256": "0c7c4d6b4299a54ff49ea709576486f8967aeddf22b1be063e87df8bf40ec62f",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -32072,7 +32114,7 @@
       "title": "Networked BFT consensus \u2014 `mini-consensus` (D-0200 through D-0205)"
     },
     {
-      "bytes": 30903,
+      "bytes": 31718,
       "group": "docs",
       "headings": [
         {
@@ -32122,12 +32164,12 @@
         },
         {
           "level": 2,
-          "line": 514,
+          "line": 527,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 523,
+          "line": 536,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -32157,9 +32199,9 @@
         "git",
         "adapted"
       ],
-      "lines": 541,
+      "lines": 554,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "20e190c4cdde7308587374ec4a96c3c71f7b94584aafed941ba796cf01ccf761",
+      "sha256": "f865fa05373fc1628ad21b83737bf4f5fd7db292dd0966a39a3616fabbc4b3ad",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
@@ -33406,6 +33448,178 @@
       "sha256": "9f335e46184b7442bfdad6b503b0449546141c3eb703c1c4b65b3cea5dc7478d",
       "symbols": [],
       "title": "\"\"\""
+    },
+    {
+      "bytes": 9982,
+      "group": "tools",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "The no-GitHub outage demo (D-0081, self-hosted forge spine roadmap #102)."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "GitHub is this project's UAT/mirror, never its source of truth"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "(CLAUDE.md). This script is the tangible proof: it drives the real,"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "compiled `mini` binary -- never a library call, never GitHub -- through"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "the entire developer lifecycle this project's constitution depends on"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "being able to survive a GitHub outage:"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "identity -> repo -> commit -> PR -> two independent reviews -> governed"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "merge -> release -> two independent attestations -> verify -> install"
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "-> passing health check -- and then, because a real system must survive"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "its own mistakes too, a second, DELIBERATELY BROKEN release through the"
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "identical path -> a failing health check -> automatic rollback -> a"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "clean, independently-verifiable event log proving exactly what happened."
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "Every step below is a real `mini` subcommand against real files on real"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "disk. No network call to any GitHub endpoint exists anywhere in this"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "codebase to make -- there is nothing to \"route around\" during an outage,"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "because nothing here was ever routed through GitHub to begin with. That"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "is the honest claim this script demonstrates, not a network firewall"
+        },
+        {
+          "level": 1,
+          "line": 22,
+          "text": "drill (this environment has no controlled way to actually sever GitHub"
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "reachability, and simulating a firewall would prove less than reading"
+        },
+        {
+          "level": 1,
+          "line": 24,
+          "text": "this script and the codebase's own dependency graph already does)."
+        },
+        {
+          "level": 1,
+          "line": 26,
+          "text": "Usage: tools/no_github_outage_demo.sh [path-to-mini-binary]"
+        },
+        {
+          "level": 1,
+          "line": 27,
+          "text": "Defaults to <repo-root>/target/debug/mini if not given -- override with"
+        },
+        {
+          "level": 1,
+          "line": 28,
+          "text": "an explicit path (e.g. a release build, or $CARGO_BIN_EXE_mini when"
+        },
+        {
+          "level": 1,
+          "line": 29,
+          "text": "driven from a Rust test)."
+        },
+        {
+          "level": 1,
+          "line": 127,
+          "text": "--json (D-0078) hands back real structured fields -- release_id and"
+        },
+        {
+          "level": 1,
+          "line": 128,
+          "text": "artifact_digest -- instead of a human sentence to scrape, exactly the"
+        },
+        {
+          "level": 1,
+          "line": 129,
+          "text": "machine-readable contract this demo relies on for the next two steps."
+        }
+      ],
+      "keywords": [
+        "home",
+        "store",
+        "github",
+        "echo",
+        "dev",
+        "null",
+        "alice",
+        "bob",
+        "carol",
+        "real",
+        "kel",
+        "identity",
+        "repo",
+        "trust",
+        "outage-demo",
+        "work",
+        "outage",
+        "never",
+        "script",
+        "through",
+        "two",
+        "independent",
+        "release",
+        "step"
+      ],
+      "lines": 216,
+      "path": "tools/no_github_outage_demo.sh",
+      "sha256": "a0b7740c715f960f28c201fd69dc743b70dd74d26bcdf8bce8353fb70cc29141",
+      "symbols": [],
+      "title": "The no-GitHub outage demo (D-0081, self-hosted forge spine roadmap #102)."
     },
     {
       "bytes": 7444,

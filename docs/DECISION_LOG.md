@@ -4493,3 +4493,77 @@ built — the topology is supplied, not learned.
 **Supersedes / superseded by:** extends D-0200's `TcpMesh`/`run_to_height`
 (adds partial topologies and re-gossip) and completes the application half
 of the "robust vote gossip" work D-0203 began. Supersedes nothing.
+
+---
+
+### D-0081 — No-GitHub outage demo: a real, narrated, runnable script through the whole spine  ·  *Accepted*
+**Date:** 2026-07-12 · **Refs:** roadmap #102 (self-hosted forge spine),
+`tools/no_github_outage_demo.sh`, `crates/mini-cli/tests/
+no_github_outage_demo.rs`, D-0080 (its own "Required follow-up" named
+this exact combination).
+
+**Decision:** `tools/no_github_outage_demo.sh` is a real, narrated shell
+script — driving the compiled `mini` binary, never a library call —
+that carries three identities through the entire self-hosted forge
+spine lifecycle in one continuous run: identity init, out-of-band KEL
+trust, `repo init`/`commit`/`pr propose`/two independent `pr approve`
+calls/`pr merge`, `release create`/two independent `release attest`
+calls/`release verify`, a full install (`installer stage → preflight →
+activate → health-check`) that passes — and then, because a real system
+must survive its own mistakes too, a second, deliberately broken
+release through the identical path that fails its health check,
+auto-rolls back with no manual intervention, and leaves behind an
+event log that `installer verify-log` confirms is clean. Every step
+uses `--json` (D-0078) to extract real fields (`release_id`,
+`artifact_digest`) between commands rather than scraping text, doubling
+as a demonstration of that contract. `crates/mini-cli/tests/
+no_github_outage_demo.rs` runs the script itself as a subprocess so a
+broken demo fails `cargo test --workspace` like any other regression,
+rather than silently rotting until a human runs it by hand.
+
+**Reason:** nothing in this codebase has ever made a network call to
+any GitHub endpoint — there is no "outage" to route around at the code
+level, so the honest, checkable claim is narrower and more useful than
+a network-partition drill would be: read this script, run it yourself,
+and see the entire developer lifecycle — including the failure-recovery
+path — complete without GitHub ever being named, required, or even
+capable of blocking it. D-0080 already proved the wire protocol needs
+nothing GitHub-shaped; this is the narrated, single-artifact version a
+non-Rust-reading auditor or founder can actually run and follow.
+
+**Constitutional impact:** none — a demonstration artifact, no new code
+path in any library crate. Reaffirms the same claim CLAUDE.md's own
+"GitHub is this project's UAT/mirror, never its source of truth" line
+already makes, now backed by a runnable proof rather than only a
+policy statement.
+
+**Implementation status:** shipped. The script needed two real fixes
+found only by actually running it against the compiled binary, not by
+reasoning about it on paper: (1) a `--json`-based artifact-digest
+extraction replaced an initial draft that computed a SHA-256 digest
+locally (wrong algorithm entirely — this workspace uses BLAKE3
+throughout) and then tried to recover the real digest through a
+fragile probe-release fallback; (2) Bob and Carol needed an explicit
+`repo track` step before `pr merge`/`installer stage` could resolve the
+project alias, the same requirement every other multi-identity CLI test
+in this crate already has to satisfy. Full workspace `cargo test
+--workspace --all-features` green (111 test results, 0 failures).
+
+**Failure point:** this environment has no controlled way to actually
+sever GitHub reachability and verify nothing breaks — the claim rests
+on reading the codebase's dependency graph (no `octocrab`/`reqwest`-to-
+github.com/GitHub-API-client dependency exists anywhere) plus this
+script's own successful run, not a live firewall drill. `bash`-specific
+syntax (not POSIX `sh`) is required to run it, matching this repo's
+existing `tools/` scripts' conventions (`mininet_nav.py` already assumes
+a real Python interpreter, not portable-shell-only).
+
+**Required follow-up:** per the roadmap's own sequencing, the project
+has now earned the right to widen into Branch A (hardware gates #97/
+#98), Branch B (economic simulation #47/#50), Branch C (personhood
+research #21), and Branch D (DTN #28) — a founder priority call, not
+something to pick unilaterally.
+
+**Supersedes / superseded by:** none. Composes D-0078's `--json`
+contract and D-0080's sync proof into one narrated artifact without
+altering either.

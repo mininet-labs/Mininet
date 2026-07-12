@@ -190,26 +190,37 @@ shipping), `docs/design/` (design notes that close roadmap issues —
 
 Find anything: `python3 tools/mininet_nav.py map` (see `docs/NAVIGATION.md`).
 
-## Current priority (D-0066 — Batches 1-4 shipped; 5 vs. 6 is the founder's call)
+## Current priority (D-0066 — Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)
 
 A founder-adopted external audit found implementation breadth had run
 ahead of vertical integration: no complete path existed from developer
 change → review → governed merge → reproducible build → release finality
 → safe install → rollback. Batches 1-4 of `docs/design/
-self-hosted-forge-spine.md` are now shipped, closing that path end to end
-(`mini-cli` → `mini-provenance`/`mini-build-runner-wasmtime` →
-`mini-forge::release` rollback/transparency-log/freshness/provenance
-gates → `mini-installer`'s real stage/activate/health-check/rollback).
-Batch 6's stated exit condition — a deliberately broken release detected
-and auto-recovered with a verifiable event history — is demonstrated in
-`mini-installer`'s own test suite, honestly caveated as a real local disk
-in a test environment, not yet a live distributed system. **Do not
-re-propose "build a proposal/review/merge object model" as new work: it
-already exists in `mini-forge::governance`** (`propose`/`approve`/`merge`/
-`amend`/`resolve_project`), predating the audit. What's next — Batch 5
-(Mininet as the primary forge, P2P sync) vs. resuming Batch 6's horizontal
-roadmap breadth — is a priority call for the founder to make, not
-something to pick unilaterally; see the design doc for what each entails.
+self-hosted-forge-spine.md` closed that path end to end (`mini-cli` →
+`mini-provenance`/`mini-build-runner-wasmtime` → `mini-forge::release`
+rollback/transparency-log/freshness/provenance gates →
+`mini-installer`'s real stage/activate/health-check/rollback). Batch 5
+(Mininet as the primary forge) is now also shipped: `mini sync
+listen`/`connect` reaches a governed merge with no shared filesystem
+(D-0066 Batch 5 piece 1); `mini_sync::sync_bidirectional`'s existing
+type-agnostic replication was proven to carry the *entire* spine —
+release, attestation, install — to a peer over a real TCP connection
+alone (D-0080); `mini build`/`release`/`provenance`/`installer` CLI
+subcommands (D-0077) plus stable `--json` output (D-0078) plus
+adversarial CLI fixtures (D-0079) closed the "still too library-internal"
+gap the audit named; and `tools/no_github_outage_demo.sh` (D-0081) is a
+real, runnable, narrated script proving the whole lifecycle — including
+a deliberately broken release's automatic rollback — completes with
+GitHub never named or required. **Do not re-propose "build a
+proposal/review/merge object model" as new work: it already exists in
+`mini-forge::governance`** (`propose`/`approve`/`merge`/`amend`/
+`resolve_project`), predating the audit. What's next — resuming Batch 6's
+horizontal roadmap breadth vs. Batch 5's remaining pieces (local object
+indexing at scale, distributed build workers, GitHub import/export mirror
+automation) vs. Branches A-D (hardware #97/#98, economics #47/#50,
+personhood #21, DTN #28) — is a priority call for the founder to make,
+not something to pick unilaterally; see the design doc for what each
+entails.
 
 ## Current launch blockers (keep these in view as horizontal work resumes)
 
