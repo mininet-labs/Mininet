@@ -495,3 +495,17 @@ does the proposed solution survive Directive 17's "future child" test, and
 does it hold up against whichever of the other sixteen directives it
 touches? If it does not, per the Preface, the solution is wrong — not the
 directives.
+
+## Canonical status (D-0090)
+
+These seventeen directives are the **one canonical constitutional
+principle set** — not a fourth version alongside others. An external
+founder review found no single versioned identity: an earlier SPEC-00
+document defined six principles, and a later external "v2" whitepaper/
+README framing defined eleven; neither is committed to this repository.
+Both are superseded by this document as of D-0090, wherever they are
+held. `docs/CONSTITUTION_REGISTRY.json` gives each directive a stable ID
+(`FD-01`…`FD-17`) and an exact digest of its own canonical text, generated
+from this file by `tools/constitution_registry.py`, so tooling and future
+reviewers have one machine-readable source to check a claim against
+instead of guessing which numbered list is current.

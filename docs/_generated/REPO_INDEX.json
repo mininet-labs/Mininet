@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 34,
-    "files": 459,
-    "headings": 1639,
+    "files": 461,
+    "headings": 1644,
     "rust_symbols": 3272
   },
   "crates": {
@@ -1056,7 +1056,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 9337,
+      "bytes": 9558,
       "group": "root",
       "headings": [
         {
@@ -1086,7 +1086,7 @@
         },
         {
           "level": 2,
-          "line": 166,
+          "line": 169,
           "text": "License"
         }
       ],
@@ -1116,9 +1116,9 @@
         "update",
         "independent"
       ],
-      "lines": 170,
+      "lines": 173,
       "path": "README.md",
-      "sha256": "4fbf9b4120dfd88fd1c3459aa7c7bbc950d6ecd0d81e6fb9f043cedb21d60125",
+      "sha256": "370fe98863d692aafe2c17426daf9c6f9c806e45b47adb5e9491f06de47bef29",
       "symbols": [],
       "title": "Mininet"
     },
@@ -30147,7 +30147,43 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 316369,
+      "bytes": 8290,
+      "group": "docs",
+      "headings": [],
+      "keywords": [
+        "number",
+        "title",
+        "heading",
+        "directive",
+        "digest",
+        "sha256",
+        "statement",
+        "every",
+        "never",
+        "legitimacy",
+        "trust",
+        "human",
+        "canonical",
+        "but",
+        "privacy",
+        "principle_count",
+        "repository",
+        "humanity",
+        "technology",
+        "constitution",
+        "assume",
+        "authority",
+        "eventually",
+        "design"
+      ],
+      "lines": 159,
+      "path": "docs/CONSTITUTION_REGISTRY.json",
+      "sha256": "11c06e0e53fa7ed0b705f2aa8bf48d13870db2c7908ad3396e80d3fca567ea04",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 320702,
       "group": "docs",
       "headings": [
         {
@@ -30577,9 +30613,9 @@
         "one",
         "provenance"
       ],
-      "lines": 5333,
+      "lines": 5405,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "a3f4930c8745577d6e909209c09ebd5d8fdabccdbeb721793da312dbf0ea04dd",
+      "sha256": "2aa6b597fe3e93d08b0cf02a2aea66e050dc439952913f32b427960f3493f364",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -30773,7 +30809,7 @@
       "title": "The Mininet Failure Book"
     },
     {
-      "bytes": 10073,
+      "bytes": 10867,
       "group": "docs",
       "headings": [
         {
@@ -30885,6 +30921,11 @@
           "level": 2,
           "line": 477,
           "text": "How this document relates to everything else in this repository"
+        },
+        {
+          "level": 2,
+          "line": 499,
+          "text": "Canonical status (D-0090)"
         }
       ],
       "keywords": [
@@ -30895,9 +30936,9 @@
         "fail",
         "humanity",
         "legitimacy",
+        "canonical",
         "trust",
         "technology",
-        "canonical",
         "human",
         "build",
         "constitution",
@@ -30913,9 +30954,9 @@
         "does",
         "continue"
       ],
-      "lines": 498,
+      "lines": 512,
       "path": "docs/FOUNDER_DIRECTIVES.md",
-      "sha256": "4fd614d2727877a4295637ef54fb7011dfa1963c35b4c401585ff7711e00dc1b",
+      "sha256": "05bb5f75f813ab70e6a098b3b33a6bbe95ee9d62b929b3242badbb609b9498a7",
       "symbols": [],
       "title": "MININET \u2014 Founder Directives"
     },
@@ -31432,7 +31473,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 33635,
+      "bytes": 34245,
       "group": "docs",
       "headings": [
         {
@@ -31487,17 +31528,17 @@
         },
         {
           "level": 2,
-          "line": 328,
+          "line": 337,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 523,
+          "line": 532,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 529,
+          "line": 538,
           "text": "Where to look for more detail"
         }
       ],
@@ -31527,9 +31568,9 @@
         "finality",
         "storage"
       ],
-      "lines": 539,
+      "lines": 548,
       "path": "docs/STATUS.md",
-      "sha256": "a6ec2634389f2268af8ce0cfdd36a9a8af957d98d1832504a35ac8e6f68aa0bd",
+      "sha256": "539f0a51b31bab217170cede32bbb740b96ad2ba462330f9039b3fc3c65a3758",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -41329,6 +41370,63 @@
       "sha256": "6e4253aadf11d7759db6f9d109a1ea2e9ded78f277a8a12de7fe00805a3eddf2",
       "symbols": [],
       "title": "\"\"\"Reference Mininet bootstrap governance validator."
+    },
+    {
+      "bytes": 8069,
+      "group": "tools",
+      "headings": [
+        {
+          "level": 1,
+          "line": 37,
+          "text": "One-line, faithful distillations of each directive's own text below \u2014"
+        },
+        {
+          "level": 1,
+          "line": 38,
+          "text": "not new claims, just short enough to scan in a table. The digest field"
+        },
+        {
+          "level": 1,
+          "line": 39,
+          "text": "is what actually binds a registry entry to the canonical prose; this"
+        },
+        {
+          "level": 1,
+          "line": 40,
+          "text": "statement is a human-readable label, not the source of truth."
+        }
+      ],
+      "keywords": [
+        "never",
+        "import",
+        "constitution_registry",
+        "canonical",
+        "every",
+        "registry",
+        "one",
+        "may",
+        "own",
+        "path",
+        "protocol",
+        "who",
+        "come",
+        "tools",
+        "each",
+        "directive",
+        "text",
+        "digest",
+        "what",
+        "prose",
+        "source",
+        "truth",
+        "python3",
+        "json"
+      ],
+      "lines": 198,
+      "path": "tools/constitution_registry.py",
+      "sha256": "392092a6698b0cd2708130ca16977f300e44f70464ade65ec99a5ed4910f92a3",
+      "symbols": [],
+      "title": "One-line, faithful distillations of each directive's own text below \u2014"
     },
     {
       "bytes": 16934,

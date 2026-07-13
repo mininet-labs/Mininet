@@ -5330,3 +5330,75 @@ agent action.
 **Supersedes / superseded by:** none. Amends D-0073's cellular-custody
 design by making one already-implied rule explicit; does not alter
 D-0086's `HumanStatus` rename or D-0088's `EquivocatorRegistry` scope.
+
+### D-0090 — Canonicalize the seventeen Founder Directives; generate docs/CONSTITUTION_REGISTRY.json (founder review P0 item `constitution-registry`)  ·  *Accepted*
+**Date:** 2026-07-13 · **Refs:** `Mininet_In_Depth_Review_20260712.md`
+§"Number of constitutional principles" and Phase 0 backlog item 1;
+`docs/FOUNDER_DIRECTIVES.md`; `docs/CONSTITUTION_REGISTRY.json` (new);
+`tools/constitution_registry.py` (new); founder direction (this session,
+2026-07-13: "FOUNDER_DIRECTIVES.md's 17 stand as final" / "new standalone
+registry file (JSON/YAML), stable IDs per principle")
+
+**Decision:** the review found three different constitutional-principle
+counts in play with no single versioned identity — an external SPEC-00
+document defining six, a later external "v2" whitepaper/README framing
+defining eleven, and this repository's own committed
+`docs/FOUNDER_DIRECTIVES.md` defining seventeen. The founder decided
+directly: the seventeen committed directives are the one canonical
+constitutional principle set going forward; SPEC-00 and the v2 framing
+are both superseded as of this decision, wherever they are held (neither
+is committed to this repository, so this decision can only state their
+supersession here, not edit their content). A new generated file,
+`docs/CONSTITUTION_REGISTRY.json`, gives each directive a stable ID
+(`FD-01`…`FD-17`) and an exact SHA-256 digest of its own canonical text
+block, built by a new script, `tools/constitution_registry.py build`
+(with a `check` subcommand that fails if the registry drifts from the
+prose it mirrors). `docs/FOUNDER_DIRECTIVES.md` gained a short
+"Canonical status (D-0090)" section stating this plainly and pointing to
+the registry.
+
+**Reason:** "one machine-readable constitutional source" was the review's
+exact ask, and a hand-maintained registry would reintroduce the same
+drift problem it exists to solve — the founder's own choice (standalone
+generated JSON, stable IDs) keeps `docs/FOUNDER_DIRECTIVES.md` itself the
+single source of prose truth while giving tooling and future reviewers
+something to check a claim against without re-reading and re-numbering
+the document by hand every time.
+
+**Constitutional impact:** Directive 5 (canonical truth is sacred) and
+Directive 14 (simplicity/honesty) both apply directly — one canonical
+principle set, mechanically kept in sync rather than asserted and left to
+drift. No `docs/INVARIANTS.md` row changes: this is a naming/registry
+exercise over already-existing directive text, not a new rule, and does
+not touch `docs/FOUNDER_DIRECTIVES.md`'s substantive content (only adds a
+short status section after "Final Words"/relations material).
+
+**Implementation status:** shipped. `tools/constitution_registry.py`
+parses the seventeen `## Directive N — Title` headings, fails loudly if
+the count or ordering is ever wrong, and emits one JSON object per
+directive (id, number, title, heading, digest, a hand-written one-line
+faithful distillation — the digest, not the distillation, is what
+actually binds an entry to canonical prose). `check` was run and passes
+against the current `docs/FOUNDER_DIRECTIVES.md`.
+
+**Failure point:** the registry is only as current as the last `build`
+run — nothing in CI yet calls `constitution_registry.py check`
+automatically, so a future edit to `docs/FOUNDER_DIRECTIVES.md` that
+forgets to regenerate the registry would leave it silently stale until
+someone runs `check` by hand. Wiring `check` into a CI workflow (parallel
+to the existing `governance-policy.yml`/`governance-canonical.yml`
+baseline checks) is a natural follow-up, not done here to keep this batch
+docs/tooling-only and avoid touching `.github/workflows/` in the same PR
+as a Tier-F-adjacent document edit.
+
+**Required follow-up:** wire `constitution_registry.py check` into CI;
+the `audit-program` P0 item remains explicitly founder-only per founder
+direction this session (no further document produced) — external
+reviewer engagement, budget, and scheduling stay outside repository
+scope.
+
+**Supersedes / superseded by:** supersedes SPEC-00's six-principle
+framing and the external v2 whitepaper/README's eleven-principle
+framing, to the extent either is still treated as authoritative anywhere
+outside this repository; does not alter any directive's substantive text
+or any `docs/INVARIANTS.md` row.
