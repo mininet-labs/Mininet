@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "canonical_source": "docs/FOUNDER_DIRECTIVES.md",
+  "decision": "D-0090",
+  "principle_count": 17,
+  "superseded_sources": [
+    {
+      "name": "SPEC-00",
+      "principle_count": 6,
+      "held": "external, not committed to this repository",
+      "status": "superseded"
+    },
+    {
+      "name": "v2 whitepaper/README",
+      "principle_count": 11,
+      "held": "external, not committed to this repository",
+      "status": "superseded"
+    }
+  ],
+  "directives": [
+    {
+      "id": "FD-01",
+      "number": 1,
+      "title": "Humanity Before Technology",
+      "heading": "## Directive 1 — Humanity Before Technology",
+      "digest": "sha256:61a77277873cc287b8cce69a710b84b1f6cf42c832219009976c8fac203e5caa",
+      "statement": "Whenever technology and human freedom conflict, freedom wins; whenever profit conflicts with the Constitution, the Constitution wins."
+    },
+    {
+      "id": "FD-02",
+      "number": 2,
+      "title": "Assume Every Central Authority Will Eventually Fail",
+      "heading": "## Directive 2 — Assume Every Central Authority Will Eventually Fail",
+      "digest": "sha256:78310748c3e8b58ee7577270c9cec11a507b4c5834a7dd94ff621ca0ffaa51c5",
+      "statement": "Every authority, dependency, server, and maintainer must be assumed temporary, compromisable, or mortal; removing any one of them must never destroy Mininet."
+    },
+    {
+      "id": "FD-03",
+      "number": 3,
+      "title": "The Network Must Outlive Its Creators",
+      "heading": "## Directive 3 — The Network Must Outlive Its Creators",
+      "digest": "sha256:8e3dd8b8631c074201221002c7dfa206ac454b2bf39dc0ff3e2d81871879aaae",
+      "statement": "The protocol must keep functioning without anyone's permission, even if every current contributor disappeared tomorrow."
+    },
+    {
+      "id": "FD-04",
+      "number": 4,
+      "title": "Money Is Never Worth More Than Legitimacy",
+      "heading": "## Directive 4 — Money Is Never Worth More Than Legitimacy",
+      "digest": "sha256:dd3a1855d7f54dc2c1bcee6708121bacec1dfa4224e219f2739dc58b9c698f9c",
+      "statement": "The ledger must always answer \"who owns what\" with certainty; two honest nodes reconciling to different answers means the design is wrong."
+    },
+    {
+      "id": "FD-05",
+      "number": 5,
+      "title": "Canonical Truth Is Sacred",
+      "heading": "## Directive 5 — Canonical Truth Is Sacred",
+      "digest": "sha256:f9d8940907f6e89081301281e3163a3c5eec69ad4b661759fc0a4198fe19d9e3",
+      "statement": "Everything else may merge or disagree, but there is exactly one canonical settlement history, and ownership changes only through canonical consensus, never through offline-invented alternative truth."
+    },
+    {
+      "id": "FD-06",
+      "number": 6,
+      "title": "Design for Failure, Not Success",
+      "heading": "## Directive 6 — Design for Failure, Not Success",
+      "digest": "sha256:d5ff484af6565c22e054ce3e5edcf378b7b9b098936e0ff94082fccb9b7b2e4d",
+      "statement": "Assume every kind of outage, disaster, and compromise will eventually happen; the protocol must degrade gracefully and never panic."
+    },
+    {
+      "id": "FD-07",
+      "number": 7,
+      "title": "Forks Must Remain Free, But Legitimacy Must Be Earned",
+      "heading": "## Directive 7 — Forks Must Remain Free, But Legitimacy Must Be Earned",
+      "digest": "sha256:1c46e0822d062db1f0f694d8eb87a27f19ed8f43db9b610443e7863766e17deb",
+      "statement": "Anyone may fork the code, but a fork inherits no humanity, trust, or continuity — legitimacy is defined by continuous adherence to the Constitution and the verified-human community, not by a repository or trademark."
+    },
+    {
+      "id": "FD-08",
+      "number": 8,
+      "title": "The Human Is the Root of Trust",
+      "heading": "## Directive 8 — The Human Is the Root of Trust",
+      "digest": "sha256:1afd332e918fc14ce5c08439e2a8faee5ddccbf762c2e7cca51bf14e9aac6980",
+      "statement": "Consensus, governance, economics, and recovery all trace back to verified humans, never governments, corporations, validators, token holders, or founders; anything drifting toward institutional trust must be removed."
+    },
+    {
+      "id": "FD-09",
+      "number": 9,
+      "title": "Privacy Is Structural",
+      "heading": "## Directive 9 — Privacy Is Structural",
+      "digest": "sha256:4710d50efb4f461eba9d46a02c09a530499777f2ed96991e57941c8ecf96f3d5",
+      "statement": "Privacy must come from mathematics, never from promises, policies, or ethics — a system that depends on trust to preserve privacy is already broken."
+    },
+    {
+      "id": "FD-10",
+      "number": 10,
+      "title": "Every Optimization Has a Cost",
+      "heading": "## Directive 10 — Every Optimization Has a Cost",
+      "digest": "sha256:75b8671aa7128e0fed3a2d3418c20a42ecbd36522261c52017241fb302697ca7",
+      "statement": "Every shortcut trades something away (memory, security, decentralization, auditability, predictability, human equality); if the trade can't be clearly explained, reject it."
+    },
+    {
+      "id": "FD-11",
+      "number": 11,
+      "title": "The Weakest Device Matters Most",
+      "heading": "## Directive 11 — The Weakest Device Matters Most",
+      "digest": "sha256:bcc42c7a573c6a7d618cc38b11140f503beb8c3e512bc93ed56e2eb16eceade2",
+      "statement": "Engineer for the old phone in a village, not the billionaire's server — a network that serves only powerful hardware serves only powerful people."
+    },
+    {
+      "id": "FD-12",
+      "number": 12,
+      "title": "AI Serves Humanity",
+      "heading": "## Directive 12 — AI Serves Humanity",
+      "digest": "sha256:b160c8b6cdce0b08a3d3638bf4dd5c66d67d56b6c564ad3bada2e2ed029b29c4",
+      "statement": "AI may propose and discover; only humans decide and legitimize. No model, regardless of capability, may become a source of authority."
+    },
+    {
+      "id": "FD-13",
+      "number": 13,
+      "title": "Think in Centuries",
+      "heading": "## Directive 13 — Think in Centuries",
+      "digest": "sha256:6d16c2f5ea0f29e0651363d48d40c5f65557b3f0cfd2ba5f6030af96184005f7",
+      "statement": "Optimize for one hundred years, not the next quarter — choose the solution that survives longer whenever uncertain."
+    },
+    {
+      "id": "FD-14",
+      "number": 14,
+      "title": "Simplicity Is Security",
+      "heading": "## Directive 14 — Simplicity Is Security",
+      "digest": "sha256:d34d1148ac9f4bba671b9c9461ef24f77dc9bc3cb2f9aea37303864a222aba00",
+      "statement": "Every line of code, protocol rule, and dependency is a liability; the strongest protocol is usually the one that removed the most unnecessary parts."
+    },
+    {
+      "id": "FD-15",
+      "number": 15,
+      "title": "Build for the Honest Majority, Defend Against the Malicious Minority",
+      "heading": "## Directive 15 — Build for the Honest Majority, Defend Against the Malicious Minority",
+      "digest": "sha256:efb62a015e7a5d6bba13a40ea38e20f94a5ff19f71b62a355f09265073b92315",
+      "statement": "Welcome those who come to build without trusting those who come to exploit; security should come from incentives, cryptography, and transparency, not suspicion of everyone."
+    },
+    {
+      "id": "FD-16",
+      "number": 16,
+      "title": "Preserve the Voice/Value Wall at All Costs",
+      "heading": "## Directive 16 — Preserve the Voice/Value Wall at All Costs",
+      "digest": "sha256:4c3d4d6637293935cacd812abd3831eff833a75c94c4e10431593a2898a1b21b",
+      "statement": "Money may buy storage, computation, bandwidth, and attention, but never governance — directly, indirectly, or accidentally; any proposal creating even a subtle path from wealth to political power must be rejected."
+    },
+    {
+      "id": "FD-17",
+      "number": 17,
+      "title": "Every Decision Must Survive the \"Future Child\" Test",
+      "heading": "## Directive 17 — Every Decision Must Survive the \"Future Child\" Test",
+      "digest": "sha256:76752a043cfb5064ce40418832232dfe63b78cb5b75f1638fbc1959c671a1d7b",
+      "statement": "Before every major decision, ask whether it makes a child born a century from now, who chose none of this and never knew the founders, more or less free — if less, the decision is wrong."
+    }
+  ]
+}

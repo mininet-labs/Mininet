@@ -323,7 +323,16 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `list_findings` (D-0067) similarly makes free-text review findings a
   real, queryable object instead of PR-description prose.
 - **not started** — an actual external audit engagement (not tracked in
-  code at all — business/process work).
+  code at all — business/process work; founder review's `audit-program`
+  P0 item, confirmed by the founder this session as staying entirely
+  outside repository scope).
+- **shipped** — `docs/CONSTITUTION_REGISTRY.json` (D-0090, founder
+  review's `constitution-registry` P0 item): the seventeen
+  `docs/FOUNDER_DIRECTIVES.md` directives, generated (not hand-maintained)
+  into stable IDs (`FD-01`–`FD-17`) with an exact digest per directive by
+  `tools/constitution_registry.py`, so future reviewers and tooling have
+  one machine-readable source instead of the review-flagged
+  six-vs-eleven-vs-seventeen ambiguity across SPEC-00/v2/this repo.
 
 ## 10. Self-hosted forge spine (D-0066, tracking issue #102)
 
