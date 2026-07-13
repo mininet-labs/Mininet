@@ -5143,3 +5143,115 @@ governance-policy calls.
 mechanism (monotonic → deterministic) and extends its fee-zero-rate fix
 with the overflow fix; does not touch D-0085's replay/domain-separation
 fix, which stands unchanged.
+
+---
+
+### D-0088 — KEL freshness pin + equivocation-evidence consequence routing (founder review P0 items `kel-freshness`/`consensus-evidence`)  ·  *Accepted*
+**Date:** 2026-07-13 · **Refs:** founder review
+`Mininet_In_Depth_Review_20260712.md` §5.1/§5.4 and backlog items
+`kel-freshness`/`consensus-evidence`, roadmap M3, audit #12 finding F4,
+`crates/did-mini/src/freshness.rs`, `crates/did-mini/src/error.rs`,
+`crates/did-mini/tests/recovery.rs`, `crates/mini-consensus/src/consequence.rs`,
+`crates/mini-consensus/src/net.rs`, `crates/mini-consensus/src/node.rs`,
+`crates/mini-consensus/tests/networked_consensus.rs`, Directive 4,
+Directive 14.
+
+**Decision:** two independent, previously-documented-but-unimplemented
+gaps from the founder review are closed with real code:
+
+1. **KEL freshness, the interim rule.** `verify_delegation`'s own doc
+   comment already recommended pinning "the highest `sn` a caller has
+   ever seen per SCID, refusing to go backwards" as the interim defense
+   against a stale-KEL replay (audit #12's F4 finding: a revoked device
+   still looks delegated in an old copy of the root's KEL). That
+   recommendation was prose only. `did_mini::FreshnessPins` is it,
+   implemented: `check_and_pin(&Kel) -> Result<u64>` verifies a KEL
+   normally, then rejects it as `IdentityError::StaleKel` if its `sn` is
+   lower than one already pinned for that SCID, and otherwise advances
+   the pin to the max of what it held and the new `sn`. This closes the
+   *has-already-seen-a-fresher-log* case of the gap; it does not and
+   cannot close the *has-never-seen-one* case — that is exactly what
+   real witness receipts and gossip-based duplicity proofs (SPEC-01 §7,
+   still unbuilt) are for, and this decision does not claim otherwise.
+   `crates/did-mini/tests/recovery.rs`'s existing
+   `stale_root_kel_still_accepts_revoked_device_the_known_freshness_gap`
+   test (which documents the raw gap) is joined by a new
+   `freshness_pins_close_this_exact_gap_for_a_verifier_that_has_seen_the_fresh_kel`
+   test proving the mitigation actually closes it end to end on the
+   identical scenario.
+2. **Equivocation evidence, no longer dropped.** `mini-consensus::net`'s
+   `handle_emits` had, verbatim, `Emit::Equivocation(_) => {}` — real,
+   independently-verifiable proof of double-signing reached the network
+   driver and was discarded on the spot, exactly the "evidence is dropped
+   by the network driver" gap the review's §5.4 names. A new
+   `EquivocatorRegistry` (in a new `consequence` module, deliberately
+   separate from `evidence`'s pure detection/verification role)
+   independently re-verifies every emitted `EquivocationEvidence` via the
+   existing `verify_equivocation` (never trusting the node's own claim)
+   and records the root, deduplicated, if genuine. `run_to_height` now
+   takes `&mut EquivocatorRegistry` and routes every `Emit::Equivocation`
+   through it via a new `ConsensusNode::oracle()` getter. This is
+   explicitly a **role-only** consequence (Directive 4's identity-root/
+   personhood boundary and P2 are both untouched): it does not remove a
+   root from the still-static `ValidatorSet` (dynamic validator-set
+   transitions are separate, larger, later roadmap work, issues #36-#45),
+   and it changes no consensus behavior today — the round driver already
+   counts an equivocator's vote at most once, so safety never depended
+   on this. What changes is that the evidence is no longer thrown away;
+   a future exclusion-from-the-next-epoch or governance-visible-strike
+   mechanism now has something real to query (`is_flagged`,
+   `flagged_count`) instead of nothing.
+
+**Reason:** both gaps were already correctly identified and described in
+this tree's own code comments and test names before the founder review
+named them independently — the review's value here was insisting the
+documented interim mitigation actually get built rather than staying a
+comment. Neither required new cryptography or new protocol design: KEL
+freshness composes `Kel::verify`'s existing output (`KeyState::sn`) with
+a plain per-SCID high-water mark; the evidence registry composes the
+existing `verify_equivocation` with a `HashSet`. Directive 14 (simplicity)
+governed both — no bespoke witness protocol, no partial slashing
+mechanism invented ahead of the validator-set-transition design it would
+actually need to plug into.
+
+**Constitutional impact:** strengthens Directive 4 (two honest nodes
+applying the identical freshness pin, or the identical evidence-recording
+rule, can never disagree because of either) directly. No
+`docs/INVARIANTS.md` row changes: `FreshnessPins` is an interim,
+partial mitigation explicitly documented as such, not a new frozen
+guarantee; `EquivocatorRegistry` assigns no penalty and mutates no
+validator set, so P1/P2 (voice/value wall, one-root-one-vote) are
+unaffected. No voice/value edge in either crate.
+
+**Implementation status:** shipped and tested. `did-mini` gained
+`FreshnessPins` (6 new unit tests in `freshness.rs`) plus the new
+integration test in `recovery.rs` described above.
+`mini-consensus` gained `EquivocatorRegistry`/`RecordOutcome` (4 new unit
+tests in `consequence.rs`); `run_to_height`'s signature changed (a new
+`&mut EquivocatorRegistry` parameter) and its 3 real-socket integration
+tests were updated to pass one and assert `flagged_count() == 0` for
+every honest run. `cargo fmt --all`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` all pass (114 test binaries, 0 failures).
+
+**Failure point:** `FreshnessPins` is in-memory only as shipped; a
+verifier that restarts loses its pins and is exactly as exposed to a
+stale-KEL replay as before this decision until it re-observes a fresh
+KEL. Persisting pins across restarts is a caller responsibility this
+decision does not solve. `EquivocatorRegistry` is likewise in-memory and
+per-process; nothing yet persists or gossips flagged roots across nodes
+or restarts.
+
+**Required follow-up:** real witness receipts, witness diversity rules,
+and gossip-based duplicity proofs (SPEC-01 §7) for the freshness gap's
+harder case; a real validator-set-transition mechanism plus a decision on
+what role-only consequence (exclusion, governance-visible strike,
+economic penalty) `EquivocatorRegistry`'s record should actually trigger
+once one exists (roadmap #36-#45); persistence for both registries across
+restarts, a founder/governance-policy call on retention and scope.
+
+**Supersedes / superseded by:** none. Implements interim mitigations
+this tree's own prior comments (`verify_delegation`'s freshness note,
+`net.rs`'s dropped-evidence comment) already called for; does not alter
+D-0053's recovery mechanism, D-0204's equivocation-detection mechanism,
+or D-0206's transport-confidentiality mechanism.

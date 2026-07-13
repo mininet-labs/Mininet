@@ -9,7 +9,7 @@
 //! as deliberately — what it cannot do (stale-KEL acceptance), so the known
 //! freshness gap is a test-documented fact rather than folklore.
 
-use did_mini::{verify_delegation, Capabilities, Controller, IdentityError, Kel};
+use did_mini::{verify_delegation, Capabilities, Controller, FreshnessPins, IdentityError, Kel};
 use mini_crypto::SigningKey;
 
 const CUR_A: [u8; 32] = [0xA1; 32];
@@ -215,14 +215,43 @@ fn stale_root_kel_still_accepts_revoked_device_the_known_freshness_gap() {
 
     // Fresh KEL: revoked, correctly refused.
     assert!(verify_delegation(&fresh_root_kel, &device.kel()).is_err());
-    // Stale KEL: still accepted — THIS IS THE GAP. If this test ever fails,
-    // the gap has been closed and both this test and the audit doc must be
+    // Stale KEL: still accepted by `verify_delegation` alone — THIS IS THE
+    // GAP. If this assertion ever fails, the gap has been closed at this
+    // layer and this test, the one below, and the audit doc must all be
     // updated to say so.
     assert!(verify_delegation(&stale_root_kel, &device.kel()).is_ok());
     // The defense available today: sn monotonicity. The fresh log is strictly
     // longer; a verifier that pins the highest sn seen per SCID refuses the
-    // stale one.
+    // stale one. See `freshness_pins_close_this_exact_gap_for_a_verifier_that_has_seen_the_fresh_kel`
+    // below for that defense actually exercised end to end.
     assert!(fresh_root_kel.verify().unwrap().sn > stale_root_kel.verify().unwrap().sn);
+}
+
+/// The mitigation the previous test's comment promises, exercised for real:
+/// a verifier using `FreshnessPins` (not `verify_delegation` alone) on this
+/// exact revoked-device scenario refuses the stale root KEL, closing the gap
+/// -- for a verifier that has already seen the fresher log. A verifier who
+/// has *never* seen the fresh KEL has nothing to pin against; that residual
+/// case is exactly what real witness receipts (SPEC-01 §7, still unbuilt)
+/// are for, not something this interim rule claims to solve.
+#[test]
+fn freshness_pins_close_this_exact_gap_for_a_verifier_that_has_seen_the_fresh_kel() {
+    let mut root = Controller::incept_single_from_seeds(&CUR_A, &NXT_A).unwrap();
+    let device = Controller::incept_device_single_from_seeds(&root.did(), &DEV_C, &DEV_N).unwrap();
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .unwrap();
+
+    let stale_root_kel = root.kel();
+    root.revoke_device(&device.did()).unwrap();
+    let fresh_root_kel = root.kel();
+
+    let mut pins = FreshnessPins::new();
+    // The verifier has seen the fresh (post-revocation) KEL at some point...
+    pins.check_and_pin(&fresh_root_kel).unwrap();
+    // ...so a later attempt to hand it the old, pre-revocation snapshot is
+    // rejected before `verify_delegation` would ever get the chance to
+    // (wrongly) accept it.
+    assert!(pins.check_and_pin(&stale_root_kel).is_err());
 }
 
 /// Total loss is total: without the committed next keys, nothing recovers the

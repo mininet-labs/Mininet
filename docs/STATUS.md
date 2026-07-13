@@ -58,8 +58,12 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   connect`/`listen` already use). The **remaining gaps are liveness/DoS and
   deployment, not correctness**: there is no state-sync for a node that
   was down a whole height (re-gossip only re-delivers messages still
-  circulating), the equivocation evidence is produced but nothing
-  *consumes* it yet (no slashing), peers are supplied not discovered,
+  circulating). The equivocation evidence is no longer silently dropped by
+  the network driver (D-0088: `mini_consensus::EquivocatorRegistry`
+  independently re-verifies and records every flagged root instead of
+  discarding the emit), but nothing yet *acts* on a flagged root — no
+  exclusion, no economic penalty, no slashing — since dynamic validator-set
+  transitions don't exist yet. Peers are supplied not discovered,
   `Channel`'s handshake is anonymous so it proves nothing about *which*
   validator is on the other end, and the demonstration is threads over
   loopback. State-sync/catch-up, peer discovery via `mini-net`, acting on
@@ -108,8 +112,13 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   (threshold-policy rewrite, delegated-acting-as-root, seed scrubbing).
   Logic-complete, hardened, tested.
 - **partial / launch-blocking** — KEL freshness & duplicity detection: a
-  stale root KEL still accepts a revoked device (audit #12 F4). Owned by
-  M3 witnesses (SPEC-01 §7). Interim rule: pin highest sn seen per SCID.
+  stale root KEL still accepts a revoked device (audit #12 F4). The
+  interim rule (pin highest sn seen per SCID) is now real code —
+  `did_mini::FreshnessPins` (D-0088) — not only a documented
+  recommendation, closing the case where a verifier has already seen a
+  fresher KEL. Real witness receipts and gossip-based duplicity proofs
+  (SPEC-01 §7, M3) remain the owner of the harder case: a verifier who
+  has *never* seen the fresher log.
 - **not started** — post-quantum migration path
   ([#15](../../issues/15)), device
   hierarchy beyond current single-tier delegation

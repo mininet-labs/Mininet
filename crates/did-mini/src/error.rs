@@ -83,6 +83,10 @@ pub enum IdentityError {
     /// Recovery keys did not match the KEL's standing pre-rotation commitments —
     /// whoever supplied them does not hold the committed next keys.
     RecoveryKeysMismatch,
+    /// A KEL's sequence number was lower than one this verifier has already
+    /// pinned for the same SCID — the interim freshness rule
+    /// ([`crate::FreshnessPins`]) rejecting a stale replay.
+    StaleKel { pinned: u64, got: u64 },
 }
 
 impl fmt::Display for IdentityError {
@@ -155,6 +159,10 @@ impl fmt::Display for IdentityError {
             IdentityError::RecoveryKeysMismatch => write!(
                 f,
                 "recovery keys do not match the KEL's pre-rotation commitments"
+            ),
+            IdentityError::StaleKel { pinned, got } => write!(
+                f,
+                "stale kel: previously pinned sn {pinned}, this kel only reaches sn {got}"
             ),
         }
     }

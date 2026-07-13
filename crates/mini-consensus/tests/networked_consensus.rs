@@ -23,7 +23,7 @@ use std::time::Duration;
 use did_mini::{Capabilities, Controller, Did, Kel};
 use mini_chain::{ValidatorOracle, ValidatorSet};
 use mini_consensus::net::{run_to_height, TcpMesh};
-use mini_consensus::{ConsensusNode, NodeConfig};
+use mini_consensus::{ConsensusNode, EquivocatorRegistry, NodeConfig};
 use mini_crypto::SigningKey;
 use mini_execution::SettlementBlockBody;
 use mini_settlement::sign_claim;
@@ -114,8 +114,20 @@ fn four_nodes_over_a_real_tcp_mesh_finalize_and_converge() {
                 oracle,
                 body_source: Box::new(block_body),
             });
-            run_to_height(&mut node, &mut mesh, TARGET_HEIGHT, Duration::from_secs(30))
-                .expect("every honest node online should finalize the target height");
+            let mut equivocators = EquivocatorRegistry::new();
+            run_to_height(
+                &mut node,
+                &mut mesh,
+                TARGET_HEIGHT,
+                Duration::from_secs(30),
+                &mut equivocators,
+            )
+            .expect("every honest node online should finalize the target height");
+            assert_eq!(
+                equivocators.flagged_count(),
+                0,
+                "no validator equivocated in this run"
+            );
 
             (node.finalized_height(), node.commitment())
         }));
@@ -206,8 +218,16 @@ fn a_crashed_proposer_is_survived_by_view_change_and_the_cluster_still_converges
             });
             // A generous budget: view-change adds a few widening timeouts per
             // skipped proposer, but the height count is small.
-            run_to_height(&mut node, &mut mesh, TARGET_HEIGHT, Duration::from_secs(90))
-                .expect("three online validators (== quorum) must finalize via view-change");
+            let mut equivocators = EquivocatorRegistry::new();
+            run_to_height(
+                &mut node,
+                &mut mesh,
+                TARGET_HEIGHT,
+                Duration::from_secs(90),
+                &mut equivocators,
+            )
+            .expect("three online validators (== quorum) must finalize via view-change");
+            assert_eq!(equivocators.flagged_count(), 0);
             (node.finalized_height(), node.commitment())
         }));
     }
@@ -280,8 +300,16 @@ fn four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip() {
                 oracle,
                 body_source: Box::new(block_body),
             });
-            run_to_height(&mut node, &mut mesh, TARGET_HEIGHT, Duration::from_secs(90))
-                .expect("a connected (if partial) mesh must finalize via re-gossip");
+            let mut equivocators = EquivocatorRegistry::new();
+            run_to_height(
+                &mut node,
+                &mut mesh,
+                TARGET_HEIGHT,
+                Duration::from_secs(90),
+                &mut equivocators,
+            )
+            .expect("a connected (if partial) mesh must finalize via re-gossip");
+            assert_eq!(equivocators.flagged_count(), 0);
             (node.finalized_height(), node.commitment())
         }));
     }

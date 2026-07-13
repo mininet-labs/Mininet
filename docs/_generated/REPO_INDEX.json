@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 34,
-    "files": 456,
+    "files": 458,
     "headings": 1629,
-    "rust_symbols": 3237
+    "rust_symbols": 3272
   },
   "crates": {
     "did-mini": {
@@ -1118,7 +1118,7 @@
       ],
       "lines": 170,
       "path": "README.md",
-      "sha256": "468d6ee9c295c9aa95a6ee17e37cde6f4089e4faa22c027a3006a8ddf91558a1",
+      "sha256": "4fbf9b4120dfd88fd1c3459aa7c7bbc950d6ecd0d81e6fb9f043cedb21d60125",
       "symbols": [],
       "title": "Mininet"
     },
@@ -1782,19 +1782,20 @@
       "title": "use crate::codec::{Reader, Writer};"
     },
     {
-      "bytes": 7426,
+      "bytes": 7856,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
-        "identityerror",
         "event",
+        "identityerror",
         "write",
         "got",
         "fmt",
         "did",
-        "match",
+        "u64",
         "threshold",
         "key",
+        "match",
         "u32",
         "usize",
         "device",
@@ -1802,18 +1803,17 @@
         "identity",
         "field",
         "inception",
-        "u64",
         "keys",
         "root",
         "had",
         "expected",
-        "pre-rotation",
         "valid",
-        "signatures"
+        "signatures",
+        "establishment"
       ],
-      "lines": 173,
+      "lines": 181,
       "path": "crates/did-mini/src/error.rs",
-      "sha256": "d7620a59aecc93b882afe8624d2a12d4639061faef9c3cb84452abaf5509985a",
+      "sha256": "51ff86bfab140e53d336b899bb9bb7ff3ce75c4ee8ca89bb8f899aad080ceb46",
       "symbols": [
         {
           "kind": "enum",
@@ -1822,32 +1822,32 @@
         },
         {
           "kind": "impl",
-          "line": 88,
+          "line": 92,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 93,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 163,
+          "line": 171,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 165,
+          "line": 173,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 166,
+          "line": 174,
           "name": "from"
         },
         {
           "kind": "type",
-          "line": 172,
+          "line": 180,
           "name": "Result"
         }
       ],
@@ -1934,6 +1934,103 @@
         }
       ],
       "title": "use mini_crypto::encoding;"
+    },
+    {
+      "bytes": 6915,
+      "group": "crate:did-mini",
+      "headings": [],
+      "keywords": [
+        "kel",
+        "scid",
+        "pins",
+        "alice",
+        "unwrap",
+        "freshnesspins",
+        "check_and_pin",
+        "self",
+        "pin",
+        "state",
+        "assert_eq",
+        "pinned_sn",
+        "new",
+        "verifier",
+        "pinned",
+        "already",
+        "seen",
+        "what",
+        "log",
+        "one",
+        "identityerror",
+        "verify",
+        "highest_sn_seen",
+        "some"
+      ],
+      "lines": 170,
+      "path": "crates/did-mini/src/freshness.rs",
+      "sha256": "d913d8dcb62eeed2cdc474321aeaf6c94f8ccfa64621e07ccfec5525188258b5",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 32,
+          "name": "FreshnessPins"
+        },
+        {
+          "kind": "impl",
+          "line": 36,
+          "name": "FreshnessPins"
+        },
+        {
+          "kind": "fn",
+          "line": 38,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 44,
+          "name": "pinned_sn"
+        },
+        {
+          "kind": "fn",
+          "line": 58,
+          "name": "check_and_pin"
+        },
+        {
+          "kind": "mod",
+          "line": 78,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 83,
+          "name": "a_fresh_scid_is_pinned_on_first_check"
+        },
+        {
+          "kind": "fn",
+          "line": 93,
+          "name": "a_kel_that_advances_the_pin_is_accepted_and_raises_it"
+        },
+        {
+          "kind": "fn",
+          "line": 105,
+          "name": "a_stale_kel_below_the_pin_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 126,
+          "name": "re_checking_the_same_kel_twice_is_accepted_and_does_not_regress"
+        },
+        {
+          "kind": "fn",
+          "line": 138,
+          "name": "distinct_scids_are_pinned_independently"
+        },
+        {
+          "kind": "fn",
+          "line": 150,
+          "name": "an_internally_invalid_kel_is_rejected_before_any_freshness_check"
+        }
+      ],
+      "title": "use std::collections::HashMap;"
     },
     {
       "bytes": 4694,
@@ -2130,7 +2227,7 @@
       "title": "use mini_crypto::VerifyingKey;"
     },
     {
-      "bytes": 4601,
+      "bytes": 4650,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -2157,11 +2254,11 @@
         "did-mini",
         "base_device",
         "error",
-        "identity_mode"
+        "freshness"
       ],
-      "lines": 129,
+      "lines": 131,
       "path": "crates/did-mini/src/lib.rs",
-      "sha256": "baf42db1df0443314267d5dd2e957230c4c3f8f64b9c6126d8f03963744d4692",
+      "sha256": "086945462283579c0514525c81a9b07816916608753a80efa77630155af47728",
       "symbols": [
         {
           "kind": "mod",
@@ -2196,66 +2293,71 @@
         {
           "kind": "mod",
           "line": 56,
-          "name": "identity_mode"
+          "name": "freshness"
         },
         {
           "kind": "mod",
           "line": 57,
-          "name": "kel"
+          "name": "identity_mode"
         },
         {
           "kind": "mod",
           "line": 58,
+          "name": "kel"
+        },
+        {
+          "kind": "mod",
+          "line": 59,
           "name": "limits"
         },
         {
           "kind": "const",
-          "line": 71,
+          "line": 73,
           "name": "METHOD"
         },
         {
           "kind": "struct",
-          "line": 78,
-          "name": "Did"
-        },
-        {
-          "kind": "impl",
           "line": 80,
           "name": "Did"
         },
         {
+          "kind": "impl",
+          "line": 82,
+          "name": "Did"
+        },
+        {
           "kind": "fn",
-          "line": 83,
+          "line": 85,
           "name": "from_scid"
         },
         {
           "kind": "fn",
-          "line": 93,
+          "line": 95,
           "name": "parse"
         },
         {
           "kind": "fn",
-          "line": 104,
+          "line": 106,
           "name": "scid"
         },
         {
           "kind": "fn",
-          "line": 109,
+          "line": 111,
           "name": "as_str"
         },
         {
           "kind": "impl",
-          "line": 114,
+          "line": 116,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 115,
+          "line": 117,
           "name": "fmt"
         },
         {
           "kind": "fn",
-          "line": 120,
+          "line": 122,
           "name": "validate_scid"
         }
       ],
@@ -2711,7 +2813,7 @@
       "title": "use did_mini::{Controller, IdentityError};"
     },
     {
-      "bytes": 10740,
+      "bytes": 12385,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -2740,9 +2842,9 @@
         "evil",
         "current"
       ],
-      "lines": 250,
+      "lines": 279,
       "path": "crates/did-mini/tests/recovery.rs",
-      "sha256": "1ad414e007ccd47188bfc69041d24e26cb9cc9bbb714b22b7bc30e36d4a25761",
+      "sha256": "d4f050674b6130a4659c18519ce740f6e80d68aa300f4c6ccaacd34d65955865",
       "symbols": [
         {
           "kind": "const",
@@ -2811,11 +2913,16 @@
         },
         {
           "kind": "fn",
-          "line": 233,
+          "line": 238,
+          "name": "freshness_pins_close_this_exact_gap_for_a_verifier_that_has_seen_the_fresh_kel"
+        },
+        {
+          "kind": "fn",
+          "line": 262,
           "name": "nothing_recovers_an_identity_without_the_committed_keys"
         }
       ],
-      "title": "use did_mini::{verify_delegation, Capabilities, Controller, IdentityError, Kel};"
+      "title": "use did_mini::{verify_delegation, Capabilities, Controller, FreshnessPins, IdentityError, Kel};"
     },
     {
       "bytes": 612,
@@ -8914,6 +9021,138 @@
       "title": "[package]"
     },
     {
+      "bytes": 8438,
+      "group": "crate:mini-consensus",
+      "headings": [],
+      "keywords": [
+        "root",
+        "evidence",
+        "did",
+        "self",
+        "kel",
+        "directory",
+        "flagged",
+        "device",
+        "recordoutcome",
+        "controller",
+        "equivocatorregistry",
+        "insert",
+        "equivocation",
+        "seed",
+        "validator",
+        "validatororacle",
+        "registry",
+        "never",
+        "default",
+        "scid",
+        "consequence",
+        "record",
+        "dir",
+        "real"
+      ],
+      "lines": 229,
+      "path": "crates/mini-consensus/src/consequence.rs",
+      "sha256": "718fe5a94ff6d58f2a2d650a47afe6e216fcdbcf95cfaff07344e42e44f6dbb1",
+      "symbols": [
+        {
+          "kind": "enum",
+          "line": 33,
+          "name": "RecordOutcome"
+        },
+        {
+          "kind": "struct",
+          "line": 48,
+          "name": "EquivocatorRegistry"
+        },
+        {
+          "kind": "impl",
+          "line": 52,
+          "name": "EquivocatorRegistry"
+        },
+        {
+          "kind": "fn",
+          "line": 54,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 59,
+          "name": "record"
+        },
+        {
+          "kind": "fn",
+          "line": 76,
+          "name": "is_flagged"
+        },
+        {
+          "kind": "fn",
+          "line": 81,
+          "name": "flagged_count"
+        },
+        {
+          "kind": "mod",
+          "line": 87,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 95,
+          "name": "validator"
+        },
+        {
+          "kind": "struct",
+          "line": 109,
+          "name": "Directory"
+        },
+        {
+          "kind": "impl",
+          "line": 110,
+          "name": "Directory"
+        },
+        {
+          "kind": "fn",
+          "line": 111,
+          "name": "insert"
+        },
+        {
+          "kind": "impl",
+          "line": 115,
+          "name": "ValidatorOracle"
+        },
+        {
+          "kind": "fn",
+          "line": 116,
+          "name": "kel"
+        },
+        {
+          "kind": "fn",
+          "line": 121,
+          "name": "dir"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "genuine_evidence_newly_flags_its_root"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "the_same_root_is_not_double_counted_across_separate_accusations"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "invalid_evidence_flags_nothing"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "distinct_equivocating_roots_are_flagged_independently"
+        }
+      ],
+      "title": "use std::collections::HashSet;"
+    },
+    {
       "bytes": 2583,
       "group": "crate:mini-consensus",
       "headings": [],
@@ -9143,7 +9382,7 @@
       "title": "use mini_chain::{verify_vote, ValidatorOracle, Vote, VoteKind};"
     },
     {
-      "bytes": 6921,
+      "bytes": 7183,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -9172,45 +9411,50 @@
         "same",
         "path"
       ],
-      "lines": 117,
+      "lines": 122,
       "path": "crates/mini-consensus/src/lib.rs",
-      "sha256": "c366e7635f8f26b0c38a7bdc1e4ef07914797c7fed76db3d54329a221dc183ad",
+      "sha256": "01cf7e0294bbfc1bd16117f968582f92cce0b7b41929b0f384410d76c55d3e18",
       "symbols": [
         {
           "kind": "mod",
-          "line": 104,
-          "name": "error"
-        },
-        {
-          "kind": "mod",
-          "line": 105,
-          "name": "evidence"
-        },
-        {
-          "kind": "mod",
-          "line": 106,
-          "name": "node"
-        },
-        {
-          "kind": "mod",
           "line": 107,
-          "name": "round"
+          "name": "consequence"
         },
         {
           "kind": "mod",
           "line": 108,
-          "name": "wire"
+          "name": "error"
+        },
+        {
+          "kind": "mod",
+          "line": 109,
+          "name": "evidence"
         },
         {
           "kind": "mod",
           "line": 110,
+          "name": "node"
+        },
+        {
+          "kind": "mod",
+          "line": 111,
+          "name": "round"
+        },
+        {
+          "kind": "mod",
+          "line": 112,
+          "name": "wire"
+        },
+        {
+          "kind": "mod",
+          "line": 114,
           "name": "net"
         }
       ],
-      "title": "mod error;"
+      "title": "mod consequence;"
     },
     {
-      "bytes": 29147,
+      "bytes": 30179,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -9239,180 +9483,180 @@
         "time",
         "but"
       ],
-      "lines": 670,
+      "lines": 705,
       "path": "crates/mini-consensus/src/net.rs",
-      "sha256": "6db3fa79e5a2ab996f4401310c3610c97782506c40b7108adb504c34965e09a7",
+      "sha256": "3aec8219000a8661bd66d76aba2515929527bc81e371752643b5ead95deaa5c0",
       "symbols": [
         {
           "kind": "const",
-          "line": 62,
+          "line": 63,
           "name": "CONSENSUS_AAD"
         },
         {
           "kind": "const",
-          "line": 68,
+          "line": 69,
           "name": "HANDSHAKE_TIMEOUT"
         },
         {
           "kind": "const",
-          "line": 78,
+          "line": 79,
           "name": "CIPHERTEXT_FRAME_OVERHEAD"
         },
         {
           "kind": "const",
-          "line": 84,
+          "line": 85,
           "name": "MAX_LINK_OUTBOUND_BYTES"
         },
         {
           "kind": "const",
-          "line": 89,
+          "line": 90,
           "name": "MAX_SEEN_MESSAGES"
         },
         {
           "kind": "fn",
-          "line": 94,
+          "line": 95,
           "name": "message_id"
         },
         {
           "kind": "struct",
-          "line": 103,
+          "line": 104,
           "name": "SeenCache"
         },
         {
           "kind": "impl",
-          "line": 109,
+          "line": 110,
           "name": "SeenCache"
         },
         {
           "kind": "fn",
-          "line": 110,
+          "line": 111,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 120,
+          "line": 121,
           "name": "insert"
         },
         {
           "kind": "const",
-          "line": 135,
+          "line": 136,
           "name": "READ_CHUNK_BYTES"
         },
         {
           "kind": "struct",
-          "line": 144,
+          "line": 145,
           "name": "Link"
         },
         {
           "kind": "impl",
-          "line": 154,
+          "line": 155,
           "name": "Link"
         },
         {
           "kind": "fn",
-          "line": 162,
+          "line": 163,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 197,
           "name": "queue"
         },
         {
           "kind": "fn",
-          "line": 214,
+          "line": 215,
           "name": "flush"
         },
         {
           "kind": "fn",
-          "line": 240,
+          "line": 241,
           "name": "service"
         },
         {
           "kind": "struct",
-          "line": 283,
+          "line": 284,
           "name": "TcpMesh"
         },
         {
           "kind": "impl",
-          "line": 287,
+          "line": 288,
           "name": "TcpMesh"
         },
         {
           "kind": "fn",
-          "line": 301,
+          "line": 302,
           "name": "establish"
         },
         {
           "kind": "fn",
-          "line": 339,
+          "line": 340,
           "name": "establish_topology"
         },
         {
           "kind": "fn",
-          "line": 369,
+          "line": 370,
           "name": "broadcast"
         },
         {
           "kind": "fn",
-          "line": 380,
+          "line": 381,
           "name": "poll"
         },
         {
           "kind": "fn",
-          "line": 394,
+          "line": 395,
           "name": "handshake_send"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 406,
           "name": "handshake_recv"
         },
         {
           "kind": "fn",
-          "line": 422,
+          "line": 423,
           "name": "connect_with_retry"
         },
         {
           "kind": "const",
-          "line": 445,
+          "line": 446,
           "name": "TIMEOUT_BASE"
         },
         {
           "kind": "struct",
-          "line": 449,
+          "line": 450,
           "name": "Timer"
         },
         {
           "kind": "fn",
-          "line": 465,
+          "line": 470,
           "name": "run_to_height"
         },
         {
           "kind": "fn",
-          "line": 534,
+          "line": 562,
           "name": "handle_emits"
         },
         {
           "kind": "mod",
-          "line": 571,
+          "line": 606,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 575,
+          "line": 610,
           "name": "a_peer_that_never_reads_cannot_block_us_or_grow_our_buffer_past_the_cap"
         },
         {
           "kind": "fn",
-          "line": 609,
+          "line": 644,
           "name": "queued_frames_cross_the_wire_as_ciphertext_never_plaintext"
         }
       ],
       "title": "use std::io::{Read, Write};"
     },
     {
-      "bytes": 27089,
+      "bytes": 27367,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -9441,9 +9685,9 @@
         "consensusmessage",
         "timer"
       ],
-      "lines": 692,
+      "lines": 699,
       "path": "crates/mini-consensus/src/node.rs",
-      "sha256": "45453b80afd663cf6b2c4aa7579f2fa8ac7ff14234a41f89c0a55b5806bc259e",
+      "sha256": "c7435754d59e6a8311200de79badda0e6025d04cf3132f098cadd3d77916ef4a",
       "symbols": [
         {
           "kind": "type",
@@ -9517,142 +9761,147 @@
         },
         {
           "kind": "fn",
-          "line": 165,
+          "line": 167,
+          "name": "oracle"
+        },
+        {
+          "kind": "fn",
+          "line": 172,
           "name": "start"
         },
         {
           "kind": "fn",
-          "line": 173,
+          "line": 180,
           "name": "on_message"
         },
         {
           "kind": "fn",
-          "line": 181,
+          "line": 188,
           "name": "on_timeout"
         },
         {
           "kind": "fn",
-          "line": 190,
+          "line": 197,
           "name": "ingest"
         },
         {
           "kind": "fn",
-          "line": 234,
+          "line": 241,
           "name": "proposal_is_authentic"
         },
         {
           "kind": "fn",
-          "line": 254,
+          "line": 261,
           "name": "validate_proposal"
         },
         {
           "kind": "fn",
-          "line": 279,
+          "line": 286,
           "name": "drive"
         },
         {
           "kind": "fn",
-          "line": 345,
+          "line": 352,
           "name": "build_proposal"
         },
         {
           "kind": "fn",
-          "line": 388,
+          "line": 395,
           "name": "commit"
         },
         {
           "kind": "mod",
-          "line": 424,
+          "line": 431,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 434,
+          "line": 441,
           "name": "validator"
         },
         {
           "kind": "struct",
-          "line": 448,
+          "line": 455,
           "name": "Directory"
         },
         {
           "kind": "impl",
-          "line": 449,
+          "line": 456,
           "name": "Directory"
         },
         {
           "kind": "fn",
-          "line": 450,
+          "line": 457,
           "name": "insert"
         },
         {
           "kind": "impl",
-          "line": 454,
+          "line": 461,
           "name": "ValidatorOracle"
         },
         {
           "kind": "fn",
-          "line": 455,
+          "line": 462,
           "name": "kel"
         },
         {
           "kind": "fn",
-          "line": 460,
+          "line": 467,
           "name": "body"
         },
         {
           "kind": "struct",
-          "line": 466,
+          "line": 473,
           "name": "Fx"
         },
         {
           "kind": "fn",
-          "line": 472,
+          "line": 479,
           "name": "fixture"
         },
         {
           "kind": "fn",
-          "line": 488,
+          "line": 495,
           "name": "a_node"
         },
         {
           "kind": "fn",
-          "line": 505,
+          "line": 512,
           "name": "proposer_index"
         },
         {
           "kind": "fn",
-          "line": 515,
+          "line": 522,
           "name": "proposal_from"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 537,
           "name": "prevoted"
         },
         {
           "kind": "fn",
-          "line": 538,
+          "line": 545,
           "name": "a_proposal_from_the_designated_proposer_is_prevoted"
         },
         {
           "kind": "fn",
-          "line": 552,
+          "line": 559,
           "name": "a_signed_proposal_from_the_wrong_proposer_is_dropped"
         },
         {
           "kind": "fn",
-          "line": 568,
+          "line": 575,
           "name": "a_proposal_with_a_forged_signature_is_dropped"
         },
         {
           "kind": "fn",
-          "line": 604,
+          "line": 611,
           "name": "a_proposal_whose_timestamp_is_not_deterministic_is_prevoted_nil"
         },
         {
           "kind": "fn",
-          "line": 651,
+          "line": 658,
           "name": "a_proposer_cannot_use_an_increasing_timestamp_to_evade_the_deterministic_check"
         }
       ],
@@ -10258,7 +10507,7 @@
       "title": "use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 12414,
+      "bytes": 13227,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -10266,30 +10515,30 @@
         "height",
         "root",
         "did",
-        "every",
-        "node",
-        "unwrap",
         "validator",
+        "every",
         "device",
+        "unwrap",
         "directory",
         "controller",
-        "vec",
+        "node",
+        "new",
         "oracle",
         "insert",
         "target_height",
         "seed",
-        "new",
-        "map",
-        "collect",
+        "vec",
         "real",
         "listener",
         "mesh",
         "std",
-        "clone"
+        "clone",
+        "self",
+        "signers"
       ],
-      "lines": 303,
+      "lines": 331,
       "path": "crates/mini-consensus/tests/networked_consensus.rs",
-      "sha256": "c3c7a57e6f5d240678098d14b5c929efc2af88a1c7d3c74667391ea26b50ac17",
+      "sha256": "863fe9823d806f0bc7dd496724b79d5257cf1440e89310ea3b849f64cd8295f9",
       "symbols": [
         {
           "kind": "fn",
@@ -10343,42 +10592,42 @@
         },
         {
           "kind": "fn",
-          "line": 162,
+          "line": 174,
           "name": "a_crashed_proposer_is_survived_by_view_change_and_the_cluster_still_converges"
         },
         {
           "kind": "const",
-          "line": 163,
+          "line": 175,
           "name": "N_VALIDATORS"
         },
         {
           "kind": "const",
-          "line": 164,
+          "line": 176,
           "name": "N_ONLINE"
         },
         {
           "kind": "const",
-          "line": 165,
+          "line": 177,
           "name": "TARGET_HEIGHT"
         },
         {
           "kind": "fn",
-          "line": 238,
+          "line": 258,
           "name": "four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip"
         },
         {
           "kind": "const",
-          "line": 239,
+          "line": 259,
           "name": "N"
         },
         {
           "kind": "const",
-          "line": 240,
+          "line": 260,
           "name": "TARGET_HEIGHT"
         },
         {
           "kind": "fn",
-          "line": 243,
+          "line": 263,
           "name": "neighbors"
         }
       ],
@@ -29898,7 +30147,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 304876,
+      "bytes": 311706,
       "group": "docs",
       "headings": [
         {
@@ -30306,10 +30555,10 @@
         "accepted",
         "founder",
         "batch",
+        "review",
         "real",
         "decision",
         "log",
-        "review",
         "core",
         "rust",
         "chain",
@@ -30328,9 +30577,9 @@
         "provenance",
         "explicit"
       ],
-      "lines": 5146,
+      "lines": 5258,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "102dd93e517942643b035a506ba78cf57cb619ff14ab59b80490f47911246463",
+      "sha256": "2eed72cbb90951f48cee8328a8ac1a3c6d36f93ba042f9b017d0913fddd47ae1",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -31183,7 +31432,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 32328,
+      "bytes": 32922,
       "group": "docs",
       "headings": [
         {
@@ -31198,89 +31447,89 @@
         },
         {
           "level": 2,
-          "line": 70,
+          "line": 74,
           "text": "2. Personhood"
         },
         {
           "level": 2,
-          "line": 101,
+          "line": 105,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 119,
+          "line": 128,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 180,
+          "line": 189,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 223,
+          "line": 232,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 231,
+          "line": 240,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 272,
+          "line": 281,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 288,
+          "line": 297,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 308,
+          "line": 317,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 503,
+          "line": 512,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 509,
+          "line": 518,
           "text": "Where to look for more detail"
         }
       ],
       "keywords": [
         "status",
         "real",
-        "review",
         "one",
         "code",
         "height",
         "implementation",
         "shipped",
         "now",
-        "founder",
+        "review",
         "two",
+        "yet",
         "governance",
         "proposer",
         "mesh",
-        "still",
+        "every",
         "closing",
         "equivocation",
         "validator",
         "consensus",
-        "issues",
         "voice",
         "value",
         "personhood",
-        "finality"
+        "finality",
+        "storage"
       ],
-      "lines": 519,
+      "lines": 528,
       "path": "docs/STATUS.md",
-      "sha256": "59fb7ede8e4a795e7b8f57924bbc4aafac9e3e030b935e9efcea6e3b6ba55d24",
+      "sha256": "0b674702e1d51c64bcd2e9e5eeb495a20d93f2df7091980deadeec9d0f6913c0",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -31392,7 +31641,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 20566,
+      "bytes": 22049,
       "group": "docs",
       "headings": [
         {
@@ -31422,22 +31671,22 @@
         },
         {
           "level": 2,
-          "line": 76,
+          "line": 78,
           "text": "3. Economic threats \u2014 the currency dying without anyone attacking it"
         },
         {
           "level": 2,
-          "line": 85,
+          "line": 87,
           "text": "4. Political threats \u2014 states and infrastructure gatekeepers"
         },
         {
           "level": 2,
-          "line": 94,
+          "line": 96,
           "text": "5. Civilization-scale threats \u2014 beyond any single actor"
         },
         {
           "level": 2,
-          "line": 113,
+          "line": 115,
           "text": "What this document is not"
         }
       ],
@@ -31467,9 +31716,9 @@
         "single",
         "decision_log"
       ],
-      "lines": 128,
+      "lines": 130,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "d8de5a91b345a79e9cd788e2815c28501599ba1bc588d67a2c3b87c6d26ebf02",
+      "sha256": "1ed5c4fc718700145e3c2fe7e1672aa859b136c9ec1cf852d2898a816ba35d48",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },

@@ -72,9 +72,12 @@
 //!   lossless. The *transport* no longer drops traffic to a merely-slow peer
 //!   (see [`net::TcpMesh`]'s non-blocking buffered links), but a genuinely
 //!   dropped or partitioned message is still not re-delivered.
-//! - **No equivocation slashing or evidence.** A validator that double-signs
-//!   is counted at most once per root (P2) and cannot manufacture a quorum,
-//!   but this crate neither detects nor punishes the attempt.
+//! - **No equivocation slashing.** A validator that double-signs is counted
+//!   at most once per root (P2) and cannot manufacture a quorum; the attempt
+//!   *is* detected, verified, and recorded ([`verify_equivocation`],
+//!   [`EquivocatorRegistry`]), but nothing yet acts on that record — no
+//!   exclusion from a future validator epoch, no economic penalty, no
+//!   governance-visible strike.
 //! - **Static validator set.** The set is fixed for a run; on-chain
 //!   validator-set changes are separate, later work.
 //! - **[`net::TcpMesh`] is transport, not discovery.** It assumes every
@@ -101,6 +104,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod consequence;
 mod error;
 mod evidence;
 mod node;
@@ -109,6 +113,7 @@ mod wire;
 
 pub mod net;
 
+pub use consequence::{EquivocatorRegistry, RecordOutcome};
 pub use error::{ConsensusError, Result};
 pub use evidence::{verify_equivocation, EquivocationEvidence};
 pub use node::{ConsensusNode, Emit, NodeConfig};
