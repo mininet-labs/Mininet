@@ -24,7 +24,6 @@ pub struct LedgerChain {
     height: u64,
     tip_hash: [u8; 32],
     state: LedgerState,
-    last_timestamp_ms: u64,
 }
 
 impl LedgerChain {
@@ -36,7 +35,6 @@ impl LedgerChain {
             height: 0,
             tip_hash: [0u8; 32],
             state: LedgerState::new(),
-            last_timestamp_ms: 0,
         }
     }
 
@@ -49,12 +47,6 @@ impl LedgerChain {
     /// must equal.
     pub fn tip_hash(&self) -> [u8; 32] {
         self.tip_hash
-    }
-
-    /// The current tip's `timestamp_ms` — what the next block's
-    /// `timestamp_ms` must strictly exceed (roadmap #44).
-    pub fn last_timestamp_ms(&self) -> u64 {
-        self.last_timestamp_ms
     }
 
     /// A read-only view of the current finalized settlement state — pass
@@ -89,9 +81,9 @@ impl LedgerChain {
         if header.prev_hash != self.tip_hash {
             return Err(ExecutionError::WrongParent);
         }
-        if header.timestamp_ms <= self.last_timestamp_ms {
-            return Err(ExecutionError::NonMonotonicTimestamp {
-                previous: self.last_timestamp_ms,
+        if header.timestamp_ms != expected_height {
+            return Err(ExecutionError::TimestampNotDeterministic {
+                expected: expected_height,
                 got: header.timestamp_ms,
             });
         }
@@ -113,7 +105,6 @@ impl LedgerChain {
         self.height = header.height;
         self.tip_hash = header.hash();
         self.state = next_state;
-        self.last_timestamp_ms = header.timestamp_ms;
         Ok(commitment)
     }
 }

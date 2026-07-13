@@ -16,7 +16,10 @@ pub struct BlockHeader {
     /// Commitment to the post-block application state (content-addressed,
     /// meaning left to the state machine that eventually anchors here).
     pub state_root: [u8; 32],
-    /// Proposer-claimed creation time (ms). Ordering hint, not a proof.
+    /// Protocol timestamp. `mini-consensus` fixes this to the block height
+    /// as deterministic logical time — a signature only proves who proposed
+    /// a value, never that it reflects real time, so no consumer of this
+    /// field may treat it as proposer-supplied wall time.
     pub timestamp_ms: u64,
     /// The proposing validator's identity root.
     pub proposer: Did,

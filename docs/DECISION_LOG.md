@@ -5030,3 +5030,116 @@ fix — it only prevents the naming from overstating progress on it.
 
 **Supersedes / superseded by:** none. Purely a naming clarification on
 top of D-0054's `HumanStatus` accumulator; does not alter its behavior.
+
+---
+
+### D-0087 — Tighten timestamps to deterministic logical time; fix fee-conversion overflow (roadmap #44, reconciles PR #121)  ·  *Accepted*
+**Date:** 2026-07-13 · **Refs:** roadmap #44, D-0085, PR #121
+(`agent/issue-44-consensus-edge-cases`), `crates/mini-execution/src/chain.rs`,
+`crates/mini-execution/src/error.rs`, `crates/mini-consensus/src/node.rs`,
+`crates/mini-chain/src/block.rs`, `crates/mini-value/src/fee.rs`,
+`crates/mini-value/src/error.rs`, `docs/audits/issue-44-consensus-edge-cases.md`,
+`docs/THREAT_MODEL.md` §2, Directive 4, Directive 14.
+
+**Decision:** two independent AI sessions were directed at issue #44 in
+parallel against the same pre-D-0085 `main`: this repository's own PR #119
+(shipped as D-0085) and a second review submitted as PR #121. Rather than
+merging two diverging fixes for the same already-shipped mechanism, PR
+#121's diff was read in full and reconciled here on top of the already-
+merged D-0085, keeping what was genuinely stronger and skipping what was
+redundant with D-0085's own fix:
+
+1. **Timestamps, tightened.** D-0085 required each block's `timestamp_ms`
+   to strictly exceed the previous finalized block's. PR #121 correctly
+   noted the residual gap: a merely-increasing value still lets a
+   malicious proposer jump straight to `u64::MAX` in one step. Adopted
+   PR #121's stronger design instead: `timestamp_ms` is deterministic
+   logical time, required to equal the block's own height exactly, in
+   both `LedgerChain::apply_finalized_block` (the authoritative gate) and
+   `mini-consensus`'s `validate_proposal` (the cheap early filter). The
+   proposer now has no discretion over this field at all, not merely a
+   bound on it (Directive 14: the smaller, fully-determined rule beats a
+   bespoke bound). `LedgerChain::last_timestamp_ms()` is removed — it is
+   now redundant with `height()`, and an unused getter is worse than none.
+2. **Fee-conversion overflow, a genuine new finding.** PR #121 found a
+   real, previously-undetected bug D-0085 did not touch:
+   `fee_in_micro_mini`'s final step cast a `u128` intermediate down to
+   `u64` with `as`, which truncates silently on overflow instead of
+   failing — `fee_in_micro_mini(u64::MAX, u64::MAX)` produced a wrong,
+   wrapped-around fee rather than an error, despite the function's own doc
+   comment claiming overflow safety. `fee_in_micro_mini` now returns
+   `Result<u64>`, using `u64::try_from` to reject an unrepresentable quote
+   as a new `ValueError::FeeOverflow`. It also now rejects a zero rate
+   directly (not only at `PriceHistory::add_entry`'s ingress), matching
+   PR #121's "defense in depth" framing — a `PriceEntry`'s fields are
+   public, so a zero rate can reach the conversion function without ever
+   passing through `add_entry`. A new `PriceHistory::fee_at` convenience
+   method (also PR #121's idea) binds historical lookup and checked
+   conversion into one call, closing the accidental-current-rate-on-
+   historical-work footgun of two separate calls.
+3. **Not adopted from PR #121:** its `signed_vote_cannot_be_replayed_in_
+   another_context` test. Reading it closely, it only proves ordinary
+   signature field-integrity (mutating a signed vote's fields breaks
+   verification), which was already trivially true before and after
+   D-0085 — it does not exercise the actual cross-domain-type confusion
+   D-0085's `VOTE_SIGN_DOMAIN` fix closed. No behavior gap remained to
+   pull forward from it.
+
+`ExecutionError::NonMonotonicTimestamp` is renamed to
+`TimestampNotDeterministic { expected, got }` since its old name no
+longer describes the check (Directive 14/"honesty over polish": an
+inaccurate name for a shipped error is a bug, not a compatibility
+concern, in a pre-audit, no-external-consumers workspace). Existing tests
+referencing the old monotonic behavior are updated to the new
+deterministic-time semantics, not merely renamed to keep passing.
+
+**Reason:** the founder's own review-response instruction was to decide
+and get `main` green rather than merge two independently-authored,
+behaviorally-conflicting fixes for the same already-closed issue. PR
+#121 turned out to contain one genuinely stronger design (deterministic
+time) and one genuinely new, real bug fix (overflow) worth keeping; both
+are adopted here under this repository's own review/test/decision
+discipline rather than merging its PR as-is.
+
+**Constitutional impact:** strengthens Directive 4 (two honest chains
+enforcing an identical, now fully-deterministic timestamp rule can never
+disagree because of it) and Directive 14 (the simpler, total rule
+replaces a partial bound) directly. No `docs/INVARIANTS.md` row changes —
+hardening within an already-decided construction, not a new invariant. No
+voice/value edge: the fee fix rejects objectively-broken values (zero,
+unrepresentable), it adds no authorization or governance rule.
+
+**Implementation status:** shipped and tested. `mini-execution`'s
+`a_timestamp_that_does_not_equal_the_block_height_is_rejected` replaces
+the old monotonicity test; `mini-consensus` gained
+`a_proposer_cannot_use_an_increasing_timestamp_to_evade_the_deterministic_check`
+alongside the renamed `a_proposal_whose_timestamp_is_not_deterministic_is_
+prevoted_nil`. `mini-value` gained
+`fee_overflow_is_rejected_instead_of_silently_truncated`,
+`a_zero_rate_is_rejected_at_quote_time_too_not_only_at_ingress`, and
+`fee_at_binds_historical_lookup_and_checked_conversion_in_one_call`.
+`docs/audits/issue-44-consensus-edge-cases.md` records the full review
+across both decisions with attribution to PR #121. `docs/THREAT_MODEL.md`
+§2's three D-0085 rows are updated in place (its "never edit merged
+content" rule applies to `DECISION_LOG.md` entries specifically, not to
+the living threat register, which is expected to track current reality)
+plus their stray `D-0083` citations — a leftover from D-0085's own
+pre-merge renumbering — corrected to `D-0085`.
+
+**Failure point:** if `mini-consensus`'s block-building path (`build_
+proposal`) is ever changed to set `timestamp_ms` to anything other than
+`height`, every proposal it produces will be self-rejected as non-
+deterministic by every honest validator including its own author —
+loud, not silent, and this is the intended fail-closed behavior, not a
+bug to work around.
+
+**Required follow-up:** unchanged from D-0085 — a real wall-clock
+consensus protocol (separate, larger, not started), a chain-id/network-id
+concept for multi-deployment replay resistance, and a rate-limit/max-jump
+bound plus real authorization on `PriceHistory::add_entry`, both founder/
+governance-policy calls.
+
+**Supersedes / superseded by:** partially supersedes D-0085's timestamp
+mechanism (monotonic → deterministic) and extends its fee-zero-rate fix
+with the overflow fix; does not touch D-0085's replay/domain-separation
+fix, which stands unchanged.
