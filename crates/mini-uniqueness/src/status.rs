@@ -24,7 +24,7 @@
 //!   evidence into one score and decides [`HumanStatus`]: an identity
 //!   starts `Unverified`, reaches `VouchedHuman` quickly once *any* modest
 //!   trusted evidence exists (fast-path, e.g. one social vouch), and is
-//!   promoted to `FullHuman` **only automatically**, requiring a high
+//!   promoted to `EvidenceQualifiedHuman` **only automatically**, requiring a high
 //!   fused score, evidence from several distinct sources, *and* a minimum
 //!   elapsed time since the record's first evidence — never all at once,
 //!   however strong a single signal is.
@@ -34,7 +34,7 @@
 //! No individual signal has to be unbreakable. A farm must satisfy several
 //! *independent* verification methods (each with its own real-world cost
 //! to fake), sustain them long enough that decay doesn't erase them, and
-//! wait out the mandatory minimum age before `FullHuman` is even reachable
+//! wait out the mandatory minimum age before `EvidenceQualifiedHuman` is even reachable
 //! — stacking one very convincing fake signal is explicitly insufficient
 //! by construction ([`PromotionPolicy::full_minimum_distinct_sources`]).
 //! This is the same "by the time a fake operation is profitable it is
@@ -129,7 +129,7 @@ impl TrustWeights {
 }
 
 /// The automatic-promotion rule from [`HumanStatus::Unverified`] through
-/// [`HumanStatus::VouchedHuman`] to [`HumanStatus::FullHuman`]. Tunable —
+/// [`HumanStatus::VouchedHuman`] to [`HumanStatus::EvidenceQualifiedHuman`]. Tunable —
 /// the whitepaper specifies the shape (fast provisional trust, slow full
 /// promotion requiring sustained, diverse, aged evidence), not these exact
 /// numbers.
@@ -137,19 +137,19 @@ impl TrustWeights {
 pub struct PromotionPolicy {
     /// Minimum fused score (0..=100) to reach `VouchedHuman`.
     pub vouched_score_threshold: u32,
-    /// Minimum fused score (0..=100) to reach `FullHuman`.
+    /// Minimum fused score (0..=100) to reach `EvidenceQualifiedHuman`.
     pub full_score_threshold: u32,
     /// Minimum time since this record's first-ever evidence before
-    /// `FullHuman` is reachable, regardless of score — the mandatory
+    /// `EvidenceQualifiedHuman` is reachable, regardless of score — the mandatory
     /// re-earning window that makes farming expensive: a fresh identity
     /// cannot buy its way to full status quickly no matter how many
     /// signals it stacks at once.
     pub full_minimum_age_ms: u64,
     /// Minimum number of *currently live* (non-decayed) distinct sources
-    /// required for `FullHuman` — diversity of sustained evidence is
+    /// required for `EvidenceQualifiedHuman` — diversity of sustained evidence is
     /// itself part of the cost, so no single strong signal alone promotes.
     pub full_minimum_distinct_sources: usize,
-    /// Sources that MUST be live (non-decayed, non-zero) for `FullHuman`,
+    /// Sources that MUST be live (non-decayed, non-zero) for `EvidenceQualifiedHuman`,
     /// regardless of score. Issue #18's review found that without this, the
     /// fused score can be saturated entirely by signals a Sybil farm can
     /// self-attest between its own colluding devices (physical presence —
@@ -182,6 +182,12 @@ impl PromotionPolicy {
 }
 
 /// The status an identity root's accumulated evidence currently supports.
+///
+/// Named for what the evidence shows, not what it proves: this crate cannot
+/// yet distinguish one human from several colluding roots (Sybil resistance
+/// is unsolved, see `docs/INVARIANTS.md`'s hard limitations), so no variant
+/// here is named `Full`/`Verified`-anything that would overclaim certainty
+/// the mechanism doesn't have.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HumanStatus {
     /// Not enough evidence yet.
@@ -191,7 +197,7 @@ pub enum HumanStatus {
     VouchedHuman,
     /// Sustained, diverse, sufficiently-aged evidence — reachable only
     /// automatically, never granted directly.
-    FullHuman,
+    EvidenceQualifiedHuman,
 }
 
 /// One identity root's accumulated verification evidence across every
@@ -287,7 +293,7 @@ impl HumanRecord {
             && live.len() >= policy.full_minimum_distinct_sources
             && required_live
         {
-            HumanStatus::FullHuman
+            HumanStatus::EvidenceQualifiedHuman
         } else if score >= policy.vouched_score_threshold {
             HumanStatus::VouchedHuman
         } else {
@@ -353,7 +359,7 @@ mod tests {
     }
 
     #[test]
-    fn full_human_is_never_reached_before_the_minimum_age_even_with_a_high_score() {
+    fn evidence_qualified_human_is_never_reached_before_the_minimum_age_even_with_a_high_score() {
         let mut record = HumanRecord::new();
         record.record(SignalEvidence {
             source: SignalSource::PhysicalPresence,
@@ -377,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn full_human_is_never_reached_from_a_single_source_no_matter_how_strong() {
+    fn evidence_qualified_human_is_never_reached_from_a_single_source_no_matter_how_strong() {
         let mut record = HumanRecord::new();
         record.record(SignalEvidence {
             source: SignalSource::PhysicalPresence,
@@ -396,7 +402,7 @@ mod tests {
     }
 
     #[test]
-    fn full_human_is_reached_with_enough_score_age_and_source_diversity() {
+    fn evidence_qualified_human_is_reached_with_enough_score_age_and_source_diversity() {
         let mut record = HumanRecord::new();
         record.record(SignalEvidence {
             source: SignalSource::PhysicalPresence,
@@ -415,11 +421,11 @@ mod tests {
             &decay(),
             policy.full_minimum_age_ms + 1,
         );
-        assert_eq!(status, HumanStatus::FullHuman);
+        assert_eq!(status, HumanStatus::EvidenceQualifiedHuman);
     }
 
     #[test]
-    fn stale_evidence_decays_and_can_demote_full_human_back_down() {
+    fn stale_evidence_decays_and_can_demote_evidence_qualified_human_back_down() {
         let mut record = HumanRecord::new();
         record.record(SignalEvidence {
             source: SignalSource::PhysicalPresence,
@@ -438,7 +444,7 @@ mod tests {
         let promoted_at = policy.full_minimum_age_ms + 1;
         assert_eq!(
             record.status(&policy, &TrustWeights::founder_default(), &d, promoted_at),
-            HumanStatus::FullHuman
+            HumanStatus::EvidenceQualifiedHuman
         );
 
         // Long after both signals have fully decayed (no re-vouching, no
@@ -480,7 +486,7 @@ mod tests {
     /// the old policy checked — with ZERO connection to the honest vouching
     /// graph. The required-sources gate must hold the line.
     #[test]
-    fn a_farm_cannot_reach_full_human_without_the_seed_anchored_vouch_signal() {
+    fn a_farm_cannot_reach_evidence_qualified_human_without_the_seed_anchored_vouch_signal() {
         let mut record = HumanRecord::new();
         record.record(SignalEvidence {
             source: SignalSource::PhysicalPresence,
@@ -504,7 +510,7 @@ mod tests {
         assert!(record.age_ms(now) >= policy.full_minimum_age_ms);
         assert!(record.distinct_live_sources(&d, now) >= policy.full_minimum_distinct_sources);
 
-        // ...and yet: no live vouching-graph signal, no FullHuman.
+        // ...and yet: no live vouching-graph signal, no EvidenceQualifiedHuman.
         assert_eq!(
             record.status(&policy, &weights, &d, now),
             HumanStatus::VouchedHuman
@@ -520,7 +526,7 @@ mod tests {
         });
         assert_eq!(
             record.status(&policy, &weights, &d, now),
-            HumanStatus::FullHuman
+            HumanStatus::EvidenceQualifiedHuman
         );
     }
 
@@ -549,7 +555,7 @@ mod tests {
         let policy = PromotionPolicy::whitepaper_default();
         assert_ne!(
             record.status(&policy, &TrustWeights::founder_default(), &d, now),
-            HumanStatus::FullHuman
+            HumanStatus::EvidenceQualifiedHuman
         );
     }
 

@@ -26,7 +26,7 @@
 //! external/future ones) can each contribute weighted evidence toward one
 //! [`status::HumanStatus`], with an identity starting `Unverified`,
 //! reaching `VouchedHuman` quickly from modest trusted evidence, and being
-//! promoted to `FullHuman` only automatically — requiring a high fused
+//! promoted to `EvidenceQualifiedHuman` only automatically — requiring a high fused
 //! score, several distinct live sources, and a minimum elapsed time since
 //! first evidence all at once. This sidesteps needing any single signal
 //! (particularly the still-unimplemented behavioral-entropy one) to be a

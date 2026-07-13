@@ -43,7 +43,7 @@ ones — can each contribute weighted evidence toward one `status::HumanStatus`:
   satisfied.
 - An identity starts `Unverified`, reaches `VouchedHuman` quickly from
   modest trusted evidence (e.g. one genuine vouch), and is promoted to
-  `FullHuman` **only automatically** — requiring a high fused score,
+  `EvidenceQualifiedHuman` **only automatically** — requiring a high fused score,
   several currently-live distinct sources, *and* a minimum elapsed time
   since first evidence, all at once. Letting evidence decay without
   renewal demotes status back down.
