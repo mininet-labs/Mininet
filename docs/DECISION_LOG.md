@@ -5610,15 +5610,20 @@ rejection) plus `a_late_joining_node_catches_up_via_real_tcp_and_matches_
 the_clusters_state`: a fifth node, never a validator-set member and never
 running a single Tendermint round, pulls finalized history from a live
 node over a real TCP socket and reaches the exact state the four-node
-cluster converged on. Full workspace suite green.
+cluster converged on. Also added `net::{catch_up_over_tcp,
+serve_catch_up_over_tcp}` — first-class transport functions (not just a
+test hand-rolling the exchange), reusing the same `Channel` handshake
+every other consensus link uses so catch-up traffic is encrypted like
+everything else, proven by a second real-TCP test using only the public
+`net` API. Full workspace suite green.
 
 **Failure point:** history is unbounded in-memory on the serving node —
 no pruning/persistence (documented honest first-slice limit, same shape
 as `mini-net`'s `RoutingTable` bucket limit). No peer-selection/retry
 policy — a caller picks one peer and lives with what it returns.
 
-**Required follow-up:** wire catch-up into `net::run_to_height` itself
-(today a caller drives it manually, as the test does); history pruning/
-persistence; peer selection.
+**Required follow-up:** history pruning/persistence; peer selection;
+folding `catch_up_over_tcp` into `run_to_height` itself so a single call
+can catch up and then join live rounds.
 
 **Supersedes / superseded by:** none.

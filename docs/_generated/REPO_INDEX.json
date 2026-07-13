@@ -3,7 +3,7 @@
     "crates": 34,
     "files": 465,
     "headings": 1644,
-    "rust_symbols": 3355
+    "rust_symbols": 3361
   },
   "crates": {
     "did-mini": {
@@ -9773,202 +9773,217 @@
       "title": "mod catchup;"
     },
     {
-      "bytes": 30179,
+      "bytes": 33392,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
-        "channel",
-        "link",
-        "peer",
-        "consensus",
         "every",
-        "never",
-        "real",
-        "wire",
-        "still",
-        "tcpmesh",
+        "consensus",
+        "peer",
+        "link",
         "node",
-        "handshake",
-        "frame",
-        "message",
-        "buffer",
-        "sealed",
-        "new",
-        "establish_topology",
-        "broadcast",
+        "real",
+        "channel",
+        "still",
+        "bearer",
         "mini_bearer",
-        "single",
-        "first",
+        "consensusnode",
+        "height",
+        "wire",
+        "same",
+        "never",
+        "initiator",
+        "response",
+        "new",
+        "tcpmesh",
+        "broadcast",
+        "tcpbearer",
         "time",
-        "but"
+        "honest",
+        "now"
       ],
-      "lines": 705,
+      "lines": 777,
       "path": "crates/mini-consensus/src/net.rs",
-      "sha256": "3aec8219000a8661bd66d76aba2515929527bc81e371752643b5ead95deaa5c0",
+      "sha256": "28e55ee7a563ceb3c3dfbde749e3894b74a3ac59c0bc2d18014f452f5761f1f9",
       "symbols": [
         {
           "kind": "const",
-          "line": 63,
+          "line": 64,
+          "name": "CATCHUP_AAD"
+        },
+        {
+          "kind": "fn",
+          "line": 78,
+          "name": "catch_up_over_tcp"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
+          "name": "serve_catch_up_over_tcp"
+        },
+        {
+          "kind": "const",
+          "line": 135,
           "name": "CONSENSUS_AAD"
         },
         {
           "kind": "const",
-          "line": 69,
+          "line": 141,
           "name": "HANDSHAKE_TIMEOUT"
         },
         {
           "kind": "const",
-          "line": 79,
+          "line": 151,
           "name": "CIPHERTEXT_FRAME_OVERHEAD"
         },
         {
           "kind": "const",
-          "line": 85,
+          "line": 157,
           "name": "MAX_LINK_OUTBOUND_BYTES"
         },
         {
           "kind": "const",
-          "line": 90,
+          "line": 162,
           "name": "MAX_SEEN_MESSAGES"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 167,
           "name": "message_id"
         },
         {
           "kind": "struct",
-          "line": 104,
+          "line": 176,
           "name": "SeenCache"
         },
         {
           "kind": "impl",
-          "line": 110,
+          "line": 182,
           "name": "SeenCache"
         },
         {
           "kind": "fn",
-          "line": 111,
+          "line": 183,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 121,
+          "line": 193,
           "name": "insert"
         },
         {
           "kind": "const",
-          "line": 136,
+          "line": 208,
           "name": "READ_CHUNK_BYTES"
         },
         {
           "kind": "struct",
-          "line": 145,
+          "line": 217,
           "name": "Link"
         },
         {
           "kind": "impl",
-          "line": 155,
+          "line": 227,
           "name": "Link"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 235,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 197,
+          "line": 269,
           "name": "queue"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 287,
           "name": "flush"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 313,
           "name": "service"
         },
         {
           "kind": "struct",
-          "line": 284,
+          "line": 356,
           "name": "TcpMesh"
         },
         {
           "kind": "impl",
-          "line": 288,
+          "line": 360,
           "name": "TcpMesh"
         },
         {
           "kind": "fn",
-          "line": 302,
+          "line": 374,
           "name": "establish"
         },
         {
           "kind": "fn",
-          "line": 340,
+          "line": 412,
           "name": "establish_topology"
         },
         {
           "kind": "fn",
-          "line": 370,
+          "line": 442,
           "name": "broadcast"
         },
         {
           "kind": "fn",
-          "line": 381,
+          "line": 453,
           "name": "poll"
         },
         {
           "kind": "fn",
-          "line": 395,
+          "line": 467,
           "name": "handshake_send"
         },
         {
           "kind": "fn",
-          "line": 406,
+          "line": 478,
           "name": "handshake_recv"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 495,
           "name": "connect_with_retry"
         },
         {
           "kind": "const",
-          "line": 446,
+          "line": 518,
           "name": "TIMEOUT_BASE"
         },
         {
           "kind": "struct",
-          "line": 450,
+          "line": 522,
           "name": "Timer"
         },
         {
           "kind": "fn",
-          "line": 470,
+          "line": 542,
           "name": "run_to_height"
         },
         {
           "kind": "fn",
-          "line": 562,
+          "line": 634,
           "name": "handle_emits"
         },
         {
           "kind": "mod",
-          "line": 606,
+          "line": 678,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 610,
+          "line": 682,
           "name": "a_peer_that_never_reads_cannot_block_us_or_grow_our_buffer_past_the_cap"
         },
         {
           "kind": "fn",
-          "line": 644,
+          "line": 716,
           "name": "queued_frames_cross_the_wire_as_ciphertext_never_plaintext"
         }
       ],
@@ -10766,7 +10781,7 @@
       "title": "use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 20067,
+      "bytes": 24875,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -10778,9 +10793,9 @@
         "device",
         "unwrap",
         "directory",
+        "target_height",
         "every",
         "controller",
-        "target_height",
         "new",
         "oracle",
         "insert",
@@ -10795,9 +10810,9 @@
         "self",
         "signers"
       ],
-      "lines": 500,
+      "lines": 623,
       "path": "crates/mini-consensus/tests/networked_consensus.rs",
-      "sha256": "b087f2d639621f902ea8427afa569e83ee51c72ae738471af2a1b5bdfd0f2fe5",
+      "sha256": "1fcc4625228a43829e524489e5dbbd8c2e779cea74faf78e6af3bc176d45b7c2",
       "symbols": [
         {
           "kind": "fn",
@@ -10886,22 +10901,37 @@
         },
         {
           "kind": "fn",
-          "line": 427,
-          "name": "four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip"
-        },
-        {
-          "kind": "const",
           "line": 428,
-          "name": "N"
+          "name": "a_late_joining_node_catches_up_through_the_net_modules_own_encrypted_transport"
         },
         {
           "kind": "const",
           "line": 429,
+          "name": "N"
+        },
+        {
+          "kind": "const",
+          "line": 430,
           "name": "TARGET_HEIGHT"
         },
         {
           "kind": "fn",
-          "line": 432,
+          "line": 550,
+          "name": "four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip"
+        },
+        {
+          "kind": "const",
+          "line": 551,
+          "name": "N"
+        },
+        {
+          "kind": "const",
+          "line": 552,
+          "name": "TARGET_HEIGHT"
+        },
+        {
+          "kind": "fn",
+          "line": 555,
           "name": "neighbors"
         }
       ],
@@ -30746,7 +30776,7 @@
       "title": "{"
     },
     {
-      "bytes": 333932,
+      "bytes": 334276,
       "group": "docs",
       "headings": [
         {
@@ -31176,9 +31206,9 @@
         "first",
         "one"
       ],
-      "lines": 5625,
+      "lines": 5630,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "aa11c2659ff6a44573dd5d0461ec9890e36d3b5108a7d1c6d8b314ebcb4bc08f",
+      "sha256": "0ac709576601254b609aeb05c63f4ee35b21a17fc9cae8ba79bdaf7f702103c3",
       "symbols": [],
       "title": "Decision Log"
     },

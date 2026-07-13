@@ -48,13 +48,85 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::time::{Duration, Instant};
 
-use mini_bearer::{encode_frame, Channel, FrameReader, Initiator, Responder};
+use mini_bearer::{encode_frame, Bearer, Channel, FrameReader, Initiator, Responder, TcpBearer};
 use mini_chain::ValidatorOracle;
 
+use crate::catchup::{CatchupRequest, CatchupResponse};
 use crate::consequence::EquivocatorRegistry;
 use crate::error::{ConsensusError, Result};
 use crate::node::{ConsensusNode, Emit};
 use crate::wire::ConsensusMessage;
+
+/// AEAD associated data for catch-up request/response frames — distinct from
+/// [`CONSENSUS_AAD`] so a catch-up ciphertext can never be replayed as if it
+/// meant a live-round message, the same domain-separation discipline every
+/// sealed transcript in this tree follows.
+const CATCHUP_AAD: &[u8] = b"mini-consensus/catchup-channel/v1";
+
+/// Pull already-finalized blocks for every height after `node`'s own current
+/// tip from `peer_addr`, over a real, freshly-handshaken, encrypted
+/// connection (the same [`Channel`] construction — ephemeral X25519 +
+/// HKDF-SHA256 + ChaCha20-Poly1305 — every other consensus link in this
+/// module uses), and apply them via [`ConsensusNode::catch_up`]. Returns how
+/// many blocks were applied.
+///
+/// One request/response round trip, then the connection closes — this is a
+/// point-to-point pull, not a standing link. Repeat against the same or a
+/// different peer if the response doesn't reach the height a caller needs
+/// (see [`crate::catchup`]'s "no peer selection or retry policy" honest
+/// limit: that choice belongs to the caller).
+pub fn catch_up_over_tcp<O: ValidatorOracle>(
+    node: &mut ConsensusNode<O>,
+    peer_addr: SocketAddr,
+) -> Result<usize> {
+    let stream = TcpStream::connect(peer_addr).map_err(mini_bearer::BearerError::from)?;
+    let mut bearer = TcpBearer::from_stream(stream)?;
+
+    let (initiator, hello) = Initiator::start()?;
+    bearer.send(&hello)?;
+    let response = bearer.recv()?;
+    let mut channel = initiator.finish(&response)?;
+
+    let request = CatchupRequest {
+        from_height: node.finalized_height(),
+    };
+    let sealed_request = channel.seal(&request.to_wire_bytes(), CATCHUP_AAD)?;
+    bearer.send(&sealed_request)?;
+
+    let sealed_response = bearer.recv()?;
+    let plaintext = channel.open(&sealed_response, CATCHUP_AAD)?;
+    let catchup_response = CatchupResponse::from_wire_bytes(&plaintext)?;
+    let applied = catchup_response.blocks.len();
+    node.catch_up(catchup_response.blocks)?;
+    Ok(applied)
+}
+
+/// Accept one connection on `listener` and serve a single catch-up request
+/// from `node`'s own finalized history (see [`ConsensusNode::history_since`]),
+/// over the same encrypted [`Channel`] construction [`catch_up_over_tcp`]
+/// expects. Blocks until a peer connects and completes the round trip.
+pub fn serve_catch_up_over_tcp<O: ValidatorOracle>(
+    node: &ConsensusNode<O>,
+    listener: &TcpListener,
+) -> Result<()> {
+    let (stream, _) = listener.accept().map_err(mini_bearer::BearerError::from)?;
+    let mut bearer = TcpBearer::from_stream(stream)?;
+
+    let hello = bearer.recv()?;
+    let (mut channel, hello_response) = Responder::respond(&hello)?;
+    bearer.send(&hello_response)?;
+
+    let sealed_request = bearer.recv()?;
+    let plaintext = channel.open(&sealed_request, CATCHUP_AAD)?;
+    let request = CatchupRequest::from_wire_bytes(&plaintext)?;
+
+    let response = CatchupResponse {
+        blocks: node.history_since(request.from_height),
+    };
+    let sealed_response = channel.seal(&response.to_wire_bytes(), CATCHUP_AAD)?;
+    bearer.send(&sealed_response)?;
+    Ok(())
+}
 
 /// AEAD associated data for every consensus frame sealed over a link's
 /// [`Channel`] — domain separation so a ciphertext produced for this purpose

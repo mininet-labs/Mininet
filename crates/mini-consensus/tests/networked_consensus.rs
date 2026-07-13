@@ -23,7 +23,7 @@ use std::time::Duration;
 use did_mini::{Capabilities, Controller, Did, Kel};
 use mini_bearer::{Bearer, TcpBearer};
 use mini_chain::{ValidatorOracle, ValidatorSet};
-use mini_consensus::net::{run_to_height, TcpMesh};
+use mini_consensus::net::{catch_up_over_tcp, run_to_height, serve_catch_up_over_tcp, TcpMesh};
 use mini_consensus::{
     CatchupRequest, CatchupResponse, ConsensusNode, EquivocatorRegistry, NodeConfig,
 };
@@ -410,6 +410,129 @@ fn a_late_joining_node_catches_up_via_real_tcp_and_matches_the_clusters_state() 
         reference,
         "a node that never ran a single Tendermint round must still reach the \
          exact state the live cluster converged on, purely via catch-up"
+    );
+
+    let (height0, commitment0) = handle0.join().unwrap();
+    assert_eq!(height0, TARGET_HEIGHT);
+    assert_eq!(commitment0, reference);
+}
+
+/// The same claim as the previous test, but through `net`'s own
+/// `catch_up_over_tcp`/`serve_catch_up_over_tcp` convenience functions
+/// instead of a test hand-rolling the `TcpBearer`/`Channel` exchange —
+/// proving the crate's first-class transport for catch-up, not just the
+/// underlying node/wire logic. The connection is genuinely encrypted (the
+/// same `Channel` handshake every other consensus link in this crate uses),
+/// not a bare cleartext pipe.
+#[test]
+fn a_late_joining_node_catches_up_through_the_net_modules_own_encrypted_transport() {
+    const N: usize = 4;
+    const TARGET_HEIGHT: u64 = 3;
+
+    let mut signers: Vec<(Controller, Controller)> =
+        (0..N as u8).map(|i| validator(10 + i * 10)).collect();
+    let mut oracle = Directory::default();
+    for (root, device) in &signers {
+        oracle.insert(root.kel());
+        oracle.insert(device.kel());
+    }
+    let validators = ValidatorSet::new(signers.iter().map(|(r, _)| r.did()).collect()).unwrap();
+
+    let mut listeners: Vec<TcpListener> = (0..N)
+        .map(|_| TcpListener::bind("127.0.0.1:0").unwrap())
+        .collect();
+    let addrs: Vec<SocketAddr> = listeners.iter().map(|l| l.local_addr().unwrap()).collect();
+
+    // A separate listener node 0 serves catch-up requests on, once it
+    // finishes its own consensus run.
+    let catchup_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let catchup_addr = catchup_listener.local_addr().unwrap();
+
+    let (root0, device0) = signers.remove(0);
+    let listener0 = listeners.remove(0);
+    let handle0 = {
+        let addrs = addrs.clone();
+        let validators = validators.clone();
+        let oracle = oracle.clone();
+        let root_did = root0.did();
+        thread::spawn(move || {
+            let mut mesh = TcpMesh::establish(0, &addrs, &listener0).unwrap();
+            let mut node = ConsensusNode::new(NodeConfig {
+                root: root_did,
+                device: device0,
+                validators,
+                oracle,
+                body_source: Box::new(block_body),
+            });
+            let mut equivocators = EquivocatorRegistry::new();
+            run_to_height(
+                &mut node,
+                &mut mesh,
+                TARGET_HEIGHT,
+                Duration::from_secs(30),
+                &mut equivocators,
+            )
+            .unwrap();
+            serve_catch_up_over_tcp(&node, &catchup_listener).unwrap();
+            (node.finalized_height(), node.commitment())
+        })
+    };
+
+    let other_handles: Vec<_> = (1..N)
+        .zip(listeners.into_iter().zip(signers))
+        .map(|(index, (listener, (root, device)))| {
+            let addrs = addrs.clone();
+            let validators = validators.clone();
+            let oracle = oracle.clone();
+            let root_did = root.did();
+            thread::spawn(move || {
+                let mut mesh = TcpMesh::establish(index, &addrs, &listener).unwrap();
+                let mut node = ConsensusNode::new(NodeConfig {
+                    root: root_did,
+                    device,
+                    validators,
+                    oracle,
+                    body_source: Box::new(block_body),
+                });
+                let mut equivocators = EquivocatorRegistry::new();
+                run_to_height(
+                    &mut node,
+                    &mut mesh,
+                    TARGET_HEIGHT,
+                    Duration::from_secs(30),
+                    &mut equivocators,
+                )
+                .unwrap();
+                (node.finalized_height(), node.commitment())
+            })
+        })
+        .collect();
+
+    let other_results: Vec<(u64, [u8; 32])> = other_handles
+        .into_iter()
+        .map(|h| h.join().unwrap())
+        .collect();
+    let reference = other_results[0].1;
+    for (height, commitment) in &other_results {
+        assert_eq!(*height, TARGET_HEIGHT);
+        assert_eq!(*commitment, reference);
+    }
+
+    let (late_root, late_device) = validator(200);
+    let mut late_node = ConsensusNode::new(NodeConfig {
+        root: late_root.did(),
+        device: late_device,
+        validators: validators.clone(),
+        oracle: oracle.clone(),
+        body_source: Box::new(|_| SettlementBlockBody::new(Vec::new())),
+    });
+    let applied = catch_up_over_tcp(&mut late_node, catchup_addr).unwrap();
+    assert_eq!(applied, TARGET_HEIGHT as usize);
+    assert_eq!(late_node.finalized_height(), TARGET_HEIGHT);
+    assert_eq!(
+        late_node.commitment(),
+        reference,
+        "catch_up_over_tcp must reach the exact state the live cluster converged on"
     );
 
     let (height0, commitment0) = handle0.join().unwrap();
