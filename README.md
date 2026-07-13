@@ -51,7 +51,7 @@ so, everywhere, on purpose.
   walls
 - BFT finality-verification core; governed release/update path (no forced
   update, no kill switch)
-- networked BFT consensus (`mini-consensus`, D-0200–D-0205): a real
+- networked BFT consensus (`mini-consensus`, D-0200–D-0206): a real
   multi-round Tendermint protocol (Buchman/Kwon/Milosevic Algorithm 1) run
   over a real, non-blocking TCP socket mesh — **signed** proposals, signed
   votes (incl. `nil`), locking, quorum certificate, and `mini-execution`
@@ -62,9 +62,12 @@ so, everywhere, on purpose.
   by a four-node line topology). Safety is complete, proposals are
   authenticated (front-running closed), a wedged peer cannot back-pressure
   honest nodes, and **double-signing is detected** as verifiable evidence;
-  remaining gaps are liveness/DoS and deployment (no state-sync for a node
-  that missed a whole height, no slashing layer yet, peers supplied not
-  discovered, cleartext loopback links)
+  every link is now **confidential and tamper-evident**
+  (`mini_bearer::Channel`, D-0206) — no consensus byte crosses the wire in
+  cleartext; remaining gaps are liveness/DoS and deployment (no state-sync
+  for a node that missed a whole height, no slashing layer yet, peers
+  supplied not discovered, `Channel`'s handshake is anonymous so it proves
+  nothing about *which* validator is on the other end)
 - a real TCP transport with a live three-process gossip demo
 - `mini`, a real command-line developer tool (`mini-cli`): three
   independent identities on a shared store path can propose, review, and
@@ -141,7 +144,7 @@ to people who will never meet them:
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
    and when it was superseded* (append-only; main sequence `D-0001`–`D-0085`,
-   plus the networking/consensus track's reserved `D-0200`–`D-0205` — see the
+   plus the networking/consensus track's reserved `D-0200`–`D-0206` — see the
    log's "Decision-number allocation across parallel tracks").
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
    rejected, and why* — read before re-proposing something.

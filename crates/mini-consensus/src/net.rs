@@ -9,14 +9,24 @@
 //!
 //! ## Honest limits
 //!
-//! - **A dumb, cleartext pipe.** Like the [`mini_bearer::TcpBearer`] it rides,
-//!   a [`TcpMesh`] has no authentication or encryption of its own — that is
-//!   `mini_bearer::Channel`'s job, layered on top, and is not wired here yet.
-//!   The *consensus payload* is self-authenticating (every vote is a real
-//!   `did:mini` signature, re-verified on receipt and again at apply time), so
-//!   a tampering or lying pipe can stall the protocol but can never forge a
-//!   finalized block. Do not run a bare mesh on a hostile network and expect
-//!   liveness.
+//! - **Confidential and tamper-evident, but not peer-authenticated.** Every
+//!   link now runs a [`mini_bearer::Channel`] handshake (ephemeral X25519 +
+//!   HKDF-SHA256 + ChaCha20-Poly1305, forward-secret, no new cryptography —
+//!   the same construction `mini-sync`/`mini-cli`'s `sync connect`/`listen`
+//!   already use) before any consensus byte crosses the wire, so an on-path
+//!   observer can no longer read votes/proposals in cleartext or forge a
+//!   frame the AEAD tag won't catch (roadmap #44's sibling finding, the
+//!   founder's 2026-07-12 review's `5.3`/`5.4` "wire authenticated encrypted
+//!   channels into consensus now" ask). `Channel`'s handshake is, by its own
+//!   design, anonymous — it proves nothing about *which* validator is on the
+//!   other end, only that both ends share a fresh, private, authenticated
+//!   session. The *consensus payload* is still what carries real identity
+//!   (every vote/proposal is a real `did:mini` signature, re-verified on
+//!   receipt and again at apply time), so a tampering, lying, or merely
+//!   silent peer can still stall the protocol but can never forge a
+//!   finalized block. No discovery, so a malicious *first* connection from
+//!   an unknown address is still possible — this closes eavesdropping and
+//!   tampering, not Sybil connections.
 //! - **No discovery, no NAT traversal, no reconnect.** Every peer's address
 //!   must be known up front and the mesh is built once, before consensus
 //!   starts. It need not be *fully connected*, though: [`TcpMesh::establish_topology`]
@@ -38,12 +48,34 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::time::{Duration, Instant};
 
-use mini_bearer::{encode_frame, FrameReader};
+use mini_bearer::{encode_frame, Channel, FrameReader, Initiator, Responder};
 use mini_chain::ValidatorOracle;
 
 use crate::error::{ConsensusError, Result};
 use crate::node::{ConsensusNode, Emit};
 use crate::wire::ConsensusMessage;
+
+/// AEAD associated data for every consensus frame sealed over a link's
+/// [`Channel`] — domain separation so a ciphertext produced for this purpose
+/// can never be replayed as if it meant something else, the same discipline
+/// `mini-sync`'s `SYNC_AAD` already follows for its own channel traffic.
+const CONSENSUS_AAD: &[u8] = b"mini-consensus/channel/v1";
+
+/// Bound on how long the initial (blocking) `Channel` handshake may take
+/// before a link gives up — a peer that connects but never completes the
+/// handshake must not hang `TcpMesh::establish`/`establish_topology`
+/// forever. Generous for a real network; instant on loopback.
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// AEAD tag (16 bytes, ChaCha20-Poly1305) plus the `u32` frame length prefix
+/// [`encode_frame`] adds — the fixed overhead a sealed plaintext gains before
+/// it reaches the wire. Used to size-check *before* calling [`Channel::seal`],
+/// never after: [`Channel`] requires messages to be processed in the exact
+/// order they were sealed, so sealing a message and then discarding it (e.g.
+/// for lack of buffer room) would silently desynchronize the two sides'
+/// counters and permanently break every later frame on the link. Checking
+/// capacity first means a message is either sealed *and* queued, or neither.
+const CIPHERTEXT_FRAME_OVERHEAD: usize = 16 + 4;
 
 /// Hard cap on a single link's outbound buffer. A peer that stops reading
 /// fills this and then has further frames dropped — the bound is what turns a
@@ -102,46 +134,76 @@ impl SeenCache {
 /// Read-chunk size for draining a socket per syscall.
 const READ_CHUNK_BYTES: usize = 16 * 1024;
 
-/// One non-blocking, buffered TCP link to a peer. Sends never block: bytes are
-/// framed into `outbound` and flushed as far as the socket will take them,
-/// with the remainder kept for the next flush. Reads are non-blocking too.
+/// One non-blocking, buffered, encrypted TCP link to a peer. Sends never
+/// block: bytes are framed into `outbound` and flushed as far as the socket
+/// will take them, with the remainder kept for the next flush. Reads are
+/// non-blocking too. Every payload crossing the wire is sealed/opened
+/// through `channel`, established by a blocking handshake in [`Link::new`]
+/// before the socket ever switches to non-blocking mode.
 #[derive(Debug)]
 struct Link {
     stream: TcpStream,
     reader: FrameReader,
-    /// Pending outbound bytes, already frame-encoded; `out_pos` is how many
-    /// from the front have been written.
+    channel: Channel,
+    /// Pending outbound bytes, already sealed and frame-encoded; `out_pos`
+    /// is how many from the front have been written.
     outbound: Vec<u8>,
     out_pos: usize,
 }
 
 impl Link {
-    fn new(stream: TcpStream) -> Result<Self> {
-        // Send small frames promptly; make every operation non-blocking.
+    /// Complete a [`Channel`] handshake over `stream` (blocking, bounded by
+    /// [`HANDSHAKE_TIMEOUT`]) and switch to non-blocking mode for ordinary
+    /// operation. `is_initiator` must match the same dial/accept asymmetry
+    /// [`TcpMesh::establish_topology`] already uses (the dialer is the
+    /// handshake initiator, the accepter is the responder) — both sides
+    /// must agree, or the handshake deadlocks each waiting for the other's
+    /// hello.
+    fn new(stream: TcpStream, is_initiator: bool) -> Result<Self> {
         let _ = stream.set_nodelay(true);
+        stream
+            .set_read_timeout(Some(HANDSHAKE_TIMEOUT))
+            .map_err(mini_bearer::BearerError::from)?;
+        let channel = if is_initiator {
+            let (initiator, hello) = Initiator::start()?;
+            handshake_send(&stream, &hello)?;
+            let response = handshake_recv(&stream)?;
+            initiator.finish(&response)?
+        } else {
+            let hello = handshake_recv(&stream)?;
+            let (channel, response) = Responder::respond(&hello)?;
+            handshake_send(&stream, &response)?;
+            channel
+        };
         stream
             .set_nonblocking(true)
             .map_err(mini_bearer::BearerError::from)?;
         Ok(Link {
             stream,
             reader: FrameReader::new(),
+            channel,
             outbound: Vec::new(),
             out_pos: 0,
         })
     }
 
-    /// Queue one message for sending, then make a non-blocking flush attempt.
-    /// Drops the message (best-effort) if the outbound buffer is already at
-    /// capacity, so a peer that stopped reading can never grow us without
-    /// bound or block us.
+    /// Seal one message for the peer, then queue it and make a non-blocking
+    /// flush attempt. Drops the message (best-effort) if the outbound buffer
+    /// is already at capacity, so a peer that stopped reading can never grow
+    /// us without bound or block us — sized *before* sealing (see
+    /// [`CIPHERTEXT_FRAME_OVERHEAD`]'s doc), so a dropped message is never
+    /// sealed at all and the channel's ordered counters never desync.
     fn queue(&mut self, frame: &[u8]) {
-        let Ok(encoded) = encode_frame(frame) else {
-            return; // oversized — never happens for our bounded messages
-        };
         let pending = self.outbound.len() - self.out_pos;
-        if pending + encoded.len() > MAX_LINK_OUTBOUND_BYTES {
+        if pending + frame.len() + CIPHERTEXT_FRAME_OVERHEAD > MAX_LINK_OUTBOUND_BYTES {
             return;
         }
+        let Ok(ciphertext) = self.channel.seal(frame, CONSENSUS_AAD) else {
+            return; // oversized — never happens for our bounded messages
+        };
+        let Ok(encoded) = encode_frame(&ciphertext) else {
+            return; // unreachable given the size check above
+        };
         self.outbound.extend_from_slice(&encoded);
         self.flush();
     }
@@ -174,13 +236,23 @@ impl Link {
     }
 
     /// Flush pending outbound, then drain every complete frame available right
-    /// now (non-blocking) into `out`.
+    /// now (non-blocking) into `out`, opening each through `channel` first.
     fn service(&mut self, out: &mut Vec<ConsensusMessage>) {
         self.flush();
         loop {
             match self.reader.next_frame() {
                 Ok(Some(frame)) => {
-                    if let Ok(msg) = ConsensusMessage::from_wire_bytes(&frame) {
+                    // `Channel::open` requires strict in-order processing; a
+                    // single failure (garbage, a desynced/replayed peer)
+                    // permanently desyncs this link's counters, so there is
+                    // nothing recoverable left to do but stop servicing it —
+                    // the same fate a peer that goes silent already has.
+                    // Safety never depends on this: consensus payloads are
+                    // still independently self-authenticating.
+                    let Ok(plaintext) = self.channel.open(&frame, CONSENSUS_AAD) else {
+                        break;
+                    };
+                    if let Ok(msg) = ConsensusMessage::from_wire_bytes(&plaintext) {
                         out.push(msg);
                     }
                     continue;
@@ -252,6 +324,18 @@ impl TcpMesh {
     /// (dedup-floods) every message it has not seen before across its own
     /// edges. On a disconnected graph a partition simply cannot hear each
     /// other, exactly as on any real network.
+    ///
+    /// Every link now also completes a blocking [`mini_bearer::Channel`]
+    /// handshake before this function returns for it (see [`Link::new`]):
+    /// the dialer is always the handshake initiator, the accepter always the
+    /// responder, matching the dial/accept asymmetry itself. Unlike a bare
+    /// TCP `connect` (which returns once the kernel's backlog accepts it,
+    /// without waiting for the peer's own `accept()` call), a handshake
+    /// genuinely waits on the peer's application-level response — but since
+    /// dialing only ever targets *higher*-indexed peers, the wait graph is
+    /// still acyclic (the highest-indexed node dials nobody and reaches its
+    /// accept loop immediately), so this remains deadlock-free, just no
+    /// longer instant-return.
     pub fn establish_topology(
         local_index: usize,
         addrs: &[SocketAddr],
@@ -259,7 +343,7 @@ impl TcpMesh {
         neighbors: &[usize],
     ) -> Result<Self> {
         let mut links = Vec::with_capacity(neighbors.len());
-        // Dial each higher-indexed neighbor.
+        // Dial each higher-indexed neighbor -- we are the handshake initiator.
         let mut higher: Vec<usize> = neighbors
             .iter()
             .copied()
@@ -267,13 +351,14 @@ impl TcpMesh {
             .collect();
         higher.sort_unstable();
         for j in higher {
-            links.push(Link::new(connect_with_retry(&addrs[j])?)?);
+            links.push(Link::new(connect_with_retry(&addrs[j])?, true)?);
         }
-        // Accept one inbound connection for each lower-indexed neighbor.
+        // Accept one inbound connection for each lower-indexed neighbor --
+        // we are the handshake responder.
         let accept_count = neighbors.iter().filter(|&&j| j < local_index).count();
         for _ in 0..accept_count {
             let (stream, _) = listener.accept().map_err(mini_bearer::BearerError::from)?;
-            links.push(Link::new(stream)?);
+            links.push(Link::new(stream, false)?);
         }
         Ok(TcpMesh { links })
     }
@@ -298,6 +383,39 @@ impl TcpMesh {
             link.service(&mut out);
         }
         out
+    }
+}
+
+/// Send one handshake message (blocking, length-prefixed via [`encode_frame`]
+/// — the exact framing [`mini_bearer::TcpBearer`] uses, applied directly to
+/// the raw stream since a [`Link`] does not construct a `TcpBearer` of its
+/// own). `stream` must still be in blocking mode (before [`Link::new`]
+/// switches it to non-blocking).
+fn handshake_send(mut stream: &TcpStream, msg: &[u8]) -> Result<()> {
+    let encoded = encode_frame(msg)?;
+    stream
+        .write_all(&encoded)
+        .map_err(mini_bearer::BearerError::from)?;
+    Ok(())
+}
+
+/// Receive one handshake message (blocking, bounded by whatever read timeout
+/// the caller already set on `stream` — [`Link::new`] sets
+/// [`HANDSHAKE_TIMEOUT`] before calling this).
+fn handshake_recv(mut stream: &TcpStream) -> Result<Vec<u8>> {
+    let mut reader = FrameReader::new();
+    loop {
+        if let Some(frame) = reader.next_frame()? {
+            return Ok(frame);
+        }
+        let mut buf = [0u8; READ_CHUNK_BYTES];
+        let n = stream
+            .read(&mut buf)
+            .map_err(mini_bearer::BearerError::from)?;
+        if n == 0 {
+            return Err(ConsensusError::Transport(mini_bearer::BearerError::Closed));
+        }
+        reader.push(&buf[..n])?;
     }
 }
 
@@ -457,12 +575,19 @@ mod tests {
     fn a_peer_that_never_reads_cannot_block_us_or_grow_our_buffer_past_the_cap() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
-        let client = TcpStream::connect(addr).unwrap();
-        // Accept the server side and hold it open, but NEVER read from it — a
-        // wedged/hung peer whose receive window fills up.
-        let (_server, _) = listener.accept().unwrap();
 
-        let mut link = Link::new(client).unwrap();
+        // The server completes a real handshake (Responder) so the client's
+        // Channel is genuinely established, then is dropped without ever
+        // servicing the link again -- a wedged/hung peer whose receive
+        // window fills up.
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            Link::new(stream, false).unwrap()
+        });
+
+        let client_stream = TcpStream::connect(addr).unwrap();
+        let mut link = Link::new(client_stream, true).unwrap();
+        let _server_link = server.join().unwrap();
 
         // Offer far more than the cap plus any kernel send buffer. With the old
         // blocking send this loop would wedge once the peer's window filled;
@@ -478,5 +603,67 @@ mod tests {
             "a peer that never reads must not grow our outbound buffer past the cap \
              (pending {pending}, cap {MAX_LINK_OUTBOUND_BYTES})"
         );
+    }
+
+    #[test]
+    fn queued_frames_cross_the_wire_as_ciphertext_never_plaintext() {
+        // The core regression this task closes (founder review 2026-07-12,
+        // 5.3/5.4: "wire authenticated encrypted channels into consensus
+        // now"): before this change, a `Link` was a dumb cleartext pipe --
+        // whatever bytes `queue()` was given crossed the wire verbatim,
+        // length-prefixed only. Prove a distinctive marker no longer
+        // appears anywhere in what actually crosses the socket, then prove
+        // that isn't just corruption by recovering it intact through the
+        // real channel.
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            Link::new(stream, false).unwrap()
+        });
+        let client_stream = TcpStream::connect(addr).unwrap();
+        let mut sender = Link::new(client_stream, true).unwrap();
+        let mut receiver = server.join().unwrap();
+
+        let plaintext =
+            b"MARKER a real vote or proposal's signed bytes would look exactly this readable";
+        sender.queue(plaintext);
+
+        // Read whatever actually arrived on the raw socket, bypassing
+        // Channel/Link entirely -- this is what a passive on-path observer
+        // would see. Loopback is fast but not synchronous with a
+        // non-blocking socket, so poll briefly.
+        let mut raw = Vec::new();
+        for _ in 0..200 {
+            let mut buf = [0u8; 4096];
+            match receiver.stream.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    raw.extend_from_slice(&buf[..n]);
+                    break;
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                Err(e) => panic!("unexpected read error: {e}"),
+            }
+        }
+        assert!(!raw.is_empty(), "expected ciphertext to have arrived");
+        assert!(
+            !raw.windows(plaintext.len())
+                .any(|window| window == plaintext.as_slice()),
+            "the plaintext marker must never appear verbatim in what crosses the wire"
+        );
+
+        // Not corruption: decode the frame and open it through the real
+        // channel, recovering the exact original bytes.
+        let mut reader = FrameReader::new();
+        reader.push(&raw).unwrap();
+        let frame = reader
+            .next_frame()
+            .unwrap()
+            .expect("a complete frame arrived");
+        let recovered = receiver.channel.open(&frame, CONSENSUS_AAD).unwrap();
+        assert_eq!(recovered, plaintext);
     }
 }

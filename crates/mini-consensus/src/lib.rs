@@ -77,15 +77,22 @@
 //!   but this crate neither detects nor punishes the attempt.
 //! - **Static validator set.** The set is fixed for a run; on-chain
 //!   validator-set changes are separate, later work.
-//! - **[`net::TcpMesh`] is transport, not discovery or security.** It assumes
-//!   every peer's address is known and the mesh is fully connected before
-//!   consensus starts, and it is cleartext. `mini-net`'s overlay
-//!   routing/gossip and [`mini_bearer::Channel`]'s authenticated encryption
-//!   are the layers that replace those assumptions. Consensus payloads are
-//!   self-authenticating (every vote and proposal is a real `did:mini`
-//!   signature), so a tampering pipe can stall the protocol but never forge a
-//!   finalized block — but do not put a bare mesh on a hostile network and
-//!   expect liveness.
+//! - **[`net::TcpMesh`] is transport, not discovery.** It assumes every
+//!   peer's address is known and the mesh is fully connected (or connected
+//!   via [`net::TcpMesh::establish_topology`]'s partial-mesh support) before
+//!   consensus starts — `mini-net`'s overlay routing/gossip is the layer
+//!   that replaces that assumption; still separate, later work. Every link
+//!   *is* now confidential and tamper-evident: each one runs a
+//!   [`mini_bearer::Channel`] handshake before any consensus byte crosses
+//!   the wire (D-0206), the same construction `mini-sync`/`mini-cli`'s
+//!   `sync connect`/`listen` already use. `Channel`'s handshake is
+//!   deliberately anonymous, though — it proves nothing about *which*
+//!   validator is on the other end. Consensus payloads still carry the real
+//!   identity (every vote and proposal is a real `did:mini` signature), so
+//!   a tampering, lying, or merely silent peer can stall the protocol but
+//!   never forge a finalized block — do not put a bare mesh on a hostile
+//!   network expecting anything beyond confidentiality and liveness under
+//!   an honest majority.
 //! - **Not gated behind D-0047.** No new cryptography: this composes
 //!   `mini-chain`'s existing vote/finality verification, `did_mini`'s
 //!   delegation/signing, and `mini-settlement`'s claim verification. The only
