@@ -66,15 +66,31 @@ impl PriceHistory {
             .map(|e| e.micro_mini_per_micro_cent)
             .ok_or(ValueError::NoRateInEffect)
     }
+
+    /// Quote a fee using the governed price in effect at `at_ms` — looking
+    /// up the historical price and converting it in one call, so a caller
+    /// can never accidentally apply today's price to historical work by
+    /// forgetting to thread `at_ms` through a separate conversion step.
+    pub fn fee_at(&self, fee_target_micro_cents: u64, at_ms: u64) -> Result<u64> {
+        fee_in_micro_mini(fee_target_micro_cents, self.price_at(at_ms)?)
+    }
 }
 
 /// Micro-MINI owed for a fee whose real-world value target is
 /// `fee_target_micro_cents` micro-cents, at `micro_mini_per_micro_cent`
 /// (`PRICE_SCALE`'s fixed point). `u128` internally so a large target at a
-/// large price cannot silently overflow.
-pub fn fee_in_micro_mini(fee_target_micro_cents: u64, micro_mini_per_micro_cent: u64) -> u64 {
+/// large price cannot silently overflow the intermediate product; the
+/// final `u64` conversion is checked, not cast, so a quote too large for
+/// the ledger's amount type is rejected rather than silently truncated.
+pub fn fee_in_micro_mini(
+    fee_target_micro_cents: u64,
+    micro_mini_per_micro_cent: u64,
+) -> Result<u64> {
+    if micro_mini_per_micro_cent == 0 {
+        return Err(ValueError::ZeroPrice);
+    }
     let product = (fee_target_micro_cents as u128) * (micro_mini_per_micro_cent as u128);
-    (product / PRICE_SCALE as u128) as u64
+    u64::try_from(product / PRICE_SCALE as u128).map_err(|_| ValueError::FeeOverflow)
 }
 
 #[cfg(test)]
@@ -170,9 +186,9 @@ mod tests {
 
     #[test]
     fn fee_scales_with_price_and_target() {
-        assert_eq!(fee_in_micro_mini(1_000, PRICE_SCALE), 1_000);
-        assert_eq!(fee_in_micro_mini(1_000, PRICE_SCALE * 2), 2_000);
-        assert_eq!(fee_in_micro_mini(0, PRICE_SCALE), 0);
+        assert_eq!(fee_in_micro_mini(1_000, PRICE_SCALE).unwrap(), 1_000);
+        assert_eq!(fee_in_micro_mini(1_000, PRICE_SCALE * 2).unwrap(), 2_000);
+        assert_eq!(fee_in_micro_mini(0, PRICE_SCALE).unwrap(), 0);
     }
 
     #[test]
@@ -182,14 +198,46 @@ mod tests {
         let target = 1_000u64;
         let price_before = PRICE_SCALE;
         let price_after_mini_halves = PRICE_SCALE * 2;
-        let fee_before = fee_in_micro_mini(target, price_before);
-        let fee_after = fee_in_micro_mini(target, price_after_mini_halves);
+        let fee_before = fee_in_micro_mini(target, price_before).unwrap();
+        let fee_after = fee_in_micro_mini(target, price_after_mini_halves).unwrap();
         assert_eq!(fee_after, fee_before * 2);
     }
 
     #[test]
-    fn fee_does_not_overflow_at_large_values() {
-        let fee = fee_in_micro_mini(u64::MAX, u64::MAX);
-        assert!(fee > 0);
+    fn fee_overflow_is_rejected_instead_of_silently_truncated() {
+        // Pre-fix, `(product / PRICE_SCALE as u128) as u64` truncated a
+        // too-large quote down to some wrapped value instead of failing —
+        // a real, previously-undetected bug: this exact input silently
+        // produced a wrong (and much too small) fee rather than an error.
+        assert_eq!(
+            fee_in_micro_mini(u64::MAX, u64::MAX),
+            Err(ValueError::FeeOverflow)
+        );
+    }
+
+    #[test]
+    fn a_zero_rate_is_rejected_at_quote_time_too_not_only_at_ingress() {
+        // `PriceHistory::add_entry` already rejects a zero price, but
+        // `fee_in_micro_mini` is also called directly (and a `PriceEntry`'s
+        // fields are public) — defense in depth means the conversion
+        // itself refuses a zero rate regardless of how it arrived.
+        assert_eq!(
+            fee_in_micro_mini(1, 0),
+            Err(ValueError::ZeroPrice),
+            "a zero rate must never convert a positive target into a free fee"
+        );
+    }
+
+    #[test]
+    fn fee_at_binds_historical_lookup_and_checked_conversion_in_one_call() {
+        let mut history = PriceHistory::new();
+        history
+            .add_entry(PriceEntry {
+                effective_at_ms: 100,
+                micro_mini_per_micro_cent: PRICE_SCALE * 2,
+            })
+            .unwrap();
+        assert_eq!(history.fee_at(500, 99), Err(ValueError::NoRateInEffect));
+        assert_eq!(history.fee_at(500, 100).unwrap(), 1_000);
     }
 }

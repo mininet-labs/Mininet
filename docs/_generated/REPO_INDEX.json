@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 34,
-    "files": 455,
-    "headings": 1623,
-    "rust_symbols": 3234
+    "files": 456,
+    "headings": 1629,
+    "rust_symbols": 3237
   },
   "crates": {
     "did-mini": {
@@ -1118,7 +1118,7 @@
       ],
       "lines": 170,
       "path": "README.md",
-      "sha256": "b6902e3e7d1cd62dae19ec0c3c937890aa161eb2b71b6df17abe3fad81f196cf",
+      "sha256": "468d6ee9c295c9aa95a6ee17e37cde6f4089e4faa22c027a3006a8ddf91558a1",
       "symbols": [],
       "title": "Mininet"
     },
@@ -5870,38 +5870,38 @@
       "title": "mini-chain"
     },
     {
-      "bytes": 1772,
+      "bytes": 1987,
       "group": "crate:mini-chain",
       "headings": [],
       "keywords": [
         "self",
-        "hash",
         "block",
+        "hash",
         "extend_from_slice",
         "blockheader",
+        "height",
         "canonical_bytes",
         "canonical",
         "header",
         "state",
-        "height",
+        "time",
         "proposer",
         "to_be_bytes",
         "content",
         "did",
         "hashalgorithm",
+        "real",
         "machine",
         "genesis",
         "u64",
         "prev_hash",
         "state_root",
         "timestamp_ms",
-        "bytes",
-        "vec",
-        "as_str"
+        "bytes"
       ],
-      "lines": 44,
+      "lines": 47,
       "path": "crates/mini-chain/src/block.rs",
-      "sha256": "1a79616c2aa8b679f68b36d14970b1f74701ed92daf0f07c30abd347c418b148",
+      "sha256": "f5ed0e8b79ff755229fc012ffc52a938ad5f22ff5a32988a01a5fad824aa81b1",
       "symbols": [
         {
           "kind": "struct",
@@ -5910,17 +5910,17 @@
         },
         {
           "kind": "impl",
-          "line": 25,
+          "line": 28,
           "name": "BlockHeader"
         },
         {
           "kind": "fn",
-          "line": 27,
+          "line": 30,
           "name": "canonical_bytes"
         },
         {
           "kind": "fn",
-          "line": 40,
+          "line": 43,
           "name": "hash"
         }
       ],
@@ -9412,7 +9412,7 @@
       "title": "use std::io::{Read, Write};"
     },
     {
-      "bytes": 25178,
+      "bytes": 27089,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -9441,9 +9441,9 @@
         "consensusmessage",
         "timer"
       ],
-      "lines": 647,
+      "lines": 692,
       "path": "crates/mini-consensus/src/node.rs",
-      "sha256": "41e876795d033c6a6f985874622e6049bbeab733ae88d81240564f44e6d3ba6c",
+      "sha256": "45453b80afd663cf6b2c4aa7579f2fa8ac7ff14234a41f89c0a55b5806bc259e",
       "symbols": [
         {
           "kind": "type",
@@ -9542,113 +9542,118 @@
         },
         {
           "kind": "fn",
-          "line": 253,
+          "line": 254,
           "name": "validate_proposal"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 279,
           "name": "drive"
         },
         {
           "kind": "fn",
-          "line": 341,
+          "line": 345,
           "name": "build_proposal"
         },
         {
           "kind": "fn",
-          "line": 384,
+          "line": 388,
           "name": "commit"
         },
         {
           "kind": "mod",
-          "line": 420,
+          "line": 424,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 430,
+          "line": 434,
           "name": "validator"
         },
         {
           "kind": "struct",
-          "line": 444,
+          "line": 448,
           "name": "Directory"
         },
         {
           "kind": "impl",
-          "line": 445,
+          "line": 449,
           "name": "Directory"
         },
         {
           "kind": "fn",
-          "line": 446,
+          "line": 450,
           "name": "insert"
         },
         {
           "kind": "impl",
-          "line": 450,
+          "line": 454,
           "name": "ValidatorOracle"
         },
         {
           "kind": "fn",
-          "line": 451,
+          "line": 455,
           "name": "kel"
         },
         {
           "kind": "fn",
-          "line": 456,
+          "line": 460,
           "name": "body"
         },
         {
           "kind": "struct",
-          "line": 462,
+          "line": 466,
           "name": "Fx"
         },
         {
           "kind": "fn",
-          "line": 468,
+          "line": 472,
           "name": "fixture"
         },
         {
           "kind": "fn",
-          "line": 484,
+          "line": 488,
           "name": "a_node"
         },
         {
           "kind": "fn",
-          "line": 501,
+          "line": 505,
           "name": "proposer_index"
         },
         {
           "kind": "fn",
-          "line": 511,
+          "line": 515,
           "name": "proposal_from"
         },
         {
           "kind": "fn",
-          "line": 526,
+          "line": 530,
           "name": "prevoted"
         },
         {
           "kind": "fn",
-          "line": 534,
+          "line": 538,
           "name": "a_proposal_from_the_designated_proposer_is_prevoted"
         },
         {
           "kind": "fn",
-          "line": 548,
+          "line": 552,
           "name": "a_signed_proposal_from_the_wrong_proposer_is_dropped"
         },
         {
           "kind": "fn",
-          "line": 564,
+          "line": 568,
           "name": "a_proposal_with_a_forged_signature_is_dropped"
         },
         {
           "kind": "fn",
-          "line": 600,
-          "name": "a_proposal_whose_timestamp_does_not_strictly_advance_is_prevoted_nil"
+          "line": 604,
+          "name": "a_proposal_whose_timestamp_is_not_deterministic_is_prevoted_nil"
+        },
+        {
+          "kind": "fn",
+          "line": 651,
+          "name": "a_proposer_cannot_use_an_increasing_timestamp_to_evade_the_deterministic_check"
         }
       ],
       "title": "use std::collections::{HashMap, VecDeque};"
@@ -13077,38 +13082,38 @@
       "title": "use mini_crypto::HashAlgorithm;"
     },
     {
-      "bytes": 4584,
+      "bytes": 4249,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
-        "self",
         "header",
+        "self",
         "height",
         "state",
         "ledgerchain",
-        "last_timestamp_ms",
         "tip_hash",
         "ledgerstate",
         "executionerror",
         "genesis",
-        "block",
         "body",
-        "timestamp_ms",
         "commitment",
+        "expected_height",
         "return",
         "err",
         "chain",
         "default",
         "mini_chain",
-        "u64",
+        "block",
         "hash",
-        "current",
         "one",
-        "verify_finality"
+        "verify_finality",
+        "mini_settlement",
+        "blockheader",
+        "finalized"
       ],
-      "lines": 126,
+      "lines": 117,
       "path": "crates/mini-execution/src/chain.rs",
-      "sha256": "d6a4ed95ea601b10449da97b5678a623887a17d64bdce1250cdbecf993d5acb9",
+      "sha256": "578c98ae791224fb7e9aca9c320abf6fe60b3cdf462ee1848370429d67bc27cd",
       "symbols": [
         {
           "kind": "struct",
@@ -13117,61 +13122,57 @@
         },
         {
           "kind": "impl",
-          "line": 30,
+          "line": 29,
           "name": "LedgerChain"
         },
         {
           "kind": "fn",
-          "line": 34,
+          "line": 33,
           "name": "genesis"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 42,
           "name": "height"
         },
         {
           "kind": "fn",
-          "line": 50,
+          "line": 48,
           "name": "tip_hash"
         },
         {
           "kind": "fn",
-          "line": 56,
-          "name": "last_timestamp_ms"
-        },
-        {
-          "kind": "fn",
-          "line": 63,
+          "line": 55,
           "name": "state"
         },
         {
           "kind": "fn",
-          "line": 72,
+          "line": 64,
           "name": "apply_finalized_block"
         },
         {
           "kind": "impl",
-          "line": 121,
+          "line": 112,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 113,
           "name": "default"
         }
       ],
       "title": "use mini_chain::{verify_finality, BlockHeader, QuorumCertificate, ValidatorOracle, ValidatorSet};"
     },
     {
-      "bytes": 3006,
+      "bytes": 3144,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
-        "block",
         "executionerror",
+        "block",
         "fmt",
         "result",
+        "expected",
         "got",
         "error",
         "write",
@@ -13179,23 +13180,22 @@
         "chainerror",
         "match",
         "body",
-        "previous",
-        "did",
-        "expected",
-        "u64",
-        "does",
-        "candidate",
         "height",
+        "did",
+        "u64",
+        "never",
+        "does",
+        "its",
+        "candidate",
         "chain",
         "header",
-        "finalized",
-        "never",
         "notfinalized",
-        "state"
+        "state",
+        "timestamp_ms"
       ],
-      "lines": 71,
+      "lines": 73,
       "path": "crates/mini-execution/src/error.rs",
-      "sha256": "4e2a043ffe37b419f77cd1fe00500b3edfa965a5b3ec18e055c587ac59220f1e",
+      "sha256": "2a0dff251c6b38199ac74c0935b4ca7a63d73576d5773c3861c8c8548b60f52b",
       "symbols": [
         {
           "kind": "enum",
@@ -13204,32 +13204,32 @@
         },
         {
           "kind": "impl",
-          "line": 36,
+          "line": 38,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 37,
+          "line": 39,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 61,
+          "line": 63,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 63,
+          "line": 65,
           "name": "From<mini_chain::ChainError>"
         },
         {
           "kind": "fn",
-          "line": 64,
+          "line": 66,
           "name": "from"
         },
         {
           "kind": "type",
-          "line": 70,
+          "line": 72,
           "name": "Result"
         }
       ],
@@ -13425,7 +13425,7 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 14894,
+      "bytes": 15058,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
@@ -13440,11 +13440,11 @@
         "fixture",
         "directory",
         "height",
+        "validators",
         "oracle",
         "insert",
         "mini_settlement",
         "seed",
-        "validators",
         "payer",
         "hash",
         "claim",
@@ -13454,9 +13454,9 @@
         "self",
         "vec"
       ],
-      "lines": 431,
+      "lines": 433,
       "path": "crates/mini-execution/tests/end_to_end.rs",
-      "sha256": "13b18df57ec318709f4a83aeba0cecea2601df2c2d5c65d98c9e188fa123d977",
+      "sha256": "ddb3280c1a478cb005ee567419e913f3c3b239e47dc4d6dd18a4e9632a945374",
       "symbols": [
         {
           "kind": "fn",
@@ -13531,7 +13531,7 @@
         {
           "kind": "fn",
           "line": 354,
-          "name": "a_timestamp_that_does_not_strictly_advance_is_rejected"
+          "name": "a_timestamp_that_does_not_equal_the_block_height_is_rejected"
         }
       ],
       "title": "use std::collections::BTreeMap;"
@@ -28679,38 +28679,38 @@
       "title": "pub use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};"
     },
     {
-      "bytes": 2073,
+      "bytes": 2589,
       "group": "crate:mini-value",
       "headings": [],
       "keywords": [
         "valueerror",
+        "fee",
         "fmt",
         "error",
         "result",
-        "fee",
         "governed",
         "write",
+        "price",
         "rate",
         "entry",
-        "price",
+        "type",
         "time",
         "ring",
+        "value",
+        "u64",
+        "amount",
         "mini-value",
         "display",
         "std",
-        "type",
         "core",
         "effect",
         "norateineffect",
         "strictly",
-        "previous",
-        "outoforderrateentry",
-        "failed",
-        "cryptographic"
+        "previous"
       ],
-      "lines": 51,
+      "lines": 60,
       "path": "crates/mini-value/src/error.rs",
-      "sha256": "69c60eb5650c8052dc5702be8aa580ca6979f68edf0c473961134bb64d1dd0b7",
+      "sha256": "15dca0f1648b48db6e1b90f4967b4626ff6d04a2f76f24b1bb37eb070e6494db",
       "symbols": [
         {
           "kind": "enum",
@@ -28719,60 +28719,60 @@
         },
         {
           "kind": "impl",
-          "line": 29,
+          "line": 35,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 30,
+          "line": 36,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 47,
+          "line": 56,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 50,
+          "line": 59,
           "name": "Result"
         }
       ],
       "title": "use core::fmt;"
     },
     {
-      "bytes": 7116,
+      "bytes": 9342,
       "group": "crate:mini-value",
       "headings": [],
       "keywords": [
-        "history",
         "price",
         "u64",
-        "effective_at_ms",
+        "history",
         "micro_mini_per_micro_cent",
-        "entry",
+        "self",
+        "effective_at_ms",
+        "at_ms",
         "fee",
+        "price_at",
+        "valueerror",
         "priceentry",
         "pricehistory",
         "new",
-        "price_at",
-        "value",
-        "valueerror",
-        "self",
-        "target",
         "governed",
-        "err",
-        "assert_eq",
+        "entry",
         "price_scale",
-        "add_entry",
-        "real-world",
+        "value",
+        "target",
+        "result",
         "entries",
+        "fee_target_micro_cents",
         "unwrap",
-        "at_ms"
+        "add_entry",
+        "real-world"
       ],
-      "lines": 196,
+      "lines": 244,
       "path": "crates/mini-value/src/fee.rs",
-      "sha256": "45a901477434196e02bd689f82630c4ac005f4658ce19da1b67f38f7732e91ec",
+      "sha256": "8cdbde30e64aac2c580033023a4940eb8a3d15751d972c28a349bfa76cac0742",
       "symbols": [
         {
           "kind": "const",
@@ -28811,48 +28811,63 @@
         },
         {
           "kind": "fn",
-          "line": 75,
-          "name": "fee_in_micro_mini"
-        },
-        {
-          "kind": "mod",
-          "line": 81,
-          "name": "tests"
+          "line": 74,
+          "name": "fee_at"
         },
         {
           "kind": "fn",
           "line": 85,
+          "name": "fee_in_micro_mini"
+        },
+        {
+          "kind": "mod",
+          "line": 97,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 101,
           "name": "price_lookup_finds_the_latest_entry_at_or_before_the_time"
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 122,
           "name": "price_lookup_before_any_entry_fails"
         },
         {
           "kind": "fn",
-          "line": 112,
+          "line": 128,
           "name": "a_zero_price_entry_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 149,
+          "line": 165,
           "name": "out_of_order_or_duplicate_entries_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 188,
           "name": "fee_scales_with_price_and_target"
         },
         {
           "kind": "fn",
-          "line": 179,
+          "line": 195,
           "name": "a_falling_mini_price_raises_the_mini_fee_for_the_same_real_world_target"
         },
         {
           "kind": "fn",
-          "line": 191,
-          "name": "fee_does_not_overflow_at_large_values"
+          "line": 207,
+          "name": "fee_overflow_is_rejected_instead_of_silently_truncated"
+        },
+        {
+          "kind": "fn",
+          "line": 219,
+          "name": "a_zero_rate_is_rejected_at_quote_time_too_not_only_at_ingress"
+        },
+        {
+          "kind": "fn",
+          "line": 232,
+          "name": "fee_at_binds_historical_lookup_and_checked_conversion_in_one_call"
         }
       ],
       "title": "use crate::error::{Result, ValueError};"
@@ -29883,7 +29898,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 298011,
+      "bytes": 304876,
       "group": "docs",
       "headings": [
         {
@@ -30299,8 +30314,8 @@
         "rust",
         "chain",
         "release",
-        "mini-consensus",
         "roadmap",
+        "mini-consensus",
         "status",
         "d-0045",
         "entry",
@@ -30313,9 +30328,9 @@
         "provenance",
         "explicit"
       ],
-      "lines": 5033,
+      "lines": 5146,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "326534cea94b21e82be0830bfcd2f5260b6f9c9e7ca954e1c11b61045820299a",
+      "sha256": "102dd93e517942643b035a506ba78cf57cb619ff14ab59b80490f47911246463",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -31168,7 +31183,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 32094,
+      "bytes": 32328,
       "group": "docs",
       "headings": [
         {
@@ -31198,42 +31213,42 @@
         },
         {
           "level": 2,
-          "line": 176,
+          "line": 180,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 219,
+          "line": 223,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 227,
+          "line": 231,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 268,
+          "line": 272,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 284,
+          "line": 288,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 304,
+          "line": 308,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 499,
+          "line": 503,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 505,
+          "line": 509,
           "text": "Where to look for more detail"
         }
       ],
@@ -31263,9 +31278,9 @@
         "personhood",
         "finality"
       ],
-      "lines": 515,
+      "lines": 519,
       "path": "docs/STATUS.md",
-      "sha256": "4321019a33c2f24f302bd552ab68d6a1a16aeb8fd08ddcb0af673171f5c45b24",
+      "sha256": "59fb7ede8e4a795e7b8f57924bbc4aafac9e3e030b935e9efcea6e3b6ba55d24",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -31377,7 +31392,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 20291,
+      "bytes": 20566,
       "group": "docs",
       "headings": [
         {
@@ -31454,7 +31469,7 @@
       ],
       "lines": 128,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "4d55215f3ad8a9dbd4f3de2b73dcd4f70fc7a228cb76bd79b5c217dfc5cd5e69",
+      "sha256": "d8de5a91b345a79e9cd788e2815c28501599ba1bc588d67a2c3b87c6d26ebf02",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -32148,6 +32163,73 @@
       "sha256": "df4c4e408454e21dc63769c3d25a5cf078a00ae7af70e12e6a05ba6038d0f596",
       "symbols": [],
       "title": "Content-address (CID) integrity review"
+    },
+    {
+      "bytes": 4631,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Issue #44 \u2014 consensus edge-case attack review"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "Timestamp manipulation"
+        },
+        {
+          "level": 2,
+          "line": 39,
+          "text": "Replay (domain confusion)"
+        },
+        {
+          "level": 2,
+          "line": 46,
+          "text": "Fee manipulation"
+        },
+        {
+          "level": 2,
+          "line": 72,
+          "text": "Attribution"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "Closure boundary"
+        }
+      ],
+      "keywords": [
+        "review",
+        "timestamp",
+        "decision",
+        "d-0085",
+        "u64",
+        "closed",
+        "proposer",
+        "one",
+        "manipulation",
+        "rule",
+        "fee_in_micro_mini",
+        "design",
+        "consensus",
+        "attack",
+        "domain",
+        "fee",
+        "two",
+        "deterministic",
+        "overflow",
+        "found",
+        "same",
+        "max",
+        "itself",
+        "reject"
+      ],
+      "lines": 89,
+      "path": "docs/audits/issue-44-consensus-edge-cases.md",
+      "sha256": "8a971093c290721a8a4399eec6aab2f5c90599f5e8121ec6205b25f9631b271f",
+      "symbols": [],
+      "title": "Issue #44 \u2014 consensus edge-case attack review"
     },
     {
       "bytes": 6706,

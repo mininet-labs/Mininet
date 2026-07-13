@@ -24,6 +24,12 @@ pub enum ValueError {
     /// authorization is a caller/governance concern), only on whether a
     /// zero price is ever a sane value once a call is made.
     ZeroPrice,
+    /// A fee quote, after applying the governed price to a real-world value
+    /// target, could not be represented in the ledger's `u64` amount type.
+    /// The pre-fix code cast a `u128` intermediate down to `u64` with `as`,
+    /// which truncates silently on overflow instead of failing — this
+    /// crate never accepts a wrong amount over a rejected one.
+    FeeOverflow,
 }
 
 impl fmt::Display for ValueError {
@@ -39,6 +45,9 @@ impl fmt::Display for ValueError {
             }
             ValueError::ZeroPrice => {
                 write!(f, "a governed price of zero would make every fee free")
+            }
+            ValueError::FeeOverflow => {
+                write!(f, "fee quote exceeds the ledger's u64 amount range")
             }
         }
     }

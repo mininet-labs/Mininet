@@ -75,7 +75,7 @@ fn a_single_claim_finalizes_end_to_end_and_reconcile_reports_it() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state.commitment(),
-        timestamp_ms: 1_000,
+        timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
     let hash = header.hash();
@@ -123,7 +123,7 @@ fn a_double_spend_across_two_competing_proposals_resolves_to_exactly_one_winner(
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state_a.commitment(),
-        timestamp_ms: 1_000,
+        timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
     let hash_a = header_a.hash();
@@ -172,7 +172,7 @@ fn two_independent_chains_fed_the_same_finalized_blocks_converge_to_identical_st
             height,
             prev_hash,
             state_root: next_state.commitment(),
-            timestamp_ms: 1_000 * height,
+            timestamp_ms: height,
             proposer: fx.signers[0].0.did(),
         };
         let hash = header.hash();
@@ -259,7 +259,7 @@ fn a_dishonest_state_root_is_rejected() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: [0xFFu8; 32], // does not match what `body` actually produces
-        timestamp_ms: 1_000,
+        timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
     let hash = header.hash();
@@ -351,13 +351,14 @@ fn wrong_height_and_wrong_parent_are_both_rejected() {
 }
 
 #[test]
-fn a_timestamp_that_does_not_strictly_advance_is_rejected() {
+fn a_timestamp_that_does_not_equal_the_block_height_is_rejected() {
     // Timestamp-attack finding (roadmap #44): `BlockHeader::timestamp_ms`
-    // is proposer-controlled and otherwise unchecked. A block whose
-    // timestamp does not strictly exceed the previous finalized block's
-    // must never be applied, even with a real quorum certificate --
-    // flat or backwards time could otherwise bias any downstream logic
-    // that assumes monotonic block time.
+    // is proposer-controlled and a signature only proves who proposed a
+    // value, never that it reflects real time. Consensus therefore uses
+    // deterministic logical time -- at height N, `timestamp_ms` must equal
+    // N exactly, giving the proposer no discretion over it at all, not
+    // merely a monotonicity bound a malicious proposer could still exploit
+    // (e.g. jumping straight to `u64::MAX`).
     let fx = fixture();
     let mut chain = LedgerChain::genesis();
 
@@ -369,7 +370,7 @@ fn a_timestamp_that_does_not_strictly_advance_is_rejected() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state_1.commitment(),
-        timestamp_ms: 1_000,
+        timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
     let hash_1 = header_1.hash();
@@ -386,10 +387,11 @@ fn a_timestamp_that_does_not_strictly_advance_is_rejected() {
     chain
         .apply_finalized_block(&header_1, &body_1, &qc_1, &fx.validators, &fx.oracle)
         .unwrap();
-    assert_eq!(chain.last_timestamp_ms(), 1_000);
+    assert_eq!(chain.height(), 1);
 
-    // Height 2, claiming the SAME timestamp as height 1 -- not strictly
-    // greater, so it must be rejected even though everything else about it
+    // Height 2, claiming a wildly advanced timestamp instead of exactly 2 --
+    // still "increasing," so a merely-monotonic check would have let this
+    // through. It must be rejected even though everything else about it
     // (height, parent, state root, quorum) is perfectly valid.
     let claim_2 = sign_claim(&payer, b"merchant", 100, 1, 10_000, b"chain-1", 0).unwrap();
     let body_2 = SettlementBlockBody::new(vec![claim_2]);
@@ -398,7 +400,7 @@ fn a_timestamp_that_does_not_strictly_advance_is_rejected() {
         height: 2,
         prev_hash: chain.tip_hash(),
         state_root: next_state_2.commitment(),
-        timestamp_ms: 1_000, // flat, not advancing
+        timestamp_ms: u64::MAX, // increasing, but not the required value
         proposer: fx.signers[0].0.did(),
     };
     let hash_2 = header_2.hash();
@@ -417,14 +419,14 @@ fn a_timestamp_that_does_not_strictly_advance_is_rejected() {
         .unwrap_err();
     assert_eq!(
         err,
-        ExecutionError::NonMonotonicTimestamp {
-            previous: 1_000,
-            got: 1_000,
+        ExecutionError::TimestampNotDeterministic {
+            expected: 2,
+            got: u64::MAX,
         }
     );
     assert_eq!(
         chain.height(),
         1,
-        "the chain must not advance on a non-monotonic timestamp"
+        "the chain must not advance on a non-deterministic timestamp"
     );
 }

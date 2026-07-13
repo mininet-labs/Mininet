@@ -24,13 +24,15 @@ pub enum ExecutionError {
     /// — an allocation/CPU bound applied before processing, the same
     /// discipline `mini-chain::MAX_VOTES_PER_CERTIFICATE` applies.
     TooManyClaims,
-    /// A candidate block's `timestamp_ms` did not strictly exceed the
-    /// previous finalized block's — a proposer-controlled field is
-    /// otherwise free to stay flat or run backwards with no consequence
-    /// (roadmap #44's timestamp-attack finding). Every honest node enforces
-    /// this identically, so it can never itself cause two honest chains to
-    /// disagree (Directive 4) — a block either commits everywhere or nowhere.
-    NonMonotonicTimestamp { previous: u64, got: u64 },
+    /// A candidate block's `timestamp_ms` did not equal its own height.
+    /// `timestamp_ms` is deterministic logical time, not proposer-supplied
+    /// wall time (roadmap #44's timestamp-attack finding): a signature only
+    /// proves who proposed a value, never that it reflects real time, so
+    /// consensus gives the proposer no discretion over it at all rather than
+    /// merely bounding what discretion would otherwise exist. Every honest
+    /// node enforces this identically, so it can never itself cause two
+    /// honest chains to disagree (Directive 4).
+    TimestampNotDeterministic { expected: u64, got: u64 },
 }
 
 impl fmt::Display for ExecutionError {
@@ -50,9 +52,9 @@ impl fmt::Display for ExecutionError {
                 )
             }
             ExecutionError::TooManyClaims => write!(f, "block body exceeds the claim-count cap"),
-            ExecutionError::NonMonotonicTimestamp { previous, got } => write!(
+            ExecutionError::TimestampNotDeterministic { expected, got } => write!(
                 f,
-                "block timestamp_ms {got} does not strictly exceed the previous block's {previous}"
+                "block timestamp_ms {got} does not equal its required deterministic value {expected}"
             ),
         }
     }
