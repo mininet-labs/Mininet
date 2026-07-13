@@ -5402,3 +5402,97 @@ framing and the external v2 whitepaper/README's eleven-principle
 framing, to the extent either is still treated as authoritative anywhere
 outside this repository; does not alter any directive's substantive text
 or any `docs/INVARIANTS.md` row.
+
+### D-0091 — Real mid-transfer TCP-kill resume test; local-network peer discovery over UDP multicast (founder review P1 items "resumable peer-to-peer bootstrap capsule transfer" / "Local-Wi-Fi/mDNS adapter")  ·  *Accepted*
+**Date:** 2026-07-13 · **Refs:** `Mininet_In_Depth_Review_20260712.md`
+P1 backlog items 2/3; `crates/mini-sync/tests/sync_over_tcp.rs`;
+`crates/mini-bearer/src/discovery.rs` (new); D-0062 (live TCP bootstrap
+demo, #23); `docs/gates/wifi-bearer-test-protocol.md`
+
+**Decision:** with all ten founder-review P0 items closed (D-0086–D-0090),
+this picks up the review's P1 backlog ("proves the network exists"),
+scoped to what's genuinely buildable and testable in this session without
+real hardware (the review's own item 1, Android/Linux BLE, and item 7,
+the airplane-mode acceptance suite, both explicitly need real phones and
+stay out of scope here; item 6, invitation/peer-exchange discovery, needs
+real wire-message design in `mini-net` and is left for its own future
+batch). Two items ship:
+
+1. `a_connection_killed_mid_transfer_over_real_tcp_is_safely_resumed_by_
+   a_fresh_connection` (`mini-sync/tests/sync_over_tcp.rs`): a
+   `KillSwitchBearer` test wrapper answers a real `TcpBearer`'s first N
+   `recv` calls normally, then fails every call after that as
+   `BearerError::Closed`, landing strictly mid-pull (after 2 of 5
+   `Objects` batches carrying 300 seeded objects). The killed attempt is
+   asserted to leave the receiving store at exactly zero new objects
+   (`pull()`'s ingest only runs after its whole want-round completes,
+   so a mid-stream kill discards that attempt's bytes wholesale rather
+   than partially corrupting the store); a second, genuinely fresh TCP
+   connection is then proven to converge both stores completely. This
+   closes the real gap in the crate's existing coverage: the only prior
+   resume test, `sync.rs`'s `interrupted_sync_resumes_by_idempotence`,
+   interrupts *before* any content crosses the wire at all.
+2. `mini_bearer::{LocalAnnouncer, LocalScanner}` (`discovery.rs`, new): a
+   minimal, Mininet-owned announce/query datagram over UDP multicast —
+   explicitly **not** full mDNS/DNS-SD (RFC 6762/6763), just enough to
+   find another peer's bearer address on the same local network with no
+   central server and no prior coordination, then hand that address
+   straight to `TcpBearer::connect`. Carries no identity, matching this
+   crate's existing "Bearer is a dumb, identity-free pipe" design. Only
+   the `LocalScanner` side binds the rendezvous port (the announcer just
+   sends), so no `SO_REUSEADDR`/raw-socket tricks are needed and the
+   crate's `#![forbid(unsafe_code)]` is untouched.
+
+**Reason:** both items are precisely the kind of real, scoped,
+demonstrable-without-hardware engineering the review's P1 list calls for,
+and both extend already-shipped, already-tested code (`mini-sync`'s TCP
+tests, `mini-bearer`'s bearer trait) rather than opening new architecture.
+Picking two closely related "proves the network exists" items and
+shipping them together in one batch follows the standing instruction to
+batch related work into fewer, larger PRs rather than many small ones.
+
+**Constitutional impact:** Directive 6 (design for failure, not success)
+directly — both changes are about proving the network keeps working
+correctly when a connection dies, exactly the class of failure Directive
+6 names. No `docs/INVARIANTS.md` row changes: this is coverage/capability
+work over already-decided mechanisms (`mini-sync`'s pull protocol,
+`mini-bearer`'s `Bearer` trait), not a new rule. `docs/gates/
+wifi-bearer-test-protocol.md`'s W1-W7 hardware-trust-scoring gate is
+explicitly **not** closed by this decision — this only builds the
+discovery mechanism the gate would go on to test; no trust-weight claim
+is made here.
+
+**Implementation status:** shipped and tested.
+`cargo test --workspace --all-features` passes; the new
+`sync_over_tcp.rs` test and all four new `discovery.rs` tests
+(`a_scanner_discovers_an_announcer_on_the_same_local_network`,
+`a_scanner_times_out_cleanly_when_nobody_announces`,
+`discovery_hands_off_a_usable_address_to_a_real_tcp_bearer_connect`,
+`a_foreign_datagram_on_the_same_group_is_ignored_not_mistaken_for_a_peer`)
+were each run 5 times in isolation to rule out flakiness from real
+socket/thread timing, with no failures.
+
+**Failure point:** the discovery datagram has no replay/rate protection
+and the multicast group is not a security boundary (documented explicitly
+in `LocalScanner::recv_timeout`'s doc comment) — a hostile local-network
+peer can flood announce traffic or spoof a source address; this is
+acceptable because discovery only ever hands off to `TcpBearer::connect`,
+which starts an ordinary anonymous `Channel` handshake carrying no trust
+of its own, so a forged announce at worst wastes a connection attempt,
+never grants any authority. The kill-switch test's timing (`remaining: 5`
+sized against the crate's current 64-object/batch and 300-object seed
+count) would need adjusting if `protocol.rs`'s internal batch size ever
+changes.
+
+**Required follow-up:** invitation/peer-exchange discovery (review P1
+item 6) — needs real wire-message design in `mini-net`, not attempted
+here; wiring `LocalAnnouncer`/`LocalScanner` into an actual bootstrap or
+reference-client flow (still design-only today, this is the primitive,
+not the integration); `docs/gates/wifi-bearer-test-protocol.md`'s W1-W7
+hardware validation remains entirely founder/tester work needing real
+routers and phones.
+
+**Supersedes / superseded by:** none. Extends D-0062's live-TCP-bootstrap
+proof and `mini-bearer`'s existing `Bearer` trait design; does not alter
+`mini-sync`'s wire protocol or `mini-bearer`'s `TcpBearer`/`Channel`
+behavior.
