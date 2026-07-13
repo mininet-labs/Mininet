@@ -161,6 +161,13 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
         self.chain.state().commitment()
     }
 
+    /// This node's validator KEL oracle — what a host driving this node
+    /// (e.g. [`crate::net::run_to_height`]) needs to independently re-verify
+    /// an [`Emit::Equivocation`] before recording it anywhere.
+    pub fn oracle(&self) -> &O {
+        &self.oracle
+    }
+
     /// Begin consensus: enter round 0 of the current height.
     pub fn start(&mut self) -> Result<Vec<Emit>> {
         let actions = self.round.start();

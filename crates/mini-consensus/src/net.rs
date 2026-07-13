@@ -51,6 +51,7 @@ use std::time::{Duration, Instant};
 use mini_bearer::{encode_frame, Channel, FrameReader, Initiator, Responder};
 use mini_chain::ValidatorOracle;
 
+use crate::consequence::EquivocatorRegistry;
 use crate::error::{ConsensusError, Result};
 use crate::node::{ConsensusNode, Emit};
 use crate::wire::ConsensusMessage;
@@ -462,11 +463,16 @@ struct Timer {
 ///
 /// The body a node proposes when it is a height's proposer comes from the
 /// `body_source` it was built with (see [`crate::NodeConfig`]).
+///
+/// Any [`Emit::Equivocation`] the node reports is independently re-verified
+/// and recorded in `equivocators` — no longer silently dropped (founder
+/// review's `consensus-evidence` P0 finding).
 pub fn run_to_height<O>(
     node: &mut ConsensusNode<O>,
     mesh: &mut TcpMesh,
     target_height: u64,
     timeout: Duration,
+    equivocators: &mut EquivocatorRegistry,
 ) -> Result<()>
 where
     O: ValidatorOracle,
@@ -476,7 +482,15 @@ where
     let mut seen = SeenCache::new(MAX_SEEN_MESSAGES);
 
     // Kick off round 0 of the first height.
-    handle_emits(node.start()?, mesh, &mut timers, &mut seen);
+    let start_emits = node.start()?;
+    handle_emits(
+        start_emits,
+        mesh,
+        &mut timers,
+        &mut seen,
+        equivocators,
+        node.oracle(),
+    );
 
     loop {
         if node.finalized_height() >= target_height {
@@ -500,7 +514,14 @@ where
             }
             let _ = mesh.broadcast(&msg);
             let emits = node.on_message(msg)?;
-            handle_emits(emits, mesh, &mut timers, &mut seen);
+            handle_emits(
+                emits,
+                mesh,
+                &mut timers,
+                &mut seen,
+                equivocators,
+                node.oracle(),
+            );
         }
 
         // Fire any elapsed timers. Stale ones (for a finished height) are no-ops
@@ -522,7 +543,14 @@ where
         for t in ready {
             did_work = true;
             let emits = node.on_timeout(t.height, t.round, t.step)?;
-            handle_emits(emits, mesh, &mut timers, &mut seen);
+            handle_emits(
+                emits,
+                mesh,
+                &mut timers,
+                &mut seen,
+                equivocators,
+                node.oracle(),
+            );
         }
 
         if !did_work {
@@ -531,11 +559,13 @@ where
     }
 }
 
-fn handle_emits(
+fn handle_emits<O: ValidatorOracle>(
     emits: Vec<Emit>,
     mesh: &mut TcpMesh,
     timers: &mut Vec<Timer>,
     seen: &mut SeenCache,
+    equivocators: &mut EquivocatorRegistry,
+    oracle: &O,
 ) {
     for emit in emits {
         match emit {
@@ -559,10 +589,15 @@ fn handle_emits(
                 });
             }
             Emit::Committed { .. } => {}
-            // Detected double-signing is surfaced for a future slashing layer.
-            // This loop has nowhere to route it yet, so it is dropped here;
-            // callers that want it drive the node directly and read the emit.
-            Emit::Equivocation(_) => {}
+            // Detected double-signing is independently re-verified and
+            // recorded — no longer silently dropped (founder review's
+            // `consensus-evidence` P0 finding). This is a role-only
+            // consequence: it does not remove the root from `mesh`'s or
+            // `node`'s static validator set, only makes the evidence
+            // durably queryable for whatever consumes it next.
+            Emit::Equivocation(evidence) => {
+                equivocators.record(&evidence, oracle);
+            }
         }
     }
 }

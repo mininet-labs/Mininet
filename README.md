@@ -143,7 +143,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0087`,
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0088`,
    plus the networking/consensus track's reserved `D-0200`–`D-0206` — see the
    log's "Decision-number allocation across parallel tracks").
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and

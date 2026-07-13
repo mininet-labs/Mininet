@@ -53,6 +53,7 @@ mod controller;
 mod delegation;
 mod error;
 mod event;
+mod freshness;
 mod identity_mode;
 mod kel;
 mod limits;
@@ -64,6 +65,7 @@ pub use controller::Controller;
 pub use delegation::{Capabilities, Seal};
 pub use error::{IdentityError, Result};
 pub use event::{Establishment, Event, EventKind, IndexedSig};
+pub use freshness::FreshnessPins;
 pub use identity_mode::IdentityMode;
 pub use kel::{verify_delegation, Kel, KeyState};
 
