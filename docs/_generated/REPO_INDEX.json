@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 34,
-    "files": 462,
+    "files": 464,
     "headings": 1644,
-    "rust_symbols": 3300
+    "rust_symbols": 3337
   },
   "crates": {
     "did-mini": {
@@ -1118,7 +1118,7 @@
       ],
       "lines": 173,
       "path": "README.md",
-      "sha256": "d2c655a566bdbe33946f8b026ee51d02e7ca5e97af3d0ab085ebd98562f90130",
+      "sha256": "bbf9f758df72985e249bec09a6ca3dd8d67ebf6642664ec234cceed90b45c9e5",
       "symbols": [],
       "title": "Mininet"
     },
@@ -16961,14 +16961,16 @@
       "title": "use std::net::{TcpListener, TcpStream};"
     },
     {
-      "bytes": 587,
+      "bytes": 1133,
       "group": "crate:mini-net",
       "headings": [],
       "keywords": [
+        "neterror",
         "fmt",
         "error",
-        "neterror",
         "result",
+        "peer-exchange",
+        "write",
         "mini-net",
         "display",
         "std",
@@ -16978,21 +16980,19 @@
         "ephemeral",
         "peer",
         "entropy",
+        "pex",
+        "message",
+        "malformedpex",
+        "response",
+        "toomanypexrecords",
         "self",
         "errors",
         "produce",
-        "derive",
-        "debug",
-        "clone",
-        "copy",
-        "partialeq",
-        "enum",
-        "local",
-        "csprng"
+        "derive"
       ],
-      "lines": 24,
+      "lines": 35,
       "path": "crates/mini-net/src/error.rs",
-      "sha256": "e0a58e50caa999e47df48943a4e28e09009bbff29caf160ad1bef003f49d7a47",
+      "sha256": "3530edabaf8d0b9c1d4c273339da7492adb483c597d72ef312057c8e40a1dc1e",
       "symbols": [
         {
           "kind": "enum",
@@ -17001,22 +17001,22 @@
         },
         {
           "kind": "impl",
-          "line": 12,
+          "line": 19,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 13,
+          "line": 20,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 20,
+          "line": 31,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 23,
+          "line": 34,
           "name": "Result"
         }
       ],
@@ -17095,57 +17095,62 @@
       "title": "use std::collections::{HashSet, VecDeque};"
     },
     {
-      "bytes": 2089,
+      "bytes": 2538,
       "group": "crate:mini-net",
       "headings": [],
       "keywords": [
-        "gossip",
         "peer",
+        "gossip",
         "routing",
+        "pex",
         "error",
         "broadcast",
         "local",
         "d-0009",
         "network",
+        "peers",
         "same",
+        "message",
+        "peerid",
+        "discovery",
         "mini-bearer",
         "ble",
         "d-0015",
         "wider",
-        "peers",
         "messages",
         "them",
+        "two",
         "every",
-        "routingtable",
-        "gossiprouter",
-        "message",
-        "shape",
-        "peerid",
-        "type",
-        "logic"
+        "other",
+        "piece"
       ],
-      "lines": 45,
+      "lines": 55,
       "path": "crates/mini-net/src/lib.rs",
-      "sha256": "eb36ab0770a7d9f4f41e6c1a64d7ead8f352c91c14f03d67e0c11914c4de3840",
+      "sha256": "be7f684f12e9469cb0e2e4fc72621fe32c8781ccda919c58d6cb01fe28ca6dbf",
       "symbols": [
         {
           "kind": "mod",
-          "line": 36,
+          "line": 42,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 37,
+          "line": 43,
           "name": "gossip"
         },
         {
           "kind": "mod",
-          "line": 38,
+          "line": 44,
           "name": "peer"
         },
         {
           "kind": "mod",
-          "line": 39,
+          "line": 45,
+          "name": "pex"
+        },
+        {
+          "kind": "mod",
+          "line": 46,
           "name": "routing"
         }
       ],
@@ -17222,6 +17227,213 @@
         }
       ],
       "title": "use crate::error::{NetError, Result};"
+    },
+    {
+      "bytes": 17694,
+      "group": "crate:mini-net",
+      "headings": [],
+      "keywords": [
+        "address",
+        "peer",
+        "response",
+        "pexmessage",
+        "peerid",
+        "own",
+        "out",
+        "request",
+        "addressbook",
+        "peers",
+        "connection",
+        "routingtable",
+        "never",
+        "see",
+        "records",
+        "const",
+        "max_pex_records",
+        "peerrecord",
+        "dialable",
+        "requester",
+        "vec",
+        "pex",
+        "tag_request",
+        "tag_response"
+      ],
+      "lines": 459,
+      "path": "crates/mini-net/src/pex.rs",
+      "sha256": "096c37b9f051864bf9904d022d64ba7accec1589b5b3a2a2ae4b8fcaedbff8aa",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 62,
+          "name": "MAX_PEX_RECORDS"
+        },
+        {
+          "kind": "const",
+          "line": 64,
+          "name": "TAG_REQUEST"
+        },
+        {
+          "kind": "const",
+          "line": 65,
+          "name": "TAG_RESPONSE"
+        },
+        {
+          "kind": "const",
+          "line": 66,
+          "name": "ADDR_KIND_V4"
+        },
+        {
+          "kind": "const",
+          "line": 67,
+          "name": "ADDR_KIND_V6"
+        },
+        {
+          "kind": "struct",
+          "line": 72,
+          "name": "PeerRecord"
+        },
+        {
+          "kind": "enum",
+          "line": 82,
+          "name": "PexMessage"
+        },
+        {
+          "kind": "impl",
+          "line": 93,
+          "name": "PexMessage"
+        },
+        {
+          "kind": "fn",
+          "line": 95,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "decode"
+        },
+        {
+          "kind": "struct",
+          "line": 204,
+          "name": "AddressBook"
+        },
+        {
+          "kind": "impl",
+          "line": 208,
+          "name": "AddressBook"
+        },
+        {
+          "kind": "fn",
+          "line": 210,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 221,
+          "name": "insert"
+        },
+        {
+          "kind": "fn",
+          "line": 233,
+          "name": "get"
+        },
+        {
+          "kind": "fn",
+          "line": 238,
+          "name": "len"
+        },
+        {
+          "kind": "fn",
+          "line": 243,
+          "name": "is_empty"
+        },
+        {
+          "kind": "fn",
+          "line": 258,
+          "name": "build_response"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
+          "name": "absorb_response"
+        },
+        {
+          "kind": "mod",
+          "line": 287,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 290,
+          "name": "id"
+        },
+        {
+          "kind": "fn",
+          "line": 294,
+          "name": "addr"
+        },
+        {
+          "kind": "fn",
+          "line": 299,
+          "name": "a_request_round_trips_through_encode_decode"
+        },
+        {
+          "kind": "fn",
+          "line": 305,
+          "name": "a_truncated_request_is_rejected_not_partially_parsed"
+        },
+        {
+          "kind": "fn",
+          "line": 316,
+          "name": "a_response_round_trips_through_encode_decode"
+        },
+        {
+          "kind": "fn",
+          "line": 333,
+          "name": "an_empty_response_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 339,
+          "name": "a_truncated_frame_is_rejected_not_partially_parsed"
+        },
+        {
+          "kind": "fn",
+          "line": 354,
+          "name": "trailing_bytes_after_a_well_formed_message_are_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 361,
+          "name": "an_unknown_tag_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 366,
+          "name": "a_claimed_count_over_the_cap_is_rejected_before_allocating"
+        },
+        {
+          "kind": "fn",
+          "line": 373,
+          "name": "address_book_first_seen_wins"
+        },
+        {
+          "kind": "fn",
+          "line": 388,
+          "name": "build_response_excludes_the_requester_and_addressless_peers"
+        },
+        {
+          "kind": "fn",
+          "line": 412,
+          "name": "absorb_response_learns_new_peers_but_never_the_local_id"
+        },
+        {
+          "kind": "fn",
+          "line": 436,
+          "name": "absorb_response_does_not_overwrite_an_already_known_address"
+        }
+      ],
+      "title": "use std::collections::HashMap;"
     },
     {
       "bytes": 3012,
@@ -17411,6 +17623,53 @@
         }
       ],
       "title": "use mini_net::{fanout_peers, GossipRouter, PeerId, RoutingTable, BUCKET_SIZE};"
+    },
+    {
+      "bytes": 5920,
+      "group": "crate:mini-net",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "address",
+        "bearer",
+        "pex",
+        "pexmessage",
+        "request",
+        "stream",
+        "c_id",
+        "b_listener",
+        "dialable",
+        "knows",
+        "never",
+        "peerid",
+        "b_routing",
+        "new",
+        "exchange",
+        "tcplistener",
+        "thread",
+        "tcpbearer",
+        "routingtable",
+        "generate",
+        "b_id",
+        "b_book",
+        "request_bytes"
+      ],
+      "lines": 139,
+      "path": "crates/mini-net/tests/pex_over_tcp.rs",
+      "sha256": "57c688914e9d7698ab0e4692586dda4d23fce77cdffb0880285a4f66d63f3c0b",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 21,
+          "name": "a_node_discovers_a_second_peers_address_purely_through_pex_over_real_tcp"
+        },
+        {
+          "kind": "fn",
+          "line": 102,
+          "name": "pex_never_hands_the_requester_back_its_own_record_over_real_tcp"
+        }
+      ],
+      "title": "use std::net::{TcpListener, TcpStream};"
     },
     {
       "bytes": 470,
@@ -30360,7 +30619,7 @@
       "title": "{"
     },
     {
-      "bytes": 326462,
+      "bytes": 331652,
       "group": "docs",
       "headings": [
         {
@@ -30787,12 +31046,12 @@
         "what",
         "spine",
         "on-device",
-        "one",
-        "provenance"
+        "first",
+        "one"
       ],
-      "lines": 5499,
+      "lines": 5582,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "0cb00c0a935a7f3ccce14547b5468ac8725c9c0e53c6f48267385304b695dbf1",
+      "sha256": "4a726cef76da14285d6334f791648c635e82be9ffee50fdd874af2185b37c69c",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -31650,7 +31909,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 35745,
+      "bytes": 37056,
       "group": "docs",
       "headings": [
         {
@@ -31700,22 +31959,22 @@
         },
         {
           "level": 2,
-          "line": 330,
+          "line": 350,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 359,
+          "line": 379,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 554,
+          "line": 574,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 560,
+          "line": 580,
           "text": "Where to look for more detail"
         }
       ],
@@ -31745,9 +32004,9 @@
         "finality",
         "storage"
       ],
-      "lines": 570,
+      "lines": 590,
       "path": "docs/STATUS.md",
-      "sha256": "53f68e9b5bdd8e77960b236a05555782422a919df7a1422de02e5337445c4d37",
+      "sha256": "a7ec21c1667e49189ff28e33fccdf27f365b83b72162e0e1d0b1320cccff9942",
       "symbols": [],
       "title": "Implementation status"
     },

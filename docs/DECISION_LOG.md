@@ -5496,3 +5496,86 @@ routers and phones.
 proof and `mini-bearer`'s existing `Bearer` trait design; does not alter
 `mini-sync`'s wire protocol or `mini-bearer`'s `TcpBearer`/`Channel`
 behavior.
+
+### D-0092 — Peer exchange (PEX): mini-net's first real wire-message design, over real TCP (founder review P1 item "invitation and peer-exchange discovery with no required central server")  ·  *Accepted*
+**Date:** 2026-07-13 · **Refs:** `Mininet_In_Depth_Review_20260712.md`
+P1 backlog item 6; `crates/mini-net/src/pex.rs` (new);
+`crates/mini-net/tests/pex_over_tcp.rs` (new); D-0091 (deferred this item
+as needing "real wire-message design, a larger lift than the local-
+network case"); roadmap #36-#45
+
+**Decision:** with the two smaller founder-review P1 items shipped
+(D-0091), this closes the third and largest: a node can now discover a
+peer's dialable address purely by asking an already-connected peer, with
+no central directory server. `mini_net::pex` adds: `PeerRecord` (a
+`PeerId` paired with a `SocketAddr` — `RoutingTable` alone was never
+dialable, only positional); `AddressBook` (maps `PeerId` → `SocketAddr`,
+first-seen-wins on insert); `PexMessage::{Request(PeerId), Response(Vec<
+PeerRecord>)}` with a hand-rolled binary encode/decode (this crate's
+first real wire-message design — `RoutingTable`/`GossipRouter` had no
+message-type or wire-format concept before this); and two pure functions,
+`build_response`/`absorb_response`, over `RoutingTable`/`AddressBook`.
+`Request` carries the requester's own id but never a self-declared
+address — the responder learns the requester's dialable address from the
+live connection's own observed source address instead, closing one class
+of return-address spoofing a self-reported address would invite.
+
+**Reason:** D-0091 explicitly named this the largest remaining P1 lift
+("needs real wire-message design in `mini-net`") and deferred it rather
+than rush a design; this batch does that design properly, scoped to
+exactly what "peers can find each other's addresses with no central
+server" requires — nothing more (no gossip-fanout integration, no
+routing-table liveness refresh, both named as follow-up, not attempted
+here). Keeping `PexMessage`'s wire format hand-rolled (no serde) and the
+handler functions pure (no socket I/O inside `pex.rs` itself) matches this
+crate's existing "land pure, testable logic before the adapter that needs
+a real socket" pattern and this workspace's broader no-new-dependency
+default.
+
+**Constitutional impact:** none directly — `PeerId` remains explicitly
+non-identity (unaffected), and `PexMessage::Response` is documented as an
+unauthenticated hint, never a trust or governance signal, so this
+introduces no new voice/value-adjacent surface. Directive 6 (design for
+failure) applies to the `AddressBook::insert` first-seen-wins choice: a
+later hostile PEX response can never silently redirect who a caller
+dials for an id already resolved. No `docs/INVARIANTS.md` row changes.
+
+**Implementation status:** shipped and tested. 12 unit tests in
+`pex.rs` (encode/decode round-trips, truncation/trailing-byte/oversized-
+count rejection, `AddressBook` first-seen-wins, `build_response`/
+`absorb_response` exclusion and never-learn-self behavior) plus two real-
+TCP integration tests in `tests/pex_over_tcp.rs`:
+`a_node_discovers_a_second_peers_address_purely_through_pex_over_real_tcp`
+(node A, supplied only node B's address, discovers node C's dialable
+address purely through one PEX round with B, then actually dials C over
+a fresh socket to prove the discovered address is real, not just a data-
+structure entry) and
+`pex_never_hands_the_requester_back_its_own_record_over_real_tcp`. Both
+new integration tests were run 5 times in isolation with no failures.
+`cargo test --workspace --all-features` is green (one unrelated,
+pre-existing flake in `mini-build-runner-wasmtime`'s adversarial suite
+reproduced once and passed clean on immediate retry — not touched by
+this change, not investigated further here).
+
+**Failure point:** `PexMessage::Response`'s trust model is deliberately
+thin — an unauthenticated hint whose only real defenses are the response-
+size cap (`MAX_PEX_RECORDS`) and `AddressBook`'s first-seen-wins rule;
+nothing here proves a discovered address is live, honest, or actually the
+peer it claims. `RoutingTable::insert`'s own existing honest limit
+(a full bucket simply refuses new peers, no liveness-based eviction) is
+unchanged and still applies to peers learned via PEX. Wiring PEX into an
+actual bootstrap flow, gossip fanout, or a periodic refresh loop is not
+done here — this ships the mechanism, not the integration.
+
+**Required follow-up:** wire PEX-discovered peers into `GossipRouter`
+fanout and `RoutingTable` bucket refresh end to end (currently proven
+independently, not together); a real address-liveness check before
+trusting a PEX-learned address for anything beyond "worth dialing";
+BLE/Android adapter and the airplane-mode acceptance suite (review P1
+items 1/7) remain hardware-blocked; a minimal reference client (review
+P1 item 4) and state sync/reconnect (review P1 item 5) remain unbuilt.
+
+**Supersedes / superseded by:** none. Extends `mini-net`'s existing
+`RoutingTable`/`GossipRouter` design (D-0034/D-0042) with the address-
+carrying piece neither previously provided; does not alter either type's
+existing behavior or tests.
