@@ -298,12 +298,34 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   store, empty `KelCache`) bootstraps a signed genesis capsule from a seed
   peer over a real socket end to end, and `mini_sync::sync_bidirectional`'s
   own "over any bearer" claim is now tested against `TcpBearer`, not just
-  `InProcessBearer`.
+  `InProcessBearer`. Extended (D-0091, founder review P1 item "resumable
+  peer-to-peer bootstrap capsule transfer"):
+  `a_connection_killed_mid_transfer_over_real_tcp_is_safely_resumed_by_a_
+  fresh_connection` kills a real TCP connection strictly mid-transfer
+  (partway through a 300-object pull, not at the pre-handshake stage the
+  older `interrupted_sync_resumes_by_idempotence` test used) and proves a
+  fresh connection still converges the two stores completely — precisely
+  scoped as "safe idempotent retry-from-scratch," not byte-offset resume
+  within one transfer, since `pull()` only ingests after its whole
+  want-round completes.
+- **shipped** — local-network peer discovery over UDP multicast (D-0091,
+  founder review P1 item "Local-Wi-Fi/mDNS adapter"):
+  `mini_bearer::LocalAnnouncer`/`LocalScanner` — a minimal, Mininet-owned
+  announce datagram (explicitly not full mDNS/DNS-SD RFC 6762/6763),
+  carrying no identity, that discovers a peer's bearer address on the same
+  local network with no central server and hands it straight to
+  `TcpBearer::connect`. `docs/gates/wifi-bearer-test-protocol.md` still
+  gates whether this signal is *trustworthy* co-presence evidence (needs
+  real routers/phones/VPN attack testing, W1-W7) — this only builds the
+  discovery mechanism the gate goes on to test, and makes no trust claim
+  of its own.
 - **partial** — `mini-net`'s gossip logic is proven live over real
   sockets; peer *discovery* (`RoutingTable`) is unexercised over a real
-  transport; not a mesh.
-- **not started** — BLE/local-Wi-Fi radio adapters (needs real phone
-  hardware, [#22](../../issues/22)); NAT traversal; local mesh routing.
+  transport; not a mesh. Invitation/peer-exchange discovery (founder
+  review P1 item 6) remains unbuilt — needs real wire-message design, a
+  larger lift than the local-network case above.
+- **not started** — BLE radio adapter (needs real phone hardware,
+  [#22](../../issues/22)); NAT traversal; local mesh routing.
 
 ## 9. AI & audit gates
 

@@ -6,8 +6,11 @@
 //! - **[`Bearer`]** is a dumb, identity-free pipe: it moves opaque frames between
 //!   two endpoints and knows nothing about who is talking. BLE, local Wi-Fi/hotspot,
 //!   and an internet relay are all just bearers (this crate ships an in-process
-//!   bearer for tests; platform bearers bind behind the same trait). Anonymity
-//!   starts here — the transport carries no identity.
+//!   bearer, a real [`TcpBearer`], and — for finding a peer's address in the
+//!   first place on a shared local network — [`discovery::LocalAnnouncer`]/
+//!   [`discovery::LocalScanner`] over UDP multicast; platform bearers bind
+//!   behind the same trait). Anonymity starts here — the transport carries
+//!   no identity, and neither does discovery.
 //!
 //! - **[`Channel`]** is an encrypted session over any bearer. It performs an
 //!   ephemeral X25519 handshake ([`Initiator`] / [`Responder`]), derives
@@ -42,6 +45,7 @@
 
 mod bearer;
 mod channel;
+mod discovery;
 mod error;
 mod inprocess;
 mod tcp;
@@ -50,6 +54,9 @@ pub use bearer::{encode_frame, Bearer, FrameReader, MAX_FRAME_BYTES, MAX_STREAM_
 pub use channel::{
     Channel, Initiator, Responder, MAX_CHANNEL_CIPHERTEXT_BYTES, MAX_CHANNEL_PLAINTEXT_BYTES,
     PROTOCOL_VERSION,
+};
+pub use discovery::{
+    LocalAnnouncer, LocalScanner, DEFAULT_MULTICAST_GROUP, DEFAULT_MULTICAST_PORT,
 };
 pub use error::{BearerError, Result};
 pub use inprocess::{pair, InProcessBearer};

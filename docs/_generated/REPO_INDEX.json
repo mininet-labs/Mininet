@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 34,
-    "files": 461,
+    "files": 462,
     "headings": 1644,
-    "rust_symbols": 3272
+    "rust_symbols": 3300
   },
   "crates": {
     "did-mini": {
@@ -1118,7 +1118,7 @@
       ],
       "lines": 173,
       "path": "README.md",
-      "sha256": "370fe98863d692aafe2c17426daf9c6f9c806e45b47adb5e9491f06de47bef29",
+      "sha256": "d2c655a566bdbe33946f8b026ee51d02e7ca5e97af3d0ab085ebd98562f90130",
       "symbols": [],
       "title": "Mininet"
     },
@@ -3318,6 +3318,148 @@
       "title": "use mini_crypto::{"
     },
     {
+      "bytes": 9567,
+      "group": "crate:mini-bearer",
+      "headings": [],
+      "keywords": [
+        "group",
+        "port",
+        "magic",
+        "tcp_port",
+        "bind",
+        "u16",
+        "self",
+        "socket",
+        "ipv4addr",
+        "announce",
+        "len",
+        "localannouncer",
+        "bind_to",
+        "same",
+        "local",
+        "result",
+        "announce_len",
+        "localscanner",
+        "network",
+        "real",
+        "udpsocket",
+        "default",
+        "bytes",
+        "discovery"
+      ],
+      "lines": 236,
+      "path": "crates/mini-bearer/src/discovery.rs",
+      "sha256": "3ec8b92cdb9579cd937e40ab7b4afa51c854016ec3cc802d3bb6fcd16d260817",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 35,
+          "name": "DEFAULT_MULTICAST_GROUP"
+        },
+        {
+          "kind": "const",
+          "line": 37,
+          "name": "DEFAULT_MULTICAST_PORT"
+        },
+        {
+          "kind": "const",
+          "line": 39,
+          "name": "MAGIC"
+        },
+        {
+          "kind": "const",
+          "line": 41,
+          "name": "ANNOUNCE_LEN"
+        },
+        {
+          "kind": "fn",
+          "line": 43,
+          "name": "encode_announce"
+        },
+        {
+          "kind": "fn",
+          "line": 50,
+          "name": "decode_announce"
+        },
+        {
+          "kind": "struct",
+          "line": 63,
+          "name": "LocalAnnouncer"
+        },
+        {
+          "kind": "impl",
+          "line": 69,
+          "name": "LocalAnnouncer"
+        },
+        {
+          "kind": "fn",
+          "line": 71,
+          "name": "bind"
+        },
+        {
+          "kind": "fn",
+          "line": 78,
+          "name": "bind_to"
+        },
+        {
+          "kind": "fn",
+          "line": 90,
+          "name": "announce"
+        },
+        {
+          "kind": "struct",
+          "line": 100,
+          "name": "LocalScanner"
+        },
+        {
+          "kind": "impl",
+          "line": 104,
+          "name": "LocalScanner"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "bind"
+        },
+        {
+          "kind": "fn",
+          "line": 111,
+          "name": "bind_to"
+        },
+        {
+          "kind": "fn",
+          "line": 126,
+          "name": "recv_timeout"
+        },
+        {
+          "kind": "mod",
+          "line": 151,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 163,
+          "name": "a_scanner_discovers_an_announcer_on_the_same_local_network"
+        },
+        {
+          "kind": "fn",
+          "line": 178,
+          "name": "a_scanner_times_out_cleanly_when_nobody_announces"
+        },
+        {
+          "kind": "fn",
+          "line": 188,
+          "name": "discovery_hands_off_a_usable_address_to_a_real_tcp_bearer_connect"
+        },
+        {
+          "kind": "fn",
+          "line": 216,
+          "name": "a_foreign_datagram_on_the_same_group_is_ignored_not_mistaken_for_a_peer"
+        }
+      ],
+      "title": "use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};"
+    },
+    {
       "bytes": 2701,
       "group": "crate:mini-bearer",
       "headings": [],
@@ -3467,12 +3609,13 @@
       "title": "use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};"
     },
     {
-      "bytes": 2604,
+      "bytes": 2949,
       "group": "crate:mini-bearer",
       "headings": [],
       "keywords": [
         "bearer",
         "channel",
+        "discovery",
         "anonymous",
         "error",
         "inprocess",
@@ -3487,42 +3630,46 @@
         "encrypted",
         "two",
         "nothing",
+        "local",
         "bearers",
-        "ephemeral",
-        "handshake",
-        "initiator",
-        "responder",
-        "keys",
-        "valid",
-        "endpoint"
+        "tcpbearer",
+        "peer",
+        "localannouncer",
+        "localscanner",
+        "ephemeral"
       ],
-      "lines": 57,
+      "lines": 64,
       "path": "crates/mini-bearer/src/lib.rs",
-      "sha256": "13a4c6e96d2ba99063c81b6677876f43ba7096ca4dc2a3c15877378ad0c89b1b",
+      "sha256": "b6a163f9945493df4e157639211000e68d0b7785202b4d03b50be18c00f26a0d",
       "symbols": [
         {
           "kind": "mod",
-          "line": 43,
+          "line": 46,
           "name": "bearer"
         },
         {
           "kind": "mod",
-          "line": 44,
+          "line": 47,
           "name": "channel"
         },
         {
           "kind": "mod",
-          "line": 45,
+          "line": 48,
+          "name": "discovery"
+        },
+        {
+          "kind": "mod",
+          "line": 49,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 46,
+          "line": 50,
           "name": "inprocess"
         },
         {
           "kind": "mod",
-          "line": 47,
+          "line": 51,
           "name": "tcp"
         }
       ],
@@ -25268,7 +25415,7 @@
       "title": "use std::thread;"
     },
     {
-      "bytes": 5953,
+      "bytes": 12503,
       "group": "crate:mini-sync",
       "headings": [],
       "keywords": [
@@ -25277,29 +25424,29 @@
         "store",
         "root",
         "device",
-        "chan",
-        "tcpbearer",
+        "new",
+        "self",
+        "real",
         "did",
         "seed",
-        "new",
+        "recv",
         "controller",
-        "listener",
-        "stream",
         "post",
-        "seeded",
-        "sync_bidirectional",
-        "responder",
+        "send",
+        "mini_bearer",
         "memorybackend",
+        "remaining",
+        "connection",
+        "channel",
+        "tcpbearer",
+        "kelcache",
+        "cache",
         "kel",
-        "b_store",
-        "report",
-        "assert_eq",
-        "handshake_responder",
-        "channel"
+        "hello"
       ],
-      "lines": 181,
+      "lines": 334,
       "path": "crates/mini-sync/tests/sync_over_tcp.rs",
-      "sha256": "34c5ee6621c1dee50781894977d85d8c788e4b7f945cad41889baec476590a74",
+      "sha256": "f7c498c4936e6a2baa248693674d446689fb89e7da273144e4ce4c98ce0b7e32",
       "symbols": [
         {
           "kind": "fn",
@@ -25327,13 +25474,43 @@
           "name": "handshake_initiator"
         },
         {
+          "kind": "struct",
+          "line": 81,
+          "name": "KillSwitchBearer"
+        },
+        {
+          "kind": "impl",
+          "line": 86,
+          "name": "Bearer"
+        },
+        {
           "kind": "fn",
-          "line": 76,
+          "line": 87,
+          "name": "send"
+        },
+        {
+          "kind": "fn",
+          "line": 91,
+          "name": "recv"
+        },
+        {
+          "kind": "fn",
+          "line": 99,
+          "name": "try_recv"
+        },
+        {
+          "kind": "fn",
+          "line": 122,
+          "name": "a_connection_killed_mid_transfer_over_real_tcp_is_safely_resumed_by_a_fresh_connection"
+        },
+        {
+          "kind": "fn",
+          "line": 229,
           "name": "a_fresh_peer_pulls_everything_over_a_real_tcp_socket"
         },
         {
           "kind": "fn",
-          "line": 129,
+          "line": 282,
           "name": "two_peers_with_disjoint_content_converge_to_the_same_set_over_tcp"
         }
       ],
@@ -30183,7 +30360,7 @@
       "title": "{"
     },
     {
-      "bytes": 320702,
+      "bytes": 326462,
       "group": "docs",
       "headings": [
         {
@@ -30591,8 +30768,8 @@
         "accepted",
         "founder",
         "review",
-        "batch",
         "real",
+        "batch",
         "decision",
         "log",
         "core",
@@ -30613,9 +30790,9 @@
         "one",
         "provenance"
       ],
-      "lines": 5405,
+      "lines": 5499,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "2aa6b597fe3e93d08b0cf02a2aea66e050dc439952913f32b427960f3493f364",
+      "sha256": "0cb00c0a935a7f3ccce14547b5468ac8725c9c0e53c6f48267385304b695dbf1",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -31473,7 +31650,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 34245,
+      "bytes": 35745,
       "group": "docs",
       "headings": [
         {
@@ -31523,22 +31700,22 @@
         },
         {
           "level": 2,
-          "line": 308,
+          "line": 330,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 337,
+          "line": 359,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 532,
+          "line": 554,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 538,
+          "line": 560,
           "text": "Where to look for more detail"
         }
       ],
@@ -31568,9 +31745,9 @@
         "finality",
         "storage"
       ],
-      "lines": 548,
+      "lines": 570,
       "path": "docs/STATUS.md",
-      "sha256": "539f0a51b31bab217170cede32bbb740b96ad2ba462330f9039b3fc3c65a3758",
+      "sha256": "53f68e9b5bdd8e77960b236a05555782422a919df7a1422de02e5337445c4d37",
       "symbols": [],
       "title": "Implementation status"
     },
