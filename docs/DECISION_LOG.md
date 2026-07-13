@@ -5255,3 +5255,78 @@ this tree's own prior comments (`verify_delegation`'s freshness note,
 `net.rs`'s dropped-evidence comment) already called for; does not alter
 D-0053's recovery mechanism, D-0204's equivocation-detection mechanism,
 or D-0206's transport-confidentiality mechanism.
+
+### D-0089 — Credential taxonomy naming/mapping doc; explicit custody-separation clause; docs-supersession non-finding (founder review P0 items `credential-separation`/`custody-separation`/`docs-supersession`)  ·  *Accepted*
+**Date:** 2026-07-13 · **Refs:** `Mininet_In_Depth_Review_20260712.md`
+(Value 2/Value 8/Value 9); `docs/design/credential-taxonomy.md` (new);
+`docs/design/treasury-economic-model.md` §9 (amended); D-0086 (personhood-
+honesty naming), D-0059/D-0060 (treasury custody committees), D-0073
+(cellular treasury design)
+
+**Decision:** ship `docs/design/credential-taxonomy.md`, a naming/mapping
+document that identifies the review's four named claim classes —
+`ParticipantCredential`, `HumanEvidence` (deliberately not named a
+"credential"), the `RoleCredential` family, and the `ResourceCredential`
+family — against mechanisms that already exist and are already tested
+(`did_mini::Kel`/`Controller`; `mini_uniqueness::HumanRecord`/
+`HumanStatus`; `did_mini::Capabilities`/`BaseDeviceRole` +
+`mini_chain::ValidatorSet` + `mini_forge::governance` + `mini_treasury`
+signer committees; `mini_storage`/`mini_reward` receipts), and states
+plainly that `UniqueHumanCredential` remains entirely unbuilt Phase 2
+work. Separately, amend `docs/design/treasury-economic-model.md` §9 to
+state explicitly, rather than leave implied, that a bridge-specific
+vault's signer committee and the general treasury's signer committee are
+always disjoint sets — no individual may hold a seat on both. Also
+record, as an honest non-finding, that this repository's own canonical
+documents contain no live Cosmos/LoRa/reverse-liability contradiction to
+mark historical — the contradictions the review names live entirely in
+the founder's externally-held SPEC whitepapers, never committed here.
+
+**Reason:** the review asks for a name-and-separate exercise, not a new
+mechanism — every claim class it lists already has a working, tested
+answer in this tree; what was missing was a single document a reviewer
+(or a future PR-review checklist) can check a code change against before
+it lets a role-level finding quietly touch personhood, or a resource
+commitment quietly touch governance weight. Custody separation was
+already implied by the cellular design's "separated by... custody
+committee" language; making it a standalone, unmissable sentence removes
+any need to infer it. The docs-supersession sweep is recorded honestly
+because fabricating repository content to "resolve" a contradiction that
+isn't actually present here would be a worse outcome than reporting the
+non-finding.
+
+**Constitutional impact:** Directive 16/P1 (voice/value wall) and the
+one-root-one-vote rule (P2) — the taxonomy makes explicit that every
+`RoleCredential` sits underneath, never beside, those rules, and calls
+out the equivocation-to-personhood link (D-0088's `EquivocatorRegistry`)
+as the exact reverse-liability failure (Value 9) this separation exists
+to prevent. No `docs/INVARIANTS.md` row changes — this names an existing
+boundary, it does not create or weaken one. Custody-separation clause
+strengthens the existing cellular-treasury principle (D-0073) without
+altering it.
+
+**Implementation status:** docs-only; no crate, type, trait, or function
+signature changes. `docs/design/credential-taxonomy.md` is new;
+`docs/design/treasury-economic-model.md` gained one paragraph in §9.
+
+**Failure point:** this document has no enforcement mechanism of its
+own — nothing fails a build or a review if a future PR ignores the
+taxonomy. It is a reference for human/AI reviewers to check against, not
+a compile-time or CI-time gate. If that turns out to be insufficient, a
+follow-up would need an actual lint/check (e.g. a `check_governance.py`-
+style script flagging a `RoleCredential`-typed value flowing into a
+personhood- or vote-weight-typed field) — not proposed or built here.
+
+**Required follow-up:** `UniqueHumanCredential` itself (Phase 2,
+nullifiers, multi-proposer challenge protocol, adversarial pilot — not
+started); the `docs-supersession` item's remaining scope (superseding
+language inside the founder's externally-held SPEC documents) is outside
+what this repository/session can read or edit and needs either those
+documents committed here or the founder handling it directly;
+`constitution-registry` and `audit-program` (the two remaining founder-
+review P0 items) both need founder scoping/scheduling, not unilateral
+agent action.
+
+**Supersedes / superseded by:** none. Amends D-0073's cellular-custody
+design by making one already-implied rule explicit; does not alter
+D-0086's `HumanStatus` rename or D-0088's `EquivocatorRegistry` scope.

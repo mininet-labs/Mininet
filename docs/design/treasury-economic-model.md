@@ -156,6 +156,17 @@ vault holds more than 10%** of the relevant external reserve. A large
 expenditure spanning several vaults is approved and executed in stages,
 so compromise of one vault cannot expose the whole treasury.
 
+**Custody separation, stated explicitly (D-0089, founder review's
+`custody-separation` P0 item):** a bridge-specific vault's signer
+committee and the general treasury's signer committee are always
+disjoint sets of people, keys, and devices — no individual may hold a
+seat on both. This was already implied by "separated by... custody
+committee" above and by §10's rule that no single majority may control
+"rate-source administration, receipt verification, custody signing, mint
+authorization, and accounting" together; this paragraph exists so it is
+never left to inference. One compromised bridge committee member must
+never also be a treasury signer, and vice versa.
+
 Each vault uses an audited, asset-compatible threshold-signature system.
 Mininet's FROST implementation (D-0059/D-0060) may be used only where it
 is cryptographically compatible with the specific external asset *and*
