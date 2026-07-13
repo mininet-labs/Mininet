@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 34,
-    "files": 458,
-    "headings": 1629,
+    "files": 459,
+    "headings": 1639,
     "rust_symbols": 3272
   },
   "crates": {
@@ -30147,7 +30147,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 311706,
+      "bytes": 316369,
       "group": "docs",
       "headings": [
         {
@@ -30554,8 +30554,8 @@
       "keywords": [
         "accepted",
         "founder",
-        "batch",
         "review",
+        "batch",
         "real",
         "decision",
         "log",
@@ -30570,16 +30570,16 @@
         "entry",
         "stack",
         "audit",
+        "explicit",
         "what",
         "spine",
         "on-device",
         "one",
-        "provenance",
-        "explicit"
+        "provenance"
       ],
-      "lines": 5258,
+      "lines": 5333,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "2eed72cbb90951f48cee8328a8ac1a3c6d36f93ba042f9b017d0913fddd47ae1",
+      "sha256": "a3f4930c8745577d6e909209c09ebd5d8fdabccdbeb721793da312dbf0ea04dd",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -31432,7 +31432,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 32922,
+      "bytes": 33635,
       "group": "docs",
       "headings": [
         {
@@ -31452,52 +31452,52 @@
         },
         {
           "level": 2,
-          "line": 105,
+          "line": 111,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 128,
+          "line": 134,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 189,
+          "line": 200,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 232,
+          "line": 243,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 240,
+          "line": 251,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 281,
+          "line": 292,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 297,
+          "line": 308,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 317,
+          "line": 328,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 512,
+          "line": 523,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 518,
+          "line": 529,
           "text": "Where to look for more detail"
         }
       ],
@@ -31527,9 +31527,9 @@
         "finality",
         "storage"
       ],
-      "lines": 528,
+      "lines": 539,
       "path": "docs/STATUS.md",
-      "sha256": "0b674702e1d51c64bcd2e9e5eeb495a20d93f2df7091980deadeec9d0f6913c0",
+      "sha256": "a6ec2634389f2268af8ce0cfdd36a9a8af957d98d1832504a35ac8e6f68aa0bd",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -32687,6 +32687,93 @@
       "title": "Bounty & review system design \u2014 money funds work, never a decision"
     },
     {
+      "bytes": 7775,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Credential taxonomy: participant, human, role, resource"
+        },
+        {
+          "level": 2,
+          "line": 21,
+          "text": "The four classes"
+        },
+        {
+          "level": 3,
+          "line": 23,
+          "text": "1. `ParticipantCredential` \u2014 \"a key-controlled identity exists\""
+        },
+        {
+          "level": 3,
+          "line": 36,
+          "text": "2. `HumanEvidence` \u2014 \"evidence exists toward this root being one human\""
+        },
+        {
+          "level": 3,
+          "line": 49,
+          "text": "3. `RoleCredential` family \u2014 \"this identity currently holds a specific, revocable authorization\""
+        },
+        {
+          "level": 3,
+          "line": 80,
+          "text": "4. `ResourceCredential` family \u2014 \"this identity has committed storage/bandwidth\""
+        },
+        {
+          "level": 2,
+          "line": 90,
+          "text": "What does not exist yet, honestly"
+        },
+        {
+          "level": 2,
+          "line": 103,
+          "text": "Custody separation (`custody-separation` P0 item)"
+        },
+        {
+          "level": 2,
+          "line": 116,
+          "text": "`docs-supersession` (P0 item) \u2014 an honest non-finding"
+        },
+        {
+          "level": 2,
+          "line": 135,
+          "text": "Non-goals of this document"
+        }
+      ],
+      "keywords": [
+        "what",
+        "identity",
+        "root",
+        "exists",
+        "never",
+        "human",
+        "one",
+        "today",
+        "credential",
+        "role",
+        "document",
+        "review",
+        "value",
+        "claims",
+        "mechanism",
+        "already",
+        "answers",
+        "resource",
+        "humanevidence",
+        "family",
+        "new",
+        "its",
+        "governance",
+        "did_mini"
+      ],
+      "lines": 145,
+      "path": "docs/design/credential-taxonomy.md",
+      "sha256": "ce242fbad67ce9f4494aa78acf6b13acdaa6da5a8f15d726396dc6e995adbb49",
+      "symbols": [],
+      "title": "Credential taxonomy: participant, human, role, resource"
+    },
+    {
       "bytes": 7972,
       "group": "docs",
       "headings": [
@@ -33187,7 +33274,7 @@
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
     {
-      "bytes": 12097,
+      "bytes": 12770,
       "group": "docs",
       "headings": [
         {
@@ -33247,27 +33334,27 @@
         },
         {
           "level": 2,
-          "line": 166,
+          "line": 177,
           "text": "10. Signer selection and rotation"
         },
         {
           "level": 2,
-          "line": 180,
+          "line": 191,
           "text": "11. Governance controls \u2014 explicit allow/deny list"
         },
         {
           "level": 2,
-          "line": 196,
+          "line": 207,
           "text": "12. Influence and recognition"
         },
         {
           "level": 2,
-          "line": 207,
+          "line": 218,
           "text": "13. Required economic stress tests (pre-mass-launch gate, not yet run)"
         },
         {
           "level": 2,
-          "line": 225,
+          "line": 236,
           "text": "What remains open"
         }
       ],
@@ -33297,9 +33384,9 @@
         "design",
         "model"
       ],
-      "lines": 239,
+      "lines": 250,
       "path": "docs/design/treasury-economic-model.md",
-      "sha256": "56f3f3c2be787624e2f56981fe21cf683089f39dfab78850b0de984c3c0cf39d",
+      "sha256": "d86dbc6fd942826bd5cf68a02fcda35215af54a854273c831544cfeb99ca29b9",
       "symbols": [],
       "title": "Treasury economic model \u2014 founder decision (D-0073)"
     },

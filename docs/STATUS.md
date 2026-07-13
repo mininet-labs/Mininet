@@ -101,6 +101,12 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 - **partial** — co-presence attestation (`mini-presence`) is shipped;
   the software RTT bound has no hardware ranging backing it yet in
   production use (UWB trait scaffolded, not wired to real hardware).
+- **doc-only** — `docs/design/credential-taxonomy.md` (D-0089, founder
+  review's `credential-separation` finding) names and separates
+  `ParticipantCredential`/`HumanEvidence`/`RoleCredential`/
+  `ResourceCredential` against mechanisms that already exist above; it
+  introduces no new type and states plainly that `UniqueHumanCredential`
+  remains unbuilt Phase 2 work.
 
 ## 3. Identity & key custody
 
@@ -150,7 +156,12 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `mini-treasury::rate`/`receipt` or a chain state machine yet, and neither
   has run the adversarial simulation suite `docs/gates/
   economic-simulation-spec.md` still requires before real value depends on
-  the calibration.
+  the calibration. §9's cellular custody design now states explicitly
+  (D-0089, founder review's `custody-separation` finding) that a
+  bridge-specific vault's signer committee and the general treasury's
+  signer committee are always disjoint sets — no individual holds a seat
+  on both; this was already implied by the cellular design, not a new
+  rule.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary
