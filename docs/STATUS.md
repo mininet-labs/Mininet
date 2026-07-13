@@ -55,10 +55,17 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   closing the founder's 2026-07-12 in-depth review's `5.3`/`5.4` "wire
   authenticated encrypted channels into consensus now" finding — no new
   cryptography, the same construction `mini-sync`/`mini-cli`'s `sync
-  connect`/`listen` already use). The **remaining gaps are liveness/DoS and
-  deployment, not correctness**: there is no state-sync for a node that
-  was down a whole height (re-gossip only re-delivers messages still
-  circulating). The equivocation evidence is no longer silently dropped by
+  connect`/`listen` already use). **State-sync/catch-up is shipped**
+  (D-0093): `mini_consensus::{CatchupRequest, CatchupResponse, FinalizedBlock}`
+  plus `ConsensusNode::{history_since, catch_up}` let a node that missed
+  heights pull already-finalized blocks from a peer and re-verify/apply
+  them via the same `apply_finalized_block` call live consensus uses —
+  never a trust shortcut. Proven over real TCP
+  (`a_late_joining_node_catches_up_via_real_tcp_and_matches_the_clusters_state`):
+  a fifth node that never runs a single Tendermint round reaches the exact
+  state a four-node cluster converged on. First slice: history is
+  unbounded in-memory (no pruning/persistence), and no peer-selection/retry
+  policy. The equivocation evidence is no longer silently dropped by
   the network driver (D-0088: `mini_consensus::EquivocatorRegistry`
   independently re-verifies and records every flagged root instead of
   discarding the emit), but nothing yet *acts* on a flagged root — no
@@ -66,8 +73,8 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   transitions don't exist yet. Peers are supplied not discovered,
   `Channel`'s handshake is anonymous so it proves nothing about *which*
   validator is on the other end, and the demonstration is threads over
-  loopback. State-sync/catch-up, peer discovery via `mini-net`, acting on
-  equivocation, and dynamic validator sets are the named next slices
+  loopback. Wiring `mini-net`'s PEX discovery into mesh peer supply, acting
+  on equivocation, and dynamic validator sets are the named next slices
   (roadmap Phase 5, [#36](../../issues/36)-[#45](../../issues/45);
   `docs/design/networked-consensus.md`).
 

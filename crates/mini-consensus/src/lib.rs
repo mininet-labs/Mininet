@@ -104,6 +104,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod catchup;
 mod consequence;
 mod error;
 mod evidence;
@@ -113,6 +114,7 @@ mod wire;
 
 pub mod net;
 
+pub use catchup::{CatchupRequest, CatchupResponse, FinalizedBlock, MAX_CATCHUP_BLOCKS};
 pub use consequence::{EquivocatorRegistry, RecordOutcome};
 pub use error::{ConsensusError, Result};
 pub use evidence::{verify_equivocation, EquivocationEvidence};

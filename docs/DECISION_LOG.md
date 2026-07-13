@@ -5579,3 +5579,51 @@ P1 item 4) and state sync/reconnect (review P1 item 5) remain unbuilt.
 `RoutingTable`/`GossipRouter` design (D-0034/D-0042) with the address-
 carrying piece neither previously provided; does not alter either type's
 existing behavior or tests.
+
+### D-0093 — Consensus state sync / catch-up over real TCP  ·  *Accepted*
+**Date:** 2026-07-13 · **Refs:** `docs/STATUS.md` §1 / `docs/design/
+networked-consensus.md` (both named this gap); `crates/mini-consensus/
+src/catchup.rs` (new); `crates/mini-consensus/tests/networked_consensus.rs`
+
+**Decision:** closes the consensus crate's own named next-slice gap —
+"no state-sync for a node that missed a whole height." New
+`mini_consensus::{CatchupRequest, CatchupResponse, FinalizedBlock}` (a
+hand-rolled wire codec, reusing `wire.rs`'s existing header/body encoders
+via `pub(crate)`) plus `ConsensusNode::{history_since, catch_up}`: a node
+records every block it finalizes, serves a bounded slice of that history
+to a lagging peer, and the lagging peer applies each block through the
+*same* `LedgerChain::apply_finalized_block` call live consensus uses —
+independently re-verifying every quorum certificate, never trusting the
+serving peer directly.
+
+**Reason:** the smallest real (non-stub) increment matching what was
+already named as missing, reusing existing wire-codec conventions rather
+than inventing new ones.
+
+**Constitutional impact:** none new — reuses `mini_chain::verify_finality`
+unchanged; a catching-up node gets no different trust guarantee than a
+live validator gets at commit time.
+
+**Implementation status:** shipped and tested. 6 new unit tests in
+`catchup.rs` (round-trip, truncation, oversized-count/vote-count
+rejection) plus `a_late_joining_node_catches_up_via_real_tcp_and_matches_
+the_clusters_state`: a fifth node, never a validator-set member and never
+running a single Tendermint round, pulls finalized history from a live
+node over a real TCP socket and reaches the exact state the four-node
+cluster converged on. Also added `net::{catch_up_over_tcp,
+serve_catch_up_over_tcp}` — first-class transport functions (not just a
+test hand-rolling the exchange), reusing the same `Channel` handshake
+every other consensus link uses so catch-up traffic is encrypted like
+everything else, proven by a second real-TCP test using only the public
+`net` API. Full workspace suite green.
+
+**Failure point:** history is unbounded in-memory on the serving node —
+no pruning/persistence (documented honest first-slice limit, same shape
+as `mini-net`'s `RoutingTable` bucket limit). No peer-selection/retry
+policy — a caller picks one peer and lives with what it returns.
+
+**Required follow-up:** history pruning/persistence; peer selection;
+folding `catch_up_over_tcp` into `run_to_height` itself so a single call
+can catch up and then join live rounds.
+
+**Supersedes / superseded by:** none.

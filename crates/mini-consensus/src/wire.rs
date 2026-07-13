@@ -258,7 +258,7 @@ impl ConsensusMessage {
     }
 }
 
-fn encode_header(w: &mut Vec<u8>, h: &BlockHeader) {
+pub(crate) fn encode_header(w: &mut Vec<u8>, h: &BlockHeader) {
     w.extend_from_slice(&h.height.to_be_bytes());
     w.extend_from_slice(&h.prev_hash);
     w.extend_from_slice(&h.state_root);
@@ -266,7 +266,7 @@ fn encode_header(w: &mut Vec<u8>, h: &BlockHeader) {
     put_bytes(w, h.proposer.as_str().as_bytes());
 }
 
-fn decode_header(r: &mut Reader<'_>) -> Result<BlockHeader> {
+pub(crate) fn decode_header(r: &mut Reader<'_>) -> Result<BlockHeader> {
     let height = r.u64()?;
     let mut prev_hash = [0u8; 32];
     prev_hash.copy_from_slice(r.take(32)?);
@@ -283,7 +283,7 @@ fn decode_header(r: &mut Reader<'_>) -> Result<BlockHeader> {
     })
 }
 
-fn encode_body(w: &mut Vec<u8>, b: &SettlementBlockBody) {
+pub(crate) fn encode_body(w: &mut Vec<u8>, b: &SettlementBlockBody) {
     w.extend_from_slice(&(b.claims.len() as u32).to_be_bytes());
     for c in &b.claims {
         put_bytes(w, &c.payer);
@@ -297,7 +297,7 @@ fn encode_body(w: &mut Vec<u8>, b: &SettlementBlockBody) {
     }
 }
 
-fn decode_body(r: &mut Reader<'_>) -> Result<SettlementBlockBody> {
+pub(crate) fn decode_body(r: &mut Reader<'_>) -> Result<SettlementBlockBody> {
     let count = r.u32()? as usize;
     if count > MAX_CLAIMS_PER_BLOCK {
         return Err(ConsensusError::TooLarge);
@@ -331,7 +331,7 @@ fn decode_body(r: &mut Reader<'_>) -> Result<SettlementBlockBody> {
     Ok(SettlementBlockBody::new(claims))
 }
 
-fn decode_did(r: &mut Reader<'_>) -> Result<Did> {
+pub(crate) fn decode_did(r: &mut Reader<'_>) -> Result<Did> {
     let raw = r.bytes(MAX_DID_BYTES)?;
     let s = core::str::from_utf8(raw).map_err(|_| ConsensusError::Malformed)?;
     Did::parse(s).map_err(|_| ConsensusError::Malformed)
@@ -364,23 +364,23 @@ fn decode_indexed_sigs(r: &mut Reader<'_>) -> Result<Vec<IndexedSig>> {
 }
 
 /// Append a length-prefixed byte string (`u32` big-endian length, then bytes).
-fn put_bytes(w: &mut Vec<u8>, b: &[u8]) {
+pub(crate) fn put_bytes(w: &mut Vec<u8>, b: &[u8]) {
     w.extend_from_slice(&(b.len() as u32).to_be_bytes());
     w.extend_from_slice(b);
 }
 
 /// A bounds-checked cursor over untrusted bytes.
-struct Reader<'a> {
+pub(crate) struct Reader<'a> {
     buf: &'a [u8],
     pos: usize,
 }
 
 impl<'a> Reader<'a> {
-    fn new(buf: &'a [u8]) -> Self {
+    pub(crate) fn new(buf: &'a [u8]) -> Self {
         Reader { buf, pos: 0 }
     }
 
-    fn take(&mut self, n: usize) -> Result<&'a [u8]> {
+    pub(crate) fn take(&mut self, n: usize) -> Result<&'a [u8]> {
         let end = self.pos.checked_add(n).ok_or(ConsensusError::Malformed)?;
         let slice = self
             .buf
@@ -390,17 +390,17 @@ impl<'a> Reader<'a> {
         Ok(slice)
     }
 
-    fn u8(&mut self) -> Result<u8> {
+    pub(crate) fn u8(&mut self) -> Result<u8> {
         Ok(self.take(1)?[0])
     }
 
-    fn u32(&mut self) -> Result<u32> {
+    pub(crate) fn u32(&mut self) -> Result<u32> {
         let mut a = [0u8; 4];
         a.copy_from_slice(self.take(4)?);
         Ok(u32::from_be_bytes(a))
     }
 
-    fn u64(&mut self) -> Result<u64> {
+    pub(crate) fn u64(&mut self) -> Result<u64> {
         let mut a = [0u8; 8];
         a.copy_from_slice(self.take(8)?);
         Ok(u64::from_be_bytes(a))
@@ -414,7 +414,7 @@ impl<'a> Reader<'a> {
 
     /// A length-prefixed byte string, rejected if it declares more than `max`
     /// bytes *before* the slice is taken (so a lying length cannot allocate).
-    fn bytes(&mut self, max: usize) -> Result<&'a [u8]> {
+    pub(crate) fn bytes(&mut self, max: usize) -> Result<&'a [u8]> {
         let len = self.u32()? as usize;
         if len > max {
             return Err(ConsensusError::TooLarge);
@@ -422,7 +422,7 @@ impl<'a> Reader<'a> {
         self.take(len)
     }
 
-    fn finished(&self) -> bool {
+    pub(crate) fn finished(&self) -> bool {
         self.pos == self.buf.len()
     }
 }
