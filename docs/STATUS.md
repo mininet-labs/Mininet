@@ -319,11 +319,31 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   real routers/phones/VPN attack testing, W1-W7) — this only builds the
   discovery mechanism the gate goes on to test, and makes no trust claim
   of its own.
+- **shipped** — invitation/peer-exchange discovery over real TCP (D-0092,
+  founder review P1 item "invitation and peer-exchange discovery with no
+  required central server"): `mini_net::pex` —
+  `PexMessage::{Request, Response}` (a minimal, hand-rolled wire
+  protocol, the first real wire-message design in this crate),
+  `AddressBook` (pairs a `PeerId` with a dialable `SocketAddr` —
+  `RoutingTable` alone was never dialable), `build_response`/
+  `absorb_response`. A node supplied only one peer's address is proven,
+  over a real TCP socket
+  (`a_node_discovers_a_second_peers_address_purely_through_pex_over_real_tcp`),
+  to discover a *second* peer's dialable address purely through one PEX
+  round with the first — and the discovered address is proven actually
+  dialable, not just present in a data structure. `AddressBook::insert`
+  is first-seen-wins so a later, hostile PEX response can never silently
+  redirect who a caller dials for an id it already resolved; a response
+  is capped at `MAX_PEX_RECORDS` so it can never become an unbounded
+  memory/bandwidth sink. `mini-net`'s gossip logic is still proven live
+  over real sockets separately from this; the two aren't wired together
+  yet (that integration — routing PEX-discovered peers into gossip
+  fanout — is follow-up, not done here).
 - **partial** — `mini-net`'s gossip logic is proven live over real
   sockets; peer *discovery* (`RoutingTable`) is unexercised over a real
-  transport; not a mesh. Invitation/peer-exchange discovery (founder
-  review P1 item 6) remains unbuilt — needs real wire-message design, a
-  larger lift than the local-network case above.
+  transport as part of an actual mesh (PEX above proves the discovery
+  *mechanism* over real TCP, but nothing yet drives gossip fanout or
+  routing-table refresh from it end to end).
 - **not started** — BLE radio adapter (needs real phone hardware,
   [#22](../../issues/22)); NAT traversal; local mesh routing.
 

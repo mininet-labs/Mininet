@@ -19,6 +19,12 @@
 //! fresh per session — see that type's docs for why it must never be
 //! treated as a stable identity.
 //!
+//! [`pex`] adds the piece neither of the above carries: a dialable address
+//! for a known peer, plus the minimal request/response wire message two
+//! peers use to hand each other `(PeerId, SocketAddr)` pairs with no
+//! central directory server (founder review P1 backlog item "invitation
+//! and peer-exchange discovery").
+//!
 //! ## Honest limits
 //!
 //! This crate is the routing/broadcast *logic*, not yet a running network
@@ -36,9 +42,13 @@
 mod error;
 mod gossip;
 mod peer;
+mod pex;
 mod routing;
 
 pub use error::{NetError, Result};
 pub use gossip::{fanout_peers, GossipRouter};
 pub use peer::PeerId;
+pub use pex::{
+    absorb_response, build_response, AddressBook, PeerRecord, PexMessage, MAX_PEX_RECORDS,
+};
 pub use routing::{RoutingTable, BUCKET_SIZE};
