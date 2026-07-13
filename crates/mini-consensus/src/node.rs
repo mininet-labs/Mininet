@@ -24,6 +24,7 @@ use mini_chain::{
 };
 use mini_execution::{apply_block, LedgerChain, SettlementBlockBody};
 
+use crate::catchup::{FinalizedBlock, MAX_CATCHUP_BLOCKS};
 use crate::error::{ConsensusError, Result};
 use crate::round::{proposer_for, Action, Round, Step};
 use crate::wire::{sign_proposal, verify_proposal, ConsensusMessage, Proposal};
@@ -106,6 +107,12 @@ pub struct ConsensusNode<O> {
     /// Messages for heights beyond the current one, buffered and replayed on
     /// advance (a faster peer routinely runs a height ahead).
     pending: Vec<ConsensusMessage>,
+    /// Every block this node has finalized, kept so a peer that fell behind
+    /// can be served a catch-up response (see [`crate::catchup`]). First
+    /// slice: unbounded, in-memory, no pruning/persistence — the same
+    /// honest-limit shape `mini-net`'s `RoutingTable` documents for its own
+    /// first slice.
+    history: Vec<FinalizedBlock>,
 }
 
 impl<O> core::fmt::Debug for ConsensusNode<O> {
@@ -138,6 +145,7 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
             round,
             values: HashMap::new(),
             pending: Vec::new(),
+            history: Vec::new(),
         }
     }
 
@@ -168,11 +176,74 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
         &self.oracle
     }
 
+    /// Serve a catch-up request: every block this node has finalized after
+    /// `from_height`, in ascending order, capped at
+    /// [`MAX_CATCHUP_BLOCKS`] (a caller behind by more than that makes
+    /// repeated requests — see [`crate::catchup`]'s honest limits).
+    pub fn history_since(&self, from_height: u64) -> Vec<FinalizedBlock> {
+        self.history
+            .iter()
+            .filter(|b| b.header.height > from_height)
+            .take(MAX_CATCHUP_BLOCKS)
+            .cloned()
+            .collect()
+    }
+
     /// Begin consensus: enter round 0 of the current height.
     pub fn start(&mut self) -> Result<Vec<Emit>> {
         let actions = self.round.start();
         let mut emits = Vec::new();
         self.drive(actions, &mut emits)?;
+        Ok(emits)
+    }
+
+    /// Catch up on already-finalized blocks a peer supplied (see
+    /// [`crate::catchup`]), instead of re-running Tendermint rounds for
+    /// heights that already decided. Call this **before** [`Self::start`]
+    /// once a node knows it is behind — after catching up, this resumes
+    /// exactly where `start` would have, at round 0 of the new current
+    /// height.
+    ///
+    /// `blocks` must be exactly the contiguous run starting at
+    /// [`Self::current_height`] — an out-of-order, duplicate, or gapped
+    /// block is rejected as [`ConsensusError::CatchupOutOfOrder`] and
+    /// nothing past it is applied. Each block is independently re-verified
+    /// by [`mini_execution::LedgerChain::apply_finalized_block`] exactly as
+    /// live consensus does — a peer cannot use catch-up to hand this node
+    /// a state no real quorum ever decided.
+    pub fn catch_up(&mut self, blocks: Vec<FinalizedBlock>) -> Result<Vec<Emit>> {
+        let mut emits = Vec::new();
+        for block in blocks {
+            let expected = self.current_height();
+            if block.header.height != expected {
+                return Err(ConsensusError::CatchupOutOfOrder {
+                    expected,
+                    got: block.header.height,
+                });
+            }
+            let commitment = self.chain.apply_finalized_block(
+                &block.header,
+                &block.body,
+                &block.qc,
+                &self.validators,
+                &self.oracle,
+            )?;
+            emits.push(Emit::Committed {
+                height: block.header.height,
+                commitment,
+            });
+            self.history.push(block);
+        }
+        // Resume live round-driving fresh at whatever height catch-up
+        // reached -- the same reset `commit` performs after every height.
+        self.round = Round::new(
+            self.current_height(),
+            self.validators.clone(),
+            self.root.clone(),
+        );
+        self.values.clear();
+        let start_actions = self.round.start();
+        self.drive(start_actions, &mut emits)?;
         Ok(emits)
     }
 
@@ -405,6 +476,11 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
             &self.validators,
             &self.oracle,
         )?;
+        self.history.push(FinalizedBlock {
+            header: value.header.clone(),
+            body: value.body.clone(),
+            qc,
+        });
         emits.push(Emit::Committed {
             height: value.header.height,
             commitment,

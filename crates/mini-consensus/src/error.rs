@@ -28,6 +28,18 @@ pub enum ConsensusError {
     /// deadline, because round-0's proposer never delivered (see the
     /// crate-level "Honest limits": there is no view-change yet).
     Stalled,
+    /// A [`crate::catchup::FinalizedBlock`] supplied to
+    /// [`crate::node::ConsensusNode::catch_up`] was not exactly the next
+    /// height this node needs — a gap, a duplicate, or an out-of-order
+    /// block. Catch-up requires a contiguous run starting at
+    /// `current_height()`; it is never partially applied past the first
+    /// mismatch.
+    CatchupOutOfOrder {
+        /// The height this node actually needed next.
+        expected: u64,
+        /// The height the supplied block claimed.
+        got: u64,
+    },
 }
 
 impl core::fmt::Display for ConsensusError {
@@ -40,6 +52,12 @@ impl core::fmt::Display for ConsensusError {
             ConsensusError::Transport(e) => write!(f, "transport: {e}"),
             ConsensusError::Stalled => {
                 write!(f, "round stalled before reaching the target height")
+            }
+            ConsensusError::CatchupOutOfOrder { expected, got } => {
+                write!(
+                    f,
+                    "catch-up block out of order: expected height {expected}, got {got}"
+                )
             }
         }
     }

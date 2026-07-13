@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 34,
-    "files": 464,
+    "files": 465,
     "headings": 1644,
-    "rust_symbols": 3337
+    "rust_symbols": 3355
   },
   "crates": {
     "did-mini": {
@@ -1118,7 +1118,7 @@
       ],
       "lines": 173,
       "path": "README.md",
-      "sha256": "bbf9f758df72985e249bec09a6ca3dd8d67ebf6642664ec234cceed90b45c9e5",
+      "sha256": "0df17d923a366d9b13d17b0c1cfd09932144fbc9c8a4f1fae47851e7ed88f875",
       "symbols": [],
       "title": "Mininet"
     },
@@ -9168,6 +9168,173 @@
       "title": "[package]"
     },
     {
+      "bytes": 12198,
+      "group": "crate:mini-consensus",
+      "headings": [],
+      "keywords": [
+        "block",
+        "catchupresponse",
+        "node",
+        "peer",
+        "domain",
+        "catchuprequest",
+        "one",
+        "to_wire_bytes",
+        "finalized",
+        "blocks",
+        "height",
+        "from_height",
+        "vec",
+        "tag_request",
+        "from_wire_bytes",
+        "header",
+        "catch-up",
+        "live",
+        "wire",
+        "consensuserror",
+        "const",
+        "bytes",
+        "self",
+        "max_catchup_blocks"
+      ],
+      "lines": 330,
+      "path": "crates/mini-consensus/src/catchup.rs",
+      "sha256": "ea0c12e6de7d83acb794f2a7b8dc796be054b86b23abb497534b79850139ba7f",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 47,
+          "name": "MAX_CATCHUP_BLOCKS"
+        },
+        {
+          "kind": "const",
+          "line": 49,
+          "name": "DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 50,
+          "name": "TAG_REQUEST"
+        },
+        {
+          "kind": "const",
+          "line": 51,
+          "name": "TAG_RESPONSE"
+        },
+        {
+          "kind": "struct",
+          "line": 59,
+          "name": "FinalizedBlock"
+        },
+        {
+          "kind": "struct",
+          "line": 70,
+          "name": "CatchupRequest"
+        },
+        {
+          "kind": "impl",
+          "line": 76,
+          "name": "CatchupRequest"
+        },
+        {
+          "kind": "fn",
+          "line": 78,
+          "name": "to_wire_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 87,
+          "name": "from_wire_bytes"
+        },
+        {
+          "kind": "struct",
+          "line": 105,
+          "name": "CatchupResponse"
+        },
+        {
+          "kind": "impl",
+          "line": 110,
+          "name": "CatchupResponse"
+        },
+        {
+          "kind": "fn",
+          "line": 112,
+          "name": "to_wire_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "from_wire_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 156,
+          "name": "encode_qc"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "decode_qc"
+        },
+        {
+          "kind": "mod",
+          "line": 190,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 196,
+          "name": "header"
+        },
+        {
+          "kind": "fn",
+          "line": 207,
+          "name": "body"
+        },
+        {
+          "kind": "fn",
+          "line": 213,
+          "name": "qc"
+        },
+        {
+          "kind": "fn",
+          "line": 237,
+          "name": "a_request_round_trips_through_encode_decode"
+        },
+        {
+          "kind": "fn",
+          "line": 246,
+          "name": "a_response_round_trips_through_encode_decode"
+        },
+        {
+          "kind": "fn",
+          "line": 266,
+          "name": "an_empty_response_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
+          "name": "truncation_at_every_length_is_rejected_never_panics"
+        },
+        {
+          "kind": "fn",
+          "line": 290,
+          "name": "trailing_bytes_are_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 300,
+          "name": "a_claimed_block_count_over_the_cap_is_rejected_before_allocating"
+        },
+        {
+          "kind": "fn",
+          "line": 312,
+          "name": "a_claimed_vote_count_over_the_cap_is_rejected_before_allocating"
+        }
+      ],
+      "title": "use mini_chain::{BlockHeader, QuorumCertificate, Vote, MAX_VOTES_PER_CERTIFICATE};"
+    },
+    {
       "bytes": 8438,
       "group": "crate:mini-consensus",
       "headings": [],
@@ -9300,15 +9467,16 @@
       "title": "use std::collections::HashSet;"
     },
     {
-      "bytes": 2583,
+      "bytes": 3356,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
         "consensuserror",
         "error",
+        "write",
         "result",
         "fmt",
-        "write",
+        "height",
         "core",
         "mini_chain",
         "message",
@@ -9322,16 +9490,15 @@
         "bearererror",
         "malformed",
         "round",
+        "block",
         "execution",
-        "consensus",
-        "stalled",
-        "mini-consensus",
-        "display",
-        "std"
+        "expected",
+        "got",
+        "consensus"
       ],
-      "lines": 67,
+      "lines": 85,
       "path": "crates/mini-consensus/src/error.rs",
-      "sha256": "45c17fc74caae3ffdf255a9bcd6113ab573841386344db785f3988488adb0d99",
+      "sha256": "6ea379fd215fa3c86803baf23f1f13463a70617b420680b5927f6ff0635ef40f",
       "symbols": [
         {
           "kind": "type",
@@ -9345,47 +9512,47 @@
         },
         {
           "kind": "impl",
-          "line": 33,
+          "line": 45,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 34,
+          "line": 46,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 48,
+          "line": 66,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 50,
+          "line": 68,
           "name": "From<mini_chain::ChainError>"
         },
         {
           "kind": "fn",
-          "line": 51,
+          "line": 69,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 56,
+          "line": 74,
           "name": "From<mini_execution::ExecutionError>"
         },
         {
           "kind": "fn",
-          "line": 57,
+          "line": 75,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 62,
+          "line": 80,
           "name": "From<mini_bearer::BearerError>"
         },
         {
           "kind": "fn",
-          "line": 63,
+          "line": 81,
           "name": "from"
         }
       ],
@@ -9529,7 +9696,7 @@
       "title": "use mini_chain::{verify_vote, ValidatorOracle, Vote, VoteKind};"
     },
     {
-      "bytes": 7183,
+      "bytes": 7284,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -9558,47 +9725,52 @@
         "same",
         "path"
       ],
-      "lines": 122,
+      "lines": 124,
       "path": "crates/mini-consensus/src/lib.rs",
-      "sha256": "01cf7e0294bbfc1bd16117f968582f92cce0b7b41929b0f384410d76c55d3e18",
+      "sha256": "072f7f8c6792bf812d6164c13c28277b9781dc47d8efcabb246fe496c3d9ee1c",
       "symbols": [
         {
           "kind": "mod",
           "line": 107,
-          "name": "consequence"
+          "name": "catchup"
         },
         {
           "kind": "mod",
           "line": 108,
-          "name": "error"
+          "name": "consequence"
         },
         {
           "kind": "mod",
           "line": 109,
-          "name": "evidence"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 110,
-          "name": "node"
+          "name": "evidence"
         },
         {
           "kind": "mod",
           "line": 111,
-          "name": "round"
+          "name": "node"
         },
         {
           "kind": "mod",
           "line": 112,
+          "name": "round"
+        },
+        {
+          "kind": "mod",
+          "line": 113,
           "name": "wire"
         },
         {
           "kind": "mod",
-          "line": 114,
+          "line": 115,
           "name": "net"
         }
       ],
-      "title": "mod consequence;"
+      "title": "mod catchup;"
     },
     {
       "bytes": 30179,
@@ -9803,252 +9975,262 @@
       "title": "use std::io::{Read, Write};"
     },
     {
-      "bytes": 27367,
+      "bytes": 30640,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
         "height",
         "node",
-        "fmt",
         "round",
-        "root",
-        "core",
-        "consensusnode",
+        "fmt",
         "validator",
+        "root",
         "block",
-        "its",
         "every",
-        "debug",
+        "consensusnode",
+        "its",
+        "core",
         "mini_execution",
         "device",
         "step",
-        "self",
-        "field",
         "bodysource",
         "nodeconfig",
+        "debug",
         "commitment",
         "ledgerchain",
         "proposal",
         "consensusmessage",
-        "timer"
+        "timer",
+        "validators",
+        "finalized"
       ],
-      "lines": 699,
+      "lines": 775,
       "path": "crates/mini-consensus/src/node.rs",
-      "sha256": "c7435754d59e6a8311200de79badda0e6025d04cf3132f098cadd3d77916ef4a",
+      "sha256": "1a980d3640d20ae93d8ff040581aaf1df61a9ff21c441cc1a987cba61763c67f",
       "symbols": [
         {
           "kind": "type",
-          "line": 33,
+          "line": 34,
           "name": "BodySource"
         },
         {
           "kind": "struct",
-          "line": 36,
+          "line": 37,
           "name": "NodeConfig"
         },
         {
           "kind": "impl",
-          "line": 50,
+          "line": 51,
           "name": "core::fmt::Debug"
         },
         {
           "kind": "fn",
-          "line": 51,
+          "line": 52,
           "name": "fmt"
         },
         {
           "kind": "enum",
-          "line": 63,
+          "line": 64,
           "name": "Emit"
         },
         {
           "kind": "struct",
-          "line": 94,
+          "line": 95,
           "name": "ConsensusNode"
         },
         {
           "kind": "impl",
-          "line": 111,
+          "line": 118,
           "name": "core::fmt::Debug"
         },
         {
           "kind": "fn",
-          "line": 112,
+          "line": 119,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 121,
+          "line": 128,
           "name": "ConsensusNode<O>"
         },
         {
           "kind": "fn",
-          "line": 124,
+          "line": 131,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 145,
+          "line": 153,
           "name": "current_height"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 158,
           "name": "finalized_height"
         },
         {
           "kind": "fn",
-          "line": 155,
+          "line": 163,
           "name": "state"
         },
         {
           "kind": "fn",
-          "line": 160,
+          "line": 168,
           "name": "commitment"
         },
         {
           "kind": "fn",
-          "line": 167,
+          "line": 175,
           "name": "oracle"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 183,
+          "name": "history_since"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
           "name": "start"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 214,
+          "name": "catch_up"
+        },
+        {
+          "kind": "fn",
+          "line": 251,
           "name": "on_message"
         },
         {
           "kind": "fn",
-          "line": 188,
+          "line": 259,
           "name": "on_timeout"
         },
         {
           "kind": "fn",
-          "line": 197,
+          "line": 268,
           "name": "ingest"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 312,
           "name": "proposal_is_authentic"
         },
         {
           "kind": "fn",
-          "line": 261,
+          "line": 332,
           "name": "validate_proposal"
         },
         {
           "kind": "fn",
-          "line": 286,
+          "line": 357,
           "name": "drive"
         },
         {
           "kind": "fn",
-          "line": 352,
+          "line": 423,
           "name": "build_proposal"
         },
         {
           "kind": "fn",
-          "line": 395,
+          "line": 466,
           "name": "commit"
         },
         {
           "kind": "mod",
-          "line": 431,
+          "line": 507,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 441,
+          "line": 517,
           "name": "validator"
         },
         {
           "kind": "struct",
-          "line": 455,
+          "line": 531,
           "name": "Directory"
         },
         {
           "kind": "impl",
-          "line": 456,
+          "line": 532,
           "name": "Directory"
         },
         {
           "kind": "fn",
-          "line": 457,
+          "line": 533,
           "name": "insert"
         },
         {
           "kind": "impl",
-          "line": 461,
+          "line": 537,
           "name": "ValidatorOracle"
         },
         {
           "kind": "fn",
-          "line": 462,
+          "line": 538,
           "name": "kel"
         },
         {
           "kind": "fn",
-          "line": 467,
+          "line": 543,
           "name": "body"
         },
         {
           "kind": "struct",
-          "line": 473,
+          "line": 549,
           "name": "Fx"
         },
         {
           "kind": "fn",
-          "line": 479,
+          "line": 555,
           "name": "fixture"
         },
         {
           "kind": "fn",
-          "line": 495,
+          "line": 571,
           "name": "a_node"
         },
         {
           "kind": "fn",
-          "line": 512,
+          "line": 588,
           "name": "proposer_index"
         },
         {
           "kind": "fn",
-          "line": 522,
+          "line": 598,
           "name": "proposal_from"
         },
         {
           "kind": "fn",
-          "line": 537,
+          "line": 613,
           "name": "prevoted"
         },
         {
           "kind": "fn",
-          "line": 545,
+          "line": 621,
           "name": "a_proposal_from_the_designated_proposer_is_prevoted"
         },
         {
           "kind": "fn",
-          "line": 559,
+          "line": 635,
           "name": "a_signed_proposal_from_the_wrong_proposer_is_dropped"
         },
         {
           "kind": "fn",
-          "line": 575,
+          "line": 651,
           "name": "a_proposal_with_a_forged_signature_is_dropped"
         },
         {
           "kind": "fn",
-          "line": 611,
+          "line": 687,
           "name": "a_proposal_whose_timestamp_is_not_deterministic_is_prevoted_nil"
         },
         {
           "kind": "fn",
-          "line": 658,
+          "line": 734,
           "name": "a_proposer_cannot_use_an_increasing_timestamp_to_evade_the_deterministic_check"
         }
       ],
@@ -10377,7 +10559,7 @@
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 22562,
+      "bytes": 22716,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -10400,15 +10582,15 @@
         "wire",
         "domain",
         "transcript",
-        "bytes",
         "body",
         "every",
         "field",
-        "never"
+        "never",
+        "usize"
       ],
       "lines": 586,
       "path": "crates/mini-consensus/src/wire.rs",
-      "sha256": "55312da3076b2e86e3eba661f95c2a31847a0dee1291ebbd65b244235dd0e4c4",
+      "sha256": "545ca7392021b474b7a693d5f27dabd0b1b69a7e0fd502ec28a19e9e8ea3614b",
       "symbols": [
         {
           "kind": "const",
@@ -10502,31 +10684,6 @@
         },
         {
           "kind": "fn",
-          "line": 261,
-          "name": "encode_header"
-        },
-        {
-          "kind": "fn",
-          "line": 269,
-          "name": "decode_header"
-        },
-        {
-          "kind": "fn",
-          "line": 286,
-          "name": "encode_body"
-        },
-        {
-          "kind": "fn",
-          "line": 300,
-          "name": "decode_body"
-        },
-        {
-          "kind": "fn",
-          "line": 334,
-          "name": "decode_did"
-        },
-        {
-          "kind": "fn",
           "line": 340,
           "name": "encode_indexed_sigs"
         },
@@ -10536,59 +10693,14 @@
           "name": "decode_indexed_sigs"
         },
         {
-          "kind": "fn",
-          "line": 367,
-          "name": "put_bytes"
-        },
-        {
-          "kind": "struct",
-          "line": 373,
-          "name": "Reader"
-        },
-        {
           "kind": "impl",
           "line": 378,
           "name": "Reader<'a>"
         },
         {
           "kind": "fn",
-          "line": 379,
-          "name": "new"
-        },
-        {
-          "kind": "fn",
-          "line": 383,
-          "name": "take"
-        },
-        {
-          "kind": "fn",
-          "line": 393,
-          "name": "u8"
-        },
-        {
-          "kind": "fn",
-          "line": 397,
-          "name": "u32"
-        },
-        {
-          "kind": "fn",
-          "line": 403,
-          "name": "u64"
-        },
-        {
-          "kind": "fn",
           "line": 409,
           "name": "i64"
-        },
-        {
-          "kind": "fn",
-          "line": 417,
-          "name": "bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 425,
-          "name": "finished"
         },
         {
           "kind": "mod",
@@ -10654,7 +10766,7 @@
       "title": "use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 13227,
+      "bytes": 20067,
       "group": "crate:mini-consensus",
       "headings": [],
       "keywords": [
@@ -10663,16 +10775,16 @@
         "root",
         "did",
         "validator",
-        "every",
         "device",
         "unwrap",
         "directory",
+        "every",
         "controller",
-        "node",
+        "target_height",
         "new",
         "oracle",
         "insert",
-        "target_height",
+        "node",
         "seed",
         "vec",
         "real",
@@ -10683,98 +10795,113 @@
         "self",
         "signers"
       ],
-      "lines": 331,
+      "lines": 500,
       "path": "crates/mini-consensus/tests/networked_consensus.rs",
-      "sha256": "863fe9823d806f0bc7dd496724b79d5257cf1440e89310ea3b849f64cd8295f9",
+      "sha256": "b087f2d639621f902ea8427afa569e83ee51c72ae738471af2a1b5bdfd0f2fe5",
       "symbols": [
         {
           "kind": "fn",
-          "line": 32,
+          "line": 35,
           "name": "validator"
         },
         {
           "kind": "struct",
-          "line": 46,
+          "line": 49,
           "name": "Directory"
         },
         {
           "kind": "impl",
-          "line": 47,
+          "line": 50,
           "name": "Directory"
         },
         {
           "kind": "fn",
-          "line": 48,
+          "line": 51,
           "name": "insert"
         },
         {
           "kind": "impl",
-          "line": 52,
+          "line": 55,
           "name": "ValidatorOracle"
         },
         {
           "kind": "fn",
-          "line": 53,
+          "line": 56,
           "name": "kel"
         },
         {
           "kind": "fn",
-          "line": 62,
+          "line": 65,
           "name": "block_body"
         },
         {
           "kind": "fn",
-          "line": 78,
+          "line": 81,
           "name": "four_nodes_over_a_real_tcp_mesh_finalize_and_converge"
         },
         {
           "kind": "const",
-          "line": 79,
+          "line": 82,
           "name": "N"
         },
         {
           "kind": "const",
-          "line": 80,
+          "line": 83,
           "name": "TARGET_HEIGHT"
         },
         {
           "kind": "fn",
-          "line": 174,
+          "line": 177,
           "name": "a_crashed_proposer_is_survived_by_view_change_and_the_cluster_still_converges"
         },
         {
           "kind": "const",
-          "line": 175,
+          "line": 178,
           "name": "N_VALIDATORS"
         },
         {
           "kind": "const",
-          "line": 176,
+          "line": 179,
           "name": "N_ONLINE"
         },
         {
           "kind": "const",
-          "line": 177,
-          "name": "TARGET_HEIGHT"
-        },
-        {
-          "kind": "fn",
-          "line": 258,
-          "name": "four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip"
-        },
-        {
-          "kind": "const",
-          "line": 259,
-          "name": "N"
-        },
-        {
-          "kind": "const",
-          "line": 260,
+          "line": 180,
           "name": "TARGET_HEIGHT"
         },
         {
           "kind": "fn",
           "line": 263,
+          "name": "a_late_joining_node_catches_up_via_real_tcp_and_matches_the_clusters_state"
+        },
+        {
+          "kind": "const",
+          "line": 264,
+          "name": "N"
+        },
+        {
+          "kind": "const",
+          "line": 265,
+          "name": "TARGET_HEIGHT"
+        },
+        {
+          "kind": "fn",
+          "line": 427,
+          "name": "four_nodes_over_a_partial_line_mesh_finalize_via_re_gossip"
+        },
+        {
+          "kind": "const",
+          "line": 428,
+          "name": "N"
+        },
+        {
+          "kind": "const",
+          "line": 429,
+          "name": "TARGET_HEIGHT"
+        },
+        {
+          "kind": "fn",
+          "line": 432,
           "name": "neighbors"
         }
       ],
@@ -30619,7 +30746,7 @@
       "title": "{"
     },
     {
-      "bytes": 331652,
+      "bytes": 333932,
       "group": "docs",
       "headings": [
         {
@@ -31049,9 +31176,9 @@
         "first",
         "one"
       ],
-      "lines": 5582,
+      "lines": 5625,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "4a726cef76da14285d6334f791648c635e82be9ffee50fdd874af2185b37c69c",
+      "sha256": "aa11c2659ff6a44573dd5d0461ec9890e36d3b5108a7d1c6d8b314ebcb4bc08f",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -31909,7 +32036,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 37056,
+      "bytes": 37551,
       "group": "docs",
       "headings": [
         {
@@ -31924,57 +32051,57 @@
         },
         {
           "level": 2,
-          "line": 74,
+          "line": 81,
           "text": "2. Personhood"
         },
         {
           "level": 2,
-          "line": 111,
+          "line": 118,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 134,
+          "line": 141,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 200,
+          "line": 207,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 243,
+          "line": 250,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 251,
+          "line": 258,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 292,
+          "line": 299,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 350,
+          "line": 357,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 379,
+          "line": 386,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 574,
+          "line": 581,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 580,
+          "line": 587,
           "text": "Where to look for more detail"
         }
       ],
@@ -31982,31 +32109,31 @@
         "status",
         "real",
         "one",
-        "code",
-        "height",
-        "implementation",
         "shipped",
-        "now",
-        "review",
+        "implementation",
+        "code",
+        "mesh",
+        "height",
+        "consensus",
         "two",
+        "same",
         "yet",
         "governance",
+        "now",
+        "runs",
         "proposer",
-        "mesh",
+        "state",
         "every",
-        "closing",
+        "never",
+        "node",
+        "round",
+        "peer",
         "equivocation",
-        "validator",
-        "consensus",
-        "voice",
-        "value",
-        "personhood",
-        "finality",
-        "storage"
+        "validator"
       ],
-      "lines": 590,
+      "lines": 597,
       "path": "docs/STATUS.md",
-      "sha256": "a7ec21c1667e49189ff28e33fccdf27f365b83b72162e0e1d0b1320cccff9942",
+      "sha256": "3a550e22d77dc10d302252844420fe3b22bf9f536c01781a948ead44f0953df3",
       "symbols": [],
       "title": "Implementation status"
     },
