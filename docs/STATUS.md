@@ -297,6 +297,11 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   needs a higher tier than requested. Routing *decisions* only — no
   relay/mix/bearer exists to execute a decision yet, and no other lane
   has started.
+- **shipped** — lane L4, `mini-resource-pricing` (D-0302): a
+  `PriceVector`/`quote()` engine over `mini-privacy-policy`'s
+  `expected_cost`, in the plain `u64` micro-MINI convention already used
+  elsewhere in this workspace. Quoting logic only — no payment execution,
+  no dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`.
 
 ## 7. Storage
 

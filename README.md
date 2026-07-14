@@ -100,6 +100,10 @@ so, everywhere, on purpose.
   maps a privacy request to the mechanisms its tier requires, failing
   closed rather than silently downgrading; routing decisions only, no
   relay/mix/bearer exists to execute one yet
+- `mini-resource-pricing` (D-0302): a `PriceVector`/quote engine over
+  `mini-privacy-policy`'s declared tier costs, in the workspace's plain
+  micro-MINI convention — quoting only, no payment execution, no
+  dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential

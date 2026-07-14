@@ -43,6 +43,7 @@ members = [
     "crates/mini-installer",
     "crates/mini-privacy-policy",
     "crates/mini-transport-policy",
+    "crates/mini-resource-pricing",
 ]
 
 [workspace.package]

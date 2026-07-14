@@ -1,0 +1,20 @@
+[package]
+name = "mini-resource-pricing"
+version = "0.0.1"
+description = "Resource price vector and quote engine (MN-601): declares a MINI-denominated price for a mini-privacy-policy tier/payload combination. Pure quoting logic -- no payment execution."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Only mini-privacy-policy -- deliberately no dependency on mini-value or
+# mini-treasury: this crate follows the plain "amount_micro: u64" (micro-MINI)
+# convention already documented in mini-settlement/mini-bounty/mini-reward
+# rather than importing a type, keeping this crate's own dependency graph
+# minimal. And deliberately, permanently, no dependency on mini-forge or
+# mini-chain -- pricing a resource must never become a governance signal
+# (Directive 1, the voice/value wall; CLAUDE.md's hard rule).
+mini-privacy-policy = { path = "../mini-privacy-policy" }
