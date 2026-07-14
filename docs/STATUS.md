@@ -114,6 +114,14 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `ResourceCredential` against mechanisms that already exist above; it
   introduces no new type and states plainly that `UniqueHumanCredential`
   remains unbuilt Phase 2 work.
+- **doc-only** — `docs/design/human-evidence-taxonomy-reconciliation.md`
+  (D-0303, lane L5 of the privacy/cost-doctrine parallel plan): maps the
+  founder research's five confidence classes onto `HumanStatus` without
+  adding a rival type — `HumanEvidenceQualified`→`VouchedHuman`,
+  `StrongHumanEvidence`→`EvidenceQualifiedHuman`, `ActiveParticipant` and
+  `ExternalUniquenessBacked` map to nothing (behavior and external
+  provenance are not `HumanStatus` axes). `mini-uniqueness` is otherwise
+  unmodified.
 
 ## 3. Identity & key custody
 
@@ -262,11 +270,40 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   reproduces the research document's own estimates, not a benchmark.
   Founder research: `docs/research/MININET_RESEARCH_V2_20260713.md`;
   phase sequencing: `docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md`.
-- **not started** — Tier 1+ relay/rendezvous transport, mix network,
-  `ObjectEnvelope` v2 private-metadata boundary, capability/pseudonym
-  primitives (the phase P1/P2 items this same research names next); the
-  storage fabric's P6 guarantees (no forced replication, no compelled
-  decryption) also have no owning subsystem yet.
+- **not started** — Tier 1+ relay/rendezvous transport, mix network (the
+  phase P2 items this same research names next); the storage fabric's P6
+  guarantees (no forced replication, no compelled decryption) also have
+  no owning subsystem yet.
+- **shipped** — lane L1, `ObjectEnvelope` v2 + capability/pseudonym
+  primitives (D-0304, `crates/mini-objects`): `ObjectEnvelopeV2` moves
+  everything a v1 `Object` exposes in cleartext (type, author root,
+  author device, timestamp, sequence, links, signatures) inside
+  AEAD-authenticated ciphertext (`PrivateObject`) behind a deliberately
+  opaque outer envelope (version tag, AEAD suite, random opaque route,
+  coarse retention class, nonce, ciphertext — all bound as AEAD
+  associated data). `CapabilityGrant` provides five independent, closed,
+  non-delegable rights (`Read`/`Append`/`Reply`/`Moderate`/`Administer`)
+  bound to a holder-controlled scoped pseudonym and an unguessable token.
+  `derive_scoped_pseudonym` reuses `did-mini`'s existing SPEC-01 §10
+  `Controller::incept_pairwise_pseudonym` with purpose+scope domain
+  separation — no new HKDF call site. v1's `Object`/`Payload` wire format
+  is byte-for-byte unchanged; 39 new tests, all pre-existing v1 tests
+  still pass. **Not solved here**: key distribution (accepts an
+  already-established key), traffic-analysis resistance, deterministic
+  route-tag lookup, capability revocation — see D-0304's Required
+  follow-up.
+- **design-only** — `docs/design/mixnet-sphinx-protocol.md` (D-0305,
+  lane L3, `MN-204`): a Sphinx (Danezis & Goldberg 2009) + Loopix-style
+  candidate specification for `mini_privacy_policy::Mechanism::
+  MixNetwork`/`mini_transport_policy::PrivacyTier::Mixed`'s already-named
+  but unimplemented mixing mechanism — historical survey, a
+  Tor/Loopix/Nym/Sphinx/Outfox comparison matrix, thirteen named-but-
+  unrun simulations, a fourteen-entry attack catalog, a "why not Tor"
+  section, and a ten-part candidate protocol spec. Zero Rust code.
+  **Does not lift the Phase D external-review gate** — `MN-205` (the
+  actual mix-node implementation) still needs the same review posture as
+  `mini-value`/`mini-treasury` (D-0047) before any operational anonymity
+  claim.
 - **planning artifact** — `docs/design/
   privacy-cost-doctrine-parallel-execution-plan.md` (D-0300): five
   disjoint-footprint lanes (L1-L5) for the immediately-unblocked next
@@ -280,6 +317,11 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   needs a higher tier than requested. Routing *decisions* only — no
   relay/mix/bearer exists to execute a decision yet, and no other lane
   has started.
+- **shipped** — lane L4, `mini-resource-pricing` (D-0302): a
+  `PriceVector`/`quote()` engine over `mini-privacy-policy`'s
+  `expected_cost`, in the plain `u64` micro-MINI convention already used
+  elsewhere in this workspace. Quoting logic only — no payment execution,
+  no dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`.
 
 ## 7. Storage
 

@@ -5871,3 +5871,413 @@ drive; until then `RouteDecision` has no consumer beyond its own tests.
 
 **Supersedes / superseded by:** none. New crate, no existing type or
 behavior changed.
+
+### D-0304 — ObjectEnvelope v2 private-metadata boundary + typed capability grants + scoped pseudonyms (lane L1, `MN-103`/`MN-104`, closes tracking issue #133)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0094
+(`mini-privacy-policy`, the research this lane's cost-doctrine vocabulary
+comes from); `crates/mini-objects/src/{envelope_v2,private_object,
+capability,pseudonym}.rs` (new); `crates/mini-objects/src/{codec,error,
+object}.rs` (extended); tracking issue #133
+
+**Decision:** ships `MN-103` and `MN-104` together, per a detailed
+research report concluding that a v1 `Object`'s cleartext fields (type,
+author root, author device, timestamp, sequence, links, signer identity)
+reconstruct a detailed behavioral/social graph even when `Payload` alone
+is encrypted, and that the correct v2 boundary is architectural — an
+opaque outer envelope, not a v1 object with more fields individually
+marked sensitive.
+
+`ObjectEnvelopeV2` (`envelope_v2.rs`): a public outer container carrying
+only a version byte (`2`, distinct from v1's `1` — the entire
+disambiguation mechanism, no separate magic bytes needed since neither
+format has other ambiguous framing), an `AeadSuite` tag, a 32-byte random
+`OpaqueRoute` (no semantic meaning, no deterministic HMAC-style derivation
+in this version — the research's own fallback guidance was to generate
+random tags rather than invent a new construction), a coarse
+`RetentionClass` (`Ephemeral`/`Standard`/`Archival`, deliberately not an
+exact application expiry, which could fingerprint content class the same
+way exact payload length can), a nonce, and ciphertext.
+`ObjectEnvelopeV2::seal`/`open` encrypt/decrypt a `PrivateObject` under an
+already-established `mini_crypto::AeadKey` (key distribution is
+explicitly out of scope, matching how `mini_bearer::Channel` also accepts
+an already-agreed key). Every public field is bound as AEAD associated
+data, so tampering with routing/suite/retention breaks decryption. A
+fresh random nonce per seal means identical private objects sealed twice
+produce different ciphertext and different envelope ids — closing a
+confirmation-attack path a deterministic scheme would open. Content id is
+computed via `ObjectId::of` (relaxed from private to `pub(crate)` in
+`object.rs` so v2 reuses the exact same BLAKE3-multihash-base58btc recipe
+rather than a second copy of it) over the full canonical outer bytes,
+matching v1's own content-addressing convention exactly.
+
+`PrivateObject` (`private_object.rs`): the decrypted inner form —
+`object_type`, `author_human`, `author_device`, `timestamp_ms`,
+`sequence`, `links`, `application_metadata`, `payload`, and signatures —
+i.e. everything v1 exposes in cleartext. Signed via a typed, domain-
+prefixed (`mininet/mini-objects/private-object/v1`) `signing_bytes()`
+handed to `Controller::sign_message`, never a generic `sign(bytes)` call
+on caller-assembled data (Directive/CLAUDE.md typed-domain rule).
+
+`CapabilityRight`/`CapabilityScope`/`CapabilityGrant`/`CapabilityToken`
+(`capability.rs`): five independent, closed rights (`Read`/`Append`/
+`Reply`/`Moderate`/`Administer` — no implicit hierarchy, `Administer`
+does not imply `Read`), an initially-minimal `#[non_exhaustive]` scope
+(`Object(ObjectId)` only — `Collection`/`Conversation`/`Community` named
+as future work, not guessed at), and exact, non-delegable,
+holder-bound grants: `CapabilityGrant::validate` checks the issuer's
+signature, exact scope match, exact right match, a token-commitment
+match (`CapabilityToken::commit` domain-separates by scope *and* right,
+so a commitment copied into a different grant never matches), the
+validity window, and a holder-proof signature from the grantee's current
+keys over a grant-bound (nonce + commitment), domain-separated message —
+so a leaked grant (public, signed data) alone is insufficient, and so is
+a leaked token alone without the grantee's signing key. No wildcard/
+prefix scope, no attenuation/delegation, no Macaroon/Biscuit-style policy
+language — the research explicitly evaluated and rejected those as
+larger audit surface than this lane's five-right requirement needs.
+
+`derive_scoped_pseudonym` (`pseudonym.rs`): a thin, domain-separated
+wrapper over `did-mini`'s **already-existing** SPEC-01 §10
+`Controller::incept_pairwise_pseudonym` (HKDF-SHA256 over the root's own
+current-key seed) — no second HKDF call site, no new derivation
+construction. `PseudonymPurpose` (`ObjectAuthor`/`CapabilityHolder`) is
+folded into the HKDF `info` context alongside the caller's scope id, so
+the same root's object-authorship pseudonym and capability-holder
+pseudonym in the same scope are cryptographically unrelated — a
+capability-holder pseudonym cannot double as a public authorship handle.
+
+**Reason:** third and largest lane the founder picked from D-0300's plan
+this batch, chosen because it is the most valuable and most foundational
+(unblocks `MN-202`/`MN-208` per D-0300's own "sequencing after wave 1"
+section) despite being the one lane touching existing crates. Scope was
+deliberately bounded to exactly what the research's own PR-stage-1/2/3/4
+sequencing named as fitting one reviewable PR (wire boundary + seal/open
++ scoped pseudonyms + exact capabilities), explicitly deferring HPKE
+recipient encryption, MLS group key state, capability attenuation/
+delegation, and deterministic route-tag derivation as separately-scoped
+future work — each named in "Required follow-up" below, not silently
+dropped.
+
+**Constitutional impact:** strengthens the honesty discipline this
+workspace already applies elsewhere: `PrivateObject`'s doc comments and
+this entry state plainly that key distribution, traffic-analysis
+resistance, and route-tag-reuse correlation are **not** solved here —
+"V2 prevents private application metadata from being required in the
+public object schema; it does not provide complete traffic-analysis
+resistance" (research report's own framing, restated in `envelope_v2.rs`'s
+module docs). No crypto primitive was invented — this composes
+`mini-crypto`'s existing AEAD (ChaCha20-Poly1305), HKDF-SHA256, BLAKE3,
+and Ed25519 signing exactly as already reviewed elsewhere in the
+workspace (Directive 14/no-new-cryptography rule). No dependency edge to
+`mini-forge`/`mini-chain` (voice/value wall unaffected — this crate's
+`Cargo.toml` gained only `zeroize`, matching `did-mini`/`mini-crypto`/
+`mini-treasury`'s existing `CapabilityToken`-secret-scrubbing pattern, no
+new external dependency to the workspace as a whole).
+
+**Implementation status:** shipped and tested. 39 new unit tests across
+`envelope_v2.rs` (16: seal/open round-trip, wire round-trip, v1-rejected-
+by-v2 and v2-rejected-by-v1 disambiguation, route/retention/ciphertext-
+tamper-breaks-decryption ×3, wrong-key-fails, fresh-nonce-produces-
+different-ciphertext-and-ids, a byte-scan confirming none of the private
+fields appear anywhere in the outer bytes, truncation-at-every-length,
+trailing-bytes, unknown-suite, unknown-retention, over-cap-ciphertext-
+before-allocating), `private_object.rs` (9: round-trip, signature
+verifies/fails-on-tamper/fails-against-wrong-KEL, truncation, trailing-
+bytes, over-cap-links-before-allocating, unsigned-has-no-signatures,
+custom-type round-trip), `capability.rs` (21: every right round-trips,
+unknown right rejected, full valid-grant-and-proof success path, right-
+mismatch fails ×2, scope-mismatch fails, a token-commitment-copied-into-
+a-different-scope-grant fails, wrong-token fails, missing/wrong holder
+proof fails ×2, expired/not-yet-valid fail, wrong-issuer fails, wire
+round-trip ×2 incl. a validity-window round-trip that still enforces the
+window post-decode, unknown-version rejected, truncation, trailing-
+bytes), and `pseudonym.rs` (5: same-inputs-same-pseudonym, different-
+scope/purpose/root all produce different pseudonyms, a derived pseudonym
+can sign and independently verify). `cargo fmt`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` are clean; all 9 pre-existing v1
+integration tests in `tests/objects.rs` still pass unmodified — v1's own
+wire format and behavior are untouched.
+
+**Failure point:** `OpaqueRoute`'s randomness means a caller has no way
+to compute a route tag without being told it out of band — deterministic,
+scope-derived routing (so an authorized reader can find an object without
+a side channel) is explicitly deferred, so this version alone does not
+yet support "find this object by scope" lookups, only "open this object
+I was already pointed at." `CapabilityGrant` has no revocation mechanism
+— an issued grant remains valid (subject to its own expiry) until it
+naturally expires; a compromised token or grantee key cannot be
+invalidated early in this version. `RetentionClass` is advisory metadata
+a storage node could ignore; nothing here enforces it.
+
+**Required follow-up:** deterministic/scope-derived `OpaqueRoute`
+generation; a capability revocation mechanism; `MN-202` (Tier 1 relay/
+rendezvous protocol, lane L6 per D-0300, now unblocked by this lane's
+capability primitives) and `MN-208` (private lookup/DHT restriction
+enforcement, also now unblocked); HPKE-based recipient-key wrapping for
+multi-reader key distribution (deferred — research explicitly flagged
+recipient-count/identifier leakage and revocation complexity as needing
+separate design); MLS for dynamic encrypted group key management
+(explicitly not the right fit for a generic immutable object envelope);
+capability attenuation/delegation once exact-grant semantics have been
+exercised in practice; `CapabilityScope` variants beyond `Object` as
+those surfaces (`mini-social` collections/communities) get their own id
+types.
+
+**Supersedes / superseded by:** none. `Object`/`Payload`/v1's wire format
+are byte-for-byte unchanged; `ObjectId::of`'s visibility widened
+(`fn` → `pub(crate) fn`) with no behavior change.
+### D-0302 — Resource price vector and quote engine: new `mini-resource-pricing` crate, quoting only (lane L4, `MN-601`, closes tracking issue #136)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0094
+(`mini-privacy-policy`, the dependency this lane consumes);
+`crates/mini-resource-pricing` (new); tracking issue #136
+
+**Decision:** ships `MN-601` as a new, dependency-light crate:
+`PriceVector` (micro-MINI per unit of bandwidth/storage, the plain `u64`
+"micro-MINI" convention `mini-settlement`/`mini-bounty`/`mini-reward`
+already use — no new amount type, confirmed no dedicated one exists
+anywhere in this workspace before choosing this), and
+`quote(&PriceVector, PrivacyTier, payload_mb, storage_days) ->
+Result<Quote>`: a pure function combining `mini_privacy_policy::
+expected_cost`'s declared min/max multiplier range with a price vector,
+producing a `Quote { min_micro_mini, max_micro_mini, requires_payment }`.
+All arithmetic goes through `u128` intermediates with `checked_mul`/
+`checked_add`, returning `PricingError::Overflow` rather than saturating
+or panicking on an oversized input.
+
+**Reason:** second lane picked from D-0300's plan in the same
+founder-directed batch as `L2` (D-0301) — chosen because it is, like
+`L2`, a brand-new dependency-light crate with zero existing-code risk,
+proving the lane-parallelism pattern a second time with a genuinely
+independent PR (no shared files with `L2`'s `mini-transport-policy`).
+`D-0301` was already claimed by `L2` in this same session before this
+entry was written, so this entry proactively takes `D-0302` rather than
+wait to discover the collision on rebase — the exact scenario D-0300's
+own "claim at PR-open time, renumber on merge" rule anticipates,
+resolved here the cheap way since both lanes are visible to the same
+author in the same sitting. Checked-arithmetic-with-explicit-overflow-
+error (rather than the workspace's more common panic-free-via-fixed-
+caps pattern used in wire codecs) was chosen specifically because this
+is money-adjacent: silently saturating a price to `u64::MAX` would be a
+wrong, not just a truncated, answer.
+
+**Constitutional impact:** none directly, but this is the first
+`D-03xx`-band crate that touches money at all, so it was checked
+explicitly: `mini-resource-pricing`'s `Cargo.toml` depends only on
+`mini-privacy-policy`, with a standing comment stating it must never gain
+a `mini-forge`/`mini-chain` dependency (Directive 1, the voice/value
+wall) — pricing a resource must never become a governance signal in
+either direction. No payment executes here (no e-cash, no ledger write,
+no `mini-value`/`mini-treasury` dependency at all) — that is explicitly
+`MN-602`/`MN-603`, later work under the same D-0047 external-crypto-
+review gate every other value-bearing prototype in this repo sits behind.
+
+**Implementation status:** shipped and tested. 7 unit tests (Direct
+tier's min-equals-max no-range case, Relayed's real range,
+max-never-less-than-min across all four tiers, Burst costing at least as
+much as Mixed at equal payload, a zero-payload zero-cost edge case,
+overflow-is-rejected-not-truncated with `u64::MAX` inputs, and
+determinism for repeated identical inputs). `cargo fmt`, `cargo clippy -p
+mini-resource-pricing --all-targets --all-features -- -D warnings`, and
+`cargo test -p mini-resource-pricing` are clean.
+
+**Failure point:** `quote` is a declared price, not a cleared market
+price — nothing here models supply/demand, and the underlying
+`ResourceCost` multipliers it prices are themselves the research
+document's estimates, not measurements (same inherited honesty
+constraint as D-0301). A caller that treats a `Quote` as a binding offer
+rather than an estimate would be over-trusting this crate.
+
+**Required follow-up:** `MN-602` (blind prepaid resource credential
+protocol review) and `MN-603` (anonymous resource redemption prototype),
+both later lanes with their own external-review posture; `MN-604`
+(privacy-pool subsidy policy) and `MN-605` (treasury/inflation/whale
+simulation extension) build on this crate's `Quote` type once they start.
+
+**Supersedes / superseded by:** none. New crate, no existing type or
+behavior changed.
+### D-0303 — Human-evidence taxonomy reconciliation: `HumanStatus` unchanged, no rival taxonomy (lane L5, `MN-401`, closes tracking issue #137)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0086 (the
+`FullHuman`→`EvidenceQualifiedHuman` personhood-honesty rename this
+reconciliation must not undo); `docs/research/
+MININET_RESEARCH_V2_20260713.md` §10 (the five source classes);
+`docs/design/human-evidence-taxonomy-reconciliation.md` (new);
+`crates/mini-uniqueness/src/status.rs` (verified against, unmodified);
+tracking issue #137
+
+**Decision:** the founder-directed contributor picked lane L5 specifically
+because it is a prerequisite for later evidence-stamp/continuity-proof/
+nullifier/aggregate-proof/external-adapter work, and produced a thorough
+research report (repository conventions, `mini-uniqueness`'s current
+`SignalSource`/`TrustWeights`/`PromotionPolicy`/`HumanRecord` machinery,
+and external credential-standard landscape — W3C VC 2.0, OpenID4VCI/VP,
+SD-JWT VC, EUDI wallet pilots) concluding that the source research's five
+confidence classes mix three orthogonal axes (participation, evidence
+confidence, provenance) rather than forming one ordinal ladder, and that
+reconciliation should therefore be **documentation-only**: `Unassessed`
+maps to `Unverified`; `HumanEvidenceQualified` maps to `VouchedHuman`;
+`StrongHumanEvidence` maps to `EvidenceQualifiedHuman`; `ActiveParticipant`
+maps to nothing (participation is not evidence of humanity);
+`ExternalUniquenessBacked` maps to nothing (an external issuer's *scoped*
+assertion is one more weighted `SignalEvidence` source, already
+representable via `SignalSource::External(u32)`, never a promotion to a
+new status). This entry adopts that conclusion and the design doc it
+produced. Independently verified against `crates/mini-uniqueness/src/
+status.rs` before writing this entry: the exact three-variant
+`HumanStatus` enum, `SignalSource::External(u32)`, and
+`PromotionPolicy::full_required_sources`'s default inclusion of the
+seed-anchored vouching graph (closing the #18 Sybil review's
+farm-saturation bypass) all match the report's description precisely.
+
+**Reason:** the "higher scrutiny" flag D-0300 placed on this lane was
+specifically about not introducing a rival personhood taxonomy next to
+`mini_uniqueness::HumanStatus` — the research concludes that the correct
+way to honor that constraint is to *not add a type at all*, since none of
+the three candidate additions (all five classes as variants; only
+`ExternalUniquenessBacked`; only `ActiveParticipant`) survive scrutiny
+without either conflating incomparable properties or creating a path for
+an external issuer's scoped claim to outrank Mininet's own strongest,
+multi-source, internally-verified state. This is the same discipline
+D-0086 already established (rejecting `FullHuman`/`VerifiedHuman`-shaped
+names because the system cannot distinguish one human from several
+colluding identity roots) — this entry keeps applying it rather than
+reopening it.
+
+**Constitutional impact:** directly relevant to `docs/INVARIANTS.md`'s
+hard-limitation section (§2) and the Sybil-unsolved limitation it states:
+this reconciliation explicitly restates, not softens, that no
+`HumanStatus` value — including `EvidenceQualifiedHuman` — proves global
+personhood uniqueness or that one human controls only one `did:mini`
+root. No governance/voice surface is touched. No new cryptography, no
+credential adapter, no new type — pure documentation this batch.
+
+**Implementation status:** documentation-only, as scoped. No Rust code
+changed; `crates/mini-uniqueness` is unmodified (confirmed by the
+verification pass described above). The design doc also states, for
+later lanes' benefit, that `MN-406`'s external-uniqueness adapter must
+require at least one live Mininet-native source alongside any external
+evidence — external evidence alone must never independently promote a
+record to `EvidenceQualifiedHuman` — so this workspace never silently
+outsources its personhood policy to an external issuer.
+
+**Failure point:** this is a naming/mapping decision, not a new
+enforcement mechanism — nothing here changes what `mini_uniqueness`
+actually does, only how the founder research's vocabulary is talked about
+relative to it. The risk this guards against (an external issuer's
+credential being read as stronger than it is) remains a documentation
+discipline until `MN-406` actually implements the "at least one
+Mininet-native source required" rule in code.
+
+**Required follow-up:** `MN-402` (`EvidenceStamp` interface + issuer
+diversity rules), `MN-403` (private continuity proof phase 1 — already
+has its own design doc, `docs/design/human-continuity-proof.md`,
+D-0075), `MN-404` (context nullifier + pairwise pseudonym design),
+`MN-405` (aggregate proof prototype), `MN-406` (external uniqueness
+credential adapter — must implement the required-native-source rule this
+entry states but does not yet enforce in code), `MN-407` (Sybil-farm/
+coercion simulation) — all later lanes, each producing a scoped evidence
+assessment that becomes one more weighted `SignalEvidence`, never a value
+that directly assigns a `HumanStatus`.
+
+**Supersedes / superseded by:** none. Extends D-0086's naming discipline;
+does not modify `mini_uniqueness::HumanStatus` or any other existing type.
+### D-0305 — Sphinx-style mix network: research report and protocol specification (lane L3, `MN-204`, closes tracking issue #135)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0094
+(`mini-privacy-policy::Mechanism::MixNetwork`, the named-but-unimplemented
+mechanism this document specifies); D-0301 (`mini-transport-policy`'s
+`PrivacyTier::Mixed` mechanism list, which already names exactly the four
+mechanisms this document specifies and no others); D-0302
+(`mini-resource-pricing`, this specification's cover-traffic/bandwidth
+cost consumer); `docs/design/mixnet-sphinx-protocol.md` (new); D-0300's
+own "Phase D gate" flag; tracking issue #135
+
+**Decision:** ships `MN-204` as a research report and candidate protocol
+specification, zero Rust code, matching L3's declared docs-only
+footprint. Surveys the historical line from Chaum Mixes (1981) through
+Stop-and-Go Mixes, Mixminion, Sphinx (Danezis & Goldberg 2009 — the
+compact fixed-size packet format underlying every production system
+since), Loopix (Piotrowska et al. 2017 — continuous-time Poisson mixing,
+stratified topology, independent cover traffic), Katzenpost, Nym, and
+Outfox; a comparison matrix across Tor/Loopix/Nym/Sphinx/Outfox/the
+Mininet candidate on latency, adversary model, active-attack resistance,
+replay handling, packet/bandwidth overhead, implementation complexity,
+production maturity, audit history, and PQ readiness; a list of thirteen
+simulations this repository still owes (malicious-node sweeps, AS-level
+adversary, jurisdiction diversity, relay churn, mobile clients, sparse/
+heavy traffic, intersection attacks, cover-traffic/battery/bandwidth
+cost) before any Tier 2 multiplier in `mini-privacy-policy` stops being a
+declared estimate; a fourteen-entry attack catalog (tagging, replay,
+predecessor, blending/n-1, route capture, selective DoS, timing
+correlation, congestion, guard compromise, flooding, statistical
+disclosure, long-term intersection disclosure, Sybil relay
+concentration) each with description/affected-systems/mitigation/
+residual-risk; an explicit "why not just use Tor" section (Tor's own
+documentation excludes global-passive-adversary resistance by design;
+Tier 2 specifically targets that adversary class; the two are
+complementary via `MN-207` bridging, not substitutes); a ten-section
+candidate protocol specification for `MN-205` (Sphinx packet format over
+`mini-crypto`'s existing X25519/HKDF-SHA256/ChaCha20-Poly1305, Loopix-
+style Poisson delay and stratified topology, resource-cost-gated relay
+Sybil resistance, explicit integration points into the three already-
+shipped crates named above); and an eleven-item "future research beyond
+MN-204" list (PQ KEMs, PIR mailboxes, decoy routing, formal verification,
+UC-security proofs, anonymous-credential integration, relay reputation
+without deanonymization, among others) naming what's deliberately
+deferred so omissions read as decisions.
+
+**Reason:** fourth lane the founder picked from D-0300's plan this batch,
+and the natural complement to the three code lanes already shipped (L1
+D-0304, L2 D-0301, L4 D-0302, L5 D-0303) — L3 depends on understanding
+the surrounding privacy-doctrine work without depending on its code,
+exactly the isolation D-0300's lane table already noted ("zero Rust
+footprint"). Written to the depth an external cryptographer would
+actually review, per explicit founder direction, rather than a survey
+paragraph — because `MN-205`'s eventual external-review gate (this
+entry's Constitutional impact field) needs a concrete specification to
+review, not an intent statement.
+
+**Constitutional impact:** composes a single already-published, peer-
+reviewed, real-world-deployed construction (Sphinx, with a decade-plus
+of production deployment history through Loopix/Katzenpost/Nym) —
+CLAUDE.md's composition-of-prior-art allowance, the same class already
+accepted for `mini-value`'s Bulletproofs (D-0036/D-0040) and
+`mini-porep`'s SDR sealing (D-0064). No new cryptographic primitive is
+proposed anywhere in the document — every primitive the candidate
+specification calls for (X25519 agreement, HKDF-SHA256, ChaCha20-
+Poly1305, BLAKE3) already exists in `mini-crypto`, already reviewed,
+already used elsewhere in this workspace. Explicitly restates, and does
+not soften, D-0094's residual floors: the document's timing-correlation
+and statistical-disclosure attack entries state plainly that F2/F3 are
+unremovable by construction, matching `ResidualFloor::
+GlobalObserverLongSessionCorrelation`/`IntersectionOverTime` exactly.
+Most importantly for constitutional posture: **this document does not
+lift D-0300's Phase D gate**. `MN-205` (the actual mix-node
+implementation) still requires the same external-review posture already
+applied to `mini-value`/`mini-treasury` (D-0047 gate) before any
+operational anonymity claim reaches a real user — stated explicitly in
+§0 and §9 of the design doc, not left implicit.
+
+**Implementation status:** research report and specification only, as
+scoped. Zero lines of Rust changed; `crates/` is untouched by this batch.
+`docs/design/mixnet-sphinx-protocol.md` is the sole artifact.
+
+**Failure point:** several claims in the comparison matrix (§3) and the
+historical section (§2, specifically Outfox's exact citation) are
+qualitative and explicitly flagged as needing independent primary-source
+verification before use in an external audit submission — this document
+is honest about that gap rather than presenting unverified figures as
+settled. The thirteen named simulations (§4) are not performed; every
+bandwidth/latency multiplier this document references from
+`mini-privacy-policy` remains a declared estimate, not a measurement,
+until that work happens.
+
+**Required follow-up:** the thirteen simulations named in §4; primary-
+source verification of the Outfox citation before any audit-facing use;
+`MN-205` (mix node state machine implementation) as the next lane,
+explicitly gated on external review per this entry's own Constitutional
+impact field; the eleven future-research items in §8, each already
+scoped as separate, later work rather than folded into `MN-205`
+prematurely.
+
+**Supersedes / superseded by:** none. New document, no existing type,
+crate, or decision changed.

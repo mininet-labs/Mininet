@@ -12,3 +12,4 @@ publish = false
 [dependencies]
 mini-crypto = { path = "../mini-crypto" }
 did-mini = { path = "../did-mini" }
+zeroize = "1" # scrubs a CapabilityToken's local secret bytes on drop

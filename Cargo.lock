@@ -1266,6 +1266,7 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "mini-crypto",
+ "zeroize",
 ]
 
 [[package]]
@@ -1313,6 +1314,13 @@ dependencies = [
  "mini-forge",
  "mini-objects",
  "mini-store",
+]
+
+[[package]]
+name = "mini-resource-pricing"
+version = "0.0.1"
+dependencies = [
+ "mini-privacy-policy",
 ]
 
 [[package]]

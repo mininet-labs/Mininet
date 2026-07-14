@@ -48,7 +48,11 @@ so, everywhere, on purpose.
 - `did:mini` self-sovereign identity + device delegation + lost-device
   recovery
 - signed, content-addressed objects; local storage; social feeds; public
-  walls
+  walls; an opt-in `ObjectEnvelope` v2 private-metadata boundary
+  (D-0304) — type, author, timestamp, sequence, and links all move
+  inside AEAD ciphertext instead of the v1 cleartext schema — plus
+  typed, non-delegable capability grants and scoped pseudonyms
+  (`mini-objects`)
 - BFT finality-verification core; governed release/update path (no forced
   update, no kill switch)
 - networked BFT consensus (`mini-consensus`, D-0200–D-0206): a real
@@ -96,6 +100,10 @@ so, everywhere, on purpose.
   maps a privacy request to the mechanisms its tier requires, failing
   closed rather than silently downgrading; routing decisions only, no
   relay/mix/bearer exists to execute one yet
+- `mini-resource-pricing` (D-0302): a `PriceVector`/quote engine over
+  `mini-privacy-policy`'s declared tier costs, in the workspace's plain
+  micro-MINI convention — quoting only, no payment execution, no
+  dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential
