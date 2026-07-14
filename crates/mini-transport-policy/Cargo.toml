@@ -1,0 +1,13 @@
+[package]
+name = "mini-transport-policy"
+version = "0.0.1"
+description = "TransportRequest policy router: decides which mechanism(s) a mini-privacy-policy PrivacyRequest needs, and at what declared cost, before any transport exists to execute the decision."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-privacy-policy = { path = "../mini-privacy-policy" }

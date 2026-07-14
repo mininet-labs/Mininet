@@ -5810,3 +5810,64 @@ allocation-policy section (edited in place, in accordance with that
 section's own "if a third track appears, add it here" instruction — this
 is the one place in this append-only log where amending existing
 top-of-file policy text, not a dated entry, is the correct move).
+
+### D-0301 — TransportRequest policy router: new `mini-transport-policy` crate, no transport wired (lane L1, `MN-201`, closes tracking issue #134)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0094
+(`mini-privacy-policy`, the dependency this lane consumes);
+`crates/mini-transport-policy` (new); tracking issue #134
+
+**Decision:** ships `MN-201` as a new, dependency-light crate:
+`TransportRequest` (a `mini_privacy_policy::PrivacyRequest` plus a
+`PayloadSizeClass`), `route(&TransportRequest) -> Result<RouteDecision>`,
+and two fixed policy tables — `mechanisms_for_tier` (what each tier
+provides, monotonically increasing: `Burst` is `Mixed`'s set plus erasure
+replication) and `property_min_tier` (the minimum tier at which each
+`ProtectionProperty` becomes achievable, a judgment call recorded here,
+not a proof). `route` fails closed with
+`TransportPolicyError::UnsatisfiableProperty` when a request asks for a
+property the requested tier can't provide, rather than silently routing
+at the (cheaper) requested tier anyway.
+
+**Reason:** the founder's follow-up direction ("pick a child issue,
+produce code across several PRs") pointed at the lane plan D-0300 just
+published; `L2` was picked first because it is fully additive (a brand
+new crate, zero existing-code risk) and lowest-complexity among the
+unblocked lanes, letting the parallel-lane pattern get proven with a real
+PR quickly. `property_min_tier`'s conservative default for any future
+`#[non_exhaustive]` `ProtectionProperty` variant this crate doesn't yet
+map (routes it to the highest tier, `Burst`) follows the same
+"unearned-confidence forbidden" discipline `mini-privacy-policy` itself
+already applies — claiming a lower tier suffices for an unmapped property
+would be exactly the kind of overclaim the cost doctrine exists to
+prevent.
+
+**Constitutional impact:** none. Pure routing-decision data and logic —
+no crypto, no socket, no governance/value surface (the crate's only
+dependency is `mini-privacy-policy`, itself dependency-free).
+
+**Implementation status:** shipped and tested. 9 unit tests (tier-by-tier
+mechanism coverage, the fails-closed case for both an under-provisioned
+Direct-tier request and an under-provisioned Mixed-tier request against
+`SuppressionResistance`, an over-provisioned request still routing
+successfully, the tier-mechanism-list-is-a-superset-of-the-tier-below
+monotonicity check, and payload size class passing through unchanged).
+`cargo fmt`, `cargo clippy -p mini-transport-policy --all-targets
+--all-features -- -D warnings`, and `cargo test -p mini-transport-policy`
+are clean.
+
+**Failure point:** `property_min_tier`'s mapping is a judgment call with
+no formal backing yet — it is what this crate believes, not what any
+mechanism has been proven to deliver, since no mechanism above `Tier 0`
+(`AeadEncryption`) is actually implemented anywhere in this workspace. If
+a future relay/mix implementation turns out weaker than this mapping
+assumes, `route`'s `Ok` results would be over-claiming until the mapping
+is corrected — this is the same "declared, not measured" honesty
+constraint `mini-privacy-policy` already documents, inherited here.
+
+**Required follow-up:** `MN-202` (Tier 1 relay/rendezvous protocol,
+lane L6 per D-0300, blocked on this lane plus L1's capability
+primitives) is the first mechanism this router's output could actually
+drive; until then `RouteDecision` has no consumer beyond its own tests.
+
+**Supersedes / superseded by:** none. New crate, no existing type or
+behavior changed.
