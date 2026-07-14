@@ -5627,3 +5627,102 @@ folding `catch_up_over_tcp` into `run_to_height` itself so a single call
 can catch up and then join live rounds.
 
 **Supersedes / superseded by:** none.
+
+### D-0094 — Adopt founder research V2 (cost doctrine) and its parallel-contributor phase sequencing; ship `mini-privacy-policy` as the first P1 code slice  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** `docs/research/MININET_RESEARCH_V2_20260713.md`,
+`docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md` (founder-supplied,
+uploaded 2026-07-14); `crates/mini-privacy-policy` (new)
+
+**Decision:** adopt the founder's "cost doctrine" research (every privacy/
+availability/integrity property is a named, priced purchase; five residual
+floors F1-F5 are never removed by any spend) as forward direction, and
+adopt the accompanying parallel-contributor package's phase sequencing
+(`P0`-`P8`, summarized in the second ref above) as the roadmap reference
+for privacy/distribution/human-evidence work going forward. Per both
+documents' own stated authority order (founder research → Founder
+Directives/frozen invariants → Decision Log/Failure Book → STATUS →
+existing roadmap → the package's own decomposition), this decision sits
+below `docs/FOUNDER_DIRECTIVES.md`/`docs/INVARIANTS.md` and changes
+sequencing only — no invariant is touched. Ships the phase P1 items
+`MN-101` (protection-property/resource-cost vocabulary) and `MN-102`
+(privacy tier policy object) together as a new crate,
+`mini-privacy-policy`: `ProtectionProperty`/`Mechanism`/`ResidualFloor`
+vocabulary types (`vocabulary.rs`), `PrivacyTier` (Direct/Relayed/Mixed/
+Burst), `ResourceCost` (fixed-point min/max ranges — no float, matching
+the research's own honesty that these are ranges, not point estimates),
+`expected_cost(tier)` reproducing the research's own §2 cost-curve
+estimates, and `PrivacyRequest`/`AchievedPrivacy` with a hand-rolled wire
+codec (`tier.rs`). `AchievedPrivacy::new` always attaches all five
+`RESIDUAL_FLOORS`, by construction, so no caller can build a result that
+silently omits one.
+
+**Reason:** the research's own request was explicit ("bring it closer to
+delivering stage 1"), and per standing founder feedback this session
+prioritizes shipping real, tested code over further planning documents.
+`MN-101`/`MN-102` were chosen as the first slice because they are the
+package's own P1 entry point (`MN-103`/`MN-104` are declared blocked on
+`MN-101`) and because a pure, dependency-free vocabulary+policy crate is
+reviewable in one sitting and touches no existing crate's internals —
+lower risk than starting directly on `ObjectEnvelope` v2 or a relay
+protocol. The package's suggested "Rust serde types" technology was not
+followed: this workspace has never taken a serde dependency (`grep -r
+serde` across every `Cargo.toml` is empty) and instead hand-rolls a
+domain-tagged, length-prefixed wire codec with truncation/trailing-byte/
+oversized-count rejection tests everywhere a wire format exists
+(`mini-net::pex`, `mini-consensus::catchup`, ...); matching that existing,
+already-reviewed convention was judged higher priority than the package's
+generic suggestion, and is an implementation-technology call, not a
+constitutional one.
+
+**Constitutional impact:** none. `mini-privacy-policy` is pure data plus a
+codec — no crypto is implemented (Directive 14/no-new-cryptography rule:
+the crate does not touch key material, AEAD, or any primitive at all yet),
+no governance or value surface is touched (voice/value wall unaffected —
+the new crate has zero dependencies), and every doc comment on
+`HumanUniquenessSignal`/`GlobalUniquenessOfPersons` explicitly defers to
+the existing Sybil-unsolved limitation in `docs/INVARIANTS.md` rather than
+claiming anything new about personhood. The vocabulary's naming
+deliberately does not reuse or collide with `mini_uniqueness::HumanStatus`/
+`EvidenceQualifiedHuman` (D-0086); reconciling the research's own
+`Unassessed → ... → ExternalUniquenessBacked` confidence-class language
+with that existing shipped taxonomy is explicitly deferred (see Required
+follow-up), not silently merged or renamed here.
+
+**Implementation status:** shipped and tested. 22 unit tests in
+`mini-privacy-policy` (byte round-trips for all 13 `ProtectionProperty`/17
+`Mechanism`/5 `ResidualFloor` variants, unknown-byte rejection for each,
+wire round-trips for `PrivacyRequest`/`AchievedPrivacy` including the
+empty-list case, truncation-at-every-length rejection, trailing-byte
+rejection, wrong-domain rejection, over-cap count rejection before
+allocating for properties/mechanisms/floors, `AchievedPrivacy::new`'s
+always-five-floors invariant, and a monotonic-cost-by-tier sanity check).
+`cargo fmt`, `cargo clippy -p mini-privacy-policy --all-targets
+--all-features -- -D warnings`, and `cargo test -p mini-privacy-policy`
+are clean. **No transport, relay, mix, or storage mechanism is
+implemented anywhere in this batch** — `expected_cost` reproduces the
+research document's own estimates, not a measurement of running code; the
+crate-level doc comment says this explicitly, matching this session's
+"snapshot honesty" discipline.
+
+**Failure point:** this is policy vocabulary with nothing yet enforcing
+it — nothing in this workspace today reads a `PrivacyRequest` and actually
+routes traffic differently, so an `AchievedPrivacy` value is only as
+honest as whatever future code constructs it; there is no mechanism here
+preventing a careless caller from claiming a tier it did not actually
+reach. `ProtectionProperty`/`Mechanism` are marked `#[non_exhaustive]` to
+allow growth, which means any downstream `match` must already handle
+unknown variants — a deliberate forward-compatibility choice, not an
+oversight.
+
+**Required follow-up:** `MN-103` (`ObjectEnvelope` v2 private-metadata
+boundary) and `MN-104` (capability rights/scoped pseudonym primitives),
+the package's own next P1 items; reconciling the research's Human
+Evidence Credential confidence-class naming against
+`mini_uniqueness::HumanStatus`/`EvidenceQualifiedHuman` before any P4 work
+starts; a decision on whether/when to publish the package's ~70 `MN-xxx`
+items as real GitHub issues (deliberately not done this batch); wiring an
+actual `TransportRequest` router (`MN-201`, P2) once a real relay exists
+to consume this crate's types for something other than logging.
+
+**Supersedes / superseded by:** none. New crate, no existing type or
+behavior changed.

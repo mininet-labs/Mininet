@@ -252,8 +252,21 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
 - **shipped** — `mini-bearer::Channel` (anonymous, forward-secret,
   handshake carries no identity); `mini-store`'s seed-on-view policy
   gating.
-- **not started** — the storage fabric's P6 guarantees (no forced
-  replication, no compelled decryption) have no owning subsystem yet.
+- **shipped** — `mini-privacy-policy` (D-0094): the founder research's
+  "cost doctrine" turned into typed vocabulary —
+  `ProtectionProperty`/`Mechanism`/`ResidualFloor` (the five floors F1-F5
+  no spend removes) — plus a Tier 0-3 (Direct/Relayed/Mixed/Burst)
+  `PrivacyRequest`/`AchievedPrivacy` policy object with a hand-rolled wire
+  codec. Pure policy data only — **no relay, mix, or erasure-replication
+  mechanism exists yet for any tier above Direct**; `expected_cost`
+  reproduces the research document's own estimates, not a benchmark.
+  Founder research: `docs/research/MININET_RESEARCH_V2_20260713.md`;
+  phase sequencing: `docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md`.
+- **not started** — Tier 1+ relay/rendezvous transport, mix network,
+  `ObjectEnvelope` v2 private-metadata boundary, capability/pseudonym
+  primitives (the phase P1/P2 items this same research names next); the
+  storage fabric's P6 guarantees (no forced replication, no compelled
+  decryption) also have no owning subsystem yet.
 
 ## 7. Storage
 
