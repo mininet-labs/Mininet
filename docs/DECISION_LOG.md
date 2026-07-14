@@ -6181,3 +6181,103 @@ that directly assigns a `HumanStatus`.
 
 **Supersedes / superseded by:** none. Extends D-0086's naming discipline;
 does not modify `mini_uniqueness::HumanStatus` or any other existing type.
+### D-0305 — Sphinx-style mix network: research report and protocol specification (lane L3, `MN-204`, closes tracking issue #135)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0094
+(`mini-privacy-policy::Mechanism::MixNetwork`, the named-but-unimplemented
+mechanism this document specifies); D-0301 (`mini-transport-policy`'s
+`PrivacyTier::Mixed` mechanism list, which already names exactly the four
+mechanisms this document specifies and no others); D-0302
+(`mini-resource-pricing`, this specification's cover-traffic/bandwidth
+cost consumer); `docs/design/mixnet-sphinx-protocol.md` (new); D-0300's
+own "Phase D gate" flag; tracking issue #135
+
+**Decision:** ships `MN-204` as a research report and candidate protocol
+specification, zero Rust code, matching L3's declared docs-only
+footprint. Surveys the historical line from Chaum Mixes (1981) through
+Stop-and-Go Mixes, Mixminion, Sphinx (Danezis & Goldberg 2009 — the
+compact fixed-size packet format underlying every production system
+since), Loopix (Piotrowska et al. 2017 — continuous-time Poisson mixing,
+stratified topology, independent cover traffic), Katzenpost, Nym, and
+Outfox; a comparison matrix across Tor/Loopix/Nym/Sphinx/Outfox/the
+Mininet candidate on latency, adversary model, active-attack resistance,
+replay handling, packet/bandwidth overhead, implementation complexity,
+production maturity, audit history, and PQ readiness; a list of thirteen
+simulations this repository still owes (malicious-node sweeps, AS-level
+adversary, jurisdiction diversity, relay churn, mobile clients, sparse/
+heavy traffic, intersection attacks, cover-traffic/battery/bandwidth
+cost) before any Tier 2 multiplier in `mini-privacy-policy` stops being a
+declared estimate; a fourteen-entry attack catalog (tagging, replay,
+predecessor, blending/n-1, route capture, selective DoS, timing
+correlation, congestion, guard compromise, flooding, statistical
+disclosure, long-term intersection disclosure, Sybil relay
+concentration) each with description/affected-systems/mitigation/
+residual-risk; an explicit "why not just use Tor" section (Tor's own
+documentation excludes global-passive-adversary resistance by design;
+Tier 2 specifically targets that adversary class; the two are
+complementary via `MN-207` bridging, not substitutes); a ten-section
+candidate protocol specification for `MN-205` (Sphinx packet format over
+`mini-crypto`'s existing X25519/HKDF-SHA256/ChaCha20-Poly1305, Loopix-
+style Poisson delay and stratified topology, resource-cost-gated relay
+Sybil resistance, explicit integration points into the three already-
+shipped crates named above); and an eleven-item "future research beyond
+MN-204" list (PQ KEMs, PIR mailboxes, decoy routing, formal verification,
+UC-security proofs, anonymous-credential integration, relay reputation
+without deanonymization, among others) naming what's deliberately
+deferred so omissions read as decisions.
+
+**Reason:** fourth lane the founder picked from D-0300's plan this batch,
+and the natural complement to the three code lanes already shipped (L1
+D-0304, L2 D-0301, L4 D-0302, L5 D-0303) — L3 depends on understanding
+the surrounding privacy-doctrine work without depending on its code,
+exactly the isolation D-0300's lane table already noted ("zero Rust
+footprint"). Written to the depth an external cryptographer would
+actually review, per explicit founder direction, rather than a survey
+paragraph — because `MN-205`'s eventual external-review gate (this
+entry's Constitutional impact field) needs a concrete specification to
+review, not an intent statement.
+
+**Constitutional impact:** composes a single already-published, peer-
+reviewed, real-world-deployed construction (Sphinx, with a decade-plus
+of production deployment history through Loopix/Katzenpost/Nym) —
+CLAUDE.md's composition-of-prior-art allowance, the same class already
+accepted for `mini-value`'s Bulletproofs (D-0036/D-0040) and
+`mini-porep`'s SDR sealing (D-0064). No new cryptographic primitive is
+proposed anywhere in the document — every primitive the candidate
+specification calls for (X25519 agreement, HKDF-SHA256, ChaCha20-
+Poly1305, BLAKE3) already exists in `mini-crypto`, already reviewed,
+already used elsewhere in this workspace. Explicitly restates, and does
+not soften, D-0094's residual floors: the document's timing-correlation
+and statistical-disclosure attack entries state plainly that F2/F3 are
+unremovable by construction, matching `ResidualFloor::
+GlobalObserverLongSessionCorrelation`/`IntersectionOverTime` exactly.
+Most importantly for constitutional posture: **this document does not
+lift D-0300's Phase D gate**. `MN-205` (the actual mix-node
+implementation) still requires the same external-review posture already
+applied to `mini-value`/`mini-treasury` (D-0047 gate) before any
+operational anonymity claim reaches a real user — stated explicitly in
+§0 and §9 of the design doc, not left implicit.
+
+**Implementation status:** research report and specification only, as
+scoped. Zero lines of Rust changed; `crates/` is untouched by this batch.
+`docs/design/mixnet-sphinx-protocol.md` is the sole artifact.
+
+**Failure point:** several claims in the comparison matrix (§3) and the
+historical section (§2, specifically Outfox's exact citation) are
+qualitative and explicitly flagged as needing independent primary-source
+verification before use in an external audit submission — this document
+is honest about that gap rather than presenting unverified figures as
+settled. The thirteen named simulations (§4) are not performed; every
+bandwidth/latency multiplier this document references from
+`mini-privacy-policy` remains a declared estimate, not a measurement,
+until that work happens.
+
+**Required follow-up:** the thirteen simulations named in §4; primary-
+source verification of the Outfox citation before any audit-facing use;
+`MN-205` (mix node state machine implementation) as the next lane,
+explicitly gated on external review per this entry's own Constitutional
+impact field; the eleven future-research items in §8, each already
+scoped as separate, later work rather than folded into `MN-205`
+prematurely.
+
+**Supersedes / superseded by:** none. New document, no existing type,
+crate, or decision changed.

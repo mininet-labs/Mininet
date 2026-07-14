@@ -292,6 +292,18 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   already-established key), traffic-analysis resistance, deterministic
   route-tag lookup, capability revocation — see D-0304's Required
   follow-up.
+- **design-only** — `docs/design/mixnet-sphinx-protocol.md` (D-0305,
+  lane L3, `MN-204`): a Sphinx (Danezis & Goldberg 2009) + Loopix-style
+  candidate specification for `mini_privacy_policy::Mechanism::
+  MixNetwork`/`mini_transport_policy::PrivacyTier::Mixed`'s already-named
+  but unimplemented mixing mechanism — historical survey, a
+  Tor/Loopix/Nym/Sphinx/Outfox comparison matrix, thirteen named-but-
+  unrun simulations, a fourteen-entry attack catalog, a "why not Tor"
+  section, and a ten-part candidate protocol spec. Zero Rust code.
+  **Does not lift the Phase D external-review gate** — `MN-205` (the
+  actual mix-node implementation) still needs the same review posture as
+  `mini-value`/`mini-treasury` (D-0047) before any operational anonymity
+  claim.
 - **planning artifact** — `docs/design/
   privacy-cost-doctrine-parallel-execution-plan.md` (D-0300): five
   disjoint-footprint lanes (L1-L5) for the immediately-unblocked next
