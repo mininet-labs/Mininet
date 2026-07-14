@@ -1,0 +1,17 @@
+[package]
+name = "mini-relay"
+version = "0.0.1"
+description = "Tier 1 relay + rendezvous protocol (MN-202): role-separated entry/rendezvous/delivery relaying, rotating mailbox capabilities, connection-scoped ephemeral identities."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+mini-bearer = { path = "../mini-bearer" }
+mini-transport-policy = { path = "../mini-transport-policy" }
+zeroize = "1" # scrubs a MailboxToken's local secret bytes on drop

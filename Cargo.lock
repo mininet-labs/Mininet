@@ -1317,6 +1317,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-relay"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-bearer",
+ "mini-crypto",
+ "mini-transport-policy",
+ "zeroize",
+]
+
+[[package]]
 name = "mini-resource-pricing"
 version = "0.0.1"
 dependencies = [

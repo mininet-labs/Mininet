@@ -39,7 +39,7 @@ code, and frozen. A full, code-mapped register is in
 
 ## What exists today — honestly
 
-This repository is the **self-contained Rust core**: ~34 crates, no external
+This repository is the **self-contained Rust core**: ~38 crates, no external
 dependency on any single company's infrastructure to keep running. Nothing
 here is ready for real people, real money, or real custody yet — and it says
 so, everywhere, on purpose.
@@ -98,12 +98,22 @@ so, everywhere, on purpose.
   pure policy data; no relay/mix/erasure mechanism is wired to it yet
 - `mini-transport-policy` (D-0301): a `TransportRequest` policy router —
   maps a privacy request to the mechanisms its tier requires, failing
-  closed rather than silently downgrading; routing decisions only, no
-  relay/mix/bearer exists to execute one yet
+  closed rather than silently downgrading; routing decisions only, not
+  wired to `mini-relay` yet
 - `mini-resource-pricing` (D-0302): a `PriceVector`/quote engine over
   `mini-privacy-policy`'s declared tier costs, in the workspace's plain
   micro-MINI convention — quoting only, no payment execution, no
   dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`
+- `mini-relay` (D-0306): Tier 1 relay + rendezvous protocol — role-
+  separated entry/rendezvous/delivery relaying, rotating mailbox
+  capabilities (`MailboxGrant`, holder-bound and token-committed like
+  `mini-objects`' capability grants but a separate typed domain),
+  connection-scoped ephemeral identities never tied to a `did:mini` root,
+  and role-separation enforcement so no single relay operator holds two
+  roles for one delivery; AEAD-sealed per-hop envelopes proven in-process
+  against real `mini-bearer` channels — no live multi-process relay demo
+  yet, and DHT-lookup restriction (`MN-208`) is out of scope until
+  `mini-net` has a value-storage layer to restrict at all
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential
