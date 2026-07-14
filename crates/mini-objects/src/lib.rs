@@ -37,12 +37,25 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod capability;
 mod codec;
+mod envelope_v2;
 mod error;
 mod object;
+mod private_object;
+mod pseudonym;
 
+pub use capability::{
+    CapabilityGrant, CapabilityRight, CapabilityScope, CapabilityToken, CapabilityTokenCommitment,
+    CAPABILITY_VERSION,
+};
+pub use envelope_v2::{
+    ObjectEnvelopeV2, OpaqueRoute, RetentionClass, StorageDescriptor, ENVELOPE_VERSION,
+};
 pub use error::{ObjectError, Result};
 pub use object::{
     verify_provenance, Link, Object, ObjectBuilder, ObjectId, ObjectType, Payload, MAX_LINKS,
     MAX_PAYLOAD_BYTES,
 };
+pub use private_object::PrivateObject;
+pub use pseudonym::{derive_scoped_pseudonym, PseudonymPurpose};

@@ -32,6 +32,12 @@ impl Writer {
         self.u32(v.len() as u32);
         self.buf.extend_from_slice(v);
     }
+    /// Write exactly `v.len()` bytes with no length prefix — for fields
+    /// whose length is fixed by the format itself (a nonce, a fixed-size
+    /// route tag), where a redundant length prefix would only waste space.
+    pub(crate) fn raw(&mut self, v: &[u8]) {
+        self.buf.extend_from_slice(v);
+    }
     pub(crate) fn into_bytes(self) -> Vec<u8> {
         self.buf
     }
@@ -84,5 +90,10 @@ impl<'a> Reader<'a> {
     }
     pub(crate) fn finished(&self) -> bool {
         self.pos == self.data.len()
+    }
+    /// Read exactly `n` raw bytes with no length prefix — the counterpart
+    /// to [`Writer::raw`].
+    pub(crate) fn raw(&mut self, n: usize) -> Result<&'a [u8]> {
+        self.take(n)
     }
 }
