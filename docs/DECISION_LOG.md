@@ -6481,3 +6481,75 @@ end to end over real sockets, still D-0306's largest open item.
 
 **Supersedes / superseded by:** none. Extends `mini-relay` additively;
 no existing type or behavior in any other crate changed.
+
+### D-0308 — Live two-hop relay demo over real TCP sockets: closes D-0306/D-0307's "no live demo" honest limit  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0306 (named this as the largest open
+item in its Required follow-up); D-0307 (named it again);
+`crates/mini-relay/tests/live_relay_over_tcp.rs` (new)
+
+**Decision:** adds one automated integration test, run by `cargo test`
+like every other test in this workspace (no manual multi-terminal
+invocation, unlike `mini-net`'s `gossip_live_demo` example), proving a
+message crosses two independently-established **real TCP sockets** —
+client→entry and entry→rendezvous — each with its own genuine
+`mini_bearer::Channel` handshake (`Initiator::start`/`Responder::respond`
+carried over a real `TcpBearer`, the exact pattern `mini-cli`'s `sync
+connect`/`listen` already uses), and arrives at the rendezvous relay
+byte-for-byte. `RelayRole`/`ConnectionId`/`derive_relay_identity`/
+`enforce_role_separation` are all exercised on genuinely independent
+generated identities, not placeholders. Scoped narrowly and deliberately:
+mailbox pickup (`MailboxGrant`/`MailboxToken`/holder-proof) is **not**
+re-proven over a third socket here, because it is pure local logic that
+doesn't care whether its inputs arrived over a wire or a function call —
+already exercised 21 times in `mailbox.rs`'s own unit tests — and adding
+ad hoc wire-format code to serialize it for this demo would cost real
+lines without adding real truth-value.
+
+**Reason:** `RelayEnvelope`'s own doc comment already states it is "a
+**one-hop** AEAD-sealed relay message," so this demo does not invent any
+new multi-hop protocol structure — it wires the crate's existing,
+already-tested primitives together exactly as designed: unwrap at one
+hop, reseal fresh for the next. This resolves an explicit design question
+raised while planning the demo (nested "onion" layering vs. hop-by-hop
+re-sealing) in favor of what the crate's own architecture already
+committed to, rather than inventing a stronger cryptographic property
+(end-to-end payload secrecy across relays) that was never actually built
+and would have required new, undiscussed protocol design — exactly the
+kind of scope creep this session's practice has been to flag, not
+smuggle in via a "demo."
+
+**Constitutional impact:** none. No new type, no new crypto, no
+dependency changes — the test file depends only on `mini-relay`,
+`mini-bearer`, `did-mini`, and `mini-transport-policy`, all already
+in-tree. Directive 14 (no new cryptography) is reinforced, not
+weakened: this demo proves existing composition works over a real
+transport, it does not add any.
+
+**Implementation status:** shipped and tested. 1 new integration test,
+`a_message_crosses_entry_and_rendezvous_hops_over_real_tcp_sockets`,
+passing. `cargo fmt`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features`
+are clean (124 `test result: ok` blocks workspace-wide — the new
+integration-test binary is its own block — zero failures).
+
+**Failure point:** this is a **hop-by-hop store-and-forward model, not
+onion routing** — the entry relay necessarily decrypts and sees the
+plaintext it forwards to the rendezvous relay. That is Tier 1's actual
+research-doc scope (§5.2), correctly weaker than Tier 2's layered-mix
+property (§5.3, `MN-205`, gated behind external review) — but a reader
+skimming "relay demo" without this entry's honest-limits section could
+mistake it for stronger metadata protection than it provides. The demo
+uses two threads in one process on loopback, not genuinely separate OS
+processes or machines (unlike `mini-net`'s `gossip_live_demo` example) —
+real socket I/O is still exercised, but process/network isolation is
+not.
+
+**Required follow-up:** relay-operator selection/discovery; a mailbox-
+pickup-over-a-real-socket demo if that slice's own protocol (KEL exchange
+alongside the grant/token/holder-proof) is ever designed as a first-class
+feature rather than added just to round out a demo; a genuinely
+multi-process version of this demo (separate `cargo run` invocations
+like `gossip_live_demo`) if that becomes independently useful.
+
+**Supersedes / superseded by:** none. New test file only; no existing
+type or behavior changed.

@@ -335,11 +335,9 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   identity holding two roles for one delivery, and structurally-missing
   Entry/Rendezvous roles). Zero changes to any existing crate — composes
   `mini-bearer`/`did-mini`/`mini-transport-policy` read-only; 43 new
-  tests. **Not solved here**: no live multi-process relay demo (protocol
-  logic proven in-process only, same honesty posture L2 used); `MN-208`
-  (DHT-lookup restriction) explicitly out of scope — `mini-net` has no
-  value-storage DHT layer yet to restrict at all, confirmed via full-crate
-  survey before scoping this lane (see #144).
+  tests. `MN-208` (DHT-lookup restriction) explicitly out of scope —
+  `mini-net` has no value-storage DHT layer yet to restrict at all,
+  confirmed via full-crate survey before scoping this lane (see #144).
 - **shipped** — `mini_relay::roles_for_route_decision` (D-0307): bridges
   `mini_transport_policy::route()`'s output to `mini-relay`'s role
   planning — the "two disconnected layers" gap D-0306's own Required
@@ -348,8 +346,21 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `Mixed`/`Burst` each return a distinct named error rather than an empty
   plan. 6 new tests, including one proving the planned roles satisfy
   `enforce_role_separation` unmodified. **Not solved here**: relay-
-  operator selection/discovery, and no live demo yet — planning *which
-  roles* a delivery needs is not the same as running one.
+  operator selection/discovery — planning *which roles* a delivery needs
+  is not the same as running one.
+- **shipped** — live two-hop relay demo over real TCP sockets (D-0308,
+  `crates/mini-relay/tests/live_relay_over_tcp.rs`): an automated
+  `cargo test` — not a manual multi-terminal example — proving a message
+  crosses two independently-established real TCP+`Channel` hops
+  (client→entry, entry→rendezvous) byte-for-byte, closing the "no live
+  demo" limit both D-0306 and D-0307 named. **Hop-by-hop store-and-
+  forward, not onion routing** — the entry relay necessarily sees the
+  plaintext it forwards, matching Tier 1's actual research-doc scope
+  (§5.2) rather than Tier 2's stronger layered-mix property (`MN-205`,
+  still gated). Mailbox pickup is deliberately not re-proven over a third
+  socket — it's pure local logic already covered by `mailbox.rs`'s own 21
+  unit tests. Threads on loopback within one process, not genuinely
+  separate OS processes (unlike `mini-net`'s `gossip_live_demo`).
 
 ## 7. Storage
 

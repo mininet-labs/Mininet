@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 38,
-    "files": 498,
+    "files": 499,
     "headings": 1734,
-    "rust_symbols": 3764
+    "rust_symbols": 3765
   },
   "crates": {
     "did-mini": {
@@ -23965,6 +23965,48 @@
       "title": "use did_mini::Did;"
     },
     {
+      "bytes": 7903,
+      "group": "crate:mini-relay",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "relay",
+        "real",
+        "rendezvous",
+        "channel",
+        "tcp",
+        "envelope",
+        "entry",
+        "relayrole",
+        "relayenvelope",
+        "own",
+        "client",
+        "bearer",
+        "connection_id",
+        "role",
+        "demo",
+        "hello",
+        "its",
+        "mailbox",
+        "tcpbearer",
+        "responder",
+        "socket",
+        "two",
+        "handshake"
+      ],
+      "lines": 165,
+      "path": "crates/mini-relay/tests/live_relay_over_tcp.rs",
+      "sha256": "8cb65c9de74215e438eef37fb41ebfd8b70651fdd139a62132467a7dc28817d7",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 50,
+          "name": "a_message_crosses_entry_and_rendezvous_hops_over_real_tcp_sockets"
+        }
+      ],
+      "title": "use std::net::{TcpListener, TcpStream};"
+    },
+    {
       "bytes": 987,
       "group": "crate:mini-resource-pricing",
       "headings": [
@@ -33874,7 +33916,7 @@
       "title": "{"
     },
     {
-      "bytes": 387560,
+      "bytes": 391850,
       "group": "docs",
       "headings": [
         {
@@ -34281,11 +34323,11 @@
       "keywords": [
         "accepted",
         "founder",
-        "review",
         "real",
+        "review",
+        "closes",
         "log",
         "batch",
-        "closes",
         "decision",
         "release",
         "roadmap",
@@ -34301,12 +34343,12 @@
         "chain",
         "first",
         "explicit",
-        "spine",
-        "tracking"
+        "live",
+        "spine"
       ],
-      "lines": 6484,
+      "lines": 6556,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "26d5c89b910e02117ab6fa7a0ac8c6a39c4756a2a9974bb43b10b5c62ce60ef3",
+      "sha256": "c9ff9f80af5850dcd8e6caf4288131ee4cbbd75153bdd97037f4b4cf823851d7",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -35164,7 +35206,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 44003,
+      "bytes": 44772,
       "group": "docs",
       "headings": [
         {
@@ -35204,32 +35246,32 @@
         },
         {
           "level": 2,
-          "line": 354,
+          "line": 365,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 395,
+          "line": 406,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 453,
+          "line": 464,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 482,
+          "line": 493,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 677,
+          "line": 688,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 683,
+          "line": 694,
           "text": "Where to look for more detail"
         }
       ],
@@ -35259,9 +35301,9 @@
         "equivocation",
         "validator"
       ],
-      "lines": 693,
+      "lines": 704,
       "path": "docs/STATUS.md",
-      "sha256": "5b6a304f4c48248c05eaeae18dd58eb45f0f3ae63eaad6800eb8d0cfd1ca7055",
+      "sha256": "d5319d34b230f02f57c2c104a7d9900465605f2f605e91feed8b5aaea0d62b65",
       "symbols": [],
       "title": "Implementation status"
     },
