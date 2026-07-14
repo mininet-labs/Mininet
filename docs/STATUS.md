@@ -114,6 +114,14 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `ResourceCredential` against mechanisms that already exist above; it
   introduces no new type and states plainly that `UniqueHumanCredential`
   remains unbuilt Phase 2 work.
+- **doc-only** — `docs/design/human-evidence-taxonomy-reconciliation.md`
+  (D-0303, lane L5 of the privacy/cost-doctrine parallel plan): maps the
+  founder research's five confidence classes onto `HumanStatus` without
+  adding a rival type — `HumanEvidenceQualified`→`VouchedHuman`,
+  `StrongHumanEvidence`→`EvidenceQualifiedHuman`, `ActiveParticipant` and
+  `ExternalUniquenessBacked` map to nothing (behavior and external
+  provenance are not `HumanStatus` axes). `mini-uniqueness` is otherwise
+  unmodified.
 
 ## 3. Identity & key custody
 
