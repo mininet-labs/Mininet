@@ -50,6 +50,18 @@ pub enum RelayError {
     MissingRole(RelayRole),
     /// A role appears more than once in a delivery's assignment.
     DuplicateRole(RelayRole),
+    /// A [`crate::plan`] request's tier needs no relay at all
+    /// (`PrivacyTier::Direct`) — planning relay roles for it would be
+    /// meaningless, not just wasteful.
+    TierNeedsNoRelay,
+    /// A [`crate::plan`] request's tier needs machinery this crate does
+    /// not implement (`PrivacyTier::Mixed`/`Burst` — the mix network,
+    /// `MN-205`, gated behind external review). This crate must not claim
+    /// to satisfy a tier it cannot actually provide.
+    TierNotHandledByThisCrate,
+    /// A [`crate::plan`] request's `AchievedPrivacy` does not name
+    /// `Mechanism::OnionRelay` at all — nothing for this crate to plan.
+    MechanismNotRequested,
     /// An identity/delegation/signature failure.
     Identity(IdentityError),
     /// A cryptographic primitive failure.
@@ -92,6 +104,19 @@ impl core::fmt::Display for RelayError {
             }
             RelayError::MissingRole(role) => write!(f, "delivery is missing role {role:?}"),
             RelayError::DuplicateRole(role) => write!(f, "role {role:?} appears more than once"),
+            RelayError::TierNeedsNoRelay => {
+                write!(f, "requested tier needs no relay hop at all")
+            }
+            RelayError::TierNotHandledByThisCrate => write!(
+                f,
+                "requested tier needs machinery this crate does not implement (mix network)"
+            ),
+            RelayError::MechanismNotRequested => {
+                write!(
+                    f,
+                    "achieved privacy does not name the onion-relay mechanism"
+                )
+            }
             RelayError::Identity(e) => write!(f, "identity error: {e}"),
             RelayError::Crypto(e) => write!(f, "crypto error: {e}"),
             RelayError::Bearer(e) => write!(f, "bearer error: {e}"),

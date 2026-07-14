@@ -1323,6 +1323,7 @@ dependencies = [
  "did-mini",
  "mini-bearer",
  "mini-crypto",
+ "mini-privacy-policy",
  "mini-transport-policy",
  "zeroize",
 ]

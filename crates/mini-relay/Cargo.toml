@@ -13,5 +13,6 @@ publish = false
 mini-crypto = { path = "../mini-crypto" }
 did-mini = { path = "../did-mini" }
 mini-bearer = { path = "../mini-bearer" }
+mini-privacy-policy = { path = "../mini-privacy-policy" }
 mini-transport-policy = { path = "../mini-transport-policy" }
 zeroize = "1" # scrubs a MailboxToken's local secret bytes on drop

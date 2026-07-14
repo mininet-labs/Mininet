@@ -6413,3 +6413,71 @@ separately gated behind external review per D-0305.
 
 **Supersedes / superseded by:** none. New crate, no existing type or
 behavior changed.
+
+### D-0307 — Wire `mini_transport_policy::route()` output to `mini-relay` role planning: new `plan` module, zero changes to any other existing crate  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0306 (this lane's own "Required
+follow-up" field, which named this exact gap); D-0301 (`mini-transport-
+policy`, the crate this module now depends on and consumes);
+`crates/mini-relay/src/plan.rs` (new)
+
+**Decision:** adds `mini_relay::roles_for_route_decision(&RouteDecision)
+-> Result<Vec<RelayRole>>`, the missing link between the routing-decision
+layer (`mini-transport-policy`, D-0301) and the mechanism layer
+(`mini-relay`, D-0306) that D-0306's own Required-follow-up field
+explicitly flagged as still disconnected. The function is deliberately
+narrow rather than permissive: it accepts only a `RouteDecision` whose
+`achieved.tier` is exactly `PrivacyTier::Relayed` and whose
+`achieved.mechanisms` actually names `Mechanism::OnionRelay`, returning
+`[RelayRole::Entry, RelayRole::Rendezvous]` — the exact mandatory pair
+`enforce_role_separation` itself requires. A `Direct`-tier decision
+(needs no relay) and a `Mixed`/`Burst`-tier decision (needs the
+unbuilt, externally-review-gated mix network, `MN-205`) each return a
+distinct, named error rather than silently returning an empty plan or
+guessing — a caller cannot mistake "no error" for "this crate is
+handling your Tier 2+ request."
+
+**Reason:** shipped immediately after PR #145 (`mini-relay`) was opened,
+per the founder's "continue working as suggested" direction, as
+preparatory work on a branch stacked on the pending PR rather than
+against `main` directly — `mini-relay` does not exist on `main` yet, so
+this module cannot be built independently of it. Held for a separate PR
+(not squashed into #145) so the founder's review of the base `mini-relay`
+crate is not entangled with this smaller, purely-additive wiring change,
+consistent with this session's practice of keeping D-0300-track PRs
+narrowly scoped. `Delivery` is deliberately never planned by this
+function: whether a third hop is warranted is a caller/policy decision,
+not something a route-decision-to-role bridge should decide unilaterally.
+
+**Constitutional impact:** none. No crypto, no new type beyond three
+`RelayError` variants (`TierNeedsNoRelay`, `TierNotHandledByThisCrate`,
+`MechanismNotRequested`), no dependency edge to `mini-forge`/`mini-chain`.
+`mini-relay`'s `Cargo.toml` gains one new dependency,
+`mini-privacy-policy` (for `Mechanism`/`PrivacyTier`), already a
+dependency of `mini-transport-policy` itself — no new external crate
+enters the workspace.
+
+**Implementation status:** shipped and tested. 6 new unit tests in
+`plan.rs`: a real `mini_transport_policy::route()` call at `Relayed`
+tier plans exactly `[Entry, Rendezvous]`; `Direct` tier is rejected as
+needing no relay; `Mixed` and `Burst` tiers are each rejected as not
+handled by this crate; a decision with `Mechanism::OnionRelay` stripped
+out is rejected; and the planned roles, given three distinct relay
+identities, satisfy `enforce_role_separation` unmodified — proving the
+two modules actually compose, not just type-check. `cargo fmt`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` are clean.
+
+**Failure point:** this function only plans *which roles* a delivery
+needs — it does not select *which relay operators* fill those roles,
+issue mailbox grants, or establish `mini_bearer::Channel`s. A caller
+still has to do all of that itself; `roles_for_route_decision` is a
+necessary but far from sufficient step toward an actual live relay.
+
+**Required follow-up:** relay-operator selection/discovery (unbuilt —
+`mini-net`'s peer routing table exists but nothing selects relay
+operators from it yet); a live multi-process demo actually exercising
+`route()` → `roles_for_route_decision` → `MailboxGrant`/`RelayEnvelope`
+end to end over real sockets, still D-0306's largest open item.
+
+**Supersedes / superseded by:** none. Extends `mini-relay` additively;
+no existing type or behavior in any other crate changed.

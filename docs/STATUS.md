@@ -340,6 +340,16 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   (DHT-lookup restriction) explicitly out of scope — `mini-net` has no
   value-storage DHT layer yet to restrict at all, confirmed via full-crate
   survey before scoping this lane (see #144).
+- **shipped** — `mini_relay::roles_for_route_decision` (D-0307): bridges
+  `mini_transport_policy::route()`'s output to `mini-relay`'s role
+  planning — the "two disconnected layers" gap D-0306's own Required
+  follow-up named. Accepts only a `Relayed`-tier decision naming
+  `Mechanism::OnionRelay`, returning `[Entry, Rendezvous]`; `Direct` and
+  `Mixed`/`Burst` each return a distinct named error rather than an empty
+  plan. 6 new tests, including one proving the planned roles satisfy
+  `enforce_role_separation` unmodified. **Not solved here**: relay-
+  operator selection/discovery, and no live demo yet — planning *which
+  roles* a delivery needs is not the same as running one.
 
 ## 7. Storage
 
