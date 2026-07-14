@@ -29,6 +29,10 @@
 //! scope entirely: `mini-net` has no DHT value-storage layer yet to
 //! restrict — see tracking issue #144 for why that's a separate future
 //! lane, not silently dropped here.
+//!
+//! [`plan::roles_for_route_decision`] bridges `mini_transport_policy::
+//! route`'s decision output to this crate's role planning — closing the
+//! "two disconnected layers" gap D-0306 flagged as required follow-up.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
@@ -38,6 +42,7 @@ mod connection;
 mod envelope;
 mod error;
 mod mailbox;
+mod plan;
 mod role;
 mod role_separation;
 
@@ -47,5 +52,6 @@ pub use error::{RelayError, Result};
 pub use mailbox::{
     MailboxGrant, MailboxId, MailboxToken, MailboxTokenCommitment, MAILBOX_GRANT_VERSION,
 };
+pub use plan::roles_for_route_decision;
 pub use role::RelayRole;
 pub use role_separation::{enforce_role_separation, DeliveryAssignment};
