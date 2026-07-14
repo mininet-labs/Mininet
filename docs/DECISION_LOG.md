@@ -37,12 +37,24 @@ are **banded by track**:
   `mini-consensus`, `mini-net`, transports). It allocates from `D-0200`
   upward, so it never collides with the main sequence regardless of merge
   order.
+- **`D-03xx` — the privacy/cost-doctrine track** (D-0094's adopted
+  research direction; lanes defined in `docs/design/
+  privacy-cost-doctrine-parallel-execution-plan.md`: `mini-privacy-policy`
+  and everything downstream of it — object-envelope privacy, transport
+  policy routing, mix-network research, resource pricing, human-evidence
+  taxonomy). It allocates from `D-0300` upward. Because this track is
+  itself designed to run several lanes in parallel, a same-band collision
+  is possible *within* `D-03xx` (two lanes both grabbing `D-0301`, say) —
+  that is resolved exactly like every other collision in this log: the
+  second PR to merge rebases and renumbers. Numbers are claimed at PR-open
+  time, not reserved in advance per lane.
 
-The bands are a coordination convenience, not a hierarchy — a `D-02xx`
+The bands are a coordination convenience, not a hierarchy — a banded
 decision carries exactly the same authority as any other, and cross-track
-references (`Refs:` / `Supersedes:`) point across bands freely. If a third
-track appears, give it the next free hundreds band (`D-03xx`) and add it here.
-The intentional gap between the bands is expected; it is not missing history.
+references (`Refs:` / `Supersedes:`) point across bands freely. If a
+further track appears, give it the next free hundreds band (`D-04xx`) and
+add it here. The intentional gaps between bands are expected; they are
+not missing history.
 
 ## Entry template (D-0045 onward)
 
@@ -5726,3 +5738,75 @@ to consume this crate's types for something other than logging.
 
 **Supersedes / superseded by:** none. New crate, no existing type or
 behavior changed.
+
+### D-0300 — Parallel execution plan for the privacy/cost-doctrine track: disjoint-footprint lanes, batched PRs, new `D-03xx` band  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** `docs/design/
+privacy-cost-doctrine-parallel-execution-plan.md` (new); D-0094; founder
+direction ("sequence PRs correctly, push as much work in 1 PR to main,
+have several devs working in parallel")
+
+**Decision:** opens the `D-03xx` decision-number band (this repo's third
+track, after the main `D-00xx` line and the networking/consensus `D-02xx`
+band — both already anticipated by the allocation policy's "if a third
+track appears" clause) for the privacy/cost-doctrine work D-0094 adopted,
+and publishes a **lane plan**: five first-wave work groupings (L1-L5),
+chosen so no two lanes touch the same crate, each sized to batch multiple
+`MN-xxx` items from `docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md`
+into one PR rather than one PR per item. L1 (ObjectEnvelope v2 +
+capability/pseudonym primitives, `mini-objects`/`did-mini`), L2
+(`TransportRequest` router, new `mini-transport-policy` crate), L3
+(Sphinx mix research, docs-only), L4 (resource pricing, new
+`mini-resource-pricing` crate), and L5 (human-evidence taxonomy
+reconciliation, `mini-uniqueness` only, flagged higher-scrutiny) are all
+unblocked today — their only dependency, `MN-101`/`MN-102`, shipped in
+D-0094.
+
+**Reason:** direct founder request to make PR sequencing explicit and
+enable several developers (human or AI) to work the privacy/cost-doctrine
+backlog concurrently without colliding, while batching more work per PR
+rather than fragmenting into ~70 single-item PRs. Disjoint file footprint
+per lane is the concrete mechanism that makes "several devs in parallel"
+actually collision-free rather than aspirational — two lanes touching
+different crates can be reviewed and merged in either order with zero
+merge conflict between them, unlike a flat issue backlog where any two
+issues might land on the same file. A new hundreds-band was chosen over
+reusing `D-02xx` or the main line because this track will itself run
+multiple lanes concurrently and needs the same collision-avoidance
+property `D-02xx` already gave the networking track relative to the main
+line — see the updated allocation-policy section for the added
+within-band collision rule this track specifically needs (renumber on
+merge, don't pre-reserve).
+
+**Constitutional impact:** none — this is pure process/coordination
+scaffolding (a document and a decision-numbering rule), no code, no
+crypto, no governance surface. L5 is flagged for extra scrutiny
+specifically *because* it could create constitutional risk (a rival
+personhood taxonomy) if not scoped carefully — the lane definition itself
+constrains it to reconciliation only, not new claims, precisely to avoid
+that risk rather than create it.
+
+**Implementation status:** planning artifact only — no lane has started.
+The lane table, footprints, and blocked-by status in the referenced
+design doc are accurate as of this entry against the current repository
+state (post-D-0094).
+
+**Failure point:** the plan's collision-freedom claim holds only as long
+as lane scope is respected — if a lane's PR reaches outside its declared
+footprint (e.g. L2's router PR also touching `mini-objects`), the
+disjointness property breaks and the next lane to merge pays the conflict
+cost this plan exists to avoid. Nothing enforces footprint boundaries
+mechanically today; it is a documented convention, not a CI gate.
+
+**Required follow-up:** wave-2 lane definitions once L1/L2/L3 land and
+their real public types are known (the design doc names candidates —
+`L6` relay/rendezvous — but deliberately does not freeze its footprint
+yet); consider a lightweight CI check that flags a PR touching files
+outside its lane's declared crate list, if this scales past founder
+review capacity; actually claiming/starting L1-L5 is separate follow-up
+work, not done in this entry.
+
+**Supersedes / superseded by:** none. Extends the `docs/DECISION_LOG.md`
+allocation-policy section (edited in place, in accordance with that
+section's own "if a third track appears, add it here" instruction — this
+is the one place in this append-only log where amending existing
+top-of-file policy text, not a dated entry, is the correct move).

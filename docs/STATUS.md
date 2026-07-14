@@ -267,6 +267,12 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   primitives (the phase P1/P2 items this same research names next); the
   storage fabric's P6 guarantees (no forced replication, no compelled
   decryption) also have no owning subsystem yet.
+- **planning artifact** — `docs/design/
+  privacy-cost-doctrine-parallel-execution-plan.md` (D-0300): five
+  disjoint-footprint lanes (L1-L5) for the immediately-unblocked next
+  slice of this work, sized so several contributors can develop them
+  concurrently and each still batches into one PR. Opens the `D-03xx`
+  decision-number band for this track. No lane has started yet.
 
 ## 7. Storage
 
