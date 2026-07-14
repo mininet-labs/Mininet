@@ -92,6 +92,10 @@ so, everywhere, on purpose.
   (protection properties, mechanisms, the five un-removable residual
   floors) and a Tier 0-3 privacy request/achieved-result policy object —
   pure policy data; no relay/mix/erasure mechanism is wired to it yet
+- `mini-transport-policy` (D-0301): a `TransportRequest` policy router —
+  maps a privacy request to the mechanisms its tier requires, failing
+  closed rather than silently downgrading; routing decisions only, no
+  relay/mix/bearer exists to execute one yet
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential

@@ -1378,6 +1378,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-transport-policy"
+version = "0.0.1"
+dependencies = [
+ "mini-privacy-policy",
+]
+
+[[package]]
 name = "mini-treasury"
 version = "0.0.1"
 dependencies = [

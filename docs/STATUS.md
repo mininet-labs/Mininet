@@ -272,7 +272,14 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   disjoint-footprint lanes (L1-L5) for the immediately-unblocked next
   slice of this work, sized so several contributors can develop them
   concurrently and each still batches into one PR. Opens the `D-03xx`
-  decision-number band for this track. No lane has started yet.
+  decision-number band for this track.
+- **shipped** — lane L2, `mini-transport-policy` (D-0301): a
+  `TransportRequest` policy router over `mini-privacy-policy`'s types —
+  `route()` maps a privacy request to the mechanisms its tier requires
+  and fails closed (never silently downgrades) when a requested property
+  needs a higher tier than requested. Routing *decisions* only — no
+  relay/mix/bearer exists to execute a decision yet, and no other lane
+  has started.
 
 ## 7. Storage
 
