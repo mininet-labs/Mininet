@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 37,
-    "files": 485,
-    "headings": 1717,
+    "files": 486,
+    "headings": 1723,
     "rust_symbols": 3625
   },
   "crates": {
@@ -32786,7 +32786,7 @@
       "title": "{"
     },
     {
-      "bytes": 363304,
+      "bytes": 368654,
       "group": "docs",
       "headings": [
         {
@@ -33200,8 +33200,8 @@
         "decision",
         "release",
         "roadmap",
-        "mini-consensus",
         "closes",
+        "mini-consensus",
         "track",
         "status",
         "d-0045",
@@ -33216,9 +33216,9 @@
         "provenance",
         "consensus"
       ],
-      "lines": 6099,
+      "lines": 6184,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d41021a81662df07feb3b5b035efb70a1cc2d3560e3b04246c07745e0a895ee5",
+      "sha256": "7243fd97fce6b0ee2a22661ba517b1586e81844afbb8a46b5c1b5c31cdb24fbe",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -34076,7 +34076,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 40706,
+      "bytes": 41225,
       "group": "docs",
       "headings": [
         {
@@ -34096,52 +34096,52 @@
         },
         {
           "level": 2,
-          "line": 118,
+          "line": 126,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 141,
+          "line": 149,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 207,
+          "line": 215,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 250,
+          "line": 258,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 306,
+          "line": 314,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 347,
+          "line": 355,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 405,
+          "line": 413,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 434,
+          "line": 442,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 629,
+          "line": 637,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 635,
+          "line": 643,
           "text": "Where to look for more detail"
         }
       ],
@@ -34171,9 +34171,9 @@
         "equivocation",
         "validator"
       ],
-      "lines": 645,
+      "lines": 653,
       "path": "docs/STATUS.md",
-      "sha256": "e89fa8339ad0475d5319d5a1e337cefdb16ab5884f62406e85516c3ba4b1e717",
+      "sha256": "c5de2cdec219e601bb589156e04b1efea36810c82f49e88ff7ae8c9b11e0dd22",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -35640,6 +35640,73 @@
       "sha256": "2b4314315373bf5dce71d1b26020b13493d093fc4aadfea3453b2ac39756a797",
       "symbols": [],
       "title": "Private Human Continuity Proof \u2014 founder decision (D-0075)"
+    },
+    {
+      "bytes": 5626,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Human-evidence taxonomy reconciliation"
+        },
+        {
+          "level": 2,
+          "line": 12,
+          "text": "Decision"
+        },
+        {
+          "level": 2,
+          "line": 22,
+          "text": "Mapping"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "The hard limitation this reconciliation must not soften"
+        },
+        {
+          "level": 2,
+          "line": 45,
+          "text": "Rejected alternatives"
+        },
+        {
+          "level": 2,
+          "line": 60,
+          "text": "What this lane does not do"
+        }
+      ],
+      "keywords": [
+        "evidence",
+        "humanstatus",
+        "one",
+        "external",
+        "status",
+        "issuer",
+        "hard",
+        "rejected",
+        "reconciliation",
+        "limitation",
+        "lane",
+        "confidence",
+        "provenance",
+        "evidencequalifiedhuman",
+        "already",
+        "design",
+        "human-evidence",
+        "taxonomy",
+        "classes",
+        "activeparticipant",
+        "externaluniquenessbacked",
+        "state",
+        "participation",
+        "vouchedhuman"
+      ],
+      "lines": 78,
+      "path": "docs/design/human-evidence-taxonomy-reconciliation.md",
+      "sha256": "903ae30ee1a88ec98ef0b0ec7c3d6133016b71877b33a5f8c0dcd3352d708bf0",
+      "symbols": [],
+      "title": "Human-evidence taxonomy reconciliation"
     },
     {
       "bytes": 12145,

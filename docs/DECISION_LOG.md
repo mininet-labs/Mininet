@@ -6096,3 +6096,88 @@ simulation extension) build on this crate's `Quote` type once they start.
 
 **Supersedes / superseded by:** none. New crate, no existing type or
 behavior changed.
+### D-0303 — Human-evidence taxonomy reconciliation: `HumanStatus` unchanged, no rival taxonomy (lane L5, `MN-401`, closes tracking issue #137)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0086 (the
+`FullHuman`→`EvidenceQualifiedHuman` personhood-honesty rename this
+reconciliation must not undo); `docs/research/
+MININET_RESEARCH_V2_20260713.md` §10 (the five source classes);
+`docs/design/human-evidence-taxonomy-reconciliation.md` (new);
+`crates/mini-uniqueness/src/status.rs` (verified against, unmodified);
+tracking issue #137
+
+**Decision:** the founder-directed contributor picked lane L5 specifically
+because it is a prerequisite for later evidence-stamp/continuity-proof/
+nullifier/aggregate-proof/external-adapter work, and produced a thorough
+research report (repository conventions, `mini-uniqueness`'s current
+`SignalSource`/`TrustWeights`/`PromotionPolicy`/`HumanRecord` machinery,
+and external credential-standard landscape — W3C VC 2.0, OpenID4VCI/VP,
+SD-JWT VC, EUDI wallet pilots) concluding that the source research's five
+confidence classes mix three orthogonal axes (participation, evidence
+confidence, provenance) rather than forming one ordinal ladder, and that
+reconciliation should therefore be **documentation-only**: `Unassessed`
+maps to `Unverified`; `HumanEvidenceQualified` maps to `VouchedHuman`;
+`StrongHumanEvidence` maps to `EvidenceQualifiedHuman`; `ActiveParticipant`
+maps to nothing (participation is not evidence of humanity);
+`ExternalUniquenessBacked` maps to nothing (an external issuer's *scoped*
+assertion is one more weighted `SignalEvidence` source, already
+representable via `SignalSource::External(u32)`, never a promotion to a
+new status). This entry adopts that conclusion and the design doc it
+produced. Independently verified against `crates/mini-uniqueness/src/
+status.rs` before writing this entry: the exact three-variant
+`HumanStatus` enum, `SignalSource::External(u32)`, and
+`PromotionPolicy::full_required_sources`'s default inclusion of the
+seed-anchored vouching graph (closing the #18 Sybil review's
+farm-saturation bypass) all match the report's description precisely.
+
+**Reason:** the "higher scrutiny" flag D-0300 placed on this lane was
+specifically about not introducing a rival personhood taxonomy next to
+`mini_uniqueness::HumanStatus` — the research concludes that the correct
+way to honor that constraint is to *not add a type at all*, since none of
+the three candidate additions (all five classes as variants; only
+`ExternalUniquenessBacked`; only `ActiveParticipant`) survive scrutiny
+without either conflating incomparable properties or creating a path for
+an external issuer's scoped claim to outrank Mininet's own strongest,
+multi-source, internally-verified state. This is the same discipline
+D-0086 already established (rejecting `FullHuman`/`VerifiedHuman`-shaped
+names because the system cannot distinguish one human from several
+colluding identity roots) — this entry keeps applying it rather than
+reopening it.
+
+**Constitutional impact:** directly relevant to `docs/INVARIANTS.md`'s
+hard-limitation section (§2) and the Sybil-unsolved limitation it states:
+this reconciliation explicitly restates, not softens, that no
+`HumanStatus` value — including `EvidenceQualifiedHuman` — proves global
+personhood uniqueness or that one human controls only one `did:mini`
+root. No governance/voice surface is touched. No new cryptography, no
+credential adapter, no new type — pure documentation this batch.
+
+**Implementation status:** documentation-only, as scoped. No Rust code
+changed; `crates/mini-uniqueness` is unmodified (confirmed by the
+verification pass described above). The design doc also states, for
+later lanes' benefit, that `MN-406`'s external-uniqueness adapter must
+require at least one live Mininet-native source alongside any external
+evidence — external evidence alone must never independently promote a
+record to `EvidenceQualifiedHuman` — so this workspace never silently
+outsources its personhood policy to an external issuer.
+
+**Failure point:** this is a naming/mapping decision, not a new
+enforcement mechanism — nothing here changes what `mini_uniqueness`
+actually does, only how the founder research's vocabulary is talked about
+relative to it. The risk this guards against (an external issuer's
+credential being read as stronger than it is) remains a documentation
+discipline until `MN-406` actually implements the "at least one
+Mininet-native source required" rule in code.
+
+**Required follow-up:** `MN-402` (`EvidenceStamp` interface + issuer
+diversity rules), `MN-403` (private continuity proof phase 1 — already
+has its own design doc, `docs/design/human-continuity-proof.md`,
+D-0075), `MN-404` (context nullifier + pairwise pseudonym design),
+`MN-405` (aggregate proof prototype), `MN-406` (external uniqueness
+credential adapter — must implement the required-native-source rule this
+entry states but does not yet enforce in code), `MN-407` (Sybil-farm/
+coercion simulation) — all later lanes, each producing a scoped evidence
+assessment that becomes one more weighted `SignalEvidence`, never a value
+that directly assigns a `HumanStatus`.
+
+**Supersedes / superseded by:** none. Extends D-0086's naming discipline;
+does not modify `mini_uniqueness::HumanStatus` or any other existing type.
