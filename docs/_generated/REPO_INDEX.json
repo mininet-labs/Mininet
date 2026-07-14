@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 35,
-    "files": 473,
-    "headings": 1710,
+    "files": 474,
+    "headings": 1721,
     "rust_symbols": 3432
   },
   "crates": {
@@ -31335,7 +31335,7 @@
       "title": "{"
     },
     {
-      "bytes": 345610,
+      "bytes": 351880,
       "group": "docs",
       "headings": [
         {
@@ -31765,9 +31765,9 @@
         "consensus",
         "audit"
       ],
-      "lines": 5813,
+      "lines": 5914,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "8ae54029726db7febc005d4d5fce74d256681aa71ebd2ebbd001cddccf9022bb",
+      "sha256": "31a1557c3bbe9b1a528592c1eb8f9d5c89447d3e3bfd9e248024f820058f8753",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -32625,7 +32625,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 38828,
+      "bytes": 39604,
       "group": "docs",
       "headings": [
         {
@@ -32665,32 +32665,32 @@
         },
         {
           "level": 2,
-          "line": 277,
+          "line": 289,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 318,
+          "line": 330,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 376,
+          "line": 388,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 405,
+          "line": 417,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 600,
+          "line": 612,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 606,
+          "line": 618,
           "text": "Where to look for more detail"
         }
       ],
@@ -32720,9 +32720,9 @@
         "equivocation",
         "validator"
       ],
-      "lines": 616,
+      "lines": 628,
       "path": "docs/STATUS.md",
-      "sha256": "15570e20a975b4c4fb51b307580dbce3a6d8aa603aae6632a06b051fccd89c31",
+      "sha256": "417b79f558d83121da2612bcea608d32343682e118126256606e26a3429ff754",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -34311,6 +34311,98 @@
       "sha256": "ad4e27548f85a44145a23409a34c50b12d0f70a37ba21d664d4b95a104b8553a",
       "symbols": [],
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
+    },
+    {
+      "bytes": 44811,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Sphinx-style mix network: research report and protocol specification (MN-204)"
+        },
+        {
+          "level": 2,
+          "line": 14,
+          "text": "0. Status, scope, and the constitutional footing this stands on"
+        },
+        {
+          "level": 2,
+          "line": 41,
+          "text": "1. Executive summary"
+        },
+        {
+          "level": 2,
+          "line": 62,
+          "text": "2. Historical evolution"
+        },
+        {
+          "level": 2,
+          "line": 181,
+          "text": "3. Comparison matrix"
+        },
+        {
+          "level": 2,
+          "line": 202,
+          "text": "4. Simulations this repository still owes"
+        },
+        {
+          "level": 2,
+          "line": 277,
+          "text": "5. Attack catalog"
+        },
+        {
+          "level": 2,
+          "line": 455,
+          "text": "6. Why Mininet does not simply use Tor"
+        },
+        {
+          "level": 2,
+          "line": 500,
+          "text": "7. Candidate protocol specification for `MN-205`"
+        },
+        {
+          "level": 2,
+          "line": 604,
+          "text": "8. Future research beyond MN-204"
+        },
+        {
+          "level": 2,
+          "line": 655,
+          "text": "References"
+        }
+      ],
+      "keywords": [
+        "research",
+        "specification",
+        "already",
+        "design",
+        "still",
+        "document",
+        "network",
+        "protocol",
+        "exists",
+        "gate",
+        "each",
+        "mix",
+        "mn-204",
+        "attack",
+        "does",
+        "mn-205",
+        "lane",
+        "source",
+        "mechanism",
+        "mixing",
+        "tier",
+        "what",
+        "concrete",
+        "adversary"
+      ],
+      "lines": 687,
+      "path": "docs/design/mixnet-sphinx-protocol.md",
+      "sha256": "e16edb8785ea0497abc8d6141a8a1e13e1da446f01726a9b68631495d8f3953f",
+      "symbols": [],
+      "title": "Sphinx-style mix network: research report and protocol specification (MN-204)"
     },
     {
       "bytes": 9401,
