@@ -42,6 +42,7 @@ members = [
     "crates/mini-build-runner-wasmtime",
     "crates/mini-installer",
     "crates/mini-privacy-policy",
+    "crates/mini-resource-pricing",
 ]
 
 [workspace.package]

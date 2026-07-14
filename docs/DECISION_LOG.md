@@ -5810,3 +5810,73 @@ allocation-policy section (edited in place, in accordance with that
 section's own "if a third track appears, add it here" instruction — this
 is the one place in this append-only log where amending existing
 top-of-file policy text, not a dated entry, is the correct move).
+
+### D-0302 — Resource price vector and quote engine: new `mini-resource-pricing` crate, quoting only (lane L4, `MN-601`, closes tracking issue #136)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0094
+(`mini-privacy-policy`, the dependency this lane consumes);
+`crates/mini-resource-pricing` (new); tracking issue #136
+
+**Decision:** ships `MN-601` as a new, dependency-light crate:
+`PriceVector` (micro-MINI per unit of bandwidth/storage, the plain `u64`
+"micro-MINI" convention `mini-settlement`/`mini-bounty`/`mini-reward`
+already use — no new amount type, confirmed no dedicated one exists
+anywhere in this workspace before choosing this), and
+`quote(&PriceVector, PrivacyTier, payload_mb, storage_days) ->
+Result<Quote>`: a pure function combining `mini_privacy_policy::
+expected_cost`'s declared min/max multiplier range with a price vector,
+producing a `Quote { min_micro_mini, max_micro_mini, requires_payment }`.
+All arithmetic goes through `u128` intermediates with `checked_mul`/
+`checked_add`, returning `PricingError::Overflow` rather than saturating
+or panicking on an oversized input.
+
+**Reason:** second lane picked from D-0300's plan in the same
+founder-directed batch as `L2` (D-0301) — chosen because it is, like
+`L2`, a brand-new dependency-light crate with zero existing-code risk,
+proving the lane-parallelism pattern a second time with a genuinely
+independent PR (no shared files with `L2`'s `mini-transport-policy`).
+`D-0301` was already claimed by `L2` in this same session before this
+entry was written, so this entry proactively takes `D-0302` rather than
+wait to discover the collision on rebase — the exact scenario D-0300's
+own "claim at PR-open time, renumber on merge" rule anticipates,
+resolved here the cheap way since both lanes are visible to the same
+author in the same sitting. Checked-arithmetic-with-explicit-overflow-
+error (rather than the workspace's more common panic-free-via-fixed-
+caps pattern used in wire codecs) was chosen specifically because this
+is money-adjacent: silently saturating a price to `u64::MAX` would be a
+wrong, not just a truncated, answer.
+
+**Constitutional impact:** none directly, but this is the first
+`D-03xx`-band crate that touches money at all, so it was checked
+explicitly: `mini-resource-pricing`'s `Cargo.toml` depends only on
+`mini-privacy-policy`, with a standing comment stating it must never gain
+a `mini-forge`/`mini-chain` dependency (Directive 1, the voice/value
+wall) — pricing a resource must never become a governance signal in
+either direction. No payment executes here (no e-cash, no ledger write,
+no `mini-value`/`mini-treasury` dependency at all) — that is explicitly
+`MN-602`/`MN-603`, later work under the same D-0047 external-crypto-
+review gate every other value-bearing prototype in this repo sits behind.
+
+**Implementation status:** shipped and tested. 7 unit tests (Direct
+tier's min-equals-max no-range case, Relayed's real range,
+max-never-less-than-min across all four tiers, Burst costing at least as
+much as Mixed at equal payload, a zero-payload zero-cost edge case,
+overflow-is-rejected-not-truncated with `u64::MAX` inputs, and
+determinism for repeated identical inputs). `cargo fmt`, `cargo clippy -p
+mini-resource-pricing --all-targets --all-features -- -D warnings`, and
+`cargo test -p mini-resource-pricing` are clean.
+
+**Failure point:** `quote` is a declared price, not a cleared market
+price — nothing here models supply/demand, and the underlying
+`ResourceCost` multipliers it prices are themselves the research
+document's estimates, not measurements (same inherited honesty
+constraint as D-0301). A caller that treats a `Quote` as a binding offer
+rather than an estimate would be over-trusting this crate.
+
+**Required follow-up:** `MN-602` (blind prepaid resource credential
+protocol review) and `MN-603` (anonymous resource redemption prototype),
+both later lanes with their own external-review posture; `MN-604`
+(privacy-pool subsidy policy) and `MN-605` (treasury/inflation/whale
+simulation extension) build on this crate's `Quote` type once they start.
+
+**Supersedes / superseded by:** none. New crate, no existing type or
+behavior changed.

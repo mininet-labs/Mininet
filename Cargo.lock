@@ -1316,6 +1316,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-resource-pricing"
+version = "0.0.1"
+dependencies = [
+ "mini-privacy-policy",
+]
+
+[[package]]
 name = "mini-reward"
 version = "0.0.1"
 dependencies = [

@@ -92,6 +92,10 @@ so, everywhere, on purpose.
   (protection properties, mechanisms, the five un-removable residual
   floors) and a Tier 0-3 privacy request/achieved-result policy object —
   pure policy data; no relay/mix/erasure mechanism is wired to it yet
+- `mini-resource-pricing` (D-0302): a `PriceVector`/quote engine over
+  `mini-privacy-policy`'s declared tier costs, in the workspace's plain
+  micro-MINI convention — quoting only, no payment execution, no
+  dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential

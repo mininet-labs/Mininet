@@ -272,7 +272,12 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   disjoint-footprint lanes (L1-L5) for the immediately-unblocked next
   slice of this work, sized so several contributors can develop them
   concurrently and each still batches into one PR. Opens the `D-03xx`
-  decision-number band for this track. No lane has started yet.
+  decision-number band for this track.
+- **shipped** — lane L4, `mini-resource-pricing` (D-0302): a
+  `PriceVector`/`quote()` engine over `mini-privacy-policy`'s
+  `expected_cost`, in the plain `u64` micro-MINI convention already used
+  elsewhere in this workspace. Quoting logic only — no payment execution,
+  no dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`.
 
 ## 7. Storage
 
