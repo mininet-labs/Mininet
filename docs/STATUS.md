@@ -262,11 +262,28 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   reproduces the research document's own estimates, not a benchmark.
   Founder research: `docs/research/MININET_RESEARCH_V2_20260713.md`;
   phase sequencing: `docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md`.
-- **not started** — Tier 1+ relay/rendezvous transport, mix network,
-  `ObjectEnvelope` v2 private-metadata boundary, capability/pseudonym
-  primitives (the phase P1/P2 items this same research names next); the
-  storage fabric's P6 guarantees (no forced replication, no compelled
-  decryption) also have no owning subsystem yet.
+- **not started** — Tier 1+ relay/rendezvous transport, mix network (the
+  phase P2 items this same research names next); the storage fabric's P6
+  guarantees (no forced replication, no compelled decryption) also have
+  no owning subsystem yet.
+- **shipped** — lane L1, `ObjectEnvelope` v2 + capability/pseudonym
+  primitives (D-0304, `crates/mini-objects`): `ObjectEnvelopeV2` moves
+  everything a v1 `Object` exposes in cleartext (type, author root,
+  author device, timestamp, sequence, links, signatures) inside
+  AEAD-authenticated ciphertext (`PrivateObject`) behind a deliberately
+  opaque outer envelope (version tag, AEAD suite, random opaque route,
+  coarse retention class, nonce, ciphertext — all bound as AEAD
+  associated data). `CapabilityGrant` provides five independent, closed,
+  non-delegable rights (`Read`/`Append`/`Reply`/`Moderate`/`Administer`)
+  bound to a holder-controlled scoped pseudonym and an unguessable token.
+  `derive_scoped_pseudonym` reuses `did-mini`'s existing SPEC-01 §10
+  `Controller::incept_pairwise_pseudonym` with purpose+scope domain
+  separation — no new HKDF call site. v1's `Object`/`Payload` wire format
+  is byte-for-byte unchanged; 39 new tests, all pre-existing v1 tests
+  still pass. **Not solved here**: key distribution (accepts an
+  already-established key), traffic-analysis resistance, deterministic
+  route-tag lookup, capability revocation — see D-0304's Required
+  follow-up.
 - **planning artifact** — `docs/design/
   privacy-cost-doctrine-parallel-execution-plan.md` (D-0300): five
   disjoint-footprint lanes (L1-L5) for the immediately-unblocked next

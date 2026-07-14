@@ -40,7 +40,10 @@ impl ObjectId {
         &self.0
     }
 
-    fn of(bytes: &[u8]) -> ObjectId {
+    /// Compute the content id over `bytes` (BLAKE3 multihash, base58btc). `pub(crate)`
+    /// so other modules in this crate (the v2 envelope) derive ids the exact
+    /// same way rather than duplicating the recipe.
+    pub(crate) fn of(bytes: &[u8]) -> ObjectId {
         let mh = Multihash::of(HashAlgorithm::Blake3, bytes);
         ObjectId(
             encoding::encode(encoding::BASE58BTC, &mh.to_bytes())

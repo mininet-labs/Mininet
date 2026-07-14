@@ -5871,3 +5871,159 @@ drive; until then `RouteDecision` has no consumer beyond its own tests.
 
 **Supersedes / superseded by:** none. New crate, no existing type or
 behavior changed.
+
+### D-0304 — ObjectEnvelope v2 private-metadata boundary + typed capability grants + scoped pseudonyms (lane L1, `MN-103`/`MN-104`, closes tracking issue #133)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0094
+(`mini-privacy-policy`, the research this lane's cost-doctrine vocabulary
+comes from); `crates/mini-objects/src/{envelope_v2,private_object,
+capability,pseudonym}.rs` (new); `crates/mini-objects/src/{codec,error,
+object}.rs` (extended); tracking issue #133
+
+**Decision:** ships `MN-103` and `MN-104` together, per a detailed
+research report concluding that a v1 `Object`'s cleartext fields (type,
+author root, author device, timestamp, sequence, links, signer identity)
+reconstruct a detailed behavioral/social graph even when `Payload` alone
+is encrypted, and that the correct v2 boundary is architectural — an
+opaque outer envelope, not a v1 object with more fields individually
+marked sensitive.
+
+`ObjectEnvelopeV2` (`envelope_v2.rs`): a public outer container carrying
+only a version byte (`2`, distinct from v1's `1` — the entire
+disambiguation mechanism, no separate magic bytes needed since neither
+format has other ambiguous framing), an `AeadSuite` tag, a 32-byte random
+`OpaqueRoute` (no semantic meaning, no deterministic HMAC-style derivation
+in this version — the research's own fallback guidance was to generate
+random tags rather than invent a new construction), a coarse
+`RetentionClass` (`Ephemeral`/`Standard`/`Archival`, deliberately not an
+exact application expiry, which could fingerprint content class the same
+way exact payload length can), a nonce, and ciphertext.
+`ObjectEnvelopeV2::seal`/`open` encrypt/decrypt a `PrivateObject` under an
+already-established `mini_crypto::AeadKey` (key distribution is
+explicitly out of scope, matching how `mini_bearer::Channel` also accepts
+an already-agreed key). Every public field is bound as AEAD associated
+data, so tampering with routing/suite/retention breaks decryption. A
+fresh random nonce per seal means identical private objects sealed twice
+produce different ciphertext and different envelope ids — closing a
+confirmation-attack path a deterministic scheme would open. Content id is
+computed via `ObjectId::of` (relaxed from private to `pub(crate)` in
+`object.rs` so v2 reuses the exact same BLAKE3-multihash-base58btc recipe
+rather than a second copy of it) over the full canonical outer bytes,
+matching v1's own content-addressing convention exactly.
+
+`PrivateObject` (`private_object.rs`): the decrypted inner form —
+`object_type`, `author_human`, `author_device`, `timestamp_ms`,
+`sequence`, `links`, `application_metadata`, `payload`, and signatures —
+i.e. everything v1 exposes in cleartext. Signed via a typed, domain-
+prefixed (`mininet/mini-objects/private-object/v1`) `signing_bytes()`
+handed to `Controller::sign_message`, never a generic `sign(bytes)` call
+on caller-assembled data (Directive/CLAUDE.md typed-domain rule).
+
+`CapabilityRight`/`CapabilityScope`/`CapabilityGrant`/`CapabilityToken`
+(`capability.rs`): five independent, closed rights (`Read`/`Append`/
+`Reply`/`Moderate`/`Administer` — no implicit hierarchy, `Administer`
+does not imply `Read`), an initially-minimal `#[non_exhaustive]` scope
+(`Object(ObjectId)` only — `Collection`/`Conversation`/`Community` named
+as future work, not guessed at), and exact, non-delegable,
+holder-bound grants: `CapabilityGrant::validate` checks the issuer's
+signature, exact scope match, exact right match, a token-commitment
+match (`CapabilityToken::commit` domain-separates by scope *and* right,
+so a commitment copied into a different grant never matches), the
+validity window, and a holder-proof signature from the grantee's current
+keys over a grant-bound (nonce + commitment), domain-separated message —
+so a leaked grant (public, signed data) alone is insufficient, and so is
+a leaked token alone without the grantee's signing key. No wildcard/
+prefix scope, no attenuation/delegation, no Macaroon/Biscuit-style policy
+language — the research explicitly evaluated and rejected those as
+larger audit surface than this lane's five-right requirement needs.
+
+`derive_scoped_pseudonym` (`pseudonym.rs`): a thin, domain-separated
+wrapper over `did-mini`'s **already-existing** SPEC-01 §10
+`Controller::incept_pairwise_pseudonym` (HKDF-SHA256 over the root's own
+current-key seed) — no second HKDF call site, no new derivation
+construction. `PseudonymPurpose` (`ObjectAuthor`/`CapabilityHolder`) is
+folded into the HKDF `info` context alongside the caller's scope id, so
+the same root's object-authorship pseudonym and capability-holder
+pseudonym in the same scope are cryptographically unrelated — a
+capability-holder pseudonym cannot double as a public authorship handle.
+
+**Reason:** third and largest lane the founder picked from D-0300's plan
+this batch, chosen because it is the most valuable and most foundational
+(unblocks `MN-202`/`MN-208` per D-0300's own "sequencing after wave 1"
+section) despite being the one lane touching existing crates. Scope was
+deliberately bounded to exactly what the research's own PR-stage-1/2/3/4
+sequencing named as fitting one reviewable PR (wire boundary + seal/open
++ scoped pseudonyms + exact capabilities), explicitly deferring HPKE
+recipient encryption, MLS group key state, capability attenuation/
+delegation, and deterministic route-tag derivation as separately-scoped
+future work — each named in "Required follow-up" below, not silently
+dropped.
+
+**Constitutional impact:** strengthens the honesty discipline this
+workspace already applies elsewhere: `PrivateObject`'s doc comments and
+this entry state plainly that key distribution, traffic-analysis
+resistance, and route-tag-reuse correlation are **not** solved here —
+"V2 prevents private application metadata from being required in the
+public object schema; it does not provide complete traffic-analysis
+resistance" (research report's own framing, restated in `envelope_v2.rs`'s
+module docs). No crypto primitive was invented — this composes
+`mini-crypto`'s existing AEAD (ChaCha20-Poly1305), HKDF-SHA256, BLAKE3,
+and Ed25519 signing exactly as already reviewed elsewhere in the
+workspace (Directive 14/no-new-cryptography rule). No dependency edge to
+`mini-forge`/`mini-chain` (voice/value wall unaffected — this crate's
+`Cargo.toml` gained only `zeroize`, matching `did-mini`/`mini-crypto`/
+`mini-treasury`'s existing `CapabilityToken`-secret-scrubbing pattern, no
+new external dependency to the workspace as a whole).
+
+**Implementation status:** shipped and tested. 39 new unit tests across
+`envelope_v2.rs` (16: seal/open round-trip, wire round-trip, v1-rejected-
+by-v2 and v2-rejected-by-v1 disambiguation, route/retention/ciphertext-
+tamper-breaks-decryption ×3, wrong-key-fails, fresh-nonce-produces-
+different-ciphertext-and-ids, a byte-scan confirming none of the private
+fields appear anywhere in the outer bytes, truncation-at-every-length,
+trailing-bytes, unknown-suite, unknown-retention, over-cap-ciphertext-
+before-allocating), `private_object.rs` (9: round-trip, signature
+verifies/fails-on-tamper/fails-against-wrong-KEL, truncation, trailing-
+bytes, over-cap-links-before-allocating, unsigned-has-no-signatures,
+custom-type round-trip), `capability.rs` (21: every right round-trips,
+unknown right rejected, full valid-grant-and-proof success path, right-
+mismatch fails ×2, scope-mismatch fails, a token-commitment-copied-into-
+a-different-scope-grant fails, wrong-token fails, missing/wrong holder
+proof fails ×2, expired/not-yet-valid fail, wrong-issuer fails, wire
+round-trip ×2 incl. a validity-window round-trip that still enforces the
+window post-decode, unknown-version rejected, truncation, trailing-
+bytes), and `pseudonym.rs` (5: same-inputs-same-pseudonym, different-
+scope/purpose/root all produce different pseudonyms, a derived pseudonym
+can sign and independently verify). `cargo fmt`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` are clean; all 9 pre-existing v1
+integration tests in `tests/objects.rs` still pass unmodified — v1's own
+wire format and behavior are untouched.
+
+**Failure point:** `OpaqueRoute`'s randomness means a caller has no way
+to compute a route tag without being told it out of band — deterministic,
+scope-derived routing (so an authorized reader can find an object without
+a side channel) is explicitly deferred, so this version alone does not
+yet support "find this object by scope" lookups, only "open this object
+I was already pointed at." `CapabilityGrant` has no revocation mechanism
+— an issued grant remains valid (subject to its own expiry) until it
+naturally expires; a compromised token or grantee key cannot be
+invalidated early in this version. `RetentionClass` is advisory metadata
+a storage node could ignore; nothing here enforces it.
+
+**Required follow-up:** deterministic/scope-derived `OpaqueRoute`
+generation; a capability revocation mechanism; `MN-202` (Tier 1 relay/
+rendezvous protocol, lane L6 per D-0300, now unblocked by this lane's
+capability primitives) and `MN-208` (private lookup/DHT restriction
+enforcement, also now unblocked); HPKE-based recipient-key wrapping for
+multi-reader key distribution (deferred — research explicitly flagged
+recipient-count/identifier leakage and revocation complexity as needing
+separate design); MLS for dynamic encrypted group key management
+(explicitly not the right fit for a generic immutable object envelope);
+capability attenuation/delegation once exact-grant semantics have been
+exercised in practice; `CapabilityScope` variants beyond `Object` as
+those surfaces (`mini-social` collections/communities) get their own id
+types.
+
+**Supersedes / superseded by:** none. `Object`/`Payload`/v1's wire format
+are byte-for-byte unchanged; `ObjectId::of`'s visibility widened
+(`fn` → `pub(crate) fn`) with no behavior change.

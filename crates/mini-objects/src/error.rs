@@ -24,6 +24,23 @@ pub enum ObjectError {
     DeviceMismatch,
     /// The device lacks the capability required to author this object type.
     MissingCapability,
+    /// The envelope's version byte is not one this decoder recognizes.
+    UnsupportedEnvelopeVersion,
+    /// A [`crate::capability`] grant's format version is not recognized.
+    UnsupportedCapabilityVersion,
+    /// A capability check was made against a scope the grant was not
+    /// issued for.
+    CapabilityScopeMismatch,
+    /// A capability check asked for a right the grant does not carry.
+    CapabilityRightMismatch,
+    /// The presented token secret does not match the grant's commitment.
+    CapabilityTokenMismatch,
+    /// The holder proof was not made by the grant's named grantee.
+    CapabilityGranteeMismatch,
+    /// The grant's validity window has already ended.
+    CapabilityExpired,
+    /// The grant's validity window has not started yet.
+    CapabilityNotYetValid,
     /// An identity/delegation/signature failure.
     Identity(IdentityError),
     /// A cryptographic primitive failure.
@@ -41,6 +58,28 @@ impl core::fmt::Display for ObjectError {
             ObjectError::DeviceMismatch => write!(f, "signing device does not match KEL"),
             ObjectError::MissingCapability => {
                 write!(f, "device lacks the capability for this object type")
+            }
+            ObjectError::UnsupportedEnvelopeVersion => {
+                write!(f, "unsupported or unrecognized envelope version")
+            }
+            ObjectError::UnsupportedCapabilityVersion => {
+                write!(f, "unsupported or unrecognized capability grant version")
+            }
+            ObjectError::CapabilityScopeMismatch => {
+                write!(f, "capability grant does not cover the requested scope")
+            }
+            ObjectError::CapabilityRightMismatch => {
+                write!(f, "capability grant does not cover the requested right")
+            }
+            ObjectError::CapabilityTokenMismatch => {
+                write!(f, "capability token does not match the grant's commitment")
+            }
+            ObjectError::CapabilityGranteeMismatch => {
+                write!(f, "holder proof was not made by the grant's named grantee")
+            }
+            ObjectError::CapabilityExpired => write!(f, "capability grant has expired"),
+            ObjectError::CapabilityNotYetValid => {
+                write!(f, "capability grant is not valid yet")
             }
             ObjectError::Identity(e) => write!(f, "identity error: {e}"),
             ObjectError::Crypto(e) => write!(f, "crypto error: {e}"),
