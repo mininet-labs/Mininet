@@ -1,6 +1,15 @@
 # Privacy/cost-doctrine parallel execution plan
 
-D-0300 (see `docs/DECISION_LOG.md`'s `D-03xx` band). Companion to
+D-0300 (see `docs/DECISION_LOG.md`'s `D-03xx` band). Tracking issue:
+[#132](../../issues/132), with one child issue per lane
+([L1 #133](../../issues/133), [L2 #134](../../issues/134),
+[L3 #135](../../issues/135), [L4 #136](../../issues/136),
+[L5 #137](../../issues/137)) — claim a lane by commenting on its issue
+before starting. Related: [#122](../../issues/122) asks for durable,
+CI-enforced parallel-contributor infrastructure (Project board, issue
+leases, atomic D-number allocation); these lanes are a lighter, hand-
+maintained first step for one specific track and should migrate onto
+#122's tooling if/when it lands, not duplicate it. Companion to
 `docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md` (the phase list)
 and `docs/research/MININET_RESEARCH_V2_20260713.md` (the source research).
 That summary lists ~70 `MN-xxx` work items across nine phases; this
@@ -24,13 +33,13 @@ collision.
 
 ## Lane table (first wave — everything here is unblocked today)
 
-| Lane | Work items | Footprint (crates/paths touched) | Blocked by | One PR? |
-|---|---|---|---|---|
-| **L1 — Object privacy boundary** | `MN-103` (ObjectEnvelope v2 private-metadata boundary), `MN-104` (capability rights + scoped pseudonym primitives) | `crates/mini-objects`, `crates/mini-crypto` (read-only reuse), `crates/did-mini` | `MN-101`/`MN-102` — **done**, D-0094 | Yes — `MN-104` is a thin layer over `MN-103`'s types; one PR ships both, same as `mini-privacy-policy` shipped `MN-101`+`MN-102` together |
-| **L2 — Transport policy router** | `MN-201` (`TransportRequest` policy router) | new crate `mini-transport-policy` (depends on `mini-privacy-policy` only) | `MN-102` — **done**, D-0094 | Yes — single new crate |
-| **L3 — Mix protocol research** | `MN-204` (Sphinx-style mix packet research and protocol specification) | `docs/design/` only — **zero Rust footprint** | `MN-101` — **done**, D-0094 | Yes — one design doc |
-| **L4 — Resource pricing** | `MN-601` (resource price vector and quote engine) | new crate `mini-resource-pricing` (depends on `mini-privacy-policy` only) | `MN-101` — **done**, D-0094 | Yes — single new crate |
-| **L5 — Human evidence taxonomy reconciliation** | `MN-401` (Human Evidence Credential classes and evidence registry), scoped *first* to reconciling naming against `mini_uniqueness::HumanStatus`/`EvidenceQualifiedHuman` (D-0086) before any new type lands | `crates/mini-uniqueness` only | none (P4 root item), but **higher scrutiny**: must not introduce a rival taxonomy — see D-0094's Required follow-up | Yes, if scoped to reconciliation + at most one new confidence-class type; a full aggregate-proof prototype (`MN-405`) is explicitly a later, separate lane |
+| Lane | Issue | Work items | Footprint (crates/paths touched) | Blocked by | One PR? |
+|---|---|---|---|---|---|
+| **L1 — Object privacy boundary** | [#133](../../issues/133) | `MN-103` (ObjectEnvelope v2 private-metadata boundary), `MN-104` (capability rights + scoped pseudonym primitives) | `crates/mini-objects`, `crates/mini-crypto` (read-only reuse), `crates/did-mini` | `MN-101`/`MN-102` — **done**, D-0094 | Yes — `MN-104` is a thin layer over `MN-103`'s types; one PR ships both, same as `mini-privacy-policy` shipped `MN-101`+`MN-102` together |
+| **L2 — Transport policy router** | [#134](../../issues/134) | `MN-201` (`TransportRequest` policy router) | new crate `mini-transport-policy` (depends on `mini-privacy-policy` only) | `MN-102` — **done**, D-0094 | Yes — single new crate |
+| **L3 — Mix protocol research** | [#135](../../issues/135) | `MN-204` (Sphinx-style mix packet research and protocol specification) | `docs/design/` only — **zero Rust footprint** | `MN-101` — **done**, D-0094 | Yes — one design doc |
+| **L4 — Resource pricing** | [#136](../../issues/136) | `MN-601` (resource price vector and quote engine) | new crate `mini-resource-pricing` (depends on `mini-privacy-policy` only) | `MN-101` — **done**, D-0094 | Yes — single new crate |
+| **L5 — Human evidence taxonomy reconciliation** | [#137](../../issues/137) | `MN-401` (Human Evidence Credential classes and evidence registry), scoped *first* to reconciling naming against `mini_uniqueness::HumanStatus`/`EvidenceQualifiedHuman` (D-0086) before any new type lands | `crates/mini-uniqueness` only | none (P4 root item), but **higher scrutiny**: must not introduce a rival taxonomy — see D-0094's Required follow-up | Yes, if scoped to reconciliation + at most one new confidence-class type; a full aggregate-proof prototype (`MN-405`) is explicitly a later, separate lane |
 
 No two lanes in this table share a crate. `L1` and `L5` are the only
 lanes touching an *existing* crate at all; every other lane is additive

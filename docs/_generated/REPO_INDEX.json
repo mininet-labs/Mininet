@@ -34375,7 +34375,7 @@
       "title": "Networked BFT consensus \u2014 `mini-consensus` (D-0200 through D-0205)"
     },
     {
-      "bytes": 6145,
+      "bytes": 6883,
       "group": "docs",
       "headings": [
         {
@@ -34385,54 +34385,54 @@
         },
         {
           "level": 2,
-          "line": 14,
+          "line": 23,
           "text": "Why lanes, not a flat issue list"
         },
         {
           "level": 2,
-          "line": 25,
+          "line": 34,
           "text": "Lane table (first wave \u2014 everything here is unblocked today)"
         },
         {
           "level": 2,
-          "line": 41,
+          "line": 50,
           "text": "Sequencing after wave 1"
         },
         {
           "level": 2,
-          "line": 65,
+          "line": 74,
           "text": "Coordination mechanics for parallel lanes"
         }
       ],
       "keywords": [
         "lane",
-        "lanes",
-        "research",
-        "same",
+        "issues",
         "one",
+        "lanes",
         "new",
-        "wave",
-        "work",
         "issue",
+        "research",
+        "wave",
+        "same",
         "per",
-        "footprint",
+        "lands",
+        "work",
         "d-0094",
         "yes",
         "design",
-        "parallel",
-        "mn-xxx",
+        "first",
         "scoped",
-        "lands",
-        "two",
         "once",
+        "footprint",
         "mn-101",
         "done",
-        "protocol",
-        "privacy"
+        "privacy",
+        "parallel",
+        "flat"
       ],
-      "lines": 90,
+      "lines": 99,
       "path": "docs/design/privacy-cost-doctrine-parallel-execution-plan.md",
-      "sha256": "a0afa15bd6ea7e889823b2116b783c15581778825f3e9712bf0a3215ef5adc1b",
+      "sha256": "2b20db622db8cda5a55ec3de0b703bc835b3338d65d6403a217d90b6d31dbaef",
       "symbols": [],
       "title": "Privacy/cost-doctrine parallel execution plan"
     },
