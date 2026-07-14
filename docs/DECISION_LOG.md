@@ -6281,3 +6281,135 @@ prematurely.
 
 **Supersedes / superseded by:** none. New document, no existing type,
 crate, or decision changed.
+
+### D-0306 — Tier 1 relay + rendezvous protocol: new `mini-relay` crate, zero changes to any existing crate (lane L6, `MN-202`, closes tracking issue #144)  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** D-0300 (lane plan, "Sequencing after
+wave 1" naming this lane once L1/L2 land); D-0304 (L1, `mini-objects`
+capability/pseudonym primitives this lane's design was checked against
+but does not depend on); D-0301 (L2, `mini-transport-policy`, whose
+`PayloadSizeClass` this lane reuses read-only); `crates/mini-relay` (new);
+tracking issue #144
+
+**Decision:** ships `MN-202` (research §5.2, Tier 1 relay + rendezvous)
+as a new, purely additive crate: `RelayRole` (`Entry`/`Rendezvous`/
+`Delivery`, the three separable roles — entry relay knows the client's
+address not the destination, rendezvous relay knows the destination's
+mailbox capability not the client's address); `ConnectionId` (fresh
+random 16 bytes, never a `did:mini` root or derived from one);
+`derive_relay_identity` (a per-role, per-connection pairwise pseudonym
+via `did_mini::Controller::incept_pairwise_pseudonym` called directly
+with this crate's own domain-separated context — not through
+`mini_objects::pseudonym`'s wrapper, so a relay operator's role identity
+can never be linked to any object-authorship/capability-holder pseudonym
+the same root uses elsewhere); `MailboxGrant`/`MailboxToken`/`MailboxId`
+(a holder-bound, token-committed capability over an opaque mailbox,
+structurally mirroring `mini_objects::CapabilityGrant`'s exact discipline
+but as a fully independent typed-domain type — no shared `CapabilityScope`
+variant, no dependency on `mini-objects` at all); `RelayEnvelope`
+(per-hop AEAD-sealed structure over `mini_bearer::Channel`, binding
+role/connection-id/size-class as associated data, reusing
+`mini_transport_policy::PayloadSizeClass` read-only); and
+`enforce_role_separation` (a pure function rejecting an assignment where
+one relay identity holds two roles for one delivery, or a mandatory
+`Entry`/`Rendezvous` role is missing).
+
+Before designing, an API survey (Explore agent, full-crate grep across
+`mini-objects`, `mini-transport-policy`, `mini-bearer`, `mini-net`,
+`mini-privacy-policy`) confirmed: `mini_objects::CapabilityScope` is
+hard-locked to `Object(ObjectId)` with no mailbox concept; `Mechanism`
+has no dedicated rendezvous/mailbox variant; `mini_bearer::Channel`
+exposes raw `seal`/`open` sufficient as a building block but has zero
+relay-forwarding logic; and — most consequentially — `mini-net` has **no
+PUT/GET/provider-record/value-storage DHT layer at all**, only peer-
+bucket routing, gossip dedup, and peer exchange. That last finding is why
+this entry ships `MN-202` alone and explicitly defers `MN-208` (DHT
+lookup restriction, research §5.6): there is nothing yet in `mini-net`
+for a restriction to restrict. Given that, the cleanest footprint was a
+brand-new crate depending only on already-shipped read-only exports
+(`did-mini`, `mini-crypto`, `mini-bearer`, `mini-transport-policy`) —
+zero modification to any existing crate, matching L2/L4's cleanest
+precedent rather than L1's (which had to touch `mini-objects`).
+
+**Reason:** the founder's "well next we need to continue coding"
+direction, following the four-lane consolidation (PR #143) and its
+merge, pointed at whatever wave-2 work D-0300's own plan had already
+named as unblocked once L1 and L2 shipped — this lane, exactly as that
+document's "Sequencing after wave 1" section anticipated ("footprint
+decided when L1 lands and its actual public types are known, not guessed
+now"). `MailboxGrant` was deliberately built as an independent type
+rather than extending `mini_objects::CapabilityScope` with a `Mailbox`
+variant: `CapabilityScope`'s own doc comment states future scope variants
+are added "as those surfaces get their own id types," and a mailbox
+capability has a structurally different resource (a rotating queue, not
+a signed object) and simpler right structure (one implicit "may collect"
+right, not five independent rights) — forcing it into the object-scoped
+enum would blur that distinction rather than clarify it. `MN-208` is
+recorded as explicitly deferred, not silently dropped, because scoping it
+into this lane would have meant designing `mini-net`'s entire DHT
+value-storage layer as a side effect of a privacy lane — a much larger
+decision belonging to whoever owns `mini-net`'s roadmap.
+
+**Constitutional impact:** none. No crypto primitive invented — this
+composes `mini-crypto`'s existing X25519/HKDF-SHA256/ChaCha20-Poly1305
+(via `mini-bearer::Channel`) and Ed25519 signing (via `did-mini`) exactly
+as already reviewed elsewhere in this workspace (Directive 14/no-new-
+cryptography rule). `MailboxGrant`'s signing/commitment/holder-proof
+messages are each domain-separated with their own `mininet/mini-relay/…`
+tag (typed-domain rule — never a generic `sign(bytes)` call on caller-
+assembled data). No dependency edge to `mini-forge`/`mini-chain` (voice/
+value wall unaffected — this crate has no economic content at all).
+
+**Implementation status:** shipped and tested. 43 new unit tests across
+`role.rs` (2: tag round-trip, unknown tag rejected), `connection.rs` (7:
+two generated ids differ, id round-trips through bytes, same root/role/
+connection derives the same identity, different roles/connections/roots
+each derive different identities, a derived identity can sign and be
+independently verified), `mailbox.rs` (21: valid grant/proof validates,
+mailbox-mismatch fails, wrong-token fails, a token-commitment copied into
+a different-mailbox grant fails, missing/wrong holder proof fails ×2,
+expired/not-yet-valid fail, wrong-issuer fails, wire round-trip ×2 incl.
+a validity-window round-trip that still enforces the window post-decode,
+unknown-version rejected, truncation-at-every-length, trailing-bytes,
+and an explicit rotation test proving an old grant/token pair does not
+satisfy a newly-issued mailbox), `envelope.rs` (10: seal/open round-trip
+over two linked `Channel`s, wire round-trip, a decoded envelope still
+opens, role/connection-id/size-class tamper each independently break
+decryption ×3, opening with the wrong channel fails, unknown-version
+rejected, truncation-at-every-length, trailing-bytes), and
+`role_separation.rs` (8: three distinct relays pass, entry+rendezvous
+alone pass (delivery optional), the same relay holding two or all three
+roles is rejected, missing entry/rendezvous each rejected, a duplicate
+entry role by different relays is rejected, an empty assignment is
+rejected for missing entry). `cargo fmt`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` are clean (123 `test result: ok` blocks workspace-wide,
+zero failures).
+
+**Failure point:** this crate has no live network wiring — `RelayEnvelope::
+seal`/`open` are proven only in-process against paired `mini_bearer::
+Channel`s constructed via `Initiator`/`Responder` in this crate's own
+tests, the same honesty posture `mini-transport-policy` (D-0301) used for
+"decisions only, no execution." A live multi-process relay demo (like
+`mini-net`'s gossip demo) does not exist yet, so no delivery has actually
+crossed a real socket through this protocol. `MailboxGrant` has no
+revocation mechanism (same limitation D-0304's `CapabilityGrant` already
+documents) — a compromised token or grantee key cannot be invalidated
+early, only allowed to expire. `enforce_role_separation` checks identity
+equality only; it has no way to detect Sybil relay operators presenting
+different `Did`s while actually being the same party (that is the
+Sybil-unsolved hard limitation `docs/INVARIANTS.md` already states, not a
+new gap this crate introduces).
+
+**Required follow-up:** a live multi-process/multi-socket relay demo
+proving an actual delivery crossing entry → rendezvous → delivery hops
+over real TCP; wiring `mini_transport_policy::route`'s `RouteDecision`
+output to actually select and invoke this crate's relay logic (currently
+two disconnected layers — decision and mechanism); `MN-207` (bridge/
+pluggable transport interface, buildable against this lane's and L2's
+real types per D-0300's own sequencing note); `MN-208` (DHT lookup
+restriction) once `mini-net` grows a value-storage DHT layer to restrict
+at all — explicitly not this lane's job; `MN-205` (mix node) remains
+separately gated behind external review per D-0305.
+
+**Supersedes / superseded by:** none. New crate, no existing type or
+behavior changed.

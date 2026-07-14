@@ -270,8 +270,8 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   reproduces the research document's own estimates, not a benchmark.
   Founder research: `docs/research/MININET_RESEARCH_V2_20260713.md`;
   phase sequencing: `docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md`.
-- **not started** — Tier 1+ relay/rendezvous transport, mix network (the
-  phase P2 items this same research names next); the storage fabric's P6
+- **not started** — mix network live implementation (`MN-205`, blocked on
+  the D-0047-class external-review gate); the storage fabric's P6
   guarantees (no forced replication, no compelled decryption) also have
   no owning subsystem yet.
 - **shipped** — lane L1, `ObjectEnvelope` v2 + capability/pseudonym
@@ -314,14 +314,32 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `TransportRequest` policy router over `mini-privacy-policy`'s types —
   `route()` maps a privacy request to the mechanisms its tier requires
   and fails closed (never silently downgrades) when a requested property
-  needs a higher tier than requested. Routing *decisions* only — no
-  relay/mix/bearer exists to execute a decision yet, and no other lane
-  has started.
+  needs a higher tier than requested. Routing *decisions* only — not
+  wired to `mini-relay`'s Tier 1 protocol logic yet.
 - **shipped** — lane L4, `mini-resource-pricing` (D-0302): a
   `PriceVector`/`quote()` engine over `mini-privacy-policy`'s
   `expected_cost`, in the plain `u64` micro-MINI convention already used
   elsewhere in this workspace. Quoting logic only — no payment execution,
   no dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`.
+- **shipped** — lane L6, `mini-relay` (D-0306, `MN-202`): Tier 1 relay +
+  rendezvous protocol per research §5.2 — `RelayRole` (Entry/Rendezvous/
+  Delivery), `ConnectionId` (fresh random, never a `did:mini` root),
+  `derive_relay_identity` (per-role, per-connection pairwise pseudonym,
+  own domain tag independent of `mini_objects::pseudonym`'s), `MailboxGrant`
+  (holder-bound, token-committed capability over an opaque `MailboxId` —
+  an independent typed domain from `mini_objects::CapabilityGrant`, not a
+  retrofit of its `Object`-scoped design; rotation is issuing a fresh
+  grant, no dedicated API), `RelayEnvelope` (per-hop AEAD-sealed over
+  `mini_bearer::Channel`, role/connection-id/size-class bound as
+  associated data), and `enforce_role_separation` (rejects one relay
+  identity holding two roles for one delivery, and structurally-missing
+  Entry/Rendezvous roles). Zero changes to any existing crate — composes
+  `mini-bearer`/`did-mini`/`mini-transport-policy` read-only; 43 new
+  tests. **Not solved here**: no live multi-process relay demo (protocol
+  logic proven in-process only, same honesty posture L2 used); `MN-208`
+  (DHT-lookup restriction) explicitly out of scope — `mini-net` has no
+  value-storage DHT layer yet to restrict at all, confirmed via full-crate
+  survey before scoping this lane (see #144).
 
 ## 7. Storage
 
