@@ -88,6 +88,10 @@ so, everywhere, on purpose.
   atomic symlink-based activation, automatic rollback on a failed health
   check, still no forced update (activation always requires an explicit,
   typed `OwnerApproval` naming the exact release id)
+- `mini-privacy-policy` (D-0094): typed cost-doctrine vocabulary
+  (protection properties, mechanisms, the five un-removable residual
+  floors) and a Tier 0-3 privacy request/achieved-result policy object —
+  pure policy data; no relay/mix/erasure mechanism is wired to it yet
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential
@@ -146,9 +150,10 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0093`,
-   plus the networking/consensus track's reserved `D-0200`–`D-0206` — see the
-   log's "Decision-number allocation across parallel tracks").
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0094`,
+   plus the networking/consensus track's reserved `D-0200`–`D-0206` and the
+   privacy/cost-doctrine track's `D-0300`– — see the log's "Decision-number
+   allocation across parallel tracks").
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
    rejected, and why* — read before re-proposing something.
 5. [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — *what could kill the

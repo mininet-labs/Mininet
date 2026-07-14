@@ -37,12 +37,24 @@ are **banded by track**:
   `mini-consensus`, `mini-net`, transports). It allocates from `D-0200`
   upward, so it never collides with the main sequence regardless of merge
   order.
+- **`D-03xx` — the privacy/cost-doctrine track** (D-0094's adopted
+  research direction; lanes defined in `docs/design/
+  privacy-cost-doctrine-parallel-execution-plan.md`: `mini-privacy-policy`
+  and everything downstream of it — object-envelope privacy, transport
+  policy routing, mix-network research, resource pricing, human-evidence
+  taxonomy). It allocates from `D-0300` upward. Because this track is
+  itself designed to run several lanes in parallel, a same-band collision
+  is possible *within* `D-03xx` (two lanes both grabbing `D-0301`, say) —
+  that is resolved exactly like every other collision in this log: the
+  second PR to merge rebases and renumbers. Numbers are claimed at PR-open
+  time, not reserved in advance per lane.
 
-The bands are a coordination convenience, not a hierarchy — a `D-02xx`
+The bands are a coordination convenience, not a hierarchy — a banded
 decision carries exactly the same authority as any other, and cross-track
-references (`Refs:` / `Supersedes:`) point across bands freely. If a third
-track appears, give it the next free hundreds band (`D-03xx`) and add it here.
-The intentional gap between the bands is expected; it is not missing history.
+references (`Refs:` / `Supersedes:`) point across bands freely. If a
+further track appears, give it the next free hundreds band (`D-04xx`) and
+add it here. The intentional gaps between bands are expected; they are
+not missing history.
 
 ## Entry template (D-0045 onward)
 
@@ -5627,3 +5639,174 @@ folding `catch_up_over_tcp` into `run_to_height` itself so a single call
 can catch up and then join live rounds.
 
 **Supersedes / superseded by:** none.
+
+### D-0094 — Adopt founder research V2 (cost doctrine) and its parallel-contributor phase sequencing; ship `mini-privacy-policy` as the first P1 code slice  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** `docs/research/MININET_RESEARCH_V2_20260713.md`,
+`docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md` (founder-supplied,
+uploaded 2026-07-14); `crates/mini-privacy-policy` (new)
+
+**Decision:** adopt the founder's "cost doctrine" research (every privacy/
+availability/integrity property is a named, priced purchase; five residual
+floors F1-F5 are never removed by any spend) as forward direction, and
+adopt the accompanying parallel-contributor package's phase sequencing
+(`P0`-`P8`, summarized in the second ref above) as the roadmap reference
+for privacy/distribution/human-evidence work going forward. Per both
+documents' own stated authority order (founder research → Founder
+Directives/frozen invariants → Decision Log/Failure Book → STATUS →
+existing roadmap → the package's own decomposition), this decision sits
+below `docs/FOUNDER_DIRECTIVES.md`/`docs/INVARIANTS.md` and changes
+sequencing only — no invariant is touched. Ships the phase P1 items
+`MN-101` (protection-property/resource-cost vocabulary) and `MN-102`
+(privacy tier policy object) together as a new crate,
+`mini-privacy-policy`: `ProtectionProperty`/`Mechanism`/`ResidualFloor`
+vocabulary types (`vocabulary.rs`), `PrivacyTier` (Direct/Relayed/Mixed/
+Burst), `ResourceCost` (fixed-point min/max ranges — no float, matching
+the research's own honesty that these are ranges, not point estimates),
+`expected_cost(tier)` reproducing the research's own §2 cost-curve
+estimates, and `PrivacyRequest`/`AchievedPrivacy` with a hand-rolled wire
+codec (`tier.rs`). `AchievedPrivacy::new` always attaches all five
+`RESIDUAL_FLOORS`, by construction, so no caller can build a result that
+silently omits one.
+
+**Reason:** the research's own request was explicit ("bring it closer to
+delivering stage 1"), and per standing founder feedback this session
+prioritizes shipping real, tested code over further planning documents.
+`MN-101`/`MN-102` were chosen as the first slice because they are the
+package's own P1 entry point (`MN-103`/`MN-104` are declared blocked on
+`MN-101`) and because a pure, dependency-free vocabulary+policy crate is
+reviewable in one sitting and touches no existing crate's internals —
+lower risk than starting directly on `ObjectEnvelope` v2 or a relay
+protocol. The package's suggested "Rust serde types" technology was not
+followed: this workspace has never taken a serde dependency (`grep -r
+serde` across every `Cargo.toml` is empty) and instead hand-rolls a
+domain-tagged, length-prefixed wire codec with truncation/trailing-byte/
+oversized-count rejection tests everywhere a wire format exists
+(`mini-net::pex`, `mini-consensus::catchup`, ...); matching that existing,
+already-reviewed convention was judged higher priority than the package's
+generic suggestion, and is an implementation-technology call, not a
+constitutional one.
+
+**Constitutional impact:** none. `mini-privacy-policy` is pure data plus a
+codec — no crypto is implemented (Directive 14/no-new-cryptography rule:
+the crate does not touch key material, AEAD, or any primitive at all yet),
+no governance or value surface is touched (voice/value wall unaffected —
+the new crate has zero dependencies), and every doc comment on
+`HumanUniquenessSignal`/`GlobalUniquenessOfPersons` explicitly defers to
+the existing Sybil-unsolved limitation in `docs/INVARIANTS.md` rather than
+claiming anything new about personhood. The vocabulary's naming
+deliberately does not reuse or collide with `mini_uniqueness::HumanStatus`/
+`EvidenceQualifiedHuman` (D-0086); reconciling the research's own
+`Unassessed → ... → ExternalUniquenessBacked` confidence-class language
+with that existing shipped taxonomy is explicitly deferred (see Required
+follow-up), not silently merged or renamed here.
+
+**Implementation status:** shipped and tested. 22 unit tests in
+`mini-privacy-policy` (byte round-trips for all 13 `ProtectionProperty`/17
+`Mechanism`/5 `ResidualFloor` variants, unknown-byte rejection for each,
+wire round-trips for `PrivacyRequest`/`AchievedPrivacy` including the
+empty-list case, truncation-at-every-length rejection, trailing-byte
+rejection, wrong-domain rejection, over-cap count rejection before
+allocating for properties/mechanisms/floors, `AchievedPrivacy::new`'s
+always-five-floors invariant, and a monotonic-cost-by-tier sanity check).
+`cargo fmt`, `cargo clippy -p mini-privacy-policy --all-targets
+--all-features -- -D warnings`, and `cargo test -p mini-privacy-policy`
+are clean. **No transport, relay, mix, or storage mechanism is
+implemented anywhere in this batch** — `expected_cost` reproduces the
+research document's own estimates, not a measurement of running code; the
+crate-level doc comment says this explicitly, matching this session's
+"snapshot honesty" discipline.
+
+**Failure point:** this is policy vocabulary with nothing yet enforcing
+it — nothing in this workspace today reads a `PrivacyRequest` and actually
+routes traffic differently, so an `AchievedPrivacy` value is only as
+honest as whatever future code constructs it; there is no mechanism here
+preventing a careless caller from claiming a tier it did not actually
+reach. `ProtectionProperty`/`Mechanism` are marked `#[non_exhaustive]` to
+allow growth, which means any downstream `match` must already handle
+unknown variants — a deliberate forward-compatibility choice, not an
+oversight.
+
+**Required follow-up:** `MN-103` (`ObjectEnvelope` v2 private-metadata
+boundary) and `MN-104` (capability rights/scoped pseudonym primitives),
+the package's own next P1 items; reconciling the research's Human
+Evidence Credential confidence-class naming against
+`mini_uniqueness::HumanStatus`/`EvidenceQualifiedHuman` before any P4 work
+starts; a decision on whether/when to publish the package's ~70 `MN-xxx`
+items as real GitHub issues (deliberately not done this batch); wiring an
+actual `TransportRequest` router (`MN-201`, P2) once a real relay exists
+to consume this crate's types for something other than logging.
+
+**Supersedes / superseded by:** none. New crate, no existing type or
+behavior changed.
+
+### D-0300 — Parallel execution plan for the privacy/cost-doctrine track: disjoint-footprint lanes, batched PRs, new `D-03xx` band  ·  *Accepted*
+**Date:** 2026-07-14 · **Refs:** `docs/design/
+privacy-cost-doctrine-parallel-execution-plan.md` (new); D-0094; founder
+direction ("sequence PRs correctly, push as much work in 1 PR to main,
+have several devs working in parallel")
+
+**Decision:** opens the `D-03xx` decision-number band (this repo's third
+track, after the main `D-00xx` line and the networking/consensus `D-02xx`
+band — both already anticipated by the allocation policy's "if a third
+track appears" clause) for the privacy/cost-doctrine work D-0094 adopted,
+and publishes a **lane plan**: five first-wave work groupings (L1-L5),
+chosen so no two lanes touch the same crate, each sized to batch multiple
+`MN-xxx` items from `docs/research/PARALLEL_CONTRIBUTOR_PROGRAM_20260713.md`
+into one PR rather than one PR per item. L1 (ObjectEnvelope v2 +
+capability/pseudonym primitives, `mini-objects`/`did-mini`), L2
+(`TransportRequest` router, new `mini-transport-policy` crate), L3
+(Sphinx mix research, docs-only), L4 (resource pricing, new
+`mini-resource-pricing` crate), and L5 (human-evidence taxonomy
+reconciliation, `mini-uniqueness` only, flagged higher-scrutiny) are all
+unblocked today — their only dependency, `MN-101`/`MN-102`, shipped in
+D-0094.
+
+**Reason:** direct founder request to make PR sequencing explicit and
+enable several developers (human or AI) to work the privacy/cost-doctrine
+backlog concurrently without colliding, while batching more work per PR
+rather than fragmenting into ~70 single-item PRs. Disjoint file footprint
+per lane is the concrete mechanism that makes "several devs in parallel"
+actually collision-free rather than aspirational — two lanes touching
+different crates can be reviewed and merged in either order with zero
+merge conflict between them, unlike a flat issue backlog where any two
+issues might land on the same file. A new hundreds-band was chosen over
+reusing `D-02xx` or the main line because this track will itself run
+multiple lanes concurrently and needs the same collision-avoidance
+property `D-02xx` already gave the networking track relative to the main
+line — see the updated allocation-policy section for the added
+within-band collision rule this track specifically needs (renumber on
+merge, don't pre-reserve).
+
+**Constitutional impact:** none — this is pure process/coordination
+scaffolding (a document and a decision-numbering rule), no code, no
+crypto, no governance surface. L5 is flagged for extra scrutiny
+specifically *because* it could create constitutional risk (a rival
+personhood taxonomy) if not scoped carefully — the lane definition itself
+constrains it to reconciliation only, not new claims, precisely to avoid
+that risk rather than create it.
+
+**Implementation status:** planning artifact only — no lane has started.
+The lane table, footprints, and blocked-by status in the referenced
+design doc are accurate as of this entry against the current repository
+state (post-D-0094).
+
+**Failure point:** the plan's collision-freedom claim holds only as long
+as lane scope is respected — if a lane's PR reaches outside its declared
+footprint (e.g. L2's router PR also touching `mini-objects`), the
+disjointness property breaks and the next lane to merge pays the conflict
+cost this plan exists to avoid. Nothing enforces footprint boundaries
+mechanically today; it is a documented convention, not a CI gate.
+
+**Required follow-up:** wave-2 lane definitions once L1/L2/L3 land and
+their real public types are known (the design doc names candidates —
+`L6` relay/rendezvous — but deliberately does not freeze its footprint
+yet); consider a lightweight CI check that flags a PR touching files
+outside its lane's declared crate list, if this scales past founder
+review capacity; actually claiming/starting L1-L5 is separate follow-up
+work, not done in this entry.
+
+**Supersedes / superseded by:** none. Extends the `docs/DECISION_LOG.md`
+allocation-policy section (edited in place, in accordance with that
+section's own "if a third track appears, add it here" instruction — this
+is the one place in this append-only log where amending existing
+top-of-file policy text, not a dated entry, is the correct move).

@@ -41,6 +41,7 @@ members = [
     "crates/mini-pipeline-protocol",
     "crates/mini-build-runner-wasmtime",
     "crates/mini-installer",
+    "crates/mini-privacy-policy",
 ]
 
 [workspace.package]

@@ -1,0 +1,15 @@
+[package]
+name = "mini-privacy-policy"
+version = "0.0.1"
+description = "Typed cost-doctrine vocabulary (protection properties, mechanisms, resource cost, residual floors) and the tier 0-3 privacy request/achieved-result policy object every transport-privacy surface will share."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Deliberately none: this crate is pure typed policy data plus a hand-rolled
+# wire codec, matching this workspace's no-serde convention. No AEAD, relay,
+# or mixnet mechanism is implemented here yet -- see the crate-level docs.
