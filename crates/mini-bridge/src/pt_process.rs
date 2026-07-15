@@ -218,7 +218,10 @@ impl PtProcessManager {
                         let _ = child.wait();
                         return Err(BridgeError::UnsupportedVersion);
                     }
-                    PtLine::VersionError | PtLine::EnvError | PtLine::ProxyError | PtLine::CMethodError => {
+                    PtLine::VersionError
+                    | PtLine::EnvError
+                    | PtLine::ProxyError
+                    | PtLine::CMethodError => {
                         let _ = child.kill();
                         let _ = child.wait();
                         return Err(BridgeError::ProtocolNegotiationFailed);
@@ -318,8 +321,14 @@ mod tests {
     #[test]
     fn parse_pt_line_handles_the_required_client_subset() {
         assert!(matches!(parse_pt_line("VERSION 1"), PtLine::Version(1)));
-        assert!(matches!(parse_pt_line("VERSION-ERROR no-version"), PtLine::VersionError));
-        assert!(matches!(parse_pt_line("CMETHODS DONE"), PtLine::CMethodsDone));
+        assert!(matches!(
+            parse_pt_line("VERSION-ERROR no-version"),
+            PtLine::VersionError
+        ));
+        assert!(matches!(
+            parse_pt_line("CMETHODS DONE"),
+            PtLine::CMethodsDone
+        ));
         assert!(matches!(
             parse_pt_line("CMETHOD obfs4 socks5 127.0.0.1:41213"),
             PtLine::CMethod(_)
@@ -328,7 +337,10 @@ mod tests {
             parse_pt_line("CMETHOD-ERROR obfs4 failed"),
             PtLine::CMethodError
         ));
-        assert!(matches!(parse_pt_line("ENV-ERROR bad-env"), PtLine::EnvError));
+        assert!(matches!(
+            parse_pt_line("ENV-ERROR bad-env"),
+            PtLine::EnvError
+        ));
         assert!(matches!(
             parse_pt_line("some totally unrecognized line"),
             PtLine::Other

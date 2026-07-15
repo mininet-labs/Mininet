@@ -93,7 +93,10 @@ impl core::fmt::Display for BridgeError {
             }
             BridgeError::BadEndpoint => write!(f, "opaque endpoint bytes could not be parsed"),
             BridgeError::ExecutableUnavailable => {
-                write!(f, "pinned executable path does not exist or could not be read")
+                write!(
+                    f,
+                    "pinned executable path does not exist or could not be read"
+                )
             }
             BridgeError::ExecutableDigestMismatch => write!(
                 f,
@@ -101,10 +104,16 @@ impl core::fmt::Display for BridgeError {
             ),
             BridgeError::ProcessStartFailed => write!(f, "failed to spawn managed PT subprocess"),
             BridgeError::ProtocolNegotiationFailed => {
-                write!(f, "managed PT subprocess handshake did not conform to Tor PT v1")
+                write!(
+                    f,
+                    "managed PT subprocess handshake did not conform to Tor PT v1"
+                )
             }
             BridgeError::UnsupportedVersion => {
-                write!(f, "managed PT subprocess reported an unsupported protocol version")
+                write!(
+                    f,
+                    "managed PT subprocess reported an unsupported protocol version"
+                )
             }
             BridgeError::Timeout => write!(f, "managed PT subprocess startup timed out"),
             BridgeError::ProcessExited => {
