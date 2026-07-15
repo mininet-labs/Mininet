@@ -6768,3 +6768,82 @@ decision depends on this layer, per D-0047).
 **Supersedes / superseded by:** none. `FreshnessPins`/D-0088 is extended,
 not superseded — pinning remains the baseline for returning verifiers;
 this decision adds the first-contact layer pinning cannot provide.
+
+### D-0095 — `mini-crypto`: `SignatureSuite::MlDsa65` verify-only support, Phase 1 of the post-quantum identity migration (issue #15)  ·  *Accepted*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+PQ15_POST_QUANTUM_MIGRATION_RESEARCH_20260715.md`; `docs/design/
+post-quantum-identity-migration.md` (new); SPEC-01 §13 (the crypto-agility
+frozen invariant this makes real); CLAUDE.md's no-new-cryptography rule;
+D-0047 (external crypto review gate)
+
+**Decision:** adds `SignatureSuite::MlDsa65` (FIPS 204, wire tag `0x02`,
+already reserved in `suite.rs`'s own comments) to `mini-crypto`, composing
+the externally-maintained `fips204` crate (v0.4, MIT/Apache-2.0, pure
+Rust, no unsafe, feature-scoped to just `ml-dsa-65`) rather than
+implementing ML-DSA's lattice math in-house. Scoped to exactly the
+research report's own recommended Phase 1: `VerifyingKey`/`Signature` can
+parse and verify real ML-DSA-65 material (`public_key_len()`/
+`signature_len()` sourced from `fips204`'s own constants: 1952/3309
+bytes); `SigningKey` stays Ed25519-only, with no production key-generation
+or signing path for the PQ suite. `to_bytes()` on `VerifyingKey`/
+`Signature` now returns `Vec<u8>` instead of a fixed-size array, to
+accommodate ML-DSA-65's much larger sizes — audited against every call
+site in the workspace before merging; all were already slice-based, so
+the change compiled cleanly workspace-wide except for one unrelated
+regression (`did-mini::Controller`'s `SigningKey: Clone` bound, dropped
+during the rewrite, restored same PR after the full-workspace build caught
+it). 11 new unit tests including a round-trip against a real
+`fips204`-generated keypair/signature (produced via a
+`dev-dependencies`-only `fips204`/`default-rng` feature, so production
+builds never link OS-RNG PQ keygen), tamper/wrong-key/wrong-length
+rejection, and cross-suite mismatch rejection.
+
+**Reason:** the research report's executive conclusion is explicit that
+simply adding the enum variant and flipping the default is not a
+migration — it names Phase 1 (verify-only, no generation, no KEL
+activation) as the correct first slice, with the actual identity-migration
+protocol (dual-authorised hybrid KEL rotation, downgrade prevention,
+legacy-client handling) sequenced as separate, later work belonging to
+`did-mini`, not `mini-crypto`. Implementing exactly that first slice keeps
+this PR inside what can be honestly tested and reviewed in one batch,
+mirroring the discipline already used for `mini-bridge`/`mini-private-index`
+(D-0309/D-0310) on founder-supplied research this same session.
+
+**Constitutional impact:** none negative; SPEC-01 §13's crypto-agility
+invariant is exercised, not weakened — `SignatureSuite::DEFAULT` remains
+`Ed25519`, unchanged by this decision. Directive 14 (no new cryptography)
+is honored: `fips204` implements the already-standardized FIPS 204
+construction; this crate composes it behind the existing suite-tagged
+API, adding no novel cryptographic design. The `fips204` dependency
+addition was explicitly confirmed with the founder before being built or
+tested, given `mini-crypto`'s security-critical, workspace-wide blast
+radius — this was not treated as a routine additive-crate decision.
+
+**Implementation status:** shipped and tested in `mini-crypto` only.
+`cargo fmt`, `cargo clippy --all-targets --all-features --workspace -- -D
+warnings`, and `cargo build --workspace --all-features` are clean;
+`cargo test --workspace --all-features` run recorded in this PR.
+
+**Failure point:** this is a **primitive, not a migration** — no KEL can
+actually rotate to ML-DSA-65 yet, since `did-mini` is untouched. FIPS
+204's public-key encoding has no structural validity check beyond byte
+length (unlike Ed25519's compressed-curve-point check): an all-zero
+"public key" of the correct length parses successfully and simply never
+verifies a real signature — documented and tested
+(`an_all_zero_ml_dsa_65_key_parses_but_never_verifies_a_real_signature`)
+rather than silently assumed to behave like Ed25519. No external
+cryptographic review of this suite wrapper or the `fips204` implementation
+has occurred; no production identity may depend on `MlDsa65` authority
+until that review happens (D-0047).
+
+**Required follow-up:** Phase 2 (key generation, benchmarks, mobile/WASM
+testing); Phase 3 (the actual `did-mini` KEL hybrid-migration protocol —
+PQ pre-commitment, dual-authorised activation rotation, downgrade
+prevention, legacy-client stale-head handling); Phase 4 (recovery,
+delegated-device, witness migration); ML-KEM-768 hybrid session
+establishment for `mini-bearer` (a separate track); external cryptographic
+review before any of the above reaches production identity authority.
+
+**Supersedes / superseded by:** none. Additive to `mini-crypto`'s existing
+suite-tagged API; no existing type's behavior changed for the `Ed25519`
+suite.
