@@ -194,8 +194,11 @@ impl VerifyingKey {
         }
         match &self.inner {
             KeyMaterial::Ed25519(inner) => {
-                let sig_bytes: [u8; 64] =
-                    signature.bytes.as_slice().try_into().map_err(|_| CryptoError::BadSignature)?;
+                let sig_bytes: [u8; 64] = signature
+                    .bytes
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| CryptoError::BadSignature)?;
                 let sig = DalekSignature::from_bytes(&sig_bytes);
                 inner
                     .verify(message, &sig)
@@ -285,7 +288,10 @@ mod tests {
             SignatureSuite::MlDsa65.signature_len(),
             fips204::ml_dsa_65::SIG_LEN
         );
-        assert_eq!(SignatureSuite::from_tag(0x02).unwrap(), SignatureSuite::MlDsa65);
+        assert_eq!(
+            SignatureSuite::from_tag(0x02).unwrap(),
+            SignatureSuite::MlDsa65
+        );
     }
 
     /// The one round-trip test proving `mini_crypto::VerifyingKey`/
@@ -309,8 +315,7 @@ mod tests {
         let verifying_key =
             VerifyingKey::from_suite_bytes(SignatureSuite::MlDsa65, &pk.clone().into_bytes())
                 .unwrap();
-        let signature =
-            Signature::from_suite_bytes(SignatureSuite::MlDsa65, &sig_bytes).unwrap();
+        let signature = Signature::from_suite_bytes(SignatureSuite::MlDsa65, &sig_bytes).unwrap();
 
         verifying_key.verify(message, &signature).unwrap();
     }
@@ -323,7 +328,10 @@ mod tests {
 
         let (pk, sk) = ml_dsa_65::try_keygen_with_rng(&mut OsRng).unwrap();
         let message = b"a real ML-DSA-65 message";
-        let mut sig_bytes = sk.try_sign_with_rng(&mut OsRng, message, &[]).unwrap().to_vec();
+        let mut sig_bytes = sk
+            .try_sign_with_rng(&mut OsRng, message, &[])
+            .unwrap()
+            .to_vec();
         sig_bytes[0] ^= 0xFF;
 
         let verifying_key =
