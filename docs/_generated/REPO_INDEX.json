@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 40,
-    "files": 528,
-    "headings": 1857,
+    "files": 530,
+    "headings": 1865,
     "rust_symbols": 4009
   },
   "crates": {
@@ -35907,7 +35907,7 @@
       "title": "{"
     },
     {
-      "bytes": 415316,
+      "bytes": 420563,
       "group": "docs",
       "headings": [
         {
@@ -36337,9 +36337,9 @@
         "explicit",
         "live"
       ],
-      "lines": 6942,
+      "lines": 7028,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "57da5725822af97704eff28ffa6eeede7aa0f693a0d65ce7f6ed1ece50765f15",
+      "sha256": "6ddbf3fb7f58f7ec2e93083e41e8fd86fc63a9844d315a10b5a3f8785ff3b2cb",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -37197,7 +37197,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 49006,
+      "bytes": 49679,
       "group": "docs",
       "headings": [
         {
@@ -37237,32 +37237,32 @@
         },
         {
           "level": 2,
-          "line": 426,
+          "line": 436,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 467,
+          "line": 477,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 525,
+          "line": 535,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 554,
+          "line": 564,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 749,
+          "line": 759,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 755,
+          "line": 765,
           "text": "Where to look for more detail"
         }
       ],
@@ -37292,9 +37292,9 @@
         "equivocation",
         "validator"
       ],
-      "lines": 765,
+      "lines": 775,
       "path": "docs/STATUS.md",
-      "sha256": "3178ad71924553bac1e30d0ee4e83e3dd5f169a58709823ec3dde4d7332e93f3",
+      "sha256": "b12f4a4c312400aa6f333468d3e9b776792408caf912f1470959615e8aa05ac7",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -39258,6 +39258,83 @@
       "sha256": "e16edb8785ea0497abc8d6141a8a1e13e1da446f01726a9b68631495d8f3953f",
       "symbols": [],
       "title": "Sphinx-style mix network: research report and protocol specification (MN-204)"
+    },
+    {
+      "bytes": 7822,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "PIR research and external-review preparation (MN-208 Phase 9, D-0098)"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "Decision"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "The frozen first workload"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "Candidate portfolio (research targets, not selections)"
+        },
+        {
+          "level": 2,
+          "line": 100,
+          "text": "What \"achieved privacy\" must say"
+        },
+        {
+          "level": 2,
+          "line": 117,
+          "text": "What PIR does not solve (must never be overclaimed)"
+        },
+        {
+          "level": 2,
+          "line": 129,
+          "text": "Required before any PIR code PR"
+        },
+        {
+          "level": 2,
+          "line": 157,
+          "text": "Constitutional posture"
+        }
+      ],
+      "keywords": [
+        "pir",
+        "research",
+        "candidate",
+        "report",
+        "benchmark",
+        "first",
+        "decision",
+        "workload",
+        "independent",
+        "design",
+        "external-review",
+        "what",
+        "review",
+        "existing",
+        "row",
+        "preparation",
+        "phase",
+        "does",
+        "never",
+        "cryptographic",
+        "records",
+        "own",
+        "programme",
+        "two-server"
+      ],
+      "lines": 166,
+      "path": "docs/design/mn208-pir-research-and-review-preparation.md",
+      "sha256": "7f1b710312348ff7e2954894687efe85e7d15fc6848bdee962eee2bfc52f8f79",
+      "symbols": [],
+      "title": "PIR research and external-review preparation (MN-208 Phase 9, D-0098)"
     },
     {
       "bytes": 9401,
@@ -47409,6 +47486,42 @@
       "sha256": "44371789dfa01c53f6da6c3ecd481b843d870952108d124c72e2616ae68e034d",
       "symbols": [],
       "title": "MN-207 Research Report: Bridges, Pluggable Transports, and Censorship-Resistant Entry Privacy"
+    },
+    {
+      "bytes": 50108,
+      "group": "docs",
+      "headings": [],
+      "keywords": [
+        "pir",
+        "research",
+        "database",
+        "one",
+        "server",
+        "private",
+        "protocol",
+        "bounded",
+        "benchmark",
+        "model",
+        "client",
+        "candidate",
+        "download",
+        "computationally",
+        "cryptographic",
+        "phase",
+        "lookup",
+        "retrieval",
+        "external",
+        "query",
+        "recommended",
+        "records",
+        "small",
+        "two-server"
+      ],
+      "lines": 1895,
+      "path": "docs/research/MN208_PIR_RESEARCH_AND_REVIEW_PREPARATION_20260715.md",
+      "sha256": "83a84ef122255cb0c6aeee1cf47efb7bfae3b62fd874268337dea73985f604fe",
+      "symbols": [],
+      "title": "PIR Research and External-Review Preparation Report"
     },
     {
       "bytes": 48033,

@@ -422,6 +422,16 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   no sandboxing beyond the OS's own process isolation, no
   `ExternalAdapterManifest`/binary-provenance tooling. See `docs/design/
   external-bridge-adapter-integration.md`.
+- **research-only** — PIR research and external-review preparation
+  (D-0098, `MN-208` Phase 9): freezes the first workload any future PIR
+  benchmark must target (fixed-size encrypted descriptor retrieval from
+  one immutable, equal-record epoch database) and names a four-candidate
+  research portfolio (whole-index download, two-server information-
+  theoretic PIR, one mature single-server lattice scheme, ZipPIR on the
+  watchlist only). **No code, no PIR crate, no new dependency** —
+  `LookupPrivacyClass::PrivatePIR` remains exactly as unimplemented and
+  D-0047-gated as before this decision. See `docs/design/
+  mn208-pir-research-and-review-preparation.md`.
 
 ## 7. Storage
 

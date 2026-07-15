@@ -6939,3 +6939,89 @@ review before any of the above reaches production identity authority.
 **Supersedes / superseded by:** none. Additive to `mini-crypto`'s existing
 suite-tagged API; no existing type's behavior changed for the `Ed25519`
 suite.
+
+### D-0098 — PIR research and external-review preparation for `mini-private-index`: frozen workload, candidate portfolio, no code (`MN-208` Phase 9)  ·  *Accepted (research only)*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+MN208_PIR_RESEARCH_AND_REVIEW_PREPARATION_20260715.md`; `docs/design/
+mn208-pir-research-and-review-preparation.md` (new); D-0310
+(`mini-private-index`, whose `LookupPrivacyClass::PrivatePIR` this
+prepares the review path for); D-0047 (external crypto review gate);
+CLAUDE.md's no-new-cryptography rule
+
+**Decision:** adopts the research report's own recommended Phase 9 scope
+exactly: Mininet does not select or implement a production Private
+Information Retrieval (PIR) protocol for `mini-private-index` yet. This
+decision freezes the first PIR workload the network will ever benchmark
+against — exact retrieval of one fixed-size encrypted mailbox or
+provider descriptor from one immutable, epoch-versioned, equal-length-
+record database, mapping directly onto `mini-private-index`'s existing
+`PrivateIndexRecord`/`RecordSizeClass` vocabulary (D-0310) rather than a
+new database shape invented for PIR — and names a four-candidate research
+portfolio: whole-index download (mandatory baseline), two-server
+information-theoretic PIR (preferred first true-PIR candidate), one
+mature single-server lattice scheme (Spiral or a SimplePIR-family
+successor, benchmarked not chosen; SealPIR stays a compatibility
+baseline), and ZipPIR on the watchlist only (2026 publication,
+insufficient independent review history for the shortlist). No Rust
+code, no PIR crate, and no new dependency are added by this PR.
+`LookupPrivacyClass::PrivatePIR` remains exactly as unimplemented and
+gated behind D-0047 as it was before this decision.
+
+**Reason:** the research report's own executive conclusion is explicit
+that selecting a PIR scheme before freezing the database model, record
+layout, and trust assumptions would reverse the correct design order —
+a protocol optimized for a million fixed 256-byte records may be
+unsuitable for a database with continuous updates and variable records,
+and a scheme efficient on a cloud server may be unusable on a volunteer
+node or old phone. The report's own closing recommendation states the
+strongest immediate deliverable is "a research-only PR containing the
+fixed workload, benchmark methodology, candidate shortlist, and
+external-review questions" — this PR is exactly that, mirroring the
+same narrowly-scoped-first-deliverable discipline already used for
+D-0096 (KEL witness receipts, design-only) and D-0097 (bridge adapters,
+doctrine-then-safety-boundary) earlier this session.
+
+**Constitutional impact:** none. No dependency changes at all — this PR
+adds only Markdown. Directive 14 (no new cryptography) is unaffected
+since nothing here composes or invents a primitive; it names research
+targets and release gates for a future, separately-reviewed decision.
+No voice/value dependency is possible (this track has zero relationship
+to `mini-value`/`mini-bounty`/`mini-treasury`). `mini-private-index`'s
+STATUS.md claim that `PrivatePIR` is unimplemented and gated behind
+D-0047 remains exactly true after this decision — this document only
+makes that gate's opening criteria concrete (freeze workload → benchmark
+whole-index and two-server baselines → benchmark one single-server
+scheme → simulate updates/mobile clients → define replica-independence
+and malicious-server threat models → external cryptographic review →
+only then select one candidate for an out-of-process experimental
+implementation).
+
+**Implementation status:** research and review preparation only. No
+Rust code in this PR. The next scoped deliverable is the whole-index-
+download and two-server-PIR benchmark programme named in the design
+doc's "Required before any PIR code PR" section — not started.
+
+**Failure point:** this decision has no code failure point yet by
+construction (nothing implemented). The design's own named failure
+conditions to watch for once benchmarking starts: nominally independent
+two-server replicas that actually share an operator, hosting provider,
+or logs; a database namespace choice that itself identifies a user's
+interest even though PIR hid the row; a PIR lookup immediately
+correlated with a direct object fetch moments later; malformed queries
+that exhaust server resources; and any future PR marketing an
+unreviewed experimental implementation as production-private.
+
+**Required follow-up:** build the whole-index-download baseline;
+benchmark two-server information-theoretic PIR against real,
+operator-diverse replica infrastructure; benchmark one mature
+single-server scheme (not more); simulate database-update and
+mobile-client costs, not just server throughput; write a replica-
+independence policy and a malicious-server/malicious-client threat
+model; commission the external cryptographic review named in D-0047;
+only then select one candidate for an experimental, out-of-process
+implementation (mirroring `mini-build-runner-wasmtime`'s sandboxing
+precedent, D-0069).
+
+**Supersedes / superseded by:** none. Extends D-0310's `mini-private-
+index` doctrine additively — no existing type or behavior in any crate
+changed.
