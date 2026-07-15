@@ -24,3 +24,17 @@ blake3 = "1"          # default content-address hash
 sha2 = "0.10"         # SHA-256, for Git-object interop (SPEC-11)
 bs58 = "0.5"          # base58btc for multibase identifiers
 getrandom = "0.2"     # OS CSPRNG for key generation
+# FIPS 204 ML-DSA-65 — the post-quantum migration target SPEC-01 §13 already
+# reserves wire tag 0x02 for (D-0095, issue #15). Feature-scoped to just the
+# -65 parameter set; verify-only in this crate for now (no generation exposed
+# on SigningKey yet — see suite.rs's module docs for the phased plan this
+# composes rather than invents).
+fips204 = { version = "0.4", default-features = false, features = ["ml-dsa-65"] }
+
+[dev-dependencies]
+# Adds fips204's OS-RNG keygen/sign convenience (`default-rng`) for this
+# crate's own round-trip tests only — dev-dependency features never reach a
+# `cargo build`/`cargo build --release` production artifact, keeping the
+# "no generation exposed on SigningKey yet" boundary real, not just documented.
+fips204 = { version = "0.4", default-features = false, features = ["ml-dsa-65", "default-rng"] }
+rand_core = { version = "0.6", features = ["getrandom"] } # OsRng for the same test-only keygen/sign path
