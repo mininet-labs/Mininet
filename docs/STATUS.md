@@ -137,9 +137,15 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   interim rule (pin highest sn seen per SCID) is now real code —
   `did_mini::FreshnessPins` (D-0088) — not only a documented
   recommendation, closing the case where a verifier has already seen a
-  fresher KEL. Real witness receipts and gossip-based duplicity proofs
-  (SPEC-01 §7, M3) remain the owner of the harder case: a verifier who
-  has *never* seen the fresher log.
+  fresher KEL. The harder case — a verifier who has *never* seen the
+  fresher log — now has an adopted design direction (D-0096, `docs/design/
+  kel-witness-receipts-and-duplicity-gossip.md`): KERI-style asynchronous
+  witness receipts, threshold witnessed-event certificates, and proof-
+  carrying duplicity gossip. **Design only, no code yet** — the research
+  report's own recommended sequencing puts the receipt/proof types, the
+  in-memory witness state machine, and KEL-verification integration as
+  separate, later PRs, each gated behind external review (D-0047) before
+  any high-value authority decision may depend on it.
 - **not started** — post-quantum migration path
   ([#15](../../issues/15)), device
   hierarchy beyond current single-tier delegation

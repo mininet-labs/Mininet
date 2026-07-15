@@ -6693,3 +6693,78 @@ no wiring.
 
 **Supersedes / superseded by:** none. New crate only; no existing type
 or behavior in any other crate changed.
+
+### D-0096 — Adopt KEL witness receipts + duplicity gossip as the design direction for the "never seen a fresher log" gap (audit #12 F4, M3)  ·  *Accepted (design only)*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md`; `docs/design/
+kel-witness-receipts-and-duplicity-gossip.md` (new); SPEC-01 §7; invariant
+M3; audit #12 finding F4; D-0088 (`FreshnessPins`, the interim pin-based
+fix this extends, not replaces)
+
+**Decision:** adopts the research report's recommended architecture for
+the harder half of M3 — a first-contact verifier with no prior pinned
+state has no protection against a valid-looking, controller-signed
+private fork. The adopted direction: KERI-inspired asynchronous witness
+receipts (typed `WitnessReceiptStatement`/`WitnessReceipt` binding
+identity, sequence, event digest, prior digest, event kind, witness-
+policy generation, and a coarse epoch — never generic `sign(bytes)`),
+threshold `WitnessedEventCertificate`s, first-seen monotonic witness
+state producing compact `ControllerDuplicityProof`/
+`WitnessEquivocationProof` evidence on conflict, and proof-carrying
+gossip of compact `KelHeadSummary`s piggybacked on ordinary peer
+interactions rather than a standalone global service. Explicitly rejects
+a global identity ledger, mandatory public transparency for private
+identities, witness consensus/BFT, and interactive signature aggregation
+for the first version. **This decision is design-only** — no code
+changes. The research report's own closing recommendation states the
+correct sequencing is a design-only PR first, then a small receipt/proof-
+type PR, then an in-memory witness state machine, and only after that
+network gossip — "the dangerous mistake would be starting with a witness
+daemon or Merkle log before freezing exactly what a receipt means."
+
+**Reason:** `did_mini::FreshnessPins` (D-0088) closes the case where a
+verifier already holds prior state for an identity; it structurally
+cannot help a verifier meeting an identity for the first time, since
+"no fresher event in local storage" proves nothing about a personalized
+fork the attacker never showed this verifier. Witness receipts convert
+observation into transferable, offline-verifiable evidence; gossip is
+what turns two isolated witness views into detectable duplicity. Neither
+alone is sufficient — the report's own analysis of why receipts without
+gossip only catch equivocation by accident, and gossip without signed
+receipts is unresolvable claims, both apply directly to Mininet's KEL.
+
+**Constitutional impact:** none yet — no code exists to have impact.
+When implemented, the design explicitly preserves: self-certifying
+identity ownership (witnesses attest, never author or rotate); offline
+verifiability (receipts and duplicity proofs are self-contained bytes);
+no central registry (witness sets are controller-chosen, gossip is
+peer-to-peer); and graduated assurance rather than a false global-
+freshness claim (`KelAssurance::WitnessedRecentAndGossiped` is honestly
+scoped to "within this verifier's gossip horizon," never "globally
+freshest").
+
+**Implementation status:** design only. No Rust code in this PR. Phase 1
+(receipt types) is the next scoped deliverable, not started.
+
+**Failure point:** this decision has no code failure point yet by
+construction (nothing implemented). The design's own named failure
+conditions, to watch for once Phase 1+ lands: witnesses signing
+conflicting receipts without producing detectable evidence; a receipt
+from a retired witness-policy generation being miscounted under a newer
+policy; private-identity gossip becoming globally enumerable; recovery
+silently bypassing witness consistency or erasing prior duplicity
+evidence; and "threshold witnessed" ever being described as proof no
+conflicting branch exists anywhere.
+
+**Required follow-up:** Phase 1 (`WitnessPolicy`/`WitnessReceiptStatement`/
+`WitnessReceipt`/`WitnessedEventCertificate` types, canonical encoding,
+no network); Phase 2 (in-memory witness state machine); Phase 3 (KEL
+verification integration, `KelAssurance` output); Phases 4-8 (collection
+protocol, gossip, persistent service, rotation/recovery, public-authority
+transparency logs); Phase 9 (adversarial network simulation); Phase 10
+(external cryptographic/protocol review before any high-value authority
+decision depends on this layer, per D-0047).
+
+**Supersedes / superseded by:** none. `FreshnessPins`/D-0088 is extended,
+not superseded — pinning remains the baseline for returning verifiers;
+this decision adds the first-contact layer pinning cannot provide.

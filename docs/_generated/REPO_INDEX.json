@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 40,
-    "files": 519,
-    "headings": 1826,
+    "files": 521,
+    "headings": 1833,
     "rust_symbols": 3967
   },
   "crates": {
@@ -35541,7 +35541,7 @@
       "title": "{"
     },
     {
-      "bytes": 400169,
+      "bytes": 404812,
       "group": "docs",
       "headings": [
         {
@@ -35950,8 +35950,8 @@
         "founder",
         "real",
         "review",
-        "closes",
         "log",
+        "closes",
         "batch",
         "decision",
         "release",
@@ -35967,13 +35967,13 @@
         "core",
         "chain",
         "first",
+        "audit",
         "explicit",
-        "live",
-        "spine"
+        "live"
       ],
-      "lines": 6696,
+      "lines": 6771,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "9fb9b8875ac679d2177a2933809dbe6fa9de0688f2ea704019e2d6ce60bd1fc8",
+      "sha256": "d804c83f6eab7f6c150e1e12f03b629a82ea4bb57d461241af0d151d50e84ceb",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -36831,7 +36831,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 46665,
+      "bytes": 47124,
       "group": "docs",
       "headings": [
         {
@@ -36856,47 +36856,47 @@
         },
         {
           "level": 2,
-          "line": 149,
+          "line": 155,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 215,
+          "line": 221,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 258,
+          "line": 264,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 393,
+          "line": 399,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 434,
+          "line": 440,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 492,
+          "line": 498,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 521,
+          "line": 527,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 716,
+          "line": 722,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 722,
+          "line": 728,
           "text": "Where to look for more detail"
         }
       ],
@@ -36926,9 +36926,9 @@
         "equivocation",
         "validator"
       ],
-      "lines": 732,
+      "lines": 738,
       "path": "docs/STATUS.md",
-      "sha256": "3cf11a8b7fbba5c9889ca9febc38ee2bbacc57a62e0c269bd3e02e5d99a8e7cd",
+      "sha256": "c578a4e857277a7cdb9cc5e6fb2acaa497cdfa57f4e77067f7cf0d5866d4a9b6",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -38651,6 +38651,78 @@
       "sha256": "ad4e27548f85a44145a23409a34c50b12d0f70a37ba21d664d4b95a104b8553a",
       "symbols": [],
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
+    },
+    {
+      "bytes": 6529,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "The gap this closes"
+        },
+        {
+          "level": 2,
+          "line": 26,
+          "text": "Decision"
+        },
+        {
+          "level": 2,
+          "line": 52,
+          "text": "Why design-only, this PR"
+        },
+        {
+          "level": 2,
+          "line": 65,
+          "text": "Phased plan this repo commits to (see report \u00a729 for full detail)"
+        },
+        {
+          "level": 2,
+          "line": 93,
+          "text": "Hard rules carried forward from the report"
+        },
+        {
+          "level": 2,
+          "line": 114,
+          "text": "What this PR does not do"
+        }
+      ],
+      "keywords": [
+        "witness",
+        "report",
+        "gossip",
+        "receipts",
+        "receipt",
+        "kel",
+        "what",
+        "identity",
+        "state",
+        "design",
+        "duplicity",
+        "audit",
+        "design-only",
+        "repo",
+        "full",
+        "research",
+        "verifier",
+        "verification",
+        "recovery",
+        "invariant",
+        "gap",
+        "decision",
+        "phased",
+        "plan"
+      ],
+      "lines": 121,
+      "path": "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+      "sha256": "fd79f0d291361fd10d52a7364f9cdcdefba2e9ae95b6602c69e52d8ecba82890",
+      "symbols": [],
+      "title": "KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)"
     },
     {
       "bytes": 44811,
@@ -46006,6 +46078,42 @@
       "sha256": "3a4c23b5d9586586fa8cb3e8a526d715944a3aa8ce45b0a4d6e794a97e4e4807",
       "symbols": [],
       "title": "Pre-coding issue matrix"
+    },
+    {
+      "bytes": 58461,
+      "group": "docs",
+      "headings": [],
+      "keywords": [
+        "witness",
+        "event",
+        "identity",
+        "kel",
+        "verifier",
+        "threshold",
+        "receipt",
+        "research",
+        "receipts",
+        "repository",
+        "duplicity",
+        "gossip",
+        "seen",
+        "head",
+        "same",
+        "sequence",
+        "witnesses",
+        "rules",
+        "one",
+        "policy",
+        "certificate",
+        "never",
+        "current",
+        "but"
+      ],
+      "lines": 2221,
+      "path": "docs/research/KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md",
+      "sha256": "57836d3b9c277dbfef841f30ab0306e4c6ca03eaafe607edd5e4b264118f9f1d",
+      "symbols": [],
+      "title": "KEL Witness Receipts and Duplicity-Gossip Research Report"
     },
     {
       "bytes": 46938,
