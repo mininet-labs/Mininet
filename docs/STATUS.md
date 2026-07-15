@@ -406,6 +406,22 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   unimplemented and gated behind external cryptographic review (D-0047)
   until that review happens. See `docs/design/
   private-lookup-and-dht-boundary.md`.
+- **shipped** — `mini-bridge::pt_process` (D-0097, post-MN-207): a
+  generic Tor Pluggable Transport v1 managed-subprocess process
+  manager — `VerifiedExecutable` (pinned absolute path + mandatory
+  BLAKE3 digest check before every launch), `PtProcessManager::launch`
+  (no shell ever, `Command::new` only; minimal `env_clear()`'d
+  environment; a background-thread + `mpsc::channel` reader so a
+  bounded wall-clock deadline can preempt a hung child rather than
+  blocking forever on `BufRead::lines()`), and `PtProcessHandle`
+  (`methods()`, `pid()`, `terminate()` — kill then `wait()`, so success
+  is OS-confirmed exit, not merely a signal sent). Proven end to end
+  against a real compiled fake-PT fixture binary, not a mock. **No real
+  PT dependency yet** — this is the safety-boundary PR only; no
+  `PluggableTransport` impl exists for Lyrebird/WebTunnel/Snowflake/Tor,
+  no sandboxing beyond the OS's own process isolation, no
+  `ExternalAdapterManifest`/binary-provenance tooling. See `docs/design/
+  external-bridge-adapter-integration.md`.
 
 ## 7. Storage
 

@@ -5811,6 +5811,98 @@ section's own "if a third track appears, add it here" instruction — this
 is the one place in this append-only log where amending existing
 top-of-file policy text, not a dated entry, is the correct move).
 
+### D-0097 — Generic Tor Pluggable Transport v1 process manager: managed-subprocess safety boundary for `mini-bridge`, no real PT dependency (post-`MN-207`)  ·  *Accepted*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+BRIDGE_ADAPTER_INTEGRATION_RESEARCH_20260715.md`; `docs/design/
+external-bridge-adapter-integration.md` (new); D-0309 (`mini-bridge`,
+which this extends); CLAUDE.md's no-new-cryptography and no-shell rules
+
+**Decision:** adds `mini-bridge::pt_process`, implementing exactly the
+research report's own recommended PR2 scope (§24): a generic Tor
+Pluggable Transport v1 managed-subprocess process manager proving the
+safety boundary a real circumvention adapter (Lyrebird/WebTunnel/
+Snowflake) will later dial through, with zero real PT binary as a
+dependency. `VerifiedExecutable` requires an absolute pinned path and a
+BLAKE3 digest checked immediately before every launch — a binary that
+changed since approval is refused, not executed. `PtProcessManager::
+launch` spawns via `std::process::Command::new` only (never a shell, by
+construction — no code path assembles a command-line string for an
+interpreter), with `env_clear()` plus exactly the three PT v1 variables
+the protocol requires (`TOR_PT_MANAGED_TRANSPORT_VER`,
+`TOR_PT_CLIENTTRANSPORTS`, `TOR_PT_STATE_LOCATION`). Because a raw
+blocking `BufRead::lines()` loop cannot be preempted by a wall-clock
+deadline check between reads, the stdout handshake is read on a
+background thread over an `mpsc::channel`, letting the calling thread
+bound the whole startup handshake with `recv_timeout` against an
+absolute `Instant` deadline — a hung or slow child is killed and
+reported as `BridgeError::Timeout`, not waited on forever.
+`PtProcessHandle::terminate` kills then `wait()`s the child, so success
+is OS-confirmed exit. Proven end to end against a real compiled fake-PT
+fixture binary (`src/bin/fake_pt_fixture.rs`) in a new integration test
+file, `tests/pt_process_fixture.rs` (three tests: digest-mismatch
+refusal, a full valid handshake, and termination). Adds seven new
+`BridgeError` variants (reusing the existing enum per Directive 14,
+rather than inventing a parallel failure-taxonomy type). Zero new
+external dependencies — only `std` plus already-in-tree `mini-crypto`
+for the digest check.
+
+**Reason:** the research report's own executive conclusion is that the
+strongest first PR is the generic managed PT process adapter with a
+fake conformance child, proving the safety boundary before a real
+circumvention binary becomes part of the release — not starting
+directly on a real Lyrebird/obfs4 integration, which needs an audited
+external implementation this workspace would compose, not invent, and
+which is explicitly deferred to a future PR (§24 PR3+). Scoping this PR
+to zero new external dependencies was a deliberate choice matching this
+session's established external-dependency check-in precedent (adding a
+new crate dependency to security-relevant code requires an explicit,
+separate confirmation step) — nothing here needed one.
+
+**Constitutional impact:** none. No dependency changes at all beyond
+`mini-crypto` (already in-tree, path dep only, verify-only digest use —
+no signing, no key material). Directive 14 (no new cryptography) is
+reinforced: `VerifiedExecutable` composes `mini-crypto`'s existing
+BLAKE3 hashing, nothing here invents a primitive. The trust boundary is
+explicit and documented (`docs/design/
+external-bridge-adapter-integration.md`): a managed PT subprocess is
+trusted only to transform bytes and report a local endpoint — never to
+authenticate the Mininet bridge, choose policy, or touch identity/
+capability/governance state. Every PT connection is designed to
+terminate into a separate, independently authenticated
+`mini_bearer::Channel` handshake in a future PR, mirroring what
+`DirectBridgeTransport` already does — this PR does not perform that
+handshake itself.
+
+**Implementation status:** shipped and tested. `cargo fmt`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` are clean (full workspace, not
+just `mini-bridge` in isolation).
+
+**Failure point:** this proves the *process-management* safety boundary
+only. No `PluggableTransport` implementation exists yet for any real
+transport (Lyrebird/obfs4, WebTunnel, Snowflake, Tor), so nothing here
+is usable for real circumvention today. No sandboxing beyond whatever
+the host OS's own process isolation provides — a malicious or
+compromised (but digest-matching, i.e. supply-chain-compromised at the
+source) PT binary could still consume unbounded resources or attempt to
+attack the parent process directly; no `ExternalAdapterManifest` or
+binary-provenance/download tooling exists yet, so approving a real PT
+binary's digest remains a fully manual, out-of-band step.
+
+**Required follow-up:** a real `PluggableTransport` implementation
+dialing through a launched `PtProcessHandle`'s local endpoint plus the
+deferred inner `mini_bearer::Channel` handshake (Lyrebird/obfs4 first,
+per the research report's own priority ordering, then WebTunnel); a Tor
+SOCKS bearer kept isolated per the report's recommendation; Snowflake
+via Tor's own PT management; an `ExternalAdapterManifest`/provenance
+mechanism for approving and updating pinned binary digests; a platform-
+packaging study (§ per report). All explicitly deferred, not started in
+this PR.
+
+**Supersedes / superseded by:** none. Extends D-0309's `mini-bridge`
+additively (new module, new public types, new `BridgeError` variants);
+no existing type's behavior changed.
+
 ### D-0301 — TransportRequest policy router: new `mini-transport-policy` crate, no transport wired (lane L1, `MN-201`, closes tracking issue #134)  ·  *Accepted*
 **Date:** 2026-07-14 · **Refs:** D-0300 (lane plan); D-0094
 (`mini-privacy-policy`, the dependency this lane consumes);
