@@ -12,6 +12,23 @@
 //! are added by extending [`SignatureSuite`] *without* changing any wire format or
 //! call site, because the suite tag travels with the data. Nothing in this crate
 //! assumes Ed25519 is the only suite; it is merely the current default.
+//!
+//! ## Post-quantum migration status (D-0095, issue #15)
+//!
+//! [`SignatureSuite::MlDsa65`] (FIPS 204, wire tag `0x02`) is now real,
+//! composing the externally-maintained `fips204` crate — this crate does not
+//! implement ML-DSA's math itself, per CLAUDE.md's no-new-cryptography rule.
+//! This is **Phase 1 (verify-only) of the research report's phased plan**
+//! (`docs/research/PQ15_POST_QUANTUM_MIGRATION_RESEARCH_20260715.md` §24):
+//! [`crate::VerifyingKey`]/[`crate::Signature`] can parse and verify
+//! ML-DSA-65 material, but [`crate::SigningKey`] does not generate or sign
+//! with it — there is no production key-generation path yet, and `DEFAULT`
+//! stays [`SignatureSuite::Ed25519`]. See `docs/design/
+//! post-quantum-identity-migration.md` for what's implemented vs. deferred,
+//! and why: this crate only carries the primitive, not the KEL migration
+//! protocol (dual-signed hybrid rotation, downgrade prevention, legacy-client
+//! stale-head handling) that a real identity migration needs — that is
+//! `did-mini`'s future work, out of scope here.
 
 use crate::error::{CryptoError, Result};
 
@@ -26,10 +43,9 @@ use crate::error::{CryptoError, Result};
 pub enum SignatureSuite {
     /// Ed25519 (RFC 8032). The current default suite.
     Ed25519,
-    // Reserved for the post-quantum migration target (FIPS 204 / ML-DSA-65),
-    // wire tag 0x02. Added here when the implementation lands — no call site
-    // changes, because the tag travels with every key and signature.
-    //   MlDsa65,
+    /// ML-DSA-65 (FIPS 204) — the post-quantum migration target. Verify-only
+    /// in this crate today; see this module's doc comment.
+    MlDsa65,
 }
 
 impl SignatureSuite {
@@ -44,7 +60,7 @@ impl SignatureSuite {
     pub const fn tag(self) -> u8 {
         match self {
             SignatureSuite::Ed25519 => 0x01,
-            // SignatureSuite::MlDsa65 => 0x02, // reserved
+            SignatureSuite::MlDsa65 => 0x02,
         }
     }
 
@@ -52,6 +68,7 @@ impl SignatureSuite {
     pub fn from_tag(tag: u8) -> Result<Self> {
         match tag {
             0x01 => Ok(SignatureSuite::Ed25519),
+            0x02 => Ok(SignatureSuite::MlDsa65),
             other => Err(CryptoError::UnknownSuite(other)),
         }
     }
@@ -60,6 +77,7 @@ impl SignatureSuite {
     pub const fn public_key_len(self) -> usize {
         match self {
             SignatureSuite::Ed25519 => 32,
+            SignatureSuite::MlDsa65 => fips204::ml_dsa_65::PK_LEN,
         }
     }
 
@@ -67,6 +85,7 @@ impl SignatureSuite {
     pub const fn signature_len(self) -> usize {
         match self {
             SignatureSuite::Ed25519 => 64,
+            SignatureSuite::MlDsa65 => fips204::ml_dsa_65::SIG_LEN,
         }
     }
 }

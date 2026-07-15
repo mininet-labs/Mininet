@@ -146,11 +146,22 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   in-memory witness state machine, and KEL-verification integration as
   separate, later PRs, each gated behind external review (D-0047) before
   any high-value authority decision may depend on it.
-- **not started** — post-quantum migration path
-  ([#15](../../issues/15)), device
-  hierarchy beyond current single-tier delegation
-  ([#14](../../issues/14)), on-chain
-  pre-rotation anchoring (needs the chain).
+- **partial** — post-quantum migration path ([#15](../../issues/15),
+  D-0095): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire tag
+  `0x02`) is real — `VerifyingKey`/`Signature` parse and verify actual
+  ML-DSA-65 material, composing the external `fips204` crate rather than
+  implementing the lattice math in-house. **Verify-only**: `SigningKey`
+  stays Ed25519-only (no PQ generation in production code), `DEFAULT`
+  stays `Ed25519`, and `did-mini`'s KEL rotation logic is untouched — no
+  identity can actually migrate yet. See `docs/design/
+  post-quantum-identity-migration.md` for the phased plan this is Phase 1
+  of, and the honest limit found along the way: an all-zero ML-DSA-65
+  "public key" of the correct length parses successfully (FIPS 204's
+  encoding has no structural validity check the way Ed25519's does) but
+  never verifies a real signature.
+- **not started** — device hierarchy beyond current single-tier
+  delegation ([#14](../../issues/14)), on-chain pre-rotation anchoring
+  (needs the chain).
 
 ## 4. Money & finality
 
