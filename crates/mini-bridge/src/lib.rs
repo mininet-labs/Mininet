@@ -26,16 +26,27 @@
 //!   dials a real TCP socket and performs a genuine `mini_bearer::Channel`
 //!   handshake. See `direct.rs`'s module docs for why `DirectTlsV1`'s name
 //!   is a wire-tag label, not a claim of real TLS.
+//! - [`PtProcessManager`]/[`VerifiedExecutable`]/[`PtProcessHandle`]/
+//!   [`PtClientMethod`] (D-0097, `docs/research/
+//!   BRIDGE_ADAPTER_INTEGRATION_RESEARCH_20260715.md`): a generic Tor
+//!   Pluggable Transport v1 process manager proving the safety boundary
+//!   a real circumvention adapter will later dial through — spawn a
+//!   pinned, digest-verified executable with no shell and a minimal
+//!   environment, parse its startup handshake, terminate cleanly. No
+//!   real PT binary is a dependency of this crate; see `docs/design/
+//!   external-bridge-adapter-integration.md`.
 //!
 //! ## What's deliberately NOT implemented
 //!
-//! obfs4/Lyrebird, WebTunnel, Snowflake, and Tor pluggable-transport
-//! subprocess adapters all require either an audited external
-//! implementation or protocol work this crate does not attempt — the
-//! research report's own Phases 3-8. BLE/local-Wi-Fi bridging depends on
+//! No real Lyrebird/obfs4, WebTunnel, or Snowflake binary is integrated
+//! — each needs an audited external implementation this crate would
+//! compose, plus its own [`PluggableTransport`] implementation dialing
+//! through [`PtProcessManager`]'s local endpoint, both future PRs (D-0097's
+//! research report §24, PR3+). BLE/local-Wi-Fi bridging depends on
 //! hardware this environment cannot exercise (`mini-presence`'s existing
 //! honest limits apply here too). See `docs/design/
-//! bridge-pluggable-transport.md` for the full status table.
+//! bridge-pluggable-transport.md` and `docs/design/
+//! external-bridge-adapter-integration.md` for the full status tables.
 //!
 //! No new cryptography: [`BridgeDescriptor`] composes `did-mini`'s
 //! existing KEL/signature machinery, and [`DirectBridgeTransport`]
@@ -50,6 +61,7 @@ mod codec;
 mod descriptor;
 mod direct;
 mod error;
+mod pt_process;
 mod transport;
 mod transport_id;
 
@@ -62,5 +74,6 @@ pub use descriptor::{
 };
 pub use direct::DirectBridgeTransport;
 pub use error::{BridgeError, Result};
+pub use pt_process::{PtClientMethod, PtProcessHandle, PtProcessManager, VerifiedExecutable};
 pub use transport::PluggableTransport;
 pub use transport_id::TransportId;

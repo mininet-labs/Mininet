@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 40,
-    "files": 523,
-    "headings": 1849,
-    "rust_symbols": 3980
+    "files": 528,
+    "headings": 1857,
+    "rust_symbols": 4009
   },
   "crates": {
     "did-mini": {
@@ -4994,6 +4994,48 @@
       "title": "[package]"
     },
     {
+      "bytes": 793,
+      "group": "crate:mini-bridge",
+      "headings": [],
+      "keywords": [
+        "println",
+        "main",
+        "own",
+        "end",
+        "real",
+        "research",
+        "std",
+        "thread",
+        "duration",
+        "mini-bridge",
+        "bin",
+        "fake_pt_fixture",
+        "fake",
+        "tor",
+        "client",
+        "transport",
+        "used",
+        "pt_process",
+        "exercise",
+        "ptprocessmanager",
+        "launch",
+        "external",
+        "circumvention",
+        "binary"
+      ],
+      "lines": 24,
+      "path": "crates/mini-bridge/src/bin/fake_pt_fixture.rs",
+      "sha256": "356ebffd8b5be4647703726f6740f1ec5aa472860f7d028096465ac6a1d07c75",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 15,
+          "name": "main"
+        }
+      ],
+      "title": "use std::thread;"
+    },
+    {
       "bytes": 8280,
       "group": "crate:mini-bridge",
       "headings": [],
@@ -5492,7 +5534,7 @@
       "title": "use std::net::{SocketAddr, TcpStream};"
     },
     {
-      "bytes": 3925,
+      "bytes": 6113,
       "group": "crate:mini-bridge",
       "headings": [],
       "keywords": [
@@ -5501,29 +5543,29 @@
         "descriptor",
         "bridge",
         "transport",
-        "error",
+        "managed",
+        "subprocess",
         "result",
         "fmt",
         "bytes",
         "core",
+        "declared",
+        "does",
+        "could",
+        "caller",
+        "pinned",
+        "did",
+        "error",
         "identityerror",
         "cryptoerror",
         "bearererror",
-        "declared",
-        "identity",
-        "bearer",
-        "self",
-        "caller",
-        "crypto",
         "truncated",
         "decode",
-        "unrecognized",
-        "signature",
-        "expired"
+        "unrecognized"
       ],
-      "lines": 98,
+      "lines": 146,
       "path": "crates/mini-bridge/src/error.rs",
-      "sha256": "1c2e42ae3c847a4bf07ed57cb231bf5a77cd9939d983ab5a749671226441d66f",
+      "sha256": "df97d7f095e3988f625c0a6a3884593163005feda66dab1ab598cd8268a68a4e",
       "symbols": [
         {
           "kind": "type",
@@ -5537,123 +5579,275 @@
         },
         {
           "kind": "impl",
-          "line": 53,
+          "line": 74,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 54,
+          "line": 75,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 81,
+          "line": 129,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 83,
+          "line": 131,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 132,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 88,
+          "line": 136,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 137,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 93,
+          "line": 141,
           "name": "From<BearerError>"
         },
         {
           "kind": "fn",
-          "line": 94,
+          "line": 142,
           "name": "from"
         }
       ],
       "title": "use did_mini::IdentityError;"
     },
     {
-      "bytes": 3017,
+      "bytes": 3864,
       "group": "crate:mini-bridge",
       "headings": [],
       "keywords": [
-        "transport",
         "real",
-        "direct",
+        "transport",
         "research",
+        "direct",
+        "implementation",
         "capabilities",
         "descriptor",
         "error",
+        "pt_process",
         "transport_id",
         "report",
+        "through",
         "one",
         "here",
         "phase",
+        "adapter",
         "bridgedescriptor",
-        "implementation",
+        "pluggabletransport",
         "directbridgetransport",
+        "see",
+        "ptprocessmanager",
+        "design",
         "existing",
-        "codec",
-        "mn-207",
-        "protocol",
-        "pluggable-transport",
-        "adapters",
-        "what",
-        "implemented",
-        "transportid"
+        "codec"
       ],
-      "lines": 67,
+      "lines": 80,
       "path": "crates/mini-bridge/src/lib.rs",
-      "sha256": "0e9a8842ffca8c96981cb98a437125262c17bafd16cb61efc02c4c3ef51dc749",
+      "sha256": "e7b52d16187d0515f89a75349b39918453fdf8aab9aceee9a42033e78f0ad1e0",
       "symbols": [
         {
           "kind": "mod",
-          "line": 48,
+          "line": 59,
           "name": "capabilities"
         },
         {
           "kind": "mod",
-          "line": 49,
+          "line": 60,
           "name": "codec"
         },
         {
           "kind": "mod",
-          "line": 50,
+          "line": 61,
           "name": "descriptor"
         },
         {
           "kind": "mod",
-          "line": 51,
+          "line": 62,
           "name": "direct"
         },
         {
           "kind": "mod",
-          "line": 52,
+          "line": 63,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 53,
+          "line": 64,
+          "name": "pt_process"
+        },
+        {
+          "kind": "mod",
+          "line": 65,
           "name": "transport"
         },
         {
           "kind": "mod",
-          "line": 54,
+          "line": 66,
           "name": "transport_id"
         }
       ],
       "title": "mod capabilities;"
+    },
+    {
+      "bytes": 12851,
+      "group": "crate:mini-bridge",
+      "headings": [],
+      "keywords": [
+        "path",
+        "ptline",
+        "some",
+        "std",
+        "parts",
+        "digest",
+        "self",
+        "name",
+        "protocol",
+        "next",
+        "verifiedexecutable",
+        "new",
+        "executable",
+        "parse",
+        "addr",
+        "ptclientmethod",
+        "process",
+        "here",
+        "handshake",
+        "bridgeerror",
+        "expected_digest",
+        "cmethod",
+        "line",
+        "other"
+      ],
+      "lines": 359,
+      "path": "crates/mini-bridge/src/pt_process.rs",
+      "sha256": "7c3e271232370134c4c433c148cb5f80c1cd006e28feb2ea666c029d953827cf",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 43,
+          "name": "VerifiedExecutable"
+        },
+        {
+          "kind": "impl",
+          "line": 48,
+          "name": "VerifiedExecutable"
+        },
+        {
+          "kind": "fn",
+          "line": 52,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 62,
+          "name": "path"
+        },
+        {
+          "kind": "fn",
+          "line": 70,
+          "name": "verify"
+        },
+        {
+          "kind": "struct",
+          "line": 83,
+          "name": "PtClientMethod"
+        },
+        {
+          "kind": "enum",
+          "line": 89,
+          "name": "PtLine"
+        },
+        {
+          "kind": "fn",
+          "line": 104,
+          "name": "parse_pt_line"
+        },
+        {
+          "kind": "struct",
+          "line": 136,
+          "name": "PtProcessManager"
+        },
+        {
+          "kind": "struct",
+          "line": 145,
+          "name": "PtProcessHandle"
+        },
+        {
+          "kind": "impl",
+          "line": 150,
+          "name": "PtProcessManager"
+        },
+        {
+          "kind": "fn",
+          "line": 154,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 171,
+          "name": "launch"
+        },
+        {
+          "kind": "impl",
+          "line": 255,
+          "name": "PtProcessHandle"
+        },
+        {
+          "kind": "fn",
+          "line": 259,
+          "name": "methods"
+        },
+        {
+          "kind": "fn",
+          "line": 265,
+          "name": "pid"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
+          "name": "terminate"
+        },
+        {
+          "kind": "mod",
+          "line": 287,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 297,
+          "name": "a_relative_path_is_rejected_before_any_hashing"
+        },
+        {
+          "kind": "fn",
+          "line": 305,
+          "name": "a_nonexistent_pinned_path_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 322,
+          "name": "parse_pt_line_handles_the_required_client_subset"
+        },
+        {
+          "kind": "fn",
+          "line": 351,
+          "name": "a_malformed_cmethod_line_is_treated_as_other_not_a_crash"
+        }
+      ],
+      "title": "use std::io::{BufRead, BufReader};"
     },
     {
       "bytes": 1605,
@@ -5798,6 +5992,68 @@
         }
       ],
       "title": "use crate::error::{BridgeError, Result};"
+    },
+    {
+      "bytes": 2807,
+      "group": "crate:mini-bridge",
+      "headings": [],
+      "keywords": [
+        "handle",
+        "unwrap",
+        "fixture_path",
+        "executable",
+        "new",
+        "manager",
+        "pid",
+        "ptprocessmanager",
+        "env",
+        "fixture_digest",
+        "std",
+        "duration",
+        "verifiedexecutable",
+        "obfs4",
+        "assert_eq",
+        "real",
+        "pathbuf",
+        "vec",
+        "to_string",
+        "temp_dir",
+        "from_secs",
+        "launch",
+        "methods",
+        "terminate"
+      ],
+      "lines": 79,
+      "path": "crates/mini-bridge/tests/pt_process_fixture.rs",
+      "sha256": "74f67f84557dc5289505ecbbabf8fdc3413b6d4afcac524c050c130f7233a67c",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 16,
+          "name": "fixture_path"
+        },
+        {
+          "kind": "fn",
+          "line": 20,
+          "name": "fixture_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 26,
+          "name": "a_digest_mismatch_prevents_execution"
+        },
+        {
+          "kind": "fn",
+          "line": 41,
+          "name": "the_real_fixture_completes_a_valid_pt_v1_handshake"
+        },
+        {
+          "kind": "fn",
+          "line": 58,
+          "name": "terminate_returns_ok_and_the_process_is_actually_gone"
+        }
+      ],
+      "title": "use std::env;"
     },
     {
       "bytes": 2811,
@@ -35651,7 +35907,7 @@
       "title": "{"
     },
     {
-      "bytes": 409703,
+      "bytes": 415316,
       "group": "docs",
       "headings": [
         {
@@ -36081,9 +36337,9 @@
         "explicit",
         "live"
       ],
-      "lines": 6850,
+      "lines": 6942,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "011736de5f0fd39dd09901424e8dc7604742f880eaf1fbe4a51d607f7cee0acf",
+      "sha256": "57da5725822af97704eff28ffa6eeede7aa0f693a0d65ce7f6ed1ece50765f15",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -36941,7 +37197,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 47945,
+      "bytes": 49006,
       "group": "docs",
       "headings": [
         {
@@ -36981,32 +37237,32 @@
         },
         {
           "level": 2,
-          "line": 410,
+          "line": 426,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 451,
+          "line": 467,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 509,
+          "line": 525,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 538,
+          "line": 554,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 733,
+          "line": 749,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 739,
+          "line": 755,
           "text": "Where to look for more detail"
         }
       ],
@@ -37036,9 +37292,9 @@
         "equivocation",
         "validator"
       ],
-      "lines": 749,
+      "lines": 765,
       "path": "docs/STATUS.md",
-      "sha256": "f86fbcc6abd9c2cbe260e9edb51b02a7c61237e7a71fb6a77c72c598f633fed9",
+      "sha256": "3178ad71924553bac1e30d0ee4e83e3dd5f169a58709823ec3dde4d7332e93f3",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -38348,6 +38604,83 @@
       "sha256": "ce242fbad67ce9f4494aa78acf6b13acdaa6da5a8f15d726396dc6e995adbb49",
       "symbols": [],
       "title": "Credential taxonomy: participant, human, role, resource"
+    },
+    {
+      "bytes": 7525,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "External bridge adapter integration (post-MN-207, D-0097)"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "Decision"
+        },
+        {
+          "level": 2,
+          "line": 25,
+          "text": "The one rule everything else follows"
+        },
+        {
+          "level": 2,
+          "line": 36,
+          "text": "Trust boundary (the second most important rule)"
+        },
+        {
+          "level": 2,
+          "line": 54,
+          "text": "What's implemented in this PR: the generic PT process manager"
+        },
+        {
+          "level": 2,
+          "line": 89,
+          "text": "What this PR does not do"
+        },
+        {
+          "level": 2,
+          "line": 104,
+          "text": "Phased plan this repo commits to (see report \u00a724 for full detail)"
+        },
+        {
+          "level": 2,
+          "line": 120,
+          "text": "Hard rules carried forward from the report"
+        }
+      ],
+      "keywords": [
+        "process",
+        "report",
+        "bridge",
+        "path",
+        "what",
+        "tor",
+        "real",
+        "never",
+        "handshake",
+        "rule",
+        "boundary",
+        "manager",
+        "full",
+        "binary",
+        "command",
+        "shell",
+        "external",
+        "adapter",
+        "decision",
+        "implemented",
+        "generic",
+        "does",
+        "mini-bridge",
+        "pt_process"
+      ],
+      "lines": 142,
+      "path": "docs/design/external-bridge-adapter-integration.md",
+      "sha256": "4548b4b41cb1b16e2c9281640a41020c5f3cd287964c8449f0612a3859baf859",
+      "symbols": [],
+      "title": "External bridge adapter integration (post-MN-207, D-0097)"
     },
     {
       "bytes": 7972,
@@ -46260,6 +46593,42 @@
       "sha256": "3a4c23b5d9586586fa8cb3e8a526d715944a3aa8ce45b0a4d6e794a97e4e4807",
       "symbols": [],
       "title": "Pre-coding issue matrix"
+    },
+    {
+      "bytes": 40128,
+      "group": "docs",
+      "headings": [],
+      "keywords": [
+        "tor",
+        "protocol",
+        "integration",
+        "lyrebird",
+        "webtunnel",
+        "snowflake",
+        "managed",
+        "shell",
+        "research",
+        "adapter",
+        "external",
+        "subprocess",
+        "process",
+        "transport",
+        "project",
+        "bridge",
+        "implementations",
+        "obfs4",
+        "pluggable",
+        "vendor",
+        "recommendation",
+        "ship",
+        "first",
+        "native"
+      ],
+      "lines": 1437,
+      "path": "docs/research/BRIDGE_ADAPTER_INTEGRATION_RESEARCH_20260715.md",
+      "sha256": "7401f59ea1039dc6fc357b9849a2377aac1836e51da5b557a154904924d9196e",
+      "symbols": [],
+      "title": "Bridge Adapter Integration Research Report"
     },
     {
       "bytes": 58461,

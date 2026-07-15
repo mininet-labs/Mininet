@@ -42,6 +42,27 @@ pub enum BridgeError {
     /// The descriptor's opaque endpoint bytes could not be interpreted by
     /// the transport being used to dial it.
     BadEndpoint,
+    /// A [`crate::pt_process::VerifiedExecutable`]'s pinned path does not
+    /// exist or could not be read.
+    ExecutableUnavailable,
+    /// A [`crate::pt_process::VerifiedExecutable`]'s file contents did not
+    /// hash to the pinned expected digest — the binary at that path has
+    /// changed since it was approved, and must not be executed.
+    ExecutableDigestMismatch,
+    /// A managed PT subprocess could not be spawned.
+    ProcessStartFailed,
+    /// A managed PT subprocess's stdout handshake did not conform to the
+    /// Tor PT v1 protocol (unparseable line, `VERSION-ERROR`,
+    /// `ENV-ERROR`, `CMETHOD-ERROR`, or EOF before `CMETHODS DONE`).
+    ProtocolNegotiationFailed,
+    /// A managed PT subprocess reported a control-protocol version this
+    /// crate does not support.
+    UnsupportedVersion,
+    /// A managed PT subprocess did not complete its startup handshake
+    /// within the configured timeout.
+    Timeout,
+    /// A managed PT subprocess exited before or during startup.
+    ProcessExited,
     /// An identity/delegation/signature failure.
     Identity(IdentityError),
     /// A cryptographic primitive failure.
@@ -71,6 +92,33 @@ impl core::fmt::Display for BridgeError {
                 write!(f, "bridge descriptor was issued for a different transport")
             }
             BridgeError::BadEndpoint => write!(f, "opaque endpoint bytes could not be parsed"),
+            BridgeError::ExecutableUnavailable => {
+                write!(
+                    f,
+                    "pinned executable path does not exist or could not be read"
+                )
+            }
+            BridgeError::ExecutableDigestMismatch => write!(
+                f,
+                "executable file contents do not match the pinned expected digest"
+            ),
+            BridgeError::ProcessStartFailed => write!(f, "failed to spawn managed PT subprocess"),
+            BridgeError::ProtocolNegotiationFailed => {
+                write!(
+                    f,
+                    "managed PT subprocess handshake did not conform to Tor PT v1"
+                )
+            }
+            BridgeError::UnsupportedVersion => {
+                write!(
+                    f,
+                    "managed PT subprocess reported an unsupported protocol version"
+                )
+            }
+            BridgeError::Timeout => write!(f, "managed PT subprocess startup timed out"),
+            BridgeError::ProcessExited => {
+                write!(f, "managed PT subprocess exited before completing startup")
+            }
             BridgeError::Identity(e) => write!(f, "identity error: {e}"),
             BridgeError::Crypto(e) => write!(f, "crypto error: {e}"),
             BridgeError::Bearer(e) => write!(f, "bearer error: {e}"),
