@@ -35,7 +35,12 @@ impl LocalIndex {
     /// 3. `record.sequence` must strictly exceed the stored record's
     ///    sequence ([`IndexError::RollbackRejected`] otherwise) — refuses
     ///    replays and rollbacks of an older record over a newer one.
-    pub fn write(&mut self, record: PrivateIndexRecord, writer_kel: &Kel, now_ms: u64) -> Result<()> {
+    pub fn write(
+        &mut self,
+        record: PrivateIndexRecord,
+        writer_kel: &Kel,
+        now_ms: u64,
+    ) -> Result<()> {
         record.verify(writer_kel, now_ms)?;
         let key = record.lookup_label.to_bytes();
         if let Some(existing) = self.records.get(&key) {
@@ -85,7 +90,12 @@ mod tests {
         LookupLabel::from_bytes([byte; 32])
     }
 
-    fn record(writer: &Controller, label: LookupLabel, sequence: u64, expires_at_ms: u64) -> PrivateIndexRecord {
+    fn record(
+        writer: &Controller,
+        label: LookupLabel,
+        sequence: u64,
+        expires_at_ms: u64,
+    ) -> PrivateIndexRecord {
         PrivateIndexRecord::issue(
             writer,
             IndexEpoch(1),

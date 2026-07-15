@@ -67,10 +67,9 @@ impl core::fmt::Display for BridgeError {
                 f,
                 "transport capabilities do not satisfy the caller's declared minimum"
             ),
-            BridgeError::TransportMismatch => write!(
-                f,
-                "bridge descriptor was issued for a different transport"
-            ),
+            BridgeError::TransportMismatch => {
+                write!(f, "bridge descriptor was issued for a different transport")
+            }
             BridgeError::BadEndpoint => write!(f, "opaque endpoint bytes could not be parsed"),
             BridgeError::Identity(e) => write!(f, "identity error: {e}"),
             BridgeError::Crypto(e) => write!(f, "crypto error: {e}"),

@@ -54,9 +54,7 @@ mod lookup_class;
 mod record;
 
 pub use error::{IndexError, Result};
-pub use label::{
-    derive_lookup_label, CapabilitySecret, IndexEpoch, LookupLabel, LookupPurpose,
-};
+pub use label::{derive_lookup_label, CapabilitySecret, IndexEpoch, LookupLabel, LookupPurpose};
 pub use local_index::LocalIndex;
 pub use lookup_class::LookupPrivacyClass;
 pub use record::{PrivateIndexRecord, RecordSizeClass, RECORD_VERSION};

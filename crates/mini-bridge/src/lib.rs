@@ -53,7 +53,9 @@ mod error;
 mod transport;
 mod transport_id;
 
-pub use capabilities::{capabilities_for, AddressAgility, CostClass, ProbeResistance, TransportCapabilities};
+pub use capabilities::{
+    capabilities_for, AddressAgility, CostClass, ProbeResistance, TransportCapabilities,
+};
 pub use descriptor::{
     BridgeDescriptor, DistributorScope, OpaqueEndpoint, TransportParameters, DESCRIPTOR_VERSION,
     MAX_DISTRIBUTOR_SCOPE_BYTES, MAX_ENDPOINT_BYTES, MAX_TRANSPORT_PARAMETERS_BYTES,

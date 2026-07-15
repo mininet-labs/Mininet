@@ -14,10 +14,10 @@ use crate::error::{BridgeError, Result};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum TransportId {
-    /// A direct connection to a bridge's own address, secured by this
-    /// workspace's existing `mini-bearer` `Channel` (X25519 + HKDF-SHA256
-    /// + ChaCha20-Poly1305). The `TlsV1` name is a wire-tag label, **not**
-    /// a claim of real TLS — see `direct.rs`'s module docs.
+    /// Direct connection to a bridge's own address, secured by this
+    /// workspace's existing `mini-bearer` `Channel` (X25519, HKDF-SHA256,
+    /// ChaCha20-Poly1305). The `TlsV1` name is a wire-tag label, not a
+    /// claim of real TLS. See `direct.rs`'s module docs.
     DirectTlsV1,
     /// Reserved for a future direct QUIC-based transport. Not implemented.
     DirectQuicV1,
@@ -105,9 +105,6 @@ mod tests {
     #[test]
     fn an_unrecognized_tag_is_rejected() {
         assert_eq!(TransportId::from_tag(0), Err(BridgeError::BadTransportId));
-        assert_eq!(
-            TransportId::from_tag(200),
-            Err(BridgeError::BadTransportId)
-        );
+        assert_eq!(TransportId::from_tag(200), Err(BridgeError::BadTransportId));
     }
 }

@@ -54,7 +54,10 @@ impl core::fmt::Display for IndexError {
             IndexError::BadLookupPurpose => write!(f, "unrecognized lookup purpose tag"),
             IndexError::BadSizeClass => write!(f, "unrecognized record size class tag"),
             IndexError::UnsupportedRecordVersion => {
-                write!(f, "unsupported or unrecognized private-index record version")
+                write!(
+                    f,
+                    "unsupported or unrecognized private-index record version"
+                )
             }
             IndexError::RecordExceedsSizeClass => {
                 write!(f, "encrypted descriptor exceeds its declared size class")

@@ -1112,6 +1112,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-bridge"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-bearer",
+ "mini-crypto",
+]
+
+[[package]]
 name = "mini-build-runner-wasmtime"
 version = "0.0.1"
 dependencies = [
@@ -1305,6 +1314,15 @@ dependencies = [
 [[package]]
 name = "mini-privacy-policy"
 version = "0.0.1"
+
+[[package]]
+name = "mini-private-index"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "zeroize",
+]
 
 [[package]]
 name = "mini-provenance"
