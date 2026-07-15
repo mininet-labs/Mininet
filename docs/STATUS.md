@@ -361,6 +361,34 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   socket — it's pure local logic already covered by `mailbox.rs`'s own 21
   unit tests. Threads on loopback within one process, not genuinely
   separate OS processes (unlike `mini-net`'s `gossip_live_demo`).
+- **shipped** — `mini-bridge` (D-0309, `MN-207`): pluggable entry-
+  transport interface — `TransportId` (nine `#[non_exhaustive]` wire-
+  stable tags), `TransportCapabilities`/`capabilities_for` (declared, not
+  measured, policy facts for every named transport), `BridgeDescriptor`
+  (self-signed one-party reachability claim, mandatory non-`Option`
+  expiry), synchronous `PluggableTransport` trait, and one real
+  implementation `DirectBridgeTransport` (real TCP dial + genuine
+  `mini_bearer::Channel` handshake, descriptor verified strictly before
+  the socket is touched). 24 new tests. **Deferred**: obfs4/WebTunnel/
+  Snowflake/Tor-PT adapters (need audited external implementations),
+  local BLE/Wi-Fi transports (hardware this environment cannot
+  exercise), bridge distribution, measurement/probing detection.
+  `TransportId::DirectTlsV1`'s name is a wire-tag label, not a claim of
+  real TLS — see `docs/design/bridge-pluggable-transport.md`.
+- **shipped** — `mini-private-index` (D-0310, `MN-208`): the privacy
+  boundary between public DHT routing and private capability resolution
+  — `LookupPrivacyClass` (frozen, ordered, five-tier taxonomy, only
+  `CapabilityScoped`'s primitive implemented), `derive_lookup_label` via
+  HKDF-SHA256 across nine disjoint purpose domains, `PrivateIndexRecord`/
+  `RecordSizeClass` (signed, fixed-size-class, opaque payload), and
+  `LocalIndex` (local-only store enforcing signature/writer/rollback
+  discipline; `lookup()` returns `None` indistinguishably for missing vs.
+  expired). 27 new tests. **"No network yet"** — no wire protocol, no
+  replicated index service, no relay-based role separation, no query
+  batching/decoys, and `LookupPrivacyClass::PrivatePIR` stays
+  unimplemented and gated behind external cryptographic review (D-0047)
+  until that review happens. See `docs/design/
+  private-lookup-and-dht-boundary.md`.
 
 ## 7. Storage
 

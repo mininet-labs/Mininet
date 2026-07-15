@@ -39,7 +39,7 @@ code, and frozen. A full, code-mapped register is in
 
 ## What exists today — honestly
 
-This repository is the **self-contained Rust core**: ~38 crates, no external
+This repository is the **self-contained Rust core**: ~40 crates, no external
 dependency on any single company's infrastructure to keep running. Nothing
 here is ready for real people, real money, or real custody yet — and it says
 so, everywhere, on purpose.
@@ -104,16 +104,33 @@ so, everywhere, on purpose.
   `mini-privacy-policy`'s declared tier costs, in the workspace's plain
   micro-MINI convention — quoting only, no payment execution, no
   dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`
-- `mini-relay` (D-0306): Tier 1 relay + rendezvous protocol — role-
-  separated entry/rendezvous/delivery relaying, rotating mailbox
-  capabilities (`MailboxGrant`, holder-bound and token-committed like
-  `mini-objects`' capability grants but a separate typed domain),
+- `mini-relay` (D-0306/D-0307/D-0308): Tier 1 relay + rendezvous
+  protocol — role-separated entry/rendezvous/delivery relaying, rotating
+  mailbox capabilities (`MailboxGrant`, holder-bound and token-committed
+  like `mini-objects`' capability grants but a separate typed domain),
   connection-scoped ephemeral identities never tied to a `did:mini` root,
-  and role-separation enforcement so no single relay operator holds two
-  roles for one delivery; AEAD-sealed per-hop envelopes proven in-process
-  against real `mini-bearer` channels — no live multi-process relay demo
-  yet, and DHT-lookup restriction (`MN-208`) is out of scope until
-  `mini-net` has a value-storage layer to restrict at all
+  role-separation enforcement so no single relay operator holds two roles
+  for one delivery, `mini_transport_policy::route()` decisions wired to
+  role planning, and an automated `cargo test` proving a message crosses
+  two independently-established real TCP+`Channel` hops byte-for-byte —
+  hop-by-hop store-and-forward, not onion routing (`MN-205` mix routing
+  is a separate, still-gated tier)
+- `mini-bridge` (D-0309, `MN-207`): a pluggable entry-transport
+  interface — `TransportId`/`TransportCapabilities` naming nine
+  transport kinds with declared policy facts, a self-signed
+  `BridgeDescriptor` reachability claim with a mandatory (non-optional)
+  expiry, a synchronous `PluggableTransport` trait, and one real
+  implementation (`DirectBridgeTransport`) dialing a real TCP socket
+  through a genuine `mini-bearer` channel handshake — obfs4/WebTunnel/
+  Snowflake/Tor-PT adapters are named but not implemented, pending
+  audited external implementations
+- `mini-private-index` (D-0310, `MN-208`): the privacy boundary between
+  public DHT routing and private capability resolution — a frozen
+  `LookupPrivacyClass` taxonomy, capability-derived rotating
+  `LookupLabel`s via HKDF-SHA256, a signed fixed-size-class
+  `PrivateIndexRecord`, and a local `LocalIndex` enforcing signature/
+  writer/rollback discipline; doctrine plus one local-only primitive —
+  no network, no PIR, no replicated index service yet
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential

@@ -6553,3 +6553,143 @@ like `gossip_live_demo`) if that becomes independently useful.
 
 **Supersedes / superseded by:** none. New test file only; no existing
 type or behavior changed.
+
+### D-0309 — `mini-bridge`: pluggable entry-transport interface, one real direct implementation (`MN-207`)  ·  *Accepted*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+MN207_BRIDGE_PLUGGABLE_TRANSPORT_RESEARCH_20260714.md`; `docs/design/
+bridge-pluggable-transport.md` (new); D-0306 (role-separated relay this
+crate's `DirectBridgeTransport` connects toward); CLAUDE.md's no-new-
+cryptography rule
+
+**Decision:** adds `mini-bridge`, a new, additive-only crate (zero
+changes to any existing crate) implementing exactly the research
+report's own recommended first slice: a typed, `#[non_exhaustive]`
+`TransportId` naming nine transport kinds; `TransportCapabilities`/
+`capabilities_for` declaring policy facts (probe resistance, address
+agility, domain/broker dependency, overhead class) for every named
+transport, including ones with no adapter yet; `BridgeDescriptor`, a
+self-signed one-party reachability claim with a mandatory (non-`Option`)
+`expires_at_ms` enforcing "short-lived where practical" at the type
+level; a synchronous `PluggableTransport` trait (this workspace has no
+async runtime anywhere — `mini_bearer::Bearer` is the existing
+sync-trait precedent, diverging deliberately from the research report's
+own illustrative `async fn connect` pseudocode); and one real, tested
+implementation, `DirectBridgeTransport`, dialing a real TCP socket via
+`TcpStream::connect_timeout` and performing a genuine `mini_bearer::
+Channel` handshake, verifying the descriptor's signature and validity
+window strictly before the socket is touched. 24 new tests, including a
+real-socket test proving a sealed/opened message round-trips end to end.
+
+**Reason:** the research report's executive conclusion is explicit that
+MN-207 should not become "invent a Mininet obfuscation protocol" — it
+should be a small, typed interface plus adapters to already-proven
+external systems added over time. Implementing exactly the report's own
+Phase 0/1/one-real-Phase-2 recommendation (rather than attempting obfs4/
+WebTunnel/Snowflake/Tor-PT adapters, which need audited external
+implementations this workspace would compose, not invent) keeps this
+batch inside what a single PR can honestly claim to have built and
+tested.
+
+**Constitutional impact:** none. No dependency changes beyond
+`mini-crypto`/`did-mini`/`mini-bearer` (all already in-tree, path deps
+only). Directive 14 (no new cryptography) is reinforced: `BridgeDescriptor`
+composes `did-mini`'s existing KEL/signature machinery and
+`DirectBridgeTransport` composes `mini-bearer`'s existing `Channel` —
+nothing here invents a primitive. `TransportId::DirectTlsV1`'s `Tls` is a
+wire-tag label carried over from the research report's own taxonomy, not
+a claim of real TLS — see the crate's `direct.rs` module docs and the
+design doc's honesty section.
+
+**Implementation status:** shipped and tested. `cargo fmt`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` are clean.
+
+**Failure point:** `TransportCapabilities` are **declared** policy facts,
+not measured ones — a transport's real-world probe resistance depends on
+deployment and the current adversary, and nothing in this crate verifies
+a declared capability against live network behavior. `DirectBridgeTransport`
+provides no address agility, no obfuscation, and no probe resistance
+beyond `mini-bearer`'s existing channel properties — it is a real
+transport, not a censorship-resistant one on its own.
+
+**Required follow-up:** obfs4/Lyrebird, WebTunnel, Snowflake, and Tor
+pluggable-transport subprocess adapters (research report Phases 3-8),
+each gated on an audited external implementation; bridge-distribution
+channels; measurement/active-probing-detection tooling; local BLE/Wi-Fi
+bridge transports (gated on hardware this environment cannot exercise,
+mirroring `mini-presence`'s existing honest limits); wiring
+`mini-transport-policy`'s routing decisions to transport selection.
+
+**Supersedes / superseded by:** none. New crate only; no existing type
+or behavior in any other crate changed.
+
+### D-0310 — `mini-private-index`: capability-derived lookup labels + local signed index, doctrine for the public-DHT boundary (`MN-208`)  ·  *Accepted*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+MN208_PRIVATE_LOOKUP_DHT_RESEARCH_20260714.md`; `docs/design/
+private-lookup-and-dht-boundary.md` (new); D-0306 (independently
+confirmed `mini-net` has no value-storage DHT layer to restrict, the
+premise this decision starts from); tracking issue #144;
+CLAUDE.md's no-new-cryptography rule, D-0047 (external crypto review gate)
+
+**Decision:** adds `mini-private-index`, a new, additive-only crate
+(zero changes to any existing crate) implementing exactly the research
+report's own recommended Phase 0 (doctrine) and Phase 1 (local-only
+primitive): `LookupPrivacyClass`, a frozen, ordered, `#[non_exhaustive]`
+five-tier taxonomy (`Public` → `CapabilityScoped` → `PrivateProxied` →
+`PrivateBundled` → `PrivatePIR`); `derive_lookup_label` deriving
+capability-scoped rotating `LookupLabel`s via HKDF-SHA256 across nine
+disjoint `LookupPurpose` domains; `PrivateIndexRecord`/`RecordSizeClass`,
+a signed, fixed-size-class record whose opaque encrypted payload this
+crate never interprets; and `LocalIndex`, a local, in-memory store
+enforcing signature validity, writer-cannot-hijack-another's-label, and
+strictly-increasing sequence (rollback rejection), with `lookup()`
+returning `None` indistinguishably for both a missing and an expired
+record. 27 new tests, including rollback-rejection, writer-hijack-
+rejection, and cross-label-non-collision cases. Only
+`LookupPrivacyClass::CapabilityScoped`'s primitive is implemented; the
+other four tiers are named as a stable vocabulary for future work, not
+built.
+
+**Reason:** the research report's executive conclusion is explicit that
+MN-208 should not begin by building a general-purpose value DHT and
+adding privacy around it afterward — `mini-net` has no provider-record
+or value-storage DHT to restrict today, independently confirmed while
+scoping `mini-relay` (D-0306, #144). The correct first slice is a design
+doctrine plus a narrowly scoped local primitive proving the
+signature/rollback/label discipline a networked private index would need
+to enforce per-replica — not a network protocol, which the report itself
+sequences later (role-separated queries, batching/decoys, PIR).
+
+**Constitutional impact:** none. No dependency changes beyond
+`mini-crypto`/`did-mini`/`zeroize` (all already in-tree elsewhere).
+Directive 14 (no new cryptography) is reinforced: `derive_lookup_label`
+is HKDF-SHA256 via `mini_crypto::KdfSuite`, the same already-reviewed
+primitive `mini-bearer`'s channel and `mini-treasury`'s key derivation
+use. `LookupPrivacyClass::PrivatePIR` is explicitly named but not
+implemented, and this decision records that no future PR may claim that
+tier without the external cryptographic review D-0047 requires.
+
+**Implementation status:** shipped and tested. `cargo fmt`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` are clean.
+
+**Failure point:** `LocalIndex` is genuinely local-only — "No network
+yet" is not a hedge, it is the actual scope. Nothing in this crate hides
+a client's network address from an index service (needs the deferred
+relay-based role-separation layer), nothing pads or batches query
+traffic, and the encrypted payload's confidentiality is entirely the
+caller's responsibility — this crate stores and forwards opaque bytes
+and authenticates only the writer and the label, not the payload's
+plaintext meaning.
+
+**Required follow-up:** a real wire protocol and replicated private-index
+service (Phase 2+); relay-based OHTTP-style query role separation (Phase
+3, likely composing `mini-relay`); query batching/decoys and
+caching/prefetch (Phase 4-5); PIR research and external cryptographic
+review before `PrivatePIR` may be implemented (Phase 9, gated on D-0047);
+wiring a real content-encryption scheme behind `LookupPurpose::
+RecordEncryption`/`RecordAuthentication`, currently reserved domains with
+no wiring.
+
+**Supersedes / superseded by:** none. New crate only; no existing type
+or behavior in any other crate changed.
