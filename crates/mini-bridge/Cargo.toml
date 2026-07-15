@@ -1,0 +1,15 @@
+[package]
+name = "mini-bridge"
+version = "0.0.1"
+description = "MN-207 pluggable entry-transport interface: transport-agnostic bridge descriptors and a synchronous PluggableTransport trait, plus one real Phase-2 direct transport over mini-bearer."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+mini-bearer = { path = "../mini-bearer" }

@@ -1,0 +1,15 @@
+[package]
+name = "mini-private-index"
+version = "0.0.1"
+description = "MN-208 private-lookup boundary: capability-derived rotating lookup labels and a local, signed, sequence-enforced private index record store — doctrine plus one real local-only primitive, no network yet."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+zeroize = "1"
