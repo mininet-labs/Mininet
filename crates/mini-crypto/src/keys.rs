@@ -53,6 +53,7 @@ pub struct VerifyingKey {
 /// A secret signing key, tagged with its suite. Secret material stays on-device.
 ///
 /// Ed25519-only today — see this module's doc comment.
+#[derive(Clone)]
 pub struct SigningKey {
     suite: SignatureSuite,
     inner: DalekSigningKey,
