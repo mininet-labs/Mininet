@@ -45,6 +45,8 @@ members = [
     "crates/mini-transport-policy",
     "crates/mini-resource-pricing",
     "crates/mini-relay",
+    "crates/mini-bridge",
+    "crates/mini-private-index",
 ]
 
 [workspace.package]
