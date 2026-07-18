@@ -207,8 +207,12 @@ domain), [`docs/gates/`](docs/gates/) (external legitimacy gates),
 Pack — normative process/specification material, subordinate to the five
 documents above; see
 [`docs/GOVERNANCE_PACK_INTEGRATION.md`](docs/GOVERNANCE_PACK_INTEGRATION.md)
-for what's activated, staged, or founder-only). Find anything offline:
-`python3 tools/mininet_nav.py map` (see [`docs/NAVIGATION.md`](docs/NAVIGATION.md)).
+for what's activated, staged, or founder-only),
+[`docs/LEGAL_DISCLAIMER.md`](docs/LEGAL_DISCLAIMER.md) (the project's
+constitutional legal position — voluntary participation, no universal
+representative, individual legal responsibility, no protocol ownership).
+Find anything offline: `python3 tools/mininet_nav.py map` (see
+[`docs/NAVIGATION.md`](docs/NAVIGATION.md)).
 
 ## License
 

@@ -16,6 +16,59 @@ for part of the claim, gap documented) · **prototype** (real code, but
 explicitly founder-reviewed only, pending external audit) · **design-only**
 (written design exists, no code yet) · **not started**.
 
+## Top development priority (2026-07-18 founder direction)
+
+*Recorded here rather than in `CLAUDE.md` because `CLAUDE.md` is an
+instruction-surface file locked byte-identical to its canonical state by
+`tools/check_governance.py`'s `governance-canonical`/`governance-baseline`
+checks for as long as `governance/ai-charter-activation.json`'s `status`
+is `"active"` (it has been since 2026-07-12, D-0084) — any PR that edits
+`CLAUDE.md` fails those checks unconditionally, by design, regardless of
+content. Changing that would require a formal charter-activation
+amendment (a new final Decision re-pinning the activation record's
+digests), not an ordinary docs PR, so this file carries the substance
+instead.*
+
+The founder has named **forge, storage, search, social network,
+governance, and the crypto/anonymity/security stack** as the top
+development priority, explicitly framed as finishing internet search and
+the social network together with the forge as soon as reasonably
+possible. Concretely, in priority order as founder-supplied
+research/decisions land:
+
+1. **Forge** — continue Batch 5/6 of `docs/design/
+   self-hosted-forge-spine.md` (local object indexing at scale,
+   distributed build workers, GitHub import/export mirror automation).
+2. **Storage** — `mini-storage`/`mini-erasure`/`mini-spacetime`/
+   `mini-porep` hardening plus the suppression-resistant replication
+   path named in D-0311 (Track D5).
+3. **Search** — MiniSearch (D-0312): `mini-web-types` → minimal crawler
+   → sandboxed extraction → lexical index → transparent ranker → query
+   CLI → federated/distributed layer (Tracks E/F, `docs/research/
+   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`).
+4. **Social network** — `mini-social`/`mini-profile`/`mini-objects` wired
+   to the free-commons entitlements (D-0311, Track C) and to Mininet
+   Intake (Track B) as the native, clean-room (no Inbox-Ingestor
+   code/dependency) document/evidence intake boundary.
+5. **Governance** — `mini-forge::governance` is not to be re-proposed
+   (it predates the audit and already exists); priority here is closing
+   the remaining Batch 5/6 gaps, not inventing a new object model.
+6. **Crypto + anonymity + security** — D-0098 (PIR research prep),
+   D-0099 (anonymous resource-token doctrine), D-0305 (mix-network
+   research), and the external-review gates (D-0047) that block all of
+   the above from claiming real privacy/value guarantees before audit.
+
+This is a large, multi-track, multi-month body of original engineering
+(see `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+Part V's Tracks A-F for the full PR-by-PR breakdown) — it is sequenced
+incrementally, one real narrowly-scoped deliverable per PR with the full
+fmt/clippy/test/governance ritual every time, never "finished" in one
+batch. Track A (D-0311/D-0312 doctrine) is the first slice; Track B1
+(`mini-intake-types`, D-0313) is the first code slice — see the rest of
+this file for what's actually shipped vs. still doctrine-only at any
+given time.
+
 ## 1. Voice / value
 
 - **shipped** — `ValidatorSet`/governance quorum counting has no weight
@@ -444,6 +497,18 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `LookupPrivacyClass::PrivatePIR` remains exactly as unimplemented and
   D-0047-gated as before this decision. See `docs/design/
   mn208-pir-research-and-review-preparation.md`.
+- **doctrine-only** — free public commons and paid protected publishing
+  (D-0311): ordinary public viewing, posting, replying, commenting,
+  reacting, and searching are protocol entitlements independent of
+  wallet balance; payment purchases only additional resource-consuming
+  protection (relay/mix/cover/replication/private-retrieval) supplied by
+  other participants, never speech, governance weight, or organic
+  ranking. **No code** — `PublicCommonsPolicy`, `PublicationProfile`
+  (visibility/attribution/transport/persistence as four independent
+  axes), bounded opt-in contribution budgets, and the source-hiding
+  protected-publication path are all future work (Tracks C/D). See
+  `docs/research/
+  MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
 
 ## 7. Storage
 
@@ -767,6 +832,40 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   The scoped-team `CODEOWNERS.template` remains inert until those humans exist. See
   `docs/GOVERNANCE_PACK_INTEGRATION.md` for the full compatibility
   matrix and what's staged vs. founder-only.
+
+## 11. Discovery / search
+
+Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
+2026-07-18 direction (`docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`)
+naming forge/storage/search/social-network/governance/crypto-anonymity as
+the top development priority.
+
+- **doctrine-only** — MiniSearch, independent open-web search (D-0312):
+  founder decision that Mininet builds and operates its own crawler/
+  index/search stack — free public search as a commons entitlement
+  (D-0311), no pay-to-rank organic results, no mandatory
+  personalization (`PersonalizationPolicy::None` default), retrieval
+  relevance kept structurally separate from spam/malware/legal/user-
+  filter layers so a restriction is always an explicit
+  `AvailabilityState` reason rather than a silent ranking penalty, and
+  architected for plurality (multiple index segments, multiple
+  forkable ranking profiles, federated query merging, local
+  re-ranking) so MiniSearch cannot itself become a second search
+  monopoly. **No code** — `mini-web-types`, `mini-crawler`,
+  `mini-web-extract`, `mini-index`, `mini-ranker`, `mini-query`,
+  `mini-search-service`, and the federated/distributed layer (Tracks
+  E/F) are all future work; none exist yet. Explicitly a distinct
+  system from `mini-private-index` (D-0310), which is not to be
+  repurposed as the general web index. See `docs/research/
+  MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
+- **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
+  Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
+  `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
+  a deterministic wire codec. Real, tested (35 unit tests). No parser,
+  filesystem watcher, network client, storage, or AI model — those are
+  Tracks B2-B5 (`mini-intake`, the extractor protocol, PDF/HTML
+  extraction backends, intake publication linking), not started.
 
 ## What has no client, at all
 
