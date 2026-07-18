@@ -217,6 +217,49 @@ what's activated vs. staged vs. founder-only),
 
 Find anything: `python3 tools/mininet_nav.py map` (see `docs/NAVIGATION.md`).
 
+## Top development priority (2026-07-18 founder direction)
+
+The founder has made the priority call named as open in the D-0066
+section below: **forge, storage, search, social network, governance,
+and the crypto/anonymity/security stack are the top development
+priority**, explicitly framed as finishing internet search and the
+social network together with the forge as soon as reasonably possible.
+This supersedes "not something to pick unilaterally" for exactly these
+six areas — it is the founder's own pick. Concretely, in priority order
+as founder-supplied research/decisions land:
+
+1. **Forge** — continue Batch 5/6 of `docs/design/
+   self-hosted-forge-spine.md` (local object indexing at scale,
+   distributed build workers, GitHub import/export mirror automation).
+2. **Storage** — `mini-storage`/`mini-erasure`/`mini-spacetime`/
+   `mini-porep` hardening plus the suppression-resistant replication
+   path named in D-0311 (Track D5).
+3. **Search** — MiniSearch (D-0312): `mini-web-types` → minimal crawler
+   → sandboxed extraction → lexical index → transparent ranker → query
+   CLI → federated/distributed layer (Tracks E/F, `docs/research/
+   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`).
+4. **Social network** — `mini-social`/`mini-profile`/`mini-objects` wired
+   to the free-commons entitlements (D-0311, Track C) and to Mininet
+   Intake (Track B) as the native, clean-room (no Inbox-Ingestor
+   code/dependency) document/evidence intake boundary.
+5. **Governance** — `mini-forge::governance` is not to be re-proposed
+   (it predates the audit and already exists); priority here is closing
+   the remaining Batch 5/6 gaps, not inventing a new object model.
+6. **Crypto + anonymity + security** — D-0098 (PIR research prep),
+   D-0099 (anonymous resource-token doctrine), D-0305 (mix-network
+   research), and the external-review gates (D-0047) that block all of
+   the above from claiming real privacy/value guarantees before audit.
+
+This is a large, multi-track, multi-month body of original engineering
+(see `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+Part V's Tracks A-F for the full PR-by-PR breakdown) — it is sequenced
+incrementally, one real narrowly-scoped deliverable per PR with the full
+fmt/clippy/test/governance ritual every time, never "finished" in one
+batch. Track A (D-0311/D-0312 doctrine) is the first slice; see
+`docs/STATUS.md` for what's actually shipped vs. still doctrine-only at
+any given time.
+
 ## Current priority (D-0066 — Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)
 
 A founder-adopted external audit found implementation breadth had run

@@ -444,6 +444,18 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `LookupPrivacyClass::PrivatePIR` remains exactly as unimplemented and
   D-0047-gated as before this decision. See `docs/design/
   mn208-pir-research-and-review-preparation.md`.
+- **doctrine-only** — free public commons and paid protected publishing
+  (D-0311): ordinary public viewing, posting, replying, commenting,
+  reacting, and searching are protocol entitlements independent of
+  wallet balance; payment purchases only additional resource-consuming
+  protection (relay/mix/cover/replication/private-retrieval) supplied by
+  other participants, never speech, governance weight, or organic
+  ranking. **No code** — `PublicCommonsPolicy`, `PublicationProfile`
+  (visibility/attribution/transport/persistence as four independent
+  axes), bounded opt-in contribution budgets, and the source-hiding
+  protected-publication path are all future work (Tracks C/D). See
+  `docs/research/
+  MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
 
 ## 7. Storage
 
@@ -767,6 +779,37 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   The scoped-team `CODEOWNERS.template` remains inert until those humans exist. See
   `docs/GOVERNANCE_PACK_INTEGRATION.md` for the full compatibility
   matrix and what's staged vs. founder-only.
+
+## 11. Discovery / search
+
+- **doctrine-only** — MiniSearch, independent open-web search (D-0312):
+  founder decision that Mininet builds and operates its own crawler/
+  index/search stack — free public search as a commons entitlement
+  (D-0311), no pay-to-rank organic results, no mandatory
+  personalization (`PersonalizationPolicy::None` default), retrieval
+  relevance kept structurally separate from spam/malware/legal/user-
+  filter layers so a restriction is always an explicit
+  `AvailabilityState` reason rather than a silent ranking penalty, and
+  architected for plurality (multiple index segments, multiple
+  forkable ranking profiles, federated query merging, local
+  re-ranking) so MiniSearch cannot itself become a second search
+  monopoly. **No code** — `mini-web-types`, `mini-crawler`,
+  `mini-web-extract`, `mini-index`, `mini-ranker`, `mini-query`,
+  `mini-search-service`, and the federated/distributed layer (Tracks
+  E/F) are all future work; none exist yet. Explicitly a distinct
+  system from `mini-private-index` (D-0310), which is not to be
+  repurposed as the general web index. See `docs/research/
+  MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
+- **not started** — Mininet Intake (`mini-intake-types`/`mini-intake`/
+  `mini-extractor-protocol`/`mini-extractor-host`), the native,
+  clean-room (no dependency on or code reuse from any external
+  licensed intake tool) boundary through which external documents
+  enter Mininet with immutable source retention, sandboxed extraction,
+  and no automatic authority promotion (Track B). No decision-log entry
+  yet — the founder direction is recorded in the research report above;
+  a dedicated D-number is deferred until the first real crate (PR B1)
+  lands, per this session's established practice of recording code-
+  bearing decisions at the PR that ships them.
 
 ## What has no client, at all
 
