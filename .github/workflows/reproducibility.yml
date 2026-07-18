@@ -1,0 +1,67 @@
+name: reproducibility
+
+# SPEC-11's verified-reproducible release check (roadmap #69, frozen
+# invariant -- see docs/INVARIANTS.md). Split out of ci.yml (D-0314) so its
+# 10+ minute two-clean-build cost only lands on PRs that could plausibly
+# change a build artifact. `push: branches: [main]` has no path filter --
+# every commit that reaches main is checked, unconditionally, matching
+# SPEC-11's actual scope ("verified-reproducible releases"). The
+# `pull_request` trigger's `paths-ignore` is deliberately narrow (docs and
+# markdown only): anything else -- source, Cargo.toml/Cargo.lock,
+# rust-toolchain.toml, build scripts, this workflow file itself -- still
+# runs the real check before merge. A PR that touches both a doc and a
+# source file still runs it, since paths-ignore only skips a workflow when
+# *every* changed path matches.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+permissions:
+  contents: read
+
+jobs:
+  # First real slice of SPEC-11's verified-reproducible release pipeline
+  # (roadmap #69): build the workspace twice from a clean target directory
+  # on the same runner and assert the example binaries are byte-identical.
+  # Honest limit: this is same-machine, same-toolchain reproducibility, not
+  # yet the full K-independent-builder, cross-machine check SPEC-11 §8
+  # ultimately wants -- that's real follow-up work, not this job pretending
+  # to be more than it is.
+  reproducibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Show toolchain
+        run: rustup show
+
+      - name: Build (pass 1)
+        run: cargo build --workspace --all-targets --release --locked
+
+      - name: Hash pass-1 artifacts
+        run: |
+          find target/release/examples -maxdepth 1 -type f -executable ! -name '*.d' \
+            | grep -vE -- '-[0-9a-f]{16}$' \
+            | sort | xargs sha256sum > /tmp/hashes-pass1.txt
+          cat /tmp/hashes-pass1.txt
+
+      - name: Clean and rebuild (pass 2)
+        run: |
+          rm -rf target
+          cargo build --workspace --all-targets --release --locked
+
+      - name: Hash pass-2 artifacts and compare
+        run: |
+          find target/release/examples -maxdepth 1 -type f -executable ! -name '*.d' \
+            | grep -vE -- '-[0-9a-f]{16}$' \
+            | sort | xargs sha256sum > /tmp/hashes-pass2.txt
+          cat /tmp/hashes-pass2.txt
+          diff /tmp/hashes-pass1.txt /tmp/hashes-pass2.txt \
+            && echo "Reproducible: identical artifact hashes across two clean builds."

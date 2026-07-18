@@ -648,6 +648,15 @@ install → rollback) are now shipped end to end; per CLAUDE.md, what comes
 next — Batch 5 (Mininet as primary forge) vs. resuming Batch 6's
 horizontal roadmap breadth — is a founder priority call, not decided here.
 
+- **shipped** — CI hygiene (D-0314): the SPEC-11 reproducibility check
+  moved into its own `.github/workflows/reproducibility.yml`, still
+  unconditional on every push to `main` but skipped on a PR that touches
+  only `docs/**`/markdown; `.gitattributes` gives `docs/DECISION_LOG.md`/
+  `docs/STATUS.md` a `merge=union` driver so two branches appending
+  different entries near the same point no longer forces a manual
+  conflict resolution. No change to what SPEC-11 requires or when it's
+  enforced for a build-relevant change.
+
 - **shipped** — Batch 1's first exit-condition demonstration: `mini-cli`
   (D-0067), a real command-line tool (`identity`/`kel`/`repo`/`pr`
   subcommands) over already-real `mini-forge::governance` primitives.
