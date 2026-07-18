@@ -161,7 +161,7 @@ pub fn resolve_wall<B: Backend>(store: &Store<B>, owner: &Did) -> Result<Option<
         None => return Ok(None),
     };
     let obj = store.get(&target)?;
-    if obj.object_type != ObjectType::WALL {
+    if obj.object_type != ObjectType::WALL || obj.author_human.as_str() != owner.as_str() {
         return Err(SocialError::BadWall);
     }
     let bytes = match &obj.payload {
@@ -175,7 +175,7 @@ pub fn resolve_wall<B: Backend>(store: &Store<B>, owner: &Did) -> Result<Option<
     let avatar = if avatar_str.is_empty() {
         None
     } else {
-        ObjectId::parse(&avatar_str).ok()
+        Some(ObjectId::parse(&avatar_str).map_err(|_| SocialError::BadWall)?)
     };
     let visibility_byte = *bytes.get(pos).ok_or(SocialError::BadWall)?;
     pos += 1;
@@ -187,7 +187,11 @@ pub fn resolve_wall<B: Backend>(store: &Store<B>, owner: &Did) -> Result<Option<
     }
     let mut public_links = Vec::with_capacity(nlinks);
     for _ in 0..nlinks {
-        public_links.push(get_str(bytes, &mut pos).ok_or(SocialError::BadWall)?);
+        let link = get_str(bytes, &mut pos).ok_or(SocialError::BadWall)?;
+        if link.len() > MAX_WALL_LINK_BYTES {
+            return Err(SocialError::BadWall);
+        }
+        public_links.push(link);
     }
 
     let npinned = read_u32(bytes, &mut pos)? as usize;
@@ -198,6 +202,12 @@ pub fn resolve_wall<B: Backend>(store: &Store<B>, owner: &Did) -> Result<Option<
     for _ in 0..npinned {
         let s = get_str(bytes, &mut pos).ok_or(SocialError::BadWall)?;
         pinned.push(ObjectId::parse(&s).map_err(SocialError::Object)?);
+    }
+    if pos != bytes.len()
+        || display_name.len() > MAX_WALL_NAME_BYTES
+        || bio.len() > MAX_WALL_BIO_BYTES
+    {
+        return Err(SocialError::BadWall);
     }
 
     Ok(Some(PublicWall {
@@ -251,7 +261,9 @@ pub fn resolve_wall_linkage<B: Backend>(store: &Store<B>, wall_owner: &Did) -> R
         None => return Ok(None),
     };
     let obj = store.get(&target)?;
-    if obj.object_type != ObjectType::WALL_LINKAGE {
+    if obj.object_type != ObjectType::WALL_LINKAGE
+        || obj.author_human.as_str() != wall_owner.as_str()
+    {
         return Err(SocialError::BadWall);
     }
     let bytes = match &obj.payload {

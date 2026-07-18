@@ -415,7 +415,10 @@ fn receipts_older_than_the_freshness_policy_are_refused() {
         1_000,
     );
 
-    let strict = FreshnessPolicy { max_age_ms: 500 };
+    let strict = FreshnessPolicy {
+        max_age_ms: 500,
+        ..FreshnessPolicy::default_policy()
+    };
     let ctx = VerifyContext {
         host_root: &host_root.kel(),
         witness_root: &witness_root.kel(),
@@ -429,6 +432,49 @@ fn receipts_older_than_the_freshness_policy_are_refused() {
         verify_serve(&receipt, &ctx, &mut replay).unwrap_err(),
         StorageProofError::TooOld
     );
+}
+
+#[test]
+fn receipts_too_far_in_the_future_are_refused() {
+    let (host_root, host_dev) = human(
+        [10; 32],
+        [11; 32],
+        [12; 32],
+        [13; 32],
+        Capabilities::primary(),
+    );
+    let (witness_root, witness_dev) = human(
+        [20; 32],
+        [21; 32],
+        [22; 32],
+        [23; 32],
+        Capabilities::primary(),
+    );
+    let receipt = valid_receipt(
+        &host_dev,
+        &witness_dev,
+        &content_id(),
+        mini_crypto::random_32().unwrap(),
+        mini_crypto::random_32().unwrap(),
+        1_000_001,
+    );
+    let strict = FreshnessPolicy {
+        max_age_ms: 86_400_000,
+        max_future_skew_ms: 1_000,
+    };
+    let ctx = VerifyContext {
+        host_root: &host_root.kel(),
+        witness_root: &witness_root.kel(),
+        host_device: &host_dev.kel(),
+        witness_device: &witness_dev.kel(),
+        policy: &strict,
+        now_ms: Some(100_000),
+    };
+
+    assert!(matches!(
+        verify_serve(&receipt, &ctx, &mut InMemoryReplayGuard::new()),
+        Err(StorageProofError::TooNew)
+    ));
 }
 
 #[test]

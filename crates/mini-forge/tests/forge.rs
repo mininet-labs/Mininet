@@ -11,6 +11,7 @@ use mini_forge::{
     verify_release_artifact_only, ForgeError, KelDirectory, Policy, ReleasePolicy, TreeEntry,
 };
 use mini_media::publish_media;
+use mini_objects::{ObjectBuilder, ObjectType, Payload};
 use mini_store::{MemoryBackend, Store};
 
 fn human(seed: u8) -> (Controller, Controller) {
@@ -128,6 +129,48 @@ fn repo_commits_branch_moves_and_checkout_roundtrips() {
     // Old commit remains checkout-able: history is content-addressed, not lost.
     let old = checkout(&store, c1.id()).unwrap();
     assert!(old.contains(&("README.md".to_string(), b"# mininet".to_vec())));
+}
+
+#[test]
+fn checkout_rejects_a_commit_with_ambiguous_tree_links() {
+    let (author, device) = human(70);
+    let mut store = Store::new(MemoryBackend::new());
+    let first = put_file(&mut store, &author.did(), &device, b"first").unwrap();
+    let second = put_file(&mut store, &author.did(), &device, b"second").unwrap();
+    let first_tree = put_tree(
+        &mut store,
+        &author.did(),
+        &device,
+        &[TreeEntry {
+            name: "file".into(),
+            is_dir: false,
+            target: first,
+        }],
+    )
+    .unwrap();
+    let second_tree = put_tree(
+        &mut store,
+        &author.did(),
+        &device,
+        &[TreeEntry {
+            name: "file".into(),
+            is_dir: false,
+            target: second,
+        }],
+    )
+    .unwrap();
+    let ambiguous = ObjectBuilder::new(ObjectType::COMMIT)
+        .payload(Payload::Public(b"ambiguous".to_vec()))
+        .link("tree", first_tree)
+        .link("tree", second_tree)
+        .sign(&author.did(), &device)
+        .unwrap();
+    store.insert(&ambiguous).unwrap();
+
+    assert!(matches!(
+        checkout(&store, ambiguous.id()),
+        Err(ForgeError::BadObject)
+    ));
 }
 
 /// Build a store containing a release by `author` plus its artifact; return

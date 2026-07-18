@@ -15,6 +15,8 @@ pub enum StorageProofError {
     ZeroBytes,
     /// The claimed timestamp is outside the verifier's freshness policy.
     TooOld,
+    /// The claimed timestamp is too far in the future for the verifier's clock.
+    TooNew,
     /// A party's device identifier does not match the KEL supplied for it.
     DeviceMismatch,
     /// A device lacks the `ATTEST` capability from its identity root.
@@ -36,6 +38,7 @@ impl core::fmt::Display for StorageProofError {
             }
             StorageProofError::ZeroBytes => write!(f, "receipt claims zero bytes served"),
             StorageProofError::TooOld => write!(f, "receipt is outside the freshness policy"),
+            StorageProofError::TooNew => write!(f, "receipt timestamp is too far in the future"),
             StorageProofError::DeviceMismatch => {
                 write!(f, "device identifier does not match its KEL")
             }

@@ -379,16 +379,7 @@ pub fn checkout<B: Backend>(
     commit_id: &ObjectId,
 ) -> Result<Vec<(String, Vec<u8>)>> {
     let c = store.get(commit_id)?;
-    if c.object_type != ObjectType::COMMIT {
-        return Err(ForgeError::BadObject);
-    }
-    let tree = c
-        .links
-        .iter()
-        .find(|l| l.rel == "tree")
-        .ok_or(ForgeError::BadObject)?
-        .target
-        .clone();
+    let tree = validated_commit_tree(&c)?;
     let mut out = Vec::new();
     let mut budget = Budget {
         files: MAX_CHECKOUT_FILES,
@@ -397,6 +388,45 @@ pub fn checkout<B: Backend>(
     };
     walk(store, &tree, "", 0, &mut out, &mut budget)?;
     Ok(out)
+}
+
+/// Validate the canonical commit shape and return its single tree. Strict
+/// link parsing prevents different consumers from selecting different source
+/// trees from one signed object.
+fn validated_commit_tree(commit: &Object) -> Result<ObjectId> {
+    if commit.object_type != ObjectType::COMMIT {
+        return Err(ForgeError::BadObject);
+    }
+    match &commit.payload {
+        Payload::Public(message) if message.len() <= MAX_MESSAGE_BYTES => {}
+        _ => return Err(ForgeError::BadObject),
+    }
+
+    let mut tree: Option<ObjectId> = None;
+    let mut parents: Vec<&ObjectId> = Vec::new();
+    for link in &commit.links {
+        match link.rel.as_str() {
+            "tree" if tree.is_none() => tree = Some(link.target.clone()),
+            "parent" if !parents.contains(&&link.target) => parents.push(&link.target),
+            _ => return Err(ForgeError::BadObject),
+        }
+    }
+    let tree = tree.ok_or(ForgeError::BadObject)?;
+    if parents.contains(&&tree) {
+        return Err(ForgeError::BadObject);
+    }
+    Ok(tree)
+}
+
+fn commit_is_well_formed<B: Backend>(store: &Store<B>, commit: &Object) -> bool {
+    let tree = match validated_commit_tree(commit) {
+        Ok(tree) => tree,
+        Err(_) => return false,
+    };
+    match store.get(&tree) {
+        Ok(tree_object) => read_tree(&tree_object).is_ok(),
+        Err(_) => false,
+    }
 }
 
 /// Work budget for a single checkout (guards fan-out and cycles).

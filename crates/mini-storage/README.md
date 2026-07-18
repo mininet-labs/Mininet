@@ -31,4 +31,9 @@ crate verifies receipts, it does not yet produce them automatically.
 cargo test -p mini-storage
 ```
 
+Freshness is bounded in both directions: the default accepts receipts up to one
+day old and at most five minutes ahead of the verifier's clock. Rejecting
+far-future timestamps prevents a forged clock from making a signed receipt stay
+fresh indefinitely after durable replay state is lost.
+
 License: CC0-1.0 (public domain).
