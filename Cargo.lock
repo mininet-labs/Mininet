@@ -1264,6 +1264,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-intake-types"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+]
+
+[[package]]
 name = "mini-keystone"
 version = "0.0.1"
 dependencies = [

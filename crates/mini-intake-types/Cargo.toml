@@ -1,0 +1,18 @@
+[package]
+name = "mini-intake-types"
+version = "0.0.1"
+description = "Mininet Intake shared vocabulary (Track B1, D-0311/D-0312 native-intake direction): IntakeEnvelope, SourceRecord, DerivedRepresentation, AuthorityClass, ReviewState. Pure types and a deterministic wire codec only -- no parser, filesystem watcher, network client, or AI model."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Only mini-crypto, for Multihash content addressing -- the same type
+# already used by mini-forge/mini-provenance. Deliberately no dependency
+# on mini-forge, mini-chain, mini-value, or mini-treasury: intake
+# provenance must never become a governance or value signal (Directive
+# 16, the voice/value wall).
+mini-crypto = { path = "../mini-crypto" }
