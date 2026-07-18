@@ -7472,3 +7472,39 @@ non-doc path) as the repo's shape changes.
 **Supersedes / superseded by:** none. Additive CI/repo-config change;
 `reproducibility`'s own build/hash logic is byte-for-byte unchanged from
 D-0044.
+### D-0100 — Bootstrap work-claim registry for parallel AI contributors  ·  *Accepted*
+**Date:** 2026-07-18 · **Refs:** #122; `governance/work-claims.json`;
+`docs/governance/51_BOOTSTRAP_WORK_CLAIMS.md`; D-0083; D-0084; Directive 12
+
+**Decision:** add a machine-readable bootstrap work-claim registry and validator
+checks for active issue leases, Decision identifier reservations, path-claim
+overlap, and lease expiry. The GitHub Project remains the dashboard, but
+`governance/work-claims.json` is the CI-enforced branch artifact.
+
+**Reason:** the previous banding rule reduced cross-track Decision-number
+collisions but did not prevent same-band or same-issue collisions between
+parallel AI contributors. A JSON registry plus CI makes the coordination state
+reviewable and testable instead of relying on private chat or model memory.
+
+**Constitutional impact:** strengthens Directive 12 and AI1 by keeping AI
+collaboration attributable and non-authorizing. No new authority is granted:
+a claim is coordination evidence only, not approval, review, merge,
+canonicalization, or legitimacy.
+
+**Implementation status:** implemented in `tools/check_governance.py`,
+`tools/work_claims.py`, `governance/work-claims.json`, and
+`governance/work-claims.schema.json`; adversarial validator tests cover duplicate
+active Decision IDs, duplicate active issue claims, expired active leases, and
+overlapping active path claims.
+
+**Failure point:** the registry is Git-based bootstrap coordination, not a
+distributed lock across unmerged branches. It catches conflicts before merge and
+in CI; a future Forge-native allocator should replace it with a signed proposal
+object and atomic allocation state.
+
+**Required follow-up:** wire PR metadata enforcement so every implementation PR
+names its claim automatically, and replace this GitHub-era registry with a
+Forge-native proposal allocator during the Forge transition.
+
+**Supersedes / superseded by:** supplements the Decision-number banding rule in
+the Decision Log header; superseded by a future Forge-native allocator.

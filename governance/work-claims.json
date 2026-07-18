@@ -1,0 +1,29 @@
+{
+  "$schema": "./work-claims.schema.json",
+  "schema_version": 1,
+  "registry_id": "mininet-bootstrap-work-claims",
+  "updated_at": "2026-07-18T00:00:00Z",
+  "claims": [
+    {
+      "issue": 122,
+      "status": "in_review",
+      "contributor": "Codex",
+      "branch": "agent/issue-122-bootstrap-coordination",
+      "pull_request": 157,
+      "lease_expires": "2026-07-25",
+      "paths": [
+        "governance/work-claims.json",
+        "governance/work-claims.schema.json",
+        "tools/check_governance.py",
+        "tools/test_check_governance.py",
+        "tools/work_claims.py",
+        "docs/governance/51_BOOTSTRAP_WORK_CLAIMS.md",
+        "docs/DECISION_LOG.md"
+      ],
+      "decision_ids": [
+        "D-0100"
+      ],
+      "notes": "Bootstrap coordination guardrail for parallel Codex/Claude work. This is coordination evidence, not approval or authority."
+    }
+  ]
+}

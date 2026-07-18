@@ -66,6 +66,15 @@ PHASE_RECORD_PATH = Path("governance/current-phase.json")
 PHASE_SCHEMA_PATH = Path("governance/current-phase.schema.json")
 BOOTSTRAP_STATE_PATH = Path("governance/bootstrap-operating-state.json")
 BOOTSTRAP_STATE_SCHEMA_PATH = Path("governance/bootstrap-operating-state.schema.json")
+WORK_CLAIMS_PATH = Path("governance/work-claims.json")
+WORK_CLAIMS_SCHEMA_PATH = Path("governance/work-claims.schema.json")
+WORK_CLAIM_ACTIVE_STATUSES = {"active", "in_review"}
+WORK_CLAIM_STATUSES = WORK_CLAIM_ACTIVE_STATUSES | {"reserved", "blocked", "closed", "expired"}
+WORK_CLAIM_SHARED_APPEND_ONLY_PATHS = {
+    "docs/DECISION_LOG.md",
+    "docs/STATUS.md",
+}
+DECISION_ID = re.compile(r"^D-\d{4}$")
 INSTRUCTION_FILE_NAMES = {
     "AGENTS.md",
     "AGENTS.override.md",
@@ -857,6 +866,162 @@ def validate_bootstrap_operating_state(
                 fail(errors, f"governance policy lacks bootstrap floor marker: {marker}")
 
 
+def repo_relative_claim_path(value: object, label: str, errors: list[str]) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        fail(errors, f"{label} must be a non-empty repository-relative path")
+        return None
+    text = value.strip().replace("\\", "/")
+    path = Path(text.rstrip("*"))
+    if text.startswith("/") or Path(text).is_absolute() or ".." in Path(text).parts:
+        fail(errors, f"{label} must not be absolute or escape the repository")
+        return None
+    return text.rstrip("/")
+
+
+def claim_path_overlaps(left: str, right: str) -> bool:
+    if left in WORK_CLAIM_SHARED_APPEND_ONLY_PATHS and right in WORK_CLAIM_SHARED_APPEND_ONLY_PATHS:
+        return False
+
+    def normalize(value: str) -> str:
+        return value.rstrip("*").rstrip("/")
+
+    a = normalize(left)
+    b = normalize(right)
+    if not a or not b:
+        return False
+    return a == b or a.startswith(f"{b}/") or b.startswith(f"{a}/")
+
+
+def validate_work_claims(
+    root: Path,
+    errors: list[str],
+    warnings: list[str],
+    now: dt.datetime | None = None,
+) -> None:
+    registry_path = root / WORK_CLAIMS_PATH
+    schema_path = root / WORK_CLAIMS_SCHEMA_PATH
+    if not registry_path.is_file():
+        fail(errors, f"missing required governance artifact: {WORK_CLAIMS_PATH.as_posix()}")
+        return
+    if not schema_path.is_file():
+        fail(errors, f"missing required governance artifact: {WORK_CLAIMS_SCHEMA_PATH.as_posix()}")
+        return
+
+    registry = read_json_object(registry_path, "work-claim registry", errors)
+    schema = read_json_object(schema_path, "work-claim schema", errors)
+    if registry is None or schema is None:
+        return
+    if registry.get("$schema") != "./work-claims.schema.json":
+        fail(errors, "work-claim registry $schema must be ./work-claims.schema.json")
+    if registry.get("schema_version") != 1:
+        fail(errors, "work-claim registry schema_version must be 1")
+    claims = registry.get("claims")
+    if not isinstance(claims, list):
+        fail(errors, "work-claim registry claims must be a list")
+        return
+
+    check_date = (now or dt.datetime.now(dt.timezone.utc)).date()
+    decision_log = root / "docs/DECISION_LOG.md"
+    decision_text = decision_log.read_text(encoding="utf-8") if decision_log.is_file() else ""
+    active_issues: dict[int, str] = {}
+    active_decisions: dict[str, int] = {}
+    active_paths: list[tuple[int, str, str]] = []
+
+    for index, claim in enumerate(claims):
+        label = f"work claim #{index + 1}"
+        if not isinstance(claim, dict):
+            fail(errors, f"{label} must be an object")
+            continue
+        issue = claim.get("issue")
+        if not isinstance(issue, int) or isinstance(issue, bool) or issue <= 0:
+            fail(errors, f"{label} issue must be a positive integer")
+            continue
+        status = claim.get("status")
+        if status not in WORK_CLAIM_STATUSES:
+            fail(errors, f"work claim for issue #{issue} has invalid status")
+            continue
+        contributor = claim.get("contributor")
+        branch = claim.get("branch")
+        if status in WORK_CLAIM_ACTIVE_STATUSES:
+            if not isinstance(contributor, str) or not contributor.strip():
+                fail(errors, f"active work claim for issue #{issue} requires contributor")
+            if not isinstance(branch, str) or not branch.strip():
+                fail(errors, f"active work claim for issue #{issue} requires branch")
+            prior_branch = active_issues.get(issue)
+            if prior_branch is not None:
+                fail(
+                    errors,
+                    f"issue #{issue} has multiple active work claims: {prior_branch} and {branch}",
+                )
+            active_issues[issue] = str(branch)
+
+        expiry = claim.get("lease_expires")
+        if status in WORK_CLAIM_ACTIVE_STATUSES:
+            if not isinstance(expiry, str):
+                fail(errors, f"active work claim for issue #{issue} requires lease_expires")
+            else:
+                try:
+                    expiry_date = dt.date.fromisoformat(expiry)
+                except ValueError:
+                    fail(errors, f"work claim for issue #{issue} has invalid lease_expires")
+                else:
+                    if expiry_date < check_date:
+                        fail(errors, f"active work claim for issue #{issue} expired on {expiry}")
+
+        paths = claim.get("paths")
+        if status in WORK_CLAIM_ACTIVE_STATUSES:
+            if not isinstance(paths, list) or not paths:
+                fail(errors, f"active work claim for issue #{issue} requires paths")
+            else:
+                for path_index, path_value in enumerate(paths):
+                    normalized = repo_relative_claim_path(
+                        path_value,
+                        f"work claim for issue #{issue} path #{path_index + 1}",
+                        errors,
+                    )
+                    if normalized is None:
+                        continue
+                    current_branch = str(branch or "")
+                    for other_issue, other_branch, other_path in active_paths:
+                        if (
+                            other_issue != issue
+                            and other_branch != current_branch
+                            and claim_path_overlaps(normalized, other_path)
+                        ):
+                            fail(
+                                errors,
+                                "active work claims overlap paths: "
+                                f"issue #{issue} {normalized} conflicts with "
+                                f"issue #{other_issue} {other_path}",
+                            )
+                    active_paths.append((issue, current_branch, normalized))
+
+        decisions = claim.get("decision_ids", [])
+        if decisions is None:
+            decisions = []
+        if not isinstance(decisions, list):
+            fail(errors, f"work claim for issue #{issue} decision_ids must be a list")
+            continue
+        for value in decisions:
+            if not isinstance(value, str) or not DECISION_ID.fullmatch(value):
+                fail(errors, f"work claim for issue #{issue} has invalid decision id")
+                continue
+            if status in WORK_CLAIM_ACTIVE_STATUSES:
+                prior_issue = active_decisions.get(value)
+                if prior_issue is not None and prior_issue != issue:
+                    fail(
+                        errors,
+                        f"decision id {value} is actively claimed by both issue "
+                        f"#{prior_issue} and issue #{issue}",
+                    )
+                active_decisions[value] = issue
+                if value not in decision_text:
+                    warnings.append(
+                        f"active work claim for issue #{issue} reserves {value}, "
+                        "but docs/DECISION_LOG.md does not mention it yet"
+                    )
+
+
 def validate_baseline(
     root: Path,
     errors: list[str],
@@ -903,6 +1068,7 @@ def validate_baseline(
         root, errors, warnings, canonical_root, now, candidate_activation
     )
     validate_bootstrap_operating_state(root, errors, now)
+    validate_work_claims(root, errors, warnings, now)
 
 
 def validate_proposal(body: str, changed: list[str], errors: list[str], warnings: list[str]) -> None:
