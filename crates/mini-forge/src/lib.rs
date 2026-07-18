@@ -52,8 +52,8 @@ pub use git_export::{export_commit_chain, GitObject, GitObjectKind, MAX_EXPORT_C
 pub use governance::*;
 pub use oracle::{IdentityOracle, KelDirectory};
 pub use release::{
-    check_no_rollback, detect_equivocation, list_releases, release_version, Equivocation, Version,
-    MAX_VERSION_COMPONENTS,
+    check_no_rollback, detect_equivocation, list_releases, list_releases_strict, release_version,
+    Equivocation, Version, MAX_VERSION_COMPONENTS,
 };
 
 use crate::oracle::author_verified;

@@ -120,6 +120,35 @@ pub fn list_releases<B: Backend>(
     Ok(out)
 }
 
+/// Strict transparency-log query. Unlike [`list_releases`], this refuses a
+/// malformed `RELEASE` object that claims the requested project, so observers
+/// cannot silently construct different logs by ignoring malformed entries.
+pub fn list_releases_strict<B: Backend>(
+    store: &Store<B>,
+    project_id: &ObjectId,
+    branch: &str,
+) -> Result<Vec<Object>> {
+    let mut out = Vec::new();
+    for id in store.by_type(&ObjectType::RELEASE)? {
+        let rel = store.get(&id)?;
+        let claims_project = rel
+            .links
+            .iter()
+            .any(|l| l.rel == "project" && &l.target == project_id);
+        if !claims_project {
+            continue;
+        }
+        let Ok((_, claimed_branch, _, _)) = parse_release_payload(&rel) else {
+            return Err(ForgeError::BadObject);
+        };
+        if claimed_branch == branch {
+            out.push(rel);
+        }
+    }
+    out.sort_by_key(|r| (r.timestamp_ms, r.sequence));
+    Ok(out)
+}
+
 /// Two `RELEASE` objects for the same project/branch that claim the same
 /// version but disagree on the artifact digest -- evidence of
 /// equivocation: a publisher (or an attacker who obtained a signing key)
