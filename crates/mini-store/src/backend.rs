@@ -202,7 +202,58 @@ impl FsBackend {
         Ok(())
     }
 
-    fn read_existing_regular_file(path: &Path, label: &str) -> Result<Option<Vec<u8>>> {
+    /// Validate every existing parent component without following symlinks.
+    /// Checking only the final path would still allow `meta/<symlink>/row` to
+    /// escape the store before the final component is inspected.
+    fn safe_existing_parent(base: &Path, path: &Path, label: &str) -> Result<bool> {
+        let parent = path
+            .parent()
+            .ok_or_else(|| StoreError::Io(format!("{label} has no parent directory")))?;
+        let relative = parent
+            .strip_prefix(base)
+            .map_err(|_| StoreError::Io(format!("{label} path escapes its store directory")))?;
+        let mut current = base.to_path_buf();
+
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(StoreError::Io(format!("{label} path contains a symlink")))
+            }
+            Ok(metadata) if !metadata.is_dir() => {
+                return Err(StoreError::Io(format!("{label} parent is not a directory")))
+            }
+            Ok(_) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(e) => return Err(e.into()),
+        }
+
+        for component in relative.components() {
+            match component {
+                Component::Normal(segment) => current.push(segment),
+                _ => {
+                    return Err(StoreError::Io(format!(
+                        "{label} has an invalid path component"
+                    )))
+                }
+            }
+            match fs::symlink_metadata(&current) {
+                Ok(metadata) if metadata.file_type().is_symlink() => {
+                    return Err(StoreError::Io(format!("{label} path contains a symlink")))
+                }
+                Ok(metadata) if !metadata.is_dir() => {
+                    return Err(StoreError::Io(format!("{label} parent is not a directory")))
+                }
+                Ok(_) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Ok(true)
+    }
+
+    fn existing_regular_file(path: &Path, base: &Path, label: &str) -> Result<bool> {
+        if !Self::safe_existing_parent(base, path, label)? {
+            return Ok(false);
+        }
         match fs::symlink_metadata(path) {
             Ok(metadata) if metadata.file_type().is_symlink() => {
                 Err(StoreError::Io(format!("{label} is a symlink")))
@@ -210,9 +261,21 @@ impl FsBackend {
             Ok(metadata) if !metadata.is_file() => {
                 Err(StoreError::Io(format!("{label} is not a regular file")))
             }
-            Ok(_) => Ok(Some(fs::read(path)?)),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Ok(_) => Ok(true),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
             Err(e) => Err(e.into()),
+        }
+    }
+
+    fn read_existing_regular_file(
+        path: &Path,
+        base: &Path,
+        label: &str,
+    ) -> Result<Option<Vec<u8>>> {
+        if Self::existing_regular_file(path, base, label)? {
+            Ok(Some(fs::read(path)?))
+        } else {
+            Ok(None)
         }
     }
 }
@@ -224,7 +287,9 @@ impl Backend for FsBackend {
         // exact bytes. If a local blob got corrupted, repair it atomically
         // rather than trusting the stale/corrupt copy forever. Refuse local
         // symlink/non-file poison instead of following it outside the store.
-        if let Some(existing) = Self::read_existing_regular_file(&p, "blob")? {
+        if let Some(existing) =
+            Self::read_existing_regular_file(&p, &self.root.join("blobs"), "blob")?
+        {
             if existing == bytes {
                 return Ok(());
             }
@@ -233,16 +298,20 @@ impl Backend for FsBackend {
         Self::atomic_write(&p, bytes)
     }
     fn get_blob(&self, id: &str) -> Result<Option<Vec<u8>>> {
-        Self::read_existing_regular_file(&self.blob_path(id)?, "blob")
+        Self::read_existing_regular_file(&self.blob_path(id)?, &self.root.join("blobs"), "blob")
     }
     fn has_blob(&self, id: &str) -> Result<bool> {
-        Ok(self.blob_path(id)?.exists())
+        Self::existing_regular_file(&self.blob_path(id)?, &self.root.join("blobs"), "blob")
     }
     fn put_meta(&mut self, key: &str, value: &[u8]) -> Result<()> {
         Self::atomic_write(&self.meta_path(key)?, value)
     }
     fn get_meta(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        Self::read_existing_regular_file(&self.meta_path(key)?, "metadata entry")
+        Self::read_existing_regular_file(
+            &self.meta_path(key)?,
+            &self.root.join("meta"),
+            "metadata entry",
+        )
     }
     fn list_meta_prefix(&self, prefix: &str) -> Result<Vec<(String, Vec<u8>)>> {
         // Start at the narrowest safe subtree rather than walking every index

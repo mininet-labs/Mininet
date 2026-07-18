@@ -313,6 +313,27 @@ fn fs_backend_direct_reads_reject_symlinks() {
         Err(StoreError::Io(message)) if message.contains("symlink")
     ));
 
+    std::fs::remove_file(dir.join("meta/head/alice/profile")).unwrap();
+    std::fs::remove_dir_all(dir.join("meta/head")).unwrap();
+    std::fs::create_dir_all(outside.join("meta/head/alice")).unwrap();
+    std::fs::write(outside.join("meta/head/alice/profile"), b"outside").unwrap();
+    symlink(outside.join("meta/head"), dir.join("meta/head")).unwrap();
+    assert!(matches!(
+        backend.get_meta("head/alice/profile"),
+        Err(StoreError::Io(message)) if message.contains("symlink")
+    ));
+
+    std::fs::remove_file(dir.join("blobs/ab/abc")).unwrap();
+    std::fs::remove_dir(dir.join("blobs/ab")).unwrap();
+    std::fs::create_dir_all(outside.join("blobs/ab")).unwrap();
+    std::fs::write(outside.join("blobs/ab/abc"), b"outside").unwrap();
+    symlink(outside.join("blobs/ab"), dir.join("blobs/ab")).unwrap();
+    assert!(matches!(
+        backend.get_blob("abc"),
+        Err(StoreError::Io(message)) if message.contains("symlink")
+    ));
+    assert!(backend.has_blob("abc").is_err());
+
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::remove_dir_all(&outside);
 }
