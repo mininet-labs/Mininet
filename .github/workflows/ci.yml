@@ -89,40 +89,12 @@ jobs:
         with:
           command: check
 
-  # First real slice of SPEC-11's verified-reproducible release pipeline
-  # (roadmap #69): build the workspace twice from a clean target directory
-  # on the same runner and assert the example binaries are byte-identical.
-  # Honest limit: this is same-machine, same-toolchain reproducibility, not
-  # yet the full K-independent-builder, cross-machine check SPEC-11 §8
-  # ultimately wants -- that's real follow-up work, not this job pretending
-  # to be more than it is.
-  reproducibility:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Show toolchain
-        run: rustup show
-
-      - name: Build (pass 1)
-        run: cargo build --workspace --all-targets --release --locked
-
-      - name: Hash pass-1 artifacts
-        run: |
-          find target/release/examples -maxdepth 1 -type f -executable ! -name '*.d' \
-            | grep -vE -- '-[0-9a-f]{16}$' \
-            | sort | xargs sha256sum > /tmp/hashes-pass1.txt
-          cat /tmp/hashes-pass1.txt
-
-      - name: Clean and rebuild (pass 2)
-        run: |
-          rm -rf target
-          cargo build --workspace --all-targets --release --locked
-
-      - name: Hash pass-2 artifacts and compare
-        run: |
-          find target/release/examples -maxdepth 1 -type f -executable ! -name '*.d' \
-            | grep -vE -- '-[0-9a-f]{16}$' \
-            | sort | xargs sha256sum > /tmp/hashes-pass2.txt
-          cat /tmp/hashes-pass2.txt
-          diff /tmp/hashes-pass1.txt /tmp/hashes-pass2.txt \
-            && echo "Reproducible: identical artifact hashes across two clean builds."
+  # SPEC-11's verified-reproducible release check moved to its own workflow
+  # (.github/workflows/reproducibility.yml, D-0314): two full clean release
+  # builds take 10+ minutes, and gating every PR push -- including
+  # docs/research-only PRs that cannot possibly change a build artifact --
+  # was slowing down unrelated work without buying any additional
+  # assurance. The frozen SPEC-11 requirement itself is untouched: the
+  # separate workflow still runs on every push to `main` unconditionally,
+  # and on any pull request that touches something other than `docs/**` or
+  # markdown.

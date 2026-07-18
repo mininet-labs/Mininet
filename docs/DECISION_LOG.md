@@ -7395,3 +7395,80 @@ Part V for the full sequence.
 
 **Supersedes / superseded by:** none. New crate, no existing crate
 touched.
+
+### D-0314 — Split the SPEC-11 reproducibility CI check into its own path-scoped workflow; add `merge=union` for the append-only decision/status logs  ·  *Accepted*
+**Date:** 2026-07-18 · **Refs:** SPEC-11 (verified-reproducible releases
+\[FREEZE\]), D-0001/D-0006 (reproducibility hygiene), D-0044 (#69, the
+original reproducibility CI check); `.github/workflows/ci.yml`,
+`.github/workflows/reproducibility.yml` (new), `.gitattributes` (new)
+
+**Decision:** two changes to reduce PR friction without touching any
+frozen guarantee. (1) The `reproducibility` job (two full clean `cargo
+build --release` passes + a hash diff, 10+ minutes) moves out of
+`ci.yml` into its own `.github/workflows/reproducibility.yml`. Its
+`push: branches: [main]` trigger is unchanged and unfiltered — every
+commit reaching `main` is still checked, matching SPEC-11's actual scope
+("verified-reproducible *releases*"). Its `pull_request` trigger gains a
+narrow `paths-ignore: [docs/**, **/*.md]`: a PR that touches *only*
+documentation cannot change a build artifact, so skipping the check for
+it loses no coverage; a PR touching any other path (source, `Cargo.toml`/
+`Cargo.lock`, `rust-toolchain.toml`, build scripts, or the workflow file
+itself) still runs the real check before merge, since `paths-ignore`
+only skips when *every* changed path matches. The job keeps its exact
+name (`reproducibility`) so any existing branch-protection required-check
+rule keyed on that name still matches. (2) `.gitattributes` adds
+`merge=union` (a built-in Git driver, no external tool) for
+`docs/DECISION_LOG.md` and `docs/STATUS.md`: both files are append-heavy
+by their own documented convention (DECISION_LOG.md entries are never
+edited, only superseded; STATUS.md is "updated far more often than any
+individual decision entry"), so two branches adding different, adjacent
+entries is a routine, non-semantic conflict that a line-union resolves
+correctly, rather than forcing manual conflict-marker resolution on every
+rebase of a stacked PR.
+
+**Reason:** this session hit the same two costs repeatedly on legitimate,
+narrowly-scoped doctrine/research PRs (#150-#153): a 10+ minute
+reproducibility rebuild on PRs that touched zero build-relevant files,
+and a manual `<<<<<<< HEAD` resolution on `docs/DECISION_LOG.md`/
+`docs/STATUS.md` on nearly every rebase past a just-merged sibling PR,
+purely because both sides appended near the same location. Neither cost
+buys any additional assurance — a docs-only diff cannot regress build
+reproducibility, and an append-only log's insertion order across two
+independently-authored entries is not itself meaningful. Fixing the
+underlying friction is preferable to disabling the check (which was
+raised and rejected: SPEC-11 reproducibility is Tier-F frozen, and
+weakening its enforcement needs the formal unfreezing process, not a
+chat-direction disable).
+
+**Constitutional impact:** none negative. The SPEC-11 frozen requirement
+is enforced exactly as strictly as before for every commit that can
+possibly matter (all of `main`, and every PR touching non-doc paths) —
+this is a *scheduling* change, not a weakening of what gets checked or
+what passing means. `merge=union` never suppresses a real same-line edit
+conflict (there are none possible in an append-only log by construction)
+and never touches any other file's merge behavior.
+
+**Implementation status:** shipped. `.github/workflows/reproducibility.yml`
+carries the exact job body that previously lived in `ci.yml` unchanged;
+`ci.yml` retains `check`/`dependency-audit`/`dependency-deny` exactly as
+before. `.gitattributes` is new.
+
+**Failure point:** `paths-ignore` is a blunt, path-based proxy — a PR
+that edits only `docs/**`/`*.md` cannot regress reproducibility by
+construction, so there's no known false-negative case, but if a future
+non-Rust file *were* to ever affect the release build (unlikely given
+this workspace's structure) it would need adding to the ignore list's
+complement, i.e. the ignore list should stay narrow, not grow. `merge=union`
+resolution is not reviewed by a human before the merge commit forms — a
+malformed union (e.g. two entries claiming the same D-number, which the
+project's own collision-avoidance discipline is supposed to prevent
+independently) would still need to be caught by review, same as any
+other merge.
+
+**Required follow-up:** none required; watch whether `paths-ignore`'s
+two patterns need widening (e.g. to cover a future non-code,
+non-doc path) as the repo's shape changes.
+
+**Supersedes / superseded by:** none. Additive CI/repo-config change;
+`reproducibility`'s own build/hash logic is byte-for-byte unchanged from
+D-0044.

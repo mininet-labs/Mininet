@@ -1,0 +1,27 @@
+# docs/DECISION_LOG.md and docs/STATUS.md are append-heavy: two branches
+# routinely add different, non-conflicting entries/bullets near the same
+# point in the file (e.g. two research-derived decisions both appending
+# to the end of DECISION_LOG.md, or two PRs both adding a bullet to the
+# same STATUS.md section). Git's default 3-way merge treats any such
+# adjacent insertion as a hard conflict requiring manual resolution on
+# every rebase -- this session hit it on essentially every stacked PR.
+#
+# `merge=union` (a built-in Git low-level driver, no external tool
+# required) resolves an insertion-only conflict by keeping both sides'
+# lines instead of stopping with conflict markers. It does not reorder or
+# drop any existing content, and it does not silently resolve a *true*
+# same-line edit conflict (there aren't any in an append-only log: old
+# entries are never edited per DECISION_LOG.md's own header rule). Worst
+# case after a union merge is cosmetic (entries in an unexpected order),
+# fixable in the same commit that resolves the rest of the rebase, not a
+# correctness risk.
+docs/DECISION_LOG.md merge=union
+docs/STATUS.md merge=union
+
+AGENTS.md text eol=lf
+docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.md text eol=lf
+docs/governance/50_PRIMARY_AI_ENGINEER_CHARTER.summary.json text eol=lf
+governance/ai-charter-activation.json text eol=lf
+governance/decisions/*.json text eol=lf
+governance/*.json text eol=lf
+tools/*.py text eol=lf
