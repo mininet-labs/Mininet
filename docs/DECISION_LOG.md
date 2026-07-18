@@ -7315,3 +7315,83 @@ started by this decision.
 existing crate. Explicitly clarifies that `mini-private-index` (D-0310)
 is not to be repurposed as the general public web index this decision
 describes.
+### D-0313 — `mini-intake-types`: shared Mininet Intake vocabulary, Track B1 of the native-intake direction  ·  *Accepted*
+**Date:** 2026-07-18 · **Refs:** founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+Part V (Track B PR sequence); D-0311/D-0312 (the adjacent public-commons
+and open-web-search doctrine this track feeds); CLAUDE.md's typed-domains
+rule; Directive 14 (no new cryptography)
+
+**Decision:** adds a new crate, `mini-intake-types`, holding only the
+shared vocabulary for Mininet Intake: `IntakeId` (wrapping the existing
+`mini_crypto::Multihash` — no new digest type), `SourceRecord`,
+`MediaType`, `DerivedRepresentation`/`DerivationRecord`/
+`GeneratorIdentity`/`RepresentationKind`, the ordered six-tier
+`AuthorityClass` taxonomy (`UntrustedExternal` → `CanonicalProjectMaterial`),
+the `ReviewState` lifecycle state machine (`allows_transition_to` names
+every legal transition; `Rejected`/`Superseded` are terminal), `IntakeLink`,
+`IntakeWarning`, and the top-level `IntakeEnvelope` tying them together
+with a deterministic, length-prefixed wire codec matching `mini-relay`/
+`mini-bridge`/`mini-private-index`'s existing discipline. The research
+report's core rule — imported material receives no project authority
+merely because Mininet can parse it — is enforced structurally, not just
+documented: `IntakeEnvelope::new` always starts at `ReviewState::Unreviewed`
+and `AuthorityClass::UntrustedExternal` by construction (private fields,
+no alternate constructor), and `promote_authority` rejects reaching
+`AuthorityClass::ReviewedEvidence` or higher unless `review_state` is
+already `ReviewState::Accepted`. Designed clean-room, independent of and
+with no dependency on any external licensed intake tool, per the research
+report's own non-negotiable §2.1 rule. 35 unit tests, including exhaustive
+review-transition and authority-promotion coverage and a truncation-fuzz
+test looping over every possible truncated byte length asserting `Err`
+rather than a panic.
+
+**Reason:** the research report's own Track B sequencing names
+`mini-intake-types` (pure types, no parser/filesystem/network/AI) as the
+correct first slice — the same narrowly-scoped-first-deliverable
+discipline already used for `mini-bridge`/`mini-private-index`
+(D-0309/D-0310) and the ML-DSA-65 verify-only slice (D-0095) this
+session. Shipping the vocabulary first, with the "no automatic authority
+promotion" rule enforced in the type system rather than left to caller
+discipline, lets every later Track B/C/D crate (`mini-intake` the trusted
+coordinator, the extractor protocol, publication linking) build on a
+boundary that cannot silently be bypassed by a future caller forgetting a
+check.
+
+**Constitutional impact:** none negative. No new cryptography (Directive
+14) — `IntakeId`/`SourceRecord` carry a `mini_crypto::Multihash` a caller
+already computed; this crate performs no hashing itself. No voice/value
+wall implications — this crate has no dependency on `mini-value`/
+`mini-bounty`/`mini-treasury` or on `mini-forge`/`mini-chain` voting.
+Typed-domains rule honored: `IntakeEnvelope`'s only mutation paths are
+`advance_review_state`/`promote_authority`, both taking specific typed
+arguments and both fallible against a named rule, not a generic
+`sign(bytes)`/`finalize(state)` shape.
+
+**Implementation status:** shipped in `mini-intake-types` only, added to
+the workspace `members` list. `cargo fmt --all`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and `cargo test
+--workspace --all-features` all clean, including this new crate's 35
+tests.
+
+**Failure point:** vocabulary only — there is no working intake pipeline
+yet. No hashing, no filesystem watcher, no extractor, no AI model, no
+storage of represented bytes, no way to actually construct an
+`IntakeEnvelope` from a real external document today. `AuthorityClass`
+and `ReviewState` are honor-system inputs from whatever caller eventually
+drives them (`mini-intake`, Track B2) — this crate only guarantees that
+*given* a caller correctly reporting review outcomes, authority cannot be
+promoted out of order; it cannot stop a Track B2 coordinator from lying
+about a review outcome it never actually ran.
+
+**Required follow-up:** Track B2 `mini-intake` (trusted intake
+coordinator: hashing, immutable storage, dedup, local text/Markdown
+intake, atomic object creation); Track B3 (extractor protocol + isolated
+host, mirroring `mini-build-runner-wasmtime`'s sandboxing discipline);
+Track B4 (PDF/HTML extraction backends); Track B5 (intake publication
+linking). See `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+Part V for the full sequence.
+
+**Supersedes / superseded by:** none. New crate, no existing crate
+touched.

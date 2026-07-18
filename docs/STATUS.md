@@ -835,6 +835,12 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
 
 ## 11. Discovery / search
 
+Not one of the nine `docs/INVARIANTS.md` domains — a founder-adopted
+2026-07-18 direction (`docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`)
+naming forge/storage/search/social-network/governance/crypto-anonymity as
+the top development priority.
+
 - **doctrine-only** — MiniSearch, independent open-web search (D-0312):
   founder decision that Mininet builds and operates its own crawler/
   index/search stack — free public search as a commons entitlement
@@ -853,16 +859,13 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   system from `mini-private-index` (D-0310), which is not to be
   repurposed as the general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
-- **not started** — Mininet Intake (`mini-intake-types`/`mini-intake`/
-  `mini-extractor-protocol`/`mini-extractor-host`), the native,
-  clean-room (no dependency on or code reuse from any external
-  licensed intake tool) boundary through which external documents
-  enter Mininet with immutable source retention, sandboxed extraction,
-  and no automatic authority promotion (Track B). No decision-log entry
-  yet — the founder direction is recorded in the research report above;
-  a dedicated D-number is deferred until the first real crate (PR B1)
-  lands, per this session's established practice of recording code-
-  bearing decisions at the PR that ships them.
+- **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
+  Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
+  `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
+  a deterministic wire codec. Real, tested (35 unit tests). No parser,
+  filesystem watcher, network client, storage, or AI model — those are
+  Tracks B2-B5 (`mini-intake`, the extractor protocol, PDF/HTML
+  extraction backends, intake publication linking), not started.
 
 ## What has no client, at all
 
