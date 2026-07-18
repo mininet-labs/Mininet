@@ -7025,3 +7025,97 @@ precedent, D-0069).
 **Supersedes / superseded by:** none. Extends D-0310's `mini-private-
 index` doctrine additively — no existing type or behavior in any crate
 changed.
+
+### D-0099 — Anonymous resource payment and redemption preparation: online-spend blind-token doctrine, no code (`MN-602`/`MN-603`)  ·  *Accepted (research/doctrine only)*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+MN602_MN603_ANONYMOUS_RESOURCE_PAYMENT_RESEARCH_20260715.md`; `docs/design/
+mn602-mn603-anonymous-resource-payment-preparation.md` (new);
+`mini-resource-pricing` (D-0302, `MN-601`, unmodified); D-0098 (this
+session's other research-only preparation decision); CLAUDE.md's
+voice/value wall and no-new-cryptography rules
+
+**Decision:** adopts the research report's own recommended doctrine
+scope exactly: Mininet's priced privacy/resource services (relay, bridge,
+mix, storage, cover traffic, private-index queries) must not be paid for
+via an ordinary identity-linked MINI transfer per request, since that
+turns the payment graph into a second metadata graph correlating payer,
+privacy tier, provider, and timing. The adopted first-protocol shape is
+online-spend, issuer-backed, fixed-denomination blind-signature resource
+tokens with atomic spent-token checking and batched provider redemption
+— not offline anonymous cash, not a new general currency, and not an
+embedding of Privacy Pass/GNU Taler/Coconut, each of which is named as a
+reference point for a specific later phase rather than adopted wholesale
+(Privacy Pass's issuance/redemption separation for the first non-monetary
+test-credit prototype; GNU Taler evaluated later as a possible external
+monetary rail; Coconut reserved for later threshold-mint research,
+MN-603B). Freezes five separable roles (funding source, token issuer,
+client wallet, service provider, redemption service) and the hard rule
+that subsidised and paid tokens must be indistinguishable at spend time.
+Names, but does not create, three future crates
+(`mini-resource-token`/`mini-resource-redemption`/`mini-resource-wallet`).
+**No Rust code, no new crate, no blind-signature dependency.**
+`mini-resource-pricing` (D-0302) is completely unmodified — it remains
+pure quoting logic with no keys, no issuance, no transfers.
+
+**Reason:** the research report's own executive conclusion states this
+architecture prevents privacy-tier fingerprinting, timing linkage between
+payment and service use, and provider-graph reconstruction that a direct
+transfer would create — while online (rather than offline) redemption
+avoids the identity-escrow double-spend-tracing complexity of classic
+e-cash research, which this workspace is not positioned to design or
+review safely today. Adopting the doctrine now, before any token type
+exists, mirrors the same narrowly-scoped-first-deliverable discipline
+already used for D-0096 (KEL witness receipts), D-0097 (bridge adapters),
+and D-0098 (PIR research prep) earlier this session — freeze the
+constraints a future implementation must satisfy before any code can
+violate them by omission.
+
+**Constitutional impact:** none negative; strengthens the voice/value
+wall's applicability. Directive 16 (voice/value wall) is explicitly
+extended to this future track: resource-token balances must never enter
+vote calculations, review quorum, validator weight, personhood score,
+witness selection, merge authority, or constitutional amendment, and no
+crate that will eventually provide anonymous payment may be imported by
+governance-counting code. Directive 14 (no new cryptography) is
+reinforced — blind-signature/anonymous-credential schemes are named as
+research targets requiring an external, already-reviewed implementation
+(Phase 2+) and a separate external cryptographic review (Phase 6) before
+any implementation proceeds past valueless test credits, and real MINI
+may never back a token before that review plus separate accounting and
+legal review (Phase 8-9) all complete. Personhood remains unsolved (see
+`docs/INVARIANTS.md`'s hard-limitation section), so no subsidy mechanism
+adopted under this doctrine may ever be represented as one-human-one-
+share.
+
+**Implementation status:** doctrine and research preparation only. No
+Rust code in this PR. The next scoped deliverable is Phase 1 (non-
+monetary test token types, no cryptographic blindness claim) — not
+started.
+
+**Failure point:** this decision has no code failure point yet by
+construction (nothing implemented). The design's own named failure
+conditions to watch for once implementation starts: withdrawal timing or
+denomination patterns that uniquely identify a spend despite blind
+issuance; an issuer that logs unblinded tokens; a provider that redeems
+before the redemption service's atomic spent-check completes; a
+subsidised token distinguishable from a paid one at presentation; a
+wallet backup that enables an accepted duplicate redemption; and any
+future PR letting resource-credit balances leak into a governance,
+personhood, or validator-weight calculation.
+
+**Required follow-up:** Phase 1 (test token types, denomination metadata,
+mock issuance, wallet state, spent-set semantics — no blindness claim);
+Phase 2 (real blind-issuance prototype behind one reviewed external
+implementation, still valueless); Phase 3 (integration with one low-risk
+resource — private-index query or a fixed relay byte bucket — still no
+real settlement); Phase 4 (provider batch redemption); Phase 5
+(adversarial simulation: timing correlation, replay races, provider/
+issuer fraud, wallet rollback, subsidy farming); Phase 6 (external
+cryptographic review); Phase 7 (closed valueless pilot); Phase 8
+(economic/legal classification of what a credit actually is); Phase 9
+(limited MINI-backed pilot, only after all of the above); Phase 10
+(threshold-mint research, Coconut-style or otherwise).
+
+**Supersedes / superseded by:** none. Extends D-0302's `mini-resource-
+pricing` doctrine additively — no existing type or behavior in any crate
+changed.
