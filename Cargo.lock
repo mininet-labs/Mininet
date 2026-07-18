@@ -1264,6 +1264,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-intake"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-intake-types",
+ "mini-store",
+ "tempfile",
+]
+
+[[package]]
 name = "mini-intake-types"
 version = "0.0.1"
 dependencies = [
