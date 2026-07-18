@@ -50,6 +50,7 @@ members = [
     "crates/mini-intake-types",
     "crates/mini-web-types",
     "crates/mini-intake",
+    "crates/mini-crawler",
 ]
 
 [workspace.package]

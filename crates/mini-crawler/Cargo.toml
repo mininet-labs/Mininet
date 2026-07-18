@@ -1,0 +1,13 @@
+[package]
+name = "mini-crawler"
+version = "0.0.1"
+description = "Deterministic MiniSearch crawler planning and URL admission policy (D-0317). No network client, parser, JavaScript, storage, ranking, or payment logic."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-web-types = { path = "../mini-web-types" }
