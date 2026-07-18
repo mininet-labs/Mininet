@@ -713,5 +713,104 @@ class BootstrapOperatingProfileTests(unittest.TestCase):
                 self.assertTrue(self.validate_state(mutate, dt.datetime(2026, 7, 13, tzinfo=dt.timezone.utc)))
 
 
+class WorkClaimRegistryTests(unittest.TestCase):
+    def validate_claims(self, claims, now=None) -> tuple[list[str], list[str]]:
+        with tempfile.TemporaryDirectory() as temp:
+            root = copy_fixture(Path(temp) / "candidate")
+            registry = {
+                "$schema": "./work-claims.schema.json",
+                "schema_version": 1,
+                "registry_id": "mininet-bootstrap-work-claims",
+                "updated_at": "2026-07-18T00:00:00Z",
+                "claims": claims,
+            }
+            (root / CHECKER.WORK_CLAIMS_PATH).write_text(
+                json.dumps(registry, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            (root / CHECKER.WORK_CLAIMS_SCHEMA_PATH).write_text(
+                json.dumps({"type": "object"}, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            registry_text = (root / "docs/DECISION_LOG.md").read_text(encoding="utf-8")
+            (root / "docs/DECISION_LOG.md").write_text(
+                registry_text + "\n### D-9991\n\n### D-9992\n\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            warnings: list[str] = []
+            CHECKER.validate_work_claims(
+                root,
+                errors,
+                warnings,
+                now=now or dt.datetime(2026, 7, 18, tzinfo=dt.timezone.utc),
+            )
+            return errors, warnings
+
+    def claim(self, issue=1, decision="D-9991", path="crates/mini-chain/"):
+        return {
+            "issue": issue,
+            "status": "active",
+            "contributor": "Codex",
+            "branch": f"agent/issue-{issue}",
+            "pull_request": None,
+            "lease_expires": "2026-07-25",
+            "paths": [path],
+            "decision_ids": [decision],
+            "notes": "test",
+        }
+
+    def test_distinct_active_claims_pass(self) -> None:
+        errors, _ = self.validate_claims([
+            self.claim(issue=1, decision="D-9991", path="crates/mini-chain/"),
+            self.claim(issue=2, decision="D-9992", path="crates/mini-net/"),
+        ])
+        self.assertEqual([], errors)
+
+    def test_duplicate_active_decision_fails(self) -> None:
+        errors, _ = self.validate_claims([
+            self.claim(issue=1, decision="D-9991", path="crates/mini-chain/"),
+            self.claim(issue=2, decision="D-9991", path="crates/mini-net/"),
+        ])
+        self.assertTrue(any("D-9991" in error and "both issue" in error for error in errors), errors)
+
+    def test_duplicate_active_issue_fails(self) -> None:
+        errors, _ = self.validate_claims([
+            self.claim(issue=1, decision="D-9991", path="crates/mini-chain/"),
+            self.claim(issue=1, decision="D-9992", path="crates/mini-net/"),
+        ])
+        self.assertTrue(any("multiple active work claims" in error for error in errors), errors)
+
+    def test_expired_active_claim_fails(self) -> None:
+        claim = self.claim()
+        claim["lease_expires"] = "2026-07-17"
+        errors, _ = self.validate_claims([claim])
+        self.assertTrue(any("expired on 2026-07-17" in error for error in errors), errors)
+
+    def test_overlapping_active_paths_fail(self) -> None:
+        errors, _ = self.validate_claims([
+            self.claim(issue=1, decision="D-9991", path="crates/mini-chain/"),
+            self.claim(issue=2, decision="D-9992", path="crates/mini-chain/src/"),
+        ])
+        self.assertTrue(any("overlap paths" in error for error in errors), errors)
+
+    def test_same_branch_may_share_cross_cutting_paths(self) -> None:
+        first = self.claim(issue=1, decision="D-9991", path="docs/DECISION_LOG.md")
+        second = self.claim(issue=2, decision="D-9992", path="docs/DECISION_LOG.md")
+        first["branch"] = "agent/shared-pr"
+        second["branch"] = "agent/shared-pr"
+        errors, _ = self.validate_claims([first, second])
+        self.assertEqual([], errors)
+
+    def test_shared_append_only_paths_may_overlap_across_branches(self) -> None:
+        errors, _ = self.validate_claims([
+            self.claim(issue=1, decision="D-9991", path="docs/DECISION_LOG.md"),
+            self.claim(issue=2, decision="D-9992", path="docs/DECISION_LOG.md"),
+            self.claim(issue=3, decision="D-9993", path="docs/STATUS.md"),
+            self.claim(issue=4, decision="D-9994", path="docs/STATUS.md"),
+        ])
+        self.assertEqual([], errors)
+
+
 if __name__ == "__main__":
     unittest.main()
