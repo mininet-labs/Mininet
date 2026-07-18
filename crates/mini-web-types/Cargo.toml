@@ -1,0 +1,16 @@
+[package]
+name = "mini-web-types"
+version = "0.0.1"
+description = "MiniSearch shared web/search vocabulary (D-0312/Track E): canonical URLs, crawl observations, availability reasons, ranking profiles, and result explanations. Pure types only -- no crawler, index, ranker, query service, network client, or payment logic."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Content and profile identifiers wrap the existing Multihash type. No new
+# cryptography and no value/governance dependency: search ranking authority must
+# never become purchasable or vote-like (D-0312 / Directive 16).
+mini-crypto = { path = "../mini-crypto" }

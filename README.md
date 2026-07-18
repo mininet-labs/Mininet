@@ -131,6 +131,11 @@ so, everywhere, on purpose.
   `PrivateIndexRecord`, and a local `LocalIndex` enforcing signature/
   writer/rollback discipline; doctrine plus one local-only primitive —
   no network, no PIR, no replicated index service yet
+- `mini-web-types` (D-0316): the first MiniSearch code slice — pure
+  shared vocabulary for canonical public-web URLs, crawl observations,
+  explicit availability/restriction states, declared ranking profiles,
+  default-no-personalization public search, and result explanations; no
+  crawler, index, ranker, query service, network client, or payment logic
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential
