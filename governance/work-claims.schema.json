@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mininet.example/governance/work-claims.schema.json",
+  "title": "Mininet bootstrap work-claim registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "registry_id", "updated_at", "claims"],
+  "properties": {
+    "$schema": {
+      "const": "./work-claims.schema.json"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "registry_id": {
+      "const": "mininet-bootstrap-work-claims"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue",
+          "status",
+          "contributor",
+          "branch",
+          "lease_expires",
+          "paths",
+          "decision_ids",
+          "notes"
+        ],
+        "properties": {
+          "issue": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "enum": ["reserved", "active", "in_review", "blocked", "closed", "expired"]
+          },
+          "contributor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "branch": {
+            "type": "string",
+            "minLength": 1
+          },
+          "pull_request": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "lease_expires": {
+            "type": "string",
+            "format": "date"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "decision_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^D-[0-9]{4}$"
+            },
+            "uniqueItems": true
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
