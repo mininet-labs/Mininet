@@ -16,6 +16,9 @@ pub struct FreshnessPolicy {
     /// replay guard's memory surviving restarts. `0` disables the check (a
     /// deliberate caller choice, e.g. offline re-verification of history).
     pub max_age_ms: u64,
+    /// Maximum clock skew accepted into the future. A far-future receipt
+    /// would otherwise remain fresh after a replay-store loss indefinitely.
+    pub max_future_skew_ms: u64,
 }
 
 impl FreshnessPolicy {
@@ -23,6 +26,7 @@ impl FreshnessPolicy {
     pub fn default_policy() -> Self {
         FreshnessPolicy {
             max_age_ms: 86_400_000,
+            max_future_skew_ms: 300_000,
         }
     }
 }
@@ -121,6 +125,9 @@ pub fn verify_serve(
     if let Some(now) = ctx.now_ms {
         if ctx.policy.max_age_ms > 0 && f.at_ms < now.saturating_sub(ctx.policy.max_age_ms) {
             return Err(StorageProofError::TooOld);
+        }
+        if f.at_ms > now.saturating_add(ctx.policy.max_future_skew_ms) {
+            return Err(StorageProofError::TooNew);
         }
     }
     // The two nonces must differ (a party can't echo the other's nonce).

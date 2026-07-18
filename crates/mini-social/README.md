@@ -31,4 +31,9 @@ public objects; pseudonymous/private graphs arrive with pairwise identifiers
 cargo test -p mini-social
 ```
 
+Resolvers decode strictly: the head target must have the expected object type,
+must be authored by the DID whose slot is being resolved, must stay within the
+published field limits, and must contain no trailing bytes. Malformed objects
+fail closed instead of becoming partial profiles, walls, or follow edges.
+
 License: CC0-1.0 (public domain).

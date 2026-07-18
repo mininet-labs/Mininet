@@ -448,3 +448,76 @@ fn resolve_wall_rejects_a_wall_head_pointing_at_a_profile_object() {
         Err(SocialError::BadWall)
     ));
 }
+
+#[test]
+fn resolve_profile_rejects_wrong_type_cross_author_and_trailing_payload() {
+    let (owner, owner_device) = human(63);
+    let (other, other_device) = human(64);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let decoy = post(
+        &mut store,
+        &owner.did(),
+        &owner_device,
+        b"not a profile",
+        100,
+        1,
+    );
+    let wrong_type_head = ObjectBuilder::new(ObjectType::HEAD)
+        .sequence(1)
+        .link("target", decoy.id().clone())
+        .payload(Payload::Public(b"profile".to_vec()))
+        .sign(&owner.did(), &owner_device)
+        .unwrap();
+    store.apply_head(&wrong_type_head).unwrap();
+    assert!(matches!(
+        resolve_profile(&store, &owner.did()),
+        Err(SocialError::BadProfile)
+    ));
+
+    let other_profile = publish_profile(
+        &mut store,
+        &other.did(),
+        &other_device,
+        "Other",
+        "bio",
+        None,
+        200,
+        1,
+    )
+    .unwrap();
+    let cross_author_head = ObjectBuilder::new(ObjectType::HEAD)
+        .sequence(2)
+        .link("target", other_profile.id().clone())
+        .payload(Payload::Public(b"profile".to_vec()))
+        .sign(&owner.did(), &owner_device)
+        .unwrap();
+    store.apply_head(&cross_author_head).unwrap();
+    assert!(matches!(
+        resolve_profile(&store, &owner.did()),
+        Err(SocialError::BadProfile)
+    ));
+
+    let mut payload = Vec::new();
+    for field in ["Owner", "bio", ""] {
+        payload.extend_from_slice(&(field.len() as u32).to_be_bytes());
+        payload.extend_from_slice(field.as_bytes());
+    }
+    payload.push(0xff);
+    let trailing = ObjectBuilder::new(ObjectType::PROFILE)
+        .payload(Payload::Public(payload))
+        .sign(&owner.did(), &owner_device)
+        .unwrap();
+    store.insert(&trailing).unwrap();
+    let trailing_head = ObjectBuilder::new(ObjectType::HEAD)
+        .sequence(3)
+        .link("target", trailing.id().clone())
+        .payload(Payload::Public(b"profile".to_vec()))
+        .sign(&owner.did(), &owner_device)
+        .unwrap();
+    store.apply_head(&trailing_head).unwrap();
+    assert!(matches!(
+        resolve_profile(&store, &owner.did()),
+        Err(SocialError::BadProfile)
+    ));
+}

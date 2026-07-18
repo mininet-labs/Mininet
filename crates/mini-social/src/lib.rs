@@ -61,6 +61,8 @@ pub enum SocialError {
     Identity(did_mini::IdentityError),
     /// A wall or wall-linkage object was structurally invalid.
     BadWall,
+    /// A profile object was structurally invalid or not owned by the requested DID.
+    BadProfile,
 }
 
 impl core::fmt::Display for SocialError {
@@ -71,6 +73,7 @@ impl core::fmt::Display for SocialError {
             SocialError::Object(e) => write!(f, "object: {e}"),
             SocialError::Identity(e) => write!(f, "identity: {e}"),
             SocialError::BadWall => write!(f, "structurally invalid wall or linkage object"),
+            SocialError::BadProfile => write!(f, "structurally invalid profile object"),
         }
     }
 }
@@ -150,18 +153,24 @@ pub fn resolve_profile<B: Backend>(store: &Store<B>, human: &Did) -> Result<Opti
         None => return Ok(None),
     };
     let obj = store.get(&target)?;
+    if obj.object_type != ObjectType::PROFILE || obj.author_human.as_str() != human.as_str() {
+        return Err(SocialError::BadProfile);
+    }
     let bytes = match &obj.payload {
         Payload::Public(b) => b,
-        Payload::Encrypted(_) => return Ok(None),
+        Payload::Encrypted(_) => return Err(SocialError::BadProfile),
     };
     let mut pos = 0usize;
-    let display_name = get_str(bytes, &mut pos).unwrap_or_default();
-    let bio = get_str(bytes, &mut pos).unwrap_or_default();
-    let avatar_str = get_str(bytes, &mut pos).unwrap_or_default();
+    let display_name = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+    let bio = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+    let avatar_str = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+    if pos != bytes.len() || display_name.len() > MAX_NAME_BYTES || bio.len() > MAX_BIO_BYTES {
+        return Err(SocialError::BadProfile);
+    }
     let avatar = if avatar_str.is_empty() {
         None
     } else {
-        ObjectId::parse(&avatar_str).ok()
+        Some(ObjectId::parse(&avatar_str).map_err(|_| SocialError::BadProfile)?)
     };
     Ok(Some(Profile {
         human: obj.author_human.clone(),
@@ -202,9 +211,16 @@ fn follow_edge(obj: &Object) -> Option<(bool, Did)> {
         Payload::Public(b) if !b.is_empty() => b,
         _ => return None,
     };
-    let state = bytes[0] == 1;
+    let state = match bytes[0] {
+        0 => false,
+        1 => true,
+        _ => return None,
+    };
     let mut pos = 1usize;
     let target = get_str(bytes, &mut pos)?;
+    if pos != bytes.len() {
+        return None;
+    }
     Did::parse(&target).ok().map(|d| (state, d))
 }
 

@@ -244,6 +244,126 @@ fn outside_contributor_pr_merges_under_identity_root_quorum() {
 }
 
 #[test]
+fn governance_refuses_a_commit_with_ambiguous_tree_links() {
+    let mut w = world();
+    let file = put_file(&mut w.store, &w.contrib.0.did(), &w.contrib.1, b"source").unwrap();
+    let tree = put_tree(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &[TreeEntry {
+            name: "f.rs".into(),
+            is_dir: false,
+            target: file,
+        }],
+    )
+    .unwrap();
+    let ambiguous = ObjectBuilder::new(ObjectType::COMMIT)
+        .payload(Payload::Public(b"ambiguous source".to_vec()))
+        .link("tree", tree.clone())
+        .link("tree", tree)
+        .sign(&w.contrib.0.did(), &w.contrib.1)
+        .unwrap();
+    w.store.insert(&ambiguous).unwrap();
+
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "ambiguous source",
+        ambiguous.id(),
+        &w.proj,
+        200,
+        1,
+    )
+    .unwrap();
+    for (root, device) in [&w.a, &w.b] {
+        approve(
+            &mut w.store,
+            &root.did(),
+            device,
+            pr.id(),
+            ambiguous.id(),
+            true,
+            300,
+            1,
+        )
+        .unwrap();
+    }
+    merge(
+        &mut w.store,
+        &w.c.0.did(),
+        &w.c.1,
+        &w.proj,
+        &w.proj,
+        pr.id(),
+        400,
+        1,
+    )
+    .unwrap();
+
+    let state = resolve_project(&w.store, &w.oracle(), &w.proj).unwrap();
+    assert_eq!(state.entries, 0);
+    assert!(state.branches.is_empty());
+}
+
+#[test]
+fn governance_refuses_a_commit_from_an_unverified_author() {
+    let mut w = world();
+    let unverified = identity_root(200);
+    let head = a_commit(
+        &mut w.store,
+        &unverified.0.did(),
+        &unverified.1,
+        b"unverified source",
+        1,
+    );
+    let pr = propose(
+        &mut w.store,
+        &w.contrib.0.did(),
+        &w.contrib.1,
+        &w.proj,
+        "main",
+        "unverified source author",
+        head.id(),
+        &w.proj,
+        200,
+        1,
+    )
+    .unwrap();
+    for (root, device) in [&w.a, &w.b] {
+        approve(
+            &mut w.store,
+            &root.did(),
+            device,
+            pr.id(),
+            head.id(),
+            true,
+            300,
+            1,
+        )
+        .unwrap();
+    }
+    merge(
+        &mut w.store,
+        &w.c.0.did(),
+        &w.c.1,
+        &w.proj,
+        &w.proj,
+        pr.id(),
+        400,
+        1,
+    )
+    .unwrap();
+
+    let state = resolve_project(&w.store, &w.oracle(), &w.proj).unwrap();
+    assert_eq!(state.entries, 0);
+    assert!(state.branches.is_empty());
+}
+
+#[test]
 fn author_never_counts_and_one_identity_root_counts_once() {
     let mut w = world();
     // Maintainer A authors the PR themselves.

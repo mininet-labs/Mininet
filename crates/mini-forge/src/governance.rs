@@ -739,7 +739,8 @@ fn entry_is_valid<B: Backend>(
                 None => return Ok(false),
             };
             match store.get(&head) {
-                Ok(h) if h.object_type == ObjectType::COMMIT => {}
+                Ok(h) if author_verified(oracle, &h) && crate::commit_is_well_formed(store, &h) => {
+                }
                 _ => return Ok(false),
             }
             let n = quorum(store, oracle, &pr_id, Some(&head), policy, &pr.author_human)?;

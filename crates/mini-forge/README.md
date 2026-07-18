@@ -45,4 +45,9 @@ this module synthesizes a deterministic, clearly-non-routable identity
 (`mini:<scid> <<scid>@mininet.invalid>`, `.invalid` per RFC 2606) rather than
 inventing or requiring a real one.
 
+Commit decoding is strict at both checkout and governance: a commit has exactly
+one tree link, only unique parent links, a bounded public message, and a
+well-formed referenced tree. An ambiguously encoded commit cannot become a
+canonical governed branch head even if it has enough approvals.
+
 License: CC0-1.0 (public domain).
