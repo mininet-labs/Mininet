@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 40,
-    "files": 528,
-    "headings": 1857,
+    "files": 532,
+    "headings": 1875,
     "rust_symbols": 4009
   },
   "crates": {
@@ -35907,7 +35907,7 @@
       "title": "{"
     },
     {
-      "bytes": 415316,
+      "bytes": 426391,
       "group": "docs",
       "headings": [
         {
@@ -36325,6 +36325,7 @@
         "mini-consensus",
         "issue",
         "new",
+        "research",
         "track",
         "lane",
         "status",
@@ -36334,12 +36335,11 @@
         "chain",
         "first",
         "audit",
-        "explicit",
-        "live"
+        "explicit"
       ],
-      "lines": 6942,
+      "lines": 7122,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "57da5725822af97704eff28ffa6eeede7aa0f693a0d65ce7f6ed1ece50765f15",
+      "sha256": "3cfefad19c4bc96ef341d5dd408e666c2ce6a6405955330ecb5e3e72445c0fa7",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -37197,7 +37197,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 49006,
+      "bytes": 50492,
       "group": "docs",
       "headings": [
         {
@@ -37237,32 +37237,32 @@
         },
         {
           "level": 2,
-          "line": 426,
+          "line": 448,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 467,
+          "line": 489,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 525,
+          "line": 547,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 554,
+          "line": 576,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 749,
+          "line": 771,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 755,
+          "line": 777,
           "text": "Where to look for more detail"
         }
       ],
@@ -37292,9 +37292,9 @@
         "equivocation",
         "validator"
       ],
-      "lines": 765,
+      "lines": 787,
       "path": "docs/STATUS.md",
-      "sha256": "3178ad71924553bac1e30d0ee4e83e3dd5f169a58709823ec3dde4d7332e93f3",
+      "sha256": "191dd6102868e84ac3522aa97c6ec43aa212efc43af7277e7d5443e5923c5824",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -39258,6 +39258,170 @@
       "sha256": "e16edb8785ea0497abc8d6141a8a1e13e1da446f01726a9b68631495d8f3953f",
       "symbols": [],
       "title": "Sphinx-style mix network: research report and protocol specification (MN-204)"
+    },
+    {
+      "bytes": 7822,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "PIR research and external-review preparation (MN-208 Phase 9, D-0098)"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "Decision"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "The frozen first workload"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "Candidate portfolio (research targets, not selections)"
+        },
+        {
+          "level": 2,
+          "line": 100,
+          "text": "What \"achieved privacy\" must say"
+        },
+        {
+          "level": 2,
+          "line": 117,
+          "text": "What PIR does not solve (must never be overclaimed)"
+        },
+        {
+          "level": 2,
+          "line": 129,
+          "text": "Required before any PIR code PR"
+        },
+        {
+          "level": 2,
+          "line": 157,
+          "text": "Constitutional posture"
+        }
+      ],
+      "keywords": [
+        "pir",
+        "research",
+        "candidate",
+        "report",
+        "benchmark",
+        "first",
+        "decision",
+        "workload",
+        "independent",
+        "design",
+        "external-review",
+        "what",
+        "review",
+        "existing",
+        "row",
+        "preparation",
+        "phase",
+        "does",
+        "never",
+        "cryptographic",
+        "records",
+        "own",
+        "programme",
+        "two-server"
+      ],
+      "lines": 166,
+      "path": "docs/design/mn208-pir-research-and-review-preparation.md",
+      "sha256": "7f1b710312348ff7e2954894687efe85e7d15fc6848bdee962eee2bfc52f8f79",
+      "symbols": [],
+      "title": "PIR research and external-review preparation (MN-208 Phase 9, D-0098)"
+    },
+    {
+      "bytes": 8048,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Anonymous resource payment and redemption preparation (MN-602/MN-603, D-0099)"
+        },
+        {
+          "level": 2,
+          "line": 16,
+          "text": "Decision"
+        },
+        {
+          "level": 2,
+          "line": 42,
+          "text": "Role separation (the report's central discipline)"
+        },
+        {
+          "level": 2,
+          "line": 59,
+          "text": "What a token represents"
+        },
+        {
+          "level": 2,
+          "line": 71,
+          "text": "Online-spend, not offline e-cash"
+        },
+        {
+          "level": 2,
+          "line": 85,
+          "text": "Subsidies use the same token format as paid credits"
+        },
+        {
+          "level": 2,
+          "line": 99,
+          "text": "Voice/value wall (hard rule, restated for this track)"
+        },
+        {
+          "level": 2,
+          "line": 111,
+          "text": "Proposed (not yet built) crate boundaries"
+        },
+        {
+          "level": 2,
+          "line": 126,
+          "text": "No new cryptography"
+        },
+        {
+          "level": 2,
+          "line": 141,
+          "text": "What's required before any code PR"
+        }
+      ],
+      "keywords": [
+        "token",
+        "provider",
+        "report",
+        "redemption",
+        "service",
+        "payment",
+        "offline",
+        "privacy",
+        "anonymous",
+        "resource",
+        "decision",
+        "role",
+        "what",
+        "research",
+        "first",
+        "may",
+        "never",
+        "one",
+        "protocol",
+        "design",
+        "preparation",
+        "separation",
+        "online-spend",
+        "same"
+      ],
+      "lines": 153,
+      "path": "docs/design/mn602-mn603-anonymous-resource-payment-preparation.md",
+      "sha256": "12d7f4e4e4fe926969f8e39042a7a403f03ce64e36d480a25f63153767269d00",
+      "symbols": [],
+      "title": "Anonymous resource payment and redemption preparation (MN-602/MN-603, D-0099)"
     },
     {
       "bytes": 9401,
@@ -47411,6 +47575,42 @@
       "title": "MN-207 Research Report: Bridges, Pluggable Transports, and Censorship-Resistant Entry Privacy"
     },
     {
+      "bytes": 50108,
+      "group": "docs",
+      "headings": [],
+      "keywords": [
+        "pir",
+        "research",
+        "database",
+        "one",
+        "server",
+        "private",
+        "protocol",
+        "bounded",
+        "benchmark",
+        "model",
+        "client",
+        "candidate",
+        "download",
+        "computationally",
+        "cryptographic",
+        "phase",
+        "lookup",
+        "retrieval",
+        "external",
+        "query",
+        "recommended",
+        "records",
+        "small",
+        "two-server"
+      ],
+      "lines": 1895,
+      "path": "docs/research/MN208_PIR_RESEARCH_AND_REVIEW_PREPARATION_20260715.md",
+      "sha256": "83a84ef122255cb0c6aeee1cf47efb7bfae3b62fd874268337dea73985f604fe",
+      "symbols": [],
+      "title": "PIR Research and External-Review Preparation Report"
+    },
+    {
       "bytes": 48033,
       "group": "docs",
       "headings": [],
@@ -47445,6 +47645,42 @@
       "sha256": "630ad609098a0a40de7076e4537b6cde96c16bebaba721d7b4c9a960562b99b2",
       "symbols": [],
       "title": "MN-208 Research Report: Private Lookup, DHT Restrictions, and Interest-Hiding Retrieval"
+    },
+    {
+      "bytes": 44615,
+      "group": "docs",
+      "headings": [],
+      "keywords": [
+        "provider",
+        "payment",
+        "tokens",
+        "token",
+        "anonymous",
+        "redemption",
+        "privacy",
+        "issuer",
+        "service",
+        "issuance",
+        "offline",
+        "research",
+        "resource",
+        "identity",
+        "storage",
+        "payer",
+        "architecture",
+        "system",
+        "withdrawal",
+        "unlinkable",
+        "settlement",
+        "anti-abuse",
+        "pass",
+        "later"
+      ],
+      "lines": 1726,
+      "path": "docs/research/MN602_MN603_ANONYMOUS_RESOURCE_PAYMENT_RESEARCH_20260715.md",
+      "sha256": "989c229f4dee86905678fb49e315b902230d727f0a46daf55f781195b8fc99b1",
+      "symbols": [],
+      "title": "Anonymous Resource Payment and Redemption Research Report"
     },
     {
       "bytes": 4497,

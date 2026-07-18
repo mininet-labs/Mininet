@@ -6939,3 +6939,183 @@ review before any of the above reaches production identity authority.
 **Supersedes / superseded by:** none. Additive to `mini-crypto`'s existing
 suite-tagged API; no existing type's behavior changed for the `Ed25519`
 suite.
+
+### D-0098 — PIR research and external-review preparation for `mini-private-index`: frozen workload, candidate portfolio, no code (`MN-208` Phase 9)  ·  *Accepted (research only)*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+MN208_PIR_RESEARCH_AND_REVIEW_PREPARATION_20260715.md`; `docs/design/
+mn208-pir-research-and-review-preparation.md` (new); D-0310
+(`mini-private-index`, whose `LookupPrivacyClass::PrivatePIR` this
+prepares the review path for); D-0047 (external crypto review gate);
+CLAUDE.md's no-new-cryptography rule
+
+**Decision:** adopts the research report's own recommended Phase 9 scope
+exactly: Mininet does not select or implement a production Private
+Information Retrieval (PIR) protocol for `mini-private-index` yet. This
+decision freezes the first PIR workload the network will ever benchmark
+against — exact retrieval of one fixed-size encrypted mailbox or
+provider descriptor from one immutable, epoch-versioned, equal-length-
+record database, mapping directly onto `mini-private-index`'s existing
+`PrivateIndexRecord`/`RecordSizeClass` vocabulary (D-0310) rather than a
+new database shape invented for PIR — and names a four-candidate research
+portfolio: whole-index download (mandatory baseline), two-server
+information-theoretic PIR (preferred first true-PIR candidate), one
+mature single-server lattice scheme (Spiral or a SimplePIR-family
+successor, benchmarked not chosen; SealPIR stays a compatibility
+baseline), and ZipPIR on the watchlist only (2026 publication,
+insufficient independent review history for the shortlist). No Rust
+code, no PIR crate, and no new dependency are added by this PR.
+`LookupPrivacyClass::PrivatePIR` remains exactly as unimplemented and
+gated behind D-0047 as it was before this decision.
+
+**Reason:** the research report's own executive conclusion is explicit
+that selecting a PIR scheme before freezing the database model, record
+layout, and trust assumptions would reverse the correct design order —
+a protocol optimized for a million fixed 256-byte records may be
+unsuitable for a database with continuous updates and variable records,
+and a scheme efficient on a cloud server may be unusable on a volunteer
+node or old phone. The report's own closing recommendation states the
+strongest immediate deliverable is "a research-only PR containing the
+fixed workload, benchmark methodology, candidate shortlist, and
+external-review questions" — this PR is exactly that, mirroring the
+same narrowly-scoped-first-deliverable discipline already used for
+D-0096 (KEL witness receipts, design-only) and D-0097 (bridge adapters,
+doctrine-then-safety-boundary) earlier this session.
+
+**Constitutional impact:** none. No dependency changes at all — this PR
+adds only Markdown. Directive 14 (no new cryptography) is unaffected
+since nothing here composes or invents a primitive; it names research
+targets and release gates for a future, separately-reviewed decision.
+No voice/value dependency is possible (this track has zero relationship
+to `mini-value`/`mini-bounty`/`mini-treasury`). `mini-private-index`'s
+STATUS.md claim that `PrivatePIR` is unimplemented and gated behind
+D-0047 remains exactly true after this decision — this document only
+makes that gate's opening criteria concrete (freeze workload → benchmark
+whole-index and two-server baselines → benchmark one single-server
+scheme → simulate updates/mobile clients → define replica-independence
+and malicious-server threat models → external cryptographic review →
+only then select one candidate for an out-of-process experimental
+implementation).
+
+**Implementation status:** research and review preparation only. No
+Rust code in this PR. The next scoped deliverable is the whole-index-
+download and two-server-PIR benchmark programme named in the design
+doc's "Required before any PIR code PR" section — not started.
+
+**Failure point:** this decision has no code failure point yet by
+construction (nothing implemented). The design's own named failure
+conditions to watch for once benchmarking starts: nominally independent
+two-server replicas that actually share an operator, hosting provider,
+or logs; a database namespace choice that itself identifies a user's
+interest even though PIR hid the row; a PIR lookup immediately
+correlated with a direct object fetch moments later; malformed queries
+that exhaust server resources; and any future PR marketing an
+unreviewed experimental implementation as production-private.
+
+**Required follow-up:** build the whole-index-download baseline;
+benchmark two-server information-theoretic PIR against real,
+operator-diverse replica infrastructure; benchmark one mature
+single-server scheme (not more); simulate database-update and
+mobile-client costs, not just server throughput; write a replica-
+independence policy and a malicious-server/malicious-client threat
+model; commission the external cryptographic review named in D-0047;
+only then select one candidate for an experimental, out-of-process
+implementation (mirroring `mini-build-runner-wasmtime`'s sandboxing
+precedent, D-0069).
+
+**Supersedes / superseded by:** none. Extends D-0310's `mini-private-
+index` doctrine additively — no existing type or behavior in any crate
+changed.
+
+### D-0099 — Anonymous resource payment and redemption preparation: online-spend blind-token doctrine, no code (`MN-602`/`MN-603`)  ·  *Accepted (research/doctrine only)*
+**Date:** 2026-07-15 · **Refs:** founder-supplied `docs/research/
+MN602_MN603_ANONYMOUS_RESOURCE_PAYMENT_RESEARCH_20260715.md`; `docs/design/
+mn602-mn603-anonymous-resource-payment-preparation.md` (new);
+`mini-resource-pricing` (D-0302, `MN-601`, unmodified); D-0098 (this
+session's other research-only preparation decision); CLAUDE.md's
+voice/value wall and no-new-cryptography rules
+
+**Decision:** adopts the research report's own recommended doctrine
+scope exactly: Mininet's priced privacy/resource services (relay, bridge,
+mix, storage, cover traffic, private-index queries) must not be paid for
+via an ordinary identity-linked MINI transfer per request, since that
+turns the payment graph into a second metadata graph correlating payer,
+privacy tier, provider, and timing. The adopted first-protocol shape is
+online-spend, issuer-backed, fixed-denomination blind-signature resource
+tokens with atomic spent-token checking and batched provider redemption
+— not offline anonymous cash, not a new general currency, and not an
+embedding of Privacy Pass/GNU Taler/Coconut, each of which is named as a
+reference point for a specific later phase rather than adopted wholesale
+(Privacy Pass's issuance/redemption separation for the first non-monetary
+test-credit prototype; GNU Taler evaluated later as a possible external
+monetary rail; Coconut reserved for later threshold-mint research,
+MN-603B). Freezes five separable roles (funding source, token issuer,
+client wallet, service provider, redemption service) and the hard rule
+that subsidised and paid tokens must be indistinguishable at spend time.
+Names, but does not create, three future crates
+(`mini-resource-token`/`mini-resource-redemption`/`mini-resource-wallet`).
+**No Rust code, no new crate, no blind-signature dependency.**
+`mini-resource-pricing` (D-0302) is completely unmodified — it remains
+pure quoting logic with no keys, no issuance, no transfers.
+
+**Reason:** the research report's own executive conclusion states this
+architecture prevents privacy-tier fingerprinting, timing linkage between
+payment and service use, and provider-graph reconstruction that a direct
+transfer would create — while online (rather than offline) redemption
+avoids the identity-escrow double-spend-tracing complexity of classic
+e-cash research, which this workspace is not positioned to design or
+review safely today. Adopting the doctrine now, before any token type
+exists, mirrors the same narrowly-scoped-first-deliverable discipline
+already used for D-0096 (KEL witness receipts), D-0097 (bridge adapters),
+and D-0098 (PIR research prep) earlier this session — freeze the
+constraints a future implementation must satisfy before any code can
+violate them by omission.
+
+**Constitutional impact:** none negative; strengthens the voice/value
+wall's applicability. Directive 16 (voice/value wall) is explicitly
+extended to this future track: resource-token balances must never enter
+vote calculations, review quorum, validator weight, personhood score,
+witness selection, merge authority, or constitutional amendment, and no
+crate that will eventually provide anonymous payment may be imported by
+governance-counting code. Directive 14 (no new cryptography) is
+reinforced — blind-signature/anonymous-credential schemes are named as
+research targets requiring an external, already-reviewed implementation
+(Phase 2+) and a separate external cryptographic review (Phase 6) before
+any implementation proceeds past valueless test credits, and real MINI
+may never back a token before that review plus separate accounting and
+legal review (Phase 8-9) all complete. Personhood remains unsolved (see
+`docs/INVARIANTS.md`'s hard-limitation section), so no subsidy mechanism
+adopted under this doctrine may ever be represented as one-human-one-
+share.
+
+**Implementation status:** doctrine and research preparation only. No
+Rust code in this PR. The next scoped deliverable is Phase 1 (non-
+monetary test token types, no cryptographic blindness claim) — not
+started.
+
+**Failure point:** this decision has no code failure point yet by
+construction (nothing implemented). The design's own named failure
+conditions to watch for once implementation starts: withdrawal timing or
+denomination patterns that uniquely identify a spend despite blind
+issuance; an issuer that logs unblinded tokens; a provider that redeems
+before the redemption service's atomic spent-check completes; a
+subsidised token distinguishable from a paid one at presentation; a
+wallet backup that enables an accepted duplicate redemption; and any
+future PR letting resource-credit balances leak into a governance,
+personhood, or validator-weight calculation.
+
+**Required follow-up:** Phase 1 (test token types, denomination metadata,
+mock issuance, wallet state, spent-set semantics — no blindness claim);
+Phase 2 (real blind-issuance prototype behind one reviewed external
+implementation, still valueless); Phase 3 (integration with one low-risk
+resource — private-index query or a fixed relay byte bucket — still no
+real settlement); Phase 4 (provider batch redemption); Phase 5
+(adversarial simulation: timing correlation, replay races, provider/
+issuer fraud, wallet rollback, subsidy farming); Phase 6 (external
+cryptographic review); Phase 7 (closed valueless pilot); Phase 8
+(economic/legal classification of what a credit actually is); Phase 9
+(limited MINI-backed pilot, only after all of the above); Phase 10
+(threshold-mint research, Coconut-style or otherwise).
+
+**Supersedes / superseded by:** none. Extends D-0302's `mini-resource-
+pricing` doctrine additively — no existing type or behavior in any crate
+changed.

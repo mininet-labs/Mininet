@@ -338,6 +338,18 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   `expected_cost`, in the plain `u64` micro-MINI convention already used
   elsewhere in this workspace. Quoting logic only — no payment execution,
   no dependency on `mini-value`/`mini-treasury`/`mini-forge`/`mini-chain`.
+- **research-only** — anonymous resource payment and redemption
+  preparation (D-0099, `MN-602`/`MN-603`): doctrine freezing an
+  online-spend, issuer-backed, fixed-denomination blind-signature
+  resource-token architecture as the recommended follow-on to MN-601's
+  quoting engine — five separable roles (funding source, token issuer,
+  client wallet, service provider, redemption service), subsidised and
+  paid tokens required to be indistinguishable at spend time, and the
+  voice/value wall extended explicitly to this future track. **No code,
+  no `mini-resource-token`/`mini-resource-redemption`/`mini-resource-
+  wallet` crate, no blind-signature dependency** — `mini-resource-pricing`
+  (D-0302) is completely unmodified. See `docs/design/
+  mn602-mn603-anonymous-resource-payment-preparation.md`.
 - **shipped** — lane L6, `mini-relay` (D-0306, `MN-202`): Tier 1 relay +
   rendezvous protocol per research §5.2 — `RelayRole` (Entry/Rendezvous/
   Delivery), `ConnectionId` (fresh random, never a `did:mini` root),
@@ -422,6 +434,16 @@ explicitly founder-reviewed only, pending external audit) · **design-only**
   no sandboxing beyond the OS's own process isolation, no
   `ExternalAdapterManifest`/binary-provenance tooling. See `docs/design/
   external-bridge-adapter-integration.md`.
+- **research-only** — PIR research and external-review preparation
+  (D-0098, `MN-208` Phase 9): freezes the first workload any future PIR
+  benchmark must target (fixed-size encrypted descriptor retrieval from
+  one immutable, equal-record epoch database) and names a four-candidate
+  research portfolio (whole-index download, two-server information-
+  theoretic PIR, one mature single-server lattice scheme, ZipPIR on the
+  watchlist only). **No code, no PIR crate, no new dependency** —
+  `LookupPrivacyClass::PrivatePIR` remains exactly as unimplemented and
+  D-0047-gated as before this decision. See `docs/design/
+  mn208-pir-research-and-review-preparation.md`.
 
 ## 7. Storage
 
