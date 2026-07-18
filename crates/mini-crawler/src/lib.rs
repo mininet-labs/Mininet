@@ -21,6 +21,7 @@ use mini_web_types::{CanonicalUrl, NormalizedHost, Scheme};
 #[non_exhaustive]
 pub enum CrawlerError {
     EmptySeedSet,
+    MultipleSeedHosts,
     InvalidLimit,
 }
 
@@ -163,8 +164,14 @@ impl CrawlPlan {
             return Err(CrawlerError::EmptySeedSet);
         }
 
+        let seed_hosts: BTreeSet<NormalizedHost> =
+            seeds.iter().map(|url| url.host.clone()).collect();
+        if seed_hosts.len() > 1 {
+            return Err(CrawlerError::MultipleSeedHosts);
+        }
+
         let mut plan = CrawlPlan {
-            seed_hosts: seeds.iter().map(|url| url.host.clone()).collect(),
+            seed_hosts,
             limits,
             exclusions,
             pending: VecDeque::new(),
@@ -259,6 +266,19 @@ mod tests {
                 .unwrap(),
             CrawlerError::InvalidLimit
         );
+
+        assert_eq!(
+            CrawlPlan::from_seeds(
+                vec![
+                    url(Scheme::Https, "example.org", "/"),
+                    url(Scheme::Https, "other.example", "/")
+                ],
+                CrawlLimits::strict_single_host()
+            )
+            .err()
+            .unwrap(),
+            CrawlerError::MultipleSeedHosts
+        );
     }
 
     #[test]
@@ -343,9 +363,9 @@ mod tests {
             .exclude_url_prefix("https://example.org/private")
             .exclude_host(host("blocked.example"));
         let mut plan = CrawlPlan::from_seeds_with_exclusions(
-            vec![seed.clone(), url(Scheme::Https, "blocked.example", "/")],
+            vec![seed.clone()],
             CrawlLimits::strict_single_host(),
-            exclusions,
+            exclusions.clone(),
         )
         .unwrap();
 
@@ -358,6 +378,14 @@ mod tests {
             )),
             CrawlAdmission::Rejected(CrawlRejectReason::RobotsExcluded)
         );
+
+        let blocked = CrawlPlan::from_seeds_with_exclusions(
+            vec![url(Scheme::Https, "blocked.example", "/")],
+            CrawlLimits::strict_single_host(),
+            exclusions,
+        )
+        .unwrap();
+        assert_eq!(blocked.pending_len(), 0);
     }
 
     #[test]
