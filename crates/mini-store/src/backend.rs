@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use crate::{Result, StoreError};
 
@@ -110,6 +110,84 @@ impl FsBackend {
         Ok(self.root.join("meta").join(key))
     }
 
+    /// Narrow a metadata-prefix query to the deepest directory that can
+    /// contain a match. A trailing slash means every segment is complete;
+    /// otherwise the last segment may be only a filename prefix, so traversal
+    /// starts at its parent.
+    fn meta_prefix_walk_root(&self, prefix: &str) -> Result<PathBuf> {
+        let base = self.root.join("meta");
+        if prefix.is_empty() {
+            return Ok(base);
+        }
+        if prefix.starts_with('/')
+            || prefix.contains("//")
+            || !prefix.bytes().all(|b| {
+                b.is_ascii_alphanumeric() || b == b'/' || b == b'-' || b == b'_' || b == b'.'
+            })
+        {
+            return Err(StoreError::Io("invalid meta prefix".to_string()));
+        }
+
+        let without_trailing = prefix.strip_suffix('/').unwrap_or(prefix);
+        if without_trailing.is_empty()
+            || without_trailing
+                .split('/')
+                .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+        {
+            return Err(StoreError::Io("invalid meta prefix".to_string()));
+        }
+
+        let complete_segments = if prefix.ends_with('/') {
+            without_trailing
+        } else {
+            without_trailing
+                .rsplit_once('/')
+                .map(|(parent, _)| parent)
+                .unwrap_or("")
+        };
+        Ok(if complete_segments.is_empty() {
+            base
+        } else {
+            base.join(complete_segments)
+        })
+    }
+
+    /// Validate every directory from `meta/` through `target`. Inspecting only
+    /// the final path is insufficient because `symlink_metadata` follows
+    /// symlinks in intermediate components.
+    fn safe_existing_meta_directory(&self, target: &Path) -> Result<bool> {
+        let base = self.root.join("meta");
+        let relative = target
+            .strip_prefix(&base)
+            .map_err(|_| StoreError::Io("meta path escape".to_string()))?;
+        let mut current = base;
+
+        let check = |path: &Path| -> Result<bool> {
+            match fs::symlink_metadata(path) {
+                Ok(metadata) if metadata.file_type().is_symlink() => Err(StoreError::Io(
+                    "symlink in metadata index traversal".to_string(),
+                )),
+                Ok(metadata) => Ok(metadata.is_dir()),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+                Err(e) => Err(e.into()),
+            }
+        };
+
+        if !check(&current)? {
+            return Ok(false);
+        }
+        for component in relative.components() {
+            match component {
+                Component::Normal(segment) => current.push(segment),
+                _ => return Err(StoreError::Io("invalid meta prefix".to_string())),
+            }
+            if !check(&current)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -123,31 +201,39 @@ impl FsBackend {
         fs::rename(&tmp, path)?;
         Ok(())
     }
+
+    fn read_existing_regular_file(path: &Path, label: &str) -> Result<Option<Vec<u8>>> {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                Err(StoreError::Io(format!("{label} is a symlink")))
+            }
+            Ok(metadata) if !metadata.is_file() => {
+                Err(StoreError::Io(format!("{label} is not a regular file")))
+            }
+            Ok(_) => Ok(Some(fs::read(path)?)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
 }
 
 impl Backend for FsBackend {
     fn put_blob(&mut self, id: &str, bytes: &[u8]) -> Result<()> {
         let p = self.blob_path(id)?;
-        if p.exists() {
-            // Content-addressed: an existing blob under this id SHOULD be these
-            // exact bytes. If a local blob got corrupted, repair it atomically
-            // rather than trusting the stale/corrupt copy forever.
-            match fs::read(&p) {
-                Ok(existing) if existing == bytes => return Ok(()),
-                Ok(_) => return Self::atomic_write(&p, bytes), // repair
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => return Err(e.into()),
+        // Content-addressed: an existing blob under this id SHOULD be these
+        // exact bytes. If a local blob got corrupted, repair it atomically
+        // rather than trusting the stale/corrupt copy forever. Refuse local
+        // symlink/non-file poison instead of following it outside the store.
+        if let Some(existing) = Self::read_existing_regular_file(&p, "blob")? {
+            if existing == bytes {
+                return Ok(());
             }
+            return Self::atomic_write(&p, bytes);
         }
         Self::atomic_write(&p, bytes)
     }
     fn get_blob(&self, id: &str) -> Result<Option<Vec<u8>>> {
-        let p = self.blob_path(id)?;
-        match fs::read(&p) {
-            Ok(b) => Ok(Some(b)),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e.into()),
-        }
+        Self::read_existing_regular_file(&self.blob_path(id)?, "blob")
     }
     fn has_blob(&self, id: &str) -> Result<bool> {
         Ok(self.blob_path(id)?.exists())
@@ -156,17 +242,20 @@ impl Backend for FsBackend {
         Self::atomic_write(&self.meta_path(key)?, value)
     }
     fn get_meta(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        match fs::read(self.meta_path(key)?) {
-            Ok(b) => Ok(Some(b)),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e.into()),
-        }
+        Self::read_existing_regular_file(&self.meta_path(key)?, "metadata entry")
     }
     fn list_meta_prefix(&self, prefix: &str) -> Result<Vec<(String, Vec<u8>)>> {
-        // Walk meta/ and filter; ordered for determinism.
+        // Start at the narrowest safe subtree rather than walking every index
+        // for every query. This keeps author/type/link lookups proportional to
+        // the requested index slice as the object store grows.
         let mut out = Vec::new();
         let base = self.root.join("meta");
-        let mut stack = vec![base.clone()];
+        let walk_root = self.meta_prefix_walk_root(prefix)?;
+        if !self.safe_existing_meta_directory(&walk_root)? {
+            return Ok(out);
+        }
+
+        let mut stack = vec![walk_root];
         while let Some(dir) = stack.pop() {
             let entries = match fs::read_dir(&dir) {
                 Ok(e) => e,
@@ -176,12 +265,18 @@ impl Backend for FsBackend {
             for entry in entries {
                 let entry = entry?;
                 let path = entry.path();
+                let file_type = entry.file_type()?;
+                if file_type.is_symlink() {
+                    return Err(StoreError::Io(
+                        "symlink in metadata index traversal".to_string(),
+                    ));
+                }
                 if path.extension().map(|e| e == "tmp").unwrap_or(false) {
                     continue;
                 }
-                if path.is_dir() {
+                if file_type.is_dir() {
                     stack.push(path);
-                } else {
+                } else if file_type.is_file() {
                     let key = path
                         .strip_prefix(&base)
                         .map_err(|_| StoreError::Io("meta path escape".to_string()))?
@@ -190,10 +285,49 @@ impl Backend for FsBackend {
                     if key.starts_with(prefix) {
                         out.push((key, fs::read(&path)?));
                     }
+                } else {
+                    return Err(StoreError::Io(
+                        "non-file entry in metadata index traversal".to_string(),
+                    ));
                 }
             }
         }
         out.sort_by(|a, b| a.0.cmp(&b.0));
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FsBackend;
+    use std::path::PathBuf;
+
+    #[test]
+    fn prefix_walk_root_uses_only_complete_path_segments() {
+        let backend = FsBackend {
+            root: PathBuf::from("store"),
+        };
+        let meta = PathBuf::from("store").join("meta");
+
+        assert_eq!(backend.meta_prefix_walk_root("").unwrap(), meta);
+        assert_eq!(
+            backend.meta_prefix_walk_root("idx/type/w8/").unwrap(),
+            meta.join("idx/type/w8")
+        );
+        assert_eq!(
+            backend.meta_prefix_walk_root("idx/type/w").unwrap(),
+            meta.join("idx/type")
+        );
+        assert_eq!(backend.meta_prefix_walk_root("idx").unwrap(), meta);
+    }
+
+    #[test]
+    fn prefix_walk_root_rejects_hostile_or_ambiguous_prefixes() {
+        let backend = FsBackend {
+            root: PathBuf::from("store"),
+        };
+        for prefix in ["/idx", "idx//type", "idx/../head", "idx/./head", "/"] {
+            assert!(backend.meta_prefix_walk_root(prefix).is_err(), "{prefix}");
+        }
     }
 }
