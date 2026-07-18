@@ -776,7 +776,7 @@
       "title": "Mininet AI Session Entry Point"
     },
     {
-      "bytes": 19831,
+      "bytes": 17298,
       "group": "root",
       "headings": [
         {
@@ -812,21 +812,16 @@
         {
           "level": 2,
           "line": 220,
-          "text": "Top development priority (2026-07-18 founder direction)"
-        },
-        {
-          "level": 2,
-          "line": 263,
           "text": "Current priority (D-0066 \u2014 Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)"
         },
         {
           "level": 2,
-          "line": 295,
+          "line": 252,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 304,
+          "line": 261,
           "text": "Session hygiene for the agent"
         }
       ],
@@ -834,15 +829,15 @@
         "what",
         "never",
         "canonical",
-        "founder",
         "every",
-        "direction",
         "constitutional",
         "context",
+        "founder",
         "current",
         "authority",
         "invariants",
         "governance",
+        "direction",
         "claude",
         "agent",
         "failure",
@@ -856,9 +851,9 @@
         "requires",
         "hard"
       ],
-      "lines": 316,
+      "lines": 273,
       "path": "CLAUDE.md",
-      "sha256": "2c2f5f94f90be689324d402d78148da655d35a99b48b9b13b667326a88466be5",
+      "sha256": "877085699165fd82a2a8a388c26a95e52e4f8aba5dceb13db061f41202a73f67",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
@@ -37284,7 +37279,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 53151,
+      "bytes": 56230,
       "group": "docs",
       "headings": [
         {
@@ -37295,98 +37290,103 @@
         {
           "level": 2,
           "line": 19,
+          "text": "Top development priority (2026-07-18 founder direction)"
+        },
+        {
+          "level": 2,
+          "line": 72,
           "text": "1. Voice / value"
         },
         {
           "level": 2,
-          "line": 81,
+          "line": 134,
           "text": "2. Personhood"
         },
         {
           "level": 2,
-          "line": 126,
+          "line": 179,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 166,
+          "line": 219,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 232,
+          "line": 285,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 275,
+          "line": 328,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 460,
+          "line": 513,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 501,
+          "line": 554,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 559,
+          "line": 612,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 588,
+          "line": 641,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 783,
+          "line": 836,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 814,
+          "line": 867,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 820,
+          "line": 873,
           "text": "Where to look for more detail"
         }
       ],
       "keywords": [
+        "governance",
         "status",
         "real",
-        "one",
-        "shipped",
-        "implementation",
         "code",
-        "mesh",
-        "height",
-        "consensus",
-        "two",
-        "same",
-        "yet",
-        "governance",
-        "now",
-        "runs",
-        "proposer",
-        "state",
-        "every",
-        "never",
-        "node",
-        "round",
-        "peer",
-        "equivocation",
-        "validator"
+        "priority",
+        "file",
+        "shipped",
+        "research",
+        "track",
+        "implementation",
+        "founder",
+        "storage",
+        "audit",
+        "forge",
+        "search",
+        "top",
+        "development",
+        "value",
+        "what",
+        "decision",
+        "one",
+        "design",
+        "claude",
+        "social"
       ],
-      "lines": 830,
+      "lines": 883,
       "path": "docs/STATUS.md",
-      "sha256": "f9d63f30a5cb3dd00caef7683573a377d551e07afd93f6ebfc7dec61c4c8e613",
+      "sha256": "c385c551a052463ca813e4e37eaaf7cac1c6e0dd6cb8e8ca0b2f308e7251cdbe",
       "symbols": [],
       "title": "Implementation status"
     },

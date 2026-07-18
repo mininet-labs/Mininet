@@ -16,6 +16,59 @@ for part of the claim, gap documented) · **prototype** (real code, but
 explicitly founder-reviewed only, pending external audit) · **design-only**
 (written design exists, no code yet) · **not started**.
 
+## Top development priority (2026-07-18 founder direction)
+
+*Recorded here rather than in `CLAUDE.md` because `CLAUDE.md` is an
+instruction-surface file locked byte-identical to its canonical state by
+`tools/check_governance.py`'s `governance-canonical`/`governance-baseline`
+checks for as long as `governance/ai-charter-activation.json`'s `status`
+is `"active"` (it has been since 2026-07-12, D-0084) — any PR that edits
+`CLAUDE.md` fails those checks unconditionally, by design, regardless of
+content. Changing that would require a formal charter-activation
+amendment (a new final Decision re-pinning the activation record's
+digests), not an ordinary docs PR, so this file carries the substance
+instead.*
+
+The founder has named **forge, storage, search, social network,
+governance, and the crypto/anonymity/security stack** as the top
+development priority, explicitly framed as finishing internet search and
+the social network together with the forge as soon as reasonably
+possible. Concretely, in priority order as founder-supplied
+research/decisions land:
+
+1. **Forge** — continue Batch 5/6 of `docs/design/
+   self-hosted-forge-spine.md` (local object indexing at scale,
+   distributed build workers, GitHub import/export mirror automation).
+2. **Storage** — `mini-storage`/`mini-erasure`/`mini-spacetime`/
+   `mini-porep` hardening plus the suppression-resistant replication
+   path named in D-0311 (Track D5).
+3. **Search** — MiniSearch (D-0312): `mini-web-types` → minimal crawler
+   → sandboxed extraction → lexical index → transparent ranker → query
+   CLI → federated/distributed layer (Tracks E/F, `docs/research/
+   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`).
+4. **Social network** — `mini-social`/`mini-profile`/`mini-objects` wired
+   to the free-commons entitlements (D-0311, Track C) and to Mininet
+   Intake (Track B) as the native, clean-room (no Inbox-Ingestor
+   code/dependency) document/evidence intake boundary.
+5. **Governance** — `mini-forge::governance` is not to be re-proposed
+   (it predates the audit and already exists); priority here is closing
+   the remaining Batch 5/6 gaps, not inventing a new object model.
+6. **Crypto + anonymity + security** — D-0098 (PIR research prep),
+   D-0099 (anonymous resource-token doctrine), D-0305 (mix-network
+   research), and the external-review gates (D-0047) that block all of
+   the above from claiming real privacy/value guarantees before audit.
+
+This is a large, multi-track, multi-month body of original engineering
+(see `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+Part V's Tracks A-F for the full PR-by-PR breakdown) — it is sequenced
+incrementally, one real narrowly-scoped deliverable per PR with the full
+fmt/clippy/test/governance ritual every time, never "finished" in one
+batch. Track A (D-0311/D-0312 doctrine) is the first slice; Track B1
+(`mini-intake-types`, D-0313) is the first code slice — see the rest of
+this file for what's actually shipped vs. still doctrine-only at any
+given time.
+
 ## 1. Voice / value
 
 - **shipped** — `ValidatorSet`/governance quorum counting has no weight
