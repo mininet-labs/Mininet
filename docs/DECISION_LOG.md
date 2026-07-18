@@ -7119,3 +7119,199 @@ cryptographic review); Phase 7 (closed valueless pilot); Phase 8
 **Supersedes / superseded by:** none. Extends D-0302's `mini-resource-
 pricing` doctrine additively — no existing type or behavior in any crate
 changed.
+### D-0311 — Free public commons; payment purchases scarce protection, never speech (`MN-6xx`, public commons + protected publishing doctrine)  ·  *Accepted*
+**Date:** 2026-07-18 · **Refs:** founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+(Parts II, VII); D-0094 (cost doctrine this extends); `mini-privacy-
+policy`; `mini-resource-pricing` (D-0302); `mini-social`; `mini-objects`;
+`mini-relay` (D-0306); `mini-private-index` (D-0310); D-0099 (anonymous
+resource-token doctrine, same session); money-never-buys-voice invariant
+(Directive 16, voice/value wall)
+
+**Decision:** public profiles may be viewed without payment. A person may
+create and maintain a public profile and may publish, reply, comment,
+react, search, and participate in ordinary public discussion without
+paying the network merely for permission to speak, read, or be
+discovered. Public operation is the commons path: a person choosing
+public publication accepts that the content is intentionally disclosed
+and may be served through ordinary peer-to-peer storage, caching,
+indexing, replication, and bandwidth voluntarily contributed by
+participants. Mininet charges only for additional resource-consuming
+protection or service supplied by other participants — relay capacity,
+metadata protection, source-hiding transport, mix routing, cover
+traffic, private capability resolution, delayed/batched delivery,
+geographically diverse storage, erasure-coded replication, prolonged
+availability, suppression resistance, private retrieval, and other
+measurable security/privacy/durability/availability mechanisms. Payment
+purchases resources and a declared protection attempt; it never
+purchases permission to speak, greater governance power, privileged
+organic ranking, personhood, moderation authority, ownership of another
+person's identity/data, or the right to discover a protected source.
+Public users may voluntarily contribute bounded local resources — free
+participation must never require unlimited storage, bandwidth, battery,
+CPU, mobile data, or continuous availability, and contribution limits
+must be visible, configurable, and revocable. For high-risk material, a
+publisher may purchase a protection profile intended to make suppression
+difficult and source attribution resistant; the system must minimize
+source knowledge structurally (storage providers need not know the
+author, transport participants must not learn the complete path, index
+providers need not learn the searcher, and payment settlement must not
+create a direct public link between payer, publisher, query, and
+protected object). No tier may be described as guaranteeing absolute
+anonymity or impossibility of suppression — every achieved result must
+state the mechanisms used, resources purchased, duration/service bounds,
+and residual risks, matching the "no absolute anonymous badge" rule
+already established for `mini-privacy-policy` and D-0099's resource
+tokens.
+
+**Reason:** speech, reading, public discovery, and ordinary social
+participation should not be paywalled — this is the founder's explicit
+direction and matches Directive 16's money-never-buys-voice principle
+applied to *reading and ordinary posting*, not just governance votes.
+Strong privacy, anonymous transport, durable replication, and
+suppression resistance consume measurable resources (bandwidth, storage
+byte-time, mixing delay, jurisdictional diversity — the same cost
+doctrine D-0094 already established) and should support an open
+provider economy rather than being bundled into a mandatory access fee
+that would exclude ordinary users from the commons.
+
+**Constitutional impact:** strengthens equal participation and the
+separation between money and voice (Directive 16). Money may purchase
+measurable service capacity but never governance weight, legitimacy,
+speech rights, personhood, or control over another person. This decision
+does not touch any Tier-F frozen invariant — it constrains future
+pricing/policy code to never introduce a paywall on frozen free-speech
+protocol rights, which is a *new* constraint, not a weakening of an
+existing one.
+
+**Implementation status:** policy accepted, design only. No Rust code in
+this decision. Existing Tier 0 direct-transport policy already models
+unpaid ordinary operation; higher tiers already model paid relay/mix/
+replication as policy data (`mini-privacy-policy`, `mini-resource-
+pricing`, D-0302). `PublicCommonsPolicy`, wallet-independent public
+entitlements, bounded opt-in contribution budgets, provider settlement,
+anonymous payment separation (see D-0099), and production transport
+remain to be implemented (Tracks C/D of the source document).
+
+**Failure point:** this decision fails if free operation becomes a
+covert mandatory resource tax on ordinary users; if paid placement
+becomes political or social power; if payment metadata identifies
+protected publishers or searchers; if one provider can correlate source,
+destination, content, and payment; or if Mininet markets bounded
+protection as guaranteed anonymity.
+
+**Required follow-up:** define `PublicCommonsPolicy` (free public
+actions independent of wallet balance); define opt-in bounded resource-
+contribution budgets; price only incremental external resources beyond
+the free commons path; add protected-publication and private-search
+receipts; prove balances cannot alter governance or ordinary public
+rights (adversarial tests); threat-model timing/payment/entry/storage/
+search/retrieval correlation across the full path; add clear UI language
+distinguishing public, private, anonymous, and suppression-resistant
+modes. Tracked as Track C (`PublicCommonsPolicy` + contribution budgets)
+and Track D (protected publishing: publication-profile dimensions,
+protection quotes, source-hiding path, mixed transport, suppression-
+resistant replication, unlinkable settlement) of the source document.
+
+**Supersedes / superseded by:** none. Clarifies that no earlier wording
+implies all publishing, storage, or social activity necessarily requires
+payment. Does not supersede the privacy-tier model (D-0094's cost
+doctrine, `mini-privacy-policy`) — it defines Tier 0 as the free public
+commons and higher tiers as incremental paid service, which is
+consistent with, not a change to, the existing tier definitions.
+
+### D-0312 — Independent, transparent, pluralistic open-web search (`MiniSearch` doctrine, `MN-7xx`)  ·  *Accepted*
+**Date:** 2026-07-18 · **Refs:** founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+(Part III); D-0311 (public commons — search is a free commons
+entitlement); D-0310 (`mini-private-index`, explicitly a different
+system from the public web index this decision creates); Directive 16
+(voice/value wall, extended here to search-ranking authority)
+
+**Decision:** Mininet builds and operates its own independent web
+crawler, index, and search protocol suite, working name **MiniSearch** —
+not a reimplementation of any proprietary search engine, but restoring
+broad discovery, direct links to independent sites, visible relevance,
+minimal manipulation, explicit query operators, and source diversity that
+concentrated commercial search has eroded. "Unfiltered and uncensored" is
+adopted as a precise, bounded claim, not a marketing absolute: no secret
+political allow/block list, no payment-based organic ranking, no hidden
+demotion for commercial advantage, no forced ideological personalization,
+no single authority controlling the global index, no silent removal
+without a reason code, no pretending an incomplete index is complete —
+paired with an explicit acknowledgment that indexing every byte on the
+internet, ignoring applicable law, serving malware unwarned, or
+displaying unlawful harmful material is never in scope. Retrieval
+relevance, spam/manipulation assessment, malware/technical-risk
+assessment, user-selected content filters, jurisdictional availability,
+and local device policy are kept as five independently inspectable
+layers — a restricted result must never be silently folded into a lower
+relevance score; it must carry an explicit `AvailabilityState` reason.
+Ranking is a versioned, declared-weight `RankingProfile` (lexical/
+phrase/link/freshness/originality/diversity, `PersonalizationPolicy::
+None` by default) rather than an unreviewable opaque model as sole
+authority. The system is architected for plurality by construction:
+multiple independently built index segments from shared crawl
+observations, multiple selectable/forkable ranking profiles, federated
+query merging across independent providers, and local client re-ranking
+— so MiniSearch cannot itself become a second search monopoly. Ordinary
+public search is a free commons entitlement (D-0311); users may
+additionally pay for query relay, mix-routed queries, private
+information retrieval, or other privacy-preserving retrieval transport,
+but search providers must never receive a receipt publicly linking
+identity, query, and result selection, and paid protection must never
+alter organic ranking. `mini-private-index` (D-0310) remains a distinct
+system for private capability resolution and is explicitly not to be
+merged with or reused as the general public web index.
+
+**Reason:** the founder's explicit direction is that search infrastructure
+concentrated in one company's hands became an invisible governor of what
+society can discover, and that restoring pre-concentration search
+properties (broad crawling, high recall, visible relevance, minimal
+manipulation) requires an index nobody can unilaterally control. Keeping
+ranking, safety, legality, and personalization as separable, inspectable,
+versioned layers is the only way to make "uncensored" an honest,
+falsifiable claim rather than a slogan — the same honesty discipline this
+repository already applies to privacy tiers (`mini-privacy-policy`) and
+personhood (`HumanStatus`, D-0086).
+
+**Constitutional impact:** extends Directive 16's voice/value wall into a
+new domain: search-ranking authority must never be purchasable, and
+provider identity/hardware spend must never grant ranking authority
+(reinforced explicitly for crawler/index providers in the source
+document's Track F). No Tier-F frozen invariant is touched; this decision
+adds a new constraint on all future search-ranking code, symmetrical to
+the existing constraint that MINI balances never buy governance weight.
+
+**Implementation status:** policy accepted, design only. No Rust code in
+this decision. `mini-web-types`, `mini-crawler`, `mini-web-extract`,
+`mini-index`, `mini-ranker`, `mini-query`, `mini-search-service`,
+`mini-search-ui`, and the federated/distributed search layer (Track F)
+are all future work — none exist yet.
+
+**Failure point:** this decision fails if any ranking signal becomes
+purchasable; if restriction notices are silently converted into
+relevance penalties instead of an explicit `AvailabilityState`; if
+personalization becomes mandatory or opt-out rather than opt-in and
+local-by-default; if one index or one ranker becomes a de facto protocol
+requirement; if crawl-observation rewards can be claimed without
+verifiable work, letting a wealthy operator buy ranking influence via
+raw hardware spend; or if "uncensored" is claimed without the explicit,
+narrow scope this decision defines.
+
+**Required follow-up:** Track E (search doctrine/threat-model docs;
+`mini-web-types`; a minimal single-host crawler with strict limits, no
+JavaScript; sandboxed static-page extraction; a deterministic lexical
+index with immutable signed segments; a transparent versioned ranker;
+a query CLI with exact/site/date/language/type operators; result
+provenance and `RankingExplanation` types) and Track F (signed crawl-
+observation exchange, content-addressed index segments, federated query
+merging, local re-ranking, verifiable-work provider payments, private
+query transport wired to `mini-relay`/mix tiers, historical snapshot
+retention) — a substantial, multi-PR body of original engineering, none
+started by this decision.
+
+**Supersedes / superseded by:** none. New doctrine only; touches no
+existing crate. Explicitly clarifies that `mini-private-index` (D-0310)
+is not to be repurposed as the general public web index this decision
+describes.

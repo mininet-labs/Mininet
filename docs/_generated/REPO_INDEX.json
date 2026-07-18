@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 40,
-    "files": 532,
-    "headings": 1875,
+    "files": 535,
+    "headings": 1973,
     "rust_symbols": 4009
   },
   "crates": {
@@ -1080,7 +1080,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 12478,
+      "bytes": 12693,
       "group": "root",
       "headings": [
         {
@@ -1110,7 +1110,7 @@
         },
         {
           "level": 2,
-          "line": 213,
+          "line": 217,
           "text": "License"
         }
       ],
@@ -1140,9 +1140,9 @@
         "release",
         "independent"
       ],
-      "lines": 217,
+      "lines": 221,
       "path": "README.md",
-      "sha256": "239fbf20b298e794aa06e60aed793c1ef17383d888606e513ba80fd7d03dbeb9",
+      "sha256": "2e3b5a97f8dd5b62507fe55d5b966878f7c5fa00cc1b4822caea77c6636bcf9c",
       "symbols": [],
       "title": "Mininet"
     },
@@ -35907,7 +35907,7 @@
       "title": "{"
     },
     {
-      "bytes": 426391,
+      "bytes": 438690,
       "group": "docs",
       "headings": [
         {
@@ -36337,9 +36337,9 @@
         "audit",
         "explicit"
       ],
-      "lines": 7122,
+      "lines": 7318,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "3cfefad19c4bc96ef341d5dd408e666c2ce6a6405955330ecb5e3e72445c0fa7",
+      "sha256": "f9bd39ec84b07b984965f6f25ffe4d0de7d734e78187451c1fdff444e4f01ff9",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -36956,6 +36956,88 @@
       "title": "Invariants \u2014 the engineer's primary checklist"
     },
     {
+      "bytes": 5002,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Legal Disclaimer"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "Constitutional nature"
+        },
+        {
+          "level": 2,
+          "line": 40,
+          "text": "Founding Cohort"
+        },
+        {
+          "level": 2,
+          "line": 59,
+          "text": "Representation"
+        },
+        {
+          "level": 2,
+          "line": 81,
+          "text": "Legal responsibility"
+        },
+        {
+          "level": 2,
+          "line": 101,
+          "text": "Constitutional independence"
+        },
+        {
+          "level": 2,
+          "line": 119,
+          "text": "No ownership"
+        },
+        {
+          "level": 2,
+          "line": 131,
+          "text": "Good-faith legal position"
+        },
+        {
+          "level": 2,
+          "line": 146,
+          "text": "Maintenance status"
+        }
+      ],
+      "keywords": [
+        "legal",
+        "constitutional",
+        "protocol",
+        "participant",
+        "founding",
+        "cohort",
+        "ownership",
+        "governance",
+        "may",
+        "service",
+        "position",
+        "changes",
+        "they",
+        "operating",
+        "founder",
+        "representation",
+        "good-faith",
+        "status",
+        "law",
+        "rather",
+        "does",
+        "services",
+        "independent",
+        "through"
+      ],
+      "lines": 161,
+      "path": "docs/LEGAL_DISCLAIMER.md",
+      "sha256": "f691f0ab06fc89d5d49627e0ecbb815c6eac57d51293aa75727b210a25d9b5b1",
+      "symbols": [],
+      "title": "Legal Disclaimer"
+    },
+    {
       "bytes": 1632,
       "group": "docs",
       "headings": [
@@ -37197,7 +37279,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 50492,
+      "bytes": 56230,
       "group": "docs",
       "headings": [
         {
@@ -37208,93 +37290,103 @@
         {
           "level": 2,
           "line": 19,
+          "text": "Top development priority (2026-07-18 founder direction)"
+        },
+        {
+          "level": 2,
+          "line": 72,
           "text": "1. Voice / value"
         },
         {
           "level": 2,
-          "line": 81,
+          "line": 134,
           "text": "2. Personhood"
         },
         {
           "level": 2,
-          "line": 126,
+          "line": 179,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 166,
+          "line": 219,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 232,
+          "line": 285,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 275,
+          "line": 328,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 448,
+          "line": 513,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 489,
+          "line": 554,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 547,
+          "line": 612,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 576,
+          "line": 641,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 771,
+          "line": 836,
+          "text": "11. Discovery / search"
+        },
+        {
+          "level": 2,
+          "line": 867,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 777,
+          "line": 873,
           "text": "Where to look for more detail"
         }
       ],
       "keywords": [
+        "governance",
         "status",
         "real",
-        "one",
-        "shipped",
-        "implementation",
         "code",
-        "mesh",
-        "height",
-        "consensus",
-        "two",
-        "same",
-        "yet",
-        "governance",
-        "now",
-        "runs",
-        "proposer",
-        "state",
-        "every",
-        "never",
-        "node",
-        "round",
-        "peer",
-        "equivocation",
-        "validator"
+        "priority",
+        "file",
+        "shipped",
+        "research",
+        "track",
+        "implementation",
+        "founder",
+        "storage",
+        "audit",
+        "forge",
+        "search",
+        "top",
+        "development",
+        "value",
+        "what",
+        "decision",
+        "one",
+        "design",
+        "claude",
+        "social"
       ],
-      "lines": 787,
+      "lines": 883,
       "path": "docs/STATUS.md",
-      "sha256": "191dd6102868e84ac3522aa97c6ec43aa212efc43af7277e7d5443e5923c5824",
+      "sha256": "c385c551a052463ca813e4e37eaaf7cac1c6e0dd6cb8e8ca0b2f308e7251cdbe",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -39166,6 +39258,78 @@
       "sha256": "fd79f0d291361fd10d52a7364f9cdcdefba2e9ae95b6602c69e52d8ecba82890",
       "symbols": [],
       "title": "KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)"
+    },
+    {
+      "bytes": 9943,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "The Mininet Canon: documentation architecture vision"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "Why this exists"
+        },
+        {
+          "level": 2,
+          "line": 39,
+          "text": "The retrieval architecture principle (already partly true today)"
+        },
+        {
+          "level": 2,
+          "line": 66,
+          "text": "The proposed Canon (founder's structure, mapped onto what exists)"
+        },
+        {
+          "level": 2,
+          "line": 110,
+          "text": "The founder's proposed five parallel streams"
+        },
+        {
+          "level": 2,
+          "line": 142,
+          "text": "What this document does NOT do"
+        },
+        {
+          "level": 2,
+          "line": 157,
+          "text": "Required follow-up"
+        }
+      ],
+      "keywords": [
+        "founder",
+        "already",
+        "what",
+        "why",
+        "one",
+        "design",
+        "documentation",
+        "vision",
+        "structure",
+        "document",
+        "does",
+        "corpus",
+        "canon",
+        "architecture",
+        "exists",
+        "principle",
+        "proposed",
+        "decision",
+        "how",
+        "own",
+        "existing",
+        "today",
+        "canonical",
+        "reasoning"
+      ],
+      "lines": 167,
+      "path": "docs/design/mininet-canon-documentation-architecture.md",
+      "sha256": "2ba6ad14a8b9fdad28712001c47a2815c8db34930c64fd3aa7f2149845380df9",
+      "symbols": [],
+      "title": "The Mininet Canon: documentation architecture vision"
     },
     {
       "bytes": 44811,
@@ -46829,6 +46993,443 @@
       "sha256": "57836d3b9c277dbfef841f30ab0306e4c6ca03eaafe607edd5e4b264118f9f1d",
       "symbols": [],
       "title": "KEL Witness Receipts and Duplicity-Gossip Research Report"
+    },
+    {
+      "bytes": 48301,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Mininet Native Intake, Public Commons, Protected Publishing, and Open Web Search"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "1. Purpose"
+        },
+        {
+          "level": 2,
+          "line": 30,
+          "text": "2. Non-negotiable principles"
+        },
+        {
+          "level": 3,
+          "line": 34,
+          "text": "2.1 Clean-room Mininet implementation"
+        },
+        {
+          "level": 3,
+          "line": 58,
+          "text": "2.2 Money never buys voice"
+        },
+        {
+          "level": 3,
+          "line": 72,
+          "text": "2.3 Public participation is not a mandatory resource tax"
+        },
+        {
+          "level": 3,
+          "line": 86,
+          "text": "2.4 Privacy claims must remain bounded and auditable"
+        },
+        {
+          "level": 3,
+          "line": 99,
+          "text": "2.5 Search must not become an invisible governor"
+        },
+        {
+          "level": 1,
+          "line": 114,
+          "text": "Part I \u2014 Mininet Intake"
+        },
+        {
+          "level": 2,
+          "line": 116,
+          "text": "3. Mininet Intake concept"
+        },
+        {
+          "level": 3,
+          "line": 133,
+          "text": "3.1 Intake flow"
+        },
+        {
+          "level": 3,
+          "line": 166,
+          "text": "3.2 Core rule"
+        },
+        {
+          "level": 2,
+          "line": 172,
+          "text": "4. Proposed crates"
+        },
+        {
+          "level": 3,
+          "line": 174,
+          "text": "4.1 `mini-intake-types`"
+        },
+        {
+          "level": 3,
+          "line": 232,
+          "text": "4.2 `mini-intake`"
+        },
+        {
+          "level": 3,
+          "line": 249,
+          "text": "4.3 `mini-extractor-protocol`"
+        },
+        {
+          "level": 3,
+          "line": 282,
+          "text": "4.4 `mini-extractor-host`"
+        },
+        {
+          "level": 3,
+          "line": 303,
+          "text": "4.5 `mini-intake-cli` or integration into `mini-cli`"
+        },
+        {
+          "level": 2,
+          "line": 323,
+          "text": "5. Initial supported formats"
+        },
+        {
+          "level": 3,
+          "line": 327,
+          "text": "Phase A"
+        },
+        {
+          "level": 3,
+          "line": 335,
+          "text": "Phase B"
+        },
+        {
+          "level": 3,
+          "line": 344,
+          "text": "Phase C"
+        },
+        {
+          "level": 2,
+          "line": 363,
+          "text": "6. Intake and AI safety"
+        },
+        {
+          "level": 1,
+          "line": 387,
+          "text": "Part II \u2014 Free Public Commons and Paid Protection"
+        },
+        {
+          "level": 2,
+          "line": 389,
+          "text": "7. Founder decision text"
+        },
+        {
+          "level": 3,
+          "line": 394,
+          "text": "D-03xx \u2014 Free public participation; payment purchases scarce protection, not speech  \u00b7  *Accepted*"
+        },
+        {
+          "level": 2,
+          "line": 482,
+          "text": "8. Public commons policy"
+        },
+        {
+          "level": 2,
+          "line": 516,
+          "text": "9. Independent dimensions of publication"
+        },
+        {
+          "level": 2,
+          "line": 565,
+          "text": "10. Provider economy"
+        },
+        {
+          "level": 1,
+          "line": 616,
+          "text": "Part III \u2014 Mininet Open Web Search"
+        },
+        {
+          "level": 2,
+          "line": 618,
+          "text": "11. Vision"
+        },
+        {
+          "level": 1,
+          "line": 638,
+          "text": "**MiniSearch**"
+        },
+        {
+          "level": 2,
+          "line": 644,
+          "text": "12. Meaning of \"unfiltered and uncensored\""
+        },
+        {
+          "level": 2,
+          "line": 679,
+          "text": "13. Search architecture"
+        },
+        {
+          "level": 2,
+          "line": 726,
+          "text": "14. Proposed search crates"
+        },
+        {
+          "level": 3,
+          "line": 728,
+          "text": "14.1 `mini-web-types`"
+        },
+        {
+          "level": 3,
+          "line": 759,
+          "text": "14.2 `mini-crawler`"
+        },
+        {
+          "level": 3,
+          "line": 779,
+          "text": "14.3 `mini-web-extract`"
+        },
+        {
+          "level": 3,
+          "line": 798,
+          "text": "14.4 `mini-index`"
+        },
+        {
+          "level": 3,
+          "line": 818,
+          "text": "14.5 `mini-ranker`"
+        },
+        {
+          "level": 3,
+          "line": 861,
+          "text": "14.6 `mini-query`"
+        },
+        {
+          "level": 3,
+          "line": 895,
+          "text": "14.7 `mini-search-service`"
+        },
+        {
+          "level": 3,
+          "line": 910,
+          "text": "14.8 `mini-search-ui`"
+        },
+        {
+          "level": 2,
+          "line": 928,
+          "text": "15. Search result object"
+        },
+        {
+          "level": 2,
+          "line": 969,
+          "text": "16. Distributed crawling and indexing"
+        },
+        {
+          "level": 3,
+          "line": 971,
+          "text": "16.1 Volunteer contribution"
+        },
+        {
+          "level": 3,
+          "line": 986,
+          "text": "16.2 Paid providers"
+        },
+        {
+          "level": 3,
+          "line": 1001,
+          "text": "16.3 Proof and fraud resistance"
+        },
+        {
+          "level": 2,
+          "line": 1022,
+          "text": "17. Index pluralism"
+        },
+        {
+          "level": 2,
+          "line": 1050,
+          "text": "18. Anti-censorship and source protection"
+        },
+        {
+          "level": 3,
+          "line": 1065,
+          "text": "18.1 Source-hidden indexing"
+        },
+        {
+          "level": 3,
+          "line": 1082,
+          "text": "18.2 Private search"
+        },
+        {
+          "level": 2,
+          "line": 1099,
+          "text": "19. Safety, legality, and transparency layers"
+        },
+        {
+          "level": 2,
+          "line": 1141,
+          "text": "20. Spam and ranking manipulation"
+        },
+        {
+          "level": 2,
+          "line": 1181,
+          "text": "21. Historical web archive"
+        },
+        {
+          "level": 1,
+          "line": 1212,
+          "text": "Part IV \u2014 Integration Between Intake, Publishing, and Search"
+        },
+        {
+          "level": 2,
+          "line": 1214,
+          "text": "22. Unified object lifecycle"
+        },
+        {
+          "level": 3,
+          "line": 1246,
+          "text": "22.1 Important boundary"
+        },
+        {
+          "level": 2,
+          "line": 1256,
+          "text": "23. Suggested CLI experience"
+        },
+        {
+          "level": 3,
+          "line": 1258,
+          "text": "Intake and free publication"
+        },
+        {
+          "level": 3,
+          "line": 1267,
+          "text": "Protected publication"
+        },
+        {
+          "level": 3,
+          "line": 1287,
+          "text": "Search"
+        },
+        {
+          "level": 1,
+          "line": 1299,
+          "text": "Part V \u2014 Implementation Plan"
+        },
+        {
+          "level": 2,
+          "line": 1301,
+          "text": "24. Track A: Founder decisions and policy"
+        },
+        {
+          "level": 3,
+          "line": 1303,
+          "text": "PR A1 \u2014 Record public commons and paid protection decision"
+        },
+        {
+          "level": 3,
+          "line": 1322,
+          "text": "PR A2 \u2014 Record open web search founder decision"
+        },
+        {
+          "level": 3,
+          "line": 1327,
+          "text": "D-03xx \u2014 Independent, transparent, pluralistic open-web search"
+        },
+        {
+          "level": 2,
+          "line": 1346,
+          "text": "25. Track B: Mininet Intake"
+        },
+        {
+          "level": 3,
+          "line": 1348,
+          "text": "PR B1 \u2014 `mini-intake-types`"
+        },
+        {
+          "level": 3,
+          "line": 1361,
+          "text": "PR B2 \u2014 Trusted intake coordinator"
+        },
+        {
+          "level": 3,
+          "line": 1372,
+          "text": "PR B3 \u2014 Extractor protocol and host"
+        },
+        {
+          "level": 3,
+          "line": 1382,
+          "text": "PR B4 \u2014 PDF and HTML extraction"
+        },
+        {
+          "level": 3,
+          "line": 1386,
+          "text": "PR B5 \u2014 Publication linking"
+        },
+        {
+          "level": 2,
+          "line": 1398,
+          "text": "26. Track C: Public commons"
+        },
+        {
+          "level": 3,
+          "line": 1400,
+          "text": "PR C1 \u2014 `PublicCommonsPolicy`"
+        },
+        {
+          "level": 3,
+          "line": 1404,
+          "text": "PR C2 \u2014 Contribution budgets"
+        },
+        {
+          "level": 3,
+          "line": 1415,
+          "text": "PR C3 \u2014 Public profile and social rights"
+        },
+        {
+          "level": 3,
+          "line": 1419,
+          "text": "PR C4 \u2014 Paid service boundary"
+        },
+        {
+          "level": 2,
+          "line": 1425,
+          "text": "27. Track D: Protected publishing"
+        },
+        {
+          "level": 3,
+          "line": 1427,
+          "text": "PR D1 \u2014 Publication profile dimensions"
+        }
+      ],
+      "keywords": [
+        "search",
+        "public",
+        "intake",
+        "protection",
+        "may",
+        "web",
+        "implementation",
+        "part",
+        "commons",
+        "free",
+        "paid",
+        "publication",
+        "source",
+        "track",
+        "protected",
+        "publishing",
+        "open",
+        "participation",
+        "founder",
+        "invariants",
+        "ordinary",
+        "never",
+        "payment",
+        "provider"
+      ],
+      "lines": 1743,
+      "path": "docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md",
+      "sha256": "020868e1261fdd7015f341413f269d53539d734c56793f52943dd9db82f9befd",
+      "symbols": [],
+      "title": "Mininet Native Intake, Public Commons, Protected Publishing, and Open Web Search"
     },
     {
       "bytes": 46938,
