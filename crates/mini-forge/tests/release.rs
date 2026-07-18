@@ -4,8 +4,8 @@
 use did_mini::{Capabilities, Controller, Did};
 use mini_crypto::HashAlgorithm;
 use mini_forge::{
-    commit, detect_equivocation, list_releases, list_releases_strict, project, put_file, put_tree,
-    release, Policy, TreeEntry,
+    commit, detect_equivocation, detect_equivocation_strict, list_releases, list_releases_strict,
+    project, put_file, put_tree, release, Policy, TreeEntry,
 };
 use mini_media::publish_media;
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
@@ -214,6 +214,10 @@ fn strict_release_log_rejects_malformed_matching_entries() {
     assert!(list_releases(&store, proj.id(), "main").unwrap().is_empty());
     assert!(matches!(
         list_releases_strict(&store, proj.id(), "main"),
+        Err(mini_forge::ForgeError::BadObject)
+    ));
+    assert!(matches!(
+        detect_equivocation_strict(&store, proj.id(), "main"),
         Err(mini_forge::ForgeError::BadObject)
     ));
 }

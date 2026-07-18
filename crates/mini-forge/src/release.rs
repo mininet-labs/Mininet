@@ -202,6 +202,39 @@ pub fn detect_equivocation<B: Backend>(
     Ok(found)
 }
 
+/// Strict counterpart to [`detect_equivocation`]. A malformed release that
+/// claims the project is an error, rather than an entry silently omitted from
+/// the evidence set.
+pub fn detect_equivocation_strict<B: Backend>(
+    store: &Store<B>,
+    project_id: &ObjectId,
+    branch: &str,
+) -> Result<Vec<Equivocation>> {
+    let releases = list_releases_strict(store, project_id, branch)?;
+    let mut parsed: Vec<(ObjectId, String, [u8; 32])> = Vec::with_capacity(releases.len());
+    for rel in &releases {
+        let (version, _, artifact_digest, _) = parse_release_payload(rel)?;
+        parsed.push((rel.id().clone(), version, artifact_digest));
+    }
+    let mut found = Vec::new();
+    for i in 0..parsed.len() {
+        for j in (i + 1)..parsed.len() {
+            let (id_a, version_a, digest_a) = &parsed[i];
+            let (id_b, version_b, digest_b) = &parsed[j];
+            if version_a == version_b && digest_a != digest_b {
+                found.push(Equivocation {
+                    version: version_a.clone(),
+                    first: id_a.clone(),
+                    second: id_b.clone(),
+                    first_artifact_digest: *digest_a,
+                    second_artifact_digest: *digest_b,
+                });
+            }
+        }
+    }
+    Ok(found)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
