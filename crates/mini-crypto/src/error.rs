@@ -40,6 +40,10 @@ pub enum CryptoError {
     BadVarint,
     /// Randomness could not be obtained from the operating system.
     Entropy,
+    /// A suite-specific [`crate::SigningKey`] method (e.g.
+    /// [`crate::SigningKey::sign_ml_dsa_65`]) was called on a key
+    /// belonging to a different suite.
+    SignatureSuiteMismatch,
 }
 
 impl fmt::Display for CryptoError {
@@ -71,6 +75,9 @@ impl fmt::Display for CryptoError {
             }
             CryptoError::BadVarint => write!(f, "malformed varint"),
             CryptoError::Entropy => write!(f, "could not obtain system entropy"),
+            CryptoError::SignatureSuiteMismatch => {
+                write!(f, "signing key does not belong to the requested suite")
+            }
         }
     }
 }

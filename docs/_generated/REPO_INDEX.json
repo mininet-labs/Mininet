@@ -2,8 +2,8 @@
   "counts": {
     "crates": 46,
     "files": 575,
-    "headings": 1998,
-    "rust_symbols": 4396
+    "headings": 2003,
+    "rust_symbols": 4407
   },
   "crates": {
     "did-mini": {
@@ -12796,7 +12796,7 @@
       "title": "use did_mini::{Capabilities, Controller, Did};"
     },
     {
-      "bytes": 2178,
+      "bytes": 2449,
       "group": "crate:mini-crypto",
       "headings": [
         {
@@ -12851,54 +12851,79 @@
         },
         {
           "level": 1,
+          "line": 33,
+          "text": "`rand_core::OsRng` -- the same canonical OS-backed RNG this crate's own"
+        },
+        {
+          "level": 1,
+          "line": 34,
+          "text": "Phase 1 tests already validated real `fips204` keygen/signing against"
+        },
+        {
+          "level": 1,
           "line": 35,
-          "text": "Adds fips204's OS-RNG keygen/sign convenience (`default-rng`) for this"
+          "text": "(D-0095) -- now used in production by `SigningKey::generate_ml_dsa_65`/"
         },
         {
           "level": 1,
           "line": 36,
-          "text": "crate's own round-trip tests only \u2014 dev-dependency features never reach a"
+          "text": "`sign_ml_dsa_65` (Phase 2, issue #15). Version pinned to match what"
         },
         {
           "level": 1,
           "line": 37,
-          "text": "`cargo build`/`cargo build --release` production artifact, keeping the"
+          "text": "`fips204` itself resolves to, so there is exactly one `rand_core` in the"
         },
         {
           "level": 1,
           "line": 38,
-          "text": "\"no generation exposed on SigningKey yet\" boundary real, not just documented."
+          "text": "dependency graph."
+        },
+        {
+          "level": 1,
+          "line": 42,
+          "text": "Adds fips204's OS-RNG keygen/sign convenience (`default-rng`) for this"
+        },
+        {
+          "level": 1,
+          "line": 43,
+          "text": "crate's own round-trip tests only \u2014 dev-dependency features never reach a"
+        },
+        {
+          "level": 1,
+          "line": 44,
+          "text": "`cargo build`/`cargo build --release` production artifact."
         }
       ],
       "keywords": [
-        "features",
+        "fips204",
         "version",
+        "features",
         "cargo",
         "zeroize",
-        "generation",
+        "rand_core",
         "workspace",
         "true",
+        "dependency",
         "suite",
         "ml-dsa-65",
-        "just",
-        "exposed",
+        "already",
+        "d-0095",
+        "issue",
+        "now",
         "signingkey",
-        "yet",
-        "fips204",
-        "build",
-        "primitives",
-        "default",
-        "secret",
+        "own",
+        "phase",
         "keygen",
-        "sign",
-        "default-rng",
+        "production",
+        "build",
         "false",
-        "mini-crypto",
-        "audited"
+        "primitives",
+        "default"
       ],
-      "lines": 41,
+      "lines": 46,
       "path": "crates/mini-crypto/Cargo.toml",
-      "sha256": "5954e60bdad07126b93a62d5dc7e2abd8ff46410d7241bd29c743c5cbd27689b",
+      "sha256": "920ba76a5a9c3d73f9cfffce9f8e91148a6002c813c5a6a18261a56f71b2038a",
       "symbols": [],
       "title": "Audited, widely-used primitives. The dependency surface is kept deliberately"
     },
@@ -13466,7 +13491,7 @@
       "title": "use crate::error::{CryptoError, Result};"
     },
     {
-      "bytes": 3609,
+      "bytes": 3951,
       "group": "crate:mini-crypto",
       "headings": [],
       "keywords": [
@@ -13474,13 +13499,13 @@
         "write",
         "failed",
         "fmt",
+        "key",
+        "suite",
         "error",
         "result",
         "unknown",
         "byte",
-        "key",
         "recognised",
-        "suite",
         "expected",
         "got",
         "identifier",
@@ -13495,9 +13520,9 @@
         "string",
         "prefix"
       ],
-      "lines": 82,
+      "lines": 89,
       "path": "crates/mini-crypto/src/error.rs",
-      "sha256": "fd16709139604a3221fd0e0fabfa7f4a9512adf7333f228209224112cb18eea3",
+      "sha256": "75f7f929768b3d28ebc5c9d0e8381d47325a36c2d219e0fadc452f7cfcbb730a",
       "symbols": [
         {
           "kind": "enum",
@@ -13506,22 +13531,22 @@
         },
         {
           "kind": "impl",
-          "line": 45,
+          "line": 49,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 50,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 78,
+          "line": 85,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 81,
+          "line": 88,
           "name": "Result"
         }
       ],
@@ -13692,208 +13717,263 @@
       "title": "use hkdf::Hkdf;"
     },
     {
-      "bytes": 17472,
+      "bytes": 26586,
       "group": "crate:mini-crypto",
       "headings": [],
       "keywords": [
-        "suite",
-        "self",
         "key",
         "signingkey",
+        "suite",
         "seed",
-        "verifyingkey",
-        "inner",
-        "signaturesuite",
-        "signature",
-        "secret",
-        "debug",
-        "bytes",
-        "keymaterial",
-        "fmt",
-        "to_bytes",
-        "material",
-        "never",
-        "derive",
-        "keys",
-        "generate",
-        "sign",
-        "core",
         "signing",
-        "clone"
+        "signaturesuite",
+        "verifyingkey",
+        "generate",
+        "secret",
+        "derive",
+        "signature",
+        "debug",
+        "fips204",
+        "ed25519",
+        "material",
+        "phase",
+        "clone",
+        "box",
+        "keymaterial",
+        "secretkeymaterial",
+        "generation",
+        "its",
+        "mldsa65",
+        "ml-dsa-65"
       ],
-      "lines": 457,
+      "lines": 657,
       "path": "crates/mini-crypto/src/keys.rs",
-      "sha256": "2310609acb9d109fcc49cc200fa2f65bcc4d6265ad6d6c0a9cfe308281d809ed",
+      "sha256": "bafba7c2f3543daa4cfcb4ec18a424d6cb5d2f70efe293f4e9fddcb430cfe1bb",
       "symbols": [
         {
           "kind": "enum",
-          "line": 36,
+          "line": 42,
           "name": "KeyMaterial"
         },
         {
           "kind": "struct",
-          "line": 48,
+          "line": 54,
           "name": "VerifyingKey"
         },
         {
+          "kind": "enum",
+          "line": 64,
+          "name": "SecretKeyMaterial"
+        },
+        {
           "kind": "struct",
-          "line": 57,
+          "line": 85,
           "name": "SigningKey"
         },
         {
           "kind": "struct",
-          "line": 64,
+          "line": 92,
           "name": "Signature"
         },
         {
           "kind": "impl",
-          "line": 69,
+          "line": 97,
           "name": "SigningKey"
         },
         {
           "kind": "fn",
-          "line": 74,
+          "line": 102,
           "name": "from_seed"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 110,
           "name": "generate"
         },
         {
           "kind": "fn",
-          "line": 92,
+          "line": 124,
+          "name": "generate_ml_dsa_65"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
           "name": "suite"
         },
         {
           "kind": "fn",
-          "line": 97,
+          "line": 144,
           "name": "verifying_key"
         },
         {
           "kind": "fn",
-          "line": 105,
+          "line": 177,
           "name": "sign"
         },
         {
           "kind": "fn",
-          "line": 118,
-          "name": "to_seed_bytes"
-        },
-        {
-          "kind": "impl",
-          "line": 123,
-          "name": "core::fmt::Debug"
-        },
-        {
-          "kind": "fn",
-          "line": 124,
-          "name": "fmt"
-        },
-        {
-          "kind": "impl",
-          "line": 133,
-          "name": "VerifyingKey"
-        },
-        {
-          "kind": "fn",
-          "line": 135,
-          "name": "suite"
-        },
-        {
-          "kind": "fn",
-          "line": 140,
-          "name": "to_bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 158,
-          "name": "from_suite_bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 191,
-          "name": "verify"
-        },
-        {
-          "kind": "impl",
-          "line": 226,
-          "name": "Signature"
-        },
-        {
-          "kind": "fn",
-          "line": 228,
-          "name": "suite"
+          "line": 200,
+          "name": "sign_ml_dsa_65"
         },
         {
           "kind": "fn",
           "line": 233,
+          "name": "to_seed_bytes"
+        },
+        {
+          "kind": "impl",
+          "line": 243,
+          "name": "core::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 244,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 253,
+          "name": "VerifyingKey"
+        },
+        {
+          "kind": "fn",
+          "line": 255,
+          "name": "suite"
+        },
+        {
+          "kind": "fn",
+          "line": 260,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 242,
+          "line": 278,
           "name": "from_suite_bytes"
         },
         {
-          "kind": "mod",
-          "line": 258,
-          "name": "tests"
+          "kind": "fn",
+          "line": 311,
+          "name": "verify"
         },
         {
-          "kind": "fn",
-          "line": 262,
-          "name": "an_ed25519_signature_round_trips_through_sign_and_verify"
-        },
-        {
-          "kind": "fn",
-          "line": 270,
-          "name": "an_ed25519_signature_over_a_different_message_fails"
-        },
-        {
-          "kind": "fn",
-          "line": 281,
-          "name": "ml_dsa_65_tag_and_lengths_match_fips204"
-        },
-        {
-          "kind": "fn",
-          "line": 306,
-          "name": "a_real_ml_dsa_65_signature_verifies_through_the_mini_crypto_wrapper"
-        },
-        {
-          "kind": "fn",
-          "line": 324,
-          "name": "a_tampered_ml_dsa_65_signature_is_rejected"
+          "kind": "impl",
+          "line": 346,
+          "name": "Signature"
         },
         {
           "kind": "fn",
           "line": 348,
+          "name": "suite"
+        },
+        {
+          "kind": "fn",
+          "line": 353,
+          "name": "to_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 362,
+          "name": "from_suite_bytes"
+        },
+        {
+          "kind": "mod",
+          "line": 378,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 382,
+          "name": "an_ed25519_signature_round_trips_through_sign_and_verify"
+        },
+        {
+          "kind": "fn",
+          "line": 390,
+          "name": "an_ed25519_signature_over_a_different_message_fails"
+        },
+        {
+          "kind": "fn",
+          "line": 401,
+          "name": "ml_dsa_65_tag_and_lengths_match_fips204"
+        },
+        {
+          "kind": "fn",
+          "line": 426,
+          "name": "a_real_ml_dsa_65_signature_verifies_through_the_mini_crypto_wrapper"
+        },
+        {
+          "kind": "fn",
+          "line": 444,
+          "name": "a_tampered_ml_dsa_65_signature_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 468,
           "name": "an_ml_dsa_65_signature_verified_under_the_wrong_public_key_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 369,
+          "line": 489,
           "name": "a_wrong_length_ml_dsa_65_public_key_is_rejected_before_any_verification"
         },
         {
           "kind": "fn",
-          "line": 381,
+          "line": 501,
           "name": "an_all_zero_ml_dsa_65_key_parses_but_never_verifies_a_real_signature"
         },
         {
           "kind": "fn",
-          "line": 411,
+          "line": 531,
           "name": "a_wrong_length_ml_dsa_65_signature_is_rejected_before_any_verification"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 543,
           "name": "an_ed25519_key_cannot_be_parsed_as_ml_dsa_65_bytes"
         },
         {
           "kind": "fn",
-          "line": 436,
+          "line": 556,
           "name": "a_signature_suite_mismatch_between_key_and_signature_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 581,
+          "name": "a_generated_ml_dsa_65_key_signs_and_verifies_end_to_end_through_mini_crypto"
+        },
+        {
+          "kind": "fn",
+          "line": 595,
+          "name": "a_generated_ml_dsa_65_signature_over_a_different_message_fails"
+        },
+        {
+          "kind": "fn",
+          "line": 606,
+          "name": "a_generated_ml_dsa_65_signature_verified_under_a_different_generated_key_fails"
+        },
+        {
+          "kind": "fn",
+          "line": 618,
+          "name": "two_generated_ml_dsa_65_keys_are_distinct"
+        },
+        {
+          "kind": "fn",
+          "line": 627,
+          "name": "sign_ml_dsa_65_on_an_ed25519_key_is_a_suite_mismatch_not_a_panic"
+        },
+        {
+          "kind": "fn",
+          "line": 637,
+          "name": "sign_on_an_ml_dsa_65_key_panics_with_a_clear_message"
+        },
+        {
+          "kind": "fn",
+          "line": 644,
+          "name": "to_seed_bytes_on_an_ml_dsa_65_key_panics_with_a_clear_message"
+        },
+        {
+          "kind": "fn",
+          "line": 650,
+          "name": "a_generated_ml_dsa_65_signing_key_debug_output_redacts_secret_material"
         }
       ],
       "title": "use ed25519_dalek::{"
@@ -39294,7 +39374,7 @@
       "title": "{"
     },
     {
-      "bytes": 477782,
+      "bytes": 484867,
       "group": "docs",
       "headings": [
         {
@@ -39708,25 +39788,25 @@
         "closes",
         "decision",
         "batch",
+        "issue",
         "release",
         "roadmap",
         "mini-consensus",
-        "issue",
         "status",
         "new",
         "research",
+        "phase",
         "lane",
         "d-0045",
         "entry",
         "core",
         "chain",
         "first",
-        "audit",
-        "explicit"
+        "audit"
       ],
-      "lines": 7970,
+      "lines": 8082,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "1032cbdd17aa3a726c12966e3154ef93783784ee7b9689916cdb37aeedaebe9e",
+      "sha256": "99208591916c2e605e146de10a761e38eb4b2a4cabdc8cd9b17573f4c3207b23",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -40666,7 +40746,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 59553,
+      "bytes": 59694,
       "group": "docs",
       "headings": [
         {
@@ -40696,52 +40776,52 @@
         },
         {
           "level": 2,
-          "line": 219,
+          "line": 221,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 285,
+          "line": 287,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 332,
+          "line": 334,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 517,
+          "line": 519,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 558,
+          "line": 560,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 616,
+          "line": 618,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 645,
+          "line": 647,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 849,
+          "line": 851,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 920,
+          "line": 922,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 926,
+          "line": 928,
           "text": "Where to look for more detail"
         }
       ],
@@ -40771,9 +40851,9 @@
         "claude",
         "social"
       ],
-      "lines": 936,
+      "lines": 938,
       "path": "docs/STATUS.md",
-      "sha256": "c208d5b22d4300a0b7f0a07510f3c2c65f2f47472afba131e836b513eab7f822",
+      "sha256": "df0a5d99875dbed232eadda7f74adf879a59d4d8e139bc4cc4a58df6769e2b19",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -43037,76 +43117,76 @@
       "title": "Networked BFT consensus \u2014 `mini-consensus` (D-0200 through D-0205)"
     },
     {
-      "bytes": 5997,
+      "bytes": 6561,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Post-quantum identity signature migration (issue #15, D-0095)"
+          "text": "Post-quantum identity signature migration (issue #15, D-0095/D-0320)"
         },
         {
           "level": 2,
-          "line": 14,
+          "line": 15,
           "text": "Decision"
         },
         {
           "level": 2,
-          "line": 27,
+          "line": 28,
           "text": "What's implemented"
         },
         {
           "level": 2,
-          "line": 57,
+          "line": 61,
           "text": "Honest limit found during implementation"
         },
         {
           "level": 2,
-          "line": 70,
+          "line": 74,
           "text": "What's deferred"
         },
         {
           "level": 2,
-          "line": 92,
+          "line": 102,
           "text": "Hard rule: no production migration before external review"
         },
         {
           "level": 2,
-          "line": 103,
+          "line": 113,
           "text": "What this does not provide"
         }
       ],
       "keywords": [
         "signature",
-        "migration",
-        "key",
         "phase",
+        "key",
+        "migration",
+        "ml-dsa-65",
         "real",
         "what",
-        "report",
-        "research",
-        "ml-dsa-65",
         "fips204",
-        "change",
+        "research",
         "identity",
-        "production",
-        "generation",
-        "recovery",
-        "signaturesuite",
+        "does",
+        "mini-crypto",
+        "report",
         "keys",
+        "ed25519",
+        "mldsa65",
         "bytes",
-        "own",
+        "d-0320",
         "decision",
-        "implemented",
         "honest",
         "deferred",
-        "rule"
+        "generation",
+        "kel",
+        "signaturesuite"
       ],
-      "lines": 111,
+      "lines": 121,
       "path": "docs/design/post-quantum-identity-migration.md",
-      "sha256": "bb3a20120bdcb5ddf0b62b433d2f1c4de324f5b42f1f4662f61b0c30c2d7573b",
+      "sha256": "0fb7e30d457b3577080aea74d13f5bfa387dee9957cd2f3d0bde2edc4ab1519f",
       "symbols": [],
-      "title": "Post-quantum identity signature migration (issue #15, D-0095)"
+      "title": "Post-quantum identity signature migration (issue #15, D-0095/D-0320)"
     },
     {
       "bytes": 6883,
@@ -52540,16 +52620,16 @@
       "title": "version: 1"
     },
     {
-      "bytes": 3552,
+      "bytes": 4459,
       "group": "root",
       "headings": [],
       "keywords": [
         "status",
         "claude",
+        "issue",
         "governance",
         "work-claims",
         "json",
-        "issue",
         "contributor",
         "branch",
         "pull_request",
@@ -52558,20 +52638,20 @@
         "decision_log",
         "decision_ids",
         "notes",
+        "in_review",
+        "mini-crypto",
         "schema",
         "codex",
         "tools",
-        "in_review",
-        "unix",
-        "closed",
-        "agent",
-        "coordination",
         "cargo",
-        "mini-crawler"
+        "unix",
+        "reproducibility",
+        "d-0320",
+        "closed"
       ],
-      "lines": 102,
+      "lines": 122,
       "path": "governance/work-claims.json",
-      "sha256": "98885dcebec3bb475b0acc2527f00fb64b21bdf4d3ae5c7286f93e86d28ecdb5",
+      "sha256": "b1df1deea96d26045604d555031140f036c3b0c35f927ee3738b378ac76da167",
       "symbols": [],
       "title": "{"
     },
