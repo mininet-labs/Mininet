@@ -7712,3 +7712,72 @@ federated/distributed query merging as later Track E/F PRs.
 **Supersedes / superseded by:** implements the minimal crawler-planning
 slice named by D-0312 after D-0316. Does not supersede `mini-web-types`
 or `mini-private-index`.
+
+### D-0318 — `mini-installer`: gate `std::os::unix::fs::symlink` behind `#[cfg(unix)]` so the crate compiles on non-Unix hosts  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** issue #167; `crates/mini-installer/src/lib.rs`
+(`swap_current`); D-0071/D-0106-D-0108 (`mini-installer`'s original
+type-state pipeline and its already-documented "Unix-only" honest
+limit)
+
+**Decision:** `Installer::swap_current`'s atomic pointer-flip called
+`std::os::unix::fs::symlink` with no platform guard, which does not
+exist outside `#[cfg(unix)]` targets -- a hard *compile* error for the
+whole crate, and everything depending on it (`mini-cli`), on any
+non-Unix host. Extracts the one platform-specific line into a small
+`create_symlink` helper: `#[cfg(unix)]` calls the real
+`std::os::unix::fs::symlink` unchanged; `#[cfg(not(unix))]` returns a
+`std::io::Error` with `ErrorKind::Unsupported` and a clear message,
+propagated through the crate's existing `InstallerError::Io` variant --
+no new error variant needed. The module doc's already-honest "Unix-only"
+limitation is reworded to distinguish *compiling* (now every platform)
+from *activating* (still Unix-only, unchanged).
+
+**Reason:** two independent open PRs (#165, #166) both hit this exact
+wall from a Windows host and had to note their full `mini-cli` test run
+was blocked by it, unable to exercise their own changes locally even
+though the change itself had nothing to do with `mini-installer`.
+Workspace CI itself only runs `ubuntu-latest`
+(`.github/workflows/ci.yml`), so this never blocked the merge gate
+directly, but it silently blocked every non-Unix-hosted contributor
+(human or AI agent) from building or testing the workspace at all --
+a real production-readiness gap nothing in `docs/STATUS.md` or the
+crate's own docs previously named as a workspace-wide limitation (only
+`mini-installer`'s *activation* being Unix-only was ever claimed, not
+the crate failing to build elsewhere).
+
+**Constitutional impact:** none. This is a compile-target fix only --
+`mini-installer`'s actual capability is completely unchanged: activation
+was, and remains, Unix-only; no new platform support, no new capability,
+no touched frozen invariant. Directive 14 (no new cryptography) and the
+typed-domains rule are both untouched -- `InstallerError::Io` already
+existed and already carried arbitrary `std::io::Error` values.
+
+**Implementation status:** shipped in `mini-installer` only.
+`cargo fmt --all -- --check`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features`
+all clean on this (Linux) host, which continues to exercise the real
+`#[cfg(unix)]` path exactly as before -- this PR could not itself run
+the `#[cfg(not(unix))]` branch to prove it compiles cleanly on Windows,
+since no Windows toolchain exists in this environment; the branch is
+a five-line, trivially-inspectable `std::io::Error` construction with no
+platform-specific API surface, and the fix is scoped exactly to the line
+the two blocked PRs both named.
+
+**Failure point:** does not add real Windows (or any non-Unix) install
+support -- `Installer::activate` still cannot succeed there, it now just
+fails at runtime with a clear error instead of preventing the crate from
+being built at all. No Windows CI runner exists in this workspace to
+continuously verify the `#[cfg(not(unix))]` branch keeps compiling as
+the crate evolves; a future edit to `swap_current` could silently
+reintroduce a Unix-only construct elsewhere in the same function without
+any check catching it before a non-Unix contributor hits it again.
+
+**Required follow-up:** none required for this fix's own scope. Adding a
+`windows-latest` compile-only (not full-test) CI leg would catch
+regressions of this exact class going forward; not done here since it's
+outside this issue's named scope (#167 is about the one existing compile
+failure, not about establishing new CI infrastructure).
+
+**Supersedes / superseded by:** none. Narrow compile-target fix; no
+existing crate behavior changed on the Unix targets this crate was
+already built and tested against.
