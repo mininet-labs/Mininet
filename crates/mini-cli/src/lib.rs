@@ -21,8 +21,9 @@
 //!   local files: acceptable for solo/small-group use, not for background
 //!   sync or live event subscriptions. `mini sync` handles exactly one
 //!   connection per invocation, then exits (`crate::sync`'s module docs).
-//! - The per-home sequence counter (`crate::sequence`) is not safe for
-//!   concurrent invocations against the same home.
+//! - The per-home sequence counter (`crate::sequence`) serializes concurrent
+//!   invocations with an OS-backed lock, but other files in a home are not a
+//!   general transaction boundary.
 //! - `repo branch --set` is a raw, ungoverned pointer move (the same
 //!   primitive `mini-forge::set_branch` always was) — only `repo status`'s
 //!   governed canonical heads (via `resolve_project`) are authoritative.

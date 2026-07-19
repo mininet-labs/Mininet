@@ -66,8 +66,9 @@ Global flags (any position): `--home <path>` (default `~/.mininet`, or
   (the exact composition `mini-bootstrap`'s live demo already proved,
   D-0062) is a near-zero-effort deferred fast-follow, not required for
   this crate's own exit condition.
-- **The per-home sequence counter is not concurrency-safe** across
-  parallel `mini` invocations against the same home.
+- **The per-home sequence counter is concurrency-safe** across parallel
+  `mini` invocations against the same home: allocation uses an OS-backed
+  exclusive lock. Other files in a home are not thereby made transactional.
 - **`repo branch --set` is a raw, ungoverned pointer move** — the same
   primitive `mini_forge::set_branch` always was. Only `repo status`'s
   governed canonical heads (via `resolve_project`) are authoritative.
