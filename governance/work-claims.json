@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-19T19:36:51Z",
+  "updated_at": "2026-07-19T19:52:06Z",
   "claims": [
     {
       "issue": 122,
