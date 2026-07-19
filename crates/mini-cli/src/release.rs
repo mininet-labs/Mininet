@@ -248,7 +248,10 @@ pub fn fetch(
         output.display()
     ))
     .field("release_id", JsonValue::str(verified.id.as_str()))
-    .field("output", JsonValue::str(output.to_string_lossy().into_owned()))
+    .field(
+        "output",
+        JsonValue::str(output.to_string_lossy().into_owned()),
+    )
     .field("bytes", JsonValue::num(bytes.len() as u64))
     .field(
         "artifact_digest",
