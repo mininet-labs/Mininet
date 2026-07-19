@@ -8079,3 +8079,111 @@ fast-follow once appropriate tooling exists. Consider whether
 **Supersedes / superseded by:** extends D-0095 (Phase 1). Does not
 supersede it — `VerifyingKey`/`Signature`'s Phase 1 behavior is
 completely unchanged.
+
+### D-0321 — `did-mini`: KEL witness receipt types, Phase 1 of witness receipts + duplicity gossip (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0096 (`docs/design/
+kel-witness-receipts-and-duplicity-gossip.md`, the Phase 0 design-only
+predecessor this PR implements Phase 1 of); `docs/research/
+KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md` (founder-
+supplied, 2026-07-15); audit #12 finding F4; invariant M3
+(`docs/INVARIANTS.md`); issue #177
+
+**Decision:** adds `WitnessId`, `KeyEventKind`, `WitnessReceiptVersion`/
+`WitnessCertificateVersion`, `WitnessPolicy`, `WitnessReceiptStatement`,
+`WitnessReceipt`, and `WitnessedEventCertificate` to `did-mini`, plus
+`sign_witness_receipt(WitnessReceiptStatement)` — the one typed function
+a witness ever calls to produce a receipt, never a generic
+`sign(bytes)`, per CLAUDE.md's typed-domain rule. Implements exactly
+Phase 1 of the design doc's committed phased plan ("receipt types;
+canonical encoding; signature verification; no network service") using
+`event.rs`'s existing hand-rolled `Writer`/`Reader` codec discipline
+rather than a new format.
+
+`WitnessPolicy::new` validates `1 <= threshold <= witnesses.len()` and
+rejects duplicate witness identifiers at construction, mirroring
+`event::validate_establishment`'s existing reject-early discipline for
+key sets. `WitnessedEventCertificate::assemble` rejects any receipt that
+does not exactly match the certificate's own claimed identity/sequence/
+event-digest/generation before admitting it, then canonically sorts
+receipts by witness DID for deterministic encoding (research report
+§10.1). `WitnessedEventCertificate::verify(&policy, resolve_witness_key)`
+checks: the certificate's claimed generation matches the given policy;
+every receipt matches the certificate's own event; every witness
+belongs to the policy; no witness counts twice toward the threshold;
+every signature verifies via the caller-supplied resolver (fails closed
+— `UnresolvedWitnessKey`, not a silent skip, if the resolver can't find
+a key); the threshold is met.
+
+**Reason:** the design doc's own recommended sequencing (echoing the
+research report's closing recommendation) is "a small receipt/proof
+type PR, then an in-memory witness state-machine PR, and only
+afterward network gossip" — exactly the phase boundary this PR
+implements. This closes the harder half of `FreshnessPins` (D-0088)
+does not solve: a verifier meeting an identity for the first time has
+no prior head to pin against, and two internally-valid, controller-
+signed branches can both pass ordinary KEL verification in isolation.
+Composing `did-mini`'s existing typed-signature machinery (`SigningKey`/
+`VerifyingKey`/`Signature` from `mini-crypto`) rather than any new
+cryptographic construction follows both Directive 14 and the design
+doc's own hard rule: "ordinary independent signatures first... composing
+`did-mini`'s existing typed-signature machinery is sufficient for
+Phase 1-3."
+
+**Constitutional impact:** none negative. No new cryptography (Directive
+14) — every signature is an ordinary `mini_crypto::Signature` over a
+typed statement, no aggregation, no BLS, no bespoke consensus. No voice/
+value wall implications. Typed-domains rule honored throughout:
+`WitnessId` is a distinct type from a bare `Did` even though structurally
+identical, `WitnessReceiptVersion`/`WitnessCertificateVersion` are
+distinct types so one can never be substituted for the other, and
+`sign_witness_receipt` takes the one specific statement type rather than
+raw bytes. Witnesses gain no authority by this PR or by design — a
+witness attests observation only; nothing here lets a witness create,
+rotate, or override an identity event (the design doc's own hard rule,
+carried forward structurally: `WitnessedEventCertificate::verify` never
+returns anything resembling "this event is now authoritative," only
+whether a threshold of witnesses observed it).
+
+**Implementation status:** shipped in `did-mini` only (`witness.rs`, new
+module). `cargo fmt --all`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features`
+all clean, including this module's 24 new tests (policy construction/
+validation/round-trip; statement and receipt round-trips including the
+inception no-prior-digest case; signature verification and rejection
+under a wrong key; certificate assembly rejecting a mismatched receipt;
+certificate verification succeeding at threshold, rejecting below
+threshold, rejecting a witness outside the policy, rejecting a stale
+policy generation, and failing closed on an unresolvable witness key;
+trailing-bytes rejection on every decoder). Every pre-existing
+`did-mini` test (identity, delegation, recovery, pairwise, identity
+modes) still passes unchanged — this PR touches no existing type or
+function.
+
+**Failure point:** exactly what the design doc's own scope line names as
+not-yet-done: no in-memory witness state machine (so nothing in this
+repo actually issues a receipt in response to a real observed event
+yet), no `ControllerDuplicityProof`/`WitnessEquivocationProof` (Phase
+2), no `KelAssurance`/KEL-verification integration (Phase 3 — a
+`WitnessedEventCertificate` cannot yet be checked against a live
+`did_mini::Kel`), no receipt-freshness-policy evaluation against
+`observed_epoch` (also Phase 3), no receipt collection protocol, no
+gossip, no persistent witness service, no witness rotation, no public
+transparency logs, no adversarial network simulation. `WitnessPolicy`
+is not yet carried by `Establishment` events (`event.rs`'s existing
+`witnesses: Vec<Vec<u8>>` field remains its own pre-existing, differently-
+shaped placeholder, explicitly reserved and unused) — wiring a real
+`WitnessPolicy` into inception/rotation events is Phase 3's job, not
+this one's.
+
+**Required follow-up:** Phase 2 (in-memory witness state machine:
+first-seen acceptance, direct-successor verification, duplicate
+idempotence, stale rejection, conflict detection, receipt issuance,
+`ControllerDuplicityProof`, `WitnessEquivocationProof`) — not started.
+Phase 3 (`KelAssurance` output alongside ordinary KEL validity, wiring
+`WitnessPolicy` into real establishment events) — not started, and per
+the design doc's own hard rule, no high-value authority decision may
+depend on this layer before Phase 10's external cryptographic review.
+
+**Supersedes / superseded by:** none. New module, additive only —
+`event.rs`'s existing `witnesses` field, `FreshnessPins`, and every
+other existing `did-mini` type/function are unchanged.

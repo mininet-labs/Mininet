@@ -87,6 +87,46 @@ pub enum IdentityError {
     /// pinned for the same SCID — the interim freshness rule
     /// ([`crate::FreshnessPins`]) rejecting a stale replay.
     StaleKel { pinned: u64, got: u64 },
+    /// A [`crate::WitnessPolicy`] had no witnesses, or a
+    /// [`crate::WitnessedEventCertificate`] had no receipts.
+    EmptyWitnessSet,
+    /// A [`crate::WitnessPolicy`]'s threshold was zero or larger than its
+    /// witness count.
+    InvalidWitnessThreshold {
+        threshold: u16,
+        witness_count: usize,
+    },
+    /// A [`crate::WitnessPolicy`] repeated the same witness identifier.
+    DuplicateWitness,
+    /// A decoded [`crate::WitnessReceiptStatement`]/[`crate::
+    /// WitnessReceipt`] carried an unrecognised version tag.
+    UnknownWitnessReceiptVersion(u8),
+    /// A decoded [`crate::WitnessedEventCertificate`] carried an
+    /// unrecognised version tag.
+    UnknownWitnessCertificateVersion(u8),
+    /// A decoded [`crate::WitnessReceiptStatement`] carried an
+    /// unrecognised [`crate::KeyEventKind`] tag.
+    UnknownKeyEventKindTag(u8),
+    /// A [`crate::WitnessReceipt`] admitted into (or checked against) a
+    /// [`crate::WitnessedEventCertificate`] claimed a different identity,
+    /// sequence, event digest, or witness-policy generation than the
+    /// certificate itself.
+    WitnessReceiptMismatch,
+    /// A [`crate::WitnessedEventCertificate`] carried a receipt from a
+    /// witness that is not a member of the [`crate::WitnessPolicy`] it
+    /// was checked against.
+    WitnessNotInPolicy,
+    /// A [`crate::WitnessedEventCertificate`]'s claimed
+    /// `witness_policy_generation` did not match the [`crate::
+    /// WitnessPolicy`] it was checked against.
+    WitnessPolicyGenerationMismatch { expected: u64, got: u64 },
+    /// [`crate::WitnessedEventCertificate::verify`]'s caller-supplied
+    /// resolver could not produce a verifying key for a witness named in
+    /// the certificate.
+    UnresolvedWitnessKey,
+    /// A [`crate::WitnessedEventCertificate`] did not carry enough
+    /// distinct, valid witness signatures to meet its policy's threshold.
+    WitnessThresholdNotMet { needed: u16, got: u16 },
 }
 
 impl fmt::Display for IdentityError {
@@ -163,6 +203,42 @@ impl fmt::Display for IdentityError {
             IdentityError::StaleKel { pinned, got } => write!(
                 f,
                 "stale kel: previously pinned sn {pinned}, this kel only reaches sn {got}"
+            ),
+            IdentityError::EmptyWitnessSet => write!(f, "empty witness set"),
+            IdentityError::InvalidWitnessThreshold {
+                threshold,
+                witness_count,
+            } => write!(
+                f,
+                "invalid witness threshold {threshold} for witness set of size {witness_count}"
+            ),
+            IdentityError::DuplicateWitness => write!(f, "witness policy repeats a witness id"),
+            IdentityError::UnknownWitnessReceiptVersion(v) => {
+                write!(f, "unknown witness receipt version: {v}")
+            }
+            IdentityError::UnknownWitnessCertificateVersion(v) => {
+                write!(f, "unknown witness certificate version: {v}")
+            }
+            IdentityError::UnknownKeyEventKindTag(t) => {
+                write!(f, "unknown key event kind tag: {t}")
+            }
+            IdentityError::WitnessReceiptMismatch => write!(
+                f,
+                "witness receipt does not match the certificate's claimed event"
+            ),
+            IdentityError::WitnessNotInPolicy => {
+                write!(f, "witness receipt from a witness outside the policy")
+            }
+            IdentityError::WitnessPolicyGenerationMismatch { expected, got } => write!(
+                f,
+                "witness policy generation mismatch: policy is generation {expected}, certificate claims {got}"
+            ),
+            IdentityError::UnresolvedWitnessKey => {
+                write!(f, "could not resolve a verifying key for a witness")
+            }
+            IdentityError::WitnessThresholdNotMet { needed, got } => write!(
+                f,
+                "witness threshold not met: needed {needed}, got {got}"
             ),
         }
     }
