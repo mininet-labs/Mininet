@@ -136,6 +136,10 @@ so, everywhere, on purpose.
   explicit availability/restriction states, declared ranking profiles,
   default-no-personalization public search, and result explanations; no
   crawler, index, ranker, query service, network client, or payment logic
+- `mini-crawler` (D-0317): deterministic MiniSearch crawler planning and
+  URL admission policy — bounded same-host frontiers, explicit robots
+  exclusions, depth/queue/URL-length limits, and no network client,
+  parser, JavaScript, storage, ranking, or payment logic
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential

@@ -2,11 +2,11 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-18T00:00:00Z",
+  "updated_at": "2026-07-19T00:00:00Z",
   "claims": [
     {
       "issue": 122,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "agent/issue-122-bootstrap-coordination",
       "pull_request": 157,
@@ -24,6 +24,28 @@
         "D-0100"
       ],
       "notes": "Bootstrap coordination guardrail for parallel Codex/Claude work. This is coordination evidence, not approval or authority."
+    },
+    {
+      "issue": 161,
+      "status": "active",
+      "contributor": "Codex",
+      "branch": "agent/mini-crawler-planning",
+      "pull_request": 162,
+      "lease_expires": "2026-07-26",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "crates/mini-crawler/",
+        "README.md",
+        "docs/STATUS.md",
+        "docs/DECISION_LOG.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0317"
+      ],
+      "notes": "Stacked on PR #160 because mini-crawler depends on mini-web-types. Deterministic crawler planning/admission only; no network fetcher or parser."
     }
   ]
 }
