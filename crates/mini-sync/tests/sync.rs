@@ -157,6 +157,21 @@ fn identical_stores_finish_immediately() {
 }
 
 #[test]
+fn a_new_session_hydrates_known_authors_from_persisted_carriers() {
+    use mini_sync::{Ingest, IngestOutcome};
+
+    let (store, _, root, device) = seeded(10, 0);
+    let mut fresh_cache = KelCache::new();
+    assert_eq!(fresh_cache.hydrate_from_store(&store).unwrap(), 2);
+
+    let later_post = post(&root.did(), &device, b"later session", 1);
+    assert_eq!(
+        Ingest::check(&mut fresh_cache, &later_post),
+        IngestOutcome::Accepted
+    );
+}
+
+#[test]
 fn interrupted_sync_resumes_by_idempotence() {
     let (mut a_store, mut a_cache, ..) = seeded(10, 60);
     let (mut b_store, mut b_cache, ..) = seeded(50, 3);

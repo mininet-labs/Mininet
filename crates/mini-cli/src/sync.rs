@@ -74,6 +74,9 @@ pub fn listen(home: &Path, store_path: &Path, addr: &str, times: u32) -> Result<
     let mut store = open_store(store_path)?;
     seed_own_kel_carriers(&identity, &mut store)?;
     let mut cache = build_kel_cache(home, &identity)?;
+    cache
+        .hydrate_from_store(&store)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
 
     let listener = TcpListener::bind(addr).map_err(|e| CliError::Io(e.to_string()))?;
     let mut reports = Vec::with_capacity(times.max(1) as usize);
@@ -110,6 +113,9 @@ pub fn connect(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
     let mut store = open_store(store_path)?;
     seed_own_kel_carriers(&identity, &mut store)?;
     let mut cache = build_kel_cache(home, &identity)?;
+    cache
+        .hydrate_from_store(&store)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
 
     let mut bearer = TcpBearer::connect(addr).map_err(|e| CliError::Sync(e.to_string()))?;
     let (init, hello) = Initiator::start().map_err(|e| CliError::Sync(e.to_string()))?;

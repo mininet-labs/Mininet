@@ -10,7 +10,7 @@
 mod conversation_state;
 
 use conversation_state::ConversationRecord;
-use did_mini::{Controller, Did};
+use did_mini::{Capabilities, Controller, Did};
 use eframe::egui;
 use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
 use mini_media::{assemble, publish_media, read_manifest};
@@ -28,12 +28,14 @@ use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{
     kel_carrier, sync_bidirectional, sync_private_route_bidirectional, KelCache, SyncRole,
 };
-use mini_windows_vault::{load_existing, load_or_create, load_user_data, save_user_data};
+use mini_windows_vault::{load_existing, load_or_create, load_user_data, save_user_data, SeedPair};
 use std::collections::HashMap;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 use std::time::Duration;
+
+const PEER_IO_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum View {
@@ -52,6 +54,11 @@ enum View {
 enum UpdatePolicy {
     Ask,
     ManualOnly,
+}
+
+#[derive(Debug, Clone)]
+enum SyncContext {
+    FriendRequest { display_name: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,6 +107,7 @@ struct MininetApp {
     people_search: String,
     nearby_profiles: Vec<NearbyProfile>,
     discovery_rx: Option<Receiver<Result<Vec<NearbyProfile>, String>>>,
+    visibility_rx: Option<Receiver<Result<String, String>>>,
     profile_textures: HashMap<String, egui::TextureHandle>,
     wall_name: String,
     wall_bio: String,
@@ -127,16 +135,55 @@ struct MininetApp {
     message_text: String,
     selected_conversation: Option<usize>,
     sync_rx: Option<Receiver<Result<String, String>>>,
+    sync_context: Option<SyncContext>,
     notice: String,
 }
 
 struct Workspace {
     store: Store<FsBackend>,
-    identity: Option<Controller>,
+    identity: Option<DesktopIdentity>,
     human: Option<Did>,
     root: PathBuf,
     sequence: u64,
     conversations: Vec<ConversationRecord>,
+}
+
+struct DesktopIdentity {
+    root: Controller,
+    device: Controller,
+}
+
+fn desktop_identity_from_seeds(
+    root_seeds: &SeedPair,
+    device_seeds: &SeedPair,
+) -> Result<DesktopIdentity, String> {
+    let mut root = Controller::incept_single_from_seeds(&root_seeds.current, &root_seeds.next)
+        .map_err(|error| error.to_string())?;
+    let device = Controller::incept_device_single_from_seeds(
+        &root.did(),
+        &device_seeds.current,
+        &device_seeds.next,
+    )
+    .map_err(|error| error.to_string())?;
+    root.delegate_device(&device.did(), Capabilities::primary())
+        .map_err(|error| error.to_string())?;
+    Ok(DesktopIdentity { root, device })
+}
+
+fn load_desktop_identity(
+    root: &std::path::Path,
+    create_device: bool,
+) -> Result<DesktopIdentity, String> {
+    let root_seeds =
+        load_existing(&root.join("identity.dpapi")).map_err(|error| error.to_string())?;
+    let device_path = root.join("device.dpapi");
+    let device_seeds = if create_device {
+        load_or_create(&device_path)
+    } else {
+        load_existing(&device_path)
+    }
+    .map_err(|error| error.to_string())?;
+    desktop_identity_from_seeds(&root_seeds, &device_seeds)
 }
 
 impl Workspace {
@@ -191,11 +238,12 @@ impl Workspace {
         if self.root_created() {
             return Ok(());
         }
-        let seeds =
+        let root_seeds =
             load_or_create(&self.root.join("identity.dpapi")).map_err(|error| error.to_string())?;
-        let identity = Controller::incept_single_from_seeds(&seeds.current, &seeds.next)
-            .map_err(|error| error.to_string())?;
-        self.human = Some(identity.did());
+        let device_seeds =
+            load_or_create(&self.root.join("device.dpapi")).map_err(|error| error.to_string())?;
+        let identity = desktop_identity_from_seeds(&root_seeds, &device_seeds)?;
+        self.human = Some(identity.root.did());
         self.identity = Some(identity);
         Ok(())
     }
@@ -205,11 +253,11 @@ impl Workspace {
     }
 
     fn unlock(&mut self) -> Result<(), String> {
-        let seeds =
-            load_existing(&self.root.join("identity.dpapi")).map_err(|error| error.to_string())?;
-        let identity = Controller::incept_single_from_seeds(&seeds.current, &seeds.next)
-            .map_err(|error| error.to_string())?;
-        self.human = Some(identity.did());
+        // Explicit unlock is also the migration boundary for pre-device beta
+        // accounts: it creates one independently protected delegated-device
+        // vault while preserving the existing human-root DID.
+        let identity = load_desktop_identity(&self.root, true)?;
+        self.human = Some(identity.root.did());
         self.identity = Some(identity);
         Ok(())
     }
@@ -223,7 +271,7 @@ impl Workspace {
             .timestamp_ms(now_ms())
             .sequence(self.sequence)
             .payload(Payload::Public(text.as_bytes().to_vec()))
-            .sign(self.human_did()?, identity)
+            .sign(self.human_did()?, &identity.device)
             .map_err(|error| error.to_string())?;
         self.store
             .insert(&post)
@@ -241,7 +289,7 @@ impl Workspace {
         publish_profile(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             name,
             bio,
             None,
@@ -281,7 +329,7 @@ impl Workspace {
             let manifest = publish_media(
                 &mut self.store,
                 &human,
-                identity,
+                &identity.device,
                 content_type,
                 &bytes,
                 now_ms(),
@@ -304,7 +352,7 @@ impl Workspace {
         publish_profile_details(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             &draft,
             now_ms(),
             self.sequence,
@@ -352,6 +400,34 @@ impl Workspace {
         self.human
             .as_ref()
             .and_then(|human| resolve_profile(&self.store, human).ok().flatten())
+    }
+
+    fn profile_needs_device_upgrade(&self) -> bool {
+        let Some(human) = self.human.as_ref() else {
+            return false;
+        };
+        self.store
+            .resolve_head(human, "profile")
+            .ok()
+            .flatten()
+            .and_then(|id| self.store.get(&id).ok())
+            .is_some_and(|profile| profile.author_device == *human)
+    }
+
+    fn upgrade_profile_for_sync(&mut self) -> Result<(), String> {
+        let profile = self
+            .current_profile()
+            .ok_or_else(|| "publish a public profile first".to_string())?;
+        self.publish_custom_profile_confirmed(
+            &profile.display_name,
+            &profile.bio,
+            "",
+            profile.avatar.as_ref(),
+            profile.location.as_deref(),
+            profile.age,
+            &profile.fields,
+        )?;
+        Ok(())
     }
 
     fn follows(&self, target: &Did) -> bool {
@@ -406,7 +482,7 @@ impl Workspace {
         publish_wall(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             name,
             bio,
             None,
@@ -434,7 +510,7 @@ impl Workspace {
         publish_community(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             name,
             charter,
             MembershipMode::Open,
@@ -463,7 +539,7 @@ impl Workspace {
         let manifest = publish_media(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             content_type,
             &bytes,
             now_ms(),
@@ -476,7 +552,7 @@ impl Workspace {
             .sequence(self.sequence)
             .link("media", manifest.id)
             .payload(Payload::Public(caption.as_bytes().to_vec()))
-            .sign(&human, identity)
+            .sign(&human, &identity.device)
             .map_err(|error| error.to_string())?;
         self.store
             .insert(&post)
@@ -502,7 +578,7 @@ impl Workspace {
         publish_comment(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             parent,
             text,
             now_ms(),
@@ -522,7 +598,7 @@ impl Workspace {
         set_reaction(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             target,
             ReactionKind::Like,
             true,
@@ -611,7 +687,7 @@ impl Workspace {
         set_membership(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             community,
             joined,
             now_ms(),
@@ -632,7 +708,7 @@ impl Workspace {
         set_follow(
             &mut self.store,
             &human,
-            identity,
+            &identity.device,
             &target,
             follow,
             now_ms(),
@@ -758,7 +834,7 @@ impl Workspace {
             &mut self.store,
             &secret,
             human,
-            identity,
+            &identity.device,
             now_ms(),
             self.sequence,
             MessageDraft::text(body),
@@ -956,20 +1032,55 @@ fn read_u32(bytes: &[u8], offset: &mut usize) -> Result<u32, String> {
     Ok(value)
 }
 
-fn run_peer_sync(root: &std::path::Path, endpoint: &str, listener: bool) -> Result<String, String> {
-    let seeds = load_or_create(&root.join("identity.dpapi")).map_err(|error| error.to_string())?;
-    let identity = Controller::incept_single_from_seeds(&seeds.current, &seeds.next)
+fn configure_peer_stream(stream: &TcpStream) -> Result<(), String> {
+    stream
+        .set_read_timeout(Some(PEER_IO_TIMEOUT))
         .map_err(|error| error.to_string())?;
+    stream
+        .set_write_timeout(Some(PEER_IO_TIMEOUT))
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn nearby_endpoint_for(profiles: &[NearbyProfile], did: &Did) -> Option<SocketAddr> {
+    profiles
+        .iter()
+        .find(|profile| &profile.did == did)
+        .map(|profile| profile.address)
+}
+
+fn open_sync_state(
+    root: &std::path::Path,
+    identity: &DesktopIdentity,
+) -> Result<(Store<FsBackend>, KelCache), String> {
     let mut store = Store::new(FsBackend::open(root).map_err(|error| error.to_string())?);
-    let carrier = kel_carrier(&identity.kel(), &identity.did(), &identity)
-        .map_err(|error| error.to_string())?;
-    store.insert(&carrier).map_err(|error| error.to_string())?;
+    let human = identity.root.did();
+    for kel in [identity.root.kel(), identity.device.kel()] {
+        let carrier =
+            kel_carrier(&kel, &human, &identity.device).map_err(|error| error.to_string())?;
+        store.insert(&carrier).map_err(|error| error.to_string())?;
+    }
     let mut cache = KelCache::new();
-    cache.insert_verified(identity.kel());
+    cache.insert_verified(identity.root.kel());
+    cache.insert_verified(identity.device.kel());
+    cache
+        .hydrate_from_store(&store)
+        .map_err(|error| error.to_string())?;
+    Ok((store, cache))
+}
+
+fn run_peer_sync(root: &std::path::Path, endpoint: &str, listener: bool) -> Result<String, String> {
+    let identity = load_desktop_identity(root, false).map_err(|error| {
+        format!(
+            "identity/device vault unavailable; unlock the identity once before syncing: {error}"
+        )
+    })?;
+    let (mut store, mut cache) = open_sync_state(root, &identity)?;
 
     if listener {
         let listener = std::net::TcpListener::bind(endpoint).map_err(|error| error.to_string())?;
         let (stream, _) = listener.accept().map_err(|error| error.to_string())?;
+        configure_peer_stream(&stream)?;
         let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
         let hello = bearer.recv().map_err(|error| error.to_string())?;
         let (mut channel, response) =
@@ -984,8 +1095,12 @@ fn run_peer_sync(root: &std::path::Path, endpoint: &str, listener: bool) -> Resu
         )
         .map_err(|error| error.to_string())?;
         Ok(format!(
-            "Peer sync complete: received {}, accepted {}, invalid {}.",
-            report.received, report.accepted, report.invalid
+            "Peer sync complete: received {}, accepted {}, identity carriers {}, unknown authors {}, invalid {}.",
+            report.received,
+            report.accepted,
+            report.carriers,
+            report.unknown_author,
+            report.invalid
         ))
     } else {
         let address = endpoint
@@ -995,6 +1110,7 @@ fn run_peer_sync(root: &std::path::Path, endpoint: &str, listener: bool) -> Resu
             .ok_or_else(|| "peer address did not resolve".to_string())?;
         let stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(10))
             .map_err(|error| error.to_string())?;
+        configure_peer_stream(&stream)?;
         let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
         let (initiator, hello) = Initiator::start().map_err(|error| error.to_string())?;
         bearer.send(&hello).map_err(|error| error.to_string())?;
@@ -1011,8 +1127,12 @@ fn run_peer_sync(root: &std::path::Path, endpoint: &str, listener: bool) -> Resu
         )
         .map_err(|error| error.to_string())?;
         Ok(format!(
-            "Peer sync complete: received {}, accepted {}, invalid {}.",
-            report.received, report.accepted, report.invalid
+            "Peer sync complete: received {}, accepted {}, identity carriers {}, unknown authors {}, invalid {}.",
+            report.received,
+            report.accepted,
+            report.carriers,
+            report.unknown_author,
+            report.invalid
         ))
     }
 }
@@ -1027,6 +1147,7 @@ fn run_private_sync(
     let report = if listener {
         let listener = std::net::TcpListener::bind(endpoint).map_err(|error| error.to_string())?;
         let (stream, _) = listener.accept().map_err(|error| error.to_string())?;
+        configure_peer_stream(&stream)?;
         let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
         let hello = bearer.recv().map_err(|error| error.to_string())?;
         let (mut channel, response) =
@@ -1048,6 +1169,7 @@ fn run_private_sync(
             .ok_or_else(|| "peer address did not resolve".to_string())?;
         let stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(10))
             .map_err(|error| error.to_string())?;
+        configure_peer_stream(&stream)?;
         let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
         let (initiator, hello) = Initiator::start().map_err(|error| error.to_string())?;
         bearer.send(&hello).map_err(|error| error.to_string())?;
@@ -1103,55 +1225,77 @@ fn run_discoverable_profile_sync(
     root: &std::path::Path,
     port: u16,
     display_name: &str,
+    visibility_duration: Duration,
+    progress: &mpsc::Sender<Result<String, String>>,
 ) -> Result<String, String> {
-    let seeds = load_existing(&root.join("identity.dpapi")).map_err(|error| error.to_string())?;
-    let identity = Controller::incept_single_from_seeds(&seeds.current, &seeds.next)
-        .map_err(|error| error.to_string())?;
-    let mut store = Store::new(FsBackend::open(root).map_err(|error| error.to_string())?);
-    let carrier = kel_carrier(&identity.kel(), &identity.did(), &identity)
-        .map_err(|error| error.to_string())?;
-    store.insert(&carrier).map_err(|error| error.to_string())?;
-    let mut cache = KelCache::new();
-    cache.insert_verified(identity.kel());
+    let identity = load_desktop_identity(root, false).map_err(|error| {
+        format!(
+            "identity/device vault unavailable; unlock the identity once before syncing: {error}"
+        )
+    })?;
     let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port))
         .map_err(|error| error.to_string())?;
     listener
         .set_nonblocking(true)
         .map_err(|error| error.to_string())?;
-    let announcer = LocalProfileAnnouncer::bind(port, &identity.did(), display_name)
+    let announcer = LocalProfileAnnouncer::bind(port, &identity.root.did(), display_name)
         .map_err(|error| error.to_string())?;
-    let deadline = std::time::Instant::now() + Duration::from_secs(60);
-    let stream = loop {
+    let deadline = std::time::Instant::now() + visibility_duration;
+    let mut completed = 0usize;
+    loop {
         announcer.announce().map_err(|error| error.to_string())?;
         match listener.accept() {
-            Ok((stream, _)) => break stream,
+            Ok((stream, peer)) => {
+                let result = (|| {
+                    stream
+                        .set_nonblocking(false)
+                        .map_err(|error| error.to_string())?;
+                    configure_peer_stream(&stream)?;
+                    let (mut store, mut cache) = open_sync_state(root, &identity)?;
+                    let mut bearer =
+                        TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
+                    let hello = bearer.recv().map_err(|error| error.to_string())?;
+                    let (mut channel, response) =
+                        Responder::respond(&hello).map_err(|error| error.to_string())?;
+                    bearer.send(&response).map_err(|error| error.to_string())?;
+                    sync_bidirectional(
+                        &mut bearer,
+                        &mut channel,
+                        &mut store,
+                        &mut cache,
+                        SyncRole::Responder,
+                    )
+                    .map_err(|error| error.to_string())
+                })();
+                match result {
+                    Ok(report) => {
+                        completed = completed.saturating_add(1);
+                        let _ = progress.send(Ok(format!(
+                            "Nearby sync #{completed} complete with {peer}: received {}, accepted {}, identity carriers {}, unknown authors {}, invalid {}. Still visible until the window ends.",
+                            report.received,
+                            report.accepted,
+                            report.carriers,
+                            report.unknown_author,
+                            report.invalid
+                        )));
+                    }
+                    Err(error) => {
+                        let _ = progress.send(Err(format!(
+                            "Rejected or incomplete nearby sync from {peer}: {error}. Visibility remains active."
+                        )));
+                    }
+                }
+            }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
             Err(error) => return Err(error.to_string()),
         }
         if std::time::Instant::now() >= deadline {
-            return Ok("Nearby visibility window ended without a connection.".to_string());
+            return Ok(format!(
+                "Nearby visibility window ended after {completed} completed sync connection(s)."
+            ));
         }
         std::thread::sleep(Duration::from_millis(500));
-    };
-    stream
-        .set_nonblocking(false)
-        .map_err(|error| error.to_string())?;
-    let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
-    let hello = bearer.recv().map_err(|error| error.to_string())?;
-    let (mut channel, response) = Responder::respond(&hello).map_err(|error| error.to_string())?;
-    bearer.send(&response).map_err(|error| error.to_string())?;
-    let report = sync_bidirectional(
-        &mut bearer,
-        &mut channel,
-        &mut store,
-        &mut cache,
-        SyncRole::Responder,
-    )
-    .map_err(|error| error.to_string())?;
-    Ok(format!(
-        "Nearby profile sync complete: received {}, accepted {}, invalid {}.",
-        report.received, report.accepted, report.invalid
-    ))
+    }
 }
 
 impl Default for MininetApp {
@@ -1215,6 +1359,7 @@ impl Default for MininetApp {
             people_search: String::new(),
             nearby_profiles: Vec::new(),
             discovery_rx: None,
+            visibility_rx: None,
             profile_textures: HashMap::new(),
             wall_name: String::new(),
             wall_bio: String::new(),
@@ -1248,6 +1393,7 @@ impl Default for MininetApp {
             message_text: String::new(),
             selected_conversation: None,
             sync_rx: None,
+            sync_context: None,
             notice:
                 "Local object store ready. Identity is locked; no network activity has started."
                     .to_string(),
@@ -1293,9 +1439,39 @@ impl eframe::App for MininetApp {
         {
             self.sync_rx = None;
             self.workspace = Workspace::open().ok();
+            self.notice = match (self.sync_context.take(), result) {
+                (Some(SyncContext::FriendRequest { display_name }), Ok(summary)) => format!(
+                    "Friend request delivered to {display_name}. They can add you back after syncing. {summary}"
+                ),
+                (Some(SyncContext::FriendRequest { display_name }), Err(error)) => format!(
+                    "Friend request for {display_name} is saved locally, but automatic delivery failed: {error}. Find them nearby and retry sync."
+                ),
+                (None, Ok(summary)) => summary,
+                (None, Err(error)) => format!("Peer sync failed: {error}"),
+            };
+        }
+        let mut visibility_results = Vec::new();
+        let mut visibility_finished = false;
+        if let Some(receiver) = self.visibility_rx.as_ref() {
+            loop {
+                match receiver.try_recv() {
+                    Ok(result) => visibility_results.push(result),
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        visibility_finished = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if visibility_finished {
+            self.visibility_rx = None;
+        }
+        for result in visibility_results {
+            self.workspace = Workspace::open().ok();
             self.notice = match result {
                 Ok(summary) => summary,
-                Err(error) => format!("Peer sync failed: {error}"),
+                Err(error) => error,
             };
         }
         if self.view == View::Onboarding {
@@ -1413,8 +1589,16 @@ impl MininetApp {
             self.notice = "Enable local-network discovery in Privacy & safety first.".to_string();
             return;
         }
-        if self.sync_rx.is_some() {
+        if self.sync_rx.is_some() || self.visibility_rx.is_some() {
             self.notice = "A peer operation is already running.".to_string();
+            return;
+        }
+        if self
+            .workspace
+            .as_ref()
+            .is_some_and(Workspace::profile_needs_device_upgrade)
+        {
+            self.notice = "Upgrade this beta profile for verified peer sync first. Your human DID and public details will stay the same.".to_string();
             return;
         }
         let Some(name) = self
@@ -1434,20 +1618,22 @@ impl MininetApp {
             }
         };
         let (sender, receiver) = mpsc::channel();
-        self.sync_rx = Some(receiver);
+        self.visibility_rx = Some(receiver);
         self.notice = format!(
-            "Visible as {name} on the local network for up to 60 seconds; waiting for one sync."
+            "Visible as {name} on the local network for 60 seconds; ready for multiple bounded syncs."
         );
         let root = data_root();
         std::thread::spawn(move || {
-            let _ = sender.send(run_discoverable_profile_sync(&root, port, &name));
+            let result =
+                run_discoverable_profile_sync(&root, port, &name, Duration::from_secs(60), &sender);
+            let _ = sender.send(result);
         });
     }
 
-    fn start_peer_sync(&mut self, listener: bool) {
-        if self.sync_rx.is_some() {
+    fn start_peer_sync(&mut self, listener: bool, context: Option<SyncContext>) -> bool {
+        if self.sync_rx.is_some() || self.visibility_rx.is_some() {
             self.notice = "A peer sync is already running.".to_string();
-            return;
+            return false;
         }
         let endpoint = if listener {
             format!("0.0.0.0:{}", self.listen_port.trim())
@@ -1456,6 +1642,7 @@ impl MininetApp {
         };
         let (sender, receiver) = mpsc::channel();
         self.sync_rx = Some(receiver);
+        self.sync_context = context;
         self.notice = if listener {
             format!("Listening once on {endpoint}; no other network activity is enabled.")
         } else {
@@ -1466,10 +1653,11 @@ impl MininetApp {
             let result = run_peer_sync(&root, &endpoint, listener);
             let _ = sender.send(result);
         });
+        true
     }
 
     fn start_private_sync(&mut self, listener: bool) {
-        if self.sync_rx.is_some() {
+        if self.sync_rx.is_some() || self.visibility_rx.is_some() {
             self.notice = "A peer sync is already running.".to_string();
             return;
         }
@@ -1503,6 +1691,45 @@ impl MininetApp {
             let result = run_private_sync(&root, &endpoint, listener, route);
             let _ = sender.send(result);
         });
+    }
+
+    fn add_friend(&mut self, profile: &mini_social::Profile) {
+        if self.sync_rx.is_some() || self.visibility_rx.is_some() {
+            self.notice = format!(
+                "Finish the active peer operation before adding {}. No request was signed yet.",
+                profile.display_name
+            );
+            return;
+        }
+        let result = self
+            .workspace
+            .as_mut()
+            .ok_or_else(|| "Local workspace unavailable.".to_string())
+            .and_then(|workspace| {
+                workspace.set_follow_target_confirmed(profile.human.as_str(), true)
+            });
+        if let Err(error) = result {
+            self.notice = format!("Could not add friend: {error}");
+            return;
+        }
+
+        let Some(endpoint) = nearby_endpoint_for(&self.nearby_profiles, &profile.human) else {
+            self.notice = format!(
+                "Friend request for {} is signed locally. Find them nearby again to deliver it.",
+                profile.display_name
+            );
+            return;
+        };
+        self.peer_address = endpoint.to_string();
+        let context = SyncContext::FriendRequest {
+            display_name: profile.display_name.clone(),
+        };
+        if !self.start_peer_sync(false, Some(context)) {
+            self.notice = format!(
+                "Friend request for {} is signed locally. Finish the active peer operation, then sync to deliver it.",
+                profile.display_name
+            );
+        }
     }
 
     fn apply_theme(&self, ctx: &egui::Context) {
@@ -2124,6 +2351,29 @@ impl MininetApp {
     }
 
     fn people(&mut self, ui: &mut egui::Ui) {
+        let profile_needs_upgrade = self
+            .workspace
+            .as_ref()
+            .is_some_and(Workspace::profile_needs_device_upgrade);
+        if profile_needs_upgrade {
+            ui.group(|ui| {
+                ui.colored_label(
+                    egui::Color32::YELLOW,
+                    egui::RichText::new("One-time verified-sync upgrade").strong(),
+                );
+                ui.label("This account was created by an earlier desktop beta that signed directly with the human root. Peers correctly reject those objects. Re-sign the same public profile with a scoped delegated device; your DID and published details stay unchanged.");
+                if ui.button("Upgrade public profile for peer sync").clicked() {
+                    self.notice = match self.workspace.as_mut() {
+                        Some(workspace) => match workspace.upgrade_profile_for_sync() {
+                            Ok(()) => "Public profile upgraded with a delegated-device signature. Nearby verified sync is ready.".to_string(),
+                            Err(error) => format!("Could not upgrade public profile: {error}"),
+                        },
+                        None => "Local workspace unavailable.".to_string(),
+                    };
+                }
+            });
+            ui.add_space(12.0);
+        }
         ui.group(|ui| {
             ui.label(egui::RichText::new("Find people").strong());
             ui.add_sized(
@@ -2183,7 +2433,7 @@ impl MininetApp {
                         ui.label(profile.address.to_string());
                         if ui.button("Sync signed profile").clicked() {
                             self.peer_address = profile.address.to_string();
-                            self.start_peer_sync(false);
+                            self.start_peer_sync(false, None);
                         }
                     });
                     ui.label("This LAN announcement can be spoofed. Sync and verify the signed profile before trusting its name or details.");
@@ -2293,16 +2543,7 @@ impl MininetApp {
                             };
                         }
                     } else if ui.button("Add friend").clicked() {
-                        self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                            match workspace
-                                .set_follow_target_confirmed(profile.human.as_str(), true)
-                            {
-                                Ok(()) => "Friend request/follow signed locally. Sync so the other person can respond.".to_string(),
-                                Err(error) => format!("Could not add friend: {error}"),
-                            }
-                        } else {
-                            "Local workspace unavailable.".to_string()
-                        };
+                        self.add_friend(&profile);
                     }
                     if ui.button("Copy DID").clicked() {
                         ui.ctx().copy_text(profile.human.as_str().to_string());
@@ -2804,13 +3045,13 @@ impl MininetApp {
             });
             ui.horizontal(|ui| {
                 if ui.button("Connect once").clicked() {
-                    self.start_peer_sync(false);
+                    self.start_peer_sync(false, None);
                 }
                 if ui.button("Listen once").clicked() {
-                    self.start_peer_sync(true);
+                    self.start_peer_sync(true, None);
                 }
             });
-            if self.sync_rx.is_some() {
+            if self.sync_rx.is_some() || self.visibility_rx.is_some() {
                 ui.label("Peer operation active… close the peer or wait for the bounded protocol to finish.");
             }
             ui.label("Direct TCP works on LAN or over the internet when the endpoint is reachable. Port forwarding, firewall rules, NAT traversal, and relay deployment remain the operator's responsibility.");
@@ -3042,12 +3283,14 @@ fn main() -> eframe::Result {
 #[cfg(test)]
 mod tests {
     use super::{
-        decode_privacy_settings, encode_privacy_settings, next_object_sequence,
-        parse_profile_fields, PrivacyState, UpdatePolicy,
+        decode_privacy_settings, encode_privacy_settings, nearby_endpoint_for,
+        next_object_sequence, parse_profile_fields, PrivacyState, UpdatePolicy,
     };
     use did_mini::Controller;
     use mini_objects::{ObjectBuilder, ObjectType, Payload};
+    use mini_social::NearbyProfile;
     use mini_store::{MemoryBackend, Store};
+    use std::net::SocketAddr;
 
     #[test]
     fn privacy_defaults_are_local_and_manual() {
@@ -3116,5 +3359,163 @@ mod tests {
             next_object_sequence(&store, Some(&identity.did())).unwrap(),
             42
         );
+    }
+
+    #[test]
+    fn automatic_delivery_uses_only_the_exact_verified_did() {
+        let alice = Controller::incept_single_from_seeds(&[11; 32], &[12; 32]).unwrap();
+        let bob = Controller::incept_single_from_seeds(&[13; 32], &[14; 32]).unwrap();
+        let misleading_name = NearbyProfile {
+            address: "127.0.0.1:46001".parse::<SocketAddr>().unwrap(),
+            did: alice.did(),
+            display_name: "Bob".to_string(),
+        };
+        let exact_did = NearbyProfile {
+            address: "127.0.0.1:46002".parse::<SocketAddr>().unwrap(),
+            did: bob.did(),
+            display_name: "Anything".to_string(),
+        };
+
+        assert_eq!(
+            nearby_endpoint_for(&[misleading_name, exact_did], &bob.did()),
+            Some("127.0.0.1:46002".parse().unwrap())
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn legacy_root_signed_profile_upgrades_without_changing_human_did() {
+        use super::{load_or_create, now_ms, publish_profile, Workspace};
+        use mini_store::FsBackend;
+
+        let test_root = std::env::temp_dir().join(format!(
+            "mininet-desktop-profile-upgrade-{}-{}",
+            std::process::id(),
+            now_ms()
+        ));
+        let root_seeds = load_or_create(&test_root.join("identity.dpapi")).unwrap();
+        let root_identity =
+            Controller::incept_single_from_seeds(&root_seeds.current, &root_seeds.next).unwrap();
+        let human = root_identity.did();
+        let mut store = Store::new(FsBackend::open(&test_root).unwrap());
+        publish_profile(
+            &mut store,
+            &human,
+            &root_identity,
+            "Legacy Alice",
+            "kept unchanged",
+            None,
+            1,
+            0,
+        )
+        .unwrap();
+        let mut workspace = Workspace {
+            store,
+            identity: None,
+            human: Some(human.clone()),
+            root: test_root.clone(),
+            sequence: 1,
+            conversations: Vec::new(),
+        };
+
+        assert!(workspace.profile_needs_device_upgrade());
+        workspace.upgrade_profile_for_sync().unwrap();
+        assert!(!workspace.profile_needs_device_upgrade());
+        assert_eq!(workspace.human.as_ref(), Some(&human));
+        assert!(!workspace.is_unlocked());
+        let profile = workspace.current_profile().unwrap();
+        assert_eq!(profile.display_name, "Legacy Alice");
+        assert_eq!(profile.bio, "kept unchanged");
+
+        std::fs::remove_dir_all(test_root).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn one_visibility_window_verifies_profile_then_receives_follow() {
+        use super::{
+            followers, known_profiles, load_desktop_identity, load_or_create, publish_profile,
+            run_discoverable_profile_sync, run_peer_sync, set_follow,
+        };
+        use mini_store::FsBackend;
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        fn profile_root(root: &std::path::Path, name: &str) -> did_mini::Did {
+            load_or_create(&root.join("identity.dpapi")).unwrap();
+            let identity = load_desktop_identity(root, true).unwrap();
+            let human = identity.root.did();
+            let mut store = Store::new(FsBackend::open(root).unwrap());
+            publish_profile(
+                &mut store,
+                &human,
+                &identity.device,
+                name,
+                "two-peer visibility test",
+                None,
+                1,
+                0,
+            )
+            .unwrap();
+            human
+        }
+
+        let test_root = std::env::temp_dir().join(format!(
+            "mininet-desktop-visible-{}-{}",
+            std::process::id(),
+            super::now_ms()
+        ));
+        let bob_root = test_root.join("bob");
+        let alice_root = test_root.join("alice");
+        let bob_did = profile_root(&bob_root, "Bob");
+        let alice_did = profile_root(&alice_root, "Alice");
+
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = probe.local_addr().unwrap().port();
+        drop(probe);
+        let (sender, receiver) = mpsc::channel();
+        let server_root = bob_root.clone();
+        let server = std::thread::spawn(move || {
+            run_discoverable_profile_sync(
+                &server_root,
+                port,
+                "Bob",
+                Duration::from_secs(4),
+                &sender,
+            )
+        });
+        std::thread::sleep(Duration::from_millis(150));
+
+        let endpoint = format!("127.0.0.1:{port}");
+        run_peer_sync(&alice_root, &endpoint, false).unwrap();
+        let alice_identity = load_desktop_identity(&alice_root, false).unwrap();
+        let mut alice_store = Store::new(FsBackend::open(&alice_root).unwrap());
+        set_follow(
+            &mut alice_store,
+            &alice_did,
+            &alice_identity.device,
+            &bob_did,
+            true,
+            2,
+            1,
+        )
+        .unwrap();
+        run_peer_sync(&alice_root, &endpoint, false).unwrap();
+        let summary = server.join().unwrap().unwrap();
+        assert!(summary.contains("2 completed sync connection(s)"));
+        let events: Vec<Result<String, String>> = receiver.try_iter().collect();
+        assert_eq!(events.iter().filter(|event| event.is_ok()).count(), 2);
+
+        let bob_store = Store::new(FsBackend::open(&bob_root).unwrap());
+        let names: Vec<String> = known_profiles(&bob_store)
+            .unwrap()
+            .into_iter()
+            .map(|profile| profile.display_name)
+            .collect();
+        assert!(names.iter().any(|name| name == "Alice"));
+        assert!(names.iter().any(|name| name == "Bob"));
+        assert_eq!(followers(&bob_store, &bob_did).unwrap(), vec![alice_did]);
+
+        std::fs::remove_dir_all(test_root).unwrap();
     }
 }

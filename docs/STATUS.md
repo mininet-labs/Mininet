@@ -569,7 +569,10 @@ given time.
   fresh connection still converges the two stores completely — precisely
   scoped as "safe idempotent retry-from-scratch," not byte-offset resume
   within one transfer, since `pull()` only ingests after its whole
-  want-round completes.
+  want-round completes. A later session can now hydrate its bounded `KelCache`
+  from already accepted persistent `mini/kel` carriers, so incremental objects
+  from a known author remain verifiable after restart even though unchanged
+  carrier ids are correctly omitted from the next transfer.
 - **shipped** — local-network peer discovery over UDP multicast (D-0091,
   founder review P1 item "Local-Wi-Fi/mDNS adapter"):
   `mini_bearer::LocalAnnouncer`/`LocalScanner` — a minimal, Mininet-owned
@@ -905,7 +908,13 @@ the top development priority.
   profile sync, name/DID search, one-click signed follow actions, mutual-friend
   state, profile photos, and owner-selected optional location/age/custom public
   fields. Nearby announcements remain explicitly unverified until signed
-  objects are synced.
+  objects are synced. Desktop roots now use a separately DPAPI-protected,
+  root-delegated primary device for social signatures; verified sync carries
+  both KELs. One 60-second visible window accepts multiple bounded connections,
+  and **Add friend** automatically delivers the locally durable signed follow
+  when the exact verified DID still has a nearby endpoint. A Windows-only real
+  TCP test proves two independent roots complete profile verification and
+  signed-follow delivery through one visible window.
   It remains a reference client rather than a production release: no secure
   Inbox prekey/ratchet protocol, asynchronous mailbox delivery,
   calls, automatic Internet relay/NAT traversal, Internet-wide name directory,

@@ -30,12 +30,16 @@ single relay, or hosted API is an update authority or a required social
 database. A blocked route should reduce availability, not destroy local data
 or identity.
 
-The Windows client now exposes a one-shot direct-peer sync over the existing
+The Windows client exposes a one-shot direct-peer sync over the existing
 encrypted TCP bearer and verified sync ingest. It requires a user-supplied
-address or an explicitly started one-shot listener; it has no automatic peer
-discovery, retry loop, or always-on socket. The peer can learn what the user
-chooses to replicate, which is inherent to synchronization and is disclosed
-in the UI.
+address or an explicit, opt-in LAN discovery action. People can announce a
+chosen public name, DID, and endpoint for 60 seconds and can scan multicast for
+three seconds; announcements are labeled unverified until signed objects and
+KELs pass ingest. A visible window can serve multiple sequential connections,
+each accepted socket has a ten-second read/write timeout, and malformed peers
+do not end the remaining window. There is no retry loop or always-on socket.
+The peer can learn what the user chooses to replicate, which is inherent to
+synchronization and is disclosed in the UI.
 
 The desktop offline-transfer controls use a bounded, versioned object bundle.
 Import parses each object and inserts it through the content-addressed store;
@@ -70,9 +74,13 @@ The client may display a release proposal, but adoption remains a user choice.
 Dependencies should be pinned and audited; the UI shell must not grow an
 unreviewed plugin or arbitrary script execution mechanism.
 
-The current `mini-desktop` crate has local social-object integration and a
-Windows-user DPAPI seed vault. Hardware-backed key storage, Windows packaging,
-code signing, sandboxing, and independent security review remain required
-before making a high-assurance Windows distribution claim. DPAPI protects
-against offline file theft for the current user profile; it does not protect
-against malware or an administrator already running as that user.
+The current `mini-desktop` crate has local social-object integration and
+separate Windows-user DPAPI seed vaults for the human root and a scoped primary
+device. Social objects are signed by that delegated device, and peer sync
+ships both KEL carriers so strict provenance verification does not need to
+trust a display name or endpoint. Hardware-backed key storage, Windows
+packaging, code signing, sandboxing, store-level cross-process coordination,
+and independent security review remain required before making a high-assurance
+Windows distribution claim. DPAPI protects against offline file theft for the
+current user profile; it does not protect against malware or an administrator
+already running as that user.

@@ -18,6 +18,10 @@ histories for a known scid are refused) → full signature + provenance
 (delegated, unrevoked, capability-scoped). Unknown authors are **rejected, not
 quarantined**: whoever wants you to hold content must hand you the identity that
 signed it. Hostile ops cost the sender bandwidth, never your state.
+`KelCache::hydrate_from_store` rebuilds a bounded verifier cache from carriers
+already accepted into persistent storage before a later session. This is
+required for incremental sync: unchanged carrier ids are not retransmitted,
+but newly authored objects must still verify after a process restart.
 
 `MINI/PRIVATE-SYNC1` is a separate beta protocol for opaque v2 envelopes. The
 caller selects exactly one already-shared `OpaqueRoute`; both peers compare the

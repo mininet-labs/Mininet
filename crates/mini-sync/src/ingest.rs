@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use did_mini::{Controller, Did, Kel};
 use mini_objects::{verify_provenance, Object, ObjectBuilder, ObjectType, Payload};
+use mini_store::{Backend, Store};
 
 /// Maximum KELs kept in one cache (DoS bound for hostile peers).
 pub const MAX_CACHED_KELS: usize = 10_000;
@@ -60,6 +61,26 @@ impl KelCache {
     /// Whether the cache is empty.
     pub fn is_empty(&self) -> bool {
         self.kels.is_empty()
+    }
+
+    /// Rebuild session trust from bounded KEL carriers already accepted into
+    /// the persistent object store. Without this step, a later sync session
+    /// can reject a new object from a known author because the peer correctly
+    /// does not retransmit unchanged carrier ids that are already present.
+    /// Invalid, conflicting, or non-self-certifying carriers remain ignored by
+    /// the same strict ingest checks used on the wire.
+    pub fn hydrate_from_store<B: Backend>(&mut self, store: &Store<B>) -> crate::Result<usize> {
+        let carrier_type = ObjectType::Custom(KEL_CARRIER.to_string());
+        let ids = store.by_type(&carrier_type)?;
+        if ids.len() > MAX_CACHED_KELS {
+            return Err(crate::SyncError::LimitExceeded);
+        }
+        let before = self.len();
+        for id in ids {
+            let carrier = store.get(&id)?;
+            let _ = Ingest::check(self, &carrier);
+        }
+        Ok(self.len().saturating_sub(before))
     }
 
     /// Try to absorb a carrier object: the embedded KEL must decode and verify

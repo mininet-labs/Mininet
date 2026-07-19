@@ -20,17 +20,30 @@ Two-instance friend workflow:
    plus public-account onboarding in each window.
 2. Open People in Bob's window, allow nearby discovery, and choose **Be visible
    nearby for 60 seconds**. This is opt-in and temporarily reveals only Bob's
-   chosen display name, DID, and listening endpoint on the LAN.
+   chosen display name, DID, and listening endpoint on the LAN. The same
+   bounded window can accept multiple sync connections.
 3. Open People in Alice's window, allow nearby discovery, and choose **Find
    nearby for 3 seconds**. Select **Sync signed profile** on Bob's unverified
    announcement. Bob then appears as a signed profile card with the public
    photo, name, location, age, and custom details Bob chose to publish.
 4. Alice chooses **Add friend** on Bob's profile. The button performs the
    explicit signed action, using the Windows user vault for a just-in-time
-   unlock and restoring the previous locked state afterward.
-5. Sync once more to deliver Alice's signed follow. Bob can then choose **Add
-   friend** on Alice's signed profile and sync it back. The UI shows **Friends**
-   only when both independently signed follow edges are present.
+   unlock and restoring the previous locked state afterward. Because Bob's
+   exact DID still has a current nearby endpoint, the same button immediately
+   reconnects and delivers the signed follow; failure leaves the request
+   safely stored locally and reports that delivery still needs a retry.
+5. Bob's visible window receives Alice's signed profile and follow. For a
+   mutual friendship, let that window end, make Alice visible, and have Bob
+   scan nearby. Bob can then choose **Add friend** on Alice's already-verified
+   profile and its signed follow is delivered the same way. The UI shows
+   **Friends** only when both independently signed follow edges are present.
+
+Accounts created by an earlier desktop beta show a one-time upgrade card in
+People. That beta signed directly with the human root, so strict peer ingest
+correctly rejected its social objects. The explicit upgrade creates a separate
+DPAPI-protected delegated-device vault and re-signs the same public profile;
+the human DID and owner-selected public details do not change. Older posts and
+other legacy beta objects remain local and are not silently rewritten.
 
 People search matches display names and `did:mini` identifiers among signed
 profiles already on the device. Names are intentionally non-unique labels;
@@ -68,8 +81,10 @@ be omitted or removed, and a photo may be selected by dropping it onto the
 Creator view. These are public claims selected by the profile owner, not
 platform-verified attributes.
 
-The identity seed envelope is protected with the Windows-user DPAPI boundary
-by `mini-windows-vault`.
+The human-root and delegated-device seed envelopes are separately protected
+with the Windows-user DPAPI boundary by `mini-windows-vault`. Day-to-day social
+objects use the scoped delegated device; sync distributes both self-certifying
+KELs and rejects objects without valid device provenance.
 
 The UI has an explicit identity lock and starts every session locked. A locked
 client can inspect local data but cannot publish signed objects. Each publish
@@ -104,10 +119,12 @@ is blocked. Bundles carry signed objects only; the DPAPI identity vault is
 never exported, and portable bundles should be placed inside an encrypted
 container when their contents are sensitive.
 
-The Connections view also exposes a one-shot direct-peer public sync using the real
-encrypted TCP bearer and verified `MINI/SYNC1` ingest. It is foreground-user
-initiated, runs off the UI thread, and requires local-network discovery to be
-enabled. There is no automatic discovery, retry loop, or always-on listener.
+The Connections view also exposes a one-shot direct-peer public sync using the
+real encrypted TCP bearer and verified `MINI/SYNC1` ingest. It is
+foreground-user initiated, runs off the UI thread, and accepts no silent
+background network activity. People adds a separate opt-in three-second LAN
+scan and 60-second visible window; announcements are unverified hints, each
+socket has bounded I/O, and there is no retry loop or always-on listener.
 
 It does not start networking, open external URLs, collect telemetry, execute
 updates, or embed a browser. Private signing material is not stored as
@@ -120,6 +137,6 @@ reward accounting, and update adoption. It does not present placeholder
 buttons for those unfinished surfaces.
 
 Before distribution, the Windows client still needs hardware-backed key
-storage, local export/import, Windows packaging, reproducible release
-verification, and an independent security review. See
+storage, Windows packaging, reproducible release verification, store-level
+cross-process coordination, and an independent security review. See
 `docs/WINDOWS_CLIENT_SECURITY.md`.
