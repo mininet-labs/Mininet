@@ -16,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 blake3 = "1"
 did-mini = { path = "../did-mini" }
+fs4 = { version = "1.1.0", features = ["sync"] }
 mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
 mini-forge = { path = "../mini-forge" }
