@@ -27,7 +27,13 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod discovery;
 mod wall;
+
+pub use discovery::{
+    LocalProfileAnnouncer, LocalProfileScanner, NearbyProfile, PROFILE_DISCOVERY_GROUP,
+    PROFILE_DISCOVERY_PORT,
+};
 
 pub use wall::{
     publish_wall, publish_wall_linkage, resolve_wall, resolve_wall_linkage, PublicWall,
@@ -43,6 +49,14 @@ use mini_store::{Backend, Store, StoreError};
 pub const MAX_NAME_BYTES: usize = 64;
 /// Maximum bio bytes.
 pub const MAX_BIO_BYTES: usize = 1024;
+/// Maximum voluntarily public location text bytes.
+pub const MAX_LOCATION_BYTES: usize = 128;
+/// Maximum custom public profile fields.
+pub const MAX_PROFILE_FIELDS: usize = 16;
+/// Maximum custom public field-label bytes.
+pub const MAX_PROFILE_FIELD_LABEL_BYTES: usize = 32;
+/// Maximum custom public field-value bytes.
+pub const MAX_PROFILE_FIELD_VALUE_BYTES: usize = 256;
 /// Maximum UTF-8 bytes in one threaded comment.
 pub const MAX_COMMENT_BYTES: usize = 16 * 1024;
 /// Maximum community name bytes.
@@ -74,6 +88,8 @@ pub enum SocialError {
     BadInteraction,
     /// A community or membership object was structurally invalid.
     BadCommunity,
+    /// Local profile discovery I/O failed.
+    Io(String),
 }
 
 impl core::fmt::Display for SocialError {
@@ -87,6 +103,7 @@ impl core::fmt::Display for SocialError {
             SocialError::BadProfile => write!(f, "structurally invalid profile object"),
             SocialError::BadInteraction => write!(f, "structurally invalid comment or reaction"),
             SocialError::BadCommunity => write!(f, "structurally invalid community object"),
+            SocialError::Io(error) => write!(f, "local profile discovery i/o: {error}"),
         }
     }
 }
@@ -286,7 +303,40 @@ pub struct Profile {
     pub bio: String,
     /// Optional avatar (a media object id).
     pub avatar: Option<ObjectId>,
+    /// Optional user-supplied public location text.
+    pub location: Option<String>,
+    /// Optional user-supplied public age. This is a claim, not verified fact.
+    pub age: Option<u8>,
+    /// Additional user-chosen public label/value fields.
+    pub fields: Vec<PublicProfileField>,
 }
+impl From<std::io::Error> for SocialError {
+    fn from(error: std::io::Error) -> Self {
+        SocialError::Io(error.to_string())
+    }
+}
+
+/// One user-defined public profile field.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublicProfileField {
+    /// Display label, such as "Pronouns" or "Website".
+    pub label: String,
+    /// Public value selected by the profile owner.
+    pub value: String,
+}
+
+/// Voluntary public-profile fields for the extensible v2 payload.
+#[derive(Debug, Clone, Copy)]
+pub struct PublicProfileDraft<'a> {
+    pub display_name: &'a str,
+    pub bio: &'a str,
+    pub avatar: Option<&'a ObjectId>,
+    pub location: Option<&'a str>,
+    pub age: Option<u8>,
+    pub fields: &'a [PublicProfileField],
+}
+
+const PROFILE_V2_MAGIC: &[u8] = b"MINIPROF2";
 
 /// Publish (or edit) a profile: writes the `PROFILE` object and moves the
 /// `"profile"` head. Returns the new profile object.
@@ -340,6 +390,9 @@ pub fn resolve_profile<B: Backend>(store: &Store<B>, human: &Did) -> Result<Opti
         Payload::Public(b) => b,
         Payload::Encrypted(_) => return Err(SocialError::BadProfile),
     };
+    if bytes.starts_with(PROFILE_V2_MAGIC) {
+        return decode_profile_v2(&obj.author_human, bytes);
+    }
     let mut pos = 0usize;
     let display_name = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
     let bio = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
@@ -357,7 +410,189 @@ pub fn resolve_profile<B: Backend>(store: &Store<B>, human: &Did) -> Result<Opti
         display_name,
         bio,
         avatar,
+        location: None,
+        age: None,
+        fields: Vec::new(),
     }))
+}
+
+fn decode_profile_v2(human: &Did, bytes: &[u8]) -> Result<Option<Profile>> {
+    let mut pos = PROFILE_V2_MAGIC.len();
+    let display_name = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+    let bio = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+    let avatar_text = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+    let location_text = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+    let age = match *bytes.get(pos).ok_or(SocialError::BadProfile)? {
+        0 => {
+            pos += 1;
+            None
+        }
+        1 => {
+            let value = *bytes.get(pos + 1).ok_or(SocialError::BadProfile)?;
+            pos += 2;
+            if value == 0 {
+                return Err(SocialError::BadProfile);
+            }
+            Some(value)
+        }
+        _ => return Err(SocialError::BadProfile),
+    };
+    let count_bytes: [u8; 2] = bytes
+        .get(pos..pos + 2)
+        .ok_or(SocialError::BadProfile)?
+        .try_into()
+        .expect("two-byte slice");
+    pos += 2;
+    let count = u16::from_be_bytes(count_bytes) as usize;
+    if count > MAX_PROFILE_FIELDS {
+        return Err(SocialError::BadProfile);
+    }
+    let mut fields = Vec::with_capacity(count);
+    for _ in 0..count {
+        let label = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+        let value = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
+        fields.push(PublicProfileField { label, value });
+    }
+    let avatar = if avatar_text.is_empty() {
+        None
+    } else {
+        Some(ObjectId::parse(&avatar_text).map_err(|_| SocialError::BadProfile)?)
+    };
+    let location = (!location_text.is_empty()).then_some(location_text);
+    let draft = PublicProfileDraft {
+        display_name: &display_name,
+        bio: &bio,
+        avatar: avatar.as_ref(),
+        location: location.as_deref(),
+        age,
+        fields: &fields,
+    };
+    if pos != bytes.len() || validate_profile_details(&draft).is_err() {
+        return Err(SocialError::BadProfile);
+    }
+    Ok(Some(Profile {
+        human: human.clone(),
+        display_name,
+        bio,
+        avatar,
+        location,
+        age,
+        fields,
+    }))
+}
+
+/// Publish the extensible profile payload. Every optional field is absent by
+/// default and is public only because the caller supplied it.
+#[allow(clippy::too_many_arguments)]
+pub fn publish_profile_details<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    draft: &PublicProfileDraft<'_>,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    validate_profile_details(draft)?;
+    let mut payload = PROFILE_V2_MAGIC.to_vec();
+    put_str(&mut payload, draft.display_name);
+    put_str(&mut payload, draft.bio);
+    put_str(
+        &mut payload,
+        draft.avatar.map(|avatar| avatar.as_str()).unwrap_or(""),
+    );
+    put_str(&mut payload, draft.location.unwrap_or(""));
+    match draft.age {
+        Some(age) => {
+            payload.push(1);
+            payload.push(age);
+        }
+        None => payload.push(0),
+    }
+    payload.extend_from_slice(&(draft.fields.len() as u16).to_be_bytes());
+    for field in draft.fields {
+        put_str(&mut payload, &field.label);
+        put_str(&mut payload, &field.value);
+    }
+    publish_profile_payload(store, human, device, payload, timestamp_ms, sequence)
+}
+
+fn validate_profile_details(draft: &PublicProfileDraft<'_>) -> Result<()> {
+    if draft.display_name.is_empty()
+        || draft.display_name.len() > MAX_NAME_BYTES
+        || draft.bio.len() > MAX_BIO_BYTES
+        || draft
+            .location
+            .is_some_and(|value| value.len() > MAX_LOCATION_BYTES)
+        || draft.fields.len() > MAX_PROFILE_FIELDS
+        || draft.age == Some(0)
+    {
+        return Err(SocialError::FieldTooLarge);
+    }
+    for field in draft.fields {
+        if field.label.is_empty()
+            || field.label.len() > MAX_PROFILE_FIELD_LABEL_BYTES
+            || field.value.is_empty()
+            || field.value.len() > MAX_PROFILE_FIELD_VALUE_BYTES
+        {
+            return Err(SocialError::FieldTooLarge);
+        }
+    }
+    Ok(())
+}
+
+fn publish_profile_payload<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    payload: Vec<u8>,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    let profile = ObjectBuilder::new(ObjectType::PROFILE)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(payload))
+        .sign(human, device)?;
+    store.insert(&profile)?;
+    let head = ObjectBuilder::new(ObjectType::HEAD)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .link("target", profile.id().clone())
+        .payload(Payload::Public(b"profile".to_vec()))
+        .sign(human, device)?;
+    store.apply_head(&head)?;
+    Ok(profile)
+}
+
+/// Resolve every latest signed profile currently present, sorted by display
+/// name then DID. Duplicate names remain distinct because identity is the DID.
+pub fn known_profiles<B: Backend>(store: &Store<B>) -> Result<Vec<Profile>> {
+    let mut humans = Vec::new();
+    for id in store.by_type(&ObjectType::PROFILE)? {
+        let object = store.get(&id)?;
+        if !humans
+            .iter()
+            .any(|human: &Did| human == &object.author_human)
+        {
+            humans.push(object.author_human);
+        }
+    }
+    let mut profiles = Vec::new();
+    for human in humans {
+        // One malformed or stale third-party profile must not blank the whole
+        // local directory. Resolution still validates every profile that is
+        // returned; invalid authors are isolated from valid authors.
+        if let Ok(Some(profile)) = resolve_profile(store, &human) {
+            profiles.push(profile);
+        }
+    }
+    profiles.sort_by(|left, right| {
+        left.display_name
+            .to_lowercase()
+            .cmp(&right.display_name.to_lowercase())
+            .then_with(|| left.human.as_str().cmp(right.human.as_str()))
+    });
+    Ok(profiles)
 }
 
 /// Publish a follow (or unfollow) of `target`. Per (follower, target) the

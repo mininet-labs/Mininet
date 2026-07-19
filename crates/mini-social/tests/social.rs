@@ -5,10 +5,12 @@
 use did_mini::{Capabilities, Controller, Did};
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
 use mini_social::{
-    comments, community_members, feed, followers, following, publish_comment, publish_community,
-    publish_profile, publish_wall, publish_wall_linkage, reaction_counts, resolve_community,
-    resolve_profile, resolve_wall, resolve_wall_linkage, set_follow, set_membership, set_reaction,
-    FeedFilter, FeedReason, MembershipMode, ReactionKind, SocialError, VisibilityPolicy,
+    comments, community_members, feed, followers, following, known_profiles, publish_comment,
+    publish_community, publish_profile, publish_profile_details, publish_wall,
+    publish_wall_linkage, reaction_counts, resolve_community, resolve_profile, resolve_wall,
+    resolve_wall_linkage, set_follow, set_membership, set_reaction, FeedFilter, FeedReason,
+    MembershipMode, PublicProfileDraft, PublicProfileField, ReactionKind, SocialError,
+    VisibilityPolicy,
 };
 use mini_store::{MemoryBackend, Store};
 
@@ -89,6 +91,66 @@ fn profile_publishes_and_edits_resolve_latest() {
     // Unknown human: no profile, no error.
     let (other, _) = human(90);
     assert!(resolve_profile(&store, &other.did()).unwrap().is_none());
+}
+
+#[test]
+fn detailed_profiles_are_owner_selected_searchable_and_v1_compatible() {
+    let (ada_root, ada_device) = human(10);
+    let (bob_root, bob_device) = human(50);
+    let mut store = Store::new(MemoryBackend::new());
+    let fields = vec![
+        PublicProfileField {
+            label: "Pronouns".to_string(),
+            value: "she/her".to_string(),
+        },
+        PublicProfileField {
+            label: "Website".to_string(),
+            value: "https://ada.example".to_string(),
+        },
+    ];
+
+    publish_profile_details(
+        &mut store,
+        &ada_root.did(),
+        &ada_device,
+        &PublicProfileDraft {
+            display_name: "Ada Lovelace",
+            bio: "Computing pioneer",
+            avatar: None,
+            location: Some("London"),
+            age: Some(36),
+            fields: &fields,
+        },
+        200,
+        1,
+    )
+    .unwrap();
+    publish_profile(
+        &mut store,
+        &bob_root.did(),
+        &bob_device,
+        "Bob",
+        "Legacy profile",
+        None,
+        100,
+        1,
+    )
+    .unwrap();
+
+    let ada = resolve_profile(&store, &ada_root.did()).unwrap().unwrap();
+    assert_eq!(ada.location.as_deref(), Some("London"));
+    assert_eq!(ada.age, Some(36));
+    assert_eq!(ada.fields, fields);
+
+    let bob = resolve_profile(&store, &bob_root.did()).unwrap().unwrap();
+    assert_eq!(bob.location, None);
+    assert_eq!(bob.age, None);
+    assert!(bob.fields.is_empty());
+
+    let directory = known_profiles(&store).unwrap();
+    assert_eq!(directory.len(), 2);
+    assert_eq!(directory[0].display_name, "Ada Lovelace");
+    assert_eq!(directory[1].display_name, "Bob");
 }
 
 #[test]
@@ -673,4 +735,8 @@ fn resolve_profile_rejects_wrong_type_cross_author_and_trailing_payload() {
         resolve_profile(&store, &owner.did()),
         Err(SocialError::BadProfile)
     ));
+    let directory = known_profiles(&store).unwrap();
+    assert_eq!(directory.len(), 1);
+    assert_eq!(directory[0].human, other.did());
+    assert_eq!(directory[0].display_name, "Other");
 }

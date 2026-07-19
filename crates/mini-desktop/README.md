@@ -18,21 +18,34 @@ Two-instance friend workflow:
 
 1. Start Alice and Bob with different `MININET_HOME` values and complete root
    plus public-account onboarding in each window.
-2. In each window, open Connections and copy the displayed DID through a
-   trusted channel.
-3. In Creator studio, enter the other DID under People and follows, confirm
-   signing, and choose Follow locally.
-4. In both windows enable local-network discovery in Privacy & safety. Have
-   Bob choose Listen once on port `46000`, then have Alice choose Connect once
-   to Bob's address.
-5. Repeat the signed follow in the opposite direction if both people want a
-   mutual friend relationship. The UI counts it as mutual only after both
-   signed objects are present locally.
+2. Open People in Bob's window, allow nearby discovery, and choose **Be visible
+   nearby for 60 seconds**. This is opt-in and temporarily reveals only Bob's
+   chosen display name, DID, and listening endpoint on the LAN.
+3. Open People in Alice's window, allow nearby discovery, and choose **Find
+   nearby for 3 seconds**. Select **Sync signed profile** on Bob's unverified
+   announcement. Bob then appears as a signed profile card with the public
+   photo, name, location, age, and custom details Bob chose to publish.
+4. Alice chooses **Add friend** on Bob's profile. The button performs the
+   explicit signed action, using the Windows user vault for a just-in-time
+   unlock and restoring the previous locked state afterward.
+5. Sync once more to deliver Alice's signed follow. Bob can then choose **Add
+   friend** on Alice's signed profile and sync it back. The UI shows **Friends**
+   only when both independently signed follow edges are present.
+
+People search matches display names and `did:mini` identifiers among signed
+profiles already on the device. Names are intentionally non-unique labels;
+the DID is always shown as the stable identity anchor. Nearby announcements
+are treated as spoofable connection hints and never as verified identity.
 
 Direct peer sync is not limited to a LAN: enter a reachable public hostname or
 IP plus port. The listener must be reachable through the firewall/NAT, or the
 operators must deploy a relay; automatic NAT traversal and a hosted relay are
 not silently assumed by the client.
+
+Internet-wide name discovery is not yet implemented. It requires a deployable,
+privacy-preserving index/relay design with signed profile provenance, abuse
+controls, namespace ambiguity handling, and resistance to enumeration and
+poisoning; LAN multicast is not presented as that production service.
 
 The shell starts with a first-run flow: create a local Mininet root, then fill
 out and publish a signed public account profile. It then exposes the
@@ -48,6 +61,12 @@ that the wall is linked to another identity. The Mininet system view includes
 the actual local object inventory and a conservative production-readiness
 matrix for features whose protocol foundations are ahead of their desktop or
 deployment workflows.
+
+The public-profile editor supports an optional signed media photo, location,
+age, and up to 16 owner-defined `Label: Value` fields. Every optional field can
+be omitted or removed, and a photo may be selected by dropping it onto the
+Creator view. These are public claims selected by the profile owner, not
+platform-verified attributes.
 
 The identity seed envelope is protected with the Windows-user DPAPI boundary
 by `mini-windows-vault`.

@@ -901,10 +901,16 @@ the top development priority.
   communities, local feed assembly, chunked-media publishing, offline object
   bundles, foreground encrypted direct-TCP sync, and a manual Inbox beta with
   DPAPI-protected conversation capabilities and selected-route private sync.
+  The People workflow now adds opt-in LAN profile announcements, signed local
+  profile sync, name/DID search, one-click signed follow actions, mutual-friend
+  state, profile photos, and owner-selected optional location/age/custom public
+  fields. Nearby announcements remain explicitly unverified until signed
+  objects are synced.
   It remains a reference client rather than a production release: no secure
   Inbox prekey/ratchet protocol, asynchronous mailbox delivery,
-  calls, automatic Internet relay/NAT traversal, search, forge workflow,
-  hardware-backed key custody, packaging, or independent security review.
+  calls, automatic Internet relay/NAT traversal, Internet-wide name directory,
+  search, forge workflow, hardware-backed key custody, packaging, or
+  independent security review.
 - **not started** — mobile and browser clients.
 
 See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,

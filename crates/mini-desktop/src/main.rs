@@ -13,19 +13,23 @@ use conversation_state::ConversationRecord;
 use did_mini::{Controller, Did};
 use eframe::egui;
 use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
-use mini_media::publish_media;
+use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectBuilder, ObjectType, OpaqueRoute, Payload};
 use mini_social::{
-    comments, community_members, feed, followers, following, publish_comment, publish_community,
-    publish_profile, publish_wall, resolve_community, set_follow, set_membership, set_reaction,
-    FeedFilter, FeedItem, MembershipMode, ReactionKind, VisibilityPolicy,
+    comments, community_members, feed, followers, following, known_profiles, publish_comment,
+    publish_community, publish_profile, publish_profile_details, publish_wall, resolve_community,
+    resolve_profile, set_follow, set_membership, set_reaction, FeedFilter, FeedItem,
+    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
+    PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
+    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
-use mini_store::{FsBackend, Store};
+use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{
     kel_carrier, sync_bidirectional, sync_private_route_bidirectional, KelCache, SyncRole,
 };
 use mini_windows_vault::{load_existing, load_or_create, load_user_data, save_user_data};
+use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
@@ -36,6 +40,7 @@ enum View {
     Onboarding,
     Home,
     Inbox,
+    People,
     Communities,
     Creator,
     Connections,
@@ -84,6 +89,18 @@ struct MininetApp {
     community_charter: String,
     profile_name: String,
     profile_bio: String,
+    profile_photo_path: String,
+    profile_avatar: Option<mini_objects::ObjectId>,
+    profile_remove_photo: bool,
+    profile_location: String,
+    profile_share_location: bool,
+    profile_age: String,
+    profile_share_age: bool,
+    profile_custom_fields: String,
+    people_search: String,
+    nearby_profiles: Vec<NearbyProfile>,
+    discovery_rx: Option<Receiver<Result<Vec<NearbyProfile>, String>>>,
+    profile_textures: HashMap<String, egui::TextureHandle>,
     wall_name: String,
     wall_bio: String,
     wall_links: String,
@@ -138,6 +155,7 @@ impl Workspace {
         } else {
             None
         };
+        let sequence = next_object_sequence(&store, human.as_ref())?;
         Ok(Self {
             store,
             // Open every session read-only. The DPAPI-protected signing
@@ -146,7 +164,7 @@ impl Workspace {
             identity: None,
             human,
             root,
-            sequence: 1,
+            sequence,
             conversations,
         })
     }
@@ -160,10 +178,7 @@ impl Workspace {
     }
 
     fn has_public_account(&self) -> bool {
-        self.store
-            .by_type(&ObjectType::PROFILE)
-            .map(|ids| !ids.is_empty())
-            .unwrap_or(false)
+        self.current_profile().is_some()
     }
 
     fn human_did(&self) -> Result<&Did, String> {
@@ -236,6 +251,144 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn publish_custom_profile(
+        &mut self,
+        name: &str,
+        bio: &str,
+        photo_path: &str,
+        existing_avatar: Option<&mini_objects::ObjectId>,
+        location: Option<&str>,
+        age: Option<u8>,
+        fields: &[PublicProfileField],
+    ) -> Result<Option<mini_objects::ObjectId>, String> {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or_else(|| "identity is locked".to_string())?;
+        let human = self.human_did()?.clone();
+        let avatar = if photo_path.trim().is_empty() {
+            existing_avatar.cloned()
+        } else {
+            let bytes = std::fs::read(photo_path)
+                .map_err(|error| format!("could not read profile photo: {error}"))?;
+            if bytes.len() > 8 * 1024 * 1024 {
+                return Err("profile photo exceeds the 8 MiB beta limit".to_string());
+            }
+            let (_decoded, content_type) = decode_profile_image(&bytes)?;
+            let manifest = publish_media(
+                &mut self.store,
+                &human,
+                identity,
+                content_type,
+                &bytes,
+                now_ms(),
+                self.sequence,
+            )
+            .map_err(|error| error.to_string())?;
+            self.sequence = self
+                .sequence
+                .saturating_add(manifest.chunks.len() as u64 + 1);
+            Some(manifest.id)
+        };
+        let draft = PublicProfileDraft {
+            display_name: name,
+            bio,
+            avatar: avatar.as_ref(),
+            location,
+            age,
+            fields,
+        };
+        publish_profile_details(
+            &mut self.store,
+            &human,
+            identity,
+            &draft,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
+        self.sequence = self.sequence.saturating_add(1);
+        Ok(avatar)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn publish_custom_profile_confirmed(
+        &mut self,
+        name: &str,
+        bio: &str,
+        photo_path: &str,
+        existing_avatar: Option<&mini_objects::ObjectId>,
+        location: Option<&str>,
+        age: Option<u8>,
+        fields: &[PublicProfileField],
+    ) -> Result<Option<mini_objects::ObjectId>, String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_custom_profile(
+            name,
+            bio,
+            photo_path,
+            existing_avatar,
+            location,
+            age,
+            fields,
+        );
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    fn known_profiles(&self) -> Vec<mini_social::Profile> {
+        known_profiles(&self.store).unwrap_or_default()
+    }
+
+    fn current_profile(&self) -> Option<mini_social::Profile> {
+        self.human
+            .as_ref()
+            .and_then(|human| resolve_profile(&self.store, human).ok().flatten())
+    }
+
+    fn follows(&self, target: &Did) -> bool {
+        self.human
+            .as_ref()
+            .and_then(|human| following(&self.store, human).ok())
+            .is_some_and(|people| people.iter().any(|person| person == target))
+    }
+
+    fn is_friend(&self, target: &Did) -> bool {
+        self.follows(target)
+            && self
+                .human
+                .as_ref()
+                .and_then(|human| followers(&self.store, human).ok())
+                .is_some_and(|people| people.iter().any(|person| person == target))
+    }
+
+    fn set_follow_target_confirmed(&mut self, target: &str, active: bool) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.set_follow_target(target, active);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    fn profile_image(&self, id: &mini_objects::ObjectId) -> Result<Vec<u8>, String> {
+        let object = self.store.get(id).map_err(|error| error.to_string())?;
+        let manifest = read_manifest(&object).map_err(|error| error.to_string())?;
+        if !manifest.content_type.starts_with("image/") || manifest.total_len > 8 * 1024 * 1024 {
+            return Err("profile photo manifest is not a bounded image".to_string());
+        }
+        assemble(&self.store, &manifest).map_err(|error| error.to_string())
     }
 
     fn publish_public_wall(
@@ -689,6 +842,87 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+fn next_object_sequence<B: Backend>(store: &Store<B>, author: Option<&Did>) -> Result<u64, String> {
+    store
+        .all_ids()
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .filter_map(|id| store.get(&id).ok())
+        .filter(|object| author.is_some_and(|author| &object.author_human == author))
+        .map(|object| object.sequence)
+        .max()
+        .unwrap_or(0)
+        .checked_add(1)
+        .ok_or_else(|| "local object sequence space is exhausted".to_string())
+}
+
+fn decode_profile_image(bytes: &[u8]) -> Result<(image::DynamicImage, &'static str), String> {
+    const MAX_DIMENSION: u32 = 4096;
+    const MAX_DECODE_ALLOCATION: u64 = 96 * 1024 * 1024;
+
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|error| format!("could not inspect profile photo: {error}"))?;
+    let content_type = match reader.format() {
+        Some(image::ImageFormat::Png) => "image/png",
+        Some(image::ImageFormat::Jpeg) => "image/jpeg",
+        Some(image::ImageFormat::WebP) => "image/webp",
+        Some(image::ImageFormat::Gif) => "image/gif",
+        _ => return Err("profile photo must be PNG, JPEG, WebP, or GIF".to_string()),
+    };
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_DIMENSION);
+    limits.max_image_height = Some(MAX_DIMENSION);
+    limits.max_alloc = Some(MAX_DECODE_ALLOCATION);
+    reader.limits(limits);
+    let image = reader.decode().map_err(|error| {
+        format!(
+            "profile photo could not be decoded within the {MAX_DIMENSION}×{MAX_DIMENSION} safety limit: {error}"
+        )
+    })?;
+    Ok((image, content_type))
+}
+
+fn parse_profile_fields(text: &str) -> Result<Vec<PublicProfileField>, String> {
+    let mut fields = Vec::new();
+    for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        let (label, value) = line
+            .split_once(':')
+            .ok_or_else(|| format!("custom field must use Label: Value — {line}"))?;
+        let label = label.trim();
+        let value = value.trim();
+        if label.is_empty() || value.is_empty() {
+            return Err("custom profile labels and values cannot be empty".to_string());
+        }
+        if label.len() > MAX_PROFILE_FIELD_LABEL_BYTES {
+            return Err(format!(
+                "custom profile label exceeds {MAX_PROFILE_FIELD_LABEL_BYTES} bytes: {label}"
+            ));
+        }
+        if value.len() > MAX_PROFILE_FIELD_VALUE_BYTES {
+            return Err(format!(
+                "custom profile value for {label} exceeds {MAX_PROFILE_FIELD_VALUE_BYTES} bytes"
+            ));
+        }
+        if fields
+            .iter()
+            .any(|field: &PublicProfileField| field.label.eq_ignore_ascii_case(label))
+        {
+            return Err(format!("duplicate custom profile field: {label}"));
+        }
+        fields.push(PublicProfileField {
+            label: label.to_string(),
+            value: value.to_string(),
+        });
+    }
+    if fields.len() > MAX_PROFILE_FIELDS {
+        return Err(format!(
+            "at most {MAX_PROFILE_FIELDS} custom public profile fields are supported"
+        ));
+    }
+    Ok(fields)
+}
+
 fn atomic_write_file(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
@@ -836,9 +1070,94 @@ fn run_private_sync(
     ))
 }
 
+fn scan_nearby_profiles() -> Result<Vec<NearbyProfile>, String> {
+    let scanner = LocalProfileScanner::bind().map_err(|error| error.to_string())?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    let mut profiles: Vec<NearbyProfile> = Vec::new();
+    while let Some(remaining) = deadline.checked_duration_since(std::time::Instant::now()) {
+        let Some(profile) = scanner
+            .recv_timeout(remaining.min(Duration::from_millis(500)))
+            .map_err(|error| error.to_string())?
+        else {
+            continue;
+        };
+        if let Some(existing) = profiles
+            .iter_mut()
+            .find(|existing| existing.did == profile.did)
+        {
+            *existing = profile;
+        } else {
+            profiles.push(profile);
+        }
+    }
+    profiles.sort_by(|left, right| {
+        left.display_name
+            .to_lowercase()
+            .cmp(&right.display_name.to_lowercase())
+            .then_with(|| left.did.as_str().cmp(right.did.as_str()))
+    });
+    Ok(profiles)
+}
+
+fn run_discoverable_profile_sync(
+    root: &std::path::Path,
+    port: u16,
+    display_name: &str,
+) -> Result<String, String> {
+    let seeds = load_existing(&root.join("identity.dpapi")).map_err(|error| error.to_string())?;
+    let identity = Controller::incept_single_from_seeds(&seeds.current, &seeds.next)
+        .map_err(|error| error.to_string())?;
+    let mut store = Store::new(FsBackend::open(root).map_err(|error| error.to_string())?);
+    let carrier = kel_carrier(&identity.kel(), &identity.did(), &identity)
+        .map_err(|error| error.to_string())?;
+    store.insert(&carrier).map_err(|error| error.to_string())?;
+    let mut cache = KelCache::new();
+    cache.insert_verified(identity.kel());
+    let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port))
+        .map_err(|error| error.to_string())?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| error.to_string())?;
+    let announcer = LocalProfileAnnouncer::bind(port, &identity.did(), display_name)
+        .map_err(|error| error.to_string())?;
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
+    let stream = loop {
+        announcer.announce().map_err(|error| error.to_string())?;
+        match listener.accept() {
+            Ok((stream, _)) => break stream,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+            Err(error) => return Err(error.to_string()),
+        }
+        if std::time::Instant::now() >= deadline {
+            return Ok("Nearby visibility window ended without a connection.".to_string());
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    };
+    stream
+        .set_nonblocking(false)
+        .map_err(|error| error.to_string())?;
+    let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
+    let hello = bearer.recv().map_err(|error| error.to_string())?;
+    let (mut channel, response) = Responder::respond(&hello).map_err(|error| error.to_string())?;
+    bearer.send(&response).map_err(|error| error.to_string())?;
+    let report = sync_bidirectional(
+        &mut bearer,
+        &mut channel,
+        &mut store,
+        &mut cache,
+        SyncRole::Responder,
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(format!(
+        "Nearby profile sync complete: received {}, accepted {}, invalid {}.",
+        report.received, report.accepted, report.invalid
+    ))
+}
+
 impl Default for MininetApp {
     fn default() -> Self {
         let workspace = Workspace::open().ok();
+        let existing_profile = workspace.as_ref().and_then(Workspace::current_profile);
         let view = if workspace
             .as_ref()
             .is_some_and(|workspace| workspace.root_created() && workspace.has_public_account())
@@ -854,8 +1173,49 @@ impl Default for MininetApp {
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
-            profile_name: String::new(),
-            profile_bio: String::new(),
+            profile_name: existing_profile
+                .as_ref()
+                .map(|profile| profile.display_name.clone())
+                .unwrap_or_default(),
+            profile_bio: existing_profile
+                .as_ref()
+                .map(|profile| profile.bio.clone())
+                .unwrap_or_default(),
+            profile_photo_path: String::new(),
+            profile_avatar: existing_profile
+                .as_ref()
+                .and_then(|profile| profile.avatar.clone()),
+            profile_remove_photo: false,
+            profile_location: existing_profile
+                .as_ref()
+                .and_then(|profile| profile.location.clone())
+                .unwrap_or_default(),
+            profile_share_location: existing_profile
+                .as_ref()
+                .is_some_and(|profile| profile.location.is_some()),
+            profile_age: existing_profile
+                .as_ref()
+                .and_then(|profile| profile.age)
+                .map(|age| age.to_string())
+                .unwrap_or_default(),
+            profile_share_age: existing_profile
+                .as_ref()
+                .is_some_and(|profile| profile.age.is_some()),
+            profile_custom_fields: existing_profile
+                .as_ref()
+                .map(|profile| {
+                    profile
+                        .fields
+                        .iter()
+                        .map(|field| format!("{}: {}", field.label, field.value))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
+                .unwrap_or_default(),
+            people_search: String::new(),
+            nearby_profiles: Vec::new(),
+            discovery_rx: None,
+            profile_textures: HashMap::new(),
             wall_name: String::new(),
             wall_bio: String::new(),
             wall_links: String::new(),
@@ -898,6 +1258,34 @@ impl Default for MininetApp {
 impl eframe::App for MininetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.apply_theme(ctx);
+        if self.view == View::Creator {
+            if let Some(path) = ctx.input(|input| {
+                input
+                    .raw
+                    .dropped_files
+                    .iter()
+                    .find_map(|file| file.path.clone())
+            }) {
+                self.profile_photo_path = path.display().to_string();
+                self.profile_remove_photo = false;
+                self.notice = "Profile photo selected. It remains local until you review and publish the signed profile.".to_string();
+            }
+        }
+        if let Some(result) = self
+            .discovery_rx
+            .as_ref()
+            .and_then(|receiver| receiver.try_recv().ok())
+        {
+            self.discovery_rx = None;
+            match result {
+                Ok(profiles) => {
+                    let count = profiles.len();
+                    self.nearby_profiles = profiles;
+                    self.notice = format!("Nearby scan complete: {count} opt-in profile(s) found.");
+                }
+                Err(error) => self.notice = format!("Nearby scan failed: {error}"),
+            }
+        }
         if let Some(result) = self
             .sync_rx
             .as_ref()
@@ -952,6 +1340,7 @@ impl eframe::App for MininetApp {
                 ui.add_space(6.0);
                 self.nav_button(ui, View::Home, "Home");
                 self.nav_button(ui, View::Inbox, "Inbox (beta)");
+                self.nav_button(ui, View::People, "People");
                 self.nav_button(ui, View::Communities, "Communities");
                 self.nav_button(ui, View::Creator, "Creator studio");
                 self.nav_button(ui, View::Connections, "Connections");
@@ -979,6 +1368,7 @@ impl eframe::App for MininetApp {
                         }
                         View::Home => self.home(ui),
                         View::Inbox => self.inbox(ui),
+                        View::People => self.people(ui),
                         View::Communities => self.communities(ui),
                         View::Creator => self.creator(ui),
                         View::Connections => self.connections(ui),
@@ -1001,6 +1391,59 @@ impl eframe::App for MininetApp {
 }
 
 impl MininetApp {
+    fn start_nearby_scan(&mut self) {
+        if !self.privacy.lan_discovery {
+            self.notice = "Enable local-network discovery in Privacy & safety first.".to_string();
+            return;
+        }
+        if self.discovery_rx.is_some() {
+            self.notice = "A nearby profile scan is already running.".to_string();
+            return;
+        }
+        let (sender, receiver) = mpsc::channel();
+        self.discovery_rx = Some(receiver);
+        self.notice = "Scanning the local network for 3 seconds…".to_string();
+        std::thread::spawn(move || {
+            let _ = sender.send(scan_nearby_profiles());
+        });
+    }
+
+    fn start_profile_visibility(&mut self) {
+        if !self.privacy.lan_discovery {
+            self.notice = "Enable local-network discovery in Privacy & safety first.".to_string();
+            return;
+        }
+        if self.sync_rx.is_some() {
+            self.notice = "A peer operation is already running.".to_string();
+            return;
+        }
+        let Some(name) = self
+            .workspace
+            .as_ref()
+            .and_then(Workspace::current_profile)
+            .map(|profile| profile.display_name)
+        else {
+            self.notice = "Publish a public profile before becoming discoverable.".to_string();
+            return;
+        };
+        let port = match self.listen_port.trim().parse::<u16>() {
+            Ok(port) if port != 0 => port,
+            _ => {
+                self.notice = "Enter a valid non-zero listen port.".to_string();
+                return;
+            }
+        };
+        let (sender, receiver) = mpsc::channel();
+        self.sync_rx = Some(receiver);
+        self.notice = format!(
+            "Visible as {name} on the local network for up to 60 seconds; waiting for one sync."
+        );
+        let root = data_root();
+        std::thread::spawn(move || {
+            let _ = sender.send(run_discoverable_profile_sync(&root, port, &name));
+        });
+    }
+
     fn start_peer_sync(&mut self, listener: bool) {
         if self.sync_rx.is_some() {
             self.notice = "A peer sync is already running.".to_string();
@@ -1120,6 +1563,10 @@ impl MininetApp {
                 "Inbox beta",
                 "Encrypted route-scoped messages with manual trusted invitation and sync.",
             ),
+            View::People => (
+                "People",
+                "Search signed profiles already on your device or discover opt-in nearby peers.",
+            ),
             View::Communities => (
                 "Communities",
                 "Portable spaces for discussion, not platform-owned silos.",
@@ -1192,7 +1639,7 @@ impl MininetApp {
                             } else if !has_public_account {
                                 ui.group(|ui| {
                                     ui.heading("2. Create your public account");
-                                    ui.label("This profile is a signed public object. Your display name and bio are shared only when you later choose a transport path.");
+                                    ui.label("Start with a display name and optional bio. Next, you can choose a photo, location, age, and any custom public details before becoming visible to anyone.");
                                     ui.label("Your cryptographic identity remains the DID shown in Privacy & safety.");
                                     ui.add_space(8.0);
                                     ui.label("Display name");
@@ -1215,20 +1662,27 @@ impl MininetApp {
                                         } else if !self.signing_confirmation {
                                             "Confirm signing before publishing the account.".to_string()
                                         } else if let Some(workspace) = self.workspace.as_mut() {
-                                            let result = workspace
-                                                .unlock()
-                                                .and_then(|()| {
+                                            let result = if workspace.is_unlocked() {
+                                                workspace.publish_profile(
+                                                    self.account_name.trim(),
+                                                    self.account_bio.trim(),
+                                                )
+                                            } else {
+                                                workspace.unlock().and_then(|()| {
                                                     workspace.publish_profile(
                                                         self.account_name.trim(),
                                                         self.account_bio.trim(),
                                                     )
-                                                });
+                                                })
+                                            };
+                                            workspace.lock();
                                             match result {
                                                 Ok(()) => {
-                                                    workspace.lock();
+                                                    self.profile_name = self.account_name.trim().to_string();
+                                                    self.profile_bio = self.account_bio.trim().to_string();
                                                     self.signing_confirmation = false;
-                                                    self.view = View::Home;
-                                                    "Public account created locally. Identity is locked again.".to_string()
+                                                    self.view = View::Creator;
+                                                    "Public account created locally and identity locked again. Add any optional public details below, or open People when you are ready.".to_string()
                                                 }
                                                 Err(error) => format!("Could not create public account: {error}"),
                                             }
@@ -1646,6 +2100,219 @@ impl MininetApp {
         });
     }
 
+    fn profile_texture(
+        &mut self,
+        ctx: &egui::Context,
+        avatar: &mini_objects::ObjectId,
+    ) -> Option<egui::TextureHandle> {
+        if let Some(texture) = self.profile_textures.get(avatar.as_str()) {
+            return Some(texture.clone());
+        }
+        let bytes = self.workspace.as_ref()?.profile_image(avatar).ok()?;
+        let image = decode_profile_image(&bytes).ok()?.0.thumbnail(160, 160);
+        let rgba = image.to_rgba8();
+        let size = [rgba.width() as usize, rgba.height() as usize];
+        let color = egui::ColorImage::from_rgba_unmultiplied(size, rgba.as_raw());
+        let texture = ctx.load_texture(
+            format!("profile:{}", avatar.as_str()),
+            color,
+            egui::TextureOptions::LINEAR,
+        );
+        self.profile_textures
+            .insert(avatar.as_str().to_string(), texture.clone());
+        Some(texture)
+    }
+
+    fn people(&mut self, ui: &mut egui::Ui) {
+        ui.group(|ui| {
+            ui.label(egui::RichText::new("Find people").strong());
+            ui.add_sized(
+                [ui.available_width(), 34.0],
+                egui::TextEdit::singleline(&mut self.people_search)
+                    .hint_text("Search locally by display name or did:mini identifier"),
+            );
+            ui.label("Names are searchable labels and are not unique. The DID remains the identity anchor.");
+            if ui
+                .checkbox(
+                    &mut self.privacy.lan_discovery,
+                    "Allow opt-in nearby discovery on this local network",
+                )
+                .changed()
+            {
+                self.notice = match save_privacy_settings(self.privacy) {
+                    Ok(()) => "Nearby discovery preference saved in the Windows user vault."
+                        .to_string(),
+                    Err(error) => format!("Could not save discovery preference: {error}"),
+                };
+            }
+            ui.horizontal_wrapped(|ui| {
+                if ui.button("Find nearby for 3 seconds").clicked() {
+                    self.start_nearby_scan();
+                }
+                if ui.button("Be visible nearby for 60 seconds").clicked() {
+                    self.start_profile_visibility();
+                }
+                ui.label("Nearby visibility reveals your chosen display name and DID to the local network only during this window.");
+            });
+        });
+
+        let query = self.people_search.trim().to_lowercase();
+        let own_did = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.human.clone());
+        let nearby: Vec<NearbyProfile> = self
+            .nearby_profiles
+            .iter()
+            .filter(|profile| {
+                own_did.as_ref() != Some(&profile.did)
+                    && (query.is_empty()
+                        || profile.display_name.to_lowercase().contains(&query)
+                        || profile.did.as_str().to_lowercase().contains(&query))
+            })
+            .cloned()
+            .collect();
+        if !nearby.is_empty() {
+            ui.add_space(12.0);
+            ui.label(egui::RichText::new("Nearby — not yet verified").strong());
+            for profile in nearby {
+                ui.group(|ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new(&profile.display_name).strong());
+                        ui.label(profile.did.as_str());
+                        ui.label(profile.address.to_string());
+                        if ui.button("Sync signed profile").clicked() {
+                            self.peer_address = profile.address.to_string();
+                            self.start_peer_sync(false);
+                        }
+                    });
+                    ui.label("This LAN announcement can be spoofed. Sync and verify the signed profile before trusting its name or details.");
+                });
+            }
+        }
+
+        ui.add_space(12.0);
+        ui.label(egui::RichText::new("Signed profiles on this device").strong());
+        let profiles: Vec<mini_social::Profile> = self
+            .workspace
+            .as_ref()
+            .map(Workspace::known_profiles)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|profile| {
+                query.is_empty()
+                    || profile.display_name.to_lowercase().contains(&query)
+                    || profile.human.as_str().to_lowercase().contains(&query)
+            })
+            .collect();
+        if profiles.is_empty() {
+            ui.label("No matching signed profiles are present yet. Ask the other instance to become visible, then sync its profile.");
+        }
+        for profile in profiles {
+            let texture = profile
+                .avatar
+                .as_ref()
+                .and_then(|avatar| self.profile_texture(ui.ctx(), avatar));
+            let is_own = own_did.as_ref() == Some(&profile.human);
+            let follows = self
+                .workspace
+                .as_ref()
+                .is_some_and(|workspace| workspace.follows(&profile.human));
+            let friend = self
+                .workspace
+                .as_ref()
+                .is_some_and(|workspace| workspace.is_friend(&profile.human));
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    if let Some(texture) = texture {
+                        ui.add(egui::Image::new((
+                            texture.id(),
+                            egui::vec2(76.0, 76.0),
+                        )));
+                    } else {
+                        let initials: String = profile
+                            .display_name
+                            .split_whitespace()
+                            .filter_map(|part| part.chars().next())
+                            .take(2)
+                            .collect();
+                        ui.add_sized(
+                            [76.0, 76.0],
+                            egui::Label::new(egui::RichText::new(initials).size(28.0).strong()),
+                        );
+                    }
+                    ui.vertical(|ui| {
+                        ui.heading(&profile.display_name);
+                        ui.label(&profile.bio);
+                        ui.label(egui::RichText::new(profile.human.as_str()).small());
+                        ui.horizontal_wrapped(|ui| {
+                            if let Some(location) = &profile.location {
+                                ui.label(format!("Location: {location}"));
+                            }
+                            if let Some(age) = profile.age {
+                                ui.label(format!("Age: {age}"));
+                            }
+                        });
+                    });
+                });
+                for field in &profile.fields {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new(format!("{}:", field.label)).strong());
+                        ui.label(&field.value);
+                    });
+                }
+                ui.horizontal_wrapped(|ui| {
+                    if is_own {
+                        ui.label("This is your public profile.");
+                    } else if friend {
+                        ui.label(egui::RichText::new("Friends").strong());
+                        if ui.button("Remove friend").clicked() {
+                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                                match workspace
+                                    .set_follow_target_confirmed(profile.human.as_str(), false)
+                                {
+                                    Ok(()) => "Friend/follow edge removed locally; sync to share the change.".to_string(),
+                                    Err(error) => format!("Could not remove friend: {error}"),
+                                }
+                            } else {
+                                "Local workspace unavailable.".to_string()
+                            };
+                        }
+                    } else if follows {
+                        ui.label("Friend request/follow sent");
+                        if ui.button("Cancel").clicked() {
+                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                                match workspace
+                                    .set_follow_target_confirmed(profile.human.as_str(), false)
+                                {
+                                    Ok(()) => "Friend request/follow removed locally.".to_string(),
+                                    Err(error) => format!("Could not remove follow: {error}"),
+                                }
+                            } else {
+                                "Local workspace unavailable.".to_string()
+                            };
+                        }
+                    } else if ui.button("Add friend").clicked() {
+                        self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                            match workspace
+                                .set_follow_target_confirmed(profile.human.as_str(), true)
+                            {
+                                Ok(()) => "Friend request/follow signed locally. Sync so the other person can respond.".to_string(),
+                                Err(error) => format!("Could not add friend: {error}"),
+                            }
+                        } else {
+                            "Local workspace unavailable.".to_string()
+                        };
+                    }
+                    if ui.button("Copy DID").clicked() {
+                        ui.ctx().copy_text(profile.human.as_str().to_string());
+                    }
+                });
+            });
+            ui.add_space(8.0);
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn post_card(
         &mut self,
@@ -1779,31 +2446,132 @@ impl MininetApp {
 
     fn creator(&mut self, ui: &mut egui::Ui) {
         ui.group(|ui| {
-            ui.label(egui::RichText::new("Profile identity").strong());
-            ui.text_edit_singleline(&mut self.profile_name);
-            ui.text_edit_singleline(&mut self.profile_bio);
+            ui.label(egui::RichText::new("Your public profile").strong());
+            ui.label("You choose every optional detail below. Only the display name is required; blank or disabled fields are not published.");
+            ui.label("Display name");
+            ui.add_sized(
+                [ui.available_width(), 32.0],
+                egui::TextEdit::singleline(&mut self.profile_name)
+                    .hint_text("The name people can search for"),
+            );
+            ui.label("Bio (optional)");
+            ui.add_sized(
+                [ui.available_width(), 64.0],
+                egui::TextEdit::multiline(&mut self.profile_bio)
+                    .hint_text("A short introduction, interests, or what you make"),
+            );
+            ui.separator();
+            ui.label(egui::RichText::new("Profile photo (optional)").strong());
+            if self.profile_avatar.is_some() && !self.profile_remove_photo {
+                ui.label("A profile photo is currently published.");
+            }
+            ui.horizontal_wrapped(|ui| {
+                ui.label("Drop an image onto this window or paste its local path:");
+                ui.text_edit_singleline(&mut self.profile_photo_path);
+            });
+            ui.label("PNG, JPEG, WebP, or GIF; maximum 8 MiB. The image is stored as signed Mininet media, not uploaded to a third party.");
+            if self.profile_avatar.is_some() {
+                ui.checkbox(
+                    &mut self.profile_remove_photo,
+                    "Remove my currently published photo",
+                );
+            }
+            ui.separator();
+            ui.checkbox(
+                &mut self.profile_share_location,
+                "Publish a location I choose",
+            );
+            if self.profile_share_location {
+                ui.add_sized(
+                    [ui.available_width(), 32.0],
+                    egui::TextEdit::singleline(&mut self.profile_location)
+                        .hint_text("For example: Manchester, UK (avoid a precise address)"),
+                );
+                ui.label("Tip: a city or region is usually safer than a home or live location.");
+            }
+            ui.checkbox(&mut self.profile_share_age, "Publish my age");
+            if self.profile_share_age {
+                ui.add_sized(
+                    [140.0, 32.0],
+                    egui::TextEdit::singleline(&mut self.profile_age).hint_text("Age"),
+                );
+            }
+            ui.separator();
+            ui.label(egui::RichText::new("Custom public details (optional)").strong());
+            ui.label("Add one Label: Value pair per line, such as Pronouns, Website, Languages, Interests, or Availability.");
+            ui.add_sized(
+                [ui.available_width(), 96.0],
+                egui::TextEdit::multiline(&mut self.profile_custom_fields)
+                    .hint_text("Pronouns: they/them\nWebsite: https://example.org\nLanguages: English, Slovene"),
+            );
             ui.checkbox(
                 &mut self.signing_confirmation,
-                "I confirm this action will create a signed profile object",
+                "I reviewed these details and want to publish them in my signed public profile",
             );
-            if ui.button("Publish profile locally").clicked() {
-                self.notice = if self.profile_name.trim().is_empty() {
-                    "A display name is required.".to_string()
-                } else if !self.signing_confirmation {
-                    "Confirm signing before publishing.".to_string()
-                } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace
-                        .publish_profile(self.profile_name.trim(), self.profile_bio.trim())
-                    {
-                        Ok(()) => {
-                            self.signing_confirmation = false;
-                            "Profile written locally. It has not been announced to a network."
-                                .to_string()
-                        }
-                        Err(error) => format!("Could not publish profile: {error}"),
-                    }
+            if ui.button("Save signed public profile").clicked() {
+                let fields = parse_profile_fields(&self.profile_custom_fields);
+                let age = if self.profile_share_age {
+                    self.profile_age
+                        .trim()
+                        .parse::<u8>()
+                        .map(Some)
+                        .map_err(|_| "age must be a whole number from 1 to 255".to_string())
+                        .and_then(|age| {
+                            if age == Some(0) {
+                                Err("age must be a whole number from 1 to 255".to_string())
+                            } else {
+                                Ok(age)
+                            }
+                        })
                 } else {
-                    "Local workspace unavailable.".to_string()
+                    Ok(None)
+                };
+                let location = self.profile_location.trim();
+                let validation = fields.and_then(|fields| {
+                    if self.profile_name.trim().is_empty() {
+                        Err("A display name is required.".to_string())
+                    } else if self.profile_share_location && location.is_empty() {
+                        Err("Enter a location or turn off location sharing.".to_string())
+                    } else if location.len() > MAX_LOCATION_BYTES {
+                        Err(format!("location exceeds {MAX_LOCATION_BYTES} bytes"))
+                    } else if !self.signing_confirmation {
+                        Err("Review the profile and confirm signing before publishing.".to_string())
+                    } else {
+                        age.map(|age| (fields, age))
+                    }
+                });
+                self.notice = match validation {
+                    Err(error) => error,
+                    Ok((fields, age)) => {
+                        let retained_avatar = if self.profile_remove_photo {
+                            None
+                        } else {
+                            self.profile_avatar.as_ref()
+                        };
+                        if let Some(workspace) = self.workspace.as_mut() {
+                            match workspace.publish_custom_profile_confirmed(
+                                self.profile_name.trim(),
+                                self.profile_bio.trim(),
+                                self.profile_photo_path.trim(),
+                                retained_avatar,
+                                self.profile_share_location.then_some(location),
+                                age,
+                                &fields,
+                            ) {
+                                Ok(avatar) => {
+                                    self.profile_avatar = avatar;
+                                    self.profile_photo_path.clear();
+                                    self.profile_remove_photo = false;
+                                    self.profile_textures.clear();
+                                    self.signing_confirmation = false;
+                                    "Public profile saved locally. Use People to become visible nearby or sync it to another peer.".to_string()
+                                }
+                                Err(error) => format!("Could not publish profile: {error}"),
+                            }
+                        } else {
+                            "Local workspace unavailable.".to_string()
+                        }
+                    }
                 };
             }
         });
@@ -2010,14 +2778,14 @@ impl MininetApp {
         ui.add_space(12.0);
         ui.group(|ui| {
             ui.label(egui::RichText::new("Add a friend or contact").strong());
-            ui.label("Each person uses a separate Mininet home and DID. Exchange DIDs through a trusted channel, then add the person in Creator studio.");
+            ui.label("Open People to search signed profiles by name or DID, discover an opt-in nearby profile, and add a friend with one button.");
             if let Some(workspace) = self.workspace.as_ref() {
                 if let Some(human) = workspace.human.as_ref() {
                     ui.label(format!("Your DID: {human}"));
                 }
             }
             if ui.button("Open friend manager").clicked() {
-                self.view = View::Creator;
+                self.view = View::People;
             }
             ui.label("A friend is shown as mutual only after both signed follow objects arrive through sync.");
         });
@@ -2153,7 +2921,7 @@ impl MininetApp {
             ui.label(egui::RichText::new("Protocol coverage").strong());
             ui.label("Integrated here: signed social objects, local feed assembly, communities, threaded replies, reactions, chunked media, DPAPI identity/conversation storage, Inbox beta, offline bundles, and encrypted one-shot TCP sync.");
             ui.label("Available in the repository but not yet a finished desktop workflow: production chat sessions/mailboxes, forge repository/PR operations, presence/keystone encounters, reward accounting, privacy-cost routing, update adoption, and governance administration.");
-            ui.label("Those foundations are deliberately shown as boundaries rather than unsafe pretend buttons. Public object types remain inspectable and syncable when another Mininet tool creates them; private-message delivery is not wired yet.");
+            ui.label("Those foundations are deliberately shown as boundaries rather than unsafe pretend buttons. Public object types remain inspectable and syncable when another Mininet tool creates them; private messages currently require an explicit one-shot conversation sync.");
         });
         ui.add_space(10.0);
         ui.group(|ui| {
@@ -2273,7 +3041,13 @@ fn main() -> eframe::Result {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_privacy_settings, encode_privacy_settings, PrivacyState, UpdatePolicy};
+    use super::{
+        decode_privacy_settings, encode_privacy_settings, next_object_sequence,
+        parse_profile_fields, PrivacyState, UpdatePolicy,
+    };
+    use did_mini::Controller;
+    use mini_objects::{ObjectBuilder, ObjectType, Payload};
+    use mini_store::{MemoryBackend, Store};
 
     #[test]
     fn privacy_defaults_are_local_and_manual() {
@@ -2300,5 +3074,47 @@ mod tests {
         assert!(!restored.relays);
         assert!(restored.lan_discovery);
         assert_eq!(restored.update_policy, UpdatePolicy::Ask);
+    }
+
+    #[test]
+    fn custom_profile_fields_are_parsed_without_fixed_platform_schema() {
+        let fields = parse_profile_fields(
+            "Pronouns: they/them\nWebsite: https://example.org/profile?q=one:two",
+        )
+        .unwrap();
+        assert_eq!(fields.len(), 2);
+        assert_eq!(fields[0].label, "Pronouns");
+        assert_eq!(fields[0].value, "they/them");
+        assert_eq!(fields[1].label, "Website");
+        assert_eq!(fields[1].value, "https://example.org/profile?q=one:two");
+    }
+
+    #[test]
+    fn duplicate_or_malformed_custom_profile_fields_are_rejected() {
+        assert!(parse_profile_fields("Website: one\nwebsite: two").is_err());
+        assert!(parse_profile_fields("missing separator").is_err());
+    }
+
+    #[test]
+    fn signing_sequence_continues_after_existing_objects() {
+        let identity = Controller::incept_single_from_seeds(&[7; 32], &[8; 32]).unwrap();
+        let other = Controller::incept_single_from_seeds(&[9; 32], &[10; 32]).unwrap();
+        let object = ObjectBuilder::new(ObjectType::POST)
+            .sequence(41)
+            .payload(Payload::Public(b"existing".to_vec()))
+            .sign(&identity.did(), &identity)
+            .unwrap();
+        let mut store = Store::new(MemoryBackend::new());
+        store.insert(&object).unwrap();
+        let foreign = ObjectBuilder::new(ObjectType::POST)
+            .sequence(u64::MAX)
+            .payload(Payload::Public(b"foreign".to_vec()))
+            .sign(&other.did(), &other)
+            .unwrap();
+        store.insert(&foreign).unwrap();
+        assert_eq!(
+            next_object_sequence(&store, Some(&identity.did())).unwrap(),
+            42
+        );
     }
 }
