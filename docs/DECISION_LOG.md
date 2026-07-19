@@ -7904,3 +7904,66 @@ with a larger attack surface than lossy UTF-8 decoding exists.
 existing crate's runtime behavior, only its own process-spawn/framing
 pattern mirrored from `mini-pipeline-protocol`/`mini-build-runner-
 wasmtime` (D-0069) without a dependency edge to either.
+---
+
+### D-0320 — `reproducibility` CI: build only the artifacts the job actually hashes  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0314 (the split of this job out of
+`ci.yml`); SPEC-11 §8 (verified-reproducible releases, roadmap #69);
+`docs/INVARIANTS.md` (frozen invariant); issue #173
+
+**Decision:** the `reproducibility` workflow's two passes build
+`--examples` for the four crates that have an `examples/` directory —
+`mini-bootstrap`, `mini-keystone`, `mini-net`, `mini-treasury` — and their
+dependency closure, instead of `--workspace --all-targets`. The
+two-clean-build discipline, the `rm -rf target` between passes, and the
+`find`/`sha256sum`/`diff` comparison are unchanged.
+
+**Reason:** the job built all 44 crates and all 50 integration-test
+binaries twice, then hashed exactly four example binaries. Every test
+binary was compiled twice and never compared, so the extra work proved
+nothing the job asserts while costing roughly twenty minutes of wall clock
+on a *required* status check — making it the merge bottleneck for every PR
+that touches source.
+
+This narrows no claim. The assertion surface was already those four
+binaries; only the build scope changes, to match it. D-0314 narrowed this
+job's *triggers* for the same reason — cost that buys no additional
+assurance — and this narrows its *scope* on the same principle.
+
+The honest limits are recorded in the job's own comment rather than left
+implicit: the check remains same-machine, same-toolchain (not the
+K-independent-builder, cross-machine check SPEC-11 §8 ultimately wants),
+and its assertion surface is four example binaries by choice. If SPEC-11's
+intent is later read as "every release artifact is reproducible" rather
+than "these example binaries are", the correct fix is to widen the
+*hashing* step to cover the additional artifacts — not to restore a
+blanket `--all-targets` build whose extra output is never compared. Build
+scope and assertion scope should stay equal in either direction.
+
+**Constitutional impact:** none. This is CI scope, not protocol. It adds
+no authority, changes no invariant text, and weakens no reproducibility
+claim the repository makes — the set of artifacts asserted byte-identical
+across two clean builds is unchanged. SPEC-11 remains a frozen invariant
+and is not amended by this entry.
+
+**Implementation status:** shipped in
+`.github/workflows/reproducibility.yml`. Verified locally: `cargo build
+--release --locked --examples -p mini-bootstrap -p mini-keystone -p
+mini-net -p mini-treasury` completes and produces exactly
+`bootstrap_live_demo`, `frost_live_demo`, `gossip_live_demo`, and
+`keystone` — the same set the hashing step globs, cross-checked against
+`cargo metadata`, which shows one example target per crate. The
+before/after CI ratio is deliberately not quantified here; it is
+measurable from this PR's own run.
+
+**Required follow-up:** a larger CI runner (2-core `ubuntu-latest` is the
+current constraint; a paid 4/8-core runner would cut this again with no
+semantic change); caching `~/.cargo/registry`/`~/.cargo/git`, which is
+symmetric across both passes and safe — unlike caching `target/`, which
+would make the passes asymmetric and could mask the very nondeterminism
+this job exists to catch; and verifying whether this job's `paths-ignore`,
+combined with its status as a *required* context, can leave a docs-only PR
+permanently unmergeable.
+
+**Supersedes / superseded by:** refines D-0314's narrowing of this job.
+Supersedes nothing; SPEC-11 is untouched.

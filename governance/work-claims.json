@@ -27,7 +27,7 @@
     },
     {
       "issue": 161,
-      "status": "active",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "agent/mini-crawler-planning",
       "pull_request": 162,
@@ -78,6 +78,24 @@
       ],
       "decision_ids": [],
       "notes": "Track B3: extractor protocol (mini-extract-protocol) + isolated host (mini-extract-host), mirroring mini-pipeline-protocol/mini-build-runner-wasmtime's subprocess-isolation discipline. One simple plain-text-normalize extractor; PDF/HTML deferred to Track B4."
+    },
+    {
+      "issue": 173,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/reproducibility-scope",
+      "pull_request": 174,
+      "lease_expires": "2026-07-26",
+      "paths": [
+        ".github/workflows/reproducibility.yml",
+        "docs/DECISION_LOG.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0320"
+      ],
+      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z."
     }
   ]
 }
