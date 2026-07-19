@@ -11,7 +11,7 @@
 //! [`SigningKey::to_seed_bytes`] for secure on-device storage, and the [`Debug`]
 //! impl redacts the secret.
 //!
-//! ## Post-quantum note (D-0095/D-0320, issue #15)
+//! ## Post-quantum note (D-0095/D-0322, issue #15)
 //!
 //! [`VerifyingKey`] and [`Signature`] can parse and verify
 //! [`SignatureSuite::MlDsa65`] material (FIPS 204, composed via the external
@@ -574,7 +574,7 @@ mod tests {
         );
     }
 
-    // ----- Phase 2 (D-0095/D-0320, issue #15): ML-DSA-65 key generation
+    // ----- Phase 2 (D-0095/D-0322, issue #15): ML-DSA-65 key generation
     // and isolated signing on `SigningKey` itself. -----
 
     #[test]

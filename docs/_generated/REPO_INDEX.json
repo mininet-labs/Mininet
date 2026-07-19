@@ -13748,7 +13748,7 @@
       ],
       "lines": 657,
       "path": "crates/mini-crypto/src/keys.rs",
-      "sha256": "bafba7c2f3543daa4cfcb4ec18a424d6cb5d2f70efe293f4e9fddcb430cfe1bb",
+      "sha256": "8b32cadaa2318c7fee93091691f827f7a5d7a47174a72a073f3f9dc2458533af",
       "symbols": [
         {
           "kind": "enum",
@@ -39806,7 +39806,7 @@
       ],
       "lines": 8082,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "99208591916c2e605e146de10a761e38eb4b2a4cabdc8cd9b17573f4c3207b23",
+      "sha256": "4762d14fbc85813ac9ce81cbc7db941c25fa483f9590c4b3971e1df1acacf5e4",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -40853,7 +40853,7 @@
       ],
       "lines": 938,
       "path": "docs/STATUS.md",
-      "sha256": "df0a5d99875dbed232eadda7f74adf879a59d4d8e139bc4cc4a58df6769e2b19",
+      "sha256": "33a618fd73c8d26ffcd8a0bf19e1370d71255a5d17ce66d04160a8d602ba87bf",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -43123,7 +43123,7 @@
         {
           "level": 1,
           "line": 1,
-          "text": "Post-quantum identity signature migration (issue #15, D-0095/D-0320)"
+          "text": "Post-quantum identity signature migration (issue #15, D-0095/D-0322)"
         },
         {
           "level": 2,
@@ -43174,7 +43174,7 @@
         "ed25519",
         "mldsa65",
         "bytes",
-        "d-0320",
+        "d-0322",
         "decision",
         "honest",
         "deferred",
@@ -43184,9 +43184,9 @@
       ],
       "lines": 121,
       "path": "docs/design/post-quantum-identity-migration.md",
-      "sha256": "0fb7e30d457b3577080aea74d13f5bfa387dee9957cd2f3d0bde2edc4ab1519f",
+      "sha256": "17a82460304b9ba43845d6a4826309f12d0dc72bce31d18cbeca553d55b7457c",
       "symbols": [],
-      "title": "Post-quantum identity signature migration (issue #15, D-0095/D-0320)"
+      "title": "Post-quantum identity signature migration (issue #15, D-0095/D-0322)"
     },
     {
       "bytes": 6883,
@@ -52651,7 +52651,7 @@
       ],
       "lines": 122,
       "path": "governance/work-claims.json",
-      "sha256": "b1df1deea96d26045604d555031140f036c3b0c35f927ee3738b378ac76da167",
+      "sha256": "657aa85ce6a294d9c3e6751d2497f145899db462bdd15ab90256ba4ba59758b5",
       "symbols": [],
       "title": "{"
     },

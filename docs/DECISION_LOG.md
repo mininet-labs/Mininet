@@ -7967,7 +7967,7 @@ permanently unmergeable.
 
 **Supersedes / superseded by:** refines D-0314's narrowing of this job.
 Supersedes nothing; SPEC-11 is untouched.
-### D-0320 — `mini-crypto`: ML-DSA-65 key generation + isolated signing, Phase 2 of the post-quantum identity migration (D-0095, issue #15)  ·  *Accepted*
+### D-0322 — `mini-crypto`: ML-DSA-65 key generation + isolated signing, Phase 2 of the post-quantum identity migration (D-0095, issue #15)  ·  *Accepted*
 **Date:** 2026-07-19 · **Refs:** D-0095 (Phase 1: verify-only support);
 `docs/design/post-quantum-identity-migration.md`; `docs/research/
 PQ15_POST_QUANTUM_MIGRATION_RESEARCH_20260715.md` §24 (rollout phases);

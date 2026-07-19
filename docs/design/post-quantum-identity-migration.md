@@ -1,4 +1,4 @@
-# Post-quantum identity signature migration (issue #15, D-0095/D-0320)
+# Post-quantum identity signature migration (issue #15, D-0095/D-0322)
 
 **Status:** Phase 0 (research + design), Phase 1 (verify-only primitive in
 `mini-crypto`), and Phase 2 (ML-DSA-65 key generation + isolated signing
@@ -47,7 +47,7 @@ to `did-mini`'s identity/rotation logic. `SignatureSuite::DEFAULT` stays
   the parsed key and message, and correctly reject tampered signatures,
   wrong keys, wrong lengths, and suite mismatches between a key and a
   signature.
-- **Phase 2 (D-0320):** `SigningKey::generate_ml_dsa_65()`/
+- **Phase 2 (D-0322):** `SigningKey::generate_ml_dsa_65()`/
   `sign_ml_dsa_65()` — real ML-DSA-65 key generation and signing in
   production code, composing `fips204`'s `try_keygen_with_rng`/
   `try_sign_with_rng` with `rand_core::OsRng` for entropy. Explicitly

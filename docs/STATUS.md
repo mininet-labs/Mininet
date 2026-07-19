@@ -200,7 +200,7 @@ given time.
   separate, later PRs, each gated behind external review (D-0047) before
   any high-value authority decision may depend on it.
 - **partial** — post-quantum migration path ([#15](../../issues/15),
-  D-0095/D-0320): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire
+  D-0095/D-0322): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire
   tag `0x02`) is real — `VerifyingKey`/`Signature` parse and verify
   actual ML-DSA-65 material (Phase 1), and `SigningKey::
   generate_ml_dsa_65()`/`sign_ml_dsa_65()` generate and sign with real
