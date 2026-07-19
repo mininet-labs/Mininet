@@ -229,7 +229,10 @@ impl CrawlPlan {
     where
         I: IntoIterator<Item = CrawlRequest>,
     {
-        requests.into_iter().map(|request| self.admit(request)).collect()
+        requests
+            .into_iter()
+            .map(|request| self.admit(request))
+            .collect()
     }
 
     pub fn pop_next(&mut self) -> Option<CrawlRequest> {
@@ -443,7 +446,10 @@ mod tests {
         ]);
 
         assert_eq!(outcomes[0], CrawlAdmission::Accepted);
-        assert_eq!(outcomes[1], CrawlAdmission::Rejected(CrawlRejectReason::CrossHost));
+        assert_eq!(
+            outcomes[1],
+            CrawlAdmission::Rejected(CrawlRejectReason::CrossHost)
+        );
         assert_eq!(outcomes[2], CrawlAdmission::Accepted);
         assert_eq!(plan.pending_len(), 2);
     }
