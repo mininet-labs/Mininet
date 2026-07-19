@@ -54,6 +54,8 @@ members = [
     "crates/mini-crawler",
     "crates/mini-desktop",
     "crates/mini-windows-vault",
+    "crates/mini-extract-protocol",
+    "crates/mini-extract-host",
 ]
 
 [workspace.package]

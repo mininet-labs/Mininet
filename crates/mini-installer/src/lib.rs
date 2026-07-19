@@ -65,8 +65,14 @@
 //!
 //! ## Honest limits
 //!
-//! - **Unix-only.** Activation is a `symlink`/`rename` swap
-//!   (`std::os::unix::fs::symlink`); no Windows support exists yet.
+//! - **Activation is Unix-only.** The `current` pointer flip is a
+//!   `symlink`/`rename` swap (`std::os::unix::fs::symlink`); no Windows
+//!   support exists yet. The crate itself compiles on every platform
+//!   (the symlink call is behind `#[cfg(unix)]`, with a
+//!   `std::io::ErrorKind::Unsupported` runtime error on other
+//!   platforms) so non-Unix hosts can still build and test the rest of
+//!   the workspace; only calling [`Installer::activate`] on such a host
+//!   actually fails.
 //! - **No process supervision.** This crate stages files and flips a
 //!   pointer. It does not start, stop, restart, or supervise any process --
 //!   the caller's own health-check predicate ([`Installer::health_check`])
@@ -748,10 +754,30 @@ impl Installer {
             .root
             .join(format!("current.tmp.{}", std::process::id()));
         remove_if_present(&tmp)?;
-        std::os::unix::fs::symlink(target, &tmp)?;
+        create_symlink(target, &tmp)?;
         fs::rename(&tmp, self.current_link())?;
         Ok(())
     }
+}
+
+/// The one platform-specific line in this crate. Gated so the crate (and
+/// everything that depends on it, e.g. `mini-cli`) still *compiles* on
+/// non-Unix hosts -- `std::os::unix::fs::symlink` does not exist there.
+/// Behavior is unchanged from before this gate existed: activation was,
+/// and remains, Unix-only (see this module's "Honest limits" above); a
+/// non-Unix caller now gets a clear runtime error instead of the whole
+/// crate failing to build.
+#[cfg(unix)]
+fn create_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(not(unix))]
+fn create_symlink(_target: &Path, _link: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "mini-installer activation requires a Unix symlink; no non-Unix support exists yet",
+    ))
 }
 
 fn remove_if_present(path: &Path) -> Result<(), InstallerError> {

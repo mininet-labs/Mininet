@@ -1,0 +1,12 @@
+[package]
+name = "mini-extract-protocol"
+version = "0.0.1"
+description = "Length-delimited request/result messages between the Mininet Intake coordinator and an isolated document-extractor worker process (native-intake Track B3). No Wasmtime dependency, no filesystem/network access -- this is the wire format both sides of the process boundary share, mirroring mini-pipeline-protocol's build-runner IPC discipline."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]

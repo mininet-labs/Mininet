@@ -7712,3 +7712,195 @@ federated/distributed query merging as later Track E/F PRs.
 **Supersedes / superseded by:** implements the minimal crawler-planning
 slice named by D-0312 after D-0316. Does not supersede `mini-web-types`
 or `mini-private-index`.
+
+### D-0318 — `mini-installer`: gate `std::os::unix::fs::symlink` behind `#[cfg(unix)]` so the crate compiles on non-Unix hosts  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** issue #167; `crates/mini-installer/src/lib.rs`
+(`swap_current`); D-0071/D-0106-D-0108 (`mini-installer`'s original
+type-state pipeline and its already-documented "Unix-only" honest
+limit)
+
+**Decision:** `Installer::swap_current`'s atomic pointer-flip called
+`std::os::unix::fs::symlink` with no platform guard, which does not
+exist outside `#[cfg(unix)]` targets -- a hard *compile* error for the
+whole crate, and everything depending on it (`mini-cli`), on any
+non-Unix host. Extracts the one platform-specific line into a small
+`create_symlink` helper: `#[cfg(unix)]` calls the real
+`std::os::unix::fs::symlink` unchanged; `#[cfg(not(unix))]` returns a
+`std::io::Error` with `ErrorKind::Unsupported` and a clear message,
+propagated through the crate's existing `InstallerError::Io` variant --
+no new error variant needed. The module doc's already-honest "Unix-only"
+limitation is reworded to distinguish *compiling* (now every platform)
+from *activating* (still Unix-only, unchanged).
+
+**Reason:** two independent open PRs (#165, #166) both hit this exact
+wall from a Windows host and had to note their full `mini-cli` test run
+was blocked by it, unable to exercise their own changes locally even
+though the change itself had nothing to do with `mini-installer`.
+Workspace CI itself only runs `ubuntu-latest`
+(`.github/workflows/ci.yml`), so this never blocked the merge gate
+directly, but it silently blocked every non-Unix-hosted contributor
+(human or AI agent) from building or testing the workspace at all --
+a real production-readiness gap nothing in `docs/STATUS.md` or the
+crate's own docs previously named as a workspace-wide limitation (only
+`mini-installer`'s *activation* being Unix-only was ever claimed, not
+the crate failing to build elsewhere).
+
+**Constitutional impact:** none. This is a compile-target fix only --
+`mini-installer`'s actual capability is completely unchanged: activation
+was, and remains, Unix-only; no new platform support, no new capability,
+no touched frozen invariant. Directive 14 (no new cryptography) and the
+typed-domains rule are both untouched -- `InstallerError::Io` already
+existed and already carried arbitrary `std::io::Error` values.
+
+**Implementation status:** shipped in `mini-installer` only.
+`cargo fmt --all -- --check`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features`
+all clean on this (Linux) host, which continues to exercise the real
+`#[cfg(unix)]` path exactly as before -- this PR could not itself run
+the `#[cfg(not(unix))]` branch to prove it compiles cleanly on Windows,
+since no Windows toolchain exists in this environment; the branch is
+a five-line, trivially-inspectable `std::io::Error` construction with no
+platform-specific API surface, and the fix is scoped exactly to the line
+the two blocked PRs both named.
+
+**Failure point:** does not add real Windows (or any non-Unix) install
+support -- `Installer::activate` still cannot succeed there, it now just
+fails at runtime with a clear error instead of preventing the crate from
+being built at all. No Windows CI runner exists in this workspace to
+continuously verify the `#[cfg(not(unix))]` branch keeps compiling as
+the crate evolves; a future edit to `swap_current` could silently
+reintroduce a Unix-only construct elsewhere in the same function without
+any check catching it before a non-Unix contributor hits it again.
+
+**Required follow-up:** none required for this fix's own scope. Adding a
+`windows-latest` compile-only (not full-test) CI leg would catch
+regressions of this exact class going forward; not done here since it's
+outside this issue's named scope (#167 is about the one existing compile
+failure, not about establishing new CI infrastructure).
+
+**Supersedes / superseded by:** none. Narrow compile-target fix; no
+existing crate behavior changed on the Unix targets this crate was
+already built and tested against.
+### D-0319 — `mini-extract-protocol` + `mini-extract-host`: isolated extractor protocol and process host, Track B3 of the native-intake direction  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+Part V (Track B PR sequence); D-0313 (`mini-intake-types`, Track B1);
+D-0315 (`mini-intake`, Track B2); D-0069 (`mini-pipeline-protocol`/
+`mini-build-runner-wasmtime`, the isolated-runner discipline this PR
+mirrors); issue #169
+
+**Decision:** adds two new crates. `mini-extract-protocol` is a pure
+wire-format crate -- no I/O, no process-spawning, no filesystem access --
+defining a length-delimited, size-bounded request/result protocol
+between an intake coordinator and an isolated extractor worker:
+`ExtractionRequest` (an `ExtractorKind`, raw `source_bytes`, and
+`ResourceLimits`), `ExtractionOutcome` (either `ExtractionSuccess` or a
+specific, structured `ExtractionError` -- `Timeout`/`OutputTooLarge`/
+`MalformedInput`/`ExtractorCrashed`/`Io`/`UnsupportedExtractorKind`,
+never a generic failure), and `read_framed`/`write_framed` framing.
+Hand-rolled rather than depending on `mini-pipeline-protocol` despite an
+identical wire shape for the framing helpers -- the same choice
+`mini-intake-types`/`mini-relay`/`mini-bridge`/`mini-private-index`
+already made, keeping each isolated-process protocol crate free of a
+cross-domain dependency edge to an unrelated subsystem.
+
+`mini-extract-host` is the isolated host: `run_worker` spawns the
+compiled `mini-extract-worker` binary (this crate's own `[[bin]]`
+target) as a genuine child process, writes a framed request to its
+stdin from a writer thread, and reads a framed result from its stdout
+on a reader thread bounded by `mpsc::channel::recv_timeout` against
+`ResourceLimits::max_wall_clock_ms` -- exactly the spawn/thread/
+mpsc-timeout pattern `mini-cli build run` already uses to talk to
+`mini-build-runner-wasmtime` (`crates/mini-cli/src/build.rs`). A missed
+deadline kills the child and reports `ExtractionError::Timeout`; a
+worker that exits without writing a result frame reports
+`ExtractorCrashed { exit_code }`; a result frame declaring more than the
+request's own `max_output_bytes` reports `OutputTooLarge` before the
+host allocates to read it. `HostError` is reserved for failures meaning
+the exchange itself never happened (the binary is missing, an unrelated
+I/O failure) -- a worker that behaved badly but still spoke the protocol
+always comes back `Ok(ExtractionOutcome::Err(..))`, never `Err`.
+
+The one simple extractor Track B3 asks for: `ExtractorKind::
+PlainTextNormalize` lossy-UTF-8-decodes `source_bytes`, strips control
+characters other than tab/newline, and collapses horizontal whitespace
+runs -- deliberately trivial, proving the isolation host works
+end-to-end before Track B4's real PDF/HTML parsers (a far larger,
+historically-exploited attack surface) are wired in behind their own
+licence/security review. `ExtractorKind` is `#[non_exhaustive]`; the
+worker's own dispatch match has an explicit wildcard arm returning
+`UnsupportedExtractorKind` rather than a compile error or silent
+fallthrough, so a request naming a kind this binary predates fails
+cleanly and specifically. 30 tests total: 17 protocol round-trip/
+truncation/oversize-rejection tests (`mini-extract-protocol`), 5 unit
+tests for the plain-text extractor itself, and 8 adversarial/integration
+tests spawning the real compiled worker binary (successful extraction,
+empty input, invalid UTF-8 lossy-decoded not rejected, output-too-large,
+a zero-millisecond deadline reported as timeout, a missing binary
+reported as `HostError::Spawn` not a panic, a process that exits without
+a result frame reported as `ExtractorCrashed` via the real `true`
+binary, and two concurrent extractions not interfering).
+
+**Reason:** the research report's own Track B sequencing names PR B3 as
+"isolated worker protocol; resource limits; structured errors; one
+simple extractor; adversarial tests" -- exactly this PR's scope, no
+more. Mirroring `mini-pipeline-protocol`/`mini-build-runner-wasmtime`'s
+already-reviewed process-spawn/framing/timeout discipline rather than
+inventing a new isolation mechanism is the same "prefer the smaller,
+well-trodden construction" reasoning (Directive 14) already applied to
+D-0069 itself; the self-hosted forge spine's own CLI (`mini build run`)
+is real, working, adversarially-tested proof this exact pattern holds up
+under a hostile/misbehaving child process.
+
+**Constitutional impact:** none negative. No new cryptography (Directive
+14). No voice/value wall implications -- no dependency on `mini-value`/
+`mini-bounty`/`mini-treasury` or on `mini-forge`/`mini-chain` voting.
+Typed-domains rule honored: the worker's only externally-driven action
+(running an extractor over bytes) is dispatched through
+`ExtractorKind`, a closed-but-extensible named enum, never a generic
+`run(bytes)` the caller could redirect to arbitrary logic.
+`mini-build-runner-wasmtime` remains the only crate in this tree
+permitted to link Wasmtime -- `mini-extract-host` has no Wasmtime
+dependency and never will; its isolation is OS-process-boundary only,
+honestly scoped as weaker than Wasmtime's deny-by-default capability
+sandbox in the crate's own "Honest limits" doc section.
+
+**Implementation status:** shipped in `mini-extract-protocol` and
+`mini-extract-host` only, both added to the workspace `members` list.
+`cargo fmt --all`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features`
+all clean, including these two new crates' 30 tests.
+
+**Failure point:** process-boundary isolation only, not Wasmtime-grade
+sandboxing -- no seccomp-bpf, no restricted syscalls, no network or
+filesystem denial beyond what the OS grants any ordinary child process
+of the same user; a malicious "extractor" logic given enough CPU time
+before its wall-clock kill could still, in principle, attempt anything
+an unprivileged process on the host can. One built-in extractor only,
+and it never rejects input as malformed (lossy UTF-8 decoding always
+succeeds), so `ExtractionError::MalformedInput` is defined but currently
+unreachable by any built-in extractor -- Track B4's real parsers are
+expected to be the first to actually return it. No wiring yet: `mini-
+intake`'s coordinator (Track B2) does not call `run_worker` -- that
+integration, and choosing where the compiled `mini-extract-worker`
+binary is expected to live relative to its caller (mirroring `mini-cli
+build run`'s next-to-the-executable-then-PATH resolution), is left to a
+later PR. No cross-process resource accounting beyond wall-clock and
+declared-output-size -- no memory ulimit, no CPU-time ulimit, no disk-
+write prevention (the worker process is never given a path to write to,
+but nothing in this crate enforces that at the OS level the way a
+seccomp filter would).
+
+**Required follow-up:** wire `mini-intake`'s coordinator to
+`mini-extract-host::run_worker` for `.txt`/`.md` files currently handled
+in-process, and for any future format once Track B4 lands; Track B4
+(PDF/HTML extraction backends, after licence/security review, each as
+its own new `ExtractorKind` variant); Track B5 (intake publication
+linking); consider real OS resource limits (`setrlimit` on Unix, a job
+object on Windows) as a follow-up hardening pass once a real extractor
+with a larger attack surface than lossy UTF-8 decoding exists.
+
+**Supersedes / superseded by:** none. Two new crates; composes no
+existing crate's runtime behavior, only its own process-spawn/framing
+pattern mirrored from `mini-pipeline-protocol`/`mini-build-runner-
+wasmtime` (D-0069) without a dependency edge to either.

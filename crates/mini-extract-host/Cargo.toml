@@ -1,0 +1,17 @@
+[package]
+name = "mini-extract-host"
+version = "0.0.1"
+description = "The isolated document-extractor host + worker binary (native-intake Track B3). Ships one simple built-in extractor (UTF-8 plain-text normalization); PDF/HTML backends are Track B4, deliberately deferred pending their own licence/security review. mini-intake never links this crate in-process -- every caller spawns the mini-extract-worker binary as a genuine child process, the same discipline mini-cli already uses for mini-build-runner-wasmtime."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mini-extract-worker"
+path = "src/main.rs"
+
+[dependencies]
+mini-extract-protocol = { path = "../mini-extract-protocol" }
