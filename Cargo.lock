@@ -1198,6 +1198,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-crawler"
+version = "0.0.1"
+dependencies = [
+ "mini-web-types",
+]
+
+[[package]]
 name = "mini-crdt"
 version = "0.0.1"
 dependencies = [
