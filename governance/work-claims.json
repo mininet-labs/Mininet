@@ -62,6 +62,23 @@
       ],
       "decision_ids": [],
       "notes": "Fix Windows compile failure: gate std::os::unix::fs::symlink behind #[cfg(unix)], add runtime-Unsupported fallback on other platforms. No behavior change on Unix; no new capability."
+      "notes": "Fix Windows compile failure: gate std::os::unix::fs::symlink behind #[cfg(unix)], add runtime-Unsupported fallback on other platforms. No behavior change on Unix; no new capability."
+    },
+    {
+      "issue": 169,
+      "status": "active",
+      "contributor": "Claude",
+      "branch": "claude/mini-extract-protocol-host",
+      "pull_request": 172,
+      "lease_expires": "2026-07-26",
+      "paths": [
+        "crates/mini-extract-protocol/",
+        "crates/mini-extract-host/",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [],
+      "notes": "Track B3: extractor protocol (mini-extract-protocol) + isolated host (mini-extract-host), mirroring mini-pipeline-protocol/mini-build-runner-wasmtime's subprocess-isolation discipline. One simple plain-text-normalize extractor; PDF/HTML deferred to Track B4."
     }
   ]
 }

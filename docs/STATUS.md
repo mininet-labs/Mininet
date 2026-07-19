@@ -891,11 +891,31 @@ the top development priority.
   deduplicates by content digest (a dedup hit returns the existing
   envelope untouched, even if its review state was already advanced —
   no automatic promotion *or* demotion). Real, tested (13 tests,
-  including a real `FsBackend` persistence round-trip). No extractor,
-  no PDF/HTML/binary support, no network client, no AI model, no
-  publication linking — those are Tracks B3-B5, not started. No
-  cross-process locking (same documented limitation `mini-store::FsBackend`
-  itself carries).
+  including a real `FsBackend` persistence round-trip). No cross-process
+  locking (same documented limitation `mini-store::FsBackend` itself
+  carries).
+- **shipped** — `mini-extract-protocol` + `mini-extract-host` (D-0319,
+  Track B3): the isolated extractor protocol and process host. Mirrors
+  `mini-pipeline-protocol`/`mini-build-runner-wasmtime`'s spawn/frame/
+  mpsc-timeout discipline (D-0069) rather than depending on it —
+  `run_worker` spawns the compiled `mini-extract-worker` binary as a
+  genuine child process and speaks real length-delimited framing over
+  its stdin/stdout, killing it and reporting `ExtractionError::Timeout`
+  on a missed `max_wall_clock_ms` deadline, `ExtractorCrashed` on an
+  early exit with no result frame, `OutputTooLarge` on a declared result
+  over `max_output_bytes`. One built-in extractor
+  (`ExtractorKind::PlainTextNormalize`, lossy-UTF-8-decode + strip
+  control characters + collapse whitespace) proves the isolation host
+  end-to-end; PDF/HTML backends are Track B4, deliberately deferred
+  pending licence/security review. Process-boundary isolation only (no
+  seccomp, no OS resource limits beyond wall-clock and output size) —
+  honestly weaker than `mini-build-runner-wasmtime`'s real Wasmtime
+  sandbox, documented as such. Real, tested (30 tests: 17 protocol wire
+  tests, 5 extractor unit tests, 8 adversarial/integration tests against
+  the real compiled worker binary). Not yet wired to `mini-intake`'s
+  coordinator — that integration is later follow-up. No PDF/HTML
+  support, no network client, no AI model, no publication linking —
+  those are Tracks B4-B5, not started.
 
 ## What has no client, at all
 
