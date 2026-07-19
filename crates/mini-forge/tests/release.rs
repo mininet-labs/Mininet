@@ -4,10 +4,11 @@
 use did_mini::{Capabilities, Controller, Did};
 use mini_crypto::HashAlgorithm;
 use mini_forge::{
-    commit, detect_equivocation, list_releases, project, put_file, put_tree, release, Policy,
-    TreeEntry,
+    commit, detect_equivocation, detect_equivocation_strict, list_releases, list_releases_strict,
+    project, put_file, put_tree, release, Policy, TreeEntry,
 };
 use mini_media::publish_media;
+use mini_objects::{ObjectBuilder, ObjectType, Payload};
 use mini_store::{MemoryBackend, Store};
 
 fn human(seed: u8) -> (Controller, Controller) {
@@ -179,6 +180,46 @@ fn list_releases_on_an_unknown_branch_is_empty_not_an_error() {
     assert!(list_releases(&store, proj.id(), "release/1.x")
         .unwrap()
         .is_empty());
+}
+
+#[test]
+fn strict_release_log_rejects_malformed_matching_entries() {
+    let (root, dev) = human(22);
+    let author = root.did();
+    let mut store = Store::new(MemoryBackend::new());
+    let proj = project(
+        &mut store,
+        &author,
+        &dev,
+        "app",
+        &Policy {
+            min_approvals: 1,
+            maintainers: vec![author.clone()],
+        },
+    )
+    .unwrap();
+
+    // A validly signed object can still carry a malformed release payload.
+    // The compatibility query skips it, but a transparency-log consumer must
+    // be able to fail closed instead of silently constructing a partial log.
+    let malformed = ObjectBuilder::new(ObjectType::RELEASE)
+        .timestamp_ms(1_000)
+        .sequence(1)
+        .payload(Payload::Public(vec![0, 0, 0, 1, b'x']))
+        .link("project", proj.id().clone())
+        .sign(&author, &dev)
+        .unwrap();
+    store.insert(&malformed).unwrap();
+
+    assert!(list_releases(&store, proj.id(), "main").unwrap().is_empty());
+    assert!(matches!(
+        list_releases_strict(&store, proj.id(), "main"),
+        Err(mini_forge::ForgeError::BadObject)
+    ));
+    assert!(matches!(
+        detect_equivocation_strict(&store, proj.id(), "main"),
+        Err(mini_forge::ForgeError::BadObject)
+    ));
 }
 
 #[test]

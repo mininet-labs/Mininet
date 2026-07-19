@@ -120,6 +120,35 @@ pub fn list_releases<B: Backend>(
     Ok(out)
 }
 
+/// Strict transparency-log query. Unlike [`list_releases`], this refuses a
+/// malformed `RELEASE` object that claims the requested project, so observers
+/// cannot silently construct different logs by ignoring malformed entries.
+pub fn list_releases_strict<B: Backend>(
+    store: &Store<B>,
+    project_id: &ObjectId,
+    branch: &str,
+) -> Result<Vec<Object>> {
+    let mut out = Vec::new();
+    for id in store.by_type(&ObjectType::RELEASE)? {
+        let rel = store.get(&id)?;
+        let claims_project = rel
+            .links
+            .iter()
+            .any(|l| l.rel == "project" && &l.target == project_id);
+        if !claims_project {
+            continue;
+        }
+        let Ok((_, claimed_branch, _, _)) = parse_release_payload(&rel) else {
+            return Err(ForgeError::BadObject);
+        };
+        if claimed_branch == branch {
+            out.push(rel);
+        }
+    }
+    out.sort_by_key(|r| (r.timestamp_ms, r.sequence));
+    Ok(out)
+}
+
 /// Two `RELEASE` objects for the same project/branch that claim the same
 /// version but disagree on the artifact digest -- evidence of
 /// equivocation: a publisher (or an attacker who obtained a signing key)
@@ -153,6 +182,39 @@ pub fn detect_equivocation<B: Backend>(
         if let Ok((version, _, artifact_digest, _)) = parse_release_payload(rel) {
             parsed.push((rel.id().clone(), version, artifact_digest));
         }
+    }
+    let mut found = Vec::new();
+    for i in 0..parsed.len() {
+        for j in (i + 1)..parsed.len() {
+            let (id_a, version_a, digest_a) = &parsed[i];
+            let (id_b, version_b, digest_b) = &parsed[j];
+            if version_a == version_b && digest_a != digest_b {
+                found.push(Equivocation {
+                    version: version_a.clone(),
+                    first: id_a.clone(),
+                    second: id_b.clone(),
+                    first_artifact_digest: *digest_a,
+                    second_artifact_digest: *digest_b,
+                });
+            }
+        }
+    }
+    Ok(found)
+}
+
+/// Strict counterpart to [`detect_equivocation`]. A malformed release that
+/// claims the project is an error, rather than an entry silently omitted from
+/// the evidence set.
+pub fn detect_equivocation_strict<B: Backend>(
+    store: &Store<B>,
+    project_id: &ObjectId,
+    branch: &str,
+) -> Result<Vec<Equivocation>> {
+    let releases = list_releases_strict(store, project_id, branch)?;
+    let mut parsed: Vec<(ObjectId, String, [u8; 32])> = Vec::with_capacity(releases.len());
+    for rel in &releases {
+        let (version, _, artifact_digest, _) = parse_release_payload(rel)?;
+        parsed.push((rel.id().clone(), version, artifact_digest));
     }
     let mut found = Vec::new();
     for i in 0..parsed.len() {
