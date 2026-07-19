@@ -1,0 +1,18 @@
+[package]
+name = "mini-intake"
+version = "0.0.1"
+description = "Trusted Mininet Intake coordinator (Track B2): hashing, immutable local storage, deduplication, local text/Markdown intake, atomic object creation. Composes mini-store's content-addressed Backend rather than mini_objects::Store, since intake material has no did:mini signature at ingest time. Never promotes or demotes authority automatically."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+mini-intake-types = { path = "../mini-intake-types" }
+mini-store = { path = "../mini-store" }
+
+[dev-dependencies]
+tempfile = "3"

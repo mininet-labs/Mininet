@@ -1198,6 +1198,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-crawler"
+version = "0.0.1"
+dependencies = [
+ "mini-web-types",
+]
+
+[[package]]
 name = "mini-crdt"
 version = "0.0.1"
 dependencies = [
@@ -1261,6 +1268,16 @@ dependencies = [
  "mini-media",
  "mini-objects",
  "mini-store",
+]
+
+[[package]]
+name = "mini-intake"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-intake-types",
+ "mini-store",
+ "tempfile",
 ]
 
 [[package]]

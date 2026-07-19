@@ -7569,3 +7569,146 @@ observation exchange as separate PRs.
 **Supersedes / superseded by:** implements the first code slice named by
 D-0312's Track E follow-up. Does not supersede `mini-private-index`
 (D-0310), which remains private capability lookup, not public web search.
+### D-0315 — `mini-intake`: trusted intake coordinator, Track B2 of the native-intake direction  ·  *Accepted*
+**Date:** 2026-07-18 · **Refs:** founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+Part V (Track B PR sequence); D-0313 (`mini-intake-types`, the vocabulary
+this crate drives); `mini-store` (the `Backend` trait this crate
+composes)
+
+**Decision:** adds a new crate, `mini-intake`, that actually drives
+`mini-intake-types`' vocabulary: `intake_local_file` reads one local
+text/Markdown file, computes its `BLAKE3` digest (`mini_crypto`, no new
+cryptography), stores the immutable source bytes, and creates a fresh
+`Unreviewed`/`UntrustedExternal` `IntakeEnvelope` — or, on a dedup hit
+(byte-identical content already intaken, detected by content digest, not
+path), returns the *existing* envelope completely untouched. `load_envelope`/
+`read_source_bytes` read back what's stored; `save_envelope` persists a
+caller-mutated envelope (e.g. after a separate, later
+`advance_review_state`/`promote_authority` call) — this crate never calls
+either on a caller's behalf. Storage composes `mini_store::Backend`
+(`MemoryBackend`/`FsBackend`) — the plain content-addressed blob/meta
+abstraction — rather than `mini_store::Store`/`mini_objects::Object`,
+since intake material has no `did:mini` signature at ingest time and
+`Store` assumes self-certifying signed objects. Media-type detection is
+extension-based and deliberately narrow: `.txt`/extensionless → plain
+text, `.md`/`.markdown` → Markdown, anything else is a hard
+`UnsupportedMediaType` error rather than a guess (PDF/HTML/etc. is Track
+B3/B4); bytes that fail UTF-8 validation are rejected regardless of
+extension. 13 tests, including a dedup test proving re-intaking
+identical content after a caller advanced its review state and authority
+class returns the *advanced* envelope, not a fresh reset one, and a real
+`FsBackend` round-trip test proving persistence survives closing and
+reopening the backend.
+
+**Reason:** the research report's own Track B sequencing names PR B2 as
+hashing, immutable storage, deduplication, local text/Markdown intake,
+atomic object creation, and — explicitly — no automatic authority
+promotion. Composing `mini-store::Backend` rather than writing a parallel
+blob-storage primitive from scratch avoids duplicating already-solved,
+already-tested atomic-write/content-addressing plumbing (`FsBackend`'s
+tmp-file-then-rename discipline), while deliberately not depending on
+`mini-store::Store`/`mini_objects` object semantics, which are the wrong
+trust model for bytes with no Mininet identity behind them yet.
+
+**Constitutional impact:** none negative. No new cryptography (Directive
+14) — reuses `mini_crypto::Multihash`/`HashAlgorithm` and the existing
+multibase encoding helper, exactly as `mini_objects::ObjectId` already
+does, for backend key derivation. No voice/value wall implications — no
+dependency on `mini-value`/`mini-bounty`/`mini-treasury` or on
+`mini-forge`/`mini-chain` voting. Extends D-0313's structural
+no-automatic-authority-promotion guarantee with its practical
+consequence discovered while implementing this crate: a dedup hit must
+also never *demote* an already-advanced envelope back to `Unreviewed`/
+`UntrustedExternal` — tested explicitly
+(`a_dedup_hit_never_resets_an_already_advanced_review_state`).
+
+**Implementation status:** shipped in `mini-intake` only, added to the
+workspace `members` list. `cargo fmt --all`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` all clean, including this new crate's 13 tests.
+
+**Failure point:** local text/Markdown only — no PDF/HTML/binary support,
+no extractor, no AI model, no network client, no publication linking. No
+cross-process locking: concurrent intake calls against the same `FsBackend`
+directory from two processes are not coordinated (same documented
+limitation `mini-store::FsBackend` itself already carries). Atomicity is
+per-write, not cross-file-transactional — a crash between writing the
+source blob and writing the envelope leaves a resumable, not corrupted,
+state (documented in the crate's own doc comments), but this has not been
+tested under an actual simulated crash/kill, only reasoned about.
+`AuthorityClass`/`ReviewState` remain honor-system beyond this crate's own
+guarantees: nothing here verifies that a caller's `advance_review_state`
+call reflects a review that actually happened.
+
+**Required follow-up:** Track B3 (extractor protocol + isolated host,
+mirroring `mini-build-runner-wasmtime`'s sandboxing discipline); Track B4
+(PDF/HTML extraction backends, after license/security review); Track B5
+(intake publication linking). A crash-recovery test (kill mid-write,
+verify resumability) is a reasonable next hardening step before Track B2
+is relied on for anything beyond local single-process use.
+
+**Supersedes / superseded by:** none. New crate; composes `mini-store`
+and `mini-intake-types` additively, no existing crate's behavior changed.
+
+### D-0317 — `mini-crawler`: deterministic MiniSearch crawler planning and URL admission, Track E2  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0312 (MiniSearch doctrine);
+D-0316 (`mini-web-types`); issue #161; founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§14.2 and Track E PR sequence; Directive 16 (voice/value wall)
+
+**Decision:** adds `mini-crawler`, the second MiniSearch code slice after
+`mini-web-types`. The crate implements deterministic crawler planning and
+URL admission policy only: bounded `CrawlLimits`, explicit
+`CrawlExclusions`, `CrawlRequest`, `CrawlAdmission`, named
+`CrawlRejectReason` values, and a FIFO `CrawlPlan` that tracks canonical
+URL identity with the `CanonicalUrl::canonical_string()` representation
+from `mini-web-types`. The default plan is single-host and HTTPS-only,
+rejects cross-host discoveries, depth overrun, queue/seen exhaustion,
+overlong canonical URLs, duplicate canonical URLs, and caller-supplied
+robots exclusions before any fetch can occur.
+
+The crate deliberately has no network client, DNS lookup, robots fetcher,
+JavaScript execution, HTML parser, storage, indexing, ranking, payment,
+provider reward, governance, or value dependency. It is an admission core
+for a later runtime, not a crawler runtime.
+
+**Reason:** D-0312 names a minimal crawler as the next Track E slice, but
+fetching the public web before deterministic admission rules would bake
+abuse risk and platform-shaped behavior into the wrong layer. Shipping
+the policy core first makes the future runtime testable: the decision to
+fetch is bounded and explainable before any network side effect happens.
+Explicit rejection reasons also preserve D-0312's separation between
+discovery, availability, and ranking — a robots or policy exclusion is a
+crawler-layer fact, not a hidden relevance penalty.
+
+**Constitutional impact:** strengthens the search-domain extension of
+Directive 16 without adding authority. `mini-crawler` contains no
+payment, stake, balance, governance-weight, or provider-entitlement
+field; crawler admission cannot buy ranking authority and cannot approve
+or canonicalize content. No new cryptography is introduced.
+
+**Implementation status:** shipped in `mini-crawler` and added to the
+workspace. Focused local validation on Windows: `cargo fmt --all
+-- --check` and `cargo test -p mini-crawler --all-features` pass, with
+tests covering empty/invalid plans, deterministic seed order and
+canonical duplicate handling, HTTPS-only default behavior, cross-host
+rejection, depth and queue limits, robots exclusions, canonical URL byte
+limits, and explicit HTTP opt-in.
+
+**Failure point:** planning only. No page is fetched, parsed, stored,
+indexed, ranked, queried, federated, paid for, or published by this
+crate. Robots exclusions are caller-supplied policy inputs; this crate
+does not download or interpret `robots.txt`. The same-host default is
+deliberate for the first runtime slice and is not a full web-scale
+frontier.
+
+**Required follow-up:** a runtime that uses this policy before fetch;
+robots.txt retrieval/parsing as a separate bounded module; static HTML/
+text extraction in a sandboxed process; immutable crawl observations;
+content-addressed index segments; transparent ranker; query CLI; and
+federated/distributed query merging as later Track E/F PRs.
+
+**Supersedes / superseded by:** implements the minimal crawler-planning
+slice named by D-0312 after D-0316. Does not supersede `mini-web-types`
+or `mini-private-index`.

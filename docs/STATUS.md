@@ -42,7 +42,7 @@ research/decisions land:
 2. **Storage** — `mini-storage`/`mini-erasure`/`mini-spacetime`/
    `mini-porep` hardening plus the suppression-resistant replication
    path named in D-0311 (Track D5).
-3. **Search** — MiniSearch (D-0312): `mini-web-types` → minimal crawler
+3. **Search** — MiniSearch (D-0312): `mini-web-types` → `mini-crawler`
    → sandboxed extraction → lexical index → transparent ranker → query
    CLI → federated/distributed layer (Tracks E/F, `docs/research/
    MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`).
@@ -865,19 +865,33 @@ the top development priority.
   shared vocabulary for canonical URLs, crawl observations,
   `AvailabilityState`, `RestrictionReason`, `RankingProfile`,
   `PersonalizationPolicy::None` as the public default, `SearchResult`,
-  and `RankingExplanation`. Still no crawler, extractor, lexical index,
-  ranker, query service, search UI, network exchange, or federated/
-  distributed layer. Explicitly a distinct system from
+  and `RankingExplanation`. `mini-crawler` (D-0317) is the second code
+  slice: deterministic crawler planning and URL admission policy only —
+  bounded same-host frontiers, explicit robots exclusions,
+  depth/queue/URL-length limits, HTTPS-only by default, and no network
+  client, parser, JavaScript execution, storage, indexing, ranking, or
+  payment logic. Still no extractor, lexical index, ranker, query
+  service, search UI, network exchange, or federated/distributed layer.
+  Explicitly a distinct system from
   `mini-private-index` (D-0310), which is not to be repurposed as the
   general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
-  a deterministic wire codec. Real, tested (35 unit tests). No parser,
-  filesystem watcher, network client, storage, or AI model — those are
-  Tracks B2-B5 (`mini-intake`, the extractor protocol, PDF/HTML
-  extraction backends, intake publication linking), not started.
+  a deterministic wire codec. Real, tested (35 unit tests).
+- **shipped** — `mini-intake` (D-0315, Track B2): the trusted intake
+  coordinator — `intake_local_file` hashes a local text/Markdown file
+  (BLAKE3), stores the immutable bytes and a fresh `Unreviewed`/
+  `UntrustedExternal` `IntakeEnvelope` via `mini_store::Backend`, and
+  deduplicates by content digest (a dedup hit returns the existing
+  envelope untouched, even if its review state was already advanced —
+  no automatic promotion *or* demotion). Real, tested (13 tests,
+  including a real `FsBackend` persistence round-trip). No extractor,
+  no PDF/HTML/binary support, no network client, no AI model, no
+  publication linking — those are Tracks B3-B5, not started. No
+  cross-process locking (same documented limitation `mini-store::FsBackend`
+  itself carries).
 
 ## What has no client, at all
 
