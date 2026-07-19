@@ -169,6 +169,7 @@ pub struct Community {
 }
 
 /// Publish a community card.
+#[allow(clippy::too_many_arguments)]
 pub fn publish_community<B: Backend>(
     store: &mut Store<B>,
     owner: &Did,
@@ -832,6 +833,7 @@ impl ReactionKind {
 
 /// Set or clear one reaction. The latest `(sequence, object id)` wins for
 /// each author/target/type, independent of arrival order.
+#[allow(clippy::too_many_arguments)]
 pub fn set_reaction<B: Backend>(
     store: &mut Store<B>,
     human: &Did,
