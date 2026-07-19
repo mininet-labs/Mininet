@@ -7967,3 +7967,115 @@ permanently unmergeable.
 
 **Supersedes / superseded by:** refines D-0314's narrowing of this job.
 Supersedes nothing; SPEC-11 is untouched.
+### D-0322 — `mini-crypto`: ML-DSA-65 key generation + isolated signing, Phase 2 of the post-quantum identity migration (D-0095, issue #15)  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0095 (Phase 1: verify-only support);
+`docs/design/post-quantum-identity-migration.md`; `docs/research/
+PQ15_POST_QUANTUM_MIGRATION_RESEARCH_20260715.md` §24 (rollout phases);
+issue #15; issue #175
+
+**Decision:** `SigningKey` gains `generate_ml_dsa_65()` and
+`sign_ml_dsa_65(message)`, composing `fips204`'s own
+`try_keygen_with_rng`/`try_sign_with_rng` with `rand_core::OsRng` for
+entropy — the same canonical OS-backed RNG Phase 1's own tests already
+validated real `fips204` keygen/signing against. These are new,
+explicitly-named, suite-specific methods alongside the existing
+Ed25519-only `generate()`/`sign()`, which are completely unchanged in
+behavior. Internally, `SigningKey`'s private field becomes a
+`SecretKeyMaterial` enum (`Ed25519(Box<DalekSigningKey>)` /
+`MlDsa65 { public, secret }`, both `fips204` structs boxed together
+since FIPS 204's exposed API gives no way to recover a `PublicKey` from
+a `PrivateKey` alone, unlike Ed25519 where the verifying key is cheaply
+re-derived from the signing key) — mirroring `KeyMaterial`'s existing
+suite-tagged-enum pattern on the `VerifyingKey` side from Phase 1.
+`verifying_key()` now handles both suites. Secret zeroization on drop is
+structural, not reimplemented — `fips204::ml_dsa_65::PublicKey`/
+`PrivateKey` both derive `ZeroizeOnDrop` already.
+
+`sign()` and `to_seed_bytes()` stay infallible (unchanged return types,
+since every existing call site across the workspace already assumes
+that and holds only Ed25519 keys) but now **panic** with a clear,
+specific message if called on an `MlDsa65` key — a genuinely reachable
+caller bug now that `generate_ml_dsa_65()` exists, honestly documented
+as such rather than mislabeled `unreachable!()`. `sign_ml_dsa_65()`,
+being a brand-new method with no legacy infallible contract to preserve,
+instead returns `Err(CryptoError::SignatureSuiteMismatch)` (a new error
+variant, mirroring the existing `KeyAgreementSuiteMismatch`) when called
+on an Ed25519 key — the `Result`-returning, non-panicking discipline
+`VerifyingKey::verify` already uses for its own suite-mismatch case.
+
+**Reason:** the research report's own rollout phasing (§24) names Phase
+2 as "generate ML-DSA keys; sign typed test messages; secure RNG; secret
+zeroisation; benchmarks; mobile tests; cross-implementation vectors" —
+explicitly listed *before* Phase 5's external-cryptographic-review gate,
+confirming key generation/isolated signing is self-contained crate work
+the review gate does not block (the gate applies to network opt-in and
+KEL activation, Phase 5 onward). Composing `fips204`'s own
+`try_keygen_with_rng`/`try_sign_with_rng` plus the canonical
+`rand_core::OsRng` (already a proven quantity from Phase 1's tests)
+rather than hand-rolling an RNG wrapper follows Directive 14 (prefer the
+smaller, well-trodden construction) — `rand_core::OsRng`'s own
+entropy-failure posture (panic inside `RngCore::fill_bytes`, since that
+trait method's signature has no `Result` to propagate through) is
+industry-standard behavior this crate reuses rather than reinvents.
+
+**Constitutional impact:** none negative. No new cryptography (Directive
+14) — composes only `fips204`'s and `rand_core`'s already-reviewed
+primitives, identical discipline to Phase 1's `VerifyingKey`/`Signature`
+work. No voice/value wall implications. Typed-domains rule honored:
+`sign_ml_dsa_65`/`generate_ml_dsa_65` are specific, narrowly-named
+methods, not a generic suite-parameterized `sign(suite, bytes)` a caller
+could misuse. Does **not** touch `SignatureSuite::DEFAULT`, `did-mini`,
+or any KEL/identity logic — Phase 3 onward remains completely
+unstarted, exactly as D-0095 already scoped.
+
+**Implementation status:** shipped in `mini-crypto` only. `rand_core`
+promoted from this crate's `[dev-dependencies]` to `[dependencies]`
+(version-pinned to match what `fips204` itself resolves to, so there is
+exactly one `rand_core` in the dependency graph — the same discipline
+`mini-build-runner-wasmtime`'s Cargo.toml already documents for its own
+`rand_core` pin). `cargo fmt --all`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` all clean, including 8 new tests: a real generate →
+sign → verify round-trip entirely through `mini_crypto`'s own public API
+(stronger than Phase 1's tests, which exercised `fips204` directly for
+keygen/signing and `mini_crypto` only for verification); wrong-message
+and wrong-key rejection; two independently generated keys are distinct
+(proving real RNG-backed generation); `sign_ml_dsa_65` on an Ed25519 key
+returns the new mismatch error rather than panicking; `sign`/
+`to_seed_bytes` on an `MlDsa65` key panic with the documented message;
+`Debug` output on a generated `MlDsa65` `SigningKey` still redacts
+secret material.
+
+**Failure point:** benchmarks and mobile/WASM testing (both explicitly
+named in Phase 2's own scope) are not done — no benchmarking harness or
+mobile toolchain exists in this environment; named honestly here rather
+than silently skipped. No official FIPS 204 known-answer cross-
+implementation test vectors are exercised (this PR's tests check
+internal self-consistency through `mini_crypto`'s own API, the same
+honesty posture Phase 1's tests already had). No secret-key storage
+export/import for `MlDsa65` — `to_seed_bytes`'s Ed25519-only 32-byte-
+seed model has no FIPS 204 equivalent exposed by `fips204`'s API (no
+way to derive a `PublicKey` back from a raw seed the way Ed25519 does),
+and building one (concatenated public+private key export) was judged
+out of Phase 2's named scope; a generated `MlDsa65` key today only lives
+for the process's lifetime. `sign`/`to_seed_bytes` panicking on the
+wrong suite is a real footgun for any future caller who forgets to check
+`SigningKey::suite()` first — acceptable for now because nothing in the
+workspace outside this PR's own tests constructs an `MlDsa65` `SigningKey`
+yet, but this must be kept in mind by whichever future PR (Phase 3,
+`did-mini` wiring) starts handing suite-mixed keys to shared code paths.
+
+**Required follow-up:** Phase 3 (`did-mini`'s KEL hybrid migration
+protocol: pre-commitment, dual-authorised rotation, downgrade
+prevention, legacy-client handling) — not started, and per D-0095's own
+hard rule, may not land before the external cryptographic review gate
+that specifically covers *migration* (not this PR's self-contained
+keygen/signing primitive). Benchmarks and mobile/WASM testing as a
+fast-follow once appropriate tooling exists. Consider whether
+`sign`/`to_seed_bytes`'s panic-on-wrong-suite posture should become
+`Result`-returning workspace-wide once Phase 3 actually starts handing
+`SigningKey` values across suite-mixed call sites.
+
+**Supersedes / superseded by:** extends D-0095 (Phase 1). Does not
+supersede it — `VerifyingKey`/`Signature`'s Phase 1 behavior is
+completely unchanged.
