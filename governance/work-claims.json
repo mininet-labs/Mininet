@@ -62,7 +62,6 @@
       ],
       "decision_ids": [],
       "notes": "Fix Windows compile failure: gate std::os::unix::fs::symlink behind #[cfg(unix)], add runtime-Unsupported fallback on other platforms. No behavior change on Unix; no new capability."
-      "notes": "Fix Windows compile failure: gate std::os::unix::fs::symlink behind #[cfg(unix)], add runtime-Unsupported fallback on other platforms. No behavior change on Unix; no new capability."
     },
     {
       "issue": 169,
