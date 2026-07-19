@@ -415,6 +415,28 @@ fn dispatch_release(
             )
             .map(|r: CommandResult| r.render(json, "release.verify"))
         }
+        "fetch" => {
+            let release_id = next(&mut args, "release fetch")?;
+            let project = next(&mut args, "release fetch")?;
+            let branch = extract_flag(&mut args, "--branch")
+                .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
+            let output = required_path_flag(&mut args, "--output")?;
+            let min_attestations = extract_u32_flag(&mut args, "--min-attestations")?;
+            let timelock_ms = extract_u64_flag(&mut args, "--timelock-ms")?;
+            let now_ms = extract_u64_flag(&mut args, "--now-ms")?;
+            release::fetch(
+                home,
+                store_path,
+                &release_id,
+                &project,
+                &branch,
+                &output,
+                min_attestations,
+                timelock_ms,
+                now_ms,
+            )
+            .map(|r: CommandResult| r.render(json, "release.fetch"))
+        }
         "list" => {
             let project = next(&mut args, "release list")?;
             let branch = extract_flag(&mut args, "--branch")

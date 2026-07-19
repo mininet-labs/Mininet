@@ -7,7 +7,6 @@ use std::fs::{self, OpenOptions};
 use std::path::Path;
 
 use crate::error::{CliError, Result};
-use fs4::FileExt;
 
 fn counter_path(home: &Path) -> std::path::PathBuf {
     home.join("sequence")
@@ -26,10 +25,12 @@ pub fn next(home: &Path) -> Result<u64> {
 
     let lock = OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(lock_path(home))
         .map_err(|e| CliError::Io(e.to_string()))?;
+    #[allow(clippy::incompatible_msrv)]
     lock.lock().map_err(|e| CliError::Io(e.to_string()))?;
 
     let path = counter_path(home);
