@@ -220,6 +220,18 @@ impl CrawlPlan {
         CrawlAdmission::Accepted
     }
 
+    /// Admit a batch in caller order, returning one outcome per request.
+    ///
+    /// The batch is not atomic: accepted requests remain queued even if a
+    /// later request is rejected. This makes queue and seen limits explicit
+    /// and keeps the result reproducible for runtimes processing link batches.
+    pub fn admit_batch<I>(&mut self, requests: I) -> Vec<CrawlAdmission>
+    where
+        I: IntoIterator<Item = CrawlRequest>,
+    {
+        requests.into_iter().map(|request| self.admit(request)).collect()
+    }
+
     pub fn pop_next(&mut self) -> Option<CrawlRequest> {
         self.pending.pop_front()
     }
@@ -413,5 +425,26 @@ mod tests {
         let plan = CrawlPlan::from_seeds(vec![seed], limits).unwrap();
 
         assert_eq!(plan.pending_len(), 1);
+    }
+
+    #[test]
+    fn batch_admission_preserves_order_and_partial_progress() {
+        let seed = url(Scheme::Https, "example.org", "/");
+        let mut limits = CrawlLimits::strict_single_host();
+        limits.max_pending_urls = 2;
+        let mut plan = strict_plan(seed.clone());
+        plan.pop_next();
+        plan.limits = limits;
+
+        let outcomes = plan.admit_batch(vec![
+            CrawlRequest::discovered(url(Scheme::Https, "example.org", "/a"), 1, seed.clone()),
+            CrawlRequest::discovered(url(Scheme::Https, "other.example", "/b"), 1, seed.clone()),
+            CrawlRequest::discovered(url(Scheme::Https, "example.org", "/c"), 1, seed),
+        ]);
+
+        assert_eq!(outcomes[0], CrawlAdmission::Accepted);
+        assert_eq!(outcomes[1], CrawlAdmission::Rejected(CrawlRejectReason::CrossHost));
+        assert_eq!(outcomes[2], CrawlAdmission::Accepted);
+        assert_eq!(plan.pending_len(), 2);
     }
 }
