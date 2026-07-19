@@ -29,12 +29,29 @@ permissions:
 
 jobs:
   # First real slice of SPEC-11's verified-reproducible release pipeline
-  # (roadmap #69): build the workspace twice from a clean target directory
-  # on the same runner and assert the example binaries are byte-identical.
-  # Honest limit: this is same-machine, same-toolchain reproducibility, not
+  # (roadmap #69): build twice from a clean target directory on the same
+  # runner and assert the example binaries are byte-identical.
+  #
+  # Honest limit 1: this is same-machine, same-toolchain reproducibility, not
   # yet the full K-independent-builder, cross-machine check SPEC-11 §8
   # ultimately wants -- that's real follow-up work, not this job pretending
   # to be more than it is.
+  #
+  # Honest limit 2 (scope): the assertion surface is the example binaries of
+  # the four crates that have an examples/ directory -- mini-bootstrap,
+  # mini-keystone, mini-net, mini-treasury -- plus everything in their
+  # dependency closure, which each pass builds from scratch. It was
+  # previously `--workspace --all-targets`, which compiled all 44 crates and
+  # all 50 integration-test binaries twice and then hashed the same four
+  # example binaries, so the extra work proved nothing the job asserts.
+  # Narrowing the build to match the assertion cuts the two-pass cost
+  # substantially without weakening any claim this job actually makes.
+  #
+  # If SPEC-11's intent is later read as "every release artifact is
+  # reproducible" rather than "these example binaries are", the correct fix
+  # is to widen the *hashing* step to cover the additional artifacts -- not
+  # to restore a blanket `--all-targets` build whose extra output is never
+  # compared. Keep the build scope and the assertion scope equal.
   reproducibility:
     runs-on: ubuntu-latest
     steps:
@@ -43,7 +60,9 @@ jobs:
         run: rustup show
 
       - name: Build (pass 1)
-        run: cargo build --workspace --all-targets --release --locked
+        run: |
+          cargo build --release --locked --examples \
+            -p mini-bootstrap -p mini-keystone -p mini-net -p mini-treasury
 
       - name: Hash pass-1 artifacts
         run: |
@@ -55,7 +74,8 @@ jobs:
       - name: Clean and rebuild (pass 2)
         run: |
           rm -rf target
-          cargo build --workspace --all-targets --release --locked
+          cargo build --release --locked --examples \
+            -p mini-bootstrap -p mini-keystone -p mini-net -p mini-treasury
 
       - name: Hash pass-2 artifacts and compare
         run: |
