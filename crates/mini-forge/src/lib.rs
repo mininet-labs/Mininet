@@ -52,8 +52,8 @@ pub use git_export::{export_commit_chain, GitObject, GitObjectKind, MAX_EXPORT_C
 pub use governance::*;
 pub use oracle::{IdentityOracle, KelDirectory};
 pub use release::{
-    check_no_rollback, detect_equivocation, list_releases, release_version, Equivocation, Version,
-    MAX_VERSION_COMPONENTS,
+    check_no_rollback, detect_equivocation, detect_equivocation_strict, list_releases,
+    list_releases_strict, release_version, Equivocation, Version, MAX_VERSION_COMPONENTS,
 };
 
 use crate::oracle::author_verified;
@@ -351,6 +351,10 @@ pub fn set_branch<B: Backend>(
     if !valid_name(name) {
         return Err(ForgeError::BadName);
     }
+    let commit_obj = store.get(commit_id)?;
+    if !commit_is_well_formed(store, &commit_obj) {
+        return Err(ForgeError::BadObject);
+    }
     let head = ObjectBuilder::new(ObjectType::HEAD)
         .sequence(sequence)
         .link("target", commit_id.clone())
@@ -419,14 +423,7 @@ fn validated_commit_tree(commit: &Object) -> Result<ObjectId> {
 }
 
 fn commit_is_well_formed<B: Backend>(store: &Store<B>, commit: &Object) -> bool {
-    let tree = match validated_commit_tree(commit) {
-        Ok(tree) => tree,
-        Err(_) => return false,
-    };
-    match store.get(&tree) {
-        Ok(tree_object) => read_tree(&tree_object).is_ok(),
-        Err(_) => false,
-    }
+    commit.object_type == ObjectType::COMMIT && checkout(store, commit.id()).is_ok()
 }
 
 /// Work budget for a single checkout (guards fan-out and cycles).
