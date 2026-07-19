@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-19T02:14:27Z",
+  "updated_at": "2026-07-19T02:39:25Z",
   "claims": [
     {
       "issue": 122,
@@ -49,10 +49,10 @@
     },
     {
       "issue": 167,
-      "status": "active",
+      "status": "in_review",
       "contributor": "Claude",
       "branch": "claude/mini-installer-windows-compile",
-      "pull_request": 0,
+      "pull_request": 171,
       "lease_expires": "2026-07-26",
       "paths": [
         "crates/mini-installer/src/lib.rs",
