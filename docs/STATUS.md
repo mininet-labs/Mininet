@@ -850,7 +850,7 @@ MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`)
 naming forge/storage/search/social-network/governance/crypto-anonymity as
 the top development priority.
 
-- **doctrine-only** — MiniSearch, independent open-web search (D-0312):
+- **partial** — MiniSearch, independent open-web search (D-0312):
   founder decision that Mininet builds and operates its own crawler/
   index/search stack — free public search as a commons entitlement
   (D-0311), no pay-to-rank organic results, no mandatory
@@ -861,12 +861,15 @@ the top development priority.
   architected for plurality (multiple index segments, multiple
   forkable ranking profiles, federated query merging, local
   re-ranking) so MiniSearch cannot itself become a second search
-  monopoly. **No code** — `mini-web-types`, `mini-crawler`,
-  `mini-web-extract`, `mini-index`, `mini-ranker`, `mini-query`,
-  `mini-search-service`, and the federated/distributed layer (Tracks
-  E/F) are all future work; none exist yet. Explicitly a distinct
-  system from `mini-private-index` (D-0310), which is not to be
-  repurposed as the general web index. See `docs/research/
+  monopoly. `mini-web-types` (D-0316) is the first code slice: pure
+  shared vocabulary for canonical URLs, crawl observations,
+  `AvailabilityState`, `RestrictionReason`, `RankingProfile`,
+  `PersonalizationPolicy::None` as the public default, `SearchResult`,
+  and `RankingExplanation`. Still no crawler, extractor, lexical index,
+  ranker, query service, search UI, network exchange, or federated/
+  distributed layer. Explicitly a distinct system from
+  `mini-private-index` (D-0310), which is not to be repurposed as the
+  general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
