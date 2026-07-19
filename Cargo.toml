@@ -51,6 +51,8 @@ members = [
     "crates/mini-web-types",
     "crates/mini-intake",
     "crates/mini-crawler",
+    "crates/mini-desktop",
+    "crates/mini-windows-vault",
 ]
 
 [workspace.package]

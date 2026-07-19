@@ -137,6 +137,11 @@ impl LocalScanner {
                 {
                     return Ok(None)
                 }
+                // Windows reports a datagram larger than the receive buffer
+                // as WSAEMSGSIZE (10040). The packet has still been
+                // discarded by the socket, so treat it like malformed
+                // multicast noise and continue waiting for a valid announce.
+                Err(e) if e.raw_os_error() == Some(10040) => continue,
                 Err(e) => return Err(BearerError::from(e)),
             };
             if let Some(tcp_port) = decode_announce(&buf[..n]) {

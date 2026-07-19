@@ -5,9 +5,10 @@
 use did_mini::{Capabilities, Controller, Did};
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
 use mini_social::{
-    feed, followers, following, publish_profile, publish_wall, publish_wall_linkage,
-    resolve_profile, resolve_wall, resolve_wall_linkage, set_follow, FeedFilter, FeedReason,
-    SocialError, VisibilityPolicy,
+    comments, community_members, feed, followers, following, publish_comment, publish_community,
+    publish_profile, publish_wall, publish_wall_linkage, reaction_counts, resolve_community,
+    resolve_profile, resolve_wall, resolve_wall_linkage, set_follow, set_membership, set_reaction,
+    FeedFilter, FeedReason, MembershipMode, ReactionKind, SocialError, VisibilityPolicy,
 };
 use mini_store::{MemoryBackend, Store};
 
@@ -164,6 +165,75 @@ fn feed_is_chronological_explainable_and_follows_scoped() {
 }
 
 #[test]
+fn comments_are_threaded_and_reactions_converge() {
+    let (author, author_device) = human(10);
+    let (reply_author, reply_device) = human(50);
+    let mut store = Store::new(MemoryBackend::new());
+    let root = post(&mut store, &author.did(), &author_device, b"hello", 1, 1);
+
+    let first = publish_comment(
+        &mut store,
+        &reply_author.did(),
+        &reply_device,
+        root.id(),
+        "first",
+        20,
+        1,
+    )
+    .unwrap();
+    publish_comment(
+        &mut store,
+        &author.did(),
+        &author_device,
+        first.id(),
+        "nested",
+        30,
+        2,
+    )
+    .unwrap();
+    assert_eq!(comments(&store, root.id()).unwrap()[0].text, "first");
+    assert_eq!(comments(&store, first.id()).unwrap()[0].text, "nested");
+
+    set_reaction(
+        &mut store,
+        &reply_author.did(),
+        &reply_device,
+        root.id(),
+        ReactionKind::Like,
+        true,
+        40,
+        1,
+    )
+    .unwrap();
+    set_reaction(
+        &mut store,
+        &reply_author.did(),
+        &reply_device,
+        root.id(),
+        ReactionKind::Like,
+        false,
+        50,
+        2,
+    )
+    .unwrap();
+    set_reaction(
+        &mut store,
+        &author.did(),
+        &author_device,
+        root.id(),
+        ReactionKind::Love,
+        true,
+        60,
+        1,
+    )
+    .unwrap();
+    assert_eq!(
+        reaction_counts(&store, root.id()).unwrap(),
+        vec![(ReactionKind::Love, 1)]
+    );
+}
+
+#[test]
 fn filter_reorders_but_never_drops_followed_speech() {
     // The [FREEZE] property in miniature: with a large enough limit, the filter
     // returns EVERY followed/own post — filters are total orderings.
@@ -183,6 +253,89 @@ fn filter_reorders_but_never_drops_followed_speech() {
     }
     let items = feed(&store, &a_root.did(), FeedFilter::Chronological, usize::MAX).unwrap();
     assert_eq!(items.len(), 20);
+}
+
+#[test]
+fn communities_threads_and_reactions_form_one_composable_surface() {
+    let (a_root, a_dev) = human(10);
+    let (b_root, b_dev) = human(50);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let community = publish_community(
+        &mut store,
+        &a_root.did(),
+        &a_dev,
+        "Rust builders",
+        "Share practical systems work.",
+        MembershipMode::Open,
+        1,
+        1,
+    )
+    .unwrap();
+    assert_eq!(
+        resolve_community(&store, community.id()).unwrap().name,
+        "Rust builders"
+    );
+
+    set_membership(
+        &mut store,
+        &b_root.did(),
+        &b_dev,
+        community.id(),
+        true,
+        2,
+        1,
+    )
+    .unwrap();
+    set_membership(
+        &mut store,
+        &b_root.did(),
+        &b_dev,
+        community.id(),
+        false,
+        3,
+        2,
+    )
+    .unwrap();
+    assert!(community_members(&store, community.id())
+        .unwrap()
+        .is_empty());
+
+    let post = ObjectBuilder::new(ObjectType::POST)
+        .timestamp_ms(10)
+        .sequence(1)
+        .link("community", community.id().clone())
+        .payload(Payload::Public(b"a post".to_vec()))
+        .sign(&a_root.did(), &a_dev)
+        .unwrap();
+    store.insert(&post).unwrap();
+    let comment = publish_comment(
+        &mut store,
+        &b_root.did(),
+        &b_dev,
+        post.id(),
+        "a useful reply",
+        20,
+        1,
+    )
+    .unwrap();
+    assert_eq!(comments(&store, post.id()).unwrap()[0].id, *comment.id());
+
+    set_reaction(
+        &mut store,
+        &b_root.did(),
+        &b_dev,
+        post.id(),
+        ReactionKind::Upvote,
+        true,
+        30,
+        1,
+    )
+    .unwrap();
+    assert_eq!(
+        reaction_counts(&store, post.id()).unwrap(),
+        vec![(ReactionKind::Upvote, 1)]
+    );
 }
 
 #[test]
