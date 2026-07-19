@@ -49,6 +49,7 @@ members = [
     "crates/mini-private-index",
     "crates/mini-intake-types",
     "crates/mini-web-types",
+    "crates/mini-intake",
 ]
 
 [workspace.package]

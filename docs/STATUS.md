@@ -874,10 +874,19 @@ the top development priority.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
-  a deterministic wire codec. Real, tested (35 unit tests). No parser,
-  filesystem watcher, network client, storage, or AI model — those are
-  Tracks B2-B5 (`mini-intake`, the extractor protocol, PDF/HTML
-  extraction backends, intake publication linking), not started.
+  a deterministic wire codec. Real, tested (35 unit tests).
+- **shipped** — `mini-intake` (D-0315, Track B2): the trusted intake
+  coordinator — `intake_local_file` hashes a local text/Markdown file
+  (BLAKE3), stores the immutable bytes and a fresh `Unreviewed`/
+  `UntrustedExternal` `IntakeEnvelope` via `mini_store::Backend`, and
+  deduplicates by content digest (a dedup hit returns the existing
+  envelope untouched, even if its review state was already advanced —
+  no automatic promotion *or* demotion). Real, tested (13 tests,
+  including a real `FsBackend` persistence round-trip). No extractor,
+  no PDF/HTML/binary support, no network client, no AI model, no
+  publication linking — those are Tracks B3-B5, not started. No
+  cross-process locking (same documented limitation `mini-store::FsBackend`
+  itself carries).
 
 ## What has no client, at all
 
