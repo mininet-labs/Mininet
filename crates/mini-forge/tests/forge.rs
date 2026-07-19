@@ -132,6 +132,29 @@ fn repo_commits_branch_moves_and_checkout_roundtrips() {
 }
 
 #[test]
+fn set_branch_rejects_missing_or_malformed_commit_targets() {
+    let (root, device) = human(71);
+    let author = root.did();
+    let mut store = Store::new(MemoryBackend::new());
+    let file = put_file(&mut store, &author, &device, b"not a commit").unwrap();
+
+    assert!(matches!(
+        set_branch(&mut store, &author, &device, "main", &file, 1),
+        Err(ForgeError::BadObject)
+    ));
+
+    let malformed = ObjectBuilder::new(ObjectType::COMMIT)
+        .payload(Payload::Public(b"missing tree".to_vec()))
+        .sign(&author, &device)
+        .unwrap();
+    store.insert(&malformed).unwrap();
+    assert!(matches!(
+        set_branch(&mut store, &author, &device, "main", malformed.id(), 2),
+        Err(ForgeError::BadObject)
+    ));
+}
+
+#[test]
 fn checkout_rejects_a_commit_with_ambiguous_tree_links() {
     let (author, device) = human(70);
     let mut store = Store::new(MemoryBackend::new());
