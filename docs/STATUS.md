@@ -42,7 +42,7 @@ research/decisions land:
 2. **Storage** — `mini-storage`/`mini-erasure`/`mini-spacetime`/
    `mini-porep` hardening plus the suppression-resistant replication
    path named in D-0311 (Track D5).
-3. **Search** — MiniSearch (D-0312): `mini-web-types` → minimal crawler
+3. **Search** — MiniSearch (D-0312): `mini-web-types` → `mini-crawler`
    → sandboxed extraction → lexical index → transparent ranker → query
    CLI → federated/distributed layer (Tracks E/F, `docs/research/
    MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`).
@@ -865,9 +865,14 @@ the top development priority.
   shared vocabulary for canonical URLs, crawl observations,
   `AvailabilityState`, `RestrictionReason`, `RankingProfile`,
   `PersonalizationPolicy::None` as the public default, `SearchResult`,
-  and `RankingExplanation`. Still no crawler, extractor, lexical index,
-  ranker, query service, search UI, network exchange, or federated/
-  distributed layer. Explicitly a distinct system from
+  and `RankingExplanation`. `mini-crawler` (D-0317) is the second code
+  slice: deterministic crawler planning and URL admission policy only —
+  bounded same-host frontiers, explicit robots exclusions,
+  depth/queue/URL-length limits, HTTPS-only by default, and no network
+  client, parser, JavaScript execution, storage, indexing, ranking, or
+  payment logic. Still no extractor, lexical index, ranker, query
+  service, search UI, network exchange, or federated/distributed layer.
+  Explicitly a distinct system from
   `mini-private-index` (D-0310), which is not to be repurposed as the
   general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
