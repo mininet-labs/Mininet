@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-19T02:39:25Z",
+  "updated_at": "2026-07-19T02:39:41Z",
   "claims": [
     {
       "issue": 122,
@@ -66,7 +66,7 @@
     },
     {
       "issue": 169,
-      "status": "active",
+      "status": "in_review",
       "contributor": "Claude",
       "branch": "claude/mini-extract-protocol-host",
       "pull_request": 172,
