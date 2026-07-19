@@ -1700,8 +1700,8 @@ impl MininetApp {
         ui.group(|ui| {
             ui.label(egui::RichText::new("Protocol coverage").strong());
             ui.label("Integrated here: signed social objects, local feed assembly, communities, threaded replies, reactions, chunked media, DPAPI identity storage, offline bundles, and encrypted one-shot TCP sync.");
-            ui.label("Available in the repository but not yet a finished desktop workflow: forge repository/PR operations, presence/keystone encounters, reward accounting, privacy-cost routing, update adoption, and governance administration.");
-            ui.label("Those foundations are deliberately shown as boundaries rather than unsafe pretend buttons. Their object types remain inspectable and syncable when another Mininet tool creates them.");
+            ui.label("Available in the repository but not yet a finished desktop workflow: encrypted private-message storage/semantics, forge repository/PR operations, presence/keystone encounters, reward accounting, privacy-cost routing, update adoption, and governance administration.");
+            ui.label("Those foundations are deliberately shown as boundaries rather than unsafe pretend buttons. Public object types remain inspectable and syncable when another Mininet tool creates them; private-message delivery is not wired yet.");
         });
         ui.add_space(10.0);
         ui.group(|ui| {
@@ -1710,6 +1710,8 @@ impl MininetApp {
                 ("Local social, profiles, follows, walls, communities", "Integrated / test-covered", "Desktop"),
                 ("Offline bundles and manual encrypted TCP sync", "Integrated / operator-configured", "Desktop + networking"),
                 ("Internet relay and NAT traversal", "Partial: self-hosted relay foundation exists", "Networking"),
+                ("Private messaging", "Encrypted storage and message semantics; secure session setup and Inbox UI missing", "Messaging + desktop"),
+                ("Voice and video calls", "Not implemented end to end", "Realtime media"),
                 ("Forge repositories, pull requests, releases", "Protocol foundation; desktop workflow missing", "Forge UI"),
                 ("Presence / keystone / reward encounter", "Protocol demo; production hardware path missing", "Identity + device"),
                 ("Notifications, moderation labels, block/mute", "Not integrated in desktop", "Social UI"),

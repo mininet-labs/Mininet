@@ -893,11 +893,20 @@ the top development priority.
   cross-process locking (same documented limitation `mini-store::FsBackend`
   itself carries).
 
-## What has no client, at all
+## Client coverage
 
-No mobile, desktop, or web application exists anywhere in this
-repository. `docs/UI_BETA_PLAN.md` is a plan, not code. This is a
-backend/protocol Rust workspace only.
+- **partial** — `mini-desktop` is now a real Windows-first egui reference
+  client. It includes root/public-account onboarding, a DPAPI-protected local
+  identity vault, signed profiles/walls/follows/posts/comments/reactions/
+  communities, local feed assembly, chunked-media publishing, offline object
+  bundles, and foreground encrypted direct-TCP sync. It remains a reference
+  client rather than a production release: no secure Inbox session protocol,
+  calls, automatic Internet relay/NAT traversal, search, forge workflow,
+  hardware-backed key custody, packaging, or independent security review.
+- **not started** — mobile and browser clients.
+
+See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,
+backend composition, maturity matrix, and implementation order.
 
 ## Where to look for more detail
 
