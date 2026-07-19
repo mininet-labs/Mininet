@@ -3,7 +3,7 @@
 
 use did_mini::{Capabilities, Controller, Did};
 use mini_objects::{Object, ObjectBuilder, ObjectId, ObjectType, Payload};
-use mini_store::{FsBackend, HeadState, MemoryBackend, Store, StoreError};
+use mini_store::{Backend, FsBackend, HeadState, MemoryBackend, Store, StoreError};
 
 fn human(seed: u8) -> (Controller, Controller) {
     let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
@@ -174,4 +174,207 @@ fn fs_backend_persists_across_reopen() {
         );
     }
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn fs_backend_prefix_queries_support_exact_and_partial_segments() {
+    let dir = std::env::temp_dir().join(format!(
+        "mini-store-prefix-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let mut backend = FsBackend::open(&dir).unwrap();
+    backend.put_meta("idx/type/w8/aaa", b"a").unwrap();
+    backend.put_meta("idx/type/w9/bbb", b"b").unwrap();
+    backend.put_meta("head/alice/profile", b"head").unwrap();
+
+    assert_eq!(
+        backend.list_meta_prefix("idx/type/w8/").unwrap(),
+        vec![("idx/type/w8/aaa".to_string(), b"a".to_vec())]
+    );
+    assert_eq!(
+        backend.list_meta_prefix("idx/type/w").unwrap(),
+        vec![
+            ("idx/type/w8/aaa".to_string(), b"a".to_vec()),
+            ("idx/type/w9/bbb".to_string(), b"b".to_vec())
+        ]
+    );
+    assert!(backend
+        .list_meta_prefix("missing/path/")
+        .unwrap()
+        .is_empty());
+    assert!(backend.list_meta_prefix("idx/../head").is_err());
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn fs_backend_direct_reads_reject_non_file_entries() {
+    let dir = std::env::temp_dir().join(format!(
+        "mini-store-direct-read-poison-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let backend = FsBackend::open(&dir).unwrap();
+
+    std::fs::create_dir_all(dir.join("meta/head/alice/profile")).unwrap();
+    assert!(matches!(
+        backend.get_meta("head/alice/profile"),
+        Err(StoreError::Io(message)) if message.contains("regular file")
+    ));
+
+    std::fs::create_dir_all(dir.join("blobs/ab/abc")).unwrap();
+    assert!(matches!(
+        backend.get_blob("abc"),
+        Err(StoreError::Io(message)) if message.contains("regular file")
+    ));
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[cfg(unix)]
+#[test]
+fn fs_backend_refuses_symlinks_in_a_metadata_query_subtree() {
+    use std::os::unix::fs::symlink;
+
+    let dir = std::env::temp_dir().join(format!(
+        "mini-store-symlink-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let outside = dir.with_extension("outside");
+    let backend = FsBackend::open(&dir).unwrap();
+    std::fs::create_dir_all(dir.join("meta/idx")).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("injected"), b"not an index row").unwrap();
+    symlink(&outside, dir.join("meta/idx/id")).unwrap();
+
+    assert!(matches!(
+        backend.list_meta_prefix("idx/id/"),
+        Err(StoreError::Io(message)) if message.contains("symlink")
+    ));
+
+    std::fs::remove_file(dir.join("meta/idx/id")).unwrap();
+    std::fs::remove_dir(dir.join("meta/idx")).unwrap();
+    std::fs::create_dir_all(outside.join("id")).unwrap();
+    symlink(&outside, dir.join("meta/idx")).unwrap();
+    assert!(matches!(
+        backend.list_meta_prefix("idx/id/"),
+        Err(StoreError::Io(message)) if message.contains("symlink")
+    ));
+
+    std::fs::remove_file(dir.join("meta/idx")).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&outside);
+}
+
+#[cfg(unix)]
+#[test]
+fn fs_backend_direct_reads_reject_symlinks() {
+    use std::os::unix::fs::symlink;
+
+    let dir = std::env::temp_dir().join(format!(
+        "mini-store-direct-read-symlink-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let outside = dir.with_extension("outside");
+    let backend = FsBackend::open(&dir).unwrap();
+    std::fs::create_dir_all(outside.join("meta")).unwrap();
+    std::fs::write(outside.join("meta/profile"), b"outside").unwrap();
+
+    std::fs::create_dir_all(dir.join("meta/head/alice")).unwrap();
+    symlink(
+        outside.join("meta/profile"),
+        dir.join("meta/head/alice/profile"),
+    )
+    .unwrap();
+    assert!(matches!(
+        backend.get_meta("head/alice/profile"),
+        Err(StoreError::Io(message)) if message.contains("symlink")
+    ));
+
+    std::fs::create_dir_all(dir.join("blobs/ab")).unwrap();
+    symlink(outside.join("meta/profile"), dir.join("blobs/ab/abc")).unwrap();
+    assert!(matches!(
+        backend.get_blob("abc"),
+        Err(StoreError::Io(message)) if message.contains("symlink")
+    ));
+
+    std::fs::remove_file(dir.join("meta/head/alice/profile")).unwrap();
+    std::fs::remove_dir_all(dir.join("meta/head")).unwrap();
+    std::fs::create_dir_all(outside.join("meta/head/alice")).unwrap();
+    std::fs::write(outside.join("meta/head/alice/profile"), b"outside").unwrap();
+    symlink(outside.join("meta/head"), dir.join("meta/head")).unwrap();
+    assert!(matches!(
+        backend.get_meta("head/alice/profile"),
+        Err(StoreError::Io(message)) if message.contains("symlink")
+    ));
+
+    std::fs::remove_file(dir.join("blobs/ab/abc")).unwrap();
+    std::fs::remove_dir(dir.join("blobs/ab")).unwrap();
+    std::fs::create_dir_all(outside.join("blobs/ab")).unwrap();
+    std::fs::write(outside.join("blobs/ab/abc"), b"outside").unwrap();
+    symlink(outside.join("blobs/ab"), dir.join("blobs/ab")).unwrap();
+    assert!(matches!(
+        backend.get_blob("abc"),
+        Err(StoreError::Io(message)) if message.contains("symlink")
+    ));
+    assert!(backend.has_blob("abc").is_err());
+
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&outside);
+}
+
+#[cfg(unix)]
+#[test]
+fn fs_backend_narrow_query_ignores_unrelated_symlinks_and_rejects_special_files() {
+    use std::os::unix::fs::symlink;
+    use std::os::unix::net::UnixListener;
+
+    let dir = std::env::temp_dir().join(format!(
+        "mini-store-special-file-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let outside = dir.with_extension("outside");
+    let mut backend = FsBackend::open(&dir).unwrap();
+    backend.put_meta("idx/type/w8/aaa", b"a").unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+
+    // A narrow lookup must not inspect an unrelated metadata subtree.
+    symlink(&outside, dir.join("meta/head")).unwrap();
+    assert_eq!(
+        backend.list_meta_prefix("idx/type/w8/").unwrap(),
+        vec![("idx/type/w8/aaa".to_string(), b"a".to_vec())]
+    );
+
+    // Special filesystem nodes inside the selected subtree are not index rows.
+    let socket_path = dir.join("meta/idx/type/w8/not-an-index-row");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    assert!(matches!(
+        backend.list_meta_prefix("idx/type/w8/"),
+        Err(StoreError::Io(message)) if message.contains("non-file")
+    ));
+
+    drop(listener);
+    let _ = std::fs::remove_file(&socket_path);
+    let _ = std::fs::remove_file(dir.join("meta/head"));
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&outside);
 }
