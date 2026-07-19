@@ -10,6 +10,7 @@ use mini_forge::{
     attest, list_releases, release, verify_governed_release, ReleasePolicy, VerifiedRelease,
     ADOPTION_MIN_ATTESTATIONS, ADOPTION_MIN_TIMELOCK_MS,
 };
+use mini_media::assemble;
 use mini_objects::ObjectId;
 
 use crate::error::{CliError, Result};
@@ -197,6 +198,61 @@ pub fn verify(
     .field("release_id", JsonValue::str(verified.id.as_str()))
     .field("version", JsonValue::str(&verified.version))
     .field("attesters", JsonValue::num(verified.attesters as u64))
+    .field(
+        "artifact_digest",
+        JsonValue::str(hex(&verified.artifact.digest)),
+    ))
+}
+
+/// `mini release fetch <release-id> <project> --branch <b> --output <path>`.
+///
+/// Fetch is deliberately adoption-safe: it runs the complete governed release
+/// verification first, then assembles the content-addressed artifact and
+/// creates the destination file without overwriting an existing path.
+#[allow(clippy::too_many_arguments)]
+pub fn fetch(
+    home: &Path,
+    store_path: &Path,
+    release_ref: &str,
+    project_ref: &str,
+    branch: &str,
+    output: &Path,
+    min_attestations: Option<u32>,
+    timelock_ms: Option<u64>,
+    now_ms: Option<u64>,
+) -> Result<CommandResult> {
+    let verified = verified_release(
+        home,
+        store_path,
+        release_ref,
+        project_ref,
+        branch,
+        min_attestations,
+        timelock_ms,
+        now_ms,
+    )?;
+    let store = open_store(store_path)?;
+    let bytes = assemble(&store, &verified.artifact).map_err(|e| CliError::Media(e.to_string()))?;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output)
+        .map_err(|e| CliError::Io(e.to_string()))?;
+    use std::io::Write;
+    file.write_all(&bytes)
+        .map_err(|e| CliError::Io(e.to_string()))?;
+
+    Ok(CommandResult::new(format!(
+        "verified release {} fetched to {}",
+        verified.id.as_str(),
+        output.display()
+    ))
+    .field("release_id", JsonValue::str(verified.id.as_str()))
+    .field(
+        "output",
+        JsonValue::str(output.to_string_lossy().into_owned()),
+    )
+    .field("bytes", JsonValue::num(bytes.len() as u64))
     .field(
         "artifact_digest",
         JsonValue::str(hex(&verified.artifact.digest)),
