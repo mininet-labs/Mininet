@@ -19,6 +19,9 @@ slot.
 **Backends:** `MemoryBackend` (tests), `FsBackend` (atomic tmp+rename, fanout
 dirs, path-traversal-hardened keys). A SQLite backend slots in behind the same
 `Backend` trait at integration (D-0020), changing nothing above it.
+`FsBackend` prefix queries begin at the narrowest complete key subtree rather
+than scanning all metadata, and refuse symlinks encountered while traversing
+the metadata index.
 
 **Cache tiers / seed-on-view (founder decision, 2026-07-07):** watching
 content can naturally help seed it. `CacheTier` — `EphemeralCache`,
