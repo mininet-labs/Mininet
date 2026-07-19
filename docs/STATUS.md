@@ -899,8 +899,10 @@ the top development priority.
   client. It includes root/public-account onboarding, a DPAPI-protected local
   identity vault, signed profiles/walls/follows/posts/comments/reactions/
   communities, local feed assembly, chunked-media publishing, offline object
-  bundles, and foreground encrypted direct-TCP sync. It remains a reference
-  client rather than a production release: no secure Inbox session protocol,
+  bundles, foreground encrypted direct-TCP sync, and a manual Inbox beta with
+  DPAPI-protected conversation capabilities and selected-route private sync.
+  It remains a reference client rather than a production release: no secure
+  Inbox prekey/ratchet protocol, asynchronous mailbox delivery,
   calls, automatic Internet relay/NAT traversal, search, forge workflow,
   hardware-backed key custody, packaging, or independent security review.
 - **not started** — mobile and browser clients.

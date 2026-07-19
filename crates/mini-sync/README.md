@@ -19,6 +19,14 @@ histories for a known scid are refused) → full signature + provenance
 quarantined**: whoever wants you to hold content must hand you the identity that
 signed it. Hostile ops cost the sender bandwidth, never your state.
 
+`MINI/PRIVATE-SYNC1` is a separate beta protocol for opaque v2 envelopes. The
+caller selects exactly one already-shared `OpaqueRoute`; both peers compare the
+route inside the encrypted channel before either sends envelope ids. Only
+integrity-valid envelopes naming that route are accepted. Decryption, message
+schema checks, and author provenance remain the private application's job.
+This is foreground route-capability sync, not a mailbox, prekey service,
+ratchet, authenticated endpoint-discovery protocol, or traffic-analysis shield.
+
 ```sh
 cargo test -p mini-sync
 ```

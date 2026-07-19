@@ -20,6 +20,7 @@ eframe = { version = "0.31", default-features = false, features = ["default_font
 did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-media = { path = "../mini-media" }
+mini-messaging = { path = "../mini-messaging" }
 mini-bearer = { path = "../mini-bearer" }
 mini-sync = { path = "../mini-sync" }
 mini-social = { path = "../mini-social" }

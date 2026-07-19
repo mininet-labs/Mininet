@@ -10,7 +10,7 @@
 #![warn(missing_debug_implementations)]
 
 use did_mini::{Controller, Did, Kel};
-use mini_crypto::AeadKey;
+use mini_crypto::{AeadKey, AeadSuite, HashAlgorithm};
 use mini_objects::{
     Link, ObjectEnvelopeV2, ObjectError, ObjectId, ObjectType, OpaqueRoute, PrivateObject,
     RetentionClass, StorageDescriptor,
@@ -40,6 +40,122 @@ impl ConversationSecret {
     /// The opaque route shared with blind storage nodes.
     pub fn route(&self) -> OpaqueRoute {
         self.route
+    }
+
+    /// Generate a random conversation capability for beta invitation flows.
+    /// This is not a prekey or ratcheted session.
+    pub fn generate_beta() -> Result<Self> {
+        Ok(Self {
+            route: OpaqueRoute::random()?,
+            key: AeadKey::generate(AeadSuite::DEFAULT)
+                .map_err(ObjectError::Crypto)
+                .map_err(MessagingError::Object)?,
+        })
+    }
+
+    /// Export a beta invitation containing the route and key. Anyone holding
+    /// this value can read and write conversation ciphertext; transfer it only
+    /// through a trusted channel and protect it at rest.
+    pub fn beta_invite(&self, inviter: Did) -> BetaInvite {
+        BetaInvite {
+            inviter,
+            route: self.route,
+            key_bytes: self.key.to_key_bytes(),
+        }
+    }
+
+    /// Reconstruct the secret imported from a beta invitation.
+    pub fn from_beta_invite(invite: &BetaInvite) -> Result<Self> {
+        Ok(Self {
+            route: invite.route,
+            key: AeadKey::from_suite_bytes(AeadSuite::DEFAULT, &invite.key_bytes)
+                .map_err(ObjectError::Crypto)?,
+        })
+    }
+
+    /// Export key bytes for a local OS-protected vault. This must never be
+    /// written to an unprotected settings or log file.
+    pub fn key_bytes_for_local_vault(&self) -> [u8; 32] {
+        self.key.to_key_bytes()
+    }
+
+    /// Restore a conversation capability from bytes obtained from an
+    /// OS-protected local vault.
+    pub fn from_local_vault(route: OpaqueRoute, key_bytes: [u8; 32]) -> Result<Self> {
+        Ok(Self {
+            route,
+            key: AeadKey::from_suite_bytes(AeadSuite::DEFAULT, &key_bytes)
+                .map_err(ObjectError::Crypto)?,
+        })
+    }
+}
+
+/// Portable beta conversation capability. Its text form includes a checksum
+/// for copy/file corruption, not authentication. The inviter DID is a label
+/// until messages are verified against current identity provenance.
+#[derive(Clone, PartialEq, Eq)]
+pub struct BetaInvite {
+    inviter: Did,
+    route: OpaqueRoute,
+    key_bytes: [u8; 32],
+}
+
+impl core::fmt::Debug for BetaInvite {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("BetaInvite")
+            .field("inviter", &self.inviter)
+            .field("route", &self.route)
+            .field("key_bytes", &"[REDACTED]")
+            .finish()
+    }
+}
+
+impl BetaInvite {
+    /// Claimed inviter DID. Verify received messages before treating it as an
+    /// authenticated contact identity.
+    pub fn inviter(&self) -> &Did {
+        &self.inviter
+    }
+
+    /// Opaque route capability used by private sync.
+    pub fn route(&self) -> OpaqueRoute {
+        self.route
+    }
+
+    /// Versioned printable form suitable for a protected file or trusted
+    /// out-of-band transfer. The key is present in this string.
+    pub fn to_code(&self) -> String {
+        let route = hex_encode(self.route.as_bytes());
+        let key = hex_encode(&self.key_bytes);
+        let checksum = invite_checksum(&self.route, &self.key_bytes, &self.inviter);
+        format!(
+            "mini-invite-v1.{route}.{key}.{}.{}",
+            self.inviter.as_str(),
+            hex_encode(&checksum)
+        )
+    }
+
+    /// Strictly parse and checksum a beta invitation code.
+    pub fn parse(code: &str) -> Result<Self> {
+        if code.len() > 1024 {
+            return Err(MessagingError::InvalidInvite);
+        }
+        let parts: Vec<&str> = code.trim().split('.').collect();
+        if parts.len() != 5 || parts[0] != "mini-invite-v1" {
+            return Err(MessagingError::InvalidInvite);
+        }
+        let route = OpaqueRoute::from_bytes(hex_decode_32(parts[1])?);
+        let key_bytes = hex_decode_32(parts[2])?;
+        let inviter = Did::parse(parts[3]).map_err(|_| MessagingError::InvalidInvite)?;
+        let checksum = hex_decode_8(parts[4])?;
+        if checksum != invite_checksum(&route, &key_bytes, &inviter) {
+            return Err(MessagingError::InvalidInvite);
+        }
+        Ok(Self {
+            inviter,
+            route,
+            key_bytes,
+        })
     }
 }
 
@@ -347,6 +463,49 @@ fn decode_payload(bytes: &[u8]) -> Result<(MessageKind, String)> {
     Ok((kind, body))
 }
 
+fn invite_checksum(route: &OpaqueRoute, key: &[u8; 32], inviter: &Did) -> [u8; 8] {
+    let mut bytes = Vec::with_capacity(64 + inviter.as_str().len());
+    bytes.extend_from_slice(route.as_bytes());
+    bytes.extend_from_slice(key);
+    bytes.extend_from_slice(inviter.as_str().as_bytes());
+    let digest = HashAlgorithm::Blake3.digest(&bytes);
+    digest[..8]
+        .try_into()
+        .expect("an eight-byte digest prefix has exact length")
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        encoded.push_str(&format!("{byte:02x}"));
+    }
+    encoded
+}
+
+fn hex_decode_32(value: &str) -> Result<[u8; 32]> {
+    hex_decode(value)?
+        .try_into()
+        .map_err(|_| MessagingError::InvalidInvite)
+}
+
+fn hex_decode_8(value: &str) -> Result<[u8; 8]> {
+    hex_decode(value)?
+        .try_into()
+        .map_err(|_| MessagingError::InvalidInvite)
+}
+
+fn hex_decode(value: &str) -> Result<Vec<u8>> {
+    if value.len() % 2 != 0 {
+        return Err(MessagingError::InvalidInvite);
+    }
+    let mut decoded = Vec::with_capacity(value.len() / 2);
+    for pair in value.as_bytes().chunks_exact(2) {
+        let text = core::str::from_utf8(pair).map_err(|_| MessagingError::InvalidInvite)?;
+        decoded.push(u8::from_str_radix(text, 16).map_err(|_| MessagingError::InvalidInvite)?);
+    }
+    Ok(decoded)
+}
+
 /// Why a private messaging operation failed.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -359,6 +518,8 @@ pub enum MessagingError {
     InvalidMessage,
     /// A bounded field exceeded its protocol limit.
     LimitExceeded,
+    /// A beta invite was malformed or failed its copy-integrity checksum.
+    InvalidInvite,
 }
 
 /// Result alias for this crate.
@@ -371,6 +532,7 @@ impl core::fmt::Display for MessagingError {
             MessagingError::Store(error) => write!(f, "private message store: {error}"),
             MessagingError::InvalidMessage => write!(f, "invalid private message"),
             MessagingError::LimitExceeded => write!(f, "private message limit exceeded"),
+            MessagingError::InvalidInvite => write!(f, "invalid beta conversation invite"),
         }
     }
 }

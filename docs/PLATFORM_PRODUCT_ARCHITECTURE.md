@@ -83,7 +83,7 @@ Every application service must use the same boundaries:
 |---|---|---|
 | Root identity and public account | Windows onboarding, DPAPI vault, profiles and walls integrated | Hardware-backed keys, recovery, multi-device enrollment, installer/signing review |
 | Public social feed | Profiles, follows, posts, comments, reactions, communities and local ranking integrated | Blocks/mutes, moderation UI, notification service, scalable local view database |
-| Private text | Encrypted v2 persistence and `mini-messaging` semantics now implemented | Authenticated prekeys/session ratchet, mailbox relay, multi-device fanout, inbox UI |
+| Private text | Encrypted v2 persistence, message semantics, checksummed trusted-channel beta invites, route-scoped TCP sync, DPAPI conversation state, and Inbox beta implemented | Authenticated prekeys/session ratchet, mailbox relay, multi-device fanout, provenance UI and background delivery |
 | Voice/video calls | No complete call protocol or client | Signed call invitations, authenticated ephemeral sessions, NAT traversal/relay, media engine, group topology |
 | YouTube/TikTok-style media | Chunk manifests, publishing and linked social posts exist | Streaming player, transcoding profiles, thumbnails, subscriptions, resumable fetch scheduler, live media |
 | Torrent/Stremio-style distribution | Content-addressed chunks and voluntary seeding policy foundations exist | Swarm availability exchange, rarest-first scheduler, integrity-aware streaming, lawful adapter sandbox and catalog UI |
@@ -104,9 +104,12 @@ text/system messages, replies, attachment links, delivery/read receipts,
 deterministic conversation scans, signature-verification hooks, and explicit
 reporting of rejected envelopes.
 
-This is a real storage and semantics layer, but it is not yet a secure chat
-product. `ConversationSecret::established` deliberately requires an existing
-opaque route and symmetric key. The next messaging protocol must provide:
+This is a real storage, semantics, and manual beta delivery layer, but it is not
+yet a production secure-chat product. The desktop beta can transfer a
+capability-bearing invite through a trusted channel and sync exactly that route
+over foreground encrypted TCP. `ConversationSecret::established` still
+deliberately requires an existing opaque route and symmetric key. The next
+messaging protocol must provide:
 
 1. authenticated contact/device key discovery;
 2. signed one-time and rotating prekeys;

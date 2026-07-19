@@ -61,6 +61,16 @@ The home view now reads the local feed, lets the user choose chronological or
 most-supported ordering, publishes signed replies, and records signed likes.
 These controls still remain local until a user enables a transport path.
 
+Inbox beta provides a complete manual two-instance test path: create a
+conversation for a peer DID, transfer the checksummed invitation code through
+a trusted channel, import it into the other Windows profile, write signed
+encrypted messages, and foreground-sync only that selected opaque route over
+the encrypted TCP bearer. Conversation capabilities are stored through DPAPI.
+Invitation codes contain the conversation key and therefore grant message
+access; they are not usernames or public friend codes. This beta has no
+prekey/ratchet protocol, mailbox relay, automatic retry, multi-device fanout,
+or authenticated endpoint discovery and does not claim production secure chat.
+
 Community cards expose signed join/leave controls and locally known member
 counts. Membership is not inferred from a server response; it is derived from
 the same convergent objects used by every other social surface.
@@ -75,7 +85,7 @@ is blocked. Bundles carry signed objects only; the DPAPI identity vault is
 never exported, and portable bundles should be placed inside an encrypted
 container when their contents are sensitive.
 
-The Connections view also exposes a one-shot direct-peer sync using the real
+The Connections view also exposes a one-shot direct-peer public sync using the real
 encrypted TCP bearer and verified `MINI/SYNC1` ingest. It is foreground-user
 initiated, runs off the UI thread, and requires local-network discovery to be
 enabled. There is no automatic discovery, retry loop, or always-on listener.

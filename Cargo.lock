@@ -2011,6 +2011,7 @@ dependencies = [
  "eframe",
  "mini-bearer",
  "mini-media",
+ "mini-messaging",
  "mini-objects",
  "mini-social",
  "mini-store",

@@ -7,18 +7,24 @@
 
 #![forbid(unsafe_code)]
 
+mod conversation_state;
+
+use conversation_state::ConversationRecord;
 use did_mini::{Controller, Did};
 use eframe::egui;
 use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
 use mini_media::publish_media;
-use mini_objects::{ObjectBuilder, ObjectType, Payload};
+use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
+use mini_objects::{ObjectBuilder, ObjectType, OpaqueRoute, Payload};
 use mini_social::{
     comments, community_members, feed, followers, following, publish_comment, publish_community,
     publish_profile, publish_wall, resolve_community, set_follow, set_membership, set_reaction,
     FeedFilter, FeedItem, MembershipMode, ReactionKind, VisibilityPolicy,
 };
 use mini_store::{FsBackend, Store};
-use mini_sync::{kel_carrier, sync_bidirectional, KelCache, SyncRole};
+use mini_sync::{
+    kel_carrier, sync_bidirectional, sync_private_route_bidirectional, KelCache, SyncRole,
+};
 use mini_windows_vault::{load_existing, load_or_create, load_user_data, save_user_data};
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
@@ -29,6 +35,7 @@ use std::time::Duration;
 enum View {
     Onboarding,
     Home,
+    Inbox,
     Communities,
     Creator,
     Connections,
@@ -95,6 +102,13 @@ struct MininetApp {
     peer_address: String,
     listen_port: String,
     follow_target: String,
+    conversation_label: String,
+    conversation_peer: String,
+    conversation_invite: String,
+    import_conversation_label: String,
+    import_conversation_invite: String,
+    message_text: String,
+    selected_conversation: Option<usize>,
     sync_rx: Option<Receiver<Result<String, String>>>,
     notice: String,
 }
@@ -105,6 +119,7 @@ struct Workspace {
     human: Option<Did>,
     root: PathBuf,
     sequence: u64,
+    conversations: Vec<ConversationRecord>,
 }
 
 impl Workspace {
@@ -112,6 +127,7 @@ impl Workspace {
         let root = data_root();
         let store = Store::new(FsBackend::open(&root).map_err(|error| error.to_string())?);
         let identity_path = root.join("identity.dpapi");
+        let conversations = conversation_state::load(&root.join("conversations.dpapi"))?;
         let human = if identity_path.exists() {
             let seeds = load_existing(&identity_path).map_err(|error| error.to_string())?;
             Some(
@@ -131,6 +147,7 @@ impl Workspace {
             human,
             root,
             sequence: 1,
+            conversations,
         })
     }
 
@@ -529,6 +546,82 @@ impl Workspace {
             })
             .collect()
     }
+
+    fn create_beta_conversation(&mut self, label: &str, peer: &str) -> Result<String, String> {
+        if !self.is_unlocked() {
+            return Err("identity is locked".to_string());
+        }
+        let peer = Did::parse(peer.trim()).map_err(|error| error.to_string())?;
+        let inviter = self.human_did()?.clone();
+        let (record, invite) = ConversationRecord::create(label.trim().to_string(), peer, inviter)?;
+        if self
+            .conversations
+            .iter()
+            .any(|existing| existing.route() == record.route())
+        {
+            return Err("conversation route already exists".to_string());
+        }
+        self.conversations.push(record);
+        if let Err(error) =
+            conversation_state::save(&self.root.join("conversations.dpapi"), &self.conversations)
+        {
+            self.conversations.pop();
+            return Err(error);
+        }
+        Ok(invite)
+    }
+
+    fn import_beta_conversation(&mut self, label: &str, invite: &str) -> Result<usize, String> {
+        let record = ConversationRecord::import(label.trim().to_string(), invite)?;
+        if self
+            .conversations
+            .iter()
+            .any(|existing| existing.route() == record.route())
+        {
+            return Err("this conversation invite is already imported".to_string());
+        }
+        self.conversations.push(record);
+        if let Err(error) =
+            conversation_state::save(&self.root.join("conversations.dpapi"), &self.conversations)
+        {
+            self.conversations.pop();
+            return Err(error);
+        }
+        Ok(self.conversations.len() - 1)
+    }
+
+    fn send_private_message(&mut self, index: usize, body: &str) -> Result<(), String> {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or_else(|| "identity is locked".to_string())?;
+        let human = self.human_did()?.clone();
+        let conversation = self
+            .conversations
+            .get(index)
+            .ok_or_else(|| "select a conversation".to_string())?;
+        let secret = conversation.secret()?;
+        send_message(
+            &mut self.store,
+            &secret,
+            human,
+            identity,
+            now_ms(),
+            self.sequence,
+            MessageDraft::text(body),
+        )
+        .map_err(|error| error.to_string())?;
+        self.sequence = self.sequence.saturating_add(1);
+        Ok(())
+    }
+
+    fn private_messages(&self, index: usize) -> Result<mini_messaging::ConversationScan, String> {
+        let conversation = self
+            .conversations
+            .get(index)
+            .ok_or_else(|| "select a conversation".to_string())?;
+        scan_messages(&self.store, &conversation.secret()?).map_err(|error| error.to_string())
+    }
 }
 
 fn data_root() -> PathBuf {
@@ -690,6 +783,59 @@ fn run_peer_sync(root: &std::path::Path, endpoint: &str, listener: bool) -> Resu
     }
 }
 
+fn run_private_sync(
+    root: &std::path::Path,
+    endpoint: &str,
+    listener: bool,
+    route: OpaqueRoute,
+) -> Result<String, String> {
+    let mut store = Store::new(FsBackend::open(root).map_err(|error| error.to_string())?);
+    let report = if listener {
+        let listener = std::net::TcpListener::bind(endpoint).map_err(|error| error.to_string())?;
+        let (stream, _) = listener.accept().map_err(|error| error.to_string())?;
+        let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
+        let hello = bearer.recv().map_err(|error| error.to_string())?;
+        let (mut channel, response) =
+            Responder::respond(&hello).map_err(|error| error.to_string())?;
+        bearer.send(&response).map_err(|error| error.to_string())?;
+        sync_private_route_bidirectional(
+            &mut bearer,
+            &mut channel,
+            &mut store,
+            route,
+            SyncRole::Responder,
+        )
+        .map_err(|error| error.to_string())?
+    } else {
+        let address = endpoint
+            .to_socket_addrs()
+            .map_err(|error| error.to_string())?
+            .next()
+            .ok_or_else(|| "peer address did not resolve".to_string())?;
+        let stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(10))
+            .map_err(|error| error.to_string())?;
+        let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
+        let (initiator, hello) = Initiator::start().map_err(|error| error.to_string())?;
+        bearer.send(&hello).map_err(|error| error.to_string())?;
+        let response = bearer.recv().map_err(|error| error.to_string())?;
+        let mut channel = initiator
+            .finish(&response)
+            .map_err(|error| error.to_string())?;
+        sync_private_route_bidirectional(
+            &mut bearer,
+            &mut channel,
+            &mut store,
+            route,
+            SyncRole::Initiator,
+        )
+        .map_err(|error| error.to_string())?
+    };
+    Ok(format!(
+        "Private sync complete: received {}, accepted {}, invalid {}.",
+        report.received, report.accepted, report.invalid
+    ))
+}
+
 impl Default for MininetApp {
     fn default() -> Self {
         let workspace = Workspace::open().ok();
@@ -734,6 +880,13 @@ impl Default for MininetApp {
             peer_address: "127.0.0.1:46000".to_string(),
             listen_port: "46000".to_string(),
             follow_target: String::new(),
+            conversation_label: String::new(),
+            conversation_peer: String::new(),
+            conversation_invite: String::new(),
+            import_conversation_label: String::new(),
+            import_conversation_invite: String::new(),
+            message_text: String::new(),
+            selected_conversation: None,
             sync_rx: None,
             notice:
                 "Local object store ready. Identity is locked; no network activity has started."
@@ -798,6 +951,7 @@ impl eframe::App for MininetApp {
                 ui.label(egui::RichText::new("YOUR NETWORK").small().strong());
                 ui.add_space(6.0);
                 self.nav_button(ui, View::Home, "Home");
+                self.nav_button(ui, View::Inbox, "Inbox (beta)");
                 self.nav_button(ui, View::Communities, "Communities");
                 self.nav_button(ui, View::Creator, "Creator studio");
                 self.nav_button(ui, View::Connections, "Connections");
@@ -824,6 +978,7 @@ impl eframe::App for MininetApp {
                             unreachable!("onboarding returns before the main shell")
                         }
                         View::Home => self.home(ui),
+                        View::Inbox => self.inbox(ui),
                         View::Communities => self.communities(ui),
                         View::Creator => self.creator(ui),
                         View::Connections => self.connections(ui),
@@ -866,6 +1021,43 @@ impl MininetApp {
         let root = data_root();
         std::thread::spawn(move || {
             let result = run_peer_sync(&root, &endpoint, listener);
+            let _ = sender.send(result);
+        });
+    }
+
+    fn start_private_sync(&mut self, listener: bool) {
+        if self.sync_rx.is_some() {
+            self.notice = "A peer sync is already running.".to_string();
+            return;
+        }
+        let Some(index) = self.selected_conversation else {
+            self.notice = "Select a conversation before private sync.".to_string();
+            return;
+        };
+        let Some(route) = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.conversations.get(index))
+            .map(ConversationRecord::route)
+        else {
+            self.notice = "Selected conversation is unavailable.".to_string();
+            return;
+        };
+        let endpoint = if listener {
+            format!("0.0.0.0:{}", self.listen_port.trim())
+        } else {
+            self.peer_address.trim().to_string()
+        };
+        let (sender, receiver) = mpsc::channel();
+        self.sync_rx = Some(receiver);
+        self.notice = if listener {
+            format!("Listening once for the selected conversation on {endpoint}.")
+        } else {
+            format!("Connecting once for the selected conversation to {endpoint}.")
+        };
+        let root = data_root();
+        std::thread::spawn(move || {
+            let result = run_private_sync(&root, &endpoint, listener, route);
             let _ = sender.send(result);
         });
     }
@@ -923,6 +1115,10 @@ impl MininetApp {
             View::Home => (
                 "Your feed",
                 "A local view of objects your device has received.",
+            ),
+            View::Inbox => (
+                "Inbox beta",
+                "Encrypted route-scoped messages with manual trusted invitation and sync.",
             ),
             View::Communities => (
                 "Communities",
@@ -1195,6 +1391,262 @@ impl MininetApp {
         }
     }
 
+    fn inbox(&mut self, ui: &mut egui::Ui) {
+        ui.group(|ui| {
+            ui.label(egui::RichText::new("Beta security boundary").strong());
+            ui.label("Messages are signed and encrypted at rest, and private sync is limited to the selected opaque conversation route.");
+            ui.colored_label(
+                egui::Color32::YELLOW,
+                "Invitation codes contain the conversation key. Anyone who obtains one can read this beta conversation. Transfer it through a trusted channel.",
+            );
+            ui.label("This beta does not yet provide prekeys, a ratchet, post-compromise recovery, mailbox delivery, or authenticated endpoint discovery.");
+        });
+        ui.add_space(12.0);
+
+        let conversation_cards: Vec<(usize, String, String)> = self
+            .workspace
+            .as_ref()
+            .map(|workspace| {
+                workspace
+                    .conversations
+                    .iter()
+                    .enumerate()
+                    .map(|(index, conversation)| {
+                        (
+                            index,
+                            conversation.label.clone(),
+                            conversation.peer.as_str().to_string(),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        ui.group(|ui| {
+            ui.label(egui::RichText::new("Conversations").strong());
+            if conversation_cards.is_empty() {
+                ui.label("No private conversations are stored in this Windows profile.");
+            }
+            for (index, label, peer) in &conversation_cards {
+                let selected = self.selected_conversation == Some(*index);
+                if ui
+                    .selectable_label(selected, format!("{label}  ·  {peer}"))
+                    .clicked()
+                {
+                    self.selected_conversation = Some(*index);
+                }
+            }
+        });
+        ui.add_space(12.0);
+
+        ui.columns(2, |columns| {
+            columns[0].group(|ui| {
+                ui.label(egui::RichText::new("Create an invitation").strong());
+                ui.label("Local label");
+                ui.text_edit_singleline(&mut self.conversation_label);
+                ui.label("Intended peer DID");
+                ui.text_edit_singleline(&mut self.conversation_peer);
+                let valid_peer = Did::parse(self.conversation_peer.trim()).is_ok();
+                if !self.conversation_peer.trim().is_empty() && !valid_peer {
+                    ui.colored_label(
+                        egui::Color32::YELLOW,
+                        "Enter a complete did:mini identifier.",
+                    );
+                }
+                if ui
+                    .add_enabled(
+                        valid_peer && !self.conversation_label.trim().is_empty(),
+                        egui::Button::new("Create sensitive invite"),
+                    )
+                    .clicked()
+                {
+                    let label = self.conversation_label.trim().to_string();
+                    let peer = self.conversation_peer.trim().to_string();
+                    self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                        match workspace.create_beta_conversation(&label, &peer) {
+                            Ok(invite) => {
+                                self.selected_conversation =
+                                    Some(workspace.conversations.len().saturating_sub(1));
+                                self.conversation_invite = invite;
+                                self.conversation_label.clear();
+                                self.conversation_peer.clear();
+                                "Conversation stored through DPAPI. Transfer the invite securely."
+                                    .to_string()
+                            }
+                            Err(error) => format!("Could not create conversation: {error}"),
+                        }
+                    } else {
+                        "Local workspace unavailable.".to_string()
+                    };
+                }
+            });
+            columns[1].group(|ui| {
+                ui.label(egui::RichText::new("Import an invitation").strong());
+                ui.label("Local label");
+                ui.text_edit_singleline(&mut self.import_conversation_label);
+                ui.label("Sensitive invitation code");
+                ui.add_sized(
+                    [ui.available_width(), 72.0],
+                    egui::TextEdit::multiline(&mut self.import_conversation_invite)
+                        .hint_text("mini-invite-v1.…"),
+                );
+                if ui.button("Import into protected vault").clicked() {
+                    let label = self.import_conversation_label.trim().to_string();
+                    let invite = self.import_conversation_invite.trim().to_string();
+                    self.notice = if label.is_empty() || invite.is_empty() {
+                        "A local label and invitation code are required.".to_string()
+                    } else if let Some(workspace) = self.workspace.as_mut() {
+                        match workspace.import_beta_conversation(&label, &invite) {
+                            Ok(index) => {
+                                self.selected_conversation = Some(index);
+                                self.import_conversation_label.clear();
+                                self.import_conversation_invite.clear();
+                                "Conversation capability imported into DPAPI-protected storage."
+                                    .to_string()
+                            }
+                            Err(error) => format!("Could not import conversation: {error}"),
+                        }
+                    } else {
+                        "Local workspace unavailable.".to_string()
+                    };
+                }
+            });
+        });
+
+        if !self.conversation_invite.is_empty() {
+            ui.add_space(10.0);
+            ui.group(|ui| {
+                ui.label(egui::RichText::new("Sensitive invite — grants message access").strong());
+                ui.add_sized(
+                    [ui.available_width(), 72.0],
+                    egui::TextEdit::multiline(&mut self.conversation_invite),
+                );
+                if ui.button("Copy sensitive invite").clicked() {
+                    ui.ctx().copy_text(self.conversation_invite.clone());
+                    self.notice = "Sensitive invite copied. Clipboard-reading software may access it; clear the clipboard after transfer.".to_string();
+                }
+            });
+        }
+
+        let Some(selected) = self.selected_conversation else {
+            return;
+        };
+        let selected_card = conversation_cards
+            .iter()
+            .find(|(index, _, _)| *index == selected)
+            .cloned();
+        let Some((_, label, peer)) = selected_card else {
+            self.selected_conversation = None;
+            return;
+        };
+
+        ui.add_space(12.0);
+        ui.group(|ui| {
+            ui.heading(&label);
+            ui.label(format!("Claimed peer: {peer}"));
+            ui.label(egui::RichText::new("Message signatures are retained, but this beta view does not yet prove current device delegation/provenance.").small());
+            let scan = self
+                .workspace
+                .as_ref()
+                .and_then(|workspace| workspace.private_messages(selected).ok());
+            if let Some(scan) = scan {
+                if scan.messages.is_empty() {
+                    ui.label("No messages on this device yet.");
+                }
+                let own_did = self
+                    .workspace
+                    .as_ref()
+                    .and_then(|workspace| workspace.human.as_ref());
+                for message in scan.messages {
+                    ui.group(|ui| {
+                        let sender = if own_did == Some(&message.author_human) {
+                            "You".to_string()
+                        } else if message.author_human.as_str() == peer {
+                            label.clone()
+                        } else {
+                            message.author_human.as_str().to_string()
+                        };
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(egui::RichText::new(sender).strong());
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "sequence {} · {}",
+                                    message.sequence, message.timestamp_ms
+                                ))
+                                .small()
+                                .color(egui::Color32::GRAY),
+                            );
+                        });
+                        ui.label(message.body);
+                    });
+                }
+                if !scan.rejected.is_empty() {
+                    ui.colored_label(
+                        egui::Color32::YELLOW,
+                        format!(
+                            "{} envelope(s) could not be decrypted or validated.",
+                            scan.rejected.len()
+                        ),
+                    );
+                }
+            } else {
+                ui.colored_label(egui::Color32::YELLOW, "Conversation could not be decrypted.");
+            }
+            ui.add_sized(
+                [ui.available_width(), 64.0],
+                egui::TextEdit::multiline(&mut self.message_text).hint_text("Write a private message"),
+            );
+            ui.checkbox(
+                &mut self.signing_confirmation,
+                "I confirm this creates a signed encrypted message",
+            );
+            if ui.button("Send to local outbox").clicked() {
+                let body = self.message_text.trim().to_string();
+                self.notice = if body.is_empty() {
+                    "Write a message first.".to_string()
+                } else if !self.signing_confirmation {
+                    "Confirm signing before sending.".to_string()
+                } else if let Some(workspace) = self.workspace.as_mut() {
+                    match workspace.send_private_message(selected, &body) {
+                        Ok(()) => {
+                            self.message_text.clear();
+                            self.signing_confirmation = false;
+                            "Encrypted message stored locally. Sync the conversation to deliver it."
+                                .to_string()
+                        }
+                        Err(error) => format!("Could not send message: {error}"),
+                    }
+                } else {
+                    "Local workspace unavailable.".to_string()
+                };
+            }
+        });
+
+        ui.add_space(12.0);
+        ui.group(|ui| {
+            ui.label(egui::RichText::new("Deliver selected conversation").strong());
+            ui.label("Both peers must select the same imported conversation. The route check completes before message IDs are exchanged.");
+            ui.horizontal(|ui| {
+                ui.label("Peer address");
+                ui.text_edit_singleline(&mut self.peer_address);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Listen port");
+                ui.text_edit_singleline(&mut self.listen_port);
+            });
+            ui.horizontal(|ui| {
+                if ui.button("Connect and sync conversation").clicked() {
+                    self.start_private_sync(false);
+                }
+                if ui.button("Listen once for conversation").clicked() {
+                    self.start_private_sync(true);
+                }
+            });
+            ui.label("Foreground only: no background mailbox, retry loop, push service, or always-on listener.");
+        });
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn post_card(
         &mut self,
         ui: &mut egui::Ui,
@@ -1699,8 +2151,8 @@ impl MininetApp {
         ui.add_space(10.0);
         ui.group(|ui| {
             ui.label(egui::RichText::new("Protocol coverage").strong());
-            ui.label("Integrated here: signed social objects, local feed assembly, communities, threaded replies, reactions, chunked media, DPAPI identity storage, offline bundles, and encrypted one-shot TCP sync.");
-            ui.label("Available in the repository but not yet a finished desktop workflow: encrypted private-message storage/semantics, forge repository/PR operations, presence/keystone encounters, reward accounting, privacy-cost routing, update adoption, and governance administration.");
+            ui.label("Integrated here: signed social objects, local feed assembly, communities, threaded replies, reactions, chunked media, DPAPI identity/conversation storage, Inbox beta, offline bundles, and encrypted one-shot TCP sync.");
+            ui.label("Available in the repository but not yet a finished desktop workflow: production chat sessions/mailboxes, forge repository/PR operations, presence/keystone encounters, reward accounting, privacy-cost routing, update adoption, and governance administration.");
             ui.label("Those foundations are deliberately shown as boundaries rather than unsafe pretend buttons. Public object types remain inspectable and syncable when another Mininet tool creates them; private-message delivery is not wired yet.");
         });
         ui.add_space(10.0);
@@ -1710,7 +2162,7 @@ impl MininetApp {
                 ("Local social, profiles, follows, walls, communities", "Integrated / test-covered", "Desktop"),
                 ("Offline bundles and manual encrypted TCP sync", "Integrated / operator-configured", "Desktop + networking"),
                 ("Internet relay and NAT traversal", "Partial: self-hosted relay foundation exists", "Networking"),
-                ("Private messaging", "Encrypted storage and message semantics; secure session setup and Inbox UI missing", "Messaging + desktop"),
+                ("Private messaging", "Manual Inbox beta integrated; prekeys, ratchet, mailbox, provenance UI and multi-device delivery missing", "Messaging + desktop"),
                 ("Voice and video calls", "Not implemented end to end", "Realtime media"),
                 ("Forge repositories, pull requests, releases", "Protocol foundation; desktop workflow missing", "Forge UI"),
                 ("Presence / keystone / reward encounter", "Protocol demo; production hardware path missing", "Identity + device"),

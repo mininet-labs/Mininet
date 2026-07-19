@@ -4,7 +4,8 @@ Encrypted private-message semantics over `ObjectEnvelopeV2` and `mini-store`.
 
 Implemented now: signed encrypted text/system messages, replies, attachment
 links, delivery/read receipts, opaque-route persistence, deterministic reads,
-and per-item rejection of undecryptable/malformed envelopes.
+per-item rejection of undecryptable/malformed envelopes, and a checksummed
+capability-bearing beta invitation format for trusted out-of-band transfer.
 
 Not implemented here: authenticated prekeys, pairwise session establishment,
 forward secrecy, post-compromise security, multi-device fanout, relay mailbox

@@ -53,9 +53,11 @@
 
 mod ingest;
 mod message;
+mod private_protocol;
 mod protocol;
 
 pub use ingest::{kel_carrier, Ingest, IngestOutcome, KelCache, KEL_CARRIER};
+pub use private_protocol::{sync_private_route_bidirectional, PrivateSyncReport};
 pub use protocol::{serve_pull, sync_bidirectional, IngestReport, SyncRole};
 
 use mini_bearer::BearerError;
@@ -80,6 +82,9 @@ pub enum SyncError {
     Protocol,
     /// A peer exceeded a protocol limit (message counts/sizes).
     LimitExceeded,
+    /// The peers selected different opaque private routes. No ids or envelope
+    /// bytes are exchanged when this check fails.
+    PrivateRouteMismatch,
 }
 
 impl core::fmt::Display for SyncError {
@@ -90,6 +95,7 @@ impl core::fmt::Display for SyncError {
             SyncError::Object(e) => write!(f, "object: {e}"),
             SyncError::Protocol => write!(f, "malformed or out-of-order sync message"),
             SyncError::LimitExceeded => write!(f, "sync protocol limit exceeded"),
+            SyncError::PrivateRouteMismatch => write!(f, "private sync routes do not match"),
         }
     }
 }

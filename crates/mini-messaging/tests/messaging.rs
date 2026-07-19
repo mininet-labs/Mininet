@@ -1,6 +1,8 @@
 use did_mini::{Capabilities, Controller};
 use mini_crypto::{AeadKey, AeadSuite};
-use mini_messaging::{scan, send, ConversationSecret, MessageDraft, MessageKind, ReceiptState};
+use mini_messaging::{
+    scan, send, BetaInvite, ConversationSecret, MessageDraft, MessageKind, ReceiptState,
+};
 use mini_objects::{ObjectBuilder, ObjectType, OpaqueRoute, Payload};
 use mini_store::{MemoryBackend, Store};
 
@@ -133,4 +135,27 @@ fn malformed_drafts_are_rejected_before_storage() {
         .private_by_route(&conversation.route())
         .unwrap()
         .is_empty());
+}
+
+#[test]
+fn beta_invites_round_trip_and_detect_copy_errors() {
+    let (alice, _) = identity(10);
+    let conversation = ConversationSecret::generate_beta().unwrap();
+    let invite = conversation.beta_invite(alice.did());
+    let code = invite.to_code();
+    let decoded = BetaInvite::parse(&code).unwrap();
+
+    assert_eq!(decoded.inviter(), &alice.did());
+    assert_eq!(decoded.route(), conversation.route());
+    assert_eq!(
+        ConversationSecret::from_beta_invite(&decoded)
+            .unwrap()
+            .key_bytes_for_local_vault(),
+        conversation.key_bytes_for_local_vault()
+    );
+
+    let mut corrupted = code.into_bytes();
+    let index = corrupted.len() - 1;
+    corrupted[index] = if corrupted[index] == b'0' { b'1' } else { b'0' };
+    assert!(BetaInvite::parse(std::str::from_utf8(&corrupted).unwrap()).is_err());
 }
