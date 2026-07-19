@@ -53017,7 +53017,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 5304,
+      "bytes": 5333,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -53035,8 +53035,8 @@
         "work-claims",
         "json",
         "notes",
-        "did-mini",
         "in_review",
+        "did-mini",
         "mini-crypto",
         "schema",
         "codex",
@@ -53046,9 +53046,9 @@
         "unix",
         "reproducibility"
       ],
-      "lines": 141,
+      "lines": 143,
       "path": "governance/work-claims.json",
-      "sha256": "ff7144f5d72d807aadba6f587feb1d80a5e8ede91b10041f7a39ff9dbd052945",
+      "sha256": "da9bc1520b76c6fbcdff0ccf50d564fcb9a3a8223751d574a8324825495987ea",
       "symbols": [],
       "title": "{"
     },
