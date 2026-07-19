@@ -314,7 +314,11 @@ given time.
   is evidence of what happened, never permission for anything to happen).
   Unix-only; no process supervision; no real package-manager/OS
   integration -- honest limits stated in the crate's own docs. 17
-  adversarial/integration tests against real files on real disk.
+  adversarial/integration tests against real files on real disk. Since
+  D-0318, the crate compiles on every platform (the one Unix-specific
+  symlink call is `#[cfg(unix)]`-gated with a runtime `Unsupported`
+  error elsewhere) even though activation itself is still Unix-only --
+  non-Unix hosts can now build and test the rest of the workspace.
 - **partial** — `mini-bootstrap` (genesis/capsule protocol logic) is
   shipped, and now proven live over real TCP (D-0062, closes #23, see §8);
   real BLE/Wi-Fi radio adapters remain not started (need phone hardware).
