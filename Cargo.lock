@@ -1494,6 +1494,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-web-types"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+]
+
+[[package]]
 name = "mio"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

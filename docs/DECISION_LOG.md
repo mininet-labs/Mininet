@@ -7508,3 +7508,64 @@ Forge-native proposal allocator during the Forge transition.
 
 **Supersedes / superseded by:** supplements the Decision-number banding rule in
 the Decision Log header; superseded by a future Forge-native allocator.
+### D-0316 — `mini-web-types`: shared MiniSearch vocabulary, Track E foundation  ·  *Accepted*
+**Date:** 2026-07-18 · **Refs:** D-0312 (MiniSearch doctrine);
+D-0311 (free public commons); founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+Part III and §14.1 (`mini-web-types`); Directive 16 (voice/value wall)
+
+**Decision:** adds `mini-web-types`, a pure shared-vocabulary crate for
+MiniSearch. It defines content-addressed identifiers (`UrlId`,
+`CrawlObservationId`, `IndexSegmentId`, `RankingProfileId`), validated
+`CanonicalUrl`/`NormalizedHost` records, `CrawlObservation` and
+`FetchStatus`, `AvailabilityState` with explicit `UnavailabilityReason`
+and `RestrictionReason`, deterministic integer `WeightBps`, versioned
+`RankingProfile`, `PersonalizationPolicy` whose public default is
+`None`, `SearchResult`, and `RankingExplanation`.
+
+The crate deliberately has no crawler, fetcher, parser, index, ranker,
+query service, network client, payment logic, governance dependency, or
+value dependency. It is the typed boundary future MiniSearch crates must
+share before any one crawler/index/ranker implementation exists.
+
+**Reason:** D-0312's central engineering rule is separability:
+discovery, relevance ranking, availability restrictions, user filters,
+and personalization must not collapse into one opaque score. Shipping the
+vocabulary first makes that rule concrete. A restricted result is carried
+as an explicit `AvailabilityState::Restricted(RestrictionReason)` rather
+than silently hidden as a lower relevance score; public ranking profiles
+default to `PersonalizationPolicy::None`; ranking weights are declared as
+bounded integer basis points, not opaque floating-point model output or
+provider/payment authority.
+
+**Constitutional impact:** strengthens Directive 16 in the search domain:
+there is no balance, stake, payment, provider-revenue, or governance
+weight field anywhere in `RankingProfile` or `SearchResult`. Search
+ranking authority remains declared, inspectable, forkable, and separate
+from payment. No new cryptography is introduced; identifiers wrap the
+existing `mini_crypto::Multihash` type only.
+
+**Implementation status:** shipped in `mini-web-types` and added to the
+workspace. Focused local validation on Windows: `cargo fmt --all
+-- --check`, `cargo test -p mini-web-types --all-features`, and
+`cargo clippy -p mini-web-types --all-targets --all-features --
+-D warnings` pass. The broader workspace check still hits the known
+Windows-only `mini-installer` Unix symlink compile gap and is not evidence
+against this crate.
+
+**Failure point:** vocabulary only. No URL parser from arbitrary text, no
+robots fetcher, no HTTP client, no crawler frontier, no extractor, no
+index segment format, no ranker implementation, no query CLI, no
+federated merge protocol, no private-query transport, and no provider
+reward/receipt system exist here. `CanonicalUrl::new` validates already
+separated URL parts; it is not a full browser-compatible URL parser.
+
+**Required follow-up:** minimal single-host crawler with strict limits and
+no JavaScript; sandboxed static-page extraction; deterministic lexical
+index segments; transparent versioned ranker; query CLI; result
+provenance; federated query merging; local re-ranking; and signed crawl
+observation exchange as separate PRs.
+
+**Supersedes / superseded by:** implements the first code slice named by
+D-0312's Track E follow-up. Does not supersede `mini-private-index`
+(D-0310), which remains private capability lookup, not public web search.
