@@ -1,0 +1,27 @@
+[package]
+name = "mini-ffi"
+version = "0.0.1"
+description = "A narrow, versioned UniFFI command/event boundary for Mininet mobile shells."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib", "staticlib"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+uniffi = { version = "=0.32.0", default-features = false }
+
+[build-dependencies]
+uniffi = { version = "=0.32.0", default-features = false, features = ["build"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]

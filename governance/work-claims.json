@@ -304,6 +304,7 @@
       "paths": [
         "Cargo.toml",
         "Cargo.lock",
+        "deny.toml",
         "crates/mini-ffi/",
         "app/android/",
         "docs/mobile/",

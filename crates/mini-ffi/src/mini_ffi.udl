@@ -1,0 +1,76 @@
+namespace mini_ffi {
+  u32 api_version();
+
+  [Throws=AppError]
+  AppSnapshot start(PlatformCapabilities capabilities);
+
+  [Throws=AppError]
+  CommandOutcome dispatch(AppSnapshot snapshot, AppCommand command);
+};
+
+dictionary PlatformCapabilities {
+  boolean secure_key_storage;
+  boolean hardware_backed_keys;
+  boolean screen_lock;
+  boolean biometric_unlock;
+};
+
+enum SecurityReadiness {
+  "SecureStorageUnavailable",
+  "SoftwareProtected",
+  "HardwareProtected",
+};
+
+enum OnboardingStage {
+  "Welcome",
+  "RootSafety",
+  "RootCreationReady",
+};
+
+dictionary AppSnapshot {
+  u32 api_version;
+  u64 generation;
+  OnboardingStage onboarding_stage;
+  SecurityReadiness security_readiness;
+  boolean screen_lock;
+  boolean biometric_unlock;
+};
+
+enum AppAction {
+  "Refresh",
+  "Continue",
+  "Back",
+};
+
+dictionary AppCommand {
+  u32 api_version;
+  string request_id;
+  PlatformCapabilities capabilities;
+  AppAction action;
+};
+
+enum AppEventKind {
+  "SnapshotChanged",
+  "SecureStorageRequired",
+  "RootCreationPending",
+};
+
+dictionary AppEvent {
+  string request_id;
+  AppEventKind kind;
+};
+
+dictionary CommandOutcome {
+  AppSnapshot snapshot;
+  sequence<AppEvent> events;
+};
+
+[Error]
+enum AppError {
+  "UnsupportedApiVersion",
+  "InvalidPlatformCapabilities",
+  "InconsistentSnapshot",
+  "InvalidRequest",
+  "InvalidTransition",
+  "GenerationOverflow",
+};
