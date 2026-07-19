@@ -30,6 +30,7 @@ pub fn next(home: &Path) -> Result<u64> {
         .write(true)
         .open(lock_path(home))
         .map_err(|e| CliError::Io(e.to_string()))?;
+    #[allow(clippy::incompatible_msrv)]
     lock.lock().map_err(|e| CliError::Io(e.to_string()))?;
 
     let path = counter_path(home);
