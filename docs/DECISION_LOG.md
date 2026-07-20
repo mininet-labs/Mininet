@@ -9247,3 +9247,81 @@ delegation-ceremony acceptance test from `ANDROID_FOUNDATION.md`/issue
 
 **Supersedes / superseded by:** none. New document; no existing code
 changed.
+
+### D-0335 — `mini-ffi::RootCore`: software-custody root/device delegation ceremony MVP (issue #197)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** hub issue #196, issue #197, draft PR #179,
+D-0334, `docs/design/android-keystore-signer-adapter.md`
+
+**Decision:** ship `RootCore` — a `mini-ffi` UniFFI object holding
+in-process root/device `did_mini::Controller` state — implementing
+`create_root`, `create_device`, `revoke_device`, `delegated_devices`,
+`has_root`, and `root_did`. This is Option 3 from D-0334's design doc
+(software-wrapped custody, not hardware-backed): every key is an ordinary
+in-memory `mini_crypto::SigningKey`, generated and used exactly as every
+other identity in this workspace today. No `SignatureSuite` change, no
+`DeviceSigner` trait, no `Controller` redesign — this exists specifically
+because it changes nothing in `mini-crypto`/`did-mini`, per the founder's
+explicit "just do it, ready for testing" direction and D-0334's own
+identification of Option 3 as the fastest, lowest-risk path to something
+real people can install and click through. The onboarding reducer
+(`start`/`dispatch`) is untouched; `RootCore` is a separate, additive
+UniFFI interface Kotlin instantiates once `dispatch` reaches
+`RootCreationReady`.
+
+**Reason:** closes the concrete "ready for my testing" ask against the
+acceptance test named in `ANDROID_FOUNDATION.md`/issue #197 for its
+create/delegate/revoke steps (steps 1, 2, 3, and 5 of that test — restart
+recovery, step 4, is explicitly out of scope, see below). Real people can
+now create a root, delegate a device, and revoke it inside one running
+app process, letting UX and protocol correctness get exercised on real
+devices via Codex/the founder's hardware before the harder hardware-backed
+custody question (D-0334's suite choice) is resolved.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting.
+`RootCore`'s methods take no generic byte blob — `create_device`/
+`revoke_device` operate on typed DIDs and a fixed default capability set,
+never a caller-assembled authority request. Directive 8 (human is the
+root of trust) and the custody model's "private-key bytes are never
+returned through UniFFI" hold: every `RootCore` method returns only DID
+strings, booleans, or `()`, never key material.
+
+**Implementation status:** shipped and tested (7 new unit tests: fresh
+core has no root; a second `create_root` is rejected; `create_device`
+before a root exists is rejected; the full create-root →
+create-device → revoke ceremony round-trips; revoking an unknown device
+is rejected; revoking a malformed DID is rejected; two delegated devices
+get independent identities). `cargo build -p mini-ffi`, `cargo test -p
+mini-ffi --all-features` (16 passed, up from 9), `cargo clippy -p
+mini-ffi --all-targets --all-features -- -D warnings`, full workspace
+fmt/clippy/test (148 test-result blocks, all `ok`), and a real UniFFI
+Kotlin codegen run (`uniffi-bindgen generate src/mini_ffi.udl --language
+kotlin`) confirming `RootCore`'s methods surface correctly as
+`createRoot`/`createDevice`/`revokeDevice`/`delegatedDevices`/`hasRoot`/
+`rootDid` in the generated `RootCoreInterface` — all passed/verified in
+this environment.
+
+**Failure point:** explicitly, honestly incomplete against the full
+acceptance test: (1) **nothing persists past process death** — closing
+the app loses the root and every delegated device; step 4 of the
+acceptance test ("restart the process and recover the same public
+identity") is entirely unimplemented, tracked as issue #198. (2) **not
+hardware-backed** — no key here is Android Keystore-generated or
+non-exportable; the "revoke a stolen device key" security story this
+custody model promises is not yet real, only the KEL-level bookkeeping
+that a revocation happened. (3) **root and device share one process** —
+a real deployment has the root on one device and delegated devices on
+others; this MVP doesn't yet model that split (that's what LAN/QR
+pairing, issue #200, actually establishes). (4) still entirely unrun on
+any real Android build/emulator/device — this environment has no JDK/
+SDK/NDK/Gradle/emulator; Codex/the founder's local toolchain is the next
+required step to actually exercise this from Kotlin.
+
+**Required follow-up:** issue #198 (persisted app state) is the
+immediate next slice — without it this ceremony is a demo, not a usable
+feature. Then D-0334's suite-choice decision for genuine hardware
+backing. Then real device/emulator verification via Codex.
+
+**Supersedes / superseded by:** none. Purely additive to `mini-ffi`; the
+existing `start`/`dispatch` reducer and its `AppSnapshot`/`AppCommand`/
+`AppEvent` types are byte-for-byte unchanged.

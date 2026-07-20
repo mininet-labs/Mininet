@@ -6,10 +6,12 @@
 //! shared across the FFI boundary, so calls are deterministic and independently
 //! testable.
 //!
-//! Maturity: **prototype foundation**. This crate does not yet create or persist
-//! an identity, access Android Keystore, synchronize peers, or prove that a key
-//! is hardware-backed. Those capabilities enter through later, separately
-//! reviewed adapters; this API refuses to imply that they already exist.
+//! Maturity: **prototype foundation**. [`RootCore`] can now create a root
+//! identity and delegate/revoke device identities in memory (D-0335), but
+//! nothing persists across process death yet, no key is Android
+//! Keystore-backed or hardware-proven, and no peer synchronization exists.
+//! Those capabilities enter through later, separately reviewed adapters;
+//! this API refuses to imply that they already exist.
 
 #![deny(unsafe_code)]
 #![warn(missing_debug_implementations)]
@@ -156,6 +158,150 @@ impl core::fmt::Display for AppError {
 }
 
 impl std::error::Error for AppError {}
+
+/// Stable failure classes for [`RootCore`]'s identity operations.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RootError {
+    /// `create_root` was called but a root already exists in this process.
+    RootAlreadyExists,
+    /// A device operation was requested before a root exists.
+    NoRoot,
+    /// `revoke_device` named a DID this `RootCore` never delegated.
+    UnknownDevice,
+    /// A `did-mini` identity operation failed; message only, no secret state.
+    Identity(String),
+}
+
+impl core::fmt::Display for RootError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            RootError::RootAlreadyExists => f.write_str("a root already exists"),
+            RootError::NoRoot => f.write_str("no root exists yet"),
+            RootError::UnknownDevice => f.write_str("unknown or already-revoked device"),
+            RootError::Identity(msg) => write!(f, "identity operation failed: {msg}"),
+        }
+    }
+}
+
+impl std::error::Error for RootError {}
+
+fn identity_err(err: did_mini::IdentityError) -> RootError {
+    RootError::Identity(err.to_string())
+}
+
+/// In-memory root and delegated-device identity state for one app process.
+///
+/// **Software-custody MVP (D-0335):** every key here is an ordinary
+/// in-memory `mini_crypto::SigningKey`, exactly like every other identity in
+/// this workspace today. No key is Android Keystore-backed, no key is
+/// hardware-proven non-exportable, and nothing here persists past process
+/// death — closing the app loses the root and every delegated device.
+/// `docs/design/android-keystore-signer-adapter.md` (D-0334) named this as
+/// the pragmatic first slice specifically because it changes nothing in
+/// `mini-crypto`/`did-mini`; genuine hardware-backed custody is tracked
+/// separately (hub issue #196) and is not implied by anything this type
+/// does. Persistence across restart is the very next slice (issue #198).
+#[derive(Debug, Default)]
+pub struct RootCore {
+    state: std::sync::Mutex<RootState>,
+}
+
+#[derive(Debug, Default)]
+struct RootState {
+    root: Option<did_mini::Controller>,
+    devices: Vec<did_mini::Controller>,
+}
+
+impl RootCore {
+    /// A fresh core with no root yet.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Whether a root has been created in this process.
+    pub fn has_root(&self) -> bool {
+        self.lock().root.is_some()
+    }
+
+    /// The root's `did:mini:...` string, if one exists.
+    pub fn root_did(&self) -> Option<String> {
+        self.lock()
+            .root
+            .as_ref()
+            .map(|c| c.did().as_str().to_string())
+    }
+
+    /// Create the root identity. Fails if one already exists in this process
+    /// — recovery of an existing root is a separate, not-yet-implemented
+    /// path (issue #198), never silently overwritten here.
+    pub fn create_root(&self) -> Result<String, RootError> {
+        let mut state = self.lock();
+        if state.root.is_some() {
+            return Err(RootError::RootAlreadyExists);
+        }
+        let controller = did_mini::Controller::incept_single().map_err(identity_err)?;
+        let did = controller.did().as_str().to_string();
+        state.root = Some(controller);
+        Ok(did)
+    }
+
+    /// Generate a new delegated device identity and authorize it on the
+    /// root's KEL with the default (primary) capability set. Returns the new
+    /// device's `did:mini:...` string.
+    pub fn create_device(&self) -> Result<String, RootError> {
+        let mut state = self.lock();
+        let root_did = state.root.as_ref().ok_or(RootError::NoRoot)?.did();
+        let current = mini_crypto::SigningKey::generate().map_err(|e| identity_err(e.into()))?;
+        let next = mini_crypto::SigningKey::generate().map_err(|e| identity_err(e.into()))?;
+        let device =
+            did_mini::Controller::incept_device(&root_did, vec![current], 1, vec![next], 1)
+                .map_err(identity_err)?;
+        let device_did = device.did();
+        state
+            .root
+            .as_mut()
+            .expect("checked above")
+            .delegate_device(&device_did, did_mini::Capabilities::primary())
+            .map_err(identity_err)?;
+        let device_did_str = device_did.as_str().to_string();
+        state.devices.push(device);
+        Ok(device_did_str)
+    }
+
+    /// Revoke a previously delegated device by its DID string. The device
+    /// must be one this core actually delegated; an unknown or
+    /// already-revoked DID is rejected rather than silently accepted.
+    pub fn revoke_device(&self, device_did: String) -> Result<(), RootError> {
+        let mut state = self.lock();
+        let did = did_mini::Did::parse(&device_did).map_err(identity_err)?;
+        if !state.devices.iter().any(|d| d.did() == did) {
+            return Err(RootError::UnknownDevice);
+        }
+        state
+            .root
+            .as_mut()
+            .ok_or(RootError::NoRoot)?
+            .revoke_device(&did)
+            .map_err(identity_err)?;
+        state.devices.retain(|d| d.did() != did);
+        Ok(())
+    }
+
+    /// The DIDs of currently delegated (non-revoked) devices.
+    pub fn delegated_devices(&self) -> Vec<String> {
+        self.lock()
+            .devices
+            .iter()
+            .map(|d| d.did().as_str().to_string())
+            .collect()
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, RootState> {
+        self.state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+    }
+}
 
 /// Return the command/event API version without constructing application state.
 pub fn api_version() -> u32 {
@@ -455,5 +601,83 @@ mod tests {
             dispatch(snapshot, command(AppAction::Back)),
             Err(AppError::InvalidTransition)
         );
+    }
+
+    #[test]
+    fn a_fresh_root_core_has_no_root() {
+        let core = RootCore::new();
+        assert!(!core.has_root());
+        assert_eq!(core.root_did(), None);
+        assert!(core.delegated_devices().is_empty());
+    }
+
+    #[test]
+    fn creating_a_second_root_is_rejected() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        assert_eq!(core.create_root(), Err(RootError::RootAlreadyExists));
+    }
+
+    #[test]
+    fn a_device_cannot_be_created_before_a_root_exists() {
+        let core = RootCore::new();
+        assert_eq!(core.create_device(), Err(RootError::NoRoot));
+    }
+
+    #[test]
+    fn the_full_delegation_and_revocation_ceremony() {
+        let core = RootCore::new();
+        let root_did = core.create_root().unwrap();
+        assert!(core.has_root());
+        assert_eq!(core.root_did(), Some(root_did));
+
+        let device_did = core.create_device().unwrap();
+        assert_eq!(core.delegated_devices(), vec![device_did.clone()]);
+
+        core.revoke_device(device_did.clone()).unwrap();
+        assert!(core.delegated_devices().is_empty());
+
+        // A revoked device cannot be revoked again.
+        assert_eq!(
+            core.revoke_device(device_did),
+            Err(RootError::UnknownDevice)
+        );
+    }
+
+    #[test]
+    fn revoking_an_unknown_device_is_rejected() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        // A syntactically valid DID that this core never delegated.
+        let stranger = did_mini::Controller::incept_single().unwrap();
+        let stranger_did = stranger.did().as_str().to_string();
+        assert_eq!(
+            core.revoke_device(stranger_did),
+            Err(RootError::UnknownDevice)
+        );
+    }
+
+    #[test]
+    fn revoking_a_malformed_did_is_rejected() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        assert!(matches!(
+            core.revoke_device("not-a-did".to_string()),
+            Err(RootError::Identity(_))
+        ));
+    }
+
+    #[test]
+    fn two_delegated_devices_have_independent_identities() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        let device_a = core.create_device().unwrap();
+        let device_b = core.create_device().unwrap();
+        assert_ne!(device_a, device_b);
+        let mut devices = core.delegated_devices();
+        devices.sort();
+        let mut expected = vec![device_a, device_b];
+        expected.sort();
+        assert_eq!(devices, expected);
     }
 }

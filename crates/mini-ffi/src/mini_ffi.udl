@@ -8,6 +8,25 @@ namespace mini_ffi {
   CommandOutcome dispatch(AppSnapshot snapshot, AppCommand command);
 };
 
+interface RootCore {
+  constructor();
+
+  boolean has_root();
+
+  string? root_did();
+
+  [Throws=RootError]
+  string create_root();
+
+  [Throws=RootError]
+  string create_device();
+
+  [Throws=RootError]
+  void revoke_device(string device_did);
+
+  sequence<string> delegated_devices();
+};
+
 dictionary PlatformCapabilities {
   boolean secure_key_storage;
   boolean hardware_backed_keys;
@@ -73,4 +92,12 @@ enum AppError {
   "InvalidRequest",
   "InvalidTransition",
   "GenerationOverflow",
+};
+
+[Error]
+enum RootError {
+  "RootAlreadyExists",
+  "NoRoot",
+  "UnknownDevice",
+  "Identity",
 };

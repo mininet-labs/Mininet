@@ -2427,6 +2427,8 @@ version = "0.0.1"
 name = "mini-ffi"
 version = "0.0.1"
 dependencies = [
+ "did-mini",
+ "mini-crypto",
  "uniffi",
 ]
 
