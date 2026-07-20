@@ -1,8 +1,7 @@
 # KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)
 
-**Status:** Phase 0 (design) only. No code in this PR — the research
-report itself names a design-only first deliverable as the correct
-sequencing, and this document is that deliverable.
+**Status:** Phase 0 (design) and Phase 1 (receipt types, D-0321) shipped.
+Phase 2 (in-memory witness state machine) onward not started.
 
 **Full research:** `docs/research/
 KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md`
@@ -65,9 +64,10 @@ exactly what this PR is.
 ## Phased plan this repo commits to (see report §29 for full detail)
 
 0. **Design and state audit** — this document.
-1. **Receipt types** — `WitnessPolicy`, `WitnessReceiptStatement`,
-   `WitnessReceipt`, `WitnessedEventCertificate`; canonical encoding;
-   signature verification; no network service.
+1. **Receipt types (shipped, D-0321)** — `WitnessPolicy`,
+   `WitnessReceiptStatement`, `WitnessReceipt`,
+   `WitnessedEventCertificate`; canonical encoding; signature
+   verification; no network service. Lives in `did-mini::witness`.
 2. **In-memory witness state machine** — first-seen acceptance, direct-
    successor verification, duplicate idempotence, stale rejection,
    conflict detection, receipt issuance, `ControllerDuplicityProof`,
@@ -111,10 +111,15 @@ exactly what this PR is.
   14 and CLAUDE.md's no-new-cryptography rule, composing `did-mini`'s
   existing typed-signature machinery is sufficient for Phase 1-3.
 
-## What this PR does not do
+## What this document originally covered, and what D-0321 added
 
-No new type is added to `did-mini` or anywhere else. `FreshnessPins`
-(D-0088) is unmodified. No witness state machine, no receipt format, no
-gossip protocol exists yet — those are Phases 1-5, each its own PR, each
+This document was originally Phase 0 only: no new type, `FreshnessPins`
+(D-0088) unmodified, no witness state machine, no receipt format, no
+gossip protocol. D-0321 (Phase 1) has since shipped
+`did-mini::witness`'s four receipt/certificate types, canonical
+encoding, and signature/threshold verification — see that decision-log
+entry for exactly what it does and does not cover. No witness state
+machine, no receipt format wired into real establishment events, and no
+gossip protocol exist yet — those are Phases 2-5, each its own PR, each
 scoped no larger than this session's established discipline for
 founder-research-driven work.

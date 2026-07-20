@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-19T19:52:06Z",
+  "updated_at": "2026-07-19T19:56:05Z",
   "claims": [
     {
       "issue": 122,
@@ -116,6 +116,27 @@
         "D-0322"
       ],
       "notes": "Phase 2 of post-quantum identity migration (D-0095, issue #15): ML-DSA-65 key generation + isolated signing in mini-crypto. No did-mini/KEL wiring, no default-suite change. Decision renumbered D-0320 -> D-0322 during rebase to avoid colliding with PR #174's independently-claimed D-0320 (CI reproducibility scope) and PR #180's D-0321 (KEL witness receipt types)."
+    },
+    {
+      "issue": 177,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/kel-witness-receipt-types",
+      "pull_request": 180,
+      "lease_expires": "2026-07-26",
+      "paths": [
+        "crates/did-mini/src/witness.rs",
+        "crates/did-mini/src/error.rs",
+        "crates/did-mini/src/limits.rs",
+        "crates/did-mini/src/lib.rs",
+        "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0321"
+      ],
+      "notes": "Phase 1 of KEL witness receipts (audit #12 F4, invariant M3): WitnessPolicy/WitnessReceiptStatement/WitnessReceipt/WitnessedEventCertificate types in did-mini. Canonical encoding + signature/threshold verification only, no witness state machine, no KEL-verification wiring, no network."
     }
   ]
 }

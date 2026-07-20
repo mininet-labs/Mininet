@@ -191,14 +191,19 @@ given time.
   `did_mini::FreshnessPins` (D-0088) — not only a documented
   recommendation, closing the case where a verifier has already seen a
   fresher KEL. The harder case — a verifier who has *never* seen the
-  fresher log — now has an adopted design direction (D-0096, `docs/design/
+  fresher log — has an adopted design direction (D-0096, `docs/design/
   kel-witness-receipts-and-duplicity-gossip.md`): KERI-style asynchronous
   witness receipts, threshold witnessed-event certificates, and proof-
-  carrying duplicity gossip. **Design only, no code yet** — the research
-  report's own recommended sequencing puts the receipt/proof types, the
-  in-memory witness state machine, and KEL-verification integration as
-  separate, later PRs, each gated behind external review (D-0047) before
-  any high-value authority decision may depend on it.
+  carrying duplicity gossip. **Phase 1 shipped (D-0321):**
+  `did_mini::witness` — `WitnessPolicy`, `WitnessReceiptStatement`,
+  `WitnessReceipt`, `WitnessedEventCertificate`, canonical encoding,
+  signature/threshold verification, real tested code (24 tests). **Not
+  yet real:** no in-memory witness state machine (nothing issues a
+  receipt for a real observed event), no duplicity proofs (Phase 2), no
+  `KelAssurance`/KEL-verification integration (Phase 3 — a certificate
+  cannot yet be checked against a live `Kel`), no gossip. Each remaining
+  phase is its own later PR, gated behind external review (D-0047)
+  before any high-value authority decision may depend on this layer.
 - **partial** — post-quantum migration path ([#15](../../issues/15),
   D-0095/D-0322): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire
   tag `0x02`) is real — `VerifyingKey`/`Signature` parse and verify
