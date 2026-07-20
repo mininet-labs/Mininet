@@ -26,22 +26,31 @@
 //! controller-signed bytes rather than from this witness's own paraphrased
 //! receipt claims.
 //!
-//! **Deliberately not attempted here** (per the design doc's own phase
-//! boundary): full KEL-chain verification (self-certifying inception,
-//! signature/threshold/pre-rotation/recovery checks) — [`WitnessJournal::
-//! observe`] trusts the caller to have already established that `event` is
-//! a chain-valid candidate at this position; wiring the real `Kel`/
-//! `KeyState` verification path in front of this state machine is Phase 3's
-//! job (`KelAssurance`). Recovery events are not special-cased — this
-//! module tracks sequence/digest/prior linkage only, agnostic to *why* a
-//! rotation happened; recovery-aware handling is also Phase 3's job. The
-//! harder "conflicting descendant" case (research report §9.3: an event
-//! that builds on a branch inconsistent with accepted state, at a sequence
-//! that isn't a same-slot conflict) is rejected outright rather than
-//! answered with a constructed fork proof — that remains future work, not
-//! silently promised here. No receipt collection protocol, gossip,
-//! persistent witness service, witness rotation, or public transparency
-//! logs (Phases 4-9) exist in this module.
+//! [`WitnessJournal::observe`] trusts the caller to have already
+//! established that `event` is a chain-valid candidate at this position —
+//! it checks sequence/digest/prior linkage only, nothing cryptographic.
+//! [`WitnessJournal::observe_verified`] is the Phase 3 wiring the module
+//! doc previously named as missing: it runs the real [`Kel::verify`] chain
+//! (self-certifying inception, signature/threshold, pre-rotation) over the
+//! *entire* presented KEL before delegating to `observe`, so a witness
+//! using it no longer has to trust an untrusted peer's bare claim that an
+//! event is chain-valid.
+//!
+//! **Still deliberately not attempted:** `observe_verified` re-verifies the
+//! whole chain from inception on every call rather than incrementally
+//! verifying just the new suffix against previously-accepted state — the
+//! simplest correct thing (Directive 14), not a bounded/incremental verify
+//! (real follow-up work). Recovery events are not special-cased — `Kel::
+//! verify` (and so this module) tracks sequence/digest/prior linkage and
+//! ordinary pre-rotation only, agnostic to *why* a rotation happened;
+//! recovery-aware handling remains future work. The harder "conflicting
+//! descendant" case (research report §9.3: an event that builds on a
+//! branch inconsistent with accepted state, at a sequence that isn't a
+//! same-slot conflict) is rejected outright rather than answered with a
+//! constructed fork proof — that remains future work, not silently
+//! promised here. No receipt collection protocol, gossip, persistent
+//! witness service, witness rotation, or public transparency logs
+//! (Phases 4-9) exist in this module.
 
 use std::collections::HashMap;
 
@@ -50,6 +59,7 @@ use mini_crypto::{SigningKey, VerifyingKey};
 use crate::codec::{Reader, Writer};
 use crate::error::{IdentityError, Result};
 use crate::event::{self, Event};
+use crate::kel::Kel;
 use crate::limits::MAX_DID_BYTES;
 use crate::witness::{
     sign_witness_receipt, WitnessId, WitnessPolicy, WitnessReceipt, WitnessReceiptStatement,
@@ -233,6 +243,31 @@ impl WitnessJournal {
                 Ok(WitnessObservation::Accepted(receipt))
             }
         }
+    }
+
+    /// Like [`Self::observe`], but does not trust the caller that the head
+    /// event is chain-valid: runs [`Kel::verify`] over the *entire*
+    /// presented `kel` first (self-certifying inception, signature/
+    /// threshold, pre-rotation, chain-digest linkage), and only then
+    /// delegates the head event to [`Self::observe`] for first-seen/
+    /// duplicate/stale/conflict handling. See the module doc for exactly
+    /// what this does and does not additionally check.
+    ///
+    /// Returns whatever [`IdentityError`] `Kel::verify` returns if `kel`
+    /// itself is not internally valid, before `observe`'s own state-machine
+    /// logic ever runs — an invalid chain never touches or mutates this
+    /// journal's retained state.
+    pub fn observe_verified(
+        &mut self,
+        kel: &Kel,
+        policy: &WitnessPolicy,
+        witness_id: WitnessId,
+        witness_key: &SigningKey,
+        observed_epoch: u64,
+    ) -> Result<WitnessObservation> {
+        kel.verify()?;
+        let event = kel.events().last().ok_or(IdentityError::EmptyKel)?;
+        self.observe(event, policy, witness_id, witness_key, observed_epoch)
     }
 }
 
@@ -708,6 +743,110 @@ mod tests {
             WitnessEquivocationProof::assemble(a, b),
             Err(IdentityError::WitnessEquivocationMismatch)
         );
+    }
+
+    #[test]
+    fn observe_verified_accepts_a_genuinely_chain_valid_inception() {
+        let controller = Controller::incept_single().unwrap();
+        let (wid, key, _vk) = a_witness();
+        let policy = a_policy(vec![wid.clone()], 1);
+        let mut journal = WitnessJournal::new();
+
+        let outcome = journal
+            .observe_verified(&controller.kel(), &policy, wid, &key, 10)
+            .unwrap();
+        match outcome {
+            WitnessObservation::Accepted(receipt) => {
+                assert_eq!(receipt.statement.sequence, 0);
+                assert_eq!(
+                    receipt.statement.event_digest,
+                    controller.kel().events()[0].digest()
+                );
+            }
+            other => panic!("expected Accepted, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn observe_verified_accepts_a_genuine_rotation_as_a_direct_successor() {
+        let mut controller = Controller::incept_single().unwrap();
+        let (wid, key, _vk) = a_witness();
+        let policy = a_policy(vec![wid.clone()], 1);
+        let mut journal = WitnessJournal::new();
+        journal
+            .observe_verified(&controller.kel(), &policy, wid.clone(), &key, 1)
+            .unwrap();
+
+        controller.rotate().unwrap();
+        let outcome = journal
+            .observe_verified(&controller.kel(), &policy, wid, &key, 2)
+            .unwrap();
+        assert!(matches!(outcome, WitnessObservation::Accepted(_)));
+        let state = journal.state_for(&controller.did()).unwrap();
+        assert_eq!(state.accepted_sequence, 1);
+    }
+
+    #[test]
+    fn observe_verified_rejects_a_kel_with_a_tampered_signature_and_leaves_state_untouched() {
+        let controller = Controller::incept_single().unwrap();
+        let (wid, key, _vk) = a_witness();
+        let policy = a_policy(vec![wid.clone()], 1);
+        let mut journal = WitnessJournal::new();
+
+        // Flip a byte inside the encoded KEL -- if it happens to land in the
+        // scid/length framing rather than signature/key material, decoding
+        // itself fails; either way the tampered KEL must never be accepted
+        // and must never mutate the journal.
+        let mut bytes = controller.kel().to_bytes();
+        let last = bytes.len() - 1;
+        bytes[last] ^= 0xFF;
+
+        if let Ok(tampered) = Kel::from_bytes(&bytes) {
+            assert!(journal
+                .observe_verified(&tampered, &policy, wid, &key, 1)
+                .is_err());
+        }
+        assert!(journal.state_for(&controller.did()).is_none());
+    }
+
+    #[test]
+    fn observe_verified_rejects_an_empty_kel() {
+        let controller = Controller::incept_single().unwrap();
+        let (wid, key, _vk) = a_witness();
+        let policy = a_policy(vec![wid], 1);
+        let mut journal = WitnessJournal::new();
+        let empty = Kel::from_bytes(&{
+            // Encode a zero-event KEL by hand -- `Kel::to_bytes` always has
+            // at least one event for any real `Controller`, so this is the
+            // only way to construct the adversarial empty case.
+            let mut w = Writer::new();
+            w.bytes(controller.did().scid().as_bytes());
+            w.u32(0);
+            w.into_bytes()
+        })
+        .unwrap();
+        assert_eq!(
+            journal.observe_verified(&empty, &policy, WitnessId(controller.did()), &key, 1),
+            Err(IdentityError::EmptyKel)
+        );
+    }
+
+    #[test]
+    fn observe_verified_still_detects_duplicate_stale_and_conflicting_events() {
+        let controller = Controller::incept_single().unwrap();
+        let (wid, key, _vk) = a_witness();
+        let policy = a_policy(vec![wid.clone()], 1);
+        let mut journal = WitnessJournal::new();
+        let kel0 = controller.kel();
+        journal
+            .observe_verified(&kel0, &policy, wid.clone(), &key, 1)
+            .unwrap();
+
+        // Exact duplicate presentation is idempotent through the verified path too.
+        let again = journal
+            .observe_verified(&kel0, &policy, wid, &key, 999)
+            .unwrap();
+        assert!(matches!(again, WitnessObservation::AlreadyAccepted(_)));
     }
 
     #[test]

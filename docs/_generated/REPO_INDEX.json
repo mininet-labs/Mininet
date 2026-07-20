@@ -3,7 +3,7 @@
     "crates": 46,
     "files": 579,
     "headings": 2023,
-    "rust_symbols": 4548
+    "rust_symbols": 4554
   },
   "crates": {
     "did-mini": {
@@ -3206,257 +3206,287 @@
       "title": "use mini_crypto::{Signature, SignatureSuite, SigningKey, VerifyingKey};"
     },
     {
-      "bytes": 30235,
+      "bytes": 36095,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
         "event",
         "witness",
         "receipt",
+        "kel",
         "phase",
+        "module",
         "report",
-        "accepted",
-        "state",
-        "self",
+        "sequence",
         "witnessidentitystate",
         "accepted_event",
         "witnessjournal",
         "controllerduplicityproof",
-        "module",
+        "state",
+        "identity",
+        "accepted",
+        "self",
+        "verify",
         "research",
         "own",
-        "identity",
-        "sequence",
-        "issued",
+        "rather",
         "issued_receipt",
-        "verification",
-        "per",
-        "one",
-        "full",
-        "witnessreceipt"
+        "observe",
+        "observe_verified",
+        "witnessequivocationproof"
       ],
-      "lines": 730,
+      "lines": 869,
       "path": "crates/did-mini/src/witness_state.rs",
-      "sha256": "51e1267b38f7c37e04650ccbe8478a049a13be7dcd7ebee6a511763d61ad31d4",
+      "sha256": "4c35a2d355001d906e5bb15b12d07d5df4723c34e4d6dae8228530e162546594",
       "symbols": [
         {
           "kind": "const",
-          "line": 63,
+          "line": 73,
           "name": "MAX_EVENT_BYTES"
         },
         {
           "kind": "struct",
-          "line": 69,
+          "line": 79,
           "name": "WitnessIdentityState"
         },
         {
           "kind": "impl",
-          "line": 78,
+          "line": 88,
           "name": "WitnessIdentityState"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 92,
           "name": "accepted_event"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 99,
           "name": "issued_receipt"
         },
         {
           "kind": "enum",
-          "line": 97,
+          "line": 107,
           "name": "WitnessObservation"
         },
         {
           "kind": "struct",
-          "line": 122,
+          "line": 132,
           "name": "WitnessJournal"
         },
         {
           "kind": "impl",
-          "line": 126,
+          "line": 136,
           "name": "WitnessJournal"
         },
         {
           "kind": "fn",
-          "line": 127,
+          "line": 137,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 145,
           "name": "state_for"
         },
         {
           "kind": "fn",
-          "line": 148,
+          "line": 158,
           "name": "observe"
         },
         {
+          "kind": "fn",
+          "line": 260,
+          "name": "observe_verified"
+        },
+        {
           "kind": "enum",
-          "line": 239,
+          "line": 274,
           "name": "Decision"
         },
         {
           "kind": "struct",
-          "line": 259,
+          "line": 294,
           "name": "ControllerDuplicityProof"
         },
         {
           "kind": "impl",
-          "line": 266,
+          "line": 301,
           "name": "ControllerDuplicityProof"
         },
         {
           "kind": "fn",
-          "line": 270,
+          "line": 305,
           "name": "assemble"
         },
         {
           "kind": "fn",
-          "line": 288,
+          "line": 323,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 299,
+          "line": 334,
           "name": "decode"
         },
         {
           "kind": "struct",
-          "line": 333,
+          "line": 368,
           "name": "WitnessEquivocationProof"
         },
         {
           "kind": "impl",
-          "line": 339,
+          "line": 374,
           "name": "WitnessEquivocationProof"
         },
         {
           "kind": "fn",
-          "line": 344,
+          "line": 379,
           "name": "assemble"
         },
         {
           "kind": "fn",
-          "line": 368,
+          "line": 403,
           "name": "verify"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 410,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 386,
+          "line": 421,
           "name": "decode"
         },
         {
           "kind": "const",
-          "line": 399,
+          "line": 434,
           "name": "MAX_RECEIPT_BYTES"
         },
         {
           "kind": "mod",
-          "line": 402,
+          "line": 437,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 408,
+          "line": 443,
           "name": "a_witness"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 458,
           "name": "an_event"
         },
         {
           "kind": "fn",
-          "line": 436,
+          "line": 471,
           "name": "a_policy"
         },
         {
           "kind": "fn",
-          "line": 441,
+          "line": 476,
           "name": "first_seen_event_is_accepted_and_receipted"
         },
         {
           "kind": "fn",
-          "line": 465,
+          "line": 500,
           "name": "a_valid_direct_successor_is_accepted_and_updates_state"
         },
         {
           "kind": "fn",
-          "line": 484,
+          "line": 519,
           "name": "an_exact_duplicate_returns_the_same_receipt_without_resigning"
         },
         {
           "kind": "fn",
-          "line": 506,
+          "line": 541,
           "name": "a_stale_ancestor_is_rejected_without_a_receipt"
         },
         {
           "kind": "fn",
-          "line": 528,
+          "line": 563,
           "name": "a_conflicting_same_sequence_event_yields_a_duplicity_proof"
         },
         {
           "kind": "fn",
-          "line": 558,
+          "line": 593,
           "name": "a_conflicting_descendant_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 576,
+          "line": 611,
           "name": "observing_outside_the_policy_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 591,
+          "line": 626,
           "name": "a_controller_duplicity_proof_round_trips"
         },
         {
           "kind": "fn",
-          "line": 602,
+          "line": 637,
           "name": "assembling_a_duplicity_proof_from_different_sequences_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 614,
+          "line": 649,
           "name": "assembling_a_duplicity_proof_from_identical_events_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 626,
+          "line": 661,
           "name": "assembling_a_duplicity_proof_for_a_different_identity_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 638,
+          "line": 673,
           "name": "a_statement"
         },
         {
           "kind": "fn",
-          "line": 659,
+          "line": 694,
           "name": "a_witness_equivocation_proof_round_trips_and_verifies"
         },
         {
           "kind": "fn",
-          "line": 677,
+          "line": 712,
           "name": "assembling_an_equivocation_proof_from_the_same_digest_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 695,
+          "line": 730,
           "name": "assembling_an_equivocation_proof_from_different_witnesses_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 714,
+          "line": 749,
+          "name": "observe_verified_accepts_a_genuinely_chain_valid_inception"
+        },
+        {
+          "kind": "fn",
+          "line": 771,
+          "name": "observe_verified_accepts_a_genuine_rotation_as_a_direct_successor"
+        },
+        {
+          "kind": "fn",
+          "line": 790,
+          "name": "observe_verified_rejects_a_kel_with_a_tampered_signature_and_leaves_state_untouched"
+        },
+        {
+          "kind": "fn",
+          "line": 813,
+          "name": "observe_verified_rejects_an_empty_kel"
+        },
+        {
+          "kind": "fn",
+          "line": 835,
+          "name": "observe_verified_still_detects_duplicate_stale_and_conflicting_events"
+        },
+        {
+          "kind": "fn",
+          "line": 853,
           "name": "an_equivocation_proof_fails_verification_against_the_wrong_key"
         }
       ],
@@ -40327,7 +40357,7 @@
       "title": "{"
     },
     {
-      "bytes": 527110,
+      "bytes": 531447,
       "group": "docs",
       "headings": [
         {
@@ -40741,9 +40771,9 @@
         "batch",
         "closes",
         "decision",
+        "audit",
         "phase",
         "first",
-        "audit",
         "issue",
         "release",
         "roadmap",
@@ -40757,9 +40787,9 @@
         "core",
         "chain"
       ],
-      "lines": 8762,
+      "lines": 8835,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "7566087c501d8b6544767f659f752c8f749f4c5aa7b0afa425e475a8c2cb54ab",
+      "sha256": "896a279e8f133982a7371c35fb8883e102e23ac44e6e19f9dfb4c4af7c10decf",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -41699,7 +41729,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 62931,
+      "bytes": 63511,
       "group": "docs",
       "headings": [
         {
@@ -41729,52 +41759,52 @@
         },
         {
           "level": 2,
-          "line": 244,
+          "line": 252,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 310,
+          "line": 318,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 357,
+          "line": 365,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 542,
+          "line": 550,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 583,
+          "line": 591,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 641,
+          "line": 649,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 670,
+          "line": 678,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 890,
+          "line": 898,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 965,
+          "line": 973,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 971,
+          "line": 979,
           "text": "Where to look for more detail"
         }
       ],
@@ -41804,9 +41834,9 @@
         "claude",
         "social"
       ],
-      "lines": 986,
+      "lines": 994,
       "path": "docs/STATUS.md",
-      "sha256": "36712da019b7ede941e4856f3c9d3be7a4b882b9240f4ee6e02d410e0f17674f",
+      "sha256": "b848cb2afce23f925c5a38e5dae33f54d1367ec9b5b8699e6a3c2c3fb6136049",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -43608,7 +43638,7 @@
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
     },
     {
-      "bytes": 8729,
+      "bytes": 9199,
       "group": "docs",
       "headings": [
         {
@@ -43618,39 +43648,39 @@
         },
         {
           "level": 2,
-          "line": 18,
+          "line": 19,
           "text": "The gap this closes"
         },
         {
           "level": 2,
-          "line": 29,
+          "line": 30,
           "text": "Decision"
         },
         {
           "level": 2,
-          "line": 55,
+          "line": 56,
           "text": "Why design-only, this PR"
         },
         {
           "level": 2,
-          "line": 68,
+          "line": 69,
           "text": "Phased plan this repo commits to (see report \u00a729 for full detail)"
         },
         {
           "level": 2,
-          "line": 115,
+          "line": 121,
           "text": "Hard rules carried forward from the report"
         },
         {
           "level": 2,
-          "line": 136,
+          "line": 142,
           "text": "What this document originally covered, and what D-0321/D-0326 added"
         }
       ],
       "keywords": [
         "witness",
-        "receipts",
         "phase",
+        "receipts",
         "gossip",
         "report",
         "what",
@@ -43673,9 +43703,9 @@
         "did-mini",
         "invariant"
       ],
-      "lines": 152,
+      "lines": 158,
       "path": "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
-      "sha256": "8cb748b54d1a71a3a8a2c1b1f1152d116700f531f50a19a7d103757e6c566193",
+      "sha256": "0ba0461dd3da7f7606ff91d3eeeb7252515174468c6b661537c9aa1d2d67ab3d",
       "symbols": [],
       "title": "KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)"
     },
@@ -53573,7 +53603,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 10821,
+      "bytes": 11228,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -53602,9 +53632,9 @@
         "tools",
         "cargo"
       ],
-      "lines": 237,
+      "lines": 239,
       "path": "governance/work-claims.json",
-      "sha256": "4dcc028cec2138dd9be04fcb3171b0b5806cee161b98e831ce5d500ccc526c98",
+      "sha256": "e4f8b695b578a8f75d45cfec03755c66043c8a9dbffafa343a6587f5d39b429b",
       "symbols": [],
       "title": "{"
     },

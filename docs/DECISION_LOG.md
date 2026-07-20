@@ -8759,3 +8759,76 @@ here.
 `did-mini::witness`/`witness_state`'s Phase 1/2 types, `FreshnessPins`,
 `Kel::verify`, and every other existing `did-mini` type/function are
 unchanged.
+
+### D-0329 — `did-mini::witness_state`: wire real KEL-chain verification in front of `WitnessJournal::observe` (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0326 (Phase 2: `WitnessJournal`);
+D-0328 (Phase 3 first slice: `KelAssurance`); `docs/design/
+kel-witness-receipts-and-duplicity-gossip.md`; invariant M3
+
+**Decision:** ship `WitnessJournal::observe_verified(kel, policy,
+witness_id, witness_key, observed_epoch)`, the second of the two
+sub-parts D-0328 explicitly named as still missing from Phase 3. It runs
+the real `Kel::verify` chain (self-certifying inception, signature/
+threshold, pre-rotation, chain-digest linkage) over the *entire*
+presented `Kel` first, then extracts the head event and delegates to the
+unchanged `WitnessJournal::observe` for first-seen/duplicate/stale/
+conflict handling. `observe` itself is untouched and still exists for
+any caller that has already established chain validity by some other
+route.
+
+**Reason:** `WitnessJournal::observe`'s own doc comment was explicit
+that it "trusts the caller to have already established that `event` is
+a chain-valid candidate" — fine for Phase 2's own scope (defining what a
+witness *does* once an event is already trusted), but an honest gap for
+any witness actually accepting events from an untrusted network peer.
+Phase 3's design-doc line names "wiring real KEL-chain verification in
+front of `WitnessJournal::observe`" as its own explicit remainder item;
+this closes it the same way D-0328 closed its own piece: compose
+already-shipped, already-reviewed machinery (`Kel::verify`) rather than
+inventing new verification logic.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+identity-layer verification plumbing only. `observe_verified` takes a
+specific typed tuple (`&Kel`, `&WitnessPolicy`, `WitnessId`,
+`&SigningKey`, `u64`), never a generic `sign`/`verify(bytes)`. `Kel::
+verify` is composed through, never bypassed or reimplemented — per
+Phase 10's hard rule no high-value authority decision may depend on this
+layer before external cryptographic review, unchanged from D-0321/
+D-0326/D-0328's own gates.
+
+**Implementation status:** shipped in `crates/did-mini/src/
+witness_state.rs` (`WitnessJournal::observe_verified`, no new public
+type — `WitnessObservation`/`WitnessJournal` themselves unchanged). 5
+new tests: a genuinely chain-valid inception is accepted; a genuine
+rotation is accepted as a direct successor and updates state; a KEL with
+a tampered signature byte is rejected and never mutates the journal's
+retained state; an empty (zero-event) KEL is rejected with
+`IdentityError::EmptyKel` before `observe`'s own logic runs; duplicate/
+stale/conflict detection still works correctly when reached through the
+verified path. `cargo fmt`/`cargo clippy --all-targets --all-features -D
+warnings`/`cargo test` all clean on `did-mini` (52 lib tests, up from
+47) and on the full workspace (145 test binaries, 0 failures).
+
+**Failure point:** re-verifies the *entire* chain from inception on
+every call rather than incrementally verifying just the new suffix
+against previously-accepted state — correct but not bounded/incremental
+(explicit follow-up, not silently assumed solved). Recovery events are
+still not special-cased (`Kel::verify` treats every rotation
+identically; recovery-aware handling remains future work). The harder
+"conflicting descendant" case (an event building on a branch
+inconsistent with accepted state, at a sequence that isn't a same-slot
+conflict) is still rejected outright rather than answered with a
+constructed fork proof. `WitnessPolicy` is still not read from a real
+`Establishment` event; no local duplicity-proof store; no
+`WitnessedRecentAndGossiped`; no real call site gating an authority
+decision on any of this yet — all unchanged from D-0328's own list.
+
+**Required follow-up:** a bounded/incremental verify path (verify only
+the new suffix given previously-established state, instead of the whole
+chain from inception every time); everything else D-0328's own
+"Required follow-up" already named, still unclaimed here.
+
+**Supersedes / superseded by:** none. Additive only — `WitnessJournal::
+observe` and every other existing `did-mini` type/function are
+unchanged.

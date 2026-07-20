@@ -1,10 +1,11 @@
 # KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)
 
 **Status:** Phase 0 (design), Phase 1 (receipt types, D-0321), Phase 2
-(in-memory witness state machine, D-0326), and Phase 3's first slice
-(`KelAssurance` classification, D-0328) shipped. The rest of Phase 3
-(wiring `WitnessPolicy` into real establishment events; wiring real
-KEL-chain verification in front of `WitnessJournal::observe`) onward not
+(in-memory witness state machine, D-0326), Phase 3's first slice
+(`KelAssurance` classification, D-0328), and Phase 3's second slice
+(real KEL-chain verification wired in front of `WitnessJournal::
+observe`, D-0329) shipped. Only "wiring `WitnessPolicy` into real
+establishment events" remains open in Phase 3; Phase 4 onward not
 started.
 
 **Full research:** `docs/research/
@@ -89,13 +90,18 @@ exactly what this PR is.
    assess_kel_assurance` classifies `Direct`/`Pinned`/`Witnessed`/
    `WitnessedRecent`/`DuplicityDetected` by composing `Kel::verify`
    (via `FreshnessPins`), a caller-supplied `WitnessedEventCertificate`/
-   `WitnessPolicy`, and a caller-supplied `known_duplicity` flag. Still
-   missing from this phase: `WitnessPolicy` read from a real
-   `Establishment` event (caller-supplied today), real KEL-chain
-   verification wired in front of `WitnessJournal::observe`, a local
-   duplicity-proof store, `WitnessedRecentAndGossiped` (needs Phase 5),
-   and any real call site that gates an authority decision on a
-   `KelAssurance` level.
+   `WitnessPolicy`, and a caller-supplied `known_duplicity` flag.
+   **Second slice shipped (D-0329):** `did_mini::WitnessJournal::
+   observe_verified` runs the real `Kel::verify` chain over the entire
+   presented KEL before delegating to `observe` — a witness no longer
+   has to trust an untrusted peer's bare claim that a presented event is
+   chain-valid; `observe` itself is unchanged for callers that establish
+   chain validity some other way. Still missing from this phase:
+   `WitnessPolicy` read from a real `Establishment` event (caller-
+   supplied today), a local duplicity-proof store, `WitnessedRecentAndGossiped`
+   (needs Phase 5), a bounded/incremental KEL-chain re-verify (today
+   re-verifies the whole chain from inception every call), and any real
+   call site that gates an authority decision on a `KelAssurance` level.
 4. **Receipt collection protocol** — typed request/response messages
    (`SubmitEventForWitnessing`, `FetchWitnessCertificate`, etc.).
 5. **Gossip summaries** — piggybacked on existing sync/relay/forge
