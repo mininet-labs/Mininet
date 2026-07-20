@@ -2,7 +2,7 @@
   "counts": {
     "crates": 46,
     "files": 576,
-    "headings": 2003,
+    "headings": 2009,
     "rust_symbols": 4479
   },
   "crates": {
@@ -738,7 +738,7 @@
       "title": "Blocking bootstrap baseline: validate that the"
     },
     {
-      "bytes": 3828,
+      "bytes": 5767,
       "group": "ci",
       "headings": [
         {
@@ -769,68 +769,98 @@
         {
           "level": 1,
           "line": 8,
-          "text": "SPEC-11's actual scope (\"verified-reproducible releases\"). The"
-        },
-        {
-          "level": 1,
-          "line": 9,
-          "text": "`pull_request` trigger's `paths-ignore` is deliberately narrow (docs and"
+          "text": "SPEC-11's actual scope (\"verified-reproducible releases\")."
         },
         {
           "level": 1,
           "line": 10,
-          "text": "markdown only): anything else -- source, Cargo.toml/Cargo.lock,"
+          "text": "The `pull_request` trigger has no path filter either (D-0325): an earlier"
         },
         {
           "level": 1,
           "line": 11,
-          "text": "rust-toolchain.toml, build scripts, this workflow file itself -- still"
+          "text": "version used `paths-ignore: [docs/**, **/*.md]` to skip the workflow"
         },
         {
           "level": 1,
           "line": 12,
-          "text": "runs the real check before merge. A PR that touches both a doc and a"
+          "text": "entirely for docs-only PRs, but that meant this job -- listed as a"
         },
         {
           "level": 1,
           "line": 13,
-          "text": "source file still runs it, since paths-ignore only skips a workflow when"
+          "text": "required status check -- never posted *any* status for such a PR, which"
         },
         {
           "level": 1,
           "line": 14,
-          "text": "*every* changed path matches."
+          "text": "left it permanently stuck at `mergeable_state: blocked` no matter how long"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "CI ran (exactly the risk D-0320's own follow-up section flagged and never"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "resolved). The workflow itself now always runs and always completes with"
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "a real conclusion; the \"Determine whether this PR touches only docs\" step"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "below decides, from a real `git diff` against the PR's base commit,"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "whether the two-clean-build steps that follow are skipped. A required"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "check that sometimes finishes in five seconds is still a required check"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "that always finishes -- unlike one that never starts."
         }
       ],
       "keywords": [
         "build",
-        "release",
-        "name",
-        "spec-11",
-        "cargo",
-        "tmp",
-        "txt",
-        "verified-reproducible",
         "check",
-        "main",
-        "every",
-        "scope",
-        "paths-ignore",
-        "binaries",
-        "examples",
-        "run",
-        "reproducibility",
-        "artifact",
+        "real",
+        "diff",
+        "spec-11",
+        "required",
+        "never",
+        "always",
+        "steps",
+        "name",
+        "release",
         "path",
-        "source",
-        "toml",
+        "job",
+        "docs_only",
+        "reproducibility",
+        "verified-reproducible",
+        "two-clean-build",
+        "artifact",
+        "main",
+        "scope",
+        "pull_request",
         "workflow",
-        "file",
-        "still"
+        "status",
+        "whether"
       ],
-      "lines": 88,
+      "lines": 124,
       "path": ".github/workflows/reproducibility.yml",
-      "sha256": "c96e831b72d1e1afe0300e5e0dc26bd017acd58b3b07d62c350238c221a4c8ba",
+      "sha256": "ee16e463bd84a4f90c5186a131bf789a526bce983b73a9b7a4e6f1da528b5e3d",
       "symbols": [],
       "title": "SPEC-11's verified-reproducible release check (roadmap #69, frozen"
     },
@@ -39771,7 +39801,7 @@
       "title": "{"
     },
     {
-      "bytes": 491463,
+      "bytes": 499320,
       "group": "docs",
       "headings": [
         {
@@ -40201,9 +40231,9 @@
         "chain",
         "first"
       ],
-      "lines": 8190,
+      "lines": 8313,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d46c6f37981b403aebd331d83400b3f60e8b29dd60d4225fe19f7057586a0563",
+      "sha256": "f0219b27cdb8feb0ab8c0c7fabeff96fee45646931729e9a37c73645ae999963",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -41143,7 +41173,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 60035,
+      "bytes": 60576,
       "group": "docs",
       "headings": [
         {
@@ -41208,17 +41238,17 @@
         },
         {
           "level": 2,
-          "line": 856,
+          "line": 860,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 927,
+          "line": 935,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 933,
+          "line": 941,
           "text": "Where to look for more detail"
         }
       ],
@@ -41248,9 +41278,9 @@
         "claude",
         "social"
       ],
-      "lines": 943,
+      "lines": 951,
       "path": "docs/STATUS.md",
-      "sha256": "e0dbd202d9768b3cff062acdf1b8edb0ecb441567a3d56f753d2fac678cfe28a",
+      "sha256": "ccb72a4d22a0b7a8b8d85680c3825c0ef5de46a7be41280cbd54b27af277dfdd",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -53017,38 +53047,38 @@
       "title": "version: 1"
     },
     {
-      "bytes": 5333,
+      "bytes": 7287,
       "group": "root",
       "headings": [],
       "keywords": [
+        "issue",
         "status",
         "claude",
-        "issue",
-        "contributor",
         "branch",
+        "contributor",
         "pull_request",
         "lease_expires",
         "paths",
-        "decision_log",
-        "decision_ids",
         "governance",
         "work-claims",
         "json",
+        "closed",
+        "decision_log",
+        "decision_ids",
         "notes",
-        "in_review",
-        "did-mini",
+        "set",
         "mini-crypto",
         "schema",
         "codex",
         "tools",
         "cargo",
+        "in_review",
         "error",
-        "unix",
-        "reproducibility"
+        "unix"
       ],
-      "lines": 143,
+      "lines": 178,
       "path": "governance/work-claims.json",
-      "sha256": "da9bc1520b76c6fbcdff0ccf50d564fcb9a3a8223751d574a8324825495987ea",
+      "sha256": "23a8e7d702712d07f2443154363badce0c50abcd58ebbe2dc88ab4337a7ed674",
       "symbols": [],
       "title": "{"
     },

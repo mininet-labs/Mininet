@@ -661,12 +661,16 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
 
 - **shipped** — CI hygiene (D-0314): the SPEC-11 reproducibility check
   moved into its own `.github/workflows/reproducibility.yml`, still
-  unconditional on every push to `main` but skipped on a PR that touches
-  only `docs/**`/markdown; `.gitattributes` gives `docs/DECISION_LOG.md`/
-  `docs/STATUS.md` a `merge=union` driver so two branches appending
-  different entries near the same point no longer forces a manual
-  conflict resolution. No change to what SPEC-11 requires or when it's
-  enforced for a build-relevant change.
+  unconditional on every push to `main`; `.gitattributes` gives
+  `docs/DECISION_LOG.md`/`docs/STATUS.md` a `merge=union` driver so two
+  branches appending different entries near the same point no longer
+  forces a manual conflict resolution. No change to what SPEC-11 requires
+  or when it's enforced for a build-relevant change. (D-0325: the workflow
+  now always triggers on every PR — an earlier `paths-ignore` that skipped
+  it entirely for docs-only PRs left this required check permanently
+  unset for them, blocking PR #181 indefinitely; the two-clean-build cost
+  is now skipped *inside* the job instead, so the check always reaches a
+  real conclusion.)
 
 - **shipped** — Batch 1's first exit-condition demonstration: `mini-cli`
   (D-0067), a real command-line tool (`identity`/`kel`/`repo`/`pr`
