@@ -8241,3 +8241,72 @@ not this same race, and would need its own diagnosis.
 **Supersedes / superseded by:** none. `run_worker`'s documented behavior for the
 zero-deadline case (always `ExtractionError::Timeout`) is unchanged; only how
 reliably it is observed changes.
+### D-0325 — `reproducibility` CI: always run the required check; skip the two-clean-build cost inside the job for docs-only PRs  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0320 (narrowed this job's build scope; its
+own "Required follow-up" section named exactly this risk and left it open);
+D-0314 (split this job out of `ci.yml`); `.github/workflows/reproducibility.yml`;
+issue #184; PR #181 (the PR that hit this in practice)
+
+**Decision:** remove `paths-ignore: [docs/**, **/*.md]` from the
+`reproducibility` workflow's `pull_request` trigger, so the workflow — and
+the required `reproducibility` status check it posts — always runs for
+every PR. Inside the job, a new "Determine whether this PR touches only
+docs" step computes the same docs/**-or-`**/*.md` condition via a real
+`git diff` against the PR's base commit; when every changed path matches,
+the two-clean-build steps are skipped in favor of a fast explanatory
+no-op step, and the job still completes with a real conclusion. `push:
+branches: [main]` is unchanged — it still has no path filter and always
+runs the real check.
+
+**Reason:** PR #181 (the whitepaper, a docs-only diff) finished every
+other check green but sat at `mergeable_state: "blocked"` indefinitely.
+The cause: its entire diff matched the old `paths-ignore`, so the
+`reproducibility` job never ran at all — and since it is a required
+status check, GitHub never saw *any* conclusion for it on that commit,
+leaving the PR permanently unmergeable through ordinary means. This is
+precisely the risk D-0320's own "Required follow-up" section named and
+left open ("verifying whether this job's `paths-ignore`, combined with
+its status as a *required* context, can leave a docs-only PR permanently
+unmergeable") — it has now been observed happening, not just anticipated.
+
+The fix keeps D-0320's own principle (build scope should equal assertion
+scope) and extends it one level up: *trigger* scope should equal
+*conclusion* scope. A required check must always reach a conclusion,
+even a trivial one, or it isn't really usable as a required check. Moving
+the skip decision from "does this workflow run at all" (external to the
+job, invisible to the check's own status) to "does this job's expensive
+work run" (internal, still concluding as `success`) preserves 100% of
+the original cost savings for genuinely docs-only PRs while removing the
+structural trap.
+
+**Constitutional impact:** none. This is CI trigger/scope mechanics, not
+protocol. It adds no authority, changes no invariant, and does not weaken
+SPEC-11: every PR that touches anything outside `docs/**`/`**/*.md` still
+runs the full two-clean-build comparison exactly as before; only docs-only
+PRs' *path* to a passing required check changes, from "never runs" (a
+bug) to "runs a fast no-op step" (the intended behavior all along).
+
+**Implementation status:** shipped in
+`.github/workflows/reproducibility.yml`. The in-job diff step mirrors the
+old trigger-level `paths-ignore` patterns exactly (`docs/` prefix,
+`.md` suffix), so behavior for every previously-covered case — a PR that
+touches both a doc and a source file still runs the real check, since the
+`grep -vE` only reports "docs only" when *every* changed path matches —
+is unchanged; only the previously-uncovered "PR touches nothing but docs"
+case gets a real conclusion instead of none.
+
+**Failure point:** the in-job `git diff` step needs `fetch-depth: 0` on
+checkout to see the PR's base commit, which was added alongside it. If a
+future edit narrows the checkout depth again without preserving that,
+the diff step would fail closed (git diff against an unreachable base
+SHA errors, which fails the step, which fails the job) — a safe direction
+to fail wrong in (over-running the expensive check) rather than the
+silent-never-runs failure this decision fixes, but still worth a comment
+at the checkout step for the next editor.
+
+**Required follow-up:** none identified beyond what D-0320 already listed
+(larger runner, `~/.cargo` caching, and the cross-machine
+K-independent-builder check SPEC-11 §8 ultimately wants).
+
+**Supersedes / superseded by:** refines D-0320's and D-0314's scoping of
+this job. Supersedes nothing; SPEC-11 is untouched.

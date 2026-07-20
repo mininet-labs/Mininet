@@ -140,10 +140,10 @@
     },
     {
       "issue": 182,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/mini-extract-host-zero-deadline-timeout",
-      "pull_request": null,
+      "pull_request": 183,
       "lease_expires": "2026-07-27",
       "paths": [
         "crates/mini-extract-host/src/lib.rs",
@@ -153,7 +153,25 @@
       "decision_ids": [
         "D-0324"
       ],
-      "notes": "Fix an intermittent CI failure (most recently blocking PR #181's required check job): a_zero_millisecond_deadline_is_reported_as_timeout raced Duration::ZERO against the worker's real round trip via mpsc::Receiver::recv_timeout. Special-cased max_wall_clock_ms == 0 in run_worker to a deterministic immediate timeout. No behavior change for non-zero deadlines."
+      "notes": "Fix an intermittent CI failure (most recently blocking PR #181's required check job): a_zero_millisecond_deadline_is_reported_as_timeout raced Duration::ZERO against the worker's real round trip via mpsc::Receiver::recv_timeout. Special-cased max_wall_clock_ms == 0 in run_worker to a deterministic immediate timeout. No behavior change for non-zero deadlines. Closed here (issue #184 branch) since PR #183 merged 2026-07-20T09:38Z."
+    },
+    {
+      "issue": 184,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/reproducibility-required-check-docs-only",
+      "pull_request": null,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        ".github/workflows/reproducibility.yml",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0325"
+      ],
+      "notes": "Fix the reproducibility workflow's required-check gap: paths-ignore for docs/**/**/*.md meant the job never ran (and the required status check never posted a conclusion) for a PR whose entire diff was docs-only, leaving it permanently mergeable_state: blocked (observed on PR #181). Workflow now always triggers; the two-clean-build cost is skipped inside the job via a real git-diff check instead."
     }
   ]
 }
