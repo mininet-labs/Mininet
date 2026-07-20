@@ -234,11 +234,11 @@
         "D-0329",
         "D-0330"
       ],
-      "notes": "Three related slices of Phase 3 of KEL witness receipts (audit #12 F4, invariant M3), batched into one PR per CLAUDE.md's workflow ritual since each built directly on the last in the same session before the branch was ever pushed. D-0328: did_mini::assess_kel_assurance classifies Direct/Pinned/Witnessed/WitnessedRecent/DuplicityDetected by composing Kel::verify (via FreshnessPins) with a caller-supplied WitnessedEventCertificate/WitnessPolicy and known_duplicity flag. D-0329: WitnessJournal::observe_verified runs the real Kel::verify chain over the entire presented KEL before delegating to observe, closing the 'trusts the caller' gap observe's own doc comment named. D-0330: DuplicityRegistry records ControllerDuplicityProof/WitnessEquivocationProof and answers has_known_duplicity(identity, policy), a real place to compute known_duplicity from instead of by hand. Still open: WitnessPolicy read from a real Establishment event, persistence/gossip for the registry, a bounded/incremental re-verify, and any real call site gating an authority decision or feeding real proofs into the registry. Closed here (issue #192 branch, during its rebase past PR #191's merge) since PR #191 was confirmed merged."
+      "notes": "Three related slices of Phase 3 of KEL witness receipts (audit #12 F4, invariant M3), batched into one PR per CLAUDE.md's workflow ritual since each built directly on the last in the same session before the branch was ever pushed. D-0328: did_mini::assess_kel_assurance classifies Direct/Pinned/Witnessed/WitnessedRecent/DuplicityDetected by composing Kel::verify (via FreshnessPins) with a caller-supplied WitnessedEventCertificate/WitnessPolicy and known_duplicity flag. D-0329: WitnessJournal::observe_verified runs the real Kel::verify chain over the entire presented KEL before delegating to observe, closing the 'trusts the caller' gap observe's own doc comment named. D-0330: DuplicityRegistry records ControllerDuplicityProof/WitnessEquivocationProof and answers has_known_duplicity(identity, policy), a real place to compute known_duplicity from instead of by hand. Still open: WitnessPolicy read from a real Establishment event, persistence/gossip for the registry, a bounded/incremental re-verify, and any real call site gating an authority decision or feeding real proofs into the registry. Closed independently by both the issue #192 and issue #194 branches after PR #191 was confirmed merged."
     },
     {
       "issue": 192,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/mini-store-bounded-range",
       "pull_request": 193,
@@ -254,7 +254,27 @@
       "decision_ids": [
         "D-0331"
       ],
-      "notes": "Follow-up to D-0327: Backend::list_meta_prefix_last, a genuinely bounded 'most recent N' query. MemoryBackend gets a real O(log n + limit) BTreeMap::range(...).rev().take(limit) implementation; FsBackend inherits the trait's non-bounded default (deliberately -- a real bounded FS reverse walk needs either a sorted early-stopping traversal or an on-disk sorted index, not attempted here to avoid risking FsBackend's existing symlink/path-traversal defenses). Store::recent now calls the new method directly instead of since(0) reversed/truncated client-side. Store::since's own forward scan is unchanged and still not bounded."
+      "notes": "Follow-up to D-0327: Backend::list_meta_prefix_last, a genuinely bounded 'most recent N' query. MemoryBackend gets a real O(log n + limit) BTreeMap::range(...).rev().take(limit) implementation; FsBackend inherits the trait's non-bounded default (deliberately -- a real bounded FS reverse walk needs either a sorted early-stopping traversal or an on-disk sorted index, not attempted here to avoid risking FsBackend's existing symlink/path-traversal defenses). Store::recent now calls the new method directly instead of since(0) reversed/truncated client-side. Store::since's own forward scan is unchanged and still not bounded. Closed here (issue #194 branch) since PR #193 was confirmed merged; found stale (still in_review) and closed per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+    },
+    {
+      "issue": 194,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/forge-kel-assurance-gating",
+      "pull_request": null,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/mini-forge/src/oracle.rs",
+        "crates/mini-forge/src/lib.rs",
+        "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0332"
+      ],
+      "notes": "mini_forge::author_assurance composes the oracle's existing author_verified provenance re-check with did_mini::assess_kel_assurance over the author-root's KEL -- the first consumer of KelAssurance outside did-mini itself. Deliberately not wired into propose/approve/merge/resolve_project's actual quorum gating (still purely author_verified's boolean) -- which governance action should require which minimum assurance level is a founder-facing policy call, not decided unilaterally here."
     }
   ]
 }

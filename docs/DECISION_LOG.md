@@ -8982,3 +8982,86 @@ import/export mirror automation) remain their own future PRs.
 existing trait (a new method with a default implementation);
 `Store::since`'s own behavior and every other `Store`/`Backend` method
 are unchanged.
+### D-0332 — `mini-forge`: bridge `KelAssurance` into the identity oracle as `author_assurance` (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0328/D-0329/D-0330 (`did-mini`'s
+`assess_kel_assurance`/`observe_verified`/`DuplicityRegistry`);
+`docs/design/kel-witness-receipts-and-duplicity-gossip.md`; invariant M3
+
+**Decision:** add `mini_forge::author_assurance(oracle, obj, pins,
+witnessing, known_duplicity) -> Result<KelAssurance, ForgeError>` in
+`oracle.rs`. It first runs the existing `author_verified` provenance
+re-check (unchanged); if that fails, returns `Err(ForgeError::BadObject)`
+without computing anything further. Otherwise it composes `did_mini::
+assess_kel_assurance` over the *author-root's* KEL (the identity whose
+vote/authorship actually counts toward quorum, not the signing device),
+propagating internal errors via the existing `ForgeError::Identity`
+variant. Re-exported from the crate root alongside `IdentityOracle`/
+`KelDirectory`.
+
+**Reason:** D-0328's own decision-log entry named the still-missing
+piece plainly: "a real call site (e.g. `mini-forge` governance/merge
+gating) that actually uses a `KelAssurance` level to gate an authority
+decision... this PR ships the classification function itself, not its
+wiring into any real authority-gating call site." With D-0328/D-0329/
+D-0330 now merged into `main`, `mini-forge` could finally depend on
+`did_mini::assess_kel_assurance` at all — this is the first piece that
+actually does, bridging the oracle's existing `IdentityOracle`/`Kel`
+plumbing to it.
+
+**Deliberately not wired into any real governance call site.**
+`propose`/`approve`/`merge`/`resolve_project` (`governance.rs`) all
+still gate purely on `author_verified`'s plain boolean, completely
+unchanged by this PR. Deciding *which* governance actions should
+require *which* minimum `KelAssurance` level (e.g. the research
+report's own example table: public post accepts `Direct`, validator
+admission requires `WitnessedRecentAndGossiped`) is a founder-facing
+policy call this crate should not make unilaterally by silently
+tightening every quorum check — especially since KEL witnessing remains
+Phase 3-of-10 work, gated behind external cryptographic review (D-0047)
+before any high-value authority decision may depend on it. Shipping the
+composable, tested bridge function is this PR's honest boundary; using
+it to actually gate something is explicitly left for a founder-directed
+follow-up.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` — `mini-forge` already depended on
+`did-mini` before this PR (via `verify_provenance`/`Kel`/`Did`), and
+this adds no new dependency edge, only a new function composing
+existing ones. No change to `mini-chain` voting or any quorum-counting
+logic; `propose`/`approve`/`merge`/`resolve_project` are byte-for-byte
+unchanged. `author_assurance` takes a specific typed tuple (`&dyn
+IdentityOracle`, `&Object`, `&mut FreshnessPins`, `Option<
+WitnessEvidence>`, `bool`), never a generic `sign`/`verify(bytes)`, per
+this repo's typed-domain discipline.
+
+**Implementation status:** shipped in `crates/mini-forge/src/oracle.rs`
+(`author_assurance`), re-exported from `lib.rs`. 4 new tests: a
+verified first-contact author yields `Direct`; a second check of the
+same root (after a real rotation) yields `Pinned`; an unknown author is
+rejected with `ForgeError::BadObject` before any assurance is computed;
+`known_duplicity` overrides a verified author to `DuplicityDetected`.
+`cargo fmt`/`cargo clippy --all-targets --all-features -D warnings`/
+`cargo test` all clean on `mini-forge` (4 new tests) and on the full
+workspace (145 test binaries, 0 failures).
+
+**Failure point:** no real call site in this codebase calls
+`author_assurance` yet — governance decisions are exactly as
+freshness-blind as they were before this PR; this ships the bridge, not
+its use. The `witnessing`/`known_duplicity` parameters still require a
+caller to supply a `WitnessedEventCertificate`/`WitnessPolicy` and a
+duplicity signal by hand (D-0330's `DuplicityRegistry` exists but
+nothing here constructs or queries one). `WitnessPolicy` is still not
+read from a real `Establishment` event, unchanged from D-0328's own
+remaining item.
+
+**Required follow-up:** a founder decision on which governance actions
+(if any) should gate on a minimum `KelAssurance` level, and the actual
+`governance.rs` wiring once that decision is made; a real caller that
+owns a `DuplicityRegistry` and a witness-certificate source to pass
+non-trivial `witnessing`/`known_duplicity` arguments; everything
+D-0328/D-0329/D-0330's own "Required follow-up" sections already named,
+still unclaimed here.
+
+**Supersedes / superseded by:** none. New function, additive only —
+`author_verified`, `IdentityOracle`, `KelDirectory`, and every existing
+`governance.rs` function are unchanged.

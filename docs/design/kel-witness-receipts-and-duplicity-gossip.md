@@ -4,9 +4,11 @@
 (in-memory witness state machine, D-0326), Phase 3's first slice
 (`KelAssurance` classification, D-0328), Phase 3's second slice (real
 KEL-chain verification wired in front of `WitnessJournal::observe`,
-D-0329), and a local duplicity-proof registry (`DuplicityRegistry`,
-D-0330) shipped. Only "wiring `WitnessPolicy` into real establishment
-events" remains open in Phase 3; Phase 4 onward not started.
+D-0329), a local duplicity-proof registry (`DuplicityRegistry`, D-0330),
+and a `mini-forge` bridge (`author_assurance`, D-0332) shipped. Only
+"wiring `WitnessPolicy` into real establishment events" and wiring
+`author_assurance` into a real governance call site remain open in
+Phase 3; Phase 4 onward not started.
 
 **Full research:** `docs/research/
 KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md`
@@ -101,14 +103,22 @@ exactly what this PR is.
    `WitnessEquivocationProof` and answers `has_known_duplicity(identity,
    policy)`, so a caller now has a real place to accumulate proofs
    instead of computing `known_duplicity` by hand; `assess_kel_
-   assurance`'s own signature is unchanged. Still missing from this
-   phase: `WitnessPolicy` read from a real `Establishment` event (caller-
-   supplied today), `WitnessedRecentAndGossiped` (needs Phase 5), a
-   bounded/incremental KEL-chain re-verify (today re-verifies the whole
-   chain from inception every call), persistence for the duplicity
-   registry (Phase 6), and any real call site that gates an authority
-   decision on a `KelAssurance` level or feeds real proofs into
-   `DuplicityRegistry`.
+   assurance`'s own signature is unchanged. **`mini-forge` bridge shipped
+   (D-0332):** `mini_forge::author_assurance` composes the oracle's
+   existing provenance re-check (`author_verified`) with `assess_kel_
+   assurance` over the author-root's KEL — the first consumer of
+   `KelAssurance` outside `did-mini` itself. Deliberately **not** wired
+   into `propose`/`approve`/`merge`/`resolve_project`'s actual quorum
+   gating, which remains purely `author_verified`'s boolean: which
+   governance action (if any) should require which minimum assurance
+   level is a founder-facing policy call, not something decided
+   unilaterally here. Still missing from this phase: `WitnessPolicy`
+   read from a real `Establishment` event (caller-supplied today),
+   `WitnessedRecentAndGossiped` (needs Phase 5), a bounded/incremental
+   KEL-chain re-verify (today re-verifies the whole chain from inception
+   every call), persistence for the duplicity registry (Phase 6), and
+   any real call site that actually *gates* an authority decision on a
+   `KelAssurance` level or feeds real proofs into `DuplicityRegistry`.
 4. **Receipt collection protocol** — typed request/response messages
    (`SubmitEventForWitnessing`, `FetchWitnessCertificate`, etc.).
 5. **Gossip summaries** — piggybacked on existing sync/relay/forge
