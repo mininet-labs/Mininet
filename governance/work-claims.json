@@ -223,6 +223,7 @@
         "crates/did-mini/src/assurance.rs",
         "crates/did-mini/src/lib.rs",
         "crates/did-mini/src/witness_state.rs",
+        "crates/did-mini/src/duplicity.rs",
         "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
         "docs/DECISION_LOG.md",
         "docs/STATUS.md",
@@ -230,9 +231,10 @@
       ],
       "decision_ids": [
         "D-0328",
-        "D-0329"
+        "D-0329",
+        "D-0330"
       ],
-      "notes": "Both remaining slices of Phase 3 of KEL witness receipts (audit #12 F4, invariant M3), batched into one PR per CLAUDE.md's workflow ritual since D-0329 built directly on D-0328 in the same session before the branch was ever pushed. D-0328: did_mini::assess_kel_assurance classifies Direct/Pinned/Witnessed/WitnessedRecent/DuplicityDetected by composing Kel::verify (via FreshnessPins) with a caller-supplied WitnessedEventCertificate/WitnessPolicy and known_duplicity flag. D-0329: WitnessJournal::observe_verified runs the real Kel::verify chain over the entire presented KEL before delegating to observe, closing the 'trusts the caller' gap observe's own doc comment named. Still open: WitnessPolicy read from a real Establishment event, a local duplicity-proof store, WitnessedRecentAndGossiped, a bounded/incremental re-verify, and any real call site gating an authority decision."
+      "notes": "Three related slices of Phase 3 of KEL witness receipts (audit #12 F4, invariant M3), batched into one PR per CLAUDE.md's workflow ritual since each built directly on the last in the same session before the branch was ever pushed. D-0328: did_mini::assess_kel_assurance classifies Direct/Pinned/Witnessed/WitnessedRecent/DuplicityDetected by composing Kel::verify (via FreshnessPins) with a caller-supplied WitnessedEventCertificate/WitnessPolicy and known_duplicity flag. D-0329: WitnessJournal::observe_verified runs the real Kel::verify chain over the entire presented KEL before delegating to observe, closing the 'trusts the caller' gap observe's own doc comment named. D-0330: DuplicityRegistry records ControllerDuplicityProof/WitnessEquivocationProof and answers has_known_duplicity(identity, policy), a real place to compute known_duplicity from instead of by hand. Still open: WitnessPolicy read from a real Establishment event, persistence/gossip for the registry, a bounded/incremental re-verify, and any real call site gating an authority decision or feeding real proofs into the registry."
     }
   ]
 }

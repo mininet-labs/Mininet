@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 46,
-    "files": 579,
+    "files": 580,
     "headings": 2023,
-    "rust_symbols": 4554
+    "rust_symbols": 4570
   },
   "crates": {
     "did-mini": {
@@ -2181,6 +2181,118 @@
       "title": "use crate::codec::{Reader, Writer};"
     },
     {
+      "bytes": 9916,
+      "group": "crate:did-mini",
+      "headings": [],
+      "keywords": [
+        "proof",
+        "identity",
+        "witness",
+        "self",
+        "policy",
+        "controllerduplicityproof",
+        "witnessequivocationproof",
+        "controller",
+        "duplicityregistry",
+        "same",
+        "recorded",
+        "duplicity",
+        "phase",
+        "against",
+        "did",
+        "hashmap",
+        "new",
+        "registry",
+        "record",
+        "names",
+        "caller",
+        "witness_id",
+        "record_controller_duplicity",
+        "has_known_duplicity"
+      ],
+      "lines": 233,
+      "path": "crates/did-mini/src/duplicity.rs",
+      "sha256": "b2e2fb66266d34889c5dea6b372a85e7d8b7ae786bfb8338aeb53c990eaddd60",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 50,
+          "name": "DuplicityRegistry"
+        },
+        {
+          "kind": "impl",
+          "line": 55,
+          "name": "DuplicityRegistry"
+        },
+        {
+          "kind": "fn",
+          "line": 56,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 67,
+          "name": "record_controller_duplicity"
+        },
+        {
+          "kind": "fn",
+          "line": 74,
+          "name": "record_witness_equivocation"
+        },
+        {
+          "kind": "fn",
+          "line": 79,
+          "name": "controller_duplicity_for"
+        },
+        {
+          "kind": "fn",
+          "line": 84,
+          "name": "witness_equivocation_for"
+        },
+        {
+          "kind": "fn",
+          "line": 101,
+          "name": "has_known_duplicity"
+        },
+        {
+          "kind": "mod",
+          "line": 113,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 120,
+          "name": "a_witness_id"
+        },
+        {
+          "kind": "fn",
+          "line": 128,
+          "name": "an_event"
+        },
+        {
+          "kind": "fn",
+          "line": 142,
+          "name": "an_empty_registry_has_no_known_duplicity"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "a_recorded_controller_duplicity_is_flagged_for_that_identity_only"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "a_recorded_witness_equivocation_is_flagged_only_for_a_policy_that_includes_the_witness"
+        },
+        {
+          "kind": "fn",
+          "line": 214,
+          "name": "a_second_proof_for_the_same_key_replaces_the_first"
+        }
+      ],
+      "title": "use std::collections::HashMap;"
+    },
+    {
       "bytes": 13214,
       "group": "crate:did-mini",
       "headings": [],
@@ -2626,7 +2738,7 @@
       "title": "use mini_crypto::VerifyingKey;"
     },
     {
-      "bytes": 5127,
+      "bytes": 5180,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -2651,13 +2763,13 @@
         "did-mini",
         "assurance",
         "base_device",
+        "duplicity",
         "error",
-        "freshness",
-        "identity_mode"
+        "freshness"
       ],
-      "lines": 143,
+      "lines": 145,
       "path": "crates/did-mini/src/lib.rs",
-      "sha256": "70f54682f4931d0057a84f20ba62569d46a193ccc866ad044fbf9df26fa2f852",
+      "sha256": "c2d9e04bf1e69054e973c7b85ade634e41c0cffa9983d2d61e702a5e94b1aa12",
       "symbols": [
         {
           "kind": "mod",
@@ -2687,91 +2799,96 @@
         {
           "kind": "mod",
           "line": 55,
-          "name": "error"
+          "name": "duplicity"
         },
         {
           "kind": "mod",
           "line": 56,
-          "name": "event"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 57,
-          "name": "freshness"
+          "name": "event"
         },
         {
           "kind": "mod",
           "line": 58,
-          "name": "identity_mode"
+          "name": "freshness"
         },
         {
           "kind": "mod",
           "line": 59,
-          "name": "kel"
+          "name": "identity_mode"
         },
         {
           "kind": "mod",
           "line": 60,
-          "name": "limits"
+          "name": "kel"
         },
         {
           "kind": "mod",
           "line": 61,
-          "name": "witness"
+          "name": "limits"
         },
         {
           "kind": "mod",
           "line": 62,
+          "name": "witness"
+        },
+        {
+          "kind": "mod",
+          "line": 63,
           "name": "witness_state"
         },
         {
           "kind": "const",
-          "line": 85,
+          "line": 87,
           "name": "METHOD"
         },
         {
           "kind": "struct",
-          "line": 92,
-          "name": "Did"
-        },
-        {
-          "kind": "impl",
           "line": 94,
           "name": "Did"
         },
         {
+          "kind": "impl",
+          "line": 96,
+          "name": "Did"
+        },
+        {
           "kind": "fn",
-          "line": 97,
+          "line": 99,
           "name": "from_scid"
         },
         {
           "kind": "fn",
-          "line": 107,
+          "line": 109,
           "name": "parse"
         },
         {
           "kind": "fn",
-          "line": 118,
+          "line": 120,
           "name": "scid"
         },
         {
           "kind": "fn",
-          "line": 123,
+          "line": 125,
           "name": "as_str"
         },
         {
           "kind": "impl",
-          "line": 128,
+          "line": 130,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 129,
+          "line": 131,
           "name": "fmt"
         },
         {
           "kind": "fn",
-          "line": 134,
+          "line": 136,
           "name": "validate_scid"
         }
       ],
@@ -40357,7 +40474,7 @@
       "title": "{"
     },
     {
-      "bytes": 531447,
+      "bytes": 535681,
       "group": "docs",
       "headings": [
         {
@@ -40769,9 +40886,9 @@
         "track",
         "log",
         "batch",
+        "audit",
         "closes",
         "decision",
-        "audit",
         "phase",
         "first",
         "issue",
@@ -40787,9 +40904,9 @@
         "core",
         "chain"
       ],
-      "lines": 8835,
+      "lines": 8906,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "896a279e8f133982a7371c35fb8883e102e23ac44e6e19f9dfb4c4af7c10decf",
+      "sha256": "1424b2cd177f9728f82a9382bf5d346fa7ba00fab925d6171aa936d66c308ff4",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -41729,7 +41846,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 63511,
+      "bytes": 63925,
       "group": "docs",
       "headings": [
         {
@@ -41759,52 +41876,52 @@
         },
         {
           "level": 2,
-          "line": 252,
+          "line": 258,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 318,
+          "line": 324,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 365,
+          "line": 371,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 550,
+          "line": 556,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 591,
+          "line": 597,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 649,
+          "line": 655,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 678,
+          "line": 684,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 898,
+          "line": 904,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 973,
+          "line": 979,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 979,
+          "line": 985,
           "text": "Where to look for more detail"
         }
       ],
@@ -41834,9 +41951,9 @@
         "claude",
         "social"
       ],
-      "lines": 994,
+      "lines": 1000,
       "path": "docs/STATUS.md",
-      "sha256": "b848cb2afce23f925c5a38e5dae33f54d1367ec9b5b8699e6a3c2c3fb6136049",
+      "sha256": "e3f5e55b236e84d19604f011d196b5d14fef36ab8075007a478bf598484d6363",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -43638,7 +43755,7 @@
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
     },
     {
-      "bytes": 9199,
+      "bytes": 9697,
       "group": "docs",
       "headings": [
         {
@@ -43668,12 +43785,12 @@
         },
         {
           "level": 2,
-          "line": 121,
+          "line": 128,
           "text": "Hard rules carried forward from the report"
         },
         {
           "level": 2,
-          "line": 142,
+          "line": 149,
           "text": "What this document originally covered, and what D-0321/D-0326 added"
         }
       ],
@@ -43703,9 +43820,9 @@
         "did-mini",
         "invariant"
       ],
-      "lines": 158,
+      "lines": 165,
       "path": "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
-      "sha256": "0ba0461dd3da7f7606ff91d3eeeb7252515174468c6b661537c9aa1d2d67ab3d",
+      "sha256": "f89fc6649269cba755f15118b1bb92f6e477bf6d0e9784ffe308f796da3829ed",
       "symbols": [],
       "title": "KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)"
     },
@@ -53603,7 +53720,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 11228,
+      "bytes": 11508,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -53632,9 +53749,9 @@
         "tools",
         "cargo"
       ],
-      "lines": 239,
+      "lines": 241,
       "path": "governance/work-claims.json",
-      "sha256": "e4f8b695b578a8f75d45cfec03755c66043c8a9dbffafa343a6587f5d39b429b",
+      "sha256": "dab1b155a5e4b33840dff323ba378bcd3cb82aa77dc994a8ad687e98deece92c",
       "symbols": [],
       "title": "{"
     },

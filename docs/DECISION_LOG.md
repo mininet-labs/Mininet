@@ -8832,3 +8832,74 @@ chain from inception every time); everything else D-0328's own
 **Supersedes / superseded by:** none. Additive only — `WitnessJournal::
 observe` and every other existing `did-mini` type/function are
 unchanged.
+
+### D-0330 — `did-mini::duplicity`: local duplicity-proof registry feeding `KelAssurance` (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0326 (Phase 2: `ControllerDuplicityProof`/
+`WitnessEquivocationProof`); D-0328 (Phase 3 first slice: `KelAssurance`);
+D-0329 (Phase 3 second slice: `observe_verified`); `docs/design/
+kel-witness-receipts-and-duplicity-gossip.md`; invariant M3
+
+**Decision:** ship `did-mini::duplicity::DuplicityRegistry`, a local
+in-memory store for duplicity proofs that D-0328's own decision log
+named as a required follow-up: `record_controller_duplicity`/
+`record_witness_equivocation` record a proof against the identity or
+witness it names; `has_known_duplicity(identity, policy)` combines both
+signals per `KelAssurance::DuplicityDetected`'s own doc ("a duplicity
+proof conflicting with this identity **or a witness it relies on**") —
+a direct controller-duplicity hit on `identity`, or (when `policy` is
+given) any witness in `policy`'s set having a recorded equivocation
+proof. A caller can now pass `registry.has_known_duplicity(&kel.did(),
+witnessing.map(|w| w.policy))` to `assess_kel_assurance` instead of
+computing `known_duplicity` by hand every time.
+
+**Reason:** `assess_kel_assurance`'s `known_duplicity: bool` parameter
+was, since D-0328, entirely caller-computed with no shared place to
+record a proof once assembled or look it up later. This is a small,
+additive, self-contained piece — it does not change `assess_kel_
+assurance`'s signature at all (still a plain `bool`), it only gives
+callers a real thing to compute that bool from, matching how a caller
+would naturally accumulate proofs it discovers over a session.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+identity-layer bookkeeping only. `record_controller_duplicity`/
+`record_witness_equivocation` each take their own specific proof type
+(never a generic blob); `has_known_duplicity` takes a typed `(&Did,
+Option<&WitnessPolicy>)`, never a loose bag of bytes. This module does
+not itself validate anything cryptographic — `ControllerDuplicityProof::
+assemble`/`WitnessEquivocationProof::assemble` already did the
+structural validation before a caller ever reaches this registry, per
+its own module doc.
+
+**Implementation status:** shipped in `crates/did-mini/src/
+duplicity.rs`, wired into `lib.rs`'s public exports
+(`DuplicityRegistry`). 4 new tests: an empty registry has no known
+duplicity; a recorded controller-duplicity proof is flagged only for
+the identity it names, not an unrelated one; a recorded witness-
+equivocation proof is flagged only when the checked policy actually
+includes that witness (and never when no policy is given); a second
+proof recorded against the same key replaces the first. `cargo fmt`/
+`cargo clippy --all-targets --all-features -D warnings`/`cargo test`
+all clean on `did-mini` (56 lib tests, up from 52) and on the full
+workspace (145 test binaries, 0 failures).
+
+**Failure point:** purely local and in-memory — not persisted (Phase 6),
+not networked or gossiped (Phase 5), not shared across processes, same
+limitation `WitnessJournal` already carries. Still no real call site
+that constructs a `DuplicityRegistry`, records real proofs into it as
+they're discovered, and gates an authority decision on the resulting
+`KelAssurance` — this ships the bookkeeping type itself, not its wiring
+into any live verifier or authority-gating call site.
+
+**Required follow-up:** a real call site (e.g. `mini-forge` governance/
+merge gating, or a witness/verifier daemon once Phase 6 exists) that
+owns a `DuplicityRegistry`, feeds it real proofs, and actually uses
+`has_known_duplicity` to compute `assess_kel_assurance`'s
+`known_duplicity` argument; persistence (Phase 6); gossip-sourced proof
+discovery (Phase 5) — none of that is claimed shipped here. `WitnessPolicy`
+still not read from a real `Establishment` event, unchanged from
+D-0328/D-0329's own remaining item.
+
+**Supersedes / superseded by:** none. New module, additive only —
+`assess_kel_assurance`'s signature, `WitnessJournal`, and every other
+existing `did-mini` type/function are unchanged.
