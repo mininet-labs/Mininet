@@ -922,7 +922,11 @@ the top development priority.
   the real compiled worker binary). Not yet wired to `mini-intake`'s
   coordinator — that integration is later follow-up. No PDF/HTML
   support, no network client, no AI model, no publication linking —
-  those are Tracks B4-B5, not started.
+  those are Tracks B4-B5, not started. (D-0324: the
+  `max_wall_clock_ms == 0` case in `run_worker` is now a deterministic
+  immediate timeout rather than racing the worker's real round trip
+  against a zero-duration channel wait, fixing an intermittent CI
+  failure in the test asserting that behavior.)
 
 ## What has no client, at all
 

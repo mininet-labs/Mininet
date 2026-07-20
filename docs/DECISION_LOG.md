@@ -8187,3 +8187,57 @@ depend on this layer before Phase 10's external cryptographic review.
 **Supersedes / superseded by:** none. New module, additive only —
 `event.rs`'s existing `witnesses` field, `FreshnessPins`, and every
 other existing `did-mini` type/function are unchanged.
+### D-0324 — `mini-extract-host`: make a zero-millisecond deadline a deterministic timeout instead of a race  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0319 (`mini-extract-host` itself);
+`crates/mini-extract-host/src/lib.rs` (`run_worker`); `crates/mini-extract-host/tests/host.rs`
+(`a_zero_millisecond_deadline_is_reported_as_timeout`)
+
+**Decision:** in `run_worker`, when the caller's `ResourceLimits::max_wall_clock_ms`
+is `0`, kill the child and return `ExtractionOutcome::Err(ExtractionError::Timeout)`
+immediately, without waiting on the stdout-reader channel at all. Every other
+timeout value is unchanged: the existing `rx.recv_timeout(timeout)` path still races
+the worker against a real deadline.
+
+**Reason:** the test asserting this behavior was intermittently failing in CI (most
+recently blocking PR #181, an unrelated docs-only PR, on the required `check` job)
+while passing reliably in isolation. The root cause is a genuine race, not flakiness
+in the test's assertion: `Duration::from_millis(0)` is `Duration::ZERO`, and
+`mpsc::Receiver::recv_timeout(Duration::ZERO)` does not guarantee "always already
+expired" — under favorable scheduling, the worker's round trip for the test's
+trivial 8-byte input can complete and reach the channel before or exactly as the
+zero-duration wait is evaluated, so the call sometimes observes `Ok(frame)` instead
+of the expected `Err(RecvTimeoutError::Timeout)`. A zero-millisecond wall-clock
+budget can never be honestly satisfied by a real child-process round trip in any
+case — spawning, writing the request, the worker doing any work at all, and writing
+the response back all take non-zero wall-clock time — so racing it at all was never
+buying a meaningful check; special-casing it to a deterministic immediate timeout is
+both a correctness fix (the outcome no longer depends on scheduler luck) and the more
+honest semantics (a zero budget deterministically cannot be met).
+
+**Constitutional impact:** none. This is an isolation-host timeout-accounting detail,
+not protocol. It adds no authority, changes no invariant, and does not alter
+`mini-extract-host`'s documented isolation limits (`docs/mobile/../lib.rs`'s own
+"Honest limits" section is unchanged) — a zero-millisecond deadline still always
+yields `ExtractionError::Timeout`, exactly as before; only the path by which it does
+so is now deterministic instead of racy.
+
+**Implementation status:** shipped in `crates/mini-extract-host/src/lib.rs`.
+Verified: `cargo test -p mini-extract-host` passes; the previously-flaky test run
+30 times in a loop with `--exact`, all 30 green (versus intermittent failure before
+the fix); full-workspace `cargo fmt --all -- --check`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` all clean.
+
+**Failure point:** this only fixes the `max_wall_clock_ms == 0` case. Non-zero
+deadlines still rely on `mpsc::Receiver::recv_timeout` racing a real child process,
+which remains correct (a non-zero timeout has a real window in which "not yet
+received" is a true statement throughout) but is not covered by this entry's
+reasoning — if similar intermittent failures are ever observed at very small
+non-zero deadlines under heavy CI load, that would be a scheduling-latency issue,
+not this same race, and would need its own diagnosis.
+
+**Required follow-up:** none identified. This is a narrow, self-contained fix.
+
+**Supersedes / superseded by:** none. `run_worker`'s documented behavior for the
+zero-deadline case (always `ExtractionError::Timeout`) is unchanged; only how
+reliably it is observed changes.
