@@ -9065,3 +9065,75 @@ still unclaimed here.
 **Supersedes / superseded by:** none. New function, additive only —
 `author_verified`, `IdentityOracle`, `KelDirectory`, and every existing
 `governance.rs` function are unchanged.
+
+### D-0336 — `mini-bounty`: project-label pools for paying contributors at different rates (issue #207)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** issue #207, `docs/design/treasury-economic-model.md`
+(D-0073), `docs/design/bounty-and-review.md`
+
+**Decision:** add `BountyPool::project: Option<String>` — a bounded (≤128
+bytes), purely organizational label grouping multiple funding rounds
+under one project name. `BountyPool::amount_per_grant_micro` stays flat
+across every grant in a pool, **permanently**, not just for this slice:
+varying it within one ring would make the payout amount itself a side
+channel narrowing down which grant claimed, eroding the anonymity the
+ring exists to provide. Paying a maintainer more than a first-time
+contributor is done by creating two separate flat-amount pools and
+optionally giving them the same `project` label — zero change to
+claim/verify/ring logic, only a new field and a validated
+`with_project` builder method.
+
+**Reason:** the founder asked for a "value layer" covering project
+funding and early-contributor compensation; a fabricated, incomplete
+external draft proposed a wholesale new `mini-treasury` subsystem
+(project pools, escrow, a "usefulness oracle" release mechanism)
+referencing types (`did_mini::DidMini`) that don't exist in this
+codebase. Investigated properly instead: `docs/design/
+treasury-economic-model.md` (D-0073, founder-accepted) already defines
+exactly four economic mechanisms and states they must "never be
+conflated" — a project-funding pool with usefulness-based release would
+be a fifth, needing its own founder-level reconciliation with that
+table, not something to invent unilaterally. Checked `docs/
+FAILURE_BOOK.md` first — no prior rejected proposal on record. Asked the
+founder directly which direction was intended; they chose extending
+`mini-bounty` (already built, already decided, D-0037's "how developers
+get paid" direction) over a new mechanism. This is that extension, scoped
+to the smallest safe piece: `mini-bounty` already does "pay a
+contributor anonymously" — the only missing piece was organizing
+multiple rounds under one project name, not a new value-release rule.
+
+**Constitutional impact:** none. No dependency edge to `mini-forge`/
+`mini-chain` voting — `project` is inert metadata never read by claim or
+verification logic, so no "usefulness" judgment of any kind gates value
+release, keeping this clear of the voice/value wall (P1, Directive 16)
+by construction rather than by policy. No new cryptographic primitive;
+`amount_per_grant_micro`'s flat-per-pool rule (already implicit in the
+prior code, now made explicit and permanent in its own doc comment)
+directly protects the ring signature's existing anonymity guarantee
+(D-0036) rather than weakening it.
+
+**Implementation status:** shipped. `BountyPool::with_project` validates
+non-empty and ≤128 bytes; 6 new tests (default has no label, label
+attaches, empty/oversized labels rejected, exact-bound label accepted,
+two same-project pools at different flat amounts have independent ids).
+`mini-bounty` now at 21 lib tests, up from 14. Full workspace
+`cargo fmt`/`clippy`/`test` clean (145 test-result blocks, unchanged
+from before this PR since no other crate is affected).
+
+**Failure point:** this only solves the "different contributors, same
+project, different flat rates" case. It does not solve — and was never
+asked to solve — automatic, usefulness-conditioned fund release,
+crowd-sourced pool funding from many small backers, or milestone-gated
+disbursement. If the founder later wants any of those, each is its own
+design question requiring the same D-0073-reconciliation treatment this
+entry gave the original ask, not a quiet extension of this field.
+
+**Required follow-up:** none required to use this — `mini-bounty` remains
+gated by D-0047 (external audit) before any real value moves through it,
+unchanged from before this PR. A GitHub-integration layer that actually
+reads PR approvals and mints `BountyGrant`s (named as unbuilt in this
+crate's own doc comment since its original D-0037 entry) is the natural
+next slice if this direction continues.
+
+**Supersedes / superseded by:** none. Purely additive to `mini-bounty`;
+`BountyGrant`, `claim`, `verify_claim`, and every existing test's
+observable behavior are unchanged.
