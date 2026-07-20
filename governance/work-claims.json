@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-20T14:35:00Z",
+  "updated_at": "2026-07-20T17:30:00Z",
   "claims": [
     {
       "issue": 122,
@@ -49,7 +49,7 @@
     },
     {
       "issue": 167,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/mini-installer-windows-compile",
       "pull_request": 171,
@@ -61,7 +61,7 @@
         "docs/STATUS.md"
       ],
       "decision_ids": [],
-      "notes": "Fix Windows compile failure: gate std::os::unix::fs::symlink behind #[cfg(unix)], add runtime-Unsupported fallback on other platforms. No behavior change on Unix; no new capability."
+      "notes": "Fix Windows compile failure: gate std::os::unix::fs::symlink behind #[cfg(unix)], add runtime-Unsupported fallback on other platforms. No behavior change on Unix; no new capability. Closed here (issue #190 branch) since PR #171 was confirmed merged; this entry was found stale (still in_review) and closed per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file (see issue #186's own closing note)."
     },
     {
       "issue": 169,
@@ -99,7 +99,7 @@
     },
     {
       "issue": 175,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/pq-mldsa65-keygen-signing",
       "pull_request": 176,
@@ -115,7 +115,7 @@
       "decision_ids": [
         "D-0322"
       ],
-      "notes": "Phase 2 of post-quantum identity migration (D-0095, issue #15): ML-DSA-65 key generation + isolated signing in mini-crypto. No did-mini/KEL wiring, no default-suite change. Decision renumbered D-0320 -> D-0322 during rebase to avoid colliding with PR #174's independently-claimed D-0320 (CI reproducibility scope) and PR #180's D-0321 (KEL witness receipt types)."
+      "notes": "Phase 2 of post-quantum identity migration (D-0095, issue #15): ML-DSA-65 key generation + isolated signing in mini-crypto. No did-mini/KEL wiring, no default-suite change. Decision renumbered D-0320 -> D-0322 during rebase to avoid colliding with PR #174's independently-claimed D-0320 (CI reproducibility scope) and PR #180's D-0321 (KEL witness receipt types). Closed here (issue #190 branch) since PR #176 was confirmed merged; this entry was found stale (still in_review) and closed per the same standing precedent as issue #167's closure above."
     },
     {
       "issue": 177,
@@ -195,10 +195,10 @@
     },
     {
       "issue": 188,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/mini-store-time-index",
-      "pull_request": null,
+      "pull_request": 189,
       "lease_expires": "2026-07-27",
       "paths": [
         "crates/mini-store/src/store.rs",
@@ -210,7 +210,31 @@
       "decision_ids": [
         "D-0327"
       ],
-      "notes": "First slice of Batch 5's 'local object indexing at scale': a chronological idx/time/ index plus Store::since/Store::recent query methods. Still O(matching-prefix-subtree) like every other Store index, not yet a bounded/paginated range scan -- that needs a new Backend range-query primitive, explicit follow-up."
+      "notes": "First slice of Batch 5's 'local object indexing at scale': a chronological idx/time/ index plus Store::since/Store::recent query methods. Still O(matching-prefix-subtree) like every other Store index, not yet a bounded/paginated range scan -- that needs a new Backend range-query primitive, explicit follow-up. Closed here (issue #190 branch) since PR #189 merged."
+    },
+    {
+      "issue": 190,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/kel-assurance-phase3",
+      "pull_request": 191,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/did-mini/src/assurance.rs",
+        "crates/did-mini/src/lib.rs",
+        "crates/did-mini/src/witness_state.rs",
+        "crates/did-mini/src/duplicity.rs",
+        "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0328",
+        "D-0329",
+        "D-0330"
+      ],
+      "notes": "Three related slices of Phase 3 of KEL witness receipts (audit #12 F4, invariant M3), batched into one PR per CLAUDE.md's workflow ritual since each built directly on the last in the same session before the branch was ever pushed. D-0328: did_mini::assess_kel_assurance classifies Direct/Pinned/Witnessed/WitnessedRecent/DuplicityDetected by composing Kel::verify (via FreshnessPins) with a caller-supplied WitnessedEventCertificate/WitnessPolicy and known_duplicity flag. D-0329: WitnessJournal::observe_verified runs the real Kel::verify chain over the entire presented KEL before delegating to observe, closing the 'trusts the caller' gap observe's own doc comment named. D-0330: DuplicityRegistry records ControllerDuplicityProof/WitnessEquivocationProof and answers has_known_duplicity(identity, policy), a real place to compute known_duplicity from instead of by hand. Still open: WitnessPolicy read from a real Establishment event, persistence/gossip for the registry, a bounded/incremental re-verify, and any real call site gating an authority decision or feeding real proofs into the registry."
     }
   ]
 }

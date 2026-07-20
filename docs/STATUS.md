@@ -205,16 +205,37 @@ given time.
   (built from two real controller-signed `Event`s) and
   `WitnessEquivocationProof` (a standalone assemble/verify pair for a
   third party holding two disagreeing receipts from one witness); 15
-  tests. **Not yet real:** no KEL-chain verification in front of
-  `observe` (`event`'s own signature/pre-rotation/recovery validity is
-  trusted from the caller, not checked), no fork-proof construction for
-  the harder "conflicting descendant" case, no `KelAssurance`/KEL-
-  verification integration (Phase 3 — a certificate still cannot be
-  checked against a live `Kel`, and `WitnessPolicy` is still not carried
-  by real `Establishment` events), no gossip, no persistence. Each
-  remaining phase is its own later PR, gated behind external review
-  (D-0047) before any high-value authority decision may depend on this
-  layer.
+  tests. **Phase 3's first slice shipped (D-0328):** `did_mini::assurance
+  ::assess_kel_assurance` composes `Kel::verify`/`FreshnessPins`/a
+  caller-supplied witness certificate into a `KelAssurance` classification
+  (`Direct`/`Pinned`/`Witnessed`/`WitnessedRecent`/`DuplicityDetected`) —
+  an honest, gradable replacement for one boolean "is this fresh"; 8
+  tests. **Phase 3's second slice shipped (D-0329):** `did_mini::
+  WitnessJournal::observe_verified` runs the real `Kel::verify` chain
+  (self-certifying inception, signature/threshold, pre-rotation,
+  chain-digest linkage) over the entire presented KEL before delegating
+  to `observe` — a witness accepting events from an untrusted network
+  peer no longer has to trust the peer's bare claim that an event is
+  chain-valid; `observe` itself is unchanged for callers that establish
+  chain validity some other way; 5 tests. **Local duplicity registry
+  shipped (D-0330):** `did_mini::DuplicityRegistry` records
+  `ControllerDuplicityProof`/`WitnessEquivocationProof` and answers
+  `has_known_duplicity(identity, policy)` — a real place to accumulate
+  proofs instead of hand-computing `known_duplicity` every call;
+  `assess_kel_assurance`'s own signature is unchanged; 4 tests. **Not
+  yet real:** no bounded/incremental re-verify (`observe_verified`
+  re-verifies the whole chain from inception on every call, not just the
+  new suffix), no fork-proof construction for the harder "conflicting
+  descendant" case, no recovery-aware handling (every rotation is
+  treated identically), `WitnessPolicy` is still not carried by real
+  `Establishment` events (a certificate still cannot be checked against
+  a live `Kel` end-to-end — the caller supplies the policy directly), no
+  persistence for `DuplicityRegistry` (in-memory only), no
+  `WitnessedRecentAndGossiped` (needs Phase 5 gossip), no real call site
+  yet gates an authority decision on a `KelAssurance` level or feeds
+  real proofs into `DuplicityRegistry`, no gossip. Each remaining phase
+  is its own later PR, gated behind external review (D-0047) before any
+  high-value authority decision may depend on this layer.
 - **partial** — post-quantum migration path ([#15](../../issues/15),
   D-0095/D-0322): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire
   tag `0x02`) is real — `VerifyingKey`/`Signature` parse and verify

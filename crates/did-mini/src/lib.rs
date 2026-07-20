@@ -47,10 +47,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod assurance;
 mod base_device;
 mod codec;
 mod controller;
 mod delegation;
+mod duplicity;
 mod error;
 mod event;
 mod freshness;
@@ -62,9 +64,11 @@ mod witness_state;
 
 use mini_crypto::{encoding, Multihash};
 
+pub use assurance::{assess_kel_assurance, KelAssurance, WitnessEvidence};
 pub use base_device::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, PrivacyMode};
 pub use controller::Controller;
 pub use delegation::{Capabilities, Seal};
+pub use duplicity::DuplicityRegistry;
 pub use error::{IdentityError, Result};
 pub use event::{Establishment, Event, EventKind, IndexedSig};
 pub use freshness::FreshnessPins;
