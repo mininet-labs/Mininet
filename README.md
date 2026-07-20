@@ -15,6 +15,11 @@ user.
 > built, never where it ultimately lives (see [`docs/ADDRESSING.md`](docs/ADDRESSING.md)
 > and `mini-forge`).
 
+New here? [**Read the whitepaper**](WHITEPAPER.md) — the single-document
+explanation of what Mininet is, why it exists, how it works today, and
+what is still an open question, written for a reader who has never opened
+this repository (D-0323).
+
 ## What no one can change
 
 These are not promises of good behavior — they are structural, enforced in
@@ -173,6 +178,7 @@ Pick the door that fits you:
 
 | You are… | Start with |
 |---|---|
+| **Anyone wanting the single-document explanation** | [`WHITEPAPER.md`](WHITEPAPER.md) |
 | **A curious person** — what is this, and why should it exist? | [`docs/HUMAN_START.md`](docs/HUMAN_START.md) |
 | **A developer** — build it, run the demos, find your way around | [`docs/DEVELOPER_START.md`](docs/DEVELOPER_START.md) |
 | **An auditor or skeptic** — where are the invariants, threats, and honest gaps? | [`docs/AUDITOR_START.md`](docs/AUDITOR_START.md) |
