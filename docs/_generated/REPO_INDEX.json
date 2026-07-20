@@ -41030,7 +41030,7 @@
       "title": "{"
     },
     {
-      "bytes": 549651,
+      "bytes": 552536,
       "group": "docs",
       "headings": [
         {
@@ -41444,12 +41444,12 @@
         "log",
         "batch",
         "closes",
+        "issue",
         "decision",
         "phase",
-        "issue",
         "first",
-        "release",
         "roadmap",
+        "release",
         "mini-consensus",
         "status",
         "new",
@@ -41460,9 +41460,9 @@
         "entry",
         "core"
       ],
-      "lines": 9140,
+      "lines": 9188,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "f148bfb6c0cd50165d9489f389b2446a91b4347e2696959577d2bf4a81d5481e",
+      "sha256": "c4fc307d60154a7b2f194e1405c92b4390af1a5a4dd03a7fa20bbdc92bba76ee",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -42402,7 +42402,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 65371,
+      "bytes": 66157,
       "group": "docs",
       "headings": [
         {
@@ -42477,7 +42477,7 @@
         },
         {
           "level": 2,
-          "line": 1007,
+          "line": 1018,
           "text": "Where to look for more detail"
         }
       ],
@@ -42507,9 +42507,9 @@
         "claude",
         "social"
       ],
-      "lines": 1022,
+      "lines": 1033,
       "path": "docs/STATUS.md",
-      "sha256": "ce9f88ebd651b04f1b9dac9f8431a71b3c920082b1a0cfeaa3a459a772295f0b",
+      "sha256": "014dae25399e891f99af4591e2e635298dd06229b76547114ce0540ade67ee27",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -51812,7 +51812,7 @@
       "title": "RFC-0005: Forge Cutover and Platform Exit"
     },
     {
-      "bytes": 6082,
+      "bytes": 8731,
       "group": "docs",
       "headings": [
         {
@@ -51848,11 +51848,11 @@
         {
           "level": 2,
           "line": 126,
-          "text": "Next implementation slice"
+          "text": "Beta roadmap (target: ~PR #200, hub issue #196)"
         },
         {
           "level": 2,
-          "line": 141,
+          "line": 182,
           "text": "Primary implementation references"
         }
       ],
@@ -51861,7 +51861,6 @@
         "build",
         "kotlin",
         "security",
-        "slice",
         "device",
         "rust",
         "key",
@@ -51869,22 +51868,23 @@
         "what",
         "boundary",
         "verification",
-        "implementation",
         "compose",
         "never",
         "recovery",
         "app",
         "foundation",
-        "next",
+        "slice",
+        "beta",
+        "target",
+        "issue",
         "mini-ffi",
         "application",
         "reports",
-        "platform",
-        "uniffi"
+        "platform"
       ],
-      "lines": 152,
+      "lines": 193,
       "path": "docs/mobile/ANDROID_FOUNDATION.md",
-      "sha256": "8cdd18a3800ed1c4c06cea4c610cd1cde0e21ea104bb44ae16379694efdb2ddb",
+      "sha256": "50a7a641cb746fa1c3d8720be2743237162588dccb32ef2dde520c9ce2a771f4",
       "symbols": [],
       "title": "Android foundation"
     },

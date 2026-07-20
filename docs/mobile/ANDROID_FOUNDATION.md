@@ -123,20 +123,61 @@ attempt to strengthen a caller-constructed security snapshot. This exercises
 the command boundary; it is not a memory-safety audit, Android lifecycle test,
 or device security proof.
 
-## Next implementation slice
+## Beta roadmap (target: ~PR #200, hub issue #196)
 
-The next PR state should add an opaque Android Keystore signer adapter and the
-real root-to-device delegation ceremony. Its acceptance test is:
+The founder's aim is an Android beta release, full Rust test suite green,
+targeted around PR #200 as an approximate milestone — other concurrent lanes
+in this repo also consume PR numbers, so the exact number will drift; the aim
+is the sequencing, not the digit. Hub issue #196 tracks this list; slices 1-9
+each have their own filed issue (#197-#205) and get their own draft PR once
+work actually starts on them, not an empty shell opened ahead of time.
 
-1. create a root through an explicit recovery flow;
-2. generate a non-exportable phone device key;
-3. delegate only the required device capabilities;
-4. restart the process and recover the same public identity without exposing
-   key bytes to Kotlin; and
-5. revoke the phone from a second enrolled device.
+**Division of labor**, now that the founder has confirmed Codex can run
+Android emulators locally and can supply a few physical devices: this
+environment (no JDK/SDK/NDK/Gradle/emulator) implements and verifies the
+Rust-side crate logic, tests, docs, and decision-log entries; Codex/the
+founder's local machine runs Gradle sync, APK assembly, emulator/device
+tests, Android lint, and `cargo deny check` — anything that actually needs
+the Android toolchain. Every slice's PR states plainly which half is done and
+which half still needs that local verification.
 
-After PR #170 is available, two Android devices can then exercise public
-profile exchange and one-button follow over QR/LAN before BLE is introduced.
+1. **#197 — Android Keystore signer adapter + root-to-device delegation
+   ceremony.** An opaque Android Keystore signer adapter and the real
+   root-to-device delegation ceremony. Acceptance test:
+   1. create a root through an explicit recovery flow;
+   2. generate a non-exportable phone device key;
+   3. delegate only the required device capabilities;
+   4. restart the process and recover the same public identity without
+      exposing key bytes to Kotlin; and
+   5. revoke the phone from a second enrolled device.
+2. **#198 — Persisted app state across process death.** Encrypted local
+   state so onboarding/delegation state survives a restart without
+   re-running the ceremony; a corrupted/forged persisted snapshot fails
+   closed. Depends on 1.
+3. **#199 — Device enrollment/revocation multi-device flow.** A second
+   device enrolls against an existing root; the root revokes a phone.
+   Depends on 1-2.
+4. **#200 — LAN/QR pairing exchange.** Profile exchange and one-button
+   follow over QR/LAN. Depends on draft PR #170 (public profile/follow) and
+   on 2-3.
+5. **#201 — BLE bearer integration for Android.** Wires the existing
+   `mini-bearer` BLE-first bootstrap into the Android transport layer.
+   Depends on 4; gated on real hardware.
+6. **#202 — Background lifecycle policy.** Foreground-service/battery-
+   constraint handling so sync behaves correctly when backgrounded. Depends
+   on 4-5.
+7. **#203 — Dependency verification.** Gradle dependency-verification
+   metadata plus `cargo-deny`/`cargo vet` wiring for the Android build. No
+   hard dependency on the other slices.
+8. **#204 — Android CI.** A real GitHub Actions job that assembles the APK
+   on a GitHub-hosted runner's real JDK/Android SDK/NDK — the first point
+   "does it build" gets a real automated answer instead of a local claim.
+9. **#205 — Reproducible APK proof.** Two clean builds, hash comparison,
+   and a `mini-provenance` record for the Android artifact, mirroring the
+   existing `reproducibility.yml` discipline. Depends on 8.
+10. **Gate, not a PR: external security review (D-0047).** Beta is
+    explicitly pre-review; no production/custody claim is made before this
+    gate clears.
 
 ## Primary implementation references
 

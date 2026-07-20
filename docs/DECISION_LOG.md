@@ -9137,3 +9137,51 @@ next slice if this direction continues.
 **Supersedes / superseded by:** none. Purely additive to `mini-bounty`;
 `BountyGrant`, `claim`, `verify_claim`, and every existing test's
 observable behavior are unchanged.
+### D-0333 — Android beta roadmap: 9 scoped slices toward hub issue #196 (target ~PR #200)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** issue #178, draft PR #179, hub issue #196,
+issues #197-#205, `docs/mobile/ANDROID_FOUNDATION.md`
+
+**Decision:** replace `ANDROID_FOUNDATION.md`'s single "Next implementation
+slice" section with a "Beta roadmap" section enumerating the 9 remaining
+engineering slices between the current foundation (PR #179) and an honest
+Android beta: Keystore signer adapter + delegation ceremony (#197),
+persisted app state (#198), device enrollment/revocation (#199), LAN/QR
+pairing (#200), BLE bearer integration (#201), background lifecycle policy
+(#202), dependency verification (#203), Android CI (#204), and reproducible
+APK proof (#205), gated at the end by external security review (D-0047,
+not a PR). Each slice got its own GitHub issue now, filed under hub issue
+#196, per the founder's explicit "pre-scope all work" direction.
+
+**Reason:** the founder set an aim (Android beta on roughly PR #200, full
+test suite green) and asked for the remaining work to be pre-scoped and its
+PRs pre-opened, now that Codex can run Android emulators locally and the
+founder can supply a few physical devices — closing the division-of-labor
+gap this environment's missing JDK/SDK/NDK/Gradle/emulator has repeatedly
+disclosed since PR #179 started. Writing the full sequence down once, with
+dependencies made explicit, avoids re-deriving scope ad hoc each time a
+slice starts and gives the founder/Codex a single place to see what's next
+and who verifies which half.
+
+**Constitutional impact:** none by itself — this is a planning/roadmap doc
+change, no code. Directive 11 (weakest device matters) and Directive 8 (the
+human is the root of trust) constrain every slice's actual design once
+implemented (e.g. #197's Keystore adapter must keep key bytes off the FFI
+boundary), but this entry doesn't implement any of them.
+
+**Implementation status:** roadmap doc + hub/slice issues only. No slice's
+code has been written under this decision; #197 is the next one to start.
+
+**Failure point:** none yet — this is a scoping document, not a claim that
+any slice is done. The PR-number target (~200) is explicitly approximate
+per the doc's own text, since concurrent unrelated lanes also consume PR
+numbers; treating it as a hard commitment would be the failure mode to
+avoid.
+
+**Required follow-up:** implement slices #197-#205 in dependency order,
+each as its own draft PR against `agent/android-mobile-foundation` (or its
+own stacked branch), each disclosing plainly what this environment verified
+versus what still needs Codex/founder's local Android toolchain.
+
+**Supersedes / superseded by:** supersedes the prior single-item "Next
+implementation slice" section of `ANDROID_FOUNDATION.md` (same content,
+now item 1 of this roadmap, unchanged in substance).

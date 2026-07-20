@@ -1029,6 +1029,20 @@ the top development priority.
 
 See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,
 backend composition, maturity matrix, and implementation order.
+No desktop or web application exists anywhere in this repository.
+`docs/UI_BETA_PLAN.md` is a plan, not code, for those. An Android client
+foundation has started (draft PR #179, issue #178, D-0018/D-0020): a
+`mini-ffi` UniFFI command/event boundary plus a thin Jetpack Compose
+onboarding shell, stopping at `RootCreationReady` with no key or identity
+faked. This remote environment has no JDK/Android SDK/NDK/Gradle/emulator,
+so only `mini-ffi`'s own Rust side is verified here; Gradle sync, APK
+assembly, and emulator/device tests remain unrun in every environment used
+so far. A 9-slice beta roadmap (hub issue #196, target ~PR #200, D-0333) is
+scoped in `docs/mobile/ANDROID_FOUNDATION.md`, starting with an Android
+Keystore signer adapter and root-to-device delegation ceremony (issue
+#197). Beta explicitly means "builds, installs, golden path works, full
+Rust suite green" — not that the custody layer has cleared external
+review (D-0047 gate).
 
 ## Where to look for more detail
 
