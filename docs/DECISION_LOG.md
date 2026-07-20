@@ -9325,3 +9325,71 @@ backing. Then real device/emulator verification via Codex.
 **Supersedes / superseded by:** none. Purely additive to `mini-ffi`; the
 existing `start`/`dispatch` reducer and its `AppSnapshot`/`AppCommand`/
 `AppEvent` types are byte-for-byte unchanged.
+
+### D-0337 — `did-mini::Controller::restore`: resume a session from persisted state without rotating (issue #198)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** hub issue #196, issue #198, draft PR #179,
+D-0335, `crates/did-mini/tests/restore.rs`
+
+**Decision:** add `Controller::restore(kel: &Kel, current: Vec<SigningKey>,
+next: Vec<SigningKey>) -> Result<Controller>` to `did-mini`. Unlike
+`Controller::recover_from_kel` (a deliberate rotation for a lost/stolen/
+compromised device), `restore` performs **no rotation and appends no
+event** — it reconstructs a controller exactly as it was when its KEL
+and secret keys were last saved, for resuming a live session (e.g. after
+an Android process restart). The KEL is fully re-verified via `kel.
+verify()`, and the supplied `current`/`next` keys are checked against
+its own claimed current key set/threshold and pre-rotation commitments/
+threshold before anything is trusted — a corrupted or substituted
+persisted secret fails closed with the new `IdentityError::
+RestoreKeysMismatch`, mirroring exactly the check `recover_from_kel`
+already does for its own escrowed keys.
+
+**Reason:** while investigating hub issue #196's slice #198 (persisted
+app state, the thing D-0335 itself named as the actual blocker between
+`RootCore` and something testers can use across sessions), discovered
+`did-mini` had no way to reconstruct a `Controller` from saved state at
+all — only `incept*` (new identity) and `recover_from_kel` (which always
+performs a rotation, wrong for "just reload the same session"; calling
+it on every app restart would rotate the identity every launch). This is
+the missing building block, added to the crate that actually owns
+`Controller`'s private fields rather than worked around from outside.
+
+**Constitutional impact:** none. No dependency edge added. Reuses
+`Kel::to_bytes`/`from_bytes` and `SigningKey::from_seed`/`to_seed_bytes`
+(both already existed); no new cryptographic primitive. Directive 8 (the
+human is the root of trust) is unaffected — `restore` cannot fabricate
+control of an identity it wasn't given the real matching secret keys
+for, since it re-derives and checks verifying keys against the KEL's own
+commitments exactly like every other constructor in this file.
+
+**Implementation status:** shipped and tested. 7 new tests in
+`crates/did-mini/tests/restore.rs`: a full round-trip reconstructs a
+fully functional controller (can rotate afterward); restore appends no
+event (KEL bytes identical before/after); a delegated device restores
+with its delegator intact; wrong current keys, wrong next keys, empty
+key sets, and a tampered KEL are all rejected. `did-mini` test count
+unaffected in-crate; workspace test count 148 → 149 (new binary).
+Full workspace `cargo fmt`/`clippy`/`test` clean.
+
+**Failure point:** this is the `did-mini`-side primitive only. It does
+**not** solve where the persisted bytes (KEL bytes plus raw secret seed
+bytes) actually get encrypted at rest, or how they cross the `mini-ffi`
+UniFFI boundary without violating this codebase's standing "private-key
+bytes are never returned through UniFFI" rule (stated in `mini-ffi`'s own
+crate doc comment and D-0335's decision entry). Raw seed bytes crossing
+the boundary in plaintext, even briefly, would be exactly that
+violation. Wiring `RootCore` to actually call `restore` needs that
+question answered first — deliberately not improvised here under time
+pressure, the same discipline D-0334 already applied to the signer-suite
+question.
+
+**Required follow-up:** design (Phase 0, before code, matching D-0334's
+own precedent) for how `mini-ffi` persists `RootCore`'s state without
+plaintext secret bytes ever crossing the UniFFI boundary — most likely a
+caller-implemented "storage cipher" callback interface (Kotlin wraps/
+unwraps via Android Keystore's AES-GCM `Cipher`, Rust only ever sees
+opaque ciphertext) so the boundary rule holds by construction, not by
+policy promise.
+
+**Supersedes / superseded by:** none. New method; `incept*` and
+`recover_from_kel` are byte-for-byte unchanged.
