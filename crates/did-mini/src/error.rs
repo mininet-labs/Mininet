@@ -127,6 +127,23 @@ pub enum IdentityError {
     /// A [`crate::WitnessedEventCertificate`] did not carry enough
     /// distinct, valid witness signatures to meet its policy's threshold.
     WitnessThresholdNotMet { needed: u16, got: u16 },
+    /// [`crate::WitnessJournal::observe`] was given an event that neither
+    /// matches, extends, precedes, nor conflicts-at-the-same-sequence with
+    /// this witness's accepted state for the identity — e.g. it claims a
+    /// later sequence but its `prior` digest does not match what this
+    /// witness actually accepted. Phase 2 rejects this outright rather
+    /// than attempting the fork-proof construction the research report's
+    /// harder "conflicting descendant" case describes; that remains
+    /// future work.
+    WitnessConflictingDescendant { sequence: u64 },
+    /// [`crate::ControllerDuplicityProof::assemble`]'s two events did not
+    /// actually demonstrate duplicity: different identity, different
+    /// sequence, or identical digest.
+    ControllerDuplicityMismatch,
+    /// [`crate::WitnessEquivocationProof::assemble`]'s two receipts did
+    /// not actually demonstrate equivocation: different witness, identity,
+    /// sequence, or policy generation, or an identical event digest.
+    WitnessEquivocationMismatch,
 }
 
 impl fmt::Display for IdentityError {
@@ -239,6 +256,18 @@ impl fmt::Display for IdentityError {
             IdentityError::WitnessThresholdNotMet { needed, got } => write!(
                 f,
                 "witness threshold not met: needed {needed}, got {got}"
+            ),
+            IdentityError::WitnessConflictingDescendant { sequence } => write!(
+                f,
+                "event at sequence {sequence} neither matches, extends, nor precedes this witness's accepted state"
+            ),
+            IdentityError::ControllerDuplicityMismatch => write!(
+                f,
+                "the two events do not demonstrate controller duplicity"
+            ),
+            IdentityError::WitnessEquivocationMismatch => write!(
+                f,
+                "the two receipts do not demonstrate witness equivocation"
             ),
         }
     }
