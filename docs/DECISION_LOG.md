@@ -8310,3 +8310,134 @@ K-independent-builder check SPEC-11 §8 ultimately wants).
 
 **Supersedes / superseded by:** refines D-0320's and D-0314's scoping of
 this job. Supersedes nothing; SPEC-11 is untouched.
+### D-0323 — Commit the project's first public whitepaper to the repository (`WHITEPAPER.md`)  ·  *Accepted*
+
+**Date:** 2026-07-20 · **Refs:** D-0090 (Founder Directives canonical
+status, superseding earlier external whitepaper framing); `docs/design/
+mininet-canon-documentation-architecture.md` (the "Book" structure a
+whitepaper sits outside of, as the public entry point); README.md;
+`docs/STATUS.md`; `docs/design/treasury-economic-model.md` (D-0073);
+`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_
+SEARCH_20260718.md` (founder-supplied direction document, already
+committed); D-0311 (free public commons/paid protection, ratified from
+that document's Part II/VII); D-0312 (independent open-web search
+doctrine, ratified from that document's Part III).
+
+**Decision:** Add `WHITEPAPER.md` at the repository root — the project's
+first whitepaper ever actually committed to this repository. D-0090
+already noted that an earlier external "v1" whitepaper and a later
+external "v2" whitepaper/README framing both existed but were never
+committed here, and that both are superseded by the seventeen Founder
+Directives as the one canonical principle set. This entry does not
+revisit that: `WHITEPAPER.md` is explicitly framed, in its own opening
+section, as subordinate to `docs/FOUNDER_DIRECTIVES.md`,
+`docs/INVARIANTS.md`, and `docs/DECISION_LOG.md` — a public introduction
+for readers outside the repository, not a fourth rulebook and not
+constitutional authority. Where it simplifies or falls behind the
+canonical documents, the canonical documents are correct and the
+whitepaper is wrong until fixed, exactly the relationship
+`docs/FOUNDER_DIRECTIVES.md`'s own preface already describes for itself
+relative to the Constitution.
+
+Content-wise, the whitepaper: (1) states the problem Mininet answers and
+the structural, code-enforced guarantees from `docs/INVARIANTS.md` in
+plain language; (2) summarizes identity, money, privacy, storage, and
+governance as they exist today, citing `docs/STATUS.md`/README's own
+shipped-vs-prototype-vs-not-started distinctions rather than restating
+them independently (so the two documents cannot silently drift apart
+without a reviewer noticing); (3) names the open problems honestly
+(Sybil/personhood, no external crypto audit yet, FROST DKG unaudited, no
+real-hardware testing) in the same terms `docs/STATUS.md` and
+`docs/gates/` already use; (4) summarizes the founder-supplied Mininet
+Intake / free public commons / paid protection / MiniSearch direction
+document, correctly citing that its Track A doctrine (free public
+commons, independent open-web search) is already ratified as D-0311 and
+D-0312, while naming honestly that the great majority of the buildout
+those decisions call for — public entitlements, contribution budgets,
+protected-publication receipts, the crawler's network fetcher,
+extraction backends, the index, the ranker, the query service — remains
+unbuilt beyond the handful of narrow first slices already shipped
+(`mini-intake-types`, `mini-intake`, the extractor protocol/host,
+`mini-web-types`, `mini-crawler`'s planning layer); (5) records four
+specific product/economic
+directions (home-node sovereign-custody storage, private micropayment
+settlement for engagement, velocity-aware anti-spam pricing, and
+verified-identity ranking weighting bounded by a guaranteed reach floor
+for unverified content) explicitly as **proposed directions consistent
+with the Founder Directives, not ratified `D-`numbered decisions** — each
+is written to require its own future decision, threat model, and
+implementation-status entry before being treated as settled, exactly the
+posture `docs/FAILURE_BOOK.md`/`docs/DECISION_LOG.md` already require for
+anything not yet decided.
+
+README.md gains one linking sentence near the top and one row in the
+"Start here" table pointing to `WHITEPAPER.md`; no existing README
+content is removed or restructured.
+
+**Reason:** the founder directed that a whitepaper be added as a
+public-release document, ahead of the intake/commons/search
+implementation work in the same direction. A single accessible document
+readers can point to before opening a 40+-crate Rust workspace has been a
+named gap since `docs/design/mininet-canon-documentation-architecture.md`
+observed "most projects publish a whitepaper, a README, and maybe API
+docs" — Mininet had the README and the API docs, but never actually
+committed the whitepaper half of that pair.
+
+**Constitutional impact:** none. Adds no new invariant, no new crate, no
+new dependency edge, and no governance mechanism. Explicitly reaffirms
+D-0090's "Founder Directives are the one canonical principle set, not a
+fourth rulebook" framing rather than reopening it. The four proposed
+economic/product directions in §9 are written as non-binding — nothing in
+`WHITEPAPER.md` grants itself the authority a real `D-`numbered decision
+would carry, and the money-never-buys-a-vote wall (P1, Directive 16) is
+restated, not modified: verified-identity ranking weighting is scoped to
+reach/discovery only, with an explicit "never in governance" qualifier,
+and money purchasing "protection," never "speech," is restated verbatim
+from the existing public-commons founder-direction document rather than
+loosened.
+
+**Implementation status:** shipped — `WHITEPAPER.md` committed at the
+repository root; README.md links it from two locations. Documentation
+only; no code, crate, or test surface. `python3 tools/mininet_nav.py
+build` regenerates the nav index to include it;
+`tools/check_governance.py --mode baseline --candidate-activation`
+against a real `origin/main` checkpoint is clean.
+
+**Failure point:** a whitepaper is a live drift risk by nature — every
+"what's built today" claim inside it can go stale the moment `docs/
+STATUS.md` next changes, and nothing currently enforces that the two
+stay in sync automatically. The document's own closing paragraph names
+this risk and states the correction rule (supersede in the open, never
+silently rewrite), but that is a written commitment, not a technical
+control. If a future reviewer finds `WHITEPAPER.md` overclaiming relative
+to `docs/STATUS.md`, treat it exactly like any other honesty-rule
+violation named in CLAUDE.md and correct it in the same PR that noticed
+it, citing this entry.
+
+**Required follow-up:**
+1. Revisit `WHITEPAPER.md`'s §7 ("what is honestly not solved yet") and
+   §8 ("public information commons") whenever a `docs/STATUS.md` update
+   changes their underlying facts — Sybil/personhood research progress,
+   an external audit landing, or any Track A-F piece of the intake/
+   commons/search direction shipping.
+2. As Tracks B-F of the founder-supplied intake/commons/search direction
+   document continue shipping real code beyond the narrow first slices
+   named in this entry's Decision field, `WHITEPAPER.md`'s §8 needs a
+   fresh pass — its current wording is accurate as of D-0311/D-0312 plus
+   those first slices, but will understate progress the moment the next
+   Track lands (the crawler's network fetcher, an extraction backend,
+   the lexical index, or any Track C/D public-commons/protected-
+   publishing code).
+3. If any of §9's four proposed directions (home-node custody,
+   private micropayments, velocity-aware pricing, verified-ranking
+   weighting) is ever adopted, give it its own decision-log entry per
+   this entry's own **Decision** field, and update `WHITEPAPER.md`'s §9
+   to point at it instead of describing it as undecided.
+4. Consider whether a lightweight automated check (a nav-index-style
+   cross-reference, or a CI comment reminder) should eventually flag when
+   `docs/STATUS.md` changes without a corresponding `WHITEPAPER.md`
+   review, rather than relying on manual reviewer discipline indefinitely.
+
+**Supersedes / superseded by:** none. First whitepaper ever committed to
+this repository; does not supersede D-0090, which governs the
+*principle-set* question this document explicitly declines to reopen.

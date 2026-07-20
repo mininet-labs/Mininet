@@ -940,6 +940,11 @@ backend/protocol Rust workspace only.
 
 ## Where to look for more detail
 
+- `WHITEPAPER.md` (repository root, D-0323) — the single-document public
+  introduction, for a reader who has never opened this repository. It
+  summarizes this file's shipped/prototype/not-started distinctions in
+  plain language rather than restating them independently; if the two
+  ever disagree, this file is correct and the whitepaper needs updating.
 - `README.md`'s repository-map table — per-crate one-line status, kept
   in sync with this file but intentionally shorter.
 - `docs/BETA_STATUS.md` — the narrower, nearer-term two-phone keystone
