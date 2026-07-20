@@ -8650,3 +8650,112 @@ automation), each its own future PR.
 
 **Supersedes / superseded by:** none. Purely additive to `Store`'s
 existing index family; no prior decision is touched.
+### D-0328 — `did-mini::assurance`: `KelAssurance` classification, first slice of Phase 3 of KEL witness receipts (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0321 (Phase 1: receipt/certificate
+types); D-0326 (Phase 2: witness state machine); `docs/design/
+kel-witness-receipts-and-duplicity-gossip.md`; `docs/research/
+KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md` §14-15
+(assurance classes, first-contact verification); invariant M3
+
+**Decision:** ship `did-mini::assurance`, the first slice of Phase 3
+("KelAssurance output alongside ordinary KEL validity, never replacing
+it with one boolean"). `assess_kel_assurance(kel, pins, witnessing,
+known_duplicity)` composes three already-shipped pieces — ordinary
+`Kel::verify` (via `FreshnessPins::check_and_pin`, never bypassed),
+`FreshnessPins` (D-0088), and Phase 1/2's receipt/certificate machinery
+— into a `KelAssurance` classification: `Direct` (verified, no prior pin,
+no witnessing — a first-time verifier's weakest level), `Pinned`
+(matches/advances this verifier's own prior pin), `Witnessed` (a valid
+`WitnessedEventCertificate` for the exact presented head, meeting its
+policy's threshold, but with at least one stale receipt), `WitnessedRecent`
+(same, every receipt within a caller-supplied `max_epoch_age`), and
+`DuplicityDetected` (caller-supplied `known_duplicity` overrides every
+other signal). `WitnessEvidence` groups the certificate/policy/key-
+resolver/epoch-window parameters into one typed request per this crate's
+typed-domain discipline, rather than a long loose parameter list.
+
+**Reason:** Phase 1 defined what a witness receipt is; Phase 2 defined
+what a witness does when it observes an event. Neither gave a *verifier*
+anything to call — `WitnessedEventCertificate::verify` alone doesn't
+tell a caller how to relate that result to the KEL's own ordinary
+validity or to what it has locally pinned. The research report's own
+§14 framing ("this is more honest than one boolean is_fresh") and §15
+first-contact procedure describe exactly this composition step, and the
+design doc's Phase 3 line names it as the next piece.
+
+**Deliberately narrower than Phase 3's full named scope**, split out as
+this PR's own honest boundary rather than silently expanded to match:
+Phase 3's design-doc line also names "wiring `WitnessPolicy` into real
+establishment events" and "wiring real KEL-chain verification in front
+of `WitnessJournal::observe`" — both left for later, separate PRs. The
+first is a wire-format change to `Establishment` (`event.rs`'s existing
+`witnesses: Vec<Vec<u8>>` field remains its own pre-existing,
+differently-shaped, still-unused placeholder), a core identity
+primitive already relied on everywhere in this crate — materially
+higher-risk than a purely additive new module, and not needed for
+`assess_kel_assurance` to be honestly useful today: the caller supplies
+`WitnessPolicy` directly (exactly as `WitnessedEventCertificate::verify`
+already requires a caller-supplied policy in Phase 1). The second
+threads Phase 2's `WitnessJournal::observe` trust assumption
+("`event`'s own chain validity ... is assumed already established by
+the caller") into an enforced precondition; that is orthogonal to what
+a *verifier* (this module's role) needs and does not block it.
+
+`KelAssurance` also has no `WitnessedRecentAndGossiped` variant — the
+research report's own top tier, requiring counted independent gossip
+peers. No gossip protocol exists (Phase 5), so nothing in this crate
+could ever honestly produce that classification; adding the variant
+later is additive and non-breaking. A stale-per-`FreshnessPins` KEL is
+rejected outright regardless of any witness certificate presented — the
+conservative, fail-closed choice, since the research report does not
+specify that witnessing overrides a verifier's own local freshness
+violation and this slice does not invent that override.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+identity-layer verification plumbing only. `assess_kel_assurance` takes
+a specific typed tuple (`Kel`, `FreshnessPins`, `Option<WitnessEvidence>`,
+`bool`), never a generic `sign`/`verify(bytes)`. `Kel::verify` is
+composed through, never bypassed or replaced — M3's harder half remains
+only partially closed, and per Phase 10's hard rule no high-value
+authority decision may depend on this layer before external
+cryptographic review, unchanged from D-0321/D-0326's own gates.
+
+**Implementation status:** shipped in `crates/did-mini/src/
+assurance.rs`, wired into `lib.rs`'s public exports
+(`assess_kel_assurance`, `KelAssurance`, `WitnessEvidence`). 8 new
+tests: first-check-is-`Direct`, second-check-is-`Pinned`, a valid recent
+certificate yields `WitnessedRecent`, a valid but stale certificate
+yields `Witnessed`, `known_duplicity` overrides a valid certificate, a
+certificate for a different identity's head is rejected
+(`WitnessReceiptMismatch`), an internally-invalid KEL is rejected before
+any assurance is computed, and a stale-per-`FreshnessPins` KEL is
+rejected even against a valid certificate for its own (now-stale) head.
+`cargo fmt`/`cargo clippy --all-targets --all-features -D
+warnings`/`cargo test` all clean on `did-mini` (47 lib tests, up from 39).
+
+**Failure point:** exactly what "Deliberately narrower" above names:
+`WitnessPolicy` still not read from a real `Establishment` event (caller-
+supplied); no enforced KEL-chain verification in front of
+`WitnessJournal::observe`; no `WitnessedRecentAndGossiped` (Phase 5); no
+local duplicity-proof store (`known_duplicity` is caller-supplied); a
+verifier cannot yet ask "does the founder's example policy table (public
+post: `Direct`; validator admission: `WitnessedRecentAndGossiped`) gate
+some real authority decision" since no caller in this codebase invokes
+`assess_kel_assurance` yet — this PR ships the classification function
+itself, not its wiring into any real authority-gating call site.
+
+**Required follow-up:** wire `WitnessPolicy` into real `Establishment`
+events (its own PR, given the wire-format risk); wire real KEL-chain
+verification in front of `WitnessJournal::observe`; a local duplicity-
+proof store `known_duplicity` can be computed from instead of caller-
+supplied; `WitnessedRecentAndGossiped` once Phase 5 (gossip) exists; a
+real call site (e.g. `mini-forge` governance/merge gating) that actually
+uses a `KelAssurance` level to gate an authority decision, per the
+research report's own example table — none of that is claimed shipped
+here.
+
+**Supersedes / superseded by:** none. New module, additive only —
+`did-mini::witness`/`witness_state`'s Phase 1/2 types, `FreshnessPins`,
+`Kel::verify`, and every other existing `did-mini` type/function are
+unchanged.

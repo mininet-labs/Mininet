@@ -205,16 +205,23 @@ given time.
   (built from two real controller-signed `Event`s) and
   `WitnessEquivocationProof` (a standalone assemble/verify pair for a
   third party holding two disagreeing receipts from one witness); 15
+  tests. **Phase 3's first slice shipped (D-0328):** `did_mini::assurance
+  ::assess_kel_assurance` composes `Kel::verify`/`FreshnessPins`/a
+  caller-supplied witness certificate into a `KelAssurance` classification
+  (`Direct`/`Pinned`/`Witnessed`/`WitnessedRecent`/`DuplicityDetected`) —
+  an honest, gradable replacement for one boolean "is this fresh"; 8
   tests. **Not yet real:** no KEL-chain verification in front of
   `observe` (`event`'s own signature/pre-rotation/recovery validity is
   trusted from the caller, not checked), no fork-proof construction for
-  the harder "conflicting descendant" case, no `KelAssurance`/KEL-
-  verification integration (Phase 3 — a certificate still cannot be
-  checked against a live `Kel`, and `WitnessPolicy` is still not carried
-  by real `Establishment` events), no gossip, no persistence. Each
-  remaining phase is its own later PR, gated behind external review
-  (D-0047) before any high-value authority decision may depend on this
-  layer.
+  the harder "conflicting descendant" case, `WitnessPolicy` is still not
+  carried by real `Establishment` events (a certificate still cannot be
+  checked against a live `Kel` end-to-end — the caller supplies the
+  policy directly), no local duplicity-proof store, no
+  `WitnessedRecentAndGossiped` (needs Phase 5 gossip), no real call site
+  yet gates an authority decision on a `KelAssurance` level, no gossip,
+  no persistence. Each remaining phase is its own later PR, gated behind
+  external review (D-0047) before any high-value authority decision may
+  depend on this layer.
 - **partial** — post-quantum migration path ([#15](../../issues/15),
   D-0095/D-0322): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire
   tag `0x02`) is real — `VerifyingKey`/`Signature` parse and verify

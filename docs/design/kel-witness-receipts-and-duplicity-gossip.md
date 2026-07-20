@@ -1,7 +1,10 @@
 # KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)
 
-**Status:** Phase 0 (design), Phase 1 (receipt types, D-0321), and Phase 2
-(in-memory witness state machine, D-0326) shipped. Phase 3 onward not
+**Status:** Phase 0 (design), Phase 1 (receipt types, D-0321), Phase 2
+(in-memory witness state machine, D-0326), and Phase 3's first slice
+(`KelAssurance` classification, D-0328) shipped. The rest of Phase 3
+(wiring `WitnessPolicy` into real establishment events; wiring real
+KEL-chain verification in front of `WitnessJournal::observe`) onward not
 started.
 
 **Full research:** `docs/research/
@@ -82,6 +85,17 @@ exactly what this PR is.
    no persistence, no network. Lives in `did-mini::witness_state`.
 3. **KEL verification integration** — `KelAssurance` output alongside
    ordinary KEL validity, never replacing it with one boolean.
+   **First slice shipped (D-0328):** `did-mini::assurance::
+   assess_kel_assurance` classifies `Direct`/`Pinned`/`Witnessed`/
+   `WitnessedRecent`/`DuplicityDetected` by composing `Kel::verify`
+   (via `FreshnessPins`), a caller-supplied `WitnessedEventCertificate`/
+   `WitnessPolicy`, and a caller-supplied `known_duplicity` flag. Still
+   missing from this phase: `WitnessPolicy` read from a real
+   `Establishment` event (caller-supplied today), real KEL-chain
+   verification wired in front of `WitnessJournal::observe`, a local
+   duplicity-proof store, `WitnessedRecentAndGossiped` (needs Phase 5),
+   and any real call site that gates an authority decision on a
+   `KelAssurance` level.
 4. **Receipt collection protocol** — typed request/response messages
    (`SubmitEventForWitnessing`, `FetchWitnessCertificate`, etc.).
 5. **Gossip summaries** — piggybacked on existing sync/relay/forge

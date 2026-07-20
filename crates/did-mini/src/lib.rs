@@ -47,6 +47,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod assurance;
 mod base_device;
 mod codec;
 mod controller;
@@ -62,6 +63,7 @@ mod witness_state;
 
 use mini_crypto::{encoding, Multihash};
 
+pub use assurance::{assess_kel_assurance, KelAssurance, WitnessEvidence};
 pub use base_device::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, PrivacyMode};
 pub use controller::Controller;
 pub use delegation::{Capabilities, Seal};
