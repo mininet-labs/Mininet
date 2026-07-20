@@ -261,7 +261,7 @@
       "status": "in_review",
       "contributor": "Claude",
       "branch": "claude/forge-kel-assurance-gating",
-      "pull_request": null,
+      "pull_request": 195,
       "lease_expires": "2026-07-27",
       "paths": [
         "crates/mini-forge/src/oracle.rs",
