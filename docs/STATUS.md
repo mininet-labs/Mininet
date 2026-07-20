@@ -864,12 +864,24 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   chronological `idx/time/` index alongside the pre-existing author/
   type/link indexes, so a caller can query "what's new since cursor X"
   or "the N most recent objects" without fetching and sorting every
-  object body. Real, tested (3 new tests, both backends). Honestly not
-  yet bounded/paginated — `Backend::list_meta_prefix` has no upper-bound
-  key, so both queries still read the whole `idx/time/` subtree's index
-  rows before filtering, same asymptotic cost the three pre-existing
-  indexes already accept. A real range-query `Backend` primitive remains
-  future work.
+  object body. Real, tested (3 new tests, both backends). **A genuinely
+  bounded "most recent N" query shipped next (D-0331):**
+  `Backend::list_meta_prefix_last` — `MemoryBackend`'s implementation is
+  real `O(log n + limit)` (`BTreeMap::range(...).rev().take(limit)`),
+  not a full-subtree read; `Store::recent` now calls it directly instead
+  of `since(0)` reversed/truncated client-side. Honestly still not fully
+  bounded — `FsBackend` inherits the trait's non-bounded default
+  (deliberately: a real bounded reverse walk over a plain directory tree
+  needs either a sorted early-stopping traversal or an on-disk sorted
+  index, and building that alongside `FsBackend`'s existing
+  symlink/path-traversal defenses without risking a new vulnerability
+  wasn't attempted in this slice), and `Store::since`'s own forward scan
+  is completely unchanged — `Backend::list_meta_prefix` still has no
+  upper-bound key, so it still reads the whole `idx/time/` subtree's
+  index rows before filtering, same asymptotic cost the three
+  pre-existing indexes already accept. A real bounded `FsBackend`
+  implementation and a bounded forward range scan both remain future
+  work.
 - **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
   Batch 1's remaining deferred item. Exports a commit chain (commit → tree
   → blobs, recursively through every ancestor) as real git SHA-256-object-
@@ -882,9 +894,10 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   `STATUS.md`/roadmap generation (Batch 1's remaining deferred items);
   wiring `mini-installer` into an actual running system (Batch 4's own
   named next step, the caller's job by design); the rest of
-  Batch 5 (bounded/paginated range-scan indexing beyond D-0327's first
-  slice, distributed build workers, native release retrieval, GitHub
-  import/export mirror automation).
+  Batch 5 (a genuinely bounded `FsBackend::list_meta_prefix_last`, a
+  bounded/paginated forward range scan for `Store::since`, distributed
+  build workers, native release retrieval, GitHub import/export mirror
+  automation).
 - **partly active, mostly specified** — the founder-supplied Governance Pack
   v1.0 plus the v1.1 charter delta (`docs/governance/`, `forge-native/`,
   `governance/`; D-0082–D-0084): ~50
