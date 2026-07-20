@@ -95,7 +95,7 @@
       "decision_ids": [
         "D-0320"
       ],
-      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z. Closed here (issue #182 branch) since PR #174 itself merged, the same precedent PR #174 set for #161 and PR #180 set for #173/#177."
+      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z. Closed independently by both the issue #182 and PR #179 branches since PR #174 itself merged, the same precedent set for #161."
     },
     {
       "issue": 175,
