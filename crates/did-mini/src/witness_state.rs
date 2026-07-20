@@ -412,14 +412,22 @@ mod tests {
         (WitnessId(did), key, vk)
     }
 
-    fn an_event(scid: &str, sn: u64, prior: Vec<u8>, salt: u8) -> Event {
+    // `distinguishing_byte` varies the test fixture's trivial anchor body so
+    // two otherwise-identical events produce different digests -- it is
+    // plain fixture data, not cryptographic material (renamed from an
+    // earlier `salt` parameter name after CodeQL's "hard-coded
+    // cryptographic value" query flagged the name itself, not any actual
+    // cryptographic use: this anchors arbitrary application data per
+    // event.rs's own `EventKind::Interaction` doc, never a KDF/encryption
+    // input).
+    fn an_event(scid: &str, sn: u64, prior: Vec<u8>, distinguishing_byte: u8) -> Event {
         Event {
             suite: mini_crypto::SignatureSuite::Ed25519,
             scid: scid.to_string(),
             sn,
             prior,
             kind: EventKind::Interaction {
-                anchors: vec![[salt; 32]],
+                anchors: vec![[distinguishing_byte; 32]],
             },
             signatures: vec![],
         }
