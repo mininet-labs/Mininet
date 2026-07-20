@@ -11,13 +11,19 @@
 //! [`SigningKey::to_seed_bytes`] for secure on-device storage, and the [`Debug`]
 //! impl redacts the secret.
 //!
-//! ## Post-quantum note (D-0095, issue #15)
+//! ## Post-quantum note (D-0095/D-0322, issue #15)
 //!
-//! [`VerifyingKey`] and [`Signature`] can now parse and verify
+//! [`VerifyingKey`] and [`Signature`] can parse and verify
 //! [`SignatureSuite::MlDsa65`] material (FIPS 204, composed via the external
-//! `fips204` crate). [`SigningKey`] deliberately stays Ed25519-only — this is
-//! Phase 1 of the migration research report's plan (verify-only, no
-//! generation, no KEL activation); see `suite.rs`'s module docs.
+//! `fips204` crate) since Phase 1. [`SigningKey`] gains ML-DSA-65 key
+//! generation and signing since Phase 2 —
+//! [`SigningKey::generate_ml_dsa_65`]/[`SigningKey::sign_ml_dsa_65`] — but
+//! only as explicitly-named, suite-specific methods alongside the existing
+//! Ed25519-only [`SigningKey::generate`]/[`SigningKey::sign`], which stay
+//! completely unchanged. No `did-mini`/KEL wiring, no
+//! `SignatureSuite::DEFAULT` change, no production identity use of
+//! `MlDsa65` — that's Phase 3 onward; see `docs/design/
+//! post-quantum-identity-migration.md`.
 
 use ed25519_dalek::{
     Signature as DalekSignature, Signer, SigningKey as DalekSigningKey, Verifier,
@@ -50,13 +56,35 @@ pub struct VerifyingKey {
     inner: KeyMaterial,
 }
 
+/// Suite-specific secret key material backing a [`SigningKey`]. Mirrors
+/// [`KeyMaterial`] on the verifying-key side, for the same reason: a
+/// private enum, so a future suite never breaks callers matching on
+/// [`SignatureSuite`] instead.
+#[derive(Clone)]
+enum SecretKeyMaterial {
+    Ed25519(Box<DalekSigningKey>),
+    /// `fips204`'s own precomputed key structs, zeroizing on drop via its
+    /// `ZeroizeOnDrop` derive. Both halves are kept together because
+    /// FIPS 204's exposed API gives no way to recover a `PublicKey` from
+    /// a `PrivateKey` alone (unlike Ed25519, where the verifying key is
+    /// cheaply re-derived from the signing key at any time) —
+    /// `try_keygen_with_rng` hands back both at once, so both are stored.
+    MlDsa65 {
+        public: Box<fips204::ml_dsa_65::PublicKey>,
+        secret: Box<fips204::ml_dsa_65::PrivateKey>,
+    },
+}
+
 /// A secret signing key, tagged with its suite. Secret material stays on-device.
 ///
-/// Ed25519-only today — see this module's doc comment.
+/// Ed25519 generation/signing (`generate`/`sign`) and ML-DSA-65
+/// generation/signing (`generate_ml_dsa_65`/`sign_ml_dsa_65`, Phase 2 of
+/// D-0095) are separate, explicitly-named methods rather than one
+/// suite-polymorphic pair — see this module's doc comment.
 #[derive(Clone)]
 pub struct SigningKey {
     suite: SignatureSuite,
-    inner: DalekSigningKey,
+    inner: SecretKeyMaterial,
 }
 
 /// A signature, tagged with the suite that produced it.
@@ -74,7 +102,7 @@ impl SigningKey {
     pub fn from_seed(seed: &[u8; 32]) -> Self {
         SigningKey {
             suite: SignatureSuite::Ed25519,
-            inner: DalekSigningKey::from_bytes(seed),
+            inner: SecretKeyMaterial::Ed25519(Box::new(DalekSigningKey::from_bytes(seed))),
         }
     }
 
@@ -88,6 +116,25 @@ impl SigningKey {
         Ok(key)
     }
 
+    /// Generate a fresh ML-DSA-65 (FIPS 204) signing key using OS entropy
+    /// via `rand_core::OsRng` — Phase 2 of the post-quantum identity
+    /// migration (D-0095, issue #15): key generation and isolated signing
+    /// only, no `did-mini`/KEL wiring, no default-suite change, no
+    /// production identity use.
+    pub fn generate_ml_dsa_65() -> Result<Self> {
+        use fips204::ml_dsa_65;
+        let mut rng = rand_core::OsRng;
+        let (public, secret) =
+            ml_dsa_65::try_keygen_with_rng(&mut rng).map_err(|_| CryptoError::Entropy)?;
+        Ok(SigningKey {
+            suite: SignatureSuite::MlDsa65,
+            inner: SecretKeyMaterial::MlDsa65 {
+                public: Box::new(public),
+                secret: Box::new(secret),
+            },
+        })
+    }
+
     /// The suite this key belongs to.
     pub fn suite(&self) -> SignatureSuite {
         self.suite
@@ -95,18 +142,75 @@ impl SigningKey {
 
     /// The corresponding public verifying key.
     pub fn verifying_key(&self) -> VerifyingKey {
-        VerifyingKey {
-            suite: self.suite,
-            inner: KeyMaterial::Ed25519(self.inner.verifying_key()),
+        match &self.inner {
+            SecretKeyMaterial::Ed25519(inner) => VerifyingKey {
+                suite: self.suite,
+                inner: KeyMaterial::Ed25519(inner.verifying_key()),
+            },
+            SecretKeyMaterial::MlDsa65 { public, .. } => {
+                use fips204::traits::SerDes;
+                let pk_bytes: [u8; fips204::ml_dsa_65::PK_LEN] = (**public).clone().into_bytes();
+                VerifyingKey {
+                    suite: self.suite,
+                    inner: KeyMaterial::MlDsa65(Box::new(pk_bytes)),
+                }
+            }
         }
     }
 
-    /// Sign a message.
+    /// Sign a message with an Ed25519 key. Every call site in this
+    /// workspace predates Phase 2 and only ever holds an Ed25519 key, so
+    /// this method's signature stays infallible rather than becoming
+    /// `Result` everywhere it's already called — deliberately narrower
+    /// than [`VerifyingKey::verify`]-style suite handling elsewhere in
+    /// this file.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is an `MlDsa65` key (a genuinely reachable caller
+    /// bug now that [`SigningKey::generate_ml_dsa_65`] exists, not a
+    /// theoretical case) — such a key must use
+    /// [`SigningKey::sign_ml_dsa_65`] instead, which returns a
+    /// [`CryptoError::SignatureSuiteMismatch`] `Result` rather than
+    /// panicking, since a fresh caller of that method has no legacy
+    /// infallible contract to preserve.
     pub fn sign(&self, message: &[u8]) -> Signature {
-        let sig: DalekSignature = self.inner.sign(message);
-        Signature {
-            suite: self.suite,
-            bytes: sig.to_bytes().to_vec(),
+        match &self.inner {
+            SecretKeyMaterial::Ed25519(inner) => {
+                let sig: DalekSignature = inner.sign(message);
+                Signature {
+                    suite: self.suite,
+                    bytes: sig.to_bytes().to_vec(),
+                }
+            }
+            SecretKeyMaterial::MlDsa65 { .. } => {
+                panic!("SigningKey::sign is Ed25519-only; use sign_ml_dsa_65 for an MlDsa65 key")
+            }
+        }
+    }
+
+    /// Sign `message` with an ML-DSA-65 key, using OS entropy (via
+    /// `rand_core::OsRng`) for the signature's internal randomization —
+    /// the same RNG source [`SigningKey::generate_ml_dsa_65`] uses.
+    /// Returns [`CryptoError::SignatureSuiteMismatch`] if `self` is not an
+    /// ML-DSA-65 key rather than panicking, since which suite a caller
+    /// holds is ordinary runtime data (unlike [`SigningKey::sign`]'s
+    /// Ed25519-only contract, which every existing call site in this
+    /// workspace already assumes).
+    pub fn sign_ml_dsa_65(&self, message: &[u8]) -> Result<Signature> {
+        match &self.inner {
+            SecretKeyMaterial::Ed25519(_) => Err(CryptoError::SignatureSuiteMismatch),
+            SecretKeyMaterial::MlDsa65 { secret, .. } => {
+                use fips204::traits::Signer as MlDsaSigner;
+                let mut rng = rand_core::OsRng;
+                let sig_bytes = secret
+                    .try_sign_with_rng(&mut rng, message, &[])
+                    .map_err(|_| CryptoError::Entropy)?;
+                Ok(Signature {
+                    suite: self.suite,
+                    bytes: sig_bytes.to_vec(),
+                })
+            }
         }
     }
 
@@ -115,8 +219,24 @@ impl SigningKey {
     /// This is the single place secret material leaves the type, and it is named
     /// loudly on purpose. It must never be placed in any network message
     /// (SPEC-01 G1: keys never leave the device).
+    ///
+    /// Ed25519-only, matching [`SigningKey::sign`] — FIPS 204 secret-key
+    /// storage export/import is not implemented in Phase 2 (not in its
+    /// named scope: generation and isolated signing only).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is an `MlDsa65` key, for the same reason
+    /// [`SigningKey::sign`] does: no `Result`-returning alternative exists
+    /// for this specific method yet, since Phase 2 does not add ML-DSA-65
+    /// storage export/import at all (a later phase's job).
     pub fn to_seed_bytes(&self) -> [u8; 32] {
-        self.inner.to_bytes()
+        match &self.inner {
+            SecretKeyMaterial::Ed25519(inner) => inner.to_bytes(),
+            SecretKeyMaterial::MlDsa65 { .. } => {
+                panic!("SigningKey::to_seed_bytes is Ed25519-only; no MlDsa65 export exists yet (Phase 2 does not add storage export/import)")
+            }
+        }
     }
 }
 
@@ -452,5 +572,85 @@ mod tests {
             ed_verifying_key.verify(b"hello", &pq_signature),
             Err(CryptoError::BadSignature)
         );
+    }
+
+    // ----- Phase 2 (D-0095/D-0322, issue #15): ML-DSA-65 key generation
+    // and isolated signing on `SigningKey` itself. -----
+
+    #[test]
+    fn a_generated_ml_dsa_65_key_signs_and_verifies_end_to_end_through_mini_crypto() {
+        let signing_key = SigningKey::generate_ml_dsa_65().unwrap();
+        assert_eq!(signing_key.suite(), SignatureSuite::MlDsa65);
+        let verifying_key = signing_key.verifying_key();
+        assert_eq!(verifying_key.suite(), SignatureSuite::MlDsa65);
+
+        let message = b"a real end-to-end ML-DSA-65 message";
+        let signature = signing_key.sign_ml_dsa_65(message).unwrap();
+        assert_eq!(signature.suite(), SignatureSuite::MlDsa65);
+
+        verifying_key.verify(message, &signature).unwrap();
+    }
+
+    #[test]
+    fn a_generated_ml_dsa_65_signature_over_a_different_message_fails() {
+        let signing_key = SigningKey::generate_ml_dsa_65().unwrap();
+        let verifying_key = signing_key.verifying_key();
+        let signature = signing_key.sign_ml_dsa_65(b"hello").unwrap();
+        assert_eq!(
+            verifying_key.verify(b"goodbye", &signature),
+            Err(CryptoError::BadSignature)
+        );
+    }
+
+    #[test]
+    fn a_generated_ml_dsa_65_signature_verified_under_a_different_generated_key_fails() {
+        let signing_key_a = SigningKey::generate_ml_dsa_65().unwrap();
+        let signing_key_b = SigningKey::generate_ml_dsa_65().unwrap();
+        let message = b"same message, different keys";
+        let signature = signing_key_a.sign_ml_dsa_65(message).unwrap();
+        assert_eq!(
+            signing_key_b.verifying_key().verify(message, &signature),
+            Err(CryptoError::BadSignature)
+        );
+    }
+
+    #[test]
+    fn two_generated_ml_dsa_65_keys_are_distinct() {
+        // Proves real RNG-backed generation, not a fixed or degenerate
+        // key -- two independent calls must not collide.
+        let a = SigningKey::generate_ml_dsa_65().unwrap();
+        let b = SigningKey::generate_ml_dsa_65().unwrap();
+        assert_ne!(a.verifying_key().to_bytes(), b.verifying_key().to_bytes());
+    }
+
+    #[test]
+    fn sign_ml_dsa_65_on_an_ed25519_key_is_a_suite_mismatch_not_a_panic() {
+        let ed_key = SigningKey::from_seed(&[7u8; 32]);
+        assert_eq!(
+            ed_key.sign_ml_dsa_65(b"hello"),
+            Err(CryptoError::SignatureSuiteMismatch)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "SigningKey::sign is Ed25519-only")]
+    fn sign_on_an_ml_dsa_65_key_panics_with_a_clear_message() {
+        let pq_key = SigningKey::generate_ml_dsa_65().unwrap();
+        let _ = pq_key.sign(b"hello");
+    }
+
+    #[test]
+    #[should_panic(expected = "SigningKey::to_seed_bytes is Ed25519-only")]
+    fn to_seed_bytes_on_an_ml_dsa_65_key_panics_with_a_clear_message() {
+        let pq_key = SigningKey::generate_ml_dsa_65().unwrap();
+        let _ = pq_key.to_seed_bytes();
+    }
+
+    #[test]
+    fn a_generated_ml_dsa_65_signing_key_debug_output_redacts_secret_material() {
+        let pq_key = SigningKey::generate_ml_dsa_65().unwrap();
+        let debug_str = format!("{pq_key:?}");
+        assert!(debug_str.contains("redacted"));
+        assert!(!debug_str.contains("MlDsa65 {"));
     }
 }

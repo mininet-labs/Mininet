@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-19T02:39:41Z",
+  "updated_at": "2026-07-20T17:30:00Z",
   "claims": [
     {
       "issue": 122,
@@ -49,7 +49,7 @@
     },
     {
       "issue": 167,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/mini-installer-windows-compile",
       "pull_request": 171,
@@ -61,11 +61,11 @@
         "docs/STATUS.md"
       ],
       "decision_ids": [],
-      "notes": "Fix Windows compile failure: gate std::os::unix::fs::symlink behind #[cfg(unix)], add runtime-Unsupported fallback on other platforms. No behavior change on Unix; no new capability."
+      "notes": "Fix Windows compile failure: gate std::os::unix::fs::symlink behind #[cfg(unix)], add runtime-Unsupported fallback on other platforms. No behavior change on Unix; no new capability. Closed independently by both the issue #190 and issue #192 branches after PR #171 was confirmed merged; found stale (still in_review) and closed per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file (see issue #186's own closing note)."
     },
     {
       "issue": 169,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/mini-extract-protocol-host",
       "pull_request": 172,
@@ -77,11 +77,11 @@
         "docs/STATUS.md"
       ],
       "decision_ids": [],
-      "notes": "Track B3: extractor protocol (mini-extract-protocol) + isolated host (mini-extract-host), mirroring mini-pipeline-protocol/mini-build-runner-wasmtime's subprocess-isolation discipline. One simple plain-text-normalize extractor; PDF/HTML deferred to Track B4."
+      "notes": "Track B3: extractor protocol (mini-extract-protocol) + isolated host (mini-extract-host), mirroring mini-pipeline-protocol/mini-build-runner-wasmtime's subprocess-isolation discipline. One simple plain-text-normalize extractor; PDF/HTML deferred to Track B4. Closed here (issue #182 branch) since PR #172 merged 2026-07-19T20:06:58Z, the same precedent PR #174 set for #161."
     },
     {
       "issue": 173,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/reproducibility-scope",
       "pull_request": 174,
@@ -95,7 +95,186 @@
       "decision_ids": [
         "D-0320"
       ],
-      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z."
+      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z. Closed here (issue #182 branch) since PR #174 itself merged, the same precedent PR #174 set for #161 and PR #180 set for #173/#177."
+    },
+    {
+      "issue": 175,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/pq-mldsa65-keygen-signing",
+      "pull_request": 176,
+      "lease_expires": "2026-07-26",
+      "paths": [
+        "crates/mini-crypto/src/keys.rs",
+        "crates/mini-crypto/src/error.rs",
+        "crates/mini-crypto/Cargo.toml",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/design/post-quantum-identity-migration.md"
+      ],
+      "decision_ids": [
+        "D-0322"
+      ],
+      "notes": "Phase 2 of post-quantum identity migration (D-0095, issue #15): ML-DSA-65 key generation + isolated signing in mini-crypto. No did-mini/KEL wiring, no default-suite change. Decision renumbered D-0320 -> D-0322 during rebase to avoid colliding with PR #174's independently-claimed D-0320 (CI reproducibility scope) and PR #180's D-0321 (KEL witness receipt types). Closed independently by both the issue #190 and issue #192 branches after PR #176 was confirmed merged; found stale (still in_review) and closed per the same standing precedent as issue #167's closure above."
+    },
+    {
+      "issue": 177,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/kel-witness-receipt-types",
+      "pull_request": 180,
+      "lease_expires": "2026-07-26",
+      "paths": [
+        "crates/did-mini/src/witness.rs",
+        "crates/did-mini/src/error.rs",
+        "crates/did-mini/src/limits.rs",
+        "crates/did-mini/src/lib.rs",
+        "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0321"
+      ],
+      "notes": "Phase 1 of KEL witness receipts (audit #12 F4, invariant M3): WitnessPolicy/WitnessReceiptStatement/WitnessReceipt/WitnessedEventCertificate types in did-mini. Canonical encoding + signature/threshold verification only, no witness state machine, no KEL-verification wiring, no network. Closed here (issue #186 branch) since PR #180 merged 2026-07-20T06:53Z."
+    },
+    {
+      "issue": 182,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/mini-extract-host-zero-deadline-timeout",
+      "pull_request": 183,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/mini-extract-host/src/lib.rs",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0324"
+      ],
+      "notes": "Fix an intermittent CI failure (most recently blocking PR #181's required check job): a_zero_millisecond_deadline_is_reported_as_timeout raced Duration::ZERO against the worker's real round trip via mpsc::Receiver::recv_timeout. Special-cased max_wall_clock_ms == 0 in run_worker to a deterministic immediate timeout. No behavior change for non-zero deadlines. Closed here (issue #184 branch) since PR #183 merged 2026-07-20T09:38Z."
+    },
+    {
+      "issue": 184,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/reproducibility-required-check-docs-only",
+      "pull_request": 185,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        ".github/workflows/reproducibility.yml",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0325"
+      ],
+      "notes": "Fix the reproducibility workflow's required-check gap: paths-ignore for docs/**/**/*.md meant the job never ran (and the required status check never posted a conclusion) for a PR whose entire diff was docs-only, leaving it permanently mergeable_state: blocked (observed on PR #181). Workflow now always triggers; the two-clean-build cost is skipped inside the job via a real git-diff check instead. Closed here (issue #186 branch) since PR #185 merged."
+    },
+    {
+      "issue": 186,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/kel-witness-state-machine",
+      "pull_request": 187,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/did-mini/src/witness_state.rs",
+        "crates/did-mini/src/error.rs",
+        "crates/did-mini/src/lib.rs",
+        "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0326"
+      ],
+      "notes": "Phase 2 of KEL witness receipts (audit #12 F4, invariant M3): WitnessJournal in-memory witness state machine (first-seen acceptance, direct-successor verification, duplicate idempotence, stale rejection, same-sequence conflict detection) plus ControllerDuplicityProof and WitnessEquivocationProof. No KEL-chain verification wiring (Phase 3), no fork-proof construction for conflicting descendants, no gossip, no persistence. Closed here (issue #188 branch) since PR #187 merged."
+    },
+    {
+      "issue": 188,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/mini-store-time-index",
+      "pull_request": 189,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/mini-store/src/store.rs",
+        "crates/mini-store/tests/store.rs",
+        "docs/design/self-hosted-forge-spine.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0327"
+      ],
+      "notes": "First slice of Batch 5's 'local object indexing at scale': a chronological idx/time/ index plus Store::since/Store::recent query methods. Still O(matching-prefix-subtree) like every other Store index, not yet a bounded/paginated range scan -- that needs a new Backend range-query primitive, explicit follow-up. Closed independently by both the issue #190 and issue #192 branches after PR #189 merged."
+    },
+    {
+      "issue": 190,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/kel-assurance-phase3",
+      "pull_request": 191,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/did-mini/src/assurance.rs",
+        "crates/did-mini/src/lib.rs",
+        "crates/did-mini/src/witness_state.rs",
+        "crates/did-mini/src/duplicity.rs",
+        "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0328",
+        "D-0329",
+        "D-0330"
+      ],
+      "notes": "Three related slices of Phase 3 of KEL witness receipts (audit #12 F4, invariant M3), batched into one PR per CLAUDE.md's workflow ritual since each built directly on the last in the same session before the branch was ever pushed. D-0328: did_mini::assess_kel_assurance classifies Direct/Pinned/Witnessed/WitnessedRecent/DuplicityDetected by composing Kel::verify (via FreshnessPins) with a caller-supplied WitnessedEventCertificate/WitnessPolicy and known_duplicity flag. D-0329: WitnessJournal::observe_verified runs the real Kel::verify chain over the entire presented KEL before delegating to observe, closing the 'trusts the caller' gap observe's own doc comment named. D-0330: DuplicityRegistry records ControllerDuplicityProof/WitnessEquivocationProof and answers has_known_duplicity(identity, policy), a real place to compute known_duplicity from instead of by hand. Still open: WitnessPolicy read from a real Establishment event, persistence/gossip for the registry, a bounded/incremental re-verify, and any real call site gating an authority decision or feeding real proofs into the registry. Closed independently by both the issue #192 and issue #194 branches after PR #191 was confirmed merged."
+    },
+    {
+      "issue": 192,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/mini-store-bounded-range",
+      "pull_request": 193,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/mini-store/src/backend.rs",
+        "crates/mini-store/src/store.rs",
+        "docs/design/self-hosted-forge-spine.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0331"
+      ],
+      "notes": "Follow-up to D-0327: Backend::list_meta_prefix_last, a genuinely bounded 'most recent N' query. MemoryBackend gets a real O(log n + limit) BTreeMap::range(...).rev().take(limit) implementation; FsBackend inherits the trait's non-bounded default (deliberately -- a real bounded FS reverse walk needs either a sorted early-stopping traversal or an on-disk sorted index, not attempted here to avoid risking FsBackend's existing symlink/path-traversal defenses). Store::recent now calls the new method directly instead of since(0) reversed/truncated client-side. Store::since's own forward scan is unchanged and still not bounded. Closed here (issue #194 branch) since PR #193 was confirmed merged; found stale (still in_review) and closed per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+    },
+    {
+      "issue": 194,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/forge-kel-assurance-gating",
+      "pull_request": 195,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/mini-forge/src/oracle.rs",
+        "crates/mini-forge/src/lib.rs",
+        "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0332"
+      ],
+      "notes": "mini_forge::author_assurance composes the oracle's existing author_verified provenance re-check with did_mini::assess_kel_assurance over the author-root's KEL -- the first consumer of KelAssurance outside did-mini itself. Deliberately not wired into propose/approve/merge/resolve_project's actual quorum gating (still purely author_verified's boolean) -- which governance action should require which minimum assurance level is a founder-facing policy call, not decided unilaterally here."
     }
   ]
 }

@@ -1,8 +1,9 @@
-# Post-quantum identity signature migration (issue #15, D-0095)
+# Post-quantum identity signature migration (issue #15, D-0095/D-0322)
 
-**Status:** Phase 0 (research + design) and Phase 1 (verify-only primitive
-in `mini-crypto`) shipped. Everything past that — KEL activation, key
-generation, recovery/witness/device migration — is deferred.
+**Status:** Phase 0 (research + design), Phase 1 (verify-only primitive in
+`mini-crypto`), and Phase 2 (ML-DSA-65 key generation + isolated signing
+in `mini-crypto`) shipped. Everything past that — KEL activation,
+recovery/witness/device migration — is deferred.
 
 **Full research:** `docs/research/
 PQ15_POST_QUANTUM_MIGRATION_RESEARCH_20260715.md` (founder-supplied,
@@ -46,13 +47,16 @@ to `did-mini`'s identity/rotation logic. `SignatureSuite::DEFAULT` stays
   the parsed key and message, and correctly reject tampered signatures,
   wrong keys, wrong lengths, and suite mismatches between a key and a
   signature.
-- `SigningKey` (the secret-key side) is **deliberately untouched** —
-  Ed25519-only, no ML-DSA generation or signing exposed in production
-  code. Round-trip tests use `fips204`'s own `try_keygen_with_rng`/
-  `try_sign_with_rng` directly, gated behind this crate's
-  `dev-dependencies`-only `fips204`/`default-rng` feature — a real,
-  enforced boundary (dev-dependency features never reach a `cargo build`
-  production artifact), not just a documented convention.
+- **Phase 2 (D-0322):** `SigningKey::generate_ml_dsa_65()`/
+  `sign_ml_dsa_65()` — real ML-DSA-65 key generation and signing in
+  production code, composing `fips204`'s `try_keygen_with_rng`/
+  `try_sign_with_rng` with `rand_core::OsRng` for entropy. Explicitly
+  named, suite-specific methods alongside the existing Ed25519-only
+  `generate()`/`sign()`, which stay completely unchanged. Secret
+  zeroization on drop is structural (`fips204`'s own `ZeroizeOnDrop`
+  derive), not reimplemented. No storage export/import for `MlDsa65`
+  secrets, no benchmarks, no mobile/WASM testing — all named honestly as
+  still-deferred below.
 
 ## Honest limit found during implementation
 
@@ -69,10 +73,16 @@ rather than silently assumed.
 
 ## What's deferred
 
-Everything the research report sequences as Phase 2 onward:
+Everything the research report sequences as Phase 2's remaining items
+onward:
 
-- **Key generation** (Phase 2) — `SigningKey` gaining an ML-DSA-65 arm,
-  secure RNG wiring, benchmarks, mobile/WASM testing.
+- **Benchmarks and mobile/WASM testing** (still Phase 2) — no
+  benchmarking harness or mobile toolchain exists in this environment.
+- **ML-DSA-65 secret-key storage export/import** — not part of Phase 2's
+  named scope, and `fips204`'s API gives no way to derive a `PublicKey`
+  back from a raw seed the way Ed25519's `to_seed_bytes`/`from_seed`
+  does, so a generated `MlDsa65` `SigningKey` today only lives for the
+  process's lifetime.
 - **KEL hybrid migration protocol** (Phase 3) — the actual identity
   migration mechanism: PQ pre-commitment via the existing next-key
   commitment, a dual-authorised rotation event signed by both the current

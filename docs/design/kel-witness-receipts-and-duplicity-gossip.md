@@ -1,8 +1,14 @@
 # KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)
 
-**Status:** Phase 0 (design) only. No code in this PR — the research
-report itself names a design-only first deliverable as the correct
-sequencing, and this document is that deliverable.
+**Status:** Phase 0 (design), Phase 1 (receipt types, D-0321), Phase 2
+(in-memory witness state machine, D-0326), Phase 3's first slice
+(`KelAssurance` classification, D-0328), Phase 3's second slice (real
+KEL-chain verification wired in front of `WitnessJournal::observe`,
+D-0329), a local duplicity-proof registry (`DuplicityRegistry`, D-0330),
+and a `mini-forge` bridge (`author_assurance`, D-0332) shipped. Only
+"wiring `WitnessPolicy` into real establishment events" and wiring
+`author_assurance` into a real governance call site remain open in
+Phase 3; Phase 4 onward not started.
 
 **Full research:** `docs/research/
 KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md`
@@ -65,15 +71,54 @@ exactly what this PR is.
 ## Phased plan this repo commits to (see report §29 for full detail)
 
 0. **Design and state audit** — this document.
-1. **Receipt types** — `WitnessPolicy`, `WitnessReceiptStatement`,
-   `WitnessReceipt`, `WitnessedEventCertificate`; canonical encoding;
-   signature verification; no network service.
-2. **In-memory witness state machine** — first-seen acceptance, direct-
-   successor verification, duplicate idempotence, stale rejection,
-   conflict detection, receipt issuance, `ControllerDuplicityProof`,
-   `WitnessEquivocationProof`.
+1. **Receipt types (shipped, D-0321)** — `WitnessPolicy`,
+   `WitnessReceiptStatement`, `WitnessReceipt`,
+   `WitnessedEventCertificate`; canonical encoding; signature
+   verification; no network service. Lives in `did-mini::witness`.
+2. **In-memory witness state machine (shipped, D-0326)** — `WitnessJournal`
+   in `did-mini::witness_state`: first-seen acceptance, direct-successor
+   verification, duplicate idempotence (returns the previously issued
+   receipt, never re-signs), stale rejection, same-sequence conflict
+   detection (`ControllerDuplicityProof`, built from real controller-
+   signed `Event`s), and a standalone `WitnessEquivocationProof::assemble`
+   for a third party holding two disagreeing receipts from one witness.
+   Trusts the caller that `event` is already chain-valid at its claimed
+   position — no signature/pre-rotation/recovery verification, no
+   fork-proof construction for the harder "conflicting descendant" case,
+   no persistence, no network. Lives in `did-mini::witness_state`.
 3. **KEL verification integration** — `KelAssurance` output alongside
    ordinary KEL validity, never replacing it with one boolean.
+   **First slice shipped (D-0328):** `did-mini::assurance::
+   assess_kel_assurance` classifies `Direct`/`Pinned`/`Witnessed`/
+   `WitnessedRecent`/`DuplicityDetected` by composing `Kel::verify`
+   (via `FreshnessPins`), a caller-supplied `WitnessedEventCertificate`/
+   `WitnessPolicy`, and a caller-supplied `known_duplicity` flag.
+   **Second slice shipped (D-0329):** `did_mini::WitnessJournal::
+   observe_verified` runs the real `Kel::verify` chain over the entire
+   presented KEL before delegating to `observe` — a witness no longer
+   has to trust an untrusted peer's bare claim that a presented event is
+   chain-valid; `observe` itself is unchanged for callers that establish
+   chain validity some other way. **Local duplicity registry shipped
+   (D-0330):** `did_mini::DuplicityRegistry` records `ControllerDuplicityProof`/
+   `WitnessEquivocationProof` and answers `has_known_duplicity(identity,
+   policy)`, so a caller now has a real place to accumulate proofs
+   instead of computing `known_duplicity` by hand; `assess_kel_
+   assurance`'s own signature is unchanged. **`mini-forge` bridge shipped
+   (D-0332):** `mini_forge::author_assurance` composes the oracle's
+   existing provenance re-check (`author_verified`) with `assess_kel_
+   assurance` over the author-root's KEL — the first consumer of
+   `KelAssurance` outside `did-mini` itself. Deliberately **not** wired
+   into `propose`/`approve`/`merge`/`resolve_project`'s actual quorum
+   gating, which remains purely `author_verified`'s boolean: which
+   governance action (if any) should require which minimum assurance
+   level is a founder-facing policy call, not something decided
+   unilaterally here. Still missing from this phase: `WitnessPolicy`
+   read from a real `Establishment` event (caller-supplied today),
+   `WitnessedRecentAndGossiped` (needs Phase 5), a bounded/incremental
+   KEL-chain re-verify (today re-verifies the whole chain from inception
+   every call), persistence for the duplicity registry (Phase 6), and
+   any real call site that actually *gates* an authority decision on a
+   `KelAssurance` level or feeds real proofs into `DuplicityRegistry`.
 4. **Receipt collection protocol** — typed request/response messages
    (`SubmitEventForWitnessing`, `FetchWitnessCertificate`, etc.).
 5. **Gossip summaries** — piggybacked on existing sync/relay/forge
@@ -111,10 +156,19 @@ exactly what this PR is.
   14 and CLAUDE.md's no-new-cryptography rule, composing `did-mini`'s
   existing typed-signature machinery is sufficient for Phase 1-3.
 
-## What this PR does not do
+## What this document originally covered, and what D-0321/D-0326 added
 
-No new type is added to `did-mini` or anywhere else. `FreshnessPins`
-(D-0088) is unmodified. No witness state machine, no receipt format, no
-gossip protocol exists yet — those are Phases 1-5, each its own PR, each
-scoped no larger than this session's established discipline for
-founder-research-driven work.
+This document was originally Phase 0 only: no new type, `FreshnessPins`
+(D-0088) unmodified, no witness state machine, no receipt format, no
+gossip protocol. D-0321 (Phase 1) shipped `did-mini::witness`'s four
+receipt/certificate types, canonical encoding, and signature/threshold
+verification — see that decision-log entry for exactly what it does and
+does not cover. D-0326 (Phase 2) shipped `did-mini::witness_state`'s
+`WitnessJournal` in-memory state machine plus `ControllerDuplicityProof`/
+`WitnessEquivocationProof` — see that entry for exactly what it does and
+does not cover. No receipt format wired into real establishment events
+(`event.rs`'s `Establishment.witnesses: Vec<Vec<u8>>` field remains its
+own pre-existing, differently-shaped placeholder, still unused), no
+`KelAssurance`/KEL-verification integration, and no gossip protocol exist
+yet — those are Phases 3-5, each its own PR, each scoped no larger than
+this session's established discipline for founder-research-driven work.

@@ -7967,3 +7967,1101 @@ permanently unmergeable.
 
 **Supersedes / superseded by:** refines D-0314's narrowing of this job.
 Supersedes nothing; SPEC-11 is untouched.
+### D-0322 — `mini-crypto`: ML-DSA-65 key generation + isolated signing, Phase 2 of the post-quantum identity migration (D-0095, issue #15)  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0095 (Phase 1: verify-only support);
+`docs/design/post-quantum-identity-migration.md`; `docs/research/
+PQ15_POST_QUANTUM_MIGRATION_RESEARCH_20260715.md` §24 (rollout phases);
+issue #15; issue #175
+
+**Decision:** `SigningKey` gains `generate_ml_dsa_65()` and
+`sign_ml_dsa_65(message)`, composing `fips204`'s own
+`try_keygen_with_rng`/`try_sign_with_rng` with `rand_core::OsRng` for
+entropy — the same canonical OS-backed RNG Phase 1's own tests already
+validated real `fips204` keygen/signing against. These are new,
+explicitly-named, suite-specific methods alongside the existing
+Ed25519-only `generate()`/`sign()`, which are completely unchanged in
+behavior. Internally, `SigningKey`'s private field becomes a
+`SecretKeyMaterial` enum (`Ed25519(Box<DalekSigningKey>)` /
+`MlDsa65 { public, secret }`, both `fips204` structs boxed together
+since FIPS 204's exposed API gives no way to recover a `PublicKey` from
+a `PrivateKey` alone, unlike Ed25519 where the verifying key is cheaply
+re-derived from the signing key) — mirroring `KeyMaterial`'s existing
+suite-tagged-enum pattern on the `VerifyingKey` side from Phase 1.
+`verifying_key()` now handles both suites. Secret zeroization on drop is
+structural, not reimplemented — `fips204::ml_dsa_65::PublicKey`/
+`PrivateKey` both derive `ZeroizeOnDrop` already.
+
+`sign()` and `to_seed_bytes()` stay infallible (unchanged return types,
+since every existing call site across the workspace already assumes
+that and holds only Ed25519 keys) but now **panic** with a clear,
+specific message if called on an `MlDsa65` key — a genuinely reachable
+caller bug now that `generate_ml_dsa_65()` exists, honestly documented
+as such rather than mislabeled `unreachable!()`. `sign_ml_dsa_65()`,
+being a brand-new method with no legacy infallible contract to preserve,
+instead returns `Err(CryptoError::SignatureSuiteMismatch)` (a new error
+variant, mirroring the existing `KeyAgreementSuiteMismatch`) when called
+on an Ed25519 key — the `Result`-returning, non-panicking discipline
+`VerifyingKey::verify` already uses for its own suite-mismatch case.
+
+**Reason:** the research report's own rollout phasing (§24) names Phase
+2 as "generate ML-DSA keys; sign typed test messages; secure RNG; secret
+zeroisation; benchmarks; mobile tests; cross-implementation vectors" —
+explicitly listed *before* Phase 5's external-cryptographic-review gate,
+confirming key generation/isolated signing is self-contained crate work
+the review gate does not block (the gate applies to network opt-in and
+KEL activation, Phase 5 onward). Composing `fips204`'s own
+`try_keygen_with_rng`/`try_sign_with_rng` plus the canonical
+`rand_core::OsRng` (already a proven quantity from Phase 1's tests)
+rather than hand-rolling an RNG wrapper follows Directive 14 (prefer the
+smaller, well-trodden construction) — `rand_core::OsRng`'s own
+entropy-failure posture (panic inside `RngCore::fill_bytes`, since that
+trait method's signature has no `Result` to propagate through) is
+industry-standard behavior this crate reuses rather than reinvents.
+
+**Constitutional impact:** none negative. No new cryptography (Directive
+14) — composes only `fips204`'s and `rand_core`'s already-reviewed
+primitives, identical discipline to Phase 1's `VerifyingKey`/`Signature`
+work. No voice/value wall implications. Typed-domains rule honored:
+`sign_ml_dsa_65`/`generate_ml_dsa_65` are specific, narrowly-named
+methods, not a generic suite-parameterized `sign(suite, bytes)` a caller
+could misuse. Does **not** touch `SignatureSuite::DEFAULT`, `did-mini`,
+or any KEL/identity logic — Phase 3 onward remains completely
+unstarted, exactly as D-0095 already scoped.
+
+**Implementation status:** shipped in `mini-crypto` only. `rand_core`
+promoted from this crate's `[dev-dependencies]` to `[dependencies]`
+(version-pinned to match what `fips204` itself resolves to, so there is
+exactly one `rand_core` in the dependency graph — the same discipline
+`mini-build-runner-wasmtime`'s Cargo.toml already documents for its own
+`rand_core` pin). `cargo fmt --all`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` all clean, including 8 new tests: a real generate →
+sign → verify round-trip entirely through `mini_crypto`'s own public API
+(stronger than Phase 1's tests, which exercised `fips204` directly for
+keygen/signing and `mini_crypto` only for verification); wrong-message
+and wrong-key rejection; two independently generated keys are distinct
+(proving real RNG-backed generation); `sign_ml_dsa_65` on an Ed25519 key
+returns the new mismatch error rather than panicking; `sign`/
+`to_seed_bytes` on an `MlDsa65` key panic with the documented message;
+`Debug` output on a generated `MlDsa65` `SigningKey` still redacts
+secret material.
+
+**Failure point:** benchmarks and mobile/WASM testing (both explicitly
+named in Phase 2's own scope) are not done — no benchmarking harness or
+mobile toolchain exists in this environment; named honestly here rather
+than silently skipped. No official FIPS 204 known-answer cross-
+implementation test vectors are exercised (this PR's tests check
+internal self-consistency through `mini_crypto`'s own API, the same
+honesty posture Phase 1's tests already had). No secret-key storage
+export/import for `MlDsa65` — `to_seed_bytes`'s Ed25519-only 32-byte-
+seed model has no FIPS 204 equivalent exposed by `fips204`'s API (no
+way to derive a `PublicKey` back from a raw seed the way Ed25519 does),
+and building one (concatenated public+private key export) was judged
+out of Phase 2's named scope; a generated `MlDsa65` key today only lives
+for the process's lifetime. `sign`/`to_seed_bytes` panicking on the
+wrong suite is a real footgun for any future caller who forgets to check
+`SigningKey::suite()` first — acceptable for now because nothing in the
+workspace outside this PR's own tests constructs an `MlDsa65` `SigningKey`
+yet, but this must be kept in mind by whichever future PR (Phase 3,
+`did-mini` wiring) starts handing suite-mixed keys to shared code paths.
+
+**Required follow-up:** Phase 3 (`did-mini`'s KEL hybrid migration
+protocol: pre-commitment, dual-authorised rotation, downgrade
+prevention, legacy-client handling) — not started, and per D-0095's own
+hard rule, may not land before the external cryptographic review gate
+that specifically covers *migration* (not this PR's self-contained
+keygen/signing primitive). Benchmarks and mobile/WASM testing as a
+fast-follow once appropriate tooling exists. Consider whether
+`sign`/`to_seed_bytes`'s panic-on-wrong-suite posture should become
+`Result`-returning workspace-wide once Phase 3 actually starts handing
+`SigningKey` values across suite-mixed call sites.
+
+**Supersedes / superseded by:** extends D-0095 (Phase 1). Does not
+supersede it — `VerifyingKey`/`Signature`'s Phase 1 behavior is
+completely unchanged.
+
+### D-0321 — `did-mini`: KEL witness receipt types, Phase 1 of witness receipts + duplicity gossip (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0096 (`docs/design/
+kel-witness-receipts-and-duplicity-gossip.md`, the Phase 0 design-only
+predecessor this PR implements Phase 1 of); `docs/research/
+KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md` (founder-
+supplied, 2026-07-15); audit #12 finding F4; invariant M3
+(`docs/INVARIANTS.md`); issue #177
+
+**Decision:** adds `WitnessId`, `KeyEventKind`, `WitnessReceiptVersion`/
+`WitnessCertificateVersion`, `WitnessPolicy`, `WitnessReceiptStatement`,
+`WitnessReceipt`, and `WitnessedEventCertificate` to `did-mini`, plus
+`sign_witness_receipt(WitnessReceiptStatement)` — the one typed function
+a witness ever calls to produce a receipt, never a generic
+`sign(bytes)`, per CLAUDE.md's typed-domain rule. Implements exactly
+Phase 1 of the design doc's committed phased plan ("receipt types;
+canonical encoding; signature verification; no network service") using
+`event.rs`'s existing hand-rolled `Writer`/`Reader` codec discipline
+rather than a new format.
+
+`WitnessPolicy::new` validates `1 <= threshold <= witnesses.len()` and
+rejects duplicate witness identifiers at construction, mirroring
+`event::validate_establishment`'s existing reject-early discipline for
+key sets. `WitnessedEventCertificate::assemble` rejects any receipt that
+does not exactly match the certificate's own claimed identity/sequence/
+event-digest/generation before admitting it, then canonically sorts
+receipts by witness DID for deterministic encoding (research report
+§10.1). `WitnessedEventCertificate::verify(&policy, resolve_witness_key)`
+checks: the certificate's claimed generation matches the given policy;
+every receipt matches the certificate's own event; every witness
+belongs to the policy; no witness counts twice toward the threshold;
+every signature verifies via the caller-supplied resolver (fails closed
+— `UnresolvedWitnessKey`, not a silent skip, if the resolver can't find
+a key); the threshold is met.
+
+**Reason:** the design doc's own recommended sequencing (echoing the
+research report's closing recommendation) is "a small receipt/proof
+type PR, then an in-memory witness state-machine PR, and only
+afterward network gossip" — exactly the phase boundary this PR
+implements. This closes the harder half of `FreshnessPins` (D-0088)
+does not solve: a verifier meeting an identity for the first time has
+no prior head to pin against, and two internally-valid, controller-
+signed branches can both pass ordinary KEL verification in isolation.
+Composing `did-mini`'s existing typed-signature machinery (`SigningKey`/
+`VerifyingKey`/`Signature` from `mini-crypto`) rather than any new
+cryptographic construction follows both Directive 14 and the design
+doc's own hard rule: "ordinary independent signatures first... composing
+`did-mini`'s existing typed-signature machinery is sufficient for
+Phase 1-3."
+
+**Constitutional impact:** none negative. No new cryptography (Directive
+14) — every signature is an ordinary `mini_crypto::Signature` over a
+typed statement, no aggregation, no BLS, no bespoke consensus. No voice/
+value wall implications. Typed-domains rule honored throughout:
+`WitnessId` is a distinct type from a bare `Did` even though structurally
+identical, `WitnessReceiptVersion`/`WitnessCertificateVersion` are
+distinct types so one can never be substituted for the other, and
+`sign_witness_receipt` takes the one specific statement type rather than
+raw bytes. Witnesses gain no authority by this PR or by design — a
+witness attests observation only; nothing here lets a witness create,
+rotate, or override an identity event (the design doc's own hard rule,
+carried forward structurally: `WitnessedEventCertificate::verify` never
+returns anything resembling "this event is now authoritative," only
+whether a threshold of witnesses observed it).
+
+**Implementation status:** shipped in `did-mini` only (`witness.rs`, new
+module). `cargo fmt --all`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features`
+all clean, including this module's 24 new tests (policy construction/
+validation/round-trip; statement and receipt round-trips including the
+inception no-prior-digest case; signature verification and rejection
+under a wrong key; certificate assembly rejecting a mismatched receipt;
+certificate verification succeeding at threshold, rejecting below
+threshold, rejecting a witness outside the policy, rejecting a stale
+policy generation, and failing closed on an unresolvable witness key;
+trailing-bytes rejection on every decoder). Every pre-existing
+`did-mini` test (identity, delegation, recovery, pairwise, identity
+modes) still passes unchanged — this PR touches no existing type or
+function.
+
+**Failure point:** exactly what the design doc's own scope line names as
+not-yet-done: no in-memory witness state machine (so nothing in this
+repo actually issues a receipt in response to a real observed event
+yet), no `ControllerDuplicityProof`/`WitnessEquivocationProof` (Phase
+2), no `KelAssurance`/KEL-verification integration (Phase 3 — a
+`WitnessedEventCertificate` cannot yet be checked against a live
+`did_mini::Kel`), no receipt-freshness-policy evaluation against
+`observed_epoch` (also Phase 3), no receipt collection protocol, no
+gossip, no persistent witness service, no witness rotation, no public
+transparency logs, no adversarial network simulation. `WitnessPolicy`
+is not yet carried by `Establishment` events (`event.rs`'s existing
+`witnesses: Vec<Vec<u8>>` field remains its own pre-existing, differently-
+shaped placeholder, explicitly reserved and unused) — wiring a real
+`WitnessPolicy` into inception/rotation events is Phase 3's job, not
+this one's.
+
+**Required follow-up:** Phase 2 (in-memory witness state machine:
+first-seen acceptance, direct-successor verification, duplicate
+idempotence, stale rejection, conflict detection, receipt issuance,
+`ControllerDuplicityProof`, `WitnessEquivocationProof`) — not started.
+Phase 3 (`KelAssurance` output alongside ordinary KEL validity, wiring
+`WitnessPolicy` into real establishment events) — not started, and per
+the design doc's own hard rule, no high-value authority decision may
+depend on this layer before Phase 10's external cryptographic review.
+
+**Supersedes / superseded by:** none. New module, additive only —
+`event.rs`'s existing `witnesses` field, `FreshnessPins`, and every
+other existing `did-mini` type/function are unchanged.
+### D-0324 — `mini-extract-host`: make a zero-millisecond deadline a deterministic timeout instead of a race  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0319 (`mini-extract-host` itself);
+`crates/mini-extract-host/src/lib.rs` (`run_worker`); `crates/mini-extract-host/tests/host.rs`
+(`a_zero_millisecond_deadline_is_reported_as_timeout`)
+
+**Decision:** in `run_worker`, when the caller's `ResourceLimits::max_wall_clock_ms`
+is `0`, kill the child and return `ExtractionOutcome::Err(ExtractionError::Timeout)`
+immediately, without waiting on the stdout-reader channel at all. Every other
+timeout value is unchanged: the existing `rx.recv_timeout(timeout)` path still races
+the worker against a real deadline.
+
+**Reason:** the test asserting this behavior was intermittently failing in CI (most
+recently blocking PR #181, an unrelated docs-only PR, on the required `check` job)
+while passing reliably in isolation. The root cause is a genuine race, not flakiness
+in the test's assertion: `Duration::from_millis(0)` is `Duration::ZERO`, and
+`mpsc::Receiver::recv_timeout(Duration::ZERO)` does not guarantee "always already
+expired" — under favorable scheduling, the worker's round trip for the test's
+trivial 8-byte input can complete and reach the channel before or exactly as the
+zero-duration wait is evaluated, so the call sometimes observes `Ok(frame)` instead
+of the expected `Err(RecvTimeoutError::Timeout)`. A zero-millisecond wall-clock
+budget can never be honestly satisfied by a real child-process round trip in any
+case — spawning, writing the request, the worker doing any work at all, and writing
+the response back all take non-zero wall-clock time — so racing it at all was never
+buying a meaningful check; special-casing it to a deterministic immediate timeout is
+both a correctness fix (the outcome no longer depends on scheduler luck) and the more
+honest semantics (a zero budget deterministically cannot be met).
+
+**Constitutional impact:** none. This is an isolation-host timeout-accounting detail,
+not protocol. It adds no authority, changes no invariant, and does not alter
+`mini-extract-host`'s documented isolation limits (`docs/mobile/../lib.rs`'s own
+"Honest limits" section is unchanged) — a zero-millisecond deadline still always
+yields `ExtractionError::Timeout`, exactly as before; only the path by which it does
+so is now deterministic instead of racy.
+
+**Implementation status:** shipped in `crates/mini-extract-host/src/lib.rs`.
+Verified: `cargo test -p mini-extract-host` passes; the previously-flaky test run
+30 times in a loop with `--exact`, all 30 green (versus intermittent failure before
+the fix); full-workspace `cargo fmt --all -- --check`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` all clean.
+
+**Failure point:** this only fixes the `max_wall_clock_ms == 0` case. Non-zero
+deadlines still rely on `mpsc::Receiver::recv_timeout` racing a real child process,
+which remains correct (a non-zero timeout has a real window in which "not yet
+received" is a true statement throughout) but is not covered by this entry's
+reasoning — if similar intermittent failures are ever observed at very small
+non-zero deadlines under heavy CI load, that would be a scheduling-latency issue,
+not this same race, and would need its own diagnosis.
+
+**Required follow-up:** none identified. This is a narrow, self-contained fix.
+
+**Supersedes / superseded by:** none. `run_worker`'s documented behavior for the
+zero-deadline case (always `ExtractionError::Timeout`) is unchanged; only how
+reliably it is observed changes.
+### D-0325 — `reproducibility` CI: always run the required check; skip the two-clean-build cost inside the job for docs-only PRs  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0320 (narrowed this job's build scope; its
+own "Required follow-up" section named exactly this risk and left it open);
+D-0314 (split this job out of `ci.yml`); `.github/workflows/reproducibility.yml`;
+issue #184; PR #181 (the PR that hit this in practice)
+
+**Decision:** remove `paths-ignore: [docs/**, **/*.md]` from the
+`reproducibility` workflow's `pull_request` trigger, so the workflow — and
+the required `reproducibility` status check it posts — always runs for
+every PR. Inside the job, a new "Determine whether this PR touches only
+docs" step computes the same docs/**-or-`**/*.md` condition via a real
+`git diff` against the PR's base commit; when every changed path matches,
+the two-clean-build steps are skipped in favor of a fast explanatory
+no-op step, and the job still completes with a real conclusion. `push:
+branches: [main]` is unchanged — it still has no path filter and always
+runs the real check.
+
+**Reason:** PR #181 (the whitepaper, a docs-only diff) finished every
+other check green but sat at `mergeable_state: "blocked"` indefinitely.
+The cause: its entire diff matched the old `paths-ignore`, so the
+`reproducibility` job never ran at all — and since it is a required
+status check, GitHub never saw *any* conclusion for it on that commit,
+leaving the PR permanently unmergeable through ordinary means. This is
+precisely the risk D-0320's own "Required follow-up" section named and
+left open ("verifying whether this job's `paths-ignore`, combined with
+its status as a *required* context, can leave a docs-only PR permanently
+unmergeable") — it has now been observed happening, not just anticipated.
+
+The fix keeps D-0320's own principle (build scope should equal assertion
+scope) and extends it one level up: *trigger* scope should equal
+*conclusion* scope. A required check must always reach a conclusion,
+even a trivial one, or it isn't really usable as a required check. Moving
+the skip decision from "does this workflow run at all" (external to the
+job, invisible to the check's own status) to "does this job's expensive
+work run" (internal, still concluding as `success`) preserves 100% of
+the original cost savings for genuinely docs-only PRs while removing the
+structural trap.
+
+**Constitutional impact:** none. This is CI trigger/scope mechanics, not
+protocol. It adds no authority, changes no invariant, and does not weaken
+SPEC-11: every PR that touches anything outside `docs/**`/`**/*.md` still
+runs the full two-clean-build comparison exactly as before; only docs-only
+PRs' *path* to a passing required check changes, from "never runs" (a
+bug) to "runs a fast no-op step" (the intended behavior all along).
+
+**Implementation status:** shipped in
+`.github/workflows/reproducibility.yml`. The in-job diff step mirrors the
+old trigger-level `paths-ignore` patterns exactly (`docs/` prefix,
+`.md` suffix), so behavior for every previously-covered case — a PR that
+touches both a doc and a source file still runs the real check, since the
+`grep -vE` only reports "docs only" when *every* changed path matches —
+is unchanged; only the previously-uncovered "PR touches nothing but docs"
+case gets a real conclusion instead of none.
+
+**Failure point:** the in-job `git diff` step needs `fetch-depth: 0` on
+checkout to see the PR's base commit, which was added alongside it. If a
+future edit narrows the checkout depth again without preserving that,
+the diff step would fail closed (git diff against an unreachable base
+SHA errors, which fails the step, which fails the job) — a safe direction
+to fail wrong in (over-running the expensive check) rather than the
+silent-never-runs failure this decision fixes, but still worth a comment
+at the checkout step for the next editor.
+
+**Required follow-up:** none identified beyond what D-0320 already listed
+(larger runner, `~/.cargo` caching, and the cross-machine
+K-independent-builder check SPEC-11 §8 ultimately wants).
+
+**Supersedes / superseded by:** refines D-0320's and D-0314's scoping of
+this job. Supersedes nothing; SPEC-11 is untouched.
+### D-0323 — Commit the project's first public whitepaper to the repository (`WHITEPAPER.md`)  ·  *Accepted*
+
+**Date:** 2026-07-20 · **Refs:** D-0090 (Founder Directives canonical
+status, superseding earlier external whitepaper framing); `docs/design/
+mininet-canon-documentation-architecture.md` (the "Book" structure a
+whitepaper sits outside of, as the public entry point); README.md;
+`docs/STATUS.md`; `docs/design/treasury-economic-model.md` (D-0073);
+`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_
+SEARCH_20260718.md` (founder-supplied direction document, already
+committed); D-0311 (free public commons/paid protection, ratified from
+that document's Part II/VII); D-0312 (independent open-web search
+doctrine, ratified from that document's Part III).
+
+**Decision:** Add `WHITEPAPER.md` at the repository root — the project's
+first whitepaper ever actually committed to this repository. D-0090
+already noted that an earlier external "v1" whitepaper and a later
+external "v2" whitepaper/README framing both existed but were never
+committed here, and that both are superseded by the seventeen Founder
+Directives as the one canonical principle set. This entry does not
+revisit that: `WHITEPAPER.md` is explicitly framed, in its own opening
+section, as subordinate to `docs/FOUNDER_DIRECTIVES.md`,
+`docs/INVARIANTS.md`, and `docs/DECISION_LOG.md` — a public introduction
+for readers outside the repository, not a fourth rulebook and not
+constitutional authority. Where it simplifies or falls behind the
+canonical documents, the canonical documents are correct and the
+whitepaper is wrong until fixed, exactly the relationship
+`docs/FOUNDER_DIRECTIVES.md`'s own preface already describes for itself
+relative to the Constitution.
+
+Content-wise, the whitepaper: (1) states the problem Mininet answers and
+the structural, code-enforced guarantees from `docs/INVARIANTS.md` in
+plain language; (2) summarizes identity, money, privacy, storage, and
+governance as they exist today, citing `docs/STATUS.md`/README's own
+shipped-vs-prototype-vs-not-started distinctions rather than restating
+them independently (so the two documents cannot silently drift apart
+without a reviewer noticing); (3) names the open problems honestly
+(Sybil/personhood, no external crypto audit yet, FROST DKG unaudited, no
+real-hardware testing) in the same terms `docs/STATUS.md` and
+`docs/gates/` already use; (4) summarizes the founder-supplied Mininet
+Intake / free public commons / paid protection / MiniSearch direction
+document, correctly citing that its Track A doctrine (free public
+commons, independent open-web search) is already ratified as D-0311 and
+D-0312, while naming honestly that the great majority of the buildout
+those decisions call for — public entitlements, contribution budgets,
+protected-publication receipts, the crawler's network fetcher,
+extraction backends, the index, the ranker, the query service — remains
+unbuilt beyond the handful of narrow first slices already shipped
+(`mini-intake-types`, `mini-intake`, the extractor protocol/host,
+`mini-web-types`, `mini-crawler`'s planning layer); (5) records four
+specific product/economic
+directions (home-node sovereign-custody storage, private micropayment
+settlement for engagement, velocity-aware anti-spam pricing, and
+verified-identity ranking weighting bounded by a guaranteed reach floor
+for unverified content) explicitly as **proposed directions consistent
+with the Founder Directives, not ratified `D-`numbered decisions** — each
+is written to require its own future decision, threat model, and
+implementation-status entry before being treated as settled, exactly the
+posture `docs/FAILURE_BOOK.md`/`docs/DECISION_LOG.md` already require for
+anything not yet decided.
+
+README.md gains one linking sentence near the top and one row in the
+"Start here" table pointing to `WHITEPAPER.md`; no existing README
+content is removed or restructured.
+
+**Reason:** the founder directed that a whitepaper be added as a
+public-release document, ahead of the intake/commons/search
+implementation work in the same direction. A single accessible document
+readers can point to before opening a 40+-crate Rust workspace has been a
+named gap since `docs/design/mininet-canon-documentation-architecture.md`
+observed "most projects publish a whitepaper, a README, and maybe API
+docs" — Mininet had the README and the API docs, but never actually
+committed the whitepaper half of that pair.
+
+**Constitutional impact:** none. Adds no new invariant, no new crate, no
+new dependency edge, and no governance mechanism. Explicitly reaffirms
+D-0090's "Founder Directives are the one canonical principle set, not a
+fourth rulebook" framing rather than reopening it. The four proposed
+economic/product directions in §9 are written as non-binding — nothing in
+`WHITEPAPER.md` grants itself the authority a real `D-`numbered decision
+would carry, and the money-never-buys-a-vote wall (P1, Directive 16) is
+restated, not modified: verified-identity ranking weighting is scoped to
+reach/discovery only, with an explicit "never in governance" qualifier,
+and money purchasing "protection," never "speech," is restated verbatim
+from the existing public-commons founder-direction document rather than
+loosened.
+
+**Implementation status:** shipped — `WHITEPAPER.md` committed at the
+repository root; README.md links it from two locations. Documentation
+only; no code, crate, or test surface. `python3 tools/mininet_nav.py
+build` regenerates the nav index to include it;
+`tools/check_governance.py --mode baseline --candidate-activation`
+against a real `origin/main` checkpoint is clean.
+
+**Failure point:** a whitepaper is a live drift risk by nature — every
+"what's built today" claim inside it can go stale the moment `docs/
+STATUS.md` next changes, and nothing currently enforces that the two
+stay in sync automatically. The document's own closing paragraph names
+this risk and states the correction rule (supersede in the open, never
+silently rewrite), but that is a written commitment, not a technical
+control. If a future reviewer finds `WHITEPAPER.md` overclaiming relative
+to `docs/STATUS.md`, treat it exactly like any other honesty-rule
+violation named in CLAUDE.md and correct it in the same PR that noticed
+it, citing this entry.
+
+**Required follow-up:**
+1. Revisit `WHITEPAPER.md`'s §7 ("what is honestly not solved yet") and
+   §8 ("public information commons") whenever a `docs/STATUS.md` update
+   changes their underlying facts — Sybil/personhood research progress,
+   an external audit landing, or any Track A-F piece of the intake/
+   commons/search direction shipping.
+2. As Tracks B-F of the founder-supplied intake/commons/search direction
+   document continue shipping real code beyond the narrow first slices
+   named in this entry's Decision field, `WHITEPAPER.md`'s §8 needs a
+   fresh pass — its current wording is accurate as of D-0311/D-0312 plus
+   those first slices, but will understate progress the moment the next
+   Track lands (the crawler's network fetcher, an extraction backend,
+   the lexical index, or any Track C/D public-commons/protected-
+   publishing code).
+3. If any of §9's four proposed directions (home-node custody,
+   private micropayments, velocity-aware pricing, verified-ranking
+   weighting) is ever adopted, give it its own decision-log entry per
+   this entry's own **Decision** field, and update `WHITEPAPER.md`'s §9
+   to point at it instead of describing it as undecided.
+4. Consider whether a lightweight automated check (a nav-index-style
+   cross-reference, or a CI comment reminder) should eventually flag when
+   `docs/STATUS.md` changes without a corresponding `WHITEPAPER.md`
+   review, rather than relying on manual reviewer discipline indefinitely.
+
+**Supersedes / superseded by:** none. First whitepaper ever committed to
+this repository; does not supersede D-0090, which governs the
+*principle-set* question this document explicitly declines to reopen.
+### D-0326 — `did-mini::witness_state`: in-memory witness state machine + duplicity proofs, Phase 2 of KEL witness receipts (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0321 (Phase 1: receipt/certificate
+types); `docs/design/kel-witness-receipts-and-duplicity-gossip.md`;
+`docs/research/KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md`
+§9 (witness state machine), §11 (duplicity proof taxonomy); issue #12
+finding F4; invariant M3
+
+**Decision:** ship `did-mini::witness_state`, Phase 2 of the committed
+phased plan: `WitnessJournal`, an in-memory `HashMap<Did,
+WitnessIdentityState>` implementing the research report's §9.3 case
+analysis for `WitnessJournal::observe(event, policy, witness_id,
+witness_key, observed_epoch)` — first-seen acceptance (no prior state:
+accept, issue a receipt); valid direct successor (`sn` and `prior` match
+the accepted head: accept, update state, issue a fresh receipt); exact
+duplicate (matches the already-accepted event exactly: return the
+previously issued receipt verbatim, never re-sign); stale ancestor
+(older than accepted: no receipt, only the accepted sequence as a head
+hint); same-sequence conflict (a different controller-signed event at
+the accepted sequence: no receipt for either, accepted state left
+untouched, a real `ControllerDuplicityProof` returned instead); and the
+harder "conflicting descendant" case, rejected outright with
+`IdentityError::WitnessConflictingDescendant` rather than answered with
+a constructed fork proof. Also ships `ControllerDuplicityProof` (two
+real controller-signed `Event`s at the same identity+sequence with
+different digests, `assemble`d/encoded/decoded, structural-consistency
+checked only) and `WitnessEquivocationProof` (a standalone
+`assemble`/`verify` pair for a third party holding two receipts from one
+witness that disagree on event digest at the same identity+sequence+
+policy-generation — not produced by `observe` itself, since an honest
+witness's own state machine already refuses to double-sign a conflicting
+slot).
+
+**Reason:** Phase 1 (D-0321) defined what a witness receipt *is*; nothing
+yet defined what a witness *does* when it actually observes an event.
+The research report's own recommended sequencing (design/receipt-types/
+state-machine/gossip, never starting with a daemon before the state
+machine's cases are frozen) named exactly this as the next slice, and the
+design doc's own Phase 2 line already named its scope word-for-word:
+"first-seen acceptance, direct-successor verification, duplicate
+idempotence, stale rejection, conflict detection, receipt issuance,
+`ControllerDuplicityProof`, `WitnessEquivocationProof`." This PR ships
+precisely that set, no more.
+
+The one deliberate widening beyond the research report's minimal
+`WitnessIdentityState` sketch (which names only `accepted_sequence`/
+`accepted_event_digest`/`witness_policy_generation`) is retaining the
+full accepted `Event` and the issued `WitnessReceipt` alongside it. Two
+reasons: (1) "exact duplicate returns the existing receipt" is only
+literally true if the witness has the receipt to return — re-deriving
+and re-signing an equivalent statement would be a *different* receipt in
+general (different suite behavior, different serialized signature bytes
+even where the signed content is identical), which is not what "do not
+issue a semantically different receipt" (design doc, Phase 2's own line)
+means; and (2) building a genuinely independently-verifiable
+`ControllerDuplicityProof` requires the actual controller-signed event
+bytes, not this witness's own paraphrased receipt claims about them —
+using only `WitnessReceiptStatement`s (Phase 1's vocabulary) for the
+conflicting pair would produce a proof that only proves *this witness*
+saw a conflict, not that the *controller* actually signed two branches,
+undermining the research report's own security goal ("receipts and
+duplicity proofs must be independently verifiable from local bytes and
+public keys").
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+this is identity-layer plumbing. No typed-domain violation: `observe`
+takes a specific `&Event`/`WitnessPolicy`/`WitnessId`/`&SigningKey`
+tuple, never a generic `sign(bytes)`. No frozen invariant is weakened;
+M3's "never seen a fresher log" gap remains only partially closed —
+Phase 3 (`KelAssurance`) is still required before any high-value
+authority decision may depend on this layer, unchanged from D-0321's own
+statement of that gate.
+
+**Implementation status:** shipped in `crates/did-mini/src/
+witness_state.rs`, wired into `lib.rs`'s public exports
+(`WitnessJournal`, `WitnessIdentityState`, `WitnessObservation`,
+`ControllerDuplicityProof`, `WitnessEquivocationProof`). 15 new tests:
+first-seen acceptance, direct-successor acceptance and state update,
+duplicate idempotence (identical receipt returned across different
+`observed_epoch`s), stale rejection, same-sequence conflict producing a
+correct `ControllerDuplicityProof` while leaving accepted state
+untouched, conflicting-descendant rejection, out-of-policy witness
+rejection, `ControllerDuplicityProof` round-trip plus three rejection
+cases (different sequence, identical events, wrong identity),
+`WitnessEquivocationProof` round-trip/verify plus two rejection cases
+(same digest, different witness) and one verification-failure case
+(wrong key). `cargo fmt`/`cargo clippy --all-targets --all-features -D
+warnings`/`cargo test` all clean on `did-mini` (clippy's
+`large_enum_variant` lint caught `WitnessObservation::ControllerDuplicity`
+carrying two full `Event`s and was fixed by boxing it, not by
+suppressing the lint).
+
+**Failure point:** exactly what the design doc's own Phase 2 scope line
+names as not-yet-done: no KEL-chain verification in front of `observe`
+(`event`'s own signature/pre-rotation/recovery validity is trusted from
+the caller, not checked here — Phase 3's job); no `KelAssurance` output;
+`WitnessPolicy` is still not carried by real `Establishment` events
+(`event.rs`'s existing `witnesses: Vec<Vec<u8>>` field remains its own
+pre-existing, differently-shaped placeholder, unused); no fork-proof
+construction for the "conflicting descendant" case (research report
+§11.2, the harder half of §9.3); no receipt collection protocol, no
+gossip, no persistent witness service (in-memory `HashMap`, unbounded,
+no crash recovery, no retention policy), no witness rotation, no public
+transparency logs, no adversarial network simulation.
+
+**Required follow-up:** Phase 3 (`KelAssurance` output alongside ordinary
+KEL validity, wiring `WitnessPolicy` into real establishment events, and
+— now that Phase 2 exists — wiring real KEL-chain verification in front
+of `WitnessJournal::observe` so its "caller already verified this" trust
+assumption becomes an enforced precondition rather than a documented
+one) — not started, gated per the design doc's own hard rule: no
+high-value authority decision may depend on this layer before Phase 10's
+external cryptographic review.
+
+**Supersedes / superseded by:** none. New module, additive only —
+`did-mini::witness`'s Phase 1 types, `FreshnessPins`, `event.rs`'s
+existing `witnesses` field, and every other existing `did-mini` type/
+function are unchanged.
+### D-0327 — `mini-store`: chronological index (`Store::since`/`Store::recent`), first slice of Batch 5's "local object indexing at scale"  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** `docs/design/self-hosted-forge-spine.md`
+Batch 5 ("Remaining, not started: local object indexing at scale,
+distributed build workers, native release retrieval, GitHub import/export
+mirror automation"); `docs/STATUS.md`'s "Top development priority" #1
+(Forge); issue #188
+
+**Decision:** `Store::insert` now also writes an `idx/time/<id>` index row
+keyed by a 20-digit zero-padded `timestamp_ms` (the same fixed-width-for-
+lexicographic-sortability trick every other index row already relies on,
+just in decimal-string form instead of `encode_slot`'s raw big-endian
+bytes, since index keys are `/`-separated ASCII). Two new query methods:
+`Store::since(cursor_ms) -> Vec<ObjectId>` (objects with `timestamp_ms >=
+cursor_ms`, oldest first — the incremental-catch-up/pagination-cursor
+query) and `Store::recent(limit) -> Vec<ObjectId>` (the `limit` most-
+recently-timestamped objects, newest first, built from `since`).
+
+**Reason:** `mini_store::Store` already had `by_author`/`by_type`/
+`linking_to` secondary indexes over `idx/author/`/`idx/type/`/`idx/link/`
+prefix rows, but no time index at all — a forge/feed UI or CLI wanting
+"what's new" or "everything since I last checked" had no query to call
+except `all_ids()` (unordered, and telling nothing about age without
+fetching and parsing every object body just to read its own
+`timestamp_ms` and sort client-side). This is exactly Batch 5's named,
+still-open "local object indexing at scale" gap, and it is the priority
+STATUS.md's "Top development priority" section already lists first
+(Forge). This PR takes the smallest concrete slice: extend the existing
+`idx/*` index family the same way `idx/author`/`idx/type`/`idx/link`
+already work, rather than inventing a new storage layer.
+
+**Honest scope, stated plainly rather than left implicit:** this is
+**not** yet "at scale" in the bounded-I/O sense the design doc's phrase
+implies. `Backend::list_meta_prefix` has no upper-bound key — it returns
+every row whose key starts with the given prefix — so both `since` and
+`recent` still read the *entire* `idx/time/` subtree's index rows (not
+object bodies, which is the real cost `by_author`/`by_type`/`linking_to`
+already accept) before filtering or truncating. A genuinely bounded,
+paginated range scan needs a new `Backend` primitive (a real
+start-key/end-key range query, not a prefix match) that neither
+`MemoryBackend` nor `FsBackend` has today. That is real follow-up work,
+not solved by this PR — recorded here so it is never silently assumed
+solved. `timestamp_ms` is also author-claimed
+(`mini_objects::Object::timestamp_ms`'s own doc: "ordering hint, not a
+proof"), so `since`/`recent` order is a convenience/UX ordering, never a
+freshness or arrival-order guarantee — the same caveat
+`did_mini::witness`'s `observed_epoch` field already carries for the
+identical reason (SPEC-01 §8.7-style avoidance of exact-timestamp
+dependence/leakage where it can be avoided; here it can't be fully
+avoided since the query's whole point is time-ordering, so the caveat is
+about trust, not precision).
+
+**Constitutional impact:** none. Storage/query plumbing only — no
+dependency edge to `mini-value`/`mini-bounty`/`mini-treasury` or to
+`mini-forge`/`mini-chain` voting, no new authority, no weakened
+invariant. `Store::insert`'s existing four index writes and every other
+`Store`/`Backend` method are byte-for-byte unchanged; this only adds a
+fifth index write and two new read-only query methods.
+
+**Implementation status:** shipped in `crates/mini-store/src/store.rs`.
+3 new tests in `crates/mini-store/tests/store.rs`: `since` returns
+objects at/after a cursor in ascending timestamp order regardless of
+insertion order; `recent` returns newest-first bounded by `limit`
+(including the `limit == 0` and `limit` exceeding the count cases);
+`since`/`recent` agree between `MemoryBackend` and `FsBackend` and
+survive a real filesystem reopen. `cargo fmt`/`cargo clippy
+--all-targets --all-features -D warnings`/`cargo test --workspace
+--all-features` all clean; the existing `insert_get_and_indexes` and
+other pre-existing `mini-store` tests pass unmodified, confirming the new
+index row is additive and does not change any existing index's contents
+or ordering.
+
+**Failure point:** exactly what "Honest scope" above already states —
+no bounded/paginated range-scan primitive on `Backend`, so this does not
+yet deliver the "at scale" (sub-linear in total time-indexed rows)
+property Batch 5's phrase implies; it delivers correct time-ordering and
+cursor-based incremental queries today, at the same asymptotic cost the
+three pre-existing indexes already accept. No compound queries (e.g.
+"objects of type X by author Y since cursor Z" still requires the caller
+to intersect separate query results); no distributed build workers,
+native release retrieval, or GitHub import/export mirror automation —
+those remain the other three named, unstarted Batch 5 items.
+
+**Required follow-up:** a `Backend` range-query primitive (real
+start-key/end-key bounds, not prefix-only) to make `since`/`recent`
+genuinely bounded; compound-index or query-intersection support if a
+real caller needs it; the other three Batch 5 items (distributed build
+workers, native release retrieval, GitHub import/export mirror
+automation), each its own future PR.
+
+**Supersedes / superseded by:** none. Purely additive to `Store`'s
+existing index family; no prior decision is touched.
+### D-0328 — `did-mini::assurance`: `KelAssurance` classification, first slice of Phase 3 of KEL witness receipts (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0321 (Phase 1: receipt/certificate
+types); D-0326 (Phase 2: witness state machine); `docs/design/
+kel-witness-receipts-and-duplicity-gossip.md`; `docs/research/
+KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md` §14-15
+(assurance classes, first-contact verification); invariant M3
+
+**Decision:** ship `did-mini::assurance`, the first slice of Phase 3
+("KelAssurance output alongside ordinary KEL validity, never replacing
+it with one boolean"). `assess_kel_assurance(kel, pins, witnessing,
+known_duplicity)` composes three already-shipped pieces — ordinary
+`Kel::verify` (via `FreshnessPins::check_and_pin`, never bypassed),
+`FreshnessPins` (D-0088), and Phase 1/2's receipt/certificate machinery
+— into a `KelAssurance` classification: `Direct` (verified, no prior pin,
+no witnessing — a first-time verifier's weakest level), `Pinned`
+(matches/advances this verifier's own prior pin), `Witnessed` (a valid
+`WitnessedEventCertificate` for the exact presented head, meeting its
+policy's threshold, but with at least one stale receipt), `WitnessedRecent`
+(same, every receipt within a caller-supplied `max_epoch_age`), and
+`DuplicityDetected` (caller-supplied `known_duplicity` overrides every
+other signal). `WitnessEvidence` groups the certificate/policy/key-
+resolver/epoch-window parameters into one typed request per this crate's
+typed-domain discipline, rather than a long loose parameter list.
+
+**Reason:** Phase 1 defined what a witness receipt is; Phase 2 defined
+what a witness does when it observes an event. Neither gave a *verifier*
+anything to call — `WitnessedEventCertificate::verify` alone doesn't
+tell a caller how to relate that result to the KEL's own ordinary
+validity or to what it has locally pinned. The research report's own
+§14 framing ("this is more honest than one boolean is_fresh") and §15
+first-contact procedure describe exactly this composition step, and the
+design doc's Phase 3 line names it as the next piece.
+
+**Deliberately narrower than Phase 3's full named scope**, split out as
+this PR's own honest boundary rather than silently expanded to match:
+Phase 3's design-doc line also names "wiring `WitnessPolicy` into real
+establishment events" and "wiring real KEL-chain verification in front
+of `WitnessJournal::observe`" — both left for later, separate PRs. The
+first is a wire-format change to `Establishment` (`event.rs`'s existing
+`witnesses: Vec<Vec<u8>>` field remains its own pre-existing,
+differently-shaped, still-unused placeholder), a core identity
+primitive already relied on everywhere in this crate — materially
+higher-risk than a purely additive new module, and not needed for
+`assess_kel_assurance` to be honestly useful today: the caller supplies
+`WitnessPolicy` directly (exactly as `WitnessedEventCertificate::verify`
+already requires a caller-supplied policy in Phase 1). The second
+threads Phase 2's `WitnessJournal::observe` trust assumption
+("`event`'s own chain validity ... is assumed already established by
+the caller") into an enforced precondition; that is orthogonal to what
+a *verifier* (this module's role) needs and does not block it.
+
+`KelAssurance` also has no `WitnessedRecentAndGossiped` variant — the
+research report's own top tier, requiring counted independent gossip
+peers. No gossip protocol exists (Phase 5), so nothing in this crate
+could ever honestly produce that classification; adding the variant
+later is additive and non-breaking. A stale-per-`FreshnessPins` KEL is
+rejected outright regardless of any witness certificate presented — the
+conservative, fail-closed choice, since the research report does not
+specify that witnessing overrides a verifier's own local freshness
+violation and this slice does not invent that override.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+identity-layer verification plumbing only. `assess_kel_assurance` takes
+a specific typed tuple (`Kel`, `FreshnessPins`, `Option<WitnessEvidence>`,
+`bool`), never a generic `sign`/`verify(bytes)`. `Kel::verify` is
+composed through, never bypassed or replaced — M3's harder half remains
+only partially closed, and per Phase 10's hard rule no high-value
+authority decision may depend on this layer before external
+cryptographic review, unchanged from D-0321/D-0326's own gates.
+
+**Implementation status:** shipped in `crates/did-mini/src/
+assurance.rs`, wired into `lib.rs`'s public exports
+(`assess_kel_assurance`, `KelAssurance`, `WitnessEvidence`). 8 new
+tests: first-check-is-`Direct`, second-check-is-`Pinned`, a valid recent
+certificate yields `WitnessedRecent`, a valid but stale certificate
+yields `Witnessed`, `known_duplicity` overrides a valid certificate, a
+certificate for a different identity's head is rejected
+(`WitnessReceiptMismatch`), an internally-invalid KEL is rejected before
+any assurance is computed, and a stale-per-`FreshnessPins` KEL is
+rejected even against a valid certificate for its own (now-stale) head.
+`cargo fmt`/`cargo clippy --all-targets --all-features -D
+warnings`/`cargo test` all clean on `did-mini` (47 lib tests, up from 39).
+
+**Failure point:** exactly what "Deliberately narrower" above names:
+`WitnessPolicy` still not read from a real `Establishment` event (caller-
+supplied); no enforced KEL-chain verification in front of
+`WitnessJournal::observe`; no `WitnessedRecentAndGossiped` (Phase 5); no
+local duplicity-proof store (`known_duplicity` is caller-supplied); a
+verifier cannot yet ask "does the founder's example policy table (public
+post: `Direct`; validator admission: `WitnessedRecentAndGossiped`) gate
+some real authority decision" since no caller in this codebase invokes
+`assess_kel_assurance` yet — this PR ships the classification function
+itself, not its wiring into any real authority-gating call site.
+
+**Required follow-up:** wire `WitnessPolicy` into real `Establishment`
+events (its own PR, given the wire-format risk); wire real KEL-chain
+verification in front of `WitnessJournal::observe`; a local duplicity-
+proof store `known_duplicity` can be computed from instead of caller-
+supplied; `WitnessedRecentAndGossiped` once Phase 5 (gossip) exists; a
+real call site (e.g. `mini-forge` governance/merge gating) that actually
+uses a `KelAssurance` level to gate an authority decision, per the
+research report's own example table — none of that is claimed shipped
+here.
+
+**Supersedes / superseded by:** none. New module, additive only —
+`did-mini::witness`/`witness_state`'s Phase 1/2 types, `FreshnessPins`,
+`Kel::verify`, and every other existing `did-mini` type/function are
+unchanged.
+
+### D-0329 — `did-mini::witness_state`: wire real KEL-chain verification in front of `WitnessJournal::observe` (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0326 (Phase 2: `WitnessJournal`);
+D-0328 (Phase 3 first slice: `KelAssurance`); `docs/design/
+kel-witness-receipts-and-duplicity-gossip.md`; invariant M3
+
+**Decision:** ship `WitnessJournal::observe_verified(kel, policy,
+witness_id, witness_key, observed_epoch)`, the second of the two
+sub-parts D-0328 explicitly named as still missing from Phase 3. It runs
+the real `Kel::verify` chain (self-certifying inception, signature/
+threshold, pre-rotation, chain-digest linkage) over the *entire*
+presented `Kel` first, then extracts the head event and delegates to the
+unchanged `WitnessJournal::observe` for first-seen/duplicate/stale/
+conflict handling. `observe` itself is untouched and still exists for
+any caller that has already established chain validity by some other
+route.
+
+**Reason:** `WitnessJournal::observe`'s own doc comment was explicit
+that it "trusts the caller to have already established that `event` is
+a chain-valid candidate" — fine for Phase 2's own scope (defining what a
+witness *does* once an event is already trusted), but an honest gap for
+any witness actually accepting events from an untrusted network peer.
+Phase 3's design-doc line names "wiring real KEL-chain verification in
+front of `WitnessJournal::observe`" as its own explicit remainder item;
+this closes it the same way D-0328 closed its own piece: compose
+already-shipped, already-reviewed machinery (`Kel::verify`) rather than
+inventing new verification logic.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+identity-layer verification plumbing only. `observe_verified` takes a
+specific typed tuple (`&Kel`, `&WitnessPolicy`, `WitnessId`,
+`&SigningKey`, `u64`), never a generic `sign`/`verify(bytes)`. `Kel::
+verify` is composed through, never bypassed or reimplemented — per
+Phase 10's hard rule no high-value authority decision may depend on this
+layer before external cryptographic review, unchanged from D-0321/
+D-0326/D-0328's own gates.
+
+**Implementation status:** shipped in `crates/did-mini/src/
+witness_state.rs` (`WitnessJournal::observe_verified`, no new public
+type — `WitnessObservation`/`WitnessJournal` themselves unchanged). 5
+new tests: a genuinely chain-valid inception is accepted; a genuine
+rotation is accepted as a direct successor and updates state; a KEL with
+a tampered signature byte is rejected and never mutates the journal's
+retained state; an empty (zero-event) KEL is rejected with
+`IdentityError::EmptyKel` before `observe`'s own logic runs; duplicate/
+stale/conflict detection still works correctly when reached through the
+verified path. `cargo fmt`/`cargo clippy --all-targets --all-features -D
+warnings`/`cargo test` all clean on `did-mini` (52 lib tests, up from
+47) and on the full workspace (145 test binaries, 0 failures).
+
+**Failure point:** re-verifies the *entire* chain from inception on
+every call rather than incrementally verifying just the new suffix
+against previously-accepted state — correct but not bounded/incremental
+(explicit follow-up, not silently assumed solved). Recovery events are
+still not special-cased (`Kel::verify` treats every rotation
+identically; recovery-aware handling remains future work). The harder
+"conflicting descendant" case (an event building on a branch
+inconsistent with accepted state, at a sequence that isn't a same-slot
+conflict) is still rejected outright rather than answered with a
+constructed fork proof. `WitnessPolicy` is still not read from a real
+`Establishment` event; no local duplicity-proof store; no
+`WitnessedRecentAndGossiped`; no real call site gating an authority
+decision on any of this yet — all unchanged from D-0328's own list.
+
+**Required follow-up:** a bounded/incremental verify path (verify only
+the new suffix given previously-established state, instead of the whole
+chain from inception every time); everything else D-0328's own
+"Required follow-up" already named, still unclaimed here.
+
+**Supersedes / superseded by:** none. Additive only — `WitnessJournal::
+observe` and every other existing `did-mini` type/function are
+unchanged.
+
+### D-0330 — `did-mini::duplicity`: local duplicity-proof registry feeding `KelAssurance` (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0326 (Phase 2: `ControllerDuplicityProof`/
+`WitnessEquivocationProof`); D-0328 (Phase 3 first slice: `KelAssurance`);
+D-0329 (Phase 3 second slice: `observe_verified`); `docs/design/
+kel-witness-receipts-and-duplicity-gossip.md`; invariant M3
+
+**Decision:** ship `did-mini::duplicity::DuplicityRegistry`, a local
+in-memory store for duplicity proofs that D-0328's own decision log
+named as a required follow-up: `record_controller_duplicity`/
+`record_witness_equivocation` record a proof against the identity or
+witness it names; `has_known_duplicity(identity, policy)` combines both
+signals per `KelAssurance::DuplicityDetected`'s own doc ("a duplicity
+proof conflicting with this identity **or a witness it relies on**") —
+a direct controller-duplicity hit on `identity`, or (when `policy` is
+given) any witness in `policy`'s set having a recorded equivocation
+proof. A caller can now pass `registry.has_known_duplicity(&kel.did(),
+witnessing.map(|w| w.policy))` to `assess_kel_assurance` instead of
+computing `known_duplicity` by hand every time.
+
+**Reason:** `assess_kel_assurance`'s `known_duplicity: bool` parameter
+was, since D-0328, entirely caller-computed with no shared place to
+record a proof once assembled or look it up later. This is a small,
+additive, self-contained piece — it does not change `assess_kel_
+assurance`'s signature at all (still a plain `bool`), it only gives
+callers a real thing to compute that bool from, matching how a caller
+would naturally accumulate proofs it discovers over a session.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+identity-layer bookkeeping only. `record_controller_duplicity`/
+`record_witness_equivocation` each take their own specific proof type
+(never a generic blob); `has_known_duplicity` takes a typed `(&Did,
+Option<&WitnessPolicy>)`, never a loose bag of bytes. This module does
+not itself validate anything cryptographic — `ControllerDuplicityProof::
+assemble`/`WitnessEquivocationProof::assemble` already did the
+structural validation before a caller ever reaches this registry, per
+its own module doc.
+
+**Implementation status:** shipped in `crates/did-mini/src/
+duplicity.rs`, wired into `lib.rs`'s public exports
+(`DuplicityRegistry`). 4 new tests: an empty registry has no known
+duplicity; a recorded controller-duplicity proof is flagged only for
+the identity it names, not an unrelated one; a recorded witness-
+equivocation proof is flagged only when the checked policy actually
+includes that witness (and never when no policy is given); a second
+proof recorded against the same key replaces the first. `cargo fmt`/
+`cargo clippy --all-targets --all-features -D warnings`/`cargo test`
+all clean on `did-mini` (56 lib tests, up from 52) and on the full
+workspace (145 test binaries, 0 failures).
+
+**Failure point:** purely local and in-memory — not persisted (Phase 6),
+not networked or gossiped (Phase 5), not shared across processes, same
+limitation `WitnessJournal` already carries. Still no real call site
+that constructs a `DuplicityRegistry`, records real proofs into it as
+they're discovered, and gates an authority decision on the resulting
+`KelAssurance` — this ships the bookkeeping type itself, not its wiring
+into any live verifier or authority-gating call site.
+
+**Required follow-up:** a real call site (e.g. `mini-forge` governance/
+merge gating, or a witness/verifier daemon once Phase 6 exists) that
+owns a `DuplicityRegistry`, feeds it real proofs, and actually uses
+`has_known_duplicity` to compute `assess_kel_assurance`'s
+`known_duplicity` argument; persistence (Phase 6); gossip-sourced proof
+discovery (Phase 5) — none of that is claimed shipped here. `WitnessPolicy`
+still not read from a real `Establishment` event, unchanged from
+D-0328/D-0329's own remaining item.
+
+**Supersedes / superseded by:** none. New module, additive only —
+`assess_kel_assurance`'s signature, `WitnessJournal`, and every other
+existing `did-mini` type/function are unchanged.
+
+### D-0331 — `mini-store`: genuinely bounded "most recent N" backend query (`Backend::list_meta_prefix_last`)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0327 (`Store::since`/`Store::recent`,
+first slice of Batch 5's "local object indexing at scale");
+`docs/design/self-hosted-forge-spine.md` Batch 5
+
+**Decision:** add `Backend::list_meta_prefix_last(prefix, limit)` — the
+last `limit` metadata entries under `prefix`, descending key order.
+`MemoryBackend` overrides it with a genuinely bounded scan:
+`BTreeMap::range(prefix..prefix+"\u{7f}").rev().take(limit)`, real
+O(log n + limit) work, not a full-subtree read (`\u{7f}` sorts above
+every character this store's keys ever use — ASCII alphanumerics plus
+`-_./` — so it is an exact exclusive upper bound on `prefix`'s own
+range). The trait's default implementation, inherited unmodified by
+`FsBackend`, is `list_meta_prefix` (full subtree read) + reverse +
+truncate — exactly `Store::recent`'s own prior cost, now named as its
+own documented method rather than inlined. `Store::recent(limit)` calls
+this new method directly instead of `since(0)` (which itself calls
+`list_meta_prefix`) followed by a client-side reverse and truncate.
+
+**Reason:** D-0327's own `recent` implementation was honestly the
+simplest correct thing at the time, but wasteful even for a small
+`limit`: `since(0)` parses and allocates an `ObjectId` for *every* row
+under `idx/time/` before the caller's `limit` ever gets applied. Naming
+a real `Backend` method for "last N" lets `MemoryBackend` — used
+throughout this workspace's test suite and any in-process caller — stop
+paying that cost, and gives `FsBackend` a documented target to converge
+on when its own bounded implementation is built, without another public
+API change.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+storage/query plumbing only. `Store::since`/`Store::recent`'s own
+public signatures and every other `Store`/`Backend` method are
+byte-for-byte unchanged; this only adds one new trait method (with a
+default implementation, so no existing `Backend` implementor outside
+this crate breaks) and refactors `Store::recent`'s internals to call it.
+
+**Implementation status:** shipped in `crates/mini-store/src/backend.rs`
+(`Backend::list_meta_prefix_last` + `MemoryBackend`'s override) and
+`crates/mini-store/src/store.rs` (`Store::recent` now calls it directly;
+a new `parse_time_index_key` helper deduplicates the key-parsing logic
+`since`/`recent` both need). 4 new tests: `MemoryBackend`'s override
+returns descending order bounded by `limit` (including `limit == 0` and
+a prefix with no matches); `FsBackend`'s inherited default
+implementation agrees with `MemoryBackend`'s bounded one on the same
+data. All pre-existing `mini-store` tests (13 integration + 2 unit)
+pass unmodified, confirming `Store::recent`'s observable behavior is
+unchanged. `cargo fmt`/`cargo clippy --all-targets --all-features -D
+warnings`/`cargo test` all clean on `mini-store` (4 lib tests, up from
+2) and on the full workspace (145 test binaries, 0 failures).
+
+**Failure point:** `FsBackend` still has no genuinely bounded
+implementation of `list_meta_prefix_last` — it inherits the trait's
+default (full subtree read), so `recent` on a filesystem-backed store
+costs exactly what it did before this PR. A real bounded reverse walk
+over a plain directory tree needs either a sorted, early-stopping
+traversal (nontrivial to build safely alongside `FsBackend`'s existing
+symlink/path-traversal defenses without risking a new vulnerability in
+that hardened code) or an on-disk sorted index this backend doesn't
+have — deliberately not attempted in this PR rather than risking a
+security regression in already-reviewed traversal code for an
+optimization only `MemoryBackend` needed today. `since`'s own forward
+scan remains exactly as unbounded as D-0327 already documented; this PR
+does not touch it.
+
+**Required follow-up:** a genuinely bounded `FsBackend::
+list_meta_prefix_last` (sorted early-stopping directory walk, built
+with the same care as the existing symlink-safety checks, or a real
+on-disk sorted index); the same treatment for `Store::since`'s forward
+scan (a `Bound`-based `list_meta_range` primitive) if a caller's
+workload ever needs it; the other three Batch 5 items D-0327 already
+named (distributed build workers, native release retrieval, GitHub
+import/export mirror automation) remain their own future PRs.
+
+**Supersedes / superseded by:** none. Purely additive to `Backend`'s
+existing trait (a new method with a default implementation);
+`Store::since`'s own behavior and every other `Store`/`Backend` method
+are unchanged.
+### D-0332 — `mini-forge`: bridge `KelAssurance` into the identity oracle as `author_assurance` (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0328/D-0329/D-0330 (`did-mini`'s
+`assess_kel_assurance`/`observe_verified`/`DuplicityRegistry`);
+`docs/design/kel-witness-receipts-and-duplicity-gossip.md`; invariant M3
+
+**Decision:** add `mini_forge::author_assurance(oracle, obj, pins,
+witnessing, known_duplicity) -> Result<KelAssurance, ForgeError>` in
+`oracle.rs`. It first runs the existing `author_verified` provenance
+re-check (unchanged); if that fails, returns `Err(ForgeError::BadObject)`
+without computing anything further. Otherwise it composes `did_mini::
+assess_kel_assurance` over the *author-root's* KEL (the identity whose
+vote/authorship actually counts toward quorum, not the signing device),
+propagating internal errors via the existing `ForgeError::Identity`
+variant. Re-exported from the crate root alongside `IdentityOracle`/
+`KelDirectory`.
+
+**Reason:** D-0328's own decision-log entry named the still-missing
+piece plainly: "a real call site (e.g. `mini-forge` governance/merge
+gating) that actually uses a `KelAssurance` level to gate an authority
+decision... this PR ships the classification function itself, not its
+wiring into any real authority-gating call site." With D-0328/D-0329/
+D-0330 now merged into `main`, `mini-forge` could finally depend on
+`did_mini::assess_kel_assurance` at all — this is the first piece that
+actually does, bridging the oracle's existing `IdentityOracle`/`Kel`
+plumbing to it.
+
+**Deliberately not wired into any real governance call site.**
+`propose`/`approve`/`merge`/`resolve_project` (`governance.rs`) all
+still gate purely on `author_verified`'s plain boolean, completely
+unchanged by this PR. Deciding *which* governance actions should
+require *which* minimum `KelAssurance` level (e.g. the research
+report's own example table: public post accepts `Direct`, validator
+admission requires `WitnessedRecentAndGossiped`) is a founder-facing
+policy call this crate should not make unilaterally by silently
+tightening every quorum check — especially since KEL witnessing remains
+Phase 3-of-10 work, gated behind external cryptographic review (D-0047)
+before any high-value authority decision may depend on it. Shipping the
+composable, tested bridge function is this PR's honest boundary; using
+it to actually gate something is explicitly left for a founder-directed
+follow-up.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` — `mini-forge` already depended on
+`did-mini` before this PR (via `verify_provenance`/`Kel`/`Did`), and
+this adds no new dependency edge, only a new function composing
+existing ones. No change to `mini-chain` voting or any quorum-counting
+logic; `propose`/`approve`/`merge`/`resolve_project` are byte-for-byte
+unchanged. `author_assurance` takes a specific typed tuple (`&dyn
+IdentityOracle`, `&Object`, `&mut FreshnessPins`, `Option<
+WitnessEvidence>`, `bool`), never a generic `sign`/`verify(bytes)`, per
+this repo's typed-domain discipline.
+
+**Implementation status:** shipped in `crates/mini-forge/src/oracle.rs`
+(`author_assurance`), re-exported from `lib.rs`. 4 new tests: a
+verified first-contact author yields `Direct`; a second check of the
+same root (after a real rotation) yields `Pinned`; an unknown author is
+rejected with `ForgeError::BadObject` before any assurance is computed;
+`known_duplicity` overrides a verified author to `DuplicityDetected`.
+`cargo fmt`/`cargo clippy --all-targets --all-features -D warnings`/
+`cargo test` all clean on `mini-forge` (4 new tests) and on the full
+workspace (145 test binaries, 0 failures).
+
+**Failure point:** no real call site in this codebase calls
+`author_assurance` yet — governance decisions are exactly as
+freshness-blind as they were before this PR; this ships the bridge, not
+its use. The `witnessing`/`known_duplicity` parameters still require a
+caller to supply a `WitnessedEventCertificate`/`WitnessPolicy` and a
+duplicity signal by hand (D-0330's `DuplicityRegistry` exists but
+nothing here constructs or queries one). `WitnessPolicy` is still not
+read from a real `Establishment` event, unchanged from D-0328's own
+remaining item.
+
+**Required follow-up:** a founder decision on which governance actions
+(if any) should gate on a minimum `KelAssurance` level, and the actual
+`governance.rs` wiring once that decision is made; a real caller that
+owns a `DuplicityRegistry` and a witness-certificate source to pass
+non-trivial `witnessing`/`known_duplicity` arguments; everything
+D-0328/D-0329/D-0330's own "Required follow-up" sections already named,
+still unclaimed here.
+
+**Supersedes / superseded by:** none. New function, additive only —
+`author_verified`, `IdentityOracle`, `KelDirectory`, and every existing
+`governance.rs` function are unchanged.

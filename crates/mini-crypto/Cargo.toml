@@ -30,11 +30,16 @@ getrandom = "0.2"     # OS CSPRNG for key generation
 # on SigningKey yet — see suite.rs's module docs for the phased plan this
 # composes rather than invents).
 fips204 = { version = "0.4", default-features = false, features = ["ml-dsa-65"] }
+# `rand_core::OsRng` -- the same canonical OS-backed RNG this crate's own
+# Phase 1 tests already validated real `fips204` keygen/signing against
+# (D-0095) -- now used in production by `SigningKey::generate_ml_dsa_65`/
+# `sign_ml_dsa_65` (Phase 2, issue #15). Version pinned to match what
+# `fips204` itself resolves to, so there is exactly one `rand_core` in the
+# dependency graph.
+rand_core = { version = "0.6", default-features = false, features = ["getrandom"] }
 
 [dev-dependencies]
 # Adds fips204's OS-RNG keygen/sign convenience (`default-rng`) for this
 # crate's own round-trip tests only — dev-dependency features never reach a
-# `cargo build`/`cargo build --release` production artifact, keeping the
-# "no generation exposed on SigningKey yet" boundary real, not just documented.
+# `cargo build`/`cargo build --release` production artifact.
 fips204 = { version = "0.4", default-features = false, features = ["ml-dsa-65", "default-rng"] }
-rand_core = { version = "0.6", features = ["getrandom"] } # OsRng for the same test-only keygen/sign path

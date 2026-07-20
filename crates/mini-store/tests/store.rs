@@ -37,6 +37,15 @@ fn head(human: &Did, device: &Controller, subject: &str, target: &ObjectId, seq:
         .unwrap()
 }
 
+fn post_at(human: &Did, device: &Controller, text: &[u8], seq: u64, timestamp_ms: u64) -> Object {
+    ObjectBuilder::new(ObjectType::POST)
+        .timestamp_ms(timestamp_ms)
+        .sequence(seq)
+        .payload(Payload::Public(text.to_vec()))
+        .sign(human, device)
+        .unwrap()
+}
+
 #[test]
 fn insert_get_and_indexes() {
     let (root, device) = human(10);
@@ -470,4 +479,81 @@ fn fs_backend_narrow_query_ignores_unrelated_symlinks_and_rejects_special_files(
     let _ = std::fs::remove_file(dir.join("meta/head"));
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::remove_dir_all(&outside);
+}
+
+#[test]
+fn since_returns_objects_at_or_after_the_cursor_oldest_first() {
+    let (root, device) = human(10);
+    let mut store = Store::new(MemoryBackend::new());
+
+    // Inserted out of timestamp order -- the index, not insertion order,
+    // must determine the returned order.
+    let late = post_at(&root.did(), &device, b"late", 3, 3_000);
+    let early = post_at(&root.did(), &device, b"early", 1, 1_000);
+    let mid = post_at(&root.did(), &device, b"mid", 2, 2_000);
+    for o in [&late, &early, &mid] {
+        store.insert(o).unwrap();
+    }
+
+    assert_eq!(
+        store.since(0).unwrap(),
+        vec![early.id().clone(), mid.id().clone(), late.id().clone()]
+    );
+    assert_eq!(
+        store.since(2_000).unwrap(),
+        vec![mid.id().clone(), late.id().clone()]
+    );
+    assert_eq!(store.since(3_001).unwrap(), Vec::<ObjectId>::new());
+}
+
+#[test]
+fn recent_returns_the_newest_objects_first_bounded_by_limit() {
+    let (root, device) = human(10);
+    let mut store = Store::new(MemoryBackend::new());
+    let a = post_at(&root.did(), &device, b"a", 1, 1_000);
+    let b = post_at(&root.did(), &device, b"b", 2, 2_000);
+    let c = post_at(&root.did(), &device, b"c", 3, 3_000);
+    for o in [&a, &b, &c] {
+        store.insert(o).unwrap();
+    }
+
+    assert_eq!(
+        store.recent(10).unwrap(),
+        vec![c.id().clone(), b.id().clone(), a.id().clone()]
+    );
+    assert_eq!(
+        store.recent(2).unwrap(),
+        vec![c.id().clone(), b.id().clone()]
+    );
+    assert_eq!(store.recent(0).unwrap(), Vec::<ObjectId>::new());
+}
+
+#[test]
+fn since_and_recent_agree_across_backends_and_survive_a_reopen() {
+    let dir = std::env::temp_dir().join(format!(
+        "mini-store-time-index-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let (root, device) = human(10);
+    let a = post_at(&root.did(), &device, b"a", 1, 1_000);
+    let b = post_at(&root.did(), &device, b"b", 2, 2_000);
+
+    {
+        let mut store = Store::new(FsBackend::open(&dir).unwrap());
+        store.insert(&a).unwrap();
+        store.insert(&b).unwrap();
+    }
+    {
+        let store = Store::new(FsBackend::open(&dir).unwrap());
+        assert_eq!(
+            store.since(0).unwrap(),
+            vec![a.id().clone(), b.id().clone()]
+        );
+        assert_eq!(store.recent(1).unwrap(), vec![b.id().clone()]);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
 }

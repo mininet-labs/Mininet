@@ -520,9 +520,30 @@ GitHub, so the honest claim is narrower than a firewall drill: read and
 run this one script to see the whole developer lifecycle, including
 failure recovery, complete without GitHub ever being named or required.
 
-**Remaining, not started:** local object indexing at scale, distributed
-build workers, native release retrieval, GitHub import/export mirror
-automation.
+**Local object indexing — first slice shipped (D-0327), a genuinely
+bounded "most recent N" query shipped next (D-0331).**
+`mini_store::Store::since`/`Store::recent` add a chronological index
+(`idx/time/<timestamp>/<id>` rows) alongside the pre-existing author/
+type/link indexes, so a forge/feed UI or CLI can query "what's new" or
+"everything since cursor X" without fetching and sorting every object
+body. `Store::recent` now calls a real `Backend::list_meta_prefix_last`
+method instead of reading the whole `idx/time/` subtree via `since(0)`
+and reversing/truncating client-side; `MemoryBackend`'s implementation
+is genuinely bounded (real `O(log n + limit)`, not a full-subtree read).
+`FsBackend` still inherits the trait's non-bounded default — a real
+bounded reverse walk over a plain directory tree needs either a sorted
+early-stopping traversal or an on-disk sorted index, deliberately not
+attempted yet rather than risking a security regression in `FsBackend`'s
+already-hardened symlink/path-traversal defenses. `Store::since`'s own
+forward scan is unchanged and still not bounded (`Backend::
+list_meta_prefix` has no upper-bound key) — a genuinely bounded,
+paginated forward range scan is still open. That, compound queries
+across indexes, and the other three items below remain open.
+
+**Remaining, not started:** a genuinely bounded `FsBackend::
+list_meta_prefix_last`; a bounded/paginated forward range scan for
+`since`; distributed build workers, native release retrieval, GitHub
+import/export mirror automation.
 
 ## Batch 6 — resume horizontal breadth
 

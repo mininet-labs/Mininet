@@ -47,27 +47,41 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod assurance;
 mod base_device;
 mod codec;
 mod controller;
 mod delegation;
+mod duplicity;
 mod error;
 mod event;
 mod freshness;
 mod identity_mode;
 mod kel;
 mod limits;
+mod witness;
+mod witness_state;
 
 use mini_crypto::{encoding, Multihash};
 
+pub use assurance::{assess_kel_assurance, KelAssurance, WitnessEvidence};
 pub use base_device::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, PrivacyMode};
 pub use controller::Controller;
 pub use delegation::{Capabilities, Seal};
+pub use duplicity::DuplicityRegistry;
 pub use error::{IdentityError, Result};
 pub use event::{Establishment, Event, EventKind, IndexedSig};
 pub use freshness::FreshnessPins;
 pub use identity_mode::IdentityMode;
 pub use kel::{verify_delegation, Kel, KeyState};
+pub use witness::{
+    sign_witness_receipt, KeyEventKind, WitnessCertificateVersion, WitnessId, WitnessPolicy,
+    WitnessReceipt, WitnessReceiptStatement, WitnessReceiptVersion, WitnessedEventCertificate,
+};
+pub use witness_state::{
+    ControllerDuplicityProof, WitnessEquivocationProof, WitnessIdentityState, WitnessJournal,
+    WitnessObservation,
+};
 
 /// The `did:mini` method prefix.
 pub const METHOD: &str = "did:mini:";

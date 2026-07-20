@@ -5,20 +5,24 @@ name: reproducibility
 # 10+ minute two-clean-build cost only lands on PRs that could plausibly
 # change a build artifact. `push: branches: [main]` has no path filter --
 # every commit that reaches main is checked, unconditionally, matching
-# SPEC-11's actual scope ("verified-reproducible releases"). The
-# `pull_request` trigger's `paths-ignore` is deliberately narrow (docs and
-# markdown only): anything else -- source, Cargo.toml/Cargo.lock,
-# rust-toolchain.toml, build scripts, this workflow file itself -- still
-# runs the real check before merge. A PR that touches both a doc and a
-# source file still runs it, since paths-ignore only skips a workflow when
-# *every* changed path matches.
+# SPEC-11's actual scope ("verified-reproducible releases").
+#
+# The `pull_request` trigger has no path filter either (D-0325): an earlier
+# version used `paths-ignore: [docs/**, **/*.md]` to skip the workflow
+# entirely for docs-only PRs, but that meant this job -- listed as a
+# required status check -- never posted *any* status for such a PR, which
+# left it permanently stuck at `mergeable_state: blocked` no matter how long
+# CI ran (exactly the risk D-0320's own follow-up section flagged and never
+# resolved). The workflow itself now always runs and always completes with
+# a real conclusion; the "Determine whether this PR touches only docs" step
+# below decides, from a real `git diff` against the PR's base commit,
+# whether the two-clean-build steps that follow are skipped. A required
+# check that sometimes finishes in five seconds is still a required check
+# that always finishes -- unlike one that never starts.
 on:
   push:
     branches: [main]
-  pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
+  pull_request: {}
 
 env:
   CARGO_TERM_COLOR: always
@@ -56,15 +60,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      # Real build artifacts (Rust source, Cargo.toml/Cargo.lock,
+      # rust-toolchain.toml, build scripts, this workflow file itself) can
+      # only change if at least one changed path falls outside docs/**
+      # and **/*.md -- mirroring the old paths-ignore's own two patterns,
+      # just evaluated inside the job instead of at trigger time.
+      - name: Determine whether this PR touches only docs
+        id: diff
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" \
+              | grep -vE '^(docs/|.*\.md$)' | grep -q .; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Docs-only PR -- no build artifact could have changed
+        if: steps.diff.outputs.docs_only == 'true'
+        run: |
+          echo "Every changed path in this PR matches docs/** or **/*.md." \
+            "No build artifact could differ, so the two-clean-build check" \
+            "below is skipped. This step still gives the required" \
+            "'reproducibility' status check a real conclusion for this PR."
+
       - name: Show toolchain
+        if: steps.diff.outputs.docs_only != 'true'
         run: rustup show
 
       - name: Build (pass 1)
+        if: steps.diff.outputs.docs_only != 'true'
         run: |
           cargo build --release --locked --examples \
             -p mini-bootstrap -p mini-keystone -p mini-net -p mini-treasury
 
       - name: Hash pass-1 artifacts
+        if: steps.diff.outputs.docs_only != 'true'
         run: |
           find target/release/examples -maxdepth 1 -type f -executable ! -name '*.d' \
             | grep -vE -- '-[0-9a-f]{16}$' \
@@ -72,12 +106,14 @@ jobs:
           cat /tmp/hashes-pass1.txt
 
       - name: Clean and rebuild (pass 2)
+        if: steps.diff.outputs.docs_only != 'true'
         run: |
           rm -rf target
           cargo build --release --locked --examples \
             -p mini-bootstrap -p mini-keystone -p mini-net -p mini-treasury
 
       - name: Hash pass-2 artifacts and compare
+        if: steps.diff.outputs.docs_only != 'true'
         run: |
           find target/release/examples -maxdepth 1 -type f -executable ! -name '*.d' \
             | grep -vE -- '-[0-9a-f]{16}$' \

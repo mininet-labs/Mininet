@@ -191,27 +191,75 @@ given time.
   `did_mini::FreshnessPins` (D-0088) — not only a documented
   recommendation, closing the case where a verifier has already seen a
   fresher KEL. The harder case — a verifier who has *never* seen the
-  fresher log — now has an adopted design direction (D-0096, `docs/design/
+  fresher log — has an adopted design direction (D-0096, `docs/design/
   kel-witness-receipts-and-duplicity-gossip.md`): KERI-style asynchronous
   witness receipts, threshold witnessed-event certificates, and proof-
-  carrying duplicity gossip. **Design only, no code yet** — the research
-  report's own recommended sequencing puts the receipt/proof types, the
-  in-memory witness state machine, and KEL-verification integration as
-  separate, later PRs, each gated behind external review (D-0047) before
-  any high-value authority decision may depend on it.
+  carrying duplicity gossip. **Phase 1 shipped (D-0321):**
+  `did_mini::witness` — `WitnessPolicy`, `WitnessReceiptStatement`,
+  `WitnessReceipt`, `WitnessedEventCertificate`, canonical encoding,
+  signature/threshold verification, real tested code (24 tests). **Phase
+  2 shipped (D-0326):** `did_mini::witness_state` — `WitnessJournal`, a
+  real in-memory state machine that actually issues receipts for
+  observed events (first-seen acceptance, direct-successor verification,
+  duplicate idempotence, stale rejection), plus `ControllerDuplicityProof`
+  (built from two real controller-signed `Event`s) and
+  `WitnessEquivocationProof` (a standalone assemble/verify pair for a
+  third party holding two disagreeing receipts from one witness); 15
+  tests. **Phase 3's first slice shipped (D-0328):** `did_mini::assurance
+  ::assess_kel_assurance` composes `Kel::verify`/`FreshnessPins`/a
+  caller-supplied witness certificate into a `KelAssurance` classification
+  (`Direct`/`Pinned`/`Witnessed`/`WitnessedRecent`/`DuplicityDetected`) —
+  an honest, gradable replacement for one boolean "is this fresh"; 8
+  tests. **Phase 3's second slice shipped (D-0329):** `did_mini::
+  WitnessJournal::observe_verified` runs the real `Kel::verify` chain
+  (self-certifying inception, signature/threshold, pre-rotation,
+  chain-digest linkage) over the entire presented KEL before delegating
+  to `observe` — a witness accepting events from an untrusted network
+  peer no longer has to trust the peer's bare claim that an event is
+  chain-valid; `observe` itself is unchanged for callers that establish
+  chain validity some other way; 5 tests. **Local duplicity registry
+  shipped (D-0330):** `did_mini::DuplicityRegistry` records
+  `ControllerDuplicityProof`/`WitnessEquivocationProof` and answers
+  `has_known_duplicity(identity, policy)` — a real place to accumulate
+  proofs instead of hand-computing `known_duplicity` every call;
+  `assess_kel_assurance`'s own signature is unchanged; 4 tests.
+  **`mini-forge` bridge shipped (D-0332):** `mini_forge::
+  author_assurance` composes the oracle's existing provenance re-check
+  (`author_verified`) with `assess_kel_assurance` over the author-root's
+  KEL — the first consumer of `KelAssurance` outside `did-mini` itself;
+  4 tests. Deliberately **not** wired into `propose`/`approve`/`merge`/
+  `resolve_project`'s actual quorum gating, which remains purely
+  `author_verified`'s boolean — which governance action (if any) should
+  require which minimum assurance level is a founder-facing policy
+  call, not decided unilaterally here. **Not yet real:** no
+  bounded/incremental re-verify (`observe_verified` re-verifies the
+  whole chain from inception on every call, not just the new suffix),
+  no fork-proof construction for the harder "conflicting descendant"
+  case, no recovery-aware handling (every rotation is treated
+  identically), `WitnessPolicy` is still not carried by real
+  `Establishment` events (a certificate still cannot be checked against
+  a live `Kel` end-to-end — the caller supplies the policy directly), no
+  persistence for `DuplicityRegistry` (in-memory only), no
+  `WitnessedRecentAndGossiped` (needs Phase 5 gossip), no real call site
+  yet gates an authority decision on a `KelAssurance` level or feeds
+  real proofs into `DuplicityRegistry`, no gossip. Each remaining phase
+  is its own later PR, gated behind external review (D-0047) before any
+  high-value authority decision may depend on this layer.
 - **partial** — post-quantum migration path ([#15](../../issues/15),
-  D-0095): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire tag
-  `0x02`) is real — `VerifyingKey`/`Signature` parse and verify actual
-  ML-DSA-65 material, composing the external `fips204` crate rather than
-  implementing the lattice math in-house. **Verify-only**: `SigningKey`
-  stays Ed25519-only (no PQ generation in production code), `DEFAULT`
-  stays `Ed25519`, and `did-mini`'s KEL rotation logic is untouched — no
-  identity can actually migrate yet. See `docs/design/
-  post-quantum-identity-migration.md` for the phased plan this is Phase 1
-  of, and the honest limit found along the way: an all-zero ML-DSA-65
-  "public key" of the correct length parses successfully (FIPS 204's
-  encoding has no structural validity check the way Ed25519's does) but
-  never verifies a real signature.
+  D-0095/D-0322): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire
+  tag `0x02`) is real — `VerifyingKey`/`Signature` parse and verify
+  actual ML-DSA-65 material (Phase 1), and `SigningKey::
+  generate_ml_dsa_65()`/`sign_ml_dsa_65()` generate and sign with real
+  ML-DSA-65 keys in production code (Phase 2), composing the external
+  `fips204` crate rather than implementing the lattice math in-house.
+  `DEFAULT` stays `Ed25519`, and `did-mini`'s KEL rotation logic is
+  untouched — no identity can actually migrate yet; a generated `MlDsa65`
+  key is not wired to any identity/authority use anywhere in the
+  workspace. See `docs/design/post-quantum-identity-migration.md` for the
+  phased plan, and the honest limit found along the way: an all-zero
+  ML-DSA-65 "public key" of the correct length parses successfully (FIPS
+  204's encoding has no structural validity check the way Ed25519's
+  does) but never verifies a real signature.
 - **not started** — device hierarchy beyond current single-tier
   delegation ([#14](../../issues/14)), on-chain pre-rotation anchoring
   (needs the chain).
@@ -657,12 +705,16 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
 
 - **shipped** — CI hygiene (D-0314): the SPEC-11 reproducibility check
   moved into its own `.github/workflows/reproducibility.yml`, still
-  unconditional on every push to `main` but skipped on a PR that touches
-  only `docs/**`/markdown; `.gitattributes` gives `docs/DECISION_LOG.md`/
-  `docs/STATUS.md` a `merge=union` driver so two branches appending
-  different entries near the same point no longer forces a manual
-  conflict resolution. No change to what SPEC-11 requires or when it's
-  enforced for a build-relevant change.
+  unconditional on every push to `main`; `.gitattributes` gives
+  `docs/DECISION_LOG.md`/`docs/STATUS.md` a `merge=union` driver so two
+  branches appending different entries near the same point no longer
+  forces a manual conflict resolution. No change to what SPEC-11 requires
+  or when it's enforced for a build-relevant change. (D-0325: the workflow
+  now always triggers on every PR — an earlier `paths-ignore` that skipped
+  it entirely for docs-only PRs left this required check permanently
+  unset for them, blocking PR #181 indefinitely; the two-clean-build cost
+  is now skipped *inside* the job instead, so the check always reaches a
+  real conclusion.)
 
 - **shipped** — Batch 1's first exit-condition demonstration: `mini-cli`
   (D-0067), a real command-line tool (`identity`/`kel`/`repo`/`pr`
@@ -819,6 +871,29 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   the claim rests on the codebase's dependency graph (no GitHub-API
   client dependency exists anywhere) plus this script's own successful
   run, not a live firewall drill.
+- **partial** — Batch 5's "local object indexing at scale," first slice
+  (D-0327): `mini_store::Store::since`/`Store::recent` add a
+  chronological `idx/time/` index alongside the pre-existing author/
+  type/link indexes, so a caller can query "what's new since cursor X"
+  or "the N most recent objects" without fetching and sorting every
+  object body. Real, tested (3 new tests, both backends). **A genuinely
+  bounded "most recent N" query shipped next (D-0331):**
+  `Backend::list_meta_prefix_last` — `MemoryBackend`'s implementation is
+  real `O(log n + limit)` (`BTreeMap::range(...).rev().take(limit)`),
+  not a full-subtree read; `Store::recent` now calls it directly instead
+  of `since(0)` reversed/truncated client-side. Honestly still not fully
+  bounded — `FsBackend` inherits the trait's non-bounded default
+  (deliberately: a real bounded reverse walk over a plain directory tree
+  needs either a sorted early-stopping traversal or an on-disk sorted
+  index, and building that alongside `FsBackend`'s existing
+  symlink/path-traversal defenses without risking a new vulnerability
+  wasn't attempted in this slice), and `Store::since`'s own forward scan
+  is completely unchanged — `Backend::list_meta_prefix` still has no
+  upper-bound key, so it still reads the whole `idx/time/` subtree's
+  index rows before filtering, same asymptotic cost the three
+  pre-existing indexes already accept. A real bounded `FsBackend`
+  implementation and a bounded forward range scan both remain future
+  work.
 - **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
   Batch 1's remaining deferred item. Exports a commit chain (commit → tree
   → blobs, recursively through every ancestor) as real git SHA-256-object-
@@ -831,8 +906,10 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   `STATUS.md`/roadmap generation (Batch 1's remaining deferred items);
   wiring `mini-installer` into an actual running system (Batch 4's own
   named next step, the caller's job by design); the rest of
-  Batch 5 (local object indexing at scale, distributed build workers,
-  GitHub import/export mirror automation).
+  Batch 5 (a genuinely bounded `FsBackend::list_meta_prefix_last`, a
+  bounded/paginated forward range scan for `Store::since`, distributed
+  build workers, native release retrieval, GitHub import/export mirror
+  automation).
 - **partly active, mostly specified** — the founder-supplied Governance Pack
   v1.0 plus the v1.1 charter delta (`docs/governance/`, `forge-native/`,
   `governance/`; D-0082–D-0084): ~50
@@ -918,7 +995,11 @@ the top development priority.
   the real compiled worker binary). Not yet wired to `mini-intake`'s
   coordinator — that integration is later follow-up. No PDF/HTML
   support, no network client, no AI model, no publication linking —
-  those are Tracks B4-B5, not started.
+  those are Tracks B4-B5, not started. (D-0324: the
+  `max_wall_clock_ms == 0` case in `run_worker` is now a deterministic
+  immediate timeout rather than racing the worker's real round trip
+  against a zero-duration channel wait, fixing an intermittent CI
+  failure in the test asserting that behavior.)
 
 ## Client coverage
 
@@ -951,6 +1032,11 @@ backend composition, maturity matrix, and implementation order.
 
 ## Where to look for more detail
 
+- `WHITEPAPER.md` (repository root, D-0323) — the single-document public
+  introduction, for a reader who has never opened this repository. It
+  summarizes this file's shipped/prototype/not-started distinctions in
+  plain language rather than restating them independently; if the two
+  ever disagree, this file is correct and the whitepaper needs updating.
 - `README.md`'s repository-map table — per-crate one-line status, kept
   in sync with this file but intentionally shorter.
 - `docs/BETA_STATUS.md` — the narrower, nearer-term two-phone keystone

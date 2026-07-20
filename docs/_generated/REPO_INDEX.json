@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 46,
-    "files": 575,
-    "headings": 1998,
-    "rust_symbols": 4396
+    "files": 580,
+    "headings": 2023,
+    "rust_symbols": 4583
   },
   "crates": {
     "did-mini": {
@@ -738,7 +738,7 @@
       "title": "Blocking bootstrap baseline: validate that the"
     },
     {
-      "bytes": 3828,
+      "bytes": 5767,
       "group": "ci",
       "headings": [
         {
@@ -769,68 +769,98 @@
         {
           "level": 1,
           "line": 8,
-          "text": "SPEC-11's actual scope (\"verified-reproducible releases\"). The"
-        },
-        {
-          "level": 1,
-          "line": 9,
-          "text": "`pull_request` trigger's `paths-ignore` is deliberately narrow (docs and"
+          "text": "SPEC-11's actual scope (\"verified-reproducible releases\")."
         },
         {
           "level": 1,
           "line": 10,
-          "text": "markdown only): anything else -- source, Cargo.toml/Cargo.lock,"
+          "text": "The `pull_request` trigger has no path filter either (D-0325): an earlier"
         },
         {
           "level": 1,
           "line": 11,
-          "text": "rust-toolchain.toml, build scripts, this workflow file itself -- still"
+          "text": "version used `paths-ignore: [docs/**, **/*.md]` to skip the workflow"
         },
         {
           "level": 1,
           "line": 12,
-          "text": "runs the real check before merge. A PR that touches both a doc and a"
+          "text": "entirely for docs-only PRs, but that meant this job -- listed as a"
         },
         {
           "level": 1,
           "line": 13,
-          "text": "source file still runs it, since paths-ignore only skips a workflow when"
+          "text": "required status check -- never posted *any* status for such a PR, which"
         },
         {
           "level": 1,
           "line": 14,
-          "text": "*every* changed path matches."
+          "text": "left it permanently stuck at `mergeable_state: blocked` no matter how long"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "CI ran (exactly the risk D-0320's own follow-up section flagged and never"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "resolved). The workflow itself now always runs and always completes with"
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "a real conclusion; the \"Determine whether this PR touches only docs\" step"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "below decides, from a real `git diff` against the PR's base commit,"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "whether the two-clean-build steps that follow are skipped. A required"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "check that sometimes finishes in five seconds is still a required check"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "that always finishes -- unlike one that never starts."
         }
       ],
       "keywords": [
         "build",
-        "release",
-        "name",
-        "spec-11",
-        "cargo",
-        "tmp",
-        "txt",
-        "verified-reproducible",
         "check",
-        "main",
-        "every",
-        "scope",
-        "paths-ignore",
-        "binaries",
-        "examples",
-        "run",
-        "reproducibility",
-        "artifact",
+        "real",
+        "diff",
+        "spec-11",
+        "required",
+        "never",
+        "always",
+        "steps",
+        "name",
+        "release",
         "path",
-        "source",
-        "toml",
+        "job",
+        "docs_only",
+        "reproducibility",
+        "verified-reproducible",
+        "two-clean-build",
+        "artifact",
+        "main",
+        "scope",
+        "pull_request",
         "workflow",
-        "file",
-        "still"
+        "status",
+        "whether"
       ],
-      "lines": 88,
+      "lines": 124,
       "path": ".github/workflows/reproducibility.yml",
-      "sha256": "c96e831b72d1e1afe0300e5e0dc26bd017acd58b3b07d62c350238c221a4c8ba",
+      "sha256": "ee16e463bd84a4f90c5186a131bf789a526bce983b73a9b7a4e6f1da528b5e3d",
       "symbols": [],
       "title": "SPEC-11's verified-reproducible release check (roadmap #69, frozen"
     },
@@ -1201,7 +1231,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 13321,
+      "bytes": 13658,
       "group": "root",
       "headings": [
         {
@@ -1211,27 +1241,27 @@
         },
         {
           "level": 2,
-          "line": 18,
+          "line": 23,
           "text": "What no one can change"
         },
         {
           "level": 2,
-          "line": 40,
+          "line": 45,
           "text": "What exists today \u2014 honestly"
         },
         {
           "level": 2,
-          "line": 170,
+          "line": 175,
           "text": "Start here"
         },
         {
           "level": 2,
-          "line": 187,
+          "line": 193,
           "text": "The canonical documents"
         },
         {
           "level": 2,
-          "line": 226,
+          "line": 232,
           "text": "License"
         }
       ],
@@ -1239,31 +1269,31 @@
         "real",
         "one",
         "never",
+        "what",
         "network",
         "money",
-        "what",
+        "today",
         "verified",
+        "repository",
         "design",
         "signed",
         "consensus",
-        "today",
+        "exists",
+        "here",
         "owned",
         "identity",
         "vote",
         "path",
         "switch",
         "github",
-        "repository",
         "invariants",
         "nothing",
         "yet",
-        "update",
-        "release",
-        "independent"
+        "update"
       ],
-      "lines": 230,
+      "lines": 236,
       "path": "README.md",
-      "sha256": "d76d3ccaf713eda4c4929dab9c0d745db842684d732e214c68efb56e0ce2c90a",
+      "sha256": "5ab3623271a6423684966dae31fed6d11ba5783dc40d18872c7b50103b80a204",
       "symbols": [],
       "title": "Mininet"
     },
@@ -1328,6 +1358,113 @@
       "sha256": "7e723613421fd2c6747e937be0cbf026b6e15817eef451992612c03de2d95c7d",
       "symbols": [],
       "title": "Security Policy"
+    },
+    {
+      "bytes": 20536,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "The Mininet Whitepaper"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "What this document is, and is not"
+        },
+        {
+          "level": 2,
+          "line": 38,
+          "text": "Abstract"
+        },
+        {
+          "level": 2,
+          "line": 61,
+          "text": "1. The problem"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "2. What Mininet guarantees, structurally"
+        },
+        {
+          "level": 2,
+          "line": 119,
+          "text": "3. Identity: the phone (or device) as sovereign root"
+        },
+        {
+          "level": 2,
+          "line": 138,
+          "text": "4. Money: signed promises, not custodial balances"
+        },
+        {
+          "level": 2,
+          "line": 168,
+          "text": "5. Privacy is a purchasable resource, never a purchasable right"
+        },
+        {
+          "level": 2,
+          "line": 190,
+          "text": "6. Storage, presence, and personhood"
+        },
+        {
+          "level": 2,
+          "line": 210,
+          "text": "7. What is honestly not solved yet"
+        },
+        {
+          "level": 2,
+          "line": 239,
+          "text": "8. Where the design is heading: a public information commons"
+        },
+        {
+          "level": 2,
+          "line": 295,
+          "text": "9. Design directions under active discussion (not yet decided)"
+        },
+        {
+          "level": 2,
+          "line": 343,
+          "text": "10. Governance"
+        },
+        {
+          "level": 2,
+          "line": 355,
+          "text": "11. How to participate"
+        }
+      ],
+      "keywords": [
+        "what",
+        "whitepaper",
+        "one",
+        "document",
+        "problem",
+        "identity",
+        "money",
+        "never",
+        "repository",
+        "yet",
+        "design",
+        "public",
+        "governance",
+        "today",
+        "invariants",
+        "ever",
+        "system",
+        "guarantees",
+        "storage",
+        "commons",
+        "how",
+        "company",
+        "project",
+        "who"
+      ],
+      "lines": 376,
+      "path": "WHITEPAPER.md",
+      "sha256": "e3612488db0eb515363777b96aabf364717834946379b9670907005a4bdda71c",
+      "symbols": [],
+      "title": "The Mininet Whitepaper"
     },
     {
       "bytes": 986,
@@ -1472,6 +1609,123 @@
       "sha256": "50ff41af79fb4c66a18b2577166b20deb257ff08de8d387b798ec50bfd3dd501",
       "symbols": [],
       "title": "did-mini"
+    },
+    {
+      "bytes": 15736,
+      "group": "crate:did-mini",
+      "headings": [],
+      "keywords": [
+        "kel",
+        "verifier",
+        "witness",
+        "presented",
+        "own",
+        "fmt",
+        "freshnesspins",
+        "certificate",
+        "core",
+        "phase",
+        "slice",
+        "head",
+        "fresher",
+        "caller",
+        "kelassurance",
+        "witnessevidence",
+        "conflicting",
+        "receipt",
+        "already",
+        "witnesspolicy",
+        "does",
+        "debug",
+        "assess_kel_assurance",
+        "first"
+      ],
+      "lines": 396,
+      "path": "crates/did-mini/src/assurance.rs",
+      "sha256": "1efeda3621ed7118aa8e91acc1fc83f392e32dfd3cf00a5484eb4ee6d22d18bb",
+      "symbols": [
+        {
+          "kind": "enum",
+          "line": 52,
+          "name": "KelAssurance"
+        },
+        {
+          "kind": "struct",
+          "line": 82,
+          "name": "WitnessEvidence"
+        },
+        {
+          "kind": "impl",
+          "line": 93,
+          "name": "core::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
+          "name": "fmt"
+        },
+        {
+          "kind": "fn",
+          "line": 115,
+          "name": "assess_kel_assurance"
+        },
+        {
+          "kind": "mod",
+          "line": 160,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "a_witness"
+        },
+        {
+          "kind": "fn",
+          "line": 173,
+          "name": "certificate_for_head"
+        },
+        {
+          "kind": "fn",
+          "line": 206,
+          "name": "first_check_with_no_witnessing_is_direct"
+        },
+        {
+          "kind": "fn",
+          "line": 214,
+          "name": "a_second_check_of_the_same_scid_is_pinned"
+        },
+        {
+          "kind": "fn",
+          "line": 225,
+          "name": "a_valid_recent_certificate_yields_witnessed_recent"
+        },
+        {
+          "kind": "fn",
+          "line": 255,
+          "name": "a_valid_but_stale_certificate_yields_witnessed_not_recent"
+        },
+        {
+          "kind": "fn",
+          "line": 285,
+          "name": "known_duplicity_overrides_a_valid_certificate"
+        },
+        {
+          "kind": "fn",
+          "line": 315,
+          "name": "a_certificate_for_a_different_identity_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 348,
+          "name": "an_internally_invalid_kel_is_rejected_before_any_assurance_is_computed"
+        },
+        {
+          "kind": "fn",
+          "line": 360,
+          "name": "a_stale_kel_is_rejected_even_with_a_valid_certificate_for_its_old_head"
+        }
+      ],
+      "title": "use mini_crypto::VerifyingKey;"
     },
     {
       "bytes": 5863,
@@ -1927,38 +2181,150 @@
       "title": "use crate::codec::{Reader, Writer};"
     },
     {
-      "bytes": 7856,
+      "bytes": 9916,
+      "group": "crate:did-mini",
+      "headings": [],
+      "keywords": [
+        "proof",
+        "identity",
+        "witness",
+        "self",
+        "policy",
+        "controllerduplicityproof",
+        "witnessequivocationproof",
+        "controller",
+        "duplicityregistry",
+        "same",
+        "recorded",
+        "duplicity",
+        "phase",
+        "against",
+        "did",
+        "hashmap",
+        "new",
+        "registry",
+        "record",
+        "names",
+        "caller",
+        "witness_id",
+        "record_controller_duplicity",
+        "has_known_duplicity"
+      ],
+      "lines": 233,
+      "path": "crates/did-mini/src/duplicity.rs",
+      "sha256": "b2e2fb66266d34889c5dea6b372a85e7d8b7ae786bfb8338aeb53c990eaddd60",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 50,
+          "name": "DuplicityRegistry"
+        },
+        {
+          "kind": "impl",
+          "line": 55,
+          "name": "DuplicityRegistry"
+        },
+        {
+          "kind": "fn",
+          "line": 56,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 67,
+          "name": "record_controller_duplicity"
+        },
+        {
+          "kind": "fn",
+          "line": 74,
+          "name": "record_witness_equivocation"
+        },
+        {
+          "kind": "fn",
+          "line": 79,
+          "name": "controller_duplicity_for"
+        },
+        {
+          "kind": "fn",
+          "line": 84,
+          "name": "witness_equivocation_for"
+        },
+        {
+          "kind": "fn",
+          "line": 101,
+          "name": "has_known_duplicity"
+        },
+        {
+          "kind": "mod",
+          "line": 113,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 120,
+          "name": "a_witness_id"
+        },
+        {
+          "kind": "fn",
+          "line": 128,
+          "name": "an_event"
+        },
+        {
+          "kind": "fn",
+          "line": 142,
+          "name": "an_empty_registry_has_no_known_duplicity"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "a_recorded_controller_duplicity_is_flagged_for_that_identity_only"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "a_recorded_witness_equivocation_is_flagged_only_for_a_policy_that_includes_the_witness"
+        },
+        {
+          "kind": "fn",
+          "line": 214,
+          "name": "a_second_proof_for_the_same_key_replaces_the_first"
+        }
+      ],
+      "title": "use std::collections::HashMap;"
+    },
+    {
+      "bytes": 13214,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
         "event",
-        "identityerror",
-        "write",
-        "got",
-        "fmt",
+        "threshold",
         "did",
         "u64",
-        "threshold",
-        "key",
-        "match",
-        "u32",
         "usize",
-        "device",
-        "error",
         "identity",
+        "decoded",
+        "had",
+        "got",
+        "u32",
+        "device",
+        "key",
         "field",
-        "inception",
         "keys",
         "root",
-        "had",
-        "expected",
+        "error",
+        "carried",
+        "unrecognised",
+        "tag",
+        "claimed",
+        "identifier",
+        "match",
         "valid",
-        "signatures",
-        "establishment"
+        "signatures"
       ],
-      "lines": 181,
+      "lines": 286,
       "path": "crates/did-mini/src/error.rs",
-      "sha256": "51ff86bfab140e53d336b899bb9bb7ff3ce75c4ee8ca89bb8f899aad080ceb46",
+      "sha256": "271ccfdda5cbd8a3c4af4f3fc2b7697e1a200ecc558ad2ca2cc4b81a4789ad3b",
       "symbols": [
         {
           "kind": "enum",
@@ -1967,32 +2333,32 @@
         },
         {
           "kind": "impl",
-          "line": 92,
+          "line": 149,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 93,
+          "line": 150,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 171,
+          "line": 276,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 173,
+          "line": 278,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 174,
+          "line": 279,
           "name": "from"
         },
         {
           "kind": "type",
-          "line": 180,
+          "line": 285,
           "name": "Result"
         }
       ],
@@ -2372,7 +2738,7 @@
       "title": "use mini_crypto::VerifyingKey;"
     },
     {
-      "bytes": 4650,
+      "bytes": 5180,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -2393,120 +2759,140 @@
         "validate_scid",
         "one",
         "device",
-        "multihash",
-        "identityerror",
         "string",
         "did-mini",
+        "assurance",
         "base_device",
+        "duplicity",
         "error",
         "freshness"
       ],
-      "lines": 131,
+      "lines": 145,
       "path": "crates/did-mini/src/lib.rs",
-      "sha256": "086945462283579c0514525c81a9b07816916608753a80efa77630155af47728",
+      "sha256": "c2d9e04bf1e69054e973c7b85ade634e41c0cffa9983d2d61e702a5e94b1aa12",
       "symbols": [
         {
           "kind": "mod",
           "line": 50,
-          "name": "base_device"
+          "name": "assurance"
         },
         {
           "kind": "mod",
           "line": 51,
-          "name": "codec"
+          "name": "base_device"
         },
         {
           "kind": "mod",
           "line": 52,
-          "name": "controller"
+          "name": "codec"
         },
         {
           "kind": "mod",
           "line": 53,
-          "name": "delegation"
+          "name": "controller"
         },
         {
           "kind": "mod",
           "line": 54,
-          "name": "error"
+          "name": "delegation"
         },
         {
           "kind": "mod",
           "line": 55,
-          "name": "event"
+          "name": "duplicity"
         },
         {
           "kind": "mod",
           "line": 56,
-          "name": "freshness"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 57,
-          "name": "identity_mode"
+          "name": "event"
         },
         {
           "kind": "mod",
           "line": 58,
-          "name": "kel"
+          "name": "freshness"
         },
         {
           "kind": "mod",
           "line": 59,
+          "name": "identity_mode"
+        },
+        {
+          "kind": "mod",
+          "line": 60,
+          "name": "kel"
+        },
+        {
+          "kind": "mod",
+          "line": 61,
           "name": "limits"
         },
         {
+          "kind": "mod",
+          "line": 62,
+          "name": "witness"
+        },
+        {
+          "kind": "mod",
+          "line": 63,
+          "name": "witness_state"
+        },
+        {
           "kind": "const",
-          "line": 73,
+          "line": 87,
           "name": "METHOD"
         },
         {
           "kind": "struct",
-          "line": 80,
+          "line": 94,
           "name": "Did"
         },
         {
           "kind": "impl",
-          "line": 82,
+          "line": 96,
           "name": "Did"
         },
         {
           "kind": "fn",
-          "line": 85,
+          "line": 99,
           "name": "from_scid"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 109,
           "name": "parse"
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 120,
           "name": "scid"
         },
         {
           "kind": "fn",
-          "line": 111,
+          "line": 125,
           "name": "as_str"
         },
         {
           "kind": "impl",
-          "line": 116,
+          "line": 130,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 117,
+          "line": 131,
           "name": "fmt"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 136,
           "name": "validate_scid"
         }
       ],
-      "title": "mod base_device;"
+      "title": "mod assurance;"
     },
     {
       "bytes": 713,
@@ -2543,6 +2929,685 @@
       "sha256": "92c564fe0f9001fb0536693569db3539aac7e4063751dda857b9fee60ac8e77e",
       "symbols": [],
       "title": "pub(crate) const MAX_SCID_BYTES: usize = 128;"
+    },
+    {
+      "bytes": 35105,
+      "group": "crate:did-mini",
+      "headings": [],
+      "keywords": [
+        "did",
+        "witness",
+        "witnessreceiptversion",
+        "witnesscertificateversion",
+        "receipt",
+        "phase",
+        "event",
+        "self",
+        "witnessedeventcertificate",
+        "identity",
+        "bytes",
+        "result",
+        "version",
+        "as_u8",
+        "from_u8",
+        "encode",
+        "decode",
+        "witnessreceiptstatement",
+        "witnessreceipt",
+        "does",
+        "never",
+        "against",
+        "module",
+        "identityerror"
+      ],
+      "lines": 963,
+      "path": "crates/did-mini/src/witness.rs",
+      "sha256": "0e3d7bdfa109716cd88cd8893587eb8808511ea42fd930d2b571e53c5a35c7ac",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 49,
+          "name": "WitnessReceiptVersion"
+        },
+        {
+          "kind": "impl",
+          "line": 51,
+          "name": "WitnessReceiptVersion"
+        },
+        {
+          "kind": "const",
+          "line": 53,
+          "name": "V1"
+        },
+        {
+          "kind": "fn",
+          "line": 55,
+          "name": "as_u8"
+        },
+        {
+          "kind": "fn",
+          "line": 59,
+          "name": "from_u8"
+        },
+        {
+          "kind": "struct",
+          "line": 71,
+          "name": "WitnessCertificateVersion"
+        },
+        {
+          "kind": "impl",
+          "line": 73,
+          "name": "WitnessCertificateVersion"
+        },
+        {
+          "kind": "const",
+          "line": 75,
+          "name": "V1"
+        },
+        {
+          "kind": "fn",
+          "line": 77,
+          "name": "as_u8"
+        },
+        {
+          "kind": "fn",
+          "line": 81,
+          "name": "from_u8"
+        },
+        {
+          "kind": "struct",
+          "line": 96,
+          "name": "WitnessId"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "encode_did"
+        },
+        {
+          "kind": "fn",
+          "line": 102,
+          "name": "decode_did"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
+          "name": "encode_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 112,
+          "name": "decode_digest"
+        },
+        {
+          "kind": "enum",
+          "line": 121,
+          "name": "KeyEventKind"
+        },
+        {
+          "kind": "impl",
+          "line": 129,
+          "name": "KeyEventKind"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "tag"
+        },
+        {
+          "kind": "fn",
+          "line": 140,
+          "name": "from_tag"
+        },
+        {
+          "kind": "impl",
+          "line": 152,
+          "name": "From<&EventKind>"
+        },
+        {
+          "kind": "fn",
+          "line": 153,
+          "name": "from"
+        },
+        {
+          "kind": "struct",
+          "line": 171,
+          "name": "WitnessPolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 177,
+          "name": "WitnessPolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 182,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 214,
+          "name": "contains"
+        },
+        {
+          "kind": "fn",
+          "line": 219,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 233,
+          "name": "decode"
+        },
+        {
+          "kind": "struct",
+          "line": 260,
+          "name": "WitnessReceiptStatement"
+        },
+        {
+          "kind": "impl",
+          "line": 279,
+          "name": "WitnessReceiptStatement"
+        },
+        {
+          "kind": "fn",
+          "line": 281,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 303,
+          "name": "decode"
+        },
+        {
+          "kind": "fn",
+          "line": 339,
+          "name": "sign_witness_receipt"
+        },
+        {
+          "kind": "struct",
+          "line": 354,
+          "name": "WitnessReceipt"
+        },
+        {
+          "kind": "impl",
+          "line": 359,
+          "name": "WitnessReceipt"
+        },
+        {
+          "kind": "fn",
+          "line": 366,
+          "name": "verify"
+        },
+        {
+          "kind": "fn",
+          "line": 372,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 383,
+          "name": "decode"
+        },
+        {
+          "kind": "const",
+          "line": 404,
+          "name": "MAX_STATEMENT_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 405,
+          "name": "MAX_SIGNATURE_BYTES"
+        },
+        {
+          "kind": "struct",
+          "line": 411,
+          "name": "WitnessedEventCertificate"
+        },
+        {
+          "kind": "impl",
+          "line": 426,
+          "name": "WitnessedEventCertificate"
+        },
+        {
+          "kind": "fn",
+          "line": 431,
+          "name": "assemble"
+        },
+        {
+          "kind": "fn",
+          "line": 487,
+          "name": "verify"
+        },
+        {
+          "kind": "fn",
+          "line": 531,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 548,
+          "name": "decode"
+        },
+        {
+          "kind": "const",
+          "line": 578,
+          "name": "MAX_RECEIPT_BYTES"
+        },
+        {
+          "kind": "fn",
+          "line": 580,
+          "name": "check_receipt_matches"
+        },
+        {
+          "kind": "fn",
+          "line": 597,
+          "name": "checked_count"
+        },
+        {
+          "kind": "mod",
+          "line": 605,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 614,
+          "name": "a_witness"
+        },
+        {
+          "kind": "fn",
+          "line": 621,
+          "name": "a_did"
+        },
+        {
+          "kind": "fn",
+          "line": 625,
+          "name": "a_statement"
+        },
+        {
+          "kind": "fn",
+          "line": 640,
+          "name": "a_witness_policy_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 649,
+          "name": "a_witness_policy_rejects_zero_threshold"
+        },
+        {
+          "kind": "fn",
+          "line": 661,
+          "name": "a_witness_policy_rejects_threshold_over_witness_count"
+        },
+        {
+          "kind": "fn",
+          "line": 673,
+          "name": "a_witness_policy_rejects_an_empty_witness_set"
+        },
+        {
+          "kind": "fn",
+          "line": 681,
+          "name": "a_witness_policy_rejects_a_duplicate_witness"
+        },
+        {
+          "kind": "fn",
+          "line": 691,
+          "name": "a_witness_receipt_statement_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 699,
+          "name": "an_inception_statement_has_no_prior_digest_and_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 710,
+          "name": "a_signed_receipt_verifies_against_the_witness_key"
+        },
+        {
+          "kind": "fn",
+          "line": 718,
+          "name": "a_receipt_signed_by_a_different_key_fails_verification"
+        },
+        {
+          "kind": "fn",
+          "line": 728,
+          "name": "a_receipt_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 736,
+          "name": "assemble_certificate"
+        },
+        {
+          "kind": "fn",
+          "line": 772,
+          "name": "a_certificate_meeting_threshold_verifies"
+        },
+        {
+          "kind": "fn",
+          "line": 791,
+          "name": "a_certificate_below_threshold_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 816,
+          "name": "a_certificate_with_a_witness_outside_the_policy_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 842,
+          "name": "a_certificate_with_a_stale_generation_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 869,
+          "name": "assembling_a_mismatched_receipt_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 919,
+          "name": "a_certificate_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 927,
+          "name": "an_unresolvable_witness_key_is_rejected_rather_than_skipped"
+        },
+        {
+          "kind": "fn",
+          "line": 946,
+          "name": "trailing_bytes_are_rejected_on_every_decode"
+        }
+      ],
+      "title": "use mini_crypto::{Signature, SignatureSuite, SigningKey, VerifyingKey};"
+    },
+    {
+      "bytes": 36095,
+      "group": "crate:did-mini",
+      "headings": [],
+      "keywords": [
+        "event",
+        "witness",
+        "receipt",
+        "kel",
+        "phase",
+        "module",
+        "report",
+        "sequence",
+        "witnessidentitystate",
+        "accepted_event",
+        "witnessjournal",
+        "controllerduplicityproof",
+        "state",
+        "identity",
+        "accepted",
+        "self",
+        "verify",
+        "research",
+        "own",
+        "rather",
+        "issued_receipt",
+        "observe",
+        "observe_verified",
+        "witnessequivocationproof"
+      ],
+      "lines": 869,
+      "path": "crates/did-mini/src/witness_state.rs",
+      "sha256": "4c35a2d355001d906e5bb15b12d07d5df4723c34e4d6dae8228530e162546594",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 73,
+          "name": "MAX_EVENT_BYTES"
+        },
+        {
+          "kind": "struct",
+          "line": 79,
+          "name": "WitnessIdentityState"
+        },
+        {
+          "kind": "impl",
+          "line": 88,
+          "name": "WitnessIdentityState"
+        },
+        {
+          "kind": "fn",
+          "line": 92,
+          "name": "accepted_event"
+        },
+        {
+          "kind": "fn",
+          "line": 99,
+          "name": "issued_receipt"
+        },
+        {
+          "kind": "enum",
+          "line": 107,
+          "name": "WitnessObservation"
+        },
+        {
+          "kind": "struct",
+          "line": 132,
+          "name": "WitnessJournal"
+        },
+        {
+          "kind": "impl",
+          "line": 136,
+          "name": "WitnessJournal"
+        },
+        {
+          "kind": "fn",
+          "line": 137,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 145,
+          "name": "state_for"
+        },
+        {
+          "kind": "fn",
+          "line": 158,
+          "name": "observe"
+        },
+        {
+          "kind": "fn",
+          "line": 260,
+          "name": "observe_verified"
+        },
+        {
+          "kind": "enum",
+          "line": 274,
+          "name": "Decision"
+        },
+        {
+          "kind": "struct",
+          "line": 294,
+          "name": "ControllerDuplicityProof"
+        },
+        {
+          "kind": "impl",
+          "line": 301,
+          "name": "ControllerDuplicityProof"
+        },
+        {
+          "kind": "fn",
+          "line": 305,
+          "name": "assemble"
+        },
+        {
+          "kind": "fn",
+          "line": 323,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 334,
+          "name": "decode"
+        },
+        {
+          "kind": "struct",
+          "line": 368,
+          "name": "WitnessEquivocationProof"
+        },
+        {
+          "kind": "impl",
+          "line": 374,
+          "name": "WitnessEquivocationProof"
+        },
+        {
+          "kind": "fn",
+          "line": 379,
+          "name": "assemble"
+        },
+        {
+          "kind": "fn",
+          "line": 403,
+          "name": "verify"
+        },
+        {
+          "kind": "fn",
+          "line": 410,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 421,
+          "name": "decode"
+        },
+        {
+          "kind": "const",
+          "line": 434,
+          "name": "MAX_RECEIPT_BYTES"
+        },
+        {
+          "kind": "mod",
+          "line": 437,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 443,
+          "name": "a_witness"
+        },
+        {
+          "kind": "fn",
+          "line": 458,
+          "name": "an_event"
+        },
+        {
+          "kind": "fn",
+          "line": 471,
+          "name": "a_policy"
+        },
+        {
+          "kind": "fn",
+          "line": 476,
+          "name": "first_seen_event_is_accepted_and_receipted"
+        },
+        {
+          "kind": "fn",
+          "line": 500,
+          "name": "a_valid_direct_successor_is_accepted_and_updates_state"
+        },
+        {
+          "kind": "fn",
+          "line": 519,
+          "name": "an_exact_duplicate_returns_the_same_receipt_without_resigning"
+        },
+        {
+          "kind": "fn",
+          "line": 541,
+          "name": "a_stale_ancestor_is_rejected_without_a_receipt"
+        },
+        {
+          "kind": "fn",
+          "line": 563,
+          "name": "a_conflicting_same_sequence_event_yields_a_duplicity_proof"
+        },
+        {
+          "kind": "fn",
+          "line": 593,
+          "name": "a_conflicting_descendant_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 611,
+          "name": "observing_outside_the_policy_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 626,
+          "name": "a_controller_duplicity_proof_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 637,
+          "name": "assembling_a_duplicity_proof_from_different_sequences_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 649,
+          "name": "assembling_a_duplicity_proof_from_identical_events_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 661,
+          "name": "assembling_a_duplicity_proof_for_a_different_identity_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 673,
+          "name": "a_statement"
+        },
+        {
+          "kind": "fn",
+          "line": 694,
+          "name": "a_witness_equivocation_proof_round_trips_and_verifies"
+        },
+        {
+          "kind": "fn",
+          "line": 712,
+          "name": "assembling_an_equivocation_proof_from_the_same_digest_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 730,
+          "name": "assembling_an_equivocation_proof_from_different_witnesses_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 749,
+          "name": "observe_verified_accepts_a_genuinely_chain_valid_inception"
+        },
+        {
+          "kind": "fn",
+          "line": 771,
+          "name": "observe_verified_accepts_a_genuine_rotation_as_a_direct_successor"
+        },
+        {
+          "kind": "fn",
+          "line": 790,
+          "name": "observe_verified_rejects_a_kel_with_a_tampered_signature_and_leaves_state_untouched"
+        },
+        {
+          "kind": "fn",
+          "line": 813,
+          "name": "observe_verified_rejects_an_empty_kel"
+        },
+        {
+          "kind": "fn",
+          "line": 835,
+          "name": "observe_verified_still_detects_duplicate_stale_and_conflicting_events"
+        },
+        {
+          "kind": "fn",
+          "line": 853,
+          "name": "an_equivocation_proof_fails_verification_against_the_wrong_key"
+        }
+      ],
+      "title": "use std::collections::HashMap;"
     },
     {
       "bytes": 5826,
@@ -12796,7 +13861,7 @@
       "title": "use did_mini::{Capabilities, Controller, Did};"
     },
     {
-      "bytes": 2178,
+      "bytes": 2449,
       "group": "crate:mini-crypto",
       "headings": [
         {
@@ -12851,54 +13916,79 @@
         },
         {
           "level": 1,
+          "line": 33,
+          "text": "`rand_core::OsRng` -- the same canonical OS-backed RNG this crate's own"
+        },
+        {
+          "level": 1,
+          "line": 34,
+          "text": "Phase 1 tests already validated real `fips204` keygen/signing against"
+        },
+        {
+          "level": 1,
           "line": 35,
-          "text": "Adds fips204's OS-RNG keygen/sign convenience (`default-rng`) for this"
+          "text": "(D-0095) -- now used in production by `SigningKey::generate_ml_dsa_65`/"
         },
         {
           "level": 1,
           "line": 36,
-          "text": "crate's own round-trip tests only \u2014 dev-dependency features never reach a"
+          "text": "`sign_ml_dsa_65` (Phase 2, issue #15). Version pinned to match what"
         },
         {
           "level": 1,
           "line": 37,
-          "text": "`cargo build`/`cargo build --release` production artifact, keeping the"
+          "text": "`fips204` itself resolves to, so there is exactly one `rand_core` in the"
         },
         {
           "level": 1,
           "line": 38,
-          "text": "\"no generation exposed on SigningKey yet\" boundary real, not just documented."
+          "text": "dependency graph."
+        },
+        {
+          "level": 1,
+          "line": 42,
+          "text": "Adds fips204's OS-RNG keygen/sign convenience (`default-rng`) for this"
+        },
+        {
+          "level": 1,
+          "line": 43,
+          "text": "crate's own round-trip tests only \u2014 dev-dependency features never reach a"
+        },
+        {
+          "level": 1,
+          "line": 44,
+          "text": "`cargo build`/`cargo build --release` production artifact."
         }
       ],
       "keywords": [
-        "features",
+        "fips204",
         "version",
+        "features",
         "cargo",
         "zeroize",
-        "generation",
+        "rand_core",
         "workspace",
         "true",
+        "dependency",
         "suite",
         "ml-dsa-65",
-        "just",
-        "exposed",
+        "already",
+        "d-0095",
+        "issue",
+        "now",
         "signingkey",
-        "yet",
-        "fips204",
-        "build",
-        "primitives",
-        "default",
-        "secret",
+        "own",
+        "phase",
         "keygen",
-        "sign",
-        "default-rng",
+        "production",
+        "build",
         "false",
-        "mini-crypto",
-        "audited"
+        "primitives",
+        "default"
       ],
-      "lines": 41,
+      "lines": 46,
       "path": "crates/mini-crypto/Cargo.toml",
-      "sha256": "5954e60bdad07126b93a62d5dc7e2abd8ff46410d7241bd29c743c5cbd27689b",
+      "sha256": "920ba76a5a9c3d73f9cfffce9f8e91148a6002c813c5a6a18261a56f71b2038a",
       "symbols": [],
       "title": "Audited, widely-used primitives. The dependency surface is kept deliberately"
     },
@@ -13466,7 +14556,7 @@
       "title": "use crate::error::{CryptoError, Result};"
     },
     {
-      "bytes": 3609,
+      "bytes": 3951,
       "group": "crate:mini-crypto",
       "headings": [],
       "keywords": [
@@ -13474,13 +14564,13 @@
         "write",
         "failed",
         "fmt",
+        "key",
+        "suite",
         "error",
         "result",
         "unknown",
         "byte",
-        "key",
         "recognised",
-        "suite",
         "expected",
         "got",
         "identifier",
@@ -13495,9 +14585,9 @@
         "string",
         "prefix"
       ],
-      "lines": 82,
+      "lines": 89,
       "path": "crates/mini-crypto/src/error.rs",
-      "sha256": "fd16709139604a3221fd0e0fabfa7f4a9512adf7333f228209224112cb18eea3",
+      "sha256": "75f7f929768b3d28ebc5c9d0e8381d47325a36c2d219e0fadc452f7cfcbb730a",
       "symbols": [
         {
           "kind": "enum",
@@ -13506,22 +14596,22 @@
         },
         {
           "kind": "impl",
-          "line": 45,
+          "line": 49,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 50,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 78,
+          "line": 85,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 81,
+          "line": 88,
           "name": "Result"
         }
       ],
@@ -13692,208 +14782,263 @@
       "title": "use hkdf::Hkdf;"
     },
     {
-      "bytes": 17472,
+      "bytes": 26586,
       "group": "crate:mini-crypto",
       "headings": [],
       "keywords": [
-        "suite",
-        "self",
         "key",
         "signingkey",
+        "suite",
         "seed",
-        "verifyingkey",
-        "inner",
-        "signaturesuite",
-        "signature",
-        "secret",
-        "debug",
-        "bytes",
-        "keymaterial",
-        "fmt",
-        "to_bytes",
-        "material",
-        "never",
-        "derive",
-        "keys",
-        "generate",
-        "sign",
-        "core",
         "signing",
-        "clone"
+        "signaturesuite",
+        "verifyingkey",
+        "generate",
+        "secret",
+        "derive",
+        "signature",
+        "debug",
+        "fips204",
+        "ed25519",
+        "material",
+        "phase",
+        "clone",
+        "box",
+        "keymaterial",
+        "secretkeymaterial",
+        "generation",
+        "its",
+        "mldsa65",
+        "ml-dsa-65"
       ],
-      "lines": 457,
+      "lines": 657,
       "path": "crates/mini-crypto/src/keys.rs",
-      "sha256": "2310609acb9d109fcc49cc200fa2f65bcc4d6265ad6d6c0a9cfe308281d809ed",
+      "sha256": "8b32cadaa2318c7fee93091691f827f7a5d7a47174a72a073f3f9dc2458533af",
       "symbols": [
         {
           "kind": "enum",
-          "line": 36,
+          "line": 42,
           "name": "KeyMaterial"
         },
         {
           "kind": "struct",
-          "line": 48,
+          "line": 54,
           "name": "VerifyingKey"
         },
         {
+          "kind": "enum",
+          "line": 64,
+          "name": "SecretKeyMaterial"
+        },
+        {
           "kind": "struct",
-          "line": 57,
+          "line": 85,
           "name": "SigningKey"
         },
         {
           "kind": "struct",
-          "line": 64,
+          "line": 92,
           "name": "Signature"
         },
         {
           "kind": "impl",
-          "line": 69,
+          "line": 97,
           "name": "SigningKey"
         },
         {
           "kind": "fn",
-          "line": 74,
+          "line": 102,
           "name": "from_seed"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 110,
           "name": "generate"
         },
         {
           "kind": "fn",
-          "line": 92,
+          "line": 124,
+          "name": "generate_ml_dsa_65"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
           "name": "suite"
         },
         {
           "kind": "fn",
-          "line": 97,
+          "line": 144,
           "name": "verifying_key"
         },
         {
           "kind": "fn",
-          "line": 105,
+          "line": 177,
           "name": "sign"
         },
         {
           "kind": "fn",
-          "line": 118,
-          "name": "to_seed_bytes"
-        },
-        {
-          "kind": "impl",
-          "line": 123,
-          "name": "core::fmt::Debug"
-        },
-        {
-          "kind": "fn",
-          "line": 124,
-          "name": "fmt"
-        },
-        {
-          "kind": "impl",
-          "line": 133,
-          "name": "VerifyingKey"
-        },
-        {
-          "kind": "fn",
-          "line": 135,
-          "name": "suite"
-        },
-        {
-          "kind": "fn",
-          "line": 140,
-          "name": "to_bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 158,
-          "name": "from_suite_bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 191,
-          "name": "verify"
-        },
-        {
-          "kind": "impl",
-          "line": 226,
-          "name": "Signature"
-        },
-        {
-          "kind": "fn",
-          "line": 228,
-          "name": "suite"
+          "line": 200,
+          "name": "sign_ml_dsa_65"
         },
         {
           "kind": "fn",
           "line": 233,
+          "name": "to_seed_bytes"
+        },
+        {
+          "kind": "impl",
+          "line": 243,
+          "name": "core::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 244,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 253,
+          "name": "VerifyingKey"
+        },
+        {
+          "kind": "fn",
+          "line": 255,
+          "name": "suite"
+        },
+        {
+          "kind": "fn",
+          "line": 260,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 242,
+          "line": 278,
           "name": "from_suite_bytes"
         },
         {
-          "kind": "mod",
-          "line": 258,
-          "name": "tests"
+          "kind": "fn",
+          "line": 311,
+          "name": "verify"
         },
         {
-          "kind": "fn",
-          "line": 262,
-          "name": "an_ed25519_signature_round_trips_through_sign_and_verify"
-        },
-        {
-          "kind": "fn",
-          "line": 270,
-          "name": "an_ed25519_signature_over_a_different_message_fails"
-        },
-        {
-          "kind": "fn",
-          "line": 281,
-          "name": "ml_dsa_65_tag_and_lengths_match_fips204"
-        },
-        {
-          "kind": "fn",
-          "line": 306,
-          "name": "a_real_ml_dsa_65_signature_verifies_through_the_mini_crypto_wrapper"
-        },
-        {
-          "kind": "fn",
-          "line": 324,
-          "name": "a_tampered_ml_dsa_65_signature_is_rejected"
+          "kind": "impl",
+          "line": 346,
+          "name": "Signature"
         },
         {
           "kind": "fn",
           "line": 348,
+          "name": "suite"
+        },
+        {
+          "kind": "fn",
+          "line": 353,
+          "name": "to_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 362,
+          "name": "from_suite_bytes"
+        },
+        {
+          "kind": "mod",
+          "line": 378,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 382,
+          "name": "an_ed25519_signature_round_trips_through_sign_and_verify"
+        },
+        {
+          "kind": "fn",
+          "line": 390,
+          "name": "an_ed25519_signature_over_a_different_message_fails"
+        },
+        {
+          "kind": "fn",
+          "line": 401,
+          "name": "ml_dsa_65_tag_and_lengths_match_fips204"
+        },
+        {
+          "kind": "fn",
+          "line": 426,
+          "name": "a_real_ml_dsa_65_signature_verifies_through_the_mini_crypto_wrapper"
+        },
+        {
+          "kind": "fn",
+          "line": 444,
+          "name": "a_tampered_ml_dsa_65_signature_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 468,
           "name": "an_ml_dsa_65_signature_verified_under_the_wrong_public_key_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 369,
+          "line": 489,
           "name": "a_wrong_length_ml_dsa_65_public_key_is_rejected_before_any_verification"
         },
         {
           "kind": "fn",
-          "line": 381,
+          "line": 501,
           "name": "an_all_zero_ml_dsa_65_key_parses_but_never_verifies_a_real_signature"
         },
         {
           "kind": "fn",
-          "line": 411,
+          "line": 531,
           "name": "a_wrong_length_ml_dsa_65_signature_is_rejected_before_any_verification"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 543,
           "name": "an_ed25519_key_cannot_be_parsed_as_ml_dsa_65_bytes"
         },
         {
           "kind": "fn",
-          "line": 436,
+          "line": 556,
           "name": "a_signature_suite_mismatch_between_key_and_signature_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 581,
+          "name": "a_generated_ml_dsa_65_key_signs_and_verifies_end_to_end_through_mini_crypto"
+        },
+        {
+          "kind": "fn",
+          "line": 595,
+          "name": "a_generated_ml_dsa_65_signature_over_a_different_message_fails"
+        },
+        {
+          "kind": "fn",
+          "line": 606,
+          "name": "a_generated_ml_dsa_65_signature_verified_under_a_different_generated_key_fails"
+        },
+        {
+          "kind": "fn",
+          "line": 618,
+          "name": "two_generated_ml_dsa_65_keys_are_distinct"
+        },
+        {
+          "kind": "fn",
+          "line": 627,
+          "name": "sign_ml_dsa_65_on_an_ed25519_key_is_a_suite_mismatch_not_a_panic"
+        },
+        {
+          "kind": "fn",
+          "line": 637,
+          "name": "sign_on_an_ml_dsa_65_key_panics_with_a_clear_message"
+        },
+        {
+          "kind": "fn",
+          "line": 644,
+          "name": "to_seed_bytes_on_an_ml_dsa_65_key_panics_with_a_clear_message"
+        },
+        {
+          "kind": "fn",
+          "line": 650,
+          "name": "a_generated_ml_dsa_65_signing_key_debug_output_redacts_secret_material"
         }
       ],
       "title": "use ed25519_dalek::{"
@@ -15854,7 +16999,7 @@
       "title": "use mini_extract_protocol::{ExtractionError, ExtractorKind};"
     },
     {
-      "bytes": 6996,
+      "bytes": 7607,
       "group": "crate:mini-extract-host",
       "headings": [],
       "keywords": [
@@ -15883,9 +17028,9 @@
         "run_worker",
         "real"
       ],
-      "lines": 170,
+      "lines": 182,
       "path": "crates/mini-extract-host/src/lib.rs",
-      "sha256": "aaad1b91cc238a47e6e6584a53b732553fe284d99c27596f8308eebaaaafb4df",
+      "sha256": "739f1c88bc86c358db6b4a2a11672d1ddd97e37bf7c311c27ae4ad5c756a8942",
       "symbols": [
         {
           "kind": "mod",
@@ -17080,7 +18225,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 28801,
+      "bytes": 28819,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -17111,7 +18256,7 @@
       ],
       "lines": 790,
       "path": "crates/mini-forge/src/lib.rs",
-      "sha256": "45ddc61422f15f5f6a0ce632cde6edac2d3e1e8853a78fb975950cf214ba84d8",
+      "sha256": "79ac823674fdffbfe5caef03a4211e795c7b24e33098320e56888b378fa2d673",
       "symbols": [
         {
           "kind": "mod",
@@ -17357,7 +18502,7 @@
       "title": "mod git_export;"
     },
     {
-      "bytes": 4200,
+      "bytes": 9532,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -17368,14 +18513,14 @@
         "scid",
         "oracle",
         "verified",
+        "obj",
         "new",
         "len",
-        "obj",
+        "identity",
         "identityoracle",
         "keldirectory",
         "insert",
         "directory",
-        "identity",
         "object",
         "author",
         "one",
@@ -17384,11 +18529,11 @@
         "old",
         "try_insert_verified",
         "is_empty",
-        "root"
+        "provenance"
       ],
-      "lines": 110,
+      "lines": 237,
       "path": "crates/mini-forge/src/oracle.rs",
-      "sha256": "c9f06fbdeab29730d3b4ee641df77d1a644b01654d70da03e3992a3b2d752a1a",
+      "sha256": "26a5403b5f0dbd48ce1437e1d1d546f9eb27d94c58e877efd825e58a0d2a3df3",
       "symbols": [
         {
           "kind": "trait",
@@ -17444,6 +18589,46 @@
           "kind": "fn",
           "line": 92,
           "name": "kel"
+        },
+        {
+          "kind": "fn",
+          "line": 136,
+          "name": "author_assurance"
+        },
+        {
+          "kind": "mod",
+          "line": 153,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "human"
+        },
+        {
+          "kind": "fn",
+          "line": 172,
+          "name": "an_object"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "a_verified_first_contact_author_is_direct"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "a_second_check_of_the_same_root_is_pinned"
+        },
+        {
+          "kind": "fn",
+          "line": 212,
+          "name": "an_unknown_author_is_rejected_without_computing_assurance"
+        },
+        {
+          "kind": "fn",
+          "line": 225,
+          "name": "known_duplicity_overrides_a_verified_author"
         }
       ],
       "title": "use std::collections::BTreeMap;"
@@ -32243,38 +33428,38 @@
       "title": "mini-store"
     },
     {
-      "bytes": 14943,
+      "bytes": 19831,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
         "self",
         "result",
         "str",
-        "prefix",
-        "key",
-        "backend",
-        "meta",
         "vec",
-        "root",
+        "prefix",
+        "backend",
+        "key",
+        "list_meta_prefix",
+        "limit",
+        "memorybackend",
         "blobs",
-        "join",
-        "segment",
-        "bytes",
-        "to_string",
+        "metadata",
+        "string",
+        "meta",
         "put_blob",
         "get_blob",
         "has_blob",
         "put_meta",
         "get_meta",
-        "list_meta_prefix",
-        "memorybackend",
-        "fsbackend",
+        "list_meta_prefix_last",
+        "value",
         "blob",
-        "pathbuf"
+        "store",
+        "std"
       ],
-      "lines": 403,
+      "lines": 513,
       "path": "crates/mini-store/src/backend.rs",
-      "sha256": "f7de5cbcae1832a6cee5f82a230946cda5db8592d503cd2184495a58da765c9e",
+      "sha256": "5591c614365955be86e5fd56d428c8cc401926e8efbeaecaacc40e60dde190d1",
       "symbols": [
         {
           "kind": "trait",
@@ -32312,158 +33497,178 @@
           "name": "list_meta_prefix"
         },
         {
+          "kind": "fn",
+          "line": 48,
+          "name": "list_meta_prefix_last"
+        },
+        {
           "kind": "struct",
-          "line": 32,
+          "line": 58,
           "name": "MemoryBackend"
         },
         {
           "kind": "impl",
-          "line": 37,
+          "line": 63,
           "name": "MemoryBackend"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 65,
           "name": "new"
         },
         {
           "kind": "impl",
-          "line": 44,
+          "line": 70,
           "name": "Backend"
         },
         {
           "kind": "fn",
-          "line": 45,
+          "line": 71,
           "name": "put_blob"
         },
         {
           "kind": "fn",
-          "line": 49,
+          "line": 75,
           "name": "get_blob"
         },
         {
           "kind": "fn",
-          "line": 52,
+          "line": 78,
           "name": "has_blob"
-        },
-        {
-          "kind": "fn",
-          "line": 55,
-          "name": "put_meta"
-        },
-        {
-          "kind": "fn",
-          "line": 59,
-          "name": "get_meta"
-        },
-        {
-          "kind": "fn",
-          "line": 62,
-          "name": "list_meta_prefix"
-        },
-        {
-          "kind": "struct",
-          "line": 75,
-          "name": "FsBackend"
-        },
-        {
-          "kind": "impl",
-          "line": 79,
-          "name": "FsBackend"
         },
         {
           "kind": "fn",
           "line": 81,
-          "name": "open"
-        },
-        {
-          "kind": "fn",
-          "line": 89,
-          "name": "blob_path"
-        },
-        {
-          "kind": "fn",
-          "line": 97,
-          "name": "meta_path"
-        },
-        {
-          "kind": "fn",
-          "line": 117,
-          "name": "meta_prefix_walk_root"
-        },
-        {
-          "kind": "fn",
-          "line": 158,
-          "name": "safe_existing_meta_directory"
-        },
-        {
-          "kind": "fn",
-          "line": 191,
-          "name": "atomic_write"
-        },
-        {
-          "kind": "fn",
-          "line": 208,
-          "name": "safe_existing_parent"
-        },
-        {
-          "kind": "fn",
-          "line": 253,
-          "name": "existing_regular_file"
-        },
-        {
-          "kind": "fn",
-          "line": 270,
-          "name": "read_existing_regular_file"
-        },
-        {
-          "kind": "impl",
-          "line": 283,
-          "name": "Backend"
-        },
-        {
-          "kind": "fn",
-          "line": 284,
-          "name": "put_blob"
-        },
-        {
-          "kind": "fn",
-          "line": 300,
-          "name": "get_blob"
-        },
-        {
-          "kind": "fn",
-          "line": 303,
-          "name": "has_blob"
-        },
-        {
-          "kind": "fn",
-          "line": 306,
           "name": "put_meta"
         },
         {
           "kind": "fn",
-          "line": 309,
+          "line": 85,
           "name": "get_meta"
         },
         {
           "kind": "fn",
-          "line": 316,
+          "line": 88,
+          "name": "list_meta_prefix"
+        },
+        {
+          "kind": "fn",
+          "line": 96,
+          "name": "list_meta_prefix_last"
+        },
+        {
+          "kind": "struct",
+          "line": 119,
+          "name": "FsBackend"
+        },
+        {
+          "kind": "impl",
+          "line": 123,
+          "name": "FsBackend"
+        },
+        {
+          "kind": "fn",
+          "line": 125,
+          "name": "open"
+        },
+        {
+          "kind": "fn",
+          "line": 133,
+          "name": "blob_path"
+        },
+        {
+          "kind": "fn",
+          "line": 141,
+          "name": "meta_path"
+        },
+        {
+          "kind": "fn",
+          "line": 161,
+          "name": "meta_prefix_walk_root"
+        },
+        {
+          "kind": "fn",
+          "line": 202,
+          "name": "safe_existing_meta_directory"
+        },
+        {
+          "kind": "fn",
+          "line": 235,
+          "name": "atomic_write"
+        },
+        {
+          "kind": "fn",
+          "line": 252,
+          "name": "safe_existing_parent"
+        },
+        {
+          "kind": "fn",
+          "line": 297,
+          "name": "existing_regular_file"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "read_existing_regular_file"
+        },
+        {
+          "kind": "impl",
+          "line": 327,
+          "name": "Backend"
+        },
+        {
+          "kind": "fn",
+          "line": 328,
+          "name": "put_blob"
+        },
+        {
+          "kind": "fn",
+          "line": 344,
+          "name": "get_blob"
+        },
+        {
+          "kind": "fn",
+          "line": 347,
+          "name": "has_blob"
+        },
+        {
+          "kind": "fn",
+          "line": 350,
+          "name": "put_meta"
+        },
+        {
+          "kind": "fn",
+          "line": 353,
+          "name": "get_meta"
+        },
+        {
+          "kind": "fn",
+          "line": 360,
           "name": "list_meta_prefix"
         },
         {
           "kind": "mod",
-          "line": 370,
+          "line": 414,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 419,
+          "name": "memory_backend_last_returns_descending_order_bounded_by_limit"
+        },
+        {
+          "kind": "fn",
+          "line": 456,
+          "name": "fs_backend_default_last_impl_agrees_with_memory_backend"
+        },
+        {
+          "kind": "fn",
+          "line": 485,
           "name": "prefix_walk_root_uses_only_complete_path_segments"
         },
         {
           "kind": "fn",
-          "line": 394,
+          "line": 504,
           "name": "prefix_walk_root_rejects_hostile_or_ambiguous_prefixes"
         }
       ],
@@ -32669,38 +33874,38 @@
       "title": "mod backend;"
     },
     {
-      "bytes": 8221,
+      "bytes": 11641,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
-        "self",
         "object",
+        "self",
         "backend",
-        "head",
-        "objectid",
-        "result",
-        "store",
-        "storeerror",
         "idx",
-        "as_str",
+        "objectid",
+        "store",
+        "result",
         "format",
-        "ids_under",
-        "link",
-        "target",
-        "err",
+        "as_str",
         "vec",
-        "payload",
+        "objects",
+        "ids_under",
+        "put_meta",
+        "link",
+        "ids",
+        "new",
+        "head",
         "object_type",
-        "return",
-        "subject",
-        "badhead",
-        "objecttype",
-        "slot",
-        "bytes"
+        "target",
+        "timestamp_ms",
+        "key-ordered",
+        "type_key",
+        "storeerror",
+        "index"
       ],
-      "lines": 226,
+      "lines": 294,
       "path": "crates/mini-store/src/store.rs",
-      "sha256": "4361d73917c21d1b82c0f534939accb4792d257c56a92a3562e11e4c1bd2ad8b",
+      "sha256": "66e8c22770213141aa55754e87ac129b221c0791b64af75473ee365c3ce234e7",
       "symbols": [
         {
           "kind": "const",
@@ -32734,72 +33939,92 @@
         },
         {
           "kind": "fn",
-          "line": 57,
+          "line": 61,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 75,
           "name": "contains"
         },
         {
           "kind": "fn",
-          "line": 76,
+          "line": 80,
           "name": "all_ids"
         },
         {
           "kind": "fn",
-          "line": 81,
+          "line": 85,
           "name": "by_author"
         },
         {
           "kind": "fn",
-          "line": 86,
+          "line": 90,
           "name": "by_type"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 95,
           "name": "linking_to"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 115,
+          "name": "since"
+        },
+        {
+          "kind": "fn",
+          "line": 134,
+          "name": "recent"
+        },
+        {
+          "kind": "fn",
+          "line": 143,
           "name": "ids_under"
         },
         {
           "kind": "fn",
-          "line": 112,
+          "line": 160,
           "name": "apply_head"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 198,
           "name": "resolve_head"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 211,
           "name": "missing_links"
         },
         {
           "kind": "fn",
-          "line": 176,
+          "line": 224,
           "name": "want_list"
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 248,
+          "name": "time_key"
+        },
+        {
+          "kind": "fn",
+          "line": 255,
+          "name": "parse_time_index_key"
+        },
+        {
+          "kind": "fn",
+          "line": 263,
           "name": "type_key"
         },
         {
           "kind": "fn",
-          "line": 210,
+          "line": 278,
           "name": "encode_slot"
         },
         {
           "kind": "fn",
-          "line": 217,
+          "line": 285,
           "name": "decode_slot"
         }
       ],
@@ -32913,7 +34138,7 @@
       "title": "use did_mini::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, Capabilities, Controller, Did};"
     },
     {
-      "bytes": 13719,
+      "bytes": 16526,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
@@ -32923,28 +34148,28 @@
         "root",
         "device",
         "assert_eq",
-        "new",
         "human",
+        "new",
         "post",
         "head",
-        "profile",
         "payload",
-        "target",
-        "apply_head",
+        "profile",
         "controller",
-        "root2",
         "objecttype",
-        "memorybackend",
+        "target",
+        "root2",
+        "apply_head",
         "objectbuilder",
+        "seq",
         "headstate",
-        "storeerror",
+        "memorybackend",
         "seed",
-        "clone",
-        "device2"
+        "public",
+        "to_vec"
       ],
-      "lines": 381,
+      "lines": 467,
       "path": "crates/mini-store/tests/store.rs",
-      "sha256": "7afbda2d0cdee199d3f83920b1e14049d9203331da7f3c657cb5c69c3812819d",
+      "sha256": "a5e68a6b72d1ad6f48b5993725a1003101c530380ccab6e7678dea00d7eb3cea",
       "symbols": [
         {
           "kind": "fn",
@@ -32963,53 +34188,73 @@
         },
         {
           "kind": "fn",
-          "line": 37,
+          "line": 36,
+          "name": "post_at"
+        },
+        {
+          "kind": "fn",
+          "line": 46,
           "name": "insert_get_and_indexes"
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 80,
           "name": "heads_converge_regardless_of_arrival_order"
         },
         {
           "kind": "fn",
-          "line": 102,
+          "line": 111,
           "name": "head_slots_are_per_author_and_shape_checked"
         },
         {
           "kind": "fn",
-          "line": 131,
+          "line": 140,
           "name": "missing_links_and_want_list_drive_sync"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 163,
           "name": "fs_backend_persists_across_reopen"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 189,
           "name": "fs_backend_prefix_queries_support_exact_and_partial_segments"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 224,
           "name": "fs_backend_direct_reads_reject_non_file_entries"
         },
         {
           "kind": "fn",
-          "line": 243,
+          "line": 252,
           "name": "fs_backend_refuses_symlinks_in_a_metadata_query_subtree"
         },
         {
           "kind": "fn",
-          "line": 282,
+          "line": 291,
           "name": "fs_backend_direct_reads_reject_symlinks"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 352,
           "name": "fs_backend_narrow_query_ignores_unrelated_symlinks_and_rejects_special_files"
+        },
+        {
+          "kind": "fn",
+          "line": 392,
+          "name": "since_returns_objects_at_or_after_the_cursor_oldest_first"
+        },
+        {
+          "kind": "fn",
+          "line": 417,
+          "name": "recent_returns_the_newest_objects_first_bounded_by_limit"
+        },
+        {
+          "kind": "fn",
+          "line": 439,
+          "name": "since_and_recent_agree_across_backends_and_survive_a_reopen"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Did};"
@@ -39294,7 +40539,7 @@
       "title": "{"
     },
     {
-      "bytes": 477782,
+      "bytes": 545320,
       "group": "docs",
       "headings": [
         {
@@ -39703,30 +40948,30 @@
         "founder",
         "real",
         "review",
+        "audit",
         "track",
         "log",
+        "batch",
         "closes",
         "decision",
-        "batch",
+        "phase",
+        "first",
+        "issue",
         "release",
         "roadmap",
         "mini-consensus",
-        "issue",
         "status",
         "new",
         "research",
         "lane",
+        "invariant",
         "d-0045",
         "entry",
-        "core",
-        "chain",
-        "first",
-        "audit",
-        "explicit"
+        "core"
       ],
-      "lines": 7970,
+      "lines": 9068,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "1032cbdd17aa3a726c12966e3154ef93783784ee7b9689916cdb37aeedaebe9e",
+      "sha256": "21fe5afb25d456c6115f5eb5930c2f1c7947266c19e28cf30786c6d52db0f0e8",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -40666,7 +41911,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 59553,
+      "bytes": 65371,
       "group": "docs",
       "headings": [
         {
@@ -40696,52 +41941,52 @@
         },
         {
           "level": 2,
-          "line": 219,
+          "line": 267,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 285,
+          "line": 333,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 332,
+          "line": 380,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 517,
+          "line": 565,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 558,
+          "line": 606,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 616,
+          "line": 664,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 645,
+          "line": 693,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 849,
+          "line": 926,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 920,
+          "line": 1001,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 926,
+          "line": 1007,
           "text": "Where to look for more detail"
         }
       ],
@@ -40771,9 +42016,9 @@
         "claude",
         "social"
       ],
-      "lines": 936,
+      "lines": 1022,
       "path": "docs/STATUS.md",
-      "sha256": "c208d5b22d4300a0b7f0a07510f3c2c65f2f47472afba131e836b513eab7f822",
+      "sha256": "ce9f88ebd651b04f1b9dac9f8431a71b3c920082b1a0cfeaa3a459a772295f0b",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -42575,7 +43820,7 @@
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
     },
     {
-      "bytes": 6529,
+      "bytes": 10417,
       "group": "docs",
       "headings": [
         {
@@ -42585,64 +43830,64 @@
         },
         {
           "level": 2,
-          "line": 15,
+          "line": 21,
           "text": "The gap this closes"
         },
         {
           "level": 2,
-          "line": 26,
+          "line": 32,
           "text": "Decision"
         },
         {
           "level": 2,
-          "line": 52,
+          "line": 58,
           "text": "Why design-only, this PR"
         },
         {
           "level": 2,
-          "line": 65,
+          "line": 71,
           "text": "Phased plan this repo commits to (see report \u00a729 for full detail)"
         },
         {
           "level": 2,
-          "line": 93,
+          "line": 138,
           "text": "Hard rules carried forward from the report"
         },
         {
           "level": 2,
-          "line": 114,
-          "text": "What this PR does not do"
+          "line": 159,
+          "text": "What this document originally covered, and what D-0321/D-0326 added"
         }
       ],
       "keywords": [
         "witness",
-        "report",
-        "gossip",
+        "phase",
         "receipts",
-        "receipt",
-        "kel",
+        "gossip",
+        "report",
         "what",
-        "identity",
+        "verification",
+        "kel",
+        "receipt",
         "state",
+        "identity",
+        "event",
         "design",
         "duplicity",
         "audit",
-        "design-only",
         "repo",
         "full",
-        "research",
+        "real",
         "verifier",
-        "verification",
-        "recovery",
+        "conflicting",
         "invariant",
         "gap",
-        "decision",
-        "phased",
-        "plan"
+        "design-only",
+        "phased"
       ],
-      "lines": 121,
+      "lines": 175,
       "path": "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
-      "sha256": "fd79f0d291361fd10d52a7364f9cdcdefba2e9ae95b6602c69e52d8ecba82890",
+      "sha256": "1201696a806aef5bc9bde0f1eb809c46f583ca9d9cb008a81c3a1f41049c6919",
       "symbols": [],
       "title": "KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)"
     },
@@ -43037,76 +44282,76 @@
       "title": "Networked BFT consensus \u2014 `mini-consensus` (D-0200 through D-0205)"
     },
     {
-      "bytes": 5997,
+      "bytes": 6561,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Post-quantum identity signature migration (issue #15, D-0095)"
+          "text": "Post-quantum identity signature migration (issue #15, D-0095/D-0322)"
         },
         {
           "level": 2,
-          "line": 14,
+          "line": 15,
           "text": "Decision"
         },
         {
           "level": 2,
-          "line": 27,
+          "line": 28,
           "text": "What's implemented"
         },
         {
           "level": 2,
-          "line": 57,
+          "line": 61,
           "text": "Honest limit found during implementation"
         },
         {
           "level": 2,
-          "line": 70,
+          "line": 74,
           "text": "What's deferred"
         },
         {
           "level": 2,
-          "line": 92,
+          "line": 102,
           "text": "Hard rule: no production migration before external review"
         },
         {
           "level": 2,
-          "line": 103,
+          "line": 113,
           "text": "What this does not provide"
         }
       ],
       "keywords": [
         "signature",
-        "migration",
-        "key",
         "phase",
+        "key",
+        "migration",
+        "ml-dsa-65",
         "real",
         "what",
-        "report",
-        "research",
-        "ml-dsa-65",
         "fips204",
-        "change",
+        "research",
         "identity",
-        "production",
-        "generation",
-        "recovery",
-        "signaturesuite",
+        "does",
+        "mini-crypto",
+        "report",
         "keys",
+        "ed25519",
+        "mldsa65",
         "bytes",
-        "own",
+        "d-0322",
         "decision",
-        "implemented",
         "honest",
         "deferred",
-        "rule"
+        "generation",
+        "kel",
+        "signaturesuite"
       ],
-      "lines": 111,
+      "lines": 121,
       "path": "docs/design/post-quantum-identity-migration.md",
-      "sha256": "bb3a20120bdcb5ddf0b62b433d2f1c4de324f5b42f1f4662f61b0c30c2d7573b",
+      "sha256": "17a82460304b9ba43845d6a4826309f12d0dc72bce31d18cbeca553d55b7457c",
       "symbols": [],
-      "title": "Post-quantum identity signature migration (issue #15, D-0095)"
+      "title": "Post-quantum identity signature migration (issue #15, D-0095/D-0322)"
     },
     {
       "bytes": 6883,
@@ -43238,7 +44483,7 @@
       "title": "Private lookup and the public-DHT boundary (MN-208, D-0310)"
     },
     {
-      "bytes": 31718,
+      "bytes": 33098,
       "group": "docs",
       "headings": [
         {
@@ -43288,12 +44533,12 @@
         },
         {
           "level": 2,
-          "line": 527,
+          "line": 548,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 536,
+          "line": 557,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -43323,9 +44568,9 @@
         "git",
         "adapted"
       ],
-      "lines": 554,
+      "lines": 575,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "f865fa05373fc1628ad21b83737bf4f5fd7db292dd0966a39a3616fabbc4b3ad",
+      "sha256": "32d124f82a4dd2668005df8da46c807775911d00531f80e90dff247855e0973f",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
@@ -52540,38 +53785,38 @@
       "title": "version: 1"
     },
     {
-      "bytes": 3552,
+      "bytes": 14095,
       "group": "root",
       "headings": [],
       "keywords": [
+        "issue",
+        "closed",
         "status",
         "claude",
+        "branch",
         "governance",
         "work-claims",
         "json",
-        "issue",
         "contributor",
-        "branch",
         "pull_request",
         "lease_expires",
         "paths",
         "decision_log",
         "decision_ids",
         "notes",
+        "merged",
+        "set",
+        "mini-crypto",
         "schema",
         "codex",
         "tools",
-        "in_review",
-        "unix",
-        "closed",
-        "agent",
-        "coordination",
         "cargo",
-        "mini-crawler"
+        "unix",
+        "precedent"
       ],
-      "lines": 102,
+      "lines": 281,
       "path": "governance/work-claims.json",
-      "sha256": "98885dcebec3bb475b0acc2527f00fb64b21bdf4d3ae5c7286f93e86d28ecdb5",
+      "sha256": "36d0d277ef45fb157c1970422b59347e8e02c38b1eccce72693f71fe5e754494",
       "symbols": [],
       "title": "{"
     },
@@ -53365,6 +54610,7 @@
     "LICENSE",
     "README.md",
     "SECURITY.md",
+    "WHITEPAPER.md",
     "deny.toml",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
