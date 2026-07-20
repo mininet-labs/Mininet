@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 46,
-    "files": 576,
-    "headings": 2009,
+    "files": 577,
+    "headings": 2023,
     "rust_symbols": 4479
   },
   "crates": {
@@ -1231,7 +1231,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 13321,
+      "bytes": 13658,
       "group": "root",
       "headings": [
         {
@@ -1241,27 +1241,27 @@
         },
         {
           "level": 2,
-          "line": 18,
+          "line": 23,
           "text": "What no one can change"
         },
         {
           "level": 2,
-          "line": 40,
+          "line": 45,
           "text": "What exists today \u2014 honestly"
         },
         {
           "level": 2,
-          "line": 170,
+          "line": 175,
           "text": "Start here"
         },
         {
           "level": 2,
-          "line": 187,
+          "line": 193,
           "text": "The canonical documents"
         },
         {
           "level": 2,
-          "line": 226,
+          "line": 232,
           "text": "License"
         }
       ],
@@ -1269,31 +1269,31 @@
         "real",
         "one",
         "never",
+        "what",
         "network",
         "money",
-        "what",
+        "today",
         "verified",
+        "repository",
         "design",
         "signed",
         "consensus",
-        "today",
+        "exists",
+        "here",
         "owned",
         "identity",
         "vote",
         "path",
         "switch",
         "github",
-        "repository",
         "invariants",
         "nothing",
         "yet",
-        "update",
-        "release",
-        "independent"
+        "update"
       ],
-      "lines": 230,
+      "lines": 236,
       "path": "README.md",
-      "sha256": "d76d3ccaf713eda4c4929dab9c0d745db842684d732e214c68efb56e0ce2c90a",
+      "sha256": "5ab3623271a6423684966dae31fed6d11ba5783dc40d18872c7b50103b80a204",
       "symbols": [],
       "title": "Mininet"
     },
@@ -1358,6 +1358,113 @@
       "sha256": "7e723613421fd2c6747e937be0cbf026b6e15817eef451992612c03de2d95c7d",
       "symbols": [],
       "title": "Security Policy"
+    },
+    {
+      "bytes": 20536,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "The Mininet Whitepaper"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "What this document is, and is not"
+        },
+        {
+          "level": 2,
+          "line": 38,
+          "text": "Abstract"
+        },
+        {
+          "level": 2,
+          "line": 61,
+          "text": "1. The problem"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "2. What Mininet guarantees, structurally"
+        },
+        {
+          "level": 2,
+          "line": 119,
+          "text": "3. Identity: the phone (or device) as sovereign root"
+        },
+        {
+          "level": 2,
+          "line": 138,
+          "text": "4. Money: signed promises, not custodial balances"
+        },
+        {
+          "level": 2,
+          "line": 168,
+          "text": "5. Privacy is a purchasable resource, never a purchasable right"
+        },
+        {
+          "level": 2,
+          "line": 190,
+          "text": "6. Storage, presence, and personhood"
+        },
+        {
+          "level": 2,
+          "line": 210,
+          "text": "7. What is honestly not solved yet"
+        },
+        {
+          "level": 2,
+          "line": 239,
+          "text": "8. Where the design is heading: a public information commons"
+        },
+        {
+          "level": 2,
+          "line": 295,
+          "text": "9. Design directions under active discussion (not yet decided)"
+        },
+        {
+          "level": 2,
+          "line": 343,
+          "text": "10. Governance"
+        },
+        {
+          "level": 2,
+          "line": 355,
+          "text": "11. How to participate"
+        }
+      ],
+      "keywords": [
+        "what",
+        "whitepaper",
+        "one",
+        "document",
+        "problem",
+        "identity",
+        "money",
+        "never",
+        "repository",
+        "yet",
+        "design",
+        "public",
+        "governance",
+        "today",
+        "invariants",
+        "ever",
+        "system",
+        "guarantees",
+        "storage",
+        "commons",
+        "how",
+        "company",
+        "project",
+        "who"
+      ],
+      "lines": 376,
+      "path": "WHITEPAPER.md",
+      "sha256": "e3612488db0eb515363777b96aabf364717834946379b9670907005a4bdda71c",
+      "symbols": [],
+      "title": "The Mininet Whitepaper"
     },
     {
       "bytes": 986,
@@ -39801,7 +39908,7 @@
       "title": "{"
     },
     {
-      "bytes": 499320,
+      "bytes": 507315,
       "group": "docs",
       "headings": [
         {
@@ -40221,6 +40328,7 @@
         "mini-consensus",
         "phase",
         "status",
+        "first",
         "audit",
         "new",
         "research",
@@ -40228,12 +40336,11 @@
         "d-0045",
         "entry",
         "core",
-        "chain",
-        "first"
+        "chain"
       ],
-      "lines": 8313,
+      "lines": 8444,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "f0219b27cdb8feb0ab8c0c7fabeff96fee45646931729e9a37c73645ae999963",
+      "sha256": "736f3e314e25bfbddae48365c4db472744bb48f3ba3badc67fe190c62a5fcfaf",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -41173,7 +41280,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 60576,
+      "bytes": 60935,
       "group": "docs",
       "headings": [
         {
@@ -41278,9 +41385,9 @@
         "claude",
         "social"
       ],
-      "lines": 951,
+      "lines": 956,
       "path": "docs/STATUS.md",
-      "sha256": "ccb72a4d22a0b7a8b8d85680c3825c0ef5de46a7be41280cbd54b27af277dfdd",
+      "sha256": "3b68ec874b2150bb02797674766b6fee1e55bd42c5fa717f21490e31099e824b",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -53872,6 +53979,7 @@
     "LICENSE",
     "README.md",
     "SECURITY.md",
+    "WHITEPAPER.md",
     "deny.toml",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
