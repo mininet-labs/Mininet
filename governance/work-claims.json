@@ -217,7 +217,7 @@
       "status": "in_review",
       "contributor": "Claude",
       "branch": "claude/kel-assurance-phase3",
-      "pull_request": null,
+      "pull_request": 191,
       "lease_expires": "2026-07-27",
       "paths": [
         "crates/did-mini/src/assurance.rs",
