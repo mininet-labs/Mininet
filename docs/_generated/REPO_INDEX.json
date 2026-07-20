@@ -3,7 +3,7 @@
     "crates": 46,
     "files": 580,
     "headings": 2023,
-    "rust_symbols": 4575
+    "rust_symbols": 4583
   },
   "crates": {
     "did-mini": {
@@ -18225,7 +18225,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 28801,
+      "bytes": 28819,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -18256,7 +18256,7 @@
       ],
       "lines": 790,
       "path": "crates/mini-forge/src/lib.rs",
-      "sha256": "45ddc61422f15f5f6a0ce632cde6edac2d3e1e8853a78fb975950cf214ba84d8",
+      "sha256": "79ac823674fdffbfe5caef03a4211e795c7b24e33098320e56888b378fa2d673",
       "symbols": [
         {
           "kind": "mod",
@@ -18502,7 +18502,7 @@
       "title": "mod git_export;"
     },
     {
-      "bytes": 4200,
+      "bytes": 9532,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -18513,14 +18513,14 @@
         "scid",
         "oracle",
         "verified",
+        "obj",
         "new",
         "len",
-        "obj",
+        "identity",
         "identityoracle",
         "keldirectory",
         "insert",
         "directory",
-        "identity",
         "object",
         "author",
         "one",
@@ -18529,11 +18529,11 @@
         "old",
         "try_insert_verified",
         "is_empty",
-        "root"
+        "provenance"
       ],
-      "lines": 110,
+      "lines": 237,
       "path": "crates/mini-forge/src/oracle.rs",
-      "sha256": "c9f06fbdeab29730d3b4ee641df77d1a644b01654d70da03e3992a3b2d752a1a",
+      "sha256": "26a5403b5f0dbd48ce1437e1d1d546f9eb27d94c58e877efd825e58a0d2a3df3",
       "symbols": [
         {
           "kind": "trait",
@@ -18589,6 +18589,46 @@
           "kind": "fn",
           "line": 92,
           "name": "kel"
+        },
+        {
+          "kind": "fn",
+          "line": 136,
+          "name": "author_assurance"
+        },
+        {
+          "kind": "mod",
+          "line": 153,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "human"
+        },
+        {
+          "kind": "fn",
+          "line": 172,
+          "name": "an_object"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "a_verified_first_contact_author_is_direct"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "a_second_check_of_the_same_root_is_pinned"
+        },
+        {
+          "kind": "fn",
+          "line": 212,
+          "name": "an_unknown_author_is_rejected_without_computing_assurance"
+        },
+        {
+          "kind": "fn",
+          "line": 225,
+          "name": "known_duplicity_overrides_a_verified_author"
         }
       ],
       "title": "use std::collections::BTreeMap;"
@@ -40499,7 +40539,7 @@
       "title": "{"
     },
     {
-      "bytes": 540423,
+      "bytes": 545320,
       "group": "docs",
       "headings": [
         {
@@ -40908,10 +40948,10 @@
         "founder",
         "real",
         "review",
+        "audit",
         "track",
         "log",
         "batch",
-        "audit",
         "closes",
         "decision",
         "phase",
@@ -40924,14 +40964,14 @@
         "new",
         "research",
         "lane",
+        "invariant",
         "d-0045",
         "entry",
-        "core",
-        "chain"
+        "core"
       ],
-      "lines": 8985,
+      "lines": 9068,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "db5f360839252b926f808654854660713566e8e32f0c868abcd2d362c6f47406",
+      "sha256": "21fe5afb25d456c6115f5eb5930c2f1c7947266c19e28cf30786c6d52db0f0e8",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -41871,7 +41911,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 64778,
+      "bytes": 65371,
       "group": "docs",
       "headings": [
         {
@@ -41901,52 +41941,52 @@
         },
         {
           "level": 2,
-          "line": 258,
+          "line": 267,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 324,
+          "line": 333,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 371,
+          "line": 380,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 556,
+          "line": 565,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 597,
+          "line": 606,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 655,
+          "line": 664,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 684,
+          "line": 693,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 917,
+          "line": 926,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 992,
+          "line": 1001,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 998,
+          "line": 1007,
           "text": "Where to look for more detail"
         }
       ],
@@ -41976,9 +42016,9 @@
         "claude",
         "social"
       ],
-      "lines": 1013,
+      "lines": 1022,
       "path": "docs/STATUS.md",
-      "sha256": "3deb17e42a986a51401d60931ec4ac719701f68cf883762d0fd28f6bbe590bb1",
+      "sha256": "ce9f88ebd651b04f1b9dac9f8431a71b3c920082b1a0cfeaa3a459a772295f0b",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -43780,7 +43820,7 @@
       "title": "Long-term inflation and whale-attack resistance \u2014 founder decision (D-0074)"
     },
     {
-      "bytes": 9697,
+      "bytes": 10417,
       "group": "docs",
       "headings": [
         {
@@ -43790,32 +43830,32 @@
         },
         {
           "level": 2,
-          "line": 19,
+          "line": 21,
           "text": "The gap this closes"
         },
         {
           "level": 2,
-          "line": 30,
+          "line": 32,
           "text": "Decision"
         },
         {
           "level": 2,
-          "line": 56,
+          "line": 58,
           "text": "Why design-only, this PR"
         },
         {
           "level": 2,
-          "line": 69,
+          "line": 71,
           "text": "Phased plan this repo commits to (see report \u00a729 for full detail)"
         },
         {
           "level": 2,
-          "line": 128,
+          "line": 138,
           "text": "Hard rules carried forward from the report"
         },
         {
           "level": 2,
-          "line": 149,
+          "line": 159,
           "text": "What this document originally covered, and what D-0321/D-0326 added"
         }
       ],
@@ -43837,17 +43877,17 @@
         "audit",
         "repo",
         "full",
-        "first",
-        "shipped",
+        "real",
         "verifier",
         "conflicting",
-        "never",
-        "did-mini",
-        "invariant"
+        "invariant",
+        "gap",
+        "design-only",
+        "phased"
       ],
-      "lines": 165,
+      "lines": 175,
       "path": "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
-      "sha256": "f89fc6649269cba755f15118b1bb92f6e477bf6d0e9784ffe308f796da3829ed",
+      "sha256": "1201696a806aef5bc9bde0f1eb809c46f583ca9d9cb008a81c3a1f41049c6919",
       "symbols": [],
       "title": "KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)"
     },
@@ -53745,7 +53785,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 12850,
+      "bytes": 14095,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -53774,9 +53814,9 @@
         "unix",
         "precedent"
       ],
-      "lines": 261,
+      "lines": 281,
       "path": "governance/work-claims.json",
-      "sha256": "04cc3904f986c2f87af9aa28e1b3193f36fc12efb412c9c7ef2f09c562ba3211",
+      "sha256": "36d0d277ef45fb157c1970422b59347e8e02c38b1eccce72693f71fe5e754494",
       "symbols": [],
       "title": "{"
     },

@@ -222,12 +222,21 @@ given time.
   `ControllerDuplicityProof`/`WitnessEquivocationProof` and answers
   `has_known_duplicity(identity, policy)` — a real place to accumulate
   proofs instead of hand-computing `known_duplicity` every call;
-  `assess_kel_assurance`'s own signature is unchanged; 4 tests. **Not
-  yet real:** no bounded/incremental re-verify (`observe_verified`
-  re-verifies the whole chain from inception on every call, not just the
-  new suffix), no fork-proof construction for the harder "conflicting
-  descendant" case, no recovery-aware handling (every rotation is
-  treated identically), `WitnessPolicy` is still not carried by real
+  `assess_kel_assurance`'s own signature is unchanged; 4 tests.
+  **`mini-forge` bridge shipped (D-0332):** `mini_forge::
+  author_assurance` composes the oracle's existing provenance re-check
+  (`author_verified`) with `assess_kel_assurance` over the author-root's
+  KEL — the first consumer of `KelAssurance` outside `did-mini` itself;
+  4 tests. Deliberately **not** wired into `propose`/`approve`/`merge`/
+  `resolve_project`'s actual quorum gating, which remains purely
+  `author_verified`'s boolean — which governance action (if any) should
+  require which minimum assurance level is a founder-facing policy
+  call, not decided unilaterally here. **Not yet real:** no
+  bounded/incremental re-verify (`observe_verified` re-verifies the
+  whole chain from inception on every call, not just the new suffix),
+  no fork-proof construction for the harder "conflicting descendant"
+  case, no recovery-aware handling (every rotation is treated
+  identically), `WitnessPolicy` is still not carried by real
   `Establishment` events (a certificate still cannot be checked against
   a live `Kel` end-to-end — the caller supplies the policy directly), no
   persistence for `DuplicityRegistry` (in-memory only), no
