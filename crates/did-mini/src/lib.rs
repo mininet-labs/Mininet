@@ -58,6 +58,7 @@ mod identity_mode;
 mod kel;
 mod limits;
 mod witness;
+mod witness_state;
 
 use mini_crypto::{encoding, Multihash};
 
@@ -72,6 +73,10 @@ pub use kel::{verify_delegation, Kel, KeyState};
 pub use witness::{
     sign_witness_receipt, KeyEventKind, WitnessCertificateVersion, WitnessId, WitnessPolicy,
     WitnessReceipt, WitnessReceiptStatement, WitnessReceiptVersion, WitnessedEventCertificate,
+};
+pub use witness_state::{
+    ControllerDuplicityProof, WitnessEquivocationProof, WitnessIdentityState, WitnessJournal,
+    WitnessObservation,
 };
 
 /// The `did:mini` method prefix.

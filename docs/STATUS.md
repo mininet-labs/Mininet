@@ -197,13 +197,24 @@ given time.
   carrying duplicity gossip. **Phase 1 shipped (D-0321):**
   `did_mini::witness` — `WitnessPolicy`, `WitnessReceiptStatement`,
   `WitnessReceipt`, `WitnessedEventCertificate`, canonical encoding,
-  signature/threshold verification, real tested code (24 tests). **Not
-  yet real:** no in-memory witness state machine (nothing issues a
-  receipt for a real observed event), no duplicity proofs (Phase 2), no
-  `KelAssurance`/KEL-verification integration (Phase 3 — a certificate
-  cannot yet be checked against a live `Kel`), no gossip. Each remaining
-  phase is its own later PR, gated behind external review (D-0047)
-  before any high-value authority decision may depend on this layer.
+  signature/threshold verification, real tested code (24 tests). **Phase
+  2 shipped (D-0326):** `did_mini::witness_state` — `WitnessJournal`, a
+  real in-memory state machine that actually issues receipts for
+  observed events (first-seen acceptance, direct-successor verification,
+  duplicate idempotence, stale rejection), plus `ControllerDuplicityProof`
+  (built from two real controller-signed `Event`s) and
+  `WitnessEquivocationProof` (a standalone assemble/verify pair for a
+  third party holding two disagreeing receipts from one witness); 15
+  tests. **Not yet real:** no KEL-chain verification in front of
+  `observe` (`event`'s own signature/pre-rotation/recovery validity is
+  trusted from the caller, not checked), no fork-proof construction for
+  the harder "conflicting descendant" case, no `KelAssurance`/KEL-
+  verification integration (Phase 3 — a certificate still cannot be
+  checked against a live `Kel`, and `WitnessPolicy` is still not carried
+  by real `Establishment` events), no gossip, no persistence. Each
+  remaining phase is its own later PR, gated behind external review
+  (D-0047) before any high-value authority decision may depend on this
+  layer.
 - **partial** — post-quantum migration path ([#15](../../issues/15),
   D-0095/D-0322): `mini-crypto::SignatureSuite::MlDsa65` (FIPS 204, wire
   tag `0x02`) is real — `VerifyingKey`/`Signature` parse and verify

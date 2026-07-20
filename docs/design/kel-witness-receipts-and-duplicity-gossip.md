@@ -1,7 +1,8 @@
 # KEL witness receipts and duplicity gossip (audit #12 F4, invariant M3)
 
-**Status:** Phase 0 (design) and Phase 1 (receipt types, D-0321) shipped.
-Phase 2 (in-memory witness state machine) onward not started.
+**Status:** Phase 0 (design), Phase 1 (receipt types, D-0321), and Phase 2
+(in-memory witness state machine, D-0326) shipped. Phase 3 onward not
+started.
 
 **Full research:** `docs/research/
 KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md`
@@ -68,10 +69,17 @@ exactly what this PR is.
    `WitnessReceiptStatement`, `WitnessReceipt`,
    `WitnessedEventCertificate`; canonical encoding; signature
    verification; no network service. Lives in `did-mini::witness`.
-2. **In-memory witness state machine** — first-seen acceptance, direct-
-   successor verification, duplicate idempotence, stale rejection,
-   conflict detection, receipt issuance, `ControllerDuplicityProof`,
-   `WitnessEquivocationProof`.
+2. **In-memory witness state machine (shipped, D-0326)** — `WitnessJournal`
+   in `did-mini::witness_state`: first-seen acceptance, direct-successor
+   verification, duplicate idempotence (returns the previously issued
+   receipt, never re-signs), stale rejection, same-sequence conflict
+   detection (`ControllerDuplicityProof`, built from real controller-
+   signed `Event`s), and a standalone `WitnessEquivocationProof::assemble`
+   for a third party holding two disagreeing receipts from one witness.
+   Trusts the caller that `event` is already chain-valid at its claimed
+   position — no signature/pre-rotation/recovery verification, no
+   fork-proof construction for the harder "conflicting descendant" case,
+   no persistence, no network. Lives in `did-mini::witness_state`.
 3. **KEL verification integration** — `KelAssurance` output alongside
    ordinary KEL validity, never replacing it with one boolean.
 4. **Receipt collection protocol** — typed request/response messages
@@ -111,15 +119,19 @@ exactly what this PR is.
   14 and CLAUDE.md's no-new-cryptography rule, composing `did-mini`'s
   existing typed-signature machinery is sufficient for Phase 1-3.
 
-## What this document originally covered, and what D-0321 added
+## What this document originally covered, and what D-0321/D-0326 added
 
 This document was originally Phase 0 only: no new type, `FreshnessPins`
 (D-0088) unmodified, no witness state machine, no receipt format, no
-gossip protocol. D-0321 (Phase 1) has since shipped
-`did-mini::witness`'s four receipt/certificate types, canonical
-encoding, and signature/threshold verification — see that decision-log
-entry for exactly what it does and does not cover. No witness state
-machine, no receipt format wired into real establishment events, and no
-gossip protocol exist yet — those are Phases 2-5, each its own PR, each
-scoped no larger than this session's established discipline for
-founder-research-driven work.
+gossip protocol. D-0321 (Phase 1) shipped `did-mini::witness`'s four
+receipt/certificate types, canonical encoding, and signature/threshold
+verification — see that decision-log entry for exactly what it does and
+does not cover. D-0326 (Phase 2) shipped `did-mini::witness_state`'s
+`WitnessJournal` in-memory state machine plus `ControllerDuplicityProof`/
+`WitnessEquivocationProof` — see that entry for exactly what it does and
+does not cover. No receipt format wired into real establishment events
+(`event.rs`'s `Establishment.witnesses: Vec<Vec<u8>>` field remains its
+own pre-existing, differently-shaped placeholder, still unused), no
+`KelAssurance`/KEL-verification integration, and no gossip protocol exist
+yet — those are Phases 3-5, each its own PR, each scoped no larger than
+this session's established discipline for founder-research-driven work.

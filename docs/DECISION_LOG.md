@@ -8441,3 +8441,121 @@ it, citing this entry.
 **Supersedes / superseded by:** none. First whitepaper ever committed to
 this repository; does not supersede D-0090, which governs the
 *principle-set* question this document explicitly declines to reopen.
+### D-0326 — `did-mini::witness_state`: in-memory witness state machine + duplicity proofs, Phase 2 of KEL witness receipts (audit #12 F4, invariant M3)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0321 (Phase 1: receipt/certificate
+types); `docs/design/kel-witness-receipts-and-duplicity-gossip.md`;
+`docs/research/KEL_WITNESS_RECEIPTS_DUPLICITY_GOSSIP_RESEARCH_20260715.md`
+§9 (witness state machine), §11 (duplicity proof taxonomy); issue #12
+finding F4; invariant M3
+
+**Decision:** ship `did-mini::witness_state`, Phase 2 of the committed
+phased plan: `WitnessJournal`, an in-memory `HashMap<Did,
+WitnessIdentityState>` implementing the research report's §9.3 case
+analysis for `WitnessJournal::observe(event, policy, witness_id,
+witness_key, observed_epoch)` — first-seen acceptance (no prior state:
+accept, issue a receipt); valid direct successor (`sn` and `prior` match
+the accepted head: accept, update state, issue a fresh receipt); exact
+duplicate (matches the already-accepted event exactly: return the
+previously issued receipt verbatim, never re-sign); stale ancestor
+(older than accepted: no receipt, only the accepted sequence as a head
+hint); same-sequence conflict (a different controller-signed event at
+the accepted sequence: no receipt for either, accepted state left
+untouched, a real `ControllerDuplicityProof` returned instead); and the
+harder "conflicting descendant" case, rejected outright with
+`IdentityError::WitnessConflictingDescendant` rather than answered with
+a constructed fork proof. Also ships `ControllerDuplicityProof` (two
+real controller-signed `Event`s at the same identity+sequence with
+different digests, `assemble`d/encoded/decoded, structural-consistency
+checked only) and `WitnessEquivocationProof` (a standalone
+`assemble`/`verify` pair for a third party holding two receipts from one
+witness that disagree on event digest at the same identity+sequence+
+policy-generation — not produced by `observe` itself, since an honest
+witness's own state machine already refuses to double-sign a conflicting
+slot).
+
+**Reason:** Phase 1 (D-0321) defined what a witness receipt *is*; nothing
+yet defined what a witness *does* when it actually observes an event.
+The research report's own recommended sequencing (design/receipt-types/
+state-machine/gossip, never starting with a daemon before the state
+machine's cases are frozen) named exactly this as the next slice, and the
+design doc's own Phase 2 line already named its scope word-for-word:
+"first-seen acceptance, direct-successor verification, duplicate
+idempotence, stale rejection, conflict detection, receipt issuance,
+`ControllerDuplicityProof`, `WitnessEquivocationProof`." This PR ships
+precisely that set, no more.
+
+The one deliberate widening beyond the research report's minimal
+`WitnessIdentityState` sketch (which names only `accepted_sequence`/
+`accepted_event_digest`/`witness_policy_generation`) is retaining the
+full accepted `Event` and the issued `WitnessReceipt` alongside it. Two
+reasons: (1) "exact duplicate returns the existing receipt" is only
+literally true if the witness has the receipt to return — re-deriving
+and re-signing an equivalent statement would be a *different* receipt in
+general (different suite behavior, different serialized signature bytes
+even where the signed content is identical), which is not what "do not
+issue a semantically different receipt" (design doc, Phase 2's own line)
+means; and (2) building a genuinely independently-verifiable
+`ControllerDuplicityProof` requires the actual controller-signed event
+bytes, not this witness's own paraphrased receipt claims about them —
+using only `WitnessReceiptStatement`s (Phase 1's vocabulary) for the
+conflicting pair would produce a proof that only proves *this witness*
+saw a conflict, not that the *controller* actually signed two branches,
+undermining the research report's own security goal ("receipts and
+duplicity proofs must be independently verifiable from local bytes and
+public keys").
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+this is identity-layer plumbing. No typed-domain violation: `observe`
+takes a specific `&Event`/`WitnessPolicy`/`WitnessId`/`&SigningKey`
+tuple, never a generic `sign(bytes)`. No frozen invariant is weakened;
+M3's "never seen a fresher log" gap remains only partially closed —
+Phase 3 (`KelAssurance`) is still required before any high-value
+authority decision may depend on this layer, unchanged from D-0321's own
+statement of that gate.
+
+**Implementation status:** shipped in `crates/did-mini/src/
+witness_state.rs`, wired into `lib.rs`'s public exports
+(`WitnessJournal`, `WitnessIdentityState`, `WitnessObservation`,
+`ControllerDuplicityProof`, `WitnessEquivocationProof`). 15 new tests:
+first-seen acceptance, direct-successor acceptance and state update,
+duplicate idempotence (identical receipt returned across different
+`observed_epoch`s), stale rejection, same-sequence conflict producing a
+correct `ControllerDuplicityProof` while leaving accepted state
+untouched, conflicting-descendant rejection, out-of-policy witness
+rejection, `ControllerDuplicityProof` round-trip plus three rejection
+cases (different sequence, identical events, wrong identity),
+`WitnessEquivocationProof` round-trip/verify plus two rejection cases
+(same digest, different witness) and one verification-failure case
+(wrong key). `cargo fmt`/`cargo clippy --all-targets --all-features -D
+warnings`/`cargo test` all clean on `did-mini` (clippy's
+`large_enum_variant` lint caught `WitnessObservation::ControllerDuplicity`
+carrying two full `Event`s and was fixed by boxing it, not by
+suppressing the lint).
+
+**Failure point:** exactly what the design doc's own Phase 2 scope line
+names as not-yet-done: no KEL-chain verification in front of `observe`
+(`event`'s own signature/pre-rotation/recovery validity is trusted from
+the caller, not checked here — Phase 3's job); no `KelAssurance` output;
+`WitnessPolicy` is still not carried by real `Establishment` events
+(`event.rs`'s existing `witnesses: Vec<Vec<u8>>` field remains its own
+pre-existing, differently-shaped placeholder, unused); no fork-proof
+construction for the "conflicting descendant" case (research report
+§11.2, the harder half of §9.3); no receipt collection protocol, no
+gossip, no persistent witness service (in-memory `HashMap`, unbounded,
+no crash recovery, no retention policy), no witness rotation, no public
+transparency logs, no adversarial network simulation.
+
+**Required follow-up:** Phase 3 (`KelAssurance` output alongside ordinary
+KEL validity, wiring `WitnessPolicy` into real establishment events, and
+— now that Phase 2 exists — wiring real KEL-chain verification in front
+of `WitnessJournal::observe` so its "caller already verified this" trust
+assumption becomes an enforced precondition rather than a documented
+one) — not started, gated per the design doc's own hard rule: no
+high-value authority decision may depend on this layer before Phase 10's
+external cryptographic review.
+
+**Supersedes / superseded by:** none. New module, additive only —
+`did-mini::witness`'s Phase 1 types, `FreshnessPins`, `event.rs`'s
+existing `witnesses` field, and every other existing `did-mini` type/
+function are unchanged.
