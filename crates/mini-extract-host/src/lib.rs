@@ -126,12 +126,24 @@ pub fn run_worker(
     });
 
     let timeout = Duration::from_millis(u64::from(request.limits.max_wall_clock_ms));
-    let frame = match rx.recv_timeout(timeout) {
-        Ok(frame) => frame,
-        Err(_) => {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Ok(ExtractionOutcome::Err(ExtractionError::Timeout));
+    // A zero-millisecond budget can never be honestly satisfied -- any
+    // real child-process round trip takes non-zero wall-clock time --
+    // so treat it as an immediate, deterministic timeout rather than
+    // racing `recv_timeout(Duration::ZERO)` against the worker, which on
+    // a fast enough round trip can non-deterministically observe the
+    // result instead of the expired deadline.
+    let frame = if timeout.is_zero() {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Ok(ExtractionOutcome::Err(ExtractionError::Timeout));
+    } else {
+        match rx.recv_timeout(timeout) {
+            Ok(frame) => frame,
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Ok(ExtractionOutcome::Err(ExtractionError::Timeout));
+            }
         }
     };
     let _ = writer.join();

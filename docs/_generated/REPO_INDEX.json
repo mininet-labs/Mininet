@@ -16331,7 +16331,7 @@
       "title": "use mini_extract_protocol::{ExtractionError, ExtractorKind};"
     },
     {
-      "bytes": 6996,
+      "bytes": 7607,
       "group": "crate:mini-extract-host",
       "headings": [],
       "keywords": [
@@ -16360,9 +16360,9 @@
         "run_worker",
         "real"
       ],
-      "lines": 170,
+      "lines": 182,
       "path": "crates/mini-extract-host/src/lib.rs",
-      "sha256": "aaad1b91cc238a47e6e6584a53b732553fe284d99c27596f8308eebaaaafb4df",
+      "sha256": "739f1c88bc86c358db6b4a2a11672d1ddd97e37bf7c311c27ae4ad5c756a8942",
       "symbols": [
         {
           "kind": "mod",

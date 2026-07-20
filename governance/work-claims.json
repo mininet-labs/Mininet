@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-19T19:56:05Z",
+  "updated_at": "2026-07-20T07:35:00Z",
   "claims": [
     {
       "issue": 122,
@@ -65,7 +65,7 @@
     },
     {
       "issue": 169,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/mini-extract-protocol-host",
       "pull_request": 172,
@@ -77,11 +77,11 @@
         "docs/STATUS.md"
       ],
       "decision_ids": [],
-      "notes": "Track B3: extractor protocol (mini-extract-protocol) + isolated host (mini-extract-host), mirroring mini-pipeline-protocol/mini-build-runner-wasmtime's subprocess-isolation discipline. One simple plain-text-normalize extractor; PDF/HTML deferred to Track B4."
+      "notes": "Track B3: extractor protocol (mini-extract-protocol) + isolated host (mini-extract-host), mirroring mini-pipeline-protocol/mini-build-runner-wasmtime's subprocess-isolation discipline. One simple plain-text-normalize extractor; PDF/HTML deferred to Track B4. Closed here (issue #182 branch) since PR #172 merged 2026-07-19T20:06:58Z, the same precedent PR #174 set for #161."
     },
     {
       "issue": 173,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/reproducibility-scope",
       "pull_request": 174,
@@ -95,7 +95,7 @@
       "decision_ids": [
         "D-0320"
       ],
-      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z."
+      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z. Closed here (issue #182 branch) since PR #174 itself merged, the same precedent PR #174 set for #161 and PR #180 set for #173/#177."
     },
     {
       "issue": 175,
@@ -137,6 +137,23 @@
         "D-0321"
       ],
       "notes": "Phase 1 of KEL witness receipts (audit #12 F4, invariant M3): WitnessPolicy/WitnessReceiptStatement/WitnessReceipt/WitnessedEventCertificate types in did-mini. Canonical encoding + signature/threshold verification only, no witness state machine, no KEL-verification wiring, no network."
+    },
+    {
+      "issue": 182,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/mini-extract-host-zero-deadline-timeout",
+      "pull_request": null,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/mini-extract-host/src/lib.rs",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0324"
+      ],
+      "notes": "Fix an intermittent CI failure (most recently blocking PR #181's required check job): a_zero_millisecond_deadline_is_reported_as_timeout raced Duration::ZERO against the worker's real round trip via mpsc::Receiver::recv_timeout. Special-cased max_wall_clock_ms == 0 in run_worker to a deterministic immediate timeout. No behavior change for non-zero deadlines."
     }
   ]
 }
