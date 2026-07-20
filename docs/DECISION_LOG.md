@@ -8903,3 +8903,82 @@ D-0328/D-0329's own remaining item.
 **Supersedes / superseded by:** none. New module, additive only —
 `assess_kel_assurance`'s signature, `WitnessJournal`, and every other
 existing `did-mini` type/function are unchanged.
+
+### D-0331 — `mini-store`: genuinely bounded "most recent N" backend query (`Backend::list_meta_prefix_last`)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** D-0327 (`Store::since`/`Store::recent`,
+first slice of Batch 5's "local object indexing at scale");
+`docs/design/self-hosted-forge-spine.md` Batch 5
+
+**Decision:** add `Backend::list_meta_prefix_last(prefix, limit)` — the
+last `limit` metadata entries under `prefix`, descending key order.
+`MemoryBackend` overrides it with a genuinely bounded scan:
+`BTreeMap::range(prefix..prefix+"\u{7f}").rev().take(limit)`, real
+O(log n + limit) work, not a full-subtree read (`\u{7f}` sorts above
+every character this store's keys ever use — ASCII alphanumerics plus
+`-_./` — so it is an exact exclusive upper bound on `prefix`'s own
+range). The trait's default implementation, inherited unmodified by
+`FsBackend`, is `list_meta_prefix` (full subtree read) + reverse +
+truncate — exactly `Store::recent`'s own prior cost, now named as its
+own documented method rather than inlined. `Store::recent(limit)` calls
+this new method directly instead of `since(0)` (which itself calls
+`list_meta_prefix`) followed by a client-side reverse and truncate.
+
+**Reason:** D-0327's own `recent` implementation was honestly the
+simplest correct thing at the time, but wasteful even for a small
+`limit`: `since(0)` parses and allocates an `ObjectId` for *every* row
+under `idx/time/` before the caller's `limit` ever gets applied. Naming
+a real `Backend` method for "last N" lets `MemoryBackend` — used
+throughout this workspace's test suite and any in-process caller — stop
+paying that cost, and gives `FsBackend` a documented target to converge
+on when its own bounded implementation is built, without another public
+API change.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting —
+storage/query plumbing only. `Store::since`/`Store::recent`'s own
+public signatures and every other `Store`/`Backend` method are
+byte-for-byte unchanged; this only adds one new trait method (with a
+default implementation, so no existing `Backend` implementor outside
+this crate breaks) and refactors `Store::recent`'s internals to call it.
+
+**Implementation status:** shipped in `crates/mini-store/src/backend.rs`
+(`Backend::list_meta_prefix_last` + `MemoryBackend`'s override) and
+`crates/mini-store/src/store.rs` (`Store::recent` now calls it directly;
+a new `parse_time_index_key` helper deduplicates the key-parsing logic
+`since`/`recent` both need). 4 new tests: `MemoryBackend`'s override
+returns descending order bounded by `limit` (including `limit == 0` and
+a prefix with no matches); `FsBackend`'s inherited default
+implementation agrees with `MemoryBackend`'s bounded one on the same
+data. All pre-existing `mini-store` tests (13 integration + 2 unit)
+pass unmodified, confirming `Store::recent`'s observable behavior is
+unchanged. `cargo fmt`/`cargo clippy --all-targets --all-features -D
+warnings`/`cargo test` all clean on `mini-store` (4 lib tests, up from
+2) and on the full workspace (145 test binaries, 0 failures).
+
+**Failure point:** `FsBackend` still has no genuinely bounded
+implementation of `list_meta_prefix_last` — it inherits the trait's
+default (full subtree read), so `recent` on a filesystem-backed store
+costs exactly what it did before this PR. A real bounded reverse walk
+over a plain directory tree needs either a sorted, early-stopping
+traversal (nontrivial to build safely alongside `FsBackend`'s existing
+symlink/path-traversal defenses without risking a new vulnerability in
+that hardened code) or an on-disk sorted index this backend doesn't
+have — deliberately not attempted in this PR rather than risking a
+security regression in already-reviewed traversal code for an
+optimization only `MemoryBackend` needed today. `since`'s own forward
+scan remains exactly as unbounded as D-0327 already documented; this PR
+does not touch it.
+
+**Required follow-up:** a genuinely bounded `FsBackend::
+list_meta_prefix_last` (sorted early-stopping directory walk, built
+with the same care as the existing symlink-safety checks, or a real
+on-disk sorted index); the same treatment for `Store::since`'s forward
+scan (a `Bound`-based `list_meta_range` primitive) if a caller's
+workload ever needs it; the other three Batch 5 items D-0327 already
+named (distributed build workers, native release retrieval, GitHub
+import/export mirror automation) remain their own future PRs.
+
+**Supersedes / superseded by:** none. Purely additive to `Backend`'s
+existing trait (a new method with a default implementation);
+`Store::since`'s own behavior and every other `Store`/`Backend` method
+are unchanged.

@@ -115,13 +115,10 @@ impl<B: Backend> Store<B> {
     pub fn since(&self, cursor_ms: u64) -> Result<Vec<ObjectId>> {
         let mut out = Vec::new();
         for (key, _) in self.backend.list_meta_prefix("idx/time/")? {
-            let rest = &key["idx/time/".len()..];
-            let ts_str = rest.split('/').next().ok_or(StoreError::Corrupt)?;
-            let ts: u64 = ts_str.parse().map_err(|_| StoreError::Corrupt)?;
+            let (ts, id_str) = parse_time_index_key(&key)?;
             if ts < cursor_ms {
                 continue;
             }
-            let id_str = rest.get(ts_str.len() + 1..).ok_or(StoreError::Corrupt)?;
             out.push(ObjectId::parse(id_str)?);
         }
         Ok(out)
@@ -130,12 +127,17 @@ impl<B: Backend> Store<B> {
     /// The `limit` most-recently-timestamped objects, newest first — the
     /// query a forge/feed UI needs for "what's new" without fetching and
     /// sorting every object body itself. Same ordering-hint caveat as
-    /// [`Self::since`], which this is built from.
+    /// [`Self::since`]. Calls [`Backend::list_meta_prefix_last`] directly
+    /// rather than `since(0)` reversed and truncated client-side — a real
+    /// bounded scan on backends that implement it genuinely (see that
+    /// method's own docs for which do today).
     pub fn recent(&self, limit: usize) -> Result<Vec<ObjectId>> {
-        let mut all = self.since(0)?;
-        all.reverse();
-        all.truncate(limit);
-        Ok(all)
+        let mut out = Vec::new();
+        for (key, _) in self.backend.list_meta_prefix_last("idx/time/", limit)? {
+            let (_, id_str) = parse_time_index_key(&key)?;
+            out.push(ObjectId::parse(id_str)?);
+        }
+        Ok(out)
     }
 
     fn ids_under(&self, prefix: &str) -> Result<Vec<ObjectId>> {
@@ -245,6 +247,17 @@ impl<B: Backend> Store<B> {
 /// since index keys are `/`-separated ASCII, not raw bytes.
 fn time_key(timestamp_ms: u64) -> String {
     format!("{timestamp_ms:020}")
+}
+
+/// Split an `idx/time/<20-digit-timestamp>/<id>` row key back into its
+/// timestamp and id parts. Shared by [`Store::since`] and [`Store::recent`]
+/// so the parsing logic (and its corruption handling) exists once.
+fn parse_time_index_key(key: &str) -> Result<(u64, &str)> {
+    let rest = key.strip_prefix("idx/time/").ok_or(StoreError::Corrupt)?;
+    let ts_str = rest.split('/').next().ok_or(StoreError::Corrupt)?;
+    let ts: u64 = ts_str.parse().map_err(|_| StoreError::Corrupt)?;
+    let id_str = rest.get(ts_str.len() + 1..).ok_or(StoreError::Corrupt)?;
+    Ok((ts, id_str))
 }
 
 fn type_key(t: &ObjectType) -> String {

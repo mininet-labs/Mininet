@@ -25,6 +25,32 @@ pub trait Backend {
     /// All metadata entries whose key starts with `prefix`, key-ordered
     /// (deterministic across backends).
     fn list_meta_prefix(&self, prefix: &str) -> Result<Vec<(String, Vec<u8>)>>;
+
+    /// The last `limit` metadata entries whose key starts with `prefix`, in
+    /// *descending* key order — the bounded counterpart a "most recent N"
+    /// query needs instead of calling [`Self::list_meta_prefix`] (which
+    /// always reads the entire matching subtree) and reversing/truncating
+    /// the result client-side, first concrete slice of Batch 5's "local
+    /// object indexing at scale" (`docs/design/self-hosted-forge-spine.md`)
+    /// following on from D-0327's `Store::recent`.
+    ///
+    /// The default implementation here is **not** itself a bounded-I/O
+    /// scan — it still reads the whole matching subtree via
+    /// `list_meta_prefix` before reversing and truncating, exactly the cost
+    /// `Store::recent` already paid before this method existed. Override
+    /// this when a backend can genuinely stop scanning once `limit` results
+    /// are found, as [`MemoryBackend`] now does; `FsBackend` does not yet
+    /// (a real bounded reverse walk over a plain directory tree needs
+    /// either a sorted-order early-stopping traversal or an on-disk sorted
+    /// index this backend doesn't have — real follow-up work, not silently
+    /// assumed solved here, the same honest caveat D-0327 already recorded
+    /// for the forward case).
+    fn list_meta_prefix_last(&self, prefix: &str, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
+        let mut all = self.list_meta_prefix(prefix)?;
+        all.reverse();
+        all.truncate(limit);
+        Ok(all)
+    }
 }
 
 /// In-memory backend for tests.
@@ -64,6 +90,24 @@ impl Backend for MemoryBackend {
             .meta
             .range(prefix.to_string()..)
             .take_while(|(k, _)| k.starts_with(prefix))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect())
+    }
+    fn list_meta_prefix_last(&self, prefix: &str, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
+        // `\u{7f}` (DEL) sorts above every character this store's keys ever
+        // use (ASCII alphanumerics plus `-_./`, all below `0x7A`), so
+        // `prefix..prefix+DEL` is an exact, exclusive upper bound on
+        // `prefix`'s own range -- unlike `list_meta_prefix`'s `take_while`
+        // (which cannot run in reverse, since `TakeWhile` is not a
+        // `DoubleEndedIterator`), this lets `BTreeMap::range` itself do the
+        // bounding, so `.rev().take(limit)` is a genuine O(log n + limit)
+        // scan from the end, not a full-subtree read.
+        let upper = format!("{prefix}\u{7f}");
+        Ok(self
+            .meta
+            .range(prefix.to_string()..upper)
+            .rev()
+            .take(limit)
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect())
     }
@@ -368,8 +412,74 @@ impl Backend for FsBackend {
 
 #[cfg(test)]
 mod tests {
-    use super::FsBackend;
+    use super::{Backend, FsBackend, MemoryBackend};
     use std::path::PathBuf;
+
+    #[test]
+    fn memory_backend_last_returns_descending_order_bounded_by_limit() {
+        let mut backend = MemoryBackend::new();
+        for (k, v) in [
+            ("idx/time/00000000000000001000/a", "a"),
+            ("idx/time/00000000000000002000/b", "b"),
+            ("idx/time/00000000000000003000/c", "c"),
+            ("head/alice/profile", "unrelated"),
+        ] {
+            backend.put_meta(k, v.as_bytes()).unwrap();
+        }
+
+        assert_eq!(
+            backend.list_meta_prefix_last("idx/time/", 10).unwrap(),
+            vec![
+                ("idx/time/00000000000000003000/c".to_string(), b"c".to_vec()),
+                ("idx/time/00000000000000002000/b".to_string(), b"b".to_vec()),
+                ("idx/time/00000000000000001000/a".to_string(), b"a".to_vec()),
+            ]
+        );
+        assert_eq!(
+            backend.list_meta_prefix_last("idx/time/", 2).unwrap(),
+            vec![
+                ("idx/time/00000000000000003000/c".to_string(), b"c".to_vec()),
+                ("idx/time/00000000000000002000/b".to_string(), b"b".to_vec()),
+            ]
+        );
+        assert_eq!(
+            backend.list_meta_prefix_last("idx/time/", 0).unwrap(),
+            Vec::<(String, Vec<u8>)>::new()
+        );
+        assert!(backend
+            .list_meta_prefix_last("missing/prefix/", 5)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn fs_backend_default_last_impl_agrees_with_memory_backend() {
+        let dir = std::env::temp_dir().join(format!(
+            "mini-store-list-last-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let mut fs_backend = FsBackend::open(&dir).unwrap();
+        let mut mem_backend = MemoryBackend::new();
+        for (k, v) in [
+            ("idx/time/00000000000000001000/a", "a"),
+            ("idx/time/00000000000000002000/b", "b"),
+            ("idx/time/00000000000000003000/c", "c"),
+        ] {
+            fs_backend.put_meta(k, v.as_bytes()).unwrap();
+            mem_backend.put_meta(k, v.as_bytes()).unwrap();
+        }
+
+        assert_eq!(
+            fs_backend.list_meta_prefix_last("idx/time/", 2).unwrap(),
+            mem_backend.list_meta_prefix_last("idx/time/", 2).unwrap()
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn prefix_walk_root_uses_only_complete_path_segments() {

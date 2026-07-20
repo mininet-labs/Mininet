@@ -3,7 +3,7 @@
     "crates": 46,
     "files": 580,
     "headings": 2023,
-    "rust_symbols": 4570
+    "rust_symbols": 4575
   },
   "crates": {
     "did-mini": {
@@ -33388,38 +33388,38 @@
       "title": "mini-store"
     },
     {
-      "bytes": 14943,
+      "bytes": 19831,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
         "self",
         "result",
         "str",
-        "prefix",
-        "key",
-        "backend",
-        "meta",
         "vec",
-        "root",
+        "prefix",
+        "backend",
+        "key",
+        "list_meta_prefix",
+        "limit",
+        "memorybackend",
         "blobs",
-        "join",
-        "segment",
-        "bytes",
-        "to_string",
+        "metadata",
+        "string",
+        "meta",
         "put_blob",
         "get_blob",
         "has_blob",
         "put_meta",
         "get_meta",
-        "list_meta_prefix",
-        "memorybackend",
-        "fsbackend",
+        "list_meta_prefix_last",
+        "value",
         "blob",
-        "pathbuf"
+        "store",
+        "std"
       ],
-      "lines": 403,
+      "lines": 513,
       "path": "crates/mini-store/src/backend.rs",
-      "sha256": "f7de5cbcae1832a6cee5f82a230946cda5db8592d503cd2184495a58da765c9e",
+      "sha256": "5591c614365955be86e5fd56d428c8cc401926e8efbeaecaacc40e60dde190d1",
       "symbols": [
         {
           "kind": "trait",
@@ -33457,158 +33457,178 @@
           "name": "list_meta_prefix"
         },
         {
+          "kind": "fn",
+          "line": 48,
+          "name": "list_meta_prefix_last"
+        },
+        {
           "kind": "struct",
-          "line": 32,
+          "line": 58,
           "name": "MemoryBackend"
         },
         {
           "kind": "impl",
-          "line": 37,
+          "line": 63,
           "name": "MemoryBackend"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 65,
           "name": "new"
         },
         {
           "kind": "impl",
-          "line": 44,
+          "line": 70,
           "name": "Backend"
         },
         {
           "kind": "fn",
-          "line": 45,
+          "line": 71,
           "name": "put_blob"
         },
         {
           "kind": "fn",
-          "line": 49,
+          "line": 75,
           "name": "get_blob"
         },
         {
           "kind": "fn",
-          "line": 52,
+          "line": 78,
           "name": "has_blob"
-        },
-        {
-          "kind": "fn",
-          "line": 55,
-          "name": "put_meta"
-        },
-        {
-          "kind": "fn",
-          "line": 59,
-          "name": "get_meta"
-        },
-        {
-          "kind": "fn",
-          "line": 62,
-          "name": "list_meta_prefix"
-        },
-        {
-          "kind": "struct",
-          "line": 75,
-          "name": "FsBackend"
-        },
-        {
-          "kind": "impl",
-          "line": 79,
-          "name": "FsBackend"
         },
         {
           "kind": "fn",
           "line": 81,
-          "name": "open"
-        },
-        {
-          "kind": "fn",
-          "line": 89,
-          "name": "blob_path"
-        },
-        {
-          "kind": "fn",
-          "line": 97,
-          "name": "meta_path"
-        },
-        {
-          "kind": "fn",
-          "line": 117,
-          "name": "meta_prefix_walk_root"
-        },
-        {
-          "kind": "fn",
-          "line": 158,
-          "name": "safe_existing_meta_directory"
-        },
-        {
-          "kind": "fn",
-          "line": 191,
-          "name": "atomic_write"
-        },
-        {
-          "kind": "fn",
-          "line": 208,
-          "name": "safe_existing_parent"
-        },
-        {
-          "kind": "fn",
-          "line": 253,
-          "name": "existing_regular_file"
-        },
-        {
-          "kind": "fn",
-          "line": 270,
-          "name": "read_existing_regular_file"
-        },
-        {
-          "kind": "impl",
-          "line": 283,
-          "name": "Backend"
-        },
-        {
-          "kind": "fn",
-          "line": 284,
-          "name": "put_blob"
-        },
-        {
-          "kind": "fn",
-          "line": 300,
-          "name": "get_blob"
-        },
-        {
-          "kind": "fn",
-          "line": 303,
-          "name": "has_blob"
-        },
-        {
-          "kind": "fn",
-          "line": 306,
           "name": "put_meta"
         },
         {
           "kind": "fn",
-          "line": 309,
+          "line": 85,
           "name": "get_meta"
         },
         {
           "kind": "fn",
-          "line": 316,
+          "line": 88,
+          "name": "list_meta_prefix"
+        },
+        {
+          "kind": "fn",
+          "line": 96,
+          "name": "list_meta_prefix_last"
+        },
+        {
+          "kind": "struct",
+          "line": 119,
+          "name": "FsBackend"
+        },
+        {
+          "kind": "impl",
+          "line": 123,
+          "name": "FsBackend"
+        },
+        {
+          "kind": "fn",
+          "line": 125,
+          "name": "open"
+        },
+        {
+          "kind": "fn",
+          "line": 133,
+          "name": "blob_path"
+        },
+        {
+          "kind": "fn",
+          "line": 141,
+          "name": "meta_path"
+        },
+        {
+          "kind": "fn",
+          "line": 161,
+          "name": "meta_prefix_walk_root"
+        },
+        {
+          "kind": "fn",
+          "line": 202,
+          "name": "safe_existing_meta_directory"
+        },
+        {
+          "kind": "fn",
+          "line": 235,
+          "name": "atomic_write"
+        },
+        {
+          "kind": "fn",
+          "line": 252,
+          "name": "safe_existing_parent"
+        },
+        {
+          "kind": "fn",
+          "line": 297,
+          "name": "existing_regular_file"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "read_existing_regular_file"
+        },
+        {
+          "kind": "impl",
+          "line": 327,
+          "name": "Backend"
+        },
+        {
+          "kind": "fn",
+          "line": 328,
+          "name": "put_blob"
+        },
+        {
+          "kind": "fn",
+          "line": 344,
+          "name": "get_blob"
+        },
+        {
+          "kind": "fn",
+          "line": 347,
+          "name": "has_blob"
+        },
+        {
+          "kind": "fn",
+          "line": 350,
+          "name": "put_meta"
+        },
+        {
+          "kind": "fn",
+          "line": 353,
+          "name": "get_meta"
+        },
+        {
+          "kind": "fn",
+          "line": 360,
           "name": "list_meta_prefix"
         },
         {
           "kind": "mod",
-          "line": 370,
+          "line": 414,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 419,
+          "name": "memory_backend_last_returns_descending_order_bounded_by_limit"
+        },
+        {
+          "kind": "fn",
+          "line": 456,
+          "name": "fs_backend_default_last_impl_agrees_with_memory_backend"
+        },
+        {
+          "kind": "fn",
+          "line": 485,
           "name": "prefix_walk_root_uses_only_complete_path_segments"
         },
         {
           "kind": "fn",
-          "line": 394,
+          "line": 504,
           "name": "prefix_walk_root_rejects_hostile_or_ambiguous_prefixes"
         }
       ],
@@ -33814,12 +33834,12 @@
       "title": "mod backend;"
     },
     {
-      "bytes": 10918,
+      "bytes": 11641,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
-        "self",
         "object",
+        "self",
         "backend",
         "idx",
         "objectid",
@@ -33827,25 +33847,25 @@
         "result",
         "format",
         "as_str",
-        "storeerror",
         "vec",
+        "objects",
         "ids_under",
         "put_meta",
         "link",
         "ids",
-        "objects",
+        "new",
         "head",
         "object_type",
         "target",
-        "time",
         "timestamp_ms",
-        "corrupt",
         "key-ordered",
-        "new"
+        "type_key",
+        "storeerror",
+        "index"
       ],
-      "lines": 281,
+      "lines": 294,
       "path": "crates/mini-store/src/store.rs",
-      "sha256": "5a12b9788425b5b91166eac19768d7796aa294aaca9c58b7b88d305f97452cdc",
+      "sha256": "66e8c22770213141aa55754e87ac129b221c0791b64af75473ee365c3ce234e7",
       "symbols": [
         {
           "kind": "const",
@@ -33919,47 +33939,52 @@
         },
         {
           "kind": "fn",
-          "line": 141,
+          "line": 143,
           "name": "ids_under"
         },
         {
           "kind": "fn",
-          "line": 158,
+          "line": 160,
           "name": "apply_head"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 198,
           "name": "resolve_head"
         },
         {
           "kind": "fn",
-          "line": 209,
+          "line": 211,
           "name": "missing_links"
         },
         {
           "kind": "fn",
-          "line": 222,
+          "line": 224,
           "name": "want_list"
         },
         {
           "kind": "fn",
-          "line": 246,
+          "line": 248,
           "name": "time_key"
         },
         {
           "kind": "fn",
-          "line": 250,
+          "line": 255,
+          "name": "parse_time_index_key"
+        },
+        {
+          "kind": "fn",
+          "line": 263,
           "name": "type_key"
         },
         {
           "kind": "fn",
-          "line": 265,
+          "line": 278,
           "name": "encode_slot"
         },
         {
           "kind": "fn",
-          "line": 272,
+          "line": 285,
           "name": "decode_slot"
         }
       ],
@@ -40474,7 +40499,7 @@
       "title": "{"
     },
     {
-      "bytes": 535681,
+      "bytes": 540423,
       "group": "docs",
       "headings": [
         {
@@ -40904,9 +40929,9 @@
         "core",
         "chain"
       ],
-      "lines": 8906,
+      "lines": 8985,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "1424b2cd177f9728f82a9382bf5d346fa7ba00fab925d6171aa936d66c308ff4",
+      "sha256": "db5f360839252b926f808654854660713566e8e32f0c868abcd2d362c6f47406",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -41846,7 +41871,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 63925,
+      "bytes": 64778,
       "group": "docs",
       "headings": [
         {
@@ -41911,17 +41936,17 @@
         },
         {
           "level": 2,
-          "line": 904,
+          "line": 917,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 979,
+          "line": 992,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 985,
+          "line": 998,
           "text": "Where to look for more detail"
         }
       ],
@@ -41951,9 +41976,9 @@
         "claude",
         "social"
       ],
-      "lines": 1000,
+      "lines": 1013,
       "path": "docs/STATUS.md",
-      "sha256": "e3f5e55b236e84d19604f011d196b5d14fef36ab8075007a478bf598484d6363",
+      "sha256": "3deb17e42a986a51401d60931ec4ac719701f68cf883762d0fd28f6bbe590bb1",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -44418,7 +44443,7 @@
       "title": "Private lookup and the public-DHT boundary (MN-208, D-0310)"
     },
     {
-      "bytes": 32503,
+      "bytes": 33098,
       "group": "docs",
       "headings": [
         {
@@ -44468,12 +44493,12 @@
         },
         {
           "level": 2,
-          "line": 539,
+          "line": 548,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 548,
+          "line": 557,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -44503,9 +44528,9 @@
         "git",
         "adapted"
       ],
-      "lines": 566,
+      "lines": 575,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "c35217370c3993736efcd9f82a691b57a965e0a3e05dea80f0f034c414fedc06",
+      "sha256": "32d124f82a4dd2668005df8da46c807775911d00531f80e90dff247855e0973f",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
@@ -53720,15 +53745,15 @@
       "title": "version: 1"
     },
     {
-      "bytes": 11508,
+      "bytes": 12850,
       "group": "root",
       "headings": [],
       "keywords": [
         "issue",
         "closed",
         "status",
-        "branch",
         "claude",
+        "branch",
         "governance",
         "work-claims",
         "json",
@@ -53739,19 +53764,19 @@
         "decision_log",
         "decision_ids",
         "notes",
-        "here",
-        "since",
         "merged",
         "set",
         "mini-crypto",
         "schema",
         "codex",
         "tools",
-        "cargo"
+        "cargo",
+        "unix",
+        "precedent"
       ],
-      "lines": 241,
+      "lines": 261,
       "path": "governance/work-claims.json",
-      "sha256": "dab1b155a5e4b33840dff323ba378bcd3cb82aa77dc994a8ad687e98deece92c",
+      "sha256": "04cc3904f986c2f87af9aa28e1b3193f36fc12efb412c9c7ef2f09c562ba3211",
       "symbols": [],
       "title": "{"
     },
