@@ -838,6 +838,17 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   the claim rests on the codebase's dependency graph (no GitHub-API
   client dependency exists anywhere) plus this script's own successful
   run, not a live firewall drill.
+- **partial** — Batch 5's "local object indexing at scale," first slice
+  (D-0327): `mini_store::Store::since`/`Store::recent` add a
+  chronological `idx/time/` index alongside the pre-existing author/
+  type/link indexes, so a caller can query "what's new since cursor X"
+  or "the N most recent objects" without fetching and sorting every
+  object body. Real, tested (3 new tests, both backends). Honestly not
+  yet bounded/paginated — `Backend::list_meta_prefix` has no upper-bound
+  key, so both queries still read the whole `idx/time/` subtree's index
+  rows before filtering, same asymptotic cost the three pre-existing
+  indexes already accept. A real range-query `Backend` primitive remains
+  future work.
 - **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
   Batch 1's remaining deferred item. Exports a commit chain (commit → tree
   → blobs, recursively through every ancestor) as real git SHA-256-object-
@@ -850,8 +861,9 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   `STATUS.md`/roadmap generation (Batch 1's remaining deferred items);
   wiring `mini-installer` into an actual running system (Batch 4's own
   named next step, the caller's job by design); the rest of
-  Batch 5 (local object indexing at scale, distributed build workers,
-  GitHub import/export mirror automation).
+  Batch 5 (bounded/paginated range-scan indexing beyond D-0327's first
+  slice, distributed build workers, native release retrieval, GitHub
+  import/export mirror automation).
 - **partly active, mostly specified** — the founder-supplied Governance Pack
   v1.0 plus the v1.1 charter delta (`docs/governance/`, `forge-native/`,
   `governance/`; D-0082–D-0084): ~50

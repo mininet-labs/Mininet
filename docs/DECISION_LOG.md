@@ -8559,3 +8559,94 @@ external cryptographic review.
 `did-mini::witness`'s Phase 1 types, `FreshnessPins`, `event.rs`'s
 existing `witnesses` field, and every other existing `did-mini` type/
 function are unchanged.
+### D-0327 — `mini-store`: chronological index (`Store::since`/`Store::recent`), first slice of Batch 5's "local object indexing at scale"  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** `docs/design/self-hosted-forge-spine.md`
+Batch 5 ("Remaining, not started: local object indexing at scale,
+distributed build workers, native release retrieval, GitHub import/export
+mirror automation"); `docs/STATUS.md`'s "Top development priority" #1
+(Forge); issue #188
+
+**Decision:** `Store::insert` now also writes an `idx/time/<id>` index row
+keyed by a 20-digit zero-padded `timestamp_ms` (the same fixed-width-for-
+lexicographic-sortability trick every other index row already relies on,
+just in decimal-string form instead of `encode_slot`'s raw big-endian
+bytes, since index keys are `/`-separated ASCII). Two new query methods:
+`Store::since(cursor_ms) -> Vec<ObjectId>` (objects with `timestamp_ms >=
+cursor_ms`, oldest first — the incremental-catch-up/pagination-cursor
+query) and `Store::recent(limit) -> Vec<ObjectId>` (the `limit` most-
+recently-timestamped objects, newest first, built from `since`).
+
+**Reason:** `mini_store::Store` already had `by_author`/`by_type`/
+`linking_to` secondary indexes over `idx/author/`/`idx/type/`/`idx/link/`
+prefix rows, but no time index at all — a forge/feed UI or CLI wanting
+"what's new" or "everything since I last checked" had no query to call
+except `all_ids()` (unordered, and telling nothing about age without
+fetching and parsing every object body just to read its own
+`timestamp_ms` and sort client-side). This is exactly Batch 5's named,
+still-open "local object indexing at scale" gap, and it is the priority
+STATUS.md's "Top development priority" section already lists first
+(Forge). This PR takes the smallest concrete slice: extend the existing
+`idx/*` index family the same way `idx/author`/`idx/type`/`idx/link`
+already work, rather than inventing a new storage layer.
+
+**Honest scope, stated plainly rather than left implicit:** this is
+**not** yet "at scale" in the bounded-I/O sense the design doc's phrase
+implies. `Backend::list_meta_prefix` has no upper-bound key — it returns
+every row whose key starts with the given prefix — so both `since` and
+`recent` still read the *entire* `idx/time/` subtree's index rows (not
+object bodies, which is the real cost `by_author`/`by_type`/`linking_to`
+already accept) before filtering or truncating. A genuinely bounded,
+paginated range scan needs a new `Backend` primitive (a real
+start-key/end-key range query, not a prefix match) that neither
+`MemoryBackend` nor `FsBackend` has today. That is real follow-up work,
+not solved by this PR — recorded here so it is never silently assumed
+solved. `timestamp_ms` is also author-claimed
+(`mini_objects::Object::timestamp_ms`'s own doc: "ordering hint, not a
+proof"), so `since`/`recent` order is a convenience/UX ordering, never a
+freshness or arrival-order guarantee — the same caveat
+`did_mini::witness`'s `observed_epoch` field already carries for the
+identical reason (SPEC-01 §8.7-style avoidance of exact-timestamp
+dependence/leakage where it can be avoided; here it can't be fully
+avoided since the query's whole point is time-ordering, so the caveat is
+about trust, not precision).
+
+**Constitutional impact:** none. Storage/query plumbing only — no
+dependency edge to `mini-value`/`mini-bounty`/`mini-treasury` or to
+`mini-forge`/`mini-chain` voting, no new authority, no weakened
+invariant. `Store::insert`'s existing four index writes and every other
+`Store`/`Backend` method are byte-for-byte unchanged; this only adds a
+fifth index write and two new read-only query methods.
+
+**Implementation status:** shipped in `crates/mini-store/src/store.rs`.
+3 new tests in `crates/mini-store/tests/store.rs`: `since` returns
+objects at/after a cursor in ascending timestamp order regardless of
+insertion order; `recent` returns newest-first bounded by `limit`
+(including the `limit == 0` and `limit` exceeding the count cases);
+`since`/`recent` agree between `MemoryBackend` and `FsBackend` and
+survive a real filesystem reopen. `cargo fmt`/`cargo clippy
+--all-targets --all-features -D warnings`/`cargo test --workspace
+--all-features` all clean; the existing `insert_get_and_indexes` and
+other pre-existing `mini-store` tests pass unmodified, confirming the new
+index row is additive and does not change any existing index's contents
+or ordering.
+
+**Failure point:** exactly what "Honest scope" above already states —
+no bounded/paginated range-scan primitive on `Backend`, so this does not
+yet deliver the "at scale" (sub-linear in total time-indexed rows)
+property Batch 5's phrase implies; it delivers correct time-ordering and
+cursor-based incremental queries today, at the same asymptotic cost the
+three pre-existing indexes already accept. No compound queries (e.g.
+"objects of type X by author Y since cursor Z" still requires the caller
+to intersect separate query results); no distributed build workers,
+native release retrieval, or GitHub import/export mirror automation —
+those remain the other three named, unstarted Batch 5 items.
+
+**Required follow-up:** a `Backend` range-query primitive (real
+start-key/end-key bounds, not prefix-only) to make `since`/`recent`
+genuinely bounded; compound-index or query-intersection support if a
+real caller needs it; the other three Batch 5 items (distributed build
+workers, native release retrieval, GitHub import/export mirror
+automation), each its own future PR.
+
+**Supersedes / superseded by:** none. Purely additive to `Store`'s
+existing index family; no prior decision is touched.
