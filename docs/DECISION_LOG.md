@@ -9185,3 +9185,65 @@ versus what still needs Codex/founder's local Android toolchain.
 **Supersedes / superseded by:** supersedes the prior single-item "Next
 implementation slice" section of `ANDROID_FOUNDATION.md` (same content,
 now item 1 of this roadmap, unchanged in substance).
+
+### D-0334 — Android Keystore signer adapter: Phase 0 design only (issue #197)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** hub issue #196, issue #197, draft PR #179,
+D-0333, `docs/mobile/ANDROID_FOUNDATION.md`,
+`docs/design/android-keystore-signer-adapter.md`
+
+**Decision:** write `docs/design/android-keystore-signer-adapter.md`
+(Phase 0, no code) before touching `mini-crypto`/`did-mini`'s signing
+abstractions for real. It records: (1) `Controller`'s pre-rotation
+commitment already only ever hashes the *verifying* key, never a raw
+secret scalar, so an opaque (never-exported) device signer is structurally
+compatible with the existing establishment/rotation event construction
+without a `Controller` redesign; (2) `SigningKey::to_seed_bytes`/
+`Controller::incept_pairwise_pseudonym` are genuinely incompatible with an
+opaque signer, but that's fine because pairwise-pseudonym derivation is a
+root-only operation a delegated device controller never calls; (3) the
+open, founder-facing question of which signature suite an Android
+Keystore-backed device key should actually use, given Android's
+inconsistent hardware-backed Ed25519 support versus its universal
+NIST P-256/RSA support since API 23 — named as three concrete options,
+none chosen here; (4) the proposed shape of a `DeviceSigner` trait for the
+next (real code) PR.
+
+**Reason:** this crate (`mini-crypto`) is the security foundation every
+other crate in the workspace depends on, and CLAUDE.md's typed-domain and
+no-new-cryptography rules both counsel freezing the design before writing
+it, the same discipline this session already used for KEL witness
+receipts (`kel-witness-receipts-and-duplicity-gossip.md` Phase 0) and the
+post-quantum migration (`post-quantum-identity-migration.md`). Rushing an
+"opaque signer" straight to code under beta-deadline pressure, without
+naming the Ed25519-hardware-support gap first, risks silently picking a
+suite that can't actually claim hardware backing on most devices and then
+having `ANDROID_FOUNDATION.md`'s own honesty rule violated by accident.
+
+**Constitutional impact:** none yet — no code. Once implemented, Directive
+8 (the human is the root of trust) and Directive 11 (weakest device
+matters) bind the real `DeviceSigner` trait design; invariant G1 (secret
+material lives only in the controller, never crosses a wire format) will
+need an explicit carve-out statement for why a `Box<dyn DeviceSigner>`
+whose implementation lives in Kotlin doesn't violate G1 (it doesn't: no
+secret byte ever exists in a form either side could serialize — that's the
+whole point of "opaque").
+
+**Implementation status:** design doc only. No `DeviceSigner` trait, no
+`Controller` constructor change, no Android Keystore code exists yet.
+
+**Failure point:** if the next PR picks a signature suite without
+re-checking real device/HAL support first (rather than assuming API level
+alone implies hardware backing), it would repeat the exact
+inference-instead-of-proof mistake `ANDROID_FOUNDATION.md` already warns
+against for hardware backing generally.
+
+**Required follow-up:** the founder's suite-choice call among this
+document's three options; then the actual `did_mini::DeviceSigner` trait,
+`Controller`'s device-only constructor path, deterministic tests against a
+fake `DeviceSigner`, and — separately, requiring Codex/the founder's local
+Android toolchain — the real Kotlin Keystore implementation and the
+delegation-ceremony acceptance test from `ANDROID_FOUNDATION.md`/issue
+#197.
+
+**Supersedes / superseded by:** none. New document; no existing code
+changed.

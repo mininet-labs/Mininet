@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 47,
-    "files": 589,
-    "headings": 2031,
+    "files": 590,
+    "headings": 2039,
     "rust_symbols": 4630
   },
   "crates": {
@@ -41030,7 +41030,7 @@
       "title": "{"
     },
     {
-      "bytes": 552536,
+      "bytes": 556116,
       "group": "docs",
       "headings": [
         {
@@ -41441,28 +41441,28 @@
         "review",
         "audit",
         "track",
+        "issue",
         "log",
         "batch",
         "closes",
-        "issue",
-        "decision",
         "phase",
+        "decision",
         "first",
         "roadmap",
         "release",
         "mini-consensus",
         "status",
+        "design",
         "new",
         "research",
         "lane",
         "invariant",
         "d-0045",
-        "entry",
-        "core"
+        "entry"
       ],
-      "lines": 9188,
+      "lines": 9250,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "c4fc307d60154a7b2f194e1405c92b4390af1a5a4dd03a7fa20bbdc92bba76ee",
+      "sha256": "d1e7fdd23b38f36c704c7a80eab136d4439be02f0c7b0caf8a7a60a8c20bde19",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -43588,6 +43588,83 @@
       "sha256": "b4da099b3afb02b8c3ceeb2e7f3ddd042f69965dc51687ec8b2e9cb7e452cf1c",
       "symbols": [],
       "title": "Constitutional audit"
+    },
+    {
+      "bytes": 8870,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Android Keystore signer adapter + device delegation ceremony (issue #197, D-0334)"
+        },
+        {
+          "level": 2,
+          "line": 15,
+          "text": "The gap this closes"
+        },
+        {
+          "level": 2,
+          "line": 30,
+          "text": "What's actually true about `Controller`'s pre-rotation design (good news)"
+        },
+        {
+          "level": 2,
+          "line": 46,
+          "text": "What genuinely cannot work with an opaque signer (and why that's fine)"
+        },
+        {
+          "level": 2,
+          "line": 68,
+          "text": "The open question this Phase 0 does not resolve: which signature suite"
+        },
+        {
+          "level": 2,
+          "line": 104,
+          "text": "Proposed shape for the next (real code) PR"
+        },
+        {
+          "level": 2,
+          "line": 130,
+          "text": "Division of labor (per hub issue #196)"
+        },
+        {
+          "level": 2,
+          "line": 141,
+          "text": "Non-goals (this PR and the next)"
+        }
+      ],
+      "keywords": [
+        "controller",
+        "key",
+        "device",
+        "android",
+        "keystore",
+        "signer",
+        "design",
+        "opaque",
+        "what",
+        "never",
+        "adapter",
+        "issue",
+        "phase",
+        "next",
+        "secret",
+        "bytes",
+        "signingkey",
+        "ed25519",
+        "public",
+        "api",
+        "actually",
+        "about",
+        "pre-rotation",
+        "cannot"
+      ],
+      "lines": 150,
+      "path": "docs/design/android-keystore-signer-adapter.md",
+      "sha256": "0f8915a7bf25668da84d229cede8af3bd9aefa21d641e7c5fc28218e176b3e48",
+      "symbols": [],
+      "title": "Android Keystore signer adapter + device delegation ceremony (issue #197, D-0334)"
     },
     {
       "bytes": 9056,
