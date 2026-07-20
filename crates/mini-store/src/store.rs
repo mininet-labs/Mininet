@@ -48,6 +48,10 @@ impl<B: Backend> Store<B> {
             self.backend
                 .put_meta(&format!("idx/link/{}/{id}", link.target.as_str()), b"")?;
         }
+        self.backend.put_meta(
+            &format!("idx/time/{}/{id}", time_key(object.timestamp_ms)),
+            b"",
+        )?;
         Ok(())
     }
 
@@ -90,6 +94,48 @@ impl<B: Backend> Store<B> {
     /// Ids of objects that link to `target`, key-ordered (replies, embeds…).
     pub fn linking_to(&self, target: &ObjectId) -> Result<Vec<ObjectId>> {
         self.ids_under(&format!("idx/link/{}/", target.as_str()))
+    }
+
+    /// Ids of objects with `timestamp_ms >= cursor_ms`, oldest first — the
+    /// incremental catch-up query a peer re-issues with the last cursor it
+    /// already saw, first concrete slice of Batch 5's "local object
+    /// indexing at scale" (`docs/design/self-hosted-forge-spine.md`).
+    /// `timestamp_ms` is author-claimed (see [`mini_objects::Object::
+    /// timestamp_ms`]'s own doc: "ordering hint, not a proof"), so this is a
+    /// convenience/UX ordering, never a freshness or arrival-order
+    /// guarantee — the same honest caveat `did_mini::witness`'s
+    /// `observed_epoch` field carries for the same reason.
+    ///
+    /// Still O(rows under `idx/time/`) like every other index in this
+    /// store — [`crate::Backend::list_meta_prefix`] has no upper-bound key,
+    /// so this reads the whole matching subtree's index rows (not the
+    /// objects themselves) before filtering. A genuinely bounded, paginated
+    /// range scan needs a `Backend` range-query primitive; that remains
+    /// follow-up work, not claimed here.
+    pub fn since(&self, cursor_ms: u64) -> Result<Vec<ObjectId>> {
+        let mut out = Vec::new();
+        for (key, _) in self.backend.list_meta_prefix("idx/time/")? {
+            let rest = &key["idx/time/".len()..];
+            let ts_str = rest.split('/').next().ok_or(StoreError::Corrupt)?;
+            let ts: u64 = ts_str.parse().map_err(|_| StoreError::Corrupt)?;
+            if ts < cursor_ms {
+                continue;
+            }
+            let id_str = rest.get(ts_str.len() + 1..).ok_or(StoreError::Corrupt)?;
+            out.push(ObjectId::parse(id_str)?);
+        }
+        Ok(out)
+    }
+
+    /// The `limit` most-recently-timestamped objects, newest first — the
+    /// query a forge/feed UI needs for "what's new" without fetching and
+    /// sorting every object body itself. Same ordering-hint caveat as
+    /// [`Self::since`], which this is built from.
+    pub fn recent(&self, limit: usize) -> Result<Vec<ObjectId>> {
+        let mut all = self.since(0)?;
+        all.reverse();
+        all.truncate(limit);
+        Ok(all)
     }
 
     fn ids_under(&self, prefix: &str) -> Result<Vec<ObjectId>> {
@@ -190,6 +236,15 @@ impl<B: Backend> Store<B> {
         }
         Ok(out)
     }
+}
+
+/// Zero-padded to `u64::MAX`'s own width (20 digits) so lexicographic key
+/// order over this string always matches numeric timestamp order — the
+/// same fixed-width-for-sortability trick [`encode_slot`] already relies on
+/// implicitly via its big-endian byte encoding, just in decimal-string form
+/// since index keys are `/`-separated ASCII, not raw bytes.
+fn time_key(timestamp_ms: u64) -> String {
+    format!("{timestamp_ms:020}")
 }
 
 fn type_key(t: &ObjectType) -> String {

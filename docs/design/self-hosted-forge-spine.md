@@ -520,9 +520,21 @@ GitHub, so the honest claim is narrower than a firewall drill: read and
 run this one script to see the whole developer lifecycle, including
 failure recovery, complete without GitHub ever being named or required.
 
-**Remaining, not started:** local object indexing at scale, distributed
-build workers, native release retrieval, GitHub import/export mirror
-automation.
+**Local object indexing — first slice shipped (D-0327).**
+`mini_store::Store::since`/`Store::recent` add a chronological index
+(`idx/time/<timestamp>/<id>` rows) alongside the pre-existing author/
+type/link indexes, so a forge/feed UI or CLI can query "what's new" or
+"everything since cursor X" without fetching and sorting every object
+body. Honestly not yet "at scale" in the bounded-I/O sense this phrase
+implies: `Backend::list_meta_prefix` has no upper-bound key, so both
+queries still read the whole `idx/time/` subtree's index rows before
+filtering — a genuinely bounded, paginated range scan needs a new
+`Backend` range-query primitive neither backend has today. That, compound
+queries across indexes, and the other three items below remain open.
+
+**Remaining, not started:** true bounded/paginated range-scan indexing
+(see above), distributed build workers, native release retrieval, GitHub
+import/export mirror automation.
 
 ## Batch 6 — resume horizontal breadth
 

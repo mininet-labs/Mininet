@@ -3,7 +3,7 @@
     "crates": 46,
     "files": 578,
     "headings": 2023,
-    "rust_symbols": 4524
+    "rust_symbols": 4531
   },
   "crates": {
     "did-mini": {
@@ -3084,7 +3084,7 @@
       "title": "use mini_crypto::{Signature, SignatureSuite, SigningKey, VerifyingKey};"
     },
     {
-      "bytes": 29685,
+      "bytes": 30235,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -3113,9 +3113,9 @@
         "full",
         "witnessreceipt"
       ],
-      "lines": 722,
+      "lines": 730,
       "path": "crates/did-mini/src/witness_state.rs",
-      "sha256": "a729ba3729947c13f56b24d49431061822b2de1cb755de19b002719d6cf81094",
+      "sha256": "51e1267b38f7c37e04650ccbe8478a049a13be7dcd7ebee6a511763d61ad31d4",
       "symbols": [
         {
           "kind": "const",
@@ -3249,92 +3249,92 @@
         },
         {
           "kind": "fn",
-          "line": 415,
+          "line": 423,
           "name": "an_event"
         },
         {
           "kind": "fn",
-          "line": 428,
+          "line": 436,
           "name": "a_policy"
         },
         {
           "kind": "fn",
-          "line": 433,
+          "line": 441,
           "name": "first_seen_event_is_accepted_and_receipted"
         },
         {
           "kind": "fn",
-          "line": 457,
+          "line": 465,
           "name": "a_valid_direct_successor_is_accepted_and_updates_state"
         },
         {
           "kind": "fn",
-          "line": 476,
+          "line": 484,
           "name": "an_exact_duplicate_returns_the_same_receipt_without_resigning"
         },
         {
           "kind": "fn",
-          "line": 498,
+          "line": 506,
           "name": "a_stale_ancestor_is_rejected_without_a_receipt"
         },
         {
           "kind": "fn",
-          "line": 520,
+          "line": 528,
           "name": "a_conflicting_same_sequence_event_yields_a_duplicity_proof"
         },
         {
           "kind": "fn",
-          "line": 550,
+          "line": 558,
           "name": "a_conflicting_descendant_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 568,
+          "line": 576,
           "name": "observing_outside_the_policy_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 583,
+          "line": 591,
           "name": "a_controller_duplicity_proof_round_trips"
         },
         {
           "kind": "fn",
-          "line": 594,
+          "line": 602,
           "name": "assembling_a_duplicity_proof_from_different_sequences_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 606,
+          "line": 614,
           "name": "assembling_a_duplicity_proof_from_identical_events_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 618,
+          "line": 626,
           "name": "assembling_a_duplicity_proof_for_a_different_identity_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 630,
+          "line": 638,
           "name": "a_statement"
         },
         {
           "kind": "fn",
-          "line": 651,
+          "line": 659,
           "name": "a_witness_equivocation_proof_round_trips_and_verifies"
         },
         {
           "kind": "fn",
-          "line": 669,
+          "line": 677,
           "name": "assembling_an_equivocation_proof_from_the_same_digest_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 687,
+          "line": 695,
           "name": "assembling_an_equivocation_proof_from_different_witnesses_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 706,
+          "line": 714,
           "name": "an_equivocation_proof_fails_verification_against_the_wrong_key"
         }
       ],
@@ -33545,38 +33545,38 @@
       "title": "mod backend;"
     },
     {
-      "bytes": 8221,
+      "bytes": 10918,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
         "self",
         "object",
         "backend",
-        "head",
-        "objectid",
-        "result",
-        "store",
-        "storeerror",
         "idx",
-        "as_str",
+        "objectid",
+        "store",
+        "result",
         "format",
-        "ids_under",
-        "link",
-        "target",
-        "err",
+        "as_str",
+        "storeerror",
         "vec",
-        "payload",
+        "ids_under",
+        "put_meta",
+        "link",
+        "ids",
+        "objects",
+        "head",
         "object_type",
-        "return",
-        "subject",
-        "badhead",
-        "objecttype",
-        "slot",
-        "bytes"
+        "target",
+        "time",
+        "timestamp_ms",
+        "corrupt",
+        "key-ordered",
+        "new"
       ],
-      "lines": 226,
+      "lines": 281,
       "path": "crates/mini-store/src/store.rs",
-      "sha256": "4361d73917c21d1b82c0f534939accb4792d257c56a92a3562e11e4c1bd2ad8b",
+      "sha256": "5a12b9788425b5b91166eac19768d7796aa294aaca9c58b7b88d305f97452cdc",
       "symbols": [
         {
           "kind": "const",
@@ -33610,72 +33610,87 @@
         },
         {
           "kind": "fn",
-          "line": 57,
+          "line": 61,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 75,
           "name": "contains"
         },
         {
           "kind": "fn",
-          "line": 76,
+          "line": 80,
           "name": "all_ids"
         },
         {
           "kind": "fn",
-          "line": 81,
+          "line": 85,
           "name": "by_author"
         },
         {
           "kind": "fn",
-          "line": 86,
+          "line": 90,
           "name": "by_type"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 95,
           "name": "linking_to"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 115,
+          "name": "since"
+        },
+        {
+          "kind": "fn",
+          "line": 134,
+          "name": "recent"
+        },
+        {
+          "kind": "fn",
+          "line": 141,
           "name": "ids_under"
         },
         {
           "kind": "fn",
-          "line": 112,
+          "line": 158,
           "name": "apply_head"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 196,
           "name": "resolve_head"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 209,
           "name": "missing_links"
         },
         {
           "kind": "fn",
-          "line": 176,
+          "line": 222,
           "name": "want_list"
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 246,
+          "name": "time_key"
+        },
+        {
+          "kind": "fn",
+          "line": 250,
           "name": "type_key"
         },
         {
           "kind": "fn",
-          "line": 210,
+          "line": 265,
           "name": "encode_slot"
         },
         {
           "kind": "fn",
-          "line": 217,
+          "line": 272,
           "name": "decode_slot"
         }
       ],
@@ -33789,7 +33804,7 @@
       "title": "use did_mini::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, Capabilities, Controller, Did};"
     },
     {
-      "bytes": 13719,
+      "bytes": 16526,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
@@ -33799,28 +33814,28 @@
         "root",
         "device",
         "assert_eq",
-        "new",
         "human",
+        "new",
         "post",
         "head",
-        "profile",
         "payload",
-        "target",
-        "apply_head",
+        "profile",
         "controller",
-        "root2",
         "objecttype",
-        "memorybackend",
+        "target",
+        "root2",
+        "apply_head",
         "objectbuilder",
+        "seq",
         "headstate",
-        "storeerror",
+        "memorybackend",
         "seed",
-        "clone",
-        "device2"
+        "public",
+        "to_vec"
       ],
-      "lines": 381,
+      "lines": 467,
       "path": "crates/mini-store/tests/store.rs",
-      "sha256": "7afbda2d0cdee199d3f83920b1e14049d9203331da7f3c657cb5c69c3812819d",
+      "sha256": "a5e68a6b72d1ad6f48b5993725a1003101c530380ccab6e7678dea00d7eb3cea",
       "symbols": [
         {
           "kind": "fn",
@@ -33839,53 +33854,73 @@
         },
         {
           "kind": "fn",
-          "line": 37,
+          "line": 36,
+          "name": "post_at"
+        },
+        {
+          "kind": "fn",
+          "line": 46,
           "name": "insert_get_and_indexes"
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 80,
           "name": "heads_converge_regardless_of_arrival_order"
         },
         {
           "kind": "fn",
-          "line": 102,
+          "line": 111,
           "name": "head_slots_are_per_author_and_shape_checked"
         },
         {
           "kind": "fn",
-          "line": 131,
+          "line": 140,
           "name": "missing_links_and_want_list_drive_sync"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 163,
           "name": "fs_backend_persists_across_reopen"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 189,
           "name": "fs_backend_prefix_queries_support_exact_and_partial_segments"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 224,
           "name": "fs_backend_direct_reads_reject_non_file_entries"
         },
         {
           "kind": "fn",
-          "line": 243,
+          "line": 252,
           "name": "fs_backend_refuses_symlinks_in_a_metadata_query_subtree"
         },
         {
           "kind": "fn",
-          "line": 282,
+          "line": 291,
           "name": "fs_backend_direct_reads_reject_symlinks"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 352,
           "name": "fs_backend_narrow_query_ignores_unrelated_symlinks_and_rejects_special_files"
+        },
+        {
+          "kind": "fn",
+          "line": 392,
+          "name": "since_returns_objects_at_or_after_the_cursor_oldest_first"
+        },
+        {
+          "kind": "fn",
+          "line": 417,
+          "name": "recent_returns_the_newest_objects_first_bounded_by_limit"
+        },
+        {
+          "kind": "fn",
+          "line": 439,
+          "name": "since_and_recent_agree_across_backends_and_survive_a_reopen"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Did};"
@@ -40170,7 +40205,7 @@
       "title": "{"
     },
     {
-      "bytes": 514653,
+      "bytes": 520266,
       "group": "docs",
       "headings": [
         {
@@ -40581,17 +40616,17 @@
         "review",
         "track",
         "log",
+        "batch",
         "closes",
         "decision",
-        "batch",
         "phase",
         "issue",
         "release",
+        "first",
         "audit",
         "roadmap",
         "mini-consensus",
         "status",
-        "first",
         "new",
         "research",
         "lane",
@@ -40600,9 +40635,9 @@
         "core",
         "chain"
       ],
-      "lines": 8562,
+      "lines": 8653,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "04e547cd6e0e06b619845cb83e0651c8ed275e6cbd464a60a771355486274475",
+      "sha256": "ad5cc7a2fc7daed53754f364e28bac63a87ffceb8ecf4f973476a048aa3f2cff",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -41542,7 +41577,7 @@
       "title": "The self-describing repository"
     },
     {
-      "bytes": 61630,
+      "bytes": 62411,
       "group": "docs",
       "headings": [
         {
@@ -41607,17 +41642,17 @@
         },
         {
           "level": 2,
-          "line": 871,
+          "line": 883,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 946,
+          "line": 958,
           "text": "What has no client, at all"
         },
         {
           "level": 2,
-          "line": 952,
+          "line": 964,
           "text": "Where to look for more detail"
         }
       ],
@@ -41647,9 +41682,9 @@
         "claude",
         "social"
       ],
-      "lines": 967,
+      "lines": 979,
       "path": "docs/STATUS.md",
-      "sha256": "5f640dcbc7079f06b6293e693a8f9e78472e9651c22ad305c5eb323d70fae89c",
+      "sha256": "23a501439aace50e61c7d050b03031858b0adc104cedcccd57bd6701f9e61db3",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -44114,7 +44149,7 @@
       "title": "Private lookup and the public-DHT boundary (MN-208, D-0310)"
     },
     {
-      "bytes": 31718,
+      "bytes": 32503,
       "group": "docs",
       "headings": [
         {
@@ -44164,12 +44199,12 @@
         },
         {
           "level": 2,
-          "line": 527,
+          "line": 539,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 536,
+          "line": 548,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -44199,9 +44234,9 @@
         "git",
         "adapted"
       ],
-      "lines": 554,
+      "lines": 566,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "f865fa05373fc1628ad21b83737bf4f5fd7db292dd0966a39a3616fabbc4b3ad",
+      "sha256": "c35217370c3993736efcd9f82a691b57a965e0a3e05dea80f0f034c414fedc06",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
@@ -53416,7 +53451,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 8385,
+      "bytes": 9238,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -53445,9 +53480,9 @@
         "unix",
         "merged"
       ],
-      "lines": 198,
+      "lines": 217,
       "path": "governance/work-claims.json",
-      "sha256": "7f20f96c67ac0cf21a6871bbd7a4f9261a3cd0fb420dadb387ba5cb8f0adf372",
+      "sha256": "08263fef9330c756180ffc11d18ee616e402694d25013eef1eceb0624f2978d5",
       "symbols": [],
       "title": "{"
     },
