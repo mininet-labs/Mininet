@@ -275,12 +275,20 @@ other:
   an accident, so Mininet search can never itself become a new monopoly
   in place of the old one.
 
-This direction is recorded founder direction with a detailed
-implementation specification already written; as of this whitepaper, it
-is **design, not yet code** — the corresponding crates
-(`mini-intake-types`, `mini-web-types`, `mini-crawler`) have started
-landing incrementally, one narrow, independently reviewed piece at a
-time, exactly the way every other part of Mininet has been built. See
+This direction has a detailed founder-supplied implementation
+specification and is no longer merely proposed: the free-commons/paid-
+protection doctrine and the independent-search doctrine are both
+ratified decisions (D-0311, D-0312). What remains **design, not yet
+code** is the bulk of the buildout those decisions call for — typed
+public entitlements independent of wallet balance, bounded contribution
+budgets, protected-publication receipts, the crawler's actual network
+fetcher, the lexical index, the ranker, and the query service, among
+others. A handful of narrow, independently reviewed first slices have
+landed incrementally, the same way every other part of Mininet has been
+built — `mini-intake-types`, `mini-intake` (the trusted coordinator),
+an isolated extractor protocol/host, `mini-web-types`, and deterministic
+crawler planning in `mini-crawler` — but no network fetcher, extraction
+backend, index, ranker, or payment path exists yet on either side. See
 [`docs/STATUS.md`](docs/STATUS.md) for what has actually shipped by the
 time you are reading this.
 

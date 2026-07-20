@@ -8317,8 +8317,11 @@ status, superseding earlier external whitepaper framing); `docs/design/
 mininet-canon-documentation-architecture.md` (the "Book" structure a
 whitepaper sits outside of, as the public entry point); README.md;
 `docs/STATUS.md`; `docs/design/treasury-economic-model.md` (D-0073);
-founder-supplied `MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_
-SEARCH.md` direction document (2026-07-18).
+`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_
+SEARCH_20260718.md` (founder-supplied direction document, already
+committed); D-0311 (free public commons/paid protection, ratified from
+that document's Part II/VII); D-0312 (independent open-web search
+doctrine, ratified from that document's Part III).
 
 **Decision:** Add `WHITEPAPER.md` at the repository root — the project's
 first whitepaper ever actually committed to this repository. D-0090
@@ -8347,13 +8350,16 @@ without a reviewer noticing); (3) names the open problems honestly
 real-hardware testing) in the same terms `docs/STATUS.md` and
 `docs/gates/` already use; (4) summarizes the founder-supplied Mininet
 Intake / free public commons / paid protection / MiniSearch direction
-document as **recorded founder direction, design only, not yet code**,
-without independently recording that document's own Track A (public
-commons, open web search) founder decisions — those remain future,
-separately scoped PRs per that document's own Part V implementation
-plan, Part I §34 instruction #2 ("check the current repository state and
-open pull requests before assigning decision numbers"), and this
-project's batching discipline; (5) records four specific product/economic
+document, correctly citing that its Track A doctrine (free public
+commons, independent open-web search) is already ratified as D-0311 and
+D-0312, while naming honestly that the great majority of the buildout
+those decisions call for — public entitlements, contribution budgets,
+protected-publication receipts, the crawler's network fetcher,
+extraction backends, the index, the ranker, the query service — remains
+unbuilt beyond the handful of narrow first slices already shipped
+(`mini-intake-types`, `mini-intake`, the extractor protocol/host,
+`mini-web-types`, `mini-crawler`'s planning layer); (5) records four
+specific product/economic
 directions (home-node sovereign-custody storage, private micropayment
 settlement for engagement, velocity-aware anti-spam pricing, and
 verified-identity ranking weighting bounded by a guaranteed reach floor
@@ -8414,12 +8420,14 @@ it, citing this entry.
    changes their underlying facts — Sybil/personhood research progress,
    an external audit landing, or any Track A-F piece of the intake/
    commons/search direction shipping.
-2. If and when the founder-supplied intake/commons/search direction
-   document's own Track A decisions (free public commons; independent,
-   transparent, pluralistic open-web search) are recorded, this entry's
-   §8 summary should be checked against the resulting `D-`numbered
-   entries and updated if the ratified decisions diverge from this
-   summary in any way.
+2. As Tracks B-F of the founder-supplied intake/commons/search direction
+   document continue shipping real code beyond the narrow first slices
+   named in this entry's Decision field, `WHITEPAPER.md`'s §8 needs a
+   fresh pass — its current wording is accurate as of D-0311/D-0312 plus
+   those first slices, but will understate progress the moment the next
+   Track lands (the crawler's network fetcher, an extraction backend,
+   the lexical index, or any Track C/D public-commons/protected-
+   publishing code).
 3. If any of §9's four proposed directions (home-node custody,
    private micropayments, velocity-aware pricing, verified-ranking
    weighting) is ever adopted, give it its own decision-log entry per
