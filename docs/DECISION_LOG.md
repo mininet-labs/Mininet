@@ -9960,3 +9960,67 @@ explicit non-goals of this slice (the latter is slice 9, issue #205).
 
 **Supersedes / superseded by:** none. New workflow file only; no existing
 workflow's triggers, jobs, or required-check names changed.
+
+### D-0344 — correct `compileSdk`/`targetSdk`/SDK-platform pin from 37 to 36; real Android SDK repository has no bare `platforms;android-37` (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, PR #214, D-0343, `docs/mobile/ANDROID_FOUNDATION.md`
+
+**Decision:** change `app/android/app/build.gradle.kts`'s `compileSdk`/
+`targetSdk` from 37 to 36, `.github/workflows/android-ci.yml`'s pinned
+`sdkmanager` install argument and its follow-up verification `test -d`
+check from `platforms;android-37`/`$ANDROID_HOME/platforms/android-37` to
+`platforms;android-36`/`android-36`, and `docs/mobile/
+ANDROID_FOUNDATION.md`'s toolchain-pin paragraph and required-locally list
+to match, leaving `build-tools;36.0.0` and `ndk;28.2.13676358` unchanged
+since both were already correct.
+
+**Reason:** D-0343's own "Failure point" section named this exact risk
+("the pinned SDK package identifiers... may not exist in the SDK
+manager's remote repository by the time this runs") and it materialized
+on PR #214's first real `android-apk` run: `sdkmanager` reported `Warning:
+Failed to find package 'platforms;android-37'`. A temporary diagnostic
+step (`sdkmanager --list | grep -E '^\s*(platforms|build-tools|ndk);'`)
+was added to the workflow, pushed, and its real output inspected via the
+job log: the real repository lists `build-tools;36.0.0` and
+`ndk;28.2.13676358` exactly as already pinned, but for platforms it lists
+sub-versioned entries (`platforms;android-36`, `36.1`, `37.0`, `37.1`,
+`37.2-beta1`, ...) rather than a bare `platforms;android-37` — Android's
+SDK platform versioning started publishing minor sub-releases per major
+API level starting around API 36, and no bare-integer `android-37`
+package was ever published. `platforms;android-36` is the highest
+plain-integer, stable (non-beta) platform actually available. The
+alternative of instead adopting the new `37.1`-style sub-version and
+pointing `compileSdk`/`targetSdk` at it was rejected for this fix: AGP
+9.3.0's Kotlin DSL `compileSdk`/`targetSdk` properties are documented and
+already proven (by this same repo's own working local build recipe prior
+to this slice) to accept a plain integer; whether they accept or
+correctly resolve a `"36.1"`-shaped sub-version string was not verified
+anywhere, and introducing an unverified toolchain shape while already
+mid-incident is higher-risk than stepping down to the nearest confirmed
+integer platform. The diagnostic step itself is removed in this same
+change — it was scaffolding for this one investigation, not a permanent
+CI step.
+
+**Constitutional impact:** none. CI/build configuration and documentation
+only; no dependency edge, frozen invariant, or cryptography touched.
+
+**Implementation status:** all three files updated
+(`build.gradle.kts`, `android-ci.yml`, `ANDROID_FOUNDATION.md`); this
+environment still cannot run Gradle/the Android SDK locally, so this
+correction is verified the same way D-0343's original pin was supposed to
+be verified — by watching the real CI run on PR #214 after this push, not
+by local reproduction.
+
+**Failure point:** unverified whether `platforms;android-36` plus the
+already-correct `build-tools;36.0.0`/`ndk;28.2.13676358` is sufficient for
+Gradle to actually assemble the debug APK — the SDK-platform mismatch was
+only the first failure `sdkmanager` itself reported; later steps
+(Gradle sync, NDK linking, `assembleDebug` proper) have still never
+executed on any machine and may surface their own real failures once this
+gets past dependency installation.
+
+**Required follow-up:** watch PR #214's next `android-apk` CI run; if it
+fails again, diagnose from that real log rather than guessing further.
+
+**Supersedes / superseded by:** amends D-0343's SDK-platform pin only (the
+job's structure, docs-only-skip shape, and `build-tools`/`ndk` pins are
+unchanged and not superseded).

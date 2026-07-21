@@ -625,7 +625,7 @@
       ],
       "lines": 168,
       "path": ".github/workflows/android-ci.yml",
-      "sha256": "fd324a99f62292cad1240a7d6182a06f081b5ef1f9ac4940a53996090c8ba703",
+      "sha256": "772fe18e584c460a392f0332d648026936bef41a9909b41fc2728d0466c64564",
       "symbols": [],
       "title": "Android beta slice 8 (issue #204, hub #196): the first point where \"does"
     },
@@ -44269,7 +44269,7 @@
       "title": "{"
     },
     {
-      "bytes": 599752,
+      "bytes": 603652,
       "group": "docs",
       "headings": [
         {
@@ -44686,22 +44686,22 @@
         "batch",
         "phase",
         "decision",
-        "first",
-        "roadmap",
         "slice",
-        "release",
+        "android",
+        "first",
         "beta",
+        "roadmap",
+        "release",
         "mini-consensus",
         "status",
-        "android",
         "design",
         "new",
         "research",
         "lane"
       ],
-      "lines": 9963,
+      "lines": 10027,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "caec74491788abb47eafa5cb2ca015c329b0c1c912039abb572cab07d145031b",
+      "sha256": "d3e4d050fed42eceed310651894b70233a4e50b44fdeba12fead34019a74e3f1",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -55374,7 +55374,7 @@
       "title": "RFC-0005: Forge Cutover and Platform Exit"
     },
     {
-      "bytes": 10104,
+      "bytes": 10596,
       "group": "docs",
       "headings": [
         {
@@ -55404,17 +55404,17 @@
         },
         {
           "level": 2,
-          "line": 130,
+          "line": 138,
           "text": "Verification performed"
         },
         {
           "level": 2,
-          "line": 148,
+          "line": 156,
           "text": "Beta roadmap (target: ~PR #200, hub issue #196)"
         },
         {
           "level": 2,
-          "line": 204,
+          "line": 212,
           "text": "Primary implementation references"
         }
       ],
@@ -55424,29 +55424,29 @@
         "issue",
         "kotlin",
         "rootcore",
-        "root",
         "slice",
         "yet",
-        "build",
         "compose",
-        "rust",
+        "root",
         "never",
         "key",
         "what",
+        "does",
         "security",
         "uniffi",
+        "real",
         "foundation",
         "works",
-        "does",
         "boundary",
         "local",
+        "build",
         "contract",
         "reports",
         "platform"
       ],
-      "lines": 215,
+      "lines": 223,
       "path": "docs/mobile/ANDROID_FOUNDATION.md",
-      "sha256": "bce452b9628e375cd1b616c8b0ffbeb14d3126d2a194cb481fa5075edb8c128e",
+      "sha256": "93444edb9b7d4501db79b1ffec44453c7e62ac4aa6a37099102d66c0fbe309b6",
       "symbols": [],
       "title": "Android foundation"
     },
