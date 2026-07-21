@@ -474,6 +474,19 @@ impl Controller {
         })
     }
 
+    /// Export this controller's live current/next secret signing keys, for
+    /// **secure on-device persistence only** — the write-side counterpart
+    /// to [`Controller::restore`]. Per SPEC-01 G1 this is the only way a
+    /// live controller's secret material leaves the type after
+    /// construction; the caller must keep the result on-device (encrypted
+    /// at rest, never transmitted), exactly like
+    /// [`mini_crypto::SigningKey::to_seed_bytes`] already requires of its
+    /// own output, and should pass it straight into `Controller::restore`
+    /// or scrub it once no longer needed.
+    pub fn export_current_and_next_keys_for_storage(&self) -> (Vec<SigningKey>, Vec<SigningKey>) {
+        (self.current.clone(), self.next.clone())
+    }
+
     /// Sign an arbitrary message with the current keys — for detached payloads
     /// like a presence-attestation transcript. Produces one indexed signature per
     /// current key; a verifier checks them against this identity's current key

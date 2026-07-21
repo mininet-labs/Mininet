@@ -16,6 +16,8 @@
 #![deny(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+use zeroize::Zeroize;
+
 /// Version of the typed command/event API.
 pub const APP_API_VERSION: u32 = 0;
 const MAX_REQUEST_ID_BYTES: usize = 64;
@@ -170,6 +172,12 @@ pub enum RootError {
     UnknownDevice,
     /// A `did-mini` identity operation failed; message only, no secret state.
     Identity(String),
+    /// Decrypted persisted-state bytes are malformed, truncated, or exceed
+    /// a declared bound — never trusted enough to even attempt decoding
+    /// further.
+    CorruptState,
+    /// The caller-supplied [`StorageCipher`] failed to encrypt or decrypt.
+    Storage,
 }
 
 impl core::fmt::Display for RootError {
@@ -179,6 +187,8 @@ impl core::fmt::Display for RootError {
             RootError::NoRoot => f.write_str("no root exists yet"),
             RootError::UnknownDevice => f.write_str("unknown or already-revoked device"),
             RootError::Identity(msg) => write!(f, "identity operation failed: {msg}"),
+            RootError::CorruptState => f.write_str("persisted state is malformed"),
+            RootError::Storage => f.write_str("storage cipher operation failed"),
         }
     }
 }
@@ -187,6 +197,46 @@ impl std::error::Error for RootError {}
 
 fn identity_err(err: did_mini::IdentityError) -> RootError {
     RootError::Identity(err.to_string())
+}
+
+/// Failure reported by a caller-implemented [`StorageCipher`].
+///
+/// Real causes (a revoked Android Keystore entry, a corrupted ciphertext,
+/// an AEAD tag mismatch) are platform-specific detail that `mini-ffi` has
+/// no use for beyond "did this succeed" — so, deliberately, this carries no
+/// message, matching [`RootError`]'s general shape but without wrapping a
+/// caller-supplied string across the boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StorageCipherError {
+    /// Encryption or decryption failed.
+    Failed,
+}
+
+impl core::fmt::Display for StorageCipherError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("storage cipher operation failed")
+    }
+}
+
+impl std::error::Error for StorageCipherError {}
+
+/// Caller-implemented encrypt/decrypt boundary for persisting [`RootCore`]
+/// state (issue #198, following D-0337's `Controller::restore`).
+///
+/// `mini-ffi` never encrypts or decrypts anything itself, holds no storage
+/// key, and never touches disk. On Android, the intended implementation
+/// wraps Android Keystore's hardware- or software-backed AES-GCM `Cipher`:
+/// `encrypt`/`decrypt` cross the UniFFI boundary as ordinary `Vec<u8>`
+/// arguments, so the plaintext byte buffer necessarily exists on the
+/// Kotlin/JVM side for the duration of the call — this crate cannot
+/// zeroize memory it does not own past that point. What it *can* and does
+/// zeroize is its own local plaintext copy immediately after
+/// [`RootCore::restore`] decodes it (see that method).
+pub trait StorageCipher: Send + Sync {
+    /// Encrypt `plaintext`, returning an opaque ciphertext blob.
+    fn encrypt(&self, plaintext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError>;
+    /// Decrypt a blob previously returned by `encrypt`.
+    fn decrypt(&self, ciphertext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError>;
 }
 
 /// In-memory root and delegated-device identity state for one app process.
@@ -210,6 +260,156 @@ pub struct RootCore {
 struct RootState {
     root: Option<did_mini::Controller>,
     devices: Vec<did_mini::Controller>,
+}
+
+/// Marks the persisted-state plaintext format; bumped if the layout ever
+/// changes so a future `RootCore` can reject bytes it no longer understands
+/// instead of misparsing them.
+const PERSIST_MAGIC: [u8; 4] = *b"MFP1";
+const PERSIST_VERSION: u8 = 1;
+/// Generous but bounded — a corrupted or hostile ciphertext must not drive
+/// unbounded allocation once decrypted, the same discipline `did-mini`'s
+/// own `Kel::from_bytes` already applies to its inputs.
+const MAX_PERSISTED_DEVICES: usize = 256;
+const MAX_PERSISTED_KEL_BYTES: usize = 1 << 20;
+/// Matches `did-mini::limits`'s own `MAX_KEYS`/`MAX_NEXT` ceiling for one
+/// identity's key set, even though `RootCore`'s MVP only ever creates
+/// 1-of-1 identities today.
+const MAX_PERSISTED_KEYS_PER_RECORD: usize = 32;
+
+/// Minimal bounds-checked cursor over decrypted persisted-state bytes.
+/// Deliberately not a generic serialization framework — the format above
+/// is small and fixed, so a hand-rolled reader (matching this workspace's
+/// existing preference for hand-rolled encodings over adding a dependency)
+/// is simpler than pulling one in for four field types.
+struct PersistReader<'a> {
+    bytes: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> PersistReader<'a> {
+    fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, pos: 0 }
+    }
+
+    fn take(&mut self, n: usize) -> Result<&'a [u8], RootError> {
+        let end = self.pos.checked_add(n).ok_or(RootError::CorruptState)?;
+        let slice = self
+            .bytes
+            .get(self.pos..end)
+            .ok_or(RootError::CorruptState)?;
+        self.pos = end;
+        Ok(slice)
+    }
+
+    fn u8(&mut self) -> Result<u8, RootError> {
+        Ok(self.take(1)?[0])
+    }
+
+    fn u32(&mut self) -> Result<u32, RootError> {
+        let b = self.take(4)?;
+        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    }
+
+    fn seed(&mut self) -> Result<[u8; 32], RootError> {
+        let b = self.take(32)?;
+        let mut seed = [0u8; 32];
+        seed.copy_from_slice(b);
+        Ok(seed)
+    }
+
+    fn finished(&self) -> bool {
+        self.pos == self.bytes.len()
+    }
+}
+
+fn encode_identity_record(out: &mut Vec<u8>, controller: &did_mini::Controller) {
+    let kel_bytes = controller.kel().to_bytes();
+    out.extend_from_slice(&(kel_bytes.len() as u32).to_le_bytes());
+    out.extend_from_slice(&kel_bytes);
+
+    let (current, next) = controller.export_current_and_next_keys_for_storage();
+    out.extend_from_slice(&(current.len() as u32).to_le_bytes());
+    for key in &current {
+        out.extend_from_slice(&key.to_seed_bytes());
+    }
+    out.extend_from_slice(&(next.len() as u32).to_le_bytes());
+    for key in &next {
+        out.extend_from_slice(&key.to_seed_bytes());
+    }
+}
+
+fn decode_identity_record(r: &mut PersistReader<'_>) -> Result<did_mini::Controller, RootError> {
+    let kel_len = r.u32()? as usize;
+    if kel_len > MAX_PERSISTED_KEL_BYTES {
+        return Err(RootError::CorruptState);
+    }
+    let kel = did_mini::Kel::from_bytes(r.take(kel_len)?).map_err(identity_err)?;
+
+    let current_count = r.u32()? as usize;
+    if current_count == 0 || current_count > MAX_PERSISTED_KEYS_PER_RECORD {
+        return Err(RootError::CorruptState);
+    }
+    let mut current = Vec::with_capacity(current_count);
+    for _ in 0..current_count {
+        current.push(mini_crypto::SigningKey::from_seed(&r.seed()?));
+    }
+
+    let next_count = r.u32()? as usize;
+    if next_count == 0 || next_count > MAX_PERSISTED_KEYS_PER_RECORD {
+        return Err(RootError::CorruptState);
+    }
+    let mut next = Vec::with_capacity(next_count);
+    for _ in 0..next_count {
+        next.push(mini_crypto::SigningKey::from_seed(&r.seed()?));
+    }
+
+    did_mini::Controller::restore(&kel, current, next).map_err(identity_err)
+}
+
+fn encode_state(state: &RootState) -> Vec<u8> {
+    let mut out = Vec::new();
+    out.extend_from_slice(&PERSIST_MAGIC);
+    out.push(PERSIST_VERSION);
+    match &state.root {
+        Some(root) => {
+            out.push(1);
+            encode_identity_record(&mut out, root);
+        }
+        None => out.push(0),
+    }
+    out.extend_from_slice(&(state.devices.len() as u32).to_le_bytes());
+    for device in &state.devices {
+        encode_identity_record(&mut out, device);
+    }
+    out
+}
+
+fn decode_state(bytes: &[u8]) -> Result<RootState, RootError> {
+    let mut r = PersistReader::new(bytes);
+    if r.take(PERSIST_MAGIC.len())? != PERSIST_MAGIC {
+        return Err(RootError::CorruptState);
+    }
+    if r.u8()? != PERSIST_VERSION {
+        return Err(RootError::CorruptState);
+    }
+    let root = match r.u8()? {
+        0 => None,
+        1 => Some(decode_identity_record(&mut r)?),
+        _ => return Err(RootError::CorruptState),
+    };
+    let device_count = r.u32()? as usize;
+    if device_count > MAX_PERSISTED_DEVICES {
+        return Err(RootError::CorruptState);
+    }
+    let mut devices = Vec::with_capacity(device_count);
+    for _ in 0..device_count {
+        devices.push(decode_identity_record(&mut r)?);
+    }
+    if !r.finished() {
+        return Err(RootError::CorruptState);
+    }
+    Ok(RootState { root, devices })
 }
 
 impl RootCore {
@@ -294,6 +494,41 @@ impl RootCore {
             .iter()
             .map(|d| d.did().as_str().to_string())
             .collect()
+    }
+
+    /// Reconstruct a `RootCore` from a ciphertext blob previously produced
+    /// by [`RootCore::persist_state`], resuming exactly where the process
+    /// left off — no rotation, no appended event, matching
+    /// [`did_mini::Controller::restore`]'s own semantics (D-0337). `cipher`
+    /// performs the actual decryption (e.g. Android Keystore-backed
+    /// AES-GCM); this method never sees or handles a storage key itself.
+    ///
+    /// The decrypted plaintext is decoded immediately and zeroized
+    /// afterward regardless of whether decoding succeeded — a malformed
+    /// blob still had real secret seed bytes in it up to the point
+    /// decoding rejected it.
+    pub fn restore(ciphertext: Vec<u8>, cipher: Box<dyn StorageCipher>) -> Result<Self, RootError> {
+        let mut plaintext = cipher.decrypt(ciphertext).map_err(|_| RootError::Storage)?;
+        let decoded = decode_state(&plaintext);
+        plaintext.zeroize();
+        Ok(Self {
+            state: std::sync::Mutex::new(decoded?),
+        })
+    }
+
+    /// Encrypt this core's current root/device state into an opaque blob
+    /// for the caller to write to app-private storage. `cipher` performs
+    /// the actual encryption; this method only builds the plaintext
+    /// structure and hands it to `cipher.encrypt`, never writing it
+    /// anywhere itself.
+    ///
+    /// The plaintext necessarily crosses the UniFFI boundary as `cipher`'s
+    /// argument — it must, since `cipher` is what encrypts it — so it
+    /// briefly exists in Kotlin/JVM memory this crate cannot reach to
+    /// zeroize; see [`StorageCipher`]'s own doc comment.
+    pub fn persist_state(&self, cipher: Box<dyn StorageCipher>) -> Result<Vec<u8>, RootError> {
+        let plaintext = encode_state(&self.lock());
+        cipher.encrypt(plaintext).map_err(|_| RootError::Storage)
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, RootState> {
@@ -679,5 +914,126 @@ mod tests {
         let mut expected = vec![device_a, device_b];
         expected.sort();
         assert_eq!(devices, expected);
+    }
+
+    /// A trivial reversible "cipher" (XOR with a fixed keystream byte) —
+    /// stands in for a real Android Keystore AES-GCM `Cipher` implementation
+    /// just to exercise the encrypt/decrypt plumbing, not to test any real
+    /// cryptography (`mini-ffi` never implements the cipher itself).
+    #[derive(Debug)]
+    struct XorCipher(u8);
+
+    impl StorageCipher for XorCipher {
+        fn encrypt(&self, plaintext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError> {
+            Ok(plaintext.into_iter().map(|b| b ^ self.0).collect())
+        }
+        fn decrypt(&self, ciphertext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError> {
+            Ok(ciphertext.into_iter().map(|b| b ^ self.0).collect())
+        }
+    }
+
+    /// Always fails, simulating a revoked Keystore entry or a tag mismatch.
+    #[derive(Debug)]
+    struct FailingCipher;
+
+    impl StorageCipher for FailingCipher {
+        fn encrypt(&self, _plaintext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError> {
+            Err(StorageCipherError::Failed)
+        }
+        fn decrypt(&self, _ciphertext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError> {
+            Err(StorageCipherError::Failed)
+        }
+    }
+
+    #[test]
+    fn persisting_and_restoring_round_trips_root_and_devices() {
+        let core = RootCore::new();
+        let root_did = core.create_root().unwrap();
+        let device_a = core.create_device().unwrap();
+        let device_b = core.create_device().unwrap();
+
+        let blob = core.persist_state(Box::new(XorCipher(0x5A))).unwrap();
+        let restored = RootCore::restore(blob, Box::new(XorCipher(0x5A))).unwrap();
+
+        assert!(restored.has_root());
+        assert_eq!(restored.root_did(), Some(root_did));
+        let mut devices = restored.delegated_devices();
+        devices.sort();
+        let mut expected = vec![device_a, device_b];
+        expected.sort();
+        assert_eq!(devices, expected);
+    }
+
+    #[test]
+    fn a_restored_core_can_create_and_revoke_devices_normally() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+
+        let blob = core.persist_state(Box::new(XorCipher(0x11))).unwrap();
+        let restored = RootCore::restore(blob, Box::new(XorCipher(0x11))).unwrap();
+
+        // Not read-only: the restored core is fully functional.
+        let new_device = restored.create_device().unwrap();
+        assert_eq!(restored.delegated_devices().len(), 2);
+        restored.revoke_device(new_device).unwrap();
+        assert_eq!(restored.delegated_devices().len(), 1);
+    }
+
+    #[test]
+    fn persisting_with_no_root_then_restoring_has_no_root() {
+        let core = RootCore::new();
+        let blob = core.persist_state(Box::new(XorCipher(0x42))).unwrap();
+        let restored = RootCore::restore(blob, Box::new(XorCipher(0x42))).unwrap();
+        assert!(!restored.has_root());
+        assert!(restored.delegated_devices().is_empty());
+    }
+
+    #[test]
+    fn a_failing_cipher_surfaces_as_a_storage_error() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        assert_eq!(
+            core.persist_state(Box::new(FailingCipher)),
+            Err(RootError::Storage)
+        );
+        assert_eq!(
+            RootCore::restore(vec![1, 2, 3], Box::new(FailingCipher)).unwrap_err(),
+            RootError::Storage
+        );
+    }
+
+    #[test]
+    fn restoring_with_the_wrong_cipher_key_fails_closed() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        let blob = core.persist_state(Box::new(XorCipher(0x5A))).unwrap();
+
+        // A different key XOR-"decrypts" into garbage that is not the
+        // magic/version header the real format starts with.
+        assert_eq!(
+            RootCore::restore(blob, Box::new(XorCipher(0x99))).unwrap_err(),
+            RootError::CorruptState
+        );
+    }
+
+    #[test]
+    fn restoring_truncated_plaintext_fails_closed() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        let mut blob = core.persist_state(Box::new(XorCipher(0x00))).unwrap();
+        blob.truncate(blob.len() / 2);
+        assert_eq!(
+            RootCore::restore(blob, Box::new(XorCipher(0x00))).unwrap_err(),
+            RootError::CorruptState
+        );
+    }
+
+    #[test]
+    fn restoring_empty_bytes_fails_closed() {
+        assert_eq!(
+            RootCore::restore(Vec::new(), Box::new(XorCipher(0x00))).unwrap_err(),
+            RootError::CorruptState
+        );
     }
 }
