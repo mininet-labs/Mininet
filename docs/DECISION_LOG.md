@@ -10431,3 +10431,68 @@ signature-scheme-specific randomness this session didn't anticipate).
 **Supersedes / superseded by:** none. Follow-up fix to D-0349's workflow
 finding; does not change the workflow's structure, only removes a real
 non-determinism source in the app's own build configuration.
+
+### D-0351 — wire the Compose UI to real `RootCore` root/device creation (issue #198 follow-up, Android beta)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #198, D-0335
+
+**Decision:** change `MainActivity.kt`'s "Create root" button (shown at
+`OnboardingStage.ROOT_CREATION_READY`) to call `RootCore.createRoot()`/
+`createDevice()` directly instead of dispatching `AppAction.CONTINUE`
+through the reducer (which — by the reducer's own permanent design,
+`mini-ffi/src/lib.rs`'s `dispatch` — always answers
+`AppEventKind::RootCreationPending` at that stage and never creates
+identity itself). Add `CoreUiState.RootCreated(rootDid, deviceDid)`, a
+new Kotlin-only UI state (the Rust `OnboardingStage` enum has no
+corresponding variant, since root creation is deliberately RootCore's
+boundary, not the reducer's), and a `RootCreatedScreen` composable that
+shows both DIDs plainly labeled: "exist only in this app's memory right
+now... closing the app loses them." `MiniViewModel` now holds one
+`RootCore()` instance for its lifetime. Removed the now-dead
+`ROOT_CREATION_PENDING` `NoticeCard` branch — unreachable once the button
+no longer routes that action through `dispatch`.
+
+**Reason:** `docs/mobile/ANDROID_FOUNDATION.md` has named this gap
+explicitly since D-0335 landed: "the UI still stops at
+`RootCreationReady` and emits `RootCreationPending` — `RootCore` exists
+and is tested, but the Compose UI does not yet call it... tracked
+alongside issue #198." `RootCore`'s creation/delegation ceremony
+(D-0335) was already real, tested Rust logic with nothing left to build
+there — the only gap was that Kotlin never called it. Deliberately not
+attempted here: real persistence-across-restart (issue #198's actual
+acceptance test) — that needs a `StorageCipher` backed by Android
+Keystore, which does not exist in this environment and would be
+dishonest to fake with an insecure passthrough just to make the
+UI "work"; the new screen says so explicitly rather than silently
+implying more durability than exists, matching this repo's existing
+"no fake root creation" discipline (the very notice this change
+replaces).
+
+**Constitutional impact:** none. UI wiring calling an already-reviewed
+Rust API; no dependency edge, frozen invariant, or new cryptography (no
+key generation logic changed — `RootCore::create_root`/`create_device`
+are unmodified).
+
+**Implementation status:** `mini-ffi`'s Kotlin bindgen output was
+regenerated and grepped to confirm `createRoot()`/`createDevice()` are
+the exact camelCased method names UniFFI emits for the UDL's
+`create_root`/`create_device`, so the Kotlin call sites match the real
+binding surface rather than a guess. This environment has no Gradle to
+compile-check the `.kt` file directly; `android-ci.yml` (D-0343+) now
+does that for real on every push, the same verification path used for
+every other Kotlin change this session (D-0347's `MainActivity.kt`
+import fix).
+
+**Failure point:** unverified until the next real `android-apk` CI run
+confirms the file compiles; a signature or type mismatch against the
+generated bindings (e.g. if UniFFI's camelCasing convention differs from
+what was checked) would only surface there. Untested at the Compose
+recomposition/state level too — no emulator exists in this environment
+to click through the flow.
+
+**Required follow-up:** watch the CI run this PR triggers. The real
+`StorageCipher`/Android Keystore-backed persistence adapter (issue
+#198's actual acceptance test) and a device enrollment/revocation UI
+remain Codex/the founder's local machine's job.
+
+**Supersedes / superseded by:** none. UI-layer change only; `mini-ffi`
+itself untouched.

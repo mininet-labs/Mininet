@@ -35,7 +35,13 @@ contract and reports platform capabilities. No protocol secret crosses FFI.
   `MustCompleteOrFailClosed` to a suspend request; only a caller-reported
   `AtCheckpoint` transitions cleanly to `Suspended`/resumable. A failure
   is always recorded as a typed, visible `LifecycleFailureReason`, never a
-  silent partial/corrupt result.
+  silent partial/corrupt result; and
+- **the Compose UI actually calls `RootCore`** (D-0351): tapping "Create
+  root" at `RootCreationReady` now really creates a root and delegates a
+  first device, and shows both DIDs — not a stub notice. The reducer
+  itself still never creates identity (`dispatch` always answers
+  `RootCreationPending` at that stage by design); the UI calls `RootCore`
+  directly instead of routing through it.
 
 The onboarding reducer (`start`/`dispatch`) is deliberately stateless across
 FFI calls. Its complete input and output are values, so Kotlin never shares
@@ -51,8 +57,10 @@ that crosses the FFI boundary.
   signing** — `RootCore`'s keys are software-only; D-0334's design doc names
   three options for genuine hardware backing, none chosen yet;
 - **persistence across process death** — closing the app loses the root and
-  every delegated device `RootCore` created; this is the very next slice
-  (issue #198), not yet built;
+  every delegated device `RootCore` created; the UI now really creates
+  them (D-0351), it just can't keep them past a restart yet, since no
+  `StorageCipher`/Android Keystore-backed encrypted storage adapter
+  exists (issue #198's actual acceptance test);
 - **restart-and-recover** (acceptance-test step 4) — depends directly on
   persistence above;
 - **root and device on separate physical devices** — this MVP holds both in
@@ -79,11 +87,13 @@ that crosses the FFI boundary.
   NDK/Gradle/emulator here — Codex/the founder's local machine is required
   for that).
 
-The UI still stops at `RootCreationReady` and emits `RootCreationPending` —
-`RootCore` exists and is tested, but the Compose UI does not yet call it.
-Wiring the UI to actually invoke `RootCore` (rather than only proving the
-Rust-side contract works) is part of getting this into testers' hands and is
-tracked alongside issue #198.
+The UI now creates a real root and delegates a first device when the user
+taps "Create root" at `RootCreationReady` (D-0351) — `RootCore`'s Rust-side
+contract is called for real, not just proven in isolation. What's left
+before this can be called a working golden path: encrypted on-device
+persistence (issue #198) so that identity survives a restart, and a real
+emulator/device compile-and-click-through verification (Codex/the
+founder's local machine — no JDK/SDK/NDK/Gradle/emulator exists here).
 
 ## Security boundary
 

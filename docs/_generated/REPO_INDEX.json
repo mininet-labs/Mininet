@@ -44683,7 +44683,7 @@
       "title": "{"
     },
     {
-      "bytes": 628137,
+      "bytes": 631811,
       "group": "docs",
       "headings": [
         {
@@ -45093,8 +45093,8 @@
         "founder",
         "real",
         "android",
-        "slice",
         "beta",
+        "slice",
         "review",
         "audit",
         "closes",
@@ -45113,9 +45113,9 @@
         "research",
         "lane"
       ],
-      "lines": 10434,
+      "lines": 10499,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "6ee310cacd20161d21a5c069a72ad216b0d7993bc9de54dc01c1741fdb96d66d",
+      "sha256": "aeb675e4c305ecec8cef736a902f72890e978fc548ac9c0274a3f27f918e3945",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -55788,7 +55788,7 @@
       "title": "RFC-0005: Forge Cutover and Platform Exit"
     },
     {
-      "bytes": 12059,
+      "bytes": 12785,
       "group": "docs",
       "headings": [
         {
@@ -55803,32 +55803,32 @@
         },
         {
           "level": 2,
-          "line": 48,
+          "line": 54,
           "text": "What does not work yet"
         },
         {
           "level": 2,
-          "line": 88,
+          "line": 98,
           "text": "Security boundary"
         },
         {
           "level": 2,
-          "line": 110,
+          "line": 120,
           "text": "Toolchain and local build"
         },
         {
           "level": 2,
-          "line": 160,
+          "line": 170,
           "text": "Verification performed"
         },
         {
           "level": 2,
-          "line": 178,
+          "line": 188,
           "text": "Beta roadmap (target: ~PR #200, hub issue #196)"
         },
         {
           "level": 2,
-          "line": 234,
+          "line": 244,
           "text": "Primary implementation references"
         }
       ],
@@ -55836,31 +55836,31 @@
         "android",
         "issue",
         "slice",
-        "yet",
-        "rootcore",
         "device",
+        "root",
+        "rootcore",
         "real",
+        "yet",
         "what",
-        "does",
-        "security",
         "kotlin",
         "typed",
+        "identity",
         "state",
         "machine",
         "never",
+        "calls",
+        "creates",
         "foundation",
-        "works",
-        "boundary",
+        "does",
         "local",
         "build",
-        "contract",
+        "first",
         "compose",
-        "reports",
         "ffi"
       ],
-      "lines": 245,
+      "lines": 255,
       "path": "docs/mobile/ANDROID_FOUNDATION.md",
-      "sha256": "56bfec217f3477a3592c9dcc362c6520ff29aaa569cf4b031442350388d75daf",
+      "sha256": "ed73dac624d575d2c17ab8ef609661ea1ea93afc8f3ef2beca4a1454cf198e0e",
       "symbols": [],
       "title": "Android foundation"
     },
