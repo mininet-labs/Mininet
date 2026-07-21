@@ -153,3 +153,29 @@ fn restore_rejects_a_tampered_kel() {
         }
     }
 }
+
+/// `export_current_and_next_keys_for_storage` round-trips through
+/// `restore`: a persistence layer that saves exactly the KEL bytes plus the
+/// exported seeds, then rebuilds via `SigningKey::to_seed_bytes`, ends up
+/// with a fully functional controller again -- this is the exact shape
+/// `mini-ffi`'s `RootCore::persist_state`/`RootCore::restore` (issue #198)
+/// use.
+#[test]
+fn exported_keys_round_trip_through_restore() {
+    let original = Controller::incept_single_from_seeds(&CUR, &NXT).unwrap();
+    let did_before = original.did();
+    let kel_bytes = original.kel().to_bytes();
+    let (current_keys, next_keys) = original.export_current_and_next_keys_for_storage();
+    let current_seeds: Vec<[u8; 32]> = current_keys.iter().map(|k| k.to_seed_bytes()).collect();
+    let next_seeds: Vec<[u8; 32]> = next_keys.iter().map(|k| k.to_seed_bytes()).collect();
+    drop(original);
+
+    let kel = Kel::from_bytes(&kel_bytes).unwrap();
+    let current = current_seeds.iter().map(SigningKey::from_seed).collect();
+    let next = next_seeds.iter().map(SigningKey::from_seed).collect();
+    let mut restored = Controller::restore(&kel, current, next).unwrap();
+
+    assert_eq!(restored.did(), did_before);
+    restored.rotate().unwrap();
+    restored.kel().verify().unwrap();
+}

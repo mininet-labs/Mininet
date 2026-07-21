@@ -9393,3 +9393,88 @@ policy promise.
 
 **Supersedes / superseded by:** none. New method; `incept*` and
 `recover_from_kel` are byte-for-byte unchanged.
+
+### D-0338 — `mini-ffi`: `StorageCipher` callback boundary + `RootCore::persist_state`/`restore`, closes the plaintext-crossing gap D-0337 named (issue #198)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #198, PR #206 (D-0334/D-0335/D-0337), draft PR #179
+
+**Decision:** add a `StorageCipher` UniFFI callback interface
+(`encrypt(Vec<u8>) -> Result<Vec<u8>, StorageCipherError>` /
+`decrypt` the same shape) that the platform shell implements — on
+Android, wrapping Android Keystore's hardware- or software-backed
+AES-GCM `Cipher`. `RootCore` gets two new members: `persist_state(cipher)
+-> Result<Vec<u8>, RootError>` encodes the in-process root/device state
+into a small hand-rolled plaintext blob (magic + version + optional root
+record + device records, each an owned KEL blob plus its current/next
+Ed25519 seeds) and hands it to `cipher.encrypt`; a named constructor
+`RootCore::restore(ciphertext, cipher) -> Result<Self, RootError>`
+decrypts via `cipher.decrypt`, decodes, and reconstructs every
+`did_mini::Controller` via `Controller::restore` (D-0337) — `mini-ffi`
+itself never encrypts, decrypts, or writes to disk. A new `did-mini`
+method, `Controller::export_current_and_next_keys_for_storage`, is the
+write-side counterpart to `restore`: the only other place a live
+controller's secret keys leave the type, named as loudly as
+`SigningKey::to_seed_bytes` already is.
+
+**Reason:** D-0337 shipped the `did-mini`-side "resume a session"
+primitive but explicitly left open how persisted secret bytes get
+encrypted at rest without violating `mini-ffi`'s "private-key bytes never
+cross UniFFI" rule — this decision answers that question the way D-0337
+predicted: a caller-implemented storage-cipher callback, so Kotlin's own
+Android-Keystore-backed cipher does the actual wrap/unwrap and Rust only
+ever hands it plaintext to encrypt or receives plaintext it decrypted
+itself, never a raw key. `RootCore`'s own MVP (D-0335) named "no
+persistence" as its most visible gap; this closes it for the Rust side of
+the boundary, one commit after #170/#208 landed and freed this session to
+continue slice 2 while the founder's Windows-side work proceeds
+independently.
+
+**Constitutional impact:** none. No dependency edge added — `mini-ffi`
+already depended on `did-mini`/`mini-crypto`, and `StorageCipher` is a
+plain trait with no crypto implementation inside `mini-ffi` itself
+(Directive 14, simplicity is security: composing the platform's own
+cipher rather than adding one). No new cryptographic primitive — `zeroize
+= "1"` (already used by `did-mini`/`mini-crypto`) is the only new
+dependency, for best-effort scrubbing of the one plaintext buffer this
+crate actually owns (see Failure point).
+
+**Implementation status:** shipped and tested. `crates/mini-ffi`: `cargo
+test -p mini-ffi --all-features` 23 tests (up from 16), including a
+full persist/restore round trip for a root plus two devices, a restored
+core creating/revoking devices normally afterward, a no-root round trip,
+a failing-cipher-surfaces-as-`RootError::Storage` case, and three
+fail-closed cases (wrong cipher key, truncated plaintext, empty bytes) —
+all `RootError::CorruptState`, never a panic or a silently-wrong
+controller. `crates/did-mini`: `export_current_and_next_keys_for_storage`
+covered by a new round-trip test in `tests/restore.rs` (8 tests, up from
+7). Real UniFFI Kotlin codegen re-verified: `uniffi-bindgen generate
+src/mini_ffi.udl --language kotlin` surfaces `StorageCipher` (with
+`encrypt`/`decrypt` and `StorageCipherException`), `RootCore.persistState`,
+and the `RootCore.restore` companion factory correctly. Full workspace
+`cargo fmt`/`clippy`/`cargo test --workspace --all-features` (149 test
+binaries, all green) clean.
+
+**Failure point:** the plaintext state buffer necessarily crosses the
+UniFFI boundary as an ordinary `Vec<u8>` argument to `cipher.encrypt` —
+that's unavoidable, since the cipher is what encrypts it — so it briefly
+exists in Kotlin/JVM memory this crate has no way to reach or zeroize;
+`StorageCipher`'s own doc comment says this plainly rather than implying
+a stronger guarantee than the design can make. The reverse direction
+(`cipher.decrypt`'s returned plaintext) *is* something Rust owns, and
+`RootCore::restore` zeroizes that local buffer immediately after
+decoding, on both the success and failure path. Kotlin/Gradle wiring, the
+real Android Keystore `Cipher` implementation, and actual on-disk
+storage location/format are all still unbuilt — this is the Rust-side
+boundary and its contract only, verified in this environment which has
+no JDK/Android SDK/NDK/Gradle/emulator.
+
+**Required follow-up:** Kotlin implements `StorageCipher` against Android
+Keystore (Codex/founder's local machine, per hub issue #196's division of
+labor); the app wires `persist_state`/`restore` into actual lifecycle
+hooks (save on backgrounding, restore on cold start) and picks where the
+ciphertext blob itself lives on disk (app-private storage, presumably).
+None of that is decided or implied here.
+
+**Supersedes / superseded by:** none. Purely additive to `mini-ffi`
+(`RootCore`'s existing five methods and constructor are unchanged) and to
+`did-mini` (`export_current_and_next_keys_for_storage` is a new method;
+every existing `Controller` method is byte-for-byte unchanged).
