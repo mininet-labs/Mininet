@@ -9185,3 +9185,296 @@ versus what still needs Codex/founder's local Android toolchain.
 **Supersedes / superseded by:** supersedes the prior single-item "Next
 implementation slice" section of `ANDROID_FOUNDATION.md` (same content,
 now item 1 of this roadmap, unchanged in substance).
+
+### D-0334 — Android Keystore signer adapter: Phase 0 design only (issue #197)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** hub issue #196, issue #197, draft PR #179,
+D-0333, `docs/mobile/ANDROID_FOUNDATION.md`,
+`docs/design/android-keystore-signer-adapter.md`
+
+**Decision:** write `docs/design/android-keystore-signer-adapter.md`
+(Phase 0, no code) before touching `mini-crypto`/`did-mini`'s signing
+abstractions for real. It records: (1) `Controller`'s pre-rotation
+commitment already only ever hashes the *verifying* key, never a raw
+secret scalar, so an opaque (never-exported) device signer is structurally
+compatible with the existing establishment/rotation event construction
+without a `Controller` redesign; (2) `SigningKey::to_seed_bytes`/
+`Controller::incept_pairwise_pseudonym` are genuinely incompatible with an
+opaque signer, but that's fine because pairwise-pseudonym derivation is a
+root-only operation a delegated device controller never calls; (3) the
+open, founder-facing question of which signature suite an Android
+Keystore-backed device key should actually use, given Android's
+inconsistent hardware-backed Ed25519 support versus its universal
+NIST P-256/RSA support since API 23 — named as three concrete options,
+none chosen here; (4) the proposed shape of a `DeviceSigner` trait for the
+next (real code) PR.
+
+**Reason:** this crate (`mini-crypto`) is the security foundation every
+other crate in the workspace depends on, and CLAUDE.md's typed-domain and
+no-new-cryptography rules both counsel freezing the design before writing
+it, the same discipline this session already used for KEL witness
+receipts (`kel-witness-receipts-and-duplicity-gossip.md` Phase 0) and the
+post-quantum migration (`post-quantum-identity-migration.md`). Rushing an
+"opaque signer" straight to code under beta-deadline pressure, without
+naming the Ed25519-hardware-support gap first, risks silently picking a
+suite that can't actually claim hardware backing on most devices and then
+having `ANDROID_FOUNDATION.md`'s own honesty rule violated by accident.
+
+**Constitutional impact:** none yet — no code. Once implemented, Directive
+8 (the human is the root of trust) and Directive 11 (weakest device
+matters) bind the real `DeviceSigner` trait design; invariant G1 (secret
+material lives only in the controller, never crosses a wire format) will
+need an explicit carve-out statement for why a `Box<dyn DeviceSigner>`
+whose implementation lives in Kotlin doesn't violate G1 (it doesn't: no
+secret byte ever exists in a form either side could serialize — that's the
+whole point of "opaque").
+
+**Implementation status:** design doc only. No `DeviceSigner` trait, no
+`Controller` constructor change, no Android Keystore code exists yet.
+
+**Failure point:** if the next PR picks a signature suite without
+re-checking real device/HAL support first (rather than assuming API level
+alone implies hardware backing), it would repeat the exact
+inference-instead-of-proof mistake `ANDROID_FOUNDATION.md` already warns
+against for hardware backing generally.
+
+**Required follow-up:** the founder's suite-choice call among this
+document's three options; then the actual `did_mini::DeviceSigner` trait,
+`Controller`'s device-only constructor path, deterministic tests against a
+fake `DeviceSigner`, and — separately, requiring Codex/the founder's local
+Android toolchain — the real Kotlin Keystore implementation and the
+delegation-ceremony acceptance test from `ANDROID_FOUNDATION.md`/issue
+#197.
+
+**Supersedes / superseded by:** none. New document; no existing code
+changed.
+
+### D-0335 — `mini-ffi::RootCore`: software-custody root/device delegation ceremony MVP (issue #197)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** hub issue #196, issue #197, draft PR #179,
+D-0334, `docs/design/android-keystore-signer-adapter.md`
+
+**Decision:** ship `RootCore` — a `mini-ffi` UniFFI object holding
+in-process root/device `did_mini::Controller` state — implementing
+`create_root`, `create_device`, `revoke_device`, `delegated_devices`,
+`has_root`, and `root_did`. This is Option 3 from D-0334's design doc
+(software-wrapped custody, not hardware-backed): every key is an ordinary
+in-memory `mini_crypto::SigningKey`, generated and used exactly as every
+other identity in this workspace today. No `SignatureSuite` change, no
+`DeviceSigner` trait, no `Controller` redesign — this exists specifically
+because it changes nothing in `mini-crypto`/`did-mini`, per the founder's
+explicit "just do it, ready for testing" direction and D-0334's own
+identification of Option 3 as the fastest, lowest-risk path to something
+real people can install and click through. The onboarding reducer
+(`start`/`dispatch`) is untouched; `RootCore` is a separate, additive
+UniFFI interface Kotlin instantiates once `dispatch` reaches
+`RootCreationReady`.
+
+**Reason:** closes the concrete "ready for my testing" ask against the
+acceptance test named in `ANDROID_FOUNDATION.md`/issue #197 for its
+create/delegate/revoke steps (steps 1, 2, 3, and 5 of that test — restart
+recovery, step 4, is explicitly out of scope, see below). Real people can
+now create a root, delegate a device, and revoke it inside one running
+app process, letting UX and protocol correctness get exercised on real
+devices via Codex/the founder's hardware before the harder hardware-backed
+custody question (D-0334's suite choice) is resolved.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting.
+`RootCore`'s methods take no generic byte blob — `create_device`/
+`revoke_device` operate on typed DIDs and a fixed default capability set,
+never a caller-assembled authority request. Directive 8 (human is the
+root of trust) and the custody model's "private-key bytes are never
+returned through UniFFI" hold: every `RootCore` method returns only DID
+strings, booleans, or `()`, never key material.
+
+**Implementation status:** shipped and tested (7 new unit tests: fresh
+core has no root; a second `create_root` is rejected; `create_device`
+before a root exists is rejected; the full create-root →
+create-device → revoke ceremony round-trips; revoking an unknown device
+is rejected; revoking a malformed DID is rejected; two delegated devices
+get independent identities). `cargo build -p mini-ffi`, `cargo test -p
+mini-ffi --all-features` (16 passed, up from 9), `cargo clippy -p
+mini-ffi --all-targets --all-features -- -D warnings`, full workspace
+fmt/clippy/test (148 test-result blocks, all `ok`), and a real UniFFI
+Kotlin codegen run (`uniffi-bindgen generate src/mini_ffi.udl --language
+kotlin`) confirming `RootCore`'s methods surface correctly as
+`createRoot`/`createDevice`/`revokeDevice`/`delegatedDevices`/`hasRoot`/
+`rootDid` in the generated `RootCoreInterface` — all passed/verified in
+this environment.
+
+**Failure point:** explicitly, honestly incomplete against the full
+acceptance test: (1) **nothing persists past process death** — closing
+the app loses the root and every delegated device; step 4 of the
+acceptance test ("restart the process and recover the same public
+identity") is entirely unimplemented, tracked as issue #198. (2) **not
+hardware-backed** — no key here is Android Keystore-generated or
+non-exportable; the "revoke a stolen device key" security story this
+custody model promises is not yet real, only the KEL-level bookkeeping
+that a revocation happened. (3) **root and device share one process** —
+a real deployment has the root on one device and delegated devices on
+others; this MVP doesn't yet model that split (that's what LAN/QR
+pairing, issue #200, actually establishes). (4) still entirely unrun on
+any real Android build/emulator/device — this environment has no JDK/
+SDK/NDK/Gradle/emulator; Codex/the founder's local toolchain is the next
+required step to actually exercise this from Kotlin.
+
+**Required follow-up:** issue #198 (persisted app state) is the
+immediate next slice — without it this ceremony is a demo, not a usable
+feature. Then D-0334's suite-choice decision for genuine hardware
+backing. Then real device/emulator verification via Codex.
+
+**Supersedes / superseded by:** none. Purely additive to `mini-ffi`; the
+existing `start`/`dispatch` reducer and its `AppSnapshot`/`AppCommand`/
+`AppEvent` types are byte-for-byte unchanged.
+
+### D-0337 — `did-mini::Controller::restore`: resume a session from persisted state without rotating (issue #198)  ·  *Accepted*
+**Date:** 2026-07-20 · **Refs:** hub issue #196, issue #198, draft PR #179,
+D-0335, `crates/did-mini/tests/restore.rs`
+
+**Decision:** add `Controller::restore(kel: &Kel, current: Vec<SigningKey>,
+next: Vec<SigningKey>) -> Result<Controller>` to `did-mini`. Unlike
+`Controller::recover_from_kel` (a deliberate rotation for a lost/stolen/
+compromised device), `restore` performs **no rotation and appends no
+event** — it reconstructs a controller exactly as it was when its KEL
+and secret keys were last saved, for resuming a live session (e.g. after
+an Android process restart). The KEL is fully re-verified via `kel.
+verify()`, and the supplied `current`/`next` keys are checked against
+its own claimed current key set/threshold and pre-rotation commitments/
+threshold before anything is trusted — a corrupted or substituted
+persisted secret fails closed with the new `IdentityError::
+RestoreKeysMismatch`, mirroring exactly the check `recover_from_kel`
+already does for its own escrowed keys.
+
+**Reason:** while investigating hub issue #196's slice #198 (persisted
+app state, the thing D-0335 itself named as the actual blocker between
+`RootCore` and something testers can use across sessions), discovered
+`did-mini` had no way to reconstruct a `Controller` from saved state at
+all — only `incept*` (new identity) and `recover_from_kel` (which always
+performs a rotation, wrong for "just reload the same session"; calling
+it on every app restart would rotate the identity every launch). This is
+the missing building block, added to the crate that actually owns
+`Controller`'s private fields rather than worked around from outside.
+
+**Constitutional impact:** none. No dependency edge added. Reuses
+`Kel::to_bytes`/`from_bytes` and `SigningKey::from_seed`/`to_seed_bytes`
+(both already existed); no new cryptographic primitive. Directive 8 (the
+human is the root of trust) is unaffected — `restore` cannot fabricate
+control of an identity it wasn't given the real matching secret keys
+for, since it re-derives and checks verifying keys against the KEL's own
+commitments exactly like every other constructor in this file.
+
+**Implementation status:** shipped and tested. 7 new tests in
+`crates/did-mini/tests/restore.rs`: a full round-trip reconstructs a
+fully functional controller (can rotate afterward); restore appends no
+event (KEL bytes identical before/after); a delegated device restores
+with its delegator intact; wrong current keys, wrong next keys, empty
+key sets, and a tampered KEL are all rejected. `did-mini` test count
+unaffected in-crate; workspace test count 148 → 149 (new binary).
+Full workspace `cargo fmt`/`clippy`/`test` clean.
+
+**Failure point:** this is the `did-mini`-side primitive only. It does
+**not** solve where the persisted bytes (KEL bytes plus raw secret seed
+bytes) actually get encrypted at rest, or how they cross the `mini-ffi`
+UniFFI boundary without violating this codebase's standing "private-key
+bytes are never returned through UniFFI" rule (stated in `mini-ffi`'s own
+crate doc comment and D-0335's decision entry). Raw seed bytes crossing
+the boundary in plaintext, even briefly, would be exactly that
+violation. Wiring `RootCore` to actually call `restore` needs that
+question answered first — deliberately not improvised here under time
+pressure, the same discipline D-0334 already applied to the signer-suite
+question.
+
+**Required follow-up:** design (Phase 0, before code, matching D-0334's
+own precedent) for how `mini-ffi` persists `RootCore`'s state without
+plaintext secret bytes ever crossing the UniFFI boundary — most likely a
+caller-implemented "storage cipher" callback interface (Kotlin wraps/
+unwraps via Android Keystore's AES-GCM `Cipher`, Rust only ever sees
+opaque ciphertext) so the boundary rule holds by construction, not by
+policy promise.
+
+**Supersedes / superseded by:** none. New method; `incept*` and
+`recover_from_kel` are byte-for-byte unchanged.
+
+### D-0338 — `mini-ffi`: `StorageCipher` callback boundary + `RootCore::persist_state`/`restore`, closes the plaintext-crossing gap D-0337 named (issue #198)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #198, PR #206 (D-0334/D-0335/D-0337), draft PR #179
+
+**Decision:** add a `StorageCipher` UniFFI callback interface
+(`encrypt(Vec<u8>) -> Result<Vec<u8>, StorageCipherError>` /
+`decrypt` the same shape) that the platform shell implements — on
+Android, wrapping Android Keystore's hardware- or software-backed
+AES-GCM `Cipher`. `RootCore` gets two new members: `persist_state(cipher)
+-> Result<Vec<u8>, RootError>` encodes the in-process root/device state
+into a small hand-rolled plaintext blob (magic + version + optional root
+record + device records, each an owned KEL blob plus its current/next
+Ed25519 seeds) and hands it to `cipher.encrypt`; a named constructor
+`RootCore::restore(ciphertext, cipher) -> Result<Self, RootError>`
+decrypts via `cipher.decrypt`, decodes, and reconstructs every
+`did_mini::Controller` via `Controller::restore` (D-0337) — `mini-ffi`
+itself never encrypts, decrypts, or writes to disk. A new `did-mini`
+method, `Controller::export_current_and_next_keys_for_storage`, is the
+write-side counterpart to `restore`: the only other place a live
+controller's secret keys leave the type, named as loudly as
+`SigningKey::to_seed_bytes` already is.
+
+**Reason:** D-0337 shipped the `did-mini`-side "resume a session"
+primitive but explicitly left open how persisted secret bytes get
+encrypted at rest without violating `mini-ffi`'s "private-key bytes never
+cross UniFFI" rule — this decision answers that question the way D-0337
+predicted: a caller-implemented storage-cipher callback, so Kotlin's own
+Android-Keystore-backed cipher does the actual wrap/unwrap and Rust only
+ever hands it plaintext to encrypt or receives plaintext it decrypted
+itself, never a raw key. `RootCore`'s own MVP (D-0335) named "no
+persistence" as its most visible gap; this closes it for the Rust side of
+the boundary, one commit after #170/#208 landed and freed this session to
+continue slice 2 while the founder's Windows-side work proceeds
+independently.
+
+**Constitutional impact:** none. No dependency edge added — `mini-ffi`
+already depended on `did-mini`/`mini-crypto`, and `StorageCipher` is a
+plain trait with no crypto implementation inside `mini-ffi` itself
+(Directive 14, simplicity is security: composing the platform's own
+cipher rather than adding one). No new cryptographic primitive — `zeroize
+= "1"` (already used by `did-mini`/`mini-crypto`) is the only new
+dependency, for best-effort scrubbing of the one plaintext buffer this
+crate actually owns (see Failure point).
+
+**Implementation status:** shipped and tested. `crates/mini-ffi`: `cargo
+test -p mini-ffi --all-features` 23 tests (up from 16), including a
+full persist/restore round trip for a root plus two devices, a restored
+core creating/revoking devices normally afterward, a no-root round trip,
+a failing-cipher-surfaces-as-`RootError::Storage` case, and three
+fail-closed cases (wrong cipher key, truncated plaintext, empty bytes) —
+all `RootError::CorruptState`, never a panic or a silently-wrong
+controller. `crates/did-mini`: `export_current_and_next_keys_for_storage`
+covered by a new round-trip test in `tests/restore.rs` (8 tests, up from
+7). Real UniFFI Kotlin codegen re-verified: `uniffi-bindgen generate
+src/mini_ffi.udl --language kotlin` surfaces `StorageCipher` (with
+`encrypt`/`decrypt` and `StorageCipherException`), `RootCore.persistState`,
+and the `RootCore.restore` companion factory correctly. Full workspace
+`cargo fmt`/`clippy`/`cargo test --workspace --all-features` (149 test
+binaries, all green) clean.
+
+**Failure point:** the plaintext state buffer necessarily crosses the
+UniFFI boundary as an ordinary `Vec<u8>` argument to `cipher.encrypt` —
+that's unavoidable, since the cipher is what encrypts it — so it briefly
+exists in Kotlin/JVM memory this crate has no way to reach or zeroize;
+`StorageCipher`'s own doc comment says this plainly rather than implying
+a stronger guarantee than the design can make. The reverse direction
+(`cipher.decrypt`'s returned plaintext) *is* something Rust owns, and
+`RootCore::restore` zeroizes that local buffer immediately after
+decoding, on both the success and failure path. Kotlin/Gradle wiring, the
+real Android Keystore `Cipher` implementation, and actual on-disk
+storage location/format are all still unbuilt — this is the Rust-side
+boundary and its contract only, verified in this environment which has
+no JDK/Android SDK/NDK/Gradle/emulator.
+
+**Required follow-up:** Kotlin implements `StorageCipher` against Android
+Keystore (Codex/founder's local machine, per hub issue #196's division of
+labor); the app wires `persist_state`/`restore` into actual lifecycle
+hooks (save on backgrounding, restore on cold start) and picks where the
+ciphertext blob itself lives on disk (app-private storage, presumably).
+None of that is decided or implied here.
+
+**Supersedes / superseded by:** none. Purely additive to `mini-ffi`
+(`RootCore`'s existing five methods and constructor are unchanged) and to
+`did-mini` (`export_current_and_next_keys_for_storage` is a new method;
+every existing `Controller` method is byte-for-byte unchanged).

@@ -17,6 +17,9 @@ bindgen = ["uniffi/cli"]
 
 [dependencies]
 uniffi = { version = "=0.32.0", default-features = false }
+did-mini = { path = "../did-mini" }
+mini-crypto = { path = "../mini-crypto" }
+zeroize = "1" # best-effort scrubbing of decrypted persisted-state plaintext
 
 [build-dependencies]
 uniffi = { version = "=0.32.0", default-features = false, features = ["build"] }

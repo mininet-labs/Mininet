@@ -8,6 +8,39 @@ namespace mini_ffi {
   CommandOutcome dispatch(AppSnapshot snapshot, AppCommand command);
 };
 
+callback interface StorageCipher {
+  [Throws=StorageCipherError]
+  sequence<u8> encrypt(sequence<u8> plaintext);
+
+  [Throws=StorageCipherError]
+  sequence<u8> decrypt(sequence<u8> ciphertext);
+};
+
+interface RootCore {
+  constructor();
+
+  [Throws=RootError, Name=restore]
+  constructor(sequence<u8> ciphertext, StorageCipher cipher);
+
+  boolean has_root();
+
+  string? root_did();
+
+  [Throws=RootError]
+  string create_root();
+
+  [Throws=RootError]
+  string create_device();
+
+  [Throws=RootError]
+  void revoke_device(string device_did);
+
+  sequence<string> delegated_devices();
+
+  [Throws=RootError]
+  sequence<u8> persist_state(StorageCipher cipher);
+};
+
 dictionary PlatformCapabilities {
   boolean secure_key_storage;
   boolean hardware_backed_keys;
@@ -73,4 +106,19 @@ enum AppError {
   "InvalidRequest",
   "InvalidTransition",
   "GenerationOverflow",
+};
+
+[Error]
+enum RootError {
+  "RootAlreadyExists",
+  "NoRoot",
+  "UnknownDevice",
+  "Identity",
+  "CorruptState",
+  "Storage",
+};
+
+[Error]
+enum StorageCipherError {
+  "Failed",
 };

@@ -21,28 +21,50 @@ contract and reports platform capabilities. No protocol secret crosses FFI.
   claims, caller-forged security snapshots, overflow, and invalid transitions
   fail closed;
 - missing native libraries produce a visible setup screen instead of a silent
-  crash; and
+  crash;
 - the Android manifest requests no network, Bluetooth, location, contacts,
-  camera, media, notification, or telemetry permission.
+  camera, media, notification, or telemetry permission; and
+- **`RootCore` (D-0335, issue #197 slice)**: a real root identity can be
+  created, a device can be delegated under it with the default capability
+  set, and a device can be revoked — all in-process, in memory, using
+  ordinary `mini_crypto::SigningKey`s exactly like every other identity in
+  this workspace today.
 
-The reducer is deliberately stateless across FFI calls. Its complete input and
-output are values, so Kotlin never shares mutable protocol state with Rust and
-tests can replay every transition deterministically.
+The onboarding reducer (`start`/`dispatch`) is deliberately stateless across
+FFI calls. Its complete input and output are values, so Kotlin never shares
+mutable protocol state with Rust and tests can replay every transition
+deterministically. `RootCore` is a separate, additive UniFFI interface with
+its own in-process state, instantiated once `dispatch` reaches
+`RootCreationReady`; it never leaks a mutable Rust reference into a value
+that crosses the FFI boundary.
 
 ## What does not work yet
 
-- Android Keystore key generation, attestation, signing, or encrypted recovery;
-- human-root inception or delegated-device enrollment;
-- persistence across process death;
+- **Android Keystore key generation, attestation, or hardware-backed
+  signing** — `RootCore`'s keys are software-only; D-0334's design doc names
+  three options for genuine hardware backing, none chosen yet;
+- **persistence across process death** — closing the app loses the root and
+  every delegated device `RootCore` created; this is the very next slice
+  (issue #198), not yet built;
+- **restart-and-recover** (acceptance-test step 4) — depends directly on
+  persistence above;
+- **root and device on separate physical devices** — this MVP holds both in
+  one process for dev-testing convenience; the real split happens once LAN/QR
+  pairing (issue #200) exists;
 - public profile creation, discovery, follow, feed, or synchronization;
 - LAN, BLE, Wi-Fi Direct, relay, background sync, notifications, media, or
   calls;
 - iOS bindings or a SwiftUI shell;
 - a reproducible or governed APK release; and
-- physical-device or emulator verification in this workspace.
+- physical-device or emulator verification in this workspace (no JDK/SDK/
+  NDK/Gradle/emulator here — Codex/the founder's local machine is required
+  for that).
 
-The UI stops at `RootCreationReady` and emits `RootCreationPending`. That is an
-intentional honesty boundary, not a placeholder success path.
+The UI still stops at `RootCreationReady` and emits `RootCreationPending` —
+`RootCore` exists and is tested, but the Compose UI does not yet call it.
+Wiring the UI to actually invoke `RootCore` (rather than only proving the
+Rust-side contract works) is part of getting this into testers' hands and is
+tracked alongside issue #198.
 
 ## Security boundary
 

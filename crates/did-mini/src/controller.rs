@@ -416,6 +416,77 @@ impl Controller {
         Ok(ctrl)
     }
 
+    /// Reconstruct a controller from its exact prior state: a previously
+    /// persisted KEL plus the secret current/next keys that were in effect
+    /// when it was saved (e.g. after an app process restart).
+    ///
+    /// **Not the same as [`Controller::recover_from_kel`].** Recovery
+    /// performs a deliberate rotation for a lost/stolen/compromised device;
+    /// `restore` performs no rotation and appends no event at all — it
+    /// exists purely to resume a live session exactly where it left off.
+    /// Calling `recover_from_kel` here every time an app restarted would
+    /// rotate the identity on every launch, which is never correct.
+    ///
+    /// The KEL is fully re-verified, and `current`/`next` are checked
+    /// against its own claimed current key set/threshold and pre-rotation
+    /// commitments/threshold before anything is trusted
+    /// ([`IdentityError::RestoreKeysMismatch`] otherwise) — a corrupted or
+    /// substituted persisted secret fails closed rather than silently
+    /// producing a controller that can't actually sign as this identity.
+    pub fn restore(
+        kel: &Kel,
+        current: Vec<SigningKey>,
+        next: Vec<SigningKey>,
+    ) -> Result<Controller> {
+        if current.is_empty() || next.is_empty() {
+            return Err(IdentityError::EmptyKeySet);
+        }
+        let state = kel.verify()?;
+
+        if current.len() != state.keys.len() {
+            return Err(IdentityError::RestoreKeysMismatch);
+        }
+        for (k, expected) in current.iter().zip(state.keys.iter()) {
+            if &k.verifying_key() != expected {
+                return Err(IdentityError::RestoreKeysMismatch);
+            }
+        }
+
+        if next.len() != state.next_commitments.len() {
+            return Err(IdentityError::RestoreKeysMismatch);
+        }
+        for (k, commitment) in next.iter().zip(state.next_commitments.iter()) {
+            if &event::key_commitment(&k.verifying_key()) != commitment {
+                return Err(IdentityError::RestoreKeysMismatch);
+            }
+        }
+
+        let suite = current[0].suite();
+        Ok(Controller {
+            scid: kel.scid().to_string(),
+            suite,
+            current,
+            current_threshold: state.threshold,
+            next,
+            next_threshold: state.next_threshold,
+            delegator: kel.delegator(),
+            events: kel.events().to_vec(),
+        })
+    }
+
+    /// Export this controller's live current/next secret signing keys, for
+    /// **secure on-device persistence only** — the write-side counterpart
+    /// to [`Controller::restore`]. Per SPEC-01 G1 this is the only way a
+    /// live controller's secret material leaves the type after
+    /// construction; the caller must keep the result on-device (encrypted
+    /// at rest, never transmitted), exactly like
+    /// [`mini_crypto::SigningKey::to_seed_bytes`] already requires of its
+    /// own output, and should pass it straight into `Controller::restore`
+    /// or scrub it once no longer needed.
+    pub fn export_current_and_next_keys_for_storage(&self) -> (Vec<SigningKey>, Vec<SigningKey>) {
+        (self.current.clone(), self.next.clone())
+    }
+
     /// Sign an arbitrary message with the current keys — for detached payloads
     /// like a presence-attestation transcript. Produces one indexed signature per
     /// current key; a verifier checks them against this identity's current key
