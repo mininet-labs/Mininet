@@ -10129,3 +10129,55 @@ real (e.g. incremental-build correctness at scale), revisit
 
 **Supersedes / superseded by:** none. Independent fix; does not touch the
 SDK-version pins or file-mode fix D-0344/D-0345 made.
+
+### D-0347 — remove the shadowing `import androidx.compose.foundation.layout.weight` in `MainActivity.kt` (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, PR #214, D-0343, D-0344, D-0345, D-0346
+
+**Decision:** delete the explicit
+`import androidx.compose.foundation.layout.weight` line from
+`app/android/app/src/main/java/org/mininet/app/MainActivity.kt`. No other
+change to the file; `ReadinessRow`'s existing `Modifier.weight(1f)` call
+(inside a `Row { ... }` lambda) needs no import at all, since
+`RowScope.weight`/`ColumnScope.weight` are extension-function *members*
+of the `RowScope`/`ColumnScope` receiver interfaces, automatically in
+scope wherever that receiver is implicit — unlike a true top-level
+extension function, they were never importable/needed as a standalone
+import in the first place.
+
+**Reason:** with D-0346's `srcDir` fix pushed, PR #214's `android-apk` job
+got past Gradle configuration for the first time and reached real Kotlin
+compilation, failing on a genuine source bug: `error: Cannot access 'val
+RowColumnParentData?.weight: Float': it is internal in file` at
+`MainActivity.kt:21:43` (the `weight` import line). `androidx.compose.
+foundation.layout` also declares an internal top-level `val
+RowColumnParentData.weight: Float` as part of its own row/column
+measurement implementation, name-colliding with the public
+`RowScope.weight`/`ColumnScope.weight` member extension functions in the
+same package. Explicitly importing the bare name `weight` from that
+package pulled in the internal property instead of leaving resolution to
+the implicit-receiver member lookup that already worked correctly
+without any import, so removing the erroneous import is the complete,
+minimal fix — this was never a needed import to begin with.
+
+**Constitutional impact:** none. Compose/Kotlin source fix; no dependency
+edge, frozen invariant, or cryptography touched.
+
+**Implementation status:** the one-line import removal is made in this
+environment, which still has no Kotlin compiler/Gradle to verify locally;
+verified, as with every fix in this incident chain, by watching the real
+CI run on PR #214.
+
+**Failure point:** unverified beyond this point — this is the fourth
+distinct real failure this CI job's successive first runs have surfaced
+(D-0344 SDK platform, D-0345 file mode, D-0346 Provider/srcDir, now this
+import shadowing). Whether `:app:compileDebugKotlin` then succeeds and
+the build proceeds through resource processing, dexing, and APK
+packaging to completion is still unverified; `MainActivity.kt` has other
+Compose UI code that has likewise never been compiled by any toolchain
+before this incident.
+
+**Required follow-up:** watch PR #214's next `android-apk` CI run; if it
+fails again, diagnose from that real log rather than guessing further.
+
+**Supersedes / superseded by:** none. Independent fix; does not touch any
+prior fix in this chain (D-0344/D-0345/D-0346).
