@@ -75,6 +75,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # TEMPORARY diagnostic (D-0343 follow-up): platform 37 does not exist
+      # in the real sdkmanager repository (confirmed by PR #214's first
+      # real run -- "Failed to find package 'platforms;android-37'").
+      # Lists what's actually available before attempting the pinned
+      # install, so the real version numbers can be read from this run's
+      # log instead of guessed. Remove this step once the pins below are
+      # corrected to real values.
+      - name: DIAGNOSTIC -- list real available SDK components
+        if: steps.diff.outputs.docs_only != 'true'
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --list 2>/dev/null | grep -E '^\s*(platforms|build-tools|ndk);' | sort -u
+
       - name: Install pinned Android SDK components
         if: steps.diff.outputs.docs_only != 'true'
         run: |
