@@ -9789,3 +9789,87 @@ to make unilaterally.
 
 **Supersedes / superseded by:** none. Extends D-0069's `deny.toml`
 in place; no crate code changed.
+
+### D-0342 — `mini-bearer`: MTU-bounded chunking/reassembly for small-payload bearers (issue #201, Android beta slice 5)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #201, PR #211/#212 (D-0340/D-0341)
+
+**Decision:** add a `mini-bearer::ble` module with `chunk_frame(frame,
+mtu)` and `ChunkReassembler`, the MTU-bounded splitting/reassembly logic
+a BLE-backed `Bearer` needs to carry a frame across GATT characteristic
+writes whose ATT MTU is far smaller than `mini-bearer::MAX_FRAME_BYTES`
+(16 MiB). Each chunk is `chunk_index: u16 (BE) | chunk_count: u16 (BE)
+| payload`; `ChunkReassembler` rejects an out-of-order index or a
+`chunk_count` that disagrees with the reassembly in progress
+(`BearerError::OutOfOrderChunk`/`BadChunk`) rather than guessing how to
+merge a confused or hostile chunk stream, and independently re-caps the
+reassembled total at `MAX_FRAME_BYTES` regardless of what a header
+claims. Deliberately does **not** implement `impl Bearer for
+AndroidBleBearer` or perform any real GATT read/write/notify — there is
+no Bluetooth stack in this environment to test against, and Android's
+`BluetoothGattServer`/`BluetoothGattCallback` are Kotlin-only APIs. A
+full BLE bearer needs a UniFFI callback interface for the actual radio
+I/O (the same shape as `mini-ffi`'s `StorageCipher`, D-0338) — that
+wiring is Kotlin-side, out of scope here.
+
+**Reason:** issue #201's own division of labor is explicit: "Rust-side:
+Android-specific BLE bearer adapter conforming to `mini-bearer::Channel`
+[sic; the relevant trait is `Bearer`, which `Channel` runs over],
+deterministic protocol-logic tests (this environment)." Checked
+`mini-bearer` first per this session's standing practice: the `Bearer`
+trait, `FrameReader` (TCP's byte-stream reassembly), and `Channel`
+already existed and needed no changes; the one genuinely new piece BLE
+needs beyond what TCP already exercises is MTU-bounded chunking, which
+did not exist anywhere in the repo (confirmed via `git grep` — every
+prior "BLE" mention was a doc comment naming it future work, e.g.
+`tcp.rs`: "A real BLE adapter is still separate future work; this is
+not it"). This module is exactly that future work's protocol-logic
+half, composition of the existing `Bearer`/`FrameReader` shape rather
+than new design.
+
+**Constitutional impact:** none. No dependency edge added — `mini-bearer`
+gained no new crate dependency. No frozen invariant touched. No
+cryptography of any kind in this module; it moves already-opaque bytes
+around, the same as `FrameReader` does for TCP.
+
+**Implementation status:** shipped and tested, Rust-side protocol logic
+only (per hub issue #196's division of labor). `cargo test -p
+mini-bearer --all-features`: 13 new tests in `ble::tests` (empty-frame
+round-trip, single-chunk round-trip, multi-chunk round-trip at a
+realistic 20-byte usable-payload MTU, mtu-too-small-for-header
+rejection, frame-larger-than-`MAX_FRAME_BYTES` rejection, a frame
+needing more than `u16::MAX` chunks at a tiny MTU rejection, a
+reassembler reused correctly across two consecutive frames, and five
+fail-closed reassembly cases: truncated header, zero `chunk_count`,
+starting mid-sequence, a skipped index, and a `chunk_count` that
+changes mid-stream) alongside the 23 pre-existing `mini-bearer` unit
+tests and 13 `channel.rs` integration tests, all green. Full workspace
+`cargo fmt`/`clippy --all-targets --all-features --workspace -- -D
+warnings`/`cargo test --workspace --all-features` clean.
+
+**Failure point:** this is the chunking/reassembly protocol logic only.
+No `impl Bearer` exists for BLE at all yet, no UniFFI callback interface
+for Kotlin-driven GATT I/O, no real Bluetooth hardware test anywhere,
+and no MTU-negotiation logic (the real negotiated ATT MTU is whatever
+Android's `BluetoothGatt.requestMtu`/callback reports; this module
+takes `mtu` as a plain parameter and makes no assumption about how a
+caller obtains it). `ChunkReassembler` also assumes GATT delivers
+writes/notifications to one connection in order, matching this crate's
+existing `Channel` in-order assumption — a real transport-level
+reordering bug (not modeled here) would surface as
+`OutOfOrderChunk`, correctly failing closed rather than corrupting data,
+but that is a detection, not a recovery, mechanism.
+
+**Required follow-up:** the Android-specific `impl Bearer for
+AndroidBleBearer` composing this module with a UniFFI callback interface
+for real `BluetoothGattServer`/`BluetoothGattClient` I/O, and the real
+two-Android-device BLE test (Codex/founder's local machine, per hub
+issue #196's division of labor) — issue #201's acceptance test's steps
+1-3 (BLE discovery, channel establishment, the slice-4 profile-exchange/
+follow flow completing over BLE instead of LAN) all need that Kotlin-side
+half before they can be exercised for real.
+
+**Supersedes / superseded by:** none. Purely additive to `mini-bearer`
+(new `ble` module, new `BearerError` variants — the enum is
+`#[non_exhaustive]`, so this is not a breaking change to existing match
+arms outside this crate); no existing `mini-bearer` function's signature
+or behavior changed.

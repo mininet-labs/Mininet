@@ -33,6 +33,34 @@ pub enum BearerError {
     /// [`crate::tcp::TcpBearer`]). Carries the error's message rather than
     /// the error itself so `BearerError` can stay `Clone`/`PartialEq`/`Eq`.
     Io(String),
+    /// [`crate::ble::chunk_frame`]'s `mtu` argument left no room for even
+    /// the chunk header.
+    MtuTooSmall {
+        /// The smallest `mtu` that would fit a header plus one payload byte.
+        min: usize,
+        /// The `mtu` that was passed.
+        got: usize,
+    },
+    /// A frame would need more chunks than a `u16` chunk count can express
+    /// at the given MTU.
+    TooManyChunks {
+        /// The largest representable chunk count ([`u16::MAX`]).
+        max: u16,
+        /// How many chunks the frame would actually need.
+        needed: usize,
+    },
+    /// A chunk's header was structurally invalid (a zero `chunk_count`, or
+    /// a `chunk_count` that disagrees with the reassembly already in
+    /// progress).
+    BadChunk,
+    /// A chunk arrived with an index other than the one
+    /// [`crate::ble::ChunkReassembler`] was expecting next.
+    OutOfOrderChunk {
+        /// The chunk index that was expected.
+        expected: u16,
+        /// The chunk index that actually arrived.
+        got: u16,
+    },
 }
 
 impl core::fmt::Display for BearerError {
@@ -55,6 +83,19 @@ impl core::fmt::Display for BearerError {
             }
             BearerError::Crypto(e) => write!(f, "crypto error: {e}"),
             BearerError::Io(msg) => write!(f, "I/O error: {msg}"),
+            BearerError::MtuTooSmall { min, got } => {
+                write!(f, "mtu too small: need at least {min} bytes, got {got}")
+            }
+            BearerError::TooManyChunks { max, needed } => {
+                write!(f, "frame needs {needed} chunks, more than the max {max}")
+            }
+            BearerError::BadChunk => write!(f, "malformed or inconsistent chunk header"),
+            BearerError::OutOfOrderChunk { expected, got } => {
+                write!(
+                    f,
+                    "out-of-order chunk: expected index {expected}, got {got}"
+                )
+            }
         }
     }
 }

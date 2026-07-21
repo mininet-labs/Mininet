@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 50,
-    "files": 608,
+    "files": 609,
     "headings": 2077,
-    "rust_symbols": 5101
+    "rust_symbols": 5124
   },
   "crates": {
     "did-mini": {
@@ -4561,6 +4561,153 @@
       "title": "use crate::error::{BearerError, Result};"
     },
     {
+      "bytes": 13188,
+      "group": "crate:mini-bearer",
+      "headings": [],
+      "keywords": [
+        "frame",
+        "chunk_count",
+        "mtu",
+        "chunks",
+        "u16",
+        "one",
+        "chunk",
+        "payload",
+        "chunk_header_bytes",
+        "chunkreassembler",
+        "max_frame_bytes",
+        "max",
+        "chunk_frame",
+        "what",
+        "gatt",
+        "real",
+        "bearererror",
+        "index",
+        "vec",
+        "out",
+        "ble",
+        "encode_chunk",
+        "header",
+        "usize"
+      ],
+      "lines": 355,
+      "path": "crates/mini-bearer/src/ble.rs",
+      "sha256": "d8d0580f4c12b4a57057fb9f1fed5ac251de75620a393d16801c182dc59c5064",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 53,
+          "name": "CHUNK_HEADER_BYTES"
+        },
+        {
+          "kind": "fn",
+          "line": 65,
+          "name": "chunk_frame"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "encode_chunk"
+        },
+        {
+          "kind": "struct",
+          "line": 113,
+          "name": "ChunkReassembler"
+        },
+        {
+          "kind": "impl",
+          "line": 119,
+          "name": "ChunkReassembler"
+        },
+        {
+          "kind": "fn",
+          "line": 121,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "push_chunk"
+        },
+        {
+          "kind": "mod",
+          "line": 192,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 195,
+          "name": "reassemble_all"
+        },
+        {
+          "kind": "fn",
+          "line": 208,
+          "name": "a_frame_smaller_than_one_chunk_round_trips_as_a_single_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 216,
+          "name": "a_frame_spanning_many_chunks_round_trips_in_order"
+        },
+        {
+          "kind": "fn",
+          "line": 224,
+          "name": "an_empty_frame_round_trips_as_one_empty_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 231,
+          "name": "chunking_with_an_mtu_too_small_for_even_the_header_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 243,
+          "name": "chunking_a_frame_larger_than_max_frame_bytes_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 256,
+          "name": "an_mtu_too_small_to_fit_a_max_size_frame_within_u16_chunks_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 265,
+          "name": "reassembly_rejects_a_chunk_shorter_than_the_header"
+        },
+        {
+          "kind": "fn",
+          "line": 272,
+          "name": "reassembly_rejects_a_chunk_claiming_zero_total_chunks"
+        },
+        {
+          "kind": "fn",
+          "line": 281,
+          "name": "reassembly_rejects_starting_mid_sequence"
+        },
+        {
+          "kind": "fn",
+          "line": 296,
+          "name": "reassembly_rejects_a_skipped_chunk_index"
+        },
+        {
+          "kind": "fn",
+          "line": 312,
+          "name": "reassembly_rejects_a_mid_stream_chunk_count_change"
+        },
+        {
+          "kind": "fn",
+          "line": 322,
+          "name": "a_reassembler_can_be_reused_for_a_second_frame_after_completing_the_first"
+        },
+        {
+          "kind": "fn",
+          "line": 344,
+          "name": "round_tripping_at_a_realistic_ble_att_mtu_matches_the_original_frame"
+        }
+      ],
+      "title": "use crate::error::{BearerError, Result};"
+    },
+    {
       "bytes": 9511,
       "group": "crate:mini-bearer",
       "headings": [],
@@ -4880,13 +5027,17 @@
       "title": "use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};"
     },
     {
-      "bytes": 2701,
+      "bytes": 4362,
       "group": "crate:mini-bearer",
       "headings": [],
       "keywords": [
         "bearererror",
         "error",
+        "got",
         "write",
+        "max",
+        "chunk",
+        "frame",
         "result",
         "fmt",
         "channel",
@@ -4894,24 +5045,20 @@
         "std",
         "cryptoerror",
         "bearer",
+        "usize",
         "message",
-        "frame",
-        "max",
-        "got",
+        "mtu",
+        "u16",
+        "expected",
         "crypto",
+        "header",
+        "index",
         "self",
-        "closed",
-        "length",
-        "handshake",
-        "display",
-        "failure",
-        "clone",
-        "partialeq",
-        "endpoint"
+        "more"
       ],
-      "lines": 75,
+      "lines": 116,
       "path": "crates/mini-bearer/src/error.rs",
-      "sha256": "60c37b74fcc9e0487b4027d83b492d66323994d2731e2237bfb7369c733d851f",
+      "sha256": "266e7bc60d66dd57abc4b5814c4dc82f8ea4996463bd98b7bf36e6bc668dbb8c",
       "symbols": [
         {
           "kind": "type",
@@ -4925,37 +5072,37 @@
         },
         {
           "kind": "impl",
-          "line": 38,
+          "line": 66,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 67,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 62,
+          "line": 103,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 64,
+          "line": 105,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 65,
+          "line": 106,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 70,
+          "line": 111,
           "name": "From<std::io::Error>"
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 112,
           "name": "from"
         }
       ],
@@ -5029,12 +5176,13 @@
       "title": "use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};"
     },
     {
-      "bytes": 2949,
+      "bytes": 3298,
       "group": "crate:mini-bearer",
       "headings": [],
       "keywords": [
         "bearer",
         "channel",
+        "ble",
         "discovery",
         "anonymous",
         "error",
@@ -5055,41 +5203,45 @@
         "tcpbearer",
         "peer",
         "localannouncer",
-        "localscanner",
-        "ephemeral"
+        "localscanner"
       ],
-      "lines": 64,
+      "lines": 70,
       "path": "crates/mini-bearer/src/lib.rs",
-      "sha256": "b6a163f9945493df4e157639211000e68d0b7785202b4d03b50be18c00f26a0d",
+      "sha256": "653555afcaa0985d5246398c8807a69cec3c9d9caf62ed6861d4c37544ccb75d",
       "symbols": [
         {
           "kind": "mod",
-          "line": 46,
+          "line": 50,
           "name": "bearer"
         },
         {
           "kind": "mod",
-          "line": 47,
+          "line": 51,
+          "name": "ble"
+        },
+        {
+          "kind": "mod",
+          "line": 52,
           "name": "channel"
         },
         {
           "kind": "mod",
-          "line": 48,
+          "line": 53,
           "name": "discovery"
         },
         {
           "kind": "mod",
-          "line": 49,
+          "line": 54,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 50,
+          "line": 55,
           "name": "inprocess"
         },
         {
           "kind": "mod",
-          "line": 51,
+          "line": 56,
           "name": "tcp"
         }
       ],
@@ -44005,7 +44157,7 @@
       "title": "{"
     },
     {
-      "bytes": 589349,
+      "bytes": 594481,
       "group": "docs",
       "headings": [
         {
@@ -44412,8 +44564,8 @@
       "keywords": [
         "accepted",
         "founder",
-        "real",
         "issue",
+        "real",
         "review",
         "audit",
         "closes",
@@ -44426,18 +44578,18 @@
         "roadmap",
         "release",
         "mini-consensus",
+        "slice",
         "status",
+        "beta",
         "design",
         "new",
-        "slice",
         "research",
         "lane",
-        "invariant",
-        "d-0045"
+        "invariant"
       ],
-      "lines": 9792,
+      "lines": 9876,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "0bcd91bcdce877197f78c11aacb1286b847cde60373aa07bd668321d17674e27",
+      "sha256": "7e13130253be40c002d589e34b2d2e89e45d082389e408e1224664de1ebc74b0",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -45561,7 +45713,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 68800,
+      "bytes": 69398,
       "group": "docs",
       "headings": [
         {
@@ -45636,7 +45788,7 @@
         },
         {
           "level": 2,
-          "line": 1056,
+          "line": 1065,
           "text": "Where to look for more detail"
         }
       ],
@@ -45666,9 +45818,9 @@
         "social",
         "network"
       ],
-      "lines": 1071,
+      "lines": 1080,
       "path": "docs/STATUS.md",
-      "sha256": "57e0392e4f091ca8367946714d27dbdb185e1b74e7994d75314e8828150fd297",
+      "sha256": "787e59b2acad22d9db35f0c627b10c18f85307625f408df1693e653046b29174",
       "symbols": [],
       "title": "Implementation status"
     },
