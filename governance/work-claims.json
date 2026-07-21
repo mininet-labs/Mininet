@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-20T17:30:00Z",
+  "updated_at": "2026-07-20T19:55:00Z",
   "claims": [
     {
       "issue": 122,
@@ -95,7 +95,7 @@
       "decision_ids": [
         "D-0320"
       ],
-      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z. Closed here (issue #182 branch) since PR #174 itself merged, the same precedent PR #174 set for #161 and PR #180 set for #173/#177."
+      "notes": "CI scope only. Narrows the reproducibility job's build to the four crates whose example binaries it already hashes; the two-clean-build discipline and the compared artifact set are unchanged. Also closes the stale claim for issue #161, whose PR #162 merged 2026-07-19T01:22:31Z. Closed independently by both the issue #182 and PR #179 branches since PR #174 itself merged, the same precedent set for #161."
     },
     {
       "issue": 175,
@@ -254,7 +254,7 @@
       "decision_ids": [
         "D-0331"
       ],
-      "notes": "Follow-up to D-0327: Backend::list_meta_prefix_last, a genuinely bounded 'most recent N' query. MemoryBackend gets a real O(log n + limit) BTreeMap::range(...).rev().take(limit) implementation; FsBackend inherits the trait's non-bounded default (deliberately -- a real bounded FS reverse walk needs either a sorted early-stopping traversal or an on-disk sorted index, not attempted here to avoid risking FsBackend's existing symlink/path-traversal defenses). Store::recent now calls the new method directly instead of since(0) reversed/truncated client-side. Store::since's own forward scan is unchanged and still not bounded. Closed here (issue #194 branch) since PR #193 was confirmed merged; found stale (still in_review) and closed per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+      "notes": "Follow-up to D-0327: Backend::list_meta_prefix_last, a genuinely bounded 'most recent N' query. MemoryBackend gets a real O(log n + limit) BTreeMap::range(...).rev().take(limit) implementation; FsBackend inherits the trait's non-bounded default (deliberately -- a real bounded FS reverse walk needs either a sorted early-stopping traversal or an on-disk sorted index, not attempted here to avoid risking FsBackend's existing symlink/path-traversal defenses). Store::recent now calls the new method directly instead of since(0) reversed/truncated client-side. Store::since's own forward scan is unchanged and still not bounded. Closed here (PR #179 branch, during its rebase past main) since PR #193 was confirmed merged; found stale (still in_review) and closed per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
     },
     {
       "issue": 194,
@@ -278,10 +278,10 @@
     },
     {
       "issue": 207,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/bounty-project-pools",
-      "pull_request": null,
+      "pull_request": 208,
       "lease_expires": "2026-07-27",
       "paths": [
         "crates/mini-bounty/src/pool.rs",
@@ -292,7 +292,29 @@
       "decision_ids": [
         "D-0336"
       ],
-      "notes": "BountyPool::project label + with_project builder, purely organizational metadata for grouping multiple flat-amount funding rounds under one project name. No change to claim/verify/ring logic."
+      "notes": "BountyPool::project label + with_project builder, purely organizational metadata for grouping multiple flat-amount funding rounds under one project name. No change to claim/verify/ring logic. Closed here (PR #179 branch, during its rebase past main) since PR #208 was confirmed merged (main's own merge commit)."
+    },
+    {
+      "issue": 178,
+      "status": "in_review",
+      "contributor": "Codex, continued by Claude",
+      "branch": "agent/android-mobile-foundation",
+      "pull_request": 179,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "deny.toml",
+        "crates/mini-ffi/",
+        "app/android/",
+        "docs/mobile/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0018",
+        "D-0020"
+      ],
+      "notes": "Android-first foundation: a narrow Rust UniFFI command/event boundary and thin Kotlin/Compose shell. The first identity/profile/follow integration slice depends on the verified social delivery work in draft PR #170. Coordination evidence only; no approval, release, or production claim. Rebased past main through PR #180/#183/#185/#187/#189/#191/#193/#195/#208 (see this PR's own body for what changed)."
     }
   ]
 }

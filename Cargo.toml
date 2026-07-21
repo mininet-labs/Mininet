@@ -13,6 +13,7 @@ members = [
     "crates/mini-presence",
     "crates/mini-reward",
     "crates/mini-keystone",
+    "crates/mini-ffi",
     "crates/mini-objects",
     "crates/mini-store",
     "crates/mini-crdt",
