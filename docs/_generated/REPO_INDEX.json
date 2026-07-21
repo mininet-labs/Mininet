@@ -3,7 +3,7 @@
     "crates": 50,
     "files": 607,
     "headings": 2070,
-    "rust_symbols": 5031
+    "rust_symbols": 5051
   },
   "crates": {
     "did-mini": {
@@ -18961,7 +18961,7 @@
       "title": "fn main() {"
     },
     {
-      "bytes": 38362,
+      "bytes": 55201,
       "group": "crate:mini-ffi",
       "headings": [],
       "keywords": [
@@ -18990,9 +18990,9 @@
         "identity",
         "key"
       ],
-      "lines": 1040,
+      "lines": 1410,
       "path": "crates/mini-ffi/src/lib.rs",
-      "sha256": "418a3dfc4293885ecb780ce93f3380484d49d3aedf1ae83145046af7d89f9e70",
+      "sha256": "bcf378836be1fb06a123f9ef61c112f8813934e4ca8ecb5dc881e19a3e8f6108",
       "symbols": [
         {
           "kind": "const",
@@ -19076,428 +19076,528 @@
         },
         {
           "kind": "impl",
-          "line": 183,
+          "line": 191,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 184,
+          "line": 192,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 196,
+          "line": 211,
           "name": "std::error::Error"
         },
         {
           "kind": "fn",
-          "line": 198,
+          "line": 213,
           "name": "identity_err"
         },
         {
           "kind": "enum",
-          "line": 210,
+          "line": 225,
           "name": "StorageCipherError"
         },
         {
           "kind": "impl",
-          "line": 215,
+          "line": 230,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 216,
+          "line": 231,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 221,
+          "line": 236,
           "name": "std::error::Error"
         },
         {
           "kind": "trait",
-          "line": 235,
+          "line": 250,
           "name": "StorageCipher"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 252,
           "name": "encrypt"
         },
         {
           "kind": "fn",
-          "line": 239,
+          "line": 254,
           "name": "decrypt"
         },
         {
           "kind": "struct",
-          "line": 255,
+          "line": 270,
           "name": "RootCore"
         },
         {
           "kind": "struct",
-          "line": 260,
+          "line": 275,
           "name": "RootState"
         },
         {
           "kind": "const",
-          "line": 268,
+          "line": 291,
           "name": "PERSIST_MAGIC"
         },
         {
           "kind": "const",
-          "line": 269,
+          "line": 292,
           "name": "PERSIST_VERSION"
         },
         {
           "kind": "const",
-          "line": 273,
+          "line": 296,
           "name": "MAX_PERSISTED_DEVICES"
         },
         {
           "kind": "const",
-          "line": 274,
+          "line": 297,
           "name": "MAX_PERSISTED_KEL_BYTES"
         },
         {
           "kind": "const",
-          "line": 278,
+          "line": 301,
           "name": "MAX_PERSISTED_KEYS_PER_RECORD"
         },
         {
           "kind": "struct",
-          "line": 285,
+          "line": 308,
           "name": "PersistReader"
         },
         {
           "kind": "impl",
-          "line": 290,
+          "line": 313,
           "name": "PersistReader<'a>"
         },
         {
           "kind": "fn",
-          "line": 291,
+          "line": 314,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 295,
+          "line": 318,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 328,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 309,
+          "line": 332,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 314,
+          "line": 337,
           "name": "seed"
         },
         {
           "kind": "fn",
-          "line": 321,
+          "line": 344,
           "name": "finished"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 349,
           "name": "encode_identity_record"
         },
         {
           "kind": "fn",
-          "line": 342,
+          "line": 365,
           "name": "decode_identity_record"
         },
         {
           "kind": "fn",
-          "line": 370,
+          "line": 393,
           "name": "encode_state"
         },
         {
           "kind": "fn",
-          "line": 388,
+          "line": 411,
           "name": "decode_state"
         },
         {
           "kind": "impl",
-          "line": 415,
+          "line": 442,
           "name": "RootCore"
         },
         {
           "kind": "fn",
-          "line": 417,
+          "line": 444,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 422,
+          "line": 449,
           "name": "has_root"
         },
         {
           "kind": "fn",
-          "line": 427,
+          "line": 454,
           "name": "root_did"
         },
         {
           "kind": "fn",
-          "line": 437,
+          "line": 464,
           "name": "create_root"
         },
         {
           "kind": "fn",
-          "line": 451,
+          "line": 478,
           "name": "create_device"
         },
         {
           "kind": "fn",
-          "line": 474,
+          "line": 501,
           "name": "revoke_device"
         },
         {
           "kind": "fn",
-          "line": 491,
+          "line": 518,
           "name": "delegated_devices"
         },
         {
           "kind": "fn",
-          "line": 510,
+          "line": 530,
+          "name": "root_kel"
+        },
+        {
+          "kind": "fn",
+          "line": 550,
+          "name": "begin_device_enrollment"
+        },
+        {
+          "kind": "fn",
+          "line": 577,
+          "name": "approve_device_enrollment"
+        },
+        {
+          "kind": "fn",
+          "line": 600,
+          "name": "finish_device_enrollment"
+        },
+        {
+          "kind": "fn",
+          "line": 621,
+          "name": "revoke_delegated_device"
+        },
+        {
+          "kind": "fn",
+          "line": 645,
           "name": "restore"
         },
         {
           "kind": "fn",
-          "line": 529,
+          "line": 664,
           "name": "persist_state"
         },
         {
           "kind": "fn",
-          "line": 534,
+          "line": 669,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 542,
+          "line": 677,
           "name": "api_version"
         },
         {
           "kind": "fn",
-          "line": 547,
+          "line": 692,
+          "name": "is_device_delegated"
+        },
+        {
+          "kind": "fn",
+          "line": 703,
           "name": "start"
         },
         {
           "kind": "fn",
-          "line": 562,
+          "line": 718,
           "name": "dispatch"
         },
         {
           "kind": "fn",
-          "line": 609,
+          "line": 765,
           "name": "validate_capabilities"
         },
         {
           "kind": "fn",
-          "line": 619,
+          "line": 775,
           "name": "readiness"
         },
         {
           "kind": "fn",
-          "line": 629,
+          "line": 785,
           "name": "validate_snapshot"
         },
         {
           "kind": "fn",
-          "line": 643,
+          "line": 799,
           "name": "validate_version"
         },
         {
           "kind": "fn",
-          "line": 651,
+          "line": 807,
           "name": "validate_request_id"
         },
         {
           "kind": "fn",
-          "line": 664,
+          "line": 820,
           "name": "advance"
         },
         {
           "kind": "mod",
-          "line": 677,
+          "line": 833,
           "name": "ffi_scaffolding"
         },
         {
           "kind": "mod",
-          "line": 688,
+          "line": 844,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 691,
+          "line": 847,
           "name": "protected_platform"
         },
         {
           "kind": "fn",
-          "line": 700,
+          "line": 856,
           "name": "command"
         },
         {
           "kind": "fn",
-          "line": 710,
+          "line": 866,
           "name": "start_reports_an_honest_hardware_backed_state"
         },
         {
           "kind": "fn",
-          "line": 722,
+          "line": 878,
           "name": "contradictory_platform_capabilities_fail_closed"
         },
         {
           "kind": "fn",
-          "line": 739,
+          "line": 895,
           "name": "missing_secure_storage_blocks_root_creation_without_advancing"
         },
         {
           "kind": "fn",
-          "line": 757,
+          "line": 913,
           "name": "root_creation_is_named_as_pending_instead_of_faked"
         },
         {
           "kind": "fn",
-          "line": 772,
+          "line": 928,
           "name": "bad_versions_and_request_ids_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 792,
+          "line": 948,
           "name": "caller_cannot_forge_a_stronger_security_snapshot"
         },
         {
           "kind": "fn",
-          "line": 811,
+          "line": 967,
           "name": "generation_overflow_fails_instead_of_wrapping"
         },
         {
           "kind": "fn",
-          "line": 821,
+          "line": 977,
           "name": "reducer_is_deterministic_across_ten_thousand_calls"
         },
         {
           "kind": "fn",
-          "line": 833,
+          "line": 989,
           "name": "back_at_welcome_is_an_invalid_transition"
         },
         {
           "kind": "fn",
-          "line": 842,
+          "line": 998,
           "name": "a_fresh_root_core_has_no_root"
         },
         {
           "kind": "fn",
-          "line": 850,
+          "line": 1006,
           "name": "creating_a_second_root_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 857,
+          "line": 1013,
           "name": "a_device_cannot_be_created_before_a_root_exists"
         },
         {
           "kind": "fn",
-          "line": 863,
+          "line": 1019,
           "name": "the_full_delegation_and_revocation_ceremony"
         },
         {
           "kind": "fn",
-          "line": 883,
+          "line": 1039,
           "name": "revoking_an_unknown_device_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 896,
+          "line": 1052,
           "name": "revoking_a_malformed_did_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 906,
+          "line": 1062,
           "name": "two_delegated_devices_have_independent_identities"
         },
         {
           "kind": "struct",
-          "line": 924,
+          "line": 1080,
           "name": "XorCipher"
         },
         {
           "kind": "impl",
-          "line": 926,
+          "line": 1082,
           "name": "StorageCipher"
         },
         {
           "kind": "fn",
-          "line": 927,
+          "line": 1083,
           "name": "encrypt"
         },
         {
           "kind": "fn",
-          "line": 930,
+          "line": 1086,
           "name": "decrypt"
         },
         {
           "kind": "struct",
-          "line": 937,
+          "line": 1093,
           "name": "FailingCipher"
         },
         {
           "kind": "impl",
-          "line": 939,
+          "line": 1095,
           "name": "StorageCipher"
         },
         {
           "kind": "fn",
-          "line": 940,
+          "line": 1096,
           "name": "encrypt"
         },
         {
           "kind": "fn",
-          "line": 943,
+          "line": 1099,
           "name": "decrypt"
         },
         {
           "kind": "fn",
-          "line": 949,
+          "line": 1105,
           "name": "persisting_and_restoring_round_trips_root_and_devices"
         },
         {
           "kind": "fn",
-          "line": 968,
+          "line": 1124,
           "name": "a_restored_core_can_create_and_revoke_devices_normally"
         },
         {
           "kind": "fn",
-          "line": 984,
+          "line": 1140,
           "name": "persisting_with_no_root_then_restoring_has_no_root"
         },
         {
           "kind": "fn",
-          "line": 993,
+          "line": 1149,
           "name": "a_failing_cipher_surfaces_as_a_storage_error"
         },
         {
           "kind": "fn",
-          "line": 1007,
+          "line": 1163,
           "name": "restoring_with_the_wrong_cipher_key_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 1021,
+          "line": 1177,
           "name": "restoring_truncated_plaintext_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 1033,
+          "line": 1189,
           "name": "restoring_empty_bytes_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 1205,
+          "name": "the_full_enrollment_and_revocation_acceptance_flow"
+        },
+        {
+          "kind": "fn",
+          "line": 1239,
+          "name": "a_second_enrollment_cannot_begin_while_one_is_pending"
+        },
+        {
+          "kind": "fn",
+          "line": 1251,
+          "name": "begin_device_enrollment_rejects_a_malformed_root_did"
+        },
+        {
+          "kind": "fn",
+          "line": 1260,
+          "name": "approve_device_enrollment_requires_a_root"
+        },
+        {
+          "kind": "fn",
+          "line": 1277,
+          "name": "approve_device_enrollment_rejects_a_request_naming_a_different_root"
+        },
+        {
+          "kind": "fn",
+          "line": 1294,
+          "name": "approve_device_enrollment_rejects_a_corrupt_request"
+        },
+        {
+          "kind": "fn",
+          "line": 1304,
+          "name": "finish_device_enrollment_fails_without_a_pending_enrollment"
+        },
+        {
+          "kind": "fn",
+          "line": 1313,
+          "name": "finish_device_enrollment_rejects_an_approval_that_never_happened"
+        },
+        {
+          "kind": "fn",
+          "line": 1334,
+          "name": "finish_device_enrollment_rejects_a_stale_root_kel_from_before_approval"
+        },
+        {
+          "kind": "fn",
+          "line": 1350,
+          "name": "revoke_delegated_device_does_not_require_holding_the_devices_secrets"
+        },
+        {
+          "kind": "fn",
+          "line": 1373,
+          "name": "revoke_delegated_device_requires_a_root"
+        },
+        {
+          "kind": "fn",
+          "line": 1383,
+          "name": "root_kel_requires_a_root"
+        },
+        {
+          "kind": "fn",
+          "line": 1389,
+          "name": "is_device_delegated_rejects_a_tampered_kel"
+        },
+        {
+          "kind": "fn",
+          "line": 1402,
+          "name": "is_device_delegated_is_false_for_an_unrelated_did"
         }
       ],
       "title": "use zeroize::Zeroize;"
@@ -43583,7 +43683,7 @@
       "title": "{"
     },
     {
-      "bytes": 570286,
+      "bytes": 576782,
       "group": "docs",
       "headings": [
         {
@@ -44013,9 +44113,9 @@
         "d-0045",
         "entry"
       ],
-      "lines": 9481,
+      "lines": 9586,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "a11bae66ddf4d174d8da994770989defbf6e787668ed07e4da60dfd511e124a0",
+      "sha256": "497acd79c1961fedbb588bca37adb40c3618777e623a055d940e18d884fe4490",
       "symbols": [],
       "title": "Decision Log"
     },

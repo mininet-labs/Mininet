@@ -9478,3 +9478,108 @@ None of that is decided or implied here.
 (`RootCore`'s existing five methods and constructor are unchanged) and to
 `did-mini` (`export_current_and_next_keys_for_storage` is a new method;
 every existing `Controller` method is byte-for-byte unchanged).
+
+### D-0339 — `mini-ffi`: two-party device enrollment/revocation (issue #199, Android beta slice 3)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #199, PR #206/#209 (D-0334/D-0335/D-0337/D-0338), draft PR #179
+
+**Decision:** add a real two-party enrollment/revocation protocol to
+`RootCore`, composed entirely from `did-mini` primitives that already
+existed before this change (`Controller::incept_device`,
+`Controller::delegate_device`, `Controller::revoke_device`,
+`verify_delegation`, `Kel::to_bytes`/`from_bytes`) — no new cryptography,
+no new wire format beyond the KEL bytes those primitives already produce:
+
+- `RootCore::begin_device_enrollment(root_did)` (candidate device):
+  generates a fresh local device identity naming `root_did` as delegator
+  and returns its public KEL bytes — no secrets in the request.
+- `RootCore::approve_device_enrollment(request)` (root holder): verifies
+  the request names *this* root as delegator
+  (`RootError::DelegatorMismatch` otherwise), calls the existing
+  `delegate_device`, and returns the root's now-updated KEL bytes.
+  Deliberately does **not** touch `RootCore`'s existing `devices: Vec<Controller>`
+  field — the root never holds the candidate device's secrets, so
+  tracking it as a full secret-holding `Controller` (what `create_device`
+  does for the single-process convenience path) would be a lie.
+- `RootCore::finish_device_enrollment(approval)` (candidate device):
+  verifies the mutual delegation link via `verify_delegation` before
+  promoting the pending identity into the confirmed device list —
+  approval bytes that don't actually authorize this device are rejected,
+  leaving the pending enrollment untouched.
+- `RootCore::revoke_delegated_device(device_did)` (root holder): revokes
+  directly on the root's own KEL, without requiring the device's secret
+  controller to be held locally — the actual gap the acceptance test
+  named ("root revokes device B" must work even though root never held
+  device B's secrets).
+- `RootCore::root_kel()` and the free function `is_device_delegated(root_kel_bytes,
+  device_did)`: let either party fetch/check the root's authoritative
+  delegated-device list from portable KEL bytes, closing "device B can no
+  longer act… and device A observes the revocation took effect."
+
+**Reason:** issue #199's acceptance test is explicit: device B must
+enroll "without device A transmitting root key bytes to device B," and
+device A must be able to revoke device B. `RootCore`'s existing
+`create_device`/`revoke_device` (D-0335) assumed one process holds every
+secret — correct for the founder's own single-device testing, wrong for
+a genuine second phone. Checked `did-mini` first, per this session's
+standing practice, before writing anything new: `incept_device` already
+lets a device build its own identity from just the root's public DID,
+`delegate_device` already only needs a DID (never the device's secrets),
+and `verify_delegation` already implements the exact mutual check both
+sides need. The whole feature is composition, not new design — matching
+Directive 14 (simplicity is security) and the "no inventing cryptography"
+hard rule by construction, not by restraint.
+
+**Constitutional impact:** none. No dependency edge added — `mini-ffi`
+already depended on `did-mini`. No new cryptographic primitive. Directive
+8 (the human is the root of trust) is reinforced, not weakened:
+`approve_device_enrollment` fails closed on `DelegatorMismatch` rather
+than delegating a request built for a different root, and
+`finish_device_enrollment` fails closed rather than promoting a pending
+identity on unconvincing approval bytes.
+
+**Implementation status:** shipped and tested, Rust-side only (per hub
+issue #196's division of labor). `cargo test -p mini-ffi --all-features`:
+37 tests (up from 23), including
+`the_full_enrollment_and_revocation_acceptance_flow` — two separate
+`RootCore` instances standing in for two separate devices/processes,
+exercising issue #199's exact four-step acceptance test end to end — plus
+fail-closed coverage for a second enrollment while one is pending, a
+malformed root DID, approving without a root, a request naming a
+different root, a corrupt request, finishing with nothing pending, an
+approval that never happened, a stale pre-approval root KEL, revocation
+not requiring locally-held secrets, revocation requiring a root, and
+`is_device_delegated` rejecting tampered KEL bytes. Real UniFFI Kotlin
+codegen re-verified: `beginDeviceEnrollment`, `approveDeviceEnrollment`,
+`finishDeviceEnrollment`, `revokeDelegatedDevice`, `rootKel`, and
+`isDeviceDelegated` all surface correctly with their `RootException`
+throws declarations. Full workspace `cargo fmt`/`clippy`/`cargo test
+--workspace --all-features` (156 test binaries, all green) clean.
+
+**Failure point:** this is the Rust-side protocol logic only — issue
+#199's own "non-goals" name LAN/QR transport (slice 4, #200) and BLE
+(slice 5, #201) as explicitly out of scope, and this implementation
+takes that at face value: every test hands enrollment/approval bytes
+directly between two in-process `RootCore` instances, simulating "an
+already-established channel" rather than building one.
+`is_device_delegated`/`verify_delegation`'s freshness limitation (a stale
+root KEL from before a revocation still shows a device as delegated) is
+inherited unchanged from `did-mini` and stated again here rather than
+silently assumed away — witness receipts (SPEC-01 §7, M3) are the
+eventual strengthening, not this change. No Kotlin wiring, no real
+two-device test, no persistence of `pending_enrollment` across process
+death (deliberately: an interrupted enrollment is meant to be retried,
+not resumed from a stale half-state).
+
+**Required follow-up:** Kotlin-side UI for the enrollment/revocation
+ceremony and the real two-device test (Codex/founder's local machine,
+per hub issue #196). Slice 4 (#200) will need to actually carry
+`begin_device_enrollment`'s request bytes and
+`approve_device_enrollment`'s approval bytes over a real LAN/QR channel —
+this change deliberately only produces and consumes those bytes, not how
+they travel.
+
+**Supersedes / superseded by:** none. Purely additive to `mini-ffi`;
+`RootCore`'s pre-existing methods (`create_root`, `create_device`,
+`revoke_device`, `delegated_devices`, `persist_state`, `restore`) are
+byte-for-byte unchanged in behavior. No `did-mini` changes at all —
+every primitive this composes already existed.
