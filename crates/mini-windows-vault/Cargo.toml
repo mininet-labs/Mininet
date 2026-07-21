@@ -1,0 +1,16 @@
+[package]
+name = "mini-windows-vault"
+version = "0.0.1"
+description = "Windows-user protected seed storage boundary for Mininet desktop identities."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }

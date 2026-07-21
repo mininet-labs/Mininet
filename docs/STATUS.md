@@ -621,7 +621,10 @@ given time.
   fresh connection still converges the two stores completely — precisely
   scoped as "safe idempotent retry-from-scratch," not byte-offset resume
   within one transfer, since `pull()` only ingests after its whole
-  want-round completes.
+  want-round completes. A later session can now hydrate its bounded `KelCache`
+  from already accepted persistent `mini/kel` carriers, so incremental objects
+  from a known author remain verifiable after restart even though unchanged
+  carrier ids are correctly omitted from the next transfer.
 - **shipped** — local-network peer discovery over UDP multicast (D-0091,
   founder review P1 item "Local-Wi-Fi/mDNS adapter"):
   `mini_bearer::LocalAnnouncer`/`LocalScanner` — a minimal, Mininet-owned
@@ -998,11 +1001,34 @@ the top development priority.
   against a zero-duration channel wait, fixing an intermittent CI
   failure in the test asserting that behavior.)
 
-## What has no client, at all
+## Client coverage
 
-No mobile, desktop, or web application exists anywhere in this
-repository. `docs/UI_BETA_PLAN.md` is a plan, not code. This is a
-backend/protocol Rust workspace only.
+- **partial** — `mini-desktop` is now a real Windows-first egui reference
+  client. It includes root/public-account onboarding, a DPAPI-protected local
+  identity vault, signed profiles/walls/follows/posts/comments/reactions/
+  communities, local feed assembly, chunked-media publishing, offline object
+  bundles, foreground encrypted direct-TCP sync, and a manual Inbox beta with
+  DPAPI-protected conversation capabilities and selected-route private sync.
+  The People workflow now adds opt-in LAN profile announcements, signed local
+  profile sync, name/DID search, one-click signed follow actions, mutual-friend
+  state, profile photos, and owner-selected optional location/age/custom public
+  fields. Nearby announcements remain explicitly unverified until signed
+  objects are synced. Desktop roots now use a separately DPAPI-protected,
+  root-delegated primary device for social signatures; verified sync carries
+  both KELs. One 60-second visible window accepts multiple bounded connections,
+  and **Add friend** automatically delivers the locally durable signed follow
+  when the exact verified DID still has a nearby endpoint. A Windows-only real
+  TCP test proves two independent roots complete profile verification and
+  signed-follow delivery through one visible window.
+  It remains a reference client rather than a production release: no secure
+  Inbox prekey/ratchet protocol, asynchronous mailbox delivery,
+  calls, automatic Internet relay/NAT traversal, Internet-wide name directory,
+  search, forge workflow, hardware-backed key custody, packaging, or
+  independent security review.
+- **not started** — mobile and browser clients.
+
+See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,
+backend composition, maturity matrix, and implementation order.
 
 ## Where to look for more detail
 

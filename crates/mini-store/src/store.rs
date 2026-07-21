@@ -1,7 +1,7 @@
 //! The store: object persistence, deterministic indexes, and head resolution.
 
 use did_mini::Did;
-use mini_objects::{Object, ObjectId, ObjectType, Payload};
+use mini_objects::{Object, ObjectEnvelopeV2, ObjectId, ObjectType, OpaqueRoute, Payload};
 
 use crate::backend::Backend;
 use crate::{Result, StoreError};
@@ -74,6 +74,49 @@ impl<B: Backend> Store<B> {
     /// Whether an object is present.
     pub fn contains(&self, id: &ObjectId) -> Result<bool> {
         self.backend.has_blob(id.as_str())
+    }
+
+    /// Persist an opaque v2 private envelope and the minimum indexes needed
+    /// by blind storage: content id and opaque route. No private inner field
+    /// (author, type, timestamp, links, or payload) is available to this
+    /// method, so it cannot accidentally create a metadata side index.
+    pub fn insert_private(&mut self, envelope: &ObjectEnvelopeV2) -> Result<()> {
+        let id = envelope.id().as_str();
+        self.backend.put_blob(id, &envelope.to_bytes())?;
+        self.backend.put_meta(&format!("private/id/{id}"), b"")?;
+        self.backend.put_meta(
+            &format!("private/route/{}/{id}", route_key(&envelope.route())),
+            b"",
+        )?;
+        Ok(())
+    }
+
+    /// Fetch and integrity-check an opaque v2 private envelope by content id.
+    pub fn get_private(&self, id: &ObjectId) -> Result<ObjectEnvelopeV2> {
+        match self.backend.get_blob(id.as_str())? {
+            Some(bytes) => {
+                let envelope = ObjectEnvelopeV2::from_bytes(&bytes)?;
+                if envelope.id().as_str() != id.as_str() {
+                    return Err(StoreError::Corrupt);
+                }
+                Ok(envelope)
+            }
+            None => Err(StoreError::NotFound),
+        }
+    }
+
+    /// Whether a private envelope is present. This is intentionally the same
+    /// content-addressed blob namespace as public objects, with a separate
+    /// metadata namespace for enumeration.
+    pub fn contains_private(&self, id: &ObjectId) -> Result<bool> {
+        self.backend.has_blob(id.as_str())
+    }
+
+    /// All private-envelope ids under one opaque route, key-ordered. The route
+    /// itself has no application meaning; authorized clients learn it through
+    /// their conversation/key establishment protocol.
+    pub fn private_by_route(&self, route: &OpaqueRoute) -> Result<Vec<ObjectId>> {
+        self.ids_under(&format!("private/route/{}/", route_key(route)))
     }
 
     /// All object ids, key-ordered.
@@ -273,6 +316,14 @@ fn type_key(t: &ObjectType) -> String {
             s
         }
     }
+}
+
+fn route_key(route: &OpaqueRoute) -> String {
+    let mut encoded = String::with_capacity(64);
+    for byte in route.as_bytes() {
+        encoded.push_str(&format!("{byte:02x}"));
+    }
+    encoded
 }
 
 fn encode_slot(sequence: u64, id: &str) -> Vec<u8> {

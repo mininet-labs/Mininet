@@ -27,6 +27,25 @@ convergence rule as everywhere. The public graph is derivable by anyone from
 public objects; pseudonymous/private graphs arrive with pairwise identifiers
 (SPEC-01 §10) and are noted honestly, not promised early.
 
+The interaction layer also provides threaded comments and typed reactions
+(`Like`, `Love`, `Laugh`, `Upvote`, `Downvote`, and `Save`). Comments link to a
+post or comment, while reactions link to any object. Both are signed ordinary
+objects, and reaction totals resolve per author/target/type with the same
+arrival-order-independent LWW rule. This supplies the core interaction model
+for feed, forum, short-video, and long-form media clients without hidden
+ranking or a platform-owned engagement database.
+
+Community cards and offline join/leave membership are also supported. A
+community is discoverable through local sync or gossip; membership is a
+separate signed object and converges per member by `(sequence, id)`. The
+`MostSupported` feed filter exposes support-aware ordering while preserving a
+deterministic explanation surface.
+
+This crate does not claim to be a hosted TikTok/YouTube service or a Torrentio
+client. It provides the sovereign data and interaction layer those clients
+need; capture/encoding, playback, external-source adapters, UI, sync
+distribution, and safety policies remain separate layers.
+
 ```sh
 cargo test -p mini-social
 ```

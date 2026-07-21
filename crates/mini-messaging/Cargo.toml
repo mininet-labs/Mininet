@@ -1,7 +1,7 @@
 [package]
-name = "mini-store"
+name = "mini-messaging"
 version = "0.0.1"
-description = "Content-addressed local store for Mininet objects: blob persistence, deterministic indexes, signed head pointers, and want-list helpers for sync."
+description = "Encrypted private-message objects and conversation reads for Mininet."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -11,7 +11,6 @@ publish = false
 
 [dependencies]
 did-mini = { path = "../did-mini" }
-mini-objects = { path = "../mini-objects" }
-
-[dev-dependencies]
 mini-crypto = { path = "../mini-crypto" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }

@@ -17,6 +17,7 @@ members = [
     "crates/mini-store",
     "crates/mini-crdt",
     "crates/mini-sync",
+    "crates/mini-messaging",
     "crates/mini-social",
     "crates/mini-media",
     "crates/mini-forge",
@@ -51,6 +52,8 @@ members = [
     "crates/mini-web-types",
     "crates/mini-intake",
     "crates/mini-crawler",
+    "crates/mini-desktop",
+    "crates/mini-windows-vault",
     "crates/mini-extract-protocol",
     "crates/mini-extract-host",
 ]

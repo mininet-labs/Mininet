@@ -2,7 +2,11 @@
 //! want-lists, and the filesystem backend surviving a reopen.
 
 use did_mini::{Capabilities, Controller, Did};
-use mini_objects::{Object, ObjectBuilder, ObjectId, ObjectType, Payload};
+use mini_crypto::{AeadKey, AeadSuite};
+use mini_objects::{
+    Object, ObjectBuilder, ObjectEnvelopeV2, ObjectId, ObjectType, OpaqueRoute, Payload,
+    PrivateObject, RetentionClass, StorageDescriptor,
+};
 use mini_store::{Backend, FsBackend, HeadState, MemoryBackend, Store, StoreError};
 
 fn human(seed: u8) -> (Controller, Controller) {
@@ -181,6 +185,95 @@ fn fs_backend_persists_across_reopen() {
             store.resolve_head(&root.did(), "profile").unwrap(),
             Some(p.id().clone())
         );
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn private_envelopes_round_trip_and_index_only_by_opaque_route() {
+    let (root, device) = human(10);
+    let key = AeadKey::from_suite_bytes(AeadSuite::DEFAULT, &[42; 32]).unwrap();
+    let route = OpaqueRoute::from_bytes([7; 32]);
+    let private = PrivateObject::new(
+        ObjectType::Custom("mininet/message".to_string()),
+        root.did(),
+        device.did(),
+        1_000,
+        1,
+        vec![],
+        b"private metadata".to_vec(),
+        b"a private hello".to_vec(),
+    )
+    .sign_with(&device);
+    let envelope = ObjectEnvelopeV2::seal(
+        &private,
+        &key,
+        route,
+        StorageDescriptor {
+            retention: RetentionClass::Standard,
+        },
+    )
+    .unwrap();
+    let mut store = Store::new(MemoryBackend::new());
+
+    store.insert_private(&envelope).unwrap();
+
+    assert!(store.contains_private(envelope.id()).unwrap());
+    assert_eq!(store.get_private(envelope.id()).unwrap(), envelope);
+    assert_eq!(
+        store.private_by_route(&route).unwrap(),
+        vec![envelope.id().clone()]
+    );
+    assert!(store.all_ids().unwrap().is_empty());
+    assert!(store.by_author(&root.did()).unwrap().is_empty());
+    assert!(store
+        .by_type(&ObjectType::Custom("mininet/message".to_string()))
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn private_envelopes_survive_filesystem_reopen() {
+    let dir = std::env::temp_dir().join(format!(
+        "mini-store-private-test-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let (root, device) = human(20);
+    let key = AeadKey::from_suite_bytes(AeadSuite::DEFAULT, &[11; 32]).unwrap();
+    let route = OpaqueRoute::from_bytes([9; 32]);
+    let private = PrivateObject::new(
+        ObjectType::Custom("mininet/message".to_string()),
+        root.did(),
+        device.did(),
+        2_000,
+        1,
+        vec![],
+        vec![],
+        b"durable private hello".to_vec(),
+    )
+    .sign_with(&device);
+    let envelope = ObjectEnvelopeV2::seal(
+        &private,
+        &key,
+        route,
+        StorageDescriptor {
+            retention: RetentionClass::Standard,
+        },
+    )
+    .unwrap();
+
+    {
+        let mut store = Store::new(FsBackend::open(&dir).unwrap());
+        store.insert_private(&envelope).unwrap();
+    }
+    {
+        let store = Store::new(FsBackend::open(&dir).unwrap());
+        assert_eq!(store.private_by_route(&route).unwrap().len(), 1);
+        assert_eq!(store.get_private(envelope.id()).unwrap(), envelope);
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
