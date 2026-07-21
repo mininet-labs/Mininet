@@ -178,6 +178,14 @@ pub enum RootError {
     CorruptState,
     /// The caller-supplied [`StorageCipher`] failed to encrypt or decrypt.
     Storage,
+    /// `begin_device_enrollment` was called while an enrollment was already
+    /// pending in this process.
+    EnrollmentAlreadyPending,
+    /// `finish_device_enrollment` was called with no enrollment pending.
+    NoPendingEnrollment,
+    /// A device enrollment request's KEL names a different root as its
+    /// delegator than the one presenting this root's approval.
+    DelegatorMismatch,
 }
 
 impl core::fmt::Display for RootError {
@@ -189,6 +197,13 @@ impl core::fmt::Display for RootError {
             RootError::Identity(msg) => write!(f, "identity operation failed: {msg}"),
             RootError::CorruptState => f.write_str("persisted state is malformed"),
             RootError::Storage => f.write_str("storage cipher operation failed"),
+            RootError::EnrollmentAlreadyPending => {
+                f.write_str("a device enrollment is already pending")
+            }
+            RootError::NoPendingEnrollment => f.write_str("no device enrollment is pending"),
+            RootError::DelegatorMismatch => {
+                f.write_str("the enrollment request does not name this root as its delegator")
+            }
         }
     }
 }
@@ -260,6 +275,14 @@ pub struct RootCore {
 struct RootState {
     root: Option<did_mini::Controller>,
     devices: Vec<did_mini::Controller>,
+    /// This process's own not-yet-confirmed delegated device identity,
+    /// while it is enrolling against a root held by a *different* device
+    /// (issue #199) — distinct from `devices`, which holds secret
+    /// controllers for devices *this* process created and fully custodies
+    /// (the single-process convenience path from D-0335). Not persisted by
+    /// `persist_state`/`restore` (D-0338): an interrupted enrollment is
+    /// meant to be retried, not silently resumed from disk.
+    pending_enrollment: Option<did_mini::Controller>,
 }
 
 /// Marks the persisted-state plaintext format; bumped if the layout ever
@@ -409,7 +432,11 @@ fn decode_state(bytes: &[u8]) -> Result<RootState, RootError> {
     if !r.finished() {
         return Err(RootError::CorruptState);
     }
-    Ok(RootState { root, devices })
+    Ok(RootState {
+        root,
+        devices,
+        pending_enrollment: None,
+    })
 }
 
 impl RootCore {
@@ -496,6 +523,114 @@ impl RootCore {
             .collect()
     }
 
+    /// This root's own current KEL bytes — no secrets, safe to hand to any
+    /// party (the enrolling device, a sync peer, an observer checking
+    /// delegation status). Requires a root to already exist in this
+    /// process.
+    pub fn root_kel(&self) -> Result<Vec<u8>, RootError> {
+        self.lock()
+            .root
+            .as_ref()
+            .map(|root| root.kel().to_bytes())
+            .ok_or(RootError::NoRoot)
+    }
+
+    /// Device-side, issue #199: begin enrolling *this* process as a new
+    /// delegated device of `root_did` — a root controlled by a *different*
+    /// device or process. Generates a fresh local device identity and
+    /// returns its public KEL bytes: self-certifying proof of the device's
+    /// own identity and its claimed delegator, containing no secret
+    /// material, for the caller to send to the root holder over any
+    /// transport (LAN/QR/BLE — slice 4/5, out of scope here; this method
+    /// assumes an already-established channel and only produces the bytes
+    /// that travel over it).
+    ///
+    /// Fails if an enrollment is already pending in this process; finish
+    /// or effectively abandon (a fresh `RootCore`) the existing one first.
+    pub fn begin_device_enrollment(&self, root_did: String) -> Result<Vec<u8>, RootError> {
+        let mut state = self.lock();
+        if state.pending_enrollment.is_some() {
+            return Err(RootError::EnrollmentAlreadyPending);
+        }
+        let root_did = did_mini::Did::parse(&root_did).map_err(identity_err)?;
+        let current = mini_crypto::SigningKey::generate().map_err(|e| identity_err(e.into()))?;
+        let next = mini_crypto::SigningKey::generate().map_err(|e| identity_err(e.into()))?;
+        let device =
+            did_mini::Controller::incept_device(&root_did, vec![current], 1, vec![next], 1)
+                .map_err(identity_err)?;
+        let request = device.kel().to_bytes();
+        state.pending_enrollment = Some(device);
+        Ok(request)
+    }
+
+    /// Root-side, issue #199: approve a device enrollment request (raw KEL
+    /// bytes from [`RootCore::begin_device_enrollment`]), delegating it on
+    /// this root's own KEL with the default (primary) capability set.
+    /// Returns the root's now-updated KEL bytes — the confirmation the
+    /// candidate device needs to finish enrollment and later prove or
+    /// observe its own delegated status.
+    ///
+    /// The request's KEL must verify on its own and must name this root as
+    /// its delegator; a request built against a different root is rejected
+    /// with [`RootError::DelegatorMismatch`] rather than silently
+    /// delegated. Requires a root to already exist in this process.
+    pub fn approve_device_enrollment(&self, request: Vec<u8>) -> Result<Vec<u8>, RootError> {
+        let mut state = self.lock();
+        let root = state.root.as_mut().ok_or(RootError::NoRoot)?;
+        let device_kel = did_mini::Kel::from_bytes(&request).map_err(identity_err)?;
+        device_kel.verify().map_err(identity_err)?;
+        if device_kel.delegator() != Some(root.did()) {
+            return Err(RootError::DelegatorMismatch);
+        }
+        root.delegate_device(&device_kel.did(), did_mini::Capabilities::primary())
+            .map_err(identity_err)?;
+        Ok(root.kel().to_bytes())
+    }
+
+    /// Device-side, issue #199: finish enrollment using the root's approval
+    /// bytes ([`RootCore::approve_device_enrollment`]'s return value).
+    /// Verifies the mutual delegation link
+    /// ([`did_mini::verify_delegation`]) before promoting the pending
+    /// device identity into this core's confirmed device list — approval
+    /// bytes that don't actually authorize *this* device (wrong root,
+    /// stale KEL missing the delegation, tampered bytes) are rejected,
+    /// leaving the pending enrollment untouched rather than silently
+    /// promoting an unconfirmed identity. Returns the device's own
+    /// `did:mini:...` string on success.
+    pub fn finish_device_enrollment(&self, approval: Vec<u8>) -> Result<String, RootError> {
+        let mut state = self.lock();
+        let device = state
+            .pending_enrollment
+            .as_ref()
+            .ok_or(RootError::NoPendingEnrollment)?;
+        let root_kel = did_mini::Kel::from_bytes(&approval).map_err(identity_err)?;
+        did_mini::verify_delegation(&root_kel, &device.kel()).map_err(identity_err)?;
+        let device_did = device.did().as_str().to_string();
+        let device = state.pending_enrollment.take().expect("checked above");
+        state.devices.push(device);
+        Ok(device_did)
+    }
+
+    /// Root-side, issue #199: revoke a delegated device this root
+    /// authorized elsewhere (e.g. via [`RootCore::approve_device_enrollment`]
+    /// on a *different* process/device than the one that created it) —
+    /// unlike [`RootCore::revoke_device`], this does not require the
+    /// device's secret controller to be held locally, since revocation is
+    /// entirely the root's own unilateral act on its own KEL and never
+    /// needed the device's cooperation or secrets in the first place.
+    pub fn revoke_delegated_device(&self, device_did: String) -> Result<(), RootError> {
+        let mut state = self.lock();
+        let did = did_mini::Did::parse(&device_did).map_err(identity_err)?;
+        state
+            .root
+            .as_mut()
+            .ok_or(RootError::NoRoot)?
+            .revoke_device(&did)
+            .map_err(identity_err)?;
+        state.devices.retain(|d| d.did() != did);
+        Ok(())
+    }
+
     /// Reconstruct a `RootCore` from a ciphertext blob previously produced
     /// by [`RootCore::persist_state`], resuming exactly where the process
     /// left off — no rotation, no appended event, matching
@@ -541,6 +676,27 @@ impl RootCore {
 /// Return the command/event API version without constructing application state.
 pub fn api_version() -> u32 {
     APP_API_VERSION
+}
+
+/// Issue #199: check whether `device_did` is currently an active delegated
+/// device according to `root_kel_bytes` — lets any party (the root holder
+/// checking its own state, or a delegated device checking on itself with a
+/// freshly-fetched copy of the root's KEL) observe a revocation's effect
+/// without needing a `RootCore` instance at all, since this is a pure
+/// query over public KEL bytes.
+///
+/// **Freshness is the caller's problem**, the same documented limitation
+/// [`did_mini::verify_delegation`] states: a stale root KEL from before a
+/// revocation still shows the device as delegated. Callers must obtain the
+/// freshest root KEL they can.
+pub fn is_device_delegated(root_kel_bytes: Vec<u8>, device_did: String) -> Result<bool, RootError> {
+    let root_kel = did_mini::Kel::from_bytes(&root_kel_bytes).map_err(identity_err)?;
+    root_kel.verify().map_err(identity_err)?;
+    let did = did_mini::Did::parse(&device_did).map_err(identity_err)?;
+    Ok(root_kel
+        .delegated_devices()
+        .into_iter()
+        .any(|(d, _)| d == did))
 }
 
 /// Create the deterministic first snapshot from explicit platform capabilities.
@@ -1035,5 +1191,219 @@ mod tests {
             RootCore::restore(Vec::new(), Box::new(XorCipher(0x00))).unwrap_err(),
             RootError::CorruptState
         );
+    }
+
+    // -- Issue #199: device enrollment/revocation multi-device flow. Two
+    // separate `RootCore` instances stand in for two separate devices/
+    // processes; only public bytes (KEL blobs) ever pass between them,
+    // matching the acceptance test's "without device A transmitting root
+    // key bytes to device B" requirement. Slice 4/5 (LAN/QR/BLE transport)
+    // are out of scope -- these tests hand the bytes directly, simulating
+    // an already-established channel.
+
+    #[test]
+    fn the_full_enrollment_and_revocation_acceptance_flow() {
+        // 1. Root already exists on device A.
+        let device_a = RootCore::new();
+        let root_did = device_a.create_root().unwrap();
+
+        // 2. Device B enrolls against the same root -- device A never
+        // transmits root key bytes to device B; only the device's own
+        // public KEL and the root's own public KEL cross the "channel".
+        let device_b = RootCore::new();
+        let request = device_b.begin_device_enrollment(root_did.clone()).unwrap();
+        let approval = device_a.approve_device_enrollment(request).unwrap();
+        let device_b_did = device_b.finish_device_enrollment(approval).unwrap();
+
+        // Device A never held device B's secret controller, so the
+        // enrollment is confirmed via the root's own public KEL -- not
+        // device A's local secret-holding `delegated_devices()` list,
+        // which correctly stays empty here (see
+        // `revoke_delegated_device_does_not_require_holding_the_devices_secrets`).
+        let root_kel_after_enroll = device_a.root_kel().unwrap();
+        assert!(is_device_delegated(root_kel_after_enroll, device_b_did.clone()).unwrap());
+
+        // 3. Device A revokes device B's delegation.
+        device_a
+            .revoke_delegated_device(device_b_did.clone())
+            .unwrap();
+
+        // 4. Device B can no longer act for the root after revocation, and
+        // device A observes the revocation took effect via the same
+        // portable KEL-bytes query.
+        let root_kel_after_revoke = device_a.root_kel().unwrap();
+        assert!(!is_device_delegated(root_kel_after_revoke, device_b_did).unwrap());
+    }
+
+    #[test]
+    fn a_second_enrollment_cannot_begin_while_one_is_pending() {
+        let some_root = did_mini::Controller::incept_single().unwrap();
+        let root_did = some_root.did().as_str().to_string();
+        let device_b = RootCore::new();
+        device_b.begin_device_enrollment(root_did.clone()).unwrap();
+        assert_eq!(
+            device_b.begin_device_enrollment(root_did),
+            Err(RootError::EnrollmentAlreadyPending)
+        );
+    }
+
+    #[test]
+    fn begin_device_enrollment_rejects_a_malformed_root_did() {
+        let device_b = RootCore::new();
+        assert!(matches!(
+            device_b.begin_device_enrollment("not-a-did".to_string()),
+            Err(RootError::Identity(_))
+        ));
+    }
+
+    #[test]
+    fn approve_device_enrollment_requires_a_root() {
+        let device_a = RootCore::new();
+        let device_b = RootCore::new();
+        // No root on device_a yet; use device_a's own DID as a stand-in
+        // target since begin_device_enrollment only needs a syntactically
+        // valid DID string.
+        let placeholder_root = did_mini::Controller::incept_single().unwrap();
+        let request = device_b
+            .begin_device_enrollment(placeholder_root.did().as_str().to_string())
+            .unwrap();
+        assert_eq!(
+            device_a.approve_device_enrollment(request),
+            Err(RootError::NoRoot)
+        );
+    }
+
+    #[test]
+    fn approve_device_enrollment_rejects_a_request_naming_a_different_root() {
+        let device_a = RootCore::new();
+        device_a.create_root().unwrap();
+
+        let some_other_root = did_mini::Controller::incept_single().unwrap();
+        let device_b = RootCore::new();
+        let request = device_b
+            .begin_device_enrollment(some_other_root.did().as_str().to_string())
+            .unwrap();
+
+        assert_eq!(
+            device_a.approve_device_enrollment(request),
+            Err(RootError::DelegatorMismatch)
+        );
+    }
+
+    #[test]
+    fn approve_device_enrollment_rejects_a_corrupt_request() {
+        let device_a = RootCore::new();
+        device_a.create_root().unwrap();
+        assert!(matches!(
+            device_a.approve_device_enrollment(vec![1, 2, 3]),
+            Err(RootError::Identity(_))
+        ));
+    }
+
+    #[test]
+    fn finish_device_enrollment_fails_without_a_pending_enrollment() {
+        let device_b = RootCore::new();
+        assert_eq!(
+            device_b.finish_device_enrollment(vec![1, 2, 3]),
+            Err(RootError::NoPendingEnrollment)
+        );
+    }
+
+    #[test]
+    fn finish_device_enrollment_rejects_an_approval_that_never_happened() {
+        let device_a = RootCore::new();
+        let root_did = device_a.create_root().unwrap();
+
+        let device_b = RootCore::new();
+        device_b.begin_device_enrollment(root_did).unwrap();
+
+        // Device A's root KEL, but the root never actually approved this
+        // device -- verify_delegation must reject it, not silently
+        // promote an unconfirmed identity.
+        let unapproved_root_kel = device_a.root_kel().unwrap();
+        assert!(matches!(
+            device_b.finish_device_enrollment(unapproved_root_kel),
+            Err(RootError::Identity(_))
+        ));
+        // The pending enrollment survives the rejection; a caller can
+        // retry with a real approval afterward.
+        assert!(device_b.finish_device_enrollment(vec![9, 9, 9]).is_err());
+    }
+
+    #[test]
+    fn finish_device_enrollment_rejects_a_stale_root_kel_from_before_approval() {
+        let device_a = RootCore::new();
+        let root_did = device_a.create_root().unwrap();
+        let stale_root_kel = device_a.root_kel().unwrap();
+
+        let device_b = RootCore::new();
+        let request = device_b.begin_device_enrollment(root_did).unwrap();
+        device_a.approve_device_enrollment(request).unwrap();
+
+        // A copy of the root KEL taken *before* the approval was appended
+        // does not yet show the delegation -- must be rejected, not
+        // silently accepted as "close enough".
+        assert!(device_b.finish_device_enrollment(stale_root_kel).is_err());
+    }
+
+    #[test]
+    fn revoke_delegated_device_does_not_require_holding_the_devices_secrets() {
+        // The whole point of issue #199: device A never held device B's
+        // secret controller (unlike the single-process `create_device`
+        // convenience path), yet can still revoke it directly from its own
+        // root KEL.
+        let device_a = RootCore::new();
+        let root_did = device_a.create_root().unwrap();
+        let device_b = RootCore::new();
+        let request = device_b.begin_device_enrollment(root_did).unwrap();
+        let approval = device_a.approve_device_enrollment(request).unwrap();
+        let device_b_did = device_b.finish_device_enrollment(approval).unwrap();
+
+        // device_a.delegated_devices() (the local secret-holding list) has
+        // never heard of device_b -- confirming revocation truly does not
+        // depend on it.
+        assert!(device_a.delegated_devices().is_empty());
+        device_a
+            .revoke_delegated_device(device_b_did.clone())
+            .unwrap();
+        assert!(!is_device_delegated(device_a.root_kel().unwrap(), device_b_did).unwrap());
+    }
+
+    #[test]
+    fn revoke_delegated_device_requires_a_root() {
+        let device_a = RootCore::new();
+        let stranger = did_mini::Controller::incept_single().unwrap();
+        assert_eq!(
+            device_a.revoke_delegated_device(stranger.did().as_str().to_string()),
+            Err(RootError::NoRoot)
+        );
+    }
+
+    #[test]
+    fn root_kel_requires_a_root() {
+        let device_a = RootCore::new();
+        assert_eq!(device_a.root_kel(), Err(RootError::NoRoot));
+    }
+
+    #[test]
+    fn is_device_delegated_rejects_a_tampered_kel() {
+        let device_a = RootCore::new();
+        device_a.create_root().unwrap();
+        let mut kel_bytes = device_a.root_kel().unwrap();
+        let flip_at = kel_bytes.len() / 2;
+        kel_bytes[flip_at] ^= 0xFF;
+        assert!(matches!(
+            is_device_delegated(kel_bytes, "did:mini:doesnotmatter".to_string()),
+            Err(RootError::Identity(_))
+        ));
+    }
+
+    #[test]
+    fn is_device_delegated_is_false_for_an_unrelated_did() {
+        let device_a = RootCore::new();
+        device_a.create_root().unwrap();
+        let root_kel = device_a.root_kel().unwrap();
+        let stranger = did_mini::Controller::incept_single().unwrap();
+        assert!(!is_device_delegated(root_kel, stranger.did().as_str().to_string()).unwrap());
     }
 }

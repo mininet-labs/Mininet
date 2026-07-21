@@ -6,6 +6,9 @@ namespace mini_ffi {
 
   [Throws=AppError]
   CommandOutcome dispatch(AppSnapshot snapshot, AppCommand command);
+
+  [Throws=RootError]
+  boolean is_device_delegated(sequence<u8> root_kel_bytes, string device_did);
 };
 
 callback interface StorageCipher {
@@ -36,6 +39,21 @@ interface RootCore {
   void revoke_device(string device_did);
 
   sequence<string> delegated_devices();
+
+  [Throws=RootError]
+  sequence<u8> root_kel();
+
+  [Throws=RootError]
+  sequence<u8> begin_device_enrollment(string root_did);
+
+  [Throws=RootError]
+  sequence<u8> approve_device_enrollment(sequence<u8> request);
+
+  [Throws=RootError]
+  string finish_device_enrollment(sequence<u8> approval);
+
+  [Throws=RootError]
+  void revoke_delegated_device(string device_did);
 
   [Throws=RootError]
   sequence<u8> persist_state(StorageCipher cipher);
@@ -116,6 +134,9 @@ enum RootError {
   "Identity",
   "CorruptState",
   "Storage",
+  "EnrollmentAlreadyPending",
+  "NoPendingEnrollment",
+  "DelegatorMismatch",
 };
 
 [Error]
