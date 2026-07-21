@@ -1035,23 +1035,32 @@ foundation exists: a `mini-ffi` UniFFI command/event boundary plus a thin
 Jetpack Compose onboarding shell, stopping at `RootCreationReady` with no
 key or identity faked. This remote environment has no
 JDK/Android SDK/NDK/Gradle/emulator, so only `mini-ffi`'s (and
-`mini-social`'s) own Rust side is verified here; Gradle sync, APK
-assembly, and emulator/device tests remain unrun in every environment
-used so far. A 9-slice beta roadmap (hub issue #196, target ~PR #200,
-D-0333) is scoped in `docs/mobile/ANDROID_FOUNDATION.md`. Rust-side work
-is shipped through slice 4: an Android Keystore signer adapter and
-root-to-device delegation ceremony (issue #197, D-0334/D-0335); encrypted
-persisted app state surviving process death via a caller-supplied
-`StorageCipher` (issue #198, D-0337/D-0338); two-party device
-enrollment/revocation with no shared-secret transfer (issue #199,
-D-0339); and a bounded, capability-scoped, signed LAN/QR pairing
-offer/acceptance protocol composing PR #170's follow graph (issue #200,
-D-0340). None of it has Kotlin-side wiring, camera/QR UI, or a real
-multi-device test yet — those, plus Gradle/emulator verification, are
-Codex/the founder's local-machine half of the division of labor stated
-in hub issue #196. Beta explicitly means "builds, installs, golden path
-works, full Rust suite green" — not that the custody layer has cleared
-external review (D-0047 gate).
+`mini-social`'s/`mini-bearer`'s) own Rust side is verified here; Gradle
+sync, APK assembly, and emulator/device tests remain unrun in every
+environment used so far. A 9-slice beta roadmap (hub issue #196, target
+~PR #200, D-0333) is scoped in `docs/mobile/ANDROID_FOUNDATION.md`.
+Rust-side work is shipped through slice 5: an Android Keystore signer
+adapter and root-to-device delegation ceremony (issue #197,
+D-0334/D-0335); encrypted persisted app state surviving process death
+via a caller-supplied `StorageCipher` (issue #198, D-0337/D-0338);
+two-party device enrollment/revocation with no shared-secret transfer
+(issue #199, D-0339); a bounded, capability-scoped, signed LAN/QR
+pairing offer/acceptance protocol composing PR #170's follow graph
+(issue #200, D-0340); and, in `mini-bearer`, the MTU-bounded
+chunking/reassembly a BLE-backed `Bearer` needs to carry a frame across
+GATT's small ATT MTU (issue #201, D-0342) — protocol logic only, no
+`impl Bearer` for BLE yet and no real Bluetooth hardware anywhere in
+this environment. Dependency verification is also done: `cargo-deny`
+installed and run for real for the first time, `deny.toml` genuinely
+clean rather than an unverified guess, CI's `dependency-deny` job now
+actually enforcing it (issue #203, D-0341). None of the slices above
+have Kotlin-side wiring, camera/QR/Bluetooth UI, or a real multi-device
+test yet — those, plus Gradle/emulator verification and the Android
+app's own dependency-verification metadata, are Codex/the founder's
+local-machine half of the division of labor stated in hub issue #196.
+Beta explicitly means "builds, installs, golden path works, full Rust
+suite green" — not that the custody layer has cleared external review
+(D-0047 gate).
 
 ## Where to look for more detail
 

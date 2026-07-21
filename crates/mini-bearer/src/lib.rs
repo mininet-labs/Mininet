@@ -10,7 +10,11 @@
 //!   first place on a shared local network — [`discovery::LocalAnnouncer`]/
 //!   [`discovery::LocalScanner`] over UDP multicast; platform bearers bind
 //!   behind the same trait). Anonymity starts here — the transport carries
-//!   no identity, and neither does discovery.
+//!   no identity, and neither does discovery. [`chunk_frame`]/
+//!   [`ChunkReassembler`] (`ble` module) are the MTU-bounded
+//!   splitting/reassembly a small-payload bearer like BLE GATT needs to
+//!   carry a [`Bearer`] frame at all — protocol logic only, not a full BLE
+//!   `Bearer` implementation (see that module's docs for why).
 //!
 //! - **[`Channel`]** is an encrypted session over any bearer. It performs an
 //!   ephemeral X25519 handshake ([`Initiator`] / [`Responder`]), derives
@@ -44,6 +48,7 @@
 #![warn(missing_debug_implementations)]
 
 mod bearer;
+mod ble;
 mod channel;
 mod discovery;
 mod error;
@@ -51,6 +56,7 @@ mod inprocess;
 mod tcp;
 
 pub use bearer::{encode_frame, Bearer, FrameReader, MAX_FRAME_BYTES, MAX_STREAM_BUFFER_BYTES};
+pub use ble::{chunk_frame, ChunkReassembler};
 pub use channel::{
     Channel, Initiator, Responder, MAX_CHANNEL_CIPHERTEXT_BYTES, MAX_CHANNEL_PLAINTEXT_BYTES,
     PROTOCOL_VERSION,
