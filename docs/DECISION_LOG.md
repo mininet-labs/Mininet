@@ -9873,3 +9873,89 @@ half before they can be exercised for real.
 `#[non_exhaustive]`, so this is not a breaking change to existing match
 arms outside this crate); no existing `mini-bearer` function's signature
 or behavior changed.
+
+### D-0348 — `mini-ffi`: typed `OperationLifecycle` state machine for backgroundable exchanges (issue #202, Android beta slice 6)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #202, D-0340, D-0342
+
+**Decision:** add `crates/mini-ffi/src/lifecycle.rs`, a new `lifecycle`
+module exposing `BackgroundableOperation` (naming the two concrete
+resumable exchanges this workspace already ships: the LAN/QR pairing
+offer/acceptance exchange, D-0340, and a chunked BLE bearer transfer,
+D-0342), `LifecyclePhase`, `SuspendDecision`, `LifecycleFailureReason`,
+`LifecycleError`, and the `OperationLifecycle` UniFFI interface object
+itself (`begin`/`operation`/`phase`/`failure_reason`/`mark_checkpoint`/
+`begin_next_step`/`request_suspend`/`resume_from_suspend`/`fail_closed`/
+`complete`). Wired into `mini_ffi.udl` (the four plain enums declared
+before the interface that references them, matching how
+`StorageCipher` is declared before `RootCore` needs it — UniFFI's UDL
+parser resolves non-`Throws` type references in declaration order and
+panics on a forward reference, unlike this crate's existing `namespace`
+function signatures or `[Throws=...]` error types) and re-exported from
+`lib.rs` alongside `RootCore`.
+
+**Reason:** issue #202 asks for "any lifecycle-aware state-machine
+boundaries the FFI needs to expose" so Android's real `Service`/
+`WorkManager` glue (Codex/the founder's local machine) has something
+concrete to query before deciding whether to let the OS suspend/kill the
+process, keep it alive via a foreground service, or fail the exchange
+closed. A bare boolean "is it safe" would not satisfy acceptance test 1's
+"never a silent partial/corrupt result": the state machine instead
+starts every operation `InFlight` (unsafe by construction) and only
+transitions to `AtCheckpoint`/`Suspended` when the caller explicitly
+reports reaching a safe pause point reached inside the actual
+protocol code (one pairing round-trip, one acknowledged BLE chunk) —
+`request_suspend()` called while `InFlight` always returns
+`MustCompleteOrFailClosed` and leaves the phase unchanged, so a caller
+that ignores the verdict and gets killed anyway loses at most the
+in-flight step, never silently corrupts a persisted/committed one, and a
+caller that heeds it must either buy time or call `fail_closed` with a
+typed, visible `LifecycleFailureReason` itself. This mirrors `RootError`/
+`AppError`'s existing closed-enum-with-`Display` convention rather than
+a free-form string field, so the reason is always one of a small,
+reviewed set of causes a Kotlin notification can render directly.
+
+**Constitutional impact:** none. No dependency edge added (no new
+crate dependency at all — this module only uses `std::sync::Mutex`), no
+frozen invariant touched, no cryptography. Pure application-boundary
+state machine, matching this crate's existing `AppSnapshot`/`RootCore`
+maturity class.
+
+**Implementation status:** implemented and unit-tested in this
+environment (11 new tests covering: begins `InFlight`; `InFlight` must
+complete-or-fail-closed on a suspend request rather than silently
+suspending; checkpoint-then-suspend is safe and resumable end to end;
+checkpoint cannot be marked twice without an intervening step;
+`begin_next_step` rejected while already in-flight; resume rejected
+while not suspended; `fail_closed` works and is visible from every
+non-terminal phase including mid-suspend; every terminal phase
+(`Completed`/`FailedClosed`) rejects every further transition; cannot
+complete while suspended; a full two-step exchange reaches completion).
+`cargo clippy -p mini-ffi --all-targets --all-features -- -D warnings`
+passes and the UniFFI Kotlin bindgen (`uniffi-bindgen generate ...
+--language kotlin`) was run and confirmed to emit a real
+`OperationLifecycle`/`BackgroundableOperation`/`LifecyclePhase` Kotlin
+surface. No Android `Service`/`WorkManager`/foreground-service
+declaration, Doze/App Standby handling, or real backgrounded-device test
+exists anywhere — this environment has no JDK/Android SDK/emulator, and
+that Kotlin-side half is explicitly Codex/the founder's local machine's
+job per hub issue #196's own division of labor.
+
+**Failure point:** the state machine only records what the caller
+reports; it cannot itself detect that a checkpoint claim was dishonest
+(e.g. protocol code calling `mark_checkpoint()` before a step is
+actually durable) — that discipline has to be enforced by wherever the
+real pairing/BLE call sites eventually call this API, which does not
+exist yet. Unverified against any real Android lifecycle event
+(`onStop`, `onTrimMemory`, a real foreground-service teardown) since none
+of that exists in this environment.
+
+**Required follow-up:** the Kotlin-side foreground `Service`/
+`WorkManager` integration, wiring the LAN/QR pairing and BLE transfer
+call sites to actually call `mark_checkpoint`/`begin_next_step` at their
+real protocol boundaries, and the real backgrounded-device acceptance
+test (Codex/founder's local machine) — issue #202's acceptance test
+steps 1-3 all need that half before they can be exercised for real.
+
+**Supersedes / superseded by:** none. New module, purely additive to
+`mini-ffi`; no existing `mini-ffi` function's signature or behavior
+changed.
