@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 50,
-    "files": 610,
+    "files": 611,
     "headings": 2092,
-    "rust_symbols": 5124
+    "rust_symbols": 5165
   },
   "crates": {
     "did-mini": {
@@ -19225,646 +19225,888 @@
       "title": "fn main() {"
     },
     {
-      "bytes": 55201,
+      "bytes": 55367,
       "group": "crate:mini-ffi",
       "headings": [],
       "keywords": [
         "derive",
+        "command",
         "debug",
         "clone",
         "partialeq",
-        "command",
         "platform",
-        "core",
         "fmt",
         "error",
         "semantic",
         "state",
         "bool",
+        "core",
         "event",
         "root",
-        "api",
         "struct",
         "storage",
         "secure",
-        "copy",
-        "enum",
         "u32",
         "render",
         "identity",
-        "key"
+        "key",
+        "api",
+        "shell",
+        "copy"
       ],
-      "lines": 1410,
+      "lines": 1416,
       "path": "crates/mini-ffi/src/lib.rs",
-      "sha256": "bcf378836be1fb06a123f9ef61c112f8813934e4ca8ecb5dc881e19a3e8f6108",
+      "sha256": "804076abb95568ee62f6030fb2ece0ebb452e8e70022bbfd97c2cbe3643ed11f",
       "symbols": [
         {
+          "kind": "mod",
+          "line": 21,
+          "name": "lifecycle"
+        },
+        {
           "kind": "const",
-          "line": 22,
+          "line": 28,
           "name": "APP_API_VERSION"
         },
         {
           "kind": "const",
-          "line": 23,
+          "line": 29,
           "name": "MAX_REQUEST_ID_BYTES"
         },
         {
           "kind": "struct",
-          "line": 27,
+          "line": 33,
           "name": "PlatformCapabilities"
         },
         {
           "kind": "enum",
-          "line": 40,
+          "line": 46,
           "name": "SecurityReadiness"
         },
         {
           "kind": "enum",
-          "line": 51,
+          "line": 57,
           "name": "OnboardingStage"
         },
         {
           "kind": "struct",
-          "line": 62,
+          "line": 68,
           "name": "AppSnapshot"
         },
         {
           "kind": "enum",
-          "line": 79,
+          "line": 85,
           "name": "AppAction"
         },
         {
           "kind": "struct",
-          "line": 91,
+          "line": 97,
           "name": "AppCommand"
         },
         {
           "kind": "enum",
-          "line": 104,
+          "line": 110,
           "name": "AppEventKind"
         },
         {
           "kind": "struct",
-          "line": 115,
+          "line": 121,
           "name": "AppEvent"
         },
         {
           "kind": "struct",
-          "line": 124,
+          "line": 130,
           "name": "CommandOutcome"
         },
         {
           "kind": "enum",
-          "line": 133,
+          "line": 139,
           "name": "AppError"
         },
         {
           "kind": "impl",
-          "line": 148,
+          "line": 154,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 149,
+          "line": 155,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 162,
+          "line": 168,
           "name": "std::error::Error"
         },
         {
           "kind": "enum",
-          "line": 166,
+          "line": 172,
           "name": "RootError"
         },
         {
           "kind": "impl",
-          "line": 191,
+          "line": 197,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 198,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 211,
+          "line": 217,
           "name": "std::error::Error"
         },
         {
           "kind": "fn",
-          "line": 213,
+          "line": 219,
           "name": "identity_err"
         },
         {
           "kind": "enum",
-          "line": 225,
+          "line": 231,
           "name": "StorageCipherError"
         },
         {
           "kind": "impl",
-          "line": 230,
+          "line": 236,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 231,
+          "line": 237,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 236,
+          "line": 242,
           "name": "std::error::Error"
         },
         {
           "kind": "trait",
-          "line": 250,
+          "line": 256,
           "name": "StorageCipher"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 258,
           "name": "encrypt"
         },
         {
           "kind": "fn",
-          "line": 254,
+          "line": 260,
           "name": "decrypt"
         },
         {
           "kind": "struct",
-          "line": 270,
+          "line": 276,
           "name": "RootCore"
         },
         {
           "kind": "struct",
-          "line": 275,
+          "line": 281,
           "name": "RootState"
         },
         {
           "kind": "const",
-          "line": 291,
+          "line": 297,
           "name": "PERSIST_MAGIC"
         },
         {
           "kind": "const",
-          "line": 292,
+          "line": 298,
           "name": "PERSIST_VERSION"
         },
         {
           "kind": "const",
-          "line": 296,
+          "line": 302,
           "name": "MAX_PERSISTED_DEVICES"
         },
         {
           "kind": "const",
-          "line": 297,
+          "line": 303,
           "name": "MAX_PERSISTED_KEL_BYTES"
         },
         {
           "kind": "const",
-          "line": 301,
+          "line": 307,
           "name": "MAX_PERSISTED_KEYS_PER_RECORD"
         },
         {
           "kind": "struct",
-          "line": 308,
+          "line": 314,
           "name": "PersistReader"
         },
         {
           "kind": "impl",
-          "line": 313,
+          "line": 319,
           "name": "PersistReader<'a>"
         },
         {
           "kind": "fn",
-          "line": 314,
+          "line": 320,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 318,
+          "line": 324,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 328,
+          "line": 334,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 332,
+          "line": 338,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 337,
+          "line": 343,
           "name": "seed"
         },
         {
           "kind": "fn",
-          "line": 344,
+          "line": 350,
           "name": "finished"
         },
         {
           "kind": "fn",
-          "line": 349,
+          "line": 355,
           "name": "encode_identity_record"
         },
         {
           "kind": "fn",
-          "line": 365,
+          "line": 371,
           "name": "decode_identity_record"
         },
         {
           "kind": "fn",
-          "line": 393,
+          "line": 399,
           "name": "encode_state"
         },
         {
           "kind": "fn",
-          "line": 411,
+          "line": 417,
           "name": "decode_state"
         },
         {
           "kind": "impl",
-          "line": 442,
+          "line": 448,
           "name": "RootCore"
         },
         {
           "kind": "fn",
-          "line": 444,
+          "line": 450,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 449,
+          "line": 455,
           "name": "has_root"
         },
         {
           "kind": "fn",
-          "line": 454,
+          "line": 460,
           "name": "root_did"
         },
         {
           "kind": "fn",
-          "line": 464,
+          "line": 470,
           "name": "create_root"
         },
         {
           "kind": "fn",
-          "line": 478,
+          "line": 484,
           "name": "create_device"
         },
         {
           "kind": "fn",
-          "line": 501,
+          "line": 507,
           "name": "revoke_device"
         },
         {
           "kind": "fn",
-          "line": 518,
+          "line": 524,
           "name": "delegated_devices"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 536,
           "name": "root_kel"
         },
         {
           "kind": "fn",
-          "line": 550,
+          "line": 556,
           "name": "begin_device_enrollment"
         },
         {
           "kind": "fn",
-          "line": 577,
+          "line": 583,
           "name": "approve_device_enrollment"
         },
         {
           "kind": "fn",
-          "line": 600,
+          "line": 606,
           "name": "finish_device_enrollment"
         },
         {
           "kind": "fn",
-          "line": 621,
+          "line": 627,
           "name": "revoke_delegated_device"
         },
         {
           "kind": "fn",
-          "line": 645,
+          "line": 651,
           "name": "restore"
         },
         {
           "kind": "fn",
-          "line": 664,
+          "line": 670,
           "name": "persist_state"
         },
         {
           "kind": "fn",
-          "line": 669,
+          "line": 675,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 677,
+          "line": 683,
           "name": "api_version"
         },
         {
           "kind": "fn",
-          "line": 692,
+          "line": 698,
           "name": "is_device_delegated"
         },
         {
           "kind": "fn",
-          "line": 703,
+          "line": 709,
           "name": "start"
         },
         {
           "kind": "fn",
-          "line": 718,
+          "line": 724,
           "name": "dispatch"
         },
         {
           "kind": "fn",
-          "line": 765,
+          "line": 771,
           "name": "validate_capabilities"
         },
         {
           "kind": "fn",
-          "line": 775,
+          "line": 781,
           "name": "readiness"
         },
         {
           "kind": "fn",
-          "line": 785,
+          "line": 791,
           "name": "validate_snapshot"
         },
         {
           "kind": "fn",
-          "line": 799,
+          "line": 805,
           "name": "validate_version"
         },
         {
           "kind": "fn",
-          "line": 807,
+          "line": 813,
           "name": "validate_request_id"
         },
         {
           "kind": "fn",
-          "line": 820,
+          "line": 826,
           "name": "advance"
         },
         {
           "kind": "mod",
-          "line": 833,
+          "line": 839,
           "name": "ffi_scaffolding"
         },
         {
           "kind": "mod",
-          "line": 844,
+          "line": 850,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 847,
+          "line": 853,
           "name": "protected_platform"
         },
         {
           "kind": "fn",
-          "line": 856,
+          "line": 862,
           "name": "command"
         },
         {
           "kind": "fn",
-          "line": 866,
+          "line": 872,
           "name": "start_reports_an_honest_hardware_backed_state"
         },
         {
           "kind": "fn",
-          "line": 878,
+          "line": 884,
           "name": "contradictory_platform_capabilities_fail_closed"
         },
         {
           "kind": "fn",
-          "line": 895,
+          "line": 901,
           "name": "missing_secure_storage_blocks_root_creation_without_advancing"
         },
         {
           "kind": "fn",
-          "line": 913,
+          "line": 919,
           "name": "root_creation_is_named_as_pending_instead_of_faked"
         },
         {
           "kind": "fn",
-          "line": 928,
+          "line": 934,
           "name": "bad_versions_and_request_ids_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 948,
+          "line": 954,
           "name": "caller_cannot_forge_a_stronger_security_snapshot"
         },
         {
           "kind": "fn",
-          "line": 967,
+          "line": 973,
           "name": "generation_overflow_fails_instead_of_wrapping"
         },
         {
           "kind": "fn",
-          "line": 977,
+          "line": 983,
           "name": "reducer_is_deterministic_across_ten_thousand_calls"
         },
         {
           "kind": "fn",
-          "line": 989,
+          "line": 995,
           "name": "back_at_welcome_is_an_invalid_transition"
         },
         {
           "kind": "fn",
-          "line": 998,
+          "line": 1004,
           "name": "a_fresh_root_core_has_no_root"
         },
         {
           "kind": "fn",
-          "line": 1006,
+          "line": 1012,
           "name": "creating_a_second_root_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 1013,
+          "line": 1019,
           "name": "a_device_cannot_be_created_before_a_root_exists"
         },
         {
           "kind": "fn",
-          "line": 1019,
+          "line": 1025,
           "name": "the_full_delegation_and_revocation_ceremony"
         },
         {
           "kind": "fn",
-          "line": 1039,
+          "line": 1045,
           "name": "revoking_an_unknown_device_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 1052,
+          "line": 1058,
           "name": "revoking_a_malformed_did_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 1062,
+          "line": 1068,
           "name": "two_delegated_devices_have_independent_identities"
         },
         {
           "kind": "struct",
-          "line": 1080,
+          "line": 1086,
           "name": "XorCipher"
         },
         {
           "kind": "impl",
-          "line": 1082,
+          "line": 1088,
           "name": "StorageCipher"
         },
         {
           "kind": "fn",
-          "line": 1083,
+          "line": 1089,
           "name": "encrypt"
         },
         {
           "kind": "fn",
-          "line": 1086,
+          "line": 1092,
           "name": "decrypt"
         },
         {
           "kind": "struct",
-          "line": 1093,
+          "line": 1099,
           "name": "FailingCipher"
         },
         {
           "kind": "impl",
-          "line": 1095,
+          "line": 1101,
           "name": "StorageCipher"
         },
         {
           "kind": "fn",
-          "line": 1096,
+          "line": 1102,
           "name": "encrypt"
         },
         {
           "kind": "fn",
-          "line": 1099,
+          "line": 1105,
           "name": "decrypt"
         },
         {
           "kind": "fn",
-          "line": 1105,
+          "line": 1111,
           "name": "persisting_and_restoring_round_trips_root_and_devices"
         },
         {
           "kind": "fn",
-          "line": 1124,
+          "line": 1130,
           "name": "a_restored_core_can_create_and_revoke_devices_normally"
         },
         {
           "kind": "fn",
-          "line": 1140,
+          "line": 1146,
           "name": "persisting_with_no_root_then_restoring_has_no_root"
         },
         {
           "kind": "fn",
-          "line": 1149,
+          "line": 1155,
           "name": "a_failing_cipher_surfaces_as_a_storage_error"
         },
         {
           "kind": "fn",
-          "line": 1163,
+          "line": 1169,
           "name": "restoring_with_the_wrong_cipher_key_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 1177,
+          "line": 1183,
           "name": "restoring_truncated_plaintext_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 1189,
+          "line": 1195,
           "name": "restoring_empty_bytes_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 1205,
+          "line": 1211,
           "name": "the_full_enrollment_and_revocation_acceptance_flow"
         },
         {
           "kind": "fn",
-          "line": 1239,
+          "line": 1245,
           "name": "a_second_enrollment_cannot_begin_while_one_is_pending"
         },
         {
           "kind": "fn",
-          "line": 1251,
+          "line": 1257,
           "name": "begin_device_enrollment_rejects_a_malformed_root_did"
         },
         {
           "kind": "fn",
-          "line": 1260,
+          "line": 1266,
           "name": "approve_device_enrollment_requires_a_root"
         },
         {
           "kind": "fn",
-          "line": 1277,
+          "line": 1283,
           "name": "approve_device_enrollment_rejects_a_request_naming_a_different_root"
         },
         {
           "kind": "fn",
-          "line": 1294,
+          "line": 1300,
           "name": "approve_device_enrollment_rejects_a_corrupt_request"
         },
         {
           "kind": "fn",
-          "line": 1304,
+          "line": 1310,
           "name": "finish_device_enrollment_fails_without_a_pending_enrollment"
         },
         {
           "kind": "fn",
-          "line": 1313,
+          "line": 1319,
           "name": "finish_device_enrollment_rejects_an_approval_that_never_happened"
         },
         {
           "kind": "fn",
-          "line": 1334,
+          "line": 1340,
           "name": "finish_device_enrollment_rejects_a_stale_root_kel_from_before_approval"
         },
         {
           "kind": "fn",
-          "line": 1350,
+          "line": 1356,
           "name": "revoke_delegated_device_does_not_require_holding_the_devices_secrets"
         },
         {
           "kind": "fn",
-          "line": 1373,
+          "line": 1379,
           "name": "revoke_delegated_device_requires_a_root"
         },
         {
           "kind": "fn",
-          "line": 1383,
+          "line": 1389,
           "name": "root_kel_requires_a_root"
         },
         {
           "kind": "fn",
-          "line": 1389,
+          "line": 1395,
           "name": "is_device_delegated_rejects_a_tampered_kel"
         },
         {
           "kind": "fn",
-          "line": 1402,
+          "line": 1408,
           "name": "is_device_delegated_is_false_for_an_unrelated_did"
         }
       ],
       "title": "use zeroize::Zeroize;"
+    },
+    {
+      "bytes": 18775,
+      "group": "crate:mini-ffi",
+      "headings": [],
+      "keywords": [
+        "checkpoint",
+        "fmt",
+        "operationlifecycle",
+        "safe",
+        "reached",
+        "core",
+        "error",
+        "operation",
+        "enum",
+        "suspended",
+        "lifecyclefailurereason",
+        "phase",
+        "module",
+        "ble",
+        "service",
+        "closed",
+        "derive",
+        "debug",
+        "clone",
+        "copy",
+        "partialeq",
+        "self",
+        "now",
+        "lifecycle"
+      ],
+      "lines": 472,
+      "path": "crates/mini-ffi/src/lifecycle.rs",
+      "sha256": "57b05d7538a3f21edf5c75f91ac219fef96f8a6a30107d9f5f12ebf9d48d02e1",
+      "symbols": [
+        {
+          "kind": "enum",
+          "line": 23,
+          "name": "BackgroundableOperation"
+        },
+        {
+          "kind": "enum",
+          "line": 35,
+          "name": "LifecycleFailureReason"
+        },
+        {
+          "kind": "impl",
+          "line": 46,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 47,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 59,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "enum",
+          "line": 65,
+          "name": "SuspendDecision"
+        },
+        {
+          "kind": "enum",
+          "line": 80,
+          "name": "LifecyclePhase"
+        },
+        {
+          "kind": "enum",
+          "line": 98,
+          "name": "LifecycleError"
+        },
+        {
+          "kind": "impl",
+          "line": 114,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 115,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 126,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "enum",
+          "line": 129,
+          "name": "Phase"
+        },
+        {
+          "kind": "impl",
+          "line": 137,
+          "name": "Phase"
+        },
+        {
+          "kind": "fn",
+          "line": 138,
+          "name": "as_public"
+        },
+        {
+          "kind": "fn",
+          "line": 148,
+          "name": "is_terminal"
+        },
+        {
+          "kind": "struct",
+          "line": 164,
+          "name": "OperationLifecycle"
+        },
+        {
+          "kind": "impl",
+          "line": 169,
+          "name": "OperationLifecycle"
+        },
+        {
+          "kind": "fn",
+          "line": 173,
+          "name": "begin"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "lock"
+        },
+        {
+          "kind": "fn",
+          "line": 187,
+          "name": "operation"
+        },
+        {
+          "kind": "fn",
+          "line": 192,
+          "name": "phase"
+        },
+        {
+          "kind": "fn",
+          "line": 198,
+          "name": "failure_reason"
+        },
+        {
+          "kind": "fn",
+          "line": 208,
+          "name": "mark_checkpoint"
+        },
+        {
+          "kind": "fn",
+          "line": 223,
+          "name": "begin_next_step"
+        },
+        {
+          "kind": "fn",
+          "line": 243,
+          "name": "request_suspend"
+        },
+        {
+          "kind": "fn",
+          "line": 260,
+          "name": "resume_from_suspend"
+        },
+        {
+          "kind": "fn",
+          "line": 277,
+          "name": "fail_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 289,
+          "name": "complete"
+        },
+        {
+          "kind": "mod",
+          "line": 303,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 307,
+          "name": "begins_in_flight"
+        },
+        {
+          "kind": "fn",
+          "line": 317,
+          "name": "in_flight_must_complete_or_fail_closed_on_suspend_request"
+        },
+        {
+          "kind": "fn",
+          "line": 328,
+          "name": "checkpoint_then_suspend_is_safe_and_resumable"
+        },
+        {
+          "kind": "fn",
+          "line": 342,
+          "name": "cannot_mark_checkpoint_twice_without_a_step_between"
+        },
+        {
+          "kind": "fn",
+          "line": 352,
+          "name": "cannot_begin_next_step_while_already_in_flight"
+        },
+        {
+          "kind": "fn",
+          "line": 361,
+          "name": "cannot_resume_when_not_suspended"
+        },
+        {
+          "kind": "fn",
+          "line": 375,
+          "name": "fail_closed_from_in_flight_is_visible_and_terminal"
+        },
+        {
+          "kind": "fn",
+          "line": 388,
+          "name": "fail_closed_from_checkpoint_and_from_suspended_both_work"
+        },
+        {
+          "kind": "fn",
+          "line": 407,
+          "name": "terminal_phases_reject_every_further_transition"
+        },
+        {
+          "kind": "fn",
+          "line": 446,
+          "name": "cannot_complete_while_suspended"
+        },
+        {
+          "kind": "fn",
+          "line": 458,
+          "name": "full_two_step_exchange_reaches_completion"
+        }
+      ],
+      "title": "use std::sync::Mutex;"
     },
     {
       "bytes": 252,
@@ -44269,7 +44511,7 @@
       "title": "{"
     },
     {
-      "bytes": 612750,
+      "bytes": 618005,
       "group": "docs",
       "headings": [
         {
@@ -44678,8 +44920,8 @@
         "issue",
         "founder",
         "real",
-        "review",
         "android",
+        "review",
         "slice",
         "beta",
         "audit",
@@ -44699,9 +44941,9 @@
         "research",
         "lane"
       ],
-      "lines": 10184,
+      "lines": 10269,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "4e6184fa3b0014faf1bd4e3b80a63ab069cb83f6e2f81dae14d355f247e5eebc",
+      "sha256": "d55d89e9e63bb990da6ca25a4863a0056e28bbc0924bc27c9ab857226a54f455",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -55374,7 +55616,7 @@
       "title": "RFC-0005: Forge Cutover and Platform Exit"
     },
     {
-      "bytes": 10596,
+      "bytes": 11456,
       "group": "docs",
       "headings": [
         {
@@ -55389,64 +55631,64 @@
         },
         {
           "level": 2,
-          "line": 41,
+          "line": 48,
           "text": "What does not work yet"
         },
         {
           "level": 2,
-          "line": 69,
+          "line": 82,
           "text": "Security boundary"
         },
         {
           "level": 2,
-          "line": 91,
+          "line": 104,
           "text": "Toolchain and local build"
         },
         {
           "level": 2,
-          "line": 138,
+          "line": 151,
           "text": "Verification performed"
         },
         {
           "level": 2,
-          "line": 156,
+          "line": 169,
           "text": "Beta roadmap (target: ~PR #200, hub issue #196)"
         },
         {
           "level": 2,
-          "line": 212,
+          "line": 225,
           "text": "Primary implementation references"
         }
       ],
       "keywords": [
         "android",
-        "device",
-        "issue",
-        "kotlin",
-        "rootcore",
         "slice",
+        "issue",
+        "device",
         "yet",
-        "compose",
-        "root",
+        "rootcore",
         "never",
+        "root",
         "key",
         "what",
-        "does",
         "security",
-        "uniffi",
+        "kotlin",
+        "typed",
         "real",
+        "state",
+        "machine",
         "foundation",
         "works",
+        "does",
         "boundary",
         "local",
-        "build",
         "contract",
-        "reports",
-        "platform"
+        "compose",
+        "reports"
       ],
-      "lines": 223,
+      "lines": 236,
       "path": "docs/mobile/ANDROID_FOUNDATION.md",
-      "sha256": "93444edb9b7d4501db79b1ffec44453c7e62ac4aa6a37099102d66c0fbe309b6",
+      "sha256": "c44ec3877e3677ed220ccca386c1d1fad1af44cc7878875958b7035daa0270b1",
       "symbols": [],
       "title": "Android foundation"
     },

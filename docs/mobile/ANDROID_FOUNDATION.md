@@ -28,7 +28,14 @@ contract and reports platform capabilities. No protocol secret crosses FFI.
   created, a device can be delegated under it with the default capability
   set, and a device can be revoked — all in-process, in memory, using
   ordinary `mini_crypto::SigningKey`s exactly like every other identity in
-  this workspace today.
+  this workspace today; and
+- **`OperationLifecycle` (D-0348, issue #202 slice)**: a typed state
+  machine tracking whether a backgroundable LAN/QR pairing exchange or BLE
+  bearer transfer is currently safe to suspend. `InFlight` always answers
+  `MustCompleteOrFailClosed` to a suspend request; only a caller-reported
+  `AtCheckpoint` transitions cleanly to `Suspended`/resumable. A failure
+  is always recorded as a typed, visible `LifecycleFailureReason`, never a
+  silent partial/corrupt result.
 
 The onboarding reducer (`start`/`dispatch`) is deliberately stateless across
 FFI calls. Its complete input and output are values, so Kotlin never shares
@@ -51,6 +58,12 @@ that crosses the FFI boundary.
 - **root and device on separate physical devices** — this MVP holds both in
   one process for dev-testing convenience; the real split happens once LAN/QR
   pairing (issue #200) exists;
+- **a real foreground `Service`/`WorkManager` wired to `OperationLifecycle`**
+  — this slice (issue #202) only ships the typed Rust-side state machine
+  the Kotlin lifecycle glue must query; no Android `Service` declaration,
+  Doze/App Standby handling, or a real backgrounded-device test exists yet
+  (Codex/the founder's local machine, per this slice's own division of
+  labor);
 - public profile creation, discovery, follow, feed, or synchronization;
 - LAN, BLE, Wi-Fi Direct, relay, background sync, notifications, media, or
   calls;

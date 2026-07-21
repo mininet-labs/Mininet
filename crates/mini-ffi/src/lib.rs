@@ -18,6 +18,12 @@
 
 use zeroize::Zeroize;
 
+mod lifecycle;
+pub use lifecycle::{
+    BackgroundableOperation, LifecycleError, LifecycleFailureReason, LifecyclePhase,
+    OperationLifecycle, SuspendDecision,
+};
+
 /// Version of the typed command/event API.
 pub const APP_API_VERSION: u32 = 0;
 const MAX_REQUEST_ID_BYTES: usize = 64;

@@ -59,6 +59,58 @@ interface RootCore {
   sequence<u8> persist_state(StorageCipher cipher);
 };
 
+enum BackgroundableOperation {
+  "LanQrPairingExchange",
+  "BleBearerTransfer",
+};
+
+enum LifecyclePhase {
+  "InFlight",
+  "AtCheckpoint",
+  "Suspended",
+  "Completed",
+  "FailedClosed",
+};
+
+enum LifecycleFailureReason {
+  "Timeout",
+  "PeerDisconnected",
+  "PlatformTerminated",
+};
+
+enum SuspendDecision {
+  "SafeToSuspend",
+  "MustCompleteOrFailClosed",
+};
+
+interface OperationLifecycle {
+  [Name=begin]
+  constructor(BackgroundableOperation operation);
+
+  BackgroundableOperation operation();
+
+  LifecyclePhase phase();
+
+  LifecycleFailureReason? failure_reason();
+
+  [Throws=LifecycleError]
+  void mark_checkpoint();
+
+  [Throws=LifecycleError]
+  void begin_next_step();
+
+  SuspendDecision request_suspend();
+
+  [Throws=LifecycleError]
+  void resume_from_suspend();
+
+  [Throws=LifecycleError]
+  void fail_closed(LifecycleFailureReason reason);
+
+  [Throws=LifecycleError]
+  void complete();
+};
+
 dictionary PlatformCapabilities {
   boolean secure_key_storage;
   boolean hardware_backed_keys;
@@ -142,4 +194,12 @@ enum RootError {
 [Error]
 enum StorageCipherError {
   "Failed",
+};
+
+[Error]
+enum LifecycleError {
+  "AlreadyTerminal",
+  "NotSuspended",
+  "NotInFlight",
+  "NotAtCheckpoint",
 };
