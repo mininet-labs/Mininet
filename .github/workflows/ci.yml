@@ -58,6 +58,18 @@ jobs:
   # isn't affected. Advisory-only for now: it reports, it doesn't fail the
   # build, since this workspace has no process yet for triaging an
   # advisory against an unreleasable pinned dependency version.
+  #
+  # Update (D-0341, issue #203): a real PR run of this job (#211) shows the
+  # action's own install step actually failing outright -- `cargo install
+  # cargo-audit` inside the checked-out repo picks up rust-toolchain.toml's
+  # pinned 1.94.1 (via rustup) rather than a decoupled prebuilt binary, and
+  # `cargo-audit`'s own `kstring` dependency now needs rustc 1.96+. The
+  # "ships its own prebuilt binary" premise above no longer holds for the
+  # pinned action SHA -- `continue-on-error: true` has been silently
+  # masking a hard failure, not just an advisory-only report. Left as a
+  # documented gap rather than fixed here: a real fix needs either a
+  # rust-toolchain.toml bump (its own, wider decision) or replacing this
+  # action, neither in scope for issue #203's `cargo-deny` verification.
   dependency-audit:
     runs-on: ubuntu-latest
     # This job alone needs to post a check-run result; every other job in
@@ -75,17 +87,19 @@ jobs:
   # License/advisory/source policy for the whole resolved dependency
   # graph (D-0069 dependency-governance requirement, first exercised by
   # mini-build-runner-wasmtime's Wasmtime dependency). Config lives in
-  # `deny.toml` at the repo root. `continue-on-error: true` for the same
-  # reason `dependency-audit` above has it: `deny.toml` was authored
-  # without a local `cargo-deny` binary to verify it against, so a first
-  # real CI run establishes the baseline rather than blocking merges on
-  # an unverified config.
+  # `deny.toml` at the repo root.
+  #
+  # D-0341 (Android beta slice 7, issue #203): `cargo-deny` v0.20.2 has now
+  # been installed and run for real against this workspace's `Cargo.lock`,
+  # closing the "unverified config" gap this job's `continue-on-error`
+  # existed for -- `deny.toml`'s every allowance is now a specific,
+  # reasoned response to a real finding (see that file's comments), not a
+  # guess. This job now actually gates merges.
   dependency-deny:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # v2
-        continue-on-error: true
         with:
           command: check
 
