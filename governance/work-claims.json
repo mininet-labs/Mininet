@@ -258,7 +258,7 @@
     },
     {
       "issue": 194,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/forge-kel-assurance-gating",
       "pull_request": 195,
@@ -274,7 +274,25 @@
       "decision_ids": [
         "D-0332"
       ],
-      "notes": "mini_forge::author_assurance composes the oracle's existing author_verified provenance re-check with did_mini::assess_kel_assurance over the author-root's KEL -- the first consumer of KelAssurance outside did-mini itself. Deliberately not wired into propose/approve/merge/resolve_project's actual quorum gating (still purely author_verified's boolean) -- which governance action should require which minimum assurance level is a founder-facing policy call, not decided unilaterally here."
+      "notes": "mini_forge::author_assurance composes the oracle's existing author_verified provenance re-check with did_mini::assess_kel_assurance over the author-root's KEL -- the first consumer of KelAssurance outside did-mini itself. Deliberately not wired into propose/approve/merge/resolve_project's actual quorum gating (still purely author_verified's boolean) -- which governance action should require which minimum assurance level is a founder-facing policy call, not decided unilaterally here. Closed here (issue #207 branch) since PR #195 was confirmed merged (main's own merge commit); found stale (still in_review) and closed per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+    },
+    {
+      "issue": 207,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/bounty-project-pools",
+      "pull_request": null,
+      "lease_expires": "2026-07-27",
+      "paths": [
+        "crates/mini-bounty/src/pool.rs",
+        "crates/mini-bounty/src/lib.rs",
+        "docs/DECISION_LOG.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0336"
+      ],
+      "notes": "BountyPool::project label + with_project builder, purely organizational metadata for grouping multiple flat-amount funding rounds under one project name. No change to claim/verify/ring logic."
     }
   ]
 }

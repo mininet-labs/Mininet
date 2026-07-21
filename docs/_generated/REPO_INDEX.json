@@ -3,7 +3,7 @@
     "crates": 46,
     "files": 580,
     "headings": 2023,
-    "rust_symbols": 4583
+    "rust_symbols": 4591
   },
   "crates": {
     "did-mini": {
@@ -5985,160 +5985,200 @@
       "title": "use std::collections::HashSet;"
     },
     {
-      "bytes": 2964,
+      "bytes": 3612,
       "group": "crate:mini-bounty",
       "headings": [],
       "keywords": [
-        "claim",
         "pool",
+        "claim",
         "ledger",
         "github",
+        "grant",
+        "same",
+        "one",
+        "bountypool",
         "anonymous",
         "contributor",
         "approved",
-        "grant",
-        "same",
-        "error",
-        "one",
-        "bountygrant",
-        "bountypool",
-        "new",
+        "ring",
         "anonymity",
+        "error",
+        "payout",
+        "never",
+        "bountygrant",
+        "new",
+        "itself",
+        "what",
+        "project",
         "how",
         "paid",
-        "payout",
-        "other",
-        "contribution",
-        "reading",
-        "never",
-        "public",
-        "key"
+        "other"
       ],
-      "lines": 59,
+      "lines": 70,
       "path": "crates/mini-bounty/src/lib.rs",
-      "sha256": "07fc6ad009de1a856692ae4b85e9cbdcd1b72f502caf61dcb841c9acdd007ca6",
+      "sha256": "4b54b527f35ecc163152112f5e04bf964ddd43be598ba1d0e6a72859e4e25277",
       "symbols": [
         {
           "kind": "mod",
-          "line": 50,
+          "line": 61,
           "name": "claim"
         },
         {
           "kind": "mod",
-          "line": 51,
+          "line": 62,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 52,
+          "line": 63,
           "name": "ledger"
         },
         {
           "kind": "mod",
-          "line": 53,
+          "line": 64,
           "name": "pool"
         }
       ],
       "title": "mod claim;"
     },
     {
-      "bytes": 5950,
+      "bytes": 10440,
       "group": "crate:mini-bounty",
       "headings": [],
       "keywords": [
-        "grant",
         "pool",
-        "grants",
         "ring",
+        "grant",
         "claim",
-        "vec",
-        "key",
         "bountypool",
+        "grants",
+        "key",
+        "never",
+        "different",
+        "amount",
+        "set",
+        "same",
+        "own",
+        "one",
+        "every",
+        "claimed",
+        "see",
+        "project",
+        "vec",
+        "funding",
         "bountygrant",
         "against",
-        "self",
-        "every",
-        "bountyerror",
-        "claim_pubkey",
-        "new",
-        "set",
-        "claimed",
-        "same",
-        "approved",
-        "here",
-        "never",
-        "clone",
-        "amount_per_grant_micro",
-        "byte"
+        "anonymity",
+        "label"
       ],
-      "lines": 156,
+      "lines": 253,
       "path": "crates/mini-bounty/src/pool.rs",
-      "sha256": "c92c5e3a616699a552aa88d158bed2377a5a20d76deedfb1497c87b05807d2f5",
+      "sha256": "815814349f12fb3eeab3cb1bd43a9bb0c936fdc1af9ad3b6c9c9579c57a95edc",
       "symbols": [
         {
+          "kind": "const",
+          "line": 23,
+          "name": "MAX_PROJECT_LABEL_BYTES"
+        },
+        {
           "kind": "struct",
-          "line": 27,
+          "line": 33,
           "name": "BountyGrant"
         },
         {
           "kind": "struct",
-          "line": 41,
+          "line": 47,
           "name": "BountyPool"
         },
         {
           "kind": "impl",
-          "line": 55,
+          "line": 80,
           "name": "BountyPool"
         },
         {
           "kind": "fn",
-          "line": 61,
+          "line": 86,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 86,
+          "line": 111,
+          "name": "with_project"
+        },
+        {
+          "kind": "fn",
+          "line": 125,
           "name": "ring_size"
         },
         {
           "kind": "mod",
-          "line": 98,
+          "line": 137,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 101,
+          "line": 140,
           "name": "grant"
         },
         {
           "kind": "fn",
-          "line": 108,
+          "line": 147,
           "name": "empty_grant_set_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 116,
+          "line": 155,
           "name": "empty_pool_id_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 124,
+          "line": 163,
           "name": "zero_amount_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 132,
+          "line": 171,
           "name": "malformed_claim_key_length_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 143,
+          "line": 182,
           "name": "duplicate_claim_keys_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 151,
+          "line": 190,
           "name": "a_valid_pool_reports_its_ring_size"
+        },
+        {
+          "kind": "fn",
+          "line": 196,
+          "name": "a_pool_has_no_project_label_by_default"
+        },
+        {
+          "kind": "fn",
+          "line": 202,
+          "name": "a_project_label_can_be_attached"
+        },
+        {
+          "kind": "fn",
+          "line": 211,
+          "name": "an_empty_project_label_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 217,
+          "name": "an_oversized_project_label_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 224,
+          "name": "a_project_label_at_the_exact_bound_is_accepted"
+        },
+        {
+          "kind": "fn",
+          "line": 231,
+          "name": "two_pools_can_share_a_project_label_at_different_flat_amounts"
         }
       ],
       "title": "use crate::error::{BountyError, Result};"
@@ -40539,7 +40579,7 @@
       "title": "{"
     },
     {
-      "bytes": 545320,
+      "bytes": 549651,
       "group": "docs",
       "headings": [
         {
@@ -40955,8 +40995,8 @@
         "closes",
         "decision",
         "phase",
-        "first",
         "issue",
+        "first",
         "release",
         "roadmap",
         "mini-consensus",
@@ -40969,9 +41009,9 @@
         "entry",
         "core"
       ],
-      "lines": 9068,
+      "lines": 9140,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "21fe5afb25d456c6115f5eb5930c2f1c7947266c19e28cf30786c6d52db0f0e8",
+      "sha256": "f148bfb6c0cd50165d9489f389b2446a91b4347e2696959577d2bf4a81d5481e",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -53785,7 +53825,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 14095,
+      "bytes": 14973,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -53814,9 +53854,9 @@
         "unix",
         "precedent"
       ],
-      "lines": 281,
+      "lines": 299,
       "path": "governance/work-claims.json",
-      "sha256": "36d0d277ef45fb157c1970422b59347e8e02c38b1eccce72693f71fe5e754494",
+      "sha256": "fe935c86aca08bcc76cd807eaae56969f40f9c8ef2cc86d5c5ad6f65a3e4f549",
       "symbols": [],
       "title": "{"
     },
