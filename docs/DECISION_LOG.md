@@ -9583,3 +9583,111 @@ they travel.
 `revoke_device`, `delegated_devices`, `persist_state`, `restore`) are
 byte-for-byte unchanged in behavior. No `did-mini` changes at all —
 every primitive this composes already existed.
+
+### D-0340 — `mini-social`: signed LAN/QR pairing offer/acceptance protocol (issue #200, Android beta slice 4)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #200, PR #170 (public profile/follow, merged), PR #210 (D-0339)
+
+**Decision:** add a `mini-social::pairing` module implementing the bytes
+a QR code carries and the bytes a matching LAN acceptance carries, both
+self-verifying and bounded, composing PR #170's already-shipped
+`did_mini::verify_delegation`/`Kel::verify_message`/`set_follow` rather
+than inventing new object types or new cryptography:
+
+- `create_pairing_offer(root_kel, device, display_name, endpoint, nonce,
+  issued_at_ms, expires_at_ms)`: embeds the offerer's own root and device
+  KEL bytes (bounded to 16 KiB/4 KiB) plus a display name, a LAN
+  reconnect endpoint, a caller-supplied nonce, and an explicit bounded
+  expiry window, signed by the device via the existing
+  `Controller::sign_message`. This is the exact bytes a QR code encodes;
+  rendering/scanning the QR itself is Kotlin-side, out of scope here.
+- `verify_pairing_offer(bytes, now_ms)`: decodes, runs
+  `verify_delegation` on the embedded KELs (so a scanner that has never
+  synced with the offerer can still authenticate it fully offline),
+  requires the signing device hold `Capabilities::POST`, verifies the
+  detached signature via `Kel::verify_message`, and rejects an expired
+  or over-long window.
+- `create_pairing_acceptance`/`verify_pairing_acceptance`: the symmetric
+  reply, naming the offer's exact nonce so an acceptance cannot be bound
+  to any offer other than the one it responds to.
+- `PairingNonceLedger`: a small caller-owned, capacity-bounded,
+  self-sweeping record of consumed nonces — stated plainly in the module
+  doc that a valid signature is always replayable by itself, and only
+  this kind of stateful memory turns "signature checks out" into "this
+  exact offer was not already accepted."
+- `send_pairing_acceptance`/`receive_pairing_acceptance`: a minimal
+  bounded-timeout direct TCP exchange (accept-timeout poll loop,
+  length-prefixed body capped before it is read), mirroring PR #170's
+  own "accepted sockets use bounded read/write timeouts" LAN discipline
+  for Windows. This module never calls `mini_store`/`set_follow` itself
+  — each side, having independently authenticated the other via this
+  protocol, is expected to call the pre-existing `set_follow` for the
+  counterpart; mutual follow is two ordinary, separately-signed follow
+  objects, not a new kind of object.
+
+**Reason:** issue #200's acceptance test requires a bounded,
+capability-scoped, signed offer that a forged/expired/replayed payload
+must fail — stronger than `mini-social::discovery`'s existing LAN
+announcements, which are deliberately unauthenticated connection hints
+(PR #170). Checked `mini-social`/`did-mini` first per this session's
+standing practice: `verify_delegation`, `Kel::verify_message`/
+`Controller::sign_message`, and `set_follow` already provide every
+primitive this needs. The only genuinely new thing is the bounded wire
+format tying them together for a first-contact, no-prior-sync QR
+exchange — composition, not new design, matching Directive 14
+(simplicity is security) and the no-new-cryptography hard rule.
+
+**Constitutional impact:** none. No dependency edge added or crossed —
+`mini-social` already depended on `did-mini`; the new `mini-crypto`
+dependency is the same crate `did-mini` itself already composes
+(`Signature`/`SignatureSuite`), not a new primitive. Directive 8 (the
+human is the root of trust) is reinforced: an offer/acceptance from a
+device without `Capabilities::POST` is rejected
+(`SocialError::PairingCapabilityMissing`) rather than silently trusted,
+and every decode path fails closed on malformed, truncated, or
+trailing-byte input.
+
+**Implementation status:** shipped and tested, Rust-side only (per hub
+issue #196's division of labor). `cargo test -p mini-social
+--all-features`: 18 new pairing tests (round-trip, expired offer,
+over-long window rejected at creation, forged-byte signature failure,
+a device delegated by a *different* root rejected, missing-capability
+rejection, truncated/trailing malformed bytes, offer/acceptance nonce
+binding, nonce-ledger replay rejection and bounded-capacity rejection,
+and a real loopback TCP delivery plus an oversized-length-prefix DoS
+rejection that never reads the declared body) alongside the 16
+pre-existing `mini-social` tests, all green. Full workspace `cargo
+fmt`/`clippy --all-targets --all-features --workspace -- -D
+warnings`/`cargo test --workspace --all-features` (156 test binaries)
+clean.
+
+**Failure point:** this is the Rust-side protocol logic only — no QR
+rendering/scanning, no camera UI, no real two-Android-device LAN test.
+The bounded per-field sizes (16 KiB root KEL, 4 KiB device KEL) are sized
+for the protocol's own correctness, not for what a real QR code can hold
+at a scannable density — Kotlin-side UX will need its own judgment about
+whether an offerer's actual KEL history fits, and about the QR
+error-correction/chunking that follows from that; this change makes no
+claim about it either way. `receive_pairing_acceptance`'s accept-timeout
+is a busy-poll loop (`std::net::TcpListener` has no native accept
+timeout) rather than a select/epoll-based wait — adequate for a bounded,
+foreground, single-connection exchange but not a general-purpose pattern
+to reuse for a listener under load. Endpoint discovery (how the scanner
+learns which IP to *dial* before delivering its acceptance) is exactly
+the address the offer itself carries — this protocol does not attempt
+NAT traversal, multi-interface selection, or IPv6 link-local zone
+handling beyond what `std::net::SocketAddr` already expresses.
+
+**Required follow-up:** Kotlin-side camera/QR scanning UI and the real
+two-Android-device LAN test (Codex/founder's local machine, per hub
+issue #196), plus the app-level decision of how the offerer picks its
+`endpoint` (which local interface/port to advertise) and how the app
+wires the post-verification `set_follow` calls into its own UI
+confirmation step — this change deliberately stops at "both sides can
+authenticate each other," not "the app has decided to follow."
+
+**Supersedes / superseded by:** none. Purely additive: new `mini-social`
+module and five new `SocialError` variants
+(`#[non_exhaustive]`, so this is not a breaking change to the enum's
+existing match arms outside this crate); no existing `mini-social`
+function's signature or behavior changed. No `did-mini` changes at all —
+every primitive this composes already existed.

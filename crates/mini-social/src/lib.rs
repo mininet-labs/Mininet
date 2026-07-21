@@ -28,11 +28,19 @@
 #![warn(missing_debug_implementations)]
 
 mod discovery;
+mod pairing;
 mod wall;
 
 pub use discovery::{
     LocalProfileAnnouncer, LocalProfileScanner, NearbyProfile, PROFILE_DISCOVERY_GROUP,
     PROFILE_DISCOVERY_PORT,
+};
+
+pub use pairing::{
+    create_pairing_acceptance, create_pairing_offer, receive_pairing_acceptance,
+    send_pairing_acceptance, verify_pairing_acceptance, verify_pairing_offer, PairingNonceLedger,
+    VerifiedPairingAcceptance, VerifiedPairingOffer, MAX_PAIRING_DEVICE_KEL_BYTES,
+    MAX_PAIRING_OFFER_WINDOW_MS, MAX_PAIRING_ROOT_KEL_BYTES, PAIRING_NONCE_BYTES,
 };
 
 pub use wall::{
@@ -90,6 +98,21 @@ pub enum SocialError {
     BadCommunity,
     /// Local profile discovery I/O failed.
     Io(String),
+    /// A pairing offer/acceptance was structurally invalid, truncated, or
+    /// carried trailing bytes.
+    PairingMalformed,
+    /// A pairing offer's expiry window was already past `now_ms`, or the
+    /// window itself exceeded [`MAX_PAIRING_OFFER_WINDOW_MS`].
+    PairingExpired,
+    /// A pairing nonce was already recorded as consumed by a
+    /// [`PairingNonceLedger`] and has not yet expired.
+    PairingReplayed,
+    /// The signing device's delegated capabilities did not include
+    /// [`did_mini::Capabilities::POST`].
+    PairingCapabilityMissing,
+    /// A [`PairingNonceLedger`] had no room even after sweeping expired
+    /// entries.
+    PairingNonceLedgerFull,
 }
 
 impl core::fmt::Display for SocialError {
@@ -104,6 +127,13 @@ impl core::fmt::Display for SocialError {
             SocialError::BadInteraction => write!(f, "structurally invalid comment or reaction"),
             SocialError::BadCommunity => write!(f, "structurally invalid community object"),
             SocialError::Io(error) => write!(f, "local profile discovery i/o: {error}"),
+            SocialError::PairingMalformed => write!(f, "malformed pairing offer or acceptance"),
+            SocialError::PairingExpired => write!(f, "pairing offer expired or window too long"),
+            SocialError::PairingReplayed => write!(f, "pairing nonce already consumed"),
+            SocialError::PairingCapabilityMissing => {
+                write!(f, "pairing device lacks the POST capability")
+            }
+            SocialError::PairingNonceLedgerFull => write!(f, "pairing nonce ledger is full"),
         }
     }
 }
