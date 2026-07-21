@@ -9873,3 +9873,90 @@ half before they can be exercised for real.
 `#[non_exhaustive]`, so this is not a breaking change to existing match
 arms outside this crate); no existing `mini-bearer` function's signature
 or behavior changed.
+
+### D-0343 — `.github/workflows/android-ci.yml`: real Android APK assembly in CI (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, `docs/mobile/ANDROID_FOUNDATION.md`
+
+**Decision:** add `.github/workflows/android-ci.yml`, a new `android-apk`
+job that builds `mini-ffi`'s native libraries for both Android ABIs
+(`aarch64-linux-android`, `x86_64-linux-android`) via
+`app/android/scripts/build-rust.sh`, then runs `gradle -p app/android
+:app:assembleDebug` on a GitHub-hosted `ubuntu-latest` runner — the exact
+commands `docs/mobile/ANDROID_FOUNDATION.md` already documents as the
+local build recipe, now exercised for real on a machine that actually has
+a JDK/Android SDK/NDK/Gradle. Split into its own workflow file rather than
+added to `ci.yml`, mirroring D-0314's reasoning for `reproducibility.yml`:
+a full Gradle+NDK build is a different, heavier, differently-flaky cost
+class than the Rust-only jobs in `ci.yml` and shouldn't share a
+required-check failure mode with them. Uses the same docs-only-skip shape
+D-0325 established for `reproducibility.yml` (identical `docs/**`/`**/*.md`
+diff check) so this required check always posts a real conclusion for a
+docs-only PR instead of getting stuck at `mergeable_state: blocked`
+forever.
+
+Every toolchain piece `ANDROID_FOUNDATION.md` pins gets an explicit
+install-then-verify step rather than trusting whatever the runner image
+happens to ship — JDK 17 (`actions/setup-java`), Android SDK platform 37 /
+build-tools 36.0.0 / NDK 28.2.13676358 (`sdkmanager`, the cmdline-tools
+GitHub's `ubuntu-latest` image already ships), `cargo-ndk` 4.1.2
+(`cargo install --version --locked`), and Gradle 9.5.0
+(`gradle/actions/setup-gradle`) — each followed by a real check (`java
+-version`, a directory-existence test under `$ANDROID_HOME`, `cargo ndk
+--version`, `gradle --version`) that fails the job loudly the moment
+installed doesn't match pinned, closing issue #204's acceptance test step
+2 by construction rather than by hope. AGP/Kotlin/Compose-BOM versions
+need no separate runner-side pin: they're already source-controlled in
+`gradle/libs.versions.toml`, so they cannot silently drift on the runner
+the way ambient JDK/SDK/NDK/Gradle state can.
+
+**Reason:** issue #204 says plainly what this environment can and can't
+do: "This environment can write the workflow YAML... but cannot actually
+trigger/observe a real run locally... Real validation that the workflow
+passes happens once pushed and GitHub Actions actually runs it." That is
+accepted here explicitly, not glossed over — this workflow is written
+from `ANDROID_FOUNDATION.md`'s own documented local recipe and the
+existing `reproducibility.yml`'s already-reviewed docs-only-skip pattern,
+composition of what's already proven correct rather than new CI design,
+and its first real run is expected to need at least one follow-up fix
+(matching this session's own recent experience: D-0340's CodeQL false
+positive needed two iterations after the code itself was already
+correct).
+
+**Constitutional impact:** none. No dependency edge added, no frozen
+invariant touched, no cryptography. This is CI configuration, not
+protocol code.
+
+**Implementation status:** written and YAML-syntax-checked
+(`python3 -c "import yaml; yaml.safe_load(...)"`) in this environment,
+which has no `actionlint` and cannot execute a GitHub Actions runner to
+verify the job semantics for real. Every third-party action reference
+(`actions/setup-java`, `gradle/actions/setup-gradle`,
+`actions/upload-artifact`) is pinned by full commit SHA, verified against
+the real tag via `git ls-remote --tags` against the upstream repositories
+directly (not inferred from a summarized web page) — matching this
+repo's existing SHA-pinning convention for every action in `ci.yml`/
+`reproducibility.yml`.
+
+**Failure point:** unverified end-to-end — no JDK/Android SDK/NDK/Gradle
+exists anywhere this has been tested, so the first real GitHub Actions
+run is this job's actual first execution ever. Plausible first-run
+failure points, named honestly rather than assumed away: the pinned SDK
+package identifiers (`platforms;android-37`, `build-tools;36.0.0`,
+`ndk;28.2.13676358`) may not exist in the SDK manager's remote repository
+by the time this runs; `gradle/actions/setup-gradle` may not support
+downloading exactly Gradle 9.5.0; the Gradle project itself has never
+been built by any toolchain and may have its own undiscovered
+misconfiguration nothing in this repo has exercised yet. Any of these
+would surface as a loud, named CI failure (not a silent skip or false
+success) given how each step is written — but "fails loudly" is not the
+same claim as "passes."
+
+**Required follow-up:** watch the first real run of this workflow once
+pushed and fix whatever it finds — Codex/the founder's local machine can
+also dry-run the same `build-rust.sh`/`gradle` commands to catch issues
+before or alongside CI, per issue #204's own stated division of labor.
+Release signing/publication and reproducibility/hash-comparison are
+explicit non-goals of this slice (the latter is slice 9, issue #205).
+
+**Supersedes / superseded by:** none. New workflow file only; no existing
+workflow's triggers, jobs, or required-check names changed.
