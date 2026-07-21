@@ -64,6 +64,12 @@ that crosses the FFI boundary.
   Doze/App Standby handling, or a real backgrounded-device test exists yet
   (Codex/the founder's local machine, per this slice's own division of
   labor);
+- **a signed, persisted `mini-provenance` record for the Android build**
+  (D-0349, issue #205) — `android-reproducibility.yml` computes the exact
+  environment/commands/output digests `mini provenance record` needs and
+  prints them, but does not call it: that requires a durable CI signing
+  identity and a persistent store across ephemeral runners, both real
+  policy decisions for the founder to make, not something invented here;
 - public profile creation, discovery, follow, feed, or synchronization;
 - LAN, BLE, Wi-Fi Direct, relay, background sync, notifications, media, or
   calls;
@@ -144,9 +150,12 @@ bindings and native `.so` files are build artifacts and are not committed.
 
 This machine currently has no JDK, Android SDK, NDK, Gradle, emulator, or
 physical device attached, so only the Rust tests and binding generation are
-verified locally. The Gradle wrapper, dependency verification metadata,
-Android CI job, emulator smoke test, and two-device test remain required before
-this can be described as a tested Android build or reproducible APK.
+verified locally. `.github/workflows/android-ci.yml` (D-0343, issue #204)
+now assembles the debug APK for real on a GitHub-hosted runner, and
+`.github/workflows/android-reproducibility.yml` (D-0349, issue #205) checks
+two independent clean builds hash-identically; the emulator smoke test and
+two-device test remain required before this can be described as a fully
+tested Android build.
 
 ## Verification performed
 

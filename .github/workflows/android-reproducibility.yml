@@ -1,0 +1,264 @@
+name: android-reproducibility
+
+# Android beta slice 9 (issue #205, hub #196): SPEC-11's verified-
+# reproducible release discipline (roadmap #69, already applied to the four
+# Rust example binaries in reproducibility.yml, D-0069/D-0314) extended to
+# the Android debug APK android-ci.yml (D-0343) now assembles for real.
+#
+# Two independent GitHub-hosted runners each perform a full clean build --
+# fresh checkout, fresh toolchain install, fresh Gradle build -- via a
+# matrix strategy rather than two passes inside one job: a matrix leg is a
+# genuinely separate runner/environment, which is a stronger independence
+# claim than "the same job rebuilt after `rm -rf target`" (what
+# reproducibility.yml does for the Rust binaries, where a same-machine
+# second pass is an accepted, weaker but still real check). A third job
+# downloads both hashes and compares. Same docs-only-skip shape as
+# reproducibility.yml/android-ci.yml (D-0325/D-0343): a required check that
+# never posts a conclusion for a docs-only PR gets stuck at
+# `mergeable_state: blocked` forever.
+#
+# What this does NOT do (see D-0349 for the full reasoning): it does not
+# call `mini provenance record` to actually sign and persist a
+# `mini_provenance::BuildProvenance` claim. That crate's existing API
+# (record_provenance/list_provenance/independent_agreement, D-0068) already
+# accepts exactly the environment/commands/output digests this workflow
+# computes -- no new Rust code was needed for that. What's missing is a
+# durable identity for CI itself to sign with, and a persistent store for
+# the resulting record to live in across ephemeral runners -- both real
+# policy/infrastructure decisions the founder hasn't made, not something to
+# invent unilaterally here. This workflow computes and prints the exact
+# digests `mini provenance record` needs, ready for whoever/whatever makes
+# that call once a CI signing identity exists.
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  # Each matrix leg is a fully independent runner: separate checkout,
+  # separate toolchain install, separate build. Steps are identical to
+  # android-ci.yml's already-proven android-apk job (same pinned versions,
+  # same install-then-verify discipline) so a real difference here reflects
+  # build non-determinism, not two different recipes.
+  build:
+    strategy:
+      matrix:
+        pass: [1, 2]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Determine whether this PR touches only docs
+        id: diff
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" \
+              | grep -vE '^(docs/|.*\.md$)' | grep -q .; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Docs-only PR -- no build artifact could have changed
+        if: steps.diff.outputs.docs_only == 'true'
+        run: |
+          echo "Every changed path in this PR matches docs/** or **/*.md." \
+            "No Android build artifact could differ, so the build/hash" \
+            "steps below are skipped."
+
+      - name: Set up JDK 17
+        if: steps.diff.outputs.docs_only != 'true'
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install pinned Android SDK components
+        if: steps.diff.outputs.docs_only != 'true'
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$sdkmanager" ]; then
+            echo "sdkmanager not found at $sdkmanager -- the runner image" \
+              "no longer ships the Android cmdline-tools this job assumes." >&2
+            exit 1
+          fi
+          yes | "$sdkmanager" --licenses >/dev/null
+          "$sdkmanager" "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
+
+      - name: Verify installed toolchain matches ANDROID_FOUNDATION.md exactly
+        if: steps.diff.outputs.docs_only != 'true'
+        run: |
+          set -eu
+          java -version 2>&1 | grep -q '"17\.' || {
+            echo "JDK drifted from pinned 17: $(java -version 2>&1 | head -1)" >&2
+            exit 1
+          }
+          test -d "$ANDROID_HOME/platforms/android-36" || {
+            echo "Android SDK platform 36 is not installed" >&2
+            exit 1
+          }
+          test -d "$ANDROID_HOME/build-tools/36.0.0" || {
+            echo "Android build-tools 36.0.0 is not installed" >&2
+            exit 1
+          }
+          test -d "$ANDROID_HOME/ndk/28.2.13676358" || {
+            echo "Android NDK 28.2.13676358 is not installed" >&2
+            exit 1
+          }
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+
+      - name: Install Rust Android targets
+        if: steps.diff.outputs.docs_only != 'true'
+        run: rustup target add aarch64-linux-android x86_64-linux-android
+
+      - name: Install cargo-ndk 4.1.2
+        if: steps.diff.outputs.docs_only != 'true'
+        run: |
+          cargo install cargo-ndk --version 4.1.2 --locked
+          cargo ndk --version | grep -q '4\.1\.2' || {
+            echo "cargo-ndk drifted from pinned 4.1.2: $(cargo ndk --version)" >&2
+            exit 1
+          }
+
+      - name: Build Rust mini-ffi native libraries (debug)
+        if: steps.diff.outputs.docs_only != 'true'
+        run: app/android/scripts/build-rust.sh debug
+
+      - name: Set up Gradle 9.5.0
+        if: steps.diff.outputs.docs_only != 'true'
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Assemble debug APK
+        if: steps.diff.outputs.docs_only != 'true'
+        run: gradle -p app/android :app:assembleDebug --stacktrace
+
+      # Issue #205 acceptance test 3: known non-determinism sources (zip
+      # entry timestamps, build-path strings) must be either eliminated or
+      # named as an explicit, narrow exception -- never silently ignored.
+      # sha256sum of the whole APK is the strict check; if pass 1/pass 2
+      # disagree, the compare job below also diffs `unzip -l` (entry names/
+      # sizes/CRCs only, not timestamps) so a timestamp-only difference is
+      # diagnosable as exactly that, not a mystery.
+      - name: Hash the assembled APK
+        if: steps.diff.outputs.docs_only != 'true'
+        run: |
+          apk=$(find app/android/app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' | head -1)
+          test -n "$apk" || { echo "no APK found to hash" >&2; exit 1; }
+          sha256sum "$apk" | awk '{print $1}' > /tmp/apk-sha256.txt
+          unzip -l "$apk" | awk '{print $1, $4}' | sort > /tmp/apk-entries.txt
+          cat /tmp/apk-sha256.txt
+
+      - name: Record this pass's environment/commands digests
+        if: steps.diff.outputs.docs_only != 'true'
+        run: |
+          {
+            echo "jdk=17 (temurin)"
+            echo "android-platform=36"
+            echo "android-build-tools=36.0.0"
+            echo "android-ndk=28.2.13676358"
+            echo "cargo-ndk=4.1.2"
+            echo "gradle=9.5.0"
+            echo "rustc=$(rustc --version)"
+          } | sha256sum | awk '{print $1}' > /tmp/environment-digest.txt
+          {
+            echo "app/android/scripts/build-rust.sh debug"
+            echo "gradle -p app/android :app:assembleDebug"
+          } | sha256sum | awk '{print $1}' > /tmp/commands-digest.txt
+
+      - name: Upload this pass's hash/digests
+        if: steps.diff.outputs.docs_only != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-repro-pass-${{ matrix.pass }}
+          path: |
+            /tmp/apk-sha256.txt
+            /tmp/apk-entries.txt
+            /tmp/environment-digest.txt
+            /tmp/commands-digest.txt
+          if-no-files-found: error
+
+      - name: Record docs-only status for the compare job
+        run: echo "${{ steps.diff.outputs.docs_only }}" > /tmp/docs-only-pass-${{ matrix.pass }}.txt
+
+      - name: Upload docs-only marker
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-repro-docs-only-${{ matrix.pass }}
+          path: /tmp/docs-only-pass-${{ matrix.pass }}.txt
+          if-no-files-found: error
+
+  compare:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: android-repro-docs-only-1
+          path: /tmp/marker1
+
+      - name: Skip comparison for a docs-only PR
+        id: check
+        run: |
+          if [ "$(cat /tmp/marker1/docs-only-pass-1.txt)" = "true" ]; then
+            echo "Every changed path matches docs/** or **/*.md; no APK was" \
+              "built by either pass, so there is nothing to compare. This" \
+              "step still gives the required 'compare' status check a real" \
+              "conclusion for this PR."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: steps.check.outputs.skip != 'true'
+        with:
+          name: android-repro-pass-1
+          path: /tmp/pass1
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: steps.check.outputs.skip != 'true'
+        with:
+          name: android-repro-pass-2
+          path: /tmp/pass2
+
+      - name: Compare APK hashes from the two independent builds
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          hash1=$(cat /tmp/pass1/apk-sha256.txt)
+          hash2=$(cat /tmp/pass2/apk-sha256.txt)
+          echo "pass 1: $hash1"
+          echo "pass 2: $hash2"
+          if [ "$hash1" = "$hash2" ]; then
+            echo "Reproducible: identical APK hash across two independent clean builds."
+            exit 0
+          fi
+          echo "APK hashes differ between the two independent builds." >&2
+          echo "Entry-level diff (name/size only, timestamps excluded):" >&2
+          diff /tmp/pass1/apk-entries.txt /tmp/pass2/apk-entries.txt >&2 || true
+          echo "This is a real, undocumented non-determinism source and" \
+            "must be root-caused, not waived -- see issue #205 acceptance" \
+            "test 3." >&2
+          exit 1
+
+      - name: Print the mini-provenance inputs this build would record
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          echo "environment-digest: $(cat /tmp/pass1/environment-digest.txt)"
+          echo "commands-digest:    $(cat /tmp/pass1/commands-digest.txt)"
+          echo "output-digest:      $(cat /tmp/pass1/apk-sha256.txt)"
+          echo "reproducibility-group: android-aarch64-x86_64-agp9.3.0"
+          echo "Feed these into 'mini provenance record <subject-id>" \
+            "--environment-digest ... --commands-digest ... --output ..." \
+            "--group android-aarch64-x86_64-agp9.3.0' once a CI signing" \
+            "identity exists (D-0349's named follow-up) -- this job only" \
+            "computes the inputs, it does not sign or persist a claim."

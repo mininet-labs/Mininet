@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 50,
-    "files": 611,
-    "headings": 2092,
+    "files": 612,
+    "headings": 2119,
     "rust_symbols": 5165
   },
   "crates": {
@@ -628,6 +628,178 @@
       "sha256": "772fe18e584c460a392f0332d648026936bef41a9909b41fc2728d0466c64564",
       "symbols": [],
       "title": "Android beta slice 8 (issue #204, hub #196): the first point where \"does"
+    },
+    {
+      "bytes": 11544,
+      "group": "ci",
+      "headings": [
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Android beta slice 9 (issue #205, hub #196): SPEC-11's verified-"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "reproducible release discipline (roadmap #69, already applied to the four"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "Rust example binaries in reproducibility.yml, D-0069/D-0314) extended to"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "the Android debug APK android-ci.yml (D-0343) now assembles for real."
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "Two independent GitHub-hosted runners each perform a full clean build --"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "fresh checkout, fresh toolchain install, fresh Gradle build -- via a"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "matrix strategy rather than two passes inside one job: a matrix leg is a"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "genuinely separate runner/environment, which is a stronger independence"
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "claim than \"the same job rebuilt after `rm -rf target`\" (what"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "reproducibility.yml does for the Rust binaries, where a same-machine"
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "second pass is an accepted, weaker but still real check). A third job"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "downloads both hashes and compares. Same docs-only-skip shape as"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "reproducibility.yml/android-ci.yml (D-0325/D-0343): a required check that"
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "never posts a conclusion for a docs-only PR gets stuck at"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "`mergeable_state: blocked` forever."
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "What this does NOT do (see D-0349 for the full reasoning): it does not"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "call `mini provenance record` to actually sign and persist a"
+        },
+        {
+          "level": 1,
+          "line": 22,
+          "text": "`mini_provenance::BuildProvenance` claim. That crate's existing API"
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "(record_provenance/list_provenance/independent_agreement, D-0068) already"
+        },
+        {
+          "level": 1,
+          "line": 24,
+          "text": "accepts exactly the environment/commands/output digests this workflow"
+        },
+        {
+          "level": 1,
+          "line": 25,
+          "text": "computes -- no new Rust code was needed for that. What's missing is a"
+        },
+        {
+          "level": 1,
+          "line": 26,
+          "text": "durable identity for CI itself to sign with, and a persistent store for"
+        },
+        {
+          "level": 1,
+          "line": 27,
+          "text": "the resulting record to live in across ephemeral runners -- both real"
+        },
+        {
+          "level": 1,
+          "line": 28,
+          "text": "policy/infrastructure decisions the founder hasn't made, not something to"
+        },
+        {
+          "level": 1,
+          "line": 29,
+          "text": "invent unilaterally here. This workflow computes and prints the exact"
+        },
+        {
+          "level": 1,
+          "line": 30,
+          "text": "digests `mini provenance record` needs, ready for whoever/whatever makes"
+        },
+        {
+          "level": 1,
+          "line": 31,
+          "text": "that call once a CI signing identity exists."
+        }
+      ],
+      "keywords": [
+        "yml",
+        "android",
+        "build",
+        "echo",
+        "job",
+        "real",
+        "steps",
+        "sdkmanager",
+        "rust",
+        "reproducibility",
+        "fresh",
+        "matrix",
+        "same",
+        "what",
+        "does",
+        "record",
+        "name",
+        "diff",
+        "docs_only",
+        "android-ci",
+        "two",
+        "separate",
+        "true",
+        "android_home"
+      ],
+      "lines": 265,
+      "path": ".github/workflows/android-reproducibility.yml",
+      "sha256": "dd02b0ef5530e9fd74e5c60e1883b5abec6345f42f64dfe90797210302d0064b",
+      "symbols": [],
+      "title": "Android beta slice 9 (issue #205, hub #196): SPEC-11's verified-"
     },
     {
       "bytes": 5263,
@@ -44511,7 +44683,7 @@
       "title": "{"
     },
     {
-      "bytes": 618005,
+      "bytes": 628137,
       "group": "docs",
       "headings": [
         {
@@ -44921,9 +45093,9 @@
         "founder",
         "real",
         "android",
-        "review",
         "slice",
         "beta",
+        "review",
         "audit",
         "closes",
         "track",
@@ -44941,9 +45113,9 @@
         "research",
         "lane"
       ],
-      "lines": 10269,
+      "lines": 10434,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d55d89e9e63bb990da6ca25a4863a0056e28bbc0924bc27c9ab857226a54f455",
+      "sha256": "6ee310cacd20161d21a5c069a72ad216b0d7993bc9de54dc01c1741fdb96d66d",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -55616,7 +55788,7 @@
       "title": "RFC-0005: Forge Cutover and Platform Exit"
     },
     {
-      "bytes": 11456,
+      "bytes": 12059,
       "group": "docs",
       "headings": [
         {
@@ -55636,59 +55808,59 @@
         },
         {
           "level": 2,
-          "line": 82,
+          "line": 88,
           "text": "Security boundary"
         },
         {
           "level": 2,
-          "line": 104,
+          "line": 110,
           "text": "Toolchain and local build"
         },
         {
           "level": 2,
-          "line": 151,
+          "line": 160,
           "text": "Verification performed"
         },
         {
           "level": 2,
-          "line": 169,
+          "line": 178,
           "text": "Beta roadmap (target: ~PR #200, hub issue #196)"
         },
         {
           "level": 2,
-          "line": 225,
+          "line": 234,
           "text": "Primary implementation references"
         }
       ],
       "keywords": [
         "android",
-        "slice",
         "issue",
-        "device",
+        "slice",
         "yet",
         "rootcore",
-        "never",
-        "root",
-        "key",
+        "device",
+        "real",
         "what",
+        "does",
         "security",
         "kotlin",
         "typed",
-        "real",
         "state",
         "machine",
+        "never",
         "foundation",
         "works",
-        "does",
         "boundary",
         "local",
+        "build",
         "contract",
         "compose",
-        "reports"
+        "reports",
+        "ffi"
       ],
-      "lines": 236,
+      "lines": 245,
       "path": "docs/mobile/ANDROID_FOUNDATION.md",
-      "sha256": "c44ec3877e3677ed220ccca386c1d1fad1af44cc7878875958b7035daa0270b1",
+      "sha256": "56bfec217f3477a3592c9dcc362c6520ff29aaa569cf4b031442350388d75daf",
       "symbols": [],
       "title": "Android foundation"
     },

@@ -10266,3 +10266,168 @@ fails again, diagnose from that real log rather than guessing further.
 
 **Supersedes / superseded by:** none. Independent fix; does not touch any
 prior fix in this chain (D-0344/D-0345/D-0346).
+
+### D-0349 — `.github/workflows/android-reproducibility.yml`: two-independent-build APK hash comparison; provenance-recording deliberately deferred (issue #205, Android beta slice 9)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #205, D-0068 (`mini-provenance`), D-0314 (`reproducibility.yml` split), D-0343 (`android-ci.yml`)
+
+**Decision:** add `.github/workflows/android-reproducibility.yml`, a new
+`build`/`compare` pair of jobs implementing issue #205's acceptance test.
+`build` runs as a two-leg matrix (`pass: [1, 2]`), each leg a genuinely
+separate GitHub-hosted runner performing the identical fresh
+checkout/toolchain-install/Gradle-assemble sequence `android-ci.yml`
+(D-0343) already proved works, then hashes the resulting debug APK and
+computes an environment digest (JDK/SDK/NDK/cargo-ndk/Gradle/rustc
+versions) and a commands digest (the exact two build commands run) —
+exactly the shape `mini_provenance::BuildProvenance` already requires.
+`compare` downloads both passes' hashes and asserts they're identical; on
+a mismatch it also diffs `unzip -l` entry names/sizes (timestamps
+excluded) so a known non-determinism source is diagnosable rather than a
+bare "hashes differ." Same docs-only-skip shape as
+`reproducibility.yml`/`android-ci.yml` (D-0325/D-0343).
+
+Deliberately **not done**: actually calling `mini provenance record` to
+sign and persist a `BuildProvenance` object. The `mini-provenance` crate
+(D-0068) already accepts exactly the digests this workflow computes —
+`record_provenance`/the `mini provenance record` CLI wrapper (`mini-cli`)
+needed zero new code or API surface for this. What's missing is a
+durable identity for CI itself to sign with (an ephemeral throwaway
+identity generated fresh each run would satisfy the type signature but
+provide no real "independent builder" signal at all — nothing links one
+run's claim to the next, defeating `independent_agreement`'s entire
+point of counting *distinct, persistent* identity roots) and a
+persistent store for the resulting object to live in across ephemeral,
+stateless GitHub-hosted runners. Both are real policy/infrastructure
+decisions — should there be a "mininet-ci" root at all, and if so who
+controls its recovery key, and where does its store actually live — not
+something to invent unilaterally while wiring a CI job. This workflow
+instead computes and prints the exact three digests
+(`environment-digest`/`commands-digest`/`output-digest`) `mini
+provenance record` needs, ready for whoever/whatever makes that call
+once the founder decides on a CI signing identity.
+
+**Reason:** issue #205's acceptance test literally lists three things:
+(1) two independent builds hash-identical, (2) a provenance record
+generated, (3) non-determinism named rather than silently ignored. (1)
+and (3) are unambiguous CI-configuration work this environment can do
+and verify the same way `android-ci.yml` was (YAML syntax check; every
+toolchain step already proven correct by D-0343-D-0347's real CI runs).
+(2) is where a literal reading ("a record is generated") and a
+responsible one ("a *meaningful* record is generated") diverge: signing
+with a fabricated identity would technically produce an object of the
+right Rust type while being dishonest about what it proves — exactly the
+overclaiming this workspace's own "honesty over polish" rule (CLAUDE.md)
+forbids. Computing and printing the real inputs, while naming the
+missing piece explicitly, is the honest middle ground between doing
+nothing and inventing infrastructure that isn't this environment's call
+to make.
+
+**Constitutional impact:** none. CI configuration only; no dependency
+edge, frozen invariant, or cryptography touched. `mini-provenance`
+itself is unchanged — this PR adds zero lines to that crate.
+
+**Implementation status:** workflow YAML written and syntax-checked
+(`python3 -c "import yaml; yaml.safe_load(...)"`) in this environment,
+which has no `actionlint` and cannot execute a GitHub Actions runner.
+Every third-party action reference (`actions/checkout`,
+`actions/setup-java`, `gradle/actions/setup-gradle`,
+`actions/upload-artifact` — all already proven in `android-ci.yml` — plus
+newly-added `actions/download-artifact@v4.3.0`) is pinned by full commit
+SHA, verified against the real tag via `git ls-remote --tags` against the
+upstream repository directly. Genuinely unverified end-to-end: this is
+the workflow's first real execution anywhere, same honest posture
+D-0343 took for `android-ci.yml`'s own first run.
+
+**Failure point:** Android builds are a known-hard case for
+byte-for-byte reproducibility (zip entry timestamps, dex/resource
+ordering can vary run to run even with identical toolchains and
+inputs) — unlike the four Rust example binaries `reproducibility.yml`
+already checks, where the compiler's own output is already
+deterministic given `--locked`. This workflow's first real run may well
+find a real, previously-undiscovered non-determinism source; per issue
+#205's own acceptance test 3, that must be root-caused and either fixed
+or documented as a narrow, explicit exception — not waived by loosening
+the comparison. The `unzip -l` diagnostic step only helps identify what
+kind of difference it is; it does not resolve one.
+
+**Required follow-up:** watch this workflow's first real run once
+pushed. If APK hashes disagree, root-cause the specific non-determinism
+source (timestamps are the most likely candidate — Android/Gradle's
+`android.experimental.enableSourceSetPathsMap`- or zip-timestamp-related
+settings may need explicit configuration) rather than weakening the
+check. Separately, and not blocking this PR: the founder needs to decide
+whether a CI-owned signing identity should exist at all, and if so how
+its recovery/custody and the resulting provenance store's persistence
+are handled — only after that decision can `mini provenance record`
+actually be called against this workflow's computed digests.
+
+**Supersedes / superseded by:** none. New workflow file only; no existing
+workflow's triggers, jobs, or required-check names changed;
+`mini-provenance` itself untouched.
+
+### D-0350 — commit a fixed debug keystore so both independent builds sign identically (issue #205, Android beta slice 9)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #205, PR #216, D-0349
+
+**Decision:** generate a real Android debug keystore (`keytool -genkeypair`,
+standard AOSP debug-key convention: alias `androiddebugkey`, password
+`android`, `CN=Android Debug, O=Android, C=US`) and commit it at
+`app/android/app/debug.keystore`. Add an explicit `signingConfigs.debug`
+block in `app/android/app/build.gradle.kts` pointing the `debug` build
+type at this committed file/alias/password instead of relying on AGP's
+implicit default signing config.
+
+**Reason:** `android-reproducibility.yml`'s (D-0349) first real run found
+exactly what its own design doc predicted was the most likely first
+finding: the two independent builds' APKs hashed differently, but their
+`unzip -l` entry names and sizes (timestamps excluded) were completely
+identical — a byte-for-byte match on file entries with a whole-file hash
+mismatch is characteristic of a signing-block-only difference (APK
+Signing Scheme v2/v3's signature block is appended outside the ZIP
+central directory, invisible to `unzip -l` entirely). Root cause: this
+project had no committed keystore, so AGP's default debug signing config
+auto-generates a brand-new, randomly-keyed `~/.android/debug.keystore`
+the first time any machine builds it — two separate, previously-untouched
+GitHub Actions runners each generated their *own* random debug key,
+guaranteeing different signatures every single run, not merely a
+"signature differs by machine" one-time cost. Committing one fixed
+keystore both runners now use eliminates the non-determinism at its root
+rather than accepting issue #205's weaker "documented-diff, e.g.
+signature-only" fallback — full byte-identical reproducibility was
+achievable and is the stronger claim, so it's what's implemented.
+
+The debug keystore/alias/password are the standard, publicly-documented
+AOSP convention (identical to what already exists, unprotected, on every
+Android developer's machine by default) — not a secret, and this key
+never signs a release artifact; committing it is standard practice for
+reproducible-build CI in real-world Android projects for exactly this
+reason.
+
+**Constitutional impact:** none. Android build/signing configuration
+only; no dependency edge, frozen invariant, or cryptography touched (the
+debug key is explicitly non-sensitive, never used for anything but
+development-only signing).
+
+**Implementation status:** keystore generated and committed in this
+environment (`keytool` is available here; verified via `keytool -list
+-v` that the alias/owner/validity are as expected).
+`build.gradle.kts`'s `signingConfigs`/`buildTypes` wiring is written but
+this environment has no Gradle to execute a real build locally —
+verified, as with every fix in this session's CI-debugging chain, by
+watching the real CI run on PR #216.
+
+**Failure point:** unverified whether this fully closes the gap — RSA
+signing over identical content with an identical key is deterministic in
+principle, but if any other build input still varies between the two
+runners (a resource/dex ordering difference, a build-path string embedded
+somewhere), the APK could still differ for a reason unrelated to
+signing. The next real CI run is the actual test.
+
+**Required follow-up:** watch PR #216's next `compare` job run; if
+hashes still differ, the `unzip -l` diagnostic step will show whether
+entries themselves now differ (a new, different root cause) or whether
+they still match with only the hash differing (meaning the signing fix
+didn't fully resolve determinism and needs further investigation, e.g.
+signature-scheme-specific randomness this session didn't anticipate).
+
+**Supersedes / superseded by:** none. Follow-up fix to D-0349's workflow
+finding; does not change the workflow's structure, only removes a real
+non-determinism source in the app's own build configuration.
