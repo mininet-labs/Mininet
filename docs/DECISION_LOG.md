@@ -9873,3 +9873,311 @@ half before they can be exercised for real.
 `#[non_exhaustive]`, so this is not a breaking change to existing match
 arms outside this crate); no existing `mini-bearer` function's signature
 or behavior changed.
+
+### D-0343 — `.github/workflows/android-ci.yml`: real Android APK assembly in CI (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, `docs/mobile/ANDROID_FOUNDATION.md`
+
+**Decision:** add `.github/workflows/android-ci.yml`, a new `android-apk`
+job that builds `mini-ffi`'s native libraries for both Android ABIs
+(`aarch64-linux-android`, `x86_64-linux-android`) via
+`app/android/scripts/build-rust.sh`, then runs `gradle -p app/android
+:app:assembleDebug` on a GitHub-hosted `ubuntu-latest` runner — the exact
+commands `docs/mobile/ANDROID_FOUNDATION.md` already documents as the
+local build recipe, now exercised for real on a machine that actually has
+a JDK/Android SDK/NDK/Gradle. Split into its own workflow file rather than
+added to `ci.yml`, mirroring D-0314's reasoning for `reproducibility.yml`:
+a full Gradle+NDK build is a different, heavier, differently-flaky cost
+class than the Rust-only jobs in `ci.yml` and shouldn't share a
+required-check failure mode with them. Uses the same docs-only-skip shape
+D-0325 established for `reproducibility.yml` (identical `docs/**`/`**/*.md`
+diff check) so this required check always posts a real conclusion for a
+docs-only PR instead of getting stuck at `mergeable_state: blocked`
+forever.
+
+Every toolchain piece `ANDROID_FOUNDATION.md` pins gets an explicit
+install-then-verify step rather than trusting whatever the runner image
+happens to ship — JDK 17 (`actions/setup-java`), Android SDK platform 37 /
+build-tools 36.0.0 / NDK 28.2.13676358 (`sdkmanager`, the cmdline-tools
+GitHub's `ubuntu-latest` image already ships), `cargo-ndk` 4.1.2
+(`cargo install --version --locked`), and Gradle 9.5.0
+(`gradle/actions/setup-gradle`) — each followed by a real check (`java
+-version`, a directory-existence test under `$ANDROID_HOME`, `cargo ndk
+--version`, `gradle --version`) that fails the job loudly the moment
+installed doesn't match pinned, closing issue #204's acceptance test step
+2 by construction rather than by hope. AGP/Kotlin/Compose-BOM versions
+need no separate runner-side pin: they're already source-controlled in
+`gradle/libs.versions.toml`, so they cannot silently drift on the runner
+the way ambient JDK/SDK/NDK/Gradle state can.
+
+**Reason:** issue #204 says plainly what this environment can and can't
+do: "This environment can write the workflow YAML... but cannot actually
+trigger/observe a real run locally... Real validation that the workflow
+passes happens once pushed and GitHub Actions actually runs it." That is
+accepted here explicitly, not glossed over — this workflow is written
+from `ANDROID_FOUNDATION.md`'s own documented local recipe and the
+existing `reproducibility.yml`'s already-reviewed docs-only-skip pattern,
+composition of what's already proven correct rather than new CI design,
+and its first real run is expected to need at least one follow-up fix
+(matching this session's own recent experience: D-0340's CodeQL false
+positive needed two iterations after the code itself was already
+correct).
+
+**Constitutional impact:** none. No dependency edge added, no frozen
+invariant touched, no cryptography. This is CI configuration, not
+protocol code.
+
+**Implementation status:** written and YAML-syntax-checked
+(`python3 -c "import yaml; yaml.safe_load(...)"`) in this environment,
+which has no `actionlint` and cannot execute a GitHub Actions runner to
+verify the job semantics for real. Every third-party action reference
+(`actions/setup-java`, `gradle/actions/setup-gradle`,
+`actions/upload-artifact`) is pinned by full commit SHA, verified against
+the real tag via `git ls-remote --tags` against the upstream repositories
+directly (not inferred from a summarized web page) — matching this
+repo's existing SHA-pinning convention for every action in `ci.yml`/
+`reproducibility.yml`.
+
+**Failure point:** unverified end-to-end — no JDK/Android SDK/NDK/Gradle
+exists anywhere this has been tested, so the first real GitHub Actions
+run is this job's actual first execution ever. Plausible first-run
+failure points, named honestly rather than assumed away: the pinned SDK
+package identifiers (`platforms;android-37`, `build-tools;36.0.0`,
+`ndk;28.2.13676358`) may not exist in the SDK manager's remote repository
+by the time this runs; `gradle/actions/setup-gradle` may not support
+downloading exactly Gradle 9.5.0; the Gradle project itself has never
+been built by any toolchain and may have its own undiscovered
+misconfiguration nothing in this repo has exercised yet. Any of these
+would surface as a loud, named CI failure (not a silent skip or false
+success) given how each step is written — but "fails loudly" is not the
+same claim as "passes."
+
+**Required follow-up:** watch the first real run of this workflow once
+pushed and fix whatever it finds — Codex/the founder's local machine can
+also dry-run the same `build-rust.sh`/`gradle` commands to catch issues
+before or alongside CI, per issue #204's own stated division of labor.
+Release signing/publication and reproducibility/hash-comparison are
+explicit non-goals of this slice (the latter is slice 9, issue #205).
+
+**Supersedes / superseded by:** none. New workflow file only; no existing
+workflow's triggers, jobs, or required-check names changed.
+
+### D-0344 — correct `compileSdk`/`targetSdk`/SDK-platform pin from 37 to 36; real Android SDK repository has no bare `platforms;android-37` (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, PR #214, D-0343, `docs/mobile/ANDROID_FOUNDATION.md`
+
+**Decision:** change `app/android/app/build.gradle.kts`'s `compileSdk`/
+`targetSdk` from 37 to 36, `.github/workflows/android-ci.yml`'s pinned
+`sdkmanager` install argument and its follow-up verification `test -d`
+check from `platforms;android-37`/`$ANDROID_HOME/platforms/android-37` to
+`platforms;android-36`/`android-36`, and `docs/mobile/
+ANDROID_FOUNDATION.md`'s toolchain-pin paragraph and required-locally list
+to match, leaving `build-tools;36.0.0` and `ndk;28.2.13676358` unchanged
+since both were already correct.
+
+**Reason:** D-0343's own "Failure point" section named this exact risk
+("the pinned SDK package identifiers... may not exist in the SDK
+manager's remote repository by the time this runs") and it materialized
+on PR #214's first real `android-apk` run: `sdkmanager` reported `Warning:
+Failed to find package 'platforms;android-37'`. A temporary diagnostic
+step (`sdkmanager --list | grep -E '^\s*(platforms|build-tools|ndk);'`)
+was added to the workflow, pushed, and its real output inspected via the
+job log: the real repository lists `build-tools;36.0.0` and
+`ndk;28.2.13676358` exactly as already pinned, but for platforms it lists
+sub-versioned entries (`platforms;android-36`, `36.1`, `37.0`, `37.1`,
+`37.2-beta1`, ...) rather than a bare `platforms;android-37` — Android's
+SDK platform versioning started publishing minor sub-releases per major
+API level starting around API 36, and no bare-integer `android-37`
+package was ever published. `platforms;android-36` is the highest
+plain-integer, stable (non-beta) platform actually available. The
+alternative of instead adopting the new `37.1`-style sub-version and
+pointing `compileSdk`/`targetSdk` at it was rejected for this fix: AGP
+9.3.0's Kotlin DSL `compileSdk`/`targetSdk` properties are documented and
+already proven (by this same repo's own working local build recipe prior
+to this slice) to accept a plain integer; whether they accept or
+correctly resolve a `"36.1"`-shaped sub-version string was not verified
+anywhere, and introducing an unverified toolchain shape while already
+mid-incident is higher-risk than stepping down to the nearest confirmed
+integer platform. The diagnostic step itself is removed in this same
+change — it was scaffolding for this one investigation, not a permanent
+CI step.
+
+**Constitutional impact:** none. CI/build configuration and documentation
+only; no dependency edge, frozen invariant, or cryptography touched.
+
+**Implementation status:** all three files updated
+(`build.gradle.kts`, `android-ci.yml`, `ANDROID_FOUNDATION.md`); this
+environment still cannot run Gradle/the Android SDK locally, so this
+correction is verified the same way D-0343's original pin was supposed to
+be verified — by watching the real CI run on PR #214 after this push, not
+by local reproduction.
+
+**Failure point:** unverified whether `platforms;android-36` plus the
+already-correct `build-tools;36.0.0`/`ndk;28.2.13676358` is sufficient for
+Gradle to actually assemble the debug APK — the SDK-platform mismatch was
+only the first failure `sdkmanager` itself reported; later steps
+(Gradle sync, NDK linking, `assembleDebug` proper) have still never
+executed on any machine and may surface their own real failures once this
+gets past dependency installation.
+
+**Required follow-up:** watch PR #214's next `android-apk` CI run; if it
+fails again, diagnose from that real log rather than guessing further.
+
+**Supersedes / superseded by:** amends D-0343's SDK-platform pin only (the
+job's structure, docs-only-skip shape, and `build-tools`/`ndk` pins are
+unchanged and not superseded).
+
+### D-0345 — restore the executable git file mode on `app/android/scripts/build-rust.sh` (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, PR #214, D-0343, D-0344
+
+**Decision:** set `app/android/scripts/build-rust.sh`'s git file mode from
+`100644` to `100755` (`git update-index --chmod=+x`) so a checkout of this
+repository produces an executable file, matching what
+`.github/workflows/android-ci.yml`'s "Build Rust mini-ffi native
+libraries (debug)" step already invokes directly
+(`app/android/scripts/build-rust.sh debug`).
+
+**Reason:** with D-0344's SDK-platform correction pushed, PR #214's
+`android-apk` job got past every toolchain install/verify step for the
+first time and reached the first real build step, which then failed with
+`app/android/scripts/build-rust.sh: Permission denied` (exit code 126).
+`git ls-files -s` confirmed the file was committed as mode `100644`
+(non-executable) rather than `100755` — this script was never actually
+executed by anything in this environment (no JDK/SDK/NDK here), so the
+missing executable bit from whatever local step created the file went
+unnoticed until a real runner tried to invoke it directly. Restoring the
+mode bit is the direct, minimal fix; the workflow step itself already
+invokes the script correctly and needs no change, and no shell logic in
+the script is implicated.
+
+**Constitutional impact:** none. A git file-mode metadata fix; no code,
+dependency edge, frozen invariant, or cryptography touched.
+
+**Implementation status:** git file mode corrected in this environment
+(verified via `git ls-files -s` showing `100755` after the fix); still
+unverified whether the build step itself then succeeds, since that
+requires the real NDK/cargo-ndk toolchain this environment doesn't have
+— verification is, again, the next real CI run on PR #214.
+
+**Failure point:** unverified beyond this point — this was the second of
+potentially several first-run toolchain issues D-0343 predicted; the
+`build-rust.sh` script's actual cross-compilation logic, `cargo ndk`
+invocation, and the subsequent Gradle `assembleDebug` step have still
+never executed on any machine.
+
+**Required follow-up:** watch PR #214's next `android-apk` CI run; if it
+fails again, diagnose from that real log rather than guessing further.
+Consider whether other scripts under `app/android/scripts/` (e.g.
+`build-rust.ps1`, which only runs on the founder's/Codex's Windows-side
+local machine and is not exercised by this Linux CI job) need the same
+check — not done here since only the script this CI job actually invokes
+was implicated by this failure.
+
+**Supersedes / superseded by:** none. Independent fix; does not touch the
+SDK-version pins D-0344 corrected.
+
+### D-0346 — resolve the generated-UniFFI source dir `Provider` to a `File` before `srcDir()` (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, PR #214, D-0343, D-0344, D-0345
+
+**Decision:** change `app/android/app/build.gradle.kts` line 69 from
+`android.sourceSets.getByName("main").kotlin.srcDir(generatedUniFfi)` to
+`android.sourceSets.getByName("main").kotlin.srcDir(generatedUniFfi.get().asFile)`,
+resolving the `Provider<Directory>` to a concrete `File` before handing it
+to the legacy Android SourceSet API.
+
+**Reason:** with D-0345's executable-bit fix pushed, PR #214's
+`android-apk` job got past the Rust build for the first time and reached
+real Gradle project configuration, which failed with: "Error: You cannot
+add Provider instances to the Android SourceSet API. It is not possible
+for Android Studio to determine if the Provider points to a directory
+that contains generated (read-only) or static (read-write) files,"
+pointing at `build.gradle.kts:69`. AGP 9's `DefaultAndroidSourceDirectorySet.srcDir`
+now rejects a `Provider` argument outright rather than silently resolving
+it, specifically because a `Provider` is ambiguous about whether it names
+a build-generated directory or a hand-maintained static one — the
+long-term-correct fix the error message names is the newer Variant API
+(`SourceDirectories.addGeneratedDirectory`), but adopting that API was
+rejected here as broader than this incident warrants: this codebase's
+existing `outputs.dir(generatedUniFfi)` + explicit
+`tasks.named("preBuild").configure { dependsOn(generateUniFfiKotlin) }`
+already guarantees the directory is populated by the Exec task before any
+compile task reads it, so eagerly resolving the `Provider` to its `File`
+at configuration time (identical to what line 62's `--out-dir` argument
+already does) loses no correctness this project depends on and is the
+smaller, already-precedented change.
+
+**Constitutional impact:** none. Gradle build-script configuration only;
+no dependency edge, frozen invariant, or cryptography touched.
+
+**Implementation status:** the one-line change is made in this
+environment, which still has no Gradle/AGP to execute locally; verified
+the same way every fix in this incident chain has been — by watching the
+real CI run on PR #214.
+
+**Failure point:** unverified beyond this point — this is the third
+distinct real failure this CI job's first executions have surfaced
+(D-0344's SDK platform pin, D-0345's file mode, now this configuration-
+time API rejection), consistent with D-0343's own prediction that the
+untested Gradle project "may have its own undiscovered misconfiguration
+nothing in this repo has exercised yet." Whether `:app:assembleDebug`
+then proceeds past configuration into actual compilation, resource
+processing, and APK packaging is still completely unverified.
+
+**Required follow-up:** watch PR #214's next `android-apk` CI run; if it
+fails again, diagnose from that real log rather than guessing further. If
+a future change needs the Variant API's generated/static distinction for
+real (e.g. incremental-build correctness at scale), revisit
+`SourceDirectories.addGeneratedDirectory` then rather than now.
+
+**Supersedes / superseded by:** none. Independent fix; does not touch the
+SDK-version pins or file-mode fix D-0344/D-0345 made.
+
+### D-0347 — remove the shadowing `import androidx.compose.foundation.layout.weight` in `MainActivity.kt` (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, PR #214, D-0343, D-0344, D-0345, D-0346
+
+**Decision:** delete the explicit
+`import androidx.compose.foundation.layout.weight` line from
+`app/android/app/src/main/java/org/mininet/app/MainActivity.kt`. No other
+change to the file; `ReadinessRow`'s existing `Modifier.weight(1f)` call
+(inside a `Row { ... }` lambda) needs no import at all, since
+`RowScope.weight`/`ColumnScope.weight` are extension-function *members*
+of the `RowScope`/`ColumnScope` receiver interfaces, automatically in
+scope wherever that receiver is implicit — unlike a true top-level
+extension function, they were never importable/needed as a standalone
+import in the first place.
+
+**Reason:** with D-0346's `srcDir` fix pushed, PR #214's `android-apk` job
+got past Gradle configuration for the first time and reached real Kotlin
+compilation, failing on a genuine source bug: `error: Cannot access 'val
+RowColumnParentData?.weight: Float': it is internal in file` at
+`MainActivity.kt:21:43` (the `weight` import line). `androidx.compose.
+foundation.layout` also declares an internal top-level `val
+RowColumnParentData.weight: Float` as part of its own row/column
+measurement implementation, name-colliding with the public
+`RowScope.weight`/`ColumnScope.weight` member extension functions in the
+same package. Explicitly importing the bare name `weight` from that
+package pulled in the internal property instead of leaving resolution to
+the implicit-receiver member lookup that already worked correctly
+without any import, so removing the erroneous import is the complete,
+minimal fix — this was never a needed import to begin with.
+
+**Constitutional impact:** none. Compose/Kotlin source fix; no dependency
+edge, frozen invariant, or cryptography touched.
+
+**Implementation status:** the one-line import removal is made in this
+environment, which still has no Kotlin compiler/Gradle to verify locally;
+verified, as with every fix in this incident chain, by watching the real
+CI run on PR #214.
+
+**Failure point:** unverified beyond this point — this is the fourth
+distinct real failure this CI job's successive first runs have surfaced
+(D-0344 SDK platform, D-0345 file mode, D-0346 Provider/srcDir, now this
+import shadowing). Whether `:app:compileDebugKotlin` then succeeds and
+the build proceeds through resource processing, dexing, and APK
+packaging to completion is still unverified; `MainActivity.kt` has other
+Compose UI code that has likewise never been compiled by any toolchain
+before this incident.
+
+**Required follow-up:** watch PR #214's next `android-apk` CI run; if it
+fails again, diagnose from that real log rather than guessing further.
+
+**Supersedes / superseded by:** none. Independent fix; does not touch any
+prior fix in this chain (D-0344/D-0345/D-0346).

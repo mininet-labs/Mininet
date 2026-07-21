@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 50,
-    "files": 609,
-    "headings": 2077,
+    "files": 610,
+    "headings": 2092,
     "rust_symbols": 5124
   },
   "crates": {
@@ -516,6 +516,118 @@
       "sha256": "87caedc9d11a46025089145f2754604ed055f457824ddc741589a72800fb90ba",
       "symbols": [],
       "title": "Summary"
+    },
+    {
+      "bytes": 7105,
+      "group": "ci",
+      "headings": [
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Android beta slice 8 (issue #204, hub #196): the first point where \"does"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "the Android app actually build\" gets a real, automated answer. Neither"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "this remote environment nor (until now) the founder's own machine had a"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "JDK/Android SDK/NDK/Gradle to run this locally -- a GitHub-hosted runner"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "does, so this is the first genuine build of the app anywhere."
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "Split into its own workflow rather than folded into ci.yml, mirroring the"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "reasoning behind reproducibility.yml's own split (D-0314): a full Gradle"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "+ NDK build is a different, heavier, differently-flaky cost class than"
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "the Rust-only jobs in ci.yml, and shouldn't share a required-check"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "failure mode with them."
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "Same docs-only-skip shape as reproducibility.yml (D-0325): a required"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "check that never runs for a docs-only PR gets stuck at"
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "`mergeable_state: blocked` forever, so this workflow always completes"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "with a real conclusion -- the \"is this docs-only\" step decides whether"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "the actual build steps run, not whether the job exists at all."
+        }
+      ],
+      "keywords": [
+        "android",
+        "yml",
+        "build",
+        "steps",
+        "ndk",
+        "run",
+        "echo",
+        "name",
+        "diff",
+        "own",
+        "gradle",
+        "docs-only",
+        "docs_only",
+        "sdkmanager",
+        "real",
+        "step",
+        "true",
+        "gets",
+        "jdk",
+        "sdk",
+        "runner",
+        "reproducibility",
+        "check",
+        "whether"
+      ],
+      "lines": 168,
+      "path": ".github/workflows/android-ci.yml",
+      "sha256": "772fe18e584c460a392f0332d648026936bef41a9909b41fc2728d0466c64564",
+      "symbols": [],
+      "title": "Android beta slice 8 (issue #204, hub #196): the first point where \"does"
     },
     {
       "bytes": 5263,
@@ -44157,7 +44269,7 @@
       "title": "{"
     },
     {
-      "bytes": 594481,
+      "bytes": 612750,
       "group": "docs",
       "headings": [
         {
@@ -44563,10 +44675,13 @@
       ],
       "keywords": [
         "accepted",
-        "founder",
         "issue",
+        "founder",
         "real",
         "review",
+        "android",
+        "slice",
+        "beta",
         "audit",
         "closes",
         "track",
@@ -44578,18 +44693,15 @@
         "roadmap",
         "release",
         "mini-consensus",
-        "slice",
         "status",
-        "beta",
         "design",
         "new",
         "research",
-        "lane",
-        "invariant"
+        "lane"
       ],
-      "lines": 9876,
+      "lines": 10184,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "7e13130253be40c002d589e34b2d2e89e45d082389e408e1224664de1ebc74b0",
+      "sha256": "4e6184fa3b0014faf1bd4e3b80a63ab069cb83f6e2f81dae14d355f247e5eebc",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -55262,7 +55374,7 @@
       "title": "RFC-0005: Forge Cutover and Platform Exit"
     },
     {
-      "bytes": 10104,
+      "bytes": 10596,
       "group": "docs",
       "headings": [
         {
@@ -55292,17 +55404,17 @@
         },
         {
           "level": 2,
-          "line": 130,
+          "line": 138,
           "text": "Verification performed"
         },
         {
           "level": 2,
-          "line": 148,
+          "line": 156,
           "text": "Beta roadmap (target: ~PR #200, hub issue #196)"
         },
         {
           "level": 2,
-          "line": 204,
+          "line": 212,
           "text": "Primary implementation references"
         }
       ],
@@ -55312,29 +55424,29 @@
         "issue",
         "kotlin",
         "rootcore",
-        "root",
         "slice",
         "yet",
-        "build",
         "compose",
-        "rust",
+        "root",
         "never",
         "key",
         "what",
+        "does",
         "security",
         "uniffi",
+        "real",
         "foundation",
         "works",
-        "does",
         "boundary",
         "local",
+        "build",
         "contract",
         "reports",
         "platform"
       ],
-      "lines": 215,
+      "lines": 223,
       "path": "docs/mobile/ANDROID_FOUNDATION.md",
-      "sha256": "bce452b9628e375cd1b616c8b0ffbeb14d3126d2a194cb481fa5075edb8c128e",
+      "sha256": "93444edb9b7d4501db79b1ffec44453c7e62ac4aa6a37099102d66c0fbe309b6",
       "symbols": [],
       "title": "Android foundation"
     },
