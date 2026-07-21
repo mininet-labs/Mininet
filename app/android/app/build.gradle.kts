@@ -17,6 +17,30 @@ android {
         versionName = "0.0.1-dev"
     }
 
+    // A fixed, committed debug keystore (D-0349, issue #205) rather than
+    // AGP's implicit default, which auto-generates a brand-new random
+    // debug key on any machine that has never built this project before
+    // -- exactly what made two independent GitHub Actions runners produce
+    // non-reproducible signatures. Standard AOSP debug-key alias/password
+    // ("androiddebugkey"/"android"); this is not a secret -- every Android
+    // developer's default ~/.android/debug.keystore uses the identical
+    // well-known convention, and this key never signs anything but debug
+    // builds.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
     buildFeatures {
         compose = true
     }

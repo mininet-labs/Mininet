@@ -44683,7 +44683,7 @@
       "title": "{"
     },
     {
-      "bytes": 624127,
+      "bytes": 628137,
       "group": "docs",
       "headings": [
         {
@@ -45094,8 +45094,8 @@
         "real",
         "android",
         "slice",
-        "review",
         "beta",
+        "review",
         "audit",
         "closes",
         "track",
@@ -45113,9 +45113,9 @@
         "research",
         "lane"
       ],
-      "lines": 10366,
+      "lines": 10434,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "0193d2c13bd00a5f11022198e48c5001f99814a4ef84975e75190d5ec0832a90",
+      "sha256": "6ee310cacd20161d21a5c069a72ad216b0d7993bc9de54dc01c1741fdb96d66d",
       "symbols": [],
       "title": "Decision Log"
     },

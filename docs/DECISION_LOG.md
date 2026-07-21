@@ -10363,3 +10363,71 @@ actually be called against this workflow's computed digests.
 **Supersedes / superseded by:** none. New workflow file only; no existing
 workflow's triggers, jobs, or required-check names changed;
 `mini-provenance` itself untouched.
+
+### D-0350 — commit a fixed debug keystore so both independent builds sign identically (issue #205, Android beta slice 9)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #205, PR #216, D-0349
+
+**Decision:** generate a real Android debug keystore (`keytool -genkeypair`,
+standard AOSP debug-key convention: alias `androiddebugkey`, password
+`android`, `CN=Android Debug, O=Android, C=US`) and commit it at
+`app/android/app/debug.keystore`. Add an explicit `signingConfigs.debug`
+block in `app/android/app/build.gradle.kts` pointing the `debug` build
+type at this committed file/alias/password instead of relying on AGP's
+implicit default signing config.
+
+**Reason:** `android-reproducibility.yml`'s (D-0349) first real run found
+exactly what its own design doc predicted was the most likely first
+finding: the two independent builds' APKs hashed differently, but their
+`unzip -l` entry names and sizes (timestamps excluded) were completely
+identical — a byte-for-byte match on file entries with a whole-file hash
+mismatch is characteristic of a signing-block-only difference (APK
+Signing Scheme v2/v3's signature block is appended outside the ZIP
+central directory, invisible to `unzip -l` entirely). Root cause: this
+project had no committed keystore, so AGP's default debug signing config
+auto-generates a brand-new, randomly-keyed `~/.android/debug.keystore`
+the first time any machine builds it — two separate, previously-untouched
+GitHub Actions runners each generated their *own* random debug key,
+guaranteeing different signatures every single run, not merely a
+"signature differs by machine" one-time cost. Committing one fixed
+keystore both runners now use eliminates the non-determinism at its root
+rather than accepting issue #205's weaker "documented-diff, e.g.
+signature-only" fallback — full byte-identical reproducibility was
+achievable and is the stronger claim, so it's what's implemented.
+
+The debug keystore/alias/password are the standard, publicly-documented
+AOSP convention (identical to what already exists, unprotected, on every
+Android developer's machine by default) — not a secret, and this key
+never signs a release artifact; committing it is standard practice for
+reproducible-build CI in real-world Android projects for exactly this
+reason.
+
+**Constitutional impact:** none. Android build/signing configuration
+only; no dependency edge, frozen invariant, or cryptography touched (the
+debug key is explicitly non-sensitive, never used for anything but
+development-only signing).
+
+**Implementation status:** keystore generated and committed in this
+environment (`keytool` is available here; verified via `keytool -list
+-v` that the alias/owner/validity are as expected).
+`build.gradle.kts`'s `signingConfigs`/`buildTypes` wiring is written but
+this environment has no Gradle to execute a real build locally —
+verified, as with every fix in this session's CI-debugging chain, by
+watching the real CI run on PR #216.
+
+**Failure point:** unverified whether this fully closes the gap — RSA
+signing over identical content with an identical key is deterministic in
+principle, but if any other build input still varies between the two
+runners (a resource/dex ordering difference, a build-path string embedded
+somewhere), the APK could still differ for a reason unrelated to
+signing. The next real CI run is the actual test.
+
+**Required follow-up:** watch PR #216's next `compare` job run; if
+hashes still differ, the `unzip -l` diagnostic step will show whether
+entries themselves now differ (a new, different root cause) or whether
+they still match with only the hash differing (meaning the signing fix
+didn't fully resolve determinism and needs further investigation, e.g.
+signature-scheme-specific randomness this session didn't anticipate).
+
+**Supersedes / superseded by:** none. Follow-up fix to D-0349's workflow
+finding; does not change the workflow's structure, only removes a real
+non-determinism source in the app's own build configuration.
