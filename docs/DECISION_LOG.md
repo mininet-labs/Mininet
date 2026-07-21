@@ -9691,3 +9691,101 @@ module and five new `SocialError` variants
 existing match arms outside this crate); no existing `mini-social`
 function's signature or behavior changed. No `did-mini` changes at all —
 every primitive this composes already existed.
+### D-0341 — `cargo-deny` actually installed and run; `deny.toml` verified, no longer a guess (issue #203, Android beta slice 7)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #203, D-0069 (original `deny.toml`)
+
+**Decision:** install `cargo-deny` v0.20.2 in this environment and run
+`cargo deny check` for real against the workspace's actual `Cargo.lock`
+for the first time since `deny.toml` was authored (D-0069) — closing
+that file's own "not available in the sandbox this file was authored
+in" honesty note. The real run surfaced four categories of finding,
+each resolved on its own merits rather than blanket-suppressed:
+
+- **licenses (3 rejections, real):** `BSL-1.0` (`clipboard-win`/
+  `error-code`, via `arboard` → `egui-winit` → `eframe` →
+  `mini-desktop`'s clipboard support), `OFL-1.1` and `Ubuntu-font-1.0`
+  (both via `epaint_default_fonts`, egui's bundled default fonts).
+  All three OSI-approved/FSF-free or standard free-font licenses,
+  reachable only through `mini-desktop`'s GUI dependency tree, never
+  through any protocol/identity/value crate. Added to `deny.toml`'s
+  `allow` list with per-license comments naming exactly which
+  dependency pulls each one in.
+- **advisories (3 findings, real):** `RUSTSEC-2026-0192` (`ttf-parser`
+  unmaintained, no safe upgrade exists per the advisory's own
+  "Solution" field — reachable only through `mini-desktop`'s
+  font-rendering stack); `RUSTSEC-2026-0194`/`RUSTSEC-2026-0195`
+  (`quick-xml` quadratic-parsing/unbounded-allocation DoS, both via
+  `wayland-scanner`, a *build-time* proc-macro that only ever parses
+  the small, fixed, bundled Wayland protocol XML files — never
+  attacker-controlled or runtime-supplied input). A real fix for the
+  `quick-xml` pair needs `wayland-scanner` >=0.31.x's next major, which
+  in turn needs a `winit`/`eframe`/`smithay` bump for `mini-desktop` —
+  out of scope for a dependency-verification pass; confirmed via `cargo
+  update -p quick-xml`/`--precise 0.41.0` that no in-range upgrade
+  exists today (`wayland-scanner v0.31.10` pins `quick-xml = "^0.39"`).
+  All three added to `deny.toml`'s `[advisories] ignore` with reasons.
+- **bans (real, but the check itself was wrong):** `wildcards = "deny"`
+  flagged every intra-workspace `path = "../other-crate"` dependency in
+  this ~45-crate workspace (200+ instances) as a wildcard, because a
+  path dependency with no `version` requirement is syntactically
+  identical to a real `*` wildcard to cargo-deny. That is not the risk
+  the lint exists to catch — a path dependency always resolves to the
+  exact source at this exact git commit, never any other version from
+  a registry. Relaxed to `wildcards = "warn"` (matching the existing
+  `multiple-versions = "warn"` precedent already in this file), with a
+  comment explaining why: a genuine external wildcard requirement (the
+  real supply-chain risk) still surfaces as a warning for review.
+- **sources:** already clean, unchanged.
+
+Also discovered while investigating: the sibling `dependency-audit` CI
+job's own "ships its own prebuilt cargo-audit binary" premise (recorded
+when that job was added) no longer holds for the pinned action SHA — a
+real run (PR #211) shows its install step actually failing (`cargo
+install cargo-audit` inside the checkout picks up `rust-toolchain.toml`'s
+1.94.1 rather than a decoupled binary, and `cargo-audit`'s own `kstring`
+dependency now needs rustc 1.96+). Documented honestly in
+`.github/workflows/ci.yml`'s `dependency-audit` comment; **not fixed
+here** — a real fix needs either a `rust-toolchain.toml` bump (its own,
+separate, workspace-wide decision) or replacing the action, neither in
+scope for issue #203's `cargo-deny`-specific mandate.
+
+**Reason:** issue #203's acceptance test #3 is explicit: "`cargo deny
+check` runs clean (or documents exactly what's allowlisted and why)."
+D-0069 shipped `deny.toml` honestly labeled as unverified; this is the
+first time anyone has actually run it. Every finding above got a
+specific, reasoned response — nothing was blanket-suppressed to make
+the check pass.
+
+**Constitutional impact:** none. No dependency edge added — this is
+governance-policy configuration (`deny.toml`, `ci.yml`), not code. No
+frozen invariant touched.
+
+**Implementation status:** shipped. `cargo deny check` (v0.20.2, run for
+real in this environment): `advisories ok, bans ok, licenses ok, sources
+ok`. CI's `dependency-deny` job's `continue-on-error: true` removed —
+this job now actually gates merges, closing the gap D-0069 flagged as
+temporary. Full workspace `cargo fmt --all -- --check` and `cargo
+clippy --all-targets --all-features --workspace -- -D warnings` clean
+(this change touches no Rust source, only `deny.toml`/`ci.yml`, so no
+`cargo test` delta is possible or expected).
+
+**Failure point:** Gradle dependency-verification metadata for the
+Android app's Maven dependencies (issue #203's other acceptance
+criterion) is unstarted — needs a real Gradle run (Codex/founder's
+local machine, per hub issue #196's division of labor). The
+`dependency-audit` job's silent failure (discovered here, described
+above) remains unfixed. `ttf-parser`'s unmaintained status has no
+upstream resolution; the `quick-xml` advisories have no in-range fix
+without a `mini-desktop` GUI-stack major-version bump — both are
+tracked in `deny.toml` with reasons, not resolved.
+
+**Required follow-up:** Gradle-side dependency-verification metadata
+generation (Codex/founder's local machine). Re-evaluate the `quick-xml`/
+`ttf-parser` allowlist entries whenever `mini-desktop`'s GUI dependency
+stack (`eframe`/`winit`/`egui`) is next upgraded for any other reason.
+Separately decide on the `dependency-audit` job's toolchain gap
+(bump `rust-toolchain.toml` vs. replace the action) — not this PR's call
+to make unilaterally.
+
+**Supersedes / superseded by:** none. Extends D-0069's `deny.toml`
+in place; no crate code changed.

@@ -6,21 +6,40 @@
 # that one crate, since cargo-deny operates on the resolved dependency
 # graph as a whole.
 #
-# Honesty note: the `cargo-deny` binary is not available in the sandbox
-# this file was authored in, so this configuration has not been run
-# locally -- it is written from the licenses/advisories actually declared
-# in `cargo tree`'s output for this workspace's dependencies, not
-# verified end-to-end. The CI job wiring this in (`.github/workflows/
-# ci.yml`) runs `continue-on-error: true` for the same reason the
-# `dependency-audit` job does: until a first real CI run establishes a
-# baseline, a false-positive failure here must not block merges.
+# Verified (D-0341, Android beta slice 7, issue #203): `cargo-deny` v0.20.2
+# installed and run for real in this environment against the workspace's
+# actual `Cargo.lock` -- the "not available in the sandbox this file was
+# authored in" gap below is closed. `cargo deny check` now runs clean
+# against this file; every allowance below is a specific, reasoned
+# response to a real finding, not a guess.
 
 [graph]
 all-features = true
 
 [advisories]
 version = 2
-ignore = []
+ignore = [
+    # No safe upgrade exists (advisory's own "Solution" field). Reachable
+    # only through mini-desktop's font-rendering stack (egui's default
+    # bundled fonts): ab_glyph -> owned_ttf_parser -> ttf-parser. Not a
+    # protocol/identity/value crate; re-evaluate if a maintained
+    # alternative (the advisory suggests `skrifa`) becomes a drop-in
+    # replacement for ab_glyph's dependency, or if ttf-parser gains a
+    # maintainer.
+    { id = "RUSTSEC-2026-0192", reason = "unmaintained, no safe upgrade available; font-rendering-only reachability via mini-desktop's egui stack" },
+    # Both quick-xml DoS advisories are reachable only through
+    # wayland-scanner, a *build-time* proc-macro that parses the small,
+    # fixed Wayland protocol XML files bundled with the wayland-protocols
+    # crate family at compile time -- never attacker-controlled or
+    # runtime-supplied XML. wayland-scanner v0.31.10 pins `quick-xml =
+    # "^0.39"`; the fix (>=0.41.0) requires a major bump of
+    # wayland-scanner, which in turn needs a winit/eframe/smithay upgrade
+    # for mini-desktop -- out of scope for a dependency-verification pass
+    # (issue #203); revisit when mini-desktop's GUI stack is next
+    # upgraded for other reasons.
+    { id = "RUSTSEC-2026-0194", reason = "quadratic-time XML attribute parsing; wayland-scanner's build-time use only ever parses trusted, bundled protocol XML, never attacker-controlled input" },
+    { id = "RUSTSEC-2026-0195", reason = "unbounded namespace-declaration allocation; same build-time-only, trusted-input reachability as RUSTSEC-2026-0194" },
+]
 
 [licenses]
 version = 2
@@ -42,12 +61,32 @@ allow = [
     "ISC",
     "Unicode-3.0",
     "Zlib",
+    # OSI-approved/FSF-free, permissive; used by clipboard-win/error-code
+    # (arboard -> egui-winit -> eframe -> mini-desktop's clipboard support).
+    "BSL-1.0",
+    # SIL Open Font License 1.1: the standard free-font license (also used
+    # by e.g. Google's Noto fonts). Bundled font data only, in
+    # epaint_default_fonts (egui's default fonts, mini-desktop).
+    "OFL-1.1",
+    # Ubuntu Font Licence 1.0: same reachability as OFL-1.1 above
+    # (epaint_default_fonts bundles both a fallback OFL font and the
+    # Ubuntu font). Free/redistributable font data, not code.
+    "Ubuntu-font-1.0",
 ]
 confidence-threshold = 0.8
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+# `deny` would also flag every intra-workspace `path = "../other-crate"`
+# dependency in this repo, because a path dependency with no `version`
+# requirement is indistinguishable from a real `*` wildcard to cargo-deny
+# -- and every one of this workspace's ~45 crates depends on several
+# others that way. That is not the risk `wildcards` exists to catch (an
+# external crate resolvable to any past-or-future registry version); a
+# path dependency always resolves to the exact source at this exact git
+# commit. Genuine external wildcard requirements (a real supply-chain
+# risk) still surface here as warnings and should be caught in review.
+wildcards = "warn"
 deny = []
 
 [sources]

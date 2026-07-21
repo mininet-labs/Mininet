@@ -2,8 +2,8 @@
   "counts": {
     "crates": 50,
     "files": 608,
-    "headings": 2070,
-    "rust_symbols": 5100
+    "headings": 2077,
+    "rust_symbols": 5101
   },
   "crates": {
     "did-mini": {
@@ -518,7 +518,7 @@
       "title": "Summary"
     },
     {
-      "bytes": 4351,
+      "bytes": 5263,
       "group": "ci",
       "headings": [
         {
@@ -534,33 +534,33 @@
       ],
       "keywords": [
         "cargo",
-        "name",
-        "uses",
-        "run",
-        "workflow",
-        "repo",
+        "own",
         "toml",
+        "run",
         "install",
         "cargo-audit",
+        "repo",
         "needs",
+        "name",
+        "uses",
+        "rust-toolchain",
+        "real",
+        "its",
+        "action",
+        "dependency",
+        "now",
+        "job",
+        "workflow",
         "check",
+        "rustup",
         "toolchain",
         "target",
-        "own",
         "against",
-        "dependency",
-        "default",
-        "checks",
-        "write",
-        "releases",
-        "push",
-        "contents",
-        "runs-on",
-        "ubuntu-latest"
+        "pinned"
       ],
-      "lines": 101,
+      "lines": 115,
       "path": ".github/workflows/ci.yml",
-      "sha256": "66224ba7219f01efb7c845c6b301aaf5fd2130859030a8a0b1443732d29246f9",
+      "sha256": "234491f4c07545216efd5a96860dff65089b37319b14e6d9cd802b7aead37670",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
@@ -34473,7 +34473,7 @@
       "title": "mod discovery;"
     },
     {
-      "bytes": 30118,
+      "bytes": 30995,
       "group": "crate:mini-social",
       "headings": [],
       "keywords": [
@@ -34502,9 +34502,9 @@
         "create_pairing_offer",
         "verify_pairing_offer"
       ],
-      "lines": 808,
+      "lines": 824,
       "path": "crates/mini-social/src/pairing.rs",
-      "sha256": "0407ba974e9734cdc08fecaed5f05666a1c7f702663211f5a0815c98921dec35",
+      "sha256": "b7f90a9f636ce32e301de45da01e3885a72231d3bb38b1b397614c0ebf4156aa",
       "symbols": [
         {
           "kind": "const",
@@ -34673,77 +34673,82 @@
         },
         {
           "kind": "fn",
-          "line": 524,
+          "line": 534,
+          "name": "fixture_nonce"
+        },
+        {
+          "kind": "fn",
+          "line": 540,
           "name": "a_valid_offer_round_trips_and_verifies"
         },
         {
           "kind": "fn",
-          "line": 546,
+          "line": 562,
           "name": "an_offer_scanned_after_its_expiry_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 564,
+          "line": 580,
           "name": "an_offer_window_longer_than_the_bound_is_rejected_at_creation"
         },
         {
           "kind": "fn",
-          "line": 580,
+          "line": 596,
           "name": "a_forged_offer_with_flipped_payload_bytes_fails_signature_verification"
         },
         {
           "kind": "fn",
-          "line": 603,
+          "line": 619,
           "name": "an_offer_whose_device_kel_is_not_actually_delegated_by_the_root_kel_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 627,
+          "line": 643,
           "name": "a_device_with_only_attest_capability_cannot_produce_an_accepted_offer"
         },
         {
           "kind": "fn",
-          "line": 651,
+          "line": 667,
           "name": "truncated_or_trailing_bytes_are_rejected_as_malformed"
         },
         {
           "kind": "fn",
-          "line": 680,
+          "line": 696,
           "name": "an_offer_and_its_matching_acceptance_authenticate_each_other"
         },
         {
           "kind": "fn",
-          "line": 706,
+          "line": 722,
           "name": "an_acceptance_naming_a_different_nonce_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 718,
+          "line": 732,
           "name": "the_nonce_ledger_rejects_a_replay_of_a_still_valid_nonce"
         },
         {
           "kind": "fn",
-          "line": 727,
+          "line": 741,
           "name": "the_nonce_ledger_allows_reuse_of_a_nonce_after_it_has_expired_and_been_swept"
         },
         {
           "kind": "fn",
-          "line": 736,
+          "line": 750,
           "name": "the_nonce_ledger_is_bounded"
         },
         {
           "kind": "fn",
-          "line": 750,
+          "line": 766,
           "name": "a_pairing_acceptance_delivers_over_a_real_loopback_tcp_connection"
         },
         {
           "kind": "fn",
-          "line": 778,
+          "line": 794,
           "name": "receiving_times_out_when_nobody_connects"
         },
         {
           "kind": "fn",
-          "line": 790,
+          "line": 806,
           "name": "oversized_length_prefix_over_the_wire_is_rejected_without_reading_the_body"
         }
       ],
@@ -43489,7 +43494,7 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 1983,
+      "bytes": 4682,
       "group": "root",
       "headings": [
         {
@@ -43530,98 +43535,133 @@
         {
           "level": 1,
           "line": 9,
-          "text": "Honesty note: the `cargo-deny` binary is not available in the sandbox"
+          "text": "Verified (D-0341, Android beta slice 7, issue #203): `cargo-deny` v0.20.2"
         },
         {
           "level": 1,
           "line": 10,
-          "text": "this file was authored in, so this configuration has not been run"
+          "text": "installed and run for real in this environment against the workspace's"
         },
         {
           "level": 1,
           "line": 11,
-          "text": "locally -- it is written from the licenses/advisories actually declared"
+          "text": "actual `Cargo.lock` -- the \"not available in the sandbox this file was"
         },
         {
           "level": 1,
           "line": 12,
-          "text": "in `cargo tree`'s output for this workspace's dependencies, not"
+          "text": "authored in\" gap below is closed. `cargo deny check` now runs clean"
         },
         {
           "level": 1,
           "line": 13,
-          "text": "verified end-to-end. The CI job wiring this in (`.github/workflows/"
+          "text": "against this file; every allowance below is a specific, reasoned"
         },
         {
           "level": 1,
           "line": 14,
-          "text": "ci.yml`) runs `continue-on-error: true` for the same reason the"
+          "text": "response to a real finding, not a guess."
         },
         {
           "level": 1,
-          "line": 15,
-          "text": "`dependency-audit` job does: until a first real CI run establishes a"
-        },
-        {
-          "level": 1,
-          "line": 16,
-          "text": "baseline, a false-positive failure here must not block merges."
-        },
-        {
-          "level": 1,
-          "line": 27,
+          "line": 46,
           "text": "Every license actually in use across this workspace's dependency graph"
         },
         {
           "level": 1,
-          "line": 28,
+          "line": 47,
           "text": "at the time of writing (mini-crypto/did-mini's curve25519-dalek stack,"
         },
         {
           "level": 1,
-          "line": 29,
+          "line": 48,
           "text": "mini-value's Bulletproofs machinery, and now Wasmtime's own tree via"
         },
         {
           "level": 1,
-          "line": 30,
+          "line": 49,
           "text": "mini-build-runner-wasmtime). CC0-1.0 is this workspace's own license"
         },
         {
           "level": 1,
-          "line": 31,
+          "line": 50,
           "text": "(see root Cargo.toml `[workspace.package]`)."
+        },
+        {
+          "level": 1,
+          "line": 80,
+          "text": "`deny` would also flag every intra-workspace `path = \"../other-crate\"`"
+        },
+        {
+          "level": 1,
+          "line": 81,
+          "text": "dependency in this repo, because a path dependency with no `version`"
+        },
+        {
+          "level": 1,
+          "line": 82,
+          "text": "requirement is indistinguishable from a real `*` wildcard to cargo-deny"
+        },
+        {
+          "level": 1,
+          "line": 83,
+          "text": "-- and every one of this workspace's ~45 crates depends on several"
+        },
+        {
+          "level": 1,
+          "line": 84,
+          "text": "others that way. That is not the risk `wildcards` exists to catch (an"
+        },
+        {
+          "level": 1,
+          "line": 85,
+          "text": "external crate resolvable to any past-or-future registry version); a"
+        },
+        {
+          "level": 1,
+          "line": 86,
+          "text": "path dependency always resolves to the exact source at this exact git"
+        },
+        {
+          "level": 1,
+          "line": 87,
+          "text": "commit. Genuine external wildcard requirements (a real supply-chain"
+        },
+        {
+          "level": 1,
+          "line": 88,
+          "text": "risk) still surface here as warnings and should be caught in review."
         }
       ],
       "keywords": [
         "workspace",
-        "tree",
-        "own",
-        "graph",
-        "cargo-deny",
         "dependency",
+        "deny",
+        "cargo-deny",
+        "own",
         "license",
         "cargo",
-        "deny",
-        "configuration",
+        "real",
+        "every",
+        "graph",
+        "tree",
+        "path",
+        "version",
+        "mini-desktop",
+        "font",
+        "stack",
+        "requirement",
         "mini-build-runner-wasmtime",
-        "first",
         "wasmtime",
+        "advisory",
         "whole",
-        "run",
-        "actually",
-        "job",
-        "cc0-1",
-        "toml",
-        "licenses",
-        "advisories",
-        "github",
-        "true",
-        "does"
+        "one",
+        "against",
+        "file"
       ],
-      "lines": 57,
+      "lines": 96,
       "path": "deny.toml",
-      "sha256": "d5cf01b8829996be0b24095e0e56b9e9e59a700dd7e37a13182555de7f339c4a",
+      "sha256": "1e84ea327933408c4a89f7455d514755c1bc260338b1066a8488dd3307716357",
       "symbols": [],
       "title": "cargo-deny configuration (D-0069 dependency-governance requirement for"
     },
@@ -43965,7 +44005,7 @@
       "title": "{"
     },
     {
-      "bytes": 583403,
+      "bytes": 589349,
       "group": "docs",
       "headings": [
         {
@@ -44389,15 +44429,15 @@
         "status",
         "design",
         "new",
+        "slice",
         "research",
         "lane",
         "invariant",
-        "d-0045",
-        "entry"
+        "d-0045"
       ],
-      "lines": 9694,
+      "lines": 9792,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "bbcc41a095754683c73a1a03381436946187d76c609162ea8206df09c95a3c99",
+      "sha256": "0bcd91bcdce877197f78c11aacb1286b847cde60373aa07bd668321d17674e27",
       "symbols": [],
       "title": "Decision Log"
     },
