@@ -43,6 +43,17 @@
 //!   production** — [`ledger::InMemoryKeyImageLedger`] is for tests only,
 //!   the same limitation `mini_presence::ReplayGuard` states for its own
 //!   in-memory reference implementation.
+//!
+//! ## Funding one project at different rates (D-0336)
+//!
+//! [`pool::BountyPool::amount_per_grant_micro`] is deliberately flat across
+//! every grant in a pool, permanently — varying it within one ring would
+//! make the payout amount itself narrow down which grant claimed, eroding
+//! the anonymity the ring exists to provide. To pay contributors to the
+//! same project different amounts (e.g. a maintainer worth more than a
+//! one-line fix), create *separate* flat-amount pools and optionally group
+//! them with the same [`pool::BountyPool::project`] label — pure
+//! organizational metadata, never part of what a claim signs over.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
