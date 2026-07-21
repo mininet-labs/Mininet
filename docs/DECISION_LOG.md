@@ -10024,3 +10024,52 @@ fails again, diagnose from that real log rather than guessing further.
 **Supersedes / superseded by:** amends D-0343's SDK-platform pin only (the
 job's structure, docs-only-skip shape, and `build-tools`/`ndk` pins are
 unchanged and not superseded).
+
+### D-0345 — restore the executable git file mode on `app/android/scripts/build-rust.sh` (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, PR #214, D-0343, D-0344
+
+**Decision:** set `app/android/scripts/build-rust.sh`'s git file mode from
+`100644` to `100755` (`git update-index --chmod=+x`) so a checkout of this
+repository produces an executable file, matching what
+`.github/workflows/android-ci.yml`'s "Build Rust mini-ffi native
+libraries (debug)" step already invokes directly
+(`app/android/scripts/build-rust.sh debug`).
+
+**Reason:** with D-0344's SDK-platform correction pushed, PR #214's
+`android-apk` job got past every toolchain install/verify step for the
+first time and reached the first real build step, which then failed with
+`app/android/scripts/build-rust.sh: Permission denied` (exit code 126).
+`git ls-files -s` confirmed the file was committed as mode `100644`
+(non-executable) rather than `100755` — this script was never actually
+executed by anything in this environment (no JDK/SDK/NDK here), so the
+missing executable bit from whatever local step created the file went
+unnoticed until a real runner tried to invoke it directly. Restoring the
+mode bit is the direct, minimal fix; the workflow step itself already
+invokes the script correctly and needs no change, and no shell logic in
+the script is implicated.
+
+**Constitutional impact:** none. A git file-mode metadata fix; no code,
+dependency edge, frozen invariant, or cryptography touched.
+
+**Implementation status:** git file mode corrected in this environment
+(verified via `git ls-files -s` showing `100755` after the fix); still
+unverified whether the build step itself then succeeds, since that
+requires the real NDK/cargo-ndk toolchain this environment doesn't have
+— verification is, again, the next real CI run on PR #214.
+
+**Failure point:** unverified beyond this point — this was the second of
+potentially several first-run toolchain issues D-0343 predicted; the
+`build-rust.sh` script's actual cross-compilation logic, `cargo ndk`
+invocation, and the subsequent Gradle `assembleDebug` step have still
+never executed on any machine.
+
+**Required follow-up:** watch PR #214's next `android-apk` CI run; if it
+fails again, diagnose from that real log rather than guessing further.
+Consider whether other scripts under `app/android/scripts/` (e.g.
+`build-rust.ps1`, which only runs on the founder's/Codex's Windows-side
+local machine and is not exercised by this Linux CI job) need the same
+check — not done here since only the script this CI job actually invokes
+was implicated by this failure.
+
+**Supersedes / superseded by:** none. Independent fix; does not touch the
+SDK-version pins D-0344 corrected.
