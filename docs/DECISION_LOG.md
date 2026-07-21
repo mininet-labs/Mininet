@@ -10073,3 +10073,59 @@ was implicated by this failure.
 
 **Supersedes / superseded by:** none. Independent fix; does not touch the
 SDK-version pins D-0344 corrected.
+
+### D-0346 — resolve the generated-UniFFI source dir `Provider` to a `File` before `srcDir()` (issue #204, Android beta slice 8)  ·  *Accepted*
+**Date:** 2026-07-21 · **Refs:** hub issue #196, issue #204, PR #214, D-0343, D-0344, D-0345
+
+**Decision:** change `app/android/app/build.gradle.kts` line 69 from
+`android.sourceSets.getByName("main").kotlin.srcDir(generatedUniFfi)` to
+`android.sourceSets.getByName("main").kotlin.srcDir(generatedUniFfi.get().asFile)`,
+resolving the `Provider<Directory>` to a concrete `File` before handing it
+to the legacy Android SourceSet API.
+
+**Reason:** with D-0345's executable-bit fix pushed, PR #214's
+`android-apk` job got past the Rust build for the first time and reached
+real Gradle project configuration, which failed with: "Error: You cannot
+add Provider instances to the Android SourceSet API. It is not possible
+for Android Studio to determine if the Provider points to a directory
+that contains generated (read-only) or static (read-write) files,"
+pointing at `build.gradle.kts:69`. AGP 9's `DefaultAndroidSourceDirectorySet.srcDir`
+now rejects a `Provider` argument outright rather than silently resolving
+it, specifically because a `Provider` is ambiguous about whether it names
+a build-generated directory or a hand-maintained static one — the
+long-term-correct fix the error message names is the newer Variant API
+(`SourceDirectories.addGeneratedDirectory`), but adopting that API was
+rejected here as broader than this incident warrants: this codebase's
+existing `outputs.dir(generatedUniFfi)` + explicit
+`tasks.named("preBuild").configure { dependsOn(generateUniFfiKotlin) }`
+already guarantees the directory is populated by the Exec task before any
+compile task reads it, so eagerly resolving the `Provider` to its `File`
+at configuration time (identical to what line 62's `--out-dir` argument
+already does) loses no correctness this project depends on and is the
+smaller, already-precedented change.
+
+**Constitutional impact:** none. Gradle build-script configuration only;
+no dependency edge, frozen invariant, or cryptography touched.
+
+**Implementation status:** the one-line change is made in this
+environment, which still has no Gradle/AGP to execute locally; verified
+the same way every fix in this incident chain has been — by watching the
+real CI run on PR #214.
+
+**Failure point:** unverified beyond this point — this is the third
+distinct real failure this CI job's first executions have surfaced
+(D-0344's SDK platform pin, D-0345's file mode, now this configuration-
+time API rejection), consistent with D-0343's own prediction that the
+untested Gradle project "may have its own undiscovered misconfiguration
+nothing in this repo has exercised yet." Whether `:app:assembleDebug`
+then proceeds past configuration into actual compilation, resource
+processing, and APK packaging is still completely unverified.
+
+**Required follow-up:** watch PR #214's next `android-apk` CI run; if it
+fails again, diagnose from that real log rather than guessing further. If
+a future change needs the Variant API's generated/static distinction for
+real (e.g. incremental-build correctness at scale), revisit
+`SourceDirectories.addGeneratedDirectory` then rather than now.
+
+**Supersedes / superseded by:** none. Independent fix; does not touch the
+SDK-version pins or file-mode fix D-0344/D-0345 made.

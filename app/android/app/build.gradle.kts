@@ -66,7 +66,7 @@ val generateUniFfiKotlin by tasks.registering(Exec::class) {
     )
 }
 
-android.sourceSets.getByName("main").kotlin.srcDir(generatedUniFfi)
+android.sourceSets.getByName("main").kotlin.srcDir(generatedUniFfi.get().asFile)
 tasks.named("preBuild").configure { dependsOn(generateUniFfiKotlin) }
 
 dependencies {
