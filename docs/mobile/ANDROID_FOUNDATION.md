@@ -104,14 +104,22 @@ recovery design lands.
 ## Toolchain and local build
 
 The Android project pins AGP 9.3.0, Kotlin/Compose compiler 2.3.21, Compose BOM
-2026.06.00, `compileSdk`/`targetSdk` 37, JDK 17, and UniFFI 0.32.0. AGP 9's
+2026.06.00, `compileSdk`/`targetSdk` 36, JDK 17, and UniFFI 0.32.0. AGP 9's
 built-in Kotlin support is used; the incompatible legacy
 `org.jetbrains.kotlin.android` plugin is not applied.
+
+`compileSdk`/`targetSdk` 36 (D-0344) rather than 37: platform 37 does not
+exist as a plain integer in the real Android SDK repository — verified by
+`.github/workflows/android-ci.yml`'s first real CI run and a follow-up
+`sdkmanager --list` — only versioned sub-releases (`platforms;android-37.0`,
+`37.1`) exist there, a naming scheme AGP's plain-integer `compileSdk`/
+`targetSdk` properties were not confirmed compatible with. 36 is the
+highest plain-integer platform actually published.
 
 Required locally:
 
 - JDK 17;
-- Android SDK platform 37 and build tools 36.0.0;
+- Android SDK platform 36 and build tools 36.0.0;
 - Android NDK 28.2.13676358;
 - Gradle 9.5.0 or a compatible Android Studio installation;
 - Rust targets `aarch64-linux-android` and `x86_64-linux-android`; and
