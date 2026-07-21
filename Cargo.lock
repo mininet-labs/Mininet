@@ -2620,6 +2620,7 @@ name = "mini-social"
 version = "0.0.1"
 dependencies = [
  "did-mini",
+ "mini-crypto",
  "mini-objects",
  "mini-store",
 ]
