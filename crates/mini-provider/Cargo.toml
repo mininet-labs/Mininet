@@ -1,0 +1,20 @@
+[package]
+name = "mini-provider"
+version = "0.0.1"
+description = "FD-18 (D-0400) edge/provider-layer vocabulary: ProviderDeclaration, EngagementGrant, LocalProviderPolicy, ProviderRanker. A LEAF crate -- no core crate may depend on it, and it has no governance/humanness reach. Wave 1 of the doctrine's confirmed sequencing: pure data only, no network client, no payment execution, no canonical provider registry."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Identity vocabulary only (a provider/grant names a did:mini). No signing
+# is wired yet in this Wave 1 crate -- see lib.rs.
+did-mini = { path = "../did-mini" }
+# ObjectId content-addressing + scoped-pseudonym derivation, so a
+# declaration/grant can reference real content-addressed objects and a
+# grant subject can be the correlation-resistant pseudonym FD-18 requires
+# (T4). No object envelope construction happens in this crate.
+mini-objects = { path = "../mini-objects" }

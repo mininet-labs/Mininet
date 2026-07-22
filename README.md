@@ -145,6 +145,13 @@ so, everywhere, on purpose.
   URL admission policy — bounded same-host frontiers, explicit robots
   exclusions, depth/queue/URL-length limits, and no network client,
   parser, JavaScript, storage, ranking, or payment logic
+- `mini-provider` (D-0400) / `mini-engagement` (D-0402): Founder
+  Directive 18's edge/provider layer, Waves 1-2 — `ProviderDeclaration`
+  (mandatory custody/freeze/death/exit disclosure fields), the device-
+  local-only `LocalProviderPolicy` off switch, and a generic escrowed-
+  work state machine over `mini-settlement`; pure vocabulary and state
+  machine only, no signing, no canonical registry, no settlement
+  submission yet
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential

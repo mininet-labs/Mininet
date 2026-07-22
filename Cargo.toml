@@ -57,6 +57,8 @@ members = [
     "crates/mini-windows-vault",
     "crates/mini-extract-protocol",
     "crates/mini-extract-host",
+    "crates/mini-provider",
+    "crates/mini-engagement",
 ]
 
 [workspace.package]
