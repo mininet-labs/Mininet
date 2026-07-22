@@ -1235,7 +1235,7 @@
       "title": "Mininet AI Session Entry Point"
     },
     {
-      "bytes": 19070,
+      "bytes": 17298,
       "group": "root",
       "headings": [
         {
@@ -1265,22 +1265,22 @@
         },
         {
           "level": 2,
-          "line": 143,
+          "line": 133,
           "text": "Codebase map (the 30-second version)"
         },
         {
           "level": 2,
-          "line": 246,
+          "line": 220,
           "text": "Current priority (D-0066 \u2014 Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)"
         },
         {
           "level": 2,
-          "line": 278,
+          "line": 252,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 287,
+          "line": 261,
           "text": "Session hygiene for the agent"
         }
       ],
@@ -1310,9 +1310,9 @@
         "requires",
         "hard"
       ],
-      "lines": 299,
+      "lines": 273,
       "path": "CLAUDE.md",
-      "sha256": "2e7f23a5401c7ef101de53ae9eae363b57701c5e25d4c4d46451811594a8fd91",
+      "sha256": "877085699165fd82a2a8a388c26a95e52e4f8aba5dceb13db061f41202a73f67",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
@@ -45785,7 +45785,7 @@
       "title": "{"
     },
     {
-      "bytes": 636750,
+      "bytes": 642642,
       "group": "docs",
       "headings": [
         {
@@ -46215,9 +46215,9 @@
         "new",
         "research"
       ],
-      "lines": 10584,
+      "lines": 10694,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "7619c0c340c6fdd372f4dcfb699b9a642c98d8a1199c9962f7dc1adde0f82b1c",
+      "sha256": "4c3af51d2ac72ac26e2766f4631015476835679cc80b3f4519a2c1fe383d9227",
       "symbols": [],
       "title": "Decision Log"
     },

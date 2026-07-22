@@ -10581,3 +10581,113 @@ builders, never this repo.
 D-0090 canonized the original seventeen directives as the one canonical
 set; this entry adds an eighteenth to that same set via the same
 process.
+
+---
+
+### D-0400 — `mini-provider`: Wave 1 edge/provider vocabulary  ·  *Accepted*
+**Date:** 2026-07-22 · **Refs:** Founder Directive 18 (D-0352), FD-18 Part
+II.1, `docs/INVARIANTS.md` section 10 (INV-18-04, INV-18-05), PR #219.
+
+**Decision:** Ship `mini-provider` as a new leaf crate implementing FD-18's
+Wave 1 scope exactly: `ProviderDeclaration` (with the four mandatory-
+honesty fields — `CustodyPosture`, `FreezePowers`, `DeathDisposition`,
+`ExitTerms` — all non-`Option` by design), `EngagementGrant`, the
+device-local-only `LocalProviderPolicy` off switch, and the
+`ProviderRanker` discovery trait. Pure data and structural well-
+formedness checks only (`check_wellformed`) — no signing, no network
+client, no canonical provider registry.
+
+**Reason:** The doctrine's own confirmed sequencing (FD-18 Part VI) puts
+Wave 1 first as pure vocabulary, deliberately ahead of any execution
+wiring, so the edge/provider layer's core types exist and are testable
+before anything touches real signing or settlement. This crate is the
+first concrete artifact `docs/INVARIANTS.md`'s section 10 rows (added in
+D-0352) can eventually point at.
+
+**Constitutional impact:** Directive 18; INV-18-04 ("no canonical
+provider registry type exists") — `ProviderRanker` has no registry type,
+by construction; INV-18-05 ("provider disabling has no network-wide
+representation") — `LocalProviderPolicy` is device-local, has no wire
+format, no (de)serialization, and no network dependency at all. Both
+rows remain `pending` in `docs/INVARIANTS.md` since the
+`crates/mini-invariants/tests/edge_wall.rs` CI check that would flip
+them to a concrete enforced path does not exist yet — this decision
+does not claim that check exists.
+
+**Implementation status:** Shipped in PR #219. 21 adversarial tests
+cover declaration expiry, unbounded-hold rejection, oversized-input
+rejection, grant window validation, and `LocalProviderPolicy`'s
+per-provider vs. per-service-class disabling. `cargo fmt`/`clippy
+-D warnings`/`test --workspace` all clean at merge.
+
+**Failure point:** binding a `ProviderDeclaration`/`EngagementGrant` to a
+real signed, content-addressed `mini_objects::Object` — so a declaration
+is actually tamper-evident and discoverable the way every other object
+in this workspace is — is not built. Until then, nothing stops a caller
+from constructing an arbitrary in-memory `ProviderDeclaration` with no
+cryptographic binding to the identity it names; this crate does not
+claim otherwise anywhere in its docs.
+
+**Required follow-up:** wire real signing/content-addressing (deferred,
+see crate docs); build `crates/mini-invariants/tests/edge_wall.rs` to
+flip INV-18-04/INV-18-05 from `pending` to enforced; Waves 3-5 of FD-18
+per the doctrine's sequencing.
+
+**Supersedes / superseded by:** none. This entry retroactively records a
+decision whose code shipped in PR #219 without a corresponding
+`DECISION_LOG.md` entry at merge time — an oversight this entry
+corrects rather than leaves silently unrecorded.
+
+---
+
+### D-0402 — `mini-engagement`: escrowed engagement state machine  ·  *Accepted*
+**Date:** 2026-07-22 · **Refs:** Founder Directive 18 (D-0352), FD-18 Part
+II.2, D-0400, `mini-settlement` (D-0055), PR #219.
+
+**Decision:** Ship `mini-engagement` as a new leaf crate: the general
+escrowed-work state machine (`Offered → Accepted → Milestone* →
+Completed/Disputed/TimedOut`) FD-18's edge/provider layer builds on top
+of. Deliberately generic per the doctrine's non-negotiable #10 — no
+`CardIssuance`/`Courier`/per-industry variant. `Engagement` wraps a real,
+already-signed `mini_settlement::PaymentClaim` and tracks how much of it
+has been released across milestone transitions, never exceeding the
+claim's amount. `transitions::timeout` encodes the doctrine's "a
+provider that disappears cannot strand funds" obligation as a real,
+total function rather than a documented convention.
+
+**Reason:** Wave 2 follows directly from Wave 1 in the doctrine's own
+sequencing, and a general escrow primitive is the shared foundation
+every later provider-service flow (conversion, delivery, professional
+service) needs — building it generic once, rather than per-service,
+follows Directive 14 (simplicity) and the doctrine's explicit
+instruction to avoid per-industry logic.
+
+**Constitutional impact:** Directive 18, Directive 5 (canonical truth is
+sacred — FD-05 applies unchanged: this crate only tracks *local* release
+state against an already-signed claim, it never invents ownership or
+submits anything to canonical settlement itself). No Tier-F row in
+`docs/INVARIANTS.md` names `mini-engagement` directly; it composes
+`mini-settlement`'s existing M1-M3 guarantees rather than adding new
+frozen invariants of its own.
+
+**Implementation status:** Shipped in PR #219. 12 adversarial tests
+cover every valid/invalid state transition pair, running-total-never-
+exceeds-escrow, and `timeout`'s interaction with every other state
+(no-op before deadline, no-op once terminal). `cargo fmt`/`clippy
+-D warnings`/`test --workspace` all clean at merge.
+
+**Failure point:** submitting an actual release through
+`mini_settlement::reconcile` against a `CanonicalLedgerView` — so a
+milestone release becomes canonical rather than only locally tracked —
+is not wired. Until that lands, a caller could construct an
+`EngagementState::Completed` locally with no corresponding canonical
+settlement ever having occurred; this crate's docs say so explicitly
+rather than implying more finality than exists.
+
+**Required follow-up:** wire `release_milestone`/`complete` outcomes to
+real `mini_settlement::reconcile` submission; Wave 3
+(`mini-succession`) onward per the doctrine's sequencing.
+
+**Supersedes / superseded by:** none. Like D-0400, this entry
+retroactively records a decision whose code shipped in PR #219 without
+a corresponding `DECISION_LOG.md` entry at merge time.
