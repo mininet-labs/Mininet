@@ -42,7 +42,7 @@ protect?") — both directions resolve to the same chain. `docs/
 THREAT_MODEL.md` is the companion document that starts one hop earlier:
 which invariant, if it failed, closes off which attack.
 
-Tier F is organized into nine sections so a reviewer can jump straight to
+Tier F is organized into ten sections so a reviewer can jump straight to
 the domain a PR touches, rather than scanning one large table. Within
 each section, invariants are listed roughly most-load-bearing first.
 
@@ -151,6 +151,29 @@ never be missed by only skimming a table.
 |---|---|---|---|---|
 | AI1 | AI may draft sensitive code, but human review is mandatory | D12 | SPEC-11 §2 + D-0033/D-0037 | partial — `mini-forge::governance::PROTOCOL_MIN_APPROVALS` enforces a 2-approval floor with no 1-of-1 canonical merge path; a dedicated "AI-assisted" flag on commits/PRs is `pending` — see [roadmap #78](../../issues/78) |
 | A1 | **Production use — real value, real treasury custody, real consensus, real personhood proofs — requires external cryptography audit as a hard gate, not a desirable-but-optional step. Tests passing is not audit. Founder review is not audit.** | D12, D4 | Founder review, D-0047 | `pending` — no code path in this tree currently allows "production use" of any of these (everything is prototype-labeled and founder-reviewed only); this row exists so that remains true until an actual external audit occurs, not until someone decides it's no longer necessary |
+
+## 10. Edge / provider layer — read Founder Directive 18 first
+
+Founder Directive 18 (D-0352): the core must survive the total
+disappearance of every edge provider (banks, carriers, couriers, states,
+vendors, courts). None of these rows have compiled enforcement yet —
+Wave 1's `mini-provider` crate (D-0400, tracked as follow-up work to
+D-0352) is the first code these rows will point at. They are recorded now, ahead
+of that code, so no edge-layer PR can land without a fixed test to
+survive — the same discipline `docs/FAILURE_BOOK.md` and
+`docs/THREAT_MODEL.md` extend in this same batch.
+
+| # | Frozen invariant | Directive | Source | Enforced by |
+|---|---|---|---|---|
+| INV-18-01 | No core crate depends on any edge crate, in either direction | D18 | FD-18 Part V.2, D-0352 | `pending` — `crates/mini-invariants/tests/edge_wall.rs::no_core_crate_depends_on_the_edge` (Wave 1) |
+| INV-18-02 | No edge crate reaches governance or humanness signals | D18, D16 | FD-18 Part V.2, D-0352 | `pending` — `crates/mini-invariants/tests/edge_wall.rs::no_edge_crate_reaches_governance_or_humanness` (Wave 1) |
+| INV-18-03 | Humanness signals are a closed set; no provider-derived variant may be added | D18, D8 | FD-18 Part V.2, D-0352 | `pending` — closed `HumannessSignal` enum + wall test (Wave 1/`mini-uniqueness`) |
+| INV-18-04 | No canonical provider registry type exists anywhere in the tree | D18, D3 | FD-18 Part V.2, D-0352 | `pending` — absence test over `mini-provider`'s public API (Wave 1) |
+| INV-18-05 | Provider disabling has no network-wide representation; it is device-local only | D18, D1 | FD-18 Part V.2, D-0352 | `pending` — absence test; `LocalProviderPolicy` is device-local by construction (Wave 1) |
+| INV-18-06 | Every engagement grant is time-bound and non-delegable | D18, D2 | FD-18 Part V.2, D-0352 | `pending` — `EngagementGrant` type shape + property tests (Wave 1) |
+| INV-18-07 | A vote extinguishes at death and cannot transfer to an heir, estate, or successor | D18, D16, D8 | FD-18 Part V.2, D-0352 | `pending` — single-variant `VoiceDisposition` enum (Wave 3/`mini-succession`) |
+| INV-18-08 | An organization's root identity is never governance-eligible | D18, D16, D8 | FD-18 Part V.2, D-0352 | `pending` — `crates/mini-invariants/tests/edge_wall.rs::org_roots_are_not_governance_eligible` (Wave 4/`mini-org`) |
+| INV-18-09 | A provider declaration lacking custody posture, freeze powers, death disposition, or exit terms is unrenderable, not merely discouraged | D18, D1, D9 | FD-18 Part I/V.2, D-0352 | `pending` — `ProviderDeclaration`'s mandatory (non-`Option`) fields + `check_wellformed` + client conformance suite (Wave 1) |
 
 ## Foundational (cross-cutting, don't fit one domain above)
 

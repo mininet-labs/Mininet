@@ -48,6 +48,14 @@ are **banded by track**:
   that is resolved exactly like every other collision in this log: the
   second PR to merge rebases and renumbers. Numbers are claimed at PR-open
   time, not reserved in advance per lane.
+- **`D-04xx` — the edge/provider layer track** (Founder Directive 18, the
+  Edge Provider Doctrine, D-0352: `mini-provider`, `mini-engagement`,
+  `mini-attest`, `mini-arbitration`, `mini-succession`, `mini-org`, and
+  the licensed-issuer/conversion-provider card architecture). It
+  allocates from `D-0400` upward, reserved specifically by the doctrine
+  for this track so its own confirmed sequencing (Wave 1 `mini-provider`
+  through Wave 5 conversion/card providers) never has to renumber against
+  the other bands.
 
 The bands are a coordination convenience, not a hierarchy — a banded
 decision carries exactly the same authority as any other, and cross-track
@@ -10496,3 +10504,80 @@ remain Codex/the founder's local machine's job.
 
 **Supersedes / superseded by:** none. UI-layer change only; `mini-ffi`
 itself untouched.
+
+---
+
+### D-0352 — Canonize Founder Directive 18: the Edge Provider Doctrine  ·  *Accepted*
+**Date:** 2026-07-22 · **Refs:** `docs/FOUNDER_DIRECTIVES.md` Directive 18,
+`docs/CONSTITUTION_REGISTRY.json` (FD-18), D-0090 (original seventeen-
+directive canonization), founder-uploaded
+`FD18_EDGE_PROVIDER_DOCTRINE.md` ("MININET — Founder Directive 18 and the
+Edge Layer / The Edge Provider Doctrine — Founder-Confirmed").
+
+**Decision:** Adopt the founder-confirmed Edge Provider Doctrine as
+Directive 18, added verbatim to `docs/FOUNDER_DIRECTIVES.md` following
+the same canonization process D-0090 used for the original seventeen.
+`tools/constitution_registry.py` and `docs/CONSTITUTION_REGISTRY.json`
+are updated to recognize eighteen directives (`FD-01`…`FD-18`), each with
+its own stable ID, digest, and one-line statement. A new `D-04xx`
+decision-number track is registered (see "Decision-number allocation
+across parallel tracks" above) reserved for the edge/provider layer this
+directive defines: `mini-provider`, `mini-engagement`, `mini-attest`,
+`mini-arbitration`, `mini-succession`, `mini-org`, and the card
+architectures built on top of them, per the doctrine's confirmed Wave
+1-5 sequencing. This entry canonizes the doctrine layer only — no
+`mini-provider` (or any other Wave 1+ crate) code exists yet; that is
+tracked as separate follow-up work under the `D-0400` track.
+
+**Reason:** Mininet's core (identity, consensus, storage, settlement,
+governance) must survive the total disappearance of any bank, carrier,
+courier, state, vendor, or court it touches — but refusing to touch that
+world at all makes the network a curiosity rather than something people
+can actually use. Directive 18 resolves that tension the same way every
+other directive resolves a tension: by naming the principle plainly
+("The core is not the important part because it is clever. It is the
+important part because it is the only part that cannot be taken away.")
+so every future edge-layer proposal has a fixed test to survive, instead
+of each proposal re-litigating whether some new provider integration is
+safe.
+
+**Constitutional impact:** Directive 18 (new). Establishes the
+edge/core boundary that Part V of the doctrine will turn into new
+`docs/INVARIANTS.md` rows (INV-18-01 through INV-18-09, added in this
+same batch) once Wave 1 code exists to enforce them — most directly a
+new instance of the same shape as the Directive 16 voice/value wall
+(P1): no core crate may depend on any edge crate, and no edge crate may
+reach governance or humanness signals, in either direction.
+
+**Implementation status:** Doctrine layer only, landed in this batch:
+`docs/FOUNDER_DIRECTIVES.md` (Directive 18 text + updated "eighteen
+directives" cross-references), `tools/constitution_registry.py` (17→18,
+new `STATEMENTS[18]`), `docs/CONSTITUTION_REGISTRY.json` (regenerated),
+this entry and the `D-04xx` track registration, `docs/INVARIANTS.md`
+section 10 (INV-18-01..09, marked pending until Wave 1 lands),
+`docs/FAILURE_BOOK.md` (rejected protocol-native issuance/custody
+entry), `docs/THREAT_MODEL.md` section 6 (provider-capture threat),
+`CONTRIBUTING.md` (edge-layer T1-T5 review checklist item), and
+`README.md` (directive-count references). No Rust code changed.
+
+**Failure point:** the doctrine is only as binding as its enforcement;
+until `mini-provider` and `crates/mini-invariants/tests/edge_wall.rs`
+exist, INV-18-01/02/08 have no compiled dependency-wall test behind
+them, the same trust-but-verify gap every new frozen invariant has
+before its enforcement crate lands. A reviewer approving a future edge
+crate PR without that wall test in place would be relying on this
+document alone.
+
+**Required follow-up:** Wave 1 — build `mini-provider` (D-0400) as pure
+vocabulary (`ProviderDeclaration`, `EngagementGrant`,
+`LocalProviderPolicy`, `ProviderRanker`, `CuratedList`), no network
+surface, per the doctrine's Part II.1 and Part VI sequencing. Waves 2-5
+(`mini-engagement`, `mini-succession`, `mini-attest`/`mini-arbitration`/
+`mini-org`, conversion/card providers) follow in the doctrine's own
+order; Wave 5 explicitly requires external audits and independent
+builders, never this repo.
+
+**Supersedes / superseded by:** extends, does not supersede, D-0090 —
+D-0090 canonized the original seventeen directives as the one canonical
+set; this entry adds an eighteenth to that same set via the same
+process.

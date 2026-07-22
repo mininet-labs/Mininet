@@ -18,8 +18,8 @@ every sentence here, and where this whitepaper simplifies, summarizes, or
 falls behind, they are correct and this document is wrong until fixed:
 
 - [`docs/FOUNDER_DIRECTIVES.md`](docs/FOUNDER_DIRECTIVES.md) — the
-  seventeen directives every engineering and product decision is filtered
-  through (canonical as of D-0090).
+  eighteen directives every engineering and product decision is filtered
+  through (canonical as of D-0090, extended D-0352).
 - [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — what can never be broken,
   each row traced to the code and test that enforce it.
 - [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — the append-only record

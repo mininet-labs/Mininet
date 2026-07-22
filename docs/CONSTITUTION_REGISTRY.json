@@ -2,7 +2,7 @@
   "schema_version": 1,
   "canonical_source": "docs/FOUNDER_DIRECTIVES.md",
   "decision": "D-0090",
-  "principle_count": 17,
+  "principle_count": 18,
   "superseded_sources": [
     {
       "name": "SPEC-00",
@@ -153,6 +153,14 @@
       "heading": "## Directive 17 — Every Decision Must Survive the \"Future Child\" Test",
       "digest": "sha256:76752a043cfb5064ce40418832232dfe63b78cb5b75f1638fbc1959c671a1d7b",
       "statement": "Before every major decision, ask whether it makes a child born a century from now, who chose none of this and never knew the founders, more or less free — if less, the decision is wrong."
+    },
+    {
+      "id": "FD-18",
+      "number": 18,
+      "title": "The Edge May Be Convenient; The Core May Never Depend On It",
+      "heading": "## Directive 18 — The Edge May Be Convenient; The Core May Never Depend On It",
+      "digest": "sha256:db6f830c5f8ab425768279bb58575fe940ce5d11a31afab29d08b49f63d5c6f8",
+      "statement": "The edge (banks, carriers, couriers, states, vendors, courts) may be convenient but the core may never depend on it — every provider must be replaceable and switchable by one human alone, and the core must survive the total disappearance of all of them."
     }
   ]
 }
