@@ -1,0 +1,23 @@
+[package]
+name = "mini-engagement"
+version = "0.0.1"
+description = "FD-18 (D-0402) escrowed engagement state machine: the general work primitive over mini-settlement. A LEAF crate -- no core crate may depend on it. Deliberately generic: no per-industry (card/courier/etc) variant, per FD-18's non-negotiable #10. State-machine types and pure transition functions only -- no network client, no consensus wiring."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Identity vocabulary only (parties to an engagement are named by did:mini).
+did-mini = { path = "../did-mini" }
+# Escrow references a real mini-objects::Object content id (the terms) and
+# a real mini-settlement payment claim -- FD-05 applies unchanged: escrow
+# release emits a settlement promise, never final ownership by itself.
+mini-objects = { path = "../mini-objects" }
+mini-settlement = { path = "../mini-settlement" }
+
+[dev-dependencies]
+# Test-only: constructing a real PaymentClaim needs a SigningKey.
+mini-crypto = { path = "../mini-crypto" }

@@ -2396,6 +2396,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-engagement"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-objects",
+ "mini-settlement",
+]
+
+[[package]]
 name = "mini-erasure"
 version = "0.0.1"
 dependencies = [
