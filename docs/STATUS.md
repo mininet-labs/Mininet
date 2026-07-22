@@ -1063,6 +1063,41 @@ Beta explicitly means "builds, installs, golden path works, full Rust
 suite green" — not that the custody layer has cleared external review
 (D-0047 gate).
 
+## 12. Edge / provider layer (Founder Directive 18, D-0352)
+
+**shipped (Wave 1, D-0400)** — `mini-provider`: `ProviderDeclaration`
+(with the four mandatory-honesty fields — `CustodyPosture`,
+`FreezePowers`, `DeathDisposition`, `ExitTerms` — non-`Option` by
+design), `EngagementGrant`, the device-local-only `LocalProviderPolicy`
+off switch (no network-wide equivalent, INV-18-05), and the
+`ProviderRanker` discovery trait (no canonical registry type,
+INV-18-04). Pure data and structural well-formedness checks only — the
+protocol never judges whether a provider is honest, licensed, or safe
+(T2). Binding a declaration/grant to a real signed, content-addressed
+`mini_objects::Object` and verifying a grant's `holder_commitment`
+against a presented secret are not built yet.
+
+**shipped (Wave 2, D-0402)** — `mini-engagement`: the general escrowed-
+work state machine (`Offered → Accepted → Milestone* →
+Completed/Disputed/TimedOut`), deliberately generic with no per-industry
+variant (non-negotiable #10). Wraps a real, already-signed
+`mini_settlement::PaymentClaim` and tracks released amounts against it,
+never exceeding the claim's total. `timeout()` is a real function
+encoding "every state has an edge back to the payer," not a convention.
+Submitting a release through `mini_settlement::reconcile` against a
+`CanonicalLedgerView` — so a release becomes canonical rather than only
+locally tracked — is not wired yet.
+
+**not started** — Wave 3 (`mini-succession`, D-0410: death, inheritance,
+a vote that structurally cannot transfer), Wave 4 (`mini-attest`,
+D-0404, unlinkable engagement-proven reviews; `mini-arbitration`,
+D-0406; `mini-org`, D-0412, non-human roots that cannot vote), and Wave
+5 (conversion/card providers — built by independent parties, never this
+repo, and only after external audits). The `crates/mini-invariants/
+tests/edge_wall.rs` dependency-wall CI check that would flip
+INV-18-01/02/04/05/08 from `pending` to enforced in `docs/INVARIANTS.md`
+also does not exist yet.
+
 ## Where to look for more detail
 
 - `WHITEPAPER.md` (repository root, D-0323) — the single-document public
