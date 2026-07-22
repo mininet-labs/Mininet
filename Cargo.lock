@@ -2579,6 +2579,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-provider"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-objects",
+]
+
+[[package]]
 name = "mini-relay"
 version = "0.0.1"
 dependencies = [
