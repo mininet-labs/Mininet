@@ -7,11 +7,12 @@ Founder review P0 item `constitution-registry` (D-0090): the review found
 three different principle counts in play across this project's history
 (SPEC-00's six, an external "v2" whitepaper/README's eleven, and this
 repo's own committed seventeen Founder Directives) with no single
-versioned, machine-readable identity. D-0090 settles that: the seventeen
-committed Founder Directives are the one canonical set going forward. This
-script gives each a stable ID and an exact digest of its own canonical
-text, generated (not hand-maintained) so the registry can never silently
-drift out of sync with the prose it mirrors.
+versioned, machine-readable identity. D-0090 settles that: the committed
+Founder Directives are the one canonical set going forward. D-0352 later
+added an eighteenth (the Edge Provider Doctrine, FD-18) via the same
+process. This script gives each a stable ID and an exact digest of its
+own canonical text, generated (not hand-maintained) so the registry can
+never silently drift out of sync with the prose it mirrors.
 
 Usage:
   python3 tools/constitution_registry.py build   # (re)write the registry
@@ -92,6 +93,11 @@ STATEMENTS: dict[int, str] = {
     17: "Before every major decision, ask whether it makes a child born "
         "a century from now, who chose none of this and never knew the "
         "founders, more or less free — if less, the decision is wrong.",
+    18: "The edge (banks, carriers, couriers, states, vendors, courts) may "
+        "be convenient but the core may never depend on it — every "
+        "provider must be replaceable and switchable by one human alone, "
+        "and the core must survive the total disappearance of all of "
+        "them.",
 }
 
 SUPERSEDED_SOURCES = [
@@ -112,9 +118,9 @@ SUPERSEDED_SOURCES = [
 
 def extract_directives(text: str) -> list[dict]:
     headings = list(DIRECTIVE_HEADING_RE.finditer(text))
-    if len(headings) != 17:
+    if len(headings) != 18:
         raise SystemExit(
-            f"expected exactly 17 '## Directive N — Title' headings in "
+            f"expected exactly 18 '## Directive N — Title' headings in "
             f"{SOURCE_PATH}, found {len(headings)}"
         )
     directives = []

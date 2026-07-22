@@ -12,7 +12,7 @@ here and in `docs/INVARIANTS.md`. When a PR touches something no existing
 document anticipated, the directives are what a reviewer (human or AI)
 reasons from. This applies equally to AI-assisted contributions: an AI
 drafting code under the D-0037 policy is expected to have read and be
-reasoning from the same seventeen directives a human contributor would.
+reasoning from the same eighteen directives a human contributor would.
 
 **Before proposing something novel, check `docs/FAILURE_BOOK.md`.** If an
 idea was already tried and rejected — a networking approach, a
@@ -54,6 +54,13 @@ information is exactly what the book is for.
 4. If you touched a frozen domain, update the **Enforced by** cell in
    `docs/INVARIANTS.md` and add a `D-00xx` entry to `docs/DECISION_LOG.md`.
 5. Keep the dependency surface small and auditable, especially in `mini-crypto`.
+6. If you touched the edge layer (Founder Directive 18: `mini-provider`,
+   `mini-engagement`, `mini-attest`, `mini-arbitration`, `mini-succession`,
+   `mini-org`, or any card/conversion-provider integration), state in the
+   PR body your answers to Directive 18's five tests (T1 Disappearance,
+   T2 Substitution, T3 Voice wall, T4 Learning, T5 Off switch) and which
+   of its ten non-negotiables the change touches. A reviewer — human or
+   AI — who cannot find those answers rejects on that ground alone.
 
 ## Signing
 

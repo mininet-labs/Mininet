@@ -121,6 +121,34 @@ to be reverted; if signal (b) is ever actually solved (see issue #21),
 it becomes one more signal in the open-ended system, not a reason to go
 back to exactly three.
 
+## Value & economics
+
+### Protocol-native issuance, exchange, or custody of legacy currency
+**Considered/tried:** Founder Directive 18 doctrine phase (D-0352), Part
+I.4, in the course of designing how Mininet's value layer touches banks,
+card networks, and other fiat-adjacent rails.
+**What it was:** any design in which the network itself, a treasury, a
+governance vote, or a "Mininet foundation" holds an issuing, exchange, or
+custodial relationship with the legacy financial system — e.g. the
+protocol minting its own stablecoin-style IOU, or a DAO-style treasury
+holding a bank account or money-transmitter license on the network's
+behalf.
+**Why it was rejected:** if Mininet acquires any of those relationships,
+Mininet acquires an owner, a jurisdiction, an admin key, and a subpoena
+address — permanently, because a network cannot be un-incorporated.
+That is exactly the dependency Directive 18 exists to forbid: the core
+must survive the total disappearance of every provider it touches, and a
+protocol-owned custodial/issuing relationship makes the core *depend on*
+a specific replaceable-in-name-only institution instead of merely
+routing through one. Individual, replaceable, switchable-by-one-human
+providers (Architecture A/B of the card doctrine) are fine; a
+protocol-level one is not.
+**Would it become viable again?** No — closed by FD-18. Any future
+proposal that gives the protocol, a treasury, or a governance vote an
+issuing/exchange/custodial role in the legacy financial system is
+rejected on that ground alone, the same way a voice/value dependency
+edge is rejected under Directive 16.
+
 ## Implementation-level corrections
 
 ### `ConfidentialAmountScheme`'s original trait shape

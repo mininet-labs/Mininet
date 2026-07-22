@@ -456,6 +456,48 @@ We are only temporary custodians.
 
 ---
 
+## Directive 18 — The Edge May Be Convenient; The Core May Never Depend On It
+
+Mininet will always touch a world it does not control.
+
+Banks.
+
+Carriers.
+
+Couriers.
+
+States.
+
+Vendors.
+
+Courts.
+
+Refusing to touch that world makes the network a curiosity.
+
+Depending on it makes the network a subsidiary.
+
+So the network defines the vocabulary of engagement, and nothing else.
+
+Every convenience is offered by someone replaceable.
+
+Switched on by one human.
+
+Switched off by that same human alone.
+
+Ask of any service:
+
+"If it disappeared tonight, does anyone lose more than convenience?"
+
+If yes, it does not belong at the edge.
+
+And if it cannot be built in the core without an owner, it does not belong at all.
+
+The core is not the important part because it is clever.
+
+It is the important part because it is the only part that cannot be taken away.
+
+---
+
 ## Final Words
 
 We are not building software.
@@ -481,7 +523,7 @@ and the Specifications — it is the layer underneath all three. When a
 Specification is silent, when the Constitution's frozen invariants
 (`docs/INVARIANTS.md`) don't obviously reach a new situation, and when a
 `D-00xx` decision log entry has to be written for a problem nobody
-anticipated, these seventeen directives are the compass a reviewer —
+anticipated, these eighteen directives are the compass a reviewer —
 human or AI — reasons from. They do not override the Constitution; nothing
 does. They explain the reasoning the Constitution's frozen invariants were
 built to protect, so that reasoning survives even when the people who
@@ -492,20 +534,22 @@ opening the codebase.** It is referenced from the top of the root
 `README.md` and from `CONTRIBUTING.md` for exactly that reason. When a
 novel problem falls outside every existing document, the test is simple:
 does the proposed solution survive Directive 17's "future child" test, and
-does it hold up against whichever of the other sixteen directives it
+does it hold up against whichever of the other seventeen directives it
 touches? If it does not, per the Preface, the solution is wrong — not the
 directives.
 
-## Canonical status (D-0090)
+## Canonical status (D-0090, extended D-0352)
 
-These seventeen directives are the **one canonical constitutional
+These eighteen directives are the **one canonical constitutional
 principle set** — not a fourth version alongside others. An external
 founder review found no single versioned identity: an earlier SPEC-00
 document defined six principles, and a later external "v2" whitepaper/
 README framing defined eleven; neither is committed to this repository.
 Both are superseded by this document as of D-0090, wherever they are
-held. `docs/CONSTITUTION_REGISTRY.json` gives each directive a stable ID
-(`FD-01`…`FD-17`) and an exact digest of its own canonical text, generated
-from this file by `tools/constitution_registry.py`, so tooling and future
-reviewers have one machine-readable source to check a claim against
-instead of guessing which numbered list is current.
+held. D-0090 originally canonized seventeen; D-0352 added Directive 18
+(the Edge Provider Doctrine) as a founder-confirmed eighteenth, following
+the same process. `docs/CONSTITUTION_REGISTRY.json` gives each directive
+a stable ID (`FD-01`…`FD-18`) and an exact digest of its own canonical
+text, generated from this file by `tools/constitution_registry.py`, so
+tooling and future reviewers have one machine-readable source to check a
+claim against instead of guessing which numbered list is current.

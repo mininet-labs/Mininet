@@ -685,10 +685,11 @@ given time.
   code at all — business/process work; founder review's `audit-program`
   P0 item, confirmed by the founder this session as staying entirely
   outside repository scope).
-- **shipped** — `docs/CONSTITUTION_REGISTRY.json` (D-0090, founder
-  review's `constitution-registry` P0 item): the seventeen
-  `docs/FOUNDER_DIRECTIVES.md` directives, generated (not hand-maintained)
-  into stable IDs (`FD-01`–`FD-17`) with an exact digest per directive by
+- **shipped** — `docs/CONSTITUTION_REGISTRY.json` (D-0090, extended
+  D-0352, founder review's `constitution-registry` P0 item): the
+  `docs/FOUNDER_DIRECTIVES.md` directives (eighteen as of D-0352's
+  Edge Provider Doctrine addition), generated (not hand-maintained)
+  into stable IDs (`FD-01`–`FD-18`) with an exact digest per directive by
   `tools/constitution_registry.py`, so future reviewers and tooling have
   one machine-readable source instead of the review-flagged
   six-vs-eleven-vs-seventeen ambiguity across SPEC-00/v2/this repo.

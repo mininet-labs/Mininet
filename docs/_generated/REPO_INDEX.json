@@ -2,7 +2,7 @@
   "counts": {
     "crates": 50,
     "files": 612,
-    "headings": 2119,
+    "headings": 2124,
     "rust_symbols": 5165
   },
   "crates": {
@@ -1309,7 +1309,7 @@
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
     {
-      "bytes": 4072,
+      "bytes": 4583,
       "group": "root",
       "headings": [
         {
@@ -1329,19 +1329,21 @@
         },
         {
           "level": 2,
-          "line": 58,
+          "line": 65,
           "text": "Signing"
         },
         {
           "level": 2,
-          "line": 65,
+          "line": 72,
           "text": "Scope of a batch"
         }
       ],
       "keywords": [
         "one",
-        "contributing",
         "human",
+        "contributing",
+        "founder",
+        "change",
         "cargo",
         "principles",
         "itself",
@@ -1352,21 +1354,19 @@
         "reasoning",
         "every",
         "invariants",
+        "touches",
         "something",
         "what",
-        "founder",
+        "reviewer",
         "frozen",
-        "change",
         "floor",
         "d-0033",
         "apply",
-        "contribution",
-        "practical",
-        "checklist"
+        "contribution"
       ],
-      "lines": 70,
+      "lines": 77,
       "path": "CONTRIBUTING.md",
-      "sha256": "fbad800ae4b2b2d535385315dad45cd171d47a30577d6f87186c099a0eaf19bf",
+      "sha256": "d13c6fe95270e725c9ad5a14bb7e3cdcca4edbec65e41f710a3ae9940449414f",
       "symbols": [],
       "title": "Contributing"
     },
@@ -1531,7 +1531,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 13658,
+      "bytes": 13722,
       "group": "root",
       "headings": [
         {
@@ -1561,7 +1561,7 @@
         },
         {
           "level": 2,
-          "line": 232,
+          "line": 233,
           "text": "License"
         }
       ],
@@ -1591,9 +1591,9 @@
         "yet",
         "update"
       ],
-      "lines": 236,
+      "lines": 237,
       "path": "README.md",
-      "sha256": "5ab3623271a6423684966dae31fed6d11ba5783dc40d18872c7b50103b80a204",
+      "sha256": "386e6c1df80b224f0e09556f2b8c907b51a69e1f67b8850fb057c2da20b24000",
       "symbols": [],
       "title": "Mininet"
     },
@@ -1660,7 +1660,7 @@
       "title": "Security Policy"
     },
     {
-      "bytes": 20536,
+      "bytes": 20552,
       "group": "root",
       "headings": [
         {
@@ -1757,12 +1757,12 @@
         "commons",
         "how",
         "company",
-        "project",
-        "who"
+        "who",
+        "constitutional"
       ],
       "lines": 376,
       "path": "WHITEPAPER.md",
-      "sha256": "e3612488db0eb515363777b96aabf364717834946379b9670907005a4bdda71c",
+      "sha256": "89443918c31f48f45b4b2ce42eb97c64947249686a76c2ef236e64af532ca735",
       "symbols": [],
       "title": "The Mininet Whitepaper"
     },
@@ -44647,7 +44647,7 @@
       "title": "Mininet self-contained bootstrap and update path"
     },
     {
-      "bytes": 8290,
+      "bytes": 8890,
       "group": "docs",
       "headings": [],
       "keywords": [
@@ -44676,14 +44676,14 @@
         "eventually",
         "design"
       ],
-      "lines": 159,
+      "lines": 167,
       "path": "docs/CONSTITUTION_REGISTRY.json",
-      "sha256": "11c06e0e53fa7ed0b705f2aa8bf48d13870db2c7908ad3396e80d3fca567ea04",
+      "sha256": "59e09795fb54d2e393548d7bca162036720316448c364450194778c8c6bb49ab",
       "symbols": [],
       "title": "{"
     },
     {
-      "bytes": 631811,
+      "bytes": 636750,
       "group": "docs",
       "headings": [
         {
@@ -44703,387 +44703,387 @@
         },
         {
           "level": 2,
-          "line": 59,
+          "line": 67,
           "text": "Entry template (D-0045 onward)"
         },
         {
           "level": 3,
-          "line": 62,
+          "line": 70,
           "text": "D-00xx \u2014 Title  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 90,
+          "line": 98,
           "text": "D-0001 \u2014 On-device core language: Rust; single-language stack  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 111,
+          "line": 119,
           "text": "D-0002 \u2014 License: CC0 1.0 (public-domain dedication)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 121,
+          "line": 129,
           "text": "D-0003 \u2014 Signature suite: Ed25519 default, behind a versioned tag  \u00b7  *Provisional*"
         },
         {
           "level": 3,
-          "line": 132,
+          "line": 140,
           "text": "D-0004 \u2014 Content-address hash: BLAKE3 default, SHA-256 interop, SHA-1 forbidden  \u00b7  *Accepted (freeze)*"
         },
         {
           "level": 3,
-          "line": 142,
+          "line": 150,
           "text": "D-0005 \u2014 Identity foundation: KERI-style autonomic identifiers  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 160,
+          "line": 168,
           "text": "D-0006 \u2014 Reproducibility hygiene: commit `Cargo.lock`, pin the toolchain  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 172,
+          "line": 180,
           "text": "D-0007 \u2014 did:mini wire profile: hand-rolled deterministic codec; BLAKE3 SAID-style SCID  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 200,
+          "line": 208,
           "text": "D-0008 \u2014 Chain framework (A1): custom Rust chain on an adapted proven BFT  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 230,
+          "line": 238,
           "text": "D-0009 \u2014 Networking core (A3): mesh + local Wi-Fi + optional relay; drop radio  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 259,
+          "line": 267,
           "text": "D-0010 \u2014 Device delegation model (M2): delegated inception + mutual seal  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 289,
+          "line": 297,
           "text": "D-0011 \u2014 Self-contained genesis and self-updating release registry  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 313,
+          "line": 321,
           "text": "D-0012 \u2014 Bluetooth-only bootstrap is a mandatory launch path  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 335,
+          "line": 343,
           "text": "D-0013 \u2014 did:mini wire hardening before first public release  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 360,
+          "line": 368,
           "text": "D-0014 \u2014 Pack 1 crypto primitives for Bluetooth/local encrypted sessions  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 386,
+          "line": 394,
           "text": "D-0015 \u2014 Bearer layer and anonymous encrypted channel (`mini-bearer`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 419,
+          "line": 427,
           "text": "D-0016 \u2014 Presence attestations (`mini-presence`): range-bound, mutually signed  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 446,
+          "line": 454,
           "text": "D-0017 \u2014 Reward accrual stub (`mini-reward`): slow, diversity-weighted vesting toward MINI  \u00b7  *Accepted, corrected 2026-07-08*"
         },
         {
           "level": 3,
-          "line": 482,
+          "line": 490,
           "text": "D-0018 \u2014 Keystone harness (`mini-keystone`): the beta is the composed flow  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 500,
+          "line": 508,
           "text": "D-0019 \u2014 UI beta stack: one Rust core, Flutter shell, WASM web, SPEC-09 objects  \u00b7  *Proposed (founder veto open)*"
         },
         {
           "level": 3,
-          "line": 520,
+          "line": 528,
           "text": "D-0020 \u2014 Sovereignty-first UI & distribution stack  \u00b7  *Accepted (founder directive)*"
         },
         {
           "level": 3,
-          "line": 547,
+          "line": 555,
           "text": "D-0021 \u2014 Unified object envelope (`mini-objects`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 562,
+          "line": 570,
           "text": "D-0022 \u2014 Local store & head pointers (`mini-store`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 578,
+          "line": 586,
           "text": "D-0023 \u2014 Op-log CRDT (`mini-crdt`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 597,
+          "line": 605,
           "text": "D-0024 \u2014 Replication & verified ingest (`mini-sync`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 617,
+          "line": 625,
           "text": "D-0025 \u2014 Social graph & explainable feeds (`mini-social`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 637,
+          "line": 645,
           "text": "D-0026 \u2014 Chunked media (`mini-media`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 649,
+          "line": 657,
           "text": "D-0027 \u2014 Forge core & release verification (`mini-forge`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 670,
+          "line": 678,
           "text": "D-0028 \u2014 Merge governance & self-amending maintainer chain (`mini-forge::governance`)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 691,
+          "line": 699,
           "text": "D-0029 \u2014 External review integrated: hardening pass (Batches 7A/7B/7C-core)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 729,
+          "line": 737,
           "text": "D-0030 \u2014 Second review integrated: compile-readiness + honest quorum semantics  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 770,
+          "line": 778,
           "text": "D-0031 \u2014 Third review integrated: truth-sync + root-carrier provenance + repo self-description  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 820,
+          "line": 828,
           "text": "D-0032 \u2014 Parser strictness, artifact-only verifier rename, KEL cache caps, and repo-map restoration  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 848,
+          "line": 856,
           "text": "D-0033 \u2014 Founder decisions batch: public walls, base device, seed-on-view, 2-approval floor, radio/Cosmos closed for good  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 898,
+          "line": 906,
           "text": "D-0034 \u2014 Ranging (UWB), uniqueness graph, P2P networking (libp2p), and privacy-preserving value transfer: four founder decisions, phased  \u00b7  *Accepted (founder directive, phased implementation)*"
         },
         {
           "level": 3,
-          "line": 999,
+          "line": 1007,
           "text": "D-0035 \u2014 Whitepaper reconciliation: MINI unification, three-signal personhood, hybrid consensus, human-only crypto core \u2014 and one open contradiction  \u00b7  *Accepted where noted; one item explicitly OPEN*"
         },
         {
           "level": 3,
-          "line": 1189,
+          "line": 1197,
           "text": "D-0036 \u2014 Founder override: AI-authored ring-signature/stealth-address prototype for `mini-value`, ahead of external audit  \u00b7  *Accepted (explicit founder override of D-0035 point 5)*"
         },
         {
           "level": 3,
-          "line": 1258,
+          "line": 1266,
           "text": "D-0037 \u2014 Founder policy change: D-0035 point 5 generalized to \"human review, AI authorship permitted\"  \u00b7  *Accepted (supersedes D-0036's narrow scope)*"
         },
         {
           "level": 3,
-          "line": 1296,
+          "line": 1304,
           "text": "D-0038 \u2014 Founder redesign: open-ended, multi-signal `HumanStatus` accumulator, replacing reliance on any single silver-bullet signal  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1340,
+          "line": 1348,
           "text": "D-0039 \u2014 `mini-spacetime`: Merkle/PDP storage proof implemented as the honest interim scheme  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1374,
+          "line": 1382,
           "text": "D-0040 \u2014 `mini-value`: Bulletproofs range proof implemented for confidential amounts  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1424,
+          "line": 1432,
           "text": "D-0041 \u2014 `mini-treasury`: FROST threshold-signature custody + live multi-device demo  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1487,
+          "line": 1495,
           "text": "D-0042 \u2014 `mini-bearer`: real TCP transport (`TcpBearer`) + a live multi-process gossip demo in `mini-net`  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1540,
+          "line": 1548,
           "text": "D-0043 \u2014 `docs/FOUNDER_DIRECTIVES.md` adopted as a canonical document  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1586,
+          "line": 1594,
           "text": "D-0044 \u2014 Master roadmap opened; first four audit issues closed; CI gained real dependency scanning and reproducibility checks  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1657,
+          "line": 1665,
           "text": "D-0045 \u2014 Canonical money finality during outages  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1701,
+          "line": 1709,
           "text": "D-0046 \u2014 Fork legitimacy continuity  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1748,
+          "line": 1756,
           "text": "D-0047 \u2014 Production audit gates (tightens D-0037)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1800,
+          "line": 1808,
           "text": "D-0048 \u2014 Trusted-dealer FROST sunset (P0)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1850,
+          "line": 1858,
           "text": "D-0049 \u2014 `mini-bounty`: anonymous developer bounty claims  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1907,
+          "line": 1915,
           "text": "D-0050 \u2014 `docs/THREAT_MODEL.md` + the traceability chain convention  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 1968,
+          "line": 1976,
           "text": "D-0051 \u2014 Bounty & review system: money funds work, never a decision  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2015,
+          "line": 2023,
           "text": "D-0052 \u2014 Fork legitimacy: four checkable continuity criteria  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2060,
+          "line": 2068,
           "text": "D-0053 \u2014 Identity audit hardening: recovery, threshold policy, delegation-chain refusal  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2102,
+          "line": 2110,
           "text": "D-0054 \u2014 Personhood promotion requires a live seed-anchored signal  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2140,
+          "line": 2148,
           "text": "D-0055 \u2014 `mini-settlement`: offline transaction settlement, implementing M1/M2/M3  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2206,
+          "line": 2214,
           "text": "D-0056 \u2014 External Legitimacy Gates: naming what more code cannot close  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2266,
+          "line": 2274,
           "text": "D-0057 \u2014 README as a human trust gateway; audience-door docs  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2327,
+          "line": 2335,
           "text": "D-0058 \u2014 `mini-settlement`: rename `nonce` field to `sequence` (terminology correction, not a design change)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2381,
+          "line": 2389,
           "text": "D-0059 \u2014 `mini-treasury`: zeroize FROST nonces on drop, gate trusted-dealer keygen behind an explicit acknowledgment  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2449,
+          "line": 2457,
           "text": "D-0060 \u2014 `mini-treasury`: real FROST DKG (Pedersen) and committee resharing, closing D-0048's remaining implementation gap  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2559,
+          "line": 2567,
           "text": "D-0061 \u2014 `mini-execution`: a real, chain-backed `CanonicalLedgerView`, closing roadmap #40  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2641,
+          "line": 2649,
           "text": "D-0062 \u2014 `mini-bootstrap`/`mini-sync`: proven live over real TCP, closing roadmap #23  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2716,
+          "line": 2724,
           "text": "D-0063 \u2014 Clarify \"no new cryptographic primitives\": published, real-world-proven constructions are composition, not invention  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2779,
+          "line": 2787,
           "text": "D-0064 \u2014 `mini-porep`: real proof-of-replication (Stacked Depth-Robust Graph sealing), closes roadmap #31  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2864,
+          "line": 2872,
           "text": "D-0065 \u2014 `mini-erasure`: systematic Reed-Solomon erasure coding + self-healing repair, closes roadmap #30 and #32  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 2942,
+          "line": 2950,
           "text": "D-0066 \u2014 Adopt external audit's sequencing: pause horizontal crate breadth, build the vertical self-hosted developer spine first  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3040,
+          "line": 3048,
           "text": "D-0067 \u2014 `mini-cli` + `mini-forge` review metadata: Batch 1's developer spine, first exit-condition demonstration  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3120,
+          "line": 3128,
           "text": "D-0068 \u2014 `mini-provenance`: build provenance as signed objects (Batch 2a); Batch 2b (WASI/Wasmtime sandbox) deferred pending an explicit dependency decision  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3189,
+          "line": 3197,
           "text": "D-0069 \u2014 Adopt Wasmtime as the reference executor for untrusted pipeline components, isolated to a dedicated runner  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3263,
+          "line": 3271,
           "text": "D-0070 \u2014 Ship self-hosted forge spine Batch 3: TUF-adapted release verification (rollback protection, transparency log, freshness, provenance quorum)  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3343,
+          "line": 3351,
           "text": "D-0071 \u2014 Ship self-hosted forge spine Batch 4: real installation, `mini-installer`  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3427,
+          "line": 3435,
           "text": "D-0072 \u2014 Fix `mini-erasure`'s generator matrix: naive Vandermonde-append did not have the promised MDS property  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3499,
+          "line": 3507,
           "text": "D-0073 \u2014 Treasury economic model: XRPL/XMR two-bridge design replaces BTC/XMR framing  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3561,
+          "line": 3569,
           "text": "D-0074 \u2014 Long-term issuance envelope and formal anti-whale wall  \u00b7  *Accepted*"
         },
         {
           "level": 3,
-          "line": 3635,
+          "line": 3643,
           "text": "D-0075 \u2014 Private Human Continuity Proof redefines personhood signal (b)  \u00b7  *Accepted*"
         }
       ],
@@ -45096,26 +45096,26 @@
         "beta",
         "slice",
         "review",
+        "track",
         "audit",
         "closes",
-        "track",
         "log",
         "batch",
-        "phase",
         "decision",
         "first",
         "roadmap",
+        "doctrine",
+        "phase",
         "release",
         "mini-consensus",
         "status",
         "design",
         "new",
-        "research",
-        "lane"
+        "research"
       ],
-      "lines": 10499,
+      "lines": 10584,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "aeb675e4c305ecec8cef736a902f72890e978fc548ac9c0274a3f27f918e3945",
+      "sha256": "7619c0c340c6fdd372f4dcfb699b9a642c98d8a1199c9962f7dc1adde0f82b1c",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -45197,7 +45197,7 @@
       "title": "Start here \u2014 for a developer"
     },
     {
-      "bytes": 7417,
+      "bytes": 9032,
       "group": "docs",
       "headings": [
         {
@@ -45263,16 +45263,26 @@
         {
           "level": 2,
           "line": 124,
-          "text": "Implementation-level corrections"
+          "text": "Value & economics"
         },
         {
           "level": 3,
           "line": 126,
+          "text": "Protocol-native issuance, exchange, or custody of legacy currency"
+        },
+        {
+          "level": 2,
+          "line": 152,
+          "text": "Implementation-level corrections"
+        },
+        {
+          "level": 3,
+          "line": 154,
           "text": "`ConfidentialAmountScheme`'s original trait shape"
         },
         {
           "level": 2,
-          "line": 145,
+          "line": 173,
           "text": "Open item"
         }
       ],
@@ -45302,14 +45312,14 @@
         "one",
         "closed"
       ],
-      "lines": 152,
+      "lines": 180,
       "path": "docs/FAILURE_BOOK.md",
-      "sha256": "281d8a2ffec5f7f9fe6ac3a4f1630dd25b344d82440b71b8f0fa63f457fe48f9",
+      "sha256": "43285bb1c3cdc4ab616aa51567de36e8cf9af97adc990e163f55ec3f03a81115",
       "symbols": [],
       "title": "The Mininet Failure Book"
     },
     {
-      "bytes": 10867,
+      "bytes": 11899,
       "group": "docs",
       "headings": [
         {
@@ -45415,23 +45425,28 @@
         {
           "level": 2,
           "line": 459,
+          "text": "Directive 18 \u2014 The Edge May Be Convenient; The Core May Never Depend On It"
+        },
+        {
+          "level": 2,
+          "line": 501,
           "text": "Final Words"
         },
         {
           "level": 2,
-          "line": 477,
+          "line": 519,
           "text": "How this document relates to everything else in this repository"
         },
         {
           "level": 2,
-          "line": 499,
-          "text": "Canonical status (D-0090)"
+          "line": 541,
+          "text": "Canonical status (D-0090, extended D-0352)"
         }
       ],
       "keywords": [
         "directive",
-        "every",
         "never",
+        "every",
         "may",
         "fail",
         "humanity",
@@ -45450,13 +45465,13 @@
         "eventually",
         "money",
         "against",
+        "depend",
         "what",
-        "does",
-        "continue"
+        "does"
       ],
-      "lines": 512,
+      "lines": 556,
       "path": "docs/FOUNDER_DIRECTIVES.md",
-      "sha256": "05bb5f75f813ab70e6a098b3b33a6bbe95ee9d62b929b3242badbb609b9498a7",
+      "sha256": "86416d9351ff0f2b8575fac80bba556a62842fe4ab4b821694ff1df95280f714",
       "symbols": [],
       "title": "MININET \u2014 Founder Directives"
     },
@@ -45615,7 +45630,7 @@
       "title": "Start here \u2014 for a curious person"
     },
     {
-      "bytes": 17965,
+      "bytes": 20659,
       "group": "docs",
       "headings": [
         {
@@ -45681,53 +45696,58 @@
         {
           "level": 2,
           "line": 155,
+          "text": "10. Edge / provider layer \u2014 read Founder Directive 18 first"
+        },
+        {
+          "level": 2,
+          "line": 178,
           "text": "Foundational (cross-cutting, don't fit one domain above)"
         },
         {
           "level": 2,
-          "line": 163,
+          "line": 186,
           "text": "Tier T \u2014 Tunable within limits (one-human-one-vote + timelock + bounds-check)"
         },
         {
           "level": 2,
-          "line": 179,
+          "line": 202,
           "text": "Tier O \u2014 Organic (permissionless; no vote)"
         },
         {
           "level": 3,
-          "line": 187,
+          "line": 210,
           "text": "How to use this file in review"
         }
       ],
       "keywords": [
         "one",
+        "read",
         "identity",
         "invariants",
-        "read",
         "file",
         "chain",
         "hard",
+        "directive",
         "spec-00",
         "weight",
         "verified",
         "voice",
         "value",
+        "first",
         "vote",
         "enforced",
         "tree",
         "invariant",
         "every",
-        "directive",
         "governance",
         "validator",
         "root",
         "checklist",
-        "these",
-        "money"
+        "these"
       ],
-      "lines": 212,
+      "lines": 235,
       "path": "docs/INVARIANTS.md",
-      "sha256": "cbcfe7c051843e767f6eab77a09cb8949b2336bc7b67d51fb0fdc939dc0a83d1",
+      "sha256": "54de23d641e220ac4d22ac9c9d308cd1865e3b51b8c4d35569437b90177dba6d",
       "symbols": [],
       "title": "Invariants \u2014 the engineer's primary checklist"
     },
@@ -46239,7 +46259,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 69398,
+      "bytes": 69465,
       "group": "docs",
       "headings": [
         {
@@ -46299,22 +46319,22 @@
         },
         {
           "level": 2,
-          "line": 696,
+          "line": 697,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 929,
+          "line": 930,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1004,
+          "line": 1005,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1065,
+          "line": 1066,
           "text": "Where to look for more detail"
         }
       ],
@@ -46344,9 +46364,9 @@
         "social",
         "network"
       ],
-      "lines": 1080,
+      "lines": 1081,
       "path": "docs/STATUS.md",
-      "sha256": "787e59b2acad22d9db35f0c627b10c18f85307625f408df1693e653046b29174",
+      "sha256": "93066a9b2b2e6853a196c0a8fd98e0e7c53cf9631172fb389420a6a98c4b74d2",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -46458,7 +46478,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 22049,
+      "bytes": 25630,
       "group": "docs",
       "headings": [
         {
@@ -46503,7 +46523,12 @@
         },
         {
           "level": 2,
-          "line": 115,
+          "line": 113,
+          "text": "6. Edge-provider threats \u2014 the world Mininet touches but does not control"
+        },
+        {
+          "level": 2,
+          "line": 130,
           "text": "What this document is not"
         }
       ],
@@ -46511,15 +46536,16 @@
         "threat",
         "directive",
         "what",
+        "threats",
         "founder",
         "invariant",
-        "threats",
         "invariants",
         "document",
         "answers",
         "why",
         "capture",
         "how",
+        "but",
         "exists",
         "stop",
         "point",
@@ -46530,12 +46556,11 @@
         "file",
         "people",
         "machine",
-        "single",
-        "decision_log"
+        "single"
       ],
-      "lines": 130,
+      "lines": 145,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "1ed5c4fc718700145e3c2fe7e1672aa859b136c9ec1cf852d2898a816ba35d48",
+      "sha256": "2986cd285b9b253e7e86afb78e855a9dcbeee9ae2351965ff4175c6e3c3af743",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -58764,27 +58789,27 @@
       "title": "\"\"\"Reference Mininet bootstrap governance validator."
     },
     {
-      "bytes": 8069,
+      "bytes": 8461,
       "group": "tools",
       "headings": [
         {
           "level": 1,
-          "line": 37,
+          "line": 38,
           "text": "One-line, faithful distillations of each directive's own text below \u2014"
         },
         {
           "level": 1,
-          "line": 38,
+          "line": 39,
           "text": "not new claims, just short enough to scan in a table. The digest field"
         },
         {
           "level": 1,
-          "line": 39,
+          "line": 40,
           "text": "is what actually binds a registry entry to the canonical prose; this"
         },
         {
           "level": 1,
-          "line": 40,
+          "line": 41,
           "text": "statement is a human-readable label, not the source of truth."
         }
       ],
@@ -58814,9 +58839,9 @@
         "python3",
         "json"
       ],
-      "lines": 198,
+      "lines": 204,
       "path": "tools/constitution_registry.py",
-      "sha256": "392092a6698b0cd2708130ca16977f300e44f70464ade65ec99a5ed4910f92a3",
+      "sha256": "c7634d76eafd1bf37937ccb12909a771da08e686f7be81af839b697a4c52307e",
       "symbols": [],
       "title": "One-line, faithful distillations of each directive's own text below \u2014"
     },
