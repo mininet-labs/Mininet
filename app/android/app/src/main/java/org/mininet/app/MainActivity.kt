@@ -55,6 +55,7 @@ import org.mininet.core.AppEventKind
 import org.mininet.core.AppSnapshot
 import org.mininet.core.OnboardingStage
 import org.mininet.core.PlatformCapabilities
+import org.mininet.core.RootCore
 import org.mininet.core.SecurityReadiness
 import org.mininet.core.apiVersion
 import org.mininet.core.dispatch
@@ -76,11 +77,19 @@ class MainActivity : ComponentActivity() {
 
 sealed interface CoreUiState {
     data class Ready(val snapshot: AppSnapshot, val notice: AppEventKind? = null) : CoreUiState
+    data class RootCreated(val rootDid: String, val deviceDid: String) : CoreUiState
     data class Unavailable(val reason: String) : CoreUiState
 }
 
 class MiniViewModel(application: android.app.Application) : AndroidViewModel(application) {
     private val capabilities = readPlatformCapabilities(application)
+
+    // Real root/device identity (D-0335's RootCore), created once per
+    // ViewModel instance. This is intentionally in-process-only: no
+    // StorageCipher/encrypted-persistence adapter exists yet (issue #198),
+    // so a killed process still loses this identity -- never faked as
+    // durable.
+    private val rootCore = RootCore()
 
     var state: CoreUiState by mutableStateOf(loadInitialState(capabilities))
         private set
@@ -98,6 +107,19 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
         state = runCatching {
             val outcome = dispatch(ready.snapshot, command)
             CoreUiState.Ready(outcome.snapshot, outcome.events.lastOrNull()?.kind)
+        }.getOrElse { CoreUiState.Unavailable(it.message ?: it::class.java.simpleName) }
+    }
+
+    // The reducer deliberately never creates identity itself (`dispatch`
+    // always answers `RootCreationPending` at this stage) -- root/device
+    // creation is RootCore's own boundary, called directly here rather
+    // than routed through the command/event reducer.
+    fun createRoot() {
+        if (state !is CoreUiState.Ready) return
+        state = runCatching {
+            val rootDid = rootCore.createRoot()
+            val deviceDid = rootCore.createDevice()
+            CoreUiState.RootCreated(rootDid = rootDid, deviceDid = deviceDid)
         }.getOrElse { CoreUiState.Unavailable(it.message ?: it::class.java.simpleName) }
     }
 
@@ -170,7 +192,9 @@ private fun MininetApp(model: MiniViewModel = viewModel()) {
                     state = state,
                     onContinue = { model.send(AppAction.CONTINUE) },
                     onBack = { model.send(AppAction.BACK) },
+                    onCreateRoot = { model.createRoot() },
                 )
+                is CoreUiState.RootCreated -> RootCreatedScreen(state)
                 is CoreUiState.Unavailable -> CoreUnavailable(state.reason)
             }
         }
@@ -182,6 +206,7 @@ private fun OnboardingScreen(
     state: CoreUiState.Ready,
     onContinue: () -> Unit,
     onBack: () -> Unit,
+    onCreateRoot: () -> Unit,
 ) {
     val snapshot = state.snapshot
     val copy = stageCopy(snapshot.onboardingStage)
@@ -212,13 +237,16 @@ private fun OnboardingScreen(
         if (state.notice == AppEventKind.SECURE_STORAGE_REQUIRED) {
             NoticeCard("Secure key storage is required before Mininet can create an identity.")
         }
-        if (state.notice == AppEventKind.ROOT_CREATION_PENDING) {
-            NoticeCard("The key-custody adapter is the next code slice. This build will not fake root creation.")
-        }
 
         Spacer(Modifier.height(8.dp))
         Button(
-            onClick = onContinue,
+            onClick = {
+                if (snapshot.onboardingStage == OnboardingStage.ROOT_CREATION_READY) {
+                    onCreateRoot()
+                } else {
+                    onContinue()
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -246,6 +274,52 @@ private fun OnboardingScreen(
     }
 }
 
+@Composable
+private fun RootCreatedScreen(state: CoreUiState.RootCreated) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Text(
+            "Root created",
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Black,
+            lineHeight = 42.sp,
+        )
+        Text(
+            "This identity and its first delegated device exist only in this app's memory right now. Closing the app loses them -- encrypted on-device persistence across restarts is the next slice, not yet built.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Ink.copy(alpha = 0.78f),
+            lineHeight = 26.sp,
+        )
+        IdentityCard("Root", state.rootDid)
+        IdentityCard("This device", state.deviceDid)
+    }
+}
+
+@Composable
+private fun IdentityCard(label: String, did: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(24.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(label, fontWeight = FontWeight.ExtraBold)
+            Text(
+                did,
+                style = MaterialTheme.typography.bodySmall,
+                color = Ink.copy(alpha = 0.7f),
+            )
+        }
+    }
+}
+
 private data class StageCopy(
     val eyebrow: String,
     val title: String,
@@ -268,9 +342,9 @@ private fun stageCopy(stage: OnboardingStage): StageCopy = when (stage) {
     )
     OnboardingStage.ROOT_CREATION_READY -> StageCopy(
         eyebrow = "Device check complete",
-        title = "Ready for the real custody adapter.",
-        body = "The Rust core accepted this device's security capabilities. Root generation and encrypted recovery are deliberately blocked until their platform adapter and tests land.",
-        action = "Create root (next slice)",
+        title = "Ready to create your identity.",
+        body = "The Rust core accepted this device's security capabilities. Root and device creation run for real now; encrypted on-device persistence across restarts is still the next slice, so closing the app will lose this identity until that lands.",
+        action = "Create root",
     )
 }
 
@@ -375,6 +449,7 @@ private fun WelcomePreview() {
             ),
             onContinue = {},
             onBack = {},
+            onCreateRoot = {},
         )
     }
 }
