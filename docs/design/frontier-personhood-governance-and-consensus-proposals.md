@@ -488,7 +488,9 @@ source, commit history, and `STATUS.md` identify the shipped crates as `D-0400`
 and `D-0402`, while `DECISION_LOG.md` reserves that track but contains no
 corresponding `### D-0400` or `### D-0402` decision entries at this checkpoint.
 This proposal does not invent those missing decisions or infer their exact
-effect from commit messages.
+effect from commit messages. *Update: a follow-up PR (#221) has since been
+opened to add the retroactive `D-0400`/`D-0402` entries; treat that gap as
+open until #221 merges, not as already closed.*
 
 Therefore Wave 4 cannot honestly prove a *canonical* completed engagement until
 Wave 2 wires transition objects, signatures, settlement reconciliation, and a
