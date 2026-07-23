@@ -145,13 +145,19 @@ so, everywhere, on purpose.
   URL admission policy — bounded same-host frontiers, explicit robots
   exclusions, depth/queue/URL-length limits, and no network client,
   parser, JavaScript, storage, ranking, or payment logic
-- `mini-provider` (D-0400) / `mini-engagement` (D-0402): Founder
+- `mini-provider` (D-0400) / `mini-engagement` (D-0402, D-0403): Founder
   Directive 18's edge/provider layer, Waves 1-2 — `ProviderDeclaration`
   (mandatory custody/freeze/death/exit disclosure fields), the device-
   local-only `LocalProviderPolicy` off switch, and a generic escrowed-
   work state machine over `mini-settlement`; pure vocabulary and state
-  machine only, no signing, no canonical registry, no settlement
-  submission yet
+  machine, with a read-only bridge (`canonical_completion_status`)
+  reconciling completion against a real `CanonicalLedgerView` — no
+  signing, no canonical registry, and no way yet to broadcast a claim
+  toward consensus in the first place
+- `mini-pq-anchor` (D-0353): PQ anchor pre-provisioning + wallet
+  inventory — generates a dormant ML-DSA-65 keypair and tracks it per
+  identity root; never committed to any KEL, never a claim that an
+  unanchored identity becomes recoverable
 
 **Prototype cryptography — real code, founder-reviewed, NOT yet audited:**
 - stealth addresses, linkable ring signatures, Bulletproofs confidential
