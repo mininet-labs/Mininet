@@ -2557,6 +2557,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-pq-anchor"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+]
+
+[[package]]
 name = "mini-presence"
 version = "0.0.1"
 dependencies = [
