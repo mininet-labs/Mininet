@@ -59,6 +59,7 @@ members = [
     "crates/mini-extract-host",
     "crates/mini-provider",
     "crates/mini-engagement",
+    "crates/mini-pq-anchor",
 ]
 
 [workspace.package]

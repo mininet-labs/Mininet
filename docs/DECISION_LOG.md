@@ -10691,3 +10691,136 @@ real `mini_settlement::reconcile` submission; Wave 3
 **Supersedes / superseded by:** none. Like D-0400, this entry
 retroactively records a decision whose code shipped in PR #219 without
 a corresponding `DECISION_LOG.md` entry at merge time.
+
+### D-0403 — `mini-engagement`: read-only canonical-completion bridge to `mini-settlement`  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** D-0402, D-0400, `mini-settlement` (D-0055),
+PR #220's research proposal §3.1, roadmap issue #226 ("Frontier Trust 5"),
+`mini-forge::KelDirectory`/`mini_presence::ReplayGuard`'s seam pattern.
+
+**Decision:** Add `mini-engagement::settlement::canonical_completion_status`,
+reconciling `Engagement::escrow_claim` against a real
+`mini_settlement::CanonicalLedgerView` (via the existing
+`mini_settlement::reconcile`) and combining that truth with the
+engagement's local `EngagementState`. Produces
+`CanonicalCompletionStatus` with five variants — `Pending`,
+`CanonicallyCompleted`, `FinalizedWithoutLocalCompletion`,
+`RejectedConflict`, `Expired` — so a caller can distinguish "I locally
+recorded this as done" from "the canonical ledger agrees value moved."
+Strictly read-only: never writes to the ledger, never submits the claim
+anywhere, never finalizes anything on its own authority — the same
+seam discipline `mini_settlement::CanonicalLedgerView` itself already
+documents (a trait a real chain-execution engine backs later, tested
+today against `InMemoryLedgerView`).
+
+**Reason:** D-0402's own "Failure point" named this exact gap: nothing
+in `mini-engagement` ever asked a real ledger whether an escrow claim
+finalized, so a locally-constructed `Completed` state could not be
+honestly distinguished from a canonically settled one. PR #220's
+research proposal (§3.1) named the same gap as a hard prerequisite for
+FD-18 Wave 4's `mini-attest`, which must attest against real canonical
+completion, not a serialized Rust struct a reviewer supplied.
+
+**Constitutional impact:** Directive 5 / FD-05 (a signed promise is
+never final ownership), M1 (`docs/INVARIANTS.md` §4 — no merge path;
+`FinalizedWithoutLocalCompletion` is surfaced explicitly rather than
+silently folded into either "complete" or "pending" for exactly this
+reason), M2 (pending/accepted/finalized stay distinguishable types, not
+UI convention), M3 (canonical ordering alone resolves conflicts —
+`RejectedConflict` is reported, never merged with whatever did win).
+No Tier-F invariant row changes; this composes `mini-settlement`'s
+existing frozen guarantees rather than adding new ones.
+
+**Implementation status:** Shipped this PR. 6 new tests: nothing
+finalized yet is `Pending`; a finalized claim with local `Completed`
+state is `CanonicallyCompleted`; a finalized claim *without* local
+completion is flagged, not silently treated as done; a conflicting
+finalized claim is `RejectedConflict` regardless of local state; an
+unresolved claim past its validity window is `Expired`; a tampered
+escrow claim's bad signature surfaces as `EngagementError::Settlement`
+rather than a false `Pending`. `cargo fmt`/`clippy -D warnings`/`test`
+clean for the crate.
+
+**Failure point:** this closes the *read* half only. Actually getting
+`escrow_claim` in front of a canonical ledger in the first place —
+broadcasting it toward real consensus so it *can* eventually
+finalize — is separate, unbuilt networked-consensus wiring (roadmap
+#36-#45: no networked chain-execution engine exists yet for any
+`CanonicalLedgerView` implementation to be chain-backed against). Until
+that lands, `canonical_completion_status` is fully correct but has
+nothing real to reconcile against outside tests.
+
+**Required follow-up:** a real chain-backed `CanonicalLedgerView`
+implementation (roadmap #36-#45, mirroring `mini-execution`'s existing
+`LedgerState` seam for `mini_settlement::CanonicalLedgerView`); FD-18
+Wave 4 `mini-attest` (D-0404, reserved) consuming
+`CanonicalCompletionStatus::CanonicallyCompleted` as its completion
+evidence once that exists.
+
+**Supersedes / superseded by:** none. Extends D-0402 without changing
+any of its existing public API.
+
+### D-0353 — `mini-pq-anchor`: PQ anchor pre-provisioning + wallet inventory  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** D-0095 (Phase 1, ML-DSA-65 verify-only),
+D-0322 (Phase 2, ML-DSA-65 keygen/signing), `docs/design/
+post-quantum-identity-migration.md`, PR #220's research proposal §4.2,
+roadmap issue #231 ("Frontier Trust 10"), roadmap issue #15.
+
+**Decision:** Ship `mini-pq-anchor` as a new leaf crate (no core crate
+depends on it): `provision_anchor` generates a fresh
+`mini_crypto::SignatureSuite::MlDsa65` keypair (via the existing Phase 2
+`SigningKey::generate_ml_dsa_65`) and wraps its public half in a
+`PqAnchorRecord` tagged `AnchorStatus::Provisioned` — the only status
+this crate's code can ever construct. `PqAnchorInventory` collects
+records per owning `did_mini::Did` and exposes `InventorySummary`
+(`NoAnchorProvisioned` / `AnchorsProvisioned { count,
+most_recent_generated_at_ms }`) as the one place wallet UI reads
+PQ-readiness from — mirroring `mini_settlement::SettlementState::
+wallet_label`'s "collapse detail into the one question a UI needs"
+pattern. The `SigningKey` secret is returned once, at provisioning
+time, and never stored or serialized by this crate.
+
+**Reason:** PR #220's research proposal names pre-provisioning as the
+one PQ-migration piece genuinely buildable today without waiting on a
+live-break scenario, using the already-shipped, already-reviewed Phase
+2 primitive. Building it as an isolated leaf crate — rather than
+touching `did-mini` — keeps it entirely outside the KEL/identity
+authority surface that D-0047's external-audit gate and `docs/design/
+post-quantum-identity-migration.md`'s "hard rule: no production
+migration before external review" protect.
+
+**Constitutional impact:** CLAUDE.md's no-inventing-cryptography rule
+(composes `mini-crypto`'s already-reviewed ML-DSA-65 primitive only;
+adds none), the D-0047 external-audit gate (this crate does not use
+`MlDsa65` for any production identity authority — no KEL write path
+exists here at all), Directive 16 voice/value wall (not applicable —
+this crate touches neither). No Tier-F invariant row changes.
+
+**Implementation status:** Shipped this PR. `anchor.rs`: 5 tests
+(well-formed provisioning, the returned `SigningKey` actually verifies
+against the record's public key, oversized labels rejected before key
+generation, two anchors for the same owner get different keys/
+fingerprints, fingerprint stability). `inventory.rs`: 6 tests (empty
+inventory reports no anchor, adding a record surfaces in that owner's
+summary, cross-owner isolation, most-recent-timestamp tracking, the
+per-owner cap is enforced, `for_owner` returns oldest-first).
+`cargo fmt`/`clippy -D warnings`/`test` clean for the crate.
+
+**Failure point:** an `MlDsa65` `SigningKey`'s secret half has no
+storage export/import path in `mini-crypto` today (Phase 2's own
+documented boundary) — this crate returns the secret once and cannot
+help a caller persist it across a process restart. A wallet that does
+not solve secure on-device persistence separately will lose a
+"provisioned" anchor's secret the moment the process exits, leaving
+only a public key on record with no way to ever sign with it. This
+crate's docs state that limit explicitly rather than implying
+persistence is solved.
+
+**Required follow-up:** real on-device secure storage for `MlDsa65`
+secrets (a `mini-crypto`/platform-keystore concern, not this crate's);
+the emergency migration procedure itself (roadmap issue #230, "Frontier
+Trust 9" — explicitly out of scope here); eventual `did-mini` Phase 3
+KEL hybrid-rotation wiring that would let a provisioned anchor actually
+be committed to an identity, still not started and still gated on
+external cryptographic review.
+
+**Supersedes / superseded by:** none.

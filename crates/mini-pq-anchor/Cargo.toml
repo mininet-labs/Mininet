@@ -1,0 +1,14 @@
+[package]
+name = "mini-pq-anchor"
+version = "0.0.1"
+description = "PQ anchor pre-provisioning inventory + wallet-facing UI vocabulary (roadmap issue #231, PR #220 research proposal §4.2). A LEAF crate -- no core crate depends on it. Generates and tracks dormant mini-crypto::SignatureSuite::MlDsa65 keypairs held by a wallet; never commits an anchor into any did-mini KEL and never claims an unanchored identity becomes recoverable -- that is the separate, gated Phase 3 migration work (docs/design/post-quantum-identity-migration.md)."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-crypto = { path = "../mini-crypto" }

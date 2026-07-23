@@ -259,7 +259,17 @@ given time.
   phased plan, and the honest limit found along the way: an all-zero
   ML-DSA-65 "public key" of the correct length parses successfully (FIPS
   204's encoding has no structural validity check the way Ed25519's
-  does) but never verifies a real signature.
+  does) but never verifies a real signature. **shipped (D-0353, roadmap
+  #231):** `mini-pq-anchor`, a leaf crate (no core crate depends on it)
+  that generates a dormant ML-DSA-65 keypair (`provision_anchor`) and
+  tracks it in a per-owner `PqAnchorInventory` with a wallet-facing
+  `InventorySummary` — pre-provisioning only, never committed to any KEL,
+  never attested, never granted authority. Does not persist the secret
+  key across a process restart (`mini-crypto`'s Phase 2 has no ML-DSA-65
+  storage export/import path yet) and does not make an unanchored
+  identity recoverable — PQ recovery Class C (an identity with no
+  pre-break anchor cannot be distinguished from an attacker) remains
+  exactly as unsolved as before.
 - **not started** — device hierarchy beyond current single-tier
   delegation ([#14](../../issues/14)), on-chain pre-rotation anchoring
   (needs the chain).
@@ -1084,9 +1094,18 @@ variant (non-negotiable #10). Wraps a real, already-signed
 `mini_settlement::PaymentClaim` and tracks released amounts against it,
 never exceeding the claim's total. `timeout()` is a real function
 encoding "every state has an edge back to the payer," not a convention.
-Submitting a release through `mini_settlement::reconcile` against a
-`CanonicalLedgerView` — so a release becomes canonical rather than only
-locally tracked — is not wired yet.
+
+**shipped (D-0403, roadmap #226)** — `mini-engagement::settlement::
+canonical_completion_status`: reconciles `escrow_claim` against a real
+`mini_settlement::CanonicalLedgerView` (via `mini_settlement::reconcile`)
+and combines that with local `EngagementState`, so a caller can tell a
+locally-recorded `Completed` from one the canonical ledger actually
+agrees happened. Read-only, mirrors `reconcile` exactly — never submits
+the claim anywhere and never finalizes anything itself. What is still
+missing: getting the claim *in front of* a canonical ledger in the
+first place (no networked chain-execution engine exists yet, roadmap
+#36-#45), so today this has nothing real to reconcile against outside
+tests.
 
 **not started** — Wave 3 (`mini-succession`, D-0410: death, inheritance,
 a vote that structurally cannot transfer), Wave 4 (`mini-attest`,
