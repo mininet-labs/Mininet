@@ -10824,3 +10824,88 @@ be committed to an identity, still not started and still gated on
 external cryptographic review.
 
 **Supersedes / superseded by:** none.
+
+### D-0354 — `mini-airdrop`: testnet-scale eligibility snapshot + signed claim-redemption verification  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** `mini-settlement` (D-0055) and
+`mini-bounty`'s claim-message conventions (composed, not duplicated),
+`did-mini::Kel::verify_message`, `mini-uniqueness::HumanStatus`,
+CLAUDE.md's D-0037/D-0047 external-audit gate, roadmap issue #18
+(Sybil resistance unsolved).
+
+**Decision:** Ship `mini-airdrop`: `SnapshotBuilder`/`AirdropSnapshot`
+enforce at most one entry per identity root, bounded entry count/reason
+length, and a BLAKE3-256 `digest()` over the canonical (sorted) snapshot
+content so a claim can bind itself to one exact snapshot. `ClaimRequest`
+carries a domain-tagged, length-prefixed signed message (campaign id +
+identity root + recipient + nonce); `verify_and_resolve_claim` checks
+campaign match, verifies the claimant's real `did-mini` KEL and that its
+scid matches the claimed identity root, verifies the signature against
+that KEL's current threshold via the existing `Kel::verify_message`, checks
+snapshot membership, and checks a `ClaimedRegistry` for a prior claim —
+in that order, marking the registry claimed only on full success. The
+crate never produces a `mini_settlement::PaymentClaim` and never holds
+treasury signing authority; `ClaimOutcome` is deliberately just an
+amount and a recipient for whatever real custody mechanism (a
+`mini-treasury` FROST quorum, in production) to build a settlement claim
+from.
+
+**Reason:** An airdrop needs three structural guarantees regardless of
+whatever eligibility policy a campaign operator chooses: no double
+allocation per identity root, no claim usable outside the campaign it
+was signed for, and no claim honored without proving control of the
+claimed identity root using the same keys `did-mini` already trusts. This
+crate provides exactly those three guarantees as composition over
+already-reviewed primitives (`did-mini` KEL verification, `mini-crypto`
+hashing) and takes no position on eligibility policy itself, mirroring
+`mini-provider`'s "protocol never judges content" discipline.
+
+**Constitutional impact:** CLAUDE.md's no-inventing-cryptography rule
+(composes `did-mini`'s already-reviewed KEL signature verification and
+`mini-crypto`'s BLAKE3 hashing; adds no new primitive). Directive 5 /
+FD-05 (a `ClaimOutcome` is never final ownership — this crate cannot
+move value, only a real settlement-claim signer downstream can). The
+D-0037/D-0047 external-audit gate: this crate is prototype-only, exactly
+like `mini-value`/`mini-treasury`, and no production/mainnet airdrop may
+use it before external review of the eligibility/claim protocol itself,
+not just its primitives. No Tier-F invariant row changes. Does **not**
+touch the voice/value wall (P1): `mini-uniqueness` is a personhood-signal
+crate, not a governance/vote-counting crate, and `AllocationEntry::
+human_status` is read by nothing in this crate's own verification logic —
+purely advisory data carried through for a campaign operator or client UI.
+
+**Implementation status:** Shipped this PR. 15 tests: 7 in
+`snapshot` (duplicate-root rejection, zero-amount rejection, oversized
+campaign id, lookup correctness, digest order-independence, digest
+sensitivity to amount/campaign changes) and 8 in `claim` (happy path
+marks the registry; a second claim by the same root is rejected; wrong
+campaign id is rejected; an identity root absent from the snapshot is
+rejected and the registry stays untouched; presenting a different
+identity's KEL is rejected; a signature from a key outside the KEL is
+rejected; tampering with the recipient after signing invalidates the
+signature; an oversized recipient is rejected before any cryptographic
+verification runs). `cargo fmt`/`clippy -D warnings`/`test` clean for
+the crate and the full workspace.
+
+**Failure point:** this crate does not, and cannot, solve Sybil
+resistance — an identity root successfully claiming proves only that
+whoever controls that root's current KEL keys signed the request, not
+that a single distinct human controls it (`mini-uniqueness`'s own
+`HumanStatus` names this same limit and roadmap issue #18 remains the
+open problem). A campaign built naively on "one identity root, one
+claim" without independent Sybil mitigation is exactly as
+Sybil-vulnerable as the identity layer itself is today. `ClaimedRegistry`
+here is in-memory/test-only; a production deployment needs a real
+persisted (or canonical-ledger-backed) implementation, and nothing here
+gates a claim on the airdrop treasury actually holding enough MINI to
+honor every eligible entry — that reconciliation is the responsibility
+of whatever system builds settlement claims from `ClaimOutcome`s.
+
+**Required follow-up:** a real `ClaimedRegistry` backend; the treasury-
+side settlement-claim construction/signing flow (composing
+`mini-treasury` FROST custody + `mini_settlement::sign_claim`, not built
+here); external audit of the eligibility/claim protocol (D-0047) before
+any production use; genuine Sybil-resistance work (roadmap #18, Frontier
+Trust Program issues #222-#225) before any campaign relies on identity-
+root uniqueness alone.
+
+**Supersedes / superseded by:** none.

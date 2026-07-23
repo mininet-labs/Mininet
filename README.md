@@ -168,6 +168,10 @@ so, everywhere, on purpose.
   coding + self-healing shard repair (`mini-erasure`)
 - anonymous developer-bounty claims (`mini-bounty`); offline settlement
   protocol (`mini-settlement`)
+- airdrop eligibility snapshot + signed claim-redemption verification
+  (`mini-airdrop`, D-0354) — does not solve Sybil resistance, never
+  holds treasury signing authority, and produces only a claim outcome
+  for a separate real settlement-signing flow to act on
 
 **Not ready yet, and openly tracked:**
 - a mobile or desktop app anyone can install

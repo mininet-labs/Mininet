@@ -1117,6 +1117,34 @@ tests/edge_wall.rs` dependency-wall CI check that would flip
 INV-18-01/02/04/05/08 from `pending` to enforced in `docs/INVARIANTS.md`
 also does not exist yet.
 
+## 13. Airdrop eligibility (D-0354)
+
+**shipped, prototype** — `mini-airdrop`: `SnapshotBuilder`/
+`AirdropSnapshot` (one entry per identity root, bounded size, a
+BLAKE3-256 content digest a claim binds to) and `verify_and_resolve_claim`
+(campaign match → real `did-mini` KEL verification and scid match → KEL-
+threshold signature check → snapshot membership → `ClaimedRegistry`
+double-claim check → mark claimed). Returns a `ClaimOutcome` (amount +
+recipient) only — never a `mini_settlement::PaymentClaim`, never holds
+treasury signing authority. Composes only already-reviewed primitives
+(`did-mini` KEL verification, `mini-crypto` BLAKE3); no new cryptography.
+
+**Gated behind D-0047 like `mini-value`/`mini-treasury`** — prototype
+only, no production/mainnet airdrop before external review of the
+eligibility/claim protocol itself. **Does not solve Sybil resistance**:
+`AllocationEntry::human_status` carries a `mini-uniqueness::HumanStatus`
+signal purely as advisory campaign-operator information, read by nothing
+in this crate's own verification logic — one identity root claiming
+successfully proves control of that root's KEL keys, nothing about how
+many humans control it (roadmap #18, still open).
+
+**Not built** — a persisted `ClaimedRegistry` backend (in-memory/test-only
+today); the treasury-side settlement-claim construction/signing flow that
+would actually turn a `ClaimOutcome` into moved value (composing
+`mini-treasury` FROST custody + `mini_settlement::sign_claim`); any
+reconciliation check that the airdrop treasury actually holds enough MINI
+to honor every eligible entry.
+
 ## Where to look for more detail
 
 - `WHITEPAPER.md` (repository root, D-0323) — the single-document public

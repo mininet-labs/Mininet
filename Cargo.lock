@@ -2254,6 +2254,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-airdrop"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-uniqueness",
+]
+
+[[package]]
 name = "mini-bearer"
 version = "0.0.1"
 dependencies = [

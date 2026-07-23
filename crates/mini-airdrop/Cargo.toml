@@ -1,0 +1,21 @@
+[package]
+name = "mini-airdrop"
+version = "0.0.1"
+description = "Testnet-scale airdrop eligibility snapshot + signed claim-redemption verification. A prototype crate, gated behind D-0047 (external cryptographic/protocol audit) before any production/mainnet use, exactly like mini-value and mini-treasury -- see this crate's own docs for what it deliberately does NOT solve (Sybil-resistant personhood) and does NOT do (hold treasury keys, move value, or submit anything to settlement itself)."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Identity vocabulary + real KEL signature verification (claimants prove
+# control of an identity root with the same keys did-mini already trusts,
+# not a bespoke scheme).
+did-mini = { path = "../did-mini" }
+mini-crypto = { path = "../mini-crypto" }
+# Advisory-only personhood signal carried alongside each snapshot entry --
+# never an enforcement gate. See crate docs: identity root != verified
+# human, and this crate does not change that.
+mini-uniqueness = { path = "../mini-uniqueness" }
