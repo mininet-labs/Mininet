@@ -149,7 +149,7 @@ pub fn verify_and_resolve_claim(
         return Err(AirdropError::AlreadyClaimed);
     }
 
-    registry.mark_claimed(&request.identity_root, now_ms);
+    registry.mark_claimed(&request.identity_root, now_ms)?;
 
     Ok(ClaimOutcome {
         identity_root: entry.identity_root.clone(),

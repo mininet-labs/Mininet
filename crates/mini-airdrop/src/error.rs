@@ -44,6 +44,13 @@ pub enum AirdropError {
     /// campaign -- the entire reason [`crate::registry::ClaimedRegistry`]
     /// exists.
     AlreadyClaimed,
+    /// A [`crate::registry::ClaimedRegistry`] implementation failed to
+    /// durably record a claim (e.g. a disk write/fsync failure in
+    /// [`crate::file_registry::FileClaimedRegistry`]). The message is the
+    /// backend's own error text -- carried as a `String` rather than the
+    /// original error type so `AirdropError` can stay `PartialEq`/`Eq`,
+    /// matching every other error in this crate.
+    RegistryWriteFailed(String),
 }
 
 impl core::fmt::Display for AirdropError {
@@ -85,6 +92,9 @@ impl core::fmt::Display for AirdropError {
             }
             AirdropError::AlreadyClaimed => {
                 write!(f, "identity root has already claimed this campaign")
+            }
+            AirdropError::RegistryWriteFailed(msg) => {
+                write!(f, "claimed-registry write failed: {msg}")
             }
         }
     }

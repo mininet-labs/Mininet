@@ -34,11 +34,13 @@
 //! - **Not a settlement executor.** [`claim::verify_and_resolve_claim`]
 //!   returns a [`claim::ClaimOutcome`] -- an amount and a recipient --
 //!   never a signed `mini_settlement::PaymentClaim`. This crate never
-//!   holds treasury signing authority and never could: whatever real
-//!   custody mechanism controls the airdrop treasury (a `mini-treasury`
-//!   FROST quorum, in production) is a separate system that takes a
-//!   `ClaimOutcome` and builds its own settlement claim from it. FD-05
-//!   applies unchanged: nothing here is ever final ownership by itself.
+//!   holds treasury signing authority and never could. `mini-airdrop-
+//!   treasury` (a separate crate) composes a `ClaimOutcome` with
+//!   `mini-treasury`'s existing distinct-identity approval counting to
+//!   produce an *approved payout record* -- still not a signed settlement
+//!   claim; see that crate's docs for why the real signing cryptography
+//!   (`mini_treasury::frost_sign`) stays untouched. FD-05 applies
+//!   unchanged: nothing here is ever final ownership by itself.
 //! - **Not audited, not production-ready.** Gated behind D-0047 (external
 //!   cryptographic/protocol audit) before any mainnet/real-value use,
 //!   exactly like `mini-value` and `mini-treasury`'s own prototypes. This
@@ -52,6 +54,7 @@
 
 mod claim;
 mod error;
+mod file_registry;
 mod registry;
 mod snapshot;
 
@@ -59,6 +62,7 @@ pub use claim::{
     message_to_sign, verify_and_resolve_claim, ClaimOutcome, ClaimRequest, MAX_RECIPIENT_BYTES,
 };
 pub use error::{AirdropError, Result};
+pub use file_registry::FileClaimedRegistry;
 pub use registry::{ClaimedRegistry, InMemoryClaimedRegistry};
 pub use snapshot::{
     AirdropSnapshot, AllocationEntry, SnapshotBuilder, MAX_CAMPAIGN_ID_BYTES, MAX_ENTRIES,
