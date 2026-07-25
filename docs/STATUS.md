@@ -1107,15 +1107,33 @@ first place (no networked chain-execution engine exists yet, roadmap
 #36-#45), so today this has nothing real to reconcile against outside
 tests.
 
-**not started** — Wave 3 (`mini-succession`, D-0410: death, inheritance,
-a vote that structurally cannot transfer), Wave 4 (`mini-attest`,
-D-0404, unlinkable engagement-proven reviews; `mini-arbitration`,
-D-0406; `mini-org`, D-0412, non-human roots that cannot vote), and Wave
-5 (conversion/card providers — built by independent parties, never this
-repo, and only after external audits). The `crates/mini-invariants/
-tests/edge_wall.rs` dependency-wall CI check that would flip
-INV-18-01/02/04/05/08 from `pending` to enforced in `docs/INVARIANTS.md`
-also does not exist yet.
+**implemented and tested (Wave 4 Tier 0, D-0404, roadmap #227)** —
+`mini-attest`: explicitly linkable engagement-proven reviews. A provider
+can issue a signed, content-addressed `EngagementCompletionReceiptV1`
+only when `mini-engagement` reports `CanonicallyCompleted`; verification
+repeats that check against the caller's original engagement and
+`CanonicalLedgerView`, verifies the provider KEL, checks the grant was
+active at completion, and binds the receipt to the terms/declaration,
+claim digest, holder commitment, review subject, and expiry epoch. The
+grant's pairwise subject signs `SignedReviewV1`; a holder token is
+presented separately and a verifier-local `ReviewRegistry` rejects the
+same receipt/subject twice. The stable API label is
+`LINKABLE_TIER_0`. Public receipt/review bytes omit payment amount,
+payer/payee, free-form terms, and human-root DID, but provider, pairwise
+pseudonym, receipt id, claim digest, timing, and subject commitments are
+linkable by design. There is no canonical review registry, no revocation
+feed, no standalone ledger inclusion proof, and no anonymity,
+unlinkability, personhood, governance, or provider-honesty claim.
+
+**not started / research-gated** — Wave 3 (`mini-succession`, D-0410:
+death, inheritance, a vote that structurally cannot transfer), Wave 4
+Tier 1/2 (`mini-attest` accumulator and issuer-unlinkable proof research,
+roadmap #228/#229; `mini-arbitration`, D-0406; `mini-org`, D-0412,
+non-human roots that cannot vote), and Wave 5 (conversion/card providers
+— built by independent parties, never this repo, and only after external
+audits). The `crates/mini-invariants/tests/edge_wall.rs` dependency-wall
+CI check that would flip INV-18-01/02/04/05/08 from `pending` to enforced
+in `docs/INVARIANTS.md` also does not exist yet.
 
 ## Where to look for more detail
 

@@ -154,6 +154,15 @@ so, everywhere, on purpose.
   reconciling completion against a real `CanonicalLedgerView` — no
   signing, no canonical registry, and no way yet to broadcast a claim
   toward consensus in the first place
+- `mini-attest` (D-0404, Tier 0): explicitly linkable engagement-proven
+  reviews — provider-signed, content-addressed completion receipts are
+  rechecked against the original engagement and a real
+  `CanonicalLedgerView`; the grant's pairwise pseudonym signs the review
+  and a separately presented holder token binds it to the receipt. Public
+  artifacts omit payment amount/address, free-form terms, and human-root
+  DID, but expose linkable receipt/provider/pseudonym metadata by design.
+  No unlinkability, personhood, governance, canonical review registry, or
+  standalone settlement-inclusion proof is claimed
 - `mini-pq-anchor` (D-0353): PQ anchor pre-provisioning + wallet
   inventory — generates a dormant ML-DSA-65 keypair and tracks it per
   identity root; never committed to any KEL, never a claim that an

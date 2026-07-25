@@ -2254,6 +2254,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-attest"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-engagement",
+ "mini-objects",
+ "mini-provider",
+ "mini-settlement",
+ "zeroize",
+]
+
+[[package]]
 name = "mini-bearer"
 version = "0.0.1"
 dependencies = [
