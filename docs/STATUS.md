@@ -1138,12 +1138,36 @@ in this crate's own verification logic — one identity root claiming
 successfully proves control of that root's KEL keys, nothing about how
 many humans control it (roadmap #18, still open).
 
-**Not built** — a persisted `ClaimedRegistry` backend (in-memory/test-only
-today); the treasury-side settlement-claim construction/signing flow that
-would actually turn a `ClaimOutcome` into moved value (composing
-`mini-treasury` FROST custody + `mini_settlement::sign_claim`); any
-reconciliation check that the airdrop treasury actually holds enough MINI
-to honor every eligible entry.
+**shipped, prototype (D-0355)** — `FileClaimedRegistry`: a real
+append-only, fsynced-on-write on-disk `ClaimedRegistry`. Tolerates a
+truncated trailing record (e.g. crash mid-write) by stopping there on
+replay rather than rejecting the whole file. `ClaimedRegistry::
+mark_claimed` is now fallible (`Result<()>`), so a genuine write failure
+propagates out of `verify_and_resolve_claim` instead of silently
+reporting a claim that was never durably recorded.
+
+**shipped, prototype (D-0356)** — `mini-airdrop-treasury`: bridges a
+`ClaimOutcome` to a `TreasuryApprovedPayout` by composing
+`mini_treasury::TreasurySignerSet`/`meets_threshold` (ordinary
+distinct-identity counting, not a cryptographic threshold scheme) with
+real `did-mini` KEL signature verification per candidate approval.
+Explicitly does **not** touch `mini_treasury::frost_sign` — that
+module's own docs name it the "permanent honeypot" component requiring
+external audit (D-0035) — and does **not** produce a signed
+`mini_settlement::PaymentClaim`.
+
+**Not built** — the actual settlement-claim construction/signing step
+that would turn a `TreasuryApprovedPayout` into moved value. This is
+genuinely blocked, not just unscheduled: `mini_treasury::frost_sign`
+produces a Ristretto-curve Schnorr signature `mini_crypto::
+SignatureSuite` (Ed25519/ML-DSA-65 only) cannot parse or verify, so
+`mini_settlement::PaymentClaim` cannot hold a real FROST-quorum-signed
+claim without either extending `mini_crypto::SignatureSuite` (touches a
+shared foundational crate and the frozen crypto-agility invariant
+enumeration) or a `mini_settlement`-side special case — a decision
+deliberately deferred, not resolved, in D-0356. Also not built: any
+reconciliation check that the airdrop treasury actually holds enough
+MINI to honor every eligible entry.
 
 ## Where to look for more detail
 

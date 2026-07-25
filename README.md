@@ -169,9 +169,12 @@ so, everywhere, on purpose.
 - anonymous developer-bounty claims (`mini-bounty`); offline settlement
   protocol (`mini-settlement`)
 - airdrop eligibility snapshot + signed claim-redemption verification
-  (`mini-airdrop`, D-0354) — does not solve Sybil resistance, never
-  holds treasury signing authority, and produces only a claim outcome
-  for a separate real settlement-signing flow to act on
+  (`mini-airdrop`, D-0354/D-0355) — does not solve Sybil resistance,
+  never holds treasury signing authority, and produces only a claim
+  outcome for a separate real settlement-signing flow to act on;
+  `mini-airdrop-treasury` (D-0356) bridges that outcome to a treasury
+  signer-set approval record using ordinary distinct-identity counting
+  (not the gated FROST module) — still not a signed settlement claim
 
 **Not ready yet, and openly tracked:**
 - a mobile or desktop app anyone can install

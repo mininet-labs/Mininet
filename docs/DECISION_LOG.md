@@ -10909,3 +10909,122 @@ Trust Program issues #222-#225) before any campaign relies on identity-
 root uniqueness alone.
 
 **Supersedes / superseded by:** none.
+
+### D-0355 — `mini-airdrop`: fallible `ClaimedRegistry` + `FileClaimedRegistry`  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** D-0354.
+
+**Decision:** Change `ClaimedRegistry::mark_claimed`'s signature from
+infallible to `Result<()>`, propagate that through
+`verify_and_resolve_claim` via `?`, and add `FileClaimedRegistry`: a real
+append-only, fsynced-on-write on-disk implementation. A truncated/corrupt
+trailing record (e.g. a crash mid-write) is tolerated on reopen -- every
+earlier record stays trusted, the same recovery discipline `mini-forge`'s
+release transparency log already uses.
+
+**Reason:** D-0354's own decision log named an in-memory-only
+`ClaimedRegistry` as a known gap. Building a real persisted backend
+against the *original* infallible trait signature would have been
+dishonest: a real disk write can genuinely fail, and the original trait
+gave no way to report that failure without either panicking or silently
+reporting a successful claim that was never actually durable -- exactly
+the kind of gap that lets the same identity root double-claim across a
+crash. Caught and fixed before merge, while the trait is still
+unreleased.
+
+**Constitutional impact:** none beyond D-0354's own (this is an API
+correction, not a new authority or value-moving path).
+
+**Implementation status:** Shipped this PR. 5 new tests for
+`FileClaimedRegistry`: a fresh file has no claims; a claim persists
+across reopening the same file; multiple claims all survive a reopen; a
+truncated trailing record is tolerated and earlier records still load;
+two separate registry instances opened from the same path agree after
+reopening. `cargo fmt`/`clippy -D warnings`/`test` clean.
+
+**Failure point:** `mark_claimed`'s `Result` return still does not make
+the overall claim flow transactional across process boundaries -- if a
+caller's own process crashes *after* `verify_and_resolve_claim` returns
+`Ok` but *before* it acts on the `ClaimOutcome`, nothing in this crate
+recovers that in-flight state. That is inherent to a synchronous
+verify-then-act API and not specific to this registry backend.
+
+**Required follow-up:** none identified beyond what D-0354 already names.
+
+**Supersedes / superseded by:** none. Refines D-0354's `ClaimedRegistry`
+trait before any release depends on its original infallible shape.
+
+### D-0356 — `mini-airdrop-treasury`: treasury payout approval bridge (distinct-identity counting, not FROST)  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** D-0354, `mini-treasury::signers`
+(`TreasurySignerSet`, `count_valid_approvals`, `meets_threshold`),
+`mini_treasury::frost_sign` (explicitly NOT used here), D-0035, D-0037,
+D-0047.
+
+**Decision:** Ship `mini-airdrop-treasury`, a new leaf-style crate
+composing a `mini_airdrop::ClaimOutcome` with `mini_treasury::
+TreasurySignerSet`/`meets_threshold` to produce a `TreasuryApprovedPayout`
+-- evidence that enough distinct, verified, authorized treasury signers
+approved a specific payout. Each candidate approval is a signer's real
+`did-mini` KEL plus signatures over a domain-tagged `payout_message`,
+verified via `Kel::verify_message` exactly like `mini-airdrop`'s own
+claimant verification. This module never touches
+`mini_treasury::frost_sign` and never constructs a
+`mini_settlement::PaymentClaim`.
+
+**Reason:** while investigating "compose mini-treasury FROST custody +
+mini_settlement::sign_claim" (D-0354's own stated follow-up), discovered
+`mini_treasury::frost_sign::Signature` is a Ristretto-curve Schnorr
+signature type `mini_crypto::SignatureSuite` (Ed25519/ML-DSA-65 only)
+cannot parse or verify -- so a `mini_settlement::PaymentClaim` genuinely
+cannot hold a FROST-quorum-produced signature today without either
+extending `mini_crypto::SignatureSuite` (a shared foundational crate
+every other crate switches on, plus the frozen crypto-agility invariant
+enumeration, SPEC-01 §13) or giving `mini_settlement` a special-cased
+verification path. Raised to the founder as an explicit fork (extend
+`SignatureSuite` / settlement-layer special case / defer entirely);
+founder chose the settlement-layer special case, scoped down further
+here to *not* touch `mini_settlement` or `mini_crypto` at all in this
+first step -- `mini_treasury::signers` already documents its own
+approval-counting module as deliberately **not** the real threshold-
+signature scheme (that module's docs name `frost_sign` the "permanent
+honeypot" component D-0035/whitepaper §11 require external audit for),
+so building the *authorization* step on that existing, already-reviewed-
+shape module, and stopping there, avoids expanding what is gated behind
+D-0047 in this PR.
+
+**Constitutional impact:** D-0035 (real threshold-signing cryptography
+over treasury funds requires human authorship and external audit before
+production use) -- this crate produces no signature at all, so it cannot
+weaken that gate. D-0047 (external-audit gate) -- explicitly does not
+extend the gated `frost_sign` surface. Directive 5 / FD-05 -- a
+`TreasuryApprovedPayout` is evidence of authorization, never itself
+final ownership. No Tier-F invariant row changes; composes
+`mini_treasury::signers`' existing "one identity, one count" discipline
+rather than adding a new one.
+
+**Implementation status:** Shipped this PR. 8 tests: no-candidates
+rejected before any verification runs; a single approval meets a
+threshold of one; a single approval does not meet a threshold of two;
+two distinct approvals meet a threshold of two (with sorted output);
+a real, valid, non-member signer's approval never counts toward
+threshold; a genuine member's KEL presented alongside a forged signature
+(actually produced by an unrelated attacker key) never counts;
+duplicate approvals from the same signer count once, not twice; an
+approval signed for a different campaign id never counts. `cargo fmt`/
+`clippy -D warnings`/`test` clean.
+
+**Failure point:** a `TreasuryApprovedPayout` is not a signed settlement
+claim and moves no value by itself -- the actual bridge from "the
+signer set agreed" to "a real `mini_settlement::PaymentClaim` exists and
+is submitted" remains unbuilt, and still requires resolving the
+signature-suite question this decision explicitly deferred rather than
+answered. Anyone reading this crate's output as "the payout happened"
+is wrong; it only means enough authorized signers said it should.
+
+**Required follow-up:** the actual settlement-claim construction/signing
+step (still blocked on the deferred signature-suite decision above);
+external audit (D-0047) before any of this composes with real value;
+consider whether the eventual settlement-layer special case belongs in
+`mini-settlement` itself or a further bridge crate, once the signing
+question is actually decided.
+
+**Supersedes / superseded by:** none.
