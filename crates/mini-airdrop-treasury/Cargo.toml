@@ -1,0 +1,15 @@
+[package]
+name = "mini-airdrop-treasury"
+version = "0.0.1"
+description = "Bridges a mini-airdrop ClaimOutcome to a treasury payout approval, by composing mini-treasury's existing distinct-identity approval counting (TreasurySignerSet/meets_threshold -- ordinary counting, not a cryptographic threshold scheme) with real did-mini KEL signature verification. Deliberately does NOT touch mini_treasury::frost_sign (that module's own docs name it the 'permanent honeypot' component requiring external audit, D-0035/D-0047) and does NOT produce a signed mini_settlement::PaymentClaim -- see this crate's docs for the exact boundary."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-airdrop = { path = "../mini-airdrop" }
+mini-treasury = { path = "../mini-treasury" }

@@ -61,6 +61,7 @@ members = [
     "crates/mini-engagement",
     "crates/mini-pq-anchor",
     "crates/mini-airdrop",
+    "crates/mini-airdrop-treasury",
 ]
 
 [workspace.package]
