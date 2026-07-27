@@ -11130,3 +11130,69 @@ suite proves composition, not audit-readiness or value-safety.
 **Required follow-up:** none beyond D-0356's own.
 
 **Supersedes / superseded by:** none.
+
+---
+
+### D-0359 — `mini-airdrop-treasury`: treasury balance reconciliation check  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0354, D-0356 (named this gap in its own
+"Required follow-up"), `docs/STATUS.md`'s "Not built" paragraph.
+
+**Decision:** Add `crates/mini-airdrop-treasury/src/reconciliation.rs`:
+`total_allocated_micro(snapshot) -> ReconciliationResult<u64>` sums every
+`AllocationEntry::amount_micro` in a `mini_airdrop::AirdropSnapshot` using
+checked addition, and `check_snapshot_within_treasury_balance(snapshot,
+treasury_balance_micro) -> ReconciliationResult<()>` compares that total
+against a caller-supplied balance, returning
+`ReconciliationError::InsufficientTreasuryBalance { required_micro,
+available_micro }` if the balance falls short or
+`ReconciliationError::TotalAllocationOverflow` if summing the snapshot's
+own entries would overflow `u64` first.
+
+**Reason:** D-0356 named this as required follow-up and `docs/STATUS.md`
+named it explicitly as "not built": a real airdrop needs proof the
+treasury actually holds enough MINI to honor every allocation in a
+snapshot, independent of whether any individual claim later verifies
+correctly. Without it, a snapshot could allocate more than the treasury
+holds and nothing in this workspace would notice until claimants started
+being unable to redeem -- a silent, late-discovered failure mode a single
+integer comparison, run once per snapshot before opening it for claims,
+entirely prevents. This is deliberately *not* wired into
+`mini_airdrop::verify_and_resolve_claim` or
+`crate::verify_payout_approvals`: neither individual claim verification
+nor a single payout's approval should depend on this check (a snapshot
+that later turns out to be under-funded doesn't retroactively invalidate
+a claim that was honestly eligible and correctly signed) -- it's a
+separate, campaign-operator-run bookkeeping step, the same "advisory
+information the protocol itself never gates on" discipline
+`AllocationEntry::human_status` already established in D-0354.
+
+**Constitutional impact:** none. No cryptography, no new dependency, no
+Tier-F invariant touched -- this module reads no real treasury balance
+from anywhere (`treasury_balance_micro` is caller-supplied) and produces
+no signature, approval, or claim outcome. Directive 5 / FD-05 is
+unaffected: this cannot move value or approve a payout, only report
+whether a snapshot's total fits within a number the caller already
+believes the treasury holds.
+
+**Implementation status:** Shipped. 6 tests: empty snapshot requires
+zero balance, `total_allocated_micro` sums every entry, a balance
+exactly matching the total is accepted, a balance with room to spare is
+accepted, a balance short by one micro-MINI is rejected with the exact
+required/available amounts, and an overflowing total (two entries
+summing past `u64::MAX`) is reported as `TotalAllocationOverflow` rather
+than panicking or wrapping silently. `cargo fmt`/`clippy -D warnings`/
+`test` clean.
+
+**Failure point:** this module has no way to verify
+`treasury_balance_micro` is itself honest -- it trusts whatever number
+the caller passes. A caller that fabricates or miscalculates the real
+treasury balance gets a meaningless "reconciled" result; wiring this to
+a real, independently verifiable treasury balance source (once one
+exists) is separate work this module does not attempt.
+
+**Required follow-up:** wire `treasury_balance_micro` to a real balance
+source once `mini-treasury`/settlement custody has one; still fully
+blocked on D-0356's own deferred signature-suite question for anything
+beyond bookkeeping.
+
+**Supersedes / superseded by:** none.
