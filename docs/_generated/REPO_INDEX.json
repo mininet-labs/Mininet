@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 55,
-    "files": 643,
-    "headings": 2143,
+    "files": 644,
+    "headings": 2223,
     "rust_symbols": 5469
   },
   "crates": {
@@ -50764,6 +50764,443 @@
       "sha256": "e29b54071bf9d64bb01dc0d0552aea1bd628dfeab96a0c71dbdac44c4a8b9fd2",
       "symbols": [],
       "title": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
+    },
+    {
+      "bytes": 65338,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Frontier personhood, privacy, governance, and consensus proposals"
+        },
+        {
+          "level": 2,
+          "line": 21,
+          "text": "0. Executive recommendation"
+        },
+        {
+          "level": 3,
+          "line": 55,
+          "text": "Repository alignment and non-negotiable boundaries"
+        },
+        {
+          "level": 2,
+          "line": 88,
+          "text": "1. Sybil-resistant personhood"
+        },
+        {
+          "level": 3,
+          "line": 90,
+          "text": "1.1 Precise problem and honest target"
+        },
+        {
+          "level": 3,
+          "line": 114,
+          "text": "1.2 Threat model"
+        },
+        {
+          "level": 3,
+          "line": 133,
+          "text": "1.3 Proposed architecture"
+        },
+        {
+          "level": 4,
+          "line": 152,
+          "text": "A. Evidence wallet"
+        },
+        {
+          "level": 4,
+          "line": 176,
+          "text": "B. Published personhood policy"
+        },
+        {
+          "level": 4,
+          "line": 200,
+          "text": "C. Aggregate proof"
+        },
+        {
+          "level": 4,
+          "line": 219,
+          "text": "D. Distributed issuance and bootstrap"
+        },
+        {
+          "level": 4,
+          "line": 242,
+          "text": "E. Credential and nullifiers"
+        },
+        {
+          "level": 4,
+          "line": 267,
+          "text": "F. Recovery and duplicate suppression"
+        },
+        {
+          "level": 3,
+          "line": 276,
+          "text": "1.4 What not to build"
+        },
+        {
+          "level": 3,
+          "line": 287,
+          "text": "1.5 Research and implementation plan"
+        },
+        {
+          "level": 3,
+          "line": 308,
+          "text": "1.6 Acceptance and falsification gates"
+        },
+        {
+          "level": 3,
+          "line": 328,
+          "text": "1.7 Residual unsolved problem"
+        },
+        {
+          "level": 2,
+          "line": 338,
+          "text": "2. Privacy-preserving liveness/personhood proof"
+        },
+        {
+          "level": 3,
+          "line": 340,
+          "text": "2.1 Reframe \u201cbehavioral/location entropy\u201d"
+        },
+        {
+          "level": 3,
+          "line": 357,
+          "text": "2.2 Layered design"
+        },
+        {
+          "level": 4,
+          "line": 359,
+          "text": "Layer 1 \u2014 provenance before privacy"
+        },
+        {
+          "level": 4,
+          "line": 381,
+          "text": "Layer 2 \u2014 on-device minimization"
+        },
+        {
+          "level": 4,
+          "line": 396,
+          "text": "Layer 3 \u2014 aggregate circuit"
+        },
+        {
+          "level": 4,
+          "line": 412,
+          "text": "Layer 4 \u2014 proof transport"
+        },
+        {
+          "level": 3,
+          "line": 420,
+          "text": "2.3 Location-specific constraints"
+        },
+        {
+          "level": 3,
+          "line": 437,
+          "text": "2.4 Web and account continuity"
+        },
+        {
+          "level": 3,
+          "line": 446,
+          "text": "2.5 Research tracks and gates"
+        },
+        {
+          "level": 2,
+          "line": 467,
+          "text": "3. `mini-attest`: unlinkable engagement-proof membership"
+        },
+        {
+          "level": 3,
+          "line": 469,
+          "text": "3.1 Required separation"
+        },
+        {
+          "level": 3,
+          "line": 500,
+          "text": "3.2 Assurance tiers"
+        },
+        {
+          "level": 4,
+          "line": 502,
+          "text": "Tier 0 \u2014 clear, linkable engagement evidence"
+        },
+        {
+          "level": 4,
+          "line": 530,
+          "text": "Tier 1 \u2014 public membership hiding, issuer still potentially linkable"
+        },
+        {
+          "level": 4,
+          "line": 576,
+          "text": "Tier 2 \u2014 blind/threshold issuance and redemption separation"
+        },
+        {
+          "level": 3,
+          "line": 620,
+          "text": "3.3 Root availability, revocation, and equivocation"
+        },
+        {
+          "level": 3,
+          "line": 632,
+          "text": "3.4 Implementation order"
+        },
+        {
+          "level": 3,
+          "line": 646,
+          "text": "3.5 Required tests"
+        },
+        {
+          "level": 3,
+          "line": 660,
+          "text": "3.6 Acceptance claim"
+        },
+        {
+          "level": 2,
+          "line": 668,
+          "text": "4. Post-quantum migration during a live break"
+        },
+        {
+          "level": 3,
+          "line": 670,
+          "text": "4.1 Core impossibility boundary"
+        },
+        {
+          "level": 3,
+          "line": 690,
+          "text": "4.2 Pre-provision now"
+        },
+        {
+          "level": 3,
+          "line": 710,
+          "text": "4.3 Emergency objects"
+        },
+        {
+          "level": 3,
+          "line": 763,
+          "text": "4.4 Live-break procedure"
+        },
+        {
+          "level": 4,
+          "line": 765,
+          "text": "Phase E0 \u2014 detect and preserve"
+        },
+        {
+          "level": 4,
+          "line": 775,
+          "text": "Phase E1 \u2014 choose the last safe checkpoint"
+        },
+        {
+          "level": 4,
+          "line": 785,
+          "text": "Phase E2 \u2014 safety halt"
+        },
+        {
+          "level": 4,
+          "line": 795,
+          "text": "Phase E3 \u2014 classify and claim"
+        },
+        {
+          "level": 4,
+          "line": 811,
+          "text": "Phase E4 \u2014 rebuild a PQ epoch"
+        },
+        {
+          "level": 4,
+          "line": 823,
+          "text": "Phase E5 \u2014 reconcile and resume"
+        },
+        {
+          "level": 3,
+          "line": 835,
+          "text": "4.5 Funds, identity, and privacy details"
+        },
+        {
+          "level": 3,
+          "line": 852,
+          "text": "4.6 Drills and acceptance gates"
+        },
+        {
+          "level": 2,
+          "line": 866,
+          "text": "5. Coercion-resistant and deniable voting"
+        },
+        {
+          "level": 3,
+          "line": 868,
+          "text": "5.1 Define the claim before choosing cryptography"
+        },
+        {
+          "level": 3,
+          "line": 889,
+          "text": "5.2 Proposed invariants for separate constitutional review"
+        },
+        {
+          "level": 3,
+          "line": 902,
+          "text": "5.3 Election architecture"
+        },
+        {
+          "level": 4,
+          "line": 922,
+          "text": "Eligibility"
+        },
+        {
+          "level": 4,
+          "line": 933,
+          "text": "Ballot"
+        },
+        {
+          "level": 4,
+          "line": 940,
+          "text": "Re-voting for CR2"
+        },
+        {
+          "level": 4,
+          "line": 954,
+          "text": "CR3 research path"
+        },
+        {
+          "level": 4,
+          "line": 974,
+          "text": "Tally and verifiability"
+        },
+        {
+          "level": 3,
+          "line": 987,
+          "text": "5.4 Operational protections"
+        },
+        {
+          "level": 3,
+          "line": 1000,
+          "text": "5.5 Test program"
+        },
+        {
+          "level": 3,
+          "line": 1014,
+          "text": "5.6 Residual unsolved problem"
+        },
+        {
+          "level": 2,
+          "line": 1021,
+          "text": "6. Interplanetary latency and advanced-AI threats"
+        },
+        {
+          "level": 3,
+          "line": 1028,
+          "text": "6.1 Interplanetary consensus: do not stretch one fast BFT round"
+        },
+        {
+          "level": 3,
+          "line": 1043,
+          "text": "6.2 Proposed hierarchical design"
+        },
+        {
+          "level": 4,
+          "line": 1058,
+          "text": "Operation classes"
+        },
+        {
+          "level": 4,
+          "line": 1070,
+          "text": "Partition escrow/capability cells"
+        },
+        {
+          "level": 4,
+          "line": 1085,
+          "text": "Time and ordering"
+        },
+        {
+          "level": 4,
+          "line": 1094,
+          "text": "Validator topology"
+        },
+        {
+          "level": 3,
+          "line": 1103,
+          "text": "6.3 Interplanetary research plan"
+        },
+        {
+          "level": 3,
+          "line": 1122,
+          "text": "6.4 Advanced-AI threat model"
+        },
+        {
+          "level": 3,
+          "line": 1143,
+          "text": "6.5 Authority-safe design"
+        },
+        {
+          "level": 4,
+          "line": 1145,
+          "text": "Identity and voting"
+        },
+        {
+          "level": 4,
+          "line": 1165,
+          "text": "Proof-carrying change and bounded blast radius"
+        },
+        {
+          "level": 4,
+          "line": 1183,
+          "text": "Governance deliberation"
+        },
+        {
+          "level": 4,
+          "line": 1195,
+          "text": "Safe degradation"
+        },
+        {
+          "level": 3,
+          "line": 1209,
+          "text": "6.6 AI adversarial simulation and gates"
+        },
+        {
+          "level": 2,
+          "line": 1224,
+          "text": "7. Shared engineering backlog"
+        },
+        {
+          "level": 2,
+          "line": 1245,
+          "text": "8. Proposed GitHub work decomposition"
+        },
+        {
+          "level": 2,
+          "line": 1274,
+          "text": "9. Decision matrix"
+        }
+      ],
+      "keywords": [
+        "research",
+        "personhood",
+        "design",
+        "privacy",
+        "consensus",
+        "proof",
+        "continuity",
+        "phase",
+        "interplanetary",
+        "governance",
+        "problem",
+        "evidence",
+        "what",
+        "gates",
+        "claim",
+        "voting",
+        "human",
+        "model",
+        "proposed",
+        "credential",
+        "implementation",
+        "acceptance",
+        "layer",
+        "membership"
+      ],
+      "lines": 1378,
+      "path": "docs/design/frontier-personhood-governance-and-consensus-proposals.md",
+      "sha256": "24b3e15acade0a0700ebf44f9f624679e1a5b6b508f8e6acc1935b917bff2608",
+      "symbols": [],
+      "title": "Frontier personhood, privacy, governance, and consensus proposals"
     },
     {
       "bytes": 21122,
