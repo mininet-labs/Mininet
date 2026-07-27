@@ -3,7 +3,7 @@
     "crates": 55,
     "files": 644,
     "headings": 2223,
-    "rust_symbols": 5469
+    "rust_symbols": 5472
   },
   "crates": {
     "did-mini": {
@@ -24518,38 +24518,38 @@
       "title": "use crate::error::{IntakeError, Result};"
     },
     {
-      "bytes": 15665,
+      "bytes": 18438,
       "group": "crate:mini-intake-types",
       "headings": [],
       "keywords": [
         "self",
-        "authority",
-        "next",
         "reviewstate",
-        "authorityclass",
-        "vec",
         "intakeenvelope",
+        "authority",
+        "provenance",
+        "vec",
         "new",
         "review_state",
-        "provenance",
         "representations",
         "warnings",
         "links",
         "source",
+        "authorityclass",
+        "link",
         "envelope",
-        "state",
+        "material",
         "representation",
-        "review",
-        "intakeerror",
+        "state",
+        "unreviewed",
         "intakelink",
         "derivationrecord",
         "derivedrepresentation",
         "intakewarning",
-        "version"
+        "const"
       ],
-      "lines": 453,
+      "lines": 521,
       "path": "crates/mini-intake-types/src/envelope.rs",
-      "sha256": "eec13f1c13a59230828900eb46d23a3d70dc60a67b75752032250a4b22436cb1",
+      "sha256": "ee0adfe809538ae6ef0eb52fd1f7a219446d9c25c703ac4c1d329a2f1eb25d9b",
       "symbols": [
         {
           "kind": "const",
@@ -24628,119 +24628,134 @@
         },
         {
           "kind": "fn",
-          "line": 104,
+          "line": 118,
           "name": "add_link"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 131,
           "name": "advance_review_state"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 144,
           "name": "promote_authority"
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 155,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 181,
           "name": "from_bytes"
         },
         {
           "kind": "mod",
-          "line": 231,
+          "line": 249,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 255,
           "name": "sample_source"
         },
         {
           "kind": "fn",
-          "line": 247,
+          "line": 265,
           "name": "sample_id"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 270,
           "name": "a_new_envelope_starts_unreviewed_and_untrusted"
         },
         {
           "kind": "fn",
-          "line": 262,
+          "line": 280,
           "name": "adding_a_representation_also_records_its_provenance"
         },
         {
           "kind": "fn",
-          "line": 287,
+          "line": 305,
           "name": "review_state_cannot_jump_straight_to_accepted"
         },
         {
           "kind": "fn",
-          "line": 296,
+          "line": 314,
           "name": "review_state_follows_the_ordinary_happy_path"
         },
         {
           "kind": "fn",
-          "line": 308,
+          "line": 326,
           "name": "rejected_review_state_cannot_transition_further"
         },
         {
           "kind": "fn",
-          "line": 323,
+          "line": 341,
           "name": "authority_cannot_reach_reviewed_evidence_without_an_accepted_review"
         },
         {
           "kind": "fn",
-          "line": 332,
+          "line": 350,
           "name": "authority_can_reach_public_reference_without_any_review"
         },
         {
           "kind": "fn",
-          "line": 341,
+          "line": 359,
           "name": "authority_reaches_reviewed_evidence_after_an_accepted_review"
         },
         {
           "kind": "fn",
-          "line": 356,
+          "line": 374,
           "name": "authority_cannot_be_demoted_or_repeated"
         },
         {
           "kind": "fn",
-          "line": 372,
+          "line": 390,
+          "name": "a_link_cannot_be_attached_before_review_is_accepted"
+        },
+        {
+          "kind": "fn",
+          "line": 409,
+          "name": "a_link_attaches_once_review_is_accepted"
+        },
+        {
+          "kind": "fn",
+          "line": 422,
+          "name": "a_link_cannot_be_attached_to_a_rejected_envelope"
+        },
+        {
+          "kind": "fn",
+          "line": 437,
           "name": "an_envelope_round_trips_through_bytes_with_representations_warnings_and_links"
         },
         {
           "kind": "fn",
-          "line": 407,
+          "line": 475,
           "name": "an_unsupported_version_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 419,
+          "line": 487,
           "name": "trailing_bytes_after_a_complete_decode_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 430,
+          "line": 498,
           "name": "truncated_bytes_are_rejected_not_panicking"
         },
         {
           "kind": "fn",
-          "line": 440,
+          "line": 508,
           "name": "an_oversized_representation_count_is_rejected_before_allocating"
         }
       ],
       "title": "use crate::authority::AuthorityClass;"
     },
     {
-      "bytes": 3079,
+      "bytes": 3452,
       "group": "crate:mini-intake-types",
       "headings": [],
       "keywords": [
@@ -24751,12 +24766,12 @@
         "error",
         "result",
         "fmt",
+        "envelope",
         "core",
         "cryptoerror",
         "intake",
         "decode",
         "bytes",
-        "envelope",
         "requested",
         "permitted",
         "crypto",
@@ -24764,14 +24779,14 @@
         "state",
         "transition",
         "truncated",
+        "reviewstate",
+        "intakeenvelope",
         "self",
-        "display",
-        "std",
-        "mini_crypto"
+        "display"
       ],
-      "lines": 77,
+      "lines": 86,
       "path": "crates/mini-intake-types/src/error.rs",
-      "sha256": "fef5da717111cdb4eddbe0a3cf4f3794b1e11ab2d16e0269ead8bdeee849e887",
+      "sha256": "53915b7248e9a3ca13db2145cf21041f4aa797b2a25fac7a4c99264f666e150c",
       "symbols": [
         {
           "kind": "type",
@@ -24785,27 +24800,27 @@
         },
         {
           "kind": "impl",
-          "line": 43,
+          "line": 46,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 47,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 70,
+          "line": 79,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 72,
+          "line": 81,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 73,
+          "line": 82,
           "name": "from"
         }
       ],
@@ -47453,7 +47468,7 @@
       "title": "{"
     },
     {
-      "bytes": 671641,
+      "bytes": 675713,
       "group": "docs",
       "headings": [
         {
@@ -47883,9 +47898,9 @@
         "signed",
         "new"
       ],
-      "lines": 11199,
+      "lines": 11272,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "bc1a496e556bd319717a51cef149ba114ffcb144c88b895ed58e634dd3d0b338",
+      "sha256": "f51786e4351fd03fdbf8a49a9670943559d261c2fa803d84f721f977bbb4afbc",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -49029,7 +49044,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 76519,
+      "bytes": 77316,
       "group": "docs",
       "headings": [
         {
@@ -49099,22 +49114,22 @@
         },
         {
           "level": 2,
-          "line": 1015,
+          "line": 1026,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1076,
+          "line": 1087,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1120,
+          "line": 1131,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1186,
+          "line": 1197,
           "text": "Where to look for more detail"
         }
       ],
@@ -49144,9 +49159,9 @@
         "social",
         "network"
       ],
-      "lines": 1201,
+      "lines": 1212,
       "path": "docs/STATUS.md",
-      "sha256": "47cc114f16a8561a423103bff4cd1158389ce9533695f2434ecfb9e0c775c532",
+      "sha256": "8f650fdbfc13709a3830f98400834db14dab1b4d25a776db6d2d48171e0cc66a",
       "symbols": [],
       "title": "Implementation status"
     },

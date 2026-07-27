@@ -101,8 +101,26 @@ impl IntakeEnvelope {
         self.warnings.push(warning);
     }
 
-    pub fn add_link(&mut self, link: IntakeLink) {
+    /// Attach `link`, publishing this envelope's material as whatever
+    /// `link` names (a tracked issue, a Mininet object, audit/research
+    /// evidence, a profile or post reference, a release). Fails unless
+    /// [`ReviewState`] is already [`ReviewState::Accepted`] — the same
+    /// review-before-recognition rule
+    /// [`IntakeEnvelope::promote_authority`] enforces for
+    /// [`AuthorityClass::ReviewedEvidence`] and above, applied here
+    /// because a link is precisely how imported material becomes
+    /// recognized elsewhere in Mininet (research report §25, PR B5:
+    /// "allow *accepted* intake objects to become..."). Without this
+    /// gate, unreviewed external material could claim to already be a
+    /// social post, profile section, or audit citation the moment it is
+    /// parsed — exactly the authority-without-review shortcut this
+    /// crate's core rule forbids.
+    pub fn add_link(&mut self, link: IntakeLink) -> Result<()> {
+        if self.review_state != ReviewState::Accepted {
+            return Err(IntakeError::LinkRequiresAcceptedReview);
+        }
         self.links.push(link);
+        Ok(())
     }
 
     /// Move to `next` review state. Fails if `next` is not a legal
@@ -369,6 +387,53 @@ mod tests {
     }
 
     #[test]
+    fn a_link_cannot_be_attached_before_review_is_accepted() {
+        let mut envelope = IntakeEnvelope::new(sample_id(), sample_source());
+        assert_eq!(
+            envelope.add_link(IntakeLink::Issue(1)),
+            Err(IntakeError::LinkRequiresAcceptedReview)
+        );
+        assert!(envelope.links().is_empty());
+
+        envelope
+            .advance_review_state(ReviewState::UnderReview)
+            .unwrap();
+        assert_eq!(
+            envelope.add_link(IntakeLink::Issue(1)),
+            Err(IntakeError::LinkRequiresAcceptedReview)
+        );
+        assert!(envelope.links().is_empty());
+    }
+
+    #[test]
+    fn a_link_attaches_once_review_is_accepted() {
+        let mut envelope = IntakeEnvelope::new(sample_id(), sample_source());
+        envelope
+            .advance_review_state(ReviewState::UnderReview)
+            .unwrap();
+        envelope
+            .advance_review_state(ReviewState::Accepted)
+            .unwrap();
+        envelope.add_link(IntakeLink::Issue(1)).unwrap();
+        assert_eq!(envelope.links(), &[IntakeLink::Issue(1)]);
+    }
+
+    #[test]
+    fn a_link_cannot_be_attached_to_a_rejected_envelope() {
+        let mut envelope = IntakeEnvelope::new(sample_id(), sample_source());
+        envelope
+            .advance_review_state(ReviewState::UnderReview)
+            .unwrap();
+        envelope
+            .advance_review_state(ReviewState::Rejected)
+            .unwrap();
+        assert_eq!(
+            envelope.add_link(IntakeLink::Issue(1)),
+            Err(IntakeError::LinkRequiresAcceptedReview)
+        );
+    }
+
+    #[test]
     fn an_envelope_round_trips_through_bytes_with_representations_warnings_and_links() {
         let mut envelope = IntakeEnvelope::new(sample_id(), sample_source());
         let generator = GeneratorIdentity {
@@ -393,10 +458,13 @@ mod tests {
             code: "malformed-pdf-xref".to_string(),
             message: "recovered via linear scan".to_string(),
         });
-        envelope.add_link(IntakeLink::Issue(152));
         envelope
             .advance_review_state(ReviewState::UnderReview)
             .unwrap();
+        envelope
+            .advance_review_state(ReviewState::Accepted)
+            .unwrap();
+        envelope.add_link(IntakeLink::Issue(152)).unwrap();
 
         let bytes = envelope.to_bytes();
         let decoded = IntakeEnvelope::from_bytes(&bytes).unwrap();
