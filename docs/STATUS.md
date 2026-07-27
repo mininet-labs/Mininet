@@ -1022,6 +1022,21 @@ the top development priority.
   licence/security review) and any real workflow wiring this gate into
   `mini-intake`'s coordinator or a review UI — a caller must still drive
   `advance_review_state`/`add_link` itself.
+- **shipped, prototype (D-0361, Track C1)** — `mini-commons-policy`: pure
+  typed `PublicCommonsPolicy`/`Entitlement` (`FreeProtocolRight` or
+  `Unsupported`, deliberately no paid variant) turning the research
+  doctrine's "speech, reading, and public participation are never
+  paywalled" claim into a testable value.
+  `commons_policy_for(WalletStanding)` proves, by ignoring its own
+  input, that no balance or governance weight changes the result — a
+  zero-MINI account and a `u64::MAX` account get the identical policy.
+  `search_public_index` is honestly `Unsupported` (no search index
+  exists yet; Track E). Two of the doctrine's five required properties
+  (paid providers cannot suppress unpaid public objects; paid
+  protection does not improve organic ranking) are not provable by this
+  crate alone — no provider-settlement or ranking layer exists yet to
+  test against (Track C4, Track E backlog); documented as open rather
+  than silently assumed. Not yet wired into any real gating call site.
 
 ## Client coverage
 

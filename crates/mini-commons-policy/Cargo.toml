@@ -1,0 +1,16 @@
+[package]
+name = "mini-commons-policy"
+version = "0.0.1"
+description = "Typed public-commons entitlement policy (PublicCommonsPolicy/Entitlement): protocol rights every identity root holds independently of wallet balance, governance weight, or any paid tier."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Deliberately none: this crate is pure typed policy data plus a hand-rolled
+# wire codec, matching this workspace's no-serde convention. No wallet,
+# pricing, provider, or ranking mechanism is implemented here -- see the
+# crate-level docs for what those cross-crate integrations still owe.

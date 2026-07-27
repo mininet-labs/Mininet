@@ -63,6 +63,7 @@ members = [
     "crates/mini-attest",
     "crates/mini-airdrop",
     "crates/mini-airdrop-treasury",
+    "crates/mini-commons-policy",
 ]
 
 [workspace.package]

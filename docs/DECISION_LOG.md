@@ -11349,3 +11349,75 @@ that calls `advance_review_state`/`add_link` in `mini-intake` or a
 higher layer, once one exists.
 
 **Supersedes / superseded by:** none.
+
+### D-0361 — `mini-commons-policy`: typed public-commons entitlement policy (Track C1)  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§7-8 (Public commons policy) and §26 (Track C, PR C1); `mini-privacy-policy`
+(D-0094, the structural precedent this crate's zero-dependency,
+hand-rolled-wire-codec shape follows).
+
+**Decision:** New crate `mini-commons-policy` defines
+`PublicCommonsPolicy` (eight `Entitlement`-valued fields: view/create
+public profiles, view/publish public objects, reply/comment/react
+publicly, search the public index) and `Entitlement` (`FreeProtocolRight`
+or `Unsupported` -- deliberately no third "paid" variant). `free_commons()`
+returns the fixed policy every identity root holds today, with
+`search_public_index` set to `Unsupported` (no search index exists yet;
+Track E backlog) and every other field `FreeProtocolRight` (each already
+has a concrete crate: `mini-social`, `mini-intake-types`).
+`commons_policy_for(WalletStanding)` takes a caller's balance/governance-
+weight standing only to prove, in its own tests, that the function never
+reads it -- the parameter is bound and discarded, not consulted.
+
+**Reason:** The research doctrine's §7 core claim is that speech,
+reading, public discovery, and ordinary social participation must never
+be paywalled, and that "payment purchases resources and a declared
+protection attempt" -- never permission to speak, governance power,
+privileged ranking, personhood, or another person's data. §8 asks for
+exactly this: "Introduce a typed policy independent of wallet and
+pricing state," with an explicit warning not to represent these
+entitlements "as a zero-price commercial purchase." `Entitlement` has no
+price field or paid variant for that reason -- the type system itself
+forecloses representing a commons right as a $0 SKU.
+
+**Constitutional impact:** Strengthens the money/voice separation this
+codebase already enforces structurally elsewhere (P1's voice/value wall
+in `Cargo.toml` dependency edges). No cryptography, no new external
+dependency, no Tier-F invariant touched.
+
+**Implementation status:** Shipped this PR. 12 tests: `free_commons()`
+grants every social action to a zero-balance account; a `u64::MAX`
+balance yields an identical policy to a zero balance
+(`a_large_balance_grants_no_greater_protocol_authority_than_zero`); a
+`u64::MAX` governance weight likewise changes nothing
+(`payment_cannot_alter_governance_weight_in_the_returned_policy`); a
+5x5 balance/weight sweep all yield the identical reference policy;
+wire round-trip (both entitlement variants), truncation-at-every-length
+rejection, trailing-byte rejection, wrong-domain rejection, unknown-tag
+rejection, unknown-entitlement-byte rejection, and per-`Entitlement`
+byte round-trip. `cargo fmt`/`clippy -D warnings`/`test` clean
+workspace-wide.
+
+**Failure point:** this crate can only prove wallet/governance-weight
+independence for the policy object it itself defines -- it cannot prove,
+by itself, the research doctrine's other two required properties ("paid
+providers cannot suppress unpaid public objects at the protocol level"
+and "paid protection status does not automatically improve organic
+ranking"), because no provider-settlement layer or search-ranking layer
+exists yet in this workspace to write that integration test against
+(Track C4 and Track E are both still backlog). Documented explicitly in
+the crate's own doc comment rather than silently claimed as proven.
+`Entitlement::Unsupported` on `search_public_index` is an honest
+placeholder, not a working search capability.
+
+**Required follow-up:** wire `commons_policy_for` into whatever surface
+ends up gating public actions (`mini-social`/`mini-intake` call sites,
+once one needs to consult it); Track C2 (opt-in resource contribution
+budgets), C3 (public profile/social rights beyond what this policy
+already grants), C4 (paid-provider/protection boundary -- the crate that
+would let the two deferred properties above finally get a real
+integration test); Track E (MiniSearch, needed before
+`search_public_index` can move off `Unsupported`).
+
+**Supersedes / superseded by:** none.
