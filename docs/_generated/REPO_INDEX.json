@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 55,
-    "files": 641,
+    "files": 642,
     "headings": 2143,
-    "rust_symbols": 5450
+    "rust_symbols": 5453
   },
   "crates": {
     "did-mini": {
@@ -4904,6 +4904,58 @@
         }
       ],
       "title": "mod approval;"
+    },
+    {
+      "bytes": 5441,
+      "group": "crate:mini-airdrop-treasury",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "did",
+        "claimant",
+        "outcome",
+        "controller",
+        "approved",
+        "std",
+        "incept_single",
+        "builder",
+        "e2e-campaign",
+        "to_vec",
+        "request",
+        "registry_path",
+        "real",
+        "snapshot",
+        "fileclaimedregistry",
+        "temp_registry_path",
+        "claim",
+        "kel",
+        "identity_root",
+        "sign_message",
+        "registry",
+        "assert_eq",
+        "assert"
+      ],
+      "lines": 149,
+      "path": "crates/mini-airdrop-treasury/tests/end_to_end.rs",
+      "sha256": "55f1dbc17efea7504de36f6813cacf9e152a219899d28cc8d5ea0db9d33cd30f",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 20,
+          "name": "temp_registry_path"
+        },
+        {
+          "kind": "fn",
+          "line": 35,
+          "name": "a_full_snapshot_to_treasury_approval_flow_succeeds"
+        },
+        {
+          "kind": "fn",
+          "line": 104,
+          "name": "an_ineligible_identity_never_reaches_treasury_approval"
+        }
+      ],
+      "title": "use did_mini::Controller;"
     },
     {
       "bytes": 1151,
@@ -47284,7 +47336,7 @@
       "title": "{"
     },
     {
-      "bytes": 665533,
+      "bytes": 668007,
       "group": "docs",
       "headings": [
         {
@@ -47711,12 +47763,12 @@
         "design",
         "mini-consensus",
         "status",
-        "new",
-        "research"
+        "signed",
+        "new"
       ],
-      "lines": 11090,
+      "lines": 11133,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "f145753229b54ac233c3a6167e962e43a267aaea1e19f53949734aacb5c3859d",
+      "sha256": "b4a0b70f41088a1d4e83b9a5c99ecf1f4cd1131323605ac4128484189371ea21",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -48860,7 +48912,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 75752,
+      "bytes": 76122,
       "group": "docs",
       "headings": [
         {
@@ -48945,7 +48997,7 @@
         },
         {
           "level": 2,
-          "line": 1172,
+          "line": 1179,
           "text": "Where to look for more detail"
         }
       ],
@@ -48975,9 +49027,9 @@
         "social",
         "network"
       ],
-      "lines": 1187,
+      "lines": 1194,
       "path": "docs/STATUS.md",
-      "sha256": "3408e285d88ca4f9aae764bf0fcc065ceb56aecac90707f441b57cc1e7a82e4a",
+      "sha256": "a10e713ab2396c62ba538f6fc60c9bf9134ceb4305c79de0f9dbc993fc904a75",
       "symbols": [],
       "title": "Implementation status"
     },

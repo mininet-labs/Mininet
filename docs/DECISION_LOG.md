@@ -11085,5 +11085,48 @@ a field literally named `nonce` should first check whether it is an
 actual cryptographic nonce (AEAD/stream-cipher IV) -- if so, name it
 plainly; if not, this is the second time that mistake has cost a CodeQL
 false-positive cleanup and should not need a third.
+### D-0358 — `mini-airdrop-treasury`: end-to-end integration proof (snapshot → signed claim → `FileClaimedRegistry` → treasury approval)  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0354, D-0355, D-0356, D-0357 (this
+entry was originally drafted as D-0357 before that number was claimed by
+the CodeQL nonce→sequence rename fix pushed to PR #238 first; renumbered
+on rebase, no content otherwise changed).
+
+**Decision:** Add `crates/mini-airdrop-treasury/tests/end_to_end.rs`: a
+real `SnapshotBuilder`/`AirdropSnapshot`, a claimant's real `did-mini`
+signed `ClaimRequest` verified via `verify_and_resolve_claim` against a
+real on-disk `FileClaimedRegistry` (including confirming the claim is
+visible after reopening the registry file), then a real three-signer
+`TreasurySignerSet` with two of three approving the resulting
+`ClaimOutcome` via `verify_payout_approvals`, proving `mini-airdrop` and
+`mini-airdrop-treasury` actually compose end to end. A second test
+confirms an identity absent from the snapshot is rejected before any
+treasury approval step is even reachable, and that the registry stays
+untouched.
+
+**Reason:** D-0354/D-0355/D-0356 each shipped with unit tests inside
+their own crate boundary, but nothing until now proved the pieces
+actually fit together when driven by the same real identities across
+crate boundaries -- unit tests can pass individually while an
+integration seam (a type mismatch, a mismatched message encoding
+between `mini-airdrop`'s claim message and `mini-airdrop-treasury`'s
+payout message, a registry that doesn't actually persist across the
+process boundary these two crates would run in) goes uncaught. This
+closes that gap directly rather than leaving it implied.
+
+**Constitutional impact:** none beyond what D-0354/D-0355/D-0356 already
+established -- this is proof, not new capability. Explicitly does not
+extend the composed flow to a signed `mini_settlement::PaymentClaim`;
+the test module's own doc comment repeats D-0356's boundary so a reader
+does not mistake "the pieces compose" for "value moves."
+
+**Implementation status:** Shipped. 2 tests, both passing:
+`a_full_snapshot_to_treasury_approval_flow_succeeds` and
+`an_ineligible_identity_never_reaches_treasury_approval`. `cargo fmt`/
+`clippy -D warnings`/`test` clean.
+
+**Failure point:** none beyond what D-0356 already names -- this test
+suite proves composition, not audit-readiness or value-safety.
+
+**Required follow-up:** none beyond D-0356's own.
 
 **Supersedes / superseded by:** none.

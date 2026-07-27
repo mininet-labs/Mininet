@@ -1169,6 +1169,13 @@ deliberately deferred, not resolved, in D-0356. Also not built: any
 reconciliation check that the airdrop treasury actually holds enough
 MINI to honor every eligible entry.
 
+**shipped, prototype (D-0358)** — an end-to-end integration test
+(`crates/mini-airdrop-treasury/tests/end_to_end.rs`) proving `mini-
+airdrop` and `mini-airdrop-treasury` actually compose across the full
+snapshot → signed claim → `FileClaimedRegistry` → treasury-signer
+approval path with real `did-mini` identities, not just within each
+crate's own unit tests.
+
 ## Where to look for more detail
 
 - `WHITEPAPER.md` (repository root, D-0323) — the single-document public
