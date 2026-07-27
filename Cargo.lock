@@ -2355,6 +2355,12 @@ dependencies = [
 [[package]]
 name = "mini-commons-policy"
 version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-objects",
+ "mini-social",
+ "mini-store",
+]
 
 [[package]]
 name = "mini-consensus"

@@ -11341,3 +11341,89 @@ integration test); Track E (MiniSearch, needed before
 `search_public_index` can move off `Unsupported`).
 
 **Supersedes / superseded by:** none.
+
+### D-0362 — `mini-commons-policy`: contribution budgets + real `mini-social` wallet-independence proof (Track C2/C3)  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0361 (Track C1, this crate's first
+slice); `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§7 and §26 (Track C, PR C2 "Contribution budgets", PR C3 "Public
+profile and social rights").
+
+**Decision:** Two additions to `mini-commons-policy`, both scoped
+exactly to their named PRs:
+
+- **C2 — `ContributionBudget`** (`src/budget.rs`): opt-in, bounded,
+  visible, revocable local-resource contribution — `storage_bytes`,
+  `bandwidth_bytes_per_day`, `cpu_percent` (a clamped `CpuPercent`
+  newtype, `0..=100`), `battery_policy` (`NeverOnBattery` default),
+  `network_policy` (`WifiOnly` default), and `background_operation`
+  (`false` default). `opted_out()`/`Default` is every field at its most
+  conservative value; `revoke()` resets to it unconditionally;
+  `active_grants()` returns exactly the currently-opted-in resource
+  names, satisfying the doctrine's "visible" requirement as queryable
+  data rather than a UI-only concern.
+- **C3 — real `mini-social` integration proof** (new
+  `tests/social_commons.rs`, `mini-social`/`did-mini`/`mini-objects`/
+  `mini-store` added as dev-dependencies only): drives
+  `publish_profile`, `publish_wall`, `publish_comment` (used for both a
+  top-level reply and a nested comment), and `set_reaction` for a
+  freshly-incepted identity that never touches a wallet, balance, or
+  payment concept anywhere in the test, and asserts every call
+  succeeds. This is the operational half of C3's "ensure" requirement;
+  the crate-only half (that `commons_policy_for`'s
+  `create_public_profile`/`publish_public_object`/`reply_publicly`/
+  `comment_publicly`/`react_publicly` fields are all
+  `Entitlement::FreeProtocolRight`) was already covered by D-0361.
+
+**Reason:** The research doctrine's §7 explicitly separates what an
+identity root may *consume* for free (D-0361's entitlements) from what
+it may *voluntarily give back* — "Public users may voluntarily
+contribute bounded local resources. Free participation must not
+require unlimited storage, bandwidth, battery, CPU, mobile data, or
+continuous availability. Contribution limits must be visible,
+configurable, and revocable." `ContributionBudget` is the typed inverse
+of `PublicCommonsPolicy`: consuming the commons never implies
+contributing to it, and contributing never buys extra protocol
+authority for it (`ContributionBudget` carries no field connecting to
+`PublicCommonsPolicy`, governance weight, or ranking — reading it back
+into either would be exactly the coupling D-0361's crate docs already
+forbid). C3 needed a real cross-crate test because D-0361 alone could
+only prove its own policy object was wallet-independent; it could not
+show that `mini-social`'s actual public functions — the systems the
+policy's fields describe — were.
+
+**Constitutional impact:** none. No cryptography, no new production
+dependency (`mini-social`/`did-mini`/`mini-objects`/`mini-store` are
+dev-dependencies only, exercised solely by the integration test), no
+Tier-F invariant touched. Strengthens the same money/voice separation
+D-0361 already advances.
+
+**Implementation status:** Shipped this PR. `budget.rs`: 8 tests
+(default is fully opted out; default is not contributing; opted-out
+reports no active grants; opting into one resource implies no other;
+`active_grants` lists every opted-in resource; `revoke` resets a fully
+opted-in budget; `CpuPercent` clamps at the construction boundary;
+battery/network policy default to the most conservative choice).
+`tests/social_commons.rs`: 1 integration test exercising `publish_profile`,
+`publish_wall` (+ `resolve_wall` round-trip), a raw `POST` object, a
+top-level `publish_comment` reply, a nested `publish_comment` on that
+reply, and `set_reaction`, all against a freshly-incepted identity with
+zero MINI ever created or checked. 21 total tests in the crate;
+`cargo fmt`/`clippy -D warnings`/`test` clean workspace-wide.
+
+**Failure point:** `ContributionBudget` is pure data — nothing in this
+crate or elsewhere yet enforces a contributed budget at runtime (no
+scheduler, no bandwidth throttle, no battery-state sensor reads it).
+Declaring a budget today has no observable effect; wiring one to real
+`mini-store`/`mini-net`/`mini-sync` resource consumption is separate,
+not-yet-scoped follow-up. The C3 integration test proves `mini-social`'s
+*existing* public functions need no payment; it cannot prove no future
+change reintroduces one — that guarantee still rests on the voice/value
+wall (P1) and ordinary code review, the same as everywhere else in this
+workspace.
+
+**Required follow-up:** wire `ContributionBudget` to a real resource
+scheduler once one exists; Track C4 (paid-provider/protection boundary
+— the remaining Track C item); Track D/E as previously noted in D-0361.
+
+**Supersedes / superseded by:** none.

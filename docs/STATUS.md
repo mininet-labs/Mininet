@@ -1037,6 +1037,19 @@ the top development priority.
   crate alone — no provider-settlement or ranking layer exists yet to
   test against (Track C4, Track E backlog); documented as open rather
   than silently assumed. Not yet wired into any real gating call site.
+- **shipped, prototype (D-0362, Track C2/C3)** — `mini-commons-policy`
+  gains `ContributionBudget` (Track C2): opt-in, bounded, visible,
+  revocable local storage/bandwidth/CPU/battery/network/background
+  contribution, defaulting entirely opted-out. Pure data — no scheduler,
+  throttle, or sensor reads it yet, so declaring a budget today has no
+  runtime effect. Also adds a real integration test (Track C3,
+  `tests/social_commons.rs`, `mini-social` et al. as dev-dependencies
+  only) that drives `mini-social`'s actual `publish_profile`,
+  `publish_wall`, `publish_comment` (reply and nested comment), and
+  `set_reaction` for a freshly-incepted, never-funded identity and
+  shows every call succeeds — the operational half of "ensure public
+  view/post/comment/reply/react paths do not require payment" that
+  D-0361 alone (crate-only) could not demonstrate.
 
 ## Client coverage
 

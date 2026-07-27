@@ -14,3 +14,13 @@ publish = false
 # wire codec, matching this workspace's no-serde convention. No wallet,
 # pricing, provider, or ranking mechanism is implemented here -- see the
 # crate-level docs for what those cross-crate integrations still owe.
+
+[dev-dependencies]
+# Dev-only: the Track C3 integration test (tests/social_commons.rs) proves
+# mini-social's public view/post/comment/reply/react paths actually run to
+# completion with no wallet, balance, or payment concept anywhere in the
+# call -- these are never a normal-build dependency of this crate.
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }
+mini-social = { path = "../mini-social" }
+mini-store = { path = "../mini-store" }

@@ -1,6 +1,6 @@
-//! Public-commons entitlement policy (D-0361; founder research
+//! Public-commons entitlement policy (D-0361/D-0362; founder research
 //! `docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`,
-//! Track C1, §7-8).
+//! Track C1/C2, §7-8/§26).
 //!
 //! The research doctrine's central claim is that speech, reading, public
 //! discovery, and ordinary social participation must never be paywalled:
@@ -31,8 +31,10 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod budget;
 mod error;
 mod policy;
 
+pub use budget::{BatteryPolicy, ContributionBudget, CpuPercent, NetworkPolicy};
 pub use error::{CommonsPolicyError, Result};
 pub use policy::{commons_policy_for, Entitlement, PublicCommonsPolicy, WalletStanding};
