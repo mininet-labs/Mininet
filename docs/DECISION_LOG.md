@@ -11505,5 +11505,74 @@ workspace.
 **Required follow-up:** wire `ContributionBudget` to a real resource
 scheduler once one exists; Track C4 (paid-provider/protection boundary
 — the remaining Track C item); Track D/E as previously noted in D-0361.
+### D-0363 — `mini-commons-policy`: paid-service boundary against `mini-resource-pricing` (Track C4)  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0361 (Track C1, this crate itself);
+`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§7 and §26 (Track C, PR C4 "Paid service boundary: Ensure only
+additional external service is quoted and settled"); `mini-resource-pricing`
+(D-0302) and `mini-privacy-policy` (D-0094), both consumed here as
+production dependencies for the first time by any crate.
+
+**Decision:** New function `service_quote_for(entitlement: Entitlement,
+tier: PrivacyTier, prices: &PriceVector, payload_mb: u64, storage_days: u64)
+-> Result<Option<Quote>>` (`src/boundary.rs`). Returns `Ok(None)`
+unconditionally for `PrivacyTier::Direct` — the base service every
+`PublicCommonsPolicy` entitlement already grants for free is never
+quoted or settled, regardless of `entitlement`. Returns
+`Ok(Some(quote))` for every other tier, identical to calling
+`mini_resource_pricing::quote` directly — `entitlement` never changes
+the price. `entitlement` is bound but otherwise unused, the same
+wallet-independence-by-construction pattern D-0361's
+`commons_policy_for` already established for `WalletStanding`.
+
+**Reason:** §7's core claim is that "payment purchases resources and a
+declared protection attempt... never permission to speak." §26's PR C4
+asks specifically that only *additional* external service ever gets
+quoted. Before this change, `mini-resource-pricing` already modeled
+`PrivacyTier::Direct` as free (`requires_payment: false`,
+D-0302) and nothing in the workspace consumed it, so the "only
+additional service is quoted" boundary existed in the pricing crate's
+own data but was never connected to the commons-policy layer that
+actually names what's free. `service_quote_for` is that connection: a
+single, small, typed crossing point rather than duplicating tier/price
+logic inside `mini-commons-policy`.
+
+**Constitutional impact:** none directly, but this is the first crate
+to depend on `mini-resource-pricing` in production code, so it is
+worth restating explicitly: neither `mini-resource-pricing` nor
+`mini-privacy-policy` depends on `mini-value`, `mini-treasury`,
+`mini-forge`, or `mini-chain` (both crates' own `Cargo.toml` comments
+already say so), so this dependency edge stays clear of the P1
+voice/value wall. No cryptography, no new external dependency.
+
+**Implementation status:** Shipped this PR. 6 new tests: Direct tier
+unquoted for `FreeProtocolRight`; Direct tier unquoted even for
+`Unsupported`; Direct tier stays unquoted across a payload/duration
+sweep; every non-Direct tier is quoted and `requires_payment`; a paid
+tier's quote is bit-for-bit identical regardless of entitlement; a
+paid-tier quote via `service_quote_for` matches calling
+`mini_resource_pricing::quote` directly; an overflowing paid-tier
+quote still propagates `PricingError::Overflow` rather than silently
+returning `None`. 19 total tests in the crate; `cargo fmt`/
+`clippy -D warnings`/`test` clean workspace-wide.
+
+**Failure point:** this proves only the pricing/quoting boundary the
+research doctrine's §26 PR C4 literally asks for. It does *not* prove
+either of D-0361's two still-deferred properties (paid providers
+cannot suppress unpaid public objects; paid protection does not
+improve organic ranking) — those describe a provider-settlement layer
+and a search-ranking layer this crate still does not build. A quote
+layer that structurally cannot charge for `Direct`-tier access is a
+necessary precondition for the first deferred property, not a proof of
+it: a provider could still refuse to carry or serve an unpaid object
+for reasons this crate has no visibility into. Documented as such in
+the crate's own doc comment rather than implied solved.
+
+**Required follow-up:** Track D (protected publishing, which will
+consume `service_quote_for`'s tier/quote vocabulary for real
+protection-tier settlement) and Track E (MiniSearch, needed before the
+organic-ranking property can be tested); the provider-settlement layer
+that would finally let the two deferred D-0361 properties get a real
+integration test.
 
 **Supersedes / superseded by:** none.

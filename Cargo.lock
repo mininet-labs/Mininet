@@ -2371,6 +2371,8 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "mini-objects",
+ "mini-privacy-policy",
+ "mini-resource-pricing",
  "mini-social",
  "mini-store",
 ]
