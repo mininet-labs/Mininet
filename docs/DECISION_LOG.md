@@ -10837,7 +10837,7 @@ enforce at most one entry per identity root, bounded entry count/reason
 length, and a BLAKE3-256 `digest()` over the canonical (sorted) snapshot
 content so a claim can bind itself to one exact snapshot. `ClaimRequest`
 carries a domain-tagged, length-prefixed signed message (campaign id +
-identity root + recipient + nonce); `verify_and_resolve_claim` checks
+identity root + recipient + sequence); `verify_and_resolve_claim` checks
 campaign match, verifies the claimant's real `did-mini` KEL and that its
 scid matches the claimed identity root, verifies the signature against
 that KEL's current threshold via the existing `Kel::verify_message`, checks
@@ -11026,5 +11026,64 @@ external audit (D-0047) before any of this composes with real value;
 consider whether the eventual settlement-layer special case belongs in
 `mini-settlement` itself or a further bridge crate, once the signing
 question is actually decided.
+
+**Supersedes / superseded by:** none.
+
+---
+
+### D-0357 — `mini-airdrop`: rename `ClaimRequest.nonce` field to `sequence` (terminology correction, not a design change)  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0058 (identical prior fix in
+`mini-settlement`), D-0354, GitHub code scanning (CodeQL) on PR #238.
+
+**Decision:** rename `ClaimRequest`'s `nonce: u64` field, and every
+identifier derived from it (`claim_request_message`'s `nonce` parameter,
+`request_for`'s test-helper parameter, D-0354's own decision-log prose),
+to `sequence` throughout `mini-airdrop`'s public API and docs. No field
+type, no verification order, no signed byte layout, and no test
+assertion changed -- this is a rename only.
+
+**Reason:** GitHub's CodeQL scan flagged 9 "critical" alerts against
+`crates/mini-airdrop/src/claim.rs` under `rust/hard-coded-cryptographic-
+value` (CWE-798), each one an integer literal passed into a parameter or
+field literally named `nonce`, all inside `#[cfg(test)]` fixtures. All 9
+are false positives for the exact reason D-0058 already established for
+`mini-settlement`: `did_mini::Controller::sign_message` is deterministic
+Ed25519 signing with no caller-supplied nonce, and `ClaimRequest.nonce`
+was always a caller-chosen sequence number distinguishing otherwise-
+identical requests (a retry after a dropped response), never an AEAD or
+stream-cipher nonce. CodeQL's heuristic keys on the field/parameter
+*name*, not on any actual cryptographic use -- the same collision D-0058
+records, now recurring in a second crate because `mini-airdrop` reused
+the word "nonce" for the same non-cryptographic purpose without
+consulting that entry first. Renaming to the name that already describes
+what the field does resolves the false positives and removes a name that
+would mislead the next reader (or the next CodeQL run).
+
+**Constitutional impact:** none. No frozen invariant touched --
+`verify_and_resolve_claim`'s verification order and
+`ClaimedRegistry`-backed double-claim protection are unchanged in
+substance, only the field name flowing through them differs. Not a
+supersession of D-0354's protocol decision, only a correction to that
+entry's own prose, which called the field a "nonce"; D-0354 itself is
+left unedited in its own right and its "identity root + recipient +
+nonce" phrase is updated in place only because that PR has not yet
+merged into `main` (still a working draft on `claude/mini-airdrop`), so
+this is pre-merge correction, not a rewrite of already-canonical
+append-only history.
+
+**Implementation status:** shipped -- all `mini-airdrop` claim tests pass
+unchanged in substance (only names differ); `cargo fmt`/`clippy -D
+warnings`/`test` clean.
+
+**Failure point:** none introduced -- pure rename, no behavioral
+surface. Same residual risk D-0058 already named: documentation drift if
+a future crate reintroduces "nonce" language for a non-cryptographic
+counter without checking this entry (or D-0058) first.
+
+**Required follow-up:** none for this crate. Any future crate that adds
+a field literally named `nonce` should first check whether it is an
+actual cryptographic nonce (AEAD/stream-cipher IV) -- if so, name it
+plainly; if not, this is the second time that mistake has cost a CodeQL
+false-positive cleanup and should not need a third.
 
 **Supersedes / superseded by:** none.

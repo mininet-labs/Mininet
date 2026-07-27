@@ -4973,38 +4973,38 @@
       "title": "Identity vocabulary + real KEL signature verification (claimants prove"
     },
     {
-      "bytes": 14209,
+      "bytes": 14532,
       "group": "crate:mini-airdrop",
       "headings": [],
       "keywords": [
-        "request",
         "recipient",
+        "request",
         "msg",
         "campaign_id",
-        "snapshot",
-        "identity_root",
         "extend_from_slice",
+        "snapshot",
         "len",
         "claimrequest",
         "vec",
+        "identity_root",
+        "kel",
+        "sequence",
+        "claim",
+        "claimoutcome",
         "claimant",
         "same",
         "registry",
-        "kel",
-        "nonce",
-        "claim",
-        "claimoutcome",
-        "already",
+        "never",
         "did",
         "root_bytes",
         "to_be_bytes",
         "max_recipient_bytes",
         "claim_request_message",
-        "message_to_sign"
+        "identity"
       ],
-      "lines": 388,
+      "lines": 392,
       "path": "crates/mini-airdrop/src/claim.rs",
-      "sha256": "44555b35c252020a4ee6df961f3629097dfb973a95fd89d14918682d5f88f55c",
+      "sha256": "015ad666933e0b626430738aeeb3bd1e1e8c008795f3cf617b9bfe81d6f1d647",
       "symbols": [
         {
           "kind": "const",
@@ -5018,87 +5018,87 @@
         },
         {
           "kind": "impl",
-          "line": 45,
+          "line": 49,
           "name": "ClaimRequest"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 50,
           "name": "check_wellformed"
         },
         {
           "kind": "fn",
-          "line": 58,
+          "line": 62,
           "name": "claim_request_message"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 86,
           "name": "message_to_sign"
         },
         {
           "kind": "struct",
-          "line": 96,
+          "line": 100,
           "name": "ClaimOutcome"
         },
         {
           "kind": "fn",
-          "line": 118,
+          "line": 122,
           "name": "verify_and_resolve_claim"
         },
         {
           "kind": "mod",
-          "line": 162,
+          "line": 166,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 169,
+          "line": 173,
           "name": "snapshot_with"
         },
         {
           "kind": "fn",
-          "line": 181,
+          "line": 185,
           "name": "request_for"
         },
         {
           "kind": "fn",
-          "line": 191,
+          "line": 195,
           "name": "a_valid_claim_resolves_and_marks_the_registry"
         },
         {
           "kind": "fn",
-          "line": 216,
+          "line": 220,
           "name": "a_second_claim_by_the_same_identity_root_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 250,
+          "line": 254,
           "name": "a_claim_against_the_wrong_campaign_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 273,
+          "line": 277,
           "name": "an_identity_root_with_no_snapshot_entry_is_not_eligible"
         },
         {
           "kind": "fn",
-          "line": 298,
+          "line": 302,
           "name": "presenting_a_different_identity_roots_kel_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 323,
+          "line": 327,
           "name": "a_signature_from_an_unrelated_key_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 350,
+          "line": 354,
           "name": "tampering_with_the_recipient_after_signing_invalidates_the_signature"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 379,
           "name": "an_oversized_recipient_is_rejected_before_any_crypto_runs"
         }
       ],
@@ -47284,7 +47284,7 @@
       "title": "{"
     },
     {
-      "bytes": 662243,
+      "bytes": 665533,
       "group": "docs",
       "headings": [
         {
@@ -47708,15 +47708,15 @@
         "doctrine",
         "phase",
         "release",
+        "design",
         "mini-consensus",
         "status",
-        "design",
         "new",
         "research"
       ],
-      "lines": 11031,
+      "lines": 11090,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d354cb1fdfa84eaefa54ac42ee886be9813950677d056b21cabc49d4f88ad653",
+      "sha256": "f145753229b54ac233c3a6167e962e43a267aaea1e19f53949734aacb5c3859d",
       "symbols": [],
       "title": "Decision Log"
     },

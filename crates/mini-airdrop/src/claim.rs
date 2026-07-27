@@ -36,10 +36,14 @@ pub struct ClaimRequest {
     /// opinion on how it was derived, mirroring `mini_bounty::BountyClaim
     /// ::payout_address`'s own convention.
     pub recipient: Vec<u8>,
-    /// Caller-chosen nonce distinguishing otherwise-identical requests
-    /// (e.g. a retry after a dropped response) -- not itself
-    /// replay-protection (the registry is), just message uniqueness.
-    pub nonce: u64,
+    /// Caller-chosen sequence number distinguishing otherwise-identical
+    /// requests (e.g. a retry after a dropped response) -- not itself
+    /// replay-protection (the registry is), just message uniqueness. Not
+    /// a cryptographic nonce: `did_mini::Controller::sign_message` is
+    /// deterministic Ed25519 signing with no caller-supplied nonce, and
+    /// this field never feeds an AEAD or stream cipher (D-0058 renamed
+    /// `mini-settlement::PaymentClaim`'s field for the identical reason).
+    pub sequence: u64,
 }
 
 impl ClaimRequest {
@@ -59,7 +63,7 @@ fn claim_request_message(
     campaign_id: &[u8],
     identity_root: &Did,
     recipient: &[u8],
-    nonce: u64,
+    sequence: u64,
 ) -> Vec<u8> {
     let root_bytes = identity_root.as_str().as_bytes();
     let mut msg = Vec::with_capacity(
@@ -72,7 +76,7 @@ fn claim_request_message(
     msg.extend_from_slice(root_bytes);
     msg.extend_from_slice(&(recipient.len() as u32).to_be_bytes());
     msg.extend_from_slice(recipient);
-    msg.extend_from_slice(&nonce.to_be_bytes());
+    msg.extend_from_slice(&sequence.to_be_bytes());
     msg
 }
 
@@ -84,7 +88,7 @@ pub fn message_to_sign(request: &ClaimRequest) -> Vec<u8> {
         &request.campaign_id,
         &request.identity_root,
         &request.recipient,
-        request.nonce,
+        request.sequence,
     )
 }
 
@@ -178,12 +182,12 @@ mod tests {
         b.build()
     }
 
-    fn request_for(controller: &Controller, recipient: &[u8], nonce: u64) -> ClaimRequest {
+    fn request_for(controller: &Controller, recipient: &[u8], sequence: u64) -> ClaimRequest {
         ClaimRequest {
             campaign_id: b"campaign-1".to_vec(),
             identity_root: controller.did(),
             recipient: recipient.to_vec(),
-            nonce,
+            sequence,
         }
     }
 
