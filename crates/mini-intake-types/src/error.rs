@@ -35,6 +35,9 @@ pub enum IntakeError {
     /// from the envelope's current class — see
     /// [`crate::IntakeEnvelope::promote_authority`].
     InvalidAuthorityPromotion,
+    /// [`crate::IntakeEnvelope::add_link`] was called before the
+    /// envelope reached [`crate::ReviewState::Accepted`].
+    LinkRequiresAcceptedReview,
     /// A cryptographic primitive failure (surfaced by [`mini_crypto::Multihash`]
     /// decoding).
     Crypto(CryptoError),
@@ -61,6 +64,12 @@ impl core::fmt::Display for IntakeError {
             }
             IntakeError::InvalidAuthorityPromotion => {
                 write!(f, "requested authority-class promotion is not permitted")
+            }
+            IntakeError::LinkRequiresAcceptedReview => {
+                write!(
+                    f,
+                    "a link cannot be attached before the envelope is accepted"
+                )
             }
             IntakeError::Crypto(e) => write!(f, "crypto error: {e}"),
         }
