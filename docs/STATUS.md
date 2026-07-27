@@ -1165,9 +1165,7 @@ SignatureSuite` (Ed25519/ML-DSA-65 only) cannot parse or verify, so
 claim without either extending `mini_crypto::SignatureSuite` (touches a
 shared foundational crate and the frozen crypto-agility invariant
 enumeration) or a `mini_settlement`-side special case — a decision
-deliberately deferred, not resolved, in D-0356. Also not built: any
-reconciliation check that the airdrop treasury actually holds enough
-MINI to honor every eligible entry.
+deliberately deferred, not resolved, in D-0356.
 
 **shipped, prototype (D-0358)** — an end-to-end integration test
 (`crates/mini-airdrop-treasury/tests/end_to_end.rs`) proving `mini-
@@ -1175,6 +1173,15 @@ airdrop` and `mini-airdrop-treasury` actually compose across the full
 snapshot → signed claim → `FileClaimedRegistry` → treasury-signer
 approval path with real `did-mini` identities, not just within each
 crate's own unit tests.
+
+**shipped, prototype (D-0359)** — treasury balance reconciliation:
+`check_snapshot_within_treasury_balance`/`total_allocated_micro`
+(`crates/mini-airdrop-treasury/src/reconciliation.rs`) sum a snapshot's
+allocations with checked arithmetic and compare against a caller-
+supplied treasury balance, closing the gap named just above. This is
+bookkeeping only — it is not wired into claim or approval verification,
+reads no real balance from anywhere, and cannot itself detect a
+dishonest `treasury_balance_micro` input.
 
 ## Where to look for more detail
 

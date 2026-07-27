@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 55,
-    "files": 642,
+    "files": 643,
     "headings": 2143,
-    "rust_symbols": 5453
+    "rust_symbols": 5469
   },
   "crates": {
     "did-mini": {
@@ -4797,38 +4797,38 @@
       "title": "use std::collections::HashSet;"
     },
     {
-      "bytes": 1210,
+      "bytes": 2636,
       "group": "crate:mini-airdrop-treasury",
       "headings": [],
       "keywords": [
-        "payoutapprovalerror",
-        "result",
         "fmt",
-        "error",
+        "result",
         "core",
-        "thresholdnotmet",
-        "approvals",
-        "mini-airdrop-treasury",
+        "error",
+        "payoutapprovalerror",
+        "reconciliationerror",
         "display",
         "std",
-        "verified",
-        "threshold",
-        "candidate",
-        "presented",
-        "voted",
-        "enough",
-        "noapprovalspresented",
         "self",
         "write",
-        "errors",
+        "u64",
+        "thresholdnotmet",
+        "approvals",
+        "presented",
+        "treasury",
+        "balance",
+        "snapshot",
+        "insufficienttreasurybalance",
+        "required_micro",
+        "available_micro",
+        "mini-airdrop-treasury",
+        "reconciliationresult",
         "alias",
-        "type",
-        "derive",
-        "debug"
+        "type"
       ],
-      "lines": 35,
+      "lines": 73,
       "path": "crates/mini-airdrop-treasury/src/error.rs",
-      "sha256": "4e7640ca734265712081de61a18821907397b97e85859be1ea68fbd752ccca3f",
+      "sha256": "8d54887bf280b9a87e75f43aeb47d94c88e68e7729eedd67216b6e28525858ba",
       "symbols": [
         {
           "kind": "type",
@@ -4854,12 +4854,37 @@
           "kind": "impl",
           "line": 34,
           "name": "std::error::Error"
+        },
+        {
+          "kind": "type",
+          "line": 37,
+          "name": "ReconciliationResult"
+        },
+        {
+          "kind": "enum",
+          "line": 41,
+          "name": "ReconciliationError"
+        },
+        {
+          "kind": "impl",
+          "line": 55,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 56,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 72,
+          "name": "std::error::Error"
         }
       ],
       "title": "pub type Result<T> = core::result::Result<T, PayoutApprovalError>;"
     },
     {
-      "bytes": 2333,
+      "bytes": 2485,
       "group": "crate:mini-airdrop-treasury",
       "headings": [],
       "keywords": [
@@ -4869,6 +4894,7 @@
         "treasury",
         "counting",
         "error",
+        "reconciliation",
         "payout",
         "does",
         "mini-airdrop-treasury",
@@ -4885,12 +4911,11 @@
         "authorized",
         "signers",
         "composed",
-        "here",
-        "deliberately"
+        "here"
       ],
-      "lines": 49,
+      "lines": 51,
       "path": "crates/mini-airdrop-treasury/src/lib.rs",
-      "sha256": "62791c0530e61c2da3f92d7fd4ccef42aab3fb0c2e587bd039381b7b61e99172",
+      "sha256": "aec0c3fbe044de66623d0dac2e04797ca8db3db9c579084822d26fc0a13b70e5",
       "symbols": [
         {
           "kind": "mod",
@@ -4901,9 +4926,101 @@
           "kind": "mod",
           "line": 43,
           "name": "error"
+        },
+        {
+          "kind": "mod",
+          "line": 44,
+          "name": "reconciliation"
         }
       ],
       "title": "mod approval;"
+    },
+    {
+      "bytes": 4542,
+      "group": "crate:mini-airdrop-treasury",
+      "headings": [],
+      "keywords": [
+        "snapshot",
+        "snapshot_with_amounts",
+        "check_snapshot_within_treasury_balance",
+        "u64",
+        "total_allocated_micro",
+        "reconciliationerror",
+        "treasury_balance_micro",
+        "total",
+        "unwrap",
+        "assert_eq",
+        "treasury",
+        "airdropsnapshot",
+        "amount_micro",
+        "required_micro",
+        "every",
+        "mini_airdrop",
+        "allocationentry",
+        "reconciliationresult",
+        "entry",
+        "totalallocationoverflow",
+        "assert",
+        "is_ok",
+        "unwrap_err",
+        "reconciliation"
+      ],
+      "lines": 122,
+      "path": "crates/mini-airdrop-treasury/src/reconciliation.rs",
+      "sha256": "1e957d662cd50e52c4d31c04d4043019e6a5aa17f47336a6d50e0a30e9d3d6d7",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 25,
+          "name": "total_allocated_micro"
+        },
+        {
+          "kind": "fn",
+          "line": 37,
+          "name": "check_snapshot_within_treasury_balance"
+        },
+        {
+          "kind": "mod",
+          "line": 52,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 57,
+          "name": "snapshot_with_amounts"
+        },
+        {
+          "kind": "fn",
+          "line": 73,
+          "name": "an_empty_snapshot_requires_zero_balance"
+        },
+        {
+          "kind": "fn",
+          "line": 80,
+          "name": "total_allocated_micro_sums_every_entry"
+        },
+        {
+          "kind": "fn",
+          "line": 86,
+          "name": "a_balance_exactly_matching_the_total_is_accepted"
+        },
+        {
+          "kind": "fn",
+          "line": 92,
+          "name": "a_balance_with_room_to_spare_is_accepted"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "a_balance_short_by_one_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 110,
+          "name": "an_overflowing_total_is_reported_not_panicked"
+        }
+      ],
+      "title": "use mini_airdrop::AirdropSnapshot;"
     },
     {
       "bytes": 5441,
@@ -47336,7 +47453,7 @@
       "title": "{"
     },
     {
-      "bytes": 668007,
+      "bytes": 671641,
       "group": "docs",
       "headings": [
         {
@@ -47766,9 +47883,9 @@
         "signed",
         "new"
       ],
-      "lines": 11133,
+      "lines": 11199,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "b4a0b70f41088a1d4e83b9a5c99ecf1f4cd1131323605ac4128484189371ea21",
+      "sha256": "bc1a496e556bd319717a51cef149ba114ffcb144c88b895ed58e634dd3d0b338",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -48912,7 +49029,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 76122,
+      "bytes": 76519,
       "group": "docs",
       "headings": [
         {
@@ -48997,7 +49114,7 @@
         },
         {
           "level": 2,
-          "line": 1179,
+          "line": 1186,
           "text": "Where to look for more detail"
         }
       ],
@@ -49027,9 +49144,9 @@
         "social",
         "network"
       ],
-      "lines": 1194,
+      "lines": 1201,
       "path": "docs/STATUS.md",
-      "sha256": "a10e713ab2396c62ba538f6fc60c9bf9134ceb4305c79de0f9dbc993fc904a75",
+      "sha256": "47cc114f16a8561a423103bff4cd1158389ce9533695f2434ecfb9e0c775c532",
       "symbols": [],
       "title": "Implementation status"
     },

@@ -41,8 +41,10 @@
 
 mod approval;
 mod error;
+mod reconciliation;
 
 pub use approval::{
     payout_message, verify_payout_approvals, CandidateApproval, TreasuryApprovedPayout,
 };
-pub use error::{PayoutApprovalError, Result};
+pub use error::{PayoutApprovalError, ReconciliationError, ReconciliationResult, Result};
+pub use reconciliation::{check_snapshot_within_treasury_balance, total_allocated_micro};
