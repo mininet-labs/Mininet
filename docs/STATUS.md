@@ -1005,12 +1005,23 @@ the top development priority.
   tests, 5 extractor unit tests, 8 adversarial/integration tests against
   the real compiled worker binary). Not yet wired to `mini-intake`'s
   coordinator — that integration is later follow-up. No PDF/HTML
-  support, no network client, no AI model, no publication linking —
-  those are Tracks B4-B5, not started. (D-0324: the
-  `max_wall_clock_ms == 0` case in `run_worker` is now a deterministic
-  immediate timeout rather than racing the worker's real round trip
-  against a zero-duration channel wait, fixing an intermittent CI
-  failure in the test asserting that behavior.)
+  support, no network client, no AI model — Track B4 remains not
+  started. (D-0324: the `max_wall_clock_ms == 0` case in `run_worker`
+  is now a deterministic immediate timeout rather than racing the
+  worker's real round trip against a zero-duration channel wait, fixing
+  an intermittent CI failure in the test asserting that behavior.)
+- **shipped, prototype (D-0360, Track B5)** — `IntakeEnvelope::add_link`
+  is now gated: it returns `Result<(), IntakeError>` and rejects with
+  `IntakeError::LinkRequiresAcceptedReview` unless the envelope's
+  `ReviewState` is already `Accepted`. Closes a real gap D-0313 shipped
+  with: `add_link` was previously ungated, letting any freshly-intaken,
+  `Unreviewed`/`UntrustedExternal` envelope attach any `IntakeLink`
+  (`Issue`/`Object`/`Audit`/`Research`/`Profile`/`Post`/`Release`) —
+  contradicting this crate's own "no authority merely from parsing" core
+  rule. Still not built: PR B4 (PDF/HTML extraction backends, blocked on
+  licence/security review) and any real workflow wiring this gate into
+  `mini-intake`'s coordinator or a review UI — a caller must still drive
+  `advance_review_state`/`add_link` itself.
 
 ## Client coverage
 

@@ -11276,3 +11276,76 @@ blocked on D-0356's own deferred signature-suite question for anything
 beyond bookkeeping.
 
 **Supersedes / superseded by:** none.
+
+---
+
+### D-0360 — `mini-intake-types`: gate `IntakeLink` attachment behind an accepted review (Track B, PR B5)  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0313 (Track B1, `mini-intake-types`
+itself), D-0319 (Track B3, named B4/B5 as not-started follow-up),
+`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_
+SEARCH_20260718.md` §25 (PR B5 — Publication linking).
+
+**Decision:** `IntakeEnvelope::add_link` now returns
+`Result<(), IntakeError>` and rejects with the new
+`IntakeError::LinkRequiresAcceptedReview` unless
+`self.review_state() == ReviewState::Accepted`. No other behavior
+changes: the set of `IntakeLink` variants, their wire encoding, and
+every other envelope method are unchanged.
+
+**Reason:** `add_link` shipped in D-0313 (Track B1) as a plain,
+completely ungated method — any envelope, at any review state or
+authority class (including the default freshly-constructed
+`Unreviewed`/`UntrustedExternal`), could attach any `IntakeLink`
+variant (`Issue`, `Object`, `Audit`, `Research`, `Profile`, `Post`,
+`Release`). That directly contradicts this crate's own stated core
+rule, restated in this module's doc comment: "imported material
+receives no project authority merely because Mininet can parse it."
+A link is precisely how imported material gets recognized elsewhere in
+Mininet -- as a tracked issue's evidence, a cited audit, a linked
+research document, or (via `Object`/`Profile`/`Post`) as if it already
+were a first-class Mininet object. Nothing before this change stopped
+unreviewed, untrusted external material from claiming any of those the
+moment it was parsed. `promote_authority` already enforces an identical
+review-before-recognition gate for `AuthorityClass::ReviewedEvidence`
+and above; `add_link` had no equivalent, which is exactly the gap
+`docs/research/...20260718.md` §25's PR B5 ("Allow *accepted* intake
+objects to become: private objects; public references; social posts;
+audit evidence; issue-linked research") describes closing. This closes
+it uniformly across every `IntakeLink` variant rather than only the
+subset that maps most obviously onto "public"-sounding targets, because
+the design doc frames all five listed outcomes as things only an
+already-accepted object may become.
+
+**Constitutional impact:** none. No cryptography, no new dependency, no
+Tier-F invariant touched. This is the same class of change as D-0313's
+own `promote_authority` gate: a stricter internal admission check on an
+existing type, not new capability or new authority.
+
+**Implementation status:** Shipped. 3 new tests: a link cannot be
+attached to a fresh `Unreviewed` envelope nor one merely `UnderReview`
+(the registry stays empty either way); a link attaches once review
+reaches `Accepted`; a link cannot be attached to a `Rejected` envelope
+even though `Rejected` is reachable from `UnderReview`. Fixed the one
+existing test that previously called `add_link` before advancing
+review state, since that call sequence is no longer legal. All 38
+`mini-intake-types` tests pass; `cargo fmt`/`clippy -D warnings`/`test`
+clean workspace-wide. No other crate called `add_link` before this
+change (confirmed via full-workspace search), so no other call site
+needed updating.
+
+**Failure point:** this closes only the type-level gate this crate can
+enforce on its own. It does not implement PR B4 (PDF/HTML extraction
+backends) -- that remains deliberately deferred pending an explicit
+licence/security review the design doc itself names as a precondition,
+and no new third-party parsing dependency is added here. It also does
+not yet wire `add_link` into `mini-intake`'s coordinator or any real
+review UI/workflow -- a caller must still call `advance_review_state`
+and `add_link` itself; there is no automation deciding when review is
+genuinely complete.
+
+**Required follow-up:** PR B4 (extraction backends, blocked on
+licence/security review); wiring a real human-driven review workflow
+that calls `advance_review_state`/`add_link` in `mini-intake` or a
+higher layer, once one exists.
+
+**Supersedes / superseded by:** none.
