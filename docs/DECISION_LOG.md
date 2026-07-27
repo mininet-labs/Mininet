@@ -10581,3 +10581,618 @@ builders, never this repo.
 D-0090 canonized the original seventeen directives as the one canonical
 set; this entry adds an eighteenth to that same set via the same
 process.
+
+---
+
+### D-0400 — `mini-provider`: Wave 1 edge/provider vocabulary  ·  *Accepted*
+**Date:** 2026-07-22 · **Refs:** Founder Directive 18 (D-0352), FD-18 Part
+II.1, `docs/INVARIANTS.md` section 10 (INV-18-04, INV-18-05), PR #219.
+
+**Decision:** Ship `mini-provider` as a new leaf crate implementing FD-18's
+Wave 1 scope exactly: `ProviderDeclaration` (with the four mandatory-
+honesty fields — `CustodyPosture`, `FreezePowers`, `DeathDisposition`,
+`ExitTerms` — all non-`Option` by design), `EngagementGrant`, the
+device-local-only `LocalProviderPolicy` off switch, and the
+`ProviderRanker` discovery trait. Pure data and structural well-
+formedness checks only (`check_wellformed`) — no signing, no network
+client, no canonical provider registry.
+
+**Reason:** The doctrine's own confirmed sequencing (FD-18 Part VI) puts
+Wave 1 first as pure vocabulary, deliberately ahead of any execution
+wiring, so the edge/provider layer's core types exist and are testable
+before anything touches real signing or settlement. This crate is the
+first concrete artifact `docs/INVARIANTS.md`'s section 10 rows (added in
+D-0352) can eventually point at.
+
+**Constitutional impact:** Directive 18; INV-18-04 ("no canonical
+provider registry type exists") — `ProviderRanker` has no registry type,
+by construction; INV-18-05 ("provider disabling has no network-wide
+representation") — `LocalProviderPolicy` is device-local, has no wire
+format, no (de)serialization, and no network dependency at all. Both
+rows remain `pending` in `docs/INVARIANTS.md` since the
+`crates/mini-invariants/tests/edge_wall.rs` CI check that would flip
+them to a concrete enforced path does not exist yet — this decision
+does not claim that check exists.
+
+**Implementation status:** Shipped in PR #219. 21 adversarial tests
+cover declaration expiry, unbounded-hold rejection, oversized-input
+rejection, grant window validation, and `LocalProviderPolicy`'s
+per-provider vs. per-service-class disabling. `cargo fmt`/`clippy
+-D warnings`/`test --workspace` all clean at merge.
+
+**Failure point:** binding a `ProviderDeclaration`/`EngagementGrant` to a
+real signed, content-addressed `mini_objects::Object` — so a declaration
+is actually tamper-evident and discoverable the way every other object
+in this workspace is — is not built. Until then, nothing stops a caller
+from constructing an arbitrary in-memory `ProviderDeclaration` with no
+cryptographic binding to the identity it names; this crate does not
+claim otherwise anywhere in its docs.
+
+**Required follow-up:** wire real signing/content-addressing (deferred,
+see crate docs); build `crates/mini-invariants/tests/edge_wall.rs` to
+flip INV-18-04/INV-18-05 from `pending` to enforced; Waves 3-5 of FD-18
+per the doctrine's sequencing.
+
+**Supersedes / superseded by:** none. This entry retroactively records a
+decision whose code shipped in PR #219 without a corresponding
+`DECISION_LOG.md` entry at merge time — an oversight this entry
+corrects rather than leaves silently unrecorded.
+
+---
+
+### D-0402 — `mini-engagement`: escrowed engagement state machine  ·  *Accepted*
+**Date:** 2026-07-22 · **Refs:** Founder Directive 18 (D-0352), FD-18 Part
+II.2, D-0400, `mini-settlement` (D-0055), PR #219.
+
+**Decision:** Ship `mini-engagement` as a new leaf crate: the general
+escrowed-work state machine (`Offered → Accepted → Milestone* →
+Completed/Disputed/TimedOut`) FD-18's edge/provider layer builds on top
+of. Deliberately generic per the doctrine's non-negotiable #10 — no
+`CardIssuance`/`Courier`/per-industry variant. `Engagement` wraps a real,
+already-signed `mini_settlement::PaymentClaim` and tracks how much of it
+has been released across milestone transitions, never exceeding the
+claim's amount. `transitions::timeout` encodes the doctrine's "a
+provider that disappears cannot strand funds" obligation as a real,
+total function rather than a documented convention.
+
+**Reason:** Wave 2 follows directly from Wave 1 in the doctrine's own
+sequencing, and a general escrow primitive is the shared foundation
+every later provider-service flow (conversion, delivery, professional
+service) needs — building it generic once, rather than per-service,
+follows Directive 14 (simplicity) and the doctrine's explicit
+instruction to avoid per-industry logic.
+
+**Constitutional impact:** Directive 18, Directive 5 (canonical truth is
+sacred — FD-05 applies unchanged: this crate only tracks *local* release
+state against an already-signed claim, it never invents ownership or
+submits anything to canonical settlement itself). No Tier-F row in
+`docs/INVARIANTS.md` names `mini-engagement` directly; it composes
+`mini-settlement`'s existing M1-M3 guarantees rather than adding new
+frozen invariants of its own.
+
+**Implementation status:** Shipped in PR #219. 12 adversarial tests
+cover every valid/invalid state transition pair, running-total-never-
+exceeds-escrow, and `timeout`'s interaction with every other state
+(no-op before deadline, no-op once terminal). `cargo fmt`/`clippy
+-D warnings`/`test --workspace` all clean at merge.
+
+**Failure point:** submitting an actual release through
+`mini_settlement::reconcile` against a `CanonicalLedgerView` — so a
+milestone release becomes canonical rather than only locally tracked —
+is not wired. Until that lands, a caller could construct an
+`EngagementState::Completed` locally with no corresponding canonical
+settlement ever having occurred; this crate's docs say so explicitly
+rather than implying more finality than exists.
+
+**Required follow-up:** wire `release_milestone`/`complete` outcomes to
+real `mini_settlement::reconcile` submission; Wave 3
+(`mini-succession`) onward per the doctrine's sequencing.
+
+**Supersedes / superseded by:** none. Like D-0400, this entry
+retroactively records a decision whose code shipped in PR #219 without
+a corresponding `DECISION_LOG.md` entry at merge time.
+
+### D-0403 — `mini-engagement`: read-only canonical-completion bridge to `mini-settlement`  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** D-0402, D-0400, `mini-settlement` (D-0055),
+PR #220's research proposal §3.1, roadmap issue #226 ("Frontier Trust 5"),
+`mini-forge::KelDirectory`/`mini_presence::ReplayGuard`'s seam pattern.
+
+**Decision:** Add `mini-engagement::settlement::canonical_completion_status`,
+reconciling `Engagement::escrow_claim` against a real
+`mini_settlement::CanonicalLedgerView` (via the existing
+`mini_settlement::reconcile`) and combining that truth with the
+engagement's local `EngagementState`. Produces
+`CanonicalCompletionStatus` with five variants — `Pending`,
+`CanonicallyCompleted`, `FinalizedWithoutLocalCompletion`,
+`RejectedConflict`, `Expired` — so a caller can distinguish "I locally
+recorded this as done" from "the canonical ledger agrees value moved."
+Strictly read-only: never writes to the ledger, never submits the claim
+anywhere, never finalizes anything on its own authority — the same
+seam discipline `mini_settlement::CanonicalLedgerView` itself already
+documents (a trait a real chain-execution engine backs later, tested
+today against `InMemoryLedgerView`).
+
+**Reason:** D-0402's own "Failure point" named this exact gap: nothing
+in `mini-engagement` ever asked a real ledger whether an escrow claim
+finalized, so a locally-constructed `Completed` state could not be
+honestly distinguished from a canonically settled one. PR #220's
+research proposal (§3.1) named the same gap as a hard prerequisite for
+FD-18 Wave 4's `mini-attest`, which must attest against real canonical
+completion, not a serialized Rust struct a reviewer supplied.
+
+**Constitutional impact:** Directive 5 / FD-05 (a signed promise is
+never final ownership), M1 (`docs/INVARIANTS.md` §4 — no merge path;
+`FinalizedWithoutLocalCompletion` is surfaced explicitly rather than
+silently folded into either "complete" or "pending" for exactly this
+reason), M2 (pending/accepted/finalized stay distinguishable types, not
+UI convention), M3 (canonical ordering alone resolves conflicts —
+`RejectedConflict` is reported, never merged with whatever did win).
+No Tier-F invariant row changes; this composes `mini-settlement`'s
+existing frozen guarantees rather than adding new ones.
+
+**Implementation status:** Shipped this PR. 6 new tests: nothing
+finalized yet is `Pending`; a finalized claim with local `Completed`
+state is `CanonicallyCompleted`; a finalized claim *without* local
+completion is flagged, not silently treated as done; a conflicting
+finalized claim is `RejectedConflict` regardless of local state; an
+unresolved claim past its validity window is `Expired`; a tampered
+escrow claim's bad signature surfaces as `EngagementError::Settlement`
+rather than a false `Pending`. `cargo fmt`/`clippy -D warnings`/`test`
+clean for the crate.
+
+**Failure point:** this closes the *read* half only. Actually getting
+`escrow_claim` in front of a canonical ledger in the first place —
+broadcasting it toward real consensus so it *can* eventually
+finalize — is separate, unbuilt networked-consensus wiring (roadmap
+#36-#45: no networked chain-execution engine exists yet for any
+`CanonicalLedgerView` implementation to be chain-backed against). Until
+that lands, `canonical_completion_status` is fully correct but has
+nothing real to reconcile against outside tests.
+
+**Required follow-up:** a real chain-backed `CanonicalLedgerView`
+implementation (roadmap #36-#45, mirroring `mini-execution`'s existing
+`LedgerState` seam for `mini_settlement::CanonicalLedgerView`); FD-18
+Wave 4 `mini-attest` (D-0404, reserved) consuming
+`CanonicalCompletionStatus::CanonicallyCompleted` as its completion
+evidence once that exists.
+
+**Supersedes / superseded by:** none. Extends D-0402 without changing
+any of its existing public API.
+
+### D-0353 — `mini-pq-anchor`: PQ anchor pre-provisioning + wallet inventory  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** D-0095 (Phase 1, ML-DSA-65 verify-only),
+D-0322 (Phase 2, ML-DSA-65 keygen/signing), `docs/design/
+post-quantum-identity-migration.md`, PR #220's research proposal §4.2,
+roadmap issue #231 ("Frontier Trust 10"), roadmap issue #15.
+
+**Decision:** Ship `mini-pq-anchor` as a new leaf crate (no core crate
+depends on it): `provision_anchor` generates a fresh
+`mini_crypto::SignatureSuite::MlDsa65` keypair (via the existing Phase 2
+`SigningKey::generate_ml_dsa_65`) and wraps its public half in a
+`PqAnchorRecord` tagged `AnchorStatus::Provisioned` — the only status
+this crate's code can ever construct. `PqAnchorInventory` collects
+records per owning `did_mini::Did` and exposes `InventorySummary`
+(`NoAnchorProvisioned` / `AnchorsProvisioned { count,
+most_recent_generated_at_ms }`) as the one place wallet UI reads
+PQ-readiness from — mirroring `mini_settlement::SettlementState::
+wallet_label`'s "collapse detail into the one question a UI needs"
+pattern. The `SigningKey` secret is returned once, at provisioning
+time, and never stored or serialized by this crate.
+
+**Reason:** PR #220's research proposal names pre-provisioning as the
+one PQ-migration piece genuinely buildable today without waiting on a
+live-break scenario, using the already-shipped, already-reviewed Phase
+2 primitive. Building it as an isolated leaf crate — rather than
+touching `did-mini` — keeps it entirely outside the KEL/identity
+authority surface that D-0047's external-audit gate and `docs/design/
+post-quantum-identity-migration.md`'s "hard rule: no production
+migration before external review" protect.
+
+**Constitutional impact:** CLAUDE.md's no-inventing-cryptography rule
+(composes `mini-crypto`'s already-reviewed ML-DSA-65 primitive only;
+adds none), the D-0047 external-audit gate (this crate does not use
+`MlDsa65` for any production identity authority — no KEL write path
+exists here at all), Directive 16 voice/value wall (not applicable —
+this crate touches neither). No Tier-F invariant row changes.
+
+**Implementation status:** Shipped this PR. `anchor.rs`: 5 tests
+(well-formed provisioning, the returned `SigningKey` actually verifies
+against the record's public key, oversized labels rejected before key
+generation, two anchors for the same owner get different keys/
+fingerprints, fingerprint stability). `inventory.rs`: 6 tests (empty
+inventory reports no anchor, adding a record surfaces in that owner's
+summary, cross-owner isolation, most-recent-timestamp tracking, the
+per-owner cap is enforced, `for_owner` returns oldest-first).
+`cargo fmt`/`clippy -D warnings`/`test` clean for the crate.
+
+**Failure point:** an `MlDsa65` `SigningKey`'s secret half has no
+storage export/import path in `mini-crypto` today (Phase 2's own
+documented boundary) — this crate returns the secret once and cannot
+help a caller persist it across a process restart. A wallet that does
+not solve secure on-device persistence separately will lose a
+"provisioned" anchor's secret the moment the process exits, leaving
+only a public key on record with no way to ever sign with it. This
+crate's docs state that limit explicitly rather than implying
+persistence is solved.
+
+**Required follow-up:** real on-device secure storage for `MlDsa65`
+secrets (a `mini-crypto`/platform-keystore concern, not this crate's);
+the emergency migration procedure itself (roadmap issue #230, "Frontier
+Trust 9" — explicitly out of scope here); eventual `did-mini` Phase 3
+KEL hybrid-rotation wiring that would let a provisioned anchor actually
+be committed to an identity, still not started and still gated on
+external cryptographic review.
+
+**Supersedes / superseded by:** none.
+
+### D-0354 — `mini-airdrop`: testnet-scale eligibility snapshot + signed claim-redemption verification  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** `mini-settlement` (D-0055) and
+`mini-bounty`'s claim-message conventions (composed, not duplicated),
+`did-mini::Kel::verify_message`, `mini-uniqueness::HumanStatus`,
+CLAUDE.md's D-0037/D-0047 external-audit gate, roadmap issue #18
+(Sybil resistance unsolved).
+
+**Decision:** Ship `mini-airdrop`: `SnapshotBuilder`/`AirdropSnapshot`
+enforce at most one entry per identity root, bounded entry count/reason
+length, and a BLAKE3-256 `digest()` over the canonical (sorted) snapshot
+content so a claim can bind itself to one exact snapshot. `ClaimRequest`
+carries a domain-tagged, length-prefixed signed message (campaign id +
+identity root + recipient + sequence); `verify_and_resolve_claim` checks
+campaign match, verifies the claimant's real `did-mini` KEL and that its
+scid matches the claimed identity root, verifies the signature against
+that KEL's current threshold via the existing `Kel::verify_message`, checks
+snapshot membership, and checks a `ClaimedRegistry` for a prior claim —
+in that order, marking the registry claimed only on full success. The
+crate never produces a `mini_settlement::PaymentClaim` and never holds
+treasury signing authority; `ClaimOutcome` is deliberately just an
+amount and a recipient for whatever real custody mechanism (a
+`mini-treasury` FROST quorum, in production) to build a settlement claim
+from.
+
+**Reason:** An airdrop needs three structural guarantees regardless of
+whatever eligibility policy a campaign operator chooses: no double
+allocation per identity root, no claim usable outside the campaign it
+was signed for, and no claim honored without proving control of the
+claimed identity root using the same keys `did-mini` already trusts. This
+crate provides exactly those three guarantees as composition over
+already-reviewed primitives (`did-mini` KEL verification, `mini-crypto`
+hashing) and takes no position on eligibility policy itself, mirroring
+`mini-provider`'s "protocol never judges content" discipline.
+
+**Constitutional impact:** CLAUDE.md's no-inventing-cryptography rule
+(composes `did-mini`'s already-reviewed KEL signature verification and
+`mini-crypto`'s BLAKE3 hashing; adds no new primitive). Directive 5 /
+FD-05 (a `ClaimOutcome` is never final ownership — this crate cannot
+move value, only a real settlement-claim signer downstream can). The
+D-0037/D-0047 external-audit gate: this crate is prototype-only, exactly
+like `mini-value`/`mini-treasury`, and no production/mainnet airdrop may
+use it before external review of the eligibility/claim protocol itself,
+not just its primitives. No Tier-F invariant row changes. Does **not**
+touch the voice/value wall (P1): `mini-uniqueness` is a personhood-signal
+crate, not a governance/vote-counting crate, and `AllocationEntry::
+human_status` is read by nothing in this crate's own verification logic —
+purely advisory data carried through for a campaign operator or client UI.
+
+**Implementation status:** Shipped this PR. 15 tests: 7 in
+`snapshot` (duplicate-root rejection, zero-amount rejection, oversized
+campaign id, lookup correctness, digest order-independence, digest
+sensitivity to amount/campaign changes) and 8 in `claim` (happy path
+marks the registry; a second claim by the same root is rejected; wrong
+campaign id is rejected; an identity root absent from the snapshot is
+rejected and the registry stays untouched; presenting a different
+identity's KEL is rejected; a signature from a key outside the KEL is
+rejected; tampering with the recipient after signing invalidates the
+signature; an oversized recipient is rejected before any cryptographic
+verification runs). `cargo fmt`/`clippy -D warnings`/`test` clean for
+the crate and the full workspace.
+
+**Failure point:** this crate does not, and cannot, solve Sybil
+resistance — an identity root successfully claiming proves only that
+whoever controls that root's current KEL keys signed the request, not
+that a single distinct human controls it (`mini-uniqueness`'s own
+`HumanStatus` names this same limit and roadmap issue #18 remains the
+open problem). A campaign built naively on "one identity root, one
+claim" without independent Sybil mitigation is exactly as
+Sybil-vulnerable as the identity layer itself is today. `ClaimedRegistry`
+here is in-memory/test-only; a production deployment needs a real
+persisted (or canonical-ledger-backed) implementation, and nothing here
+gates a claim on the airdrop treasury actually holding enough MINI to
+honor every eligible entry — that reconciliation is the responsibility
+of whatever system builds settlement claims from `ClaimOutcome`s.
+
+**Required follow-up:** a real `ClaimedRegistry` backend; the treasury-
+side settlement-claim construction/signing flow (composing
+`mini-treasury` FROST custody + `mini_settlement::sign_claim`, not built
+here); external audit of the eligibility/claim protocol (D-0047) before
+any production use; genuine Sybil-resistance work (roadmap #18, Frontier
+Trust Program issues #222-#225) before any campaign relies on identity-
+root uniqueness alone.
+
+**Supersedes / superseded by:** none.
+
+### D-0355 — `mini-airdrop`: fallible `ClaimedRegistry` + `FileClaimedRegistry`  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** D-0354.
+
+**Decision:** Change `ClaimedRegistry::mark_claimed`'s signature from
+infallible to `Result<()>`, propagate that through
+`verify_and_resolve_claim` via `?`, and add `FileClaimedRegistry`: a real
+append-only, fsynced-on-write on-disk implementation. A truncated/corrupt
+trailing record (e.g. a crash mid-write) is tolerated on reopen -- every
+earlier record stays trusted, the same recovery discipline `mini-forge`'s
+release transparency log already uses.
+
+**Reason:** D-0354's own decision log named an in-memory-only
+`ClaimedRegistry` as a known gap. Building a real persisted backend
+against the *original* infallible trait signature would have been
+dishonest: a real disk write can genuinely fail, and the original trait
+gave no way to report that failure without either panicking or silently
+reporting a successful claim that was never actually durable -- exactly
+the kind of gap that lets the same identity root double-claim across a
+crash. Caught and fixed before merge, while the trait is still
+unreleased.
+
+**Constitutional impact:** none beyond D-0354's own (this is an API
+correction, not a new authority or value-moving path).
+
+**Implementation status:** Shipped this PR. 5 new tests for
+`FileClaimedRegistry`: a fresh file has no claims; a claim persists
+across reopening the same file; multiple claims all survive a reopen; a
+truncated trailing record is tolerated and earlier records still load;
+two separate registry instances opened from the same path agree after
+reopening. `cargo fmt`/`clippy -D warnings`/`test` clean.
+
+**Failure point:** `mark_claimed`'s `Result` return still does not make
+the overall claim flow transactional across process boundaries -- if a
+caller's own process crashes *after* `verify_and_resolve_claim` returns
+`Ok` but *before* it acts on the `ClaimOutcome`, nothing in this crate
+recovers that in-flight state. That is inherent to a synchronous
+verify-then-act API and not specific to this registry backend.
+
+**Required follow-up:** none identified beyond what D-0354 already names.
+
+**Supersedes / superseded by:** none. Refines D-0354's `ClaimedRegistry`
+trait before any release depends on its original infallible shape.
+
+### D-0356 — `mini-airdrop-treasury`: treasury payout approval bridge (distinct-identity counting, not FROST)  ·  *Accepted*
+**Date:** 2026-07-23 · **Refs:** D-0354, `mini-treasury::signers`
+(`TreasurySignerSet`, `count_valid_approvals`, `meets_threshold`),
+`mini_treasury::frost_sign` (explicitly NOT used here), D-0035, D-0037,
+D-0047.
+
+**Decision:** Ship `mini-airdrop-treasury`, a new leaf-style crate
+composing a `mini_airdrop::ClaimOutcome` with `mini_treasury::
+TreasurySignerSet`/`meets_threshold` to produce a `TreasuryApprovedPayout`
+-- evidence that enough distinct, verified, authorized treasury signers
+approved a specific payout. Each candidate approval is a signer's real
+`did-mini` KEL plus signatures over a domain-tagged `payout_message`,
+verified via `Kel::verify_message` exactly like `mini-airdrop`'s own
+claimant verification. This module never touches
+`mini_treasury::frost_sign` and never constructs a
+`mini_settlement::PaymentClaim`.
+
+**Reason:** while investigating "compose mini-treasury FROST custody +
+mini_settlement::sign_claim" (D-0354's own stated follow-up), discovered
+`mini_treasury::frost_sign::Signature` is a Ristretto-curve Schnorr
+signature type `mini_crypto::SignatureSuite` (Ed25519/ML-DSA-65 only)
+cannot parse or verify -- so a `mini_settlement::PaymentClaim` genuinely
+cannot hold a FROST-quorum-produced signature today without either
+extending `mini_crypto::SignatureSuite` (a shared foundational crate
+every other crate switches on, plus the frozen crypto-agility invariant
+enumeration, SPEC-01 §13) or giving `mini_settlement` a special-cased
+verification path. Raised to the founder as an explicit fork (extend
+`SignatureSuite` / settlement-layer special case / defer entirely);
+founder chose the settlement-layer special case, scoped down further
+here to *not* touch `mini_settlement` or `mini_crypto` at all in this
+first step -- `mini_treasury::signers` already documents its own
+approval-counting module as deliberately **not** the real threshold-
+signature scheme (that module's docs name `frost_sign` the "permanent
+honeypot" component D-0035/whitepaper §11 require external audit for),
+so building the *authorization* step on that existing, already-reviewed-
+shape module, and stopping there, avoids expanding what is gated behind
+D-0047 in this PR.
+
+**Constitutional impact:** D-0035 (real threshold-signing cryptography
+over treasury funds requires human authorship and external audit before
+production use) -- this crate produces no signature at all, so it cannot
+weaken that gate. D-0047 (external-audit gate) -- explicitly does not
+extend the gated `frost_sign` surface. Directive 5 / FD-05 -- a
+`TreasuryApprovedPayout` is evidence of authorization, never itself
+final ownership. No Tier-F invariant row changes; composes
+`mini_treasury::signers`' existing "one identity, one count" discipline
+rather than adding a new one.
+
+**Implementation status:** Shipped this PR. 8 tests: no-candidates
+rejected before any verification runs; a single approval meets a
+threshold of one; a single approval does not meet a threshold of two;
+two distinct approvals meet a threshold of two (with sorted output);
+a real, valid, non-member signer's approval never counts toward
+threshold; a genuine member's KEL presented alongside a forged signature
+(actually produced by an unrelated attacker key) never counts;
+duplicate approvals from the same signer count once, not twice; an
+approval signed for a different campaign id never counts. `cargo fmt`/
+`clippy -D warnings`/`test` clean.
+
+**Failure point:** a `TreasuryApprovedPayout` is not a signed settlement
+claim and moves no value by itself -- the actual bridge from "the
+signer set agreed" to "a real `mini_settlement::PaymentClaim` exists and
+is submitted" remains unbuilt, and still requires resolving the
+signature-suite question this decision explicitly deferred rather than
+answered. Anyone reading this crate's output as "the payout happened"
+is wrong; it only means enough authorized signers said it should.
+
+**Required follow-up:** the actual settlement-claim construction/signing
+step (still blocked on the deferred signature-suite decision above);
+external audit (D-0047) before any of this composes with real value;
+consider whether the eventual settlement-layer special case belongs in
+`mini-settlement` itself or a further bridge crate, once the signing
+question is actually decided.
+
+**Supersedes / superseded by:** none.
+
+---
+
+### D-0357 — `mini-airdrop`: rename `ClaimRequest.nonce` field to `sequence` (terminology correction, not a design change)  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0058 (identical prior fix in
+`mini-settlement`), D-0354, GitHub code scanning (CodeQL) on PR #238.
+
+**Decision:** rename `ClaimRequest`'s `nonce: u64` field, and every
+identifier derived from it (`claim_request_message`'s `nonce` parameter,
+`request_for`'s test-helper parameter, D-0354's own decision-log prose),
+to `sequence` throughout `mini-airdrop`'s public API and docs. No field
+type, no verification order, no signed byte layout, and no test
+assertion changed -- this is a rename only.
+
+**Reason:** GitHub's CodeQL scan flagged 9 "critical" alerts against
+`crates/mini-airdrop/src/claim.rs` under `rust/hard-coded-cryptographic-
+value` (CWE-798), each one an integer literal passed into a parameter or
+field literally named `nonce`, all inside `#[cfg(test)]` fixtures. All 9
+are false positives for the exact reason D-0058 already established for
+`mini-settlement`: `did_mini::Controller::sign_message` is deterministic
+Ed25519 signing with no caller-supplied nonce, and `ClaimRequest.nonce`
+was always a caller-chosen sequence number distinguishing otherwise-
+identical requests (a retry after a dropped response), never an AEAD or
+stream-cipher nonce. CodeQL's heuristic keys on the field/parameter
+*name*, not on any actual cryptographic use -- the same collision D-0058
+records, now recurring in a second crate because `mini-airdrop` reused
+the word "nonce" for the same non-cryptographic purpose without
+consulting that entry first. Renaming to the name that already describes
+what the field does resolves the false positives and removes a name that
+would mislead the next reader (or the next CodeQL run).
+
+**Constitutional impact:** none. No frozen invariant touched --
+`verify_and_resolve_claim`'s verification order and
+`ClaimedRegistry`-backed double-claim protection are unchanged in
+substance, only the field name flowing through them differs. Not a
+supersession of D-0354's protocol decision, only a correction to that
+entry's own prose, which called the field a "nonce"; D-0354 itself is
+left unedited in its own right and its "identity root + recipient +
+nonce" phrase is updated in place only because that PR has not yet
+merged into `main` (still a working draft on `claude/mini-airdrop`), so
+this is pre-merge correction, not a rewrite of already-canonical
+append-only history.
+
+**Implementation status:** shipped -- all `mini-airdrop` claim tests pass
+unchanged in substance (only names differ); `cargo fmt`/`clippy -D
+warnings`/`test` clean.
+
+**Failure point:** none introduced -- pure rename, no behavioral
+surface. Same residual risk D-0058 already named: documentation drift if
+a future crate reintroduces "nonce" language for a non-cryptographic
+counter without checking this entry (or D-0058) first.
+
+**Required follow-up:** none for this crate. Any future crate that adds
+a field literally named `nonce` should first check whether it is an
+actual cryptographic nonce (AEAD/stream-cipher IV) -- if so, name it
+plainly; if not, this is the second time that mistake has cost a CodeQL
+false-positive cleanup and should not need a third.
+### D-0358 — `mini-airdrop-treasury`: end-to-end integration proof (snapshot → signed claim → `FileClaimedRegistry` → treasury approval)  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0354, D-0355, D-0356, D-0357 (this
+entry was originally drafted as D-0357 before that number was claimed by
+the CodeQL nonce→sequence rename fix pushed to PR #238 first; renumbered
+on rebase, no content otherwise changed).
+
+**Decision:** Add `crates/mini-airdrop-treasury/tests/end_to_end.rs`: a
+real `SnapshotBuilder`/`AirdropSnapshot`, a claimant's real `did-mini`
+signed `ClaimRequest` verified via `verify_and_resolve_claim` against a
+real on-disk `FileClaimedRegistry` (including confirming the claim is
+visible after reopening the registry file), then a real three-signer
+`TreasurySignerSet` with two of three approving the resulting
+`ClaimOutcome` via `verify_payout_approvals`, proving `mini-airdrop` and
+`mini-airdrop-treasury` actually compose end to end. A second test
+confirms an identity absent from the snapshot is rejected before any
+treasury approval step is even reachable, and that the registry stays
+untouched.
+
+**Reason:** D-0354/D-0355/D-0356 each shipped with unit tests inside
+their own crate boundary, but nothing until now proved the pieces
+actually fit together when driven by the same real identities across
+crate boundaries -- unit tests can pass individually while an
+integration seam (a type mismatch, a mismatched message encoding
+between `mini-airdrop`'s claim message and `mini-airdrop-treasury`'s
+payout message, a registry that doesn't actually persist across the
+process boundary these two crates would run in) goes uncaught. This
+closes that gap directly rather than leaving it implied.
+
+**Constitutional impact:** none beyond what D-0354/D-0355/D-0356 already
+established -- this is proof, not new capability. Explicitly does not
+extend the composed flow to a signed `mini_settlement::PaymentClaim`;
+the test module's own doc comment repeats D-0356's boundary so a reader
+does not mistake "the pieces compose" for "value moves."
+
+**Implementation status:** Shipped. 2 tests, both passing:
+`a_full_snapshot_to_treasury_approval_flow_succeeds` and
+`an_ineligible_identity_never_reaches_treasury_approval`. `cargo fmt`/
+`clippy -D warnings`/`test` clean.
+
+**Failure point:** none beyond what D-0356 already names -- this test
+suite proves composition, not audit-readiness or value-safety.
+
+**Required follow-up:** none beyond D-0356's own.
+
+**Supersedes / superseded by:** none.
+
+---
+
+### D-0359 — `mini-airdrop-treasury`: treasury balance reconciliation check  ·  *Accepted*
+**Date:** 2026-07-27 · **Refs:** D-0354, D-0356 (named this gap in its own
+"Required follow-up"), `docs/STATUS.md`'s "Not built" paragraph.
+
+**Decision:** Add `crates/mini-airdrop-treasury/src/reconciliation.rs`:
+`total_allocated_micro(snapshot) -> ReconciliationResult<u64>` sums every
+`AllocationEntry::amount_micro` in a `mini_airdrop::AirdropSnapshot` using
+checked addition, and `check_snapshot_within_treasury_balance(snapshot,
+treasury_balance_micro) -> ReconciliationResult<()>` compares that total
+against a caller-supplied balance, returning
+`ReconciliationError::InsufficientTreasuryBalance { required_micro,
+available_micro }` if the balance falls short or
+`ReconciliationError::TotalAllocationOverflow` if summing the snapshot's
+own entries would overflow `u64` first.
+
+**Reason:** D-0356 named this as required follow-up and `docs/STATUS.md`
+named it explicitly as "not built": a real airdrop needs proof the
+treasury actually holds enough MINI to honor every allocation in a
+snapshot, independent of whether any individual claim later verifies
+correctly. Without it, a snapshot could allocate more than the treasury
+holds and nothing in this workspace would notice until claimants started
+being unable to redeem -- a silent, late-discovered failure mode a single
+integer comparison, run once per snapshot before opening it for claims,
+entirely prevents. This is deliberately *not* wired into
+`mini_airdrop::verify_and_resolve_claim` or
+`crate::verify_payout_approvals`: neither individual claim verification
+nor a single payout's approval should depend on this check (a snapshot
+that later turns out to be under-funded doesn't retroactively invalidate
+a claim that was honestly eligible and correctly signed) -- it's a
+separate, campaign-operator-run bookkeeping step, the same "advisory
+information the protocol itself never gates on" discipline
+`AllocationEntry::human_status` already established in D-0354.
+
+**Constitutional impact:** none. No cryptography, no new dependency, no
+Tier-F invariant touched -- this module reads no real treasury balance
+from anywhere (`treasury_balance_micro` is caller-supplied) and produces
+no signature, approval, or claim outcome. Directive 5 / FD-05 is
+unaffected: this cannot move value or approve a payout, only report
+whether a snapshot's total fits within a number the caller already
+believes the treasury holds.
+
+**Implementation status:** Shipped. 6 tests: empty snapshot requires
+zero balance, `total_allocated_micro` sums every entry, a balance
+exactly matching the total is accepted, a balance with room to spare is
+accepted, a balance short by one micro-MINI is rejected with the exact
+required/available amounts, and an overflowing total (two entries
+summing past `u64::MAX`) is reported as `TotalAllocationOverflow` rather
+than panicking or wrapping silently. `cargo fmt`/`clippy -D warnings`/
+`test` clean.
+
+**Failure point:** this module has no way to verify
+`treasury_balance_micro` is itself honest -- it trusts whatever number
+the caller passes. A caller that fabricates or miscalculates the real
+treasury balance gets a meaningless "reconciled" result; wiring this to
+a real, independently verifiable treasury balance source (once one
+exists) is separate work this module does not attempt.
+
+**Required follow-up:** wire `treasury_balance_micro` to a real balance
+source once `mini-treasury`/settlement custody has one; still fully
+blocked on D-0356's own deferred signature-suite question for anything
+beyond bookkeeping.
+
+**Supersedes / superseded by:** none.

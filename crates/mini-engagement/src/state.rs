@@ -59,10 +59,11 @@ impl EngagementState {
 /// -- FD-05 applies unchanged here: **a signed promise is never final
 /// ownership.** This type never invents ownership; it only tracks how much
 /// of that claim's amount has been released so far and through which
-/// state transitions. Turning a release into an actual, canonical
-/// settlement (submitting it through `mini_settlement::reconcile` against
-/// a `CanonicalLedgerView`) is separate, later wiring -- this crate is the
-/// state machine, not the settlement executor.
+/// state transitions. [`crate::settlement::canonical_completion_status`]
+/// reconciles `escrow_claim` against a real `CanonicalLedgerView` so a
+/// caller can tell a locally-recorded release from a canonically settled
+/// one -- this crate is the state machine plus that read-only bridge, not
+/// a settlement executor that submits anything toward consensus itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Engagement {
     /// Content id of the engagement's terms document.

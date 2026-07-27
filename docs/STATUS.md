@@ -259,7 +259,17 @@ given time.
   phased plan, and the honest limit found along the way: an all-zero
   ML-DSA-65 "public key" of the correct length parses successfully (FIPS
   204's encoding has no structural validity check the way Ed25519's
-  does) but never verifies a real signature.
+  does) but never verifies a real signature. **shipped (D-0353, roadmap
+  #231):** `mini-pq-anchor`, a leaf crate (no core crate depends on it)
+  that generates a dormant ML-DSA-65 keypair (`provision_anchor`) and
+  tracks it in a per-owner `PqAnchorInventory` with a wallet-facing
+  `InventorySummary` — pre-provisioning only, never committed to any KEL,
+  never attested, never granted authority. Does not persist the secret
+  key across a process restart (`mini-crypto`'s Phase 2 has no ML-DSA-65
+  storage export/import path yet) and does not make an unanchored
+  identity recoverable — PQ recovery Class C (an identity with no
+  pre-break anchor cannot be distinguished from an attacker) remains
+  exactly as unsolved as before.
 - **not started** — device hierarchy beyond current single-tier
   delegation ([#14](../../issues/14)), on-chain pre-rotation anchoring
   (needs the chain).
@@ -1084,9 +1094,18 @@ variant (non-negotiable #10). Wraps a real, already-signed
 `mini_settlement::PaymentClaim` and tracks released amounts against it,
 never exceeding the claim's total. `timeout()` is a real function
 encoding "every state has an edge back to the payer," not a convention.
-Submitting a release through `mini_settlement::reconcile` against a
-`CanonicalLedgerView` — so a release becomes canonical rather than only
-locally tracked — is not wired yet.
+
+**shipped (D-0403, roadmap #226)** — `mini-engagement::settlement::
+canonical_completion_status`: reconciles `escrow_claim` against a real
+`mini_settlement::CanonicalLedgerView` (via `mini_settlement::reconcile`)
+and combines that with local `EngagementState`, so a caller can tell a
+locally-recorded `Completed` from one the canonical ledger actually
+agrees happened. Read-only, mirrors `reconcile` exactly — never submits
+the claim anywhere and never finalizes anything itself. What is still
+missing: getting the claim *in front of* a canonical ledger in the
+first place (no networked chain-execution engine exists yet, roadmap
+#36-#45), so today this has nothing real to reconcile against outside
+tests.
 
 **not started** — Wave 3 (`mini-succession`, D-0410: death, inheritance,
 a vote that structurally cannot transfer), Wave 4 (`mini-attest`,
@@ -1097,6 +1116,72 @@ repo, and only after external audits). The `crates/mini-invariants/
 tests/edge_wall.rs` dependency-wall CI check that would flip
 INV-18-01/02/04/05/08 from `pending` to enforced in `docs/INVARIANTS.md`
 also does not exist yet.
+
+## 13. Airdrop eligibility (D-0354)
+
+**shipped, prototype** — `mini-airdrop`: `SnapshotBuilder`/
+`AirdropSnapshot` (one entry per identity root, bounded size, a
+BLAKE3-256 content digest a claim binds to) and `verify_and_resolve_claim`
+(campaign match → real `did-mini` KEL verification and scid match → KEL-
+threshold signature check → snapshot membership → `ClaimedRegistry`
+double-claim check → mark claimed). Returns a `ClaimOutcome` (amount +
+recipient) only — never a `mini_settlement::PaymentClaim`, never holds
+treasury signing authority. Composes only already-reviewed primitives
+(`did-mini` KEL verification, `mini-crypto` BLAKE3); no new cryptography.
+
+**Gated behind D-0047 like `mini-value`/`mini-treasury`** — prototype
+only, no production/mainnet airdrop before external review of the
+eligibility/claim protocol itself. **Does not solve Sybil resistance**:
+`AllocationEntry::human_status` carries a `mini-uniqueness::HumanStatus`
+signal purely as advisory campaign-operator information, read by nothing
+in this crate's own verification logic — one identity root claiming
+successfully proves control of that root's KEL keys, nothing about how
+many humans control it (roadmap #18, still open).
+
+**shipped, prototype (D-0355)** — `FileClaimedRegistry`: a real
+append-only, fsynced-on-write on-disk `ClaimedRegistry`. Tolerates a
+truncated trailing record (e.g. crash mid-write) by stopping there on
+replay rather than rejecting the whole file. `ClaimedRegistry::
+mark_claimed` is now fallible (`Result<()>`), so a genuine write failure
+propagates out of `verify_and_resolve_claim` instead of silently
+reporting a claim that was never durably recorded.
+
+**shipped, prototype (D-0356)** — `mini-airdrop-treasury`: bridges a
+`ClaimOutcome` to a `TreasuryApprovedPayout` by composing
+`mini_treasury::TreasurySignerSet`/`meets_threshold` (ordinary
+distinct-identity counting, not a cryptographic threshold scheme) with
+real `did-mini` KEL signature verification per candidate approval.
+Explicitly does **not** touch `mini_treasury::frost_sign` — that
+module's own docs name it the "permanent honeypot" component requiring
+external audit (D-0035) — and does **not** produce a signed
+`mini_settlement::PaymentClaim`.
+
+**Not built** — the actual settlement-claim construction/signing step
+that would turn a `TreasuryApprovedPayout` into moved value. This is
+genuinely blocked, not just unscheduled: `mini_treasury::frost_sign`
+produces a Ristretto-curve Schnorr signature `mini_crypto::
+SignatureSuite` (Ed25519/ML-DSA-65 only) cannot parse or verify, so
+`mini_settlement::PaymentClaim` cannot hold a real FROST-quorum-signed
+claim without either extending `mini_crypto::SignatureSuite` (touches a
+shared foundational crate and the frozen crypto-agility invariant
+enumeration) or a `mini_settlement`-side special case — a decision
+deliberately deferred, not resolved, in D-0356.
+
+**shipped, prototype (D-0358)** — an end-to-end integration test
+(`crates/mini-airdrop-treasury/tests/end_to_end.rs`) proving `mini-
+airdrop` and `mini-airdrop-treasury` actually compose across the full
+snapshot → signed claim → `FileClaimedRegistry` → treasury-signer
+approval path with real `did-mini` identities, not just within each
+crate's own unit tests.
+
+**shipped, prototype (D-0359)** — treasury balance reconciliation:
+`check_snapshot_within_treasury_balance`/`total_allocated_micro`
+(`crates/mini-airdrop-treasury/src/reconciliation.rs`) sum a snapshot's
+allocations with checked arithmetic and compare against a caller-
+supplied treasury balance, closing the gap named just above. This is
+bookkeeping only — it is not wired into claim or approval verification,
+reads no real balance from anywhere, and cannot itself detect a
+dishonest `treasury_balance_micro` input.
 
 ## Where to look for more detail
 

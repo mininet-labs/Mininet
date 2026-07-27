@@ -11,10 +11,13 @@
 //! FD-05 applies unchanged: **a signed promise is never final ownership.**
 //! [`Engagement::escrow_claim`] is a real `mini_settlement::PaymentClaim`;
 //! this crate tracks how much of it has been released through which state
-//! transitions, but actually submitting a release through
-//! `mini_settlement::reconcile` against a `CanonicalLedgerView` -- so a
-//! release becomes canonical, not just locally recorded -- is separate,
-//! later wiring, honestly not built here.
+//! transitions. [`settlement::canonical_completion_status`] reconciles that
+//! claim against a real `CanonicalLedgerView` so a caller can honestly
+//! distinguish a locally-recorded `Completed` state from one the canonical
+//! ledger actually agrees happened (roadmap #226). Broadcasting a claim
+//! toward consensus in the first place -- so it *can* eventually finalize
+//! -- is separate, later networked-consensus wiring (#36-#45), not built
+//! here.
 //!
 //! [`transitions::timeout`] is the one obligation encoded as a function
 //! rather than left to a caller's discipline: every non-terminal state has
@@ -26,9 +29,11 @@
 #![warn(missing_debug_implementations)]
 
 mod error;
+mod settlement;
 mod state;
 mod transitions;
 
 pub use error::{EngagementError, Result};
+pub use settlement::{canonical_completion_status, CanonicalCompletionStatus};
 pub use state::{Engagement, EngagementState, Party};
 pub use transitions::{accept, complete, dispute, release_milestone, timeout};
