@@ -53,16 +53,24 @@ that crosses the FFI boundary.
 
 ## What does not work yet
 
-- **Android Keystore key generation, attestation, or hardware-backed
-  signing** — `RootCore`'s keys are software-only; D-0334's design doc names
-  three options for genuine hardware backing, none chosen yet;
-- **persistence across process death** — closing the app loses the root and
-  every delegated device `RootCore` created; the UI now really creates
-  them (D-0351), it just can't keep them past a restart yet, since no
-  `StorageCipher`/Android Keystore-backed encrypted storage adapter
-  exists (issue #198's actual acceptance test);
-- **restart-and-recover** (acceptance-test step 4) — depends directly on
-  persistence above;
+- **Android Keystore key attestation or hardware-backed *signing*** —
+  `RootCore`'s own root/device signing keys stay software-only; D-0334's
+  design doc names three options for genuine hardware backing, none
+  chosen yet. This is distinct from `AndroidKeystoreCipher` (D-0370,
+  issue #198), which is a real, non-exportable Android Keystore
+  AES-GCM key -- but for *encrypting persisted app state*, not for
+  signing;
+- **persistence across process death** — real now (D-0370): `RootCore`'s
+  own `StorageCipher` callback is backed by `AndroidKeystoreCipher`, and
+  `MiniViewModel` calls `RootCore.persistState`/`RootCore.restore`
+  around it, so closing and reopening the app restores the same root and
+  delegated devices instead of losing them. Not yet compiled or run
+  anywhere (see the environment note below) — the code exists and is
+  reasoned through, but Android CI's real `assembleDebug` step is what
+  actually proves it compiles;
+- **restart-and-recover** (acceptance-test step 4) — the Kotlin wiring
+  for this now exists (D-0370); still depends on the same real
+  compile/emulator verification named above and below;
 - **root and device on separate physical devices** — this MVP holds both in
   one process for dev-testing convenience; the real split happens once LAN/QR
   pairing (issue #200) exists;
@@ -89,9 +97,9 @@ that crosses the FFI boundary.
 
 The UI now creates a real root and delegates a first device when the user
 taps "Create root" at `RootCreationReady` (D-0351) — `RootCore`'s Rust-side
-contract is called for real, not just proven in isolation. What's left
-before this can be called a working golden path: encrypted on-device
-persistence (issue #198) so that identity survives a restart, and a real
+contract is called for real, not just proven in isolation. Encrypted
+on-device persistence (issue #198, D-0370) now has real Kotlin wiring too.
+What's left before this can be called a working golden path: a real
 emulator/device compile-and-click-through verification (Codex/the
 founder's local machine — no JDK/SDK/NDK/Gradle/emulator exists here).
 

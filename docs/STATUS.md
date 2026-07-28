@@ -1172,11 +1172,23 @@ GATT's small ATT MTU (issue #201, D-0342) — protocol logic only, no
 this environment. Dependency verification is also done: `cargo-deny`
 installed and run for real for the first time, `deny.toml` genuinely
 clean rather than an unverified guess, CI's `dependency-deny` job now
-actually enforcing it (issue #203, D-0341). None of the slices above
-have Kotlin-side wiring, camera/QR/Bluetooth UI, or a real multi-device
-test yet — those, plus Gradle/emulator verification and the Android
-app's own dependency-verification metadata, are Codex/the founder's
-local-machine half of the division of labor stated in hub issue #196.
+actually enforcing it (issue #203, D-0341). Issue #198's persistence
+slice now has real Kotlin-side wiring (D-0370): `AndroidKeystoreCipher`
+(`app/android/app/src/main/java/org/mininet/app/
+AndroidKeystoreCipher.kt`) implements `StorageCipher` with a
+non-exportable AES-256-GCM `AndroidKeyStore` key, and `MiniViewModel`
+calls `RootCore.restore`/`persistState` around it, so a killed and
+reopened app process now restores the same root/device identity rather
+than losing it — a distinct `RestoreFailed` UI state (never a silent
+fresh identity) covers the case where a persisted blob exists but
+cannot be decrypted. The remaining slices (#199-#203) still have no
+Kotlin-side wiring, camera/QR/Bluetooth UI, or a real multi-device test
+— those, plus Gradle/emulator verification of this new Kotlin file (no
+JDK/Android SDK/NDK/Gradle/emulator exists in this environment; Android
+CI's real `assembleDebug` step, issue #204, is what actually verifies
+Kotlin compiles) and the Android app's own dependency-verification
+metadata, are Codex/the founder's local-machine half of the division of
+labor stated in hub issue #196.
 Beta explicitly means "builds, installs, golden path works, full Rust
 suite green" — not that the custody layer has cleared external review
 (D-0047 gate).

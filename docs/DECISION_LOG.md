@@ -12071,3 +12071,100 @@ item 1 names, which this does not touch or claim to close.
 closed. None blocking beyond that.
 
 **Supersedes / superseded by:** none.
+
+### D-0370 — Android app: real `AndroidKeystoreCipher`, closing issue #198's Kotlin-side gap  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** `crates/mini-ffi`'s `StorageCipher`
+callback interface and `RootCore::persist_state`/`RootCore::restore`
+(D-0337/D-0338, issue #198); `docs/BETA_STATUS.md` item 1's own note that
+"the keystone demo itself is still in-process only and hasn't been ported
+to [BLE] yet" — this closes a real, adjacent, code-only piece of the
+Android app's own honest-limits list, not item 1 itself.
+
+**Decision:** New `app/android/app/src/main/java/org/mininet/app/
+AndroidKeystoreCipher.kt`: a real `StorageCipher` implementation backed
+by a non-exportable AES-256-GCM key generated inside `AndroidKeyStore`
+(`KeyGenParameterSpec`, `PURPOSE_ENCRYPT or PURPOSE_DECRYPT`,
+`BLOCK_MODE_GCM`, `ENCRYPTION_PADDING_NONE`, 256-bit). Wire format is
+`iv (12 bytes) || GCM ciphertext+tag`; a ciphertext shorter than the IV
+alone, or any Keystore/cipher exception, surfaces as
+`StorageCipherException.Failed`, matching `StorageCipher`'s own
+documented infallible-to-Rust, fallible-to-caller contract. `MiniViewModel`
+(`MainActivity.kt`) now calls `RootCore.restore` against a persisted
+`<filesDir>/root_state.bin` blob on construction if one exists, and
+`RootCore.persistState` after every successful `createRoot()`/
+`createDevice()` pair, writing the result back to that file. A new
+`CoreUiState.RestoreFailed` UI state — with its own screen, deliberately
+not sharing `Unavailable`'s "Rust core not installed" copy, which would
+be actively wrong here — covers a persisted blob existing but failing to
+decrypt/decode: the app never silently mints a fresh identity in that
+case, since that would let a user unknowingly end up controlling a
+different root than the one their existing KEL history refers to.
+
+**Reason:** `mini-ffi`'s own crate doc comment named "no key is Android
+Keystore-backed" as an honest, real limit; `MainActivity.kt`'s own
+in-app copy warned the user in two places that closing the app would
+lose their newly-created identity. Both were true until now and neither
+needed to stay true — the UniFFI `StorageCipher` callback-interface
+boundary this needed already existed (D-0338), unused by the one
+existing Kotlin file in this repo. This is the smallest change that
+makes the already-real Rust persistence machinery actually reachable
+from the one platform shell this project has, closing a real,
+user-visible gap rather than adding new Rust surface.
+
+**Constitutional impact:** none. No cryptography invented — AES-GCM via
+the platform's own `AndroidKeyStore`/`javax.crypto` implementation, not
+a bespoke construction (Directive 14/D-0063's composition allowance).
+No Tier-F invariant touched. No new Gradle dependency (`javax.crypto`/
+`android.security.keystore` are platform APIs, not external libraries).
+The Rust side of the FFI boundary (`mini-ffi`) is completely untouched
+except a doc-comment correction (see below) — no `.udl` change, no
+`RootCore`/`StorageCipher` signature change.
+
+**Implementation status:** Shipped this PR (Kotlin side). Corrected
+`crates/mini-ffi/src/lib.rs`'s own module doc comment, which previously
+said "nothing persists across process death yet... no key is Android
+Keystore-backed," to instead accurately describe the crate's boundary
+(a plaintext-in/ciphertext-out `StorageCipher` callback, by design,
+since this crate must never see or handle a platform key) and note that
+the Android app now backs that callback for real. Also corrected two
+now-stale in-app strings (`MainActivity.kt`'s onboarding copy and its
+`RootCreatedScreen`) that told the user their identity would be lost on
+app close — no longer true. `docs/STATUS.md` §11 updated with the same
+correction. **Honest verification limit, stated plainly**: this
+environment has no JDK/Android SDK/NDK/Gradle/emulator (`docs/mobile/
+ANDROID_FOUNDATION.md`), so this Kotlin file has been reasoned through
+carefully against the UniFFI-generated Kotlin surface (`StorageCipher`,
+`RootCore.restore`/`persistState`, `StorageCipherException`) and the
+documented Android Keystore API, but has not been compiled anywhere in
+this session. Android CI's real `assembleDebug` step (issue #204,
+D-0344) is the actual verification gate for whether this Kotlin
+compiles — watched via this PR's CI, not asserted here as already
+proven. No JVM/Robolectric unit test exists for `AndroidKeystoreCipher`
+either, for the same reason: `AndroidKeyStore` is not available under a
+plain JVM unit test without Robolectric shadowing, which this app
+module does not yet have a test source set or dependency for.
+
+**Failure point:** `secretKey()` regenerates a fresh Keystore key if the
+alias is ever missing (e.g. after certain factory-reset scenarios where
+Keystore state and app-private storage diverge) rather than failing
+loudly at that point — the actual failure surfaces one step later, at
+`decrypt()`, when the old ciphertext no longer decrypts under the new
+key, and is correctly reported as `RestoreFailed` rather than silently
+losing data into a fresh root. `setUserAuthenticationRequired(false)`
+means this key is usable without a device unlock gate — matches
+`PlatformCapabilities.biometricUnlock` staying unwired and `false`
+throughout this app, an explicit non-goal for this slice, not an
+oversight.
+
+**Required follow-up:** the remaining Android beta slices (#199-#203:
+device enrollment/revocation UI, LAN/QR pairing UI, real BLE `Bearer`
+Kotlin implementation over `mini-bearer::ble`'s chunker, background
+lifecycle policy UI) still have no Kotlin-side wiring — this closes only
+#198's gap. A JVM/Robolectric test for `AndroidKeystoreCipher` is real,
+useful future work, not started here (no test source set exists yet in
+this module). Confirming this actually compiles and round-trips on a
+real device is explicitly Codex/the founder's local-machine half of the
+division of labor (hub issue #196) — this PR's own claim stops at "code
+written and reasoned through," not "verified."
+
+**Supersedes / superseded by:** none.
