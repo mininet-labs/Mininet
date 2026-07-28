@@ -10,10 +10,16 @@ authors.workspace = true
 publish = false
 
 [dependencies]
-# Deliberately none: this crate is pure typed policy data plus a hand-rolled
-# wire codec, matching this workspace's no-serde convention. No wallet,
-# pricing, provider, or ranking mechanism is implemented here -- see the
-# crate-level docs for what those cross-crate integrations still owe.
+# mini-privacy-policy/mini-resource-pricing: the Track C4 paid-service
+# boundary (src/boundary.rs) connects this crate's free entitlements to
+# the tier/quote vocabulary those crates already define, rather than
+# inventing a second pricing model. Neither pulls in mini-value,
+# mini-treasury, mini-forge, or mini-chain (both crates' own Cargo.toml
+# comments say so), so this stays clear of the voice/value wall. No
+# serde, no AEAD -- this crate otherwise remains pure typed policy data
+# plus a hand-rolled wire codec.
+mini-privacy-policy = { path = "../mini-privacy-policy" }
+mini-resource-pricing = { path = "../mini-resource-pricing" }
 
 [dev-dependencies]
 # Dev-only: the Track C3 integration test (tests/social_commons.rs) proves

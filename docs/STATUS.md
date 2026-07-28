@@ -1050,6 +1050,17 @@ the top development priority.
   shows every call succeeds — the operational half of "ensure public
   view/post/comment/reply/react paths do not require payment" that
   D-0361 alone (crate-only) could not demonstrate.
+- **shipped, prototype (D-0363, Track C4)** — `mini-commons-policy`
+  gains `service_quote_for(entitlement, tier, prices, payload_mb,
+  storage_days)`, the paid-service boundary against `mini-resource-pricing`
+  (the crate's first production consumer). `PrivacyTier::Direct` is
+  never quoted regardless of entitlement; every other tier is quoted
+  identically to calling `mini_resource_pricing::quote` directly,
+  regardless of entitlement — proving "only additional external service
+  is quoted and settled" as asked. This is a necessary structural
+  precondition for D-0361's still-deferred "paid providers cannot
+  suppress unpaid public objects" property, not a proof of it — no
+  provider-settlement layer exists yet to test the full claim against.
 
 ## Client coverage
 
