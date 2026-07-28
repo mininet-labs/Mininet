@@ -24,8 +24,8 @@
 use did_mini::{Capabilities, Controller, Kel};
 use mini_bearer::{Bearer, BearerError, Initiator, Responder};
 use mini_presence::{
-    kel_digest, verify_presence, AttestationFields, InMemoryReplayGuard, Party,
-    PresenceAttestation, RangePolicy, TransportKind, VerifyContext, PRESENCE_VERSION,
+    kel_digest, verify_presence, AttestationFields, Party, PresenceAttestation, RangePolicy,
+    ReplayGuard, TransportKind, VerifyContext, PRESENCE_VERSION,
 };
 use mini_reward::{accrue, RewardAccount, RewardParams};
 
@@ -124,7 +124,13 @@ const AAD_KEL_DEVICE: &[u8] = b"MINI/DEMO kel-device";
 ///
 /// `a` initiates, `b` responds. `now_ms` is the demo clock (caller-supplied so
 /// the flow stays deterministic and I/O-free); `transport` names the physical
-/// bearer kind for the attestation.
+/// bearer kind for the attestation. `replay_guard_a`/`replay_guard_b` are each
+/// side's own [`ReplayGuard`] — the caller owns them, so a real two-device app
+/// can pass a [`mini_presence::FileReplayGuard`] opened at a path that
+/// survives process restarts, rather than the ephemeral, per-call guard this
+/// function used to construct internally (which forgot every nonce the
+/// instant `run_demo` returned).
+#[allow(clippy::too_many_arguments)]
 pub fn run_demo(
     a: &Participant,
     b: &Participant,
@@ -132,6 +138,8 @@ pub fn run_demo(
     bearer_b: &mut dyn Bearer,
     transport: TransportKind,
     now_ms: u64,
+    replay_guard_a: &mut dyn ReplayGuard,
+    replay_guard_b: &mut dyn ReplayGuard,
 ) -> Result<DemoReport, DemoError> {
     // --- 1. Anonymous encrypted channel (no identities in the handshake). ---
     let (initiator, hello1) = Initiator::start()?;
@@ -206,8 +214,7 @@ pub fn run_demo(
             now_ms: Some(now_ms),
             expected_binding: Some(chan_a.channel_binding()),
         };
-        let mut guard = InMemoryReplayGuard::new();
-        verify_presence(&att, &ctx, &mut guard)?
+        verify_presence(&att, &ctx, replay_guard_a)?
     };
     {
         // Side B verifies symmetrically with the logs it received.
@@ -222,8 +229,7 @@ pub fn run_demo(
             now_ms: Some(now_ms),
             expected_binding: Some(binding),
         };
-        let mut guard = InMemoryReplayGuard::new();
-        verify_presence(&att, &ctx, &mut guard)?;
+        verify_presence(&att, &ctx, replay_guard_b)?;
     }
 
     // --- 4. Verified presence becomes (non-spendable) local value. ---

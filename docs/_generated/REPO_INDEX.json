@@ -3,7 +3,7 @@
     "crates": 58,
     "files": 666,
     "headings": 2244,
-    "rust_symbols": 5775
+    "rust_symbols": 5776
   },
   "crates": {
     "did-mini": {
@@ -27733,38 +27733,38 @@
       "title": "mini-keystone"
     },
     {
-      "bytes": 2649,
+      "bytes": 3414,
       "group": "crate:mini-keystone",
       "headings": [],
       "keywords": [
         "println",
+        "own",
+        "demo",
+        "alice",
+        "bob",
         "identity",
         "one",
         "report",
         "keystone",
-        "demo",
-        "alice",
-        "bob",
+        "expect",
         "print_own_device_view",
+        "log",
         "reward",
-        "own",
+        "replay",
+        "run",
         "what",
+        "two",
+        "separate",
         "both",
         "data",
+        "each",
         "device",
-        "root",
-        "participant",
-        "owner_label",
-        "own_account",
-        "expect",
-        "mini-keystone",
-        "main",
-        "run",
-        "example"
+        "its",
+        "real"
       ],
-      "lines": 64,
+      "lines": 82,
       "path": "crates/mini-keystone/examples/keystone.rs",
-      "sha256": "d7f5de17d198d7613614ad1141bdf0257540df15d73400ee36334e9cad44ba8c",
+      "sha256": "e4540988f1e86d3421878c80fd19a89a70d087ba1a092a661a3e5aee5e1c94c4",
       "symbols": [
         {
           "kind": "fn",
@@ -27780,7 +27780,7 @@
       "title": "use mini_bearer::pair;"
     },
     {
-      "bytes": 11131,
+      "bytes": 11529,
       "group": "crate:mini-keystone",
       "headings": [],
       "keywords": [
@@ -27809,9 +27809,9 @@
         "failure",
         "write"
       ],
-      "lines": 281,
+      "lines": 287,
       "path": "crates/mini-keystone/src/lib.rs",
-      "sha256": "1e0b9ed8485549b79ae8a698ca30f5474a2a3cd4dea3474f349cd5645e69f196",
+      "sha256": "f711181c2b66702a66e61d0e45aaffd94657c95f5057dae6b605dcb79a15e27e",
       "symbols": [
         {
           "kind": "struct",
@@ -27895,60 +27895,60 @@
         },
         {
           "kind": "fn",
-          "line": 128,
+          "line": 134,
           "name": "run_demo"
         },
         {
           "kind": "fn",
-          "line": 245,
+          "line": 251,
           "name": "send_kels"
         },
         {
           "kind": "fn",
-          "line": 259,
+          "line": 265,
           "name": "recv_kels"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 281,
           "name": "demo_nonce"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Kel};"
     },
     {
-      "bytes": 3191,
+      "bytes": 4988,
       "group": "crate:mini-keystone",
       "headings": [],
       "keywords": [
-        "report",
         "unwrap",
+        "report",
+        "inmemoryreplayguard",
         "assert_eq",
-        "participant",
+        "new",
+        "run_demo",
         "alice",
         "bob",
         "pair",
-        "run_demo",
+        "participant",
         "transportkind",
-        "initiator_account",
         "bearer_a",
         "bearer_b",
         "inprocess",
         "initiator_root",
         "did",
-        "b_root",
-        "bearer",
-        "same",
-        "controller",
+        "initiator_account",
+        "std",
+        "end",
+        "guard_a",
+        "guard_b",
         "root",
-        "fresh",
-        "b_device",
-        "keystone",
-        "keystone_demo_end_to_end"
+        "b_root",
+        "filereplayguard"
       ],
-      "lines": 107,
+      "lines": 163,
       "path": "crates/mini-keystone/tests/keystone.rs",
-      "sha256": "62747ab04b20a30befa469e088d9c711ff1fd05416cefe56c19fef94c3b0f4b4",
+      "sha256": "b5a2f5ee2195471dd036035be590611a05727b972e6597844536532c3c5df52f",
       "symbols": [
         {
           "kind": "fn",
@@ -27967,13 +27967,18 @@
         },
         {
           "kind": "fn",
-          "line": 48,
+          "line": 52,
           "name": "demo_is_deterministic_per_identity_set"
         },
         {
           "kind": "fn",
-          "line": 81,
+          "line": 89,
           "name": "demo_refuses_a_peer_without_attest"
+        },
+        {
+          "kind": "fn",
+          "line": 119,
+          "name": "keystone_demo_works_with_a_durable_file_replay_guard"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller};"
@@ -49728,7 +49733,7 @@
       "title": "Start here \u2014 for an auditor or skeptic"
     },
     {
-      "bytes": 4200,
+      "bytes": 4396,
       "group": "docs",
       "headings": [
         {
@@ -49743,17 +49748,17 @@
         },
         {
           "level": 2,
-          "line": 51,
+          "line": 54,
           "text": "Before trusting any of this"
         },
         {
           "level": 2,
-          "line": 65,
+          "line": 68,
           "text": "UI beta (the product layer)"
         },
         {
           "level": 2,
-          "line": 72,
+          "line": 75,
           "text": "Post-beta (not on the critical path)"
         }
       ],
@@ -49762,30 +49767,30 @@
         "cargo",
         "real",
         "status",
+        "path",
         "see",
         "personhood",
         "identity",
-        "still",
         "ble",
-        "demo",
         "what",
         "here",
-        "path",
         "keystone",
         "reward",
         "root",
         "full",
         "forge",
+        "pass",
         "all-features",
         "today",
-        "but",
-        "yet",
+        "still",
+        "demo",
+        "replayguard",
         "one",
         "release"
       ],
-      "lines": 78,
+      "lines": 81,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "6815c2fcef3749e5a70557854d76007a62ba6a0a58dbc0fbbefc8f66562c786e",
+      "sha256": "452269855634362bee14da86abf85c60225f1496b914e244f42b7465add6814b",
       "symbols": [],
       "title": "Beta status"
     },
@@ -49913,7 +49918,7 @@
       "title": "{"
     },
     {
-      "bytes": 709069,
+      "bytes": 712759,
       "group": "docs",
       "headings": [
         {
@@ -50343,9 +50348,9 @@
         "signed",
         "new"
       ],
-      "lines": 11842,
+      "lines": 11907,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "e659b98485ca45dc6956a4d67ff2a37f0a88154ae3fa3b2a1d1ab4ffeeb85f7d",
+      "sha256": "78f45fec14faf93bec61f2bc84967336c8fd0300a8d185a4290539cbe88d682a",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -51489,7 +51494,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 83742,
+      "bytes": 83875,
       "group": "docs",
       "headings": [
         {
@@ -51514,67 +51519,67 @@
         },
         {
           "level": 2,
-          "line": 184,
+          "line": 185,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 282,
+          "line": 283,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 348,
+          "line": 349,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 395,
+          "line": 396,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 580,
+          "line": 581,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 621,
+          "line": 622,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 682,
+          "line": 683,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 712,
+          "line": 713,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 945,
+          "line": 946,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1104,
+          "line": 1105,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1165,
+          "line": 1166,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1227,
+          "line": 1228,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1293,
+          "line": 1294,
           "text": "Where to look for more detail"
         }
       ],
@@ -51604,9 +51609,9 @@
         "social",
         "network"
       ],
-      "lines": 1308,
+      "lines": 1309,
       "path": "docs/STATUS.md",
-      "sha256": "03cbc30515a9ee418936baa09a121855cc1d5c2b791b07c45015c960d3137da8",
+      "sha256": "6129e57d3f9ed1b411e4d05170b10d9ca20bf7b6d3010b3ce424c576107a372c",
       "symbols": [],
       "title": "Implementation status"
     },

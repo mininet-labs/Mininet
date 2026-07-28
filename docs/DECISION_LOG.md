@@ -11839,3 +11839,68 @@ shape differ enough that copying this module verbatim would not be a
 straightforward fit.
 
 **Supersedes / superseded by:** none.
+
+### D-0367 — `mini-keystone`: `run_demo` takes caller-supplied `ReplayGuard`s, wiring in `FileReplayGuard`  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0366's own "Required follow-up" line;
+`docs/BETA_STATUS.md` item 3.
+
+**Decision:** `run_demo`'s signature grows two parameters,
+`replay_guard_a: &mut dyn ReplayGuard` and `replay_guard_b: &mut dyn
+ReplayGuard`, one per side, replacing the `InMemoryReplayGuard::new()`
+each side previously constructed and discarded internally on every
+call. A caller now owns and passes in whichever `ReplayGuard`
+implementation it wants — `InMemoryReplayGuard` for the existing
+in-process tests/example, or `FileReplayGuard` (D-0366) for a real app
+that wants replay state to survive a restart. `#[allow(clippy::
+too_many_arguments)]` added to `run_demo`, matching the same idiom
+already used at nine other call sites across this workspace
+(`mini-bootstrap`, `mini-social`, `mini-cli`) for functions that
+compose several independent subsystems by design.
+
+**Reason:** D-0366 shipped `FileReplayGuard` but nothing in
+`mini-keystone` could actually use it: `run_demo` built a fresh,
+throwaway `InMemoryReplayGuard` inline on every call and dropped it the
+instant the function returned, so no guard — in-memory or file-backed
+— ever had a chance to remember anything across two separate calls in
+the first place. That is the literal gap BETA_STATUS.md item 3 named
+as "not yet wired into `mini-keystone`'s demo." Passing the guard in
+from the caller is the smallest change that closes it: `run_demo`
+itself needed no new logic, only a place to receive durable state from
+whoever actually owns the device's on-disk storage.
+
+**Constitutional impact:** none. No cryptography, no new dependency,
+no Tier-F invariant touched. `run_demo`'s behavior for existing callers
+that pass a fresh `InMemoryReplayGuard` per call (this crate's own
+tests and example) is bit-for-bit identical to before.
+
+**Implementation status:** Shipped this PR. `crates/mini-keystone/
+tests/keystone.rs` updated: three existing tests now pass explicit
+`InMemoryReplayGuard`s (unchanged behavior); one new test,
+`keystone_demo_works_with_a_durable_file_replay_guard`, opens two real
+`FileReplayGuard`s at temp-file paths and runs the full demo through
+them end to end, proving the wiring works, not merely that it
+compiles. `crates/mini-keystone/examples/keystone.rs` updated to use
+`FileReplayGuard` (the pattern a real app should follow) instead of
+`InMemoryReplayGuard`, with its own doc comment noting that real replay
+resistance across restarts requires opening it at a persistent path,
+not the fresh temp file this convenience demo uses per run.
+`cargo fmt`/`clippy -D warnings`/`test` clean workspace-wide; no other
+crate calls `run_demo`, so this is not a breaking change to any
+consumer outside this crate.
+
+**Failure point:** `run_demo` itself has no opinion on whether the
+guard a caller passes in is actually durable — a caller that keeps
+constructing a fresh `InMemoryReplayGuard` per call (as this crate's
+own tests still do, deliberately, to keep them self-contained) gets
+exactly zero cross-call replay protection, same as before this PR.
+This PR makes the durable option *reachable*; it does not force any
+caller to *use* it.
+
+**Required follow-up:** BETA_STATUS.md item 3 can now be marked fully
+closed. Item 1 (BLE bearer adapters) remains the actual blocker to a
+real two-phone beta; once a phone app exists, it is that app's
+responsibility to open one `FileReplayGuard` per device at a real
+persistent path (e.g. app-private storage) and hold it for the
+process's lifetime, not to construct one per encounter.
+
+**Supersedes / superseded by:** none.

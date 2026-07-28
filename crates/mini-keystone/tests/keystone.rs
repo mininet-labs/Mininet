@@ -5,7 +5,7 @@
 use did_mini::{Capabilities, Controller};
 use mini_bearer::pair;
 use mini_keystone::{run_demo, DemoError, Participant};
-use mini_presence::TransportKind;
+use mini_presence::{InMemoryReplayGuard, TransportKind};
 
 fn alice() -> Participant {
     Participant::from_seeds([1; 32], [2; 32], [3; 32], [4; 32]).unwrap()
@@ -21,6 +21,8 @@ fn keystone_demo_end_to_end() {
     let b = bob();
     let (mut bearer_a, mut bearer_b) = pair();
 
+    let mut guard_a = InMemoryReplayGuard::new();
+    let mut guard_b = InMemoryReplayGuard::new();
     let report = run_demo(
         &a,
         &b,
@@ -28,6 +30,8 @@ fn keystone_demo_end_to_end() {
         &mut bearer_b,
         TransportKind::InProcess,
         1_000_000,
+        &mut guard_a,
+        &mut guard_b,
     )
     .unwrap();
 
@@ -59,6 +63,8 @@ fn demo_is_deterministic_per_identity_set() {
         &mut b1,
         TransportKind::InProcess,
         1_000_000,
+        &mut InMemoryReplayGuard::new(),
+        &mut InMemoryReplayGuard::new(),
     )
     .unwrap();
     let (mut a2, mut b2) = pair();
@@ -69,6 +75,8 @@ fn demo_is_deterministic_per_identity_set() {
         &mut b2,
         TransportKind::InProcess,
         1_000_000,
+        &mut InMemoryReplayGuard::new(),
+        &mut InMemoryReplayGuard::new(),
     )
     .unwrap();
 
@@ -101,6 +109,54 @@ fn demo_refuses_a_peer_without_attest() {
         &mut bearer_b,
         TransportKind::InProcess,
         1_000_000,
+        &mut InMemoryReplayGuard::new(),
+        &mut InMemoryReplayGuard::new(),
     );
     assert!(matches!(result, Err(DemoError::Presence(_))));
+}
+
+#[test]
+fn keystone_demo_works_with_a_durable_file_replay_guard() {
+    // The whole point of D-0366: a real two-device app can pass
+    // `FileReplayGuard` here instead of `InMemoryReplayGuard`, and the guard's
+    // state then survives a process restart. This proves `run_demo` actually
+    // accepts the durable backend end to end, not just that the backend
+    // compiles in isolation.
+    use mini_presence::FileReplayGuard;
+    use std::fs;
+
+    let a = alice();
+    let b = bob();
+    let (mut bearer_a, mut bearer_b) = pair();
+
+    let mut path_a = std::env::temp_dir();
+    path_a.push(format!(
+        "mini-keystone-durable-guard-a-{}-{}",
+        std::process::id(),
+        1_000_000u64
+    ));
+    let mut path_b = std::env::temp_dir();
+    path_b.push(format!(
+        "mini-keystone-durable-guard-b-{}-{}",
+        std::process::id(),
+        1_000_000u64
+    ));
+    let mut guard_a = FileReplayGuard::open(&path_a, 60_000).unwrap();
+    let mut guard_b = FileReplayGuard::open(&path_b, 60_000).unwrap();
+
+    let report = run_demo(
+        &a,
+        &b,
+        &mut bearer_a,
+        &mut bearer_b,
+        TransportKind::InProcess,
+        1_000_000,
+        &mut guard_a,
+        &mut guard_b,
+    )
+    .unwrap();
+
+    assert_eq!(report.initiator_root, a.root.did().as_str());
+    let _ = fs::remove_file(&path_a);
+    let _ = fs::remove_file(&path_b);
 }
