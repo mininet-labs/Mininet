@@ -1,0 +1,24 @@
+[package]
+name = "mini-publication-policy"
+version = "0.0.1"
+description = "Typed protected-publishing vocabulary (PublicationProfile/AchievedResultReceipt): publication-time choices and their achieved privacy/price, built on the existing privacy/transport/pricing policy crates."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# mini-privacy-policy/mini-transport-policy/mini-resource-pricing: Track D1/
+# D2's publication profile and its achieved-result receipt are a typed
+# crossing point into vocabulary these crates already define -- tier
+# selection, mechanism/property routing, and MINI-denominated pricing --
+# rather than a second, competing model. None of the three depends on
+# mini-value, mini-treasury, mini-forge, or mini-chain (each crate's own
+# Cargo.toml comments say so), so this stays clear of the voice/value
+# wall. No serde, no AEAD -- this crate is pure typed policy data plus
+# one connecting function.
+mini-privacy-policy = { path = "../mini-privacy-policy" }
+mini-resource-pricing = { path = "../mini-resource-pricing" }
+mini-transport-policy = { path = "../mini-transport-policy" }

@@ -11576,3 +11576,91 @@ that would finally let the two deferred D-0361 properties get a real
 integration test.
 
 **Supersedes / superseded by:** none.
+
+### D-0364 — `mini-publication-policy`: publication profile + achieved-result receipt (Track D1/D2)  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0361/D-0362/D-0363 (Track C, the
+adjacent public-commons/pricing-boundary work this crate connects to);
+`docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§27 (Track D, PR D1 "Publication profile dimensions", PR D2
+"Protection quote and achieved-result receipt").
+
+**Decision:** New crate `mini-publication-policy`, scoped to exactly
+Track D1 and D2:
+
+- **D1 — `PublicationProfile`** (`src/profile.rs`): four independent
+  publication-time choices — `visibility` (`Public`/`Unlisted`/
+  `Private`), `attribution` (`Attributed`/`Anonymous`), `transport`
+  (reuses `mini_privacy_policy::PrivacyTier` directly rather than
+  inventing a parallel vocabulary), and `persistence` (`Ephemeral`/
+  `Durable`/`Replicated`). Construction performs no cross-field
+  validation — all 3 × 2 × 4 × 3 = 72 combinations are constructible,
+  including ones that look unwise (`Public` + `Anonymous` at
+  `PrivacyTier::Direct`), matching the doctrine's own framing of these
+  as independent choices rather than a coupled state machine.
+- **D2 — `achieved_result_receipt_for`** (`src/receipt.rs`): the one
+  connecting function. Given a `PublicationProfile` and the
+  `ProtectionProperty`s a caller wants satisfied, it routes through
+  `mini-transport-policy`'s existing fail-closed router (unchanged —
+  no new routing logic) and prices through `mini-resource-pricing`'s
+  existing `quote` (unchanged — no new pricing logic), returning an
+  `AchievedResultReceipt { profile, achieved, quote }`. `quote` is
+  `None` exactly at `PrivacyTier::Direct`, mirroring D-0363's
+  established "free base tier is never quoted" convention.
+
+**Reason:** Track D1 asks that visibility, attribution, transport, and
+persistence be *independent* choices — the crate proves that
+structurally, by construction, rather than by policy prose: nothing in
+`PublicationProfile`'s definition can reject a combination, so no
+future edit can accidentally couple two dimensions without that
+becoming a visible type change. Track D2 asks for a receipt connecting
+to "existing privacy and resource-pricing vocabulary" specifically —
+not a new quoting or routing model — so `achieved_result_receipt_for`
+is deliberately a thin composition of `mini-transport-policy::route`
+and `mini-resource-pricing::quote`, the same two crates D-0301/D-0302
+already built and D-0363 already connected to `mini-commons-policy`.
+Reusing `mini-transport-policy::route` (rather than re-deriving
+mechanism selection here) also means the fail-closed
+`UnsatisfiableProperty` check Track D2's receipt relies on already has
+its own test coverage in that crate; this crate only needs to prove it
+propagates the error, not that the check itself is correct.
+
+**Constitutional impact:** none. No cryptography, no dependency on
+`mini-value`/`mini-treasury`/`mini-forge`/`mini-chain` (all three
+dependencies — `mini-privacy-policy`, `mini-transport-policy`,
+`mini-resource-pricing` — already document their own voice/value-wall
+isolation), no Tier-F invariant touched.
+
+**Implementation status:** Shipped this PR. `profile.rs`: 4 tests
+(every one of the 72 combinations constructs; `Public`+`Anonymous`;
+`Private`+`Attributed`; `Ephemeral` persistence with `Burst`-tier
+transport — proving persistence and transport don't implicitly
+constrain each other). `receipt.rs`: 6 tests (`Direct` tier has no
+quote; `Relayed` tier's quote requires payment; an unsatisfiable
+property fails closed as `PublicationPolicyError::Routing`; the
+receipt carries the exact profile it was built for; the quote matches
+calling `mini_resource_pricing::quote` directly; an overflowing
+payload propagates as `PublicationPolicyError::Pricing`). 10 tests
+total; `cargo fmt`/`clippy -D warnings`/`test` clean workspace-wide.
+
+**Failure point:** This crate proves the *typed* claim only — that the
+four publication dimensions are independent and that a receipt
+correctly reflects what `mini-transport-policy`/`mini-resource-pricing`
+would say. It does not publish anything: no object is stored, no bytes
+move over `mini-relay`/`mini-bridge`, no payment executes, and
+`Attribution::Anonymous` is a declared intent, not a guarantee — this
+crate does not itself verify that a chosen `transport` tier actually
+achieves anonymity (that check is `mini-transport-policy`'s existing
+`ProtectionProperty` routing, which a caller must remember to request;
+nothing here forces `Attribution::Anonymous` to imply requesting
+`CounterpartyIpHiding`/`WhoTalksToWhomHiding`, since D1's independence
+requirement forbids that coupling at the type level).
+
+**Required follow-up:** Track D3 (source-hiding publication path over
+`mini-relay`'s role separation), D4 (mixed transport, only after the
+research gate and threat model D1's own doc references are satisfied),
+D5 (suppression-resistant replication via `mini-erasure`/`mini-porep`),
+D6 (unlinkable settlement research/prototype) — all separately scoped,
+not started here.
+
+**Supersedes / superseded by:** none.

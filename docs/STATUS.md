@@ -1061,6 +1061,25 @@ the top development priority.
   precondition for D-0361's still-deferred "paid providers cannot
   suppress unpaid public objects" property, not a proof of it — no
   provider-settlement layer exists yet to test the full claim against.
+- **shipped, prototype (D-0364, Track D1/D2)** — new crate
+  `mini-publication-policy`: `PublicationProfile` (Track D1) turns
+  "visibility, attribution, transport, and persistence as independent
+  choices" into a typed value with no cross-field validation of its own
+  — every one of the 3 × 2 × 4 × 3 = 72 combinations constructs, so no
+  future edit can silently couple two dimensions without a visible type
+  change. `achieved_result_receipt_for` (Track D2) is a thin
+  composition of `mini-transport-policy::route` (fail-closed protection-
+  property check) and `mini-resource-pricing::quote` (pricing), adding
+  no new routing or pricing logic of its own; `quote` is `None` exactly
+  at `PrivacyTier::Direct`, matching D-0363's "free base tier is never
+  quoted" convention. Publishes nothing — no object store, no bytes over
+  `mini-relay`/`mini-bridge`, no payment execution; `Attribution::
+  Anonymous` is a declared intent the type does not itself enforce
+  (D1's independence requirement forbids baking a
+  `CounterpartyIpHiding`/`WhoTalksToWhomHiding` request into the type).
+  Tracks D3-D6 (source-hiding path, mixed transport, suppression-
+  resistant replication, unlinkable settlement) remain separately
+  scoped, not started here.
 
 ## Client coverage
 

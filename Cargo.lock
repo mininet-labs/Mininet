@@ -2648,6 +2648,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-publication-policy"
+version = "0.0.1"
+dependencies = [
+ "mini-privacy-policy",
+ "mini-resource-pricing",
+ "mini-transport-policy",
+]
+
+[[package]]
 name = "mini-relay"
 version = "0.0.1"
 dependencies = [
