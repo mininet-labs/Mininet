@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 58,
-    "files": 666,
+    "files": 667,
     "headings": 2244,
-    "rust_symbols": 5776
+    "rust_symbols": 5789
   },
   "crates": {
     "did-mini": {
@@ -27780,137 +27780,137 @@
       "title": "use mini_bearer::pair;"
     },
     {
-      "bytes": 11529,
+      "bytes": 12619,
       "group": "crate:mini-keystone",
       "headings": [],
       "keywords": [
         "identity",
         "demoerror",
         "root",
-        "bearer",
         "device",
+        "bearer",
         "presence",
         "controller",
         "participant",
         "fmt",
-        "demo",
         "self",
         "bearererror",
         "did_mini",
         "mini_presence",
+        "demo",
         "did",
         "channel",
         "one",
-        "flow",
         "core",
         "error",
         "identityerror",
         "presenceerror",
         "failure",
-        "write"
+        "write",
+        "demoreport"
       ],
-      "lines": 287,
+      "lines": 305,
       "path": "crates/mini-keystone/src/lib.rs",
-      "sha256": "f711181c2b66702a66e61d0e45aaffd94657c95f5057dae6b605dcb79a15e27e",
+      "sha256": "e8a8c8de03fa6c336d9d2ebb00afc5aadfc6c140f988893e690c2ba81cb0a288",
       "symbols": [
         {
           "kind": "struct",
-          "line": 34,
+          "line": 37,
           "name": "Participant"
         },
         {
           "kind": "impl",
-          "line": 41,
+          "line": 44,
           "name": "Participant"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 47,
           "name": "from_seeds"
         },
         {
           "kind": "struct",
-          "line": 63,
+          "line": 66,
           "name": "DemoReport"
         },
         {
           "kind": "enum",
-          "line": 79,
+          "line": 82,
           "name": "DemoError"
         },
         {
           "kind": "impl",
-          "line": 90,
+          "line": 93,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 94,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 101,
+          "line": 104,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 103,
+          "line": 106,
           "name": "From<BearerError>"
         },
         {
           "kind": "fn",
-          "line": 104,
+          "line": 107,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 108,
+          "line": 111,
           "name": "From<did_mini::IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 109,
+          "line": 112,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 113,
+          "line": 116,
           "name": "From<mini_presence::PresenceError>"
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 117,
           "name": "from"
         },
         {
           "kind": "const",
-          "line": 120,
+          "line": 123,
           "name": "AAD_KEL_ROOT"
         },
         {
           "kind": "const",
-          "line": 121,
+          "line": 124,
           "name": "AAD_KEL_DEVICE"
         },
         {
           "kind": "fn",
-          "line": 134,
+          "line": 137,
           "name": "run_demo"
         },
         {
           "kind": "fn",
-          "line": 251,
+          "line": 269,
           "name": "send_kels"
         },
         {
           "kind": "fn",
-          "line": 265,
+          "line": 283,
           "name": "recv_kels"
         },
         {
           "kind": "fn",
-          "line": 281,
+          "line": 299,
           "name": "demo_nonce"
         }
       ],
@@ -33531,6 +33531,103 @@
       "title": "mini-presence"
     },
     {
+      "bytes": 9390,
+      "group": "crate:mini-presence",
+      "headings": [],
+      "keywords": [
+        "bearer",
+        "challenge",
+        "side",
+        "one",
+        "presenceerror",
+        "chan",
+        "map_err",
+        "real",
+        "channel",
+        "measuring",
+        "seal",
+        "pendingrangechallenge",
+        "round",
+        "aad_range_challenge",
+        "send_range_challenge",
+        "respond_to_range_challenge",
+        "recv_range_response",
+        "ranging",
+        "protocol",
+        "steps",
+        "trip",
+        "send",
+        "echo",
+        "aad_range_response"
+      ],
+      "lines": 214,
+      "path": "crates/mini-presence/src/active_range.rs",
+      "sha256": "8ef55b3be45bf8b5b316f5551080731142486e06dec09c4f6a95da06901d99eb",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 67,
+          "name": "AAD_RANGE_CHALLENGE"
+        },
+        {
+          "kind": "const",
+          "line": 68,
+          "name": "AAD_RANGE_RESPONSE"
+        },
+        {
+          "kind": "struct",
+          "line": 73,
+          "name": "PendingRangeChallenge"
+        },
+        {
+          "kind": "fn",
+          "line": 82,
+          "name": "send_range_challenge"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "respond_to_range_challenge"
+        },
+        {
+          "kind": "fn",
+          "line": 113,
+          "name": "recv_range_response"
+        },
+        {
+          "kind": "mod",
+          "line": 130,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 134,
+          "name": "connected_channels"
+        },
+        {
+          "kind": "fn",
+          "line": 152,
+          "name": "one_round_trip_measures_a_real_elapsed_time"
+        },
+        {
+          "kind": "fn",
+          "line": 165,
+          "name": "several_round_trips_can_be_run_in_sequence"
+        },
+        {
+          "kind": "fn",
+          "line": 178,
+          "name": "a_response_over_the_wrong_channel_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 198,
+          "name": "an_echo_of_the_wrong_challenge_is_rejected"
+        }
+      ],
+      "title": "use std::time::Instant;"
+    },
+    {
       "bytes": 7262,
       "group": "crate:mini-presence",
       "headings": [],
@@ -33648,7 +33745,7 @@
       "title": "use did_mini::{Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 3433,
+      "bytes": 4399,
       "group": "crate:mini-presence",
       "headings": [],
       "keywords": [
@@ -33656,6 +33753,7 @@
         "write",
         "identity",
         "error",
+        "match",
         "result",
         "fmt",
         "kel",
@@ -33663,64 +33761,63 @@
         "identityerror",
         "presence",
         "attestation",
+        "channel",
         "policy",
-        "match",
-        "evidence",
         "range",
+        "evidence",
         "device",
         "does",
         "root",
         "replay",
+        "failure",
+        "bearer",
         "cannot",
-        "round-trip",
-        "exceeds",
-        "its",
-        "nonce"
+        "round-trip"
       ],
-      "lines": 79,
+      "lines": 98,
       "path": "crates/mini-presence/src/error.rs",
-      "sha256": "27c45d6b1e27d304109361e85959a752b2c50df1faca539016c92cb127cbf34b",
+      "sha256": "7cd978b5454a10915b150a315b7d0f7cdec50c57d15a724fadb3c6324271ac77",
       "symbols": [
         {
           "kind": "type",
-          "line": 6,
+          "line": 8,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 11,
+          "line": 13,
           "name": "PresenceError"
         },
         {
           "kind": "impl",
-          "line": 42,
+          "line": 56,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 43,
+          "line": 57,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 72,
+          "line": 91,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 74,
+          "line": 93,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 75,
+          "line": 94,
           "name": "from"
         }
       ],
       "title": "use did_mini::IdentityError;"
     },
     {
-      "bytes": 3818,
+      "bytes": 3961,
       "group": "crate:mini-presence",
       "headings": [],
       "keywords": [
@@ -33733,6 +33830,7 @@
         "spec-02",
         "nonces",
         "real",
+        "active_range",
         "error",
         "persisted",
         "verify",
@@ -33746,40 +33844,44 @@
         "verify_presence",
         "never",
         "nonce",
-        "fixed",
-        "co-presence"
+        "fixed"
       ],
-      "lines": 75,
+      "lines": 79,
       "path": "crates/mini-presence/src/lib.rs",
-      "sha256": "734b7ee2504771dd9eab4446d7dba55e23090efbfcc99b6289f44f99e43d2c84",
+      "sha256": "4346e3f53b795f510a86e8bcefe49e500931e2669042b4c85744c69d155c1db1",
       "symbols": [
         {
           "kind": "mod",
           "line": 59,
-          "name": "attestation"
+          "name": "active_range"
         },
         {
           "kind": "mod",
           "line": 60,
-          "name": "error"
+          "name": "attestation"
         },
         {
           "kind": "mod",
           "line": 61,
-          "name": "persisted"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 62,
-          "name": "ranging"
+          "name": "persisted"
         },
         {
           "kind": "mod",
           "line": 63,
+          "name": "ranging"
+        },
+        {
+          "kind": "mod",
+          "line": 64,
           "name": "verify"
         }
       ],
-      "title": "mod attestation;"
+      "title": "mod active_range;"
     },
     {
       "bytes": 14554,
@@ -49733,7 +49835,7 @@
       "title": "Start here \u2014 for an auditor or skeptic"
     },
     {
-      "bytes": 4396,
+      "bytes": 4871,
       "group": "docs",
       "headings": [
         {
@@ -49748,32 +49850,34 @@
         },
         {
           "level": 2,
-          "line": 54,
+          "line": 61,
           "text": "Before trusting any of this"
         },
         {
           "level": 2,
-          "line": 68,
+          "line": 75,
           "text": "UI beta (the product layer)"
         },
         {
           "level": 2,
-          "line": 75,
+          "line": 82,
           "text": "Post-beta (not on the critical path)"
         }
       ],
       "keywords": [
         "beta",
-        "cargo",
         "real",
+        "cargo",
+        "see",
         "status",
         "path",
-        "see",
         "personhood",
         "identity",
+        "still",
         "ble",
         "what",
         "here",
+        "honest",
         "keystone",
         "reward",
         "root",
@@ -49782,15 +49886,13 @@
         "pass",
         "all-features",
         "today",
-        "still",
         "demo",
-        "replayguard",
-        "one",
-        "release"
+        "but",
+        "channel"
       ],
-      "lines": 81,
+      "lines": 88,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "452269855634362bee14da86abf85c60225f1496b914e244f42b7465add6814b",
+      "sha256": "44fa0cf083b57218eb142c2c1d94bbfa1158400a9e969ee21f5ee455a4f7276e",
       "symbols": [],
       "title": "Beta status"
     },
@@ -49918,7 +50020,7 @@
       "title": "{"
     },
     {
-      "bytes": 712759,
+      "bytes": 718761,
       "group": "docs",
       "headings": [
         {
@@ -50348,9 +50450,9 @@
         "signed",
         "new"
       ],
-      "lines": 11907,
+      "lines": 12001,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "78f45fec14faf93bec61f2bc84967336c8fd0300a8d185a4290539cbe88d682a",
+      "sha256": "4e1665fd755b2ad2f70966106fadad25c0486be9a9b369647d1a54b7b234bcbc",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -51494,7 +51596,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 83875,
+      "bytes": 84209,
       "group": "docs",
       "headings": [
         {
@@ -51519,67 +51621,67 @@
         },
         {
           "level": 2,
-          "line": 185,
+          "line": 190,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 283,
+          "line": 288,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 349,
+          "line": 354,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 396,
+          "line": 401,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 581,
+          "line": 586,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 622,
+          "line": 627,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 683,
+          "line": 688,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 713,
+          "line": 718,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 946,
+          "line": 951,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1105,
+          "line": 1110,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1166,
+          "line": 1171,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1228,
+          "line": 1233,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1294,
+          "line": 1299,
           "text": "Where to look for more detail"
         }
       ],
@@ -51609,9 +51711,9 @@
         "social",
         "network"
       ],
-      "lines": 1309,
+      "lines": 1314,
       "path": "docs/STATUS.md",
-      "sha256": "6129e57d3f9ed1b411e4d05170b10d9ca20bf7b6d3010b3ce424c576107a372c",
+      "sha256": "7bb2009e080a86a93c01af83d9633eebcb3f5bf41de21cacfcdc6bf35bc0c677",
       "symbols": [],
       "title": "Implementation status"
     },

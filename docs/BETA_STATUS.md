@@ -24,9 +24,16 @@ still missing for a real two-phone beta, in order:
    added a real `TcpBearer` (proven live in `mini-net`'s gossip demo), but
    that's IP-network connectivity, not BLE — the keystone demo itself is
    still in-process only and hasn't been ported to it yet.
-2. **Active range measurement** — the current RTT ceiling is a software
-   thresholding hook over *reported* samples, not an active challenge-response
-   measurement; no anti-relay claim is made until it is.
+2. ~~**Active range measurement**~~ — **shipped (D-0368)**:
+   `mini_presence::active_range` performs a real challenge-response
+   round-trip exchange over the already-bound encrypted channel
+   (`send_range_challenge`/`respond_to_range_challenge`/
+   `recv_range_response`); `mini-keystone::run_demo` now feeds
+   `AttestationFields::rtt_samples_ms` with genuinely measured elapsed
+   times instead of a hand-written literal. Still application-layer timing,
+   not a formal distance-bounding protocol or hardware ranging — see that
+   module's own "Honest limits" section — but the specific gap this item
+   named (a claimed proximity number nobody else could check) is closed.
 3. ~~**Persistent replay store**~~ — **shipped (D-0366, wired D-0367)**:
    `mini_presence::FileReplayGuard` is a file-backed `ReplayGuard` that
    survives process restarts (`Cargo.toml` unchanged — `std::fs` only, no

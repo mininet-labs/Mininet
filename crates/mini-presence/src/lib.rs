@@ -56,12 +56,16 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod active_range;
 mod attestation;
 mod error;
 mod persisted;
 mod ranging;
 mod verify;
 
+pub use active_range::{
+    recv_range_response, respond_to_range_challenge, send_range_challenge, PendingRangeChallenge,
+};
 pub use attestation::{
     kel_digest, AttestationFields, Party, PresenceAttestation, TransportKind, UwbRanging,
     PRESENCE_VERSION,

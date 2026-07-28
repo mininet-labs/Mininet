@@ -161,12 +161,17 @@ given time.
 - **partial** — co-presence attestation (`mini-presence`) is shipped;
   the software RTT bound has no hardware ranging backing it yet in
   production use (UWB trait scaffolded, not wired to real hardware).
-  `FileReplayGuard` (D-0366) adds a durable, file-backed `ReplayGuard`
-  alongside the existing `InMemoryReplayGuard` — replay resistance that
-  survives a process restart. `mini-keystone::run_demo` now takes each
-  side's `ReplayGuard` from the caller (D-0367) instead of constructing
-  a throwaway one internally, so a real app can supply `FileReplayGuard`
-  and actually get that durability, closing `docs/BETA_STATUS.md` item 3.
+  `mini_presence::active_range` (D-0368) performs a real challenge-response
+  round-trip exchange over the bound channel, replacing the hand-written
+  RTT literal `mini-keystone::run_demo` used to sign — application-layer
+  timing, not a formal distance-bounding protocol, but closing
+  `docs/BETA_STATUS.md` item 2's specific gap. `FileReplayGuard` (D-0366)
+  adds a durable, file-backed `ReplayGuard` alongside the existing
+  `InMemoryReplayGuard` — replay resistance that survives a process
+  restart. `mini-keystone::run_demo` now takes each side's `ReplayGuard`
+  from the caller (D-0367) instead of constructing a throwaway one
+  internally, so a real app can supply `FileReplayGuard` and actually get
+  that durability, closing `docs/BETA_STATUS.md` item 3.
 - **doc-only** — `docs/design/credential-taxonomy.md` (D-0089, founder
   review's `credential-separation` finding) names and separates
   `ParticipantCredential`/`HumanEvidence`/`RoleCredential`/

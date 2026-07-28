@@ -1,6 +1,8 @@
 //! Errors for presence attestation and verification.
 
 use did_mini::IdentityError;
+use mini_bearer::BearerError;
+use mini_crypto::CryptoError;
 
 /// Result alias for this crate.
 pub type Result<T> = core::result::Result<T, PresenceError>;
@@ -37,6 +39,18 @@ pub enum PresenceError {
     SelfPresence,
     /// An underlying identity/delegation/signature failure.
     Identity(IdentityError),
+    /// A [`crate::active_range`] challenge-response echo did not match the
+    /// challenge that was sent -- the peer (or an attacker) answered with
+    /// the wrong value.
+    RangingEchoMismatch,
+    /// An underlying bearer or channel failure during a
+    /// [`crate::active_range`] challenge-response exchange (includes AEAD
+    /// authentication failure, e.g. a response encrypted under the wrong
+    /// channel's keys).
+    Bearer(BearerError),
+    /// An underlying cryptographic failure (e.g. entropy source) while
+    /// generating a [`crate::active_range`] challenge.
+    Crypto(CryptoError),
 }
 
 impl core::fmt::Display for PresenceError {
@@ -65,6 +79,11 @@ impl core::fmt::Display for PresenceError {
                 write!(f, "both devices belong to the same identity root")
             }
             PresenceError::Identity(e) => write!(f, "identity error: {e}"),
+            PresenceError::RangingEchoMismatch => {
+                write!(f, "range challenge echo did not match what was sent")
+            }
+            PresenceError::Bearer(e) => write!(f, "bearer/channel error: {e}"),
+            PresenceError::Crypto(e) => write!(f, "crypto error: {e}"),
         }
     }
 }
