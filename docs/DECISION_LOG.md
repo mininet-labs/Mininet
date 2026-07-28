@@ -12169,6 +12169,95 @@ written and reasoned through," not "verified."
 
 **Supersedes / superseded by:** none.
 
+### D-0372 — `mini-replication-policy`: suppression-resistant shard placement, repair, and retrieval planning, Track D5  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0311 (public commons/protected publishing
+doctrine); D-0312 (MiniSearch doctrine, same document); D-0364/D-0365
+(Track D1-D3, `mini-publication-policy`); D-0065 (`mini-erasure`); issue
+#161; founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§27 "PR D5 — Suppression-resistant replication"; Directive 14
+(simplicity/well-trodden constructions), Directive 16 (voice/value wall)
+
+**Decision:** adds `mini-replication-policy`, closing the exact gap
+`mini-erasure`'s own module docs already named as unstarted: *"deciding
+which peer should hold a regenerated shard, and actually transferring it
+to them, is a distribution problem... out of scope here, unstarted."*
+Three pure, typed functions over `mini_erasure::ErasureParams` and
+`did_mini::Did`:
+
+- `plan_placement(params, candidates)` assigns each of
+  `params.total_shards()` shards to its own distinct candidate `Did`,
+  rejecting the call outright if fewer distinct candidates than shards
+  are offered;
+- `plan_repair_placement(plan, missing_shard_indices, fresh_candidates)`
+  replaces exactly the holders of the shards `mini_erasure::plan_repair`
+  found missing, with fresh holders distinct from every holder still in
+  the plan — preserving the diversity invariant across repairs, not just
+  at first publication;
+- `select_retrieval_set(plan)` returns a deterministic default subset (the
+  `data_shards` lowest-indexed holders) a retrieval client can query.
+
+No shard bytes, network I/O, signing, or transport are touched by this
+crate — those stay `mini-erasure`'s (bytes) and a future
+`mini-relay`/`mini-bridge`/`mini-net` caller's (transport) job, matching
+every other "logic vs. distribution" boundary already drawn in this tree.
+
+**Reason:** Track D5 is the next unstarted, self-contained, code-only
+slice of the native-intake/public-commons research document's protected-
+publishing track (D1-D3 shipped; D4 mixed-transport is explicitly gated
+on a research/threat-model prerequisite not yet satisfied). Composing
+`mini-erasure`'s already-real coding/repair logic with a distinctness-
+enforcing placement policy is exactly the "connect erasure coding,
+provider diversity, repair, and retrieval" the doctrine document names,
+without inventing new coding theory or cryptography — the same Directive
+14 reasoning `mini-erasure`'s own doc comment gives for hand-rolling
+Reed-Solomon in the first place.
+
+**Constitutional impact:** none new. No payment, stake, balance, or
+governance-weight field anywhere in this crate; a holder's distinctness
+is ordinary `Did` equality, not a purchasable or votable property.
+Directive 16's voice/value wall is untouched — this crate has no
+dependency edge to any value/governance crate. No new cryptography:
+identity comparison reuses `did-mini`'s existing `Did` type unmodified.
+
+**Implementation status:** shipped in `mini-replication-policy` and added
+to the workspace. `cargo fmt --all -- --check`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and `cargo test
+--workspace --all-features` all clean on this (Linux) host (180 test
+binaries, all passing). 11 unit tests plus a 2-test end-to-end
+integration suite that actually encodes a file with `mini_erasure`,
+places its shards, simulates three holders disappearing (within a 4-of-7
+tolerance), repairs both the shard bytes (`mini_erasure::repair`) and the
+holder assignments (`plan_repair_placement`), and reconstructs the
+original data by querying only the holders `select_retrieval_set`
+names — proving the placement bookkeeping actually lines up with real,
+reconstructible shard bytes, not just abstract indices.
+
+**Failure point:** distinctness is checked by `Did` equality alone. This
+crate has no way to detect that several different `Did`s are controlled
+by the same operator behind the scenes — the general Sybil-resistance gap
+`docs/INVARIANTS.md`'s hard limitations already name project-wide (issue
+#18), not something a placement policy can solve. `select_retrieval_set`
+is a naive deterministic default (lowest shard indices) with no latency,
+reliability, or recent-health weighting — a real retrieval client with
+better information should not treat it as a recommendation. This crate
+also has no discovery layer: candidate `Did`s must come from somewhere
+this crate does not define (a future provider-discovery mechanism), and
+it has no opinion on whether a candidate is trustworthy beyond "not
+already holding another shard in this plan."
+
+**Required follow-up:** a real candidate-discovery source (who are the
+diverse holders to offer as candidates in the first place — not defined
+here); wiring `mini-publication-policy`'s source-hiding path (D-0365)
+together with this crate's placement so a publication's replication
+targets are chosen consistently with its declared privacy tier; actual
+network transfer of shard bytes to newly-assigned holders
+(`mini-net`/`mini-store`, unstarted); Track D6 (unlinkable settlement
+research) remains separately scoped and not started here.
+
+**Supersedes / superseded by:** implements the Track D5 slice named by
+D-0311/D-0312 after D-0364/D-0365 (Track D1-D3). Does not supersede
+`mini-erasure`, `mini-publication-policy`, or any other existing crate.
 ### D-0371 — `mini-web-extract`: sandboxed-in-principle static HTML extraction, Track E4  ·  *Accepted*
 **Date:** 2026-07-28 · **Refs:** D-0312 (MiniSearch doctrine); D-0316
 (`mini-web-types`); D-0317 (`mini-crawler`); issue #167; founder-supplied
@@ -12428,3 +12517,78 @@ suited to first-slice result-set sizes).
 
 **Supersedes / superseded by:** none. Extends the MiniSearch track after
 D-0405; supersedes nothing.
+### D-0374 — `mini-bearer`: `AndroidBleBearer`/`BleRadio`, the Rust-side half of the BLE bearer (Android beta slice 5, issue #201)  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0342 (`mini-bearer::ble` MTU chunking/
+reassembly); D-0338 (`mini-ffi::StorageCipher`, the callback-interface
+precedent this follows); `docs/BETA_STATUS.md` item 1; issue #201
+(Android beta slice 5); `crates/mini-bearer/src/ble.rs`'s own module doc,
+which names this exact gap
+
+**Decision:** adds `mini-bearer::android_ble`: a plain Rust `BleRadio`
+trait (`write_chunk`/`read_chunk`/`try_read_chunk`, chunk-level, no
+Bluetooth-specific types) and `AndroidBleBearer<R: BleRadio>`, a full
+`impl Bearer` that drives any `BleRadio` through the existing
+`chunk_frame`/`ChunkReassembler` logic (D-0342) to send and receive whole
+frames. This is exactly the gap `mini-bearer::ble`'s own module doc
+already named: *"A full `impl Bearer for AndroidBleBearer` needs a
+UniFFI callback interface... This module is the protocol logic
+underneath it, ready to be driven by either side."* `BleRadio` is that
+boundary, expressed as a plain trait rather than a UniFFI `.udl` callback
+interface — see Failure point.
+
+**Reason:** issue #201 (BLE bearer integration for Android) has a real,
+disclosed gap: `mini-bearer::ble` had the chunking/reassembly protocol
+logic but nothing that turned it into an actual `Bearer`. Building the
+generic `AndroidBleBearer<R: BleRadio>` now, fully tested against a mock
+`BleRadio` (an in-memory channel pair, not a real GATT stack), closes the
+Rust-side half of that gap with something genuinely verifiable in this
+sandbox — unlike D-0370's `AndroidKeystoreCipher`, which could only be
+reasoned through and needed a CI-caught follow-up fix (#251), this PR's
+entire claim is backed by `cargo test` passing here, not a promise. The
+UniFFI callback interface and the real Kotlin `BluetoothGattServer`/
+`BluetoothGattCallback` implementation are deliberately left for a
+separate PR that can be honestly scoped as "reasoned through, Android
+CI's `assembleDebug` is the real gate" the same way D-0370 was, rather
+than bundling verified and unverified work into one claim.
+
+**Constitutional impact:** none. No payment, stake, balance, or
+governance-weight field anywhere in this crate. `BleRadio`/
+`AndroidBleBearer` carry no identity or authority — they move opaque
+bytes exactly like every other `Bearer` implementation
+(`TcpBearer`/`InProcessBearer`) already does. No new cryptography: this
+is transport chunking, not a cryptographic construction.
+
+**Implementation status:** shipped in `mini-bearer::android_ble`.
+`cargo fmt --all -- --check`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features`
+all clean on this (Linux) host (180 test binaries, all passing). 8 new
+tests: multi-chunk round-trip, in-order multi-frame delivery, `try_recv`
+returning `None` then the frame once sent, write/read failure surfacing
+as `BearerError::Closed` when the peer radio disconnects, an empty-frame
+round-trip, a tiny-MTU-forced-many-chunks round-trip, and an
+MTU-too-small-for-the-header rejection before any write is attempted.
+
+**Failure point:** `BleRadio` is not yet a UniFFI callback interface —
+there is no `.udl` declaration for it in `mini-ffi`, so nothing here is
+callable from Kotlin today. No real Bluetooth hardware, GATT server/
+client, or two-device test exists; the mock `BleRadio` used in this
+crate's own tests is an in-memory channel pair, not a radio. This PR
+alone does **not** close `docs/BETA_STATUS.md` item 1 — it narrows what
+remains to exactly: (a) a `.udl` callback interface mirroring
+`StorageCipher`, (b) a real Kotlin `BluetoothGattServer`/
+`BluetoothGattCallback` implementing it, and (c) a real two-device test,
+none of which are code-only or verifiable in this sandbox.
+
+**Required follow-up:** the UniFFI callback interface + Kotlin
+`BluetoothGattServer`/`BluetoothGattCallback` implementation named above,
+following the same honest "reasoned through here, Android CI's
+`assembleDebug` is the real gate" posture as D-0370; wiring the resulting
+Kotlin-backed `AndroidBleBearer` into the keystone/presence flow (which
+itself has no UniFFI exposure yet — only `RootCore`'s onboarding surface
+is exposed today, a separately-scoped gap); updating
+`docs/BETA_STATUS.md` item 1 once the Kotlin half lands.
+
+**Supersedes / superseded by:** extends D-0342 (`mini-bearer::ble`)
+without changing its chunking/reassembly logic. Does not supersede
+`mini-ffi::StorageCipher` (D-0338) — mirrors its callback-interface
+pattern, does not reuse or modify it.

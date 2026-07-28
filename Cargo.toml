@@ -68,6 +68,7 @@ members = [
     "crates/mini-web-extract",
     "crates/mini-lexical-index",
     "crates/mini-ranker",
+    "crates/mini-replication-policy",
 ]
 
 [workspace.package]
