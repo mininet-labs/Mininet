@@ -1103,7 +1103,8 @@ the top development priority.
   `CounterpartyIpHiding`/`WhoTalksToWhomHiding` request into the type).
   Tracks D3-D6 (source-hiding path, mixed transport, suppression-
   resistant replication, unlinkable settlement) remain separately
-  scoped, not started here.
+  scoped; D3 and D5 are now shipped below, D4 is gated on a research/
+  threat-model prerequisite, D6 is not started.
 - **shipped, prototype (D-0365, Track D3)** — `mini-publication-policy`
   gains `source_hiding_publication_path_for`: plans `mini-relay` roles
   (`[Entry, Rendezvous]`) for a profile's publication by composing
@@ -1119,6 +1120,27 @@ the top development priority.
   only — no relay identity is contacted, no `DeliveryAssignment` is
   produced; turning a role list into a real, discoverable relay path
   remains not-yet-scoped follow-up.
+- **shipped, prototype (D-0372, Track D5)** — new crate
+  `mini-replication-policy`: closes the distribution-planning gap
+  `mini-erasure`'s own docs named as unstarted. `plan_placement` assigns
+  each shard of a `mini_erasure::ErasureParams` encoding to its own
+  distinct `did_mini::Did` holder (so no single holder's removal/freeze/
+  coercion costs more than one shard); `plan_repair_placement` replaces
+  exactly the holders `mini_erasure::plan_repair` found missing with
+  fresh holders distinct from every remaining holder in the same plan,
+  keeping the diversity invariant intact across repairs, not just at
+  first publication; `select_retrieval_set` picks a deterministic
+  default subset for a retrieval client to query. An end-to-end
+  integration test actually encodes a file, places it, loses three of
+  seven holders, repairs both shard bytes and holder assignments, and
+  reconstructs the original data by querying only the named holders —
+  proving the bookkeeping lines up with real shard bytes, not just
+  indices. No shard bytes, network I/O, or transport touched (stays
+  `mini-erasure`'s and a future `mini-net`/`mini-relay` caller's job);
+  distinctness is `Did` equality only, so a single operator controlling
+  many `Did`s defeats it — the same project-wide Sybil-resistance gap
+  (#18), not solved here. Track D6 (unlinkable settlement research)
+  remains separately scoped and not started.
 
 ## Client coverage
 

@@ -174,7 +174,9 @@ so, everywhere, on purpose.
 - FROST threshold custody (`mini-treasury`)
 - Merkle/PDP storage proofs (`mini-spacetime`); real proof-of-replication,
   Stacked Depth-Robust Graph sealing (`mini-porep`); Reed-Solomon erasure
-  coding + self-healing shard repair (`mini-erasure`)
+  coding + self-healing shard repair (`mini-erasure`); suppression-
+  resistant shard placement/repair/retrieval planning over distinct
+  holders (`mini-replication-policy`, D-0372)
 - anonymous developer-bounty claims (`mini-bounty`); offline settlement
   protocol (`mini-settlement`)
 - airdrop eligibility snapshot + signed claim-redemption verification
