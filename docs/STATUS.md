@@ -1192,9 +1192,18 @@ calls `RootCore.restore`/`persistState` around it, so a killed and
 reopened app process now restores the same root/device identity rather
 than losing it — a distinct `RestoreFailed` UI state (never a silent
 fresh identity) covers the case where a persisted blob exists but
-cannot be decrypted. The remaining slices (#199-#203) still have no
-Kotlin-side wiring, camera/QR/Bluetooth UI, or a real multi-device test
-— those, plus Gradle/emulator verification of this new Kotlin file (no
+cannot be decrypted. Issue #200 now also has a real Android-facing bridge
+(D-0373): `RootCore` owns the foreground listener and signing keys; the
+Compose home screen renders or captures a signed expiring QR, performs the
+same-LAN acceptance off the UI thread, creates signed follow objects on
+both phones, and persists contacts plus replay memory. QR rendering/decoding
+uses offline-only ZXing Core 3.5.4 and the system camera contract; no
+telemetry or Play Services SDK is added. This is not yet a real-device
+claim: CI must first compile the Kotlin, then two physical phones must prove
+the camera/LAN path. The remaining mobile gaps include full profile/feed
+sync, BLE, foreground-service/background policy wiring, hardware-backed
+signing, and real multi-device tests — those, plus Gradle/emulator
+verification of these Kotlin files (no
 JDK/Android SDK/NDK/Gradle/emulator exists in this environment; Android
 CI's real `assembleDebug` step, issue #204, is what actually verifies
 Kotlin compiles) and the Android app's own dependency-verification

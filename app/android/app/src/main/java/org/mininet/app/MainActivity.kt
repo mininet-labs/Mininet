@@ -3,6 +3,8 @@ package org.mininet.app
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,9 +29,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,20 +46,33 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.io.File
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.mininet.core.AppAction
 import org.mininet.core.AppCommand
 import org.mininet.core.AppEventKind
 import org.mininet.core.AppSnapshot
 import org.mininet.core.OnboardingStage
 import org.mininet.core.PlatformCapabilities
+import org.mininet.core.PairingContact
+import org.mininet.core.PairingOfferView
 import org.mininet.core.RootCore
 import org.mininet.core.SecurityReadiness
 import org.mininet.core.apiVersion
@@ -78,7 +95,14 @@ class MainActivity : ComponentActivity() {
 
 sealed interface CoreUiState {
     data class Ready(val snapshot: AppSnapshot, val notice: AppEventKind? = null) : CoreUiState
-    data class RootCreated(val rootDid: String, val deviceDid: String) : CoreUiState
+    data class Home(
+        val rootDid: String,
+        val deviceDid: String,
+        val contacts: List<PairingContact>,
+        val offer: PairingOfferView? = null,
+        val pairingBusy: Boolean = false,
+        val message: String? = null,
+    ) : CoreUiState
     data class Unavailable(val reason: String) : CoreUiState
 
     /**
@@ -114,7 +138,13 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
 
     var state: CoreUiState by mutableStateOf(
         rootCoreResult.fold(
-            onSuccess = { loadInitialState(capabilities) },
+            onSuccess = {
+                if (rootCore.hasRoot()) {
+                    homeState()
+                } else {
+                    loadInitialState(capabilities)
+                }
+            },
             onFailure = {
                 CoreUiState.RestoreFailed(it.message ?: it::class.java.simpleName)
             },
@@ -148,24 +178,126 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
             val rootDid = rootCore.createRoot()
             val deviceDid = rootCore.createDevice()
             persistRootState()
-            CoreUiState.RootCreated(rootDid = rootDid, deviceDid = deviceDid)
+            CoreUiState.Home(
+                rootDid = rootDid,
+                deviceDid = deviceDid,
+                contacts = emptyList(),
+            )
         }.getOrElse { CoreUiState.Unavailable(it.message ?: it::class.java.simpleName) }
     }
 
-    // Best-effort: a failed write here is a missed persistence
-    // opportunity, not a correctness bug -- the in-memory RootCore this
-    // process holds is still authoritative until the process dies.
-    // Surfacing it mid-onboarding would interrupt a flow the user cannot
-    // act on differently either way.
+    fun beginPairing(displayName: String) {
+        if (state !is CoreUiState.Home) return
+        updateHome(pairingBusy = true, message = "Preparing a signed pairing offer…")
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val offer = rootCore.beginPairingOffer(
+                    displayName = displayName,
+                    advertisedIp = findLanAddress(),
+                    nowMs = System.currentTimeMillis().toULong(),
+                    ttlMs = PAIRING_TTL_MS,
+                )
+                withContext(Dispatchers.Main) {
+                    updateHome(
+                        offer = offer,
+                        pairingBusy = true,
+                        message = "Keep this screen open while your friend scans.",
+                    )
+                }
+                val contact = rootCore.finishPairingOffer(
+                    nowMs = System.currentTimeMillis().toULong(),
+                    acceptTimeoutMs = PAIRING_TIMEOUT_MS,
+                    readTimeoutMs = PAIRING_TIMEOUT_MS,
+                )
+                persistRootState()
+                withContext(Dispatchers.Main) {
+                    state = homeState("Following ${contact.displayName}. Pairing verified.")
+                }
+            }.onFailure { failure ->
+                withContext(Dispatchers.Main) {
+                    state = homeState(failure.userFacingPairingMessage())
+                }
+            }
+        }
+    }
+
+    fun acceptPairingQr(qrPayload: String, displayName: String) {
+        if (state !is CoreUiState.Home) return
+        updateHome(pairingBusy = true, message = "Verifying signed offer…")
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val contact = rootCore.acceptPairingOffer(
+                    qrPayload = qrPayload,
+                    displayName = displayName,
+                    nowMs = System.currentTimeMillis().toULong(),
+                    connectTimeoutMs = PAIRING_TIMEOUT_MS,
+                )
+                persistRootState()
+                withContext(Dispatchers.Main) {
+                    state = homeState("Following ${contact.displayName}. Pairing verified.")
+                }
+            }.onFailure { failure ->
+                withContext(Dispatchers.Main) {
+                    state = homeState(failure.userFacingPairingMessage())
+                }
+            }
+        }
+    }
+
+    fun reportQrFailure(reason: String) {
+        updateHome(pairingBusy = false, message = reason)
+    }
+
+    private fun homeState(message: String? = null): CoreUiState.Home {
+        val rootDid = requireNotNull(rootCore.rootDid())
+        val deviceDid = rootCore.delegatedDevices().firstOrNull()
+            ?: error("restored root has no delegated device")
+        return CoreUiState.Home(
+            rootDid = rootDid,
+            deviceDid = deviceDid,
+            contacts = rootCore.pairingContacts(),
+            message = message,
+        )
+    }
+
+    private fun updateHome(
+        offer: PairingOfferView? = (state as? CoreUiState.Home)?.offer,
+        pairingBusy: Boolean = (state as? CoreUiState.Home)?.pairingBusy ?: false,
+        message: String? = (state as? CoreUiState.Home)?.message,
+    ) {
+        val home = state as? CoreUiState.Home ?: return
+        state = home.copy(offer = offer, pairingBusy = pairingBusy, message = message)
+    }
+
+    // Identity, replay memory, and signed follow state must become durable
+    // together. Write ciphertext to a sibling first, then atomically replace
+    // the prior snapshot where the filesystem supports it. A failure is
+    // surfaced by the caller; silently continuing would forget consumed QR
+    // offers after process death.
     private fun persistRootState() {
-        runCatching {
-            val blob = rootCore.persistState(storageCipher)
-            stateFile.writeBytes(blob.toByteArray())
+        val blob = rootCore.persistState(storageCipher)
+        val temporary = File(stateFile.parentFile, "$STATE_FILE_NAME.tmp")
+        temporary.writeBytes(blob.toByteArray())
+        try {
+            Files.move(
+                temporary.toPath(),
+                stateFile.toPath(),
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(
+                temporary.toPath(),
+                stateFile.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+            )
         }
     }
 
     companion object {
         private const val STATE_FILE_NAME = "root_state.bin"
+        private const val PAIRING_TTL_MS = 60_000UL
+        private const val PAIRING_TIMEOUT_MS = 30_000UL
 
         private fun readPlatformCapabilities(context: Context): PlatformCapabilities {
             val keyguard = context.getSystemService(KeyguardManager::class.java)
@@ -183,6 +315,29 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
                 start(capabilities),
             )
         }.getOrElse { CoreUiState.Unavailable(it.message ?: it::class.java.simpleName) }
+    }
+}
+
+private fun findLanAddress(): String =
+    NetworkInterface.getNetworkInterfaces()
+        .toList()
+        .asSequence()
+        .filter { it.isUp && !it.isLoopback && !it.isVirtual }
+        .flatMap { it.inetAddresses.toList().asSequence() }
+        .filterIsInstance<Inet4Address>()
+        .firstOrNull { !it.isLoopbackAddress && !it.isMulticastAddress && it.isSiteLocalAddress }
+        ?.hostAddress
+        ?: error("Connect both devices to the same local network before pairing.")
+
+private fun Throwable.userFacingPairingMessage(): String {
+    val detail = message ?: this::class.java.simpleName
+    return when {
+        detail.contains("expired", ignoreCase = true) -> "That QR offer expired. Ask your friend to create a new one."
+        detail.contains("already used", ignoreCase = true) ||
+            detail.contains("replay", ignoreCase = true) -> "That QR offer was already used and cannot be replayed."
+        detail.contains("LAN", ignoreCase = true) ||
+            detail.contains("network", ignoreCase = true) -> "Pairing could not reach the other phone. Keep both phones on the same LAN and try again."
+        else -> "Pairing was rejected safely: $detail"
     }
 }
 
@@ -237,7 +392,12 @@ private fun MininetApp(model: MiniViewModel = viewModel()) {
                     onBack = { model.send(AppAction.BACK) },
                     onCreateRoot = { model.createRoot() },
                 )
-                is CoreUiState.RootCreated -> RootCreatedScreen(state)
+                is CoreUiState.Home -> HomeScreen(
+                    state = state,
+                    onCreateOffer = model::beginPairing,
+                    onAcceptQr = model::acceptPairingQr,
+                    onQrFailure = model::reportQrFailure,
+                )
                 is CoreUiState.Unavailable -> CoreUnavailable(state.reason)
                 is CoreUiState.RestoreFailed -> RestoreFailedScreen(state.reason)
             }
@@ -319,7 +479,25 @@ private fun OnboardingScreen(
 }
 
 @Composable
-private fun RootCreatedScreen(state: CoreUiState.RootCreated) {
+private fun HomeScreen(
+    state: CoreUiState.Home,
+    onCreateOffer: (String) -> Unit,
+    onAcceptQr: (String, String) -> Unit,
+    onQrFailure: (String) -> Unit,
+) {
+    var displayName by androidx.compose.runtime.remember { mutableStateOf("") }
+    val camera = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview(),
+    ) { bitmap ->
+        if (bitmap == null) {
+            onQrFailure("QR capture was cancelled.")
+        } else {
+            runCatching { QrCodec.decode(bitmap) }
+                .onSuccess { payload -> onAcceptQr(payload, displayName.trim()) }
+                .onFailure { onQrFailure("No readable Mininet QR code was found. Try again in brighter light.") }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -328,19 +506,126 @@ private fun RootCreatedScreen(state: CoreUiState.RootCreated) {
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Text(
-            "Root created",
+            "Your Mininet",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Black,
             lineHeight = 42.sp,
         )
         Text(
-            "This identity and its first delegated device are now saved to this device, encrypted under an Android Keystore key -- closing and reopening the app will restore them, though there is no cloud backup and no recovery flow yet if this device is lost.",
+            "Your identity is restored from encrypted local storage. Pair directly with someone on the same LAN—no account directory or tracking service is involved.",
             style = MaterialTheme.typography.bodyLarge,
             color = Ink.copy(alpha = 0.78f),
             lineHeight = 26.sp,
         )
         IdentityCard("Root", state.rootDid)
         IdentityCard("This device", state.deviceDid)
+
+        OutlinedTextField(
+            value = displayName,
+            onValueChange = { if (it.length <= 128) displayName = it },
+            label = { Text("Public display name for this pairing") },
+            supportingText = { Text("Shared only with the person who scans or accepts this offer.") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.pairingBusy,
+        )
+
+        if (state.offer != null) {
+            val bitmap = androidx.compose.runtime.remember(state.offer.qrPayload) {
+                QrCodec.encode(state.offer.qrPayload)
+            }
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(24.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("Scan to follow each other", fontWeight = FontWeight.ExtraBold)
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Signed Mininet pairing QR code",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                    )
+                    Text(
+                        "Expires soon · listening on LAN port ${state.offer.listenPort}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Ink.copy(alpha = 0.62f),
+                    )
+                }
+            }
+        } else {
+            Button(
+                onClick = { onCreateOffer(displayName.trim()) },
+                enabled = displayName.isNotBlank() && !state.pairingBusy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Moss),
+            ) {
+                Text("Show my pairing QR", fontWeight = FontWeight.Bold)
+            }
+            OutlinedButton(
+                onClick = { camera.launch(null) },
+                enabled = displayName.isNotBlank() && !state.pairingBusy,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+            ) {
+                Text("Scan a friend's QR")
+            }
+        }
+
+        if (state.pairingBusy) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Moss)
+                Text(state.message ?: "Pairing…")
+            }
+        } else if (state.message != null) {
+            NoticeCard(state.message)
+        }
+
+        Text("People you follow", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+        if (state.contacts.isEmpty()) {
+            Text(
+                "No contacts yet. Pairing creates a verified, signed follow on both phones.",
+                color = Ink.copy(alpha = 0.62f),
+            )
+        } else {
+            state.contacts.forEach { contact ->
+                ContactCard(contact)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactCard(contact: PairingContact) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(contact.displayName, fontWeight = FontWeight.ExtraBold)
+            Text(
+                contact.did,
+                style = MaterialTheme.typography.bodySmall,
+                color = Ink.copy(alpha = 0.62f),
+            )
+            Text("Following · cryptographically verified", color = Moss, fontWeight = FontWeight.Bold)
+        }
     }
 }
 

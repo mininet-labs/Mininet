@@ -20,7 +20,10 @@ use mini_store::{MemoryBackend, Store};
 use crate::{PersistReader, RootCore, RootError};
 
 const QR_PREFIX: &str = "mini:pair:v1:";
-const MAX_QR_PAYLOAD_BYTES: usize = 32 * 1024;
+// A QR symbol has a much tighter real capacity than the protocol's generic
+// 16 KiB KEL ceiling. Keep the signed binary under 2 KiB so base64url plus
+// the scheme prefix remains renderable by a high-density QR symbol.
+const MAX_QR_PAYLOAD_BYTES: usize = 2 * 1024;
 const MAX_CONTACTS: usize = 256;
 const MAX_FOLLOW_OBJECTS: usize = 512;
 const MAX_FOLLOW_OBJECT_BYTES: usize = 1 << 20;
@@ -121,9 +124,11 @@ impl RootCore {
         let advertised_ip: IpAddr = advertised_ip
             .parse()
             .map_err(|_| PairingError::InvalidAddress)?;
+        let test_loopback = cfg!(test) && advertised_ip.is_loopback();
         if advertised_ip.is_unspecified()
-            || advertised_ip.is_loopback()
+            || (advertised_ip.is_loopback() && !test_loopback)
             || advertised_ip.is_multicast()
+            || (!test_loopback && !is_lan_address(advertised_ip))
         {
             return Err(PairingError::InvalidAddress);
         }
@@ -141,6 +146,7 @@ impl RootCore {
 
         let mut state = self.lock();
         sweep_consumed(&mut state.pairing, now_ms);
+        ensure_capacity_for(&state.pairing, None)?;
         if state
             .pairing
             .pending
@@ -202,6 +208,7 @@ impl RootCore {
         let mut state = self.lock();
         sweep_consumed(&mut state.pairing, now_ms);
         reject_consumed(&state.pairing, &offer.nonce)?;
+        ensure_capacity_for(&state.pairing, Some(offer.offerer.as_str()))?;
         let next_sequence = next_sequence(&state.pairing)?;
         let (acceptance, follow_object) = {
             let root = state.root.as_ref().ok_or(PairingError::NoRoot)?;
@@ -270,6 +277,7 @@ impl RootCore {
         if current.nonce != nonce || current.expires_at_ms != expires_at_ms {
             return Err(PairingError::Replayed);
         }
+        ensure_capacity_for(&state.pairing, Some(acceptance.acceptor.as_str()))?;
         let next_sequence = next_sequence(&state.pairing)?;
         let follow_object = {
             let root = state.root.as_ref().ok_or(PairingError::NoRoot)?.did();
@@ -303,6 +311,18 @@ fn validate_name(name: &str) -> Result<(), PairingError> {
     }
 }
 
+fn is_lan_address(address: IpAddr) -> bool {
+    match address {
+        IpAddr::V4(address) => address.is_private() || address.is_link_local(),
+        IpAddr::V6(address) => {
+            let octets = address.octets();
+            // fc00::/7 unique-local or fe80::/10 link-local. Spell the
+            // prefixes out to preserve the workspace's Rust 1.83 MSRV.
+            (octets[0] & 0xfe) == 0xfc || (octets[0] == 0xfe && (octets[1] & 0xc0) == 0x80)
+        }
+    }
+}
+
 fn timeout(ms: u64) -> Result<Duration, PairingError> {
     if ms == 0 || ms > MAX_TIMEOUT_MS {
         Err(PairingError::InvalidTimeout)
@@ -330,6 +350,26 @@ fn reject_consumed(
 ) -> Result<(), PairingError> {
     if state.consumed.iter().any(|entry| &entry.nonce == nonce) {
         Err(PairingError::Replayed)
+    } else {
+        Ok(())
+    }
+}
+
+fn ensure_capacity_for(
+    state: &PairingState,
+    contact_did: Option<&str>,
+) -> Result<(), PairingError> {
+    let adds_contact = contact_did.is_some_and(|did| {
+        !state
+            .contacts
+            .iter()
+            .any(|contact| contact.did.as_str() == did)
+    });
+    if state.consumed.len() >= MAX_CONTACTS
+        || state.follow_objects.len() >= MAX_FOLLOW_OBJECTS
+        || (adds_contact && state.contacts.len() >= MAX_CONTACTS)
+    {
+        Err(PairingError::Capacity)
     } else {
         Ok(())
     }
@@ -568,6 +608,49 @@ fn base64url_decode(text: &str) -> Result<Vec<u8>, PairingError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{StorageCipher, StorageCipherError};
+
+    #[derive(Debug)]
+    struct IdentityCipher;
+
+    impl StorageCipher for IdentityCipher {
+        fn encrypt(&self, plaintext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError> {
+            Ok(plaintext)
+        }
+
+        fn decrypt(&self, ciphertext: Vec<u8>) -> Result<Vec<u8>, StorageCipherError> {
+            Ok(ciphertext)
+        }
+    }
+
+    fn ready_core() -> RootCore {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        core.create_device().unwrap();
+        core
+    }
+
+    fn pair(
+        offerer: &RootCore,
+        acceptor: &RootCore,
+        now_ms: u64,
+    ) -> (PairingOfferView, PairingContact, PairingContact) {
+        let offer = offerer
+            .begin_pairing_offer("Alice".to_string(), "127.0.0.1".to_string(), now_ms, 30_000)
+            .unwrap();
+        let qr = offer.qr_payload.clone();
+        std::thread::scope(|scope| {
+            let receiver = scope.spawn(|| {
+                offerer
+                    .finish_pairing_offer(now_ms + 1, 5_000, 5_000)
+                    .unwrap()
+            });
+            let accepted = acceptor
+                .accept_pairing_offer(qr, "Bob".to_string(), now_ms + 1, 5_000)
+                .unwrap();
+            (offer, receiver.join().unwrap(), accepted)
+        })
+    }
 
     #[test]
     fn qr_encoding_round_trips_without_padding() {
@@ -586,5 +669,96 @@ mod tests {
         ] {
             assert_eq!(decode_qr(text), Err(PairingError::InvalidQr));
         }
+    }
+
+    #[test]
+    fn two_cores_pair_over_real_tcp_and_each_create_a_signed_follow() {
+        let alice = ready_core();
+        let bob = ready_core();
+        let alice_did = alice.root_did().unwrap();
+        let bob_did = bob.root_did().unwrap();
+
+        let (_, seen_by_alice, seen_by_bob) = pair(&alice, &bob, 1_000);
+
+        assert_eq!(seen_by_alice.did, bob_did);
+        assert_eq!(seen_by_alice.display_name, "Bob");
+        assert_eq!(seen_by_bob.did, alice_did);
+        assert_eq!(seen_by_bob.display_name, "Alice");
+        assert_eq!(alice.pairing_contacts(), vec![seen_by_alice]);
+        assert_eq!(bob.pairing_contacts(), vec![seen_by_bob]);
+        for core in [&alice, &bob] {
+            let objects = core.pairing_follow_objects();
+            assert_eq!(objects.len(), 1);
+            let object = mini_objects::Object::from_bytes(&objects[0]).unwrap();
+            assert_eq!(object.object_type, mini_objects::ObjectType::FOLLOW);
+        }
+    }
+
+    #[test]
+    fn a_successfully_consumed_qr_is_rejected_before_a_second_network_send() {
+        let alice = ready_core();
+        let bob = ready_core();
+        let (offer, _, _) = pair(&alice, &bob, 2_000);
+
+        assert_eq!(
+            bob.accept_pairing_offer(offer.qr_payload, "Bob".to_string(), 2_002, 1_000),
+            Err(PairingError::Replayed)
+        );
+        assert_eq!(bob.pairing_follow_objects().len(), 1);
+    }
+
+    #[test]
+    fn replay_memory_and_contacts_survive_encrypted_state_restore() {
+        let alice = ready_core();
+        let bob = ready_core();
+        let (offer, _, contact) = pair(&alice, &bob, 3_000);
+        let persisted = bob.persist_state(Box::new(IdentityCipher)).unwrap();
+        let restored = RootCore::restore(persisted, Box::new(IdentityCipher)).unwrap();
+
+        assert_eq!(restored.pairing_contacts(), vec![contact]);
+        assert_eq!(restored.pairing_follow_objects().len(), 1);
+        assert_eq!(
+            restored.accept_pairing_offer(offer.qr_payload, "Bob".to_string(), 3_002, 1_000,),
+            Err(PairingError::Replayed)
+        );
+    }
+
+    #[test]
+    fn expired_and_forged_qr_payloads_fail_closed_without_following() {
+        let alice = ready_core();
+        let bob = ready_core();
+        let offer = alice
+            .begin_pairing_offer("Alice".to_string(), "127.0.0.1".to_string(), 4_000, 100)
+            .unwrap();
+        assert_eq!(
+            bob.accept_pairing_offer(offer.qr_payload.clone(), "Bob".to_string(), 4_101, 1_000,),
+            Err(PairingError::Expired)
+        );
+
+        let mut forged = offer.qr_payload;
+        let last = forged.pop().unwrap();
+        forged.push(if last == 'A' { 'B' } else { 'A' });
+        assert!(matches!(
+            bob.accept_pairing_offer(forged, "Bob".to_string(), 4_050, 1_000),
+            Err(PairingError::Protocol(_)) | Err(PairingError::InvalidQr)
+        ));
+        assert!(bob.pairing_contacts().is_empty());
+        assert!(bob.pairing_follow_objects().is_empty());
+    }
+
+    #[test]
+    fn unsafe_advertised_addresses_and_unbounded_timeouts_are_rejected() {
+        let alice = ready_core();
+        for address in ["0.0.0.0", "8.8.8.8", "224.0.0.1", "::"] {
+            assert_eq!(
+                alice.begin_pairing_offer("Alice".to_string(), address.to_string(), 5_000, 1_000,),
+                Err(PairingError::InvalidAddress)
+            );
+        }
+        assert_eq!(timeout(0), Err(PairingError::InvalidTimeout));
+        assert_eq!(
+            timeout(MAX_TIMEOUT_MS + 1),
+            Err(PairingError::InvalidTimeout)
+        );
     }
 }

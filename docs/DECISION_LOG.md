@@ -12274,3 +12274,80 @@ interpret); `mini-query` (E7); result provenance (E8).
 D-0317 after D-0316/D-0317. Does not supersede `mini-web-types`,
 `mini-crawler`, `mini-extract-protocol`, or `mini-extract-host` (Track
 B3's separately-scoped Mininet-Intake extractor).
+
+### D-0373 — Android LAN/QR pairing bridge with durable signed follows  ·  *Proposed*
+**Date:** 2026-07-28 · **Refs:** issue #200, D-0340 (signed pairing
+protocol), D-0338/D-0370 (`RootCore` persistence and Android Keystore
+cipher), PR #170 (`mini-social` profiles/follows).
+
+**Decision:** extend `mini-ffi::RootCore` with a typed Android-facing
+pairing surface rather than exporting identity keys or rebuilding pairing
+rules in Kotlin. `begin_pairing_offer` binds an ephemeral foreground
+listener, accepts only a concrete private/link-local advertised address,
+generates the anti-replay nonce in Rust, and returns a base64url
+`mini:pair:v1:` QR payload capped to a QR-renderable 2 KiB signed binary.
+`accept_pairing_offer` and `finish_pairing_offer` call D-0340's existing
+delegation/signature/expiry verification and bounded TCP functions. A
+successful side writes its own ordinary signed `FOLLOW` object and records
+the verified peer display name/DID. Contacts, follow-object bytes, author
+sequence, and unexpired consumed nonces are included in `RootCore`'s
+encrypted persisted state (format version 2); version-1 identity blobs remain
+readable with empty social state. Pending listeners are process-local and
+never restored.
+
+The Compose shell now restores directly into a home screen, asks for the
+display name disclosed in this pairing, renders QR pixels locally, captures
+through `ActivityResultContracts.TakePicturePreview`, and runs blocking LAN
+work on `Dispatchers.IO`. QR encode/decode uses Apache-2.0 ZXing Core 3.5.4
+only: no Barcode Scanner app integration, Play Services, account, telemetry,
+or analytics SDK. The manifest adds Android's `INTERNET` permission solely
+because raw LAN sockets require it; it still requests no direct camera,
+location, contacts, Bluetooth, notification, or media permission.
+
+**Reason:** D-0340 implemented and tested the protocol but stopped at the
+Rust crate boundary. The Android app could create and restore an identity
+yet had no path to meet another user, expose a stable DID socially, or create
+the first signed follow. Issue #200 is therefore the first product-shaped
+Day-0 bridge: two independent phones can authenticate one another without an
+account server or global directory. Keeping the operation on `RootCore`
+preserves the custody boundary—Kotlin sees public KEL-derived artifacts and
+signed object bytes, never private signing material.
+
+**Constitutional impact:** none. This composes existing D-0340/D-0338 social,
+identity, storage, and TCP primitives; it introduces no cryptography,
+personhood evidence, governance authority, canonical directory, payment, or
+global trust claim. A mutual follow remains two unilateral signed follows.
+The peer's display name is a signed self-assertion, not verified legal
+identity.
+
+**Implementation status:** proposed in branch
+`agent/android-lan-qr-pairing`. Rust/UDL compiles and generated Kotlin exposes
+the intended typed methods. Focused tests cover base64url canonical handling,
+real loopback TCP pairing between independent roots, a signed follow object
+on both sides, replay rejection, replay/contact persistence across restore,
+forged/expired QR rejection, unsafe endpoint rejection, and bounded
+timeouts. On this Windows host, `cargo test --no-run` and strict focused
+clippy pass, but Windows Application Control blocked execution of the newly
+built test binary (OS error 4551); CI remains the execution authority for
+that run. The Android toolchain is absent locally, so APK compilation and
+device behavior are not claimed before Android CI.
+
+**Failure point:** the listener is foreground-only and an active offer is
+lost when the process dies; Android background/Doze handling remains issue
+#202. `INTERNET` cannot be scoped by Android to RFC1918 traffic, so application
+validation rejects non-LAN advertised endpoints but the OS permission itself
+is broad. The system camera preview can be lower resolution on some camera
+apps; physical-device testing may require moving to the full-resolution
+`TakePicture` contract. Follow objects are retained for later sync, but no
+ambient discovery, relay, global name search, feed sync, or mailbox delivery
+is introduced here. KEL freshness remains caller/network work, and this flow
+does not prove personhood or physical co-presence.
+
+**Required follow-up:** Android CI compile/lint; two-device test covering
+scan → connect → mutual follow → process restart → replay rejection; then
+issue #201's BLE adapter and issue #202's foreground/background lifecycle
+wiring. External review remains mandatory before production custody or
+value-bearing use.
+
+**Supersedes / superseded by:** adds the platform bridge D-0340 explicitly
+left to issue #200; does not supersede D-0340 or close BLE/background work.
