@@ -296,7 +296,7 @@
     },
     {
       "issue": 178,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex, continued by Claude",
       "branch": "agent/android-mobile-foundation",
       "pull_request": 179,
@@ -314,7 +314,7 @@
         "D-0018",
         "D-0020"
       ],
-      "notes": "Android-first foundation: a narrow Rust UniFFI command/event boundary and thin Kotlin/Compose shell. The first identity/profile/follow integration slice depends on the verified social delivery work in draft PR #170. Coordination evidence only; no approval, release, or production claim. Rebased past main through PR #180/#183/#185/#187/#189/#191/#193/#195/#208 (see this PR's own body for what changed)."
+      "notes": "Android-first foundation: a narrow Rust UniFFI command/event boundary and thin Kotlin/Compose shell. The first identity/profile/follow integration slice depends on the verified social delivery work in draft PR #170. Coordination evidence only; no approval, release, or production claim. Rebased past main through PR #180/#183/#185/#187/#189/#191/#193/#195/#208 (see this PR's own body for what changed). Closed here (PR #244 branch) since PR #179 was confirmed merged (2026-07-21T08:18:48Z); found stale (still in_review, lease expired 2026-07-27) per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
     }
   ]
 }
