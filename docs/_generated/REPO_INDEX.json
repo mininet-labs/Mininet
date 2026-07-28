@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 60,
-    "files": 680,
+    "files": 681,
     "headings": 2246,
-    "rust_symbols": 5907
+    "rust_symbols": 5937
   },
   "crates": {
     "did-mini": {
@@ -7033,6 +7033,188 @@
       "title": "mini-bearer"
     },
     {
+      "bytes": 8488,
+      "group": "crate:mini-bearer",
+      "headings": [],
+      "keywords": [
+        "self",
+        "androidblebearer",
+        "bleradio",
+        "chunk",
+        "radio",
+        "bearer",
+        "mtu",
+        "result",
+        "frame",
+        "ble",
+        "fmt",
+        "reassembler",
+        "try_read_chunk",
+        "std",
+        "one",
+        "what",
+        "real",
+        "write_chunk",
+        "read_chunk",
+        "trait",
+        "chunk_frame",
+        "chunkreassembler",
+        "vec",
+        "return"
+      ],
+      "lines": 230,
+      "path": "crates/mini-bearer/src/android_ble.rs",
+      "sha256": "8e04210c60745a64d7fc3cfa9eafe299599e39f7167482ecc9bef9e85cfe28b7",
+      "symbols": [
+        {
+          "kind": "trait",
+          "line": 37,
+          "name": "BleRadio"
+        },
+        {
+          "kind": "fn",
+          "line": 40,
+          "name": "write_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 43,
+          "name": "read_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 48,
+          "name": "try_read_chunk"
+        },
+        {
+          "kind": "struct",
+          "line": 54,
+          "name": "AndroidBleBearer"
+        },
+        {
+          "kind": "impl",
+          "line": 60,
+          "name": "std::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 61,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 69,
+          "name": "AndroidBleBearer<R>"
+        },
+        {
+          "kind": "fn",
+          "line": 75,
+          "name": "new"
+        },
+        {
+          "kind": "impl",
+          "line": 84,
+          "name": "Bearer"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "send"
+        },
+        {
+          "kind": "fn",
+          "line": 92,
+          "name": "recv"
+        },
+        {
+          "kind": "fn",
+          "line": 101,
+          "name": "try_recv"
+        },
+        {
+          "kind": "mod",
+          "line": 120,
+          "name": "tests"
+        },
+        {
+          "kind": "struct",
+          "line": 125,
+          "name": "MockRadio"
+        },
+        {
+          "kind": "impl",
+          "line": 130,
+          "name": "BleRadio"
+        },
+        {
+          "kind": "fn",
+          "line": 131,
+          "name": "write_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 136,
+          "name": "read_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "try_read_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 148,
+          "name": "pair_with_mtu"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "pair"
+        },
+        {
+          "kind": "fn",
+          "line": 164,
+          "name": "a_frame_larger_than_one_chunk_round_trips_through_chunking_and_reassembly"
+        },
+        {
+          "kind": "fn",
+          "line": 172,
+          "name": "multiple_frames_round_trip_in_order"
+        },
+        {
+          "kind": "fn",
+          "line": 185,
+          "name": "try_recv_returns_none_with_nothing_pending_then_the_frame_once_sent"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "a_write_failure_when_the_peer_radio_is_gone_surfaces_through_send"
+        },
+        {
+          "kind": "fn",
+          "line": 201,
+          "name": "a_read_failure_when_the_peer_radio_is_gone_surfaces_through_recv"
+        },
+        {
+          "kind": "fn",
+          "line": 209,
+          "name": "an_empty_frame_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 216,
+          "name": "a_tiny_mtu_forces_many_chunks_and_still_reassembles_correctly"
+        },
+        {
+          "kind": "fn",
+          "line": 224,
+          "name": "an_mtu_too_small_for_even_the_header_is_rejected_before_any_write"
+        }
+      ],
+      "title": "use crate::bearer::Bearer;"
+    },
+    {
       "bytes": 4104,
       "group": "crate:mini-bearer",
       "headings": [],
@@ -7745,7 +7927,7 @@
       "title": "use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};"
     },
     {
-      "bytes": 3298,
+      "bytes": 3366,
       "group": "crate:mini-bearer",
       "headings": [],
       "keywords": [
@@ -7754,6 +7936,7 @@
         "ble",
         "discovery",
         "anonymous",
+        "android_ble",
         "error",
         "inprocess",
         "tcp",
@@ -7771,50 +7954,54 @@
         "bearers",
         "tcpbearer",
         "peer",
-        "localannouncer",
-        "localscanner"
+        "localannouncer"
       ],
-      "lines": 70,
+      "lines": 72,
       "path": "crates/mini-bearer/src/lib.rs",
-      "sha256": "653555afcaa0985d5246398c8807a69cec3c9d9caf62ed6861d4c37544ccb75d",
+      "sha256": "fbbc6821dd3cedc979855636d8b6451dc3306afc73cf46d8f3817caa58f992e8",
       "symbols": [
         {
           "kind": "mod",
           "line": 50,
-          "name": "bearer"
+          "name": "android_ble"
         },
         {
           "kind": "mod",
           "line": 51,
-          "name": "ble"
+          "name": "bearer"
         },
         {
           "kind": "mod",
           "line": 52,
-          "name": "channel"
+          "name": "ble"
         },
         {
           "kind": "mod",
           "line": 53,
-          "name": "discovery"
+          "name": "channel"
         },
         {
           "kind": "mod",
           "line": 54,
-          "name": "error"
+          "name": "discovery"
         },
         {
           "kind": "mod",
           "line": 55,
-          "name": "inprocess"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 56,
+          "name": "inprocess"
+        },
+        {
+          "kind": "mod",
+          "line": 57,
           "name": "tcp"
         }
       ],
-      "title": "mod bearer;"
+      "title": "mod android_ble;"
     },
     {
       "bytes": 9519,
@@ -50895,7 +51082,7 @@
       "title": "Start here \u2014 for an auditor or skeptic"
     },
     {
-      "bytes": 5870,
+      "bytes": 6259,
       "group": "docs",
       "headings": [
         {
@@ -50910,24 +51097,23 @@
         },
         {
           "level": 2,
-          "line": 75,
+          "line": 80,
           "text": "Before trusting any of this"
         },
         {
           "level": 2,
-          "line": 89,
+          "line": 94,
           "text": "UI beta (the product layer)"
         },
         {
           "level": 2,
-          "line": 96,
+          "line": 101,
           "text": "Post-beta (not on the critical path)"
         }
       ],
       "keywords": [
-        "beta",
         "real",
-        "cargo",
+        "beta",
         "identity",
         "but",
         "status",
@@ -50935,9 +51121,12 @@
         "keystone",
         "reward",
         "see",
+        "cargo",
         "still",
-        "one",
-        "channel",
+        "bearer",
+        "trait",
+        "yet",
+        "implementation",
         "own",
         "what",
         "here",
@@ -50945,14 +51134,12 @@
         "root",
         "personhood",
         "presence",
-        "all-features",
-        "today",
-        "bearer",
-        "ble"
+        "ble",
+        "work"
       ],
-      "lines": 102,
+      "lines": 107,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "a1e873b3d326c1745bdd05a6c196f80753b289395ac47437908e1610a0542899",
+      "sha256": "1a07c81db38fdec9b9ff9e20a723daebaac2cf64337bf091e37d529eefc6e158",
       "symbols": [],
       "title": "Beta status"
     },
@@ -51080,7 +51267,7 @@
       "title": "{"
     },
     {
-      "bytes": 741202,
+      "bytes": 745840,
       "group": "docs",
       "headings": [
         {
@@ -51510,9 +51697,9 @@
         "signed",
         "new"
       ],
-      "lines": 12366,
+      "lines": 12442,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "e5755668d5639374f21077c4e5be4e02190cf9958222f65ba9c03f708ffe5218",
+      "sha256": "766fafff5446a3c8435bb10a15a477f2c3b1489b1ce0dedb391cb2caccb5a484",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -52656,7 +52843,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 88135,
+      "bytes": 88484,
       "group": "docs",
       "headings": [
         {
@@ -52731,17 +52918,17 @@
         },
         {
           "level": 2,
-          "line": 1229,
+          "line": 1234,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1291,
+          "line": 1296,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1357,
+          "line": 1362,
           "text": "Where to look for more detail"
         }
       ],
@@ -52771,9 +52958,9 @@
         "social",
         "network"
       ],
-      "lines": 1372,
+      "lines": 1377,
       "path": "docs/STATUS.md",
-      "sha256": "bc757ed051ced28003f97f3f25ae88478831cf144334f39c68b19aa3c64bcf15",
+      "sha256": "637ae5afaa15ed7379cd8383389893d5833da213033b0c85d99b08dee1de04e9",
       "symbols": [],
       "title": "Implementation status"
     },

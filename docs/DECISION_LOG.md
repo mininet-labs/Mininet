@@ -12363,3 +12363,79 @@ interpret); `mini-query` (E7); result provenance (E8).
 D-0317 after D-0316/D-0317. Does not supersede `mini-web-types`,
 `mini-crawler`, `mini-extract-protocol`, or `mini-extract-host` (Track
 B3's separately-scoped Mininet-Intake extractor).
+
+### D-0374 — `mini-bearer`: `AndroidBleBearer`/`BleRadio`, the Rust-side half of the BLE bearer (Android beta slice 5, issue #201)  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0342 (`mini-bearer::ble` MTU chunking/
+reassembly); D-0338 (`mini-ffi::StorageCipher`, the callback-interface
+precedent this follows); `docs/BETA_STATUS.md` item 1; issue #201
+(Android beta slice 5); `crates/mini-bearer/src/ble.rs`'s own module doc,
+which names this exact gap
+
+**Decision:** adds `mini-bearer::android_ble`: a plain Rust `BleRadio`
+trait (`write_chunk`/`read_chunk`/`try_read_chunk`, chunk-level, no
+Bluetooth-specific types) and `AndroidBleBearer<R: BleRadio>`, a full
+`impl Bearer` that drives any `BleRadio` through the existing
+`chunk_frame`/`ChunkReassembler` logic (D-0342) to send and receive whole
+frames. This is exactly the gap `mini-bearer::ble`'s own module doc
+already named: *"A full `impl Bearer for AndroidBleBearer` needs a
+UniFFI callback interface... This module is the protocol logic
+underneath it, ready to be driven by either side."* `BleRadio` is that
+boundary, expressed as a plain trait rather than a UniFFI `.udl` callback
+interface — see Failure point.
+
+**Reason:** issue #201 (BLE bearer integration for Android) has a real,
+disclosed gap: `mini-bearer::ble` had the chunking/reassembly protocol
+logic but nothing that turned it into an actual `Bearer`. Building the
+generic `AndroidBleBearer<R: BleRadio>` now, fully tested against a mock
+`BleRadio` (an in-memory channel pair, not a real GATT stack), closes the
+Rust-side half of that gap with something genuinely verifiable in this
+sandbox — unlike D-0370's `AndroidKeystoreCipher`, which could only be
+reasoned through and needed a CI-caught follow-up fix (#251), this PR's
+entire claim is backed by `cargo test` passing here, not a promise. The
+UniFFI callback interface and the real Kotlin `BluetoothGattServer`/
+`BluetoothGattCallback` implementation are deliberately left for a
+separate PR that can be honestly scoped as "reasoned through, Android
+CI's `assembleDebug` is the real gate" the same way D-0370 was, rather
+than bundling verified and unverified work into one claim.
+
+**Constitutional impact:** none. No payment, stake, balance, or
+governance-weight field anywhere in this crate. `BleRadio`/
+`AndroidBleBearer` carry no identity or authority — they move opaque
+bytes exactly like every other `Bearer` implementation
+(`TcpBearer`/`InProcessBearer`) already does. No new cryptography: this
+is transport chunking, not a cryptographic construction.
+
+**Implementation status:** shipped in `mini-bearer::android_ble`.
+`cargo fmt --all -- --check`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features`
+all clean on this (Linux) host (180 test binaries, all passing). 8 new
+tests: multi-chunk round-trip, in-order multi-frame delivery, `try_recv`
+returning `None` then the frame once sent, write/read failure surfacing
+as `BearerError::Closed` when the peer radio disconnects, an empty-frame
+round-trip, a tiny-MTU-forced-many-chunks round-trip, and an
+MTU-too-small-for-the-header rejection before any write is attempted.
+
+**Failure point:** `BleRadio` is not yet a UniFFI callback interface —
+there is no `.udl` declaration for it in `mini-ffi`, so nothing here is
+callable from Kotlin today. No real Bluetooth hardware, GATT server/
+client, or two-device test exists; the mock `BleRadio` used in this
+crate's own tests is an in-memory channel pair, not a radio. This PR
+alone does **not** close `docs/BETA_STATUS.md` item 1 — it narrows what
+remains to exactly: (a) a `.udl` callback interface mirroring
+`StorageCipher`, (b) a real Kotlin `BluetoothGattServer`/
+`BluetoothGattCallback` implementing it, and (c) a real two-device test,
+none of which are code-only or verifiable in this sandbox.
+
+**Required follow-up:** the UniFFI callback interface + Kotlin
+`BluetoothGattServer`/`BluetoothGattCallback` implementation named above,
+following the same honest "reasoned through here, Android CI's
+`assembleDebug` is the real gate" posture as D-0370; wiring the resulting
+Kotlin-backed `AndroidBleBearer` into the keystone/presence flow (which
+itself has no UniFFI exposure yet — only `RootCore`'s onboarding surface
+is exposed today, a separately-scoped gap); updating
+`docs/BETA_STATUS.md` item 1 once the Kotlin half lands.
+
+**Supersedes / superseded by:** extends D-0342 (`mini-bearer::ble`)
+without changing its chunking/reassembly logic. Does not supersede
+`mini-ffi::StorageCipher` (D-0338) — mirrors its callback-interface
+pattern, does not reuse or modify it.
