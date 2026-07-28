@@ -318,10 +318,10 @@
     },
     {
       "issue": 200,
-      "status": "active",
+      "status": "in_review",
       "contributor": "Codex",
       "branch": "agent/android-lan-qr-pairing",
-      "pull_request": null,
+      "pull_request": 258,
       "lease_expires": "2026-08-04",
       "paths": [
         "Cargo.toml",
