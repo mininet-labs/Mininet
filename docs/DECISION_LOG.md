@@ -12351,3 +12351,80 @@ holds a segment in memory and serializes it whole).
 
 **Supersedes / superseded by:** none. Extends the MiniSearch track after
 D-0316/D-0317; supersedes nothing.
+
+---
+
+### D-0406 — `mini-ranker`: transparent, deterministic ranker, Track E6 of MiniSearch  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0312 (MiniSearch doctrine); D-0316
+(`mini-web-types`); D-0405 (`mini-lexical-index`); founder-supplied
+`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§E6 (PR E6, "Transparent ranker"); Directive 16 (the voice/value wall);
+Directive 14 (no new cryptography)
+
+**Decision:** adds `mini-ranker`, the MiniSearch slice that turns matches
+into an ordering. `rank(index, corpus, profile, query, now_ms, max_results)`
+scores each document matching a query with six transparent, integer signals
+— lexical relevance, phrase match, a basic link signal, freshness,
+originality (exact-duplicate removal), and domain diversity — combines them
+under a versioned `mini_web_types::RankingProfile`'s declared weights, and
+returns `SearchResult`s each carrying a `RankingExplanation` that breaks the
+score down by signal. Document metadata the index does not hold (canonical
+URL, display strings, observation time, inbound-link count, content digest,
+availability) is supplied by a `Corpus`.
+
+The crate deliberately has no query parser or CLI (E7), no provenance beyond
+the explanation (E8), no crawler/fetcher/extractor, no network or storage,
+and no learned ranking or click feedback.
+
+**Reason:** §E6 names the transparent ranker as the slice after the lexical
+index. Four of D-0312's search invariants are enforced structurally here,
+not by policy that could later be relaxed:
+
+- *No pay-to-rank.* `rank` has no payment, bid, or provider parameter in its
+  signature; ranking cannot be bought because there is nothing to buy it
+  with.
+- *No personalization by default.* The ranker takes no per-user state, so
+  the public default of no personalization holds by construction.
+- *Availability is not a relevance penalty.* Restricted or unavailable
+  documents are filtered out before scoring, never scored down, so an
+  availability decision cannot be laundered into the relevance number — and
+  `mini_web_types::SearchResult::displayable` enforces the same at the type
+  level.
+- *Deterministic ordering.* Every signal is integer (no floating point,
+  whose rounding can differ by platform), the only time input is an explicit
+  `now_ms`, and every ordering tie breaks on `UrlId` bytes — so the same
+  query, index, profile, and time produce byte-identical results anywhere,
+  the reproducibility §E6/§32 requires. The weights and version live in the
+  caller's forkable `RankingProfile`, and each result names the profile that
+  produced it, so a different community can rank the same index differently
+  and the difference is explicit.
+
+**Constitutional impact:** strengthens the search-domain extension of
+Directive 16 without adding authority. No payment, stake, balance,
+governance-weight, or provider-entitlement field appears anywhere in the
+crate or in `rank`'s inputs; ranking cannot buy authority and confers none.
+No new cryptography: the only digest is `mini_crypto::Multihash` (BLAKE3),
+used for exact-duplicate detection.
+
+**Implementation status:** shipped in `mini-ranker`, stacked on
+`mini-lexical-index` (D-0405) and added to the workspace. Focused local
+validation on Windows: `cargo fmt --all -- --check`, `cargo clippy
+-p mini-ranker --all-targets --all-features -- -D warnings`, and `cargo test
+-p mini-ranker --all-features` all pass — 15 tests (5 unit + 10 integration)
+covering deterministic re-ranking, coverage-over-frequency ordering,
+per-signal explanations, a restricted document excluded (not demoted), exact
+duplicate removal keeping the earliest original, domain-diversity demotion of
+a repeated host, phrase-boost over term-only, empty query, `max_results`
+bounding, and a surfaced missing-corpus-entry error. A workspace-wide
+`cargo` run is not possible on the authoring machine (Windows) because of
+`mini-installer`'s Unix symlink path (the pre-existing condition tracked in
+D-0318); `mini-ranker` does not depend on `mini-installer`.
+
+**Required follow-up:** the query CLI (E7); result provenance and
+explanations (E8); a real link-graph signal and near-duplicate detection to
+replace the bounded placeholders; and, for scale, streamed ranking over
+large segments (the current diversity-aware selection is a greedy O(n²) pass
+suited to first-slice result-set sizes).
+
+**Supersedes / superseded by:** none. Extends the MiniSearch track after
+D-0405; supersedes nothing.
