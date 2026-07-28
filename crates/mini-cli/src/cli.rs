@@ -11,7 +11,7 @@ use did_mini::Did;
 
 use crate::error::{CliError, Result};
 use crate::json::CommandResult;
-use crate::{build, identity, installer, pr, provenance, release, repo, store, sync};
+use crate::{build, identity, installer, keystone, pr, provenance, release, repo, store, sync};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|a| a == flag)?;
@@ -107,6 +107,7 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
             reject_json(json, "sync")?;
             dispatch_sync(home, store_path, args)
         }
+        "keystone" => dispatch_keystone(home, args, json),
         "build" => dispatch_build(args, json),
         "release" => dispatch_release(home, store_path, args, json),
         "provenance" => dispatch_provenance(home, store_path, args, json),
@@ -276,6 +277,28 @@ fn dispatch_sync(home: &Path, store_path: &Path, mut args: Vec<String>) -> Resul
             "unknown `sync` subcommand: {other:?}"
         ))),
     }
+}
+
+fn dispatch_keystone(home: &Path, mut args: Vec<String>, json: bool) -> Result<String> {
+    let noun = next(&mut args, "keystone")?;
+    match noun.as_str() {
+        "run" => {
+            let kind = "keystone.run";
+            let peer_home = required_path_flag(&mut args, "--peer-home")?;
+            let now_ms = extract_u64_flag(&mut args, "--now-ms")?.unwrap_or_else(now_ms_wall_clock);
+            keystone::run(home, &peer_home, now_ms).map(|r: CommandResult| r.render(json, kind))
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `keystone` subcommand: {other:?}"
+        ))),
+    }
+}
+
+fn now_ms_wall_clock() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 fn extract_u64_flag(args: &mut Vec<String>, flag: &str) -> Result<Option<u64>> {

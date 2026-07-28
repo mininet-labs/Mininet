@@ -7,12 +7,14 @@
 # the entire developer lifecycle this project's constitution depends on
 # being able to survive a GitHub outage:
 #
-#   identity -> repo -> commit -> PR -> two independent reviews -> governed
-#   merge -> release -> two independent attestations -> verify -> install
-#   -> passing health check -- and then, because a real system must survive
-#   its own mistakes too, a second, DELIBERATELY BROKEN release through the
-#   identical path -> a failing health check -> automatic rollback -> a
-#   clean, independently-verifiable event log proving exactly what happened.
+#   identity -> channel -> range-bound presence -> reward (the keystone
+#   proof point, D-0369) -> repo -> commit -> PR -> two independent reviews
+#   -> governed merge -> release -> two independent attestations -> verify
+#   -> install -> passing health check -- and then, because a real system
+#   must survive its own mistakes too, a second, DELIBERATELY BROKEN release
+#   through the identical path -> a failing health check -> automatic
+#   rollback -> a clean, independently-verifiable event log proving exactly
+#   what happened.
 #
 # Every step below is a real `mini` subcommand against real files on real
 # disk. No network call to any GitHub endpoint exists anywhere in this
@@ -72,7 +74,19 @@ echo "alice: $ALICE_DID"
 echo "bob:   $BOB_DID"
 echo "carol: $CAROL_DID"
 
-step "Phase 2: KEL trust exchange, entirely out of band (no directory service, no GitHub identity)"
+step "Phase 2: keystone proof point -- offline identity, channel, range-bound presence, reward (D-0369)"
+KEYSTONE_OUT="$("$MINI" --home "$ALICE" keystone run --peer-home "$BOB" --now-ms 1000000)"
+echo "$KEYSTONE_OUT" | grep -q "keystone demo complete" || {
+    echo "FAIL: keystone demo did not complete" >&2
+    exit 1
+}
+echo "$KEYSTONE_OUT"
+echo "alice and bob's own devices each independently accrued reward from one"
+echo "mutually-signed, range-bound presence attestation -- no server, no"
+echo "GitHub, over the same anonymous encrypted channel primitive PR review"
+echo "and sync already use."
+
+step "Phase 3: KEL trust exchange, entirely out of band (no directory service, no GitHub identity)"
 ALICE_KEL="$("$MINI" --home "$ALICE" kel export)"
 BOB_KEL="$("$MINI" --home "$BOB" kel export)"
 CAROL_KEL="$("$MINI" --home "$CAROL" kel export)"
@@ -84,7 +98,7 @@ CAROL_KEL="$("$MINI" --home "$CAROL" kel export)"
 "$MINI" --home "$ALICE" kel trust "$CAROL_KEL" >/dev/null
 echo "all three identities mutually trust each other's KELs"
 
-step "Phase 3: repo init, commit, PR, two independent reviews, governed merge -- zero GitHub API calls"
+step "Phase 4: repo init, commit, PR, two independent reviews, governed merge -- zero GitHub API calls"
 "$MINI" --home "$ALICE" --store "$STORE" repo init outage-demo \
     --maintainer "$ALICE_DID" --maintainer "$BOB_DID" --maintainer "$CAROL_DID" \
     --min-approvals 2 >/dev/null
@@ -119,7 +133,7 @@ echo "$STATUS_OUT" | grep -q "1 entries applied" || {
 }
 echo "governed merge reached, verified from a third independent identity"
 
-step "Phase 4: sandboxed build artifact, release, two independent attestations"
+step "Phase 5: sandboxed build artifact, release, two independent attestations"
 ARTIFACT="$WORK/release.bin"
 printf 'no-github-outage-demo release artifact' > "$ARTIFACT"
 RECIPE_DIGEST="$(printf '%064d' 0)"
@@ -150,7 +164,7 @@ echo "$VERIFY_OUT" | grep -q "2 independent attester(s)" || {
 }
 echo "$VERIFY_OUT"
 
-step "Phase 5: install the release -- stage, preflight, owner-approved activate, passing health check"
+step "Phase 6: install the release -- stage, preflight, owner-approved activate, passing health check"
 DEVICE="$WORK/device"
 "$MINI" --home "$CAROL" --store "$STORE" installer stage --device-root "$DEVICE" \
     "$RELEASE_ID" outage-demo --branch main --now-ms "$NOW_MS" --timestamp-ms "$NOW_MS" >/dev/null
@@ -164,7 +178,7 @@ echo "$HEALTH_OUT" | grep -q "stays active" || {
 }
 echo "release 1.0.0 installed and healthy, no GitHub involved at any step"
 
-step "Phase 6: a genuinely broken release -- fails health check, auto-rolls back, no manual intervention"
+step "Phase 7: a genuinely broken release -- fails health check, auto-rolls back, no manual intervention"
 RECIPE_DIGEST_2="$(printf '%064d' 1)"
 CREATE_OUT_2="$("$MINI" --home "$ALICE" --store "$STORE" release create outage-demo \
     --branch main --version 2.0.0 --commit "$COMMIT_ID" \
@@ -197,7 +211,7 @@ echo "$STATUS_AFTER" | grep -q "$RELEASE_ID" || {
 }
 echo "device is back on the known-good 1.0.0 release: $STATUS_AFTER"
 
-step "Phase 7: the event log itself proves this happened -- independently verifiable, tamper-evident"
+step "Phase 8: the event log itself proves this happened -- independently verifiable, tamper-evident"
 LOG_OUT="$("$MINI" installer verify-log --device-root "$DEVICE")"
 echo "$LOG_OUT" | grep -q "verified clean" || {
     echo "FAIL: install event log failed independent verification" >&2
@@ -207,9 +221,9 @@ echo "$LOG_OUT"
 
 echo
 echo "=================================================================="
-echo "No-GitHub outage demo complete: identity, review, governed merge,"
-echo "release, attestation, install, automatic rollback, and durable"
-echo "evidence all happened through nothing but the mini binary and real"
-echo "files on disk. Nothing above ever named, required, or could have"
-echo "been blocked by github.com."
+echo "No-GitHub outage demo complete: identity, range-bound presence and"
+echo "reward, review, governed merge, release, attestation, install,"
+echo "automatic rollback, and durable evidence all happened through"
+echo "nothing but the mini binary and real files on disk. Nothing above"
+echo "ever named, required, or could have been blocked by github.com."
 echo "=================================================================="

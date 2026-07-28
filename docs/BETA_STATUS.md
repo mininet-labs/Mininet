@@ -46,8 +46,17 @@ still missing for a real two-phone beta, in order:
    their own separate `ReplayGuard`-shaped trait and still only have an
    in-memory implementation; giving those a durable backend too is
    unstarted, separately-scoped work.
-4. **Standalone CLI harness** — one command driving identity → channel →
-   presence → reward → forge PR → merge → release → verify.
+4. ~~**Standalone CLI harness**~~ — **shipped (D-0369)**: `mini keystone run
+   --peer-home <path>` is a real `mini` subcommand driving identity →
+   channel → range-bound presence → reward end to end (previously only
+   reachable via `cargo run -p mini-keystone --example keystone`, not the
+   actual binary); `mini repo`/`pr`/`build`/`release`/`installer` already
+   covered forge PR → merge → release → verify as their own subcommands.
+   `tools/no_github_outage_demo.sh` (D-0081) now runs the whole named
+   chain — identity → channel → presence → reward → repo → commit → PR →
+   review → governed merge → release → attestation → verify → install →
+   health check → rollback → tamper-evident event log — as one script
+   driving nothing but the real compiled `mini` binary.
 5. **External crypto review** before any value- or update-bearing use.
 6. **Personhood (SPEC-02)** — quorums today count *distinct verified identity
    roots, not humans*; "one human, one vote" is not yet enforced. D-0038

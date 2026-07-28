@@ -11998,3 +11998,76 @@ exchange) remains open future work if the threat model ever needs it, not
 started here.
 
 **Supersedes / superseded by:** none.
+
+### D-0369 — `mini-cli`: `mini keystone run`, the standalone CLI harness  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** `docs/BETA_STATUS.md` item 4 ("Standalone
+CLI harness — one command driving identity → channel → presence → reward
+→ forge PR → merge → release → verify"); D-0366/D-0367 (`FileReplayGuard`,
+wired into `run_demo`); D-0368 (`active_range`); `tools/
+no_github_outage_demo.sh` (D-0081), which already covered the forge-PR
+half of item 4's named chain.
+
+**Decision:** New `mini-cli` subcommand `mini keystone run --peer-home
+<path> [--now-ms N]`, implemented in `crates/mini-cli/src/keystone.rs`.
+Loads (or creates, via the existing `identity::load_or_init`) two real,
+persisted `mini` homes — this invocation's own `--home` and a second
+`--peer-home` — builds a `mini_keystone::Participant` from each, opens a
+`FileReplayGuard` per home at `<home>/replay-guard.log`, and runs
+`mini_keystone::run_demo` over an in-process bearer pair, reporting each
+side's own view (mirroring `mini-keystone`'s own example's "never build a
+combined dashboard" doc comment). Supports `--json` (D-0078's envelope
+shape), joining `build`/`release`/`provenance`/`installer` as the CLI
+commands that do; new `CliError::Keystone(String)` variant wraps
+`mini_keystone::DemoError`/`mini_presence::PresenceError` via `.to_string()`,
+same pattern every other `CliError` variant already uses for a wrapped
+crate error. `tools/no_github_outage_demo.sh` gained a new Phase 2 (all
+later phases renumbered +1) calling `mini keystone run` between the
+existing identity phase and the KEL-trust/repo/PR/release/install phases
+it already had — so the script it now drives, end to end with nothing but
+the real `mini` binary, is the *entire* chain item 4 names, not just the
+forge half D-0081 already proved.
+
+**Reason:** The identity → channel → presence → reward flow was real
+(`mini-keystone`, proven since early in this project) but only reachable
+via `cargo run -p mini-keystone --example keystone` — not the actual
+`mini` binary a developer or tester runs, and not exercisable from a
+shell script the way every other spine step already was. `docs/
+BETA_STATUS.md` item 4 named this gap explicitly. The forge-PR → merge →
+release → verify half already existed as real `mini` subcommands
+(`repo`/`pr`/`build`/`release`/`installer`, D-0066/D-0077) and as a
+narrated script (D-0081) — this closes the remaining half with the
+smallest addition that reuses everything already real: no new protocol,
+no new crypto, just a CLI entry point over library code that was already
+correct.
+
+**Constitutional impact:** none. No cryptography, no new dependency
+beyond in-workspace crates (`mini-bearer`, `mini-presence`,
+`mini-keystone` — `mini-bearer` was already a `mini-cli` dependency), no
+Tier-F invariant touched. `--peer-home` must differ from `--home`
+(rejected as a usage error otherwise) so a caller cannot accidentally
+have one identity "meet itself," matching `verify_presence`'s own
+`SelfPresence` check one layer up.
+
+**Implementation status:** Shipped this PR. 3 tests in `crates/mini-cli/
+src/keystone.rs`: running creates both identities and reports real
+accrual; running twice against the same two homes reuses (does not
+re-create) the identities, proving the persisted-home model; the same
+path for both `--home` and `--peer-home` is rejected. `tools/
+no_github_outage_demo.sh`'s own wrapper test
+(`the_full_no_github_outage_demo_script_runs_clean`) now also asserts the
+`"keystone demo complete"` marker. Manually verified both plain-text and
+`--json` output end to end against the real compiled binary. `cargo
+fmt`/`clippy -D warnings`/`test` clean workspace-wide (175 suites);
+`Cargo.lock` updated for the three new in-workspace path dependencies
+(no new external crate).
+
+**Failure point:** `mini keystone run` runs both sides of the exchange in
+one process (this invocation's own), exactly like `mini-keystone`'s own
+example already does for the same stated reason — a real two-phone
+deployment still needs the hardware bearer work `docs/BETA_STATUS.md`
+item 1 names, which this does not touch or claim to close.
+
+**Required follow-up:** `docs/BETA_STATUS.md` item 4 can be marked fully
+closed. None blocking beyond that.
+
+**Supersedes / superseded by:** none.

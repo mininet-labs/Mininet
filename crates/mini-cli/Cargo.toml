@@ -21,8 +21,10 @@ mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
 mini-forge = { path = "../mini-forge" }
 mini-installer = { path = "../mini-installer" }
+mini-keystone = { path = "../mini-keystone" }
 mini-media = { path = "../mini-media" }
 mini-objects = { path = "../mini-objects" }
+mini-presence = { path = "../mini-presence" }
 # Only for the Capability/ResourceLimits request types and the
 # ExecutionRequest/ExecutionResult wire framing `mini build run` speaks to
 # the real mini-build-runner-wasmtime binary over a pipe -- mini-cli never

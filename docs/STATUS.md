@@ -881,18 +881,31 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   no_github_outage_demo.sh` is a real, narrated shell script — driving
   the compiled `mini` binary, never a library call — that carries three
   identities through the entire spine in one continuous run: identity,
-  KEL trust, governed merge, release, two independent attestations,
-  install, a passing health check — then a second, deliberately broken
-  release through the identical path that fails its health check,
-  auto-rolls back with no manual intervention, and leaves an
-  independently-verifiable clean event log. Exercised by `cargo test
-  --workspace` via `tests/no_github_outage_demo.rs`, which runs the
-  script itself as a real subprocess so a broken demo fails CI like any
-  other regression. Honest limit: this environment has no controlled
-  way to actually sever GitHub reachability and verify nothing breaks —
+  the keystone proof point (`mini keystone run` — D-0369, channel,
+  range-bound presence, reward), KEL trust, governed merge, release, two
+  independent attestations, install, a passing health check — then a
+  second, deliberately broken release through the identical path that
+  fails its health check, auto-rolls back with no manual intervention,
+  and leaves an independently-verifiable clean event log. Exercised by
+  `cargo test --workspace` via `tests/no_github_outage_demo.rs`, which
+  runs the script itself as a real subprocess so a broken demo fails CI
+  like any other regression. Honest limit: this environment has no
+  controlled way to actually sever GitHub reachability and verify
+  nothing breaks —
   the claim rests on the codebase's dependency graph (no GitHub-API
   client dependency exists anywhere) plus this script's own successful
   run, not a live firewall drill.
+- **shipped** — `mini keystone run --peer-home <path>` (D-0369), the CLI
+  entry point for `docs/BETA_STATUS.md` item 4's "standalone CLI
+  harness": identity, encrypted channel, real challenge-response
+  range-bound presence (D-0368), and reward, driven by the actual `mini`
+  binary against two real, persisted `mini` homes (previously only
+  reachable via `cargo run -p mini-keystone --example keystone`). Both
+  homes get their own durable `FileReplayGuard` (D-0366/D-0367) at
+  `<home>/replay-guard.log`, so running the command twice against the
+  same two homes exercises real cross-invocation persistence, not just
+  an in-memory guard. Supports `--json` (D-0078's envelope shape). 3
+  tests in `crates/mini-cli/src/keystone.rs`.
 - **partial** — Batch 5's "local object indexing at scale," first slice
   (D-0327): `mini_store::Store::since`/`Store::recent` add a
   chronological `idx/time/` index alongside the pre-existing author/
