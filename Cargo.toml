@@ -66,6 +66,7 @@ members = [
     "crates/mini-commons-policy",
     "crates/mini-publication-policy",
     "crates/mini-web-extract",
+    "crates/mini-replication-policy",
 ]
 
 [workspace.package]
