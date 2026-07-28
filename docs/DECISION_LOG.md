@@ -12169,6 +12169,95 @@ written and reasoned through," not "verified."
 
 **Supersedes / superseded by:** none.
 
+### D-0372 — `mini-replication-policy`: suppression-resistant shard placement, repair, and retrieval planning, Track D5  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0311 (public commons/protected publishing
+doctrine); D-0312 (MiniSearch doctrine, same document); D-0364/D-0365
+(Track D1-D3, `mini-publication-policy`); D-0065 (`mini-erasure`); issue
+#161; founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§27 "PR D5 — Suppression-resistant replication"; Directive 14
+(simplicity/well-trodden constructions), Directive 16 (voice/value wall)
+
+**Decision:** adds `mini-replication-policy`, closing the exact gap
+`mini-erasure`'s own module docs already named as unstarted: *"deciding
+which peer should hold a regenerated shard, and actually transferring it
+to them, is a distribution problem... out of scope here, unstarted."*
+Three pure, typed functions over `mini_erasure::ErasureParams` and
+`did_mini::Did`:
+
+- `plan_placement(params, candidates)` assigns each of
+  `params.total_shards()` shards to its own distinct candidate `Did`,
+  rejecting the call outright if fewer distinct candidates than shards
+  are offered;
+- `plan_repair_placement(plan, missing_shard_indices, fresh_candidates)`
+  replaces exactly the holders of the shards `mini_erasure::plan_repair`
+  found missing, with fresh holders distinct from every holder still in
+  the plan — preserving the diversity invariant across repairs, not just
+  at first publication;
+- `select_retrieval_set(plan)` returns a deterministic default subset (the
+  `data_shards` lowest-indexed holders) a retrieval client can query.
+
+No shard bytes, network I/O, signing, or transport are touched by this
+crate — those stay `mini-erasure`'s (bytes) and a future
+`mini-relay`/`mini-bridge`/`mini-net` caller's (transport) job, matching
+every other "logic vs. distribution" boundary already drawn in this tree.
+
+**Reason:** Track D5 is the next unstarted, self-contained, code-only
+slice of the native-intake/public-commons research document's protected-
+publishing track (D1-D3 shipped; D4 mixed-transport is explicitly gated
+on a research/threat-model prerequisite not yet satisfied). Composing
+`mini-erasure`'s already-real coding/repair logic with a distinctness-
+enforcing placement policy is exactly the "connect erasure coding,
+provider diversity, repair, and retrieval" the doctrine document names,
+without inventing new coding theory or cryptography — the same Directive
+14 reasoning `mini-erasure`'s own doc comment gives for hand-rolling
+Reed-Solomon in the first place.
+
+**Constitutional impact:** none new. No payment, stake, balance, or
+governance-weight field anywhere in this crate; a holder's distinctness
+is ordinary `Did` equality, not a purchasable or votable property.
+Directive 16's voice/value wall is untouched — this crate has no
+dependency edge to any value/governance crate. No new cryptography:
+identity comparison reuses `did-mini`'s existing `Did` type unmodified.
+
+**Implementation status:** shipped in `mini-replication-policy` and added
+to the workspace. `cargo fmt --all -- --check`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and `cargo test
+--workspace --all-features` all clean on this (Linux) host (180 test
+binaries, all passing). 11 unit tests plus a 2-test end-to-end
+integration suite that actually encodes a file with `mini_erasure`,
+places its shards, simulates three holders disappearing (within a 4-of-7
+tolerance), repairs both the shard bytes (`mini_erasure::repair`) and the
+holder assignments (`plan_repair_placement`), and reconstructs the
+original data by querying only the holders `select_retrieval_set`
+names — proving the placement bookkeeping actually lines up with real,
+reconstructible shard bytes, not just abstract indices.
+
+**Failure point:** distinctness is checked by `Did` equality alone. This
+crate has no way to detect that several different `Did`s are controlled
+by the same operator behind the scenes — the general Sybil-resistance gap
+`docs/INVARIANTS.md`'s hard limitations already name project-wide (issue
+#18), not something a placement policy can solve. `select_retrieval_set`
+is a naive deterministic default (lowest shard indices) with no latency,
+reliability, or recent-health weighting — a real retrieval client with
+better information should not treat it as a recommendation. This crate
+also has no discovery layer: candidate `Did`s must come from somewhere
+this crate does not define (a future provider-discovery mechanism), and
+it has no opinion on whether a candidate is trustworthy beyond "not
+already holding another shard in this plan."
+
+**Required follow-up:** a real candidate-discovery source (who are the
+diverse holders to offer as candidates in the first place — not defined
+here); wiring `mini-publication-policy`'s source-hiding path (D-0365)
+together with this crate's placement so a publication's replication
+targets are chosen consistently with its declared privacy tier; actual
+network transfer of shard bytes to newly-assigned holders
+(`mini-net`/`mini-store`, unstarted); Track D6 (unlinkable settlement
+research) remains separately scoped and not started here.
+
+**Supersedes / superseded by:** implements the Track D5 slice named by
+D-0311/D-0312 after D-0364/D-0365 (Track D1-D3). Does not supersede
+`mini-erasure`, `mini-publication-policy`, or any other existing crate.
 ### D-0371 — `mini-web-extract`: sandboxed-in-principle static HTML extraction, Track E4  ·  *Accepted*
 **Date:** 2026-07-28 · **Refs:** D-0312 (MiniSearch doctrine); D-0316
 (`mini-web-types`); D-0317 (`mini-crawler`); issue #167; founder-supplied

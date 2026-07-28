@@ -2675,6 +2675,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-replication-policy"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-erasure",
+]
+
+[[package]]
 name = "mini-resource-pricing"
 version = "0.0.1"
 dependencies = [

@@ -1,0 +1,14 @@
+[package]
+name = "mini-replication-policy"
+version = "0.0.1"
+description = "Suppression-resistant replication policy (D-0311/D-0312 doctrine, Track D5): connects mini-erasure's shard coding/repair logic to a diverse set of distinct holders, so no single provider's removal can suppress published content. Placement/repair/retrieval planning only -- no network, no storage, no new cryptography."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-erasure = { path = "../mini-erasure" }
