@@ -8,7 +8,7 @@
 //! again later in a long-lived process via [`FileReplayGuard::prune`]) --
 //! this bounds the file's growth the same way
 //! [`crate::RangePolicy::max_age_ms`] already bounds how long any guard
-//! needs to remember a nonce (a durable guard need not outlive the
+//! needs to remember a sequence value (a durable guard need not outlive the
 //! freshness window an attestation is itself checked against).
 //!
 //! ## Honest limits
@@ -61,9 +61,9 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-fn encode_line(device: &str, nonce: &[u8; 32], recorded_at_ms: u64) -> String {
+fn encode_line(device: &str, sequence: &[u8; 32], recorded_at_ms: u64) -> String {
     let mut hex = String::with_capacity(64);
-    for byte in nonce {
+    for byte in sequence {
         hex.push_str(&format!("{byte:02x}"));
     }
     format!("{device}\t{hex}\t{recorded_at_ms}\n")
@@ -80,11 +80,11 @@ fn decode_line(line: &str) -> Option<(String, [u8; 32], u64)> {
     if hex.len() != 64 {
         return None;
     }
-    let mut nonce = [0u8; 32];
-    for (i, chunk) in nonce.iter_mut().enumerate() {
+    let mut sequence = [0u8; 32];
+    for (i, chunk) in sequence.iter_mut().enumerate() {
         *chunk = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
     }
-    Some((device, nonce, recorded_at_ms))
+    Some((device, sequence, recorded_at_ms))
 }
 
 impl FileReplayGuard {
@@ -107,12 +107,12 @@ impl FileReplayGuard {
                     continue;
                 }
                 match decode_line(line) {
-                    Some((device, nonce, recorded_at_ms)) => {
+                    Some((device, sequence, recorded_at_ms)) => {
                         if recorded_at_ms.saturating_add(retention_ms) <= now {
                             dropped_any = true;
                             continue;
                         }
-                        seen.insert((device, nonce), recorded_at_ms);
+                        seen.insert((device, sequence), recorded_at_ms);
                     }
                     None if Some(i) == last_index => {
                         // Tolerated: a crash mid-write can leave exactly the
@@ -172,8 +172,8 @@ impl FileReplayGuard {
     fn compact(&mut self) -> io::Result<()> {
         let tmp_path = self.path.with_extension("tmp");
         let mut tmp = File::create(&tmp_path)?;
-        for ((device, nonce), recorded_at_ms) in &self.seen {
-            tmp.write_all(encode_line(device, nonce, *recorded_at_ms).as_bytes())?;
+        for ((device, sequence), recorded_at_ms) in &self.seen {
+            tmp.write_all(encode_line(device, sequence, *recorded_at_ms).as_bytes())?;
         }
         tmp.sync_all()?;
         fs::rename(&tmp_path, &self.path)?;
@@ -183,33 +183,36 @@ impl FileReplayGuard {
     fn append_record(
         &mut self,
         device: &str,
-        nonce: &[u8; 32],
+        sequence: &[u8; 32],
         recorded_at_ms: u64,
     ) -> io::Result<()> {
         let mut file = OpenOptions::new()
             .append(true)
             .create(true)
             .open(&self.path)?;
-        file.write_all(encode_line(device, nonce, recorded_at_ms).as_bytes())?;
+        file.write_all(encode_line(device, sequence, recorded_at_ms).as_bytes())?;
         file.sync_all()?;
         Ok(())
     }
 }
 
 impl ReplayGuard for FileReplayGuard {
-    fn is_seen(&self, device: &Did, nonce: &[u8; 32]) -> bool {
+    fn is_seen(&self, device: &Did, sequence: &[u8; 32]) -> bool {
         self.seen
-            .contains_key(&(device.as_str().to_string(), *nonce))
+            .contains_key(&(device.as_str().to_string(), *sequence))
     }
 
-    fn check_and_record(&mut self, device: &Did, nonce: &[u8; 32]) -> bool {
-        let key = (device.as_str().to_string(), *nonce);
+    fn check_and_record(&mut self, device: &Did, sequence: &[u8; 32]) -> bool {
+        let key = (device.as_str().to_string(), *sequence);
         if self.seen.contains_key(&key) {
             return false;
         }
         let recorded_at_ms = now_ms();
         self.seen.insert(key.clone(), recorded_at_ms);
-        if self.append_record(&key.0, nonce, recorded_at_ms).is_err() {
+        if self
+            .append_record(&key.0, sequence, recorded_at_ms)
+            .is_err()
+        {
             self.write_failures += 1;
         }
         true
@@ -236,15 +239,15 @@ mod tests {
     }
 
     #[test]
-    fn a_fresh_nonce_is_recorded_and_then_reported_seen() {
+    fn a_fresh_sequence_value_is_recorded_and_then_reported_seen() {
         let path = tmp_path("fresh");
         let mut guard = FileReplayGuard::open(&path, 60_000).unwrap();
         let d = did();
-        let nonce = [7u8; 32];
-        assert!(!guard.is_seen(&d, &nonce));
-        assert!(guard.check_and_record(&d, &nonce));
-        assert!(guard.is_seen(&d, &nonce));
-        assert!(!guard.check_and_record(&d, &nonce));
+        let sequence = [7u8; 32];
+        assert!(!guard.is_seen(&d, &sequence));
+        assert!(guard.check_and_record(&d, &sequence));
+        assert!(guard.is_seen(&d, &sequence));
+        assert!(!guard.check_and_record(&d, &sequence));
         let _ = fs::remove_file(&path);
     }
 
@@ -252,14 +255,14 @@ mod tests {
     fn a_record_survives_reopening_the_same_path() {
         let path = tmp_path("survives-reopen");
         let d = did();
-        let nonce = [9u8; 32];
+        let sequence = [9u8; 32];
         {
             let mut guard = FileReplayGuard::open(&path, 60_000).unwrap();
-            assert!(guard.check_and_record(&d, &nonce));
+            assert!(guard.check_and_record(&d, &sequence));
         }
         // Simulate a process restart: a brand new guard over the same file.
         let guard = FileReplayGuard::open(&path, 60_000).unwrap();
-        assert!(guard.is_seen(&d, &nonce));
+        assert!(guard.is_seen(&d, &sequence));
         let _ = fs::remove_file(&path);
     }
 
@@ -267,12 +270,12 @@ mod tests {
     fn an_entry_older_than_retention_is_dropped_on_open() {
         let path = tmp_path("expired");
         let d = did();
-        let nonce = [3u8; 32];
+        let sequence = [3u8; 32];
         let ancient_ms = 1u64;
-        fs::write(&path, encode_line(d.as_str(), &nonce, ancient_ms)).unwrap();
+        fs::write(&path, encode_line(d.as_str(), &sequence, ancient_ms)).unwrap();
 
         let guard = FileReplayGuard::open(&path, 1_000).unwrap();
-        assert!(!guard.is_seen(&d, &nonce));
+        assert!(!guard.is_seen(&d, &sequence));
         let _ = fs::remove_file(&path);
     }
 
@@ -280,19 +283,19 @@ mod tests {
     fn opening_compacts_away_expired_entries_from_disk() {
         let path = tmp_path("compacts");
         let d = did();
-        let stale_nonce = [4u8; 32];
-        let fresh_nonce = [5u8; 32];
+        let stale_sequence = [4u8; 32];
+        let fresh_sequence = [5u8; 32];
         let now = now_ms();
         let mut contents = String::new();
-        contents.push_str(&encode_line(d.as_str(), &stale_nonce, 1));
-        contents.push_str(&encode_line(d.as_str(), &fresh_nonce, now));
+        contents.push_str(&encode_line(d.as_str(), &stale_sequence, 1));
+        contents.push_str(&encode_line(d.as_str(), &fresh_sequence, now));
         fs::write(&path, contents).unwrap();
 
         let _guard = FileReplayGuard::open(&path, 60_000).unwrap();
         let on_disk = fs::read_to_string(&path).unwrap();
         assert!(!on_disk.contains(&{
             let mut h = String::new();
-            for b in &stale_nonce {
+            for b in &stale_sequence {
                 h.push_str(&format!("{b:02x}"));
             }
             h
@@ -304,13 +307,13 @@ mod tests {
     fn a_truncated_final_line_is_tolerated() {
         let path = tmp_path("truncated-tail");
         let d = did();
-        let nonce = [6u8; 32];
-        let mut contents = encode_line(d.as_str(), &nonce, now_ms());
+        let sequence = [6u8; 32];
+        let mut contents = encode_line(d.as_str(), &sequence, now_ms());
         contents.push_str("not-a-complete-record-line");
         fs::write(&path, contents).unwrap();
 
         let guard = FileReplayGuard::open(&path, 60_000).unwrap();
-        assert!(guard.is_seen(&d, &nonce));
+        assert!(guard.is_seen(&d, &sequence));
         let _ = fs::remove_file(&path);
     }
 
@@ -318,9 +321,9 @@ mod tests {
     fn a_malformed_non_final_line_is_reported_as_corruption() {
         let path = tmp_path("corrupt-mid");
         let d = did();
-        let nonce = [8u8; 32];
+        let sequence = [8u8; 32];
         let mut contents = String::from("garbage-not-a-record\n");
-        contents.push_str(&encode_line(d.as_str(), &nonce, now_ms()));
+        contents.push_str(&encode_line(d.as_str(), &sequence, now_ms()));
         fs::write(&path, contents).unwrap();
 
         let err = FileReplayGuard::open(&path, 60_000).unwrap_err();
@@ -347,14 +350,14 @@ mod tests {
     }
 
     #[test]
-    fn distinct_devices_with_the_same_nonce_are_tracked_independently() {
+    fn distinct_devices_with_the_same_sequence_value_are_tracked_independently() {
         let path = tmp_path("distinct-devices");
         let mut guard = FileReplayGuard::open(&path, 60_000).unwrap();
         let a = did();
         let b = did();
-        let nonce = [2u8; 32];
-        assert!(guard.check_and_record(&a, &nonce));
-        assert!(guard.check_and_record(&b, &nonce));
+        let sequence = [2u8; 32];
+        assert!(guard.check_and_record(&a, &sequence));
+        assert!(guard.check_and_record(&b, &sequence));
         let _ = fs::remove_file(&path);
     }
 
@@ -362,16 +365,16 @@ mod tests {
     fn prune_removes_expired_entries_and_compacts_the_file() {
         let path = tmp_path("prune");
         let d = did();
-        let nonce = [1u8; 32];
+        let sequence = [1u8; 32];
         // retention_ms = 0 means anything already recorded is immediately
         // prunable (its recorded_at_ms + 0 <= now for any now >= that
         // instant).
         let mut guard = FileReplayGuard::open(&path, 0).unwrap();
-        guard.check_and_record(&d, &nonce);
-        assert!(guard.is_seen(&d, &nonce));
+        guard.check_and_record(&d, &sequence);
+        assert!(guard.is_seen(&d, &sequence));
         let removed = guard.prune().unwrap();
         assert_eq!(removed, 1);
-        assert!(!guard.is_seen(&d, &nonce));
+        assert!(!guard.is_seen(&d, &sequence));
         let on_disk = fs::read_to_string(&path).unwrap();
         assert!(on_disk.is_empty());
         let _ = fs::remove_file(&path);

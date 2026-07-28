@@ -33777,7 +33777,7 @@
       "title": "mod attestation;"
     },
     {
-      "bytes": 14361,
+      "bytes": 14554,
       "group": "crate:mini-presence",
       "headings": [],
       "keywords": [
@@ -33786,7 +33786,7 @@
         "file",
         "u64",
         "open",
-        "nonce",
+        "sequence",
         "line",
         "recorded_at_ms",
         "replayguard",
@@ -33806,9 +33806,9 @@
         "lines",
         "now_ms"
       ],
-      "lines": 390,
+      "lines": 393,
       "path": "crates/mini-presence/src/persisted.rs",
-      "sha256": "90fd32bb80905653c73a58b5c543d259e9077cf9ab39c67c130960a4125ed5b4",
+      "sha256": "921fa6cc943bdb5b52ec8ce8e59a1dcafa77327d314189f96a4296154cb8c647",
       "symbols": [
         {
           "kind": "type",
@@ -33882,72 +33882,72 @@
         },
         {
           "kind": "mod",
-          "line": 220,
+          "line": 223,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 224,
+          "line": 227,
           "name": "tmp_path"
         },
         {
           "kind": "fn",
-          "line": 234,
+          "line": 237,
           "name": "did"
         },
         {
           "kind": "fn",
-          "line": 239,
-          "name": "a_fresh_nonce_is_recorded_and_then_reported_seen"
+          "line": 242,
+          "name": "a_fresh_sequence_value_is_recorded_and_then_reported_seen"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 255,
           "name": "a_record_survives_reopening_the_same_path"
         },
         {
           "kind": "fn",
-          "line": 267,
+          "line": 270,
           "name": "an_entry_older_than_retention_is_dropped_on_open"
         },
         {
           "kind": "fn",
-          "line": 280,
+          "line": 283,
           "name": "opening_compacts_away_expired_entries_from_disk"
         },
         {
           "kind": "fn",
-          "line": 304,
+          "line": 307,
           "name": "a_truncated_final_line_is_tolerated"
         },
         {
           "kind": "fn",
-          "line": 318,
+          "line": 321,
           "name": "a_malformed_non_final_line_is_reported_as_corruption"
         },
         {
           "kind": "fn",
-          "line": 332,
+          "line": 335,
           "name": "write_failures_starts_at_zero_and_stays_zero_on_success"
         },
         {
           "kind": "fn",
-          "line": 342,
+          "line": 345,
           "name": "opening_a_nonexistent_path_starts_empty"
         },
         {
           "kind": "fn",
-          "line": 350,
-          "name": "distinct_devices_with_the_same_nonce_are_tracked_independently"
+          "line": 353,
+          "name": "distinct_devices_with_the_same_sequence_value_are_tracked_independently"
         },
         {
           "kind": "fn",
-          "line": 362,
+          "line": 365,
           "name": "prune_removes_expired_entries_and_compacts_the_file"
         },
         {
           "kind": "fn",
-          "line": 381,
+          "line": 384,
           "name": "prune_is_a_no_op_when_nothing_has_expired"
         }
       ],
@@ -49913,7 +49913,7 @@
       "title": "{"
     },
     {
-      "bytes": 708168,
+      "bytes": 709069,
       "group": "docs",
       "headings": [
         {
@@ -50343,9 +50343,9 @@
         "signed",
         "new"
       ],
-      "lines": 11829,
+      "lines": 11842,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "9c23944e17adabd6da5a6fc1fb3a0a9663ba642431ec9956ca5a6c700e3c60c7",
+      "sha256": "e659b98485ca45dc6956a4d67ff2a37f0a88154ae3fa3b2a1d1ab4ffeeb85f7d",
       "symbols": [],
       "title": "Decision Log"
     },

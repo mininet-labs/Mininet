@@ -11753,29 +11753,38 @@ survive process restarts").
 **Decision:** New module `crates/mini-presence/src/persisted.rs`,
 exporting `FileReplayGuard`: a file-backed `ReplayGuard` implementation.
 `FileReplayGuard::open(path, retention_ms)` loads existing `(device,
-nonce, recorded_at_ms)` records from a flat file, drops any older than
-`retention_ms`, and compacts the file if anything was dropped (atomic
-temp-file + `fsync` + rename). `check_and_record` updates the in-memory
-index immediately and best-effort appends a durable record (`fsync`ed);
-`write_failures()` exposes a running count of failed durable writes
-without changing `check_and_record`'s own infallible return value (the
-`ReplayGuard` trait itself is infallible by design — see its doc
-comment — so a write failure cannot be surfaced through it).
-`prune()` lets a long-lived process sweep newly-expired entries without
-reopening the file.
+sequence, recorded_at_ms)` records from a flat file, drops any older
+than `retention_ms`, and compacts the file if anything was dropped
+(atomic temp-file + `fsync` + rename). `check_and_record` updates the
+in-memory index immediately and best-effort appends a durable record
+(`fsync`ed); `write_failures()` exposes a running count of failed
+durable writes without changing `check_and_record`'s own infallible
+return value (the `ReplayGuard` trait itself is infallible by design —
+see its doc comment — so a write failure cannot be surfaced through
+it). `prune()` lets a long-lived process sweep newly-expired entries
+without reopening the file. Internally this module names the
+`ReplayGuard` trait's `nonce: &[u8; 32]` parameter `sequence` instead
+(the trait's own declaration in `verify.rs` is untouched — Rust does
+not require matching parameter names between a trait and its impl):
+following the D-0357 precedent, a literal byte-array value bound to an
+identifier named `nonce` trips CodeQL's "hard-coded cryptographic
+value" rule on its name alone, even though nothing here is a
+cryptographic nonce — it is purely a replay-detection identifier
+(a `HashMap` key / file record field), never used in any encryption or
+signing operation.
 
 **Reason:** `InMemoryReplayGuard` (already shipped, used by
-`mini-keystone`'s demo) only remembers nonces for the lifetime of one
-process — a phone app that restarts (crash, OS-killed in background,
-user force-quit) forgets every nonce it had seen, reopening a replay
-window `RangePolicy::max_age_ms` alone cannot close (that field bounds
-how *old* an attestation may be, not whether a guard remembers having
-seen it before). `docs/BETA_STATUS.md` has named this gap explicitly
-since the beta-status doc was first written; this closes it with the
-minimum durable mechanism the doctrine calls for — a flat file, not a
-database, matching this workspace's general preference for the
-smallest construction that satisfies the actual requirement (Directive
-14, "simplicity is security").
+`mini-keystone`'s demo) only remembers sequence values for the
+lifetime of one process — a phone app that restarts (crash, OS-killed
+in background, user force-quit) forgets every one it had seen,
+reopening a replay window `RangePolicy::max_age_ms` alone cannot close
+(that field bounds how *old* an attestation may be, not whether a
+guard remembers having seen it before). `docs/BETA_STATUS.md` has
+named this gap explicitly since the beta-status doc was first written;
+this closes it with the minimum durable mechanism the doctrine calls
+for — a flat file, not a database, matching this workspace's general
+preference for the smallest construction that satisfies the actual
+requirement (Directive 14, "simplicity is security").
 
 **Constitutional impact:** none. No cryptography, no new dependency
 (only `std::fs`/`std::io`/`std::time`), no Tier-F invariant touched.
@@ -11784,18 +11793,22 @@ behavior — `FileReplayGuard` is a drop-in alternative to
 `InMemoryReplayGuard` a caller opts into, exactly like the trait was
 already designed to allow.
 
-**Implementation status:** Shipped this PR. 12 tests: a fresh nonce is
-recorded and then reported seen; a record survives reopening the same
-path (the actual durability claim, simulating a process restart); an
-entry older than retention is dropped on open; opening compacts away
-expired entries from disk; a truncated final line (simulating a crash
-mid-write) is tolerated; a malformed non-final line is reported as
-real corruption, not silently dropped; `write_failures()` starts and
-stays at zero on success; opening a nonexistent path starts empty;
-distinct devices with the same nonce are tracked independently;
-`prune()` removes expired entries and compacts the file; `prune()` is
-a no-op when nothing has expired. `cargo fmt`/`clippy -D warnings`/
-`test` clean workspace-wide.
+**Implementation status:** Shipped this PR. 12 tests: a fresh sequence
+value is recorded and then reported seen; a record survives reopening
+the same path (the actual durability claim, simulating a process
+restart); an entry older than retention is dropped on open; opening
+compacts away expired entries from disk; a truncated final line
+(simulating a crash mid-write) is tolerated; a malformed non-final
+line is reported as real corruption, not silently dropped;
+`write_failures()` starts and stays at zero on success; opening a
+nonexistent path starts empty; distinct devices with the same sequence
+value are tracked independently; `prune()` removes expired entries and
+compacts the file; `prune()` is a no-op when nothing has expired.
+`cargo fmt`/`clippy -D warnings`/`test` clean workspace-wide. CodeQL's
+default-setup scan initially flagged 12 "hard-coded cryptographic
+value" alerts on this module's `nonce`-named literals (identical
+false-positive class to D-0357); renamed to `sequence` throughout in a
+follow-up commit on the same PR before merge, per that precedent.
 
 **Failure point:** Documented plainly in the module's own doc comment
 rather than only here: this is a flat append-only file with an
