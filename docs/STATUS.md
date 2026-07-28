@@ -1080,6 +1080,21 @@ the top development priority.
   Tracks D3-D6 (source-hiding path, mixed transport, suppression-
   resistant replication, unlinkable settlement) remain separately
   scoped, not started here.
+- **shipped, prototype (D-0365, Track D3)** — `mini-publication-policy`
+  gains `source_hiding_publication_path_for`: plans `mini-relay` roles
+  (`[Entry, Rendezvous]`) for a profile's publication by composing
+  `mini-transport-policy::route` and `mini-relay::
+  roles_for_route_decision` unchanged, adding no new routing/relay
+  logic. Deliberately not gated on `Attribution` — network-counterparty
+  hiding and identity-root disclosure are orthogonal, so an `Attributed`
+  profile gets a source-hiding path exactly as readily as an `Anonymous`
+  one. Fails closed at two layers: `Direct` tier is rejected by `route`
+  itself (`CounterpartyIpHiding` needs at least `Relayed`); `Mixed`/
+  `Burst` pass that check but are rejected by `mini-relay` (mix network
+  not implemented, gated behind D-0047/D-0305). Still a role *plan*
+  only — no relay identity is contacted, no `DeliveryAssignment` is
+  produced; turning a role list into a real, discoverable relay path
+  remains not-yet-scoped follow-up.
 
 ## Client coverage
 

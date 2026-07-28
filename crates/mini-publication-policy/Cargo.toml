@@ -20,5 +20,6 @@ publish = false
 # wall. No serde, no AEAD -- this crate is pure typed policy data plus
 # one connecting function.
 mini-privacy-policy = { path = "../mini-privacy-policy" }
+mini-relay = { path = "../mini-relay" }
 mini-resource-pricing = { path = "../mini-resource-pricing" }
 mini-transport-policy = { path = "../mini-transport-policy" }

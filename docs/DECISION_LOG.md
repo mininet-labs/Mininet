@@ -11664,3 +11664,80 @@ D6 (unlinkable settlement research/prototype) — all separately scoped,
 not started here.
 
 **Supersedes / superseded by:** none.
+
+### D-0365 — `mini-publication-policy`: source-hiding publication path (Track D3)  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0364 (Track D1/D2, this crate's first
+slice); D-0301/D-0306 (`mini-transport-policy`'s router and
+`mini-relay`'s role-separated protocol, both reused unchanged here);
+`docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§27 (Track D, PR D3 "Source-hiding publication path: use role
+separation and relay infrastructure").
+
+**Decision:** New function `source_hiding_publication_path_for`
+(`src/source_hiding.rs`), scoped to exactly Track D3. Given a
+`PublicationProfile` and a `PayloadSizeClass`, it always requests
+`ProtectionProperty::CounterpartyIpHiding` from `mini-transport-
+policy::route` (unchanged) and then plans roles via `mini-relay::
+roles_for_route_decision` (unchanged), returning a
+`SourceHidingPublicationPath { profile, achieved, roles }`. Adds no new
+routing, pricing, or relay logic — a pure composition of two already-
+tested layers, mirroring D-0364's own connecting-function pattern for
+D2.
+
+Deliberately **not** gated on `Attribution`: hiding the network
+counterparty that would otherwise learn the publisher's address, and
+disclosing the publisher's identity root inside the published object,
+are orthogonal — a caller can want `Attribution::Attributed` content
+delivered over a source-hidden path exactly as easily as
+`Attribution::Anonymous` content delivered directly. Requiring
+`Attribution::Anonymous` here would have reintroduced the exact
+cross-dimension coupling Track D1's independence requirement (D-0364)
+forbids.
+
+**Reason:** Track D3 asks specifically to "use role separation and
+relay infrastructure" — not to invent new mechanism-selection or
+role-planning logic. `mini-transport-policy::route` already fails
+closed on an unsatisfiable property (discovered during this PR's own
+test-writing: `CounterpartyIpHiding` needs at least `PrivacyTier::
+Relayed`, so a `Direct`-tier profile is rejected by `route` itself,
+before `mini-relay` is ever consulted — one layer earlier than this
+function's own first draft assumed), and `mini-relay::
+roles_for_route_decision` already fails closed on tiers it cannot
+plan for (`Mixed`/`Burst`, gated behind D-0047/D-0305). Composing both
+unchanged, rather than re-deriving either check, means this function's
+correctness rests entirely on two already-reviewed layers' own test
+coverage.
+
+**Constitutional impact:** none. No cryptography, no dependency on
+`mini-value`/`mini-treasury`/`mini-forge`/`mini-chain` (the new
+`mini-relay` dependency's own Cargo.toml/crate docs already document
+its voice/value-wall isolation), no Tier-F invariant touched. Widens
+`PublicationPolicyError` with a `Relay(RelayError)` variant (not
+`Copy` any more, since `RelayError` itself isn't — `Clone` only).
+
+**Implementation status:** Shipped this PR. 7 tests: `Relayed` tier
+plans `[Entry, Rendezvous]`; an `Attributed` profile still gets a
+source-hiding path (proving the independence claim above); `Direct`
+tier fails closed at the routing layer as
+`PublicationPolicyError::Routing(UnsatisfiableProperty)`; `Mixed`/
+`Burst` each fail closed at the relay-planning layer as
+`PublicationPolicyError::Relay(TierNotHandledByThisCrate)`; the
+returned path carries the exact profile it was built for; the
+achieved privacy names `Mechanism::OnionRelay`. 17 tests total in the
+crate; `cargo fmt`/`clippy -D warnings`/`test` clean workspace-wide.
+
+**Failure point:** This is a role *plan*, not a live path — no relay
+identity is contacted, no socket is dialed, and no `mini_relay::
+DeliveryAssignment` is produced. Assigning real relay identities to
+the planned roles (and then calling `mini_relay::
+enforce_role_separation` on the result) is a separate discovery/
+selection concern this crate has no information to perform on a
+caller's behalf; that remains real, not-yet-scoped follow-up work
+against a relay-discovery mechanism that doesn't exist yet.
+
+**Required follow-up:** relay discovery/selection to turn a
+`SourceHidingPublicationPath`'s role list into real `DeliveryAssignment`s;
+Track D4/D5/D6 as recorded in D-0364.
+
+**Supersedes / superseded by:** none.
