@@ -161,6 +161,11 @@ given time.
 - **partial** — co-presence attestation (`mini-presence`) is shipped;
   the software RTT bound has no hardware ranging backing it yet in
   production use (UWB trait scaffolded, not wired to real hardware).
+  `FileReplayGuard` (D-0366) adds a durable, file-backed `ReplayGuard`
+  alongside the existing `InMemoryReplayGuard` — replay resistance that
+  survives a process restart, closing `docs/BETA_STATUS.md` item 3. Not
+  yet wired into `mini-keystone`'s own demo, which still uses the
+  in-memory guard.
 - **doc-only** — `docs/design/credential-taxonomy.md` (D-0089, founder
   review's `credential-separation` finding) names and separates
   `ParticipantCredential`/`HumanEvidence`/`RoleCredential`/

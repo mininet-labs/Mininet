@@ -58,6 +58,7 @@
 
 mod attestation;
 mod error;
+mod persisted;
 mod ranging;
 mod verify;
 
@@ -66,6 +67,7 @@ pub use attestation::{
     PRESENCE_VERSION,
 };
 pub use error::{PresenceError, Result};
+pub use persisted::FileReplayGuard;
 pub use ranging::{NoUwb, RangingError, RangingSource};
 pub use verify::{
     verify_presence, InMemoryReplayGuard, PresenceVerdict, RangePolicy, ReplayGuard, VerifyContext,

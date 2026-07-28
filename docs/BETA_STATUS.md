@@ -27,9 +27,15 @@ still missing for a real two-phone beta, in order:
 2. **Active range measurement** — the current RTT ceiling is a software
    thresholding hook over *reported* samples, not an active challenge-response
    measurement; no anti-relay claim is made until it is.
-3. **Persistent replay store** — `ReplayGuard` is the durable interface;
-   a device-store-backed implementation is pending (max-age already bounds the
-   window).
+3. ~~**Persistent replay store**~~ — **shipped (D-0366)**:
+   `mini_presence::FileReplayGuard` is a file-backed `ReplayGuard` that
+   survives process restarts (`Cargo.toml` unchanged — `std::fs` only, no
+   new dependency). Not yet wired into `mini-keystone`'s demo (still uses
+   `InMemoryReplayGuard`) — that swap is real but small follow-up, tracked
+   in D-0366. `mini-uniqueness`/`mini-storage`/`mini-settlement` each
+   define their own separate `ReplayGuard`-shaped trait and still only
+   have an in-memory implementation; giving those a durable backend too
+   is unstarted, separately-scoped work.
 4. **Standalone CLI harness** — one command driving identity → channel →
    presence → reward → forge PR → merge → release → verify.
 5. **External crypto review** before any value- or update-bearing use.
