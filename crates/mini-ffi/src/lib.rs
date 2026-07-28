@@ -24,7 +24,9 @@
 
 use zeroize::Zeroize;
 
+mod ble;
 mod lifecycle;
+pub use ble::{BleBearerError, BleBearerHandle, BleRadio, BleRadioError};
 pub use lifecycle::{
     BackgroundableOperation, LifecycleError, LifecycleFailureReason, LifecyclePhase,
     OperationLifecycle, SuspendDecision,

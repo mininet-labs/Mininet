@@ -19,6 +19,30 @@ callback interface StorageCipher {
   sequence<u8> decrypt(sequence<u8> ciphertext);
 };
 
+callback interface BleRadio {
+  [Throws=BleRadioError]
+  void write_chunk(sequence<u8> chunk);
+
+  [Throws=BleRadioError]
+  sequence<u8> read_chunk();
+
+  [Throws=BleRadioError]
+  sequence<u8>? try_read_chunk();
+};
+
+interface BleBearerHandle {
+  constructor(BleRadio radio, u32 mtu);
+
+  [Throws=BleBearerError]
+  void send(sequence<u8> frame);
+
+  [Throws=BleBearerError]
+  sequence<u8> recv();
+
+  [Throws=BleBearerError]
+  sequence<u8>? try_recv();
+};
+
 interface RootCore {
   constructor();
 
@@ -194,6 +218,20 @@ enum RootError {
 [Error]
 enum StorageCipherError {
   "Failed",
+};
+
+[Error]
+enum BleRadioError {
+  "Failed",
+};
+
+[Error]
+enum BleBearerError {
+  "RadioFailed",
+  "FrameTooLarge",
+  "MtuTooSmall",
+  "TooManyChunks",
+  "Protocol",
 };
 
 [Error]

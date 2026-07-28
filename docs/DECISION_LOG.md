@@ -12439,3 +12439,94 @@ is exposed today, a separately-scoped gap); updating
 without changing its chunking/reassembly logic. Does not supersede
 `mini-ffi::StorageCipher` (D-0338) — mirrors its callback-interface
 pattern, does not reuse or modify it.
+
+### D-0375 — `mini-ffi`: `BleRadio` UniFFI callback interface + `BleBearerHandle` (Android beta slice 5, issue #201)  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0374 (`mini-bearer::android_ble`, whose
+own "Failure point"/"Required follow-up" fields named exactly this gap);
+D-0338 (`mini-ffi::StorageCipher`, the callback-interface precedent this
+follows); `docs/BETA_STATUS.md` item 1; issue #201 (Android beta slice 5)
+
+**Decision:** adds `mini-ffi::ble` — [`BleRadio`], a UniFFI `callback
+interface` (Kotlin implements it, Rust calls it, the same shape as
+`StorageCipher`) exposing chunk-level `write_chunk`/`read_chunk`/
+`try_read_chunk`; [`RadioAdapter`], a private adapter bridging its `&self`
+shape to `mini_bearer::BleRadio`'s `&mut self` shape (a callback interface
+can only ever offer `&self` methods, since Kotlin has no borrow checker);
+and [`BleBearerHandle`], a UniFFI object wrapping
+`mini_bearer::AndroidBleBearer<RadioAdapter>` behind an internal `Mutex`
+(mirroring `RootCore`'s and `OperationLifecycle`'s existing pattern) so
+Kotlin can call `send`/`recv`/`try_recv` directly. `mini-ffi/src/
+mini_ffi.udl` gained the matching `callback interface BleRadio`,
+`interface BleBearerHandle`, and `[Error] enum BleRadioError`/
+`BleBearerError` declarations; `mini-ffi/Cargo.toml` gained a path
+dependency on `mini-bearer`.
+
+**Reason:** D-0374 shipped `mini_bearer::AndroidBleBearer<R: BleRadio>` —
+a full, tested `impl Bearer` — but explicitly named what remained: "a
+`.udl` callback interface mirroring `StorageCipher`" as the first of three
+named gaps before `docs/BETA_STATUS.md` item 1 closes. That callback
+interface is code-only and verifiable without any Bluetooth hardware
+(unlike the other two remaining gaps, the real Kotlin GATT implementation
+and a two-device test), so it is built now rather than left bundled with
+work this sandbox cannot verify. `BleBearerError` deliberately collapses
+`mini_bearer::BearerError`'s wider, `#[non_exhaustive]` variant set into
+five FFI-facing variants (`RadioFailed`/`FrameTooLarge`/`MtuTooSmall`/
+`TooManyChunks`/`Protocol`) rather than matching it 1:1 or panicking on an
+unrecognized variant — a panic across the FFI boundary would crash the
+Kotlin app, so the residual `Protocol` bucket absorbs both the peer-caused
+chunk-stream errors (`Truncated`/`BadChunk`/`OutOfOrderChunk`) and any
+future `BearerError` variant this module does not itself produce today.
+
+**Constitutional impact:** none. No payment, stake, balance, or
+governance-weight field anywhere in this module. `BleRadio`/
+`BleBearerHandle` carry no identity or authority — they move opaque bytes
+exactly like `StorageCipher` moves opaque ciphertext. No new cryptography:
+this is a callback-interface adapter over transport chunking, not a
+cryptographic construction.
+
+**Implementation status:** shipped in `mini-ffi::ble`. `cargo fmt --all --
+check`, `cargo clippy --all-targets --all-features --workspace -- -D
+warnings`, and `cargo test --workspace --all-features` all clean on this
+(Linux) host (180 test binaries, all passing). 5 new tests: a
+larger-than-one-chunk frame round-tripping through the full FFI handle
+(not just the underlying `mini_bearer` type), `try_recv` returning `None`
+then the frame once sent, a dropped peer's radio failure surfacing as
+`BleBearerError::RadioFailed` rather than a panic, an MTU too small for
+even the chunk header reported distinctly as `BleBearerError::
+MtuTooSmall`, and a `BleRadio` implementation that always errors,
+confirming every one of `BleBearerHandle`'s three methods maps that
+failure to `RadioFailed` through `RadioAdapter`. `cargo build`'s
+`generate_scaffolding` step (in `build.rs`) additionally validated the
+`.udl` declarations against these Rust signatures exhaustively at build
+time — this is the same validation UniFFI's own Kotlin codegen depends
+on, so a mismatch here would have failed the build outright.
+
+**Failure point:** the standalone `uniffi-bindgen generate --language
+kotlin` CLI invocation used to double-check actual Kotlin output could
+not locate `mini_ffi.udl` via its own crate-metadata heuristics in this
+sandbox (a pre-existing tool-invocation quirk, reproducible independent
+of this change, not a defect this PR introduces) — so the generated
+Kotlin source itself was not independently inspected here, only the
+UDL/Rust signature match `generate_scaffolding` already enforces. No real
+Kotlin `BluetoothGattServer`/`BluetoothGattCallback` implementation of
+`BleRadio` exists yet, and nothing here has been exercised against real
+Bluetooth hardware or a real Android build. This PR alone does **not**
+close `docs/BETA_STATUS.md` item 1 — it narrows what remains to exactly:
+(a) a real Kotlin `BluetoothGattServer`/`BluetoothGattCallback`
+implementing `BleRadio`, (b) wiring `BleBearerHandle` into the app's
+actual pairing/transfer flow, and (c) a real two-device test — none of
+which are code-only or verifiable in this sandbox, and Android CI's
+`assembleDebug` is the real gate for (a)/(b).
+
+**Required follow-up:** the real Kotlin `BleRadio` implementation and its
+wiring into the app named above; updating `docs/BETA_STATUS.md` item 1
+once the Kotlin half lands; independently inspecting the generated Kotlin
+bindings once the standalone bindgen tool's crate-metadata resolution
+issue is understood or worked around (or once Android's own Gradle
+UniFFI plugin generates them directly, which may sidestep the issue
+entirely).
+
+**Supersedes / superseded by:** extends D-0374 (`mini-bearer::
+android_ble`) without changing its Rust-side chunking/reassembly logic.
+Does not supersede `mini-ffi::StorageCipher` (D-0338) — mirrors its
+callback-interface pattern, does not reuse or modify it.
