@@ -23,7 +23,12 @@ still missing for a real two-phone beta, in order:
    `Bearer` trait (device-side work needing real phone hardware). D-0042
    added a real `TcpBearer` (proven live in `mini-net`'s gossip demo), but
    that's IP-network connectivity, not BLE — the keystone demo itself is
-   still in-process only and hasn't been ported to it yet.
+   still in-process only and hasn't been ported to it yet. `mini-bearer::
+   ble` (D-0342) has the MTU-bounded chunking/reassembly protocol logic a
+   BLE-backed `Bearer` needs, but no Kotlin `BluetoothGattServer`/
+   `BluetoothGattCallback` implementation exists yet, and this item is not
+   closed by D-0370 below — that PR is adjacent app-persistence work, not
+   this one.
 2. ~~**Active range measurement**~~ — **shipped (D-0368)**:
    `mini_presence::active_range` performs a real challenge-response
    round-trip exchange over the already-bound encrypted channel

@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.io.File
 import org.mininet.core.AppAction
 import org.mininet.core.AppCommand
 import org.mininet.core.AppEventKind
@@ -79,19 +80,46 @@ sealed interface CoreUiState {
     data class Ready(val snapshot: AppSnapshot, val notice: AppEventKind? = null) : CoreUiState
     data class RootCreated(val rootDid: String, val deviceDid: String) : CoreUiState
     data class Unavailable(val reason: String) : CoreUiState
+
+    /**
+     * A previously persisted identity exists on this device (D-0338) but
+     * could not be decrypted/decoded. Deliberately distinct from
+     * [Unavailable] -- that state's own screen copy is specifically about
+     * the native library failing to load, which would be actively
+     * misleading here. Never silently falls back to minting a fresh root
+     * in its place: that would let the user end up controlling a
+     * different identity than the one their existing KEL history refers
+     * to, without being told.
+     */
+    data class RestoreFailed(val reason: String) : CoreUiState
 }
 
 class MiniViewModel(application: android.app.Application) : AndroidViewModel(application) {
     private val capabilities = readPlatformCapabilities(application)
+    private val storageCipher = AndroidKeystoreCipher()
+    private val stateFile = File(application.filesDir, STATE_FILE_NAME)
 
-    // Real root/device identity (D-0335's RootCore), created once per
-    // ViewModel instance. This is intentionally in-process-only: no
-    // StorageCipher/encrypted-persistence adapter exists yet (issue #198),
-    // so a killed process still loses this identity -- never faked as
-    // durable.
-    private val rootCore = RootCore()
+    // Real root/device identity (D-0335's RootCore). D-0338 closes the
+    // "in-process only" gap: on construction we try to restore a
+    // previously persisted blob (AES-GCM under an Android Keystore key,
+    // see AndroidKeystoreCipher) rather than always starting fresh.
+    private val rootCoreResult: Result<RootCore> = runCatching {
+        if (stateFile.exists()) {
+            RootCore.restore(stateFile.readBytes().toUByteList(), storageCipher)
+        } else {
+            RootCore()
+        }
+    }
+    private val rootCore: RootCore = rootCoreResult.getOrElse { RootCore() }
 
-    var state: CoreUiState by mutableStateOf(loadInitialState(capabilities))
+    var state: CoreUiState by mutableStateOf(
+        rootCoreResult.fold(
+            onSuccess = { loadInitialState(capabilities) },
+            onFailure = {
+                CoreUiState.RestoreFailed(it.message ?: it::class.java.simpleName)
+            },
+        ),
+    )
         private set
 
     private var requestSequence = 0UL
@@ -119,11 +147,26 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
         state = runCatching {
             val rootDid = rootCore.createRoot()
             val deviceDid = rootCore.createDevice()
+            persistRootState()
             CoreUiState.RootCreated(rootDid = rootDid, deviceDid = deviceDid)
         }.getOrElse { CoreUiState.Unavailable(it.message ?: it::class.java.simpleName) }
     }
 
+    // Best-effort: a failed write here is a missed persistence
+    // opportunity, not a correctness bug -- the in-memory RootCore this
+    // process holds is still authoritative until the process dies.
+    // Surfacing it mid-onboarding would interrupt a flow the user cannot
+    // act on differently either way.
+    private fun persistRootState() {
+        runCatching {
+            val blob = rootCore.persistState(storageCipher)
+            stateFile.writeBytes(blob.toByteArray())
+        }
+    }
+
     companion object {
+        private const val STATE_FILE_NAME = "root_state.bin"
+
         private fun readPlatformCapabilities(context: Context): PlatformCapabilities {
             val keyguard = context.getSystemService(KeyguardManager::class.java)
             return PlatformCapabilities(
@@ -196,6 +239,7 @@ private fun MininetApp(model: MiniViewModel = viewModel()) {
                 )
                 is CoreUiState.RootCreated -> RootCreatedScreen(state)
                 is CoreUiState.Unavailable -> CoreUnavailable(state.reason)
+                is CoreUiState.RestoreFailed -> RestoreFailedScreen(state.reason)
             }
         }
     }
@@ -290,7 +334,7 @@ private fun RootCreatedScreen(state: CoreUiState.RootCreated) {
             lineHeight = 42.sp,
         )
         Text(
-            "This identity and its first delegated device exist only in this app's memory right now. Closing the app loses them -- encrypted on-device persistence across restarts is the next slice, not yet built.",
+            "This identity and its first delegated device are now saved to this device, encrypted under an Android Keystore key -- closing and reopening the app will restore them, though there is no cloud backup and no recovery flow yet if this device is lost.",
             style = MaterialTheme.typography.bodyLarge,
             color = Ink.copy(alpha = 0.78f),
             lineHeight = 26.sp,
@@ -343,7 +387,7 @@ private fun stageCopy(stage: OnboardingStage): StageCopy = when (stage) {
     OnboardingStage.ROOT_CREATION_READY -> StageCopy(
         eyebrow = "Device check complete",
         title = "Ready to create your identity.",
-        body = "The Rust core accepted this device's security capabilities. Root and device creation run for real now; encrypted on-device persistence across restarts is still the next slice, so closing the app will lose this identity until that lands.",
+        body = "The Rust core accepted this device's security capabilities. Root and device creation run for real now, and the result is saved to this device under an Android Keystore-backed key -- closing the app no longer loses it.",
         action = "Create root",
     )
 }
@@ -424,6 +468,32 @@ private fun CoreUnavailable(reason: String) {
         Spacer(Modifier.height(12.dp))
         Text(
             "Build and copy libmini_ffi.so with app/android/scripts/build-rust. The shell stays open so setup failures are visible instead of crashing silently.",
+            textAlign = TextAlign.Center,
+            color = Ink.copy(alpha = 0.72f),
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(reason, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun RestoreFailedScreen(reason: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(28.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "Saved identity could not be restored",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "A previously created identity exists on this device, but its encrypted state could not be read. Mininet will not silently create a different identity in its place. This can happen if the device's secure key storage was reset independently of this app's own data.",
             textAlign = TextAlign.Center,
             color = Ink.copy(alpha = 0.72f),
         )

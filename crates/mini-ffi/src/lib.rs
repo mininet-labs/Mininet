@@ -7,11 +7,17 @@
 //! testable.
 //!
 //! Maturity: **prototype foundation**. [`RootCore`] can now create a root
-//! identity and delegate/revoke device identities in memory (D-0335), but
-//! nothing persists across process death yet, no key is Android
-//! Keystore-backed or hardware-proven, and no peer synchronization exists.
-//! Those capabilities enter through later, separately reviewed adapters;
-//! this API refuses to imply that they already exist.
+//! identity and delegate/revoke device identities in memory (D-0335); its
+//! [`RootCore::persist_state`]/[`RootCore::restore`] pair (D-0338) is
+//! deliberately just a plaintext-in/ciphertext-out boundary over a
+//! caller-supplied [`StorageCipher`] callback, since this crate itself
+//! must never see or handle a platform key -- the Android app now backs
+//! that callback with a real, non-exportable Android Keystore AES-GCM key
+//! (`AndroidKeystoreCipher`, `app/android`), so identity does survive
+//! process death there today, but no key is hardware-attested (StrongBox
+//! or biometric-gated) and no peer synchronization exists yet. Those
+//! capabilities enter through later, separately reviewed adapters; this
+//! API refuses to imply that they already exist.
 
 #![deny(unsafe_code)]
 #![warn(missing_debug_implementations)]
