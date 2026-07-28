@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 58,
-    "files": 666,
+    "files": 667,
     "headings": 2244,
-    "rust_symbols": 5775
+    "rust_symbols": 5789
   },
   "crates": {
     "did-mini": {
@@ -27733,38 +27733,38 @@
       "title": "mini-keystone"
     },
     {
-      "bytes": 2649,
+      "bytes": 3414,
       "group": "crate:mini-keystone",
       "headings": [],
       "keywords": [
         "println",
+        "own",
+        "demo",
+        "alice",
+        "bob",
         "identity",
         "one",
         "report",
         "keystone",
-        "demo",
-        "alice",
-        "bob",
+        "expect",
         "print_own_device_view",
+        "log",
         "reward",
-        "own",
+        "replay",
+        "run",
         "what",
+        "two",
+        "separate",
         "both",
         "data",
+        "each",
         "device",
-        "root",
-        "participant",
-        "owner_label",
-        "own_account",
-        "expect",
-        "mini-keystone",
-        "main",
-        "run",
-        "example"
+        "its",
+        "real"
       ],
-      "lines": 64,
+      "lines": 82,
       "path": "crates/mini-keystone/examples/keystone.rs",
-      "sha256": "d7f5de17d198d7613614ad1141bdf0257540df15d73400ee36334e9cad44ba8c",
+      "sha256": "e4540988f1e86d3421878c80fd19a89a70d087ba1a092a661a3e5aee5e1c94c4",
       "symbols": [
         {
           "kind": "fn",
@@ -27780,175 +27780,175 @@
       "title": "use mini_bearer::pair;"
     },
     {
-      "bytes": 11131,
+      "bytes": 12619,
       "group": "crate:mini-keystone",
       "headings": [],
       "keywords": [
         "identity",
         "demoerror",
         "root",
-        "bearer",
         "device",
+        "bearer",
         "presence",
         "controller",
         "participant",
         "fmt",
-        "demo",
         "self",
         "bearererror",
         "did_mini",
         "mini_presence",
+        "demo",
         "did",
         "channel",
         "one",
-        "flow",
         "core",
         "error",
         "identityerror",
         "presenceerror",
         "failure",
-        "write"
+        "write",
+        "demoreport"
       ],
-      "lines": 281,
+      "lines": 305,
       "path": "crates/mini-keystone/src/lib.rs",
-      "sha256": "1e0b9ed8485549b79ae8a698ca30f5474a2a3cd4dea3474f349cd5645e69f196",
+      "sha256": "e8a8c8de03fa6c336d9d2ebb00afc5aadfc6c140f988893e690c2ba81cb0a288",
       "symbols": [
         {
           "kind": "struct",
-          "line": 34,
+          "line": 37,
           "name": "Participant"
         },
         {
           "kind": "impl",
-          "line": 41,
+          "line": 44,
           "name": "Participant"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 47,
           "name": "from_seeds"
         },
         {
           "kind": "struct",
-          "line": 63,
+          "line": 66,
           "name": "DemoReport"
         },
         {
           "kind": "enum",
-          "line": 79,
+          "line": 82,
           "name": "DemoError"
         },
         {
           "kind": "impl",
-          "line": 90,
+          "line": 93,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 94,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 101,
+          "line": 104,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 103,
+          "line": 106,
           "name": "From<BearerError>"
         },
         {
           "kind": "fn",
-          "line": 104,
+          "line": 107,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 108,
+          "line": 111,
           "name": "From<did_mini::IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 109,
+          "line": 112,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 113,
+          "line": 116,
           "name": "From<mini_presence::PresenceError>"
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 117,
           "name": "from"
         },
         {
           "kind": "const",
-          "line": 120,
+          "line": 123,
           "name": "AAD_KEL_ROOT"
         },
         {
           "kind": "const",
-          "line": 121,
+          "line": 124,
           "name": "AAD_KEL_DEVICE"
         },
         {
           "kind": "fn",
-          "line": 128,
+          "line": 137,
           "name": "run_demo"
         },
         {
           "kind": "fn",
-          "line": 245,
+          "line": 269,
           "name": "send_kels"
         },
         {
           "kind": "fn",
-          "line": 259,
+          "line": 283,
           "name": "recv_kels"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 299,
           "name": "demo_nonce"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Kel};"
     },
     {
-      "bytes": 3191,
+      "bytes": 4988,
       "group": "crate:mini-keystone",
       "headings": [],
       "keywords": [
-        "report",
         "unwrap",
+        "report",
+        "inmemoryreplayguard",
         "assert_eq",
-        "participant",
+        "new",
+        "run_demo",
         "alice",
         "bob",
         "pair",
-        "run_demo",
+        "participant",
         "transportkind",
-        "initiator_account",
         "bearer_a",
         "bearer_b",
         "inprocess",
         "initiator_root",
         "did",
-        "b_root",
-        "bearer",
-        "same",
-        "controller",
+        "initiator_account",
+        "std",
+        "end",
+        "guard_a",
+        "guard_b",
         "root",
-        "fresh",
-        "b_device",
-        "keystone",
-        "keystone_demo_end_to_end"
+        "b_root",
+        "filereplayguard"
       ],
-      "lines": 107,
+      "lines": 163,
       "path": "crates/mini-keystone/tests/keystone.rs",
-      "sha256": "62747ab04b20a30befa469e088d9c711ff1fd05416cefe56c19fef94c3b0f4b4",
+      "sha256": "b5a2f5ee2195471dd036035be590611a05727b972e6597844536532c3c5df52f",
       "symbols": [
         {
           "kind": "fn",
@@ -27967,13 +27967,18 @@
         },
         {
           "kind": "fn",
-          "line": 48,
+          "line": 52,
           "name": "demo_is_deterministic_per_identity_set"
         },
         {
           "kind": "fn",
-          "line": 81,
+          "line": 89,
           "name": "demo_refuses_a_peer_without_attest"
+        },
+        {
+          "kind": "fn",
+          "line": 119,
+          "name": "keystone_demo_works_with_a_durable_file_replay_guard"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller};"
@@ -33526,6 +33531,103 @@
       "title": "mini-presence"
     },
     {
+      "bytes": 9390,
+      "group": "crate:mini-presence",
+      "headings": [],
+      "keywords": [
+        "bearer",
+        "challenge",
+        "side",
+        "one",
+        "presenceerror",
+        "chan",
+        "map_err",
+        "real",
+        "channel",
+        "measuring",
+        "seal",
+        "pendingrangechallenge",
+        "round",
+        "aad_range_challenge",
+        "send_range_challenge",
+        "respond_to_range_challenge",
+        "recv_range_response",
+        "ranging",
+        "protocol",
+        "steps",
+        "trip",
+        "send",
+        "echo",
+        "aad_range_response"
+      ],
+      "lines": 214,
+      "path": "crates/mini-presence/src/active_range.rs",
+      "sha256": "8ef55b3be45bf8b5b316f5551080731142486e06dec09c4f6a95da06901d99eb",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 67,
+          "name": "AAD_RANGE_CHALLENGE"
+        },
+        {
+          "kind": "const",
+          "line": 68,
+          "name": "AAD_RANGE_RESPONSE"
+        },
+        {
+          "kind": "struct",
+          "line": 73,
+          "name": "PendingRangeChallenge"
+        },
+        {
+          "kind": "fn",
+          "line": 82,
+          "name": "send_range_challenge"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "respond_to_range_challenge"
+        },
+        {
+          "kind": "fn",
+          "line": 113,
+          "name": "recv_range_response"
+        },
+        {
+          "kind": "mod",
+          "line": 130,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 134,
+          "name": "connected_channels"
+        },
+        {
+          "kind": "fn",
+          "line": 152,
+          "name": "one_round_trip_measures_a_real_elapsed_time"
+        },
+        {
+          "kind": "fn",
+          "line": 165,
+          "name": "several_round_trips_can_be_run_in_sequence"
+        },
+        {
+          "kind": "fn",
+          "line": 178,
+          "name": "a_response_over_the_wrong_channel_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 198,
+          "name": "an_echo_of_the_wrong_challenge_is_rejected"
+        }
+      ],
+      "title": "use std::time::Instant;"
+    },
+    {
       "bytes": 7262,
       "group": "crate:mini-presence",
       "headings": [],
@@ -33643,7 +33745,7 @@
       "title": "use did_mini::{Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 3433,
+      "bytes": 4399,
       "group": "crate:mini-presence",
       "headings": [],
       "keywords": [
@@ -33651,6 +33753,7 @@
         "write",
         "identity",
         "error",
+        "match",
         "result",
         "fmt",
         "kel",
@@ -33658,64 +33761,63 @@
         "identityerror",
         "presence",
         "attestation",
+        "channel",
         "policy",
-        "match",
-        "evidence",
         "range",
+        "evidence",
         "device",
         "does",
         "root",
         "replay",
+        "failure",
+        "bearer",
         "cannot",
-        "round-trip",
-        "exceeds",
-        "its",
-        "nonce"
+        "round-trip"
       ],
-      "lines": 79,
+      "lines": 98,
       "path": "crates/mini-presence/src/error.rs",
-      "sha256": "27c45d6b1e27d304109361e85959a752b2c50df1faca539016c92cb127cbf34b",
+      "sha256": "7cd978b5454a10915b150a315b7d0f7cdec50c57d15a724fadb3c6324271ac77",
       "symbols": [
         {
           "kind": "type",
-          "line": 6,
+          "line": 8,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 11,
+          "line": 13,
           "name": "PresenceError"
         },
         {
           "kind": "impl",
-          "line": 42,
+          "line": 56,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 43,
+          "line": 57,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 72,
+          "line": 91,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 74,
+          "line": 93,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 75,
+          "line": 94,
           "name": "from"
         }
       ],
       "title": "use did_mini::IdentityError;"
     },
     {
-      "bytes": 3818,
+      "bytes": 3961,
       "group": "crate:mini-presence",
       "headings": [],
       "keywords": [
@@ -33728,6 +33830,7 @@
         "spec-02",
         "nonces",
         "real",
+        "active_range",
         "error",
         "persisted",
         "verify",
@@ -33741,40 +33844,44 @@
         "verify_presence",
         "never",
         "nonce",
-        "fixed",
-        "co-presence"
+        "fixed"
       ],
-      "lines": 75,
+      "lines": 79,
       "path": "crates/mini-presence/src/lib.rs",
-      "sha256": "734b7ee2504771dd9eab4446d7dba55e23090efbfcc99b6289f44f99e43d2c84",
+      "sha256": "4346e3f53b795f510a86e8bcefe49e500931e2669042b4c85744c69d155c1db1",
       "symbols": [
         {
           "kind": "mod",
           "line": 59,
-          "name": "attestation"
+          "name": "active_range"
         },
         {
           "kind": "mod",
           "line": 60,
-          "name": "error"
+          "name": "attestation"
         },
         {
           "kind": "mod",
           "line": 61,
-          "name": "persisted"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 62,
-          "name": "ranging"
+          "name": "persisted"
         },
         {
           "kind": "mod",
           "line": 63,
+          "name": "ranging"
+        },
+        {
+          "kind": "mod",
+          "line": 64,
           "name": "verify"
         }
       ],
-      "title": "mod attestation;"
+      "title": "mod active_range;"
     },
     {
       "bytes": 14554,
@@ -49728,7 +49835,7 @@
       "title": "Start here \u2014 for an auditor or skeptic"
     },
     {
-      "bytes": 4200,
+      "bytes": 4871,
       "group": "docs",
       "headings": [
         {
@@ -49743,49 +49850,49 @@
         },
         {
           "level": 2,
-          "line": 51,
+          "line": 61,
           "text": "Before trusting any of this"
         },
         {
           "level": 2,
-          "line": 65,
+          "line": 75,
           "text": "UI beta (the product layer)"
         },
         {
           "level": 2,
-          "line": 72,
+          "line": 82,
           "text": "Post-beta (not on the critical path)"
         }
       ],
       "keywords": [
         "beta",
-        "cargo",
         "real",
-        "status",
+        "cargo",
         "see",
+        "status",
+        "path",
         "personhood",
         "identity",
         "still",
         "ble",
-        "demo",
         "what",
         "here",
-        "path",
+        "honest",
         "keystone",
         "reward",
         "root",
         "full",
         "forge",
+        "pass",
         "all-features",
         "today",
+        "demo",
         "but",
-        "yet",
-        "one",
-        "release"
+        "channel"
       ],
-      "lines": 78,
+      "lines": 88,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "6815c2fcef3749e5a70557854d76007a62ba6a0a58dbc0fbbefc8f66562c786e",
+      "sha256": "44fa0cf083b57218eb142c2c1d94bbfa1158400a9e969ee21f5ee455a4f7276e",
       "symbols": [],
       "title": "Beta status"
     },
@@ -49913,7 +50020,7 @@
       "title": "{"
     },
     {
-      "bytes": 709069,
+      "bytes": 718761,
       "group": "docs",
       "headings": [
         {
@@ -50343,9 +50450,9 @@
         "signed",
         "new"
       ],
-      "lines": 11842,
+      "lines": 12001,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "e659b98485ca45dc6956a4d67ff2a37f0a88154ae3fa3b2a1d1ab4ffeeb85f7d",
+      "sha256": "4e1665fd755b2ad2f70966106fadad25c0486be9a9b369647d1a54b7b234bcbc",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -51489,7 +51596,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 83742,
+      "bytes": 84209,
       "group": "docs",
       "headings": [
         {
@@ -51514,67 +51621,67 @@
         },
         {
           "level": 2,
-          "line": 184,
+          "line": 190,
           "text": "3. Identity & key custody"
         },
         {
           "level": 2,
-          "line": 282,
+          "line": 288,
           "text": "4. Money & finality"
         },
         {
           "level": 2,
-          "line": 348,
+          "line": 354,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 395,
+          "line": 401,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 580,
+          "line": 586,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 621,
+          "line": 627,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 682,
+          "line": 688,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 712,
+          "line": 718,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 945,
+          "line": 951,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1104,
+          "line": 1110,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1165,
+          "line": 1171,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1227,
+          "line": 1233,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1293,
+          "line": 1299,
           "text": "Where to look for more detail"
         }
       ],
@@ -51604,9 +51711,9 @@
         "social",
         "network"
       ],
-      "lines": 1308,
+      "lines": 1314,
       "path": "docs/STATUS.md",
-      "sha256": "03cbc30515a9ee418936baa09a121855cc1d5c2b791b07c45015c960d3137da8",
+      "sha256": "7bb2009e080a86a93c01af83d9633eebcb3f5bf41de21cacfcdc6bf35bc0c677",
       "symbols": [],
       "title": "Implementation status"
     },

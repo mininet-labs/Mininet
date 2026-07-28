@@ -11839,3 +11839,162 @@ shape differ enough that copying this module verbatim would not be a
 straightforward fit.
 
 **Supersedes / superseded by:** none.
+
+### D-0367 — `mini-keystone`: `run_demo` takes caller-supplied `ReplayGuard`s, wiring in `FileReplayGuard`  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0366's own "Required follow-up" line;
+`docs/BETA_STATUS.md` item 3.
+
+**Decision:** `run_demo`'s signature grows two parameters,
+`replay_guard_a: &mut dyn ReplayGuard` and `replay_guard_b: &mut dyn
+ReplayGuard`, one per side, replacing the `InMemoryReplayGuard::new()`
+each side previously constructed and discarded internally on every
+call. A caller now owns and passes in whichever `ReplayGuard`
+implementation it wants — `InMemoryReplayGuard` for the existing
+in-process tests/example, or `FileReplayGuard` (D-0366) for a real app
+that wants replay state to survive a restart. `#[allow(clippy::
+too_many_arguments)]` added to `run_demo`, matching the same idiom
+already used at nine other call sites across this workspace
+(`mini-bootstrap`, `mini-social`, `mini-cli`) for functions that
+compose several independent subsystems by design.
+
+**Reason:** D-0366 shipped `FileReplayGuard` but nothing in
+`mini-keystone` could actually use it: `run_demo` built a fresh,
+throwaway `InMemoryReplayGuard` inline on every call and dropped it the
+instant the function returned, so no guard — in-memory or file-backed
+— ever had a chance to remember anything across two separate calls in
+the first place. That is the literal gap BETA_STATUS.md item 3 named
+as "not yet wired into `mini-keystone`'s demo." Passing the guard in
+from the caller is the smallest change that closes it: `run_demo`
+itself needed no new logic, only a place to receive durable state from
+whoever actually owns the device's on-disk storage.
+
+**Constitutional impact:** none. No cryptography, no new dependency,
+no Tier-F invariant touched. `run_demo`'s behavior for existing callers
+that pass a fresh `InMemoryReplayGuard` per call (this crate's own
+tests and example) is bit-for-bit identical to before.
+
+**Implementation status:** Shipped this PR. `crates/mini-keystone/
+tests/keystone.rs` updated: three existing tests now pass explicit
+`InMemoryReplayGuard`s (unchanged behavior); one new test,
+`keystone_demo_works_with_a_durable_file_replay_guard`, opens two real
+`FileReplayGuard`s at temp-file paths and runs the full demo through
+them end to end, proving the wiring works, not merely that it
+compiles. `crates/mini-keystone/examples/keystone.rs` updated to use
+`FileReplayGuard` (the pattern a real app should follow) instead of
+`InMemoryReplayGuard`, with its own doc comment noting that real replay
+resistance across restarts requires opening it at a persistent path,
+not the fresh temp file this convenience demo uses per run.
+`cargo fmt`/`clippy -D warnings`/`test` clean workspace-wide; no other
+crate calls `run_demo`, so this is not a breaking change to any
+consumer outside this crate.
+
+**Failure point:** `run_demo` itself has no opinion on whether the
+guard a caller passes in is actually durable — a caller that keeps
+constructing a fresh `InMemoryReplayGuard` per call (as this crate's
+own tests still do, deliberately, to keep them self-contained) gets
+exactly zero cross-call replay protection, same as before this PR.
+This PR makes the durable option *reachable*; it does not force any
+caller to *use* it.
+
+**Required follow-up:** BETA_STATUS.md item 3 can now be marked fully
+closed. Item 1 (BLE bearer adapters) remains the actual blocker to a
+real two-phone beta; once a phone app exists, it is that app's
+responsibility to open one `FileReplayGuard` per device at a real
+persistent path (e.g. app-private storage) and hold it for the
+process's lifetime, not to construct one per encounter.
+
+**Supersedes / superseded by:** none.
+
+### D-0368 — `mini-presence`: real challenge-response round-trip ranging (`active_range`)  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** `docs/BETA_STATUS.md` item 2 ("Active
+range measurement"); `mini-bearer`'s own lib.rs doc comment, which already
+named this forward-looking ("Presence attestations will sign a transcript
+that includes `Channel::channel_binding`, both nonces, and the range
+challenge... anti-relay comes from the whole presence protocol and its
+round-trip distance bound").
+
+**Decision:** New module `crates/mini-presence/src/active_range.rs`,
+exporting three functions that together perform one real challenge-response
+round trip over an already-bound `mini_bearer::Channel`:
+`send_range_challenge` (measuring side: seal and send a fresh random
+32-byte challenge, start a wall-clock `Instant` timer), `respond_to_
+range_challenge` (responding side: receive one challenge and echo it
+straight back, no processing delay beyond the AEAD open/seal itself), and
+`recv_range_response` (measuring side: block for the echo, verify it
+matches the challenge sent, return the measured elapsed milliseconds).
+`mini-keystone::run_demo` now calls these `policy.min_rtt_samples` times
+before assembling `AttestationFields`, replacing the literal
+`vec![9, 11, 10, 12]` it previously hand-wrote with genuinely measured
+samples. Split into three steps rather than one function that internally
+sends-then-blocks: a real two-phone deployment runs the two loops as two
+independent processes with no coordination beyond these three steps, but a
+single-process caller (this crate's own tests, `mini-keystone`'s demo) has
+one thread and must interleave them — the same shape `run_demo` already
+uses for its channel handshake and KEL exchange, so this follows that
+established local precedent rather than introducing `std::thread::scope`
+(which would need to widen `run_demo`'s `&mut dyn Bearer` parameters to
+`&mut (dyn Bearer + Send)`, a third change to that signature in as many
+PRs, for a property that pure interleaving already gets for free). Only
+the measuring side's clock is ever trusted — the same principle classical
+distance-bounding protocols use, so no clock coordination between the two
+devices is needed for the bound to mean anything. New `PresenceError`
+variants: `RangingEchoMismatch` (the peer echoed the wrong value),
+`Bearer(mini_bearer::BearerError)` (covers AEAD auth failure too — a
+response encrypted under the wrong channel's keys fails to `open`, not a
+separate check this crate has to add), `Crypto(mini_crypto::CryptoError)`
+(the entropy source failed while generating a challenge).
+
+**Reason:** Before this, `AttestationFields::rtt_samples_ms` was a
+`Vec<u32>` a caller assembled by hand with no protocol behind it —
+`verify_presence` only ever checked the *signature* over the transcript,
+never that the claimed timings actually happened, so whichever side built
+the fields could put any numbers it liked there. `docs/BETA_STATUS.md`
+item 2 named this explicitly: "the current RTT ceiling is a software
+thresholding hook over *reported* samples, not an active challenge-response
+measurement; no anti-relay claim is made until it is." This closes that
+specific gap with the smallest real protocol that does it: no new
+dependency, composes only `mini_bearer::Channel`'s existing `seal`/`open`
+and `mini_crypto::random_32`, already-reviewed primitives (Directive 14,
+"simplicity is security" — a full formal distance-bounding protocol with
+pre-committed challenge/response bits was considered and rejected as
+disproportionate to what this milestone needs; see Honest limits below).
+
+**Constitutional impact:** none. No new cryptographic primitive (composes
+`mini-bearer`'s existing AEAD channel and `mini-crypto`'s existing CSPRNG
+wrapper — D-0063's composition-of-reviewed-primitives allowance, not new
+crypto), no new dependency, no Tier-F invariant touched. `RangePolicy`,
+`verify_presence`, and the `AttestationFields` wire format are all
+unchanged — this only changes *how* one field's values get produced by an
+honest caller, not what gets checked or signed.
+
+**Implementation status:** Shipped this PR. `mini-presence`: 4 new tests in
+`active_range::tests` (one round trip measures a real, non-literal elapsed
+time; several round trips run in sequence; a response encrypted under a
+different channel's keys is rejected — AEAD auth failure surfaces as
+`PresenceError::Bearer`; an echo of the wrong value under valid channel
+keys is rejected as `RangingEchoMismatch`). `mini-keystone`: `run_demo`
+now runs the real exchange before building `fields`; existing tests
+unchanged in what they assert (still 4 passing, including the
+deterministic-repeat test, confirming real measured in-process RTTs stay
+well under `RangePolicy::ble_default()`'s 50ms ceiling); `cargo run -p
+mini-keystone --example keystone` re-verified to produce the same output.
+`cargo fmt`/`clippy -D warnings`/`test` clean workspace-wide (175 suites).
+
+**Failure point:** Documented plainly in the module's own doc comment: this
+is round-trip application-layer timing over whatever transport `Bearer`
+sits on, not a formal cryptographic distance-bounding protocol (no
+pre-committed challenge/response bits exchanged before the round begins)
+and not hardware ranging (`crate::ranging`, still `pending` a platform
+shell). It does not defeat a wormhole/relay attack that forwards bytes
+between two real devices with near-zero added latency — no software-only
+RTT bound can close that; the composed defense for physical proximity
+remains this bound plus (when present) the hardware UWB tightening
+D-0034 already added, neither one alone.
+
+**Required follow-up:** none blocking; `docs/BETA_STATUS.md` item 2 can be
+marked closed for the software-only claim it describes. A future, stronger
+distance-bounding construction (pre-committed bits, single-bit rapid
+exchange) remains open future work if the threat model ever needs it, not
+started here.
+
+**Supersedes / superseded by:** none.

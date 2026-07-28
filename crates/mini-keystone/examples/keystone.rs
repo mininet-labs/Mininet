@@ -18,7 +18,7 @@
 
 use mini_bearer::pair;
 use mini_keystone::{run_demo, Participant};
-use mini_presence::TransportKind;
+use mini_presence::{FileReplayGuard, TransportKind};
 
 fn print_own_device_view(
     owner_label: &str,
@@ -40,6 +40,22 @@ fn main() {
     let bob = Participant::from_seeds([5; 32], [6; 32], [7; 32], [8; 32]).expect("bob");
     let (mut bearer_a, mut bearer_b) = pair();
 
+    // Each side owns its own durable replay guard, backed by its own file --
+    // exactly as two separate phones would each hold their own on-device
+    // state (D-0366). Real replay resistance across app restarts requires a
+    // caller to open these at a persistent path, not a fresh temp file per
+    // run as this demo does for convenience.
+    let mut guard_alice = FileReplayGuard::open(
+        std::env::temp_dir().join("mini-keystone-demo-alice.log"),
+        60_000,
+    )
+    .expect("alice's replay guard");
+    let mut guard_bob = FileReplayGuard::open(
+        std::env::temp_dir().join("mini-keystone-demo-bob.log"),
+        60_000,
+    )
+    .expect("bob's replay guard");
+
     let report = run_demo(
         &alice,
         &bob,
@@ -47,6 +63,8 @@ fn main() {
         &mut bearer_b,
         TransportKind::InProcess,
         1_000_000,
+        &mut guard_alice,
+        &mut guard_bob,
     )
     .expect("keystone demo");
 
