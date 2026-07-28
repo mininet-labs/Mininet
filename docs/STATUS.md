@@ -1061,6 +1061,40 @@ the top development priority.
   precondition for D-0361's still-deferred "paid providers cannot
   suppress unpaid public objects" property, not a proof of it — no
   provider-settlement layer exists yet to test the full claim against.
+- **shipped, prototype (D-0364, Track D1/D2)** — new crate
+  `mini-publication-policy`: `PublicationProfile` (Track D1) turns
+  "visibility, attribution, transport, and persistence as independent
+  choices" into a typed value with no cross-field validation of its own
+  — every one of the 3 × 2 × 4 × 3 = 72 combinations constructs, so no
+  future edit can silently couple two dimensions without a visible type
+  change. `achieved_result_receipt_for` (Track D2) is a thin
+  composition of `mini-transport-policy::route` (fail-closed protection-
+  property check) and `mini-resource-pricing::quote` (pricing), adding
+  no new routing or pricing logic of its own; `quote` is `None` exactly
+  at `PrivacyTier::Direct`, matching D-0363's "free base tier is never
+  quoted" convention. Publishes nothing — no object store, no bytes over
+  `mini-relay`/`mini-bridge`, no payment execution; `Attribution::
+  Anonymous` is a declared intent the type does not itself enforce
+  (D1's independence requirement forbids baking a
+  `CounterpartyIpHiding`/`WhoTalksToWhomHiding` request into the type).
+  Tracks D3-D6 (source-hiding path, mixed transport, suppression-
+  resistant replication, unlinkable settlement) remain separately
+  scoped, not started here.
+- **shipped, prototype (D-0365, Track D3)** — `mini-publication-policy`
+  gains `source_hiding_publication_path_for`: plans `mini-relay` roles
+  (`[Entry, Rendezvous]`) for a profile's publication by composing
+  `mini-transport-policy::route` and `mini-relay::
+  roles_for_route_decision` unchanged, adding no new routing/relay
+  logic. Deliberately not gated on `Attribution` — network-counterparty
+  hiding and identity-root disclosure are orthogonal, so an `Attributed`
+  profile gets a source-hiding path exactly as readily as an `Anonymous`
+  one. Fails closed at two layers: `Direct` tier is rejected by `route`
+  itself (`CounterpartyIpHiding` needs at least `Relayed`); `Mixed`/
+  `Burst` pass that check but are rejected by `mini-relay` (mix network
+  not implemented, gated behind D-0047/D-0305). Still a role *plan*
+  only — no relay identity is contacted, no `DeliveryAssignment` is
+  produced; turning a role list into a real, discoverable relay path
+  remains not-yet-scoped follow-up.
 
 ## Client coverage
 
