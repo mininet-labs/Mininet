@@ -159,8 +159,9 @@ impl RootCore {
         let device = state.devices.first().ok_or(PairingError::NoDevice)?;
         let random =
             mini_crypto::random_32().map_err(|error| PairingError::Protocol(error.to_string()))?;
-        let mut nonce = [0_u8; PAIRING_NONCE_BYTES];
-        nonce.copy_from_slice(&random[..PAIRING_NONCE_BYTES]);
+        let nonce: [u8; PAIRING_NONCE_BYTES] = random[..PAIRING_NONCE_BYTES]
+            .try_into()
+            .expect("the random source is wider than the pairing nonce");
         let endpoint = SocketAddr::new(advertised_ip, port);
         let offer = create_pairing_offer(
             &root.kel(),
