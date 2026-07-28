@@ -32,6 +32,9 @@ pub enum CliError {
     /// Spawning or speaking `mini-pipeline-protocol` to the real
     /// `mini-build-runner-wasmtime` binary failed.
     Build(String),
+    /// A `mini-keystone`/`mini-presence` operation failed (`mini keystone
+    /// run`).
+    Keystone(String),
     /// The command line itself was malformed (missing/unknown flag, wrong
     /// argument count).
     Usage(String),
@@ -60,6 +63,7 @@ impl fmt::Display for CliError {
             CliError::Provenance(e) => write!(f, "provenance error: {e}"),
             CliError::Installer(e) => write!(f, "installer error: {e}"),
             CliError::Build(e) => write!(f, "build error: {e}"),
+            CliError::Keystone(e) => write!(f, "keystone demo error: {e}"),
             CliError::Usage(e) => write!(f, "usage error: {e}"),
         }
     }
@@ -85,6 +89,7 @@ impl CliError {
             CliError::Provenance(_) => "provenance",
             CliError::Installer(_) => "installer",
             CliError::Build(_) => "build",
+            CliError::Keystone(_) => "keystone",
             CliError::Usage(_) => "usage",
         }
     }

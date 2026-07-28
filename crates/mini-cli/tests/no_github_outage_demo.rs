@@ -38,6 +38,7 @@ fn the_full_no_github_outage_demo_script_runs_clean() {
     );
 
     for marker in [
+        "keystone demo complete",
         "governed merge reached, verified from a third independent identity",
         "2 independent attester(s)",
         "release 1.0.0 installed and healthy",

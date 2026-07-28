@@ -37,6 +37,7 @@ mod error;
 pub mod identity;
 mod installer;
 mod json;
+mod keystone;
 mod pr;
 mod project;
 mod provenance;
