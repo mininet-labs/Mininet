@@ -65,6 +65,7 @@ members = [
     "crates/mini-airdrop-treasury",
     "crates/mini-commons-policy",
     "crates/mini-publication-policy",
+    "crates/mini-web-extract",
     "crates/mini-replication-policy",
 ]
 

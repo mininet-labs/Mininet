@@ -12258,3 +12258,108 @@ research) remains separately scoped and not started here.
 **Supersedes / superseded by:** implements the Track D5 slice named by
 D-0311/D-0312 after D-0364/D-0365 (Track D1-D3). Does not supersede
 `mini-erasure`, `mini-publication-policy`, or any other existing crate.
+### D-0371 — `mini-web-extract`: sandboxed-in-principle static HTML extraction, Track E4  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0312 (MiniSearch doctrine); D-0316
+(`mini-web-types`); D-0317 (`mini-crawler`); issue #167; founder-supplied
+`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§14.3 and Track E PR sequence; Directive 16 (voice/value wall); Directive
+14 (simplicity is security)
+
+**Decision:** adds `mini-web-extract`, the fourth MiniSearch code slice
+after `mini-web-types`/`mini-crawler`. `extract(html: &str) ->
+Result<PageExtract, ExtractError>` is a pure function over already-
+fetched HTML text: no network client, no crawler, no storage, no
+JavaScript execution, no third-party HTML parsing dependency. It hand-
+rolls a small single-pass tokenizer (matching `mini-crypto::multihash`'s
+precedent for hand-rolling a narrow, auditable parser instead of
+importing one) that returns title, headings (`h1`-`h6`), collapsed
+visible text, links (raw `href`/`rel`/anchor text, not resolved against a
+base URL), `<html lang>`, `<meta name/content>` pairs, a `rel=canonical`
+hint, a BLAKE3 digest of the visible text, script/iframe tag counts,
+absolute-URL script-src hosts, and a byte count of text found inside
+`display:none`/`visibility:hidden`/`hidden` elements. `<script>`,
+`<style>`, `<noscript>`, and `<template>` content is always skipped as
+opaque bytes via literal `</tagname` scanning — never parsed as markup or
+evaluated, matching real HTML5 raw-text-element behavior (including the
+surprising real-browser case where a literal `</script` inside a JS
+string ends scanning early). Input is hard-capped at 8 MiB
+(`InputTooLarge`); output arrays (links/headings/meta/script-hosts) are
+separately capped and silently truncated with `PageExtract::truncated`
+set, rather than erroring the whole extraction over one adversarially
+large document.
+
+**Reason:** D-0317's own "Required follow-up" named "static HTML/text
+extraction in a sandboxed process" as the next Track E slice after
+crawler planning. Building the parser as a pure function first — proven
+against the same host/malformed-input adversarial cases a later isolated
+runner would still need — makes the eventual isolation boundary (behind
+`mini-extract-host`'s process model or equivalent, not built here) a
+deployment decision rather than a correctness one. Shipping this now
+also keeps Track E moving on the "both" track (Android/BLE work in
+parallel with queued research tracks) without touching Kotlin or adding
+any new external dependency's CVE surface, which independently-verifiable
+Rust-only work should not do while a Kotlin-side fix (D-0370's follow-up,
+PR #251) is still the CI-verified gate on the mobile side.
+
+**Constitutional impact:** strengthens the search-domain extension of
+Directive 16 without adding authority. `mini-web-extract` contains no
+payment, stake, balance, governance-weight, or provider-entitlement
+field; nothing here can buy ranking authority, execute untrusted code, or
+canonicalize content. No new cryptography — `content_digest` reuses
+`mini-crypto`'s existing BLAKE3 multihash exactly as `mini-web-types`
+already does.
+
+**Implementation status:** shipped in `mini-web-extract` and added to the
+workspace. `cargo fmt --all -- --check`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` all clean on this (Linux) host (177 test binaries, all
+passing). 15 unit tests cover: title/heading/link/meta/canonical/
+language extraction on well-formed markup; script/style content never
+leaking into visible text or headings; the literal-`</script`-inside-a-
+string edge case (documented as intentionally spec-matching, not a bug);
+hidden-element text exclusion and counting; relative vs. absolute script
+sources; HTML entity decoding (named and numeric); malformed/unclosed
+markup yielding partial rather than empty output; the unclosed-`<title>`
+edge case (documented departure from true RCDATA parsing); stray end
+tags being ignored; oversized-input rejection; content-digest
+determinism (same visible text via different markup digests identically);
+first-title-wins; adjacent-element text never gluing together; and
+`rel=canonical` gating.
+
+**Failure point:** this crate hand-rolls tag-soup recovery via simple
+stack-matching rather than the full HTML5 tree-construction algorithm, so
+its behavior on deeply pathological or adversarially crafted markup can
+diverge from a real browser's beyond the documented cases (e.g., no
+implicit-end-tag table for `<p>`/list items, so an unclosed `<h1>`
+followed by other block content keeps accumulating heading text instead
+of auto-closing). CSS-driven hiding is only detected via a literal
+`display:none`/`visibility:hidden` substring check on an inline `style`
+attribute — a hide reached through an external or `<style>`-block
+stylesheet is invisible to this crate, so `hidden_text_byte_count` is a
+lower bound, not a complete cloaking signal. `<title>` is not true
+RCDATA: markup nested inside an unclosed `<title>` is parsed normally
+(and its descendant text additionally folds into the title), unlike real
+HTML5. Most importantly: **this crate is not a security sandbox.** It is
+`#![forbid(unsafe_code)]` and never executes document content, but it has
+no process boundary, memory-consumption ceiling beyond the 8 MiB input
+cap, or crash-isolation from whatever calls it directly. The doctrine
+document's call for running extraction "in isolation" is not satisfied
+by this PR alone.
+
+**Required follow-up:** wiring `mini-web-extract` behind real process
+isolation (`mini-extract-host`'s existing model, or a dedicated one, kept
+separate from Track B's Mininet-Intake-scoped extractor per the research
+doc's explicit domain separation) before any untrusted internet content
+reaches it in a real deployment; relative-URL resolution turning
+`ExtractedLink::href` into a `mini_web_types::CanonicalUrl` the crawler
+can queue (deliberately not attempted here — resolution correctness is
+its own surface); a runtime that actually fetches pages via
+`mini-crawler`'s admission plan and feeds the bytes here; `mini-index`
+(Track E5, lexical index over `PageExtract`); `mini-ranker` (Track E6,
+consuming `hidden_text_byte_count`/script signals it does not itself
+interpret); `mini-query` (E7); result provenance (E8).
+
+**Supersedes / superseded by:** implements the Track E4 slice named by
+D-0317 after D-0316/D-0317. Does not supersede `mini-web-types`,
+`mini-crawler`, `mini-extract-protocol`, or `mini-extract-host` (Track
+B3's separately-scoped Mininet-Intake extractor).

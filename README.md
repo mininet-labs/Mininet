@@ -145,6 +145,12 @@ so, everywhere, on purpose.
   URL admission policy — bounded same-host frontiers, explicit robots
   exclusions, depth/queue/URL-length limits, and no network client,
   parser, JavaScript, storage, ranking, or payment logic
+- `mini-web-extract` (D-0371): sandboxed-in-principle static HTML
+  extraction over already-fetched text — title, headings, visible text,
+  unresolved links, language, metadata, a content digest, and hidden-
+  text/script signals for a later ranker; hand-rolled parser, no
+  JavaScript execution, no third-party HTML parsing dependency, no
+  process isolation yet
 - `mini-provider` (D-0400) / `mini-engagement` (D-0402, D-0403): Founder
   Directive 18's edge/provider layer, Waves 1-2 — `ProviderDeclaration`
   (mandatory custody/freeze/death/exit disclosure fields), the device-

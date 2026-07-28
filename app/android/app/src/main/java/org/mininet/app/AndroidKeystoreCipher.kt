@@ -44,7 +44,7 @@ class AndroidKeystoreCipher(
             val body = cipher.doFinal(plaintext.toByteArray())
             return (iv + body).toUByteList()
         } catch (e: Exception) {
-            throw StorageCipherException.Failed()
+            throw StorageCipherException.Failed(e.message ?: "encryption failed")
         }
     }
 
@@ -52,7 +52,9 @@ class AndroidKeystoreCipher(
         try {
             val bytes = ciphertext.toByteArray()
             if (bytes.size < IV_LENGTH_BYTES) {
-                throw StorageCipherException.Failed()
+                throw StorageCipherException.Failed(
+                    "ciphertext shorter than the IV alone (${bytes.size} < $IV_LENGTH_BYTES bytes)",
+                )
             }
             val iv = bytes.copyOfRange(0, IV_LENGTH_BYTES)
             val body = bytes.copyOfRange(IV_LENGTH_BYTES, bytes.size)
@@ -62,7 +64,7 @@ class AndroidKeystoreCipher(
         } catch (e: StorageCipherException) {
             throw e
         } catch (e: Exception) {
-            throw StorageCipherException.Failed()
+            throw StorageCipherException.Failed(e.message ?: "decryption failed")
         }
     }
 

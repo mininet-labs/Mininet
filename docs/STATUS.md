@@ -989,8 +989,19 @@ the top development priority.
   bounded same-host frontiers, explicit robots exclusions,
   depth/queue/URL-length limits, HTTPS-only by default, and no network
   client, parser, JavaScript execution, storage, indexing, ranking, or
-  payment logic. Still no extractor, lexical index, ranker, query
-  service, search UI, network exchange, or federated/distributed layer.
+  payment logic. `mini-web-extract` (D-0371, Track E4) is the third code
+  slice: a pure, hand-rolled static-HTML extractor (`extract(html: &str)
+  -> PageExtract`) over already-fetched text — title, headings, visible
+  text, links (unresolved `href`/anchor text), `<html lang>`, meta name/
+  content pairs, `rel=canonical`, a BLAKE3 content digest, script/iframe
+  counts, absolute-URL script-src hosts, and a hidden-text byte count for
+  a later ranker to weigh, not this crate to judge. `<script>`/`<style>`/
+  `<noscript>`/`<template>` content is always skipped as opaque bytes,
+  never parsed as markup or executed — but this is "sandboxed-in-
+  principle," not sandboxed today: no process or Wasm isolation wraps it
+  yet, an honest gap the crate doc names explicitly. Still no lexical
+  index, ranker, query service, search UI, network exchange, crawler
+  runtime that actually fetches pages, or federated/distributed layer.
   Explicitly a distinct system from
   `mini-private-index` (D-0310), which is not to be repurposed as the
   general web index. See `docs/research/

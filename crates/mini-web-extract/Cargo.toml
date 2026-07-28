@@ -1,0 +1,14 @@
+[package]
+name = "mini-web-extract"
+version = "0.0.1"
+description = "Sandboxed-in-principle static HTML extraction for MiniSearch (D-0312/Track E4): title, headings, visible text, links, language, metadata, and a content digest from already-fetched bytes. No network client, no JavaScript execution, no storage, indexing, ranking, or payment logic."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+mini-web-types = { path = "../mini-web-types" }
