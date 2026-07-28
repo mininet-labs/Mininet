@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 60,
-    "files": 960,
+    "files": 961,
     "headings": 2246,
-    "rust_symbols": 6209
+    "rust_symbols": 6239
   },
   "crates": {
     "did-mini": {
@@ -7013,6 +7013,188 @@
       "title": "mini-bearer"
     },
     {
+      "bytes": 8717,
+      "group": "crate:mini-bearer",
+      "headings": [],
+      "keywords": [
+        "self",
+        "androidblebearer",
+        "bleradio",
+        "chunk",
+        "radio",
+        "bearer",
+        "mtu",
+        "result",
+        "frame",
+        "ble",
+        "fmt",
+        "reassembler",
+        "try_read_chunk",
+        "one",
+        "what",
+        "real",
+        "write_chunk",
+        "read_chunk",
+        "std",
+        "trait",
+        "chunk_frame",
+        "chunkreassembler",
+        "vec",
+        "return"
+      ],
+      "lines": 230,
+      "path": "crates/mini-bearer/src/android_ble.rs",
+      "sha256": "3f701454cb10764c84c464b522d4b1716f7ed9a605741b01acbb82e777998483",
+      "symbols": [
+        {
+          "kind": "trait",
+          "line": 37,
+          "name": "BleRadio"
+        },
+        {
+          "kind": "fn",
+          "line": 40,
+          "name": "write_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 43,
+          "name": "read_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 48,
+          "name": "try_read_chunk"
+        },
+        {
+          "kind": "struct",
+          "line": 54,
+          "name": "AndroidBleBearer"
+        },
+        {
+          "kind": "impl",
+          "line": 60,
+          "name": "std::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 61,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 69,
+          "name": "AndroidBleBearer<R>"
+        },
+        {
+          "kind": "fn",
+          "line": 75,
+          "name": "new"
+        },
+        {
+          "kind": "impl",
+          "line": 84,
+          "name": "Bearer"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "send"
+        },
+        {
+          "kind": "fn",
+          "line": 92,
+          "name": "recv"
+        },
+        {
+          "kind": "fn",
+          "line": 101,
+          "name": "try_recv"
+        },
+        {
+          "kind": "mod",
+          "line": 120,
+          "name": "tests"
+        },
+        {
+          "kind": "struct",
+          "line": 125,
+          "name": "MockRadio"
+        },
+        {
+          "kind": "impl",
+          "line": 130,
+          "name": "BleRadio"
+        },
+        {
+          "kind": "fn",
+          "line": 131,
+          "name": "write_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 136,
+          "name": "read_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "try_read_chunk"
+        },
+        {
+          "kind": "fn",
+          "line": 148,
+          "name": "pair_with_mtu"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "pair"
+        },
+        {
+          "kind": "fn",
+          "line": 164,
+          "name": "a_frame_larger_than_one_chunk_round_trips_through_chunking_and_reassembly"
+        },
+        {
+          "kind": "fn",
+          "line": 172,
+          "name": "multiple_frames_round_trip_in_order"
+        },
+        {
+          "kind": "fn",
+          "line": 185,
+          "name": "try_recv_returns_none_with_nothing_pending_then_the_frame_once_sent"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "a_write_failure_when_the_peer_radio_is_gone_surfaces_through_send"
+        },
+        {
+          "kind": "fn",
+          "line": 201,
+          "name": "a_read_failure_when_the_peer_radio_is_gone_surfaces_through_recv"
+        },
+        {
+          "kind": "fn",
+          "line": 209,
+          "name": "an_empty_frame_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 216,
+          "name": "a_tiny_mtu_forces_many_chunks_and_still_reassembles_correctly"
+        },
+        {
+          "kind": "fn",
+          "line": 224,
+          "name": "an_mtu_too_small_for_even_the_header_is_rejected_before_any_write"
+        }
+      ],
+      "title": "use crate::bearer::Bearer;"
+    },
+    {
       "bytes": 4214,
       "group": "crate:mini-bearer",
       "headings": [],
@@ -7725,7 +7907,7 @@
       "title": "use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};"
     },
     {
-      "bytes": 3367,
+      "bytes": 3437,
       "group": "crate:mini-bearer",
       "headings": [],
       "keywords": [
@@ -7734,6 +7916,7 @@
         "ble",
         "discovery",
         "anonymous",
+        "android_ble",
         "error",
         "inprocess",
         "tcp",
@@ -7751,50 +7934,54 @@
         "bearers",
         "tcpbearer",
         "peer",
-        "localannouncer",
-        "localscanner"
+        "localannouncer"
       ],
-      "lines": 70,
+      "lines": 72,
       "path": "crates/mini-bearer/src/lib.rs",
-      "sha256": "f1a72baa844396d23fc4e3d66de4b9f492ff752327925a6ddc5e5f0f45aa33ab",
+      "sha256": "e683b5bc3036af4f5ee2246013faddcbc35efabcb612b01c21c1c29e3ebaf462",
       "symbols": [
         {
           "kind": "mod",
           "line": 50,
-          "name": "bearer"
+          "name": "android_ble"
         },
         {
           "kind": "mod",
           "line": 51,
-          "name": "ble"
+          "name": "bearer"
         },
         {
           "kind": "mod",
           "line": 52,
-          "name": "channel"
+          "name": "ble"
         },
         {
           "kind": "mod",
           "line": 53,
-          "name": "discovery"
+          "name": "channel"
         },
         {
           "kind": "mod",
           "line": 54,
-          "name": "error"
+          "name": "discovery"
         },
         {
           "kind": "mod",
           "line": 55,
-          "name": "inprocess"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 56,
+          "name": "inprocess"
+        },
+        {
+          "kind": "mod",
+          "line": 57,
           "name": "tcp"
         }
       ],
-      "title": "mod bearer;"
+      "title": "mod android_ble;"
     },
     {
       "bytes": 9774,
@@ -23819,7 +24006,7 @@
       "title": "use std::sync::Mutex;"
     },
     {
-      "bytes": 26835,
+      "bytes": 26894,
       "group": "crate:mini-ffi",
       "headings": [],
       "keywords": [
@@ -23848,9 +24035,9 @@
         "capacity",
         "clone"
       ],
-      "lines": 765,
+      "lines": 766,
       "path": "crates/mini-ffi/src/pairing.rs",
-      "sha256": "0f52ca6b86434f490da41d21047cdf4e7684e09456f8fcadebdd2f5566d4f465",
+      "sha256": "c5c397eb6a76e5777e81eee6492e85e0ea09acaa4d437c6b5093929c98594b2b",
       "symbols": [
         {
           "kind": "const",
@@ -23934,192 +24121,192 @@
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 193,
           "name": "accept_pairing_offer"
         },
         {
           "kind": "fn",
-          "line": 235,
+          "line": 236,
           "name": "finish_pairing_offer"
         },
         {
           "kind": "fn",
-          "line": 294,
+          "line": 295,
           "name": "pairing_contacts"
         },
         {
           "kind": "fn",
-          "line": 300,
+          "line": 301,
           "name": "pairing_follow_objects"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 306,
           "name": "validate_name"
         },
         {
           "kind": "fn",
-          "line": 314,
+          "line": 315,
           "name": "is_lan_address"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 327,
           "name": "timeout"
         },
         {
           "kind": "fn",
-          "line": 334,
+          "line": 335,
           "name": "protocol_error"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 344,
           "name": "sweep_consumed"
         },
         {
           "kind": "fn",
-          "line": 347,
+          "line": 348,
           "name": "reject_consumed"
         },
         {
           "kind": "fn",
-          "line": 358,
+          "line": 359,
           "name": "ensure_capacity_for"
         },
         {
           "kind": "fn",
-          "line": 378,
+          "line": 379,
           "name": "record_consumed"
         },
         {
           "kind": "fn",
-          "line": 396,
+          "line": 397,
           "name": "next_sequence"
         },
         {
           "kind": "fn",
-          "line": 403,
+          "line": 404,
           "name": "build_follow_object"
         },
         {
           "kind": "fn",
-          "line": 418,
+          "line": 419,
           "name": "record_follow_object"
         },
         {
           "kind": "fn",
-          "line": 431,
+          "line": 432,
           "name": "upsert_contact"
         },
         {
           "kind": "fn",
-          "line": 527,
+          "line": 528,
           "name": "put_bytes"
         },
         {
           "kind": "fn",
-          "line": 532,
+          "line": 533,
           "name": "read_string"
         },
         {
           "kind": "fn",
-          "line": 540,
+          "line": 541,
           "name": "read_u64"
         },
         {
           "kind": "fn",
-          "line": 547,
+          "line": 548,
           "name": "encode_qr"
         },
         {
           "kind": "fn",
-          "line": 551,
+          "line": 552,
           "name": "decode_qr"
         },
         {
           "kind": "const",
-          "line": 562,
+          "line": 563,
           "name": "BASE64URL"
         },
         {
           "kind": "fn",
-          "line": 564,
+          "line": 565,
           "name": "base64url_encode"
         },
         {
           "kind": "fn",
-          "line": 582,
+          "line": 583,
           "name": "base64url_decode"
         },
         {
           "kind": "mod",
-          "line": 609,
+          "line": 610,
           "name": "tests"
         },
         {
           "kind": "struct",
-          "line": 614,
+          "line": 615,
           "name": "IdentityCipher"
         },
         {
           "kind": "impl",
-          "line": 616,
+          "line": 617,
           "name": "StorageCipher"
         },
         {
           "kind": "fn",
-          "line": 617,
+          "line": 618,
           "name": "encrypt"
         },
         {
           "kind": "fn",
-          "line": 621,
+          "line": 622,
           "name": "decrypt"
         },
         {
           "kind": "fn",
-          "line": 626,
+          "line": 627,
           "name": "ready_core"
         },
         {
           "kind": "fn",
-          "line": 633,
+          "line": 634,
           "name": "pair"
         },
         {
           "kind": "fn",
-          "line": 656,
+          "line": 657,
           "name": "qr_encoding_round_trips_without_padding"
         },
         {
           "kind": "fn",
-          "line": 663,
+          "line": 664,
           "name": "malformed_qr_text_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 675,
+          "line": 676,
           "name": "two_cores_pair_over_real_tcp_and_each_create_a_signed_follow"
         },
         {
           "kind": "fn",
-          "line": 698,
+          "line": 699,
           "name": "a_successfully_consumed_qr_is_rejected_before_a_second_network_send"
         },
         {
           "kind": "fn",
-          "line": 711,
+          "line": 712,
           "name": "replay_memory_and_contacts_survive_encrypted_state_restore"
         },
         {
           "kind": "fn",
-          "line": 727,
+          "line": 728,
           "name": "expired_and_forged_qr_payloads_fail_closed_without_following"
         },
         {
           "kind": "fn",
-          "line": 750,
+          "line": 751,
           "name": "unsafe_advertised_addresses_and_unbounded_timeouts_are_rejected"
         }
       ],
@@ -51187,7 +51374,7 @@
       "title": "Start here \u2014 for an auditor or skeptic"
     },
     {
-      "bytes": 6475,
+      "bytes": 6881,
       "group": "docs",
       "headings": [
         {
@@ -51202,49 +51389,49 @@
         },
         {
           "level": 2,
-          "line": 82,
+          "line": 87,
           "text": "Before trusting any of this"
         },
         {
           "level": 2,
-          "line": 96,
+          "line": 101,
           "text": "UI beta (the product layer)"
         },
         {
           "level": 2,
-          "line": 103,
+          "line": 108,
           "text": "Post-beta (not on the critical path)"
         }
       ],
       "keywords": [
-        "beta",
         "real",
+        "beta",
         "path",
         "keystone",
         "reward",
         "identity",
-        "but",
-        "status",
         "cargo",
         "still",
         "bearer",
+        "trait",
+        "but",
         "yet",
-        "one",
+        "implementation",
         "own",
         "replay",
+        "status",
         "what",
         "here",
         "honest",
         "encrypted",
         "complete",
         "see",
-        "personhood",
         "presence",
         "ble"
       ],
-      "lines": 109,
+      "lines": 114,
       "path": "docs/BETA_STATUS.md",
-      "sha256": "d91162f16ba7a9b4110ec40d3b503075092c368637e56ad1920e6d87f0f04adb",
+      "sha256": "053d2df374233501258bf50ab16a0f619c37547412843b946ee578bf5fcedf3a",
       "symbols": [],
       "title": "Beta status"
     },
@@ -51372,7 +51559,7 @@
       "title": "{"
     },
     {
-      "bytes": 758412,
+      "bytes": 763124,
       "group": "docs",
       "headings": [
         {
@@ -51802,9 +51989,9 @@
         "status",
         "new"
       ],
-      "lines": 12443,
+      "lines": 12518,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "a94241fe88e25d028c1b1464236053788953ba68f3854d90ef4ecc3e4e17b278",
+      "sha256": "ecbefc8b0f07f08843a82f9e3887e860fb0b622dc9c5e7fa45de1b12b8b84f16",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -52948,7 +53135,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 90143,
+      "bytes": 90497,
       "group": "docs",
       "headings": [
         {
@@ -53023,17 +53210,17 @@
         },
         {
           "level": 2,
-          "line": 1238,
+          "line": 1243,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1300,
+          "line": 1305,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1366,
+          "line": 1371,
           "text": "Where to look for more detail"
         }
       ],
@@ -53063,9 +53250,9 @@
         "social",
         "network"
       ],
-      "lines": 1381,
+      "lines": 1386,
       "path": "docs/STATUS.md",
-      "sha256": "60fcf8a60ae6d356065389a19d0a207b42a0444107b44ba087192974a041ea2e",
+      "sha256": "a16e3821f262649eb89cbe183de9f3d4f5a9662d1aeabcf6ac363e3cc3663e2f",
       "symbols": [],
       "title": "Implementation status"
     },

@@ -1200,9 +1200,14 @@ two-party device enrollment/revocation with no shared-secret transfer
 pairing offer/acceptance protocol composing PR #170's follow graph
 (issue #200, D-0340); and, in `mini-bearer`, the MTU-bounded
 chunking/reassembly a BLE-backed `Bearer` needs to carry a frame across
-GATT's small ATT MTU (issue #201, D-0342) — protocol logic only, no
-`impl Bearer` for BLE yet and no real Bluetooth hardware anywhere in
-this environment. Dependency verification is also done: `cargo-deny`
+GATT's small ATT MTU (issue #201, D-0342), now driven by a real, tested
+`impl Bearer`: `android_ble::AndroidBleBearer<R: BleRadio>` (D-0374)
+turns any `BleRadio` implementation into a full bearer, proven against an
+in-memory mock radio (multi-chunk round-trips, in-order multi-frame
+delivery, disconnect handling, tiny-MTU stress) — but `BleRadio` is a
+plain Rust trait, not yet a UniFFI callback interface, so still no real
+Bluetooth hardware or Kotlin GATT implementation anywhere in this
+environment. Dependency verification is also done: `cargo-deny`
 installed and run for real for the first time, `deny.toml` genuinely
 clean rather than an unverified guess, CI's `dependency-deny` job now
 actually enforcing it (issue #203, D-0341). Issue #198's persistence
