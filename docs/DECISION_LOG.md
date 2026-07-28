@@ -10759,6 +10759,86 @@ evidence once that exists.
 **Supersedes / superseded by:** none. Extends D-0402 without changing
 any of its existing public API.
 
+### D-0404 — `mini-attest` Tier 0: explicitly linkable engagement-proven reviews  ·  *Accepted*
+**Date:** 2026-07-25 · **Refs:** D-0352 (FD-18), D-0400 through D-0403,
+`mini-settlement` D-0055, PR #220 research proposal §3, roadmap issue
+#227 ("Frontier Trust 6"), INV-18-01 through INV-18-06.
+
+**Decision:** Add `mini-attest` as a new FD-18 edge leaf implementing
+only the stable API tier `LINKABLE_TIER_0`. A provider issues a
+provider-KEL-signed, content-addressed
+`EngagementCompletionReceiptV1` after
+`mini_engagement::canonical_completion_status` returns
+`CanonicallyCompleted`. The receipt carries only the deterministic
+engagement commitment, terms/declaration ids, provider DID, holder
+commitment, completion/expiry epochs, completion-state commitment,
+canonical claim digest, and review-subject commitment. It never embeds
+payment amount, payer/payee address, free-form terms, or a reviewer
+human-root DID.
+
+The grant's pairwise `subject` signs a bounded `SignedReviewV1` containing
+the receipt id, subject commitment, verdict, review body/hash, and
+creation epoch. The holder token remains out of public wire bytes and is
+presented separately to the verifier; its commitment is domain-separated
+by subject, provider, and declaration. Verification repeats the original
+engagement's canonical-completion check against the caller's
+`CanonicalLedgerView`, verifies both provider and pairwise-subject KEL
+signatures, checks grant/provider/declaration/terms/epoch/commitment
+bindings, then atomically records a receipt/subject key through a
+verifier-supplied `ReviewRegistry`. The included registry is in-memory
+and explicitly local, never a canonical provider or review registry.
+
+**Reason:** D-0403 and roadmap #226 closed the prerequisite read seam:
+callers can now distinguish a locally asserted `Completed` state from a
+claim the canonical ledger finalized. Tier 0 is the first construction
+that can honestly bind a review to that evidence without waiting for
+novel anonymous-credential research. Making its linkability a typed,
+stable label prevents the fallback from being marketed as partially
+anonymous while Tier 1/2 remain research dependencies.
+
+**Constitutional impact:** FD-18 and INV-18-01/02: this crate is an edge
+leaf and exposes no humanness/governance type or dependency. INV-18-03:
+provider engagement never enters the closed humanness-signal set.
+Directive 16: no review result, provider, payment, or engagement carries
+vote weight. M1-M3/FD-05: a provider signature is not settlement
+finality; every accepting verifier re-runs D-0403 against a
+`CanonicalLedgerView`. P5/D9: public wire formats contain commitments and
+pairwise metadata, not raw personal/payment/terms data. No Tier-F
+invariant is amended; the implementation composes existing boundaries.
+
+**Implementation status:** Implemented and tested in this proposal.
+`mini-attest` has canonical bounded receipt/review encoders and decoders,
+crypto-agile KEL signatures (including decode room for ML-DSA-sized
+signatures), BLAKE3 multihash content ids, zeroized holder tokens, and a
+verifier-supplied atomic duplicate guard. The focused suite covers the
+happy path and wire round trips; public-byte privacy exclusions; pending
+and conflicting settlement; provider, grant-active-at-completion,
+holder-token, and reviewer-pseudonym failures; expiry; duplicate
+submission; failed-verification registry atomicity; receipt-signature and
+review-body tampering; trailing/truncated bytes; decode/body limits; and
+content-id mutation.
+
+**Failure point:** Tier 0 is deliberately linkable. The provider,
+verifier, or observer can correlate receipt id, provider, pairwise
+pseudonym, claim digest, timing, and review subject. The current ledger
+API has no standalone inclusion proof keyed only by claim digest, so a
+verifier must also receive the original engagement and ledger view; the
+minimal public receipt alone is not consensus proof. Provider KEL
+freshness, grant signing/revocation, a durable/canonical duplicate
+registry, claim submission toward live consensus, and provider honesty
+remain outside this crate. Internal tests are not an external audit.
+
+**Required follow-up:** roadmap #228 Tier-1 accumulator experiment with
+synthetic receipts; roadmap #229 Tier-2 issuer-unlinkable credential
+construction research; signed/revocable `EngagementGrant` execution
+wiring; chain-backed claim submission/inclusion proofs; provider/reviewer
+KEL freshness; durable application-specific `ReviewRegistry`; compiled
+edge/core dependency-wall tests; external review before production use.
+
+**Supersedes / superseded by:** none. Extends D-0403 and does not
+supersede Tier 0 when future privacy tiers become available; clients must
+continue rendering the exact achieved tier.
+
 ### D-0353 — `mini-pq-anchor`: PQ anchor pre-provisioning + wallet inventory  ·  *Accepted*
 **Date:** 2026-07-23 · **Refs:** D-0095 (Phase 1, ML-DSA-65 verify-only),
 D-0322 (Phase 2, ML-DSA-65 keygen/signing), `docs/design/

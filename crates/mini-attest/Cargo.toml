@@ -1,0 +1,19 @@
+[package]
+name = "mini-attest"
+version = "0.0.1"
+description = "FD-18 Wave 4 Tier-0 engagement-proven reviews: explicitly linkable, provider-signed completion receipts and holder-bound review verification. An edge leaf with no governance or humanness reach."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-crypto = { path = "../mini-crypto" }
+mini-engagement = { path = "../mini-engagement" }
+mini-objects = { path = "../mini-objects" }
+mini-provider = { path = "../mini-provider" }
+mini-settlement = { path = "../mini-settlement" }
+zeroize = "1.8"
