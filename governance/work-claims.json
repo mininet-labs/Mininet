@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-20T19:55:00Z",
+  "updated_at": "2026-07-28T21:53:09Z",
   "claims": [
     {
       "issue": 122,
@@ -315,6 +315,30 @@
         "D-0020"
       ],
       "notes": "Android-first foundation: a narrow Rust UniFFI command/event boundary and thin Kotlin/Compose shell. The first identity/profile/follow integration slice depends on the verified social delivery work in draft PR #170. Coordination evidence only; no approval, release, or production claim. Rebased past main through PR #180/#183/#185/#187/#189/#191/#193/#195/#208 (see this PR's own body for what changed). Closed here (PR #244 branch) since PR #179 was confirmed merged (2026-07-21T08:18:48Z); found stale (still in_review, lease expired 2026-07-27) per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+    },
+    {
+      "issue": 200,
+      "status": "active",
+      "contributor": "Codex",
+      "branch": "agent/android-lan-qr-pairing",
+      "pull_request": null,
+      "lease_expires": "2026-08-04",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "crates/mini-ffi/",
+        "app/android/",
+        "docs/mobile/ANDROID_FOUNDATION.md",
+        "docs/BETA_STATUS.md",
+        "docs/STATUS.md",
+        "docs/DECISION_LOG.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0373"
+      ],
+      "notes": "Day-0 Android LAN/QR pairing bridge: keep identity keys in RootCore, expose bounded offer/acceptance/follow state through UniFFI, wire an offline QR UI and direct LAN exchange, add replay/expiry/adversarial tests. No BLE/background sync/personhood claim."
     }
   ]
 }
