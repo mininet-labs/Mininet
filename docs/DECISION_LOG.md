@@ -12440,21 +12440,37 @@ without changing its chunking/reassembly logic. Does not supersede
 `mini-ffi::StorageCipher` (D-0338) — mirrors its callback-interface
 pattern, does not reuse or modify it.
 
-### D-0376 — Drop `docs/_generated/` (nav index) from the mandatory per-commit ritual  ·  *Accepted*
+### D-0376 — Drop `docs/_generated/` (nav index) from the mandatory per-commit ritual  ·  *Accepted, blocked on instruction-surface amendment*
 **Date:** 2026-07-28 · **Refs:** `CLAUDE.md`'s workflow ritual (step 3);
-`tools/mininet_nav.py`; founder chat direction
+`tools/mininet_nav.py`; founder chat direction; D-0084 (AI-charter
+activation); `governance/ai-charter-activation.json`;
+`tools/check_governance.py`'s `INSTRUCTION_FILE_NAMES` protection
 
 **Decision:** `docs/_generated/REPO_INDEX.json`/`REPO_INDEX.jsonl`/
 `REPO_MAP.md` (the generated nav index) are removed from the "before
-every commit" ritual in `CLAUDE.md`. Ordinary PRs no longer regenerate or
-commit these files. They are instead refreshed periodically in their own
-small, dedicated maintenance PR — triggered manually, whenever the index
-is visibly stale enough to matter (e.g. before a founder review) — never
-bundled into a feature/fix PR's diff. `DECISION_LOG.md` and `STATUS.md`
-are explicitly **not** in scope of this change and remain part of the
-per-PR ritual: unlike the nav index, they carry real narrative content
-that isn't mechanically regenerable, and are the actual audit trail the
-rest of this workflow depends on.
+every commit" ritual as project policy. Ordinary PRs no longer
+regenerate or commit these files. They are instead refreshed
+periodically in their own small, dedicated maintenance PR — triggered
+manually, whenever the index is visibly stale enough to matter (e.g.
+before a founder review) — never bundled into a feature/fix PR's diff.
+`DECISION_LOG.md` and `STATUS.md` are explicitly **not** in scope of
+this change and remain part of the per-PR ritual: unlike the nav index,
+they carry real narrative content that isn't mechanically regenerable,
+and are the actual audit trail the rest of this workflow depends on.
+
+**This entry records the policy; it does not itself change `CLAUDE.md`.**
+`CLAUDE.md` is one of `tools/check_governance.py`'s fixed
+`INSTRUCTION_FILE_NAMES` — with D-0084's AI-charter activation record at
+`status: "active"`, any candidate branch whose `CLAUDE.md` differs
+byte-for-byte from the canonical checkpoint fails the
+`governance-baseline`/`canonical-governance` CI checks by design (this
+is deliberate anti-injection protection: an ordinary PR must not be able
+to silently rewrite the instructions an AI session loads). A first
+attempt at this change edited `CLAUDE.md`'s ritual text directly in the
+same PR and both governance checks failed with exactly that error
+("active worktree instruction surface differs from canonical state:
+CLAUDE.md"); that edit was reverted before this entry was recorded. See
+Required follow-up.
 
 **Reason:** `docs/_generated/` is a full-tree derived snapshot — its
 content depends on every crate, file, and doc-comment in the workspace,
@@ -12476,25 +12492,44 @@ identity, value, governance, or invariant-bearing code or document
 changes. `docs/_generated/` is not itself constitutional content; it is
 a search convenience the tree can always reproduce.
 
-**Implementation status:** `CLAUDE.md`'s workflow ritual (step 3) updated
-to drop the mandatory nav regen and explain the deferred-maintenance-PR
-pattern instead.
+**Implementation status:** policy decided and recorded here only.
+`CLAUDE.md`'s own ritual text (step 3) still reads "regenerate the nav
+index" on canonical `main` — it has **not** been updated, because doing
+so requires whatever legitimate amendment path exists for an
+already-activated instruction surface under D-0084 (superseding or
+re-issuing the activation record with a new charter/adapter/instruction
+digest set, a constitutional-weight action), not an ordinary documentation
+PR. Until that amendment lands, agents should follow this entry's policy
+in practice — stop regenerating/committing the nav index per-commit —
+even though `CLAUDE.md` itself has not caught up yet, on the same logic
+this log's own scope rule already establishes for `STATUS.md` versus an
+individual entry: the more frequently revisited source wins when a
+stale instruction surface and a live decision disagree.
 
-**Failure point:** if the nav index is never actually refreshed in
-practice (no one runs the maintenance PR), `python3 tools/mininet_nav.py
+**Failure point:** two, both real. First, the one this decision was
+written to fix: if the nav index is never actually refreshed in practice
+(no one runs the maintenance PR), `python3 tools/mininet_nav.py
 map`/`docs/NAVIGATION.md` drift stale relative to the real tree over
-time. This is a soft failure (the tool errs toward "index is
-approximate," not toward hiding or corrupting anything), but it is a
-real cost this decision accepts in exchange for less per-PR conflict
-overhead.
+time — a soft failure, since the tool errs toward "index is
+approximate," never toward hiding or corrupting anything. Second, the
+one this attempt surfaced: `CLAUDE.md` is now effectively frozen against
+ordinary-PR edits while D-0084's activation stays `active`, and no
+documented, exercised amendment procedure for that exists yet in this
+repository — meaning *any* future CLAUDE.md ritual change (not just this
+one) will hit the same CI failure until that gap is closed.
 
-**Required follow-up:** none scheduled yet; whoever notices the index
-has gone stale opens the maintenance PR. If staleness becomes a
-recurring problem, a lightweight periodic trigger (rather than "someone
-notices") is the next escalation, not a return to per-commit
-regeneration.
+**Required follow-up:** (1) whoever notices the nav index has gone
+stale opens the maintenance PR, per the policy recorded above; (2)
+separately and more importantly, a founder-level decision on how
+`CLAUDE.md`/instruction-surface amendments are supposed to happen while
+D-0084 stays active — options include a documented supersession
+procedure that re-issues the activation record with updated digests, a
+narrower carve-out in `check_governance.py` for a specifically-marked
+amendment PR type, or accepting that `CLAUDE.md` stays fixed at its
+D-0084-time content until a deliberate charter supersession. This
+decision does not resolve that question; it only surfaces it.
 
-**Supersedes / superseded by:** does not supersede any prior decision;
-narrows `CLAUDE.md`'s existing workflow-ritual text (itself last touched
-by the CLAUDE.md updates recorded informally alongside earlier batches,
-not a dedicated D-number).
+**Supersedes / superseded by:** does not supersede any prior decision or
+D-0084's activation. Intends to narrow `CLAUDE.md`'s existing
+workflow-ritual text once a legitimate amendment path lands; until then
+this entry alone is the authoritative statement of the policy.
