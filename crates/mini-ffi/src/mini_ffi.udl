@@ -81,6 +81,30 @@ interface RootCore {
 
   [Throws=RootError]
   sequence<u8> persist_state(StorageCipher cipher);
+
+  [Throws=PairingError]
+  PairingOfferView begin_pairing_offer(string display_name, string advertised_ip, u64 now_ms, u64 ttl_ms);
+
+  [Throws=PairingError]
+  PairingContact accept_pairing_offer(string qr_payload, string display_name, u64 now_ms, u64 connect_timeout_ms);
+
+  [Throws=PairingError]
+  PairingContact finish_pairing_offer(u64 now_ms, u64 accept_timeout_ms, u64 read_timeout_ms);
+
+  sequence<PairingContact> pairing_contacts();
+
+  sequence<sequence<u8>> pairing_follow_objects();
+};
+
+dictionary PairingContact {
+  string did;
+  string display_name;
+};
+
+dictionary PairingOfferView {
+  string qr_payload;
+  u64 expires_at_ms;
+  u16 listen_port;
 };
 
 enum BackgroundableOperation {
@@ -213,6 +237,22 @@ enum RootError {
   "EnrollmentAlreadyPending",
   "NoPendingEnrollment",
   "DelegatorMismatch",
+};
+
+[Error]
+enum PairingError {
+  "NoRoot",
+  "NoDevice",
+  "InvalidAddress",
+  "InvalidQr",
+  "Expired",
+  "Replayed",
+  "AlreadyListening",
+  "NoPendingOffer",
+  "Capacity",
+  "InvalidTimeout",
+  "Protocol",
+  "Io",
 };
 
 [Error]

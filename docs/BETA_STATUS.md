@@ -69,13 +69,20 @@ still missing for a real two-phone beta, in order:
    review → governed merge → release → attestation → verify → install →
    health check → rollback → tamper-evident event log — as one script
    driving nothing but the real compiled `mini` binary.
-5. **External crypto review** before any value- or update-bearing use.
-6. **Personhood (SPEC-02)** — quorums today count *distinct verified identity
+5. **Android two-phone product path** — the signed LAN/QR social pairing
+   path is implemented through Rust/UniFFI/Compose (D-0373): expiring QR,
+   delegated-device verification, bounded TCP acceptance, durable replay
+   rejection, and a signed follow object on each phone. It is not marked
+   complete until Android CI assembles it and two physical devices prove
+   scan, connect, follow, restart, and replay rejection. This is social
+   pairing, not yet the encrypted keystone bearer/range/reward path.
+6. **External crypto review** before any value- or update-bearing use.
+7. **Personhood (SPEC-02)** — quorums today count *distinct verified identity
    roots, not humans*; "one human, one vote" is not yet enforced. D-0038
    redesigned personhood into an open-ended multi-signal system
    (`mini-uniqueness::status`), but the underlying behavioral/location ZK
    research problem (signal (b)) remains unsolved — see the root README.
-7. **KEL freshness / revocation anchoring** — verifiers check the KEL handed to
+8. **KEL freshness / revocation anchoring** — verifiers check the KEL handed to
    them, not that it is the latest globally known state; high-value actions need
    witness receipts / chain anchoring later.
 

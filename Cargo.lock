@@ -2485,6 +2485,9 @@ dependencies = [
  "did-mini",
  "mini-bearer",
  "mini-crypto",
+ "mini-objects",
+ "mini-social",
+ "mini-store",
  "uniffi",
  "zeroize",
 ]

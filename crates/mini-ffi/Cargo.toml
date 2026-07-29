@@ -20,6 +20,9 @@ uniffi = { version = "=0.32.0", default-features = false }
 did-mini = { path = "../did-mini" }
 mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
+mini-objects = { path = "../mini-objects" }
+mini-social = { path = "../mini-social" }
+mini-store = { path = "../mini-store" }
 zeroize = "1" # best-effort scrubbing of decrypted persisted-state plaintext
 
 [build-dependencies]
