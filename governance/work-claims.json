@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-29T17:55:00Z",
+  "updated_at": "2026-07-29T17:23:03Z",
   "claims": [
     {
       "issue": 122,
@@ -417,10 +417,10 @@
     },
     {
       "issue": 268,
-      "status": "active",
+      "status": "in_review",
       "contributor": "Codex",
       "branch": "agent/installer-integrity-recovery",
-      "pull_request": null,
+      "pull_request": 269,
       "lease_expires": "2026-08-12",
       "paths": [
         "crates/mini-forge/src/lib.rs",
@@ -443,7 +443,7 @@
       "decision_ids": [
         "D-0408"
       ],
-      "notes": "Batch 5 native exact release retrieval: bounded release evidence closure, existing encrypted mini-sync transfer, verified ingest, and one-shot mini release serve/retrieve CLI. No new cryptography, authority, automatic update, team recruitment, or installation action. Issue #268 remains open until founder review and any external evidence are complete. Claim cleanup above closes only the merged #264 coordination claim; it does not close issue #264."
+      "notes": "Batch 5 native exact release retrieval: bounded release evidence closure, existing encrypted mini-sync transfer, verified ingest, and one-shot mini release serve/retrieve CLI. Draft PR #269 is open for founder review. No new cryptography, authority, automatic update, team recruitment, or installation action. Issue #268 remains open until founder review and any external evidence are complete. Claim cleanup above closes only merged work claims; it does not close issues #264 or #266."
     }
   ]
 }
