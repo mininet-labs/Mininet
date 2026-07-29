@@ -204,6 +204,11 @@ so, everywhere, on purpose.
   manifests (`mini-economy`, D-0413), plus a cohort-based 200-year
   calibration harness (`mini-econ-sim`) — proposal code only; no mint,
   production genesis, personhood proof, or economic-safety claim
+- finalized aggregate monetary-epoch accounting (`mini-economy` +
+  `mini-execution`, proposed D-0414): supply-bound sequential epochs,
+  deterministic policy-time vesting, and snapshot-root Human Share without
+  public identity enumeration — still no private claim/nullifier or account
+  balance transfer
 - airdrop eligibility snapshot + signed claim-redemption verification
   (`mini-airdrop`, D-0354/D-0355) — does not solve Sybil resistance,
   never holds treasury signing authority, and produces only a claim

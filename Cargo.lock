@@ -2478,6 +2478,7 @@ dependencies = [
  "did-mini",
  "mini-chain",
  "mini-crypto",
+ "mini-economy",
  "mini-settlement",
 ]
 

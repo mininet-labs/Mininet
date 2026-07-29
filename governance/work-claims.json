@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-29T20:30:00Z",
+  "updated_at": "2026-07-29T22:20:00Z",
   "claims": [
     {
       "issue": 122,
@@ -473,7 +473,7 @@
     },
     {
       "issue": 50,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "codex/day0-economy",
       "pull_request": 271,
@@ -495,7 +495,32 @@
       "decision_ids": [
         "D-0413"
       ],
-      "notes": "Umbrella Day-0 economy engineering slice for roadmap #46-#51: executable D-0074 issuance envelope, deterministic equal-human genesis manifest, compatibility-preserving wide accounting, corrected equal-Human-Share simulation, design reconciliation, and adversarial self-review. Proposal evidence only: no production genesis, mint authorization, personhood solution, parameter validation, external audit, bridge custody, or activation."
+      "notes": "Umbrella Day-0 economy engineering slice for roadmap #46-#51: executable D-0074 issuance envelope, deterministic equal-human genesis manifest, compatibility-preserving wide accounting, corrected equal-Human-Share simulation, design reconciliation, and adversarial self-review. Proposal evidence only: no production genesis, mint authorization, personhood solution, parameter validation, external audit, bridge custody, or activation. PR #271 merged to main as afbe8d0 on 2026-07-29; this follow-up registry touch closes the claim while the issue remains open for independent mechanism-design review."
+    },
+    {
+      "issue": 48,
+      "status": "in_review",
+      "contributor": "Codex",
+      "branch": "codex/day0-economy-chain",
+      "pull_request": 272,
+      "lease_expires": "2026-08-12",
+      "paths": [
+        "Cargo.lock",
+        "README.md",
+        "crates/mini-economy/",
+        "crates/mini-execution/",
+        "docs/design/day0-monetary-chain-integration.md",
+        "docs/audits/day0-monetary-chain-review.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/THREAT_MODEL.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0414"
+      ],
+      "notes": "Follow-up to merged PR #271: deterministic cumulative-policy-time vesting supply ledger, aggregate Human Share snapshot transitions, exact opening-supply binding, sequential epoch replay prevention, state commitments, and finalized mini-execution composition. Proposal evidence only: no private membership/nullifier claims, account balance debits/credits, production genesis, personhood, service/treasury evidence authorization, external audit, or activation."
     }
   ]
 }

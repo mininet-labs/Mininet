@@ -45,6 +45,10 @@
 //!   `mini_settlement`'s existing claim verification; the only new
 //!   content is deterministic bookkeeping and one content hash
 //!   ([`state::LedgerState::commitment`]).
+//! - **Not mint authority.** Monetary epochs are accepted only after block
+//!   finality and checked against D-0074 supply/vesting rules, but this crate
+//!   does not decide genesis, personhood, service evidence, or validator
+//!   legitimacy.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]

@@ -325,6 +325,17 @@ given time.
   signer committee are always disjoint sets — no individual holds a seat
   on both; this was already implied by the cellular design, not a new
   rule.
+- **proposed chain accounting (D-0414, roadmap #48)** —
+  `mini-economy::MonetaryLedger` and `mini-execution` now compose one
+  aggregate Human Share snapshot transition into finalized state. Epochs are
+  sequential, bound to computed opening circulating supply, limited to one
+  per block, fully reconstructed under D-0074, and vested against cumulative
+  finalized policy-epoch duration rather than untrusted wall/proposer time.
+  Human identities are not enumerated in the block. This is supply and
+  vesting accounting only: private membership/nullifier claims, balances,
+  debit/credit and insufficient-funds enforcement, service/treasury evidence
+  authorization, and production epoch timing remain unbuilt. P4 therefore
+  remains partial.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary

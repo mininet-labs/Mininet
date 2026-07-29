@@ -13,6 +13,7 @@ publish = false
 mini-crypto = { path = "../mini-crypto" }
 mini-chain = { path = "../mini-chain" }
 mini-settlement = { path = "../mini-settlement" }
+mini-economy = { path = "../mini-economy" }
 
 [dev-dependencies]
 did-mini = { path = "../did-mini" }

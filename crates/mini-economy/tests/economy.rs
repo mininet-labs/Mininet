@@ -1,6 +1,7 @@
 use mini_economy::{
-    build_genesis, plan_epoch, plan_human_share, Allocation, Amount, Channel, EconomyError,
-    EpochRequest, GenesisPolicy, HumanSnapshot, IssuancePolicy, YEAR_MS,
+    build_genesis, plan_epoch, plan_human_share, plan_scalable_epoch, Allocation, Amount, Channel,
+    EconomyError, EpochRequest, GenesisPolicy, HumanSnapshot, IssuancePolicy, MonetaryLedger,
+    ScalableEpochRequest, VestingSubject, YEAR_MS,
 };
 
 fn amount(value: u128) -> Amount {
@@ -43,6 +44,131 @@ fn aggregate_human_share_requires_a_committed_nonempty_snapshot() {
     )
     .unwrap_err();
     assert_eq!(error, EconomyError::InvalidSnapshot);
+}
+
+fn one_year_plan(epoch: u64, opening: Amount) -> mini_economy::ScalableEpochPlan {
+    plan_scalable_epoch(
+        &ScalableEpochRequest {
+            epoch,
+            duration_ms: YEAR_MS,
+            opening_circulating: opening,
+            human_snapshot: HumanSnapshot {
+                root: [42; 32],
+                eligible_count: 2,
+            },
+            service: vec![Allocation {
+                beneficiary: "did:mini:relay".into(),
+                amount: amount(opening.as_micro() * 7_500 / 1_000_000),
+            }],
+            treasury: vec![Allocation {
+                beneficiary: "did:mini:treasury".into(),
+                amount: amount(opening.as_micro() * 2_500 / 1_000_000),
+            }],
+        },
+        &IssuancePolicy::d0074(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn monetary_ledger_enforces_supply_binding_epoch_order_and_vesting() {
+    let genesis = amount(1_000_000_000);
+    let ledger = MonetaryLedger::new(genesis);
+    let first = one_year_plan(0, genesis);
+    let after_first = ledger
+        .apply_epoch(&first, &IssuancePolicy::d0074())
+        .unwrap();
+
+    assert_eq!(after_first.total_issued(), first.total_issued);
+    assert_eq!(
+        after_first.circulating_supply().unwrap(),
+        genesis.checked_add(first.service_issued).unwrap(),
+        "service grants are immediately available; newly created human and treasury grants are locked"
+    );
+    assert_eq!(
+        after_first
+            .circulating_supply()
+            .unwrap()
+            .checked_add(after_first.locked_supply().unwrap())
+            .unwrap(),
+        after_first.total_supply().unwrap()
+    );
+
+    let wrong_epoch = one_year_plan(0, after_first.circulating_supply().unwrap());
+    assert_eq!(
+        after_first
+            .apply_epoch(&wrong_epoch, &IssuancePolicy::d0074())
+            .unwrap_err(),
+        EconomyError::UnexpectedEpoch
+    );
+
+    let wrong_supply = one_year_plan(1, genesis);
+    assert_eq!(
+        after_first
+            .apply_epoch(&wrong_supply, &IssuancePolicy::d0074())
+            .unwrap_err(),
+        EconomyError::OpeningSupplyMismatch
+    );
+
+    let second = one_year_plan(1, after_first.circulating_supply().unwrap());
+    let after_second = after_first
+        .apply_epoch(&second, &IssuancePolicy::d0074())
+        .unwrap();
+    assert!(
+        after_second.circulating_supply().unwrap()
+            > after_first
+                .circulating_supply()
+                .unwrap()
+                .checked_add(second.service_issued)
+                .unwrap(),
+        "the first epoch's human and treasury positions vested as deterministic policy time advanced"
+    );
+}
+
+#[test]
+fn forged_epoch_plan_is_rejected_even_if_its_totals_look_bounded() {
+    let genesis = amount(1_000_000_000);
+    let ledger = MonetaryLedger::new(genesis);
+    let mut forged = one_year_plan(0, genesis);
+    forged.optional_grants[0].amount = forged.optional_grants[0]
+        .amount
+        .checked_sub(amount(1))
+        .unwrap();
+    assert_eq!(
+        ledger
+            .apply_epoch(&forged, &IssuancePolicy::d0074())
+            .unwrap_err(),
+        EconomyError::InvalidEpochPlan
+    );
+}
+
+#[test]
+fn monetary_commitment_is_deterministic_and_changes_with_issuance() {
+    let genesis = amount(1_000_000_000);
+    let ledger = MonetaryLedger::new(genesis);
+    let plan = one_year_plan(0, genesis);
+    let a = ledger.apply_epoch(&plan, &IssuancePolicy::d0074()).unwrap();
+    let b = ledger.apply_epoch(&plan, &IssuancePolicy::d0074()).unwrap();
+    assert_eq!(a.commitment(), b.commitment());
+    assert_ne!(a.commitment(), ledger.commitment());
+}
+
+#[test]
+fn partial_vesting_near_u128_capacity_does_not_overflow() {
+    let position = mini_economy::VestingPosition {
+        epoch: 0,
+        subject: VestingSubject::HumanSnapshot(HumanSnapshot {
+            root: [9; 32],
+            eligible_count: 1,
+        }),
+        channel: Channel::HumanShare,
+        amount: Amount::from_micro(u128::MAX - 1),
+        starts_at_policy_ms: 0,
+        duration_ms: YEAR_MS,
+    };
+    let vested = position.vested_at((YEAR_MS / 2) as u128).unwrap();
+    assert!(vested > Amount::ZERO);
+    assert!(vested < position.amount);
 }
 
 #[test]
