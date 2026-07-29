@@ -6,12 +6,17 @@
 //! permitted to link Wasmtime, and every other caller must treat it as a
 //! subprocess, never a library.
 
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
+use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
 use mini_pipeline::{Capability, ResourceLimits};
-use mini_pipeline_protocol::{read_framed, write_framed, ExecutionRequest, ExecutionResult};
+use mini_pipeline_protocol::{
+    read_framed, workspace_digest, write_framed, ExecutionRequest, ExecutionResult,
+    RemoteBuildRequest, RemoteBuildResponse, WorkspaceFile,
+};
 
 use crate::error::{CliError, Result};
 use crate::json::{CommandResult, JsonValue};
@@ -19,6 +24,7 @@ use crate::json::{CommandResult, JsonValue};
 const MAX_RESULT_BYTES: usize = 64 * 1024 * 1024;
 const HARD_TIMEOUT: Duration = Duration::from_secs(120);
 const RUNNER_BIN_NAME: &str = "mini-build-runner-wasmtime";
+const REMOTE_BUILD_AAD: &[u8] = b"MINI/BUILD-WORKER1";
 
 /// Locate the real runner binary: first next to this `mini` executable
 /// (the expected production layout, both binaries installed side by
@@ -112,6 +118,16 @@ pub fn run(
         deterministic_seed: [0u8; 32],
     };
 
+    let result = execute_runner(&request, store_dir, scratch_dir, artifacts_dir)?;
+    Ok(format_result(&result))
+}
+
+fn execute_runner(
+    request: &ExecutionRequest,
+    store_dir: &Path,
+    scratch_dir: &Path,
+    artifacts_dir: &Path,
+) -> Result<ExecutionResult> {
     let binary = runner_binary_path();
     let mut child = Command::new(&binary)
         .arg("--store-dir")
@@ -167,9 +183,11 @@ pub fn run(
                 String::from_utf8_lossy(&stderr_bytes)
             ))
         })?;
-    let result = ExecutionResult::decode(&frame)
-        .map_err(|e| CliError::Build(format!("undecodable runner result: {e}")))?;
+    ExecutionResult::decode(&frame)
+        .map_err(|e| CliError::Build(format!("undecodable runner result: {e}")))
+}
 
+fn format_result(result: &ExecutionResult) -> CommandResult {
     let mut out = format!(
         "exit_status: {:?}\nexecution_security: {}\nfuel_consumed: {}\nwall_clock_ms: {}\n",
         result.exit_status, result.execution_security, result.fuel_consumed, result.wall_clock_ms
@@ -184,7 +202,7 @@ pub fn run(
     }
 
     let output_digest_hexes: Vec<String> = result.output_digests.iter().map(hex).collect();
-    Ok(CommandResult::new(out)
+    CommandResult::new(out)
         .field(
             "exit_status",
             JsonValue::str(format!("{:?}", result.exit_status)),
@@ -203,7 +221,185 @@ pub fn run(
             "runtime_config_digest",
             JsonValue::str(hex(&result.runtime_config_digest)),
         )
-        .field("output_digests", JsonValue::strs(output_digest_hexes)))
+        .field("output_digests", JsonValue::strs(output_digest_hexes))
+}
+
+/// Serve one explicitly requested remote build and then exit.
+pub fn serve(addr: &str, work_dir: &Path) -> Result<CommandResult> {
+    if work_dir.exists() {
+        return Err(CliError::Build(format!(
+            "worker directory already exists: {}",
+            work_dir.display()
+        )));
+    }
+    let store_dir = work_dir.join("store");
+    let scratch_dir = work_dir.join("scratch");
+    let artifacts_dir = work_dir.join("artifacts");
+    std::fs::create_dir_all(store_dir.join("objects"))
+        .and_then(|_| std::fs::create_dir_all(store_dir.join("workspaces")))
+        .and_then(|_| std::fs::create_dir_all(&scratch_dir))
+        .and_then(|_| std::fs::create_dir_all(&artifacts_dir))
+        .map_err(|e| CliError::Io(e.to_string()))?;
+
+    let listener = TcpListener::bind(addr).map_err(|e| CliError::Io(e.to_string()))?;
+    let (stream, peer) = listener.accept().map_err(|e| CliError::Io(e.to_string()))?;
+    let mut bearer = TcpBearer::from_stream(stream).map_err(|e| CliError::Build(e.to_string()))?;
+    let hello = bearer.recv().map_err(|e| CliError::Build(e.to_string()))?;
+    let (mut channel, response) =
+        Responder::respond(&hello).map_err(|e| CliError::Build(e.to_string()))?;
+    bearer
+        .send(&response)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+
+    let ciphertext = bearer.recv().map_err(|e| CliError::Build(e.to_string()))?;
+    let plaintext = channel
+        .open(&ciphertext, REMOTE_BUILD_AAD)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+    let remote = RemoteBuildRequest::decode(&plaintext)
+        .map_err(|e| CliError::Build(format!("invalid remote build request: {e}")))?;
+
+    materialize_remote_request(&remote, &store_dir)?;
+    let result = execute_runner(&remote.execution, &store_dir, &scratch_dir, &artifacts_dir)?;
+    let artifacts = collect_artifact_bytes(&artifacts_dir)?;
+    let response = RemoteBuildResponse { result, artifacts };
+    response
+        .verify_for(&remote.execution)
+        .map_err(|e| CliError::Build(format!("local runner result failed verification: {e}")))?;
+    let encoded = response
+        .encode()
+        .map_err(|e| CliError::Build(e.to_string()))?;
+    let ciphertext = channel
+        .seal(&encoded, REMOTE_BUILD_AAD)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+    bearer
+        .send(&ciphertext)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+    Ok(
+        CommandResult::new(format!("served one verified build to {peer}\n"))
+            .field("peer", JsonValue::str(peer.to_string()))
+            .field(
+                "request_digest",
+                JsonValue::str(hex(&remote.execution.digest())),
+            ),
+    )
+}
+
+/// Dispatch one exact build to a reachable worker and verify its response.
+#[allow(clippy::too_many_arguments)]
+pub fn dispatch(
+    peer: &str,
+    component_path: &Path,
+    workspace_dir: &Path,
+    artifacts_dir: &Path,
+    capabilities: Vec<Capability>,
+    limits: ResourceLimits,
+) -> Result<CommandResult> {
+    if artifacts_dir.exists() {
+        return Err(CliError::Build(format!(
+            "output directory already exists: {}",
+            artifacts_dir.display()
+        )));
+    }
+    let component = std::fs::read(component_path).map_err(|e| CliError::Io(e.to_string()))?;
+    let workspace = read_workspace(workspace_dir)?;
+    let execution = ExecutionRequest {
+        component_digest: blake3::hash(&component).into(),
+        source_digest: workspace_digest(&workspace),
+        capabilities,
+        limits,
+        deterministic_seed: [0; 32],
+    };
+    let remote = RemoteBuildRequest {
+        execution: execution.clone(),
+        component,
+        workspace,
+    };
+    let encoded = remote
+        .encode()
+        .map_err(|e| CliError::Build(format!("remote request exceeds policy: {e}")))?;
+
+    let mut bearer = TcpBearer::connect(peer).map_err(|e| CliError::Build(e.to_string()))?;
+    let (initiator, hello) = Initiator::start().map_err(|e| CliError::Build(e.to_string()))?;
+    bearer
+        .send(&hello)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+    let handshake = bearer.recv().map_err(|e| CliError::Build(e.to_string()))?;
+    let mut channel = initiator
+        .finish(&handshake)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+    let ciphertext = channel
+        .seal(&encoded, REMOTE_BUILD_AAD)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+    bearer
+        .send(&ciphertext)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+
+    let ciphertext = bearer.recv().map_err(|e| CliError::Build(e.to_string()))?;
+    let plaintext = channel
+        .open(&ciphertext, REMOTE_BUILD_AAD)
+        .map_err(|e| CliError::Build(e.to_string()))?;
+    let response = RemoteBuildResponse::decode(&plaintext)
+        .map_err(|e| CliError::Build(format!("invalid worker response: {e}")))?;
+    response
+        .verify_for(&execution)
+        .map_err(|e| CliError::Build(format!("untrusted worker response rejected: {e}")))?;
+
+    std::fs::create_dir_all(artifacts_dir).map_err(|e| CliError::Io(e.to_string()))?;
+    for (digest, bytes) in response
+        .result
+        .output_digests
+        .iter()
+        .zip(&response.artifacts)
+    {
+        std::fs::write(artifacts_dir.join(hex(digest)), bytes)
+            .map_err(|e| CliError::Io(e.to_string()))?;
+    }
+    Ok(format_result(&response.result)
+        .field("peer", JsonValue::str(peer.to_string()))
+        .field("request_digest", JsonValue::str(hex(&execution.digest()))))
+}
+
+fn materialize_remote_request(request: &RemoteBuildRequest, store_dir: &Path) -> Result<()> {
+    std::fs::write(
+        store_dir
+            .join("objects")
+            .join(hex(&request.execution.component_digest)),
+        &request.component,
+    )
+    .map_err(|e| CliError::Io(e.to_string()))?;
+    let workspace_dir = store_dir
+        .join("workspaces")
+        .join(hex(&request.execution.source_digest));
+    std::fs::create_dir_all(&workspace_dir).map_err(|e| CliError::Io(e.to_string()))?;
+    for file in &request.workspace {
+        let path = workspace_dir.join(&file.path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| CliError::Io(e.to_string()))?;
+        }
+        std::fs::write(path, &file.bytes).map_err(|e| CliError::Io(e.to_string()))?;
+    }
+    Ok(())
+}
+
+fn read_workspace(dir: &Path) -> Result<Vec<WorkspaceFile>> {
+    let mut entries = Vec::new();
+    collect_files(dir, dir, &mut entries)?;
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(entries
+        .into_iter()
+        .map(|(path, bytes)| WorkspaceFile {
+            path: path.replace('\\', "/"),
+            bytes,
+        })
+        .collect())
+}
+
+fn collect_artifact_bytes(dir: &Path) -> Result<Vec<Vec<u8>>> {
+    let mut entries = Vec::new();
+    collect_files(dir, dir, &mut entries)?;
+    let mut artifacts: Vec<Vec<u8>> = entries.into_iter().map(|(_, bytes)| bytes).collect();
+    artifacts.sort_by_key(|bytes| *blake3::hash(bytes).as_bytes());
+    Ok(artifacts)
 }
 
 /// Content-address a directory the same way the runner verifies workspace
@@ -237,9 +433,15 @@ fn collect_files(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> R
     for entry in std::fs::read_dir(dir).map_err(|e| CliError::Io(e.to_string()))? {
         let entry = entry.map_err(|e| CliError::Io(e.to_string()))?;
         let path = entry.path();
-        if path.is_dir() {
+        let file_type = entry.file_type().map_err(|e| CliError::Io(e.to_string()))?;
+        if file_type.is_symlink() {
+            return Err(CliError::Build(format!(
+                "workspace/artifact symlinks are not allowed: {}",
+                path.display()
+            )));
+        } else if file_type.is_dir() {
             collect_files(root, &path, out)?;
-        } else {
+        } else if file_type.is_file() {
             let rel = path
                 .strip_prefix(root)
                 .unwrap()
@@ -247,6 +449,11 @@ fn collect_files(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) -> R
                 .to_string();
             let content = std::fs::read(&path).map_err(|e| CliError::Io(e.to_string()))?;
             out.push((rel, content));
+        } else {
+            return Err(CliError::Build(format!(
+                "workspace/artifact entry is not a regular file: {}",
+                path.display()
+            )));
         }
     }
     Ok(())

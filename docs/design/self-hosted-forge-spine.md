@@ -565,9 +565,23 @@ list_meta_prefix` has no upper-bound key) — a genuinely bounded,
 paginated forward range scan is still open. That, compound queries
 across indexes, and the other three items below remain open.
 
+**Distributed build workers — first bounded slice implemented (D-0409
+proposed).** `mini build serve` accepts one explicitly initiated request and
+exits; `mini build dispatch` carries an exact component, canonical workspace
+snapshot, capability set, and resource limits inside the existing encrypted
+bearer channel. The worker materializes only validated relative regular-file
+paths and invokes the existing `mini-build-runner-wasmtime` subprocess. The
+requester rejects mismatched request digests, capability claims, isolation
+labels, output counts, and artifact hashes before creating a new output
+directory. The current single-frame ceiling is 15 MiB. This is not discovery,
+scheduling, worker identity, reputation, payment, automatic provenance,
+release approval, or a daemon; see
+`docs/planning/distributed-build-worker-report.md`.
+
 **Remaining, not started:** a genuinely bounded `FsBackend::
 list_meta_prefix_last`; a bounded/paginated forward range scan for
-`since`; distributed build workers, and GitHub import/export mirror
+`since`; a production distributed-worker lane (discovery, chunking, scheduling,
+multi-worker provenance and supervision), and GitHub import/export mirror
 automation. Native exact release retrieval is now shipped as a bounded
 one-shot CLI path; a paginated/daemonized production lane is not claimed.
 

@@ -431,6 +431,43 @@ fn dispatch_build(mut args: Vec<String>, json: bool) -> Result<String> {
             )
             .map(|r: CommandResult| r.render(json, kind))
         }
+        "serve" => {
+            let addr = extract_flag(&mut args, "--addr")
+                .ok_or_else(|| CliError::Usage("--addr required".to_string()))?;
+            let work_dir = required_path_flag(&mut args, "--work-dir")?;
+            build::serve(&addr, &work_dir).map(|r: CommandResult| r.render(json, "build.serve"))
+        }
+        "dispatch" => {
+            let peer = extract_flag(&mut args, "--peer")
+                .ok_or_else(|| CliError::Usage("--peer required".to_string()))?;
+            let component = required_path_flag(&mut args, "--component")?;
+            let workspace = required_path_flag(&mut args, "--workspace")?;
+            let artifacts_dir = required_path_flag(&mut args, "--artifacts-dir")?;
+            let capabilities =
+                build::parse_capabilities(extract_flag_multi(&mut args, "--capability"))?;
+            let mut limits = build::default_limits();
+            if let Some(v) = extract_u64_flag(&mut args, "--max-fuel")? {
+                limits.max_fuel = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-memory-bytes")? {
+                limits.max_memory_bytes = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-wall-clock-ms")? {
+                limits.max_wall_clock_ms = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-output-bytes")? {
+                limits.max_output_bytes = v;
+            }
+            build::dispatch(
+                &peer,
+                &component,
+                &workspace,
+                &artifacts_dir,
+                capabilities,
+                limits,
+            )
+            .map(|r: CommandResult| r.render(json, "build.dispatch"))
+        }
         other => Err(CliError::Usage(format!(
             "unknown `build` subcommand: {other:?}"
         ))),
