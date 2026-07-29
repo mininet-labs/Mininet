@@ -342,10 +342,10 @@
     },
     {
       "issue": 264,
-      "status": "active",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "agent/beta-governance-onboarding",
-      "pull_request": null,
+      "pull_request": 265,
       "lease_expires": "2026-08-12",
       "paths": [
         "README.md",
@@ -369,7 +369,7 @@
       "decision_ids": [
         "D-0101"
       ],
-      "notes": "Beta front door, closure-ready external-review template, guided contributor/tester intake, and a preliminary Mininet-native team/routing report. Documentation and coordination adapter only; no governance activation, protocol authority, or production claim. The stale merged #200 claim is closed in this batch per D-0100's cleanup precedent."
+      "notes": "Beta front door, closure-ready external-review template, guided contributor/tester intake, and a preliminary Mininet-native team/routing report. Documentation and coordination adapter only; no governance activation, protocol authority, or production claim. The stale merged #200 claim is closed in this batch per D-0100's cleanup precedent. Closed here (PR #267 branch) since PR #265 was confirmed merged (2026-07-29T16:16:42Z); found stale (still active) per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
     },
     {
       "issue": 255,
