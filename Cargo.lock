@@ -2668,6 +2668,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-ranker"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-lexical-index",
+ "mini-web-types",
+]
+
+[[package]]
 name = "mini-relay"
 version = "0.0.1"
 dependencies = [
