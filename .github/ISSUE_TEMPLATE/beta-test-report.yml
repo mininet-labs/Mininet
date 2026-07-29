@@ -1,0 +1,87 @@
+name: Beta test report
+description: Report reproducible Beta evidence tied to an exact revision.
+title: "beta-test: "
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A Beta report is evidence, not a production-readiness or external-audit claim. Do not include secrets, private keys, or unnecessary personal/device data. Keep Rust-only, emulator-only, and physical-device results separate.
+  - type: input
+    id: revision
+    attributes:
+      label: Exact revision, release, or object digest
+      placeholder: commit SHA, release id, or proposal digest
+    validations:
+      required: true
+  - type: dropdown
+    id: path
+    attributes:
+      label: Test path
+      multiple: true
+      options:
+        - Rust-only
+        - Android emulator
+        - One physical Android device
+        - Two physical Android devices
+        - LAN or QR pairing
+        - BLE transport
+        - Background or process-restart lifecycle
+        - Release, install, or rollback
+        - Other (describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and device details
+      description: Include OS/toolchain/app build information needed to reproduce, but omit identifiers and private data.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and artifacts
+      description: Link logs, screenshots, hashes, or a minimal reproduction. Redact secrets and personal data.
+    validations:
+      required: true
+  - type: textarea
+    id: limitations
+    attributes:
+      label: What this does not prove
+      description: State what was not tested, including missing hardware, missing external review, or missing production integration.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Safety and honesty checks
+      options:
+        - label: This report does not claim an external cryptography audit, unique-human proof, production value, or production custody.
+          required: true
+        - label: If this concerns an update or install, I distinguish release eligibility, installation, and voluntary owner adoption.
+          required: true
+        - label: I have removed secrets and unnecessary personal data.
+          required: true
