@@ -12363,7 +12363,160 @@ interpret); `mini-query` (E7); result provenance (E8).
 D-0317 after D-0316/D-0317. Does not supersede `mini-web-types`,
 `mini-crawler`, `mini-extract-protocol`, or `mini-extract-host` (Track
 B3's separately-scoped Mininet-Intake extractor).
+---
 
+### D-0405 — `mini-lexical-index`: deterministic inverted index with phrase positions, Track E5 of MiniSearch  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0312 (MiniSearch doctrine); D-0316
+(`mini-web-types`); D-0317 (`mini-crawler`); founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §E5
+(PR E5, "Lexical index"); Directive 14 (no new cryptography); Directive 16
+(the voice/value wall)
+
+**Decision:** adds `mini-lexical-index`, the MiniSearch code slice between
+extraction and ranking. `IndexBuilder` accumulates documents (a
+`mini_web_types::UrlId` plus per-`Field` text — title, body, url) and
+freezes them into an immutable `IndexSegment`. The segment answers
+structural queries only — `term_documents` (documents containing a term)
+and `phrase_documents` (documents where a phrase's tokens are consecutive
+within one field, via stored positions) — plus a canonical
+`to_bytes`/`from_bytes`, a BLAKE3 `segment_id` (a
+`mini_web_types::IndexSegmentId`), and a compact `IndexManifest`.
+
+The crate deliberately has no ranker, scorer, crawler, fetcher, extractor,
+query parser, CLI, network client, or storage backend, and no payment,
+provider, ranking-authority, or governance-weight field of any kind. It
+indexes text and answers "which documents contain this term / this
+phrase," and nothing else.
+
+**Reason:** §E5 names the lexical index as the slice between extraction and
+ranking. Building it as pure, deterministic index construction — separate
+from the ranker (E6) that will consume it — keeps D-0312's separation of
+discovery, availability, and ranking structural rather than aspirational:
+the index records *what text exists where*, and every judgment about what
+that is *worth* lives in a later, forkable ranking layer this crate cannot
+influence. An `IndexSegment`'s identity is the BLAKE3 digest of its
+canonical bytes, so the same documents always produce the same segment and
+the same id regardless of insertion order or host. That determinism makes
+D-0312's plurality real: many participants can build index segments from
+the same crawl observations and cache, replicate, compare, or merge them by
+id without trusting whoever built them. `from_bytes` enforces canonical
+form (sorted terms and documents, ascending positions, no dangling document
+references), so the bytes↔segment mapping stays one-to-one and a segment id
+denotes exactly one segment.
+
+The tokenizer is intentionally minimal — Unicode-alphanumeric runs,
+lowercased locale-independently, position-tracked, overlong tokens
+truncated — because stemming, locale casing, and synonym expansion are
+ranking/query-expansion concerns that must not be baked into the single
+canonical index every participant has to agree on byte-for-byte.
+
+**Constitutional impact:** strengthens the search-domain extension of
+Directive 16 without adding authority. No payment, stake, balance,
+governance-weight, or provider-entitlement field appears anywhere in the
+crate; an index segment cannot buy ranking position, approve content, or
+canonicalize anything. No new cryptography: the only digest is
+`mini_crypto::Multihash` (BLAKE3), the construction already used for every
+other content address in the workspace.
+
+**Implementation status:** shipped in `mini-lexical-index` and added to the
+workspace. Focused local validation on Windows: `cargo fmt --all
+-- --check`, `cargo clippy -p mini-lexical-index --all-targets
+--all-features -- -D warnings`, and `cargo test -p mini-lexical-index
+--all-features` all pass — 29 tests (24 unit + 5 integration) covering
+deterministic tokenization, term and phrase lookup, per-field phrase
+adjacency (no cross-field matches), insertion-order-independent
+content-addressed builds, byte round-trips, manifest agreement, rejection
+of non-canonical/unsorted/dangling-reference encodings, wrong version
+bytes, trailing bytes, and truncation at every offset without panic. A
+workspace-wide `cargo` run is not possible on the authoring machine
+(Windows): `mini-installer`'s Unix symlink path — the pre-existing
+condition tracked in D-0318 — blocks it; this crate does not depend on
+`mini-installer`.
+
+**Required follow-up:** the transparent ranker (E6) that consumes these
+segments; the query CLI (E7); result provenance and explanations (E8); and,
+for scale, an on-disk/streamed segment representation (this first slice
+holds a segment in memory and serializes it whole).
+
+**Supersedes / superseded by:** none. Extends the MiniSearch track after
+D-0316/D-0317; supersedes nothing.
+
+---
+
+### D-0406 — `mini-ranker`: transparent, deterministic ranker, Track E6 of MiniSearch  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0312 (MiniSearch doctrine); D-0316
+(`mini-web-types`); D-0405 (`mini-lexical-index`); founder-supplied
+`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§E6 (PR E6, "Transparent ranker"); Directive 16 (the voice/value wall);
+Directive 14 (no new cryptography)
+
+**Decision:** adds `mini-ranker`, the MiniSearch slice that turns matches
+into an ordering. `rank(index, corpus, profile, query, now_ms, max_results)`
+scores each document matching a query with six transparent, integer signals
+— lexical relevance, phrase match, a basic link signal, freshness,
+originality (exact-duplicate removal), and domain diversity — combines them
+under a versioned `mini_web_types::RankingProfile`'s declared weights, and
+returns `SearchResult`s each carrying a `RankingExplanation` that breaks the
+score down by signal. Document metadata the index does not hold (canonical
+URL, display strings, observation time, inbound-link count, content digest,
+availability) is supplied by a `Corpus`.
+
+The crate deliberately has no query parser or CLI (E7), no provenance beyond
+the explanation (E8), no crawler/fetcher/extractor, no network or storage,
+and no learned ranking or click feedback.
+
+**Reason:** §E6 names the transparent ranker as the slice after the lexical
+index. Four of D-0312's search invariants are enforced structurally here,
+not by policy that could later be relaxed:
+
+- *No pay-to-rank.* `rank` has no payment, bid, or provider parameter in its
+  signature; ranking cannot be bought because there is nothing to buy it
+  with.
+- *No personalization by default.* The ranker takes no per-user state, so
+  the public default of no personalization holds by construction.
+- *Availability is not a relevance penalty.* Restricted or unavailable
+  documents are filtered out before scoring, never scored down, so an
+  availability decision cannot be laundered into the relevance number — and
+  `mini_web_types::SearchResult::displayable` enforces the same at the type
+  level.
+- *Deterministic ordering.* Every signal is integer (no floating point,
+  whose rounding can differ by platform), the only time input is an explicit
+  `now_ms`, and every ordering tie breaks on `UrlId` bytes — so the same
+  query, index, profile, and time produce byte-identical results anywhere,
+  the reproducibility §E6/§32 requires. The weights and version live in the
+  caller's forkable `RankingProfile`, and each result names the profile that
+  produced it, so a different community can rank the same index differently
+  and the difference is explicit.
+
+**Constitutional impact:** strengthens the search-domain extension of
+Directive 16 without adding authority. No payment, stake, balance,
+governance-weight, or provider-entitlement field appears anywhere in the
+crate or in `rank`'s inputs; ranking cannot buy authority and confers none.
+No new cryptography: the only digest is `mini_crypto::Multihash` (BLAKE3),
+used for exact-duplicate detection.
+
+**Implementation status:** shipped in `mini-ranker`, stacked on
+`mini-lexical-index` (D-0405) and added to the workspace. Focused local
+validation on Windows: `cargo fmt --all -- --check`, `cargo clippy
+-p mini-ranker --all-targets --all-features -- -D warnings`, and `cargo test
+-p mini-ranker --all-features` all pass — 15 tests (5 unit + 10 integration)
+covering deterministic re-ranking, coverage-over-frequency ordering,
+per-signal explanations, a restricted document excluded (not demoted), exact
+duplicate removal keeping the earliest original, domain-diversity demotion of
+a repeated host, phrase-boost over term-only, empty query, `max_results`
+bounding, and a surfaced missing-corpus-entry error. A workspace-wide
+`cargo` run is not possible on the authoring machine (Windows) because of
+`mini-installer`'s Unix symlink path (the pre-existing condition tracked in
+D-0318); `mini-ranker` does not depend on `mini-installer`.
+
+**Required follow-up:** the query CLI (E7); result provenance and
+explanations (E8); a real link-graph signal and near-duplicate detection to
+replace the bounded placeholders; and, for scale, streamed ranking over
+large segments (the current diversity-aware selection is a greedy O(n²) pass
+suited to first-slice result-set sizes).
+
+**Supersedes / superseded by:** none. Extends the MiniSearch track after
+D-0405; supersedes nothing.
 ### D-0374 — `mini-bearer`: `AndroidBleBearer`/`BleRadio`, the Rust-side half of the BLE bearer (Android beta slice 5, issue #201)  ·  *Accepted*
 **Date:** 2026-07-28 · **Refs:** D-0342 (`mini-bearer::ble` MTU chunking/
 reassembly); D-0338 (`mini-ffi::StorageCipher`, the callback-interface
