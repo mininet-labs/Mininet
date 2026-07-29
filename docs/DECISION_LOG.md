@@ -13134,3 +13134,73 @@ infrastructure.
 
 **Supersedes / superseded by:** supplements D-0069 and D-0080. It does not
 supersede any frozen invariant, release gate, or owner-adoption rule.
+
+### D-0413 - Executable Day-0 monetary-policy kernel and corrected simulation  ·  *Proposed*
+**Date:** 2026-07-29 · **Refs:** roadmap #46-#51; #99; D-0073; D-0074;
+`docs/design/day0-monetary-kernel.md`;
+`docs/audits/day0-economy-engineering-review.md`; P1, P2, M1, M2, M3, A1;
+Directive 4, Directive 13, Directive 16.
+
+**Decision:** propose `mini-economy` as the deterministic implementation of
+the already-selected D-0074 issuance envelope, and `mini-econ-sim` as its
+cohort-based calibration harness. The kernel uses checked integer arithmetic,
+prorates the 3%/2%/0.75%/0.25% annual envelope by epoch duration, divides
+Human Share equally among the supplied eligible humans, leaves division
+remainder unissued, rejects channel or total overruns, carries the selected
+365-day and 90-day vesting metadata, and constructs order-independent
+equal-human genesis manifests with no privileged recipient class.
+
+Existing settlement amounts remain `u64` micro-MINI on the wire. A new `u128`
+micro-MINI accounting type accepts every existing value losslessly and
+provides long-horizon headroom, but does not itself authorize a wire, storage,
+or consensus migration.
+
+**Reason:** D-0073 and D-0074 currently exist primarily as prose, while the
+old Python simulation distributes Human Share in proportion to existing
+holdings and therefore cannot evaluate the adopted equal-per-human mechanism.
+A small policy kernel makes the chosen envelope executable and independently
+testable without prematurely embedding treasury custody, personhood, service
+selection, or consensus authorization into one component.
+
+**Alternatives:** silently treating `mini-reward` points as MINI would turn a
+demo accounting path into money without reconciliation; a finite
+founder/investor reserve would contradict D-0074; balance-proportional
+distribution would contradict Human Share; a fixed “all world wealth”
+valuation oracle would create a coercive central truth and false redemption
+expectations; floating-point monetary arithmetic would make consensus results
+platform-sensitive. All are rejected.
+
+**Constitutional impact:** none intended. The proposal implements existing
+parameters but does not activate them, establish personhood, authorize value,
+change governance weight, custody external assets, promise redemption, merge
+money as a CRDT, or treat an offline claim as final. Genesis quantity and
+eligibility remain explicit governance/personhood inputs. Wealth remains
+absent from governance outputs.
+
+**Implementation status:** proposal code includes `mini-economy`,
+`mini-econ-sim`, unit/integration tests, a 200-year integer CSV run, design
+reconciliation, and an internal adversarial review. Chain mint execution,
+canonical encodings, epoch replay protection, supply checkpoint binding,
+vesting enforcement, service evidence, bridge receipts, production genesis,
+and wallet integration are not built by this slice.
+
+**Failure point:** a caller can supply a dishonest eligible set, stale opening
+supply, fabricated service/treasury allocations, or a duplicate epoch because
+the kernel only validates monetary shape. A valid plan could be mistaken for
+mint authority. The simulator could be mistaken for validation despite
+omitting markets, fees, liquidity, external-asset shocks, reward concavity,
+collusion, and personhood costs. A `u128` in-memory amount could be mistaken
+for an adopted ledger format.
+
+**Required follow-up:** independent personhood and mechanism-design review;
+governance selection of any bootstrap amount and snapshot; canonical encoding
+and chain integration with replay/supply invariants; expanded shock and
+fee/security-budget scenarios; treasury/bridge/custody review; wallet
+locked/vesting/available presentation; and external cryptographic, economic,
+legal, accessibility, and implementation review before real value.
+
+**Supersedes / superseded by:** implements a proposed narrow engineering
+surface beneath D-0073 and D-0074 and replaces no invariant or gate. It does
+not supersede the Python harness; it corrects that harness's Human Share model
+for the scenarios it covers. D-0410 and D-0412 remain reserved for their
+previously named future waves.

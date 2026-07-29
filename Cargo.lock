@@ -2441,6 +2441,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-econ-sim"
+version = "0.0.1"
+dependencies = [
+ "mini-economy",
+]
+
+[[package]]
+name = "mini-economy"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+]
+
+[[package]]
 name = "mini-engagement"
 version = "0.0.1"
 dependencies = [

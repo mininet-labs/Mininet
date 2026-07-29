@@ -200,6 +200,10 @@ so, everywhere, on purpose.
   holders (`mini-replication-policy`, D-0372)
 - anonymous developer-bounty claims (`mini-bounty`); offline settlement
   protocol (`mini-settlement`)
+- deterministic D-0074 issuance envelopes and equal-allocation genesis
+  manifests (`mini-economy`, D-0413), plus a cohort-based 200-year
+  calibration harness (`mini-econ-sim`) — proposal code only; no mint,
+  production genesis, personhood proof, or economic-safety claim
 - airdrop eligibility snapshot + signed claim-redemption verification
   (`mini-airdrop`, D-0354/D-0355) — does not solve Sybil resistance,
   never holds treasury signing authority, and produces only a claim
