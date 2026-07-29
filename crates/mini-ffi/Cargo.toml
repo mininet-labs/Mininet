@@ -18,6 +18,7 @@ bindgen = ["uniffi/cli"]
 [dependencies]
 uniffi = { version = "=0.32.0", default-features = false }
 did-mini = { path = "../did-mini" }
+mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
 mini-objects = { path = "../mini-objects" }
 mini-social = { path = "../mini-social" }
