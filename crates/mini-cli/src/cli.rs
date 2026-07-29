@@ -517,6 +517,37 @@ fn dispatch_release(
             )
             .map(|r: CommandResult| r.render(json, "release.fetch"))
         }
+        "retrieve" => {
+            let release_id = next(&mut args, "release retrieve")?;
+            let project = next(&mut args, "release retrieve")?;
+            let branch = extract_flag(&mut args, "--branch")
+                .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
+            let peer = extract_flag(&mut args, "--peer")
+                .ok_or_else(|| CliError::Usage("--peer required".to_string()))?;
+            let output = required_path_flag(&mut args, "--output")?;
+            let min_attestations = extract_u32_flag(&mut args, "--min-attestations")?;
+            let timelock_ms = extract_u64_flag(&mut args, "--timelock-ms")?;
+            let now_ms = extract_u64_flag(&mut args, "--now-ms")?;
+            release::retrieve(
+                home,
+                store_path,
+                &release_id,
+                &project,
+                &branch,
+                &peer,
+                &output,
+                min_attestations,
+                timelock_ms,
+                now_ms,
+            )
+            .map(|r: CommandResult| r.render(json, "release.retrieve"))
+        }
+        "serve" => {
+            let addr = extract_flag(&mut args, "--addr")
+                .ok_or_else(|| CliError::Usage("--addr required".to_string()))?;
+            release::serve(store_path, &addr)
+                .map(|r: CommandResult| r.render(json, "release.serve"))
+        }
         "list" => {
             let project = next(&mut args, "release list")?;
             let branch = extract_flag(&mut args, "--branch")

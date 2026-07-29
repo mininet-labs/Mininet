@@ -259,6 +259,91 @@ pub fn fetch(
     ))
 }
 
+/// `mini release retrieve <release-id> <project> --branch <b> --peer
+/// <host:port> --output <path>`.
+///
+/// Retrieval is intentionally two-phase: a peer transfers one bounded,
+/// content-addressed evidence closure, then this device runs the same
+/// governed verification as local fetch before creating the output file.
+/// Nothing is activated and an existing output is never overwritten.
+#[allow(clippy::too_many_arguments)]
+pub fn retrieve(
+    home: &Path,
+    store_path: &Path,
+    release_ref: &str,
+    project_ref: &str,
+    branch: &str,
+    peer: &str,
+    output: &Path,
+    min_attestations: Option<u32>,
+    timelock_ms: Option<u64>,
+    now_ms: Option<u64>,
+) -> Result<CommandResult> {
+    let release_id = ObjectId::parse(release_ref).map_err(|e| CliError::Object(e.to_string()))?;
+    let transfer = crate::sync::retrieve_release(home, store_path, peer, &release_id)?;
+    let verified = verified_release(
+        home,
+        store_path,
+        release_ref,
+        project_ref,
+        branch,
+        min_attestations,
+        timelock_ms,
+        now_ms,
+    )?;
+    let store = open_store(store_path)?;
+    let bytes = assemble(&store, &verified.artifact).map_err(|e| CliError::Media(e.to_string()))?;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(output)
+        .map_err(|e| CliError::Io(e.to_string()))?;
+    use std::io::Write;
+    file.write_all(&bytes)
+        .map_err(|e| CliError::Io(e.to_string()))?;
+
+    Ok(CommandResult::new(format!(
+        "verified release {} retrieved from {} to {}",
+        verified.id.as_str(),
+        peer,
+        output.display()
+    ))
+    .field("release_id", JsonValue::str(verified.id.as_str()))
+    .field("peer", JsonValue::str(peer))
+    .field("selected_objects", JsonValue::num(transfer.selected as u64))
+    .field(
+        "received_objects",
+        JsonValue::num(transfer.ingest.received as u64),
+    )
+    .field(
+        "accepted_objects",
+        JsonValue::num(transfer.ingest.accepted as u64),
+    )
+    .field(
+        "output",
+        JsonValue::str(output.to_string_lossy().into_owned()),
+    )
+    .field("bytes", JsonValue::num(bytes.len() as u64))
+    .field(
+        "artifact_digest",
+        JsonValue::str(hex(&verified.artifact.digest)),
+    ))
+}
+
+/// `mini release serve --addr <host:port>` — serve exactly one native release
+/// retrieval request, then exit. This is a user-invoked peer service, not a
+/// daemon, automatic update channel, or canonical authority.
+pub fn serve(store_path: &Path, addr: &str) -> Result<CommandResult> {
+    let report = crate::sync::serve_release(store_path, addr)?;
+    Ok(CommandResult::new(format!(
+        "served release {} to {} ({} selected objects)",
+        report.release_id, report.peer, report.selected
+    ))
+    .field("release_id", JsonValue::str(report.release_id))
+    .field("peer", JsonValue::str(report.peer))
+    .field("selected_objects", JsonValue::num(report.selected as u64)))
+}
+
 /// `mini release list <project> --branch <b>` -- the transparency log is
 /// the object store itself (D-0070); this just prints it.
 pub fn list(

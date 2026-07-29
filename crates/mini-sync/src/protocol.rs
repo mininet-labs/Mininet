@@ -17,6 +17,10 @@ const OBJECTS_BYTE_BUDGET: usize = 4 * 1024 * 1024;
 /// Maximum KEL carriers processed in one pull (identity-cache DoS bound).
 const PULL_KEL_CARRIER_BUDGET: usize = 512;
 const MAX_WANT_ROUNDS: usize = 1024;
+/// A targeted release retrieval is one bounded exchange, not a general
+/// replication session. The selector in `mini-forge` uses the same ceiling.
+const MAX_RETRIEVAL_OBJECTS: usize = 4096;
+const RETRIEVAL_BYTE_BUDGET: usize = PULL_BYTE_BUDGET;
 
 /// Which side of the encounter this peer is (decides who pulls first).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +48,17 @@ pub struct IngestReport {
     pub invalid: usize,
     /// Dropped without decoding: the peer sent objects we never asked for.
     pub unsolicited: usize,
+}
+
+/// Result of one exact retrieval request.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RetrievalReport {
+    /// Number of seed ids requested by the client.
+    pub requested: usize,
+    /// Number of object ids selected by the serving peer.
+    pub selected: usize,
+    /// Verified-ingest counters for the received objects.
+    pub ingest: IngestReport,
 }
 
 fn send(bearer: &mut dyn Bearer, chan: &mut Channel, msg: &Msg) -> Result<()> {
@@ -129,7 +144,7 @@ fn pull<B: Backend>(
     store: &mut Store<B>,
     cache: &mut KelCache,
 ) -> Result<IngestReport> {
-    let mut report = IngestReport::default();
+    let report = IngestReport::default();
     let my_ids = sorted_ids(store)?;
     send(bearer, chan, &Msg::RootDigest(digest_of(&my_ids)))?;
 
@@ -198,14 +213,30 @@ fn pull<B: Backend>(
         }
     }
 
+    ingest_objects(store, cache, received_bytes, &wants)
+}
+
+/// Decode and ingest one bounded set of received object bytes. This is shared
+/// by full reconciliation and exact retrieval so both paths have the same
+/// verify-before-insert behavior and the same carrier ordering.
+fn ingest_objects<B: Backend>(
+    store: &mut Store<B>,
+    cache: &mut KelCache,
+    received_bytes: Vec<Vec<u8>>,
+    requested_ids: &[String],
+) -> Result<IngestReport> {
+    let mut report = IngestReport {
+        received: received_bytes.len(),
+        ..IngestReport::default()
+    };
+
     // Two-pass verified ingest: decode all, DROP anything we never asked for,
     // absorb carriers first, then verify and insert content.
-    report.received = received_bytes.len();
     let mut decoded: Vec<Object> = Vec::new();
     for bytes in &received_bytes {
         match Object::from_bytes(bytes) {
             Ok(o) => {
-                if wants.iter().any(|w| w == o.id().as_str()) {
+                if requested_ids.iter().any(|w| w == o.id().as_str()) {
                     decoded.push(o);
                 } else {
                     report.unsolicited += 1;
@@ -338,4 +369,158 @@ pub fn serve_pull<B: Backend>(
         }
         send(bearer, chan, &Msg::Objects(Vec::new()))?; // end-of-want marker
     }
+}
+
+/// Client side of an exact retrieval exchange.
+///
+/// The client sends seed ids. The serving peer responds with a bounded,
+/// deterministic selection (for a release, `mini-forge` supplies the
+/// evidence-closure selector), and the client explicitly echoes that
+/// selection before bytes are sent. Every byte then goes through the same
+/// verified ingest pipeline as ordinary sync. This deliberately does not
+/// merge branch heads or perform any owner/adoption action.
+pub fn request_retrieval<B: Backend>(
+    bearer: &mut dyn Bearer,
+    chan: &mut Channel,
+    store: &mut Store<B>,
+    cache: &mut KelCache,
+    seeds: &[ObjectId],
+) -> Result<RetrievalReport> {
+    if seeds.is_empty() || seeds.len() > MAX_RETRIEVAL_OBJECTS {
+        return Err(SyncError::LimitExceeded);
+    }
+    let seed_ids: Vec<String> = seeds.iter().map(|id| id.as_str().to_string()).collect();
+    if has_duplicate_strings(&seed_ids) {
+        return Err(SyncError::Protocol);
+    }
+    send(bearer, chan, &Msg::Want(seed_ids.clone()))?;
+
+    let selected = match recv(bearer, chan)? {
+        Msg::Ids(ids) => ids,
+        _ => return Err(SyncError::Protocol),
+    };
+    if selected.is_empty() || selected.len() > MAX_RETRIEVAL_OBJECTS {
+        return Err(SyncError::RetrievalIncomplete);
+    }
+    for id in &selected {
+        ObjectId::parse(id)?;
+    }
+    if has_duplicate_strings(&selected)
+        || seed_ids
+            .iter()
+            .any(|seed| !selected.iter().any(|candidate| candidate == seed))
+    {
+        return Err(SyncError::RetrievalIncomplete);
+    }
+
+    // Echoing the exact server selection gives the responder an explicit
+    // allow-list. The server never streams an unrequested object, even if a
+    // selector bug or a malicious client tries to alter the exchange.
+    send(bearer, chan, &Msg::Want(selected.clone()))?;
+
+    let mut received_bytes = Vec::new();
+    let mut budget = RETRIEVAL_BYTE_BUDGET;
+    loop {
+        match recv(bearer, chan)? {
+            Msg::Objects(objects) if objects.is_empty() => break,
+            Msg::Objects(objects) => {
+                for object in objects {
+                    budget = budget
+                        .checked_sub(object.len())
+                        .ok_or(SyncError::LimitExceeded)?;
+                    received_bytes.push(object);
+                }
+            }
+            _ => return Err(SyncError::Protocol),
+        }
+    }
+
+    let ingest = ingest_objects(store, cache, received_bytes, &selected)?;
+    Ok(RetrievalReport {
+        requested: seeds.len(),
+        selected: selected.len(),
+        ingest,
+    })
+}
+
+/// Receive the seed ids for a targeted retrieval. The serving application
+/// uses these ids to choose a bounded closure before calling
+/// [`serve_retrieval`]. Keeping selection outside this generic sync crate
+/// avoids giving the wire layer authority over forge policy.
+pub fn receive_retrieval_request(
+    bearer: &mut dyn Bearer,
+    chan: &mut Channel,
+) -> Result<Vec<ObjectId>> {
+    let ids = match recv(bearer, chan)? {
+        Msg::Want(ids) => ids,
+        _ => return Err(SyncError::Protocol),
+    };
+    if ids.is_empty() || ids.len() > MAX_RETRIEVAL_OBJECTS || has_duplicate_strings(&ids) {
+        return Err(SyncError::Protocol);
+    }
+    ids.into_iter()
+        .map(|id| ObjectId::parse(&id).map_err(Into::into))
+        .collect()
+}
+
+/// Serve a previously selected exact retrieval closure.
+///
+/// `selected` must be the result of an application-level selector such as
+/// `mini_forge::release_retrieval_ids`. The client must echo the exact id list;
+/// object bytes are then streamed in bounded batches from the serving store.
+pub fn serve_retrieval<B: Backend>(
+    bearer: &mut dyn Bearer,
+    chan: &mut Channel,
+    store: &Store<B>,
+    selected: &[ObjectId],
+) -> Result<()> {
+    if selected.is_empty() || selected.len() > MAX_RETRIEVAL_OBJECTS {
+        return Err(SyncError::LimitExceeded);
+    }
+    let selected_ids: Vec<String> = selected.iter().map(|id| id.as_str().to_string()).collect();
+    if has_duplicate_strings(&selected_ids) {
+        return Err(SyncError::Protocol);
+    }
+    send(bearer, chan, &Msg::Ids(selected_ids.clone()))?;
+
+    let wanted = match recv(bearer, chan)? {
+        Msg::Want(ids) => ids,
+        _ => return Err(SyncError::Protocol),
+    };
+    if wanted != selected_ids {
+        return Err(SyncError::Protocol);
+    }
+
+    let mut batch = Vec::new();
+    let mut batch_bytes = 0usize;
+    let mut total_budget = RETRIEVAL_BYTE_BUDGET;
+    for id in &wanted {
+        let object_id = ObjectId::parse(id)?;
+        let object = store.get(&object_id)?;
+        let bytes = object.to_bytes();
+        total_budget = total_budget
+            .checked_sub(bytes.len())
+            .ok_or(SyncError::LimitExceeded)?;
+        if !batch.is_empty() && batch_bytes + bytes.len() > OBJECTS_BYTE_BUDGET {
+            send(bearer, chan, &Msg::Objects(std::mem::take(&mut batch)))?;
+            batch_bytes = 0;
+        }
+        batch_bytes += bytes.len();
+        batch.push(bytes);
+        if batch.len() == 64 {
+            send(bearer, chan, &Msg::Objects(std::mem::take(&mut batch)))?;
+            batch_bytes = 0;
+        }
+    }
+    if !batch.is_empty() {
+        send(bearer, chan, &Msg::Objects(batch))?;
+    }
+    send(bearer, chan, &Msg::Objects(Vec::new()))
+}
+
+fn has_duplicate_strings(values: &[String]) -> bool {
+    values
+        .iter()
+        .enumerate()
+        .any(|(index, value)| values[..index].iter().any(|previous| previous == value))
 }

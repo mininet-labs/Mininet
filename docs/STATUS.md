@@ -877,6 +877,20 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   one connection — independently runs `release verify` and the full
   `installer stage → preflight → activate → health-check` sequence to a
   genuinely active, passing install.
+- **shipped, bounded** - native exact release retrieval (D-0408 proposed,
+  issue #268): `mini release serve` accepts one owner-invoked request and
+  `mini release retrieve` asks for one exact release over the existing
+  encrypted `mini-sync` channel. `mini-forge::release_retrieval_ids` selects
+  the release's forward object closure plus verifier-relevant reverse
+  `release`/`prev`/`pr` evidence; the client echoes the selection, runs the
+  ordinary verified-ingest boundary, and invokes governed release
+  verification before writing a new output file. A real loopback CLI test
+  proves retrieval from a fresh store without a shared filesystem and asserts
+  that the target peer receives fewer objects than the serving store. Identity
+  KEL trust remains explicit; this is not a daemon, discovery service,
+  pagination protocol, automatic update, owner activation, or external-audit
+  result. The current closure cap is 4096 objects and the transfer uses the
+  existing 512 MiB sync budget.
 - **shipped** — the no-GitHub outage demo (D-0081). `tools/
   no_github_outage_demo.sh` is a real, narrated shell script — driving
   the compiled `mini` binary, never a library call — that carries three
@@ -952,8 +966,10 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   named next step, the caller's job by design); the rest of
   Batch 5 (a genuinely bounded `FsBackend::list_meta_prefix_last`, a
   bounded/paginated forward range scan for `Store::since`, distributed
-  build workers, native release retrieval, GitHub import/export mirror
-  automation).
+  build workers, GitHub import/export mirror
+  automation). Native exact retrieval is shipped only as the bounded
+  one-shot path described above; pagination, persistent serving, discovery,
+  and a production update channel remain open.
 - **partly active, mostly specified** — the founder-supplied Governance Pack
   v1.0 plus the v1.1 charter delta (`docs/governance/`, `forge-native/`,
   `governance/`; D-0082–D-0084): ~50

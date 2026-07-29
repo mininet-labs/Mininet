@@ -19,7 +19,11 @@ use std::net::TcpListener;
 use std::path::Path;
 
 use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
-use mini_sync::{kel_carrier, sync_bidirectional, IngestReport, SyncRole};
+use mini_objects::ObjectId;
+use mini_sync::{
+    kel_carrier, receive_retrieval_request, request_retrieval, serve_retrieval, sync_bidirectional,
+    IngestReport, RetrievalReport, SyncRole,
+};
 
 use crate::error::{CliError, Result};
 use crate::store::{build_kel_cache, open_store};
@@ -137,4 +141,92 @@ pub fn connect(home: &Path, store_path: &Path, addr: &str) -> Result<String> {
     .map_err(|e| CliError::Sync(e.to_string()))?;
 
     Ok(format_report(addr, &report))
+}
+
+/// A one-shot native release server result. The server exits after one
+/// retrieval, keeping the CLI bounded and making the owner choose when to
+/// expose a store; it is not a daemon or a background update authority.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ServeReleaseReport {
+    /// The exact release seed served.
+    pub release_id: String,
+    /// Number of selected closure objects offered.
+    pub selected: usize,
+    /// The connected peer address.
+    pub peer: String,
+}
+
+/// Retrieve one exact release over the existing encrypted TCP bearer/channel.
+/// The caller remains responsible for the subsequent governed verification.
+pub fn retrieve_release(
+    home: &Path,
+    store_path: &Path,
+    addr: &str,
+    release_id: &ObjectId,
+) -> Result<RetrievalReport> {
+    let identity = crate::identity::load_or_init(home)?;
+    let mut store = open_store(store_path)?;
+    let mut cache = build_kel_cache(home, &identity)?;
+    cache
+        .hydrate_from_store(&store)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+
+    let mut bearer = TcpBearer::connect(addr).map_err(|e| CliError::Sync(e.to_string()))?;
+    let (init, hello) = Initiator::start().map_err(|e| CliError::Sync(e.to_string()))?;
+    bearer
+        .send(&hello)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    let response = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+    let mut chan = init
+        .finish(&response)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+
+    request_retrieval(
+        &mut bearer,
+        &mut chan,
+        &mut store,
+        &mut cache,
+        std::slice::from_ref(release_id),
+    )
+    .map_err(|e| CliError::Sync(e.to_string()))
+}
+
+/// Serve one exact release retrieval request. The release-specific closure
+/// selector lives in `mini-forge`; this module only performs the bearer,
+/// bounded framing, and verified transfer composition.
+pub fn serve_release(store_path: &Path, addr: &str) -> Result<ServeReleaseReport> {
+    let store = open_store(store_path)?;
+    let listener = TcpListener::bind(addr).map_err(|e| CliError::Io(e.to_string()))?;
+    let (stream, peer) = listener.accept().map_err(|e| CliError::Io(e.to_string()))?;
+    let mut bearer = TcpBearer::from_stream(stream).map_err(|e| CliError::Sync(e.to_string()))?;
+
+    let hello = bearer.recv().map_err(|e| CliError::Sync(e.to_string()))?;
+    let (mut chan, response) =
+        Responder::respond(&hello).map_err(|e| CliError::Sync(e.to_string()))?;
+    bearer
+        .send(&response)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+
+    let seeds = receive_retrieval_request(&mut bearer, &mut chan)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+    if seeds.len() != 1 {
+        return Err(CliError::Usage(
+            "release retrieval requires exactly one release seed".to_string(),
+        ));
+    }
+    let release_id = seeds[0].clone();
+    let ids = {
+        let mut selected = mini_forge::release_retrieval_ids(&store, &release_id)
+            .map_err(|e| CliError::Forge(e.to_string()))?;
+        selected.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        selected
+    };
+    serve_retrieval(&mut bearer, &mut chan, &store, &ids)
+        .map_err(|e| CliError::Sync(e.to_string()))?;
+
+    Ok(ServeReleaseReport {
+        release_id: release_id.as_str().to_string(),
+        selected: ids.len(),
+        peer: peer.to_string(),
+    })
 }

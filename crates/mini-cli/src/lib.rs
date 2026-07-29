@@ -13,6 +13,9 @@
 //! copies files — content-addressed signed objects are safe to share via
 //! any medium) or, as of `mini sync` (Batch 5, `crate::sync`), a real TCP
 //! connection between two `mini` homes with no shared filesystem at all.
+//! The release-facing `mini release serve`/`retrieve` commands add a bounded
+//! exact object closure on that same channel; they still require explicit
+//! local KEL trust and the existing governed-release check.
 //!
 //! ## Honest limits
 //!
@@ -21,6 +24,8 @@
 //!   local files: acceptable for solo/small-group use, not for background
 //!   sync or live event subscriptions. `mini sync` handles exactly one
 //!   connection per invocation, then exits (`crate::sync`'s module docs).
+//!   Native release serving is likewise one request per invocation; it is not
+//!   a persistent update service.
 //! - The per-home sequence counter (`crate::sequence`) serializes concurrent
 //!   invocations with an OS-backed lock, but other files in a home are not a
 //!   general transaction boundary.
