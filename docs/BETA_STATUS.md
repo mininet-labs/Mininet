@@ -9,8 +9,13 @@ This is a narrower, nearer-term target than "global launch" — see the root
 section for the full-network picture and `docs/STATUS.md` for the
 comprehensive, living implementation-status account organized by domain
 (voice/value, personhood, identity, money/finality, updates/forks,
-privacy, storage, networking, AI/audit gates). The full 22-crate map lives
-in the root README's repository-map table, not duplicated here.
+privacy, storage, networking, AI/audit gates). The generated 62-crate map
+lives in [`_generated/REPO_MAP.md`](_generated/REPO_MAP.md), not duplicated
+here.
+
+For Beta participation and reproducible evidence, use
+[`BETA_CONTRIBUTOR_GUIDE.md`](BETA_CONTRIBUTOR_GUIDE.md), the contributor
+intake form, and the Beta test report template linked from the root README.
 
 ## What stands between here and a demoable beta (honest list)
 
@@ -76,7 +81,8 @@ still missing for a real two-phone beta, in order:
    pairing, not yet the encrypted keystone bearer/range/reward path.
 6. **External crypto review** before any value- or update-bearing use.
 7. **Personhood (SPEC-02)** — quorums today count *distinct verified identity
-   roots, not humans*; "one human, one vote" is not yet enforced. D-0038
+   roots, not humans*; identity-root counting is not proof of unique humans.
+   D-0038
    redesigned personhood into an open-ended multi-signal system
    (`mini-uniqueness::status`), but the underlying behavioral/location ZK
    research problem (signal (b)) remains unsolved — see the root README.

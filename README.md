@@ -4,10 +4,12 @@
 
 Mininet is building a network where people own their identity, data, money,
 voice, and infrastructure. Money can buy storage, reach, and the funding of
-work — but never political power. Governance is one verified human, one equal
-vote. There is no owner, no foundation, no admin key, no forced-update path,
-no off switch, no law-enforcement backdoor, and no party that can unmask a
-user.
+work — but never political power. Where current protocol scopes count
+governance identities, they count distinct verified `did:mini` identity roots
+with equal weight; an identity root is not a verified human, and personhood is
+not solved. There is no owner, no foundation, no admin key, no forced-update
+path, no off switch, no law-enforcement backdoor, and no party that can unmask
+a user.
 
 > **This GitHub repository is only a temporary public mirror.** The long-term
 > code forge is content-addressed, self-governed, reproducibly built, and
@@ -29,10 +31,10 @@ code, and frozen. A full, code-mapped register is in
 - **Money never buys a vote.** No balance maps to governance or validator
   weight, in either direction — a wall enforced by the dependency graph
   itself, not by policy ([`docs/design/bounty-and-review.md`](docs/design/bounty-and-review.md)).
-- **One verified human, one equal vote.** Early arrival, wealth, and hardware
-  buy nothing extra. *(Today the system counts verified identity **roots**,
-  not yet verified humans — the honest gap is stated plainly below and at the
-  top of `docs/INVARIANTS.md`.)*
+- **Identity-root authority is not bought.** Where a current protocol scope
+  counts governance identities, each distinct verified `did:mini` identity
+  root has equal weight. Early arrival, wealth, and hardware buy nothing
+  extra; the system does not yet prove that one root represents one human.
 - **No owner, no admin key, no kill switch, no forced update.** Nobody can
   seize the network, freeze it, unmask a user, or push software you didn't
   choose to run.
@@ -44,7 +46,8 @@ code, and frozen. A full, code-mapped register is in
 
 ## What exists today — honestly
 
-This repository is the **self-contained Rust core**: ~40 crates, no external
+This repository is the **self-contained Rust core**: 62 crates indexed by
+`tools/mininet_nav.py`, with no external
 dependency on any single company's infrastructure to keep running. Nothing
 here is ready for real people, real money, or real custody yet — and it says
 so, everywhere, on purpose.
@@ -194,14 +197,18 @@ so, everywhere, on purpose.
   (not the gated FROST module) — still not a signed settlement claim
 
 **Not ready yet, and openly tracked:**
-- a mobile or desktop app anyone can install
-- BLE / local-radio transport (needs real phone hardware)
-- full networked consensus and a live chain
+- a public, installable Beta: the Android shell and LAN/QR pairing foundation
+  exist, but two physical devices have not yet completed the full acceptance
+  path, and the encrypted keystone/range/reward path is still separate
+- BLE / local-radio transport (needs real phone hardware and Kotlin radio
+  wiring)
+- production deployment of the networked consensus and a live chain (the
+  current consensus slices are tested protocol work, not a production network)
 - external cryptography audit — the single largest gate before any real value
 - FROST distributed key generation is implemented and tested (Pedersen DKG
   + committee resharing) but not yet externally audited
-- a solved, privacy-preserving personhood/liveness proof (open research, not
-  engineering debt)
+- a solved, privacy-preserving personhood/unique-human proof (open research,
+  not engineering debt)
 - adversarial testing at real-world scale
 
 The work that **more code cannot finish** — external audits, legal review,
@@ -220,6 +227,24 @@ Pick the door that fits you:
 | **A developer** — build it, run the demos, find your way around | [`docs/DEVELOPER_START.md`](docs/DEVELOPER_START.md) |
 | **An auditor or skeptic** — where are the invariants, threats, and honest gaps? | [`docs/AUDITOR_START.md`](docs/AUDITOR_START.md) |
 | **A contributor** — how work is reviewed and merged | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+
+## Beta testing and contributing
+
+The current Beta front door is an evidence-and-task router, not an authority
+system. Choose a bounded path in
+[`docs/BETA_CONTRIBUTOR_GUIDE.md`](docs/BETA_CONTRIBUTOR_GUIDE.md), use the
+[contributor intake form](../../issues/new?template=contributor-intake.yml), or
+file a reproducible result with the [Beta test report form](../../issues/new?template=beta-test-report.yml).
+The live coordination work is tracked in [#264](../../issues/264), the
+Mininet-native team and routing design questions in [#263](../../issues/263),
+and the external-review closure matrix in [#262](../../issues/262).
+
+Suggestions are opt-in and bounded: they do not automatically recruit, assign,
+authorize, pay, merge, release, or grant governance standing. GitHub teams are
+only a temporary collaboration adapter; any future Mininet-native working
+group must use a signed charter, scoped expiring roles, peer review, and the
+canonical authority/release boundaries. Identity roots are not proof of unique
+humans, and AI review carries zero approval weight.
 
 Beneath everything else in this repository — read before opening the code —
 is [`docs/FOUNDER_DIRECTIVES.md`](docs/FOUNDER_DIRECTIVES.md): the eighteen
@@ -241,7 +266,8 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0094`,
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0101`
+   (`D-0101` is proposed in this batch),
    plus the networking/consensus track's reserved `D-0200`–`D-0206`, the
    privacy/cost-doctrine track's `D-0300`–, and the edge/provider-layer
    track's `D-0400`– — see the log's "Decision-number allocation across
@@ -264,7 +290,7 @@ for what's activated, staged, or founder-only),
 [`docs/LEGAL_DISCLAIMER.md`](docs/LEGAL_DISCLAIMER.md) (the project's
 constitutional legal position — voluntary participation, no universal
 representative, individual legal responsibility, no protocol ownership).
-Find anything offline: `python3 tools/mininet_nav.py map` (see
+Find anything offline: `python tools/mininet_nav.py build` (see
 [`docs/NAVIGATION.md`](docs/NAVIGATION.md)).
 
 ## License

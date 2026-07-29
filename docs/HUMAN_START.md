@@ -27,8 +27,10 @@ promise — that:
 - **Money can't buy political power.** People with more money can pay for more
   storage or fund more work, but they can never buy extra votes or control
   over the rules. Wealth and voice are walled apart on purpose.
-- **Everyone's vote counts the same.** Not weighted by money, not weighted by
-  who showed up first, not weighted by whose hardware is biggest.
+- **Identity-root authority is not weighted by money.** Where a current scope
+  counts governance identities, each distinct verified `did:mini` identity root
+  has equal weight; the system does not yet establish that roots represent
+  unique humans. Early arrival and hardware buy nothing extra.
 - **Nobody can seize it, freeze it, or switch it off.** There is no owner, no
   admin key, no master password, no company that can be pressured into pulling
   a plug that doesn't exist.
@@ -42,11 +44,11 @@ promise — that:
 Mininet is **not finished, and not safe to trust with real money or your real
 identity yet.** The people building it say so loudly and everywhere — that
 honesty is itself one of the project's rules. What exists today is a working
-technical core and a lot of carefully-reasoned design; what's missing is
-things like a phone app you could install, an independent security audit of
-the money code, and answers to a few genuinely hard research problems that
-nobody in the world has fully solved yet. Those gaps are listed openly, not
-hidden.
+technical core, an Android/LAN pairing foundation, and a lot of carefully-
+reasoned design; what's missing is a validated public two-device Beta path,
+an independent security audit of the money code, and answers to a few
+genuinely hard research problems that nobody in the world has fully solved
+yet. Those gaps are listed openly, not hidden.
 
 If someone ever tells you Mininet is "done" and ready to hold your savings —
 be skeptical, and check [`docs/STATUS.md`](STATUS.md) and
@@ -69,3 +71,5 @@ builders consider more important than any line of code.
 - Want to poke at whether the safety claims hold up:
   [`docs/AUDITOR_START.md`](AUDITOR_START.md).
 - Want to build or run it yourself: [`docs/DEVELOPER_START.md`](DEVELOPER_START.md).
+- Want a bounded first contribution or test task:
+  [`docs/BETA_CONTRIBUTOR_GUIDE.md`](BETA_CONTRIBUTOR_GUIDE.md).
