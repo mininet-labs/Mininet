@@ -507,6 +507,31 @@ genuinely active install. No new replication code was needed; this closes
 the gap between "the protocol is generic" and "someone actually drove a
 release through it."
 
+**Native exact release retrieval shipped as the next Batch 5 slice (D-0408
+proposed, issue #268).** `mini release serve --addr <host:port>` accepts one
+owner-invoked request and `mini release retrieve <release-id> <project>
+--branch <branch> --peer <host:port> --output <path>` asks for one exact
+content-addressed release. The serving application uses
+`mini_forge::release_retrieval_ids` to select a deterministic, bounded closure
+of the release's forward links plus verifier-relevant reverse `release`,
+`prev`, and `pr` edges: attestations, governance-chain/PR/review evidence,
+source commit/tree/file objects, and artifact manifest/chunks. The client
+echoes the selected id list, ingests the bytes through the same verified
+`mini-sync` pipeline, and runs the existing governed-release gate before
+creating a new output file. A loopback CLI test proves a fresh peer retrieves
+and verifies a release without a shared filesystem and receives fewer objects
+than the serving store.
+
+This is selective transfer, not a new authority or a replacement for full
+replication. The existing encrypted bearer/channel and content-addressed
+objects are reused; no new cryptographic primitive or key agreement is added.
+Identity KEL trust remains explicit and local, and retrieval never activates a
+release. The current one-shot cap is 4096 objects and the existing 512 MiB
+sync byte budget; pagination, discovery, a persistent daemon, endpoint
+authentication, process supervision, and external audit remain open. See
+`docs/planning/native-release-retrieval-report.md` for alternatives and the
+honest boundary.
+
 **No-GitHub outage demo shipped (D-0081).** `tools/
 no_github_outage_demo.sh` is a real, narrated shell script driving the
 compiled `mini` binary through the entire spine in one continuous run —
@@ -542,8 +567,9 @@ across indexes, and the other three items below remain open.
 
 **Remaining, not started:** a genuinely bounded `FsBackend::
 list_meta_prefix_last`; a bounded/paginated forward range scan for
-`since`; distributed build workers, native release retrieval, GitHub
-import/export mirror automation.
+`since`; distributed build workers, and GitHub import/export mirror
+automation. Native exact release retrieval is now shipped as a bounded
+one-shot CLI path; a paginated/daemonized production lane is not claimed.
 
 ## Batch 6 — resume horizontal breadth
 

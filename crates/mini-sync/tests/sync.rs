@@ -8,7 +8,10 @@ use did_mini::{Capabilities, Controller, Did};
 use mini_bearer::{pair, Bearer, Channel, InProcessBearer, Initiator, Responder};
 use mini_objects::{Object, ObjectBuilder, ObjectType, Payload};
 use mini_store::{MemoryBackend, Store};
-use mini_sync::{kel_carrier, sync_bidirectional, KelCache, SyncRole};
+use mini_sync::{
+    kel_carrier, receive_retrieval_request, request_retrieval, serve_retrieval, sync_bidirectional,
+    KelCache, SyncRole,
+};
 
 fn human(seed: u8) -> (Controller, Controller) {
     let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
@@ -122,6 +125,94 @@ fn fresh_peer_pulls_everything_carriers_first() {
     assert_eq!(ra.received, 0);
     // Stores now identical.
     assert_eq!(a_store.all_ids().unwrap(), b_store.all_ids().unwrap());
+}
+
+#[test]
+fn exact_retrieval_transfers_only_the_selected_object() {
+    let (server_store, _, root, device) = seeded(30, 200);
+    let target = server_store
+        .by_type(&ObjectType::POST)
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    let (mut client_store, mut client_cache) = (Store::new(MemoryBackend::new()), KelCache::new());
+    // Retrieval keeps identity trust explicit. The client already trusts the
+    // author's KELs, while the server's other 200 objects are not a reason to
+    // disclose or replicate the whole store.
+    client_cache.insert_verified(root.kel());
+    client_cache.insert_verified(device.kel());
+
+    let (mut client_bearer, mut server_bearer) = pair();
+    let (mut client_chan, mut server_chan) = channels(&mut client_bearer, &mut server_bearer);
+    let server_target = target.clone();
+    let server_thread = thread::spawn(move || {
+        let seeds = receive_retrieval_request(&mut server_bearer, &mut server_chan).unwrap();
+        assert_eq!(seeds, vec![server_target.clone()]);
+        serve_retrieval(
+            &mut server_bearer,
+            &mut server_chan,
+            &server_store,
+            &[server_target],
+        )
+        .unwrap();
+    });
+
+    let report = request_retrieval(
+        &mut client_bearer,
+        &mut client_chan,
+        &mut client_store,
+        &mut client_cache,
+        std::slice::from_ref(&target),
+    )
+    .unwrap();
+    server_thread.join().unwrap();
+
+    assert_eq!(report.requested, 1);
+    assert_eq!(report.selected, 1);
+    assert_eq!(report.ingest.received, 1);
+    assert_eq!(report.ingest.accepted, 1);
+    assert_eq!(client_store.all_ids().unwrap(), vec![target]);
+}
+
+#[test]
+fn exact_retrieval_fails_closed_when_the_selection_omits_the_seed() {
+    let (server_store, _, root, device) = seeded(40, 2);
+    let posts = server_store.by_type(&ObjectType::POST).unwrap();
+    let requested = posts[0].clone();
+    let offered_instead = posts[1].clone();
+    let mut client_store = Store::new(MemoryBackend::new());
+    let mut client_cache = KelCache::new();
+    client_cache.insert_verified(root.kel());
+    client_cache.insert_verified(device.kel());
+
+    let (mut client_bearer, mut server_bearer) = pair();
+    let (mut client_chan, mut server_chan) = channels(&mut client_bearer, &mut server_bearer);
+    let server_thread = thread::spawn(move || {
+        let _ = receive_retrieval_request(&mut server_bearer, &mut server_chan).unwrap();
+        // The client must reject this before echoing an allow-list. The
+        // server consequently observes a closed bearer, which is expected.
+        serve_retrieval(
+            &mut server_bearer,
+            &mut server_chan,
+            &server_store,
+            &[offered_instead],
+        )
+    });
+
+    let error = request_retrieval(
+        &mut client_bearer,
+        &mut client_chan,
+        &mut client_store,
+        &mut client_cache,
+        std::slice::from_ref(&requested),
+    )
+    .unwrap_err();
+    assert!(matches!(error, mini_sync::SyncError::RetrievalIncomplete));
+    drop(client_chan);
+    drop(client_bearer);
+    let _ = server_thread.join().unwrap();
+    assert!(client_store.all_ids().unwrap().is_empty());
 }
 
 #[test]

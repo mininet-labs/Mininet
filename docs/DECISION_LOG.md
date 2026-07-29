@@ -13007,3 +13007,82 @@ implementation proposal only after the policy questions are resolved.
 **Supersedes / superseded by:** supplements D-0057's human trust gateway and
 D-0100's coordination registry. It does not supersede either decision, the
 Governance Pack, any frozen invariant, or D-0084's non-authorizing charter.
+
+### D-0408 - Native exact release retrieval over the existing Mininet sync channel  ·  *Proposed*
+**Date:** 2026-07-29 · **Refs:** issue #268; issue #102 (Batch 5);
+D-0062; D-0070; D-0071; D-0080; `docs/planning/
+native-release-retrieval-report.md`; P1, A1, U1, X2; Directive 1,
+Directive 5, Directive 9, Directive 12, Directive 16.
+
+**Decision:** add a bounded, one-shot native release retrieval path that
+reuses the existing `mini-bearer` encrypted channel, the existing
+`mini-sync` framing and verify-before-insert ingest pipeline, and the existing
+`mini-forge::verify_governed_release` gate. A client sends one exact release
+seed. The serving application computes
+`mini_forge::release_retrieval_ids`, a deterministic closure over the release's
+forward links plus only the reverse `release`, `prev`, and `pr` relations that
+release verification reads. The client receives the explicit id selection,
+echoes that allow-list, ingests the returned objects, and only then assembles
+the verified artifact to a new output path.
+
+The user-facing surface is `mini release serve --addr <host:port>` for one
+owner-invoked serving session and `mini release retrieve <release-id>
+<project> --branch <branch> --peer <host:port> --output <path>` for one
+retrieval. The serving process exits after one request. Full `mini sync`
+remains the correct path for a complete replica and is not replaced by this
+slice.
+
+**Reason:** local `mini release fetch` already proves the artifact path when
+objects are present, and D-0080 proves that whole-store `mini sync` can carry a
+release through a real TCP connection. The missing user workflow is an exact
+native request that does not silently reconcile every unrelated object in the
+serving store. Reusing the existing channel and object model preserves the
+project's compose-vetted-primitives discipline; putting the closure selector
+in `mini-forge` keeps retrieval selection separate from transport and from
+authority decisions.
+
+**Alternatives:** whole-store sync remains available but is broader and does
+not express exact release intent; an HTTP/GitHub-style endpoint would introduce
+a second hosting/trust path and leave GitHub in the canonical position; a new
+authenticated release cryptosystem would duplicate existing primitives and
+expand the attack surface. The detailed preliminary comparison, including
+the reasons the exact existing-channel composition was selected, is in the
+special report named above.
+
+**Constitutional impact:** none intended. Retrieval grants no governance
+standing, team role, review approval, release finality, payment authority, or
+owner adoption. It does not change quorum counting, identity semantics, or the
+voice/value wall. A peer-supplied object is not trusted merely because it was
+served; the client keeps explicit local KEL trust and reruns provenance and
+governed-release checks. No new cryptography is introduced. No forced update,
+kill path, or automatic activation exists.
+
+**Implementation status:** proposed code in issue #268's branch adds the
+bounded closure selector, the exact retrieval exchange, the one-shot CLI
+server/client commands, a selective in-process sync test, and a real CLI
+loopback path that retrieves and independently verifies a release without a
+shared filesystem. The closure is capped at 4096 objects and the transfer at
+the existing 512 MiB sync budget. The current implementation is not a daemon,
+not paginated, not a discovery service, and not a production update channel.
+
+**Failure point:** a serving peer may omit an object, close the connection, or
+serve an incomplete/malformed closure; selection is not authority and the
+client must fail before producing output when governed verification cannot
+complete. A closure can also be too large for the one-shot cap, in which case
+the request fails rather than truncating history. Transport endpoint identity
+is still anonymous by design, so the user chooses the peer and separately
+controls KEL trust. `mini-installer` remains a separate explicit owner action,
+Unix-only for activation, with no process supervision or package-manager
+integration. None of this code has been externally audited.
+
+**Required follow-up:** founder review of the closure disclosure and cap;
+external review of the new framing and adversarial cases; a separate decision
+before adding pagination, discovery, persistent serving, or a public update
+channel; and the still-open distributed build-worker and GitHub
+import/export-mirror slices of Batch 5. The open questions and alternatives
+are tracked in `docs/planning/native-release-retrieval-report.md` and issue
+#268.
+
+**Supersedes / superseded by:** does not supersede D-0062, D-0070, D-0071,
+D-0080, any frozen invariant, or the proposed D-0407 coordination decision.
+It adds a selective release-transfer consumer alongside full-store sync.

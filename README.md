@@ -90,6 +90,18 @@ so, everywhere, on purpose.
   technical-review handoffs. These objects replicate through the existing
   store/`mini sync` path; they are coordination evidence, not assignments,
   approvals, personnel records, or governance authority.
+- native exact release retrieval (`mini release serve` / `mini release
+  retrieve`, D-0408 proposed): a peer can serve one bounded release evidence
+  closure over the existing encrypted Mininet channel, while the receiving
+  device independently re-runs governed release verification before writing
+  an artifact. Identity KEL trust stays explicit; this is one-shot retrieval,
+  not a daemon, discovery service, automatic update, or owner activation.
+- native exact release retrieval (`mini release serve` / `mini release
+  retrieve`, D-0408 proposed): a peer can serve one bounded release evidence
+  closure over the existing encrypted Mininet channel, while the receiving
+  device independently re-runs governed release verification before writing
+  an artifact. Identity KEL trust stays explicit; this is one-shot retrieval,
+  not a daemon, discovery service, automatic update, or owner activation.
 - an isolated Wasmtime sandbox (`mini-build-runner-wasmtime`) for
   untrusted build-pipeline components: deny-by-default filesystem/network,
   fuel/epoch/memory limits, a 12-point adversarial test suite driving the
