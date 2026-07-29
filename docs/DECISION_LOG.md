@@ -12853,6 +12853,85 @@ D-0084's activation. Intends to narrow `CLAUDE.md`'s existing
 workflow-ritual text once a legitimate amendment path lands; until then
 this entry alone is the authoritative statement of the policy.
 
+---
+
+### D-0407 — Forge-native contributor coordination spine  ·  *Proposed*
+**Date:** 2026-07-29 · **Refs:** issue #266; D-0100; proposed D-0101 and
+issues #263/#264; `docs/design/mininet-forge-contributor-coordination.md`;
+`docs/governance/28_FORGE_NATIVE_GOVERNANCE_OBJECTS.md`; RFC-0002,
+RFC-0003, and RFC-0005.
+
+**Decision:** add the first Forge-native coordination objects and CLI flow for
+contributors moving beyond GitHub: signed working-group charter proposals,
+signed task briefs linked to a Forge project, explicit expiring work claims,
+deterministic local task suggestions, and exact-state technical-review
+handoffs. Expose them through `mini team` and `mini task`, with `--json`
+output carrying object ids and exact-state links. Existing `mini sync` remains
+the exchange path.
+
+This is deliberately a coordination boundary. A charter is not a delegation;
+a task suggestion is not recruitment or assignment; a work claim is not
+ownership, payment entitlement, review weight, approval, or canonicalization;
+and a technical-review handoff is not `mini pr approve`. AI evidence is
+classified separately and has zero approval weight. The current cryptographic
+unit is an identity root; no unique-personhood claim is made.
+
+The `mini team propose` command accepts only `proposed` or `incubating` as a
+new-proposal label. The existing schema vocabulary remains readable for later
+state transitions, but a proposal command cannot claim active or mature team
+status by itself.
+
+**Reason:** D-0100 already names the Git-era work-claim registry as a
+temporary coordination mechanism whose future replacement should be a signed
+Forge proposal/allocator. The existing Forge object/store/sync primitives can
+carry the durable evidence now, while the policy questions in #263 remain
+open. Local deterministic suggestions preserve participant consent and avoid
+creating a canonical personnel, employer, or organization directory before
+privacy and role-continuity policy exists. Exact-state links preserve the
+review/approval boundary required by the Forge governance design.
+
+**Alternatives:** a GitHub-team-first directory is familiar but makes platform
+administration and employer metadata shadow authority and fails at platform
+exit; local-only task files protect privacy but cannot provide independently
+verifiable cross-home evidence; a signed Forge marketplace is the longer-term
+destination but currently risks metadata leakage, spam, hidden-control, and an
+unapproved personnel registry; automatic assignment is rejected because it
+would infer consent, competence, availability, identity, and authority.
+
+**Constitutional impact:** no new authority or value edge. This supplements
+Directive 12/AI1 and D-0100's coordination boundary, composes existing
+content-addressed signatures and identity-root provenance checks, and leaves
+the voice/value wall, frozen invariants, review/approval separation, release
+eligibility, typed owner adoption, and Forge cutover unchanged. GitHub remains
+a temporary adapter until a separate governed cutover decision.
+
+**Implementation status:** implemented in this proposal branch in
+`mini-forge::coordination` and `mini-cli::coordination`. Unit tests cover
+strict canonical payload decoding, exact reviewed-object binding, expiry,
+deterministic advisory suggestions, AI classification, and malformed input.
+The CLI integration test drives two persisted identities through charter,
+task, claim, review, and JSON inspection over a shared store. The Founder has
+not merged this proposal, and no authority-bearing caller consumes these
+objects.
+
+**Failure point:** signed public metadata is not anonymous; task briefs can
+leak paths, timing, and author-root relationships when shared. Claims have no
+revocation or conflict-arbitration object yet, local suggestions are not a
+global recruiter, and a shared-store test is not a live multi-machine or
+real-device exercise. Review handoffs are not external audits, unique-human
+proof, release evidence, or owner adoption.
+
+**Required follow-up:** Founder/governance disposition of #263's routing-data,
+role-continuity, conflict, group-lifecycle, and public-confirmation questions;
+external review evidence through #262; the Beta adapter work in #264;
+revocation/anti-spam/independence design; live multi-machine Forge exchange;
+and RFC-0005's independent-operator, identity-recovery, dual-running,
+outage, export/fork, and governed-cutover gates.
+
+**Supersedes / superseded by:** supplements D-0100's stated future
+Forge-native allocator follow-up. It does not supersede D-0100, does not
+activate proposed D-0101, and does not activate RFC-0002, RFC-0003, or
+RFC-0005.
 ### D-0101 - Beta front door and non-authorizing contributor routing proposal  ·  *Proposed*
 **Date:** 2026-07-29  ·  **Refs:** issue #264; issues #262 and #263;
 D-0057; D-0100; `docs/governance/11_WORKING_GROUPS_AND_MAINTAINERS.md`;

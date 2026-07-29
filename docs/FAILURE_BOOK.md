@@ -168,6 +168,23 @@ as an example of the entry format at implementation scale, not just
 architecture scale: this book is for correcting the record, not for
 grand rejected ideas only.
 
+### GitHub teams as contributor authority
+**Considered/tried:** Beta contributor routing and the planned GitHub-to-Forge
+transition (D-0407 proposal; issues #263, #264, and #266).
+**What it was:** making GitHub organization teams, employer affiliation,
+Project membership, or issue labels the durable recruitment directory and the
+implicit source of reviewer or maintainer authority.
+**Why it was rejected:** GitHub is a replaceable display/coordination adapter,
+not canonical truth. Platform administration, employer control, payment,
+group size, commit volume, or AI output must not become a shadow authority
+edge. A GitHub-first directory also loses continuity when the platform is
+removed and leaks more participant data than a local-first suggestion path
+needs. The Forge-native first slice therefore signs task and review evidence
+but keeps suggestions advisory and acceptance explicit.
+**Would it become viable again?** No as a protocol authority or canonical
+directory. GitHub teams remain viable as a temporary operational adapter while
+the governed Forge transition is not complete.
+
 ---
 
 ## Open item

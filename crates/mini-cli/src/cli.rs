@@ -11,7 +11,9 @@ use did_mini::Did;
 
 use crate::error::{CliError, Result};
 use crate::json::CommandResult;
-use crate::{build, identity, installer, keystone, pr, provenance, release, repo, store, sync};
+use crate::{
+    build, coordination, identity, installer, keystone, pr, provenance, release, repo, store, sync,
+};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|a| a == flag)?;
@@ -103,6 +105,8 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
             reject_json(json, "pr")?;
             dispatch_pr(home, store_path, args)
         }
+        "team" => dispatch_team(home, store_path, args, json),
+        "task" => dispatch_task(home, store_path, args, json),
         "sync" => {
             reject_json(json, "sync")?;
             dispatch_sync(home, store_path, args)
@@ -114,6 +118,59 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "installer" => dispatch_installer(home, store_path, args, json),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
+}
+
+fn dispatch_team(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
+    let noun = next(&mut args, "team")?;
+    let result = match noun.as_str() {
+        "propose" => coordination::team_propose(home, store_path, args)
+            .map(|r| r.render(json, "team.propose")),
+        "list" => {
+            coordination::team_list(home, store_path, args).map(|r| r.render(json, "team.list"))
+        }
+        "show" => {
+            coordination::team_show(home, store_path, args).map(|r| r.render(json, "team.show"))
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `team` subcommand: {other:?}"
+        ))),
+    }?;
+    Ok(result)
+}
+
+fn dispatch_task(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
+    let noun = next(&mut args, "task")?;
+    let result =
+        match noun.as_str() {
+            "create" => coordination::task_create(home, store_path, args)
+                .map(|r| r.render(json, "task.create")),
+            "list" => {
+                coordination::task_list(home, store_path, args).map(|r| r.render(json, "task.list"))
+            }
+            "suggest" => coordination::task_suggest(home, store_path, args)
+                .map(|r| r.render(json, "task.suggest")),
+            "show" => {
+                coordination::task_show(home, store_path, args).map(|r| r.render(json, "task.show"))
+            }
+            "claim" => coordination::task_claim(home, store_path, args)
+                .map(|r| r.render(json, "task.claim")),
+            "review" => coordination::task_review(home, store_path, args)
+                .map(|r| r.render(json, "task.review")),
+            other => Err(CliError::Usage(format!(
+                "unknown `task` subcommand: {other:?}"
+            ))),
+        }?;
+    Ok(result)
 }
 
 fn dispatch_identity(home: &Path, mut args: Vec<String>) -> Result<String> {

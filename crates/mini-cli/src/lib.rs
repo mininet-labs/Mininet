@@ -33,6 +33,7 @@
 
 mod build;
 mod cli;
+mod coordination;
 mod error;
 pub mod identity;
 mod installer;

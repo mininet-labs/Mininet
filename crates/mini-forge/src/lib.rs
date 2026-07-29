@@ -44,10 +44,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod coordination;
 mod git_export;
 mod governance;
 mod oracle;
 mod release;
+pub use coordination::*;
 pub use git_export::{export_commit_chain, GitObject, GitObjectKind, MAX_EXPORT_COMMITS};
 pub use governance::*;
 pub use oracle::{author_assurance, IdentityOracle, KelDirectory};
