@@ -25,11 +25,17 @@
 mod codec;
 mod error;
 mod frame;
+mod remote;
 mod request;
 mod result;
 
 pub use error::{ProtocolError, Result};
 pub use frame::{read_framed, write_framed};
+pub use remote::{
+    workspace_digest, RemoteBuildRequest, RemoteBuildResponse, WorkspaceFile,
+    MAX_REMOTE_ARTIFACT_BYTES, MAX_REMOTE_COMPONENT_BYTES, MAX_REMOTE_REQUEST_BYTES,
+    MAX_REMOTE_RESPONSE_BYTES, MAX_REMOTE_WORKSPACE_BYTES, MAX_WORKSPACE_FILES,
+};
 pub use request::ExecutionRequest;
 pub use result::{
     ExecutionResult, ExitStatus, ResourceExceeded, EXECUTION_SECURITY_WASMTIME_ISOLATED,

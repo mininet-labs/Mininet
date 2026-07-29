@@ -38,7 +38,10 @@ research/decisions land:
 
 1. **Forge** — continue Batch 5/6 of `docs/design/
    self-hosted-forge-spine.md` (local object indexing at scale,
-   distributed build workers, GitHub import/export mirror automation).
+   production distributed build workers, GitHub import/export mirror
+   automation). A bounded one-shot encrypted build-worker slice is implemented
+   as proposed D-0409; discovery, chunking, scheduling, identity/reputation,
+   multi-worker provenance, payment, and supervision remain open.
 2. **Storage** — `mini-storage`/`mini-erasure`/`mini-spacetime`/
    `mini-porep` hardening plus the suppression-resistant replication
    path named in D-0311 (Track D5).

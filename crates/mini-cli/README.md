@@ -53,6 +53,10 @@ mini task suggest --route <route> [--path <path>] [--limit <n>]   advisory local
 mini task show <task-id>                    show the verified task/claim/review graph
 mini task claim <task-id> --role <role> --path <glob>... --expires-ms <future-ms> [--base <id>]
 mini task review <task-id> --head <exact-id> --kind peer|external|ai --disposition observations|needs-changes|blocked --findings <text> --evidence <text>... --limitations <text>
+
+mini build run --component <wasm> --store-dir <dir> --scratch-dir <dir> --artifacts-dir <dir> [--capability <cap>]...
+mini build serve --addr <host:port> --work-dir <new-dir>
+mini build dispatch --peer <host:port> --component <wasm> --workspace <dir> --artifacts-dir <new-dir> [--capability <cap>]...
 ```
 
 `team` and `task` commands support `--json`. Their objects travel through the
@@ -83,6 +87,12 @@ Global flags (any position): `--home <path>` (default `~/.mininet`, or
   bearer/sync path (D-0062/D-0080). The new coordination test uses a shared
   store for deterministic CLI coverage; it is not a claim of a live
   multi-machine contributor service or background daemon.
+- **Distributed builds are one-shot and explicitly selected.** `build serve`
+  accepts one encrypted request and exits. The requester verifies the exact
+  request binding and every artifact digest, but a worker remains untrusted:
+  its result is evidence, not release approval or provenance quorum. Discovery,
+  worker identity/reputation, scheduling, payment, retries, chunking beyond
+  the current 15 MiB frame, and persistent supervision remain separate work.
 - **No automatic recruitment or personnel directory.** `mini task suggest`
   filters signed task briefs already present locally. It does not infer
   identity, employment, competence, consent, availability, or authority, and

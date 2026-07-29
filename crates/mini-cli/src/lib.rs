@@ -16,6 +16,9 @@
 //! The release-facing `mini release serve`/`retrieve` commands add a bounded
 //! exact object closure on that same channel; they still require explicit
 //! local KEL trust and the existing governed-release check.
+//! `mini build serve`/`dispatch` similarly add one bounded remote build over
+//! the encrypted channel while preserving the out-of-process Wasmtime runner
+//! boundary and treating every worker result as untrusted evidence.
 //!
 //! ## Honest limits
 //!

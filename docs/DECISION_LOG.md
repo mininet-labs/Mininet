@@ -13086,3 +13086,51 @@ are tracked in `docs/planning/native-release-retrieval-report.md` and issue
 **Supersedes / superseded by:** does not supersede D-0062, D-0070, D-0071,
 D-0080, any frozen invariant, or the proposed D-0407 coordination decision.
 It adds a selective release-transfer consumer alongside full-store sync.
+
+### D-0409 - Bounded distributed build dispatch over the encrypted bearer  ·  *Proposed*
+**Date:** 2026-07-29 · **Refs:** issue #102 Batch 5; D-0069; D-0080;
+`docs/planning/distributed-build-worker-report.md`; A1, P5, U1, X2;
+Directive 1, Directive 2, Directive 5, Directive 9, Directive 16.
+
+**Decision:** add one-shot `mini build serve` and `mini build dispatch`
+commands. The requester sends one canonical, digest-bound component/workspace
+and the existing execution policy through an established encrypted
+`mini-bearer` channel. The worker validates bounded regular-file inputs,
+materializes an isolated content store, and invokes the existing
+`mini-build-runner-wasmtime` subprocess. The requester verifies request
+binding, the isolation label, exact granted capabilities, and every artifact
+digest before creating an output directory.
+
+**Reason:** the Forge cannot replace hosted CI while the sandboxed runner is
+local-only. Reusing the existing channel, execution types, and isolated runner
+adds the smallest real network composition without another transport,
+cryptographic primitive, or in-process Wasmtime dependency.
+
+**Alternatives:** whole-store sync is too broad and does not express a build
+job; HTTP recreates a hosted service boundary; linking Wasmtime into the CLI
+breaks D-0069; trusting a worker signature does not prove reproducibility.
+
+**Constitutional impact:** none intended. A worker result is technical
+evidence, not review, approval, merge, release, governance, payment, or owner
+adoption. No forced update or new authority exists. Workers remain untrusted;
+independent provenance agreement remains separate.
+
+**Implementation status:** proposed code adds bounded remote request/response
+types, encrypted loopback transport, traversal/symlink/non-file rejection,
+real subprocess execution, requester verification, and a real Wasmtime
+loopback integration test. Protocol unit tests cover malformed/tampered input,
+request mismatch, artifact mismatch, and false isolation labels.
+
+**Failure point:** this first slice uses one 15 MiB bearer frame and has no
+resume, discovery, endpoint identity, scheduler, queue, concurrency, retry,
+reputation, payment, daemon, or supervision. A malicious worker can refuse
+service or lie about execution; digest checks cannot prove honest hardware.
+The code is not externally audited.
+
+**Required follow-up:** external review; chunked resumable transfer; signed
+capability advertisements; bounded scheduling/supervision; and multi-worker
+results recorded through `mini-provenance` before this becomes release
+infrastructure.
+
+**Supersedes / superseded by:** supplements D-0069 and D-0080. It does not
+supersede any frozen invariant, release gate, or owner-adoption rule.
