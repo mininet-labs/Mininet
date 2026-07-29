@@ -22,8 +22,10 @@ contract and reports platform capabilities. No protocol secret crosses FFI.
   fail closed;
 - missing native libraries produce a visible setup screen instead of a silent
   crash;
-- the Android manifest requests no network, Bluetooth, location, contacts,
-  camera, media, notification, or telemetry permission; and
+- the Android manifest requests only `INTERNET` for raw same-LAN sockets;
+  it still requests no Bluetooth, location, contacts, direct camera, media,
+  notification, or telemetry permission. QR capture is delegated to the
+  system camera activity; and
 - **`RootCore` (D-0335, issue #197 slice)**: a real root identity can be
   created, a device can be delegated under it with the default capability
   set, and a device can be revoked — all in-process, in memory, using
@@ -42,6 +44,15 @@ contract and reports platform capabilities. No protocol secret crosses FFI.
   itself still never creates identity (`dispatch` always answers
   `RootCreationPending` at that stage by design); the UI calls `RootCore`
   directly instead of routing through it.
+- **LAN/QR one-button follow is wired to Android (D-0373, issue #200)**:
+  restored users land on a home screen, select a display name, render a
+  signed, expiring pairing QR, or capture one through Android's system
+  camera activity. `RootCore` verifies the embedded root/device delegation,
+  completes the bounded foreground TCP exchange, creates an ordinary signed
+  `FOLLOW` object on each phone, and persists contacts, follow objects, and
+  consumed nonces through `StorageCipher`. ZXing Core is used only for
+  offline QR pixels; there is no Play Services, account, analytics, or
+  telemetry SDK.
 
 The onboarding reducer (`start`/`dispatch`) is deliberately stateless across
 FFI calls. Its complete input and output are values, so Kotlin never shares
@@ -71,9 +82,10 @@ that crosses the FFI boundary.
 - **restart-and-recover** (acceptance-test step 4) — the Kotlin wiring
   for this now exists (D-0370); still depends on the same real
   compile/emulator verification named above and below;
-- **root and device on separate physical devices** — this MVP holds both in
-  one process for dev-testing convenience; the real split happens once LAN/QR
-  pairing (issue #200) exists;
+- **root and device on separate physical devices** — enrollment protocol
+  support exists, but the current onboarding convenience path still creates
+  root and first device in one process. D-0373 pairs two independently rooted
+  phones socially; it does not redesign the root/device enrollment ceremony;
 - **a real foreground `Service`/`WorkManager` wired to `OperationLifecycle`**
   — this slice (issue #202) only ships the typed Rust-side state machine
   the Kotlin lifecycle glue must query; no Android `Service` declaration,
@@ -86,9 +98,9 @@ that crosses the FFI boundary.
   prints them, but does not call it: that requires a durable CI signing
   identity and a persistent store across ephemeral runners, both real
   policy decisions for the founder to make, not something invented here;
-- public profile creation, discovery, follow, feed, or synchronization;
-- LAN, BLE, Wi-Fi Direct, relay, background sync, notifications, media, or
-  calls;
+- full public-profile editing, ambient discovery, feed, or synchronization
+  (D-0373 exchanges the user-selected display name and signed mutual follow);
+- BLE, Wi-Fi Direct, relay, background sync, notifications, media, or calls;
 - iOS bindings or a SwiftUI shell;
 - a reproducible or governed APK release; and
 - physical-device or emulator verification in this workspace (no JDK/SDK/
@@ -98,8 +110,9 @@ that crosses the FFI boundary.
 The UI now creates a real root and delegates a first device when the user
 taps "Create root" at `RootCreationReady` (D-0351) — `RootCore`'s Rust-side
 contract is called for real, not just proven in isolation. Encrypted
-on-device persistence (issue #198, D-0370) now has real Kotlin wiring too.
-What's left before this can be called a working golden path: a real
+on-device persistence (issue #198, D-0370) and LAN/QR follow pairing
+(issue #200, D-0373) now have real Kotlin wiring too. What's left before
+this can be called a working golden path: a real
 emulator/device compile-and-click-through verification (Codex/the
 founder's local machine — no JDK/SDK/NDK/Gradle/emulator exists here).
 
