@@ -114,8 +114,16 @@ what's activated vs. staged vs. founder-only),
 2. Batch related work into one PR; update the PR title/body as scope grows.
 3. Before every commit: `cargo fmt --all` →
    `cargo clippy --all-targets --all-features --workspace -- -D warnings` →
-   `cargo test --workspace --all-features` → regenerate the nav index:
-   `python3 tools/mininet_nav.py build`.
+   `cargo test --workspace --all-features`. **Do not regenerate or commit
+   `docs/_generated/` (nav index) as part of an ordinary PR** (D-0376) —
+   it is a full-tree derived snapshot, so touching it on every PR was
+   producing a merge conflict on nearly every concurrent PR merge (see
+   D-0376's Failure point). Regenerate it (`python3 tools/mininet_nav.py
+   build`) only in its own small, dedicated maintenance PR, run
+   periodically or whenever it's visibly stale enough to matter (e.g.
+   before a founder review) — never bundled into a feature/fix PR's diff.
+   If your working tree happens to already have nav-index drift from a
+   previous run, leave those files out of your commit.
 4. Ship each decision as a D-number; bump README's `D-0001–D-00xx` range and
    repo map when docs/crates are added. **Parallel tracks are banded** to
    avoid colliding on the same next number: the main/operational line uses

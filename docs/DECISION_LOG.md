@@ -12439,3 +12439,62 @@ is exposed today, a separately-scoped gap); updating
 without changing its chunking/reassembly logic. Does not supersede
 `mini-ffi::StorageCipher` (D-0338) — mirrors its callback-interface
 pattern, does not reuse or modify it.
+
+### D-0376 — Drop `docs/_generated/` (nav index) from the mandatory per-commit ritual  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** `CLAUDE.md`'s workflow ritual (step 3);
+`tools/mininet_nav.py`; founder chat direction
+
+**Decision:** `docs/_generated/REPO_INDEX.json`/`REPO_INDEX.jsonl`/
+`REPO_MAP.md` (the generated nav index) are removed from the "before
+every commit" ritual in `CLAUDE.md`. Ordinary PRs no longer regenerate or
+commit these files. They are instead refreshed periodically in their own
+small, dedicated maintenance PR — triggered manually, whenever the index
+is visibly stale enough to matter (e.g. before a founder review) — never
+bundled into a feature/fix PR's diff. `DECISION_LOG.md` and `STATUS.md`
+are explicitly **not** in scope of this change and remain part of the
+per-PR ritual: unlike the nav index, they carry real narrative content
+that isn't mechanically regenerable, and are the actual audit trail the
+rest of this workflow depends on.
+
+**Reason:** `docs/_generated/` is a full-tree derived snapshot — its
+content depends on every crate, file, and doc-comment in the workspace,
+not just the diff a given PR makes. Any two PRs open at the same time
+that both touch the workspace will therefore almost always conflict on
+these three files, even when their actual code changes don't overlap at
+all. In one working session this produced four separate conflict-
+resolution rounds across three PRs (two rounds each on two of them) as
+`main` advanced between pushes, each requiring a full worktree checkout,
+`git checkout --ours` on the generated files, a fresh `mininet_nav.py
+build`, and a full re-run of `cargo fmt`/`clippy`/`test` before the fix
+could be pushed back — pure process overhead with no correctness or
+audit value, since the index is mechanically regenerable at any time
+from the tree it describes and carries no information the tree itself
+doesn't already carry.
+
+**Constitutional impact:** none. This is process/tooling only — no
+identity, value, governance, or invariant-bearing code or document
+changes. `docs/_generated/` is not itself constitutional content; it is
+a search convenience the tree can always reproduce.
+
+**Implementation status:** `CLAUDE.md`'s workflow ritual (step 3) updated
+to drop the mandatory nav regen and explain the deferred-maintenance-PR
+pattern instead.
+
+**Failure point:** if the nav index is never actually refreshed in
+practice (no one runs the maintenance PR), `python3 tools/mininet_nav.py
+map`/`docs/NAVIGATION.md` drift stale relative to the real tree over
+time. This is a soft failure (the tool errs toward "index is
+approximate," not toward hiding or corrupting anything), but it is a
+real cost this decision accepts in exchange for less per-PR conflict
+overhead.
+
+**Required follow-up:** none scheduled yet; whoever notices the index
+has gone stale opens the maintenance PR. If staleness becomes a
+recurring problem, a lightweight periodic trigger (rather than "someone
+notices") is the next escalation, not a return to per-commit
+regeneration.
+
+**Supersedes / superseded by:** does not supersede any prior decision;
+narrows `CLAUDE.md`'s existing workflow-ritual text (itself last touched
+by the CLAUDE.md updates recorded informally alongside earlier batches,
+not a dedicated D-number).
