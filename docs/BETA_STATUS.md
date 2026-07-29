@@ -32,12 +32,14 @@ still missing for a real two-phone beta, in order:
    ble` (D-0342) has the MTU-bounded chunking/reassembly protocol logic a
    BLE-backed `Bearer` needs; `mini-bearer::android_ble` (D-0374) adds the
    `BleRadio` trait and `AndroidBleBearer`, a full, tested `impl Bearer`
-   generic over any radio implementation — but `BleRadio` is a plain Rust
-   trait, not yet a UniFFI callback interface, and no Kotlin
-   `BluetoothGattServer`/`BluetoothGattCallback` implementation exists
-   yet. This item is not closed by D-0370 or D-0374 — D-0370 is adjacent
-   app-persistence work, and D-0374 only narrows the remaining gap to the
-   UniFFI wiring, the real Kotlin GATT implementation, and a real
+   generic over any radio implementation; `mini-ffi::ble` (D-0375) adds
+   the UniFFI `callback interface BleRadio` and `BleBearerHandle` that
+   let Kotlin actually drive it across the FFI boundary — but no Kotlin
+   `BluetoothGattServer`/`BluetoothGattCallback` implementation of
+   `BleRadio` exists yet. This item is not closed by D-0370, D-0374, or
+   D-0375 — D-0370 is adjacent app-persistence work, and D-0374/D-0375
+   only narrow the remaining gap to the real Kotlin GATT implementation,
+   wiring `BleBearerHandle` into the app's actual flow, and a real
    two-device test, none of which are code-only.
 2. ~~**Active range measurement**~~ — **shipped (D-0368)**:
    `mini_presence::active_range` performs a real challenge-response
