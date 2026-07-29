@@ -11,11 +11,14 @@ mod amount;
 mod error;
 mod genesis;
 mod issuance;
+mod ledger;
 
 pub use amount::Amount;
 pub use error::{EconomyError, Result};
 pub use genesis::{build_genesis, GenesisManifest, GenesisPolicy};
 pub use issuance::{
-    plan_epoch, plan_human_share, Allocation, Channel, EpochPlan, EpochRequest, HumanSharePlan,
-    HumanSnapshot, IssuancePolicy, VestingGrant, MILLION, YEAR_MS,
+    plan_epoch, plan_human_share, plan_scalable_epoch, Allocation, Channel, EpochPlan,
+    EpochRequest, HumanSharePlan, HumanSnapshot, IssuancePolicy, ScalableEpochPlan,
+    ScalableEpochRequest, VestingGrant, MILLION, YEAR_MS,
 };
+pub use ledger::{MonetaryLedger, VestingPosition, VestingSubject};

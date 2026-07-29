@@ -8,6 +8,7 @@
 //! crate, the canonical-truth layer, blurs with finality).
 
 use mini_chain::{verify_finality, BlockHeader, QuorumCertificate, ValidatorOracle, ValidatorSet};
+use mini_economy::Amount;
 
 use crate::body::SettlementBlockBody;
 use crate::error::{ExecutionError, Result};
@@ -31,10 +32,15 @@ impl LedgerChain {
     /// `mini_chain::BlockHeader::prev_hash`'s own genesis convention), and
     /// empty settlement state.
     pub fn genesis() -> Self {
+        Self::genesis_with_supply(Amount::ZERO)
+    }
+
+    /// Start a chain from an explicitly governed genesis circulating supply.
+    pub fn genesis_with_supply(genesis_circulating: Amount) -> Self {
         LedgerChain {
             height: 0,
             tip_hash: [0u8; 32],
-            state: LedgerState::new(),
+            state: LedgerState::with_genesis_supply(genesis_circulating),
         }
     }
 

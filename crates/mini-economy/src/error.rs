@@ -10,6 +10,9 @@ pub enum EconomyError {
     TotalExceeded,
     InvalidGenesis,
     InvalidSnapshot,
+    UnexpectedEpoch,
+    OpeningSupplyMismatch,
+    InvalidEpochPlan,
 }
 
 impl core::fmt::Display for EconomyError {

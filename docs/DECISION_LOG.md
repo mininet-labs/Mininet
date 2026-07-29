@@ -13204,3 +13204,68 @@ surface beneath D-0073 and D-0074 and replaces no invariant or gate. It does
 not supersede the Python harness; it corrects that harness's Human Share model
 for the scenarios it covers. D-0410 and D-0412 remain reserved for their
 previously named future waves.
+
+### D-0414 - Finalized aggregate monetary epochs and deterministic policy-time vesting  ·  *Proposed*
+**Date:** 2026-07-29 · **Refs:** roadmap #48; #18; #50; D-0074; D-0413;
+`docs/design/day0-monetary-chain-integration.md`;
+`docs/audits/day0-monetary-chain-review.md`; P1, P2, P4, M1, M2, M3, A1;
+Directive 4, Directive 5, Directive 13, Directive 16.
+
+**Decision:** propose extending `mini-economy` with a deterministic aggregate
+monetary ledger and composing it into `mini-execution`'s finalized state.
+Each block contains at most one monetary epoch. An epoch must be strictly
+sequential, name the exact finalized opening circulating supply, and reproduce
+bit-for-structure under D-0074. Human Share is committed as one finalized
+snapshot root/count and aggregate equal-share pool; blocks do not enumerate
+human identities. Service and treasury grants remain explicit and bounded.
+
+Vesting uses cumulative finalized policy-epoch duration, never
+`BlockHeader::timestamp_ms`, device time, or proposer wall time. The combined
+settlement/monetary state commitment covers genesis circulating supply, total
+issuance, policy time, last epoch, and every aggregate/optional vesting
+position.
+
+**Reason:** D-0413 makes issuance planning executable but deliberately stops
+before canonical state. `mini-execution` previously finalized signed payment
+claim ordering without tracking supply or vesting. Directly interpreting block
+height as milliseconds would violate D-0074's 365-day meaning, while using
+proposer time would make money depend on discretionary clocks. Explicitly
+enumerating Human Share recipients would disclose the personhood set and fail
+at billion-person scale. Aggregate snapshot transitions preserve the correct
+privacy and scale boundary without inventing the still-open membership proof.
+
+**Alternatives:** per-recipient public grants are rejected for privacy and
+scale; local/device wall time is rejected as nondeterministic; proposer
+timestamps are rejected as manipulable; vesting by block count is rejected
+because block cadence is not physical time; silently making finalized
+`PaymentClaim`s modify balances is rejected because the current claim format
+and ledger do not prove available funds.
+
+**Constitutional impact:** no frozen row is amended. The proposal strengthens
+P4 accounting but does not claim full spend-lock enforcement. P1 remains
+structural: monetary state has no governance output. P2 remains unresolved at
+personhood. M1-M3 are preserved because money is neither CRDT-merged nor
+locally finalized. A1 remains an external hard gate.
+
+**Implementation status:** proposed code adds scalable snapshot epoch plans,
+exact commitments, aggregate and optional vesting positions, supply
+identities, sequential/replay checks, opening-supply checks, checked partial
+vesting near `u128` capacity, one-epoch-per-block enforcement, a monetary
+state root, and a real quorum-certificate-finalized integration test.
+
+**Failure point:** consensus could finalize a dishonest Sybil snapshot,
+fabricated service evidence, unauthorized treasury grant, or accelerated/
+stalled policy duration because this layer validates shape, not those external
+authorizations. There is no private Human Share claim/nullifier protocol and
+no account balance transfer or insufficient-funds check. An aggregate pool is
+therefore not yet spendable user property.
+
+**Required follow-up:** private membership/nullifier claims; account balances
+and locked-funds debit/credit; evidence-root authorization; governed physical-
+time-to-epoch advancement; bounded canonical decoding; state proofs/pruning;
+production genesis; migration and recovery; and independent cryptographic,
+economic, privacy, consensus, accessibility, legal, and implementation review.
+
+**Supersedes / superseded by:** follows D-0413 without superseding D-0074,
+D-0413, P4, or any gate. It changes no existing `PaymentClaim` wire field or
+settlement reconciliation rule.

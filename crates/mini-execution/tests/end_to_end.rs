@@ -13,6 +13,10 @@ use mini_chain::{
     sign_vote, BlockHeader, QuorumCertificate, ValidatorOracle, ValidatorSet, VoteKind,
 };
 use mini_crypto::SigningKey;
+use mini_economy::{
+    plan_scalable_epoch, Allocation, Amount, HumanSnapshot, IssuancePolicy, ScalableEpochRequest,
+    YEAR_MS,
+};
 use mini_execution::{ExecutionError, LedgerChain, SettlementBlockBody};
 use mini_settlement::{reconcile, sign_claim, SettlementState};
 
@@ -59,6 +63,68 @@ fn fixture() -> Fixture {
         oracle,
         signers,
     }
+}
+
+fn monetary_plan(epoch: u64, opening: Amount) -> mini_economy::ScalableEpochPlan {
+    plan_scalable_epoch(
+        &ScalableEpochRequest {
+            epoch,
+            duration_ms: YEAR_MS,
+            opening_circulating: opening,
+            human_snapshot: HumanSnapshot {
+                root: [42; 32],
+                eligible_count: 2,
+            },
+            service: vec![Allocation {
+                beneficiary: "did:mini:relay".into(),
+                amount: Amount::from_micro(opening.as_micro() * 7_500 / 1_000_000),
+            }],
+            treasury: vec![Allocation {
+                beneficiary: "did:mini:treasury".into(),
+                amount: Amount::from_micro(opening.as_micro() * 2_500 / 1_000_000),
+            }],
+        },
+        &IssuancePolicy::d0074(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn finalized_monetary_epoch_updates_supply_and_replay_fails() {
+    let fx = fixture();
+    let genesis = Amount::from_micro(1_000_000_000);
+    let mut chain = LedgerChain::genesis_with_supply(genesis);
+    let plan = monetary_plan(0, genesis);
+    let body = SettlementBlockBody::new(vec![]).with_monetary_epochs(vec![plan.clone()]);
+    let next_state = mini_execution::apply_block(chain.state(), &body).unwrap();
+    let header = BlockHeader {
+        height: 1,
+        prev_hash: chain.tip_hash(),
+        state_root: next_state.commitment(),
+        timestamp_ms: 1,
+        proposer: fx.signers[0].0.did(),
+    };
+    let hash = header.hash();
+    let qc = QuorumCertificate {
+        height: 1,
+        round: 0,
+        block_hash: hash,
+        votes: fx.signers[..3]
+            .iter()
+            .map(|(root, device)| sign_vote(VoteKind::Precommit, 1, 0, hash, &root.did(), device))
+            .collect(),
+    };
+    chain
+        .apply_finalized_block(&header, &body, &qc, &fx.validators, &fx.oracle)
+        .unwrap();
+    assert_eq!(chain.state().monetary().last_epoch(), Some(0));
+    assert_eq!(chain.state().monetary().total_issued(), plan.total_issued);
+
+    let replay = SettlementBlockBody::new(vec![]).with_monetary_epochs(vec![plan]);
+    assert_eq!(
+        mini_execution::apply_block(chain.state(), &replay).unwrap_err(),
+        ExecutionError::InvalidMonetaryEpoch(mini_economy::EconomyError::UnexpectedEpoch)
+    );
 }
 
 #[test]

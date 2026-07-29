@@ -5,6 +5,7 @@
 //! new `(payer, sequence)` high-water-mark wins that slot, permanently.
 
 use mini_crypto::HashAlgorithm;
+use mini_economy::ScalableEpochPlan;
 use mini_settlement::PaymentClaim;
 
 /// Hard cap on claims per block — an allocation/CPU bound applied before
@@ -16,6 +17,7 @@ pub const MAX_CLAIMS_PER_BLOCK: usize = 100_000;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SettlementBlockBody {
     pub claims: Vec<PaymentClaim>,
+    pub monetary_epochs: Vec<ScalableEpochPlan>,
 }
 
 impl SettlementBlockBody {
@@ -23,7 +25,17 @@ impl SettlementBlockBody {
     /// empty vote list is a structurally valid (if unfinalizable) quorum
     /// certificate.
     pub fn new(claims: Vec<PaymentClaim>) -> Self {
-        SettlementBlockBody { claims }
+        SettlementBlockBody {
+            claims,
+            monetary_epochs: Vec::new(),
+        }
+    }
+
+    /// Add one or more proposed monetary epochs. Execution currently accepts
+    /// at most one per block and validates it against finalized supply.
+    pub fn with_monetary_epochs(mut self, epochs: Vec<ScalableEpochPlan>) -> Self {
+        self.monetary_epochs = epochs;
+        self
     }
 
     /// Content hash of this body's claims, in order — what a header would
@@ -39,6 +51,10 @@ impl SettlementBlockBody {
         for claim in &self.claims {
             let digest = mini_settlement::claim_digest(claim);
             w.extend_from_slice(&digest);
+        }
+        w.extend_from_slice(&(self.monetary_epochs.len() as u64).to_be_bytes());
+        for epoch in &self.monetary_epochs {
+            w.extend_from_slice(&epoch.commitment().to_bytes());
         }
         HashAlgorithm::Blake3.digest(&w)
     }

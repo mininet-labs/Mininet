@@ -11,6 +11,7 @@
 use std::collections::BTreeMap;
 
 use mini_crypto::HashAlgorithm;
+use mini_economy::{Amount, IssuancePolicy, MonetaryLedger};
 use mini_settlement::{verify_claim_signature, CanonicalLedgerView, PaymentClaim};
 
 use crate::body::SettlementBlockBody;
@@ -18,15 +19,28 @@ use crate::error::{ExecutionError, Result};
 
 /// The deterministic result of applying every finalized block up to some
 /// height: one `(sequence, digest)` high-water-mark per payer.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LedgerState {
     finalized: BTreeMap<Vec<u8>, (u64, [u8; 32])>,
+    monetary: MonetaryLedger,
 }
 
 impl LedgerState {
     /// The empty state — genesis, nothing settled yet.
     pub fn new() -> Self {
-        LedgerState::default()
+        Self::with_genesis_supply(Amount::ZERO)
+    }
+
+    /// Construct genesis with an explicitly supplied circulating MINI amount.
+    pub fn with_genesis_supply(genesis_circulating: Amount) -> Self {
+        Self {
+            finalized: BTreeMap::new(),
+            monetary: MonetaryLedger::new(genesis_circulating),
+        }
+    }
+
+    pub fn monetary(&self) -> &MonetaryLedger {
+        &self.monetary
     }
 
     /// A commitment to this exact state, suitable for a block header's
@@ -38,7 +52,7 @@ impl LedgerState {
     /// (Directive 4) checkable as a plain equality on this one hash.
     pub fn commitment(&self) -> [u8; 32] {
         let mut w = Vec::new();
-        w.extend_from_slice(b"mini-execution/ledger-state/v1");
+        w.extend_from_slice(b"mini-execution/ledger-state/v2");
         w.extend_from_slice(&(self.finalized.len() as u64).to_be_bytes());
         for (payer, (sequence, digest)) in &self.finalized {
             w.extend_from_slice(&(payer.len() as u32).to_be_bytes());
@@ -46,7 +60,14 @@ impl LedgerState {
             w.extend_from_slice(&sequence.to_be_bytes());
             w.extend_from_slice(digest);
         }
+        w.extend_from_slice(&self.monetary.commitment().to_bytes());
         HashAlgorithm::Blake3.digest(&w)
+    }
+}
+
+impl Default for LedgerState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -80,9 +101,18 @@ pub fn apply_block(prev: &LedgerState, body: &SettlementBlockBody) -> Result<Led
     if body.claims.len() > crate::body::MAX_CLAIMS_PER_BLOCK {
         return Err(ExecutionError::TooManyClaims);
     }
+    if body.monetary_epochs.len() > 1 {
+        return Err(ExecutionError::TooManyMonetaryEpochs);
+    }
     let mut next = prev.clone();
     for claim in &body.claims {
         apply_one_claim(&mut next, claim);
+    }
+    if let Some(epoch) = body.monetary_epochs.first() {
+        next.monetary = next
+            .monetary
+            .apply_epoch(epoch, &IssuancePolicy::d0074())
+            .map_err(ExecutionError::InvalidMonetaryEpoch)?;
     }
     Ok(next)
 }
