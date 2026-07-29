@@ -336,6 +336,17 @@ given time.
   debit/credit and insufficient-funds enforcement, service/treasury evidence
   authorization, and production epoch timing remain unbuilt. P4 therefore
   remains partial.
+- **proposed transparent balance execution (D-0415, stacked on #272;
+  payment portion of roadmap #61)** — `mini-execution` can start from an
+  exact explicit genesis allocation and makes a finalized, affordable
+  `PaymentClaim` debit payer and credit payee. Insufficient funds do not
+  finalize or consume sequence; canonical block order resolves aggregate
+  overspend; state commitments include sorted balances; every accepted state
+  enforces `balances + unallocated circulating = monetary circulating`.
+  Existing claim wire bytes and M1/M2/M3 reconciliation remain unchanged.
+  This is deliberately transparent Tier 0: no confidential transaction,
+  private Human Share claim, production genesis, fees/mempool, or marketplace
+  object is claimed.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary

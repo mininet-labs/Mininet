@@ -10,12 +10,16 @@
 
 use std::collections::BTreeMap;
 
-use mini_crypto::HashAlgorithm;
+use mini_crypto::{HashAlgorithm, SignatureSuite, VerifyingKey};
 use mini_economy::{Amount, IssuancePolicy, MonetaryLedger};
 use mini_settlement::{verify_claim_signature, CanonicalLedgerView, PaymentClaim};
 
 use crate::body::SettlementBlockBody;
 use crate::error::{ExecutionError, Result};
+
+/// Supports current/PQ opaque account identifiers while bounding state-memory
+/// amplification from an untrusted payee field.
+pub const MAX_ACCOUNT_BYTES: usize = 4_096;
 
 /// The deterministic result of applying every finalized block up to some
 /// height: one `(sequence, digest)` high-water-mark per payer.
@@ -23,6 +27,9 @@ use crate::error::{ExecutionError, Result};
 pub struct LedgerState {
     finalized: BTreeMap<Vec<u8>, (u64, [u8; 32])>,
     monetary: MonetaryLedger,
+    balances: BTreeMap<Vec<u8>, Amount>,
+    allocated_circulating: Amount,
+    unallocated_circulating: Amount,
 }
 
 impl LedgerState {
@@ -36,11 +43,61 @@ impl LedgerState {
         Self {
             finalized: BTreeMap::new(),
             monetary: MonetaryLedger::new(genesis_circulating),
+            balances: BTreeMap::new(),
+            allocated_circulating: Amount::ZERO,
+            unallocated_circulating: genesis_circulating,
         }
+    }
+
+    /// Construct a transparent Tier-0 account allocation. The allocations
+    /// must account for the exact genesis circulating supply.
+    pub fn with_genesis_balances(
+        genesis_circulating: Amount,
+        allocations: Vec<(Vec<u8>, Amount)>,
+    ) -> Result<Self> {
+        let mut balances = BTreeMap::new();
+        let mut allocated = Amount::ZERO;
+        for (account, amount) in allocations {
+            if !is_supported_account(&account)
+                || amount == Amount::ZERO
+                || balances.insert(account, amount).is_some()
+            {
+                return Err(ExecutionError::InvalidGenesisAllocation);
+            }
+            allocated = allocated
+                .checked_add(amount)
+                .map_err(|_| ExecutionError::AmountOverflow)?;
+        }
+        if allocated != genesis_circulating {
+            return Err(ExecutionError::InvalidGenesisAllocation);
+        }
+        Ok(Self {
+            finalized: BTreeMap::new(),
+            monetary: MonetaryLedger::new(genesis_circulating),
+            balances,
+            allocated_circulating: allocated,
+            unallocated_circulating: Amount::ZERO,
+        })
     }
 
     pub fn monetary(&self) -> &MonetaryLedger {
         &self.monetary
+    }
+
+    pub fn balance(&self, account: &[u8]) -> Amount {
+        self.balances.get(account).copied().unwrap_or(Amount::ZERO)
+    }
+
+    pub fn unallocated_circulating(&self) -> Amount {
+        self.unallocated_circulating
+    }
+
+    pub fn allocated_circulating(&self) -> Amount {
+        self.allocated_circulating
+    }
+
+    pub fn balances(&self) -> &BTreeMap<Vec<u8>, Amount> {
+        &self.balances
     }
 
     /// A commitment to this exact state, suitable for a block header's
@@ -61,7 +118,45 @@ impl LedgerState {
             w.extend_from_slice(digest);
         }
         w.extend_from_slice(&self.monetary.commitment().to_bytes());
+        w.extend_from_slice(&(self.balances.len() as u64).to_be_bytes());
+        for (account, balance) in &self.balances {
+            w.extend_from_slice(&(account.len() as u32).to_be_bytes());
+            w.extend_from_slice(account);
+            w.extend_from_slice(&balance.as_micro().to_be_bytes());
+        }
+        w.extend_from_slice(&self.allocated_circulating.as_micro().to_be_bytes());
+        w.extend_from_slice(&self.unallocated_circulating.as_micro().to_be_bytes());
         HashAlgorithm::Blake3.digest(&w)
+    }
+
+    pub fn verify_supply_conservation(&self) -> Result<()> {
+        let accounted = self
+            .allocated_circulating
+            .checked_add(self.unallocated_circulating)
+            .map_err(|_| ExecutionError::AmountOverflow)?;
+        let circulating = self
+            .monetary
+            .circulating_supply()
+            .map_err(ExecutionError::InvalidMonetaryEpoch)?;
+        if accounted != circulating {
+            return Err(ExecutionError::SupplyConservationViolation);
+        }
+        Ok(())
+    }
+
+    /// Expensive audit/recovery check. Ordinary block execution uses the
+    /// consensus-tracked `allocated_circulating` total in O(1).
+    pub fn verify_balance_map_total(&self) -> Result<()> {
+        let mut recomputed = Amount::ZERO;
+        for balance in self.balances.values() {
+            recomputed = recomputed
+                .checked_add(*balance)
+                .map_err(|_| ExecutionError::AmountOverflow)?;
+        }
+        if recomputed != self.allocated_circulating {
+            return Err(ExecutionError::SupplyConservationViolation);
+        }
+        Ok(())
     }
 }
 
@@ -106,32 +201,76 @@ pub fn apply_block(prev: &LedgerState, body: &SettlementBlockBody) -> Result<Led
     }
     let mut next = prev.clone();
     for claim in &body.claims {
-        apply_one_claim(&mut next, claim);
+        apply_one_claim(&mut next, claim)?;
     }
     if let Some(epoch) = body.monetary_epochs.first() {
+        let before = next
+            .monetary
+            .circulating_supply()
+            .map_err(ExecutionError::InvalidMonetaryEpoch)?;
         next.monetary = next
             .monetary
             .apply_epoch(epoch, &IssuancePolicy::d0074())
             .map_err(ExecutionError::InvalidMonetaryEpoch)?;
+        let after = next
+            .monetary
+            .circulating_supply()
+            .map_err(ExecutionError::InvalidMonetaryEpoch)?;
+        let newly_circulating = after
+            .checked_sub(before)
+            .map_err(|_| ExecutionError::SupplyConservationViolation)?;
+        next.unallocated_circulating = next
+            .unallocated_circulating
+            .checked_add(newly_circulating)
+            .map_err(|_| ExecutionError::AmountOverflow)?;
     }
+    next.verify_supply_conservation()?;
     Ok(next)
 }
 
-fn apply_one_claim(state: &mut LedgerState, claim: &PaymentClaim) {
-    if verify_claim_signature(claim).is_err() {
-        return;
+fn apply_one_claim(state: &mut LedgerState, claim: &PaymentClaim) -> Result<()> {
+    if verify_claim_signature(claim).is_err() || !is_supported_account(&claim.payee) {
+        return Ok(());
     }
     let current = state.finalized_sequence(&claim.payer);
     let wins = match current {
         None => true,
         Some(existing_sequence) => claim.sequence > existing_sequence,
     };
-    if wins {
-        let digest = mini_settlement::claim_digest(claim);
-        state
-            .finalized
-            .insert(claim.payer.clone(), (claim.sequence, digest));
+    if !wins {
+        return Ok(());
     }
+    let amount = Amount::from(claim.amount_micro);
+    let payer_balance = state.balance(&claim.payer);
+    if payer_balance < amount {
+        return Ok(());
+    }
+    if claim.payer != claim.payee {
+        let payee_balance = state.balance(&claim.payee);
+        let debited = payer_balance
+            .checked_sub(amount)
+            .map_err(|_| ExecutionError::SupplyConservationViolation)?;
+        let credited = payee_balance
+            .checked_add(amount)
+            .map_err(|_| ExecutionError::AmountOverflow)?;
+        if debited == Amount::ZERO {
+            state.balances.remove(&claim.payer);
+        } else {
+            state.balances.insert(claim.payer.clone(), debited);
+        }
+        state.balances.insert(claim.payee.clone(), credited);
+    }
+    let digest = mini_settlement::claim_digest(claim);
+    state
+        .finalized
+        .insert(claim.payer.clone(), (claim.sequence, digest));
+    Ok(())
+}
+
+fn is_supported_account(account: &[u8]) -> bool {
+    !account.is_empty()
+        && account.len() <= MAX_ACCOUNT_BYTES
+        && VerifyingKey::from_suite_bytes(SignatureSuite::DEFAULT, account).is_ok()
 }
 
 #[cfg(test)]
@@ -144,6 +283,19 @@ mod tests {
         SigningKey::from_seed(&[0x33; 32])
     }
 
+    fn funded_state(amount_micro: u64) -> LedgerState {
+        let account = payer().verifying_key().to_bytes().to_vec();
+        let amount = Amount::from(amount_micro);
+        LedgerState::with_genesis_balances(amount, vec![(account, amount)]).unwrap()
+    }
+
+    fn recipient(seed: u8) -> Vec<u8> {
+        SigningKey::from_seed(&[seed; 32])
+            .verifying_key()
+            .to_bytes()
+            .to_vec()
+    }
+
     #[test]
     fn an_empty_body_leaves_state_unchanged() {
         let prev = LedgerState::new();
@@ -154,9 +306,10 @@ mod tests {
 
     #[test]
     fn a_single_valid_claim_finalizes() {
-        let claim = sign_claim(&payer(), b"payee", 1_000, 0, 10_000, b"chain-1", 0).unwrap();
+        let claim =
+            sign_claim(&payer(), &recipient(0x41), 1_000, 0, 10_000, b"chain-1", 0).unwrap();
         let body = SettlementBlockBody::new(vec![claim.clone()]);
-        let next = apply_block(&LedgerState::new(), &body).unwrap();
+        let next = apply_block(&funded_state(1_000), &body).unwrap();
         assert_eq!(next.finalized_sequence(&claim.payer), Some(0));
         assert_eq!(
             next.finalized_claim_digest(&claim.payer, 0),
@@ -166,24 +319,27 @@ mod tests {
 
     #[test]
     fn a_tampered_claim_is_dropped_not_finalized() {
-        let mut claim = sign_claim(&payer(), b"payee", 1_000, 0, 10_000, b"chain-1", 0).unwrap();
+        let mut claim =
+            sign_claim(&payer(), &recipient(0x41), 1_000, 0, 10_000, b"chain-1", 0).unwrap();
         claim.amount_micro = 999_999; // invalidates the signature
         let body = SettlementBlockBody::new(vec![claim.clone()]);
-        let next = apply_block(&LedgerState::new(), &body).unwrap();
+        let next = apply_block(&funded_state(1_000), &body).unwrap();
         assert_eq!(next.finalized_sequence(&claim.payer), None);
     }
 
     #[test]
     fn two_conflicting_claims_in_one_body_the_first_in_order_wins() {
-        let claim_a = sign_claim(&payer(), b"merchant-a", 500, 0, 10_000, b"chain-1", 0).unwrap();
-        let claim_b = sign_claim(&payer(), b"merchant-b", 500, 0, 10_000, b"chain-1", 0).unwrap();
+        let claim_a =
+            sign_claim(&payer(), &recipient(0x41), 500, 0, 10_000, b"chain-1", 0).unwrap();
+        let claim_b =
+            sign_claim(&payer(), &recipient(0x42), 500, 0, 10_000, b"chain-1", 0).unwrap();
         assert_ne!(
             mini_settlement::claim_digest(&claim_a),
             mini_settlement::claim_digest(&claim_b)
         );
 
         let body = SettlementBlockBody::new(vec![claim_a.clone(), claim_b.clone()]);
-        let next = apply_block(&LedgerState::new(), &body).unwrap();
+        let next = apply_block(&funded_state(1_000), &body).unwrap();
         assert_eq!(
             next.finalized_claim_digest(&claim_a.payer, 0),
             Some(mini_settlement::claim_digest(&claim_a)),
@@ -193,11 +349,13 @@ mod tests {
 
     #[test]
     fn a_higher_sequence_in_a_later_block_supersedes_the_previous_finalized_entry() {
-        let first = sign_claim(&payer(), b"payee", 1_000, 0, 10_000, b"chain-1", 0).unwrap();
-        let second = sign_claim(&payer(), b"payee-2", 2_000, 1, 10_000, b"chain-2", 0).unwrap();
+        let first =
+            sign_claim(&payer(), &recipient(0x41), 1_000, 0, 10_000, b"chain-1", 0).unwrap();
+        let second =
+            sign_claim(&payer(), &recipient(0x42), 2_000, 1, 10_000, b"chain-2", 0).unwrap();
 
         let after_first = apply_block(
-            &LedgerState::new(),
+            &funded_state(3_000),
             &SettlementBlockBody::new(vec![first.clone()]),
         )
         .unwrap();
@@ -216,12 +374,21 @@ mod tests {
 
     #[test]
     fn a_stale_or_repeated_sequence_in_a_later_block_never_overwrites_the_finalized_entry() {
-        let first = sign_claim(&payer(), b"payee", 1_000, 0, 10_000, b"chain-1", 0).unwrap();
-        let replay_attempt =
-            sign_claim(&payer(), b"attacker", 999_999, 0, 10_000, b"chain-1", 0).unwrap();
+        let first =
+            sign_claim(&payer(), &recipient(0x41), 1_000, 0, 10_000, b"chain-1", 0).unwrap();
+        let replay_attempt = sign_claim(
+            &payer(),
+            &recipient(0x42),
+            999_999,
+            0,
+            10_000,
+            b"chain-1",
+            0,
+        )
+        .unwrap();
 
         let after_first = apply_block(
-            &LedgerState::new(),
+            &funded_state(1_000),
             &SettlementBlockBody::new(vec![first.clone()]),
         )
         .unwrap();
@@ -240,10 +407,11 @@ mod tests {
 
     #[test]
     fn state_commitment_is_deterministic_and_content_sensitive() {
-        let claim = sign_claim(&payer(), b"payee", 1_000, 0, 10_000, b"chain-1", 0).unwrap();
+        let claim =
+            sign_claim(&payer(), &recipient(0x41), 1_000, 0, 10_000, b"chain-1", 0).unwrap();
         let body = SettlementBlockBody::new(vec![claim]);
-        let a = apply_block(&LedgerState::new(), &body).unwrap();
-        let b = apply_block(&LedgerState::new(), &body).unwrap();
+        let a = apply_block(&funded_state(1_000), &body).unwrap();
+        let b = apply_block(&funded_state(1_000), &body).unwrap();
         assert_eq!(a.commitment(), b.commitment());
         assert_ne!(a.commitment(), LedgerState::new().commitment());
     }
@@ -270,6 +438,108 @@ mod tests {
         assert_eq!(
             apply_block(&LedgerState::new(), &body).unwrap_err(),
             ExecutionError::TooManyClaims
+        );
+    }
+
+    #[test]
+    fn transfer_debits_credits_and_conserves_supply() {
+        let claim = sign_claim(&payer(), &recipient(0x41), 400, 0, 10_000, b"chain-1", 0).unwrap();
+        let next = apply_block(
+            &funded_state(1_000),
+            &SettlementBlockBody::new(vec![claim.clone()]),
+        )
+        .unwrap();
+        assert_eq!(next.balance(&claim.payer), Amount::from(600));
+        assert_eq!(next.balance(&claim.payee), Amount::from(400));
+        assert_eq!(next.unallocated_circulating(), Amount::ZERO);
+        next.verify_supply_conservation().unwrap();
+        next.verify_balance_map_total().unwrap();
+    }
+
+    #[test]
+    fn overspend_is_not_finalized_and_does_not_consume_sequence() {
+        let too_large =
+            sign_claim(&payer(), &recipient(0x41), 1_001, 0, 10_000, b"chain-1", 0).unwrap();
+        let valid =
+            sign_claim(&payer(), &recipient(0x42), 1_000, 0, 10_000, b"chain-1", 0).unwrap();
+        let after_rejected = apply_block(
+            &funded_state(1_000),
+            &SettlementBlockBody::new(vec![too_large.clone()]),
+        )
+        .unwrap();
+        assert_eq!(after_rejected.finalized_sequence(&too_large.payer), None);
+        assert_eq!(
+            after_rejected.balance(&too_large.payer),
+            Amount::from(1_000)
+        );
+
+        let after_valid = apply_block(
+            &after_rejected,
+            &SettlementBlockBody::new(vec![valid.clone()]),
+        )
+        .unwrap();
+        assert_eq!(after_valid.finalized_sequence(&valid.payer), Some(0));
+        assert_eq!(after_valid.balance(&valid.payee), Amount::from(1_000));
+    }
+
+    #[test]
+    fn canonical_body_order_prevents_aggregate_overspend() {
+        let first = sign_claim(&payer(), &recipient(0x41), 700, 0, 10_000, b"chain-1", 0).unwrap();
+        let second = sign_claim(&payer(), &recipient(0x42), 700, 1, 10_000, b"chain-1", 0).unwrap();
+        let next = apply_block(
+            &funded_state(1_000),
+            &SettlementBlockBody::new(vec![first.clone(), second.clone()]),
+        )
+        .unwrap();
+        assert_eq!(next.balance(&first.payee), Amount::from(700));
+        assert_eq!(next.balance(&second.payee), Amount::ZERO);
+        assert_eq!(next.finalized_sequence(&first.payer), Some(0));
+        next.verify_supply_conservation().unwrap();
+    }
+
+    #[test]
+    fn self_transfer_changes_sequence_but_never_supply_or_balance() {
+        let payer_key = payer();
+        let payer_account = payer_key.verifying_key().to_bytes().to_vec();
+        let claim = sign_claim(&payer_key, &payer_account, 500, 0, 10_000, b"chain-1", 0).unwrap();
+        let next = apply_block(
+            &funded_state(1_000),
+            &SettlementBlockBody::new(vec![claim.clone()]),
+        )
+        .unwrap();
+        assert_eq!(next.balance(&payer_account), Amount::from(1_000));
+        assert_eq!(next.finalized_sequence(&payer_account), Some(0));
+        next.verify_supply_conservation().unwrap();
+    }
+
+    #[test]
+    fn genesis_allocations_must_be_exact_unique_nonzero_and_bounded() {
+        assert_eq!(
+            LedgerState::with_genesis_balances(
+                Amount::from(10),
+                vec![(b"alice".to_vec(), Amount::from(9))]
+            )
+            .unwrap_err(),
+            ExecutionError::InvalidGenesisAllocation
+        );
+        assert_eq!(
+            LedgerState::with_genesis_balances(
+                Amount::from(10),
+                vec![
+                    (b"alice".to_vec(), Amount::from(5)),
+                    (b"alice".to_vec(), Amount::from(5))
+                ]
+            )
+            .unwrap_err(),
+            ExecutionError::InvalidGenesisAllocation
+        );
+        assert_eq!(
+            LedgerState::with_genesis_balances(
+                Amount::from(1),
+                vec![(vec![7; MAX_ACCOUNT_BYTES + 1], Amount::from(1))]
+            )
+            .unwrap_err(),
+            ExecutionError::InvalidGenesisAllocation
         );
     }
 }

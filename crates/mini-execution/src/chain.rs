@@ -44,6 +44,18 @@ impl LedgerChain {
         }
     }
 
+    /// Start from a fully allocated transparent Tier-0 genesis balance set.
+    pub fn genesis_with_balances(
+        genesis_circulating: Amount,
+        allocations: Vec<(Vec<u8>, Amount)>,
+    ) -> Result<Self> {
+        Ok(LedgerChain {
+            height: 0,
+            tip_hash: [0u8; 32],
+            state: LedgerState::with_genesis_balances(genesis_circulating, allocations)?,
+        })
+    }
+
     /// The current finalized height.
     pub fn height(&self) -> u64 {
         self.height

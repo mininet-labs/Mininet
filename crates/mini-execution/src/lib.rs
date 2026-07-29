@@ -49,6 +49,10 @@
 //!   finality and checked against D-0074 supply/vesting rules, but this crate
 //!   does not decide genesis, personhood, service evidence, or validator
 //!   legitimacy.
+//! - **Transparent Tier 0 only.** Finalized claims now debit and credit
+//!   explicit opaque-account balances and enforce supply conservation. This
+//!   is a correctness baseline, not transaction privacy; `mini-value`'s
+//!   confidential prototypes remain separate and audit-gated.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
@@ -61,4 +65,4 @@ mod state;
 pub use body::{SettlementBlockBody, MAX_CLAIMS_PER_BLOCK};
 pub use chain::LedgerChain;
 pub use error::{ExecutionError, Result};
-pub use state::{apply_block, LedgerState};
+pub use state::{apply_block, LedgerState, MAX_ACCOUNT_BYTES};

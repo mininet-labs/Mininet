@@ -13269,3 +13269,69 @@ economic, privacy, consensus, accessibility, legal, and implementation review.
 **Supersedes / superseded by:** follows D-0413 without superseding D-0074,
 D-0413, P4, or any gate. It changes no existing `PaymentClaim` wire field or
 settlement reconciliation rule.
+
+### D-0415 - Transparent Tier-0 finalized balances and supply-conserving transfers  ·  *Proposed*
+**Date:** 2026-07-29 · **Refs:** roadmap #61 (payment portion); #40; #41;
+D-0040; D-0055; D-0061; D-0413; proposed D-0414;
+`docs/design/day0-transparent-balance-ledger.md`;
+`docs/audits/day0-transparent-balance-review.md`; P1, M1, M2, M3, A1;
+Directive 4, Directive 5, Directive 13, Directive 16.
+
+**Decision:** propose extending `mini-execution::LedgerState` with sorted
+opaque-account balances and an unallocated-circulating pool. A fully allocated
+genesis must contain unique, non-empty, non-zero, bounded account entries
+whose checked sum exactly equals genesis circulating supply. A finalized
+`PaymentClaim` transfers only when its signature and sequence are valid, its
+payee parses as a supported verifying-key account, and the payer's current
+canonical balance covers the amount. The transfer debits
+payer, credits payee, records the exact claim digest, and rechecks that account
+balances plus unallocated circulating MINI equal D-0414 monetary circulating
+supply.
+
+Newly vested issuance enters unallocated circulating supply and cannot be
+spent until a separate authorized claim/credit transition assigns it. Existing
+`PaymentClaim` signed bytes and `mini-settlement::reconcile` semantics are
+unchanged.
+
+**Reason:** before this proposal, `mini-execution` finalized which signed
+promise won a sequence slot but did not ask whether the payer owned the amount
+or transfer ownership. A valid signature could therefore finalize an
+arbitrarily large claim in the prototype state. Canonical balance execution is
+the minimum implementation of Directives 4 and 5's “who owns what” requirement
+and must precede markets or production MINI.
+
+**Alternatives:** retaining claim-order-only state is rejected because it does
+not enforce ownership; allowing negative balances or debt is rejected because
+`PaymentClaim` does not encode a credit agreement; silently assigning
+unallocated issuance is rejected because personhood/evidence authorization is
+missing; integrating the unaudited confidential prototypes in the same slice
+is rejected because it would combine basic accounting correctness with
+high-risk cryptography and overstate privacy.
+
+**Constitutional impact:** no Tier-F row is amended. M1-M3 are strengthened:
+money still never merges, no local promise becomes final, and canonical order
+alone determines which affordable transfer wins. P1 remains structural;
+balances do not enter governance, validator, personhood, ranking, or public-
+rights APIs. A1 remains mandatory.
+
+**Implementation status:** proposed code adds exact genesis balance
+construction, bounded accounts, balance queries, checked debit/credit,
+insufficient-funds rejection without sequence consumption, self-transfer
+safety, canonical aggregate-overspend ordering, unallocated issuance
+accounting, supply-conservation checks, state commitments, and finalized
+integration assertions.
+
+**Failure point:** this Tier-0 ledger publicly exposes the account graph and
+amounts; no production genesis or private issuance claim exists; service and
+treasury evidence cannot authorize credits; claims have no multi-deployment
+chain id; and no mempool, fee, state proof, pruning, network submission, or
+audited confidential transaction exists.
+
+**Required follow-up:** private Human Share claims/nullifiers; authorized
+service/treasury credits; chain/network domain separation; fees and bounded
+submission; state proofs/sync/pruning; marketplace payment objects; production
+genesis; confidential transaction integration only after independent review;
+post-quantum ownership migration; and full external audits.
+
+**Supersedes / superseded by:** stacked on proposed D-0414 and does not
+supersede D-0040, D-0055, D-0061, D-0074, D-0413, or any audit gate.

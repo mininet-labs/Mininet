@@ -29,6 +29,9 @@ pub enum ExecutionError {
     TooManyClaims,
     TooManyMonetaryEpochs,
     InvalidMonetaryEpoch(mini_economy::EconomyError),
+    InvalidGenesisAllocation,
+    AmountOverflow,
+    SupplyConservationViolation,
     /// A candidate block's `timestamp_ms` did not equal its own height.
     /// `timestamp_ms` is deterministic logical time, not proposer-supplied
     /// wall time (roadmap #44's timestamp-attack finding): a signature only
@@ -65,6 +68,13 @@ impl fmt::Display for ExecutionError {
             }
             ExecutionError::InvalidMonetaryEpoch(error) => {
                 write!(f, "invalid monetary epoch: {error}")
+            }
+            ExecutionError::InvalidGenesisAllocation => {
+                write!(f, "genesis account allocations are malformed or do not equal supply")
+            }
+            ExecutionError::AmountOverflow => write!(f, "account amount arithmetic overflow"),
+            ExecutionError::SupplyConservationViolation => {
+                write!(f, "account balances plus unallocated value do not equal circulating supply")
             }
             ExecutionError::TimestampNotDeterministic { expected, got } => write!(
                 f,
