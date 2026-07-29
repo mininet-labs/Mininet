@@ -41,7 +41,8 @@ GitHub search or IDE required.
 ## Before you touch a FREEZE domain
 
 [`DECISION_LOG.md`](DECISION_LOG.md) (every architectural/policy decision,
-`D-0001`–`D-0068`, policy only) and [`INVARIANTS.md`](INVARIANTS.md) (the
+`D-0001`–`D-0101` in the main sequence, plus the parallel reserved bands,
+policy only) and [`INVARIANTS.md`](INVARIANTS.md) (the
 frozen-vs-tunable register, by domain, with a hard-limitations section at the
 top) outrank any comment or README. [`STATUS.md`](STATUS.md) is the living
 account of what's actually built. [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
@@ -64,7 +65,7 @@ mininet/
 ├── Cargo.toml              workspace for the Rust core
 ├── rust-toolchain.toml     pinned toolchain for reproducible-build hygiene
 ├── tools/mininet_nav.py    offline repo index/search (docs/NAVIGATION.md)
-├── crates/                 33 crates, see the table below
+├── crates/                 62 crates, see the generated repo map
 ├── docs/
 │   ├── FOUNDER_DIRECTIVES.md    read this first — the why beneath every other document
 │   ├── INVARIANTS.md            frozen/tunable register mapped to code, with a Directive-traceability column
@@ -81,12 +82,20 @@ mininet/
 │   ├── ADDRESSING.md            no-DNS universal addressing design (petnames, not domains)
 │   ├── ROADMAP.md               pack order from two-phone demo to full network
 │   ├── BETA_STATUS.md           near-term target: the two-phone keystone beta
+│   ├── BETA_CONTRIBUTOR_GUIDE.md guided Beta tasks and evidence paths
+│   ├── CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md bounded task/review brief template
 │   ├── BOOTSTRAP_AND_UPDATE.md  self-contained update + Bluetooth bootstrap spec
 │   ├── NAVIGATION.md            how to use tools/mininet_nav.py
 │   └── UI_BETA_PLAN.md          the eventual product/UI layer, not yet built
 ├── CONTRIBUTING.md          PR checklist, review floor, scope-of-a-batch rule
 └── .github/workflows/ci.yml  fmt + clippy + test on every PR (temporary mirror CI)
 ```
+
+For Beta participation and exact-evidence handoff, see
+[`BETA_CONTRIBUTOR_GUIDE.md`](BETA_CONTRIBUTOR_GUIDE.md),
+[`CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md`](CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md),
+and [`gates/EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md`](gates/EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md).
+The generated map is [`_generated/REPO_MAP.md`](_generated/REPO_MAP.md).
 
 ## The crates
 
@@ -142,6 +151,7 @@ The honest gap list between "the protocol logic works and is tested" and
 "people anywhere can actually run and trust this network." Each is also
 documented at the crate level. The items that **more code cannot close** are
 tracked as external legitimacy gates ([`gates/`](gates/), issue [#99](../../issues/99)).
+The Beta closure matrix and response template are tracked in [#262](../../issues/262).
 
 1. **External cryptography audit.** Every 🧪 item above is founder-reviewed
    AI-authored work, not audit-equivalent — the single largest gate before any

@@ -22,6 +22,7 @@ a box on #99 requires the named outside action to have actually happened.
 | [`hardware-test-protocol.md`](hardware-test-protocol.md) | [#97](../../issues/97) | Find a mobile engineer + real devices |
 | [`economic-simulation-spec.md`](economic-simulation-spec.md) | [#47](../../issues/47), [#50](../../issues/50) | Engage a mechanism-design/tokenomics specialist |
 | [`dtn-design-constraints.md`](dtn-design-constraints.md) | [#28](../../issues/28) | Find DTN/satellite-networking domain expertise |
+| [`EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md`](EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md) | [#262](../../issues/262), all listed external gates | Record scope, evidence, findings, disposition, and residual limits |
 
 This directory is append-only in spirit, same as `docs/audits/` and
 `docs/design/` — when a gate closes, the package stays as the record of

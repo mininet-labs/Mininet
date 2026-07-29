@@ -318,7 +318,7 @@
     },
     {
       "issue": 200,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "agent/android-lan-qr-pairing",
       "pull_request": 258,
@@ -338,7 +338,38 @@
       "decision_ids": [
         "D-0373"
       ],
-      "notes": "Day-0 Android LAN/QR pairing bridge: keep identity keys in RootCore, expose bounded offer/acceptance/follow state through UniFFI, wire an offline QR UI and direct LAN exchange, add replay/expiry/adversarial tests. No BLE/background sync/personhood claim."
+      "notes": "Day-0 Android LAN/QR pairing bridge: keep identity keys in RootCore, expose bounded offer/acceptance/follow state through UniFFI, wire an offline QR UI and direct LAN exchange, add replay/expiry/adversarial tests. PR #258 merged to main; the issue remains open for the real Android CI and two-device acceptance work. No BLE/background sync/personhood claim."
+    },
+    {
+      "issue": 264,
+      "status": "active",
+      "contributor": "Codex",
+      "branch": "agent/beta-governance-onboarding",
+      "pull_request": null,
+      "lease_expires": "2026-08-12",
+      "paths": [
+        "README.md",
+        "CONTRIBUTING.md",
+        "WHITEPAPER.md",
+        "docs/HUMAN_START.md",
+        "docs/DEVELOPER_START.md",
+        "docs/AUDITOR_START.md",
+        "docs/BETA_STATUS.md",
+        "docs/BETA_CONTRIBUTOR_GUIDE.md",
+        "docs/CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md",
+        "docs/design/mininet-teams-and-contributor-routing.md",
+        "docs/gates/EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md",
+        "docs/gates/README.md",
+        ".github/ISSUE_TEMPLATE/contributor-intake.yml",
+        ".github/ISSUE_TEMPLATE/beta-test-report.yml",
+        "docs/DECISION_LOG.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0101"
+      ],
+      "notes": "Beta front door, closure-ready external-review template, guided contributor/tester intake, and a preliminary Mininet-native team/routing report. Documentation and coordination adapter only; no governance activation, protocol authority, or production claim. The stale merged #200 claim is closed in this batch per D-0100's cleanup precedent."
     },
     {
       "issue": 255,

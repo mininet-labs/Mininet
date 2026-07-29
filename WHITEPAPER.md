@@ -95,12 +95,12 @@ register).
   enforced at the crate level (`mini-value`/`mini-bounty`/`mini-treasury`
   can never depend on `mini-forge`/`mini-chain` voting, or vice versa), not
   a policy someone could quietly relax.
-- **One verified human, one equal vote.** Wealth, early arrival, and
+- **Identity-root authority is not bought.** Wealth, early arrival, and
   hardware buy nothing extra in governance. *(Honest caveat, stated
   everywhere on purpose: today the system counts verified identity
-  **roots**, not yet verified **humans** — Sybil resistance is the sharpest
-  open research question in the project, not solved engineering debt. See
-  §7.)*
+  **roots**, not yet verified **humans** — an identity root is not proof of a
+  unique human, and Sybil resistance is the sharpest open research question in
+  the project, not solved engineering debt. See §7.)*
 - **No owner, no admin key, no kill switch, no forced update.** Nobody can
   seize the network, freeze an account, unmask a user, or push software a
   person didn't choose to run.

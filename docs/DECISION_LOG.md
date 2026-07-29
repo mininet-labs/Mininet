@@ -12932,3 +12932,78 @@ outage, export/fork, and governed-cutover gates.
 Forge-native allocator follow-up. It does not supersede D-0100, does not
 activate proposed D-0101, and does not activate RFC-0002, RFC-0003, or
 RFC-0005.
+### D-0101 - Beta front door and non-authorizing contributor routing proposal  ·  *Proposed*
+**Date:** 2026-07-29  ·  **Refs:** issue #264; issues #262 and #263;
+D-0057; D-0100; `docs/governance/11_WORKING_GROUPS_AND_MAINTAINERS.md`;
+`docs/governance/33_WORKING_GROUP_CHARTER_AND_LIFECYCLE.md`;
+`docs/governance/41_EXTERNAL_REVIEW_AND_PUBLIC_CHALLENGE.md`;
+`docs/governance/07_RELEASE_AND_OWNER_ADOPTION.md`; P1, P2, AI1, A1,
+INV-18-08, U1; Directive 1, Directive 2, Directive 12, Directive 16.
+
+**Decision:** propose a Beta-facing front door that routes a newcomer to a
+role-specific, bounded task and evidence path, while keeping the current
+GitHub surfaces explicitly temporary. The initial adapter consists of a
+contributor guide, opt-in contributor-intake and Beta-test-report templates,
+an external-review response template, and a design report for Mininet-native
+working groups and guided task routing.
+
+The proposed Mininet-native direction composes the existing working-group
+charter and Forge-object specifications: a participant may declare skills,
+interests, availability, privacy preference, and confidence; a client may
+suggest compatible tasks; and a participant accepts a task explicitly.
+Working-group roles remain separate, scoped, expiring, revocable, and bound to
+evidence. A group may organize work and decide ordinary implementation
+matters inside accepted specifications, but it may not unilaterally amend a
+frozen invariant, change constitutional meaning, make a personhood claim,
+authorize value, make a release mandatory, or activate software for an owner.
+
+This proposal does not create a personnel directory, organization registry,
+automatic authority assignment, GitHub-team authority, or new governance
+quorum. Organization roots remain ineligible for governance under INV-18-08;
+employment, payment, employer sponsorship, fame, commit count, and AI output
+do not buy review standing or governance weight. Public release evidence and
+challenge can make an exact release eligible for voluntary adoption, but
+installation remains a separate, typed owner choice under U1.
+
+**Reason:** the repository already has a coherent working-group model and a
+`working-group-charter` schema, but the public front door still makes a new
+participant reconstruct the safe path from scattered documents. A reversible
+GitHub adapter can make recruitment guided and usable now while preserving a
+Forge-native future. Automatic assignment or authority would create a new
+policy surface and could silently turn employment, platform membership, or
+private profile data into governance power, so those choices remain open in
+issue #263.
+
+**Constitutional impact:** no Tier-F invariant is amended or weakened. The
+proposal strengthens Directive 1 and Directive 12's human/AI boundary,
+reinforces P1's voice/value wall, preserves P2's identity-root limitation,
+AI1's human-review requirement, A1's external-audit gate, INV-18-08's
+organization-root boundary, and U1's no-forced-update rule. The report and
+templates are proposal/evidence artifacts, not activated governance.
+
+**Implementation status:** proposed documentation and GitHub-adapter changes
+are prepared in the issue #264 branch. No Mininet runtime team object, privacy-
+preserving task matcher, automatic recruitment service, working-group
+delegation engine, public-confirmation mechanism, or external audit is built
+or claimed. The current repository still requires human/governance action for
+the policy questions in #263 and independent evidence for the gates in #262.
+
+**Failure point:** task routing could expose sensitive skills or employment
+relationships; a team could become a gatekeeper; one operator or employer
+could simulate independence; public release evidence could be mistaken for
+owner adoption; stale GitHub data could be mistaken for canonical truth; or a
+friendly Beta page could overstate what is built, audited, anonymous, or
+personhood-qualified. The guide therefore labels suggestions as opt-in,
+keeps roles and approvals separate, links exact issues and revisions, and
+states the unbuilt and unaudited boundaries.
+
+**Required follow-up:** issue #263 needs a founder/governance disposition on
+task-routing privacy, role continuity, group formation, conflict handling,
+and the meaning of public confirmation. Issue #262 needs the external-review
+closure matrix and completed reviewer/hardware/legal/research records. Issue
+#264 needs review of the front door and templates, then a separately scoped
+implementation proposal only after the policy questions are resolved.
+
+**Supersedes / superseded by:** supplements D-0057's human trust gateway and
+D-0100's coordination registry. It does not supersede either decision, the
+Governance Pack, any frozen invariant, or D-0084's non-authorizing charter.
