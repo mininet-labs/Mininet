@@ -1003,6 +1003,20 @@ the top development priority.
   index, ranker, query service, search UI, network exchange, crawler
   runtime that actually fetches pages, or federated/distributed layer.
   Explicitly a distinct system from
+  payment logic. `mini-lexical-index` (D-0405, Track E5) is the lexical
+  index slice: a deterministic, immutable inverted index over document
+  fields (title/body/url) with phrase positions, built from
+  `(UrlId, field text)` documents into a content-addressed `IndexSegment`
+  (BLAKE3 `IndexSegmentId`), with `term_documents`/`phrase_documents`
+  structural queries, canonical `to_bytes`/`from_bytes` that enforce
+  canonical form on decode, and an `IndexManifest`. No ranking, scoring,
+  crawler, fetcher, extractor, query CLI, network, or storage backend, and
+  no payment/provider/ranking-authority field — the index records what text
+  exists where, never what it is worth. Its determinism (same documents →
+  byte-identical segment and id, regardless of order or host) is what makes
+  D-0312's plurality real. Still no ranker (E6), query CLI (E7), result
+  provenance/explanations (E8), search UI, network exchange, or
+  federated/distributed layer. Explicitly a distinct system from
   `mini-private-index` (D-0310), which is not to be repurposed as the
   general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
