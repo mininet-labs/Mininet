@@ -1,0 +1,21 @@
+[package]
+name = "mini-lexical-index"
+version = "0.0.1"
+description = "MiniSearch lexical index (Track E5): a deterministic, immutable inverted index over extracted document fields, with phrase positions and a content-addressed segment manifest. Pure index construction and lookup -- no ranking, no scoring, no crawler, no network, no payment or authority signal."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# mini-crypto for the Multihash content address, and mini-web-types for the
+# already-canonical UrlId (document identity) and IndexSegmentId (segment
+# identity). Reused rather than re-declared so the index and the rest of
+# MiniSearch cannot drift apart. Deliberately no dependency on mini-crawler,
+# mini-web-extract, any network crate, or any value/governance crate: this
+# crate builds and queries an index and can do nothing else. Per D-0312, an
+# index segment carries no payment, provider, or ranking-authority field.
+mini-crypto = { path = "../mini-crypto" }
+mini-web-types = { path = "../mini-web-types" }

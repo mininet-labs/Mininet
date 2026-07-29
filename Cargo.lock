@@ -2542,6 +2542,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-lexical-index"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-web-types",
+]
+
+[[package]]
 name = "mini-media"
 version = "0.0.1"
 dependencies = [
@@ -2658,6 +2666,15 @@ dependencies = [
  "mini-relay",
  "mini-resource-pricing",
  "mini-transport-policy",
+]
+
+[[package]]
+name = "mini-ranker"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-lexical-index",
+ "mini-web-types",
 ]
 
 [[package]]
