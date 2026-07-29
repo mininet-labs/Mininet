@@ -343,10 +343,13 @@ given time.
   finalize or consume sequence; canonical block order resolves aggregate
   overspend; state commitments include sorted balances; every accepted state
   enforces `balances + unallocated circulating = monetary circulating`.
-  Existing claim wire bytes and M1/M2/M3 reconciliation remain unchanged.
+  Claims now sign an exact settlement-network ID, consensus wire v2 carries
+  it, and execution rejects cross-deployment replay. Canonical rejection
+  outcomes let reconciliation report wrong-network, unsupported-payee,
+  stale-sequence, and insufficient-funds failures immediately.
   This is deliberately transparent Tier 0: no confidential transaction,
-  private Human Share claim, production genesis, fees/mempool, or marketplace
-  object is claimed.
+  private Human Share claim, production genesis, fees/mempool, bounded
+  rejection-proof pruning, or marketplace object is claimed.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary

@@ -12,7 +12,10 @@ use std::collections::BTreeMap;
 
 use mini_crypto::{HashAlgorithm, SignatureSuite, VerifyingKey};
 use mini_economy::{Amount, IssuancePolicy, MonetaryLedger};
-use mini_settlement::{verify_claim_signature, CanonicalLedgerView, PaymentClaim};
+use mini_settlement::{
+    claim_digest, verify_claim_signature, CanonicalLedgerView, CanonicalRejection, PaymentClaim,
+    MININET_NETWORK_ID,
+};
 
 use crate::body::SettlementBlockBody;
 use crate::error::{ExecutionError, Result};
@@ -25,7 +28,9 @@ pub const MAX_ACCOUNT_BYTES: usize = 4_096;
 /// height: one `(sequence, digest)` high-water-mark per payer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LedgerState {
+    network_id: [u8; 32],
     finalized: BTreeMap<Vec<u8>, (u64, [u8; 32])>,
+    rejected: BTreeMap<[u8; 32], CanonicalRejection>,
     monetary: MonetaryLedger,
     balances: BTreeMap<Vec<u8>, Amount>,
     allocated_circulating: Amount,
@@ -40,8 +45,17 @@ impl LedgerState {
 
     /// Construct genesis with an explicitly supplied circulating MINI amount.
     pub fn with_genesis_supply(genesis_circulating: Amount) -> Self {
+        Self::with_network_and_genesis_supply(MININET_NETWORK_ID, genesis_circulating)
+    }
+
+    pub fn with_network_and_genesis_supply(
+        network_id: [u8; 32],
+        genesis_circulating: Amount,
+    ) -> Self {
         Self {
+            network_id,
             finalized: BTreeMap::new(),
+            rejected: BTreeMap::new(),
             monetary: MonetaryLedger::new(genesis_circulating),
             balances: BTreeMap::new(),
             allocated_circulating: Amount::ZERO,
@@ -52,6 +66,18 @@ impl LedgerState {
     /// Construct a transparent Tier-0 account allocation. The allocations
     /// must account for the exact genesis circulating supply.
     pub fn with_genesis_balances(
+        genesis_circulating: Amount,
+        allocations: Vec<(Vec<u8>, Amount)>,
+    ) -> Result<Self> {
+        Self::with_network_and_genesis_balances(
+            MININET_NETWORK_ID,
+            genesis_circulating,
+            allocations,
+        )
+    }
+
+    pub fn with_network_and_genesis_balances(
+        network_id: [u8; 32],
         genesis_circulating: Amount,
         allocations: Vec<(Vec<u8>, Amount)>,
     ) -> Result<Self> {
@@ -72,7 +98,9 @@ impl LedgerState {
             return Err(ExecutionError::InvalidGenesisAllocation);
         }
         Ok(Self {
+            network_id,
             finalized: BTreeMap::new(),
+            rejected: BTreeMap::new(),
             monetary: MonetaryLedger::new(genesis_circulating),
             balances,
             allocated_circulating: allocated,
@@ -82,6 +110,10 @@ impl LedgerState {
 
     pub fn monetary(&self) -> &MonetaryLedger {
         &self.monetary
+    }
+
+    pub fn network_id(&self) -> [u8; 32] {
+        self.network_id
     }
 
     pub fn balance(&self, account: &[u8]) -> Amount {
@@ -109,13 +141,19 @@ impl LedgerState {
     /// (Directive 4) checkable as a plain equality on this one hash.
     pub fn commitment(&self) -> [u8; 32] {
         let mut w = Vec::new();
-        w.extend_from_slice(b"mini-execution/ledger-state/v2");
+        w.extend_from_slice(b"mini-execution/ledger-state/v3");
+        w.extend_from_slice(&self.network_id);
         w.extend_from_slice(&(self.finalized.len() as u64).to_be_bytes());
         for (payer, (sequence, digest)) in &self.finalized {
             w.extend_from_slice(&(payer.len() as u32).to_be_bytes());
             w.extend_from_slice(payer);
             w.extend_from_slice(&sequence.to_be_bytes());
             w.extend_from_slice(digest);
+        }
+        w.extend_from_slice(&(self.rejected.len() as u64).to_be_bytes());
+        for (digest, reason) in &self.rejected {
+            w.extend_from_slice(digest);
+            w.push(rejection_tag(*reason));
         }
         w.extend_from_slice(&self.monetary.commitment().to_bytes());
         w.extend_from_slice(&(self.balances.len() as u64).to_be_bytes());
@@ -177,6 +215,10 @@ impl CanonicalLedgerView for LedgerState {
             .filter(|(finalized_sequence, _)| *finalized_sequence == sequence)
             .map(|(_, digest)| *digest)
     }
+
+    fn rejected_claim(&self, digest: &[u8; 32]) -> Option<CanonicalRejection> {
+        self.rejected.get(digest).copied()
+    }
 }
 
 /// Apply a finalized block's body to `prev`, producing the next state.
@@ -229,7 +271,20 @@ pub fn apply_block(prev: &LedgerState, body: &SettlementBlockBody) -> Result<Led
 }
 
 fn apply_one_claim(state: &mut LedgerState, claim: &PaymentClaim) -> Result<()> {
-    if verify_claim_signature(claim).is_err() || !is_supported_account(&claim.payee) {
+    if verify_claim_signature(claim).is_err() {
+        return Ok(());
+    }
+    let digest = claim_digest(claim);
+    if claim.network_id != state.network_id {
+        state
+            .rejected
+            .insert(digest, CanonicalRejection::WrongNetwork);
+        return Ok(());
+    }
+    if !is_supported_account(&claim.payee) {
+        state
+            .rejected
+            .insert(digest, CanonicalRejection::UnsupportedPayee);
         return Ok(());
     }
     let current = state.finalized_sequence(&claim.payer);
@@ -238,11 +293,17 @@ fn apply_one_claim(state: &mut LedgerState, claim: &PaymentClaim) -> Result<()> 
         Some(existing_sequence) => claim.sequence > existing_sequence,
     };
     if !wins {
+        state
+            .rejected
+            .insert(digest, CanonicalRejection::StaleSequence);
         return Ok(());
     }
     let amount = Amount::from(claim.amount_micro);
     let payer_balance = state.balance(&claim.payer);
     if payer_balance < amount {
+        state
+            .rejected
+            .insert(digest, CanonicalRejection::InsufficientFunds);
         return Ok(());
     }
     if claim.payer != claim.payee {
@@ -260,11 +321,23 @@ fn apply_one_claim(state: &mut LedgerState, claim: &PaymentClaim) -> Result<()> 
         }
         state.balances.insert(claim.payee.clone(), credited);
     }
-    let digest = mini_settlement::claim_digest(claim);
+    // A previously unaffordable claim may be retried after the payer receives
+    // funds. Finalization is the newer canonical outcome for that exact
+    // digest and must replace its earlier rejection.
+    state.rejected.remove(&digest);
     state
         .finalized
         .insert(claim.payer.clone(), (claim.sequence, digest));
     Ok(())
+}
+
+fn rejection_tag(reason: CanonicalRejection) -> u8 {
+    match reason {
+        CanonicalRejection::WrongNetwork => 0,
+        CanonicalRejection::UnsupportedPayee => 1,
+        CanonicalRejection::StaleSequence => 2,
+        CanonicalRejection::InsufficientFunds => 3,
+    }
 }
 
 fn is_supported_account(account: &[u8]) -> bool {
@@ -425,6 +498,7 @@ mod tests {
         // verification, so an over-cap body is rejected regardless of
         // content.
         let placeholder = PaymentClaim {
+            network_id: MININET_NETWORK_ID,
             payer: vec![0u8; 32],
             payee: vec![1u8; 32],
             amount_micro: 1,
@@ -472,6 +546,10 @@ mod tests {
             after_rejected.balance(&too_large.payer),
             Amount::from(1_000)
         );
+        assert_eq!(
+            after_rejected.rejected_claim(&claim_digest(&too_large)),
+            Some(CanonicalRejection::InsufficientFunds)
+        );
 
         let after_valid = apply_block(
             &after_rejected,
@@ -480,6 +558,64 @@ mod tests {
         .unwrap();
         assert_eq!(after_valid.finalized_sequence(&valid.payer), Some(0));
         assert_eq!(after_valid.balance(&valid.payee), Amount::from(1_000));
+    }
+
+    #[test]
+    fn a_claim_for_another_network_is_rejected_without_moving_value() {
+        let foreign_network = [0xA5; 32];
+        let claim = mini_settlement::sign_claim_for_network(
+            &payer(),
+            &recipient(0x41),
+            400,
+            0,
+            10_000,
+            &foreign_network,
+            b"foreign-head",
+            0,
+        )
+        .unwrap();
+        let next = apply_block(
+            &funded_state(1_000),
+            &SettlementBlockBody::new(vec![claim.clone()]),
+        )
+        .unwrap();
+        assert_eq!(next.balance(&claim.payer), Amount::from(1_000));
+        assert_eq!(next.balance(&claim.payee), Amount::ZERO);
+        assert_eq!(
+            next.rejected_claim(&claim_digest(&claim)),
+            Some(CanonicalRejection::WrongNetwork)
+        );
+    }
+
+    #[test]
+    fn an_exact_overspend_retry_can_finalize_after_the_payer_receives_funds() {
+        let payer_key = payer();
+        let donor = SigningKey::from_seed(&[0x44; 32]);
+        let payer_account = payer_key.verifying_key().to_bytes().to_vec();
+        let donor_account = donor.verifying_key().to_bytes().to_vec();
+        let state = LedgerState::with_genesis_balances(
+            Amount::from(1_001),
+            vec![
+                (payer_account.clone(), Amount::from(1_000)),
+                (donor_account, Amount::from(1)),
+            ],
+        )
+        .unwrap();
+        let claim = sign_claim(&payer_key, &recipient(0x41), 1_001, 0, 10_000, b"head", 0).unwrap();
+        let after_rejection =
+            apply_block(&state, &SettlementBlockBody::new(vec![claim.clone()])).unwrap();
+        assert_eq!(
+            after_rejection.rejected_claim(&claim_digest(&claim)),
+            Some(CanonicalRejection::InsufficientFunds)
+        );
+
+        let funding = sign_claim(&donor, &payer_account, 1, 0, 10_000, b"head", 0).unwrap();
+        let funded =
+            apply_block(&after_rejection, &SettlementBlockBody::new(vec![funding])).unwrap();
+        let finalized =
+            apply_block(&funded, &SettlementBlockBody::new(vec![claim.clone()])).unwrap();
+        assert_eq!(finalized.finalized_sequence(&claim.payer), Some(0));
+        assert_eq!(finalized.rejected_claim(&claim_digest(&claim)), None);
     }
 
     #[test]

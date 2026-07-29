@@ -19,6 +19,8 @@
 | BL-09 | Spend newly issued but still locked MINI | Balances plus unallocated track circulating supply only. |
 | BL-10 | Two honest nodes disagree | Sorted balances and exact amounts enter the existing finalized state commitment. |
 | BL-10A | Conservation scan grows linearly per block | Consensus tracks allocated total for O(1) checks; full-map recomputation remains an audit path. |
+| BL-17 | Replay a valid payment on another deployment | The signed claim and executor both bind one exact 32-byte network identifier. |
+| BL-21 | Omitted overspend remains pending in wallets | Canonical rejection outcome is state-committed and returned by reconciliation. |
 
 ## Critical open findings
 
@@ -30,11 +32,10 @@
 | BL-14 | Critical | Service/treasury evidence cannot yet authorize credits. |
 | BL-15 | Critical | No network proposer/mempool path transports claims to consensus. |
 | BL-16 | Critical | Existing privacy primitives are not integrated or externally audited. |
-| BL-17 | High | Claims do not carry a chain/network domain identifier for cross-deployment replay resistance. |
 | BL-18 | High | No fee or resource-exhaustion price exists; block claim count is the main CPU bound. |
 | BL-19 | High | Full account state lacks proofs, snapshots, pruning, and weak-device sync. |
 | BL-20 | High | Live post-quantum migration for account ownership is unresolved. |
-| BL-21 | High | An included but unaffordable claim leaves no canonical rejection receipt. Existing reconciliation can therefore report it pending until expiry unless a later sequence supersedes it. |
+| BL-22 | High | Canonical rejection records currently grow monotonically; no authenticated pruning or compact historical proof exists. |
 
 ## What tests prove
 

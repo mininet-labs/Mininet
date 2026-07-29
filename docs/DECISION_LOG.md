@@ -13290,8 +13290,11 @@ supply.
 
 Newly vested issuance enters unallocated circulating supply and cannot be
 spent until a separate authorized claim/credit transition assigns it. Existing
-`PaymentClaim` signed bytes and `mini-settlement::reconcile` semantics are
-unchanged.
+call sites remain source-compatible, while the signed claim/wire format gains
+an exact 32-byte settlement-network identifier. The executor commits
+deterministic rejection outcomes for valid claims that target the wrong
+network, unsupported payees, stale sequences, or insufficient funds;
+`mini-settlement::reconcile` exposes those terminal outcomes to wallets.
 
 **Reason:** before this proposal, `mini-execution` finalized which signed
 promise won a sequence slot but did not ask whether the payer owned the amount
@@ -13318,18 +13321,20 @@ rights APIs. A1 remains mandatory.
 construction, bounded accounts, balance queries, checked debit/credit,
 insufficient-funds rejection without sequence consumption, self-transfer
 safety, canonical aggregate-overspend ordering, unallocated issuance
-accounting, supply-conservation checks, state commitments, and finalized
-integration assertions.
+accounting, supply-conservation checks, state commitments, payment network
+domain separation, consensus wire v2, canonical rejection outcomes, and
+finalized integration assertions.
 
 **Failure point:** this Tier-0 ledger publicly exposes the account graph and
 amounts; no production genesis or private issuance claim exists; service and
-treasury evidence cannot authorize credits; claims have no multi-deployment
-chain id; and no mempool, fee, state proof, pruning, network submission, or
-audited confidential transaction exists.
+treasury evidence cannot authorize credits; rejection history has no compact
+proof/pruning scheme; and no mempool, fee, state proof, network submission,
+or audited confidential transaction exists.
 
 **Required follow-up:** private Human Share claims/nullifiers; authorized
-service/treasury credits; chain/network domain separation; fees and bounded
-submission; state proofs/sync/pruning; marketplace payment objects; production
+service/treasury credits; whole-protocol network-domain separation; fees and
+bounded submission; state and rejection proofs/sync/pruning; marketplace
+payment objects; production
 genesis; confidential transaction integration only after independent review;
 post-quantum ownership migration; and full external audits.
 

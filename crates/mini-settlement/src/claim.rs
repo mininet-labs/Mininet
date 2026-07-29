@@ -29,12 +29,21 @@ use crate::error::{Result, SettlementError};
 /// can coexist without ever being confused with this one.
 const CLAIM_DOMAIN: &[u8] = b"mini-settlement/payment-claim/v1";
 
+/// Stable identifier of the canonical public Mininet settlement domain.
+///
+/// Private/test deployments must use a different identifier through
+/// [`sign_claim_for_network`]; otherwise a valid claim could be replayed
+/// between deployments running the same protocol.
+pub const MININET_NETWORK_ID: [u8; 32] = *b"mininet-public-settlement-v1\0\0\0\0";
+
 /// A signed payment claim: "I, `payer`, at sequence `sequence`, promise to pay
 /// `amount_micro` to `payee`, valid until `valid_until_ms`, as of the chain
 /// state I last saw (`last_known_chain`)." Nothing about this type makes it
 /// final — see [`crate::SettlementState`] for what final actually requires.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PaymentClaim {
+    /// Exact settlement network on which this promise may be executed.
+    pub network_id: [u8; 32],
     /// The payer's public key bytes (any key the payer controls — a
     /// stealth spend key, a device key, whatever the caller chooses).
     pub payer: Vec<u8>,
@@ -65,6 +74,7 @@ pub struct PaymentClaim {
 /// length- or width-prefixed, so no two distinct claims can ever encode to
 /// the same message (the same discipline `mini-bounty::claim_message` uses).
 fn claim_message(
+    network_id: &[u8; 32],
     payer: &[u8],
     payee: &[u8],
     amount_micro: u64,
@@ -74,6 +84,7 @@ fn claim_message(
 ) -> Vec<u8> {
     let mut msg = Vec::with_capacity(
         CLAIM_DOMAIN.len()
+            + 32
             + 4
             + payer.len()
             + 4
@@ -85,6 +96,7 @@ fn claim_message(
             + last_known_chain.len(),
     );
     msg.extend_from_slice(CLAIM_DOMAIN);
+    msg.extend_from_slice(network_id);
     msg.extend_from_slice(&(payer.len() as u32).to_be_bytes());
     msg.extend_from_slice(payer);
     msg.extend_from_slice(&(payee.len() as u32).to_be_bytes());
@@ -110,6 +122,30 @@ pub fn sign_claim(
     last_known_chain: &[u8],
     now_ms: u64,
 ) -> Result<PaymentClaim> {
+    sign_claim_for_network(
+        payer,
+        payee,
+        amount_micro,
+        sequence,
+        valid_until_ms,
+        &MININET_NETWORK_ID,
+        last_known_chain,
+        now_ms,
+    )
+}
+
+/// Sign a payment claim for one exact settlement network.
+#[allow(clippy::too_many_arguments)]
+pub fn sign_claim_for_network(
+    payer: &SigningKey,
+    payee: &[u8],
+    amount_micro: u64,
+    sequence: u64,
+    valid_until_ms: u64,
+    network_id: &[u8; 32],
+    last_known_chain: &[u8],
+    now_ms: u64,
+) -> Result<PaymentClaim> {
     if amount_micro == 0 {
         return Err(SettlementError::ZeroAmount);
     }
@@ -118,6 +154,7 @@ pub fn sign_claim(
     }
     let payer_bytes = payer.verifying_key().to_bytes().to_vec();
     let message = claim_message(
+        network_id,
         &payer_bytes,
         payee,
         amount_micro,
@@ -127,6 +164,7 @@ pub fn sign_claim(
     );
     let signature = payer.sign(&message);
     Ok(PaymentClaim {
+        network_id: *network_id,
         payer: payer_bytes,
         payee: payee.to_vec(),
         amount_micro,
@@ -147,6 +185,7 @@ pub fn verify_claim_signature(claim: &PaymentClaim) -> Result<()> {
     let payer_key = VerifyingKey::from_suite_bytes(SignatureSuite::DEFAULT, &claim.payer)
         .map_err(|_| SettlementError::BadKey)?;
     let message = claim_message(
+        &claim.network_id,
         &claim.payer,
         &claim.payee,
         claim.amount_micro,
@@ -165,6 +204,7 @@ pub fn verify_claim_signature(claim: &PaymentClaim) -> Result<()> {
 /// are byte-identical in every field that was signed.
 pub fn claim_digest(claim: &PaymentClaim) -> [u8; 32] {
     let message = claim_message(
+        &claim.network_id,
         &claim.payer,
         &claim.payee,
         claim.amount_micro,
@@ -243,6 +283,13 @@ mod tests {
             SettlementError::BadSignature
         );
 
+        let mut tampered_network = claim.clone();
+        tampered_network.network_id = [0x77; 32];
+        assert_eq!(
+            verify_claim_signature(&tampered_network).unwrap_err(),
+            SettlementError::BadSignature
+        );
+
         let mut tampered_payee = claim.clone();
         tampered_payee.payee = b"attacker-address".to_vec();
         assert_eq!(
@@ -263,6 +310,36 @@ mod tests {
             verify_claim_signature(&tampered_chain).unwrap_err(),
             SettlementError::BadSignature
         );
+    }
+
+    #[test]
+    fn network_id_domain_separates_otherwise_identical_claims() {
+        let network_a = [0xA1; 32];
+        let network_b = [0xB2; 32];
+        let a = sign_claim_for_network(
+            &payer_key(),
+            b"payee-a",
+            1_000,
+            0,
+            10_000,
+            &network_a,
+            b"same-head",
+            0,
+        )
+        .unwrap();
+        let b = sign_claim_for_network(
+            &payer_key(),
+            b"payee-a",
+            1_000,
+            0,
+            10_000,
+            &network_b,
+            b"same-head",
+            0,
+        )
+        .unwrap();
+        assert_ne!(claim_digest(&a), claim_digest(&b));
+        assert_ne!(a.signature, b.signature);
     }
 
     #[test]

@@ -37,10 +37,14 @@ impl LedgerChain {
 
     /// Start a chain from an explicitly governed genesis circulating supply.
     pub fn genesis_with_supply(genesis_circulating: Amount) -> Self {
+        Self::genesis_for_network(mini_settlement::MININET_NETWORK_ID, genesis_circulating)
+    }
+
+    pub fn genesis_for_network(network_id: [u8; 32], genesis_circulating: Amount) -> Self {
         LedgerChain {
             height: 0,
             tip_hash: [0u8; 32],
-            state: LedgerState::with_genesis_supply(genesis_circulating),
+            state: LedgerState::with_network_and_genesis_supply(network_id, genesis_circulating),
         }
     }
 
@@ -49,10 +53,26 @@ impl LedgerChain {
         genesis_circulating: Amount,
         allocations: Vec<(Vec<u8>, Amount)>,
     ) -> Result<Self> {
+        Self::genesis_with_network_balances(
+            mini_settlement::MININET_NETWORK_ID,
+            genesis_circulating,
+            allocations,
+        )
+    }
+
+    pub fn genesis_with_network_balances(
+        network_id: [u8; 32],
+        genesis_circulating: Amount,
+        allocations: Vec<(Vec<u8>, Amount)>,
+    ) -> Result<Self> {
         Ok(LedgerChain {
             height: 0,
             tip_hash: [0u8; 32],
-            state: LedgerState::with_genesis_balances(genesis_circulating, allocations)?,
+            state: LedgerState::with_network_and_genesis_balances(
+                network_id,
+                genesis_circulating,
+                allocations,
+            )?,
         })
     }
 

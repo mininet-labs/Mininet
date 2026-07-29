@@ -21,7 +21,7 @@
 //! consensus wiring (roadmap #36-#45) this module does not perform; it
 //! only reads whatever a [`CanonicalLedgerView`] already reports.
 
-use mini_settlement::{reconcile, CanonicalLedgerView, SettlementState};
+use mini_settlement::{reconcile, CanonicalLedgerView, CanonicalRejection, SettlementState};
 
 use crate::error::{EngagementError, Result};
 use crate::state::{Engagement, EngagementState};
@@ -54,6 +54,9 @@ pub enum CanonicalCompletionStatus {
     /// alone decides conflicts). This engagement's escrow never moved
     /// value, regardless of local state.
     RejectedConflict,
+    /// This exact escrow claim was canonically evaluated but could not
+    /// execute for the stated deterministic reason.
+    RejectedCanonical(CanonicalRejection),
     /// The escrow claim's validity window passed before canonical
     /// inclusion, and the ledger never referenced it.
     Expired,
@@ -97,6 +100,9 @@ pub fn canonical_completion_status(
             }
         }
         SettlementState::RejectedConflict => CanonicalCompletionStatus::RejectedConflict,
+        SettlementState::RejectedCanonical(reason) => {
+            CanonicalCompletionStatus::RejectedCanonical(reason)
+        }
         SettlementState::Expired => CanonicalCompletionStatus::Expired,
         SettlementState::SignedLocal
         | SettlementState::AcceptedLocal
@@ -221,6 +227,22 @@ mod tests {
         let status = canonical_completion_status(&e, &ledger, 800).unwrap();
         assert_eq!(status, CanonicalCompletionStatus::RejectedConflict);
         assert!(!status.is_canonically_complete());
+    }
+
+    #[test]
+    fn a_canonical_payment_rejection_is_not_reported_pending() {
+        let payer_key = SigningKey::from_seed(&[9u8; 32]);
+        let e = sample_engagement_with_key(&payer_key, 1_000, 10_000);
+        let mut ledger = InMemoryLedgerView::new();
+        ledger.reject(
+            claim_digest(&e.escrow_claim),
+            CanonicalRejection::InsufficientFunds,
+        );
+
+        assert_eq!(
+            canonical_completion_status(&e, &ledger, 800).unwrap(),
+            CanonicalCompletionStatus::RejectedCanonical(CanonicalRejection::InsufficientFunds)
+        );
     }
 
     #[test]

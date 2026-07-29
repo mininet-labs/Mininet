@@ -190,6 +190,42 @@ fn a_single_claim_finalizes_end_to_end_and_reconcile_reports_it() {
 }
 
 #[test]
+fn a_finalized_overspend_returns_a_canonical_wallet_rejection() {
+    let fx = fixture();
+    let payer = SigningKey::from_seed(&[0x56; 32]);
+    let mut chain = funded_chain(&payer, 500);
+    let claim = sign_claim(&payer, &recipient(0x51), 501, 0, 10_000, b"chain-1", 0).unwrap();
+    let body = SettlementBlockBody::new(vec![claim.clone()]);
+    let next_state = mini_execution::apply_block(chain.state(), &body).unwrap();
+    let header = BlockHeader {
+        height: 1,
+        prev_hash: chain.tip_hash(),
+        state_root: next_state.commitment(),
+        timestamp_ms: 1,
+        proposer: fx.signers[0].0.did(),
+    };
+    let hash = header.hash();
+    let qc = QuorumCertificate {
+        height: 1,
+        round: 0,
+        block_hash: hash,
+        votes: fx.signers[..3]
+            .iter()
+            .map(|(root, device)| sign_vote(VoteKind::Precommit, 1, 0, hash, &root.did(), device))
+            .collect(),
+    };
+    chain
+        .apply_finalized_block(&header, &body, &qc, &fx.validators, &fx.oracle)
+        .unwrap();
+
+    assert_eq!(chain.state().balance(&claim.payer), Amount::from(500));
+    assert_eq!(
+        reconcile(&claim, chain.state(), 100).unwrap(),
+        SettlementState::RejectedCanonical(mini_settlement::CanonicalRejection::InsufficientFunds)
+    );
+}
+
+#[test]
 fn a_double_spend_across_two_competing_proposals_resolves_to_exactly_one_winner() {
     let fx = fixture();
     let payer = SigningKey::from_seed(&[0x66; 32]);

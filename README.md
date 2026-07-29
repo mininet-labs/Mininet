@@ -211,8 +211,9 @@ so, everywhere, on purpose.
   balance transfer
 - transparent Tier-0 finalized balances (`mini-execution`, proposed D-0415):
   exact genesis allocation, debit/credit, insufficient-funds rejection,
-  canonical overspend ordering, and circulating-supply conservation — stacked
-  on #272 and explicitly not a private or production ledger
+  canonical overspend ordering, circulating-supply conservation, signed
+  network-domain binding, and wallet-readable canonical rejection outcomes
+  — built on merged #272 and explicitly not a private or production ledger
 - airdrop eligibility snapshot + signed claim-redemption verification
   (`mini-airdrop`, D-0354/D-0355) — does not solve Sybil resistance,
   never holds treasury signing authority, and produces only a claim

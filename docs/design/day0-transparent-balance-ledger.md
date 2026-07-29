@@ -16,6 +16,8 @@ missing from `mini-execution`:
 - insufficient-funds rejection;
 - canonical in-block ordering;
 - per-payer sequence/replay behavior;
+- an explicit signed 32-byte settlement-network identifier;
+- canonical rejection outcomes consumable by wallet reconciliation;
 - balance and allocation commitments in the finalized state root; and
 - the invariant that accounts plus unallocated circulating MINI equal the
   monetary ledger's circulating supply.
@@ -67,12 +69,20 @@ do not consume a sequence. If two individually valid claims would jointly
 overspend, canonical body order decides: the first affordable claim transfers;
 the later unaffordable claim does not.
 
-The current canonical view proves finalized claims, not every reason a claim
-was omitted. An unaffordable claim can therefore remain `pending` in
-`mini-settlement::reconcile` until expiry (or until a later finalized sequence
-supersedes it). A bounded, consensus-authenticated rejection receipt is needed
-before wallets can distinguish this case immediately without trusting an
-operator.
+The canonical state also commits exact-claim rejection outcomes for validly
+signed claims rejected as wrong-network, unsupported-payee, stale-sequence, or
+insufficient-funds. `mini-settlement::reconcile` returns that terminal reason
+immediately. Invalid signatures are deliberately not recorded: the claim
+digest excludes the signature, so recording a forged-signature rejection
+could otherwise poison an identical legitimately signed claim.
+
+Claims sign a fixed 32-byte `network_id` separately from
+`last_known_chain`. The former is execution authority and prevents a claim
+from moving value on another deployment; the latter remains only a state-head
+hint. The public Mininet domain has a stable constant, while private/test
+deployments must construct their ledger and claims with their own identifier.
+Adding this field advances the consensus message envelope to v2; v1 proposal
+frames fail closed rather than being ambiguously reinterpreted.
 
 There is no local/offline mutation path. A claim remains a promise until the
 existing quorum-finalized block application commits the post-transfer state.
@@ -127,7 +137,7 @@ real value through them or market transparent accounts as private.
 - No Human Share membership/nullifier claim.
 - No service or treasury credit authorization.
 - No fees, nonce reservation, mempool, or transaction gossip.
-- No canonical rejection receipt or immediate insufficient-funds wallet result.
+- No bounded rejection-receipt pruning/proof scheme for weak-device history.
 - No confidential amount or sender/recipient privacy.
 - No marketplace order, escrow, swap, refund, or dispute object.
 - No legacy-currency custody or guaranteed redemption.
