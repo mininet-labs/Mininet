@@ -303,17 +303,23 @@ given time.
   `AcknowledgedUnauditedDkg`; neither is externally audited yet — see
   `docs/gates/dkg-audit-scope.md` before treating this as production-viable
   at any value level.
-- **design decided, unimplemented** — the treasury economic model (D-0073,
+- **policy kernel implemented; integration and external review open
+  (proposed D-0413)** — the treasury economic model (D-0073,
   `docs/design/treasury-economic-model.md`: XRPL/XMR bridge split,
   contribution epochs, oracle/vesting/issuance-ceiling mechanism) and the
   long-term issuance/anti-whale model (D-0074, `docs/design/
   inflation-and-whale-resistance.md`: 3%/2%/0.75%/0.25% envelope, formal
-  anti-whale governance-input wall) replace the whitepaper's original BTC/
-  XMR framing and #50's open question. Neither's parameters are wired into
-  `mini-treasury::rate`/`receipt` or a chain state machine yet, and neither
-  has run the adversarial simulation suite `docs/gates/
-  economic-simulation-spec.md` still requires before real value depends on
-  the calibration. §9's cellular custody design now states explicitly
+  anti-whale governance-input wall) now have a checked integer-only
+  implementation in `mini-economy`: epoch caps, equal per-human grants,
+  vesting metadata, expiring unused capacity, and deterministic
+  non-privileged genesis manifests. `mini-econ-sim` corrects the old Python
+  harness's holdings-proportional Human Share error with a cohort model and a
+  reproducible 200-year run. Existing `u64` micro-MINI payment claims remain
+  wire-unchanged; `u128` is accounting headroom only. Neither crate mints,
+  chooses humans, validates service evidence, verifies bridge receipts,
+  enforces vesting on chain, or authorizes production genesis. The wider
+  shock matrix and independent mechanism-design review remain launch gates.
+  §9's cellular custody design states explicitly
   (D-0089, founder review's `custody-separation` finding) that a
   bridge-specific vault's signer committee and the general treasury's
   signer committee are always disjoint sets — no individual holds a seat

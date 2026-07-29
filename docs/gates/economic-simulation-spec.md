@@ -54,8 +54,9 @@ models per-human equal issuance is still the eventual target; the
 Python harness closes the "nothing runnable exists yet" gap in the
 meantime.
 
-A deterministic simulation harness (`crates/mini-econ-sim`, not yet
-built) so a mechanism-design reviewer has something to actually run
+A deterministic simulation harness (`crates/mini-econ-sim`, now implemented
+as a first cohort-based D-0074 model) gives a mechanism-design reviewer
+something to actually run
 adversarial scenarios against, rather than reasoning from spec prose
 alone:
 
@@ -130,6 +131,15 @@ regenerable artifact, not source.
   identity layer — this is its economic-layer counterpart)
 - attack ROI for each named attack pattern below
 - validator-role concentration over time
+
+**Current Rust-harness boundary:** it reports supply, population/adoption,
+dormancy, assumed verified-Sybil extraction, whale economic share, realized
+inflation, and equal Human Share over 200 years. It does not yet model market
+prices, fees, liquidity, storage reward concavity, treasury reserve assets,
+oracle shocks, or validator selection. The older Python sweep remains useful
+for its broader parameter matrix but remains structurally inaccurate for Human
+Share. Neither harness closes the required independent mechanism-design
+review.
 
 ### Invariant checks the simulation should assert, not just report
 

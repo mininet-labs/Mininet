@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-29T18:05:00Z",
+  "updated_at": "2026-07-29T20:30:00Z",
   "claims": [
     {
       "issue": 122,
@@ -447,7 +447,7 @@
     },
     {
       "issue": 102,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "codex/distributed-build-workers",
       "pull_request": 270,
@@ -469,7 +469,33 @@
       "decision_ids": [
         "D-0409"
       ],
-      "notes": "Batch 5 distributed build-worker slice: bounded one-shot dispatch over the existing encrypted bearer/channel, the existing out-of-process Wasmtime runner, and requester-side verification of request/result/artifact bindings. No discovery, daemon, worker authority, payment, automatic provenance quorum, release approval, or activation."
+      "notes": "Batch 5 distributed build-worker slice: bounded one-shot dispatch over the existing encrypted bearer/channel, the existing out-of-process Wasmtime runner, and requester-side verification of request/result/artifact bindings. No discovery, daemon, worker authority, payment, automatic provenance quorum, release approval, or activation. PR #270 merged to main on 2026-07-29; this next registry-touching proposal closes the stale in-review coordination claim."
+    },
+    {
+      "issue": 50,
+      "status": "in_review",
+      "contributor": "Codex",
+      "branch": "codex/day0-economy",
+      "pull_request": 271,
+      "lease_expires": "2026-08-12",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "crates/mini-economy/",
+        "crates/mini-econ-sim/",
+        "README.md",
+        "docs/design/day0-monetary-kernel.md",
+        "docs/audits/day0-economy-engineering-review.md",
+        "docs/gates/economic-simulation-spec.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0413"
+      ],
+      "notes": "Umbrella Day-0 economy engineering slice for roadmap #46-#51: executable D-0074 issuance envelope, deterministic equal-human genesis manifest, compatibility-preserving wide accounting, corrected equal-Human-Share simulation, design reconciliation, and adversarial self-review. Proposal evidence only: no production genesis, mint authorization, personhood solution, parameter validation, external audit, bridge custody, or activation."
     }
   ]
 }

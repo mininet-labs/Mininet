@@ -1,0 +1,11 @@
+[package]
+name = "mini-economy"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deterministic Day-0 MINI genesis and bounded issuance policy implementing D-0074's 3%/2%/0.75%/0.25% envelope without changing existing payment claims."
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
