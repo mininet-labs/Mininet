@@ -937,6 +937,15 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   just self-consistency. Export only, one direction; import (parsing an
   arbitrary git repository into this tree's own signed object model)
   remains genuinely unstarted.
+- **proposed implementation slice (D-0407, issue #266)** — Forge-native
+  contributor coordination: signed working-group charter proposals, task
+  briefs, deterministic local task suggestions, expiring work claims, and
+  exact-state technical-review handoffs, exposed through `mini team` and
+  `mini task`. This is coordination evidence only; no team delegation,
+  automatic recruitment, personnel directory, approval, canonicalization,
+  release, owner adoption, or Forge cutover is implemented. The branch proves
+  local object verification and a two-home shared-store CLI flow; live
+  multi-machine exchange and external review remain follow-up work.
 - **not started** — `mini-devd` (local daemon), machine-readable
   `STATUS.md`/roadmap generation (Batch 1's remaining deferred items);
   wiring `mini-installer` into an actual running system (Batch 4's own

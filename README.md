@@ -4,10 +4,10 @@
 
 Mininet is building a network where people own their identity, data, money,
 voice, and infrastructure. Money can buy storage, reach, and the funding of
-work — but never political power. Governance is one verified human, one equal
-vote. There is no owner, no foundation, no admin key, no forced-update path,
-no off switch, no law-enforcement backdoor, and no party that can unmask a
-user.
+work — but never political power. The current implementation counts verified
+identity roots; it does not yet prove unique personhood. There is no owner, no
+foundation, no admin key, no forced-update path, no off switch, no
+law-enforcement backdoor, and no party that can unmask a user.
 
 > **This GitHub repository is only a temporary public mirror.** The long-term
 > code forge is content-addressed, self-governed, reproducibly built, and
@@ -29,10 +29,10 @@ code, and frozen. A full, code-mapped register is in
 - **Money never buys a vote.** No balance maps to governance or validator
   weight, in either direction — a wall enforced by the dependency graph
   itself, not by policy ([`docs/design/bounty-and-review.md`](docs/design/bounty-and-review.md)).
-- **One verified human, one equal vote.** Early arrival, wealth, and hardware
-  buy nothing extra. *(Today the system counts verified identity **roots**,
-  not yet verified humans — the honest gap is stated plainly below and at the
-  top of `docs/INVARIANTS.md`.)*
+- **Equal voice is rooted in identity, not wealth.** Early arrival, wealth,
+  and hardware buy nothing extra. *(Today the system counts verified identity
+  **roots**, not unique humans — the honest gap is stated plainly below and at
+  the top of `docs/INVARIANTS.md`.)*
 - **No owner, no admin key, no kill switch, no forced update.** Nobody can
   seize the network, freeze it, unmask a user, or push software you didn't
   choose to run.
@@ -44,7 +44,7 @@ code, and frozen. A full, code-mapped register is in
 
 ## What exists today — honestly
 
-This repository is the **self-contained Rust core**: ~40 crates, no external
+This repository is the **self-contained Rust core**: 62 crates, no external
 dependency on any single company's infrastructure to keep running. Nothing
 here is ready for real people, real money, or real custody yet — and it says
 so, everywhere, on purpose.
@@ -81,6 +81,12 @@ so, everywhere, on purpose.
 - `mini`, a real command-line developer tool (`mini-cli`): three
   independent identities on a shared store path can propose, review, and
   governed-merge a commit with no GitHub involved (D-0067)
+- Forge-native contributor coordination (`mini team` / `mini task`, D-0407
+  proposal): signed working-group charter proposals, task briefs, explicit
+  expiring work claims, deterministic local suggestions, and exact-state
+  technical-review handoffs. These objects replicate through the existing
+  store/`mini sync` path; they are coordination evidence, not assignments,
+  approvals, personnel records, or governance authority.
 - an isolated Wasmtime sandbox (`mini-build-runner-wasmtime`) for
   untrusted build-pipeline components: deny-by-default filesystem/network,
   fuel/epoch/memory limits, a 12-point adversarial test suite driving the
@@ -203,6 +209,8 @@ so, everywhere, on purpose.
 - a solved, privacy-preserving personhood/liveness proof (open research, not
   engineering debt)
 - adversarial testing at real-world scale
+- automatic recruitment, a canonical contributor/employer directory, active
+  working-group delegations, or a public-confirmation protocol
 
 The work that **more code cannot finish** — external audits, legal review,
 real-hardware testing, and open research decisions — is named explicitly, so
@@ -219,7 +227,7 @@ Pick the door that fits you:
 | **A curious person** — what is this, and why should it exist? | [`docs/HUMAN_START.md`](docs/HUMAN_START.md) |
 | **A developer** — build it, run the demos, find your way around | [`docs/DEVELOPER_START.md`](docs/DEVELOPER_START.md) |
 | **An auditor or skeptic** — where are the invariants, threats, and honest gaps? | [`docs/AUDITOR_START.md`](docs/AUDITOR_START.md) |
-| **A contributor** — how work is reviewed and merged | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| **A contributor** — how work is discovered, claimed, reviewed, and merged | [`docs/design/mininet-forge-contributor-coordination.md`](docs/design/mininet-forge-contributor-coordination.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 
 Beneath everything else in this repository — read before opening the code —
 is [`docs/FOUNDER_DIRECTIVES.md`](docs/FOUNDER_DIRECTIVES.md): the eighteen
@@ -244,8 +252,9 @@ to people who will never meet them:
    and when it was superseded* (append-only; main sequence `D-0001`–`D-0094`,
    plus the networking/consensus track's reserved `D-0200`–`D-0206`, the
    privacy/cost-doctrine track's `D-0300`–, and the edge/provider-layer
-   track's `D-0400`– — see the log's "Decision-number allocation across
-   parallel tracks").
+   track's `D-0400`– (the current contributor-coordination proposal is
+   D-0407) — see the log's "Decision-number allocation across parallel
+   tracks").
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
    rejected, and why* — read before re-proposing something.
 5. [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — *what could kill the
