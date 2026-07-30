@@ -333,64 +333,140 @@ fn a_release_reaches_install_on_a_peer_that_never_shared_a_filesystem() {
         "release verify must succeed from purely-synced data: {verify_out}"
     );
 
-    let device_root = tempdir("bob-device");
-    let device_root_str = device_root.to_str().unwrap().to_string();
+    // Activation is intentionally Unix-only in mini-installer today. Keep
+    // the network/retrieval half of this test useful on Windows while the
+    // Unix lane exercises the full install and health-check sequence.
+    #[cfg(unix)]
+    {
+        let device_root = tempdir("bob-device");
+        let device_root_str = device_root.to_str().unwrap().to_string();
 
-    let stage_out = run(&[
+        let stage_out = run(&[
+            "--home",
+            bob_home.to_str().unwrap(),
+            "--store",
+            bob_store.to_str().unwrap(),
+            "installer",
+            "stage",
+            "--device-root",
+            &device_root_str,
+            &release_id,
+            "spine-over-sync",
+            "--branch",
+            "main",
+            "--now-ms",
+            &now_ms,
+            "--timestamp-ms",
+            &now_ms,
+        ]);
+        assert!(stage_out.contains("staged:"), "{stage_out}");
+
+        run(&[
+            "installer",
+            "preflight",
+            "--device-root",
+            &device_root_str,
+            &release_id,
+            "--timestamp-ms",
+            &now_ms,
+        ]);
+        let activate_out = run(&[
+            "installer",
+            "activate",
+            "--device-root",
+            &device_root_str,
+            &release_id,
+            "--approved-at-ms",
+            &now_ms,
+        ]);
+        assert!(activate_out.contains("activated:"), "{activate_out}");
+
+        let health_out = run(&[
+            "installer",
+            "health-check",
+            "--device-root",
+            &device_root_str,
+            &release_id,
+            "--healthy",
+            "--timestamp-ms",
+            &now_ms,
+        ]);
+        assert!(
+            health_out.contains("stays active"),
+            "the release replicated purely over TCP must genuinely install: {health_out}"
+        );
+
+        let status_out = run(&["installer", "status", "--device-root", &device_root_str]);
+        assert!(status_out.contains(&release_id), "{status_out}");
+    }
+
+    // The same release is now retrieved by a fresh peer through the
+    // release-targeted path. Eve has never shared Alice's store and does not
+    // run whole-store `mini sync`; the server selects only the verifier's
+    // bounded release closure.
+    let eve_home = tempdir("eve-home");
+    let eve_store = tempdir("eve-store");
+    run(&["--home", eve_home.to_str().unwrap(), "identity", "init"]);
+    for kel in [&alice_kel, &carol_kel, &dave_kel] {
+        run(&["--home", eve_home.to_str().unwrap(), "kel", "trust", kel]);
+    }
+    run(&[
         "--home",
-        bob_home.to_str().unwrap(),
+        eve_home.to_str().unwrap(),
+        "repo",
+        "track",
+        "spine-over-sync",
+        &project_id,
+    ]);
+
+    let retrieve_addr = free_loopback_addr();
+    let serve_store = alice_store.to_str().unwrap().to_string();
+    let serve_addr = retrieve_addr.clone();
+    let server = thread::spawn(move || {
+        mini_cli::run(&[
+            "--store".to_string(),
+            serve_store,
+            "release".to_string(),
+            "serve".to_string(),
+            "--addr".to_string(),
+            serve_addr,
+        ])
+        .unwrap()
+    });
+    let retrieved_dir = tempdir("eve-output");
+    fs::create_dir_all(&retrieved_dir).unwrap();
+    let retrieved_path = retrieved_dir.join("release.bin");
+    let retrieved_path_str = retrieved_path.to_str().unwrap().to_string();
+    let retrieve_out = run_with_retry(&[
+        "--home",
+        eve_home.to_str().unwrap(),
         "--store",
-        bob_store.to_str().unwrap(),
-        "installer",
-        "stage",
-        "--device-root",
-        &device_root_str,
+        eve_store.to_str().unwrap(),
+        "release",
+        "retrieve",
         &release_id,
         "spine-over-sync",
         "--branch",
         "main",
+        "--peer",
+        &retrieve_addr,
+        "--output",
+        &retrieved_path_str,
         "--now-ms",
         &now_ms,
-        "--timestamp-ms",
-        &now_ms,
     ]);
-    assert!(stage_out.contains("staged:"), "{stage_out}");
-
-    run(&[
-        "installer",
-        "preflight",
-        "--device-root",
-        &device_root_str,
-        &release_id,
-        "--timestamp-ms",
-        &now_ms,
-    ]);
-    let activate_out = run(&[
-        "installer",
-        "activate",
-        "--device-root",
-        &device_root_str,
-        &release_id,
-        "--approved-at-ms",
-        &now_ms,
-    ]);
-    assert!(activate_out.contains("activated:"), "{activate_out}");
-
-    let health_out = run(&[
-        "installer",
-        "health-check",
-        "--device-root",
-        &device_root_str,
-        &release_id,
-        "--healthy",
-        "--timestamp-ms",
-        &now_ms,
-    ]);
+    let served_out = server.join().unwrap();
+    assert!(retrieve_out.contains("retrieved from"), "{retrieve_out}");
+    assert!(served_out.contains("selected objects"), "{served_out}");
+    assert_eq!(fs::read(&retrieved_path).unwrap(), artifact_bytes);
+    let eve_ids = mini_store::FsBackend::open(&eve_store)
+        .map(|backend| mini_store::Store::new(backend).all_ids().unwrap())
+        .unwrap();
+    let alice_ids = mini_store::FsBackend::open(&alice_store)
+        .map(|backend| mini_store::Store::new(backend).all_ids().unwrap())
+        .unwrap();
     assert!(
-        health_out.contains("stays active"),
-        "the release replicated purely over TCP must genuinely install: {health_out}"
+        eve_ids.len() < alice_ids.len(),
+        "targeted retrieval must not copy Alice's whole store"
     );
-
-    let status_out = run(&["installer", "status", "--device-root", &device_root_str]);
-    assert!(status_out.contains(&release_id), "{status_out}");
 }

@@ -21,13 +21,20 @@ the actual reasoning, not just "we chose something else." Re-proposing a
 closed question wastes review time; re-proposing an open one with new
 information is exactly what the book is for.
 
+For a guided Beta contribution, start with
+[`docs/BETA_CONTRIBUTOR_GUIDE.md`](docs/BETA_CONTRIBUTOR_GUIDE.md) and the
+[contributor intake issue](../../issues/new?template=contributor-intake.yml).
+Routing suggestions are opt-in coordination evidence: they are not automatic
+recruitment, task assignment, employment classification, payment, or authority.
+
 ## Principles that apply to contribution itself
 
 - **Voice / value wall (SPEC-11 §2 \[FREEZE\]).** Funding work is free and unequal;
-  *deciding* what merges is equal per verified identity root today. One verified
-  human/one vote is the SPEC-02 target after personhood is implemented. No bounty, sponsorship,
-  or holding may ever confer merge authority, counted reviewer standing, or
-  governance weight. Money can fund every bounty in existence and buy zero control.
+  *deciding* what merges is equal per verified identity root today. An identity
+  root is not a verified human, and the personhood target is not implemented.
+  No bounty, sponsorship, or holding may ever confer merge authority, counted
+  reviewer standing, or governance weight. Money can fund every bounty in
+  existence and buy zero control.
 - **No founder privilege over the constitution.** The six frozen principles bind
   everyone, including the founding cohort. A change that money-buys-power, installs
   an owner, adds an off switch, or breaks privacy/sovereignty is wrong by
@@ -60,7 +67,11 @@ information is exactly what the book is for.
    PR body your answers to Directive 18's five tests (T1 Disappearance,
    T2 Substitution, T3 Voice wall, T4 Learning, T5 Off switch) and which
    of its ten non-negotiables the change touches. A reviewer — human or
-   AI — who cannot find those answers rejects on that ground alone.
+    AI — who cannot find those answers rejects on that ground alone.
+7. For Beta evidence, bind the report to an exact revision, separate emulator
+   and physical-device results, and state plainly what was not tested or
+   audited. Use [`docs/CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md`](docs/CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md)
+   for bounded implementation or review work.
 
 ## Signing
 

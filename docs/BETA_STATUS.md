@@ -9,8 +9,13 @@ This is a narrower, nearer-term target than "global launch" — see the root
 section for the full-network picture and `docs/STATUS.md` for the
 comprehensive, living implementation-status account organized by domain
 (voice/value, personhood, identity, money/finality, updates/forks,
-privacy, storage, networking, AI/audit gates). The full 22-crate map lives
-in the root README's repository-map table, not duplicated here.
+privacy, storage, networking, AI/audit gates). The generated 62-crate map
+lives in [`_generated/REPO_MAP.md`](_generated/REPO_MAP.md), not duplicated
+here.
+
+For Beta participation and reproducible evidence, use
+[`BETA_CONTRIBUTOR_GUIDE.md`](BETA_CONTRIBUTOR_GUIDE.md), the contributor
+intake form, and the Beta test report template linked from the root README.
 
 ## What stands between here and a demoable beta (honest list)
 
@@ -25,10 +30,17 @@ still missing for a real two-phone beta, in order:
    that's IP-network connectivity, not BLE — the keystone demo itself is
    still in-process only and hasn't been ported to it yet. `mini-bearer::
    ble` (D-0342) has the MTU-bounded chunking/reassembly protocol logic a
-   BLE-backed `Bearer` needs, but no Kotlin `BluetoothGattServer`/
-   `BluetoothGattCallback` implementation exists yet, and this item is not
-   closed by D-0370 below — that PR is adjacent app-persistence work, not
-   this one.
+   BLE-backed `Bearer` needs; `mini-bearer::android_ble` (D-0374) adds the
+   `BleRadio` trait and `AndroidBleBearer`, a full, tested `impl Bearer`
+   generic over any radio implementation; `mini-ffi::ble` (D-0375) adds
+   the UniFFI `callback interface BleRadio` and `BleBearerHandle` that
+   let Kotlin actually drive it across the FFI boundary — but no Kotlin
+   `BluetoothGattServer`/`BluetoothGattCallback` implementation of
+   `BleRadio` exists yet. This item is not closed by D-0370, D-0374, or
+   D-0375 — D-0370 is adjacent app-persistence work, and D-0374/D-0375
+   only narrow the remaining gap to the real Kotlin GATT implementation,
+   wiring `BleBearerHandle` into the app's actual flow, and a real
+   two-device test, none of which are code-only.
 2. ~~**Active range measurement**~~ — **shipped (D-0368)**:
    `mini_presence::active_range` performs a real challenge-response
    round-trip exchange over the already-bound encrypted channel
@@ -62,13 +74,21 @@ still missing for a real two-phone beta, in order:
    review → governed merge → release → attestation → verify → install →
    health check → rollback → tamper-evident event log — as one script
    driving nothing but the real compiled `mini` binary.
-5. **External crypto review** before any value- or update-bearing use.
-6. **Personhood (SPEC-02)** — quorums today count *distinct verified identity
-   roots, not humans*; "one human, one vote" is not yet enforced. D-0038
+5. **Android two-phone product path** — the signed LAN/QR social pairing
+   path is implemented through Rust/UniFFI/Compose (D-0373): expiring QR,
+   delegated-device verification, bounded TCP acceptance, durable replay
+   rejection, and a signed follow object on each phone. It is not marked
+   complete until Android CI assembles it and two physical devices prove
+   scan, connect, follow, restart, and replay rejection. This is social
+   pairing, not yet the encrypted keystone bearer/range/reward path.
+6. **External crypto review** before any value- or update-bearing use.
+7. **Personhood (SPEC-02)** — quorums today count *distinct verified identity
+   roots, not humans*; identity-root counting is not proof of unique humans.
+   D-0038
    redesigned personhood into an open-ended multi-signal system
    (`mini-uniqueness::status`), but the underlying behavioral/location ZK
    research problem (signal (b)) remains unsolved — see the root README.
-7. **KEL freshness / revocation anchoring** — verifiers check the KEL handed to
+8. **KEL freshness / revocation anchoring** — verifiers check the KEL handed to
    them, not that it is the latest globally known state; high-value actions need
    witness receipts / chain anchoring later.
 

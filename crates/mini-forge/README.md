@@ -45,6 +45,16 @@ this module synthesizes a deterministic, clearly-non-routable identity
 (`mini:<scid> <<scid>@mininet.invalid>`, `.invalid` per RFC 2606) rather than
 inventing or requiring a real one.
 
+**Forge-native contributor coordination** (`coordination`, D-0407 proposal).
+`mini-forge` also exposes signed working-group charter proposals, task briefs,
+expiring work claims, deterministic advisory task suggestions, and exact-state
+technical-review handoffs. These are content-addressed coordination evidence
+that can travel through `mini-store`/`mini-sync`; they do not create a
+personnel directory, assign contributors, activate a working group, grant
+approval, canonicalize a change, determine release eligibility, or decide
+owner adoption. Review handoffs are separate from `approve`, and AI evidence
+has zero approval weight.
+
 Commit decoding is strict at both checkout and governance: a commit has exactly
 one tree link, only unique parent links, a bounded public message, and a
 well-formed referenced tree. An ambiguously encoded commit cannot become a

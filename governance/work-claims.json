@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-20T19:55:00Z",
+  "updated_at": "2026-07-30T00:08:46Z",
   "claims": [
     {
       "issue": 122,
@@ -315,6 +315,262 @@
         "D-0020"
       ],
       "notes": "Android-first foundation: a narrow Rust UniFFI command/event boundary and thin Kotlin/Compose shell. The first identity/profile/follow integration slice depends on the verified social delivery work in draft PR #170. Coordination evidence only; no approval, release, or production claim. Rebased past main through PR #180/#183/#185/#187/#189/#191/#193/#195/#208 (see this PR's own body for what changed). Closed here (PR #244 branch) since PR #179 was confirmed merged (2026-07-21T08:18:48Z); found stale (still in_review, lease expired 2026-07-27) per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+    },
+    {
+      "issue": 200,
+      "status": "closed",
+      "contributor": "Codex",
+      "branch": "agent/android-lan-qr-pairing",
+      "pull_request": 258,
+      "lease_expires": "2026-08-04",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "crates/mini-ffi/",
+        "app/android/",
+        "docs/mobile/ANDROID_FOUNDATION.md",
+        "docs/BETA_STATUS.md",
+        "docs/STATUS.md",
+        "docs/DECISION_LOG.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0373"
+      ],
+      "notes": "Day-0 Android LAN/QR pairing bridge: keep identity keys in RootCore, expose bounded offer/acceptance/follow state through UniFFI, wire an offline QR UI and direct LAN exchange, add replay/expiry/adversarial tests. PR #258 merged to main; the issue remains open for the real Android CI and two-device acceptance work. No BLE/background sync/personhood claim."
+    },
+    {
+      "issue": 264,
+      "status": "closed",
+      "contributor": "Codex",
+      "branch": "agent/beta-governance-onboarding",
+      "pull_request": 265,
+      "lease_expires": "2026-08-12",
+      "paths": [
+        "README.md",
+        "CONTRIBUTING.md",
+        "WHITEPAPER.md",
+        "docs/HUMAN_START.md",
+        "docs/DEVELOPER_START.md",
+        "docs/AUDITOR_START.md",
+        "docs/BETA_STATUS.md",
+        "docs/BETA_CONTRIBUTOR_GUIDE.md",
+        "docs/CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md",
+        "docs/design/mininet-teams-and-contributor-routing.md",
+        "docs/gates/EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md",
+        "docs/gates/README.md",
+        ".github/ISSUE_TEMPLATE/contributor-intake.yml",
+        ".github/ISSUE_TEMPLATE/beta-test-report.yml",
+        "docs/DECISION_LOG.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0101"
+      ],
+      "notes": "Beta front door, closure-ready external-review template, guided contributor/tester intake, and a preliminary Mininet-native team/routing report. Documentation and coordination adapter only; no governance activation, protocol authority, or production claim. PR #265 merged to main; this claim is closed as coordination evidence while issue #264 remains open for review/follow-up. The stale merged #200 claim is closed here on the PR #267 branch as coordination evidence; the stale merged #200 claim is closed in this batch per D-0100's cleanup precedent."
+    },
+    {
+      "issue": 255,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/ranker-track-e6",
+      "pull_request": 257,
+      "lease_expires": "2026-08-04",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "crates/mini-ranker/",
+        "docs/STATUS.md",
+        "docs/DECISION_LOG.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0406"
+      ],
+      "notes": "MiniSearch Track E6: mini-ranker, a transparent deterministic ranker over a lexical index. Coordination evidence only; no approval or release claim. STACKED on Track E5 (mini-lexical-index, issue #254, D-0405, branch claude/lexical-index-track-e5): this branch's diff includes E5's crate until E5 merges. E5's own #254 claim is NOT carried here because E5 and E6 share the Cargo/docs/registry paths and two active claims cannot overlap paths; merge #254 (E5) first -- which lands and closes it on main -- then rebase this onto main, where this #255 claim sits above a closed #254. Closed here (PR #258 branch) since PR #257 was confirmed merged (2026-07-29T09:15:56Z); found stale (still in_review) per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+    },
+    {
+      "issue": 266,
+      "status": "closed",
+      "contributor": "Codex",
+      "branch": "agent/forge-native-contributor-routing",
+      "pull_request": 267,
+      "lease_expires": "2026-08-05",
+      "paths": [
+        "README.md",
+        "crates/mini-forge/src/coordination.rs",
+        "crates/mini-forge/src/lib.rs",
+        "crates/mini-cli/src/coordination.rs",
+        "crates/mini-cli/src/cli.rs",
+        "crates/mini-cli/src/lib.rs",
+        "crates/mini-cli/tests/coordination_commands.rs",
+        "docs/design/mininet-forge-contributor-coordination.md",
+        "docs/FAILURE_BOOK.md"
+      ],
+      "decision_ids": [
+        "D-0407"
+      ],
+      "notes": "Forge-native coordination slice: signed charter proposals, task briefs, deterministic local suggestions, expiring work claims, and exact-state technical-review handoffs. Coordination evidence only; no assignment, personnel registry, approval, canonicalization, release, owner adoption, group authority, or Forge cutover. PR #267 merged to main; this claim is closed as coordination evidence while issue #266 remains open for review/follow-up. Shared audit/registry files remain covered by the existing issue #200 in-review claim and require Founder reconciliation. One PR batch; Founder merge remains required."
+    },
+    {
+      "issue": 268,
+      "status": "closed",
+      "contributor": "Codex",
+      "branch": "agent/installer-integrity-recovery",
+      "pull_request": 269,
+      "lease_expires": "2026-08-12",
+      "paths": [
+        "crates/mini-forge/src/lib.rs",
+        "crates/mini-forge/src/retrieval.rs",
+        "crates/mini-sync/src/lib.rs",
+        "crates/mini-sync/src/protocol.rs",
+        "crates/mini-sync/tests/sync.rs",
+        "crates/mini-cli/src/cli.rs",
+        "crates/mini-cli/src/lib.rs",
+        "crates/mini-cli/src/release.rs",
+        "crates/mini-cli/src/sync.rs",
+        "crates/mini-cli/tests/network_sync_release.rs",
+        "README.md",
+        "docs/design/self-hosted-forge-spine.md",
+        "docs/planning/native-release-retrieval-report.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0408"
+      ],
+      "notes": "Batch 5 native exact release retrieval: bounded release evidence closure, existing encrypted mini-sync transfer, verified ingest, and one-shot mini release serve/retrieve CLI. PR #269 merged to main; this coordination claim is closed while issue #268 remains open for founder review and external evidence. No new cryptography, authority, automatic update, team recruitment, or installation action."
+    },
+    {
+      "issue": 102,
+      "status": "closed",
+      "contributor": "Codex",
+      "branch": "codex/distributed-build-workers",
+      "pull_request": 270,
+      "lease_expires": "2026-08-05",
+      "paths": [
+        "crates/mini-pipeline-protocol/",
+        "crates/mini-cli/src/build.rs",
+        "crates/mini-cli/src/cli.rs",
+        "crates/mini-cli/src/lib.rs",
+        "crates/mini-cli/tests/network_build_workers.rs",
+        "crates/mini-cli/README.md",
+        "docs/design/self-hosted-forge-spine.md",
+        "docs/planning/distributed-build-worker-report.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0409"
+      ],
+      "notes": "Batch 5 distributed build-worker slice: bounded one-shot dispatch over the existing encrypted bearer/channel, the existing out-of-process Wasmtime runner, and requester-side verification of request/result/artifact bindings. No discovery, daemon, worker authority, payment, automatic provenance quorum, release approval, or activation. PR #270 merged to main on 2026-07-29; this next registry-touching proposal closes the stale in-review coordination claim."
+    },
+    {
+      "issue": 50,
+      "status": "closed",
+      "contributor": "Codex",
+      "branch": "codex/day0-economy",
+      "pull_request": 271,
+      "lease_expires": "2026-08-12",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "crates/mini-economy/",
+        "crates/mini-econ-sim/",
+        "README.md",
+        "docs/design/day0-monetary-kernel.md",
+        "docs/audits/day0-economy-engineering-review.md",
+        "docs/gates/economic-simulation-spec.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0413"
+      ],
+      "notes": "Umbrella Day-0 economy engineering slice for roadmap #46-#51: executable D-0074 issuance envelope, deterministic equal-human genesis manifest, compatibility-preserving wide accounting, corrected equal-Human-Share simulation, design reconciliation, and adversarial self-review. Proposal evidence only: no production genesis, mint authorization, personhood solution, parameter validation, external audit, bridge custody, or activation. PR #271 merged to main as afbe8d0 on 2026-07-29; this follow-up registry touch closes the claim while the issue remains open for independent mechanism-design review."
+    },
+    {
+      "issue": 48,
+      "status": "closed",
+      "contributor": "Codex",
+      "branch": "codex/day0-economy-chain",
+      "pull_request": 272,
+      "lease_expires": "2026-08-12",
+      "paths": [
+        "Cargo.lock",
+        "README.md",
+        "crates/mini-economy/",
+        "crates/mini-execution/",
+        "docs/design/day0-monetary-chain-integration.md",
+        "docs/audits/day0-monetary-chain-review.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/THREAT_MODEL.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0414"
+      ],
+      "notes": "Follow-up to merged PR #271: deterministic cumulative-policy-time vesting supply ledger, aggregate Human Share snapshot transitions, exact opening-supply binding, sequential epoch replay prevention, state commitments, and finalized mini-execution composition. PR #272 merged to main as 66dff10 on 2026-07-29; this follow-up registry touch closes the claim. Proposal evidence only: no private membership/nullifier claims, account balance debits/credits, production genesis, personhood, service/treasury evidence authorization, external audit, or activation."
+    },
+    {
+      "issue": 61,
+      "status": "closed",
+      "contributor": "Codex",
+      "branch": "codex/day0-balance-ledger",
+      "pull_request": 273,
+      "lease_expires": "2026-08-13",
+      "paths": [
+        "README.md",
+        "crates/mini-settlement/",
+        "crates/mini-execution/",
+        "crates/mini-consensus/",
+        "crates/mini-engagement/src/settlement.rs",
+        "docs/design/day0-transparent-balance-ledger.md",
+        "docs/audits/day0-transparent-balance-review.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/THREAT_MODEL.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0415"
+      ],
+      "notes": "Large Day-0 payment portion of roadmap #61, rebased on merged PR #272: transparent finalized balances, exact genesis allocation, debit/credit and supply conservation, signed settlement-network domain separation, consensus wire v2, and canonical wallet-readable rejection outcomes. PR #273 merged to main as 9d7ff8f on 2026-07-30; this follow-up registry touch closes the claim. Marketplace order/escrow/dispute objects, private transactions, production genesis, fees/mempool, compact state/rejection proofs and activation remain out of scope."
+    },
+    {
+      "issue": 61,
+      "status": "in_review",
+      "contributor": "Codex",
+      "branch": "codex/day0-payment-admission",
+      "pull_request": 274,
+      "lease_expires": "2026-08-13",
+      "paths": [
+        "README.md",
+        "crates/mini-settlement/",
+        "crates/mini-execution/",
+        "docs/design/day0-payment-admission.md",
+        "docs/audits/day0-payment-admission-review.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/THREAT_MODEL.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0416"
+      ],
+      "notes": "Next large Day-0 payment portion of roadmap #61 after merged PR #273: standalone bounded PaymentClaim wire codec and deterministic node-local admission pool with signature/network/payee/expiry preflight, conflict and aggregate-overspend refusal, global/byte/per-payer limits, candidate ordering, and canonical revalidation. No authenticated network submission, re-gossip, fees, inclusion guarantee, persistence, privacy, or activation."
     }
   ]
 }

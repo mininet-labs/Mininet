@@ -7,7 +7,10 @@ use core::fmt;
 pub enum ExecutionError {
     /// A candidate block's height did not immediately follow the chain's
     /// current height.
-    WrongHeight { expected: u64, got: u64 },
+    WrongHeight {
+        expected: u64,
+        got: u64,
+    },
     /// A candidate block's `prev_hash` did not match the current chain
     /// tip's header hash.
     WrongParent,
@@ -24,6 +27,11 @@ pub enum ExecutionError {
     /// — an allocation/CPU bound applied before processing, the same
     /// discipline `mini-chain::MAX_VOTES_PER_CERTIFICATE` applies.
     TooManyClaims,
+    TooManyMonetaryEpochs,
+    InvalidMonetaryEpoch(mini_economy::EconomyError),
+    InvalidGenesisAllocation,
+    AmountOverflow,
+    SupplyConservationViolation,
     /// A candidate block's `timestamp_ms` did not equal its own height.
     /// `timestamp_ms` is deterministic logical time, not proposer-supplied
     /// wall time (roadmap #44's timestamp-attack finding): a signature only
@@ -32,7 +40,10 @@ pub enum ExecutionError {
     /// merely bounding what discretion would otherwise exist. Every honest
     /// node enforces this identically, so it can never itself cause two
     /// honest chains to disagree (Directive 4).
-    TimestampNotDeterministic { expected: u64, got: u64 },
+    TimestampNotDeterministic {
+        expected: u64,
+        got: u64,
+    },
 }
 
 impl fmt::Display for ExecutionError {
@@ -52,6 +63,19 @@ impl fmt::Display for ExecutionError {
                 )
             }
             ExecutionError::TooManyClaims => write!(f, "block body exceeds the claim-count cap"),
+            ExecutionError::TooManyMonetaryEpochs => {
+                write!(f, "block body contains more than one monetary epoch")
+            }
+            ExecutionError::InvalidMonetaryEpoch(error) => {
+                write!(f, "invalid monetary epoch: {error}")
+            }
+            ExecutionError::InvalidGenesisAllocation => {
+                write!(f, "genesis account allocations are malformed or do not equal supply")
+            }
+            ExecutionError::AmountOverflow => write!(f, "account amount arithmetic overflow"),
+            ExecutionError::SupplyConservationViolation => {
+                write!(f, "account balances plus unallocated value do not equal circulating supply")
+            }
             ExecutionError::TimestampNotDeterministic { expected, got } => write!(
                 f,
                 "block timestamp_ms {got} does not equal its required deterministic value {expected}"

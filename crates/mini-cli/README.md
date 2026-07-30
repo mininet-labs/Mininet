@@ -41,7 +41,28 @@ mini pr approve <pr-id> --head <commit-id> [--reject] [--findings <text>]
 mini pr merge <project> <pr-id> [--prev <id>]
 mini pr ai-assisted <pr-id> --owner <did>   declare AI-assistance + accountable human owner (informational, never quorum)
 mini pr findings <pr-id>                    list recorded findings + AI-assistance declaration
+
+mini team propose <project> --group-id <id> --name <name> --purpose <text> --path <glob>... --term-policy <text> --appeal-policy <text>
+                                                   [--lifecycle proposed|incubating]
+mini team list [--project <project>]        list verified charter proposals
+mini team show <charter-id>                 inspect one charter proposal
+
+mini task create <project> --route <route> --risk <class> --title <title> --description <text> --path <glob>... --evidence <text>... --acceptance <text> --non-goal <text>...
+mini task list [--route <route>] [--path <path>] [--limit <n>]
+mini task suggest --route <route> [--path <path>] [--limit <n>]   advisory local routing only
+mini task show <task-id>                    show the verified task/claim/review graph
+mini task claim <task-id> --role <role> --path <glob>... --expires-ms <future-ms> [--base <id>]
+mini task review <task-id> --head <exact-id> --kind peer|external|ai --disposition observations|needs-changes|blocked --findings <text> --evidence <text>... --limitations <text>
+
+mini build run --component <wasm> --store-dir <dir> --scratch-dir <dir> --artifacts-dir <dir> [--capability <cap>]...
+mini build serve --addr <host:port> --work-dir <new-dir>
+mini build dispatch --peer <host:port> --component <wasm> --workspace <dir> --artifacts-dir <new-dir> [--capability <cap>]...
 ```
+
+`team` and `task` commands support `--json`. Their objects travel through the
+same local store and `mini sync` path as Forge repository objects. A task
+suggestion is not an assignment; a claim is not ownership; and a technical
+review handoff is not `mini pr approve`. AI evidence has zero approval weight.
 
 Global flags (any position): `--home <path>` (default `~/.mininet`, or
 `$MININET_HOME`), `--store <path>` (default `<home>/store`).
@@ -61,11 +82,21 @@ Global flags (any position): `--home <path>` (default `~/.mininet`, or
   skipping it is a hard, visible refusal (`resolve_project` returns an
   error), never a silent bypass. `mini-forge`'s own `oracle.rs` module docs
   name this as the same posture `mini-sync`'s verified ingest already uses.
-- **No live network sync.** Two homes exchange objects via a shared
-  `--store` path; wiring a real `mini sync` over `mini_bearer`/`mini_sync`
-  (the exact composition `mini-bootstrap`'s live demo already proved,
-  D-0062) is a near-zero-effort deferred fast-follow, not required for
-  this crate's own exit condition.
+- **Live network sync is a separate invocation.** `mini sync listen` and
+  `mini sync connect` already exchange verified objects over the existing
+  bearer/sync path (D-0062/D-0080). The new coordination test uses a shared
+  store for deterministic CLI coverage; it is not a claim of a live
+  multi-machine contributor service or background daemon.
+- **Distributed builds are one-shot and explicitly selected.** `build serve`
+  accepts one encrypted request and exits. The requester verifies the exact
+  request binding and every artifact digest, but a worker remains untrusted:
+  its result is evidence, not release approval or provenance quorum. Discovery,
+  worker identity/reputation, scheduling, payment, retries, chunking beyond
+  the current 15 MiB frame, and persistent supervision remain separate work.
+- **No automatic recruitment or personnel directory.** `mini task suggest`
+  filters signed task briefs already present locally. It does not infer
+  identity, employment, competence, consent, availability, or authority, and
+  it does not publish contributor preferences.
 - **The per-home sequence counter is concurrency-safe** across parallel
   `mini` invocations against the same home: allocation uses an OS-backed
   exclusive lock. Other files in a home are not thereby made transactional.

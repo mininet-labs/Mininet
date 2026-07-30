@@ -1,0 +1,74 @@
+name: Contributor intake
+description: Find a bounded first task without turning participation into authority.
+title: "contributor: "
+labels: [documentation, enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is an opt-in routing aid. Legal identity is not required. Do not include secrets, private keys, unnecessary personal data, or confidential employer/client information. A GitHub team, employer, payment, commit count, or AI output grants no review, merge, release, or governance authority.
+  - type: dropdown
+    id: route
+    attributes:
+      label: Preferred contribution route
+      multiple: true
+      options:
+        - Beta testing or reproduction
+        - Rust implementation or tests
+        - Android, LAN, BLE, or device testing
+        - Documentation or research
+        - Security or external-review coordination
+        - Governance or process design
+        - Domain consultation
+        - I am not sure yet
+    validations:
+      required: true
+  - type: dropdown
+    id: privacy
+    attributes:
+      label: Preferred attribution mode
+      description: Choose what you want shown publicly for this routing request.
+      options:
+        - Anonymous
+        - Pseudonymous
+        - Public
+    validations:
+      required: true
+  - type: textarea
+    id: skills
+    attributes:
+      label: Skills, interests, and confidence
+      description: What can you try now, and which areas would benefit from a guided first step?
+      placeholder: Rust testing; Android device testing; cryptography research; beginner with a guided task...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Available environment
+      description: State only what is relevant: OS, Rust toolchain, Android SDK, emulator, physical devices, or other test equipment.
+    validations:
+      required: true
+  - type: textarea
+    id: first_task
+    attributes:
+      label: Preferred first task or question
+      description: Link an existing issue if you have one; otherwise describe the smallest safe task you want help selecting.
+    validations:
+      required: true
+  - type: textarea
+    id: relationship
+    attributes:
+      label: Relevant relationship or conflict
+      description: Optional. Mention an employer, funder, client, authorship, or close-control relationship only if it could affect review independence. Private details should be shared through an appropriate private channel.
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries understood
+      options:
+        - label: I understand that a suggested task is not an assignment or authority delegation.
+          required: true
+        - label: I will bind test or implementation evidence to an exact revision and state what I did not test.
+          required: true
+        - label: I understand that identity roots are not currently proof of unique humans and that AI reviews carry zero approval weight.
+          required: true

@@ -66,7 +66,11 @@ members = [
     "crates/mini-commons-policy",
     "crates/mini-publication-policy",
     "crates/mini-web-extract",
+    "crates/mini-lexical-index",
+    "crates/mini-ranker",
     "crates/mini-replication-policy",
+    "crates/mini-economy",
+    "crates/mini-econ-sim",
 ]
 
 [workspace.package]

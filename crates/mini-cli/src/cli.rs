@@ -11,7 +11,9 @@ use did_mini::Did;
 
 use crate::error::{CliError, Result};
 use crate::json::CommandResult;
-use crate::{build, identity, installer, keystone, pr, provenance, release, repo, store, sync};
+use crate::{
+    build, coordination, identity, installer, keystone, pr, provenance, release, repo, store, sync,
+};
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
     let pos = args.iter().position(|a| a == flag)?;
@@ -103,6 +105,8 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
             reject_json(json, "pr")?;
             dispatch_pr(home, store_path, args)
         }
+        "team" => dispatch_team(home, store_path, args, json),
+        "task" => dispatch_task(home, store_path, args, json),
         "sync" => {
             reject_json(json, "sync")?;
             dispatch_sync(home, store_path, args)
@@ -114,6 +118,59 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "installer" => dispatch_installer(home, store_path, args, json),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
+}
+
+fn dispatch_team(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
+    let noun = next(&mut args, "team")?;
+    let result = match noun.as_str() {
+        "propose" => coordination::team_propose(home, store_path, args)
+            .map(|r| r.render(json, "team.propose")),
+        "list" => {
+            coordination::team_list(home, store_path, args).map(|r| r.render(json, "team.list"))
+        }
+        "show" => {
+            coordination::team_show(home, store_path, args).map(|r| r.render(json, "team.show"))
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `team` subcommand: {other:?}"
+        ))),
+    }?;
+    Ok(result)
+}
+
+fn dispatch_task(
+    home: &Path,
+    store_path: &Path,
+    mut args: Vec<String>,
+    json: bool,
+) -> Result<String> {
+    let noun = next(&mut args, "task")?;
+    let result =
+        match noun.as_str() {
+            "create" => coordination::task_create(home, store_path, args)
+                .map(|r| r.render(json, "task.create")),
+            "list" => {
+                coordination::task_list(home, store_path, args).map(|r| r.render(json, "task.list"))
+            }
+            "suggest" => coordination::task_suggest(home, store_path, args)
+                .map(|r| r.render(json, "task.suggest")),
+            "show" => {
+                coordination::task_show(home, store_path, args).map(|r| r.render(json, "task.show"))
+            }
+            "claim" => coordination::task_claim(home, store_path, args)
+                .map(|r| r.render(json, "task.claim")),
+            "review" => coordination::task_review(home, store_path, args)
+                .map(|r| r.render(json, "task.review")),
+            other => Err(CliError::Usage(format!(
+                "unknown `task` subcommand: {other:?}"
+            ))),
+        }?;
+    Ok(result)
 }
 
 fn dispatch_identity(home: &Path, mut args: Vec<String>) -> Result<String> {
@@ -374,6 +431,43 @@ fn dispatch_build(mut args: Vec<String>, json: bool) -> Result<String> {
             )
             .map(|r: CommandResult| r.render(json, kind))
         }
+        "serve" => {
+            let addr = extract_flag(&mut args, "--addr")
+                .ok_or_else(|| CliError::Usage("--addr required".to_string()))?;
+            let work_dir = required_path_flag(&mut args, "--work-dir")?;
+            build::serve(&addr, &work_dir).map(|r: CommandResult| r.render(json, "build.serve"))
+        }
+        "dispatch" => {
+            let peer = extract_flag(&mut args, "--peer")
+                .ok_or_else(|| CliError::Usage("--peer required".to_string()))?;
+            let component = required_path_flag(&mut args, "--component")?;
+            let workspace = required_path_flag(&mut args, "--workspace")?;
+            let artifacts_dir = required_path_flag(&mut args, "--artifacts-dir")?;
+            let capabilities =
+                build::parse_capabilities(extract_flag_multi(&mut args, "--capability"))?;
+            let mut limits = build::default_limits();
+            if let Some(v) = extract_u64_flag(&mut args, "--max-fuel")? {
+                limits.max_fuel = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-memory-bytes")? {
+                limits.max_memory_bytes = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-wall-clock-ms")? {
+                limits.max_wall_clock_ms = v;
+            }
+            if let Some(v) = extract_u64_flag(&mut args, "--max-output-bytes")? {
+                limits.max_output_bytes = v;
+            }
+            build::dispatch(
+                &peer,
+                &component,
+                &workspace,
+                &artifacts_dir,
+                capabilities,
+                limits,
+            )
+            .map(|r: CommandResult| r.render(json, "build.dispatch"))
+        }
         other => Err(CliError::Usage(format!(
             "unknown `build` subcommand: {other:?}"
         ))),
@@ -459,6 +553,37 @@ fn dispatch_release(
                 now_ms,
             )
             .map(|r: CommandResult| r.render(json, "release.fetch"))
+        }
+        "retrieve" => {
+            let release_id = next(&mut args, "release retrieve")?;
+            let project = next(&mut args, "release retrieve")?;
+            let branch = extract_flag(&mut args, "--branch")
+                .ok_or_else(|| CliError::Usage("--branch required".to_string()))?;
+            let peer = extract_flag(&mut args, "--peer")
+                .ok_or_else(|| CliError::Usage("--peer required".to_string()))?;
+            let output = required_path_flag(&mut args, "--output")?;
+            let min_attestations = extract_u32_flag(&mut args, "--min-attestations")?;
+            let timelock_ms = extract_u64_flag(&mut args, "--timelock-ms")?;
+            let now_ms = extract_u64_flag(&mut args, "--now-ms")?;
+            release::retrieve(
+                home,
+                store_path,
+                &release_id,
+                &project,
+                &branch,
+                &peer,
+                &output,
+                min_attestations,
+                timelock_ms,
+                now_ms,
+            )
+            .map(|r: CommandResult| r.render(json, "release.retrieve"))
+        }
+        "serve" => {
+            let addr = extract_flag(&mut args, "--addr")
+                .ok_or_else(|| CliError::Usage("--addr required".to_string()))?;
+            release::serve(store_path, &addr)
+                .map(|r: CommandResult| r.render(json, "release.serve"))
         }
         "list" => {
             let project = next(&mut args, "release list")?;

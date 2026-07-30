@@ -18,6 +18,10 @@ pub enum SettlementError {
     /// This claim conflicts with a different claim already observed for
     /// the same `(payer, sequence)` pair — see [`crate::ClaimWatcher`].
     ConflictsWithKnownClaim,
+    /// A payment-claim wire frame was truncated, ambiguous, or malformed.
+    MalformedClaim,
+    /// A claim or one of its opaque fields exceeded the protocol bound.
+    ClaimTooLarge,
 }
 
 impl fmt::Display for SettlementError {
@@ -36,6 +40,8 @@ impl fmt::Display for SettlementError {
                 f,
                 "a different claim was already observed for this (payer, sequence) pair"
             ),
+            SettlementError::MalformedClaim => write!(f, "malformed payment claim"),
+            SettlementError::ClaimTooLarge => write!(f, "payment claim exceeds protocol bounds"),
         }
     }
 }

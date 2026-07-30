@@ -8,6 +8,7 @@
 //! crate, the canonical-truth layer, blurs with finality).
 
 use mini_chain::{verify_finality, BlockHeader, QuorumCertificate, ValidatorOracle, ValidatorSet};
+use mini_economy::Amount;
 
 use crate::body::SettlementBlockBody;
 use crate::error::{ExecutionError, Result};
@@ -31,11 +32,48 @@ impl LedgerChain {
     /// `mini_chain::BlockHeader::prev_hash`'s own genesis convention), and
     /// empty settlement state.
     pub fn genesis() -> Self {
+        Self::genesis_with_supply(Amount::ZERO)
+    }
+
+    /// Start a chain from an explicitly governed genesis circulating supply.
+    pub fn genesis_with_supply(genesis_circulating: Amount) -> Self {
+        Self::genesis_for_network(mini_settlement::MININET_NETWORK_ID, genesis_circulating)
+    }
+
+    pub fn genesis_for_network(network_id: [u8; 32], genesis_circulating: Amount) -> Self {
         LedgerChain {
             height: 0,
             tip_hash: [0u8; 32],
-            state: LedgerState::new(),
+            state: LedgerState::with_network_and_genesis_supply(network_id, genesis_circulating),
         }
+    }
+
+    /// Start from a fully allocated transparent Tier-0 genesis balance set.
+    pub fn genesis_with_balances(
+        genesis_circulating: Amount,
+        allocations: Vec<(Vec<u8>, Amount)>,
+    ) -> Result<Self> {
+        Self::genesis_with_network_balances(
+            mini_settlement::MININET_NETWORK_ID,
+            genesis_circulating,
+            allocations,
+        )
+    }
+
+    pub fn genesis_with_network_balances(
+        network_id: [u8; 32],
+        genesis_circulating: Amount,
+        allocations: Vec<(Vec<u8>, Amount)>,
+    ) -> Result<Self> {
+        Ok(LedgerChain {
+            height: 0,
+            tip_hash: [0u8; 32],
+            state: LedgerState::with_network_and_genesis_balances(
+                network_id,
+                genesis_circulating,
+                allocations,
+            )?,
+        })
     }
 
     /// The current finalized height.

@@ -47,6 +47,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod android_ble;
 mod bearer;
 mod ble;
 mod channel;
@@ -55,6 +56,7 @@ mod error;
 mod inprocess;
 mod tcp;
 
+pub use android_ble::{AndroidBleBearer, BleRadio};
 pub use bearer::{encode_frame, Bearer, FrameReader, MAX_FRAME_BYTES, MAX_STREAM_BUFFER_BYTES};
 pub use ble::{chunk_frame, ChunkReassembler};
 pub use channel::{

@@ -27,6 +27,13 @@
 //! store-and-forward model). Large media rides as many small chunk objects
 //! (`mini-media`), so per-object transfer stays frame-sized.
 //!
+//! An exact retrieval is also available over the same bearer/channel:
+//! [`request_retrieval`] sends seed ids, receives an application-selected
+//! bounded id closure, echoes that allow-list, and ingests only the returned
+//! objects. The generic crate does not choose release policy; `mini-forge`
+//! supplies the release closure. This is a one-shot transfer, not a daemon,
+//! discovery service, or automatic update path.
+//!
 //! ## The trust boundary lives here
 //!
 //! `mini-store` persists; **sync verifies**. Every received object passes the
@@ -58,7 +65,10 @@ mod protocol;
 
 pub use ingest::{kel_carrier, Ingest, IngestOutcome, KelCache, KEL_CARRIER};
 pub use private_protocol::{sync_private_route_bidirectional, PrivateSyncReport};
-pub use protocol::{serve_pull, sync_bidirectional, IngestReport, SyncRole};
+pub use protocol::{
+    receive_retrieval_request, request_retrieval, serve_pull, serve_retrieval, sync_bidirectional,
+    IngestReport, RetrievalReport, SyncRole,
+};
 
 use mini_bearer::BearerError;
 use mini_objects::ObjectError;
@@ -85,6 +95,8 @@ pub enum SyncError {
     /// The peers selected different opaque private routes. No ids or envelope
     /// bytes are exchanged when this check fails.
     PrivateRouteMismatch,
+    /// A release retrieval response did not include every requested seed.
+    RetrievalIncomplete,
 }
 
 impl core::fmt::Display for SyncError {
@@ -96,6 +108,12 @@ impl core::fmt::Display for SyncError {
             SyncError::Protocol => write!(f, "malformed or out-of-order sync message"),
             SyncError::LimitExceeded => write!(f, "sync protocol limit exceeded"),
             SyncError::PrivateRouteMismatch => write!(f, "private sync routes do not match"),
+            SyncError::RetrievalIncomplete => {
+                write!(
+                    f,
+                    "retrieval response did not include every requested object"
+                )
+            }
         }
     }
 }

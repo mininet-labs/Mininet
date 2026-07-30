@@ -18,8 +18,8 @@ file on purpose — read them first, because they bound what any other claim can
 mean:
 
 - Every "verified identity" counted today is a verified `did:mini` **root**,
-  not a verified **human**. Nothing may be read as enforcing one-human-one-vote
-  until personhood is actually solved.
+  not a verified **human**. Identity-root counting must not be described as
+  proof of unique humans until personhood is actually solved.
 - Proof-of-space-time proves continuous **possession**, not replication
   **uniqueness** — one warehouse can still answer for many claimed identities.
 
@@ -44,6 +44,12 @@ hardware validation ([hardware-test-protocol.md](gates/hardware-test-protocol.md
 and economics modeling ([economic-simulation-spec.md](gates/economic-simulation-spec.md)).
 Each package is a ready-made scope brief for the outside reviewer who *can*
 close it. Tracking issue: [#99](../../issues/99).
+
+For a closure-ready response, use
+[`gates/EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md`](gates/EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md)
+and the Beta review matrix in [#262](../../issues/262). An external review is
+evidence about a defined scope, not protocol authority; AI review carries zero
+approval weight.
 
 **The hard rule you should hold the project to:** no real-value mainnet,
 bridge, treasury, contribution, or bounty payout before the cryptography audit

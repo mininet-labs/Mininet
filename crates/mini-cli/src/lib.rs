@@ -13,6 +13,12 @@
 //! copies files — content-addressed signed objects are safe to share via
 //! any medium) or, as of `mini sync` (Batch 5, `crate::sync`), a real TCP
 //! connection between two `mini` homes with no shared filesystem at all.
+//! The release-facing `mini release serve`/`retrieve` commands add a bounded
+//! exact object closure on that same channel; they still require explicit
+//! local KEL trust and the existing governed-release check.
+//! `mini build serve`/`dispatch` similarly add one bounded remote build over
+//! the encrypted channel while preserving the out-of-process Wasmtime runner
+//! boundary and treating every worker result as untrusted evidence.
 //!
 //! ## Honest limits
 //!
@@ -21,6 +27,8 @@
 //!   local files: acceptable for solo/small-group use, not for background
 //!   sync or live event subscriptions. `mini sync` handles exactly one
 //!   connection per invocation, then exits (`crate::sync`'s module docs).
+//!   Native release serving is likewise one request per invocation; it is not
+//!   a persistent update service.
 //! - The per-home sequence counter (`crate::sequence`) serializes concurrent
 //!   invocations with an OS-backed lock, but other files in a home are not a
 //!   general transaction boundary.
@@ -33,6 +41,7 @@
 
 mod build;
 mod cli;
+mod coordination;
 mod error;
 pub mod identity;
 mod installer;

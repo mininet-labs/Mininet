@@ -97,9 +97,13 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // Offline QR encode/decode only. ZXing Core has no camera, account,
+    // analytics, network, or Google Play Services integration.
+    implementation(libs.zxing.core)
     implementation("net.java.dev.jna:jna:5.17.0@aar")
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

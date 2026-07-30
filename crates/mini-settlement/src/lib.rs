@@ -61,9 +61,12 @@ mod reconcile;
 mod state;
 mod watcher;
 
-pub use claim::{claim_digest, sign_claim, verify_claim_signature, PaymentClaim};
+pub use claim::{
+    claim_digest, sign_claim, sign_claim_for_network, verify_claim_signature, PaymentClaim,
+    MAX_CLAIM_FIELD_BYTES, MAX_PAYMENT_CLAIM_BYTES, MININET_NETWORK_ID,
+};
 pub use error::{Result, SettlementError};
-pub use ledger::{CanonicalLedgerView, InMemoryLedgerView};
+pub use ledger::{CanonicalLedgerView, CanonicalRejection, InMemoryLedgerView};
 pub use reconcile::{evaluate_local_acceptance, reconcile, LocalAcceptancePolicy};
 pub use state::{SettlementState, WalletLabel};
 pub use watcher::{ClaimWatcher, InMemoryClaimWatcher};

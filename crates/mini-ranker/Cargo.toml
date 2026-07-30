@@ -1,0 +1,23 @@
+[package]
+name = "mini-ranker"
+version = "0.0.1"
+description = "MiniSearch transparent ranker (Track E6): deterministic, integer-only scoring over a lexical index and document metadata, combining lexical/phrase/link/freshness/originality/diversity signals under a versioned, forkable RankingProfile. No pay-to-rank, no personalization by default, no network, no storage."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# mini-web-types for the ranking vocabulary (RankingProfile, WeightBps,
+# SearchResult, RankingExplanation, CanonicalUrl, AvailabilityState) and
+# mini-lexical-index for the IndexSegment this ranker reads. mini-crypto for
+# the Multihash content digest used in duplicate detection. Deliberately no
+# network, storage, crawler, or value/governance crate: this ranker turns an
+# index plus document metadata into an ordering and does nothing else. Per
+# D-0312 there is no payment or provider input anywhere -- ranking cannot be
+# bought.
+mini-crypto = { path = "../mini-crypto" }
+mini-web-types = { path = "../mini-web-types" }
+mini-lexical-index = { path = "../mini-lexical-index" }

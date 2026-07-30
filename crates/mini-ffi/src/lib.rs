@@ -24,11 +24,15 @@
 
 use zeroize::Zeroize;
 
+mod ble;
 mod lifecycle;
+mod pairing;
+pub use ble::{BleBearerError, BleBearerHandle, BleRadio, BleRadioError};
 pub use lifecycle::{
     BackgroundableOperation, LifecycleError, LifecycleFailureReason, LifecyclePhase,
     OperationLifecycle, SuspendDecision,
 };
+pub use pairing::{PairingContact, PairingError, PairingOfferView};
 
 /// Version of the typed command/event API.
 pub const APP_API_VERSION: u32 = 0;
@@ -295,13 +299,17 @@ struct RootState {
     /// `persist_state`/`restore` (D-0338): an interrupted enrollment is
     /// meant to be retried, not silently resumed from disk.
     pending_enrollment: Option<did_mini::Controller>,
+    /// Durable social state plus the one foreground-only pending LAN offer.
+    /// The listener itself is deliberately never persisted across process
+    /// death; contacts, signed follow objects, and consumed nonces are.
+    pairing: pairing::PairingState,
 }
 
 /// Marks the persisted-state plaintext format; bumped if the layout ever
 /// changes so a future `RootCore` can reject bytes it no longer understands
 /// instead of misparsing them.
 const PERSIST_MAGIC: [u8; 4] = *b"MFP1";
-const PERSIST_VERSION: u8 = 1;
+const PERSIST_VERSION: u8 = 2;
 /// Generous but bounded — a corrupted or hostile ciphertext must not drive
 /// unbounded allocation once decrypted, the same discipline `did-mini`'s
 /// own `Kel::from_bytes` already applies to its inputs.
@@ -417,6 +425,7 @@ fn encode_state(state: &RootState) -> Vec<u8> {
     for device in &state.devices {
         encode_identity_record(&mut out, device);
     }
+    pairing::encode_pairing_state(&mut out, &state.pairing);
     out
 }
 
@@ -425,7 +434,8 @@ fn decode_state(bytes: &[u8]) -> Result<RootState, RootError> {
     if r.take(PERSIST_MAGIC.len())? != PERSIST_MAGIC {
         return Err(RootError::CorruptState);
     }
-    if r.u8()? != PERSIST_VERSION {
+    let version = r.u8()?;
+    if version != 1 && version != PERSIST_VERSION {
         return Err(RootError::CorruptState);
     }
     let root = match r.u8()? {
@@ -441,6 +451,11 @@ fn decode_state(bytes: &[u8]) -> Result<RootState, RootError> {
     for _ in 0..device_count {
         devices.push(decode_identity_record(&mut r)?);
     }
+    let pairing = if version >= 2 {
+        pairing::decode_pairing_state(&mut r)?
+    } else {
+        pairing::PairingState::default()
+    };
     if !r.finished() {
         return Err(RootError::CorruptState);
     }
@@ -448,6 +463,7 @@ fn decode_state(bytes: &[u8]) -> Result<RootState, RootError> {
         root,
         devices,
         pending_enrollment: None,
+        pairing,
     })
 }
 

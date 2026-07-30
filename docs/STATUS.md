@@ -38,7 +38,10 @@ research/decisions land:
 
 1. **Forge** — continue Batch 5/6 of `docs/design/
    self-hosted-forge-spine.md` (local object indexing at scale,
-   distributed build workers, GitHub import/export mirror automation).
+   production distributed build workers, GitHub import/export mirror
+   automation). A bounded one-shot encrypted build-worker slice is implemented
+   as proposed D-0409; discovery, chunking, scheduling, identity/reputation,
+   multi-worker provenance, payment, and supervision remain open.
 2. **Storage** — `mini-storage`/`mini-erasure`/`mini-spacetime`/
    `mini-porep` hardening plus the suppression-resistant replication
    path named in D-0311 (Track D5).
@@ -300,22 +303,61 @@ given time.
   `AcknowledgedUnauditedDkg`; neither is externally audited yet — see
   `docs/gates/dkg-audit-scope.md` before treating this as production-viable
   at any value level.
-- **design decided, unimplemented** — the treasury economic model (D-0073,
+- **policy kernel implemented; integration and external review open
+  (proposed D-0413)** — the treasury economic model (D-0073,
   `docs/design/treasury-economic-model.md`: XRPL/XMR bridge split,
   contribution epochs, oracle/vesting/issuance-ceiling mechanism) and the
   long-term issuance/anti-whale model (D-0074, `docs/design/
   inflation-and-whale-resistance.md`: 3%/2%/0.75%/0.25% envelope, formal
-  anti-whale governance-input wall) replace the whitepaper's original BTC/
-  XMR framing and #50's open question. Neither's parameters are wired into
-  `mini-treasury::rate`/`receipt` or a chain state machine yet, and neither
-  has run the adversarial simulation suite `docs/gates/
-  economic-simulation-spec.md` still requires before real value depends on
-  the calibration. §9's cellular custody design now states explicitly
+  anti-whale governance-input wall) now have a checked integer-only
+  implementation in `mini-economy`: epoch caps, equal per-human grants,
+  vesting metadata, expiring unused capacity, and deterministic
+  non-privileged genesis manifests. `mini-econ-sim` corrects the old Python
+  harness's holdings-proportional Human Share error with a cohort model and a
+  reproducible 200-year run. Existing `u64` micro-MINI payment claims remain
+  wire-unchanged; `u128` is accounting headroom only. Neither crate mints,
+  chooses humans, validates service evidence, verifies bridge receipts,
+  enforces vesting on chain, or authorizes production genesis. The wider
+  shock matrix and independent mechanism-design review remain launch gates.
+  §9's cellular custody design states explicitly
   (D-0089, founder review's `custody-separation` finding) that a
   bridge-specific vault's signer committee and the general treasury's
   signer committee are always disjoint sets — no individual holds a seat
   on both; this was already implied by the cellular design, not a new
   rule.
+- **proposed chain accounting (D-0414, roadmap #48)** —
+  `mini-economy::MonetaryLedger` and `mini-execution` now compose one
+  aggregate Human Share snapshot transition into finalized state. Epochs are
+  sequential, bound to computed opening circulating supply, limited to one
+  per block, fully reconstructed under D-0074, and vested against cumulative
+  finalized policy-epoch duration rather than untrusted wall/proposer time.
+  Human identities are not enumerated in the block. This is supply and
+  vesting accounting only: private membership/nullifier claims, balances,
+  debit/credit and insufficient-funds enforcement, service/treasury evidence
+  authorization, and production epoch timing remain unbuilt. P4 therefore
+  remains partial.
+- **proposed transparent balance execution (D-0415, stacked on #272;
+  payment portion of roadmap #61)** — `mini-execution` can start from an
+  exact explicit genesis allocation and makes a finalized, affordable
+  `PaymentClaim` debit payer and credit payee. Insufficient funds do not
+  finalize or consume sequence; canonical block order resolves aggregate
+  overspend; state commitments include sorted balances; every accepted state
+  enforces `balances + unallocated circulating = monetary circulating`.
+  Claims now sign an exact settlement-network ID, consensus wire v2 carries
+  it, and execution rejects cross-deployment replay. Canonical rejection
+  outcomes let reconciliation report wrong-network, unsupported-payee,
+  stale-sequence, and insufficient-funds failures immediately.
+  This is deliberately transparent Tier 0: no confidential transaction,
+  private Human Share claim, production genesis, fees/mempool, bounded
+  rejection-proof pruning, or marketplace object is claimed.
+- **proposed bounded payment admission (D-0416, follows merged #273;
+  payment portion of roadmap #61)** — `PaymentClaim` has a standalone,
+  bounded canonical wire frame and `mini-execution::PaymentAdmissionPool`
+  provides local signature/network/payee/expiry preflight, duplicate and
+  conflict refusal, aggregate balance reservation, count/byte/per-payer
+  limits, deterministic proposal candidates, and post-finality revalidation.
+  This is not a network mempool, fee mechanism, inclusion guarantee,
+  persistent queue, or canonical reservation.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary
@@ -877,6 +919,20 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   one connection — independently runs `release verify` and the full
   `installer stage → preflight → activate → health-check` sequence to a
   genuinely active, passing install.
+- **shipped, bounded** - native exact release retrieval (D-0408 proposed,
+  issue #268): `mini release serve` accepts one owner-invoked request and
+  `mini release retrieve` asks for one exact release over the existing
+  encrypted `mini-sync` channel. `mini-forge::release_retrieval_ids` selects
+  the release's forward object closure plus verifier-relevant reverse
+  `release`/`prev`/`pr` evidence; the client echoes the selection, runs the
+  ordinary verified-ingest boundary, and invokes governed release
+  verification before writing a new output file. A real loopback CLI test
+  proves retrieval from a fresh store without a shared filesystem and asserts
+  that the target peer receives fewer objects than the serving store. Identity
+  KEL trust remains explicit; this is not a daemon, discovery service,
+  pagination protocol, automatic update, owner activation, or external-audit
+  result. The current closure cap is 4096 objects and the transfer uses the
+  existing 512 MiB sync budget.
 - **shipped** — the no-GitHub outage demo (D-0081). `tools/
   no_github_outage_demo.sh` is a real, narrated shell script — driving
   the compiled `mini` binary, never a library call — that carries three
@@ -937,14 +993,25 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   just self-consistency. Export only, one direction; import (parsing an
   arbitrary git repository into this tree's own signed object model)
   remains genuinely unstarted.
+- **proposed implementation slice (D-0407, issue #266)** — Forge-native
+  contributor coordination: signed working-group charter proposals, task
+  briefs, deterministic local task suggestions, expiring work claims, and
+  exact-state technical-review handoffs, exposed through `mini team` and
+  `mini task`. This is coordination evidence only; no team delegation,
+  automatic recruitment, personnel directory, approval, canonicalization,
+  release, owner adoption, or Forge cutover is implemented. The branch proves
+  local object verification and a two-home shared-store CLI flow; live
+  multi-machine exchange and external review remain follow-up work.
 - **not started** — `mini-devd` (local daemon), machine-readable
   `STATUS.md`/roadmap generation (Batch 1's remaining deferred items);
   wiring `mini-installer` into an actual running system (Batch 4's own
   named next step, the caller's job by design); the rest of
   Batch 5 (a genuinely bounded `FsBackend::list_meta_prefix_last`, a
   bounded/paginated forward range scan for `Store::since`, distributed
-  build workers, native release retrieval, GitHub import/export mirror
-  automation).
+  build workers, GitHub import/export mirror
+  automation). Native exact retrieval is shipped only as the bounded
+  one-shot path described above; pagination, persistent serving, discovery,
+  and a production update channel remain open.
 - **partly active, mostly specified** — the founder-supplied Governance Pack
   v1.0 plus the v1.1 charter delta (`docs/governance/`, `forge-native/`,
   `governance/`; D-0082–D-0084): ~50
@@ -1003,6 +1070,30 @@ the top development priority.
   index, ranker, query service, search UI, network exchange, crawler
   runtime that actually fetches pages, or federated/distributed layer.
   Explicitly a distinct system from
+  payment logic. `mini-lexical-index` (D-0405, Track E5) is the lexical
+  index slice: a deterministic, immutable inverted index over document
+  fields (title/body/url) with phrase positions, built from
+  `(UrlId, field text)` documents into a content-addressed `IndexSegment`
+  (BLAKE3 `IndexSegmentId`), with `term_documents`/`phrase_documents`
+  structural queries, canonical `to_bytes`/`from_bytes` that enforce
+  canonical form on decode, and an `IndexManifest`. No ranking, scoring,
+  crawler, fetcher, extractor, query CLI, network, or storage backend, and
+  no payment/provider/ranking-authority field — the index records what text
+  exists where, never what it is worth. Its determinism (same documents →
+  byte-identical segment and id, regardless of order or host) is what makes
+  D-0312's plurality real. `mini-ranker` (D-0406, Track E6) is the
+  transparent ranker: `rank(index, corpus, profile, query, now_ms,
+  max_results)` scores matches with six deterministic integer signals
+  (lexical, phrase, basic link, freshness, originality/duplicate removal,
+  domain diversity), combines them under a versioned forkable
+  `RankingProfile`, and returns `SearchResult`s each carrying a per-signal
+  `RankingExplanation`. Four D-0312 invariants are structural: no
+  pay-to-rank (no payment input exists in `rank`), no personalization by
+  default (no per-user state), availability filtered out rather than scored
+  down, and byte-deterministic ordering (integer-only scoring, explicit
+  `now_ms`, UrlId tiebreak). Still no query CLI (E7), result
+  provenance/explanations (E8), search UI, network exchange, or
+  federated/distributed layer. Explicitly a distinct system from
   `mini-private-index` (D-0310), which is not to be repurposed as the
   general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
@@ -1200,9 +1291,18 @@ two-party device enrollment/revocation with no shared-secret transfer
 pairing offer/acceptance protocol composing PR #170's follow graph
 (issue #200, D-0340); and, in `mini-bearer`, the MTU-bounded
 chunking/reassembly a BLE-backed `Bearer` needs to carry a frame across
-GATT's small ATT MTU (issue #201, D-0342) — protocol logic only, no
-`impl Bearer` for BLE yet and no real Bluetooth hardware anywhere in
-this environment. Dependency verification is also done: `cargo-deny`
+GATT's small ATT MTU (issue #201, D-0342), now driven by a real, tested
+`impl Bearer`: `android_ble::AndroidBleBearer<R: BleRadio>` (D-0374)
+turns any `BleRadio` implementation into a full bearer, proven against an
+in-memory mock radio (multi-chunk round-trips, in-order multi-frame
+delivery, disconnect handling, tiny-MTU stress). `mini-ffi::ble`
+(D-0375) now exposes that across the UniFFI boundary itself: a
+`callback interface BleRadio` Kotlin can implement and a `BleBearerHandle`
+UniFFI object wrapping `AndroidBleBearer` that Kotlin drives with
+`send`/`recv`/`try_recv` — but still no real Kotlin
+`BluetoothGattServer`/`BluetoothGattCallback` implementation of that
+callback interface, so still no real Bluetooth hardware anywhere in this
+environment. Dependency verification is also done: `cargo-deny`
 installed and run for real for the first time, `deny.toml` genuinely
 clean rather than an unverified guess, CI's `dependency-deny` job now
 actually enforcing it (issue #203, D-0341). Issue #198's persistence
@@ -1214,9 +1314,18 @@ calls `RootCore.restore`/`persistState` around it, so a killed and
 reopened app process now restores the same root/device identity rather
 than losing it — a distinct `RestoreFailed` UI state (never a silent
 fresh identity) covers the case where a persisted blob exists but
-cannot be decrypted. The remaining slices (#199-#203) still have no
-Kotlin-side wiring, camera/QR/Bluetooth UI, or a real multi-device test
-— those, plus Gradle/emulator verification of this new Kotlin file (no
+cannot be decrypted. Issue #200 now also has a real Android-facing bridge
+(D-0373): `RootCore` owns the foreground listener and signing keys; the
+Compose home screen renders or captures a signed expiring QR, performs the
+same-LAN acceptance off the UI thread, creates signed follow objects on
+both phones, and persists contacts plus replay memory. QR rendering/decoding
+uses offline-only ZXing Core 3.5.4 and the system camera contract; no
+telemetry or Play Services SDK is added. This is not yet a real-device
+claim: CI must first compile the Kotlin, then two physical phones must prove
+the camera/LAN path. The remaining mobile gaps include full profile/feed
+sync, BLE, foreground-service/background policy wiring, hardware-backed
+signing, and real multi-device tests — those, plus Gradle/emulator
+verification of these Kotlin files (no
 JDK/Android SDK/NDK/Gradle/emulator exists in this environment; Android
 CI's real `assembleDebug` step, issue #204, is what actually verifies
 Kotlin compiles) and the Android app's own dependency-verification
