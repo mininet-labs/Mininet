@@ -13469,3 +13469,72 @@ Local expiry is device policy, not canonical time evidence.
 
 **Supersedes / superseded by:** follows D-0415 and does not supersede
 D-0040, D-0055, D-0061, D-0074, D-0413, D-0414, D-0415, or any audit gate.
+
+### D-0417 — Contribution and Settlement Coordinator: doctrine design doc for the resource/content loop  ·  *Proposed*
+
+**Date:** 2026-07-30 · **Refs:** roadmap #18, #47, #50; D-0026; D-0352
+(Founder Directive 18); D-0400; D-0402; D-0403; D-0413; D-0414; D-0415;
+D-0416; D-0407 (parallel, out-of-scope Forge dev-loop);
+`docs/design/contribution-and-settlement-coordinator.md`; P1, M1, M2, M3;
+Directive 4, Directive 5, Directive 13, Directive 16.
+
+**Decision:** adopt `docs/design/contribution-and-settlement-coordinator.md`
+as the doctrine for a new, small `mini-contribution` crate composing already
+-shipped primitives into one publish → seed → request → deliver → receipt →
+settle → reward lifecycle for content/resources (distinct from D-0407's
+code-contribution loop). The doc identifies `mini-media` (D-0026) as already
+providing the "content manifest" vocabulary a founder direction asked for,
+and scopes the genuinely missing pieces as: a delivery-role vocabulary
+(creator vs. seeder), a binding from `mini-storage::ServeVerdict` into
+`mini-engagement` completion evidence, and deterministic multi-party reward
+splitting into several `mini-settlement::PaymentClaim`s. The new crate is a
+LEAF that must never depend on `mini-forge`/`mini-chain` voting (P1), does no
+network I/O or signing of its own, and funds every payout exclusively from
+the requester's own existing balance — never new issuance.
+
+**Reason:** a founder strategic direction named the missing unified
+contribution runtime as the next highest-priority implementation, with a
+concrete Alice/Bob/Carol vertical slice as its first target. Writing the
+doctrine doc first, before code, follows this repository's established
+pattern (`docs/design/self-hosted-forge-spine.md` before its six batches) and
+lets a prior survey of real crate APIs (`mini-provider`, `mini-engagement`,
+`mini-storage`, `mini-settlement`, `mini-execution`, `mini-economy`,
+`mini-resource-pricing`, `mini-media`, `mini-objects`) prevent duplicating
+work that already exists — most notably `mini-media`'s chunked manifest
+model, which already implements the "content manifest" concept rather than
+needing a new one invented.
+
+**Constitutional impact:** none intended. No frozen invariant is amended.
+M1-M3 are unchanged: the proposed crate only constructs `PaymentClaim`s and
+reads `ServeVerdict`s/`CanonicalCompletionStatus`, never grants itself
+finality authority, and never CRDT-merges money. P1 is preserved by
+construction — the crate's proposed dependency set touches only
+value/delivery crates, never governance. No new cryptography; typed-domain
+inputs only (`Engagement`, `ServeVerdict`, `RewardSplit`, never a generic
+`sign(&[u8])`).
+
+**Implementation status:** doctrine only. No `mini-contribution` crate exists
+yet; the design doc's proposed API (`DeliveryRole`, `RewardSplit`/
+`split_amount`, `bind_delivery_evidence`, `settle_completed_engagement`,
+`ContributionOffer`) is not frozen and may change during implementation. The
+Alice/Bob/Carol vertical slice (crate + one shared-store integration test
+proving a real balance transfer) is separately scoped, tracked follow-up
+work, not part of this entry.
+
+**Failure point:** this is a design doc; its only failure mode so far is
+scoping something that turns out to be wrong once real code is written
+against it. The doc is explicit that its anti-Sybil floor is exactly
+`mini-storage::verify_serve`'s existing checks — unchanged, not raised — and
+that two colluding identity roots can still fake a serve/witness pair for
+each other, the same open limit `docs/INVARIANTS.md` already names.
+
+**Required follow-up:** implement the vertical slice; external economic
+review of any default `RewardSplit` before real value (D-0047 gate); real
+network transport for offer/discovery/delivery (the slice is local-store
+only); adversarial dispute/timeout coverage; wallet/dashboard/CLI wiring;
+reconciling the `Creator` role with `mini-publication-policy`'s `Attribution`
+field; and the still-open #18 Sybil/personhood question this doc does not
+solve.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0026,
+D-0352, D-0400, D-0402, D-0403, D-0413, D-0414, D-0415, D-0416, or D-0407.
