@@ -24,7 +24,7 @@ use crate::error::{ConsensusError, Result};
 
 /// Domain tag: bump the version to evolve the format without ever letting a
 /// v1 message be mistaken for a later one.
-const DOMAIN: &[u8] = b"mini-consensus/msg/v1";
+const DOMAIN: &[u8] = b"mini-consensus/msg/v2";
 
 /// Domain tag for the bytes a proposer signs — distinct from the message
 /// framing tag so a proposal signature can never be confused with any other
@@ -286,6 +286,7 @@ pub(crate) fn decode_header(r: &mut Reader<'_>) -> Result<BlockHeader> {
 pub(crate) fn encode_body(w: &mut Vec<u8>, b: &SettlementBlockBody) {
     w.extend_from_slice(&(b.claims.len() as u32).to_be_bytes());
     for c in &b.claims {
+        w.extend_from_slice(&c.network_id);
         put_bytes(w, &c.payer);
         put_bytes(w, &c.payee);
         w.extend_from_slice(&c.amount_micro.to_be_bytes());
@@ -308,6 +309,8 @@ pub(crate) fn decode_body(r: &mut Reader<'_>) -> Result<SettlementBlockBody> {
     // the (much smaller) real bytes are even read.
     let mut claims = Vec::with_capacity(count.min(64));
     for _ in 0..count {
+        let mut network_id = [0u8; 32];
+        network_id.copy_from_slice(r.take(32)?);
         let payer = r.bytes(MAX_OPAQUE_FIELD_BYTES)?.to_vec();
         let payee = r.bytes(MAX_OPAQUE_FIELD_BYTES)?.to_vec();
         let amount_micro = r.u64()?;
@@ -319,6 +322,7 @@ pub(crate) fn decode_body(r: &mut Reader<'_>) -> Result<SettlementBlockBody> {
         let signature =
             Signature::from_suite_bytes(suite, sig_bytes).map_err(|_| ConsensusError::Malformed)?;
         claims.push(PaymentClaim {
+            network_id,
             payer,
             payee,
             amount_micro,

@@ -12,16 +12,15 @@ required follow-up D-0055 named: `mini-settlement`'s `reconcile`/
 
 - **`SettlementBlockBody`** — an ordered list of `PaymentClaim`s proposed at
   one height. Order **is** the canonical order M3 requires.
-- **`LedgerState`** — for each payer, only the *latest* finalized
-  `(sequence, digest)` pair — deliberately all `mini_settlement::reconcile`
-  ever reads from a `CanonicalLedgerView`, so this state carries no more
-  history than the protocol it backs actually needs. Implements
-  `CanonicalLedgerView` directly; `commitment()` gives a block header's
-  `state_root` real meaning.
-- **`apply_block`** — the state transition: a claim wins its
-  `(payer, sequence)` slot only by strictly exceeding that payer's current
-  high-water-mark; a bad signature, a stale sequence, or a second claim at
-  an already-decided slot is silently dropped, never merged (M1).
+- **`LedgerState`** — transparent balances, the latest finalized
+  `(sequence, digest)` per payer, exact-claim canonical rejection outcomes,
+  network identity, monetary supply, and unallocated circulating issuance.
+  Implements `CanonicalLedgerView` directly; `commitment()` gives a block
+  header's `state_root` real meaning.
+- **`apply_block`** — verifies network, signature, payee, sequence, and
+  available balance in canonical order. Valid non-executing claims receive
+  a deterministic state-committed rejection outcome; invalid signatures are
+  dropped without allowing forged rejection poisoning.
 - **`LedgerChain`** — the one thing that matters most: state only ever
   advances behind a *real, verified* `mini_chain::QuorumCertificate`. There
   is no path to apply a block's claims without first proving it final —

@@ -65,6 +65,22 @@ fn fixture() -> Fixture {
     }
 }
 
+fn account(key: &SigningKey) -> Vec<u8> {
+    key.verifying_key().to_bytes().to_vec()
+}
+
+fn funded_chain(key: &SigningKey, amount_micro: u64) -> LedgerChain {
+    let amount = Amount::from(amount_micro);
+    LedgerChain::genesis_with_balances(amount, vec![(account(key), amount)]).unwrap()
+}
+
+fn recipient(seed: u8) -> Vec<u8> {
+    SigningKey::from_seed(&[seed; 32])
+        .verifying_key()
+        .to_bytes()
+        .to_vec()
+}
+
 fn monetary_plan(epoch: u64, opening: Amount) -> mini_economy::ScalableEpochPlan {
     plan_scalable_epoch(
         &ScalableEpochRequest {
@@ -119,6 +135,11 @@ fn finalized_monetary_epoch_updates_supply_and_replay_fails() {
         .unwrap();
     assert_eq!(chain.state().monetary().last_epoch(), Some(0));
     assert_eq!(chain.state().monetary().total_issued(), plan.total_issued);
+    assert_eq!(
+        chain.state().unallocated_circulating(),
+        chain.state().monetary().circulating_supply().unwrap()
+    );
+    chain.state().verify_supply_conservation().unwrap();
 
     let replay = SettlementBlockBody::new(vec![]).with_monetary_epochs(vec![plan]);
     assert_eq!(
@@ -130,10 +151,9 @@ fn finalized_monetary_epoch_updates_supply_and_replay_fails() {
 #[test]
 fn a_single_claim_finalizes_end_to_end_and_reconcile_reports_it() {
     let fx = fixture();
-    let mut chain = LedgerChain::genesis();
-
     let payer = SigningKey::from_seed(&[0x55; 32]);
-    let claim = sign_claim(&payer, b"merchant", 500, 0, 10_000, b"chain-1", 0).unwrap();
+    let mut chain = funded_chain(&payer, 500);
+    let claim = sign_claim(&payer, &recipient(0x51), 500, 0, 10_000, b"chain-1", 0).unwrap();
     let body = SettlementBlockBody::new(vec![claim.clone()]);
 
     let next_state = mini_execution::apply_block(chain.state(), &body).unwrap();
@@ -160,6 +180,9 @@ fn a_single_claim_finalizes_end_to_end_and_reconcile_reports_it() {
         .apply_finalized_block(&header, &body, &qc, &fx.validators, &fx.oracle)
         .unwrap();
     assert_eq!(chain.height(), 1);
+    assert_eq!(chain.state().balance(&claim.payer), Amount::ZERO);
+    assert_eq!(chain.state().balance(&claim.payee), Amount::from(500));
+    chain.state().verify_supply_conservation().unwrap();
 
     let outcome = reconcile(&claim, chain.state(), 100).unwrap();
     assert_eq!(outcome, SettlementState::Finalized);
@@ -167,13 +190,48 @@ fn a_single_claim_finalizes_end_to_end_and_reconcile_reports_it() {
 }
 
 #[test]
+fn a_finalized_overspend_returns_a_canonical_wallet_rejection() {
+    let fx = fixture();
+    let payer = SigningKey::from_seed(&[0x56; 32]);
+    let mut chain = funded_chain(&payer, 500);
+    let claim = sign_claim(&payer, &recipient(0x51), 501, 0, 10_000, b"chain-1", 0).unwrap();
+    let body = SettlementBlockBody::new(vec![claim.clone()]);
+    let next_state = mini_execution::apply_block(chain.state(), &body).unwrap();
+    let header = BlockHeader {
+        height: 1,
+        prev_hash: chain.tip_hash(),
+        state_root: next_state.commitment(),
+        timestamp_ms: 1,
+        proposer: fx.signers[0].0.did(),
+    };
+    let hash = header.hash();
+    let qc = QuorumCertificate {
+        height: 1,
+        round: 0,
+        block_hash: hash,
+        votes: fx.signers[..3]
+            .iter()
+            .map(|(root, device)| sign_vote(VoteKind::Precommit, 1, 0, hash, &root.did(), device))
+            .collect(),
+    };
+    chain
+        .apply_finalized_block(&header, &body, &qc, &fx.validators, &fx.oracle)
+        .unwrap();
+
+    assert_eq!(chain.state().balance(&claim.payer), Amount::from(500));
+    assert_eq!(
+        reconcile(&claim, chain.state(), 100).unwrap(),
+        SettlementState::RejectedCanonical(mini_settlement::CanonicalRejection::InsufficientFunds)
+    );
+}
+
+#[test]
 fn a_double_spend_across_two_competing_proposals_resolves_to_exactly_one_winner() {
     let fx = fixture();
-    let mut chain = LedgerChain::genesis();
-
     let payer = SigningKey::from_seed(&[0x66; 32]);
-    let claim_a = sign_claim(&payer, b"merchant-a", 500, 0, 10_000, b"chain-1", 0).unwrap();
-    let claim_b = sign_claim(&payer, b"merchant-b", 500, 0, 10_000, b"chain-1", 0).unwrap();
+    let mut chain = funded_chain(&payer, 500);
+    let claim_a = sign_claim(&payer, &recipient(0x51), 500, 0, 10_000, b"chain-1", 0).unwrap();
+    let claim_b = sign_claim(&payer, &recipient(0x52), 500, 0, 10_000, b"chain-1", 0).unwrap();
     assert_ne!(
         mini_settlement::claim_digest(&claim_a),
         mini_settlement::claim_digest(&claim_b)
@@ -216,18 +274,24 @@ fn a_double_spend_across_two_competing_proposals_resolves_to_exactly_one_winner(
     assert_eq!(outcome_a, SettlementState::Finalized);
     assert_eq!(outcome_b, SettlementState::RejectedConflict);
     assert!(outcome_a.is_final() ^ outcome_b.is_final());
+    assert_eq!(chain.state().balance(&claim_a.payee), Amount::from(500));
+    assert_eq!(chain.state().balance(&claim_b.payee), Amount::ZERO);
 }
 
 #[test]
 fn two_independent_chains_fed_the_same_finalized_blocks_converge_to_identical_state() {
     let fx = fixture();
-    let mut chain_1 = LedgerChain::genesis();
-    let mut chain_2 = LedgerChain::genesis();
-
     let payer_1 = SigningKey::from_seed(&[0x11; 32]);
     let payer_2 = SigningKey::from_seed(&[0x22; 32]);
-    let claim_1 = sign_claim(&payer_1, b"merchant", 100, 0, 10_000, b"chain-1", 0).unwrap();
-    let claim_2 = sign_claim(&payer_2, b"merchant", 200, 0, 10_000, b"chain-1", 0).unwrap();
+    let allocations = vec![
+        (account(&payer_1), Amount::from(100)),
+        (account(&payer_2), Amount::from(200)),
+    ];
+    let mut chain_1 =
+        LedgerChain::genesis_with_balances(Amount::from(300), allocations.clone()).unwrap();
+    let mut chain_2 = LedgerChain::genesis_with_balances(Amount::from(300), allocations).unwrap();
+    let claim_1 = sign_claim(&payer_1, &recipient(0x51), 100, 0, 10_000, b"chain-1", 0).unwrap();
+    let claim_2 = sign_claim(&payer_2, &recipient(0x52), 200, 0, 10_000, b"chain-1", 0).unwrap();
 
     for (height, claim) in [(1u64, claim_1), (2u64, claim_2)] {
         let body = SettlementBlockBody::new(vec![claim]);
@@ -278,7 +342,7 @@ fn an_unfinalized_block_is_never_applied() {
     let mut chain = LedgerChain::genesis();
 
     let payer = SigningKey::from_seed(&[0x77; 32]);
-    let claim = sign_claim(&payer, b"merchant", 500, 0, 10_000, b"chain-1", 0).unwrap();
+    let claim = sign_claim(&payer, &recipient(0x51), 500, 0, 10_000, b"chain-1", 0).unwrap();
     let body = SettlementBlockBody::new(vec![claim]);
     let next_state = mini_execution::apply_block(chain.state(), &body).unwrap();
     let header = BlockHeader {
@@ -319,7 +383,7 @@ fn a_dishonest_state_root_is_rejected() {
     let mut chain = LedgerChain::genesis();
 
     let payer = SigningKey::from_seed(&[0x88; 32]);
-    let claim = sign_claim(&payer, b"merchant", 500, 0, 10_000, b"chain-1", 0).unwrap();
+    let claim = sign_claim(&payer, &recipient(0x51), 500, 0, 10_000, b"chain-1", 0).unwrap();
     let body = SettlementBlockBody::new(vec![claim]);
     let header = BlockHeader {
         height: 1,
@@ -426,10 +490,9 @@ fn a_timestamp_that_does_not_equal_the_block_height_is_rejected() {
     // merely a monotonicity bound a malicious proposer could still exploit
     // (e.g. jumping straight to `u64::MAX`).
     let fx = fixture();
-    let mut chain = LedgerChain::genesis();
-
     let payer = SigningKey::from_seed(&[0x99; 32]);
-    let claim_1 = sign_claim(&payer, b"merchant", 100, 0, 10_000, b"chain-1", 0).unwrap();
+    let mut chain = funded_chain(&payer, 200);
+    let claim_1 = sign_claim(&payer, &recipient(0x51), 100, 0, 10_000, b"chain-1", 0).unwrap();
     let body_1 = SettlementBlockBody::new(vec![claim_1]);
     let next_state_1 = mini_execution::apply_block(chain.state(), &body_1).unwrap();
     let header_1 = BlockHeader {
@@ -459,7 +522,7 @@ fn a_timestamp_that_does_not_equal_the_block_height_is_rejected() {
     // still "increasing," so a merely-monotonic check would have let this
     // through. It must be rejected even though everything else about it
     // (height, parent, state root, quorum) is perfectly valid.
-    let claim_2 = sign_claim(&payer, b"merchant", 100, 1, 10_000, b"chain-1", 0).unwrap();
+    let claim_2 = sign_claim(&payer, &recipient(0x52), 100, 1, 10_000, b"chain-1", 0).unwrap();
     let body_2 = SettlementBlockBody::new(vec![claim_2]);
     let next_state_2 = mini_execution::apply_block(chain.state(), &body_2).unwrap();
     let header_2 = BlockHeader {

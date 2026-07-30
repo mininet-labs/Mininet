@@ -11,6 +11,15 @@
 /// A read-only view of canonical, finalized settlement state for one payer.
 /// A real implementation is chain-backed; [`crate::InMemoryLedgerView`] is
 /// for tests only.
+/// Consensus-authenticated reason an exact claim did not execute.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CanonicalRejection {
+    WrongNetwork,
+    UnsupportedPayee,
+    StaleSequence,
+    InsufficientFunds,
+}
+
 pub trait CanonicalLedgerView {
     /// The highest sequence this ledger has finalized a claim at for `payer`,
     /// if any. `None` means this payer has never had a claim finalized.
@@ -20,6 +29,11 @@ pub trait CanonicalLedgerView {
     /// finalized for `payer` at exactly `sequence`, if any. Only meaningful
     /// when `sequence <= finalized_sequence(payer)`.
     fn finalized_claim_digest(&self, payer: &[u8], sequence: u64) -> Option<[u8; 32]>;
+
+    /// A canonical rejection for this exact signed claim digest, if retained.
+    fn rejected_claim(&self, _digest: &[u8; 32]) -> Option<CanonicalRejection> {
+        None
+    }
 }
 
 /// A trivial in-memory [`CanonicalLedgerView`] — test-only. Production
@@ -28,6 +42,7 @@ pub trait CanonicalLedgerView {
 #[derive(Debug, Default)]
 pub struct InMemoryLedgerView {
     finalized: std::collections::HashMap<Vec<u8>, Vec<(u64, [u8; 32])>>,
+    rejected: std::collections::HashMap<[u8; 32], CanonicalRejection>,
 }
 
 impl InMemoryLedgerView {
@@ -45,6 +60,10 @@ impl InMemoryLedgerView {
             .or_default()
             .push((sequence, digest));
     }
+
+    pub fn reject(&mut self, digest: [u8; 32], reason: CanonicalRejection) {
+        self.rejected.insert(digest, reason);
+    }
 }
 
 impl CanonicalLedgerView for InMemoryLedgerView {
@@ -60,5 +79,9 @@ impl CanonicalLedgerView for InMemoryLedgerView {
             .iter()
             .find(|(n, _)| *n == sequence)
             .map(|(_, d)| *d)
+    }
+
+    fn rejected_claim(&self, digest: &[u8; 32]) -> Option<CanonicalRejection> {
+        self.rejected.get(digest).copied()
     }
 }

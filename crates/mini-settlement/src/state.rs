@@ -38,6 +38,8 @@ pub enum SettlementState {
     /// action. This claim is rejected outright; it is never merged,
     /// retried, or partially honored.
     RejectedConflict,
+    /// The canonical executor evaluated this exact claim and rejected it.
+    RejectedCanonical(crate::CanonicalRejection),
     /// `valid_until_ms` passed before the claim reached canonical
     /// inclusion, and it was never referenced by anything the canonical
     /// ledger finalized.
@@ -65,7 +67,9 @@ impl SettlementState {
             }
             SettlementState::AcceptedLocal => WalletLabel::AcceptedNotFinal,
             SettlementState::Finalized => WalletLabel::Finalized,
-            SettlementState::RejectedConflict => WalletLabel::Rejected,
+            SettlementState::RejectedConflict | SettlementState::RejectedCanonical(_) => {
+                WalletLabel::Rejected
+            }
             SettlementState::Expired => WalletLabel::Expired,
         }
     }
@@ -101,6 +105,10 @@ mod tests {
         assert!(!SettlementState::AcceptedLocal.is_final());
         assert!(!SettlementState::PendingCanonical.is_final());
         assert!(!SettlementState::RejectedConflict.is_final());
+        assert!(
+            !SettlementState::RejectedCanonical(crate::CanonicalRejection::InsufficientFunds)
+                .is_final()
+        );
         assert!(!SettlementState::Expired.is_final());
     }
 

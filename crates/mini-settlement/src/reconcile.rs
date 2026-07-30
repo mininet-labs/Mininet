@@ -87,6 +87,9 @@ pub fn reconcile(
     verify_claim_signature(claim)?;
 
     let digest = claim_digest(claim);
+    if let Some(reason) = ledger.rejected_claim(&digest) {
+        return Ok(SettlementState::RejectedCanonical(reason));
+    }
     let outcome = match ledger.finalized_sequence(&claim.payer) {
         None => SettlementState::PendingCanonical,
         Some(finalized_sequence) if finalized_sequence < claim.sequence => {
@@ -136,6 +139,20 @@ mod tests {
         assert_eq!(
             reconcile(&claim, &ledger, 100).unwrap(),
             SettlementState::PendingCanonical
+        );
+    }
+
+    #[test]
+    fn a_canonical_rejection_is_terminal_and_wallet_visible() {
+        let claim = sign_claim(&payer(), b"payee", 1_000, 0, 10_000, b"chain-1", 0).unwrap();
+        let mut ledger = InMemoryLedgerView::new();
+        ledger.reject(
+            crate::claim_digest(&claim),
+            crate::CanonicalRejection::InsufficientFunds,
+        );
+        assert_eq!(
+            reconcile(&claim, &ledger, 100).unwrap(),
+            SettlementState::RejectedCanonical(crate::CanonicalRejection::InsufficientFunds)
         );
     }
 
