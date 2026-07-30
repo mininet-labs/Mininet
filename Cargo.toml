@@ -71,6 +71,7 @@ members = [
     "crates/mini-replication-policy",
     "crates/mini-economy",
     "crates/mini-econ-sim",
+    "crates/mini-contribution",
 ]
 
 [workspace.package]

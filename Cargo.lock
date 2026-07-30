@@ -2392,6 +2392,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-contribution"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-chain",
+ "mini-crypto",
+ "mini-economy",
+ "mini-engagement",
+ "mini-execution",
+ "mini-media",
+ "mini-objects",
+ "mini-provider",
+ "mini-settlement",
+ "mini-storage",
+ "mini-store",
+]
+
+[[package]]
 name = "mini-crawler"
 version = "0.0.1"
 dependencies = [
