@@ -340,7 +340,7 @@ fn rejection_tag(reason: CanonicalRejection) -> u8 {
     }
 }
 
-fn is_supported_account(account: &[u8]) -> bool {
+pub(crate) fn is_supported_account(account: &[u8]) -> bool {
     !account.is_empty()
         && account.len() <= MAX_ACCOUNT_BYTES
         && VerifyingKey::from_suite_bytes(SignatureSuite::DEFAULT, account).is_ok()

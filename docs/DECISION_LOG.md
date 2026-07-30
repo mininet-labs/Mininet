@@ -13340,3 +13340,42 @@ post-quantum ownership migration; and full external audits.
 
 **Supersedes / superseded by:** stacked on proposed D-0414 and does not
 supersede D-0040, D-0055, D-0061, D-0074, D-0413, or any audit gate.
+
+---
+
+### D-0416 — Bounded standalone payment submission and local admission  ·  *Proposed*
+
+**Roadmap:** payment portion of #61; follows merged PR #273/D-0415.
+
+**Decision:** propose a standalone, domain-tagged, bounded `PaymentClaim` wire
+codec and a node-local `PaymentAdmissionPool`. Admission verifies claim
+structure, signature, settlement network, payee support, local validity,
+canonical resolution, sequence conflicts, aggregate pending spend, and
+independent global/per-payer/byte limits. Candidate order is deterministic by
+payer, sequence, and digest. Finalized-state revalidation evicts stale,
+resolved, expired, or newly unaffordable claims with explicit local reasons.
+
+**Reason:** D-0415 made finalized balance execution real but left no safe seam
+for a wallet to submit one claim. The only decoder lived inside a complete
+consensus proposal, and an unbounded queue in front of execution would turn
+otherwise-correct payment code into a trivial memory/CPU denial of service.
+
+**Constitutional impact:** M1-M3 remain unchanged. Admission never merges,
+moves, locks, reserves canonically, or finalizes value. Canonical execution
+behind quorum finality remains the sole ownership transition. P1 and A1 are
+unchanged; no balance becomes governance authority and no new cryptography is
+introduced.
+
+**Implementation status:** proposed code includes 4,096-byte field and 16-KiB
+claim bounds; exact standalone round-trip; malformed/truncated/trailing/
+unknown-suite rejection; default 4,096-claim, 8-MiB, 64-per-payer pool bounds;
+same-slot conflict and aggregate-overspend refusal; deterministic candidate
+selection; removal accounting; and canonical revalidation.
+
+**Failure point:** no authenticated submission transport, re-gossip,
+Sybil-resistant spam cost, fee accounting, inclusion guarantee, durable pool,
+private routing, load benchmark, or canonical rejection pruning/proof exists.
+Local expiry is device policy, not canonical time evidence.
+
+**Supersedes / superseded by:** follows D-0415 and does not supersede
+D-0040, D-0055, D-0061, D-0074, D-0413, D-0414, D-0415, or any audit gate.

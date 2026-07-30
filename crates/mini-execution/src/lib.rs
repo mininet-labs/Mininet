@@ -57,11 +57,13 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod admission;
 mod body;
 mod chain;
 mod error;
 mod state;
 
+pub use admission::{AdmissionError, AdmissionPolicy, PaymentAdmissionPool};
 pub use body::{SettlementBlockBody, MAX_CLAIMS_PER_BLOCK};
 pub use chain::LedgerChain;
 pub use error::{ExecutionError, Result};

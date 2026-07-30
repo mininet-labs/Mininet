@@ -13,6 +13,8 @@ canonical consensus."*
   message is length-prefixed and domain-tagged
   (`mini-settlement/payment-claim/v1`), the same discipline `mini-bounty`
   uses, so no two distinct claims can ever collide on the wire.
+  A separate bounded `payment-claim-wire/v1` codec lets a wallet submit one
+  claim without manufacturing a consensus proposal envelope.
 - **`SettlementState`** — the wallet-facing state machine M2 requires:
   `SignedLocal → AcceptedLocal → PendingCanonical → Finalized |
   RejectedConflict | RejectedCanonical(reason) | Expired`. Only `Finalized` is final —
