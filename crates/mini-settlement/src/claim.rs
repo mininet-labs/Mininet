@@ -28,6 +28,12 @@ use crate::error::{Result, SettlementError};
 /// Domain tag for the signed message, versioned so a future claim shape
 /// can coexist without ever being confused with this one.
 const CLAIM_DOMAIN: &[u8] = b"mini-settlement/payment-claim/v1";
+const CLAIM_WIRE_DOMAIN: &[u8] = b"mini-settlement/payment-claim-wire/v1";
+
+/// Maximum payer, payee, or chain-head hint bytes accepted from the wire.
+pub const MAX_CLAIM_FIELD_BYTES: usize = 4_096;
+/// Maximum encoded size of one standalone payment claim.
+pub const MAX_PAYMENT_CLAIM_BYTES: usize = 16 * 1024;
 
 /// Stable identifier of the canonical public Mininet settlement domain.
 ///
@@ -132,6 +138,130 @@ pub fn sign_claim(
         last_known_chain,
         now_ms,
     )
+}
+
+impl PaymentClaim {
+    /// Canonical bounded bytes for wallet-to-validator submission.
+    pub fn to_wire_bytes(&self) -> Result<Vec<u8>> {
+        if self.payer.len() > MAX_CLAIM_FIELD_BYTES
+            || self.payee.len() > MAX_CLAIM_FIELD_BYTES
+            || self.last_known_chain.len() > MAX_CLAIM_FIELD_BYTES
+        {
+            return Err(SettlementError::ClaimTooLarge);
+        }
+        let mut w = Vec::new();
+        w.extend_from_slice(CLAIM_WIRE_DOMAIN);
+        w.extend_from_slice(&self.network_id);
+        put_bytes(&mut w, &self.payer);
+        put_bytes(&mut w, &self.payee);
+        w.extend_from_slice(&self.amount_micro.to_be_bytes());
+        w.extend_from_slice(&self.sequence.to_be_bytes());
+        w.extend_from_slice(&self.valid_until_ms.to_be_bytes());
+        put_bytes(&mut w, &self.last_known_chain);
+        w.push(self.signature.suite().tag());
+        w.extend_from_slice(&self.signature.to_bytes());
+        if w.len() > MAX_PAYMENT_CLAIM_BYTES {
+            return Err(SettlementError::ClaimTooLarge);
+        }
+        Ok(w)
+    }
+
+    /// Decode one standalone claim with allocation bounds checked first.
+    pub fn from_wire_bytes(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() > MAX_PAYMENT_CLAIM_BYTES {
+            return Err(SettlementError::ClaimTooLarge);
+        }
+        let mut r = ClaimReader::new(bytes);
+        if r.take(CLAIM_WIRE_DOMAIN.len())? != CLAIM_WIRE_DOMAIN {
+            return Err(SettlementError::MalformedClaim);
+        }
+        let mut network_id = [0u8; 32];
+        network_id.copy_from_slice(r.take(32)?);
+        let payer = r.bytes(MAX_CLAIM_FIELD_BYTES)?.to_vec();
+        let payee = r.bytes(MAX_CLAIM_FIELD_BYTES)?.to_vec();
+        let amount_micro = r.u64()?;
+        let sequence = r.u64()?;
+        let valid_until_ms = r.u64()?;
+        let last_known_chain = r.bytes(MAX_CLAIM_FIELD_BYTES)?.to_vec();
+        let suite =
+            SignatureSuite::from_tag(r.u8()?).map_err(|_| SettlementError::MalformedClaim)?;
+        let signature = Signature::from_suite_bytes(suite, r.take(suite.signature_len())?)
+            .map_err(|_| SettlementError::MalformedClaim)?;
+        if !r.finished() {
+            return Err(SettlementError::MalformedClaim);
+        }
+        Ok(Self {
+            network_id,
+            payer,
+            payee,
+            amount_micro,
+            sequence,
+            valid_until_ms,
+            last_known_chain,
+            signature,
+        })
+    }
+}
+
+fn put_bytes(w: &mut Vec<u8>, bytes: &[u8]) {
+    w.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+    w.extend_from_slice(bytes);
+}
+
+struct ClaimReader<'a> {
+    bytes: &'a [u8],
+    position: usize,
+}
+
+impl<'a> ClaimReader<'a> {
+    fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, position: 0 }
+    }
+
+    fn take(&mut self, length: usize) -> Result<&'a [u8]> {
+        let end = self
+            .position
+            .checked_add(length)
+            .ok_or(SettlementError::MalformedClaim)?;
+        let value = self
+            .bytes
+            .get(self.position..end)
+            .ok_or(SettlementError::MalformedClaim)?;
+        self.position = end;
+        Ok(value)
+    }
+
+    fn u8(&mut self) -> Result<u8> {
+        Ok(self.take(1)?[0])
+    }
+
+    fn u32(&mut self) -> Result<u32> {
+        Ok(u32::from_be_bytes(
+            self.take(4)?
+                .try_into()
+                .map_err(|_| SettlementError::MalformedClaim)?,
+        ))
+    }
+
+    fn u64(&mut self) -> Result<u64> {
+        Ok(u64::from_be_bytes(
+            self.take(8)?
+                .try_into()
+                .map_err(|_| SettlementError::MalformedClaim)?,
+        ))
+    }
+
+    fn bytes(&mut self, maximum: usize) -> Result<&'a [u8]> {
+        let length = usize::try_from(self.u32()?).map_err(|_| SettlementError::MalformedClaim)?;
+        if length > maximum {
+            return Err(SettlementError::ClaimTooLarge);
+        }
+        self.take(length)
+    }
+
+    fn finished(&self) -> bool {
+        self.position == self.bytes.len()
+    }
 }
 
 /// Sign a payment claim for one exact settlement network.
@@ -340,6 +470,67 @@ mod tests {
         .unwrap();
         assert_ne!(claim_digest(&a), claim_digest(&b));
         assert_ne!(a.signature, b.signature);
+    }
+
+    #[test]
+    fn standalone_wire_round_trip_preserves_digest_and_signature() {
+        let claim = sign_claim(
+            &payer_key(),
+            b"payee-a",
+            1_000,
+            7,
+            10_000,
+            b"chain-head-1",
+            0,
+        )
+        .unwrap();
+        let decoded = PaymentClaim::from_wire_bytes(&claim.to_wire_bytes().unwrap()).unwrap();
+        assert_eq!(decoded, claim);
+        assert_eq!(claim_digest(&decoded), claim_digest(&claim));
+        verify_claim_signature(&decoded).unwrap();
+    }
+
+    #[test]
+    fn standalone_wire_rejects_every_truncation_and_trailing_bytes() {
+        let claim = sign_claim(
+            &payer_key(),
+            b"payee-a",
+            1_000,
+            7,
+            10_000,
+            b"chain-head-1",
+            0,
+        )
+        .unwrap();
+        let bytes = claim.to_wire_bytes().unwrap();
+        for cut in 0..bytes.len() {
+            assert!(PaymentClaim::from_wire_bytes(&bytes[..cut]).is_err());
+        }
+        let mut trailing = bytes;
+        trailing.push(0);
+        assert_eq!(
+            PaymentClaim::from_wire_bytes(&trailing).unwrap_err(),
+            SettlementError::MalformedClaim
+        );
+    }
+
+    #[test]
+    fn standalone_wire_rejects_oversized_fields_before_encoding() {
+        let mut claim = sign_claim(
+            &payer_key(),
+            b"payee-a",
+            1_000,
+            7,
+            10_000,
+            b"chain-head-1",
+            0,
+        )
+        .unwrap();
+        claim.last_known_chain = vec![0; MAX_CLAIM_FIELD_BYTES + 1];
+        assert_eq!(
+            claim.to_wire_bytes().unwrap_err(),
+            SettlementError::ClaimTooLarge
+        );
     }
 
     #[test]

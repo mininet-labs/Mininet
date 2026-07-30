@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-30T00:30:00Z",
+  "updated_at": "2026-07-30T00:08:46Z",
   "claims": [
     {
       "issue": 122,
@@ -524,7 +524,7 @@
     },
     {
       "issue": 61,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "codex/day0-balance-ledger",
       "pull_request": 273,
@@ -546,7 +546,31 @@
       "decision_ids": [
         "D-0415"
       ],
-      "notes": "Large Day-0 payment portion of roadmap #61, rebased on merged PR #272: transparent finalized balances, exact genesis allocation, debit/credit and supply conservation, signed settlement-network domain separation, consensus wire v2, and canonical wallet-readable rejection outcomes. Marketplace order/escrow/dispute objects, private transactions, production genesis, fees/mempool, compact state/rejection proofs and activation remain out of scope."
+      "notes": "Large Day-0 payment portion of roadmap #61, rebased on merged PR #272: transparent finalized balances, exact genesis allocation, debit/credit and supply conservation, signed settlement-network domain separation, consensus wire v2, and canonical wallet-readable rejection outcomes. PR #273 merged to main as 9d7ff8f on 2026-07-30; this follow-up registry touch closes the claim. Marketplace order/escrow/dispute objects, private transactions, production genesis, fees/mempool, compact state/rejection proofs and activation remain out of scope."
+    },
+    {
+      "issue": 61,
+      "status": "in_review",
+      "contributor": "Codex",
+      "branch": "codex/day0-payment-admission",
+      "pull_request": 274,
+      "lease_expires": "2026-08-13",
+      "paths": [
+        "README.md",
+        "crates/mini-settlement/",
+        "crates/mini-execution/",
+        "docs/design/day0-payment-admission.md",
+        "docs/audits/day0-payment-admission-review.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "docs/THREAT_MODEL.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0416"
+      ],
+      "notes": "Next large Day-0 payment portion of roadmap #61 after merged PR #273: standalone bounded PaymentClaim wire codec and deterministic node-local admission pool with signature/network/payee/expiry preflight, conflict and aggregate-overspend refusal, global/byte/per-payer limits, candidate ordering, and canonical revalidation. No authenticated network submission, re-gossip, fees, inclusion guarantee, persistence, privacy, or activation."
     }
   ]
 }

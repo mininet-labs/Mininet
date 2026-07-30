@@ -350,6 +350,14 @@ given time.
   This is deliberately transparent Tier 0: no confidential transaction,
   private Human Share claim, production genesis, fees/mempool, bounded
   rejection-proof pruning, or marketplace object is claimed.
+- **proposed bounded payment admission (D-0416, follows merged #273;
+  payment portion of roadmap #61)** — `PaymentClaim` has a standalone,
+  bounded canonical wire frame and `mini-execution::PaymentAdmissionPool`
+  provides local signature/network/payee/expiry preflight, duplicate and
+  conflict refusal, aggregate balance reservation, count/byte/per-payer
+  limits, deterministic proposal candidates, and post-finality revalidation.
+  This is not a network mempool, fee mechanism, inclusion guarantee,
+  persistent queue, or canonical reservation.
 - **prototype** — `mini-settlement` (D-0055, closes roadmap #41): the M1/M2/M3
   offline settlement protocol is real, tested code — signed
   `PaymentClaim`s, the `SettlementState` wallet vocabulary

@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 64,
-    "files": 734,
-    "headings": 2388,
-    "rust_symbols": 6515
+    "files": 737,
+    "headings": 2399,
+    "rust_symbols": 6566
   },
   "crates": {
     "did-mini": {
@@ -1659,7 +1659,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 20323,
+      "bytes": 20624,
       "group": "root",
       "headings": [
         {
@@ -1679,22 +1679,22 @@
         },
         {
           "level": 2,
-          "line": 247,
+          "line": 251,
           "text": "Start here"
         },
         {
           "level": 2,
-          "line": 259,
+          "line": 263,
           "text": "Beta testing and contributing"
         },
         {
           "level": 2,
-          "line": 283,
+          "line": 287,
           "text": "The canonical documents"
         },
         {
           "level": 2,
-          "line": 325,
+          "line": 329,
           "text": "License"
         }
       ],
@@ -1724,9 +1724,9 @@
         "path",
         "switch"
       ],
-      "lines": 329,
+      "lines": 333,
       "path": "README.md",
-      "sha256": "f07063d7259d3b2cd3760998f709b96f3e709904538c72ff2961fbe07a4f0c15",
+      "sha256": "e451fe69efd6eef8927832c74960a1671cdb3c3acfbfe85c64797f62bfe594e0",
       "symbols": [],
       "title": "Mininet"
     },
@@ -23059,7 +23059,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 3598,
+      "bytes": 3883,
       "group": "crate:mini-execution",
       "headings": [
         {
@@ -23074,17 +23074,17 @@
         },
         {
           "level": 2,
-          "line": 30,
+          "line": 34,
           "text": "What this proves, and how"
         },
         {
           "level": 2,
-          "line": 46,
+          "line": 50,
           "text": "What this crate is not"
         },
         {
           "level": 2,
-          "line": 64,
+          "line": 68,
           "text": "Build & test"
         }
       ],
@@ -23093,32 +23093,229 @@
         "one",
         "mini-execution",
         "what",
+        "deterministic",
         "state",
         "mini-chain",
         "mini-settlement",
         "canonical",
         "ledgerstate",
         "sequence",
+        "network",
         "block",
         "header",
         "claims",
+        "never",
         "two",
-        "deterministic",
+        "finality",
         "verification",
         "canonicalledgerview",
         "height",
         "order",
         "rejection",
-        "network",
-        "never",
-        "construction",
-        "proves"
+        "construction"
       ],
-      "lines": 71,
+      "lines": 75,
       "path": "crates/mini-execution/README.md",
-      "sha256": "871b2896c75429b75cdae50d745c0d91908dd2d8df9347169ddeebdcc3559354",
+      "sha256": "465df1c5a88843ac1170ba2beabf3a915cfc6dac14ae4f29ffdd482929abe267",
       "symbols": [],
       "title": "mini-execution"
+    },
+    {
+      "bytes": 18874,
+      "group": "crate:mini-execution",
+      "headings": [],
+      "keywords": [
+        "self",
+        "claim",
+        "admissionerror",
+        "policy",
+        "claims",
+        "btreemap",
+        "fmt",
+        "admission",
+        "state",
+        "local",
+        "usize",
+        "admissionpolicy",
+        "new",
+        "encoded_bytes",
+        "admit",
+        "max_claims",
+        "default",
+        "std",
+        "error",
+        "paymentadmissionpool",
+        "len",
+        "payer",
+        "paymentclaim",
+        "one"
+      ],
+      "lines": 558,
+      "path": "crates/mini-execution/src/admission.rs",
+      "sha256": "0d70e71083cbbc1b630d26dda3f75e7bb5c69931443568106e7b701437b3b660",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 16,
+          "name": "AdmissionPolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 22,
+          "name": "Default"
+        },
+        {
+          "kind": "fn",
+          "line": 23,
+          "name": "default"
+        },
+        {
+          "kind": "enum",
+          "line": 35,
+          "name": "AdmissionError"
+        },
+        {
+          "kind": "impl",
+          "line": 51,
+          "name": "fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 52,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 77,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "struct",
+          "line": 81,
+          "name": "PaymentAdmissionPool"
+        },
+        {
+          "kind": "impl",
+          "line": 89,
+          "name": "PaymentAdmissionPool"
+        },
+        {
+          "kind": "fn",
+          "line": 90,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
+          "name": "len"
+        },
+        {
+          "kind": "fn",
+          "line": 112,
+          "name": "is_empty"
+        },
+        {
+          "kind": "fn",
+          "line": 116,
+          "name": "encoded_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 121,
+          "name": "admit_wire"
+        },
+        {
+          "kind": "fn",
+          "line": 133,
+          "name": "admit"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "candidates"
+        },
+        {
+          "kind": "fn",
+          "line": 210,
+          "name": "revalidate"
+        },
+        {
+          "kind": "fn",
+          "line": 244,
+          "name": "remove"
+        },
+        {
+          "kind": "fn",
+          "line": 273,
+          "name": "validate_claim"
+        },
+        {
+          "kind": "mod",
+          "line": 300,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 306,
+          "name": "payer"
+        },
+        {
+          "kind": "fn",
+          "line": 310,
+          "name": "account"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "recipient"
+        },
+        {
+          "kind": "fn",
+          "line": 318,
+          "name": "state"
+        },
+        {
+          "kind": "fn",
+          "line": 326,
+          "name": "claim"
+        },
+        {
+          "kind": "fn",
+          "line": 340,
+          "name": "invalid_or_excessive_policies_fail_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 360,
+          "name": "candidate_order_is_independent_of_arrival_order"
+        },
+        {
+          "kind": "fn",
+          "line": 389,
+          "name": "duplicate_conflict_and_aggregate_overspend_are_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 412,
+          "name": "signature_network_payee_and_expiry_are_checked_before_storage"
+        },
+        {
+          "kind": "fn",
+          "line": 469,
+          "name": "standalone_wire_submission_reaches_the_same_admission_path"
+        },
+        {
+          "kind": "fn",
+          "line": 488,
+          "name": "count_per_payer_and_byte_limits_are_independent"
+        },
+        {
+          "kind": "fn",
+          "line": 526,
+          "name": "revalidation_evicts_finalized_expired_and_now_unaffordable_claims"
+        }
+      ],
+      "title": "use std::collections::BTreeMap;"
     },
     {
       "bytes": 2672,
@@ -23362,7 +23559,7 @@
       "title": "use core::fmt;"
     },
     {
-      "bytes": 3586,
+      "bytes": 3675,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
@@ -23374,6 +23571,7 @@
         "real",
         "own",
         "one",
+        "admission",
         "error",
         "machine",
         "finality",
@@ -23388,38 +23586,42 @@
         "roadmap",
         "issues",
         "rules",
-        "settlementblockbody",
-        "paymentclaim"
+        "settlementblockbody"
       ],
-      "lines": 69,
+      "lines": 71,
       "path": "crates/mini-execution/src/lib.rs",
-      "sha256": "55bbda5c66b548256b39f1086e297d9512cceee7251efd1f1d9c0bdfc3bc187b",
+      "sha256": "b15a3ca5fc9658b286c1417123efa4a2faef4f8209c89c09900bf45254846d8b",
       "symbols": [
         {
           "kind": "mod",
           "line": 60,
-          "name": "body"
+          "name": "admission"
         },
         {
           "kind": "mod",
           "line": 61,
-          "name": "chain"
+          "name": "body"
         },
         {
           "kind": "mod",
           "line": 62,
-          "name": "error"
+          "name": "chain"
         },
         {
           "kind": "mod",
           "line": 63,
+          "name": "error"
+        },
+        {
+          "kind": "mod",
+          "line": 64,
           "name": "state"
         }
       ],
-      "title": "mod body;"
+      "title": "mod admission;"
     },
     {
-      "bytes": 25602,
+      "bytes": 25613,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
@@ -23450,7 +23652,7 @@
       ],
       "lines": 682,
       "path": "crates/mini-execution/src/state.rs",
-      "sha256": "dbf02f19425639038375b5d298a52c2baa2588b5e5ce9832542ca993c2361cd9",
+      "sha256": "eeb2e1d486ab0109a10b13d7d67ffb661890c888a1a7735d2620cf5d120c7ed3",
       "symbols": [
         {
           "kind": "const",
@@ -23581,11 +23783,6 @@
           "kind": "fn",
           "line": 334,
           "name": "rejection_tag"
-        },
-        {
-          "kind": "fn",
-          "line": 343,
-          "name": "is_supported_account"
         },
         {
           "kind": "mod",
@@ -44266,7 +44463,7 @@
       "title": "The only dependency: raw signing/verification and hashing. This crate is"
     },
     {
-      "bytes": 2807,
+      "bytes": 2943,
       "group": "crate:mini-settlement",
       "headings": [
         {
@@ -44281,17 +44478,17 @@
         },
         {
           "level": 2,
-          "line": 29,
+          "line": 31,
           "text": "The three frozen invariants this implements (`docs/INVARIANTS.md` \u00a74)"
         },
         {
           "level": 2,
-          "line": 38,
+          "line": 40,
           "text": "What this crate is not"
         },
         {
           "level": 2,
-          "line": 52,
+          "line": 54,
           "text": "Build & test"
         }
       ],
@@ -44308,6 +44505,7 @@
         "payer",
         "two",
         "claims",
+        "claim",
         "construction",
         "three",
         "frozen",
@@ -44316,50 +44514,49 @@
         "offline",
         "directive",
         "ownership",
+        "consensus",
         "sequence",
-        "chain",
-        "mini-bounty",
-        "ever"
+        "chain"
       ],
-      "lines": 59,
+      "lines": 61,
       "path": "crates/mini-settlement/README.md",
-      "sha256": "0dfabb7492df77aa1ed2b68d78d7c37436c2781bfc7658a46823be7e9146cf2a",
+      "sha256": "088e6ac6a3d45211e347de4666f3ea5fe6d3d2cef30cfb6c9c2dc1e38e7e7fba",
       "symbols": [],
       "title": "mini-settlement"
     },
     {
-      "bytes": 13147,
+      "bytes": 18917,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
         "payer",
         "claim",
-        "msg",
+        "u64",
         "sequence",
         "same",
-        "payee",
         "signed",
+        "payee",
         "key",
-        "u64",
-        "extend_from_slice",
+        "bytes",
         "promise",
-        "len",
         "canonical",
         "signature",
+        "const",
         "vec",
         "claim_domain",
+        "paymentclaim",
+        "payment",
         "final",
         "different",
-        "amount_micro",
         "last_known_chain",
         "see",
-        "bytes",
-        "paymentclaim",
-        "claim_message"
+        "msg",
+        "len",
+        "mini-settlement"
       ],
-      "lines": 395,
+      "lines": 586,
       "path": "crates/mini-settlement/src/claim.rs",
-      "sha256": "d3cf0b727ea561b7c254cb79dc601c689f481ceac237e78502ad73432a84af90",
+      "sha256": "32658553986f41f64922c01d97971881c5b6bb061b2b3599c55e8cdc34e095eb",
       "symbols": [
         {
           "kind": "const",
@@ -44368,102 +44565,200 @@
         },
         {
           "kind": "const",
-          "line": 37,
+          "line": 31,
+          "name": "CLAIM_WIRE_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 34,
+          "name": "MAX_CLAIM_FIELD_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 36,
+          "name": "MAX_PAYMENT_CLAIM_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 43,
           "name": "MININET_NETWORK_ID"
         },
         {
           "kind": "struct",
-          "line": 44,
+          "line": 50,
           "name": "PaymentClaim"
         },
         {
           "kind": "fn",
-          "line": 76,
+          "line": 82,
           "name": "claim_message"
         },
         {
           "kind": "fn",
-          "line": 116,
+          "line": 122,
           "name": "sign_claim"
         },
         {
+          "kind": "impl",
+          "line": 143,
+          "name": "PaymentClaim"
+        },
+        {
           "kind": "fn",
-          "line": 139,
+          "line": 145,
+          "name": "to_wire_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 170,
+          "name": "from_wire_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 206,
+          "name": "put_bytes"
+        },
+        {
+          "kind": "struct",
+          "line": 211,
+          "name": "ClaimReader"
+        },
+        {
+          "kind": "impl",
+          "line": 216,
+          "name": "ClaimReader<'a>"
+        },
+        {
+          "kind": "fn",
+          "line": 217,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 221,
+          "name": "take"
+        },
+        {
+          "kind": "fn",
+          "line": 234,
+          "name": "u8"
+        },
+        {
+          "kind": "fn",
+          "line": 238,
+          "name": "u32"
+        },
+        {
+          "kind": "fn",
+          "line": 246,
+          "name": "u64"
+        },
+        {
+          "kind": "fn",
+          "line": 254,
+          "name": "bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 262,
+          "name": "finished"
+        },
+        {
+          "kind": "fn",
+          "line": 269,
           "name": "sign_claim_for_network"
         },
         {
           "kind": "fn",
-          "line": 181,
+          "line": 311,
           "name": "verify_claim_signature"
         },
         {
           "kind": "fn",
-          "line": 205,
+          "line": 335,
           "name": "claim_digest"
         },
         {
           "kind": "mod",
-          "line": 219,
+          "line": 349,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 222,
+          "line": 352,
           "name": "payer_key"
         },
         {
           "kind": "fn",
-          "line": 227,
+          "line": 357,
           "name": "a_validly_signed_claim_verifies"
         },
         {
           "kind": "fn",
-          "line": 242,
+          "line": 372,
           "name": "zero_amount_is_rejected_at_signing_and_verification"
         },
         {
           "kind": "fn",
-          "line": 250,
+          "line": 380,
           "name": "a_validity_window_that_has_already_elapsed_is_rejected_at_signing"
         },
         {
           "kind": "fn",
-          "line": 267,
+          "line": 397,
           "name": "tampering_any_signed_field_breaks_verification"
         },
         {
           "kind": "fn",
-          "line": 316,
+          "line": 446,
           "name": "network_id_domain_separates_otherwise_identical_claims"
         },
         {
           "kind": "fn",
-          "line": 346,
+          "line": 476,
+          "name": "standalone_wire_round_trip_preserves_digest_and_signature"
+        },
+        {
+          "kind": "fn",
+          "line": 494,
+          "name": "standalone_wire_rejects_every_truncation_and_trailing_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 518,
+          "name": "standalone_wire_rejects_oversized_fields_before_encoding"
+        },
+        {
+          "kind": "fn",
+          "line": 537,
           "name": "two_claims_differing_only_by_sequence_have_different_digests"
         },
         {
           "kind": "fn",
-          "line": 371,
+          "line": 562,
           "name": "re_signing_identical_fields_produces_the_same_digest"
         }
       ],
       "title": "use mini_crypto::{HashAlgorithm, Signature, SignatureSuite, SigningKey, VerifyingKey};"
     },
     {
-      "bytes": 1822,
+      "bytes": 2187,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
         "claim",
         "settlementerror",
         "fmt",
+        "write",
         "result",
         "error",
         "payer",
-        "write",
         "key",
+        "payment",
+        "its",
         "zero",
         "already",
+        "malformed",
         "mini-settlement",
         "display",
         "std",
@@ -44471,17 +44766,14 @@
         "core",
         "signature",
         "verify",
-        "its",
         "badsignature",
         "payee",
         "badkey",
-        "amount",
-        "real",
-        "zeroamount"
+        "amount"
       ],
-      "lines": 47,
+      "lines": 53,
       "path": "crates/mini-settlement/src/error.rs",
-      "sha256": "9e31cca22c87816dc7f65af70734fb2d29db021e1f77a99fd6522f300d84d72e",
+      "sha256": "50f19fdc7f4fa7f25dade07ed6869c47fe6b23960c04eff8d2080f282100b054",
       "symbols": [
         {
           "kind": "enum",
@@ -44490,22 +44782,22 @@
         },
         {
           "kind": "impl",
-          "line": 23,
+          "line": 27,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 24,
+          "line": 28,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 43,
+          "line": 49,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 46,
+          "line": 52,
           "name": "Result"
         }
       ],
@@ -44619,7 +44911,7 @@
       "title": "pub enum CanonicalRejection {"
     },
     {
-      "bytes": 3555,
+      "bytes": 3603,
       "group": "crate:mini-settlement",
       "headings": [],
       "keywords": [
@@ -44650,7 +44942,7 @@
       ],
       "lines": 73,
       "path": "crates/mini-settlement/src/lib.rs",
-      "sha256": "beaf6e6ef880907aeb3955704f10423f89f397757191324392af497d2868354f",
+      "sha256": "b49750fffe9081ceb473e47a6d5d16cce0a613b0fe8fd96695d36dc837250941",
       "symbols": [
         {
           "kind": "mod",
@@ -55978,7 +56270,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 813833,
+      "bytes": 815941,
       "group": "docs",
       "headings": [
         {
@@ -56397,9 +56689,9 @@
         "log",
         "batch",
         "decision",
+        "proposed",
         "release",
         "first",
-        "proposed",
         "roadmap",
         "doctrine",
         "phase",
@@ -56408,9 +56700,9 @@
         "mini-consensus",
         "status"
       ],
-      "lines": 13343,
+      "lines": 13382,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "88b733f20fd488468e54b5c9c556b0b24fa24bbba82a9cc1a7555027defb1f57",
+      "sha256": "cb428541f605d0af0f6bf8a0ce6bb752df9a3c0e89f76f3ce9fd0e1ec7d28130",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -57559,7 +57851,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 96692,
+      "bytes": 97244,
       "group": "docs",
       "headings": [
         {
@@ -57594,57 +57886,57 @@
         },
         {
           "level": 2,
-          "line": 388,
+          "line": 396,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 435,
+          "line": 443,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 620,
+          "line": 628,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 661,
+          "line": 669,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 722,
+          "line": 730,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 752,
+          "line": 760,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1023,
+          "line": 1031,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1239,
+          "line": 1247,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1330,
+          "line": 1338,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1392,
+          "line": 1400,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1458,
+          "line": 1466,
           "text": "Where to look for more detail"
         }
       ],
@@ -57674,9 +57966,9 @@
         "social",
         "network"
       ],
-      "lines": 1473,
+      "lines": 1481,
       "path": "docs/STATUS.md",
-      "sha256": "4dfa19cecb9797dcf533bfe80c40d001377788092c6cd9d778a70ffbb3626af1",
+      "sha256": "d904a17449eee744dbf2134eb3fc1c45dc86cc0c83903d357f3a350dc8b32081",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -57788,7 +58080,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 26039,
+      "bytes": 26488,
       "group": "docs",
       "headings": [
         {
@@ -57823,22 +58115,22 @@
         },
         {
           "level": 2,
-          "line": 88,
+          "line": 89,
           "text": "4. Political threats \u2014 states and infrastructure gatekeepers"
         },
         {
           "level": 2,
-          "line": 97,
+          "line": 98,
           "text": "5. Civilization-scale threats \u2014 beyond any single actor"
         },
         {
           "level": 2,
-          "line": 114,
+          "line": 115,
           "text": "6. Edge-provider threats \u2014 the world Mininet touches but does not control"
         },
         {
           "level": 2,
-          "line": 131,
+          "line": 132,
           "text": "What this document is not"
         }
       ],
@@ -57868,9 +58160,9 @@
         "machine",
         "single"
       ],
-      "lines": 146,
+      "lines": 147,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "81b0dec7b161725b1594feddc12f969061acc6ab7f0f70bba3d9d7cc834f8b06",
+      "sha256": "bddc40f1d56c512eae15ff4504ea51a31b369788c1e12a66a41dd4bf6a91d4df",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -58248,6 +58540,63 @@
       "sha256": "8f2e729b431cd183c0e44800d9a1eed7afb0416642520f9825cb4c33c6226a2b",
       "symbols": [],
       "title": "Day-0 monetary chain adversarial review"
+    },
+    {
+      "bytes": 2297,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Day-0 payment admission adversarial review"
+        },
+        {
+          "level": 2,
+          "line": 6,
+          "text": "Addressed attacks"
+        },
+        {
+          "level": 2,
+          "line": 21,
+          "text": "Critical open findings"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "Evidence limit"
+        }
+      ],
+      "keywords": [
+        "admission",
+        "high",
+        "critical",
+        "claim",
+        "payer",
+        "canonical",
+        "review",
+        "evidence",
+        "pool",
+        "claims",
+        "finalized",
+        "revalidation",
+        "exists",
+        "day-0",
+        "payment",
+        "adversarial",
+        "addressed",
+        "attacks",
+        "open",
+        "findings",
+        "limit",
+        "attack",
+        "independent",
+        "frame"
+      ],
+      "lines": 40,
+      "path": "docs/audits/day0-payment-admission-review.md",
+      "sha256": "8402cffa47bfc2b75f233fa99e1ba1107e7ca7e5f4f0f076b251ebbe8d901179",
+      "symbols": [],
+      "title": "Day-0 payment admission adversarial review"
     },
     {
       "bytes": 3553,
@@ -59490,6 +59839,78 @@
       "sha256": "3d21bb8512810e68e2df33a05e651402aa97d566175106b13ef2efa50b160be9",
       "symbols": [],
       "title": "Day-0 monetary kernel \u2014 implementation proposal"
+    },
+    {
+      "bytes": 4069,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Day-0 bounded payment admission"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Outcome"
+        },
+        {
+          "level": 2,
+          "line": 22,
+          "text": "Standalone claim wire"
+        },
+        {
+          "level": 2,
+          "line": 37,
+          "text": "Admission policy"
+        },
+        {
+          "level": 2,
+          "line": 63,
+          "text": "Determinism and revalidation"
+        },
+        {
+          "level": 2,
+          "line": 76,
+          "text": "Security boundary"
+        },
+        {
+          "level": 2,
+          "line": 89,
+          "text": "Remaining work"
+        }
+      ],
+      "keywords": [
+        "claim",
+        "admission",
+        "bounded",
+        "local",
+        "claims",
+        "payment",
+        "canonical",
+        "payer",
+        "standalone",
+        "wire",
+        "policy",
+        "finalized",
+        "bytes",
+        "balance",
+        "revalidation",
+        "pool",
+        "state",
+        "aggregate",
+        "candidate",
+        "expiry",
+        "consensus",
+        "exact",
+        "signature",
+        "wallet"
+      ],
+      "lines": 100,
+      "path": "docs/design/day0-payment-admission.md",
+      "sha256": "0c078c454659eb3b761af3979450bcad3a53086190cb4627a148987bee0f49fb",
+      "symbols": [],
+      "title": "Day-0 bounded payment admission"
     },
     {
       "bytes": 6891,
@@ -70968,7 +71389,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 27623,
+      "bytes": 28800,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -70997,9 +71418,9 @@
         "independently",
         "both"
       ],
-      "lines": 553,
+      "lines": 577,
       "path": "governance/work-claims.json",
-      "sha256": "16390296d59fef6f893fd7cc2c9bc8d11543589c46d2be207e9a9716a7c20ed3",
+      "sha256": "8bc171646f8490058c5334ea4dc533f2b91f5c8b1d49b01217172fa3b8e8e621",
       "symbols": [],
       "title": "{"
     },

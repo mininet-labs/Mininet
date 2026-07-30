@@ -26,6 +26,10 @@ required follow-up D-0055 named: `mini-settlement`'s `reconcile`/
   is no path to apply a block's claims without first proving it final —
   M2's "offline payment is never final until canonical inclusion" made
   structurally impossible to bypass, not just documented.
+- **`PaymentAdmissionPool`** — a bounded node-local preflight queue with
+  signature/network/payee/expiry checks, aggregate balance reservation,
+  same-slot conflict refusal, deterministic candidate ordering, and
+  post-finality revalidation. Admission is never ownership or finality.
 
 ## What this proves, and how
 

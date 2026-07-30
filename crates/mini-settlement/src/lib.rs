@@ -63,7 +63,7 @@ mod watcher;
 
 pub use claim::{
     claim_digest, sign_claim, sign_claim_for_network, verify_claim_signature, PaymentClaim,
-    MININET_NETWORK_ID,
+    MAX_CLAIM_FIELD_BYTES, MAX_PAYMENT_CLAIM_BYTES, MININET_NETWORK_ID,
 };
 pub use error::{Result, SettlementError};
 pub use ledger::{CanonicalLedgerView, CanonicalRejection, InMemoryLedgerView};

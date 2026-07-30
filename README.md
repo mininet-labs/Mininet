@@ -214,6 +214,10 @@ so, everywhere, on purpose.
   canonical overspend ordering, circulating-supply conservation, signed
   network-domain binding, and wallet-readable canonical rejection outcomes
   — built on merged #272 and explicitly not a private or production ledger
+- bounded payment admission (`mini-settlement` + `mini-execution`, proposed
+  D-0416): standalone claim wire frames, strict decode limits, local aggregate
+  balance reservation, deterministic candidate order, and canonical
+  revalidation — no internet submission, fee market, or inclusion guarantee
 - airdrop eligibility snapshot + signed claim-redemption verification
   (`mini-airdrop`, D-0354/D-0355) — does not solve Sybil resistance,
   never holds treasury signing authority, and produces only a claim
