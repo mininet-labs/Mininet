@@ -13646,3 +13646,80 @@ record-keeping.
 **Supersedes / superseded by:** builds on and does not supersede D-0004.
 Does not modify `checkout`, `validated_commit_tree`, `commit`, `put_tree`,
 or `put_file`.
+
+### D-0419 — `mini-media`: nested manifests for payloads beyond one manifest's ≤256-chunk cap  ·  *Proposed*
+
+**Date:** 2026-07-31 · **Refs:** roadmap #35 (huge-file handling design);
+`crates/mini-media/src/lib.rs`'s own module doc ("Long-form media nests
+manifests in a later batch"); D-0026 (`mini-media`); Directive 4,
+Directive 16.
+
+**Decision:** add `crates/mini-media/src/superblock.rs`: a `Superblock`
+object records a whole payload's total length and BLAKE3 digest plus an
+ordered list of ordinary `Manifest`s ("parts"). `publish_large_media`
+splits a payload into caller-chosen-size parts (`chunks_per_part`,
+bounded `1..=MAX_CHUNKS`), publishes each part exactly the way
+`publish_media` already does, and wraps them in one signed superblock.
+`assemble_superblock` reassembles and independently digest-checks every
+part via the existing `assemble`, then re-verifies the whole
+concatenation against the superblock's own recorded digest, so a mix of
+validly-signed but unrelated parts is still caught.
+`missing_superblock_chunks` reports, per part, either the part manifest
+itself (if not yet held) or that part's still-missing chunks. One level
+of nesting only, per the crate's own singular "nests manifests" scope;
+deeper nesting is not built.
+
+**Reason:** the crate's own module doc already named this exact gap as
+deferred to "a later batch." A superblock is the smallest composition
+that closes it: reusing `publish_media`/`assemble`/`missing_chunks`
+verbatim per part means no new chunking, signing, or digest logic is
+invented — only one more composition level over primitives this crate
+already proved correct.
+
+**Alternatives:** raising `MAX_CHUNKS`/`CHUNK_SIZE` to cover larger
+payloads directly is rejected — it does not remove the need for *some*
+finite bound, just moves it, and it would change `MAX_LINKS`-derived caps
+`mini-objects` itself sets for every object type, not just media.
+Unbounded recursive nesting (superblocks of superblocks) is rejected for
+this batch as more scope than the named gap requires; one level already
+gives `MAX_PARTS × MAX_TOTAL_LEN` (256 × 256 MiB = 64 GiB) of addressable
+payload.
+
+**Constitutional impact:** none intended. No frozen invariant is amended.
+Purely additive: no existing `mini-media` function signature changes, and
+downstream crates (`mini-forge`, `mini-cli`, `mini-installer`, `mini-
+bootstrap`, `mini-update`, `mini-desktop`, `mini-contribution`) are
+unaffected since none currently call the new functions. No new
+cryptography — reuses `mini-crypto`'s existing BLAKE3 hashing exactly as
+`publish_media`/`assemble` already do.
+
+**Implementation status:** proposed code adds `Superblock`,
+`publish_large_media`, `read_superblock`, `missing_superblock_chunks`,
+`assemble_superblock`, and `crates/mini-media/tests/superblock.rs`: a
+five-chunk payload splitting into three parts and round-tripping exactly;
+an empty payload producing one empty part; rejection of zero/oversized
+`chunks_per_part`; progressive assembly proving `missing_superblock_
+chunks` correctly distinguishes "part manifest not yet held" from
+"chunks still missing within an already-held part"; a forged superblock
+whose recorded digest doesn't match its real (individually valid) parts
+being caught; and a parse-time rejection of a superblock with zero parts.
+
+**Failure point:** `chunks_per_part` is a caller choice with no
+transport-informed default suggested here; a caller who always passes
+`MAX_CHUNKS` gets the fewest, largest parts, while one who passes `1` gets
+many small parts and more per-part object overhead — this doc does not
+recommend a value. `MAX_PARTS × MAX_TOTAL_LEN` is still a finite bound;
+a payload beyond 64 GiB is out of scope for this batch, same honest-limit
+discipline the crate already applies to `MAX_TOTAL_LEN` itself. No
+wiring into `mini-sync`'s want-list logic, no player/UI support for
+progressive nested playback, and no production caller uses this yet.
+
+**Required follow-up:** wiring `missing_superblock_chunks` into real
+`mini-sync` replication paths; a production caller (e.g. `mini-forge`
+release artifacts beyond 256 MiB); and, only if 64 GiB ever proves
+insufficient, a deliberately separate decision to add a second nesting
+level rather than silently deepening this one.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0026.
+Does not modify `publish_media`, `read_manifest`, `missing_chunks`, or
+`assemble`.

@@ -663,8 +663,22 @@ given time.
   randomized larger-configuration sample), founder-reviewed. Proves the
   coding/repair logic only — actually distributing regenerated shards to
   network holders is `mini-net`/`mini-store`'s unstarted job.
-- **not started** — cold/owner-only storage tiers, huge-file handling at
-  scale (roadmap Phase 4).
+- **shipped (D-0419, roadmap #35)** — `mini_media::superblock`: nested
+  manifests closing the exact gap `mini-media`'s own module doc named as
+  deferred ("one manifest addresses up to 256 chunks; long-form media
+  nests manifests in a later batch"). `publish_large_media` splits a
+  payload into caller-sized parts, publishes each as an ordinary manifest,
+  and wraps them in one signed `Superblock` recording the whole payload's
+  length and digest; `assemble_superblock` independently re-verifies both
+  each part's own digest and the whole concatenation, so a mix of
+  validly-signed but unrelated parts is still caught;
+  `missing_superblock_chunks` distinguishes "part manifest not yet held"
+  from "chunks still missing within an already-held part." One level of
+  nesting, addressing up to 64 GiB. Not wired into any `mini-sync`
+  replication path or production caller yet, and this is the addressing/
+  composition piece only — distributing shards/chunks at real network
+  scale remains `mini-net`/`mini-store`'s separately-scoped job.
+- **not started** — cold/owner-only storage tiers (roadmap Phase 4).
 
 ## 8. Networking
 
