@@ -31,11 +31,19 @@ mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
 # and GHSA-4ch3-9j33-3pmj (hard links/renames bypass `FilePerms` for the
 # destination) -- plus a long list of Wasmtime-core traps/panics/
 # sandbox-escape issues (patched only from 36.0.7/42.0.2/43.0.1 onward).
-# 46.0.1 is the first version with all of them fixed; see this crate's
+# 46.0.1 was the first version with all of them fixed; see this crate's
 # README for what changed in the WASI Preview 2 API surface across the
 # jump.
-wasmtime = { version = "=46.0.1", default-features = false, features = ["cranelift", "runtime", "std"] }
-wasmtime-wasi = { version = "=46.0.1", default-features = false }
+#
+# Bumped 46.0.1 -> 46.0.2 (2026-07-31, reviewed commit, re-ran the Batch
+# 2b.3 adversarial suite): RUSTSEC-2026-0222 (GHSA-hgjw-h833-99q9, stores
+# can mix up type indices between engines) and RUSTSEC-2026-0223
+# (GHSA-2hw9-mc66-jc2q, preemption/traps during bulk operations can break
+# internal VM state) were disclosed against 46.0.1; both advisories'
+# stated solution range (>=46.0.2, <47.0.0) is satisfied by this patch
+# bump alone -- no WASI Preview 2 API surface change.
+wasmtime = { version = "=46.0.2", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasmtime-wasi = { version = "=46.0.2", default-features = false }
 # `random.rs`'s `DeterministicRng` (for `random:deterministic` steps)
 # implements `rand_core::TryRng<Error = Infallible>`, which blanket-
 # implements the `Rng` trait `WasiCtxBuilder::secure_random`/
