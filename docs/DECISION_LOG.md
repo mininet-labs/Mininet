@@ -13470,7 +13470,7 @@ Local expiry is device policy, not canonical time evidence.
 **Supersedes / superseded by:** follows D-0415 and does not supersede
 D-0040, D-0055, D-0061, D-0074, D-0413, D-0414, D-0415, or any audit gate.
 
-### D-0417 — Contribution and Settlement Coordinator: doctrine design doc for the resource/content loop  ·  *Proposed*
+### D-0417 — Contribution and Settlement Coordinator: doctrine and vertical slice 1 for the resource/content loop  ·  *Proposed*
 
 **Date:** 2026-07-30 · **Refs:** roadmap #18, #47, #50; D-0026; D-0352
 (Founder Directive 18); D-0400; D-0402; D-0403; D-0413; D-0414; D-0415;
@@ -13513,28 +13513,41 @@ value/delivery crates, never governance. No new cryptography; typed-domain
 inputs only (`Engagement`, `ServeVerdict`, `RewardSplit`, never a generic
 `sign(&[u8])`).
 
-**Implementation status:** doctrine only. No `mini-contribution` crate exists
-yet; the design doc's proposed API (`DeliveryRole`, `RewardSplit`/
-`split_amount`, `bind_delivery_evidence`, `settle_completed_engagement`,
-`ContributionOffer`) is not frozen and may change during implementation. The
-Alice/Bob/Carol vertical slice (crate + one shared-store integration test
-proving a real balance transfer) is separately scoped, tracked follow-up
-work, not part of this entry.
+**Implementation status:** the doctrine and vertical slice 1 both land in this
+proposal. The new `mini-contribution` crate implements `DeliveryRole`,
+`RewardSplit`/`split_amount` (deterministic division, undistributed
+remainder), `bind_delivery_evidence`, `settle_completed_engagement`, and
+`ContributionOffer`, with unit tests for the split logic. Its integration
+test drives three real identities over a shared `mini-store::Store` through
+the full lifecycle -- `mini_media::publish_media`, two
+`mini_provider::ProviderDeclaration`s, `mini_engagement` propose/accept/
+complete, `mini_storage::verify_serve`, and two resulting `PaymentClaim`s
+(creator share, seeder share) finalized through a real `mini_chain`-quorum
+-certified `mini_execution::LedgerChain` -- and confirms Alice's and Bob's
+finalized balances increase by exactly their shares while Carol's decreases
+by the total, funded entirely from her own genesis balance. A second test
+confirms settlement is refused before the engagement locally reaches
+`Completed`. Not built: real network transport for offer/discovery/delivery
+(local shared-store only), dispute/timeout coverage, and any wallet/
+dashboard/CLI surface.
 
-**Failure point:** this is a design doc; its only failure mode so far is
-scoping something that turns out to be wrong once real code is written
-against it. The doc is explicit that its anti-Sybil floor is exactly
-`mini-storage::verify_serve`'s existing checks — unchanged, not raised — and
-that two colluding identity roots can still fake a serve/witness pair for
-each other, the same open limit `docs/INVARIANTS.md` already names.
+**Failure point:** the reward-evidence floor this crate relies on is exactly
+`mini_storage::verify_serve`'s existing checks — unchanged, not raised — so
+two colluding identity roots can still fake a serve/witness pair for each
+other, the same open limit `docs/INVARIANTS.md` already names. The
+integration test's `ContributionOffer`/discovery step is a direct local
+lookup, not a real ranked/negotiated exchange; a caller who mis-supplies
+`start_sequence` (e.g. reusing a sequence already admitted elsewhere for the
+same payer) gets a normal claim-signing/admission rejection, not a
+coordinator-level guard, since sequence-conflict detection is
+`PaymentAdmissionPool`'s and `LedgerState`'s job, not this crate's.
 
-**Required follow-up:** implement the vertical slice; external economic
-review of any default `RewardSplit` before real value (D-0047 gate); real
-network transport for offer/discovery/delivery (the slice is local-store
-only); adversarial dispute/timeout coverage; wallet/dashboard/CLI wiring;
-reconciling the `Creator` role with `mini-publication-policy`'s `Attribution`
-field; and the still-open #18 Sybil/personhood question this doc does not
-solve.
+**Required follow-up:** external economic review of any default
+`RewardSplit` before real value (D-0047 gate); real network transport for
+offer/discovery/delivery (the slice is local-store only); adversarial
+dispute/timeout coverage; wallet/dashboard/CLI wiring; reconciling the
+`Creator` role with `mini-publication-policy`'s `Attribution` field; and the
+still-open #18 Sybil/personhood question this doc does not solve.
 
 **Supersedes / superseded by:** builds on and does not supersede D-0026,
 D-0352, D-0400, D-0402, D-0403, D-0413, D-0414, D-0415, D-0416, or D-0407.
