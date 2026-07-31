@@ -13551,3 +13551,98 @@ still-open #18 Sybil/personhood question this doc does not solve.
 
 **Supersedes / superseded by:** builds on and does not supersede D-0026,
 D-0352, D-0400, D-0402, D-0403, D-0413, D-0414, D-0415, D-0416, or D-0407.
+
+### D-0418 — Git import bridge: doctrine and implementation, importer-attributed, never author-spoofed  ·  *Proposed*
+
+**Date:** 2026-07-31 · **Refs:** D-0004 (SHA-256 Git-object interop);
+`docs/design/self-hosted-forge-spine.md`; `crates/mini-forge/src/
+git_export.rs`; `docs/design/git-import-bridge.md`; roadmap #65/#102;
+Directive 4, Directive 13, Directive 16.
+
+**Decision:** adopt `docs/design/git-import-bridge.md` as the doctrine for
+completing the git SHA-256 bridge's import direction (`mini_forge::
+git_export` is export-only today; import is named "genuinely unstarted"
+in the self-hosted-forge-spine design doc). Imported git blobs/trees are
+re-signed by the importer's own `did:mini` device via the existing
+`put_file`/`put_tree`, with content bytes preserved verbatim but every
+claimed git object id verified against its actual SHA-256 digest before
+being trusted. Imported commits use the existing, unmodified `commit()`
+function — same strict shape `checkout()`/`validated_commit_tree` already
+enforce — so an imported commit is indistinguishable in shape from a
+native one except for its signed author, which is always the importer,
+never the original git committer. Git-only metadata (the original commit's
+SHA-256 id, author, and committer) is recorded in a new, separately signed
+`GitImportProvenance` object linking to the commit, never smuggled onto
+the commit's own payload or links. The parser accepts only the canonical
+git commit shape `git_export.rs` itself writes and rejects (not silently
+drops) anything else, including GPG-signed commits.
+
+**Reason:** `mini-forge` requires every object to carry a real `did:mini`
+signature; a real git commit carries no `did:mini` signature at all. A
+naive import that re-signed content "as" the original git author would be
+cryptographic forgery, not a missing feature. The chosen shape is the only
+one that is both possible (the importer really can sign what they import)
+and honest (nobody reading an imported commit can mistake the importer for
+the original author).
+
+**Alternatives:** re-signing as the original author is forgery, rejected
+outright; an unsigned "imported" object class would introduce a second,
+narrower authenticity model everywhere else in the store already assumes
+every object is signed; embedding git metadata directly in the commit's
+message or links would either break `checkout()`'s strict shape or blur
+"the message" with unauthenticated git metadata in one field; a full
+arbitrary-git-history importer (renames, merges, submodules, LFS, signed
+tags) is far more scope than the named gap requires to prove the direction
+works.
+
+**Constitutional impact:** none intended. No frozen invariant is amended.
+`checkout()`/`validated_commit_tree`'s existing strict link/payload shape
+is reused unmodified. No new cryptography — content is re-signed with the
+same `mini-crypto` Ed25519 signing every `mini-forge` object already uses.
+Typed-domain rule respected: import functions take an exact importer
+`(Did, &Controller)` plus parsed git object data, never a generic
+`sign(&[u8])`. Adopting imported history onto a governed branch still
+requires the same governance approvals a native commit does — this bridge
+grants no new authority.
+
+**Implementation status:** the doctrine and implementation both land in
+this proposal. `crates/mini-forge/src/git_import.rs` adds
+`import_git_blob`/`import_git_tree`/`import_commit_chain`, verifying every
+claimed git object id against its actual SHA-256 digest before trusting
+it, parsing exactly the canonical git tree (`40000`/`100644` entries only)
+and commit (`tree`/`parent*`/`author`/`committer`/blank line/message)
+shapes and rejecting anything else outright. `GitImportProvenance` records
+the original git commit id and author/committer fields as a separate
+object linking `"commit"` to the (unmodified-shape) imported commit.
+`crates/mini-forge/tests/git_import.rs` proves: a two-commit chain
+exported via `export_commit_chain` and imported under a **different**
+identity checks out to byte-identical content and re-exports to the exact
+same blob/tree git ids, while the imported commit's signed author is the
+importer (never the original author) and the original git commit's
+id/author/committer survive only in the linked provenance object; a
+tampered object whose bytes do not match its claimed id is rejected; and a
+commit carrying an unrecognized header line (e.g. `gpgsig`) is rejected
+rather than silently stripped.
+
+**Failure point:** this bridge only proves imported bytes matched their
+claimed git object ids, never that the imported content is good, safe, or
+genuinely the intended upstream history — that judgment remains a
+reviewer's, exactly as for a native commit. `GitImportProvenance`'s author/
+committer strings are copied verbatim from the git object and are not
+independently verified against anything (git itself never authenticates
+them); a verifier must treat them as a claim, not a proof. Commits with a
+`gpgsig` header, an `encoding` header, or anything else this parser does
+not recognize are rejected outright in this first slice, not silently
+stripped of that information.
+
+**Required follow-up:** a real "clone a repo and walk its object graph"
+driver (this doctrine only shapes already-parsed `GitObject`-shaped bytes,
+the same shape `export_commit_chain` already produces); merge-commit/
+rename/submodule/LFS/signed-tag support; a governed-adoption ceremony for
+when imported history is allowed onto a real branch; and external review
+of the provenance-object shape before it is relied on for anything beyond
+record-keeping.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0004.
+Does not modify `checkout`, `validated_commit_tree`, `commit`, `put_tree`,
+or `put_file`.

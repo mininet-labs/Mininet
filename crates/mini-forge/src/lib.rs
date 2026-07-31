@@ -11,8 +11,10 @@
 //! (`subject = "branch.<name>"`), converging by the store's LWW rule. Trees
 //! *link* their entries, so the sync want-list pulls a whole repo from a single
 //! commit id. Bit-exact git SHA-256 export ([`git_export`]) exists, verified
-//! against the real `git` binary; import is a different problem and is not
-//! attempted.
+//! against the real `git` binary. [`git_import`] completes the reverse
+//! direction (D-0418): imported content is re-signed by the importer, never
+//! spoofed as the original git author -- see that module's own doc for the
+//! full doctrine.
 //!
 //! ## The release registry encodes the guarantees
 //!
@@ -46,12 +48,17 @@
 
 mod coordination;
 mod git_export;
+mod git_import;
 mod governance;
 mod oracle;
 mod release;
 pub use coordination::*;
 mod retrieval;
 pub use git_export::{export_commit_chain, GitObject, GitObjectKind, MAX_EXPORT_COMMITS};
+pub use git_import::{
+    import_commit_chain, import_git_blob, import_git_tree, read_git_import_provenance,
+    GitImportProvenance, ImportedCommit, GIT_IMPORT_PROVENANCE_TYPE, MAX_IMPORT_COMMITS,
+};
 pub use governance::*;
 pub use oracle::{author_assurance, IdentityOracle, KelDirectory};
 pub use release::{
