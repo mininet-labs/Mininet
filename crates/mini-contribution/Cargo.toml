@@ -1,0 +1,31 @@
+[package]
+name = "mini-contribution"
+version = "0.0.1"
+description = "Contribution and Settlement Coordinator (D-0417): composes mini-media/mini-engagement/mini-storage/mini-settlement into one publish-seed-request-deliver-receipt-settle-reward lifecycle for content/resources. A LEAF crate; must never depend on mini-forge or mini-chain voting."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Identity vocabulary and content addressing only.
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }
+# Settlement claims are real, and signing one needs a real key.
+mini-crypto = { path = "../mini-crypto" }
+mini-settlement = { path = "../mini-settlement" }
+# The escrowed work primitive this crate settles on top of.
+mini-engagement = { path = "../mini-engagement" }
+# Verified delivery evidence (ServeVerdict) this crate binds to an engagement.
+mini-storage = { path = "../mini-storage" }
+
+[dev-dependencies]
+# Integration test only: a real publish -> seed -> settle vertical slice.
+mini-chain = { path = "../mini-chain" }
+mini-economy = { path = "../mini-economy" }
+mini-execution = { path = "../mini-execution" }
+mini-media = { path = "../mini-media" }
+mini-provider = { path = "../mini-provider" }
+mini-store = { path = "../mini-store" }

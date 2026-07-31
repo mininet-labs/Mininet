@@ -12363,6 +12363,96 @@ interpret); `mini-query` (E7); result provenance (E8).
 D-0317 after D-0316/D-0317. Does not supersede `mini-web-types`,
 `mini-crawler`, `mini-extract-protocol`, or `mini-extract-host` (Track
 B3's separately-scoped Mininet-Intake extractor).
+
+### D-0372 — `mini-replication-policy`: suppression-resistant shard placement, repair, and retrieval planning, Track D5  ·  *Accepted*
+**Date:** 2026-07-28 · **Refs:** D-0311 (public commons/protected publishing
+doctrine); D-0312 (MiniSearch doctrine, same document); D-0364/D-0365
+(Track D1-D3, `mini-publication-policy`); D-0065 (`mini-erasure`); issue
+#161; founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§27 "PR D5 — Suppression-resistant replication"; Directive 14
+(simplicity/well-trodden constructions), Directive 16 (voice/value wall)
+
+**Decision:** adds `mini-replication-policy`, closing the exact gap
+`mini-erasure`'s own module docs already named as unstarted: *"deciding
+which peer should hold a regenerated shard, and actually transferring it
+to them, is a distribution problem... out of scope here, unstarted."*
+Three pure, typed functions over `mini_erasure::ErasureParams` and
+`did_mini::Did`:
+
+- `plan_placement(params, candidates)` assigns each of
+  `params.total_shards()` shards to its own distinct candidate `Did`,
+  rejecting the call outright if fewer distinct candidates than shards
+  are offered;
+- `plan_repair_placement(plan, missing_shard_indices, fresh_candidates)`
+  replaces exactly the holders of the shards `mini_erasure::plan_repair`
+  found missing, with fresh holders distinct from every holder still in
+  the plan — preserving the diversity invariant across repairs, not just
+  at first publication;
+- `select_retrieval_set(plan)` returns a deterministic default subset (the
+  `data_shards` lowest-indexed holders) a retrieval client can query.
+
+No shard bytes, network I/O, signing, or transport are touched by this
+crate — those stay `mini-erasure`'s (bytes) and a future
+`mini-relay`/`mini-bridge`/`mini-net` caller's (transport) job, matching
+every other "logic vs. distribution" boundary already drawn in this tree.
+
+**Reason:** Track D5 is the next unstarted, self-contained, code-only
+slice of the native-intake/public-commons research document's protected-
+publishing track (D1-D3 shipped; D4 mixed-transport is explicitly gated
+on a research/threat-model prerequisite not yet satisfied). Composing
+`mini-erasure`'s already-real coding/repair logic with a distinctness-
+enforcing placement policy is exactly the "connect erasure coding,
+provider diversity, repair, and retrieval" the doctrine document names,
+without inventing new coding theory or cryptography — the same Directive
+14 reasoning `mini-erasure`'s own doc comment gives for hand-rolling
+Reed-Solomon in the first place.
+
+**Constitutional impact:** none new. No payment, stake, balance, or
+governance-weight field anywhere in this crate; a holder's distinctness
+is ordinary `Did` equality, not a purchasable or votable property.
+Directive 16's voice/value wall is untouched — this crate has no
+dependency edge to any value/governance crate. No new cryptography:
+identity comparison reuses `did-mini`'s existing `Did` type unmodified.
+
+**Implementation status:** shipped in `mini-replication-policy` and added
+to the workspace. `cargo fmt --all -- --check`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and `cargo test
+--workspace --all-features` all clean on this (Linux) host (180 test
+binaries, all passing). 11 unit tests plus a 2-test end-to-end
+integration suite that actually encodes a file with `mini_erasure`,
+places its shards, simulates three holders disappearing (within a 4-of-7
+tolerance), repairs both the shard bytes (`mini_erasure::repair`) and the
+holder assignments (`plan_repair_placement`), and reconstructs the
+original data by querying only the holders `select_retrieval_set`
+names — proving the placement bookkeeping actually lines up with real,
+reconstructible shard bytes, not just abstract indices.
+
+**Failure point:** distinctness is checked by `Did` equality alone. This
+crate has no way to detect that several different `Did`s are controlled
+by the same operator behind the scenes — the general Sybil-resistance gap
+`docs/INVARIANTS.md`'s hard limitations already name project-wide (issue
+#18), not something a placement policy can solve. `select_retrieval_set`
+is a naive deterministic default (lowest shard indices) with no latency,
+reliability, or recent-health weighting — a real retrieval client with
+better information should not treat it as a recommendation. This crate
+also has no discovery layer: candidate `Did`s must come from somewhere
+this crate does not define (a future provider-discovery mechanism), and
+it has no opinion on whether a candidate is trustworthy beyond "not
+already holding another shard in this plan."
+
+**Required follow-up:** a real candidate-discovery source (who are the
+diverse holders to offer as candidates in the first place — not defined
+here); wiring `mini-publication-policy`'s source-hiding path (D-0365)
+together with this crate's placement so a publication's replication
+targets are chosen consistently with its declared privacy tier; actual
+network transfer of shard bytes to newly-assigned holders
+(`mini-net`/`mini-store`, unstarted); Track D6 (unlinkable settlement
+research) remains separately scoped and not started here.
+
+**Supersedes / superseded by:** implements the Track D5 slice named by
+D-0311/D-0312 after D-0364/D-0365 (Track D1-D3). Does not supersede
+`mini-erasure`, `mini-publication-policy`, or any other existing crate.
 ---
 
 ### D-0373 — Android LAN/QR pairing bridge with durable signed follows  ·  *Proposed*
@@ -13379,3 +13469,85 @@ Local expiry is device policy, not canonical time evidence.
 
 **Supersedes / superseded by:** follows D-0415 and does not supersede
 D-0040, D-0055, D-0061, D-0074, D-0413, D-0414, D-0415, or any audit gate.
+
+### D-0417 — Contribution and Settlement Coordinator: doctrine and vertical slice 1 for the resource/content loop  ·  *Proposed*
+
+**Date:** 2026-07-30 · **Refs:** roadmap #18, #47, #50; D-0026; D-0352
+(Founder Directive 18); D-0400; D-0402; D-0403; D-0413; D-0414; D-0415;
+D-0416; D-0407 (parallel, out-of-scope Forge dev-loop);
+`docs/design/contribution-and-settlement-coordinator.md`; P1, M1, M2, M3;
+Directive 4, Directive 5, Directive 13, Directive 16.
+
+**Decision:** adopt `docs/design/contribution-and-settlement-coordinator.md`
+as the doctrine for a new, small `mini-contribution` crate composing already
+-shipped primitives into one publish → seed → request → deliver → receipt →
+settle → reward lifecycle for content/resources (distinct from D-0407's
+code-contribution loop). The doc identifies `mini-media` (D-0026) as already
+providing the "content manifest" vocabulary a founder direction asked for,
+and scopes the genuinely missing pieces as: a delivery-role vocabulary
+(creator vs. seeder), a binding from `mini-storage::ServeVerdict` into
+`mini-engagement` completion evidence, and deterministic multi-party reward
+splitting into several `mini-settlement::PaymentClaim`s. The new crate is a
+LEAF that must never depend on `mini-forge`/`mini-chain` voting (P1), does no
+network I/O or signing of its own, and funds every payout exclusively from
+the requester's own existing balance — never new issuance.
+
+**Reason:** a founder strategic direction named the missing unified
+contribution runtime as the next highest-priority implementation, with a
+concrete Alice/Bob/Carol vertical slice as its first target. Writing the
+doctrine doc first, before code, follows this repository's established
+pattern (`docs/design/self-hosted-forge-spine.md` before its six batches) and
+lets a prior survey of real crate APIs (`mini-provider`, `mini-engagement`,
+`mini-storage`, `mini-settlement`, `mini-execution`, `mini-economy`,
+`mini-resource-pricing`, `mini-media`, `mini-objects`) prevent duplicating
+work that already exists — most notably `mini-media`'s chunked manifest
+model, which already implements the "content manifest" concept rather than
+needing a new one invented.
+
+**Constitutional impact:** none intended. No frozen invariant is amended.
+M1-M3 are unchanged: the proposed crate only constructs `PaymentClaim`s and
+reads `ServeVerdict`s/`CanonicalCompletionStatus`, never grants itself
+finality authority, and never CRDT-merges money. P1 is preserved by
+construction — the crate's proposed dependency set touches only
+value/delivery crates, never governance. No new cryptography; typed-domain
+inputs only (`Engagement`, `ServeVerdict`, `RewardSplit`, never a generic
+`sign(&[u8])`).
+
+**Implementation status:** the doctrine and vertical slice 1 both land in this
+proposal. The new `mini-contribution` crate implements `DeliveryRole`,
+`RewardSplit`/`split_amount` (deterministic division, undistributed
+remainder), `bind_delivery_evidence`, `settle_completed_engagement`, and
+`ContributionOffer`, with unit tests for the split logic. Its integration
+test drives three real identities over a shared `mini-store::Store` through
+the full lifecycle -- `mini_media::publish_media`, two
+`mini_provider::ProviderDeclaration`s, `mini_engagement` propose/accept/
+complete, `mini_storage::verify_serve`, and two resulting `PaymentClaim`s
+(creator share, seeder share) finalized through a real `mini_chain`-quorum
+-certified `mini_execution::LedgerChain` -- and confirms Alice's and Bob's
+finalized balances increase by exactly their shares while Carol's decreases
+by the total, funded entirely from her own genesis balance. A second test
+confirms settlement is refused before the engagement locally reaches
+`Completed`. Not built: real network transport for offer/discovery/delivery
+(local shared-store only), dispute/timeout coverage, and any wallet/
+dashboard/CLI surface.
+
+**Failure point:** the reward-evidence floor this crate relies on is exactly
+`mini_storage::verify_serve`'s existing checks — unchanged, not raised — so
+two colluding identity roots can still fake a serve/witness pair for each
+other, the same open limit `docs/INVARIANTS.md` already names. The
+integration test's `ContributionOffer`/discovery step is a direct local
+lookup, not a real ranked/negotiated exchange; a caller who mis-supplies
+`start_sequence` (e.g. reusing a sequence already admitted elsewhere for the
+same payer) gets a normal claim-signing/admission rejection, not a
+coordinator-level guard, since sequence-conflict detection is
+`PaymentAdmissionPool`'s and `LedgerState`'s job, not this crate's.
+
+**Required follow-up:** external economic review of any default
+`RewardSplit` before real value (D-0047 gate); real network transport for
+offer/discovery/delivery (the slice is local-store only); adversarial
+dispute/timeout coverage; wallet/dashboard/CLI wiring; reconciling the
+`Creator` role with `mini-publication-policy`'s `Attribution` field; and the
+still-open #18 Sybil/personhood question this doc does not solve.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0026,
+D-0352, D-0400, D-0402, D-0403, D-0413, D-0414, D-0415, D-0416, or D-0407.

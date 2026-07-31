@@ -1387,6 +1387,24 @@ linkable by design. There is no canonical review registry, no revocation
 feed, no standalone ledger inclusion proof, and no anonymity,
 unlinkability, personhood, governance, or provider-honesty claim.
 
+**shipped (D-0417)** — `mini-contribution`, the Contribution and
+Settlement Coordinator: composes `mini-media`'s already-shipped chunked
+manifest model, `mini-provider` declarations, `mini-engagement`'s
+escrow state machine, `mini-storage::verify_serve`, and the D-0413–
+D-0416 `mini-execution`/`mini-settlement` finalized-balance stack into
+one publish → seed → request → deliver → receipt → settle → reward
+lifecycle. `DeliveryRole`/`RewardSplit`/`split_amount` do deterministic
+multi-party division (undistributed remainder, never a zero-amount
+claim); `bind_delivery_evidence` binds a verified `ServeVerdict` to a
+specific engagement; `settle_completed_engagement` builds the resulting
+`PaymentClaim`s but never submits them. A three-identity integration
+test (Alice publishes, Bob seeds, Carol requests) finalizes two real
+claims through a quorum-certified `LedgerChain`, funded entirely from
+Carol's own balance — no new issuance. Local shared-store discovery
+only; no network transport, dispute/timeout coverage, or wallet/
+dashboard/CLI surface yet. See `docs/design/contribution-and-settlement-
+coordinator.md`.
+
 **not started / research-gated** — Wave 3 (`mini-succession`, D-0410:
 death, inheritance, a vote that structurally cannot transfer), Wave 4
 Tier 1/2 (`mini-attest` accumulator and issuer-unlinkable proof research,
