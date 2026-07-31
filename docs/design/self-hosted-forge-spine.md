@@ -66,11 +66,24 @@ key-seed export (`SigningKey::to_seed_bytes`) for on-device persistence.
 - Git SHA-256 export bridge — shipped: `mini_forge::git_export` exports a
   commit chain (commit → tree → blobs, recursively through every ancestor)
   as real git SHA-256-object-format bytes/ids, verified in
-  `tests/git_export.rs` against the actual `git` binary. Export only, one
-  direction — import (parsing an arbitrary git repository into this
-  tree's own signed object model) remains genuinely unstarted, a
-  materially different problem than emitting bytes from objects this
-  store already trusts.
+  `tests/git_export.rs` against the actual `git` binary.
+- Git SHA-256 import bridge — shipped (D-0418): `mini_forge::git_import`
+  reconstructs a commit chain from already-parsed git objects (the same
+  `GitObject` shape export produces), verifying every claimed id against
+  its actual SHA-256 digest first. Content (blobs/trees) is re-signed by
+  the importer with bytes preserved exactly; commits use the existing,
+  unmodified `commit()` so their shape is indistinguishable from a native
+  one except for the signed author, which is always the importer, never
+  the original git committer — a real `did:mini` signature cannot claim
+  authorship nobody handed the importer the key for. The original git
+  commit's id/author/committer survive as a separate, explicitly-linked
+  `GitImportProvenance` object, never smuggled onto the commit's own
+  strict shape. `tests/git_import.rs` proves byte-identical round-trip
+  content fidelity under a different importer identity. Not built: a real
+  "clone a repo and walk its object graph" driver (this consumes
+  already-parsed objects, it does not fetch), merge/rename/submodule/LFS/
+  signed-tag support, and a governed-adoption ceremony for when imported
+  history is allowed onto a real branch.
 - Machine-readable `STATUS.md`/roadmap generation — deferred; the manual
   three-document reconciliation problem the audit names is real, but lower
   urgency than giving developers a working tool.

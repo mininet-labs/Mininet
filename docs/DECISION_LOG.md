@@ -13552,7 +13552,7 @@ still-open #18 Sybil/personhood question this doc does not solve.
 **Supersedes / superseded by:** builds on and does not supersede D-0026,
 D-0352, D-0400, D-0402, D-0403, D-0413, D-0414, D-0415, D-0416, or D-0407.
 
-### D-0418 — Git import bridge doctrine: importer-attributed, never author-spoofed  ·  *Proposed*
+### D-0418 — Git import bridge: doctrine and implementation, importer-attributed, never author-spoofed  ·  *Proposed*
 
 **Date:** 2026-07-31 · **Refs:** D-0004 (SHA-256 Git-object interop);
 `docs/design/self-hosted-forge-spine.md`; `crates/mini-forge/src/
@@ -13605,10 +13605,24 @@ Typed-domain rule respected: import functions take an exact importer
 requires the same governance approvals a native commit does — this bridge
 grants no new authority.
 
-**Implementation status:** doctrine only. No `git_import` module exists
-yet; implementation (blob/tree/commit import, the `GitImportProvenance`
-object, and a round-trip test against `export_commit_chain` and, where
-available, real git) is separately scoped, tracked follow-up work.
+**Implementation status:** the doctrine and implementation both land in
+this proposal. `crates/mini-forge/src/git_import.rs` adds
+`import_git_blob`/`import_git_tree`/`import_commit_chain`, verifying every
+claimed git object id against its actual SHA-256 digest before trusting
+it, parsing exactly the canonical git tree (`40000`/`100644` entries only)
+and commit (`tree`/`parent*`/`author`/`committer`/blank line/message)
+shapes and rejecting anything else outright. `GitImportProvenance` records
+the original git commit id and author/committer fields as a separate
+object linking `"commit"` to the (unmodified-shape) imported commit.
+`crates/mini-forge/tests/git_import.rs` proves: a two-commit chain
+exported via `export_commit_chain` and imported under a **different**
+identity checks out to byte-identical content and re-exports to the exact
+same blob/tree git ids, while the imported commit's signed author is the
+importer (never the original author) and the original git commit's
+id/author/committer survive only in the linked provenance object; a
+tampered object whose bytes do not match its claimed id is rejected; and a
+commit carrying an unrecognized header line (e.g. `gpgsig`) is rejected
+rather than silently stripped.
 
 **Failure point:** this bridge only proves imported bytes matched their
 claimed git object ids, never that the imported content is good, safe, or

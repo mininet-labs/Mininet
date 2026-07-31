@@ -990,9 +990,25 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   → blobs, recursively through every ancestor) as real git SHA-256-object-
   format bytes/ids — verified in `tests/git_export.rs` against the actual
   `git` binary (`git hash-object`, `git mktree`, `git commit-tree`), not
-  just self-consistency. Export only, one direction; import (parsing an
-  arbitrary git repository into this tree's own signed object model)
-  remains genuinely unstarted.
+  just self-consistency.
+- **shipped (D-0418)** — Git SHA-256 import bridge (`mini_forge::
+  git_import`), Batch 5's import half. Consumes already-parsed `GitObject`s
+  (the same shape export produces), verifying every claimed id against its
+  actual SHA-256 digest before trusting it. Blobs/trees are re-signed by
+  the importer with content bytes preserved exactly; commits use the
+  existing, unmodified `commit()` so an imported commit is shape-identical
+  to a native one except for its signed author, which is always the
+  importer — a real `did:mini` signature cannot claim authorship the
+  importer was never handed the key for. The original git commit's id and
+  author/committer are preserved separately in a linked
+  `GitImportProvenance` object, never smuggled onto the commit's own
+  strict shape. `tests/git_import.rs` proves byte-identical round-trip
+  content fidelity, importer re-attribution, tamper rejection, and
+  rejection of non-canonical commit headers (`gpgsig` etc.). Not built: a
+  real "clone a repo and walk its object graph" driver (this consumes
+  already-parsed objects, it does not fetch anything), merge/rename/
+  submodule/LFS/signed-tag support, and a governed-adoption ceremony for
+  when imported history is allowed onto a real branch.
 - **proposed implementation slice (D-0407, issue #266)** — Forge-native
   contributor coordination: signed working-group charter proposals, task
   briefs, deterministic local task suggestions, expiring work claims, and
