@@ -1,0 +1,33 @@
+[package]
+name = "mini-search-federation"
+version = "0.0.1"
+description = "MiniSearch Track F1/F2/F3: signed, content-addressed crawl-observation and index-segment exchange objects, plus deterministic merging of per-provider query results. No network I/O -- publishes/reads the wire format and merges results a later transport/UI wires up."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# mini-crypto for Multihash encode/decode (already self-describing and
+# canonical). did-mini/mini-objects/mini-store for the same signed,
+# content-addressed publish/read pattern mini-media's publish_media and
+# mini-forge's git_import already use -- no new signing or storage model.
+# mini-web-types for CrawlObservation/CanonicalUrl/FetchStatus/
+# ProviderPseudonym vocabulary. mini-lexical-index for IndexSegment's own
+# already-canonical to_bytes/from_bytes -- this crate wraps that codec, it
+# does not reimplement it. mini-query for the unmodified per-provider
+# search() call F3 runs once per provider before merging (Track F3 merges
+# candidates, it does not re-rank or re-implement E6/E7/E8).
+mini-crypto = { path = "../mini-crypto" }
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }
+mini-web-types = { path = "../mini-web-types" }
+mini-lexical-index = { path = "../mini-lexical-index" }
+mini-query = { path = "../mini-query" }
+# mini-ranker only for its Corpus type, which mini-query's search() takes
+# but does not re-export -- no ranking logic from this crate calls rank()
+# directly or duplicates mini-ranker's own scoring.
+mini-ranker = { path = "../mini-ranker" }
