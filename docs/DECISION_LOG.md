@@ -14061,3 +14061,94 @@ separate, not-yet-started follow-up.
 
 **Supersedes / superseded by:** builds on and does not supersede D-0420
 or D-0422. Does not modify `mini-query`.
+
+### D-0424 — `mini-search-federation` + `mini-ranker`: local re-ranking under a caller's own profile, Track F4 of distributed search  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/design/
+federated-search-exchange-f1-f2.md`; `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29
+(Track F, PR F4); roadmap issue #175; D-0406 (`mini-ranker`); D-0423
+(`mini-search-federation` F3); Directive 4, Directive 16.
+
+**Decision:** add `local_rerank` to `mini-search-federation`
+(Track F4, "Users apply their chosen profile locally"), plus one small,
+purely additive export to `mini-ranker`: `pub fn rescore(explanation:
+&RankingExplanation, profile: &RankingProfile) -> Result<WeightBps>`.
+`local_rerank` takes an already-merged `FederatedResult` list (typically
+`federate_query`'s own F3 output) and recomputes each result's final
+score under a *different*, caller-chosen `RankingProfile` by calling
+`rescore` against the result's own already-attached `RankingExplanation`
+— no index, corpus, or network round trip needed, since the six
+per-signal scores a profile recombines are already sitting on every
+result from whichever profile originally produced it. `rank`'s own
+internal `combine` function is refactored to route through the same new
+private `weighted_average` helper `rescore` calls, so a rescored value
+under profile P is bit-for-bit identical to what a fresh `rank` call
+under P would have produced — by construction, not by two independently
+-written formulas that could drift. `local_rerank` re-sorts by the new
+scores (descending, canonical-URL-string tiebreak, the identical
+convention `federate_query` uses) and truncates to `max_results`; each
+result's `ranking_profile` field is updated to the new profile's id, so
+it honestly names whichever profile actually produced the displayed
+score. `diversity_bps` is deliberately not recomputed, since it depends
+on the original result ordering, not a raw document property — reusing
+it as originally computed rather than re-running the diversity-aware
+greedy selection loop.
+
+**Reason:** F4 is the natural close of the "local, no re-query"
+half of Track F (F1-F4 all operate on already-fetched/already-scored
+material; F5-F7 need real network/payment/privacy work). Exposing
+`rescore` from `mini-ranker` rather than reimplementing the weighted-
+average formula inside `mini-search-federation` keeps the two crates'
+scoring math structurally identical instead of merely documented as
+"the same" — a second, independently-maintained copy of `combine`'s
+formula would have been exactly the kind of drift risk this project's
+own doctrine (composition over duplication) exists to avoid.
+
+**Alternatives:** recomputing `diversity_bps` on every re-rank (a full
+re-run of the diversity-aware greedy selection over the new order) was
+rejected as materially more scope than "the user changed weights, show
+me the recombined number" — a caller wanting diversity re-evaluated
+under a new order already has the tool for that: a fresh `federate_query`
+call. Accepting a bare `Vec<mini_query::ResultProvenance>` (a single
+provider's own output, not `FederatedResult`) was rejected for this PR to
+keep the type surface narrow; `local_rerank` is scoped to F3's own output
+type today, not a general re-ranking utility for any result shape.
+
+**Constitutional impact:** none intended. No frozen invariant is
+amended. Almost entirely additive: `mini-web-types`, `mini-lexical-
+index`, `mini-objects`, `mini-store`, and `mini-query` are all
+unmodified; `mini-ranker` gains one new public function and one internal
+refactor with zero behavior change to `rank` itself, verified by all 10
+pre-existing `mini-ranker` tests passing unmodified. No new
+cryptography; F4 performs no cryptographic operations at all.
+
+**Implementation status:** proposed code adds `crates/mini-search-
+federation/src/rerank.rs` and `tests/rerank.rs` (5 integration tests:
+score/`ranking_profile` update correctness, same-profile re-rank
+reproduces the original order exactly, a genuinely different
+single-signal profile flips the winner between two documents engineered
+to win on opposite signals, `max_results` truncation, empty-list
+re-rank). Adds `rescore`/`weighted_average` to `crates/mini-ranker/
+src/rank.rs` and 2 new `mini-ranker` unit tests (`rescore` under the
+original profile exactly reproduces the original score; `rescore` under
+a lexical-only profile collapses to exactly the lexical signal and
+differs from the public-default score).
+
+**Failure point:** `local_rerank` only accepts `FederatedResult`, not a
+bare single-provider result list — a caller with only one provider's
+`mini_query::search` output has to wrap it (with an arbitrary provider
+pseudonym) to use this function, or wait for a future widening. No
+diversity recomputation (see Decision above) — a caller needing that
+still needs a fresh ranking call, this function does not substitute for
+one. `local_rerank` runs in O(n log n) over however many results are
+passed with no upper bound enforced by this function itself.
+
+**Required follow-up:** none scheduled specifically by this decision. F5
+(provider payments), F6 (private query transport), and F7 (historical
+snapshots) remain Track F's undesigned tail, each still a one-line
+research-doc description.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0406
+or D-0423. Extends (does not supersede) `mini-ranker`'s D-0406 with one
+additive public function.

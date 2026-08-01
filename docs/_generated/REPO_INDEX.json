@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 67,
-    "files": 770,
-    "headings": 2476,
-    "rust_symbols": 6794
+    "files": 772,
+    "headings": 2477,
+    "rust_symbols": 6816
   },
   "crates": {
     "did-mini": {
@@ -43473,7 +43473,7 @@
       "title": "use mini_web_types::WebTypeError;"
     },
     {
-      "bytes": 2902,
+      "bytes": 3236,
       "group": "crate:mini-ranker",
       "headings": [],
       "keywords": [
@@ -43482,53 +43482,53 @@
         "corpus",
         "profile",
         "signals",
-        "error",
         "track",
         "index",
+        "weights",
+        "same",
+        "error",
         "rankingprofile",
         "results",
         "relevance",
         "signal",
-        "weights",
         "mini_web_types",
+        "score",
+        "different",
         "result",
         "explicit",
         "every",
-        "same",
         "minisearch",
         "transparent",
         "ranker",
-        "lexical",
-        "per-document",
-        "metadata"
+        "lexical"
       ],
-      "lines": 63,
+      "lines": 67,
       "path": "crates/mini-ranker/src/lib.rs",
-      "sha256": "72c14b0bbfe18b1011200ca956519084ed58c3258485a1ef50becfd264fee684",
+      "sha256": "9ee5a8ce88edff347abc7a344f8f8f2ac859981e9a2f833fd6ca464a7300bd07",
       "symbols": [
         {
           "kind": "mod",
-          "line": 49,
+          "line": 53,
           "name": "corpus"
         },
         {
           "kind": "mod",
-          "line": 50,
+          "line": 54,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 51,
+          "line": 55,
           "name": "query"
         },
         {
           "kind": "mod",
-          "line": 52,
+          "line": 56,
           "name": "rank"
         },
         {
           "kind": "mod",
-          "line": 53,
+          "line": 57,
           "name": "signals"
         }
       ],
@@ -43607,7 +43607,7 @@
       "title": "use mini_lexical_index::tokenize;"
     },
     {
-      "bytes": 10512,
+      "bytes": 12422,
       "group": "crate:mini-ranker",
       "headings": [],
       "keywords": [
@@ -43636,9 +43636,9 @@
         "metadata",
         "displayable"
       ],
-      "lines": 284,
+      "lines": 320,
       "path": "crates/mini-ranker/src/rank.rs",
-      "sha256": "ac0d8de26ac04a0cb03a2171714aa8266f9801be4f28db4e0bce9971a80517c8",
+      "sha256": "b906768498e7c88ada35f8ae7ef2cbce0de64172e93d104ab97f93d07b02f0dd",
       "symbols": [
         {
           "kind": "struct",
@@ -43672,7 +43672,17 @@
         },
         {
           "kind": "fn",
-          "line": 258,
+          "line": 251,
+          "name": "weighted_average"
+        },
+        {
+          "kind": "fn",
+          "line": 273,
+          "name": "rescore"
+        },
+        {
+          "kind": "fn",
+          "line": 294,
           "name": "build_result"
         }
       ],
@@ -43781,7 +43791,7 @@
       "title": "pub const BPS_MAX: u16 = 10_000;"
     },
     {
-      "bytes": 11445,
+      "bytes": 13088,
       "group": "crate:mini-ranker",
       "headings": [],
       "keywords": [
@@ -43810,9 +43820,9 @@
         "url",
         "url_id"
       ],
-      "lines": 347,
+      "lines": 383,
       "path": "crates/mini-ranker/tests/rank.rs",
-      "sha256": "ab4ae680855728659a18c5200dadbc87d0580181d94e7ac8a1b64791c4e6dc6c",
+      "sha256": "08dc7892a98702bd8a9b3681fec756ec7bd833ef65b50f80865522e41229368d",
       "symbols": [
         {
           "kind": "fn",
@@ -43898,6 +43908,16 @@
           "kind": "fn",
           "line": 330,
           "name": "a_phrase_query_boosts_an_adjacent_match"
+        },
+        {
+          "kind": "fn",
+          "line": 349,
+          "name": "rescore_reproduces_the_original_score_under_the_same_profile"
+        },
+        {
+          "kind": "fn",
+          "line": 360,
+          "name": "rescore_under_a_lexical_only_profile_differs_from_the_public_default"
         }
       ],
       "title": "use mini_crypto::{HashAlgorithm, Multihash};"
@@ -46152,38 +46172,38 @@
       "title": "use crate::error::{FederationError, Result};"
     },
     {
-      "bytes": 2468,
+      "bytes": 2836,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
         "federationerror",
-        "object",
         "write",
-        "fmt",
+        "object",
         "self",
+        "fmt",
         "error",
         "result",
         "objecterror",
         "storeerror",
         "core",
+        "underlying",
+        "failure",
         "mini_lexical_index",
         "lexicalindexerror",
         "mini_query",
         "queryerror",
-        "underlying",
-        "failure",
+        "mini_ranker",
+        "rankererror",
         "store",
         "query",
+        "ranker",
         "type",
         "payload",
-        "encoding",
-        "lexicalindex",
-        "display",
-        "std"
+        "encoding"
       ],
-      "lines": 72,
+      "lines": 82,
       "path": "crates/mini-search-federation/src/error.rs",
-      "sha256": "9e67c5a7856cffb537210975010999952d178b043acde4d618134ebd320543da",
+      "sha256": "4109ec63cea3843729e6717b6095e3c80b41a5f6855a7f919f06ac20c13e2061",
       "symbols": [
         {
           "kind": "type",
@@ -46197,57 +46217,67 @@
         },
         {
           "kind": "impl",
-          "line": 32,
+          "line": 35,
           "name": "From<ObjectError>"
         },
         {
           "kind": "fn",
-          "line": 33,
+          "line": 36,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 38,
+          "line": 41,
           "name": "From<mini_lexical_index::LexicalIndexError>"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 42,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 44,
+          "line": 47,
           "name": "From<StoreError>"
         },
         {
           "kind": "fn",
-          "line": 45,
+          "line": 48,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 50,
+          "line": 53,
           "name": "From<mini_query::QueryError>"
         },
         {
           "kind": "fn",
-          "line": 51,
+          "line": 54,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 56,
+          "line": 59,
+          "name": "From<mini_ranker::RankerError>"
+        },
+        {
+          "kind": "fn",
+          "line": 60,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 65,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 57,
+          "line": 66,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 71,
+          "line": 81,
           "name": "std::error::Error"
         }
       ],
@@ -46311,62 +46341,67 @@
       "title": "use std::collections::HashMap;"
     },
     {
-      "bytes": 2336,
+      "bytes": 2696,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
+        "own",
         "federate",
+        "rerank",
+        "result",
         "error",
         "observation",
         "segment",
         "results",
+        "local",
         "what",
         "federate_query",
         "codec",
-        "track",
         "signed",
         "content-addressed",
         "format",
         "merging",
         "query",
+        "re-ranking",
+        "caller",
+        "re-query",
         "here",
         "publish_crawl_observation",
         "read_crawl_observation",
-        "publish_index_segment",
-        "read_index_segment",
-        "mini_objects",
-        "object",
-        "pattern",
-        "already",
-        "own"
+        "publish_index_segment"
       ],
-      "lines": 49,
+      "lines": 57,
       "path": "crates/mini-search-federation/src/lib.rs",
-      "sha256": "41ed097c46a5d2a79758dce5f79eaa5ca9065d9ca8b1c8461c8a9f59b8128428",
+      "sha256": "b80bb871c6eb025cd30703d19960cf3f9250cbe76fb334da924ab8389c6786bc",
       "symbols": [
         {
           "kind": "mod",
-          "line": 39,
+          "line": 45,
           "name": "codec"
         },
         {
           "kind": "mod",
-          "line": 40,
+          "line": 46,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 41,
+          "line": 47,
           "name": "federate"
         },
         {
           "kind": "mod",
-          "line": 42,
+          "line": 48,
           "name": "observation"
         },
         {
           "kind": "mod",
-          "line": 43,
+          "line": 49,
+          "name": "rerank"
+        },
+        {
+          "kind": "mod",
+          "line": 50,
           "name": "segment"
         }
       ],
@@ -46510,6 +46545,48 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
+      "bytes": 3147,
+      "group": "crate:mini-search-federation",
+      "headings": [],
+      "keywords": [
+        "result",
+        "profile",
+        "out",
+        "federatedresult",
+        "federate_query",
+        "score",
+        "does",
+        "rescored",
+        "local_rerank",
+        "each",
+        "rankingprofile",
+        "mini_ranker",
+        "rescore",
+        "produced",
+        "rank",
+        "new",
+        "max_results",
+        "results",
+        "relevance_score_bps",
+        "list",
+        "own",
+        "different",
+        "against",
+        "mini_web_types"
+      ],
+      "lines": 72,
+      "path": "crates/mini-search-federation/src/rerank.rs",
+      "sha256": "3e5ae03d8e87191ddf62549548b8226e92649102b2be470c9b4e108c01a53b98",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 42,
+          "name": "local_rerank"
+        }
+      ],
+      "title": "use mini_ranker::rescore;"
+    },
+    {
       "bytes": 3141,
       "group": "crate:mini-search-federation",
       "headings": [],
@@ -46562,38 +46639,38 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 7247,
+      "bytes": 8077,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
-        "rust",
         "provider",
         "providers",
-        "example",
-        "build_provider",
+        "rust",
         "corpus",
-        "programming",
         "digest",
         "seed",
         "host",
+        "example",
         "merged",
+        "build_provider",
         "str",
         "title",
         "contexts",
+        "programming",
         "new",
         "body",
-        "vec",
         "assert_eq",
         "profile",
         "sources",
         "indexsegmentid",
         "providerpseudonym",
         "unwrap",
-        "index"
+        "index",
+        "provider_seed"
       ],
-      "lines": 221,
+      "lines": 291,
       "path": "crates/mini-search-federation/tests/federate.rs",
-      "sha256": "a3811434fd67ec78fb06ce481e378524d2bd5e0597012d638d80147db1d667de",
+      "sha256": "92e3fd537d72826fb92e203b71ffe5758fa0b4352b1887efcd7debcdfb5efda6",
       "symbols": [
         {
           "kind": "fn",
@@ -46647,27 +46724,27 @@
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 150,
           "name": "a_shared_url_across_providers_keeps_the_higher_scoring_copy"
         },
         {
           "kind": "fn",
-          "line": 151,
+          "line": 179,
           "name": "merging_is_deterministic_regardless_of_source_order"
         },
         {
           "kind": "fn",
-          "line": 184,
+          "line": 233,
           "name": "max_results_bounds_the_merged_list"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 266,
           "name": "an_empty_source_list_returns_no_results"
         },
         {
           "kind": "fn",
-          "line": 203,
+          "line": 273,
           "name": "each_result_keeps_its_own_provenance"
         }
       ],
@@ -46774,6 +46851,113 @@
         }
       ],
       "title": "use did_mini::{Capabilities, Controller};"
+    },
+    {
+      "bytes": 7489,
+      "group": "crate:mini-search-federation",
+      "headings": [],
+      "keywords": [
+        "weightbps",
+        "digest",
+        "zero",
+        "result",
+        "corpus",
+        "rankingprofile",
+        "new",
+        "rust",
+        "profile",
+        "provider",
+        "unwrap",
+        "contexts",
+        "build_provider",
+        "str",
+        "none",
+        "title",
+        "providers",
+        "reranked",
+        "lexical_only_profile",
+        "rankingprofileid",
+        "seed",
+        "host",
+        "index",
+        "provider_seed"
+      ],
+      "lines": 223,
+      "path": "crates/mini-search-federation/tests/rerank.rs",
+      "sha256": "bc4c8f1fe00d1217906ae4eab210ca1c76cb41c3b3e9288743b98ecddb944987",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 14,
+          "name": "digest"
+        },
+        {
+          "kind": "fn",
+          "line": 18,
+          "name": "url_id"
+        },
+        {
+          "kind": "fn",
+          "line": 22,
+          "name": "canonical"
+        },
+        {
+          "kind": "fn",
+          "line": 33,
+          "name": "profile"
+        },
+        {
+          "kind": "fn",
+          "line": 37,
+          "name": "lexical_only_profile"
+        },
+        {
+          "kind": "fn",
+          "line": 51,
+          "name": "link_only_profile"
+        },
+        {
+          "kind": "struct",
+          "line": 65,
+          "name": "Provider"
+        },
+        {
+          "kind": "fn",
+          "line": 73,
+          "name": "build_provider"
+        },
+        {
+          "kind": "fn",
+          "line": 115,
+          "name": "sources"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "rerank_updates_scores_and_the_named_profile"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "rerank_under_the_same_profile_reproduces_the_original_order"
+        },
+        {
+          "kind": "fn",
+          "line": 178,
+          "name": "rerank_can_reorder_results_under_a_different_profile"
+        },
+        {
+          "kind": "fn",
+          "line": 206,
+          "name": "rerank_max_results_truncates"
+        },
+        {
+          "kind": "fn",
+          "line": 219,
+          "name": "rerank_of_an_empty_list_is_empty"
+        }
+      ],
+      "title": "use mini_crypto::{HashAlgorithm, Multihash};"
     },
     {
       "bytes": 1020,
@@ -58655,7 +58839,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 843350,
+      "bytes": 848830,
       "group": "docs",
       "headings": [
         {
@@ -59082,12 +59266,12 @@
         "roadmap",
         "phase",
         "deterministic",
-        "design",
-        "mini-consensus"
+        "local",
+        "design"
       ],
-      "lines": 14064,
+      "lines": 14155,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "b6babd9bf2ec50b3e373d6add2db8d4b42447f7c990ca24232b98d7fd46c0314",
+      "sha256": "354cc179c2eae85a878fa8805532398e1b1861bea7375c3c45fa3dd290a961dd",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -60236,7 +60420,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 104449,
+      "bytes": 105061,
       "group": "docs",
       "headings": [
         {
@@ -60306,22 +60490,22 @@
         },
         {
           "level": 2,
-          "line": 1355,
+          "line": 1364,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1446,
+          "line": 1455,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1526,
+          "line": 1535,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1592,
+          "line": 1601,
           "text": "Where to look for more detail"
         }
       ],
@@ -60351,9 +60535,9 @@
         "social",
         "network"
       ],
-      "lines": 1607,
+      "lines": 1616,
       "path": "docs/STATUS.md",
-      "sha256": "8684d36f3b69dd019bc22bdc5f3fd01c0c0bde0a1e29f269281ffe57d61abf87",
+      "sha256": "fd60596668033261961d3d5c13efb4bf3204dcbe1fa88ec21bae054e85537201",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -62651,96 +62835,101 @@
       "title": "External bridge adapter integration (post-MN-207, D-0097)"
     },
     {
-      "bytes": 8913,
+      "bytes": 12306,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Federated search exchange format and query merging: Track F1/F2/F3 (D-0422, D-0423)"
+          "text": "Federated search exchange format, query merging, and local re-ranking: Track F1/F2/F3/F4 (D-0422, D-0423, D-0424)"
         },
         {
           "level": 2,
-          "line": 15,
+          "line": 16,
           "text": "What this closes"
         },
         {
           "level": 2,
-          "line": 26,
+          "line": 27,
           "text": "Decision"
         },
         {
           "level": 2,
-          "line": 51,
+          "line": 52,
           "text": "Why not a new signing identity"
         },
         {
           "level": 2,
-          "line": 65,
+          "line": 66,
           "text": "F3: federated query merging (D-0423)"
         },
         {
           "level": 2,
-          "line": 88,
+          "line": 89,
+          "text": "F4: local re-ranking (D-0424)"
+        },
+        {
+          "level": 2,
+          "line": 123,
           "text": "What's deliberately not here"
         },
         {
           "level": 2,
-          "line": 108,
+          "line": 145,
           "text": "Constitutional impact"
         },
         {
           "level": 2,
-          "line": 117,
+          "line": 159,
           "text": "Implementation status"
         },
         {
           "level": 2,
-          "line": 137,
+          "line": 190,
           "text": "Failure point"
         },
         {
           "level": 2,
-          "line": 155,
+          "line": 212,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 165,
+          "line": 222,
           "text": "Supersedes / superseded by"
         }
       ],
       "keywords": [
-        "what",
-        "query",
-        "merging",
         "own",
         "already",
+        "query",
+        "merging",
         "federated",
+        "local",
+        "re-ranking",
+        "what",
         "object",
         "format",
         "track",
-        "new",
-        "peer",
-        "does",
-        "search",
-        "exchange",
         "d-0423",
-        "every",
-        "provider",
+        "new",
         "caller",
+        "every",
+        "search",
+        "d-0424",
+        "each",
+        "provider",
+        "does",
+        "exchange",
         "d-0422",
         "decision",
-        "signing",
-        "identity",
-        "shipped",
-        "per-provider"
+        "signing"
       ],
-      "lines": 169,
+      "lines": 228,
       "path": "docs/design/federated-search-exchange-f1-f2.md",
-      "sha256": "4e6e812a378e5e16766ccb29b26e75d7559e443adc7e79517bd9d26c76afaf9c",
+      "sha256": "b945a6e09d2d70141170f889760c1744d09454b449712aca0a154d36f56047ca",
       "symbols": [],
-      "title": "Federated search exchange format and query merging: Track F1/F2/F3 (D-0422, D-0423)"
+      "title": "Federated search exchange format, query merging, and local re-ranking: Track F1/F2/F3/F4 (D-0422, D-0423, D-0424)"
     },
     {
       "bytes": 7972,

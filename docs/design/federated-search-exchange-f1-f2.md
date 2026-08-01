@@ -1,16 +1,17 @@
-# Federated search exchange format and query merging: Track F1/F2/F3 (D-0422, D-0423)
+# Federated search exchange format, query merging, and local re-ranking: Track F1/F2/F3/F4 (D-0422, D-0423, D-0424)
 
 **Status:** Shipped (`mini-search-federation`). Wire format,
-signed-object publish/read, and deterministic per-provider result
-merging — no network transport, no peer discovery, no scheduling, no
-local re-ranking against a second profile (F4).
+signed-object publish/read, deterministic per-provider result merging,
+and local re-ranking under a caller's own profile — no network
+transport, no peer discovery, no scheduling.
 
 **Refs:** `docs/research/
 MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
 §29 ("Track F: Distributed search"), PR F1 ("Signed crawl-observation
 exchange"), PR F2 ("Content-addressed index segments"), PR F3
-("Federated query"); roadmap issue #175; D-0316 (`mini-web-types`);
-D-0405 (`mini-lexical-index`); D-0420 (`mini-query`); D-0422 (F1/F2).
+("Federated query"), PR F4 ("Local re-ranking"); roadmap issue #175;
+D-0316 (`mini-web-types`); D-0405 (`mini-lexical-index`); D-0420
+(`mini-query`); D-0406 (`mini-ranker`); D-0422 (F1/F2); D-0423 (F3).
 
 ## What this closes
 
@@ -85,6 +86,40 @@ it. Every provider is queried with the identical profile/query/`now_ms`,
 so scores are directly comparable across providers without this module
 needing to normalize anything itself.
 
+## F4: local re-ranking (D-0424)
+
+`local_rerank` takes an already-merged `FederatedResult` list (typically
+`federate_query`'s own output) and recomputes each result's final score
+under a *different*, caller-chosen `RankingProfile` — with no index,
+corpus, or network round trip. Every `SearchResult` already carries a
+`RankingExplanation` (the six per-signal scores from whichever profile
+originally produced it); re-ranking is exactly recombining those six
+numbers under a new set of weights.
+
+To make that recombination honest rather than a second, possibly-
+drifting implementation of the same math, this batch adds one small,
+purely additive export to `mini-ranker` itself: `pub fn rescore
+(explanation: &RankingExplanation, profile: &RankingProfile) ->
+Result<WeightBps>`. `rank`'s own internal `combine` function is
+refactored (behavior unchanged, all 10 pre-existing `mini-ranker` tests
+still pass unmodified) to route through the same private
+`weighted_average` helper `rescore` calls — so a score computed via
+`rescore` under profile P is bit-for-bit identical to what a fresh `rank`
+call under profile P would have produced from the same signals, by
+construction, not by inspection.
+
+`local_rerank` then re-sorts by the new scores (descending,
+canonical-URL-string tiebreak — the identical convention
+`federate_query` uses) and truncates to `max_results`. Each result's
+`ranking_profile` field is updated to the new profile's id, so it
+honestly names whichever profile actually produced the displayed score.
+The `diversity_bps` signal is *not* recomputed — it depends on the
+result set's own original ordering (how many higher-ranked results
+already shared a host), not a raw per-document property, so re-ranking
+reuses it as originally computed rather than re-running the
+diversity-aware greedy selection loop, which would be materially more
+work than "the user changed weights."
+
 ## What's deliberately not here
 
 - No network transport. Nothing in this crate opens a socket, dials a
@@ -94,45 +129,63 @@ needing to normalize anything itself.
   `mini-sync`'s existing type-agnostic replication (D-0080) is the
   closest existing analogue for "how would two nodes actually exchange
   these objects," but wiring it up is separate, later work.
-- No F4 (local re-ranking against a second, personalized profile — F3's
-  merge already applies one shared profile, but does not let a caller
-  overlay their own after the fact), F5 (provider payments), F6 (private
-  query transport), or F7 (historical snapshots). Each remains a one-line
-  research-doc description, not designed here.
+- No F5 (provider payments), F6 (private query transport), or F7
+  (historical snapshots). Each remains a one-line research-doc
+  description, not designed here.
 - No cross-provider trust weighting: `federate_query` does not treat any
   provider as more or less trustworthy than another, and does not detect
   a provider flooding the merge with many near-duplicate low-quality
   results beyond what `search`'s own `max_results` bound per provider
   already limits.
+- No diversity recomputation on re-rank (see F4 section above) and no
+  re-ranking of anything other than a `FederatedResult` list — a
+  single-provider `ResultProvenance` list from `mini-query::search`
+  directly is not accepted by `local_rerank` today.
 
 ## Constitutional impact
 
-None intended. No frozen invariant is amended. Purely additive: no
-existing crate's function signature changes (`mini-web-types`,
-`mini-lexical-index`, `mini-objects`, `mini-store` are all unmodified).
-No new cryptography — reuses `mini-crypto`'s existing
+None intended. No frozen invariant is amended. Almost entirely additive:
+no existing crate's function signature *changes* (`mini-web-types`,
+`mini-lexical-index`, `mini-objects`, `mini-store`, `mini-query` are all
+unmodified); `mini-ranker` gains one new public function (`rescore`) and
+one internal refactor (`combine` now routes through the same helper
+`rescore` uses) with zero behavior change to `rank` itself, verified by
+all 10 pre-existing `mini-ranker` tests passing unmodified plus 2 new
+ones. No new cryptography — reuses `mini-crypto`'s existing
 Multihash/Ed25519/BLAKE3 exactly as every other signed object in this
-workspace already does.
+workspace already does; F3/F4 perform no cryptographic operations at
+all.
 
 ## Implementation status
 
 `crates/mini-search-federation/`: `error.rs` (`FederationError`),
 `codec.rs` (`Writer`/`Reader`, private), `observation.rs` (F1),
-`segment.rs` (F2), `federate.rs` (F3), `lib.rs`. 8 integration tests
-(`tests/federation.rs`, F1/F2): round trip with every field populated,
-round trip with every optional field absent, wrong-object-type rejection
-for both object kinds, encrypted-payload rejection for both object
-kinds, a non-canonical index-segment payload caught at
-`IndexSegment::from_bytes` (not just this crate's own type check), and a
-tampered payload proven to still decode (well-formed bytes, different
-content) but fail signature verification — demonstrating decode-success
-and authenticity are genuinely separate checks, not one conflated with
-the other. 6 integration tests (`tests/federate.rs`, F3): results from
-every provider merged and correctly tagged, a shared URL across two
-providers keeping the higher-scoring copy, merge output proven
-order-independent (forward vs. reversed source list), `max_results`
-truncation, an empty source list producing no results, and each result
-retaining its own `index_segment`/`source_observation` provenance.
+`segment.rs` (F2), `federate.rs` (F3), `rerank.rs` (F4), `lib.rs`.
+`crates/mini-ranker/src/rank.rs`: `rescore` (new, public) and
+`weighted_average` (new, private, shared by `combine` and `rescore`).
+
+8 integration tests (`tests/federation.rs`, F1/F2): round trip with
+every field populated, round trip with every optional field absent,
+wrong-object-type rejection for both object kinds, encrypted-payload
+rejection for both object kinds, a non-canonical index-segment payload
+caught at `IndexSegment::from_bytes` (not just this crate's own type
+check), and a tampered payload proven to still decode (well-formed
+bytes, different content) but fail signature verification. 6 integration
+tests (`tests/federate.rs`, F3): results from every provider merged and
+correctly tagged, a shared URL across two providers keeping the
+higher-scoring copy, merge output proven order-independent (forward vs.
+reversed source list), `max_results` truncation, an empty source list
+producing no results, and each result retaining its own
+`index_segment`/`source_observation` provenance. 5 integration tests
+(`tests/rerank.rs`, F4): score and `ranking_profile` update correctly,
+re-ranking under the *same* profile reproduces the original order
+exactly, re-ranking under a genuinely different (single-signal) profile
+flips the winner between two documents engineered to win on opposite
+signals, `max_results` truncation, an empty list re-ranks to empty. Plus
+2 new `mini-ranker` unit tests: `rescore` under the original profile
+reproduces the original score exactly; `rescore` under a lexical-only
+profile collapses the score to exactly the lexical signal and differs
+from the public-default score.
 
 ## Failure point
 
@@ -145,17 +198,21 @@ pre-emptively builds. `CrawlObservationId` is trusted as caller-supplied
 with no derivation rule enforced here (none is defined anywhere in this
 workspace yet) — a caller could construct an observation with a
 misleading id, an integrity gap federation transport/discovery work will
-need to close, not this wire-format layer. `federate_query` queries every
-source for up to `max_results` of its own candidates before merging —
-correct for a bounded, known source list, but the cost is linear in the
-number of sources with no cap on how many sources a caller may pass; a
-real federation layer will need its own bound on concurrently-queried
-providers, not something this module enforces.
+need to close, not this wire-format layer. `federate_query` queries
+every source for up to `max_results` of its own candidates before
+merging — correct for a bounded, known source list, but the cost is
+linear in the number of sources with no cap on how many sources a caller
+may pass; a real federation layer will need its own bound on
+concurrently-queried providers, not something this module enforces.
+`local_rerank` only accepts `FederatedResult` (F3's own output type),
+not a bare single-provider result list, and never recomputes diversity
+(see F4 section above) — both deliberate, narrow scope choices, not
+oversights.
 
 ## Required follow-up
 
-F4 (local re-ranking against a caller's own personalized profile after
-the merge) is the natural next Track F piece. Wiring F1/F2's objects
+F5 (provider payments), F6 (private query transport), and F7 (historical
+snapshots) remain the un-designed Track F tail. Wiring F1/F2's objects
 into a real transport (likely via `mini-sync`'s existing replication
 machinery, per D-0080's own finding that it already carries arbitrary
 object types over real TCP) — and, once that exists, wiring
@@ -164,5 +221,7 @@ ones — is separate follow-up work, not started.
 
 ## Supersedes / superseded by
 
-Builds on and does not supersede D-0316, D-0405, or D-0420. Does not
-modify `mini-web-types`, `mini-lexical-index`, or `mini-query`.
+Builds on and does not supersede D-0316, D-0405, D-0406, or D-0420.
+Does not modify `mini-web-types`, `mini-lexical-index`, or `mini-query`.
+Extends (does not supersede) `mini-ranker`'s D-0406 with one additive
+public function.
