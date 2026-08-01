@@ -2538,6 +2538,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-index-exchange"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-lexical-index",
+ "mini-web-types",
+]
+
+[[package]]
 name = "mini-installer"
 version = "0.0.1"
 dependencies = [

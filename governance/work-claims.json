@@ -550,7 +550,7 @@
     },
     {
       "issue": 61,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "codex/day0-payment-admission",
       "pull_request": 274,
@@ -570,7 +570,27 @@
       "decision_ids": [
         "D-0416"
       ],
-      "notes": "Next large Day-0 payment portion of roadmap #61 after merged PR #273: standalone bounded PaymentClaim wire codec and deterministic node-local admission pool with signature/network/payee/expiry preflight, conflict and aggregate-overspend refusal, global/byte/per-payer limits, candidate ordering, and canonical revalidation. No authenticated network submission, re-gossip, fees, inclusion guarantee, persistence, privacy, or activation."
+      "notes": "Next large Day-0 payment portion of roadmap #61 after merged PR #273: standalone bounded PaymentClaim wire codec and deterministic node-local admission pool with signature/network/payee/expiry preflight, conflict and aggregate-overspend refusal, global/byte/per-payer limits, candidate ordering, and canonical revalidation. No authenticated network submission, re-gossip, fees, inclusion guarantee, persistence, privacy, or activation. Closed here (PR for issue #279 branch) since PR #274 merged 2026-07-30T18:33:51Z; found stale (still in_review) per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+    },
+    {
+      "issue": 279,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/index-exchange-track-f2",
+      "lease_expires": "2026-08-06",
+      "paths": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "crates/mini-index-exchange/",
+        "docs/STATUS.md",
+        "docs/DECISION_LOG.md",
+        "docs/_generated/",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0422"
+      ],
+      "notes": "MiniSearch Track F2 (first distributed-search slice): mini-index-exchange, sign/publish and content-address-verify immutable index segments across providers without trust, composing mini-lexical-index (D-0405) segments and mini-crypto signatures. Coordination evidence only; no approval or release claim. A publication attests provenance, never ranking/authority/payment (Directive 16); no new cryptography (Directive 14, D-0421)."
     }
   ]
 }

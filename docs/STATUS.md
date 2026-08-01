@@ -1159,10 +1159,26 @@ the top development priority.
   `DocumentContextTable` — language/media-type/source-observation facts
   neither the index nor the ranker corpus holds) and the caller-supplied
   `IndexSegmentId`; the ranking profile and per-signal explanation were
-  already on `SearchResult` from E6 and are not duplicated. Still no CLI
-  binary wiring `parse_query`/`search` to real stdin/argv, no search UI,
-  no network exchange, and no federated/distributed layer (Track F, issue
-  #175). Explicitly a distinct system from `mini-private-index` (D-0310),
+  already on `SearchResult` from E6 and are not duplicated.
+  `mini-index-exchange` (D-0422, Track F2) is the first distributed-search
+  slice: a provider signs the `IndexManifest` of a segment it publishes
+  (`SegmentPublication::publish`), and any node verifies the publication
+  from bytes alone — `verify` checks the signature and derives the
+  provider's `ProviderPseudonym` from the verifying key, `verify_segment`
+  additionally re-derives the segment's BLAKE3 content address and checks it
+  equals the published `segment_id`, and `accept_published_segment` is the
+  full untrusted-bytes receive path. Trust rests on two independent
+  both-required legs (content address + signature), so "provider P published
+  exactly this segment" is verifiable without any trusted registry — the
+  concrete mechanism behind D-0312's plurality. A publication attests
+  provenance only: no balance, stake, weight, or ranking entitlement
+  (Directive 16), and no new cryptography — `mini-crypto`'s existing
+  Ed25519/ML-DSA-65 and BLAKE3, composed (Directive 14, D-0421). Still no
+  CLI binary wiring `parse_query`/`search` to real stdin/argv, no search UI,
+  no transport actually moving publications between nodes, and no federated
+  query merge (F3), local re-ranking (F4), provider payments (F5), or
+  private query transport (F6). Explicitly a distinct system from
+  `mini-private-index` (D-0310),
   which is not to be repurposed as the general web index. See
   `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.

@@ -13889,3 +13889,78 @@ rollout; no code follow-up is scheduled or implied by this entry.
 **Supersedes / superseded by:** supersedes nothing. Restates and
 cross-references D-0063, D-0068, D-0070, D-0095, D-0098, D-0099, and
 D-0322 without modifying any of them.
+
+---
+
+### D-0422 — `mini-index-exchange`: publish and verify content-addressed index segments, Track F2 of MiniSearch  ·  *Accepted*
+**Date:** 2026-07-19 · **Refs:** D-0312 (MiniSearch doctrine, plurality /
+no search monopoly); D-0405 (`mini-lexical-index`, the segment being
+published); D-0421 (cryptographic architecture: composition over
+invention); issue #279; founder-supplied `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29
+(PR F2); Directive 14 (no new cryptography); Directive 16 (the voice/value
+wall)
+
+**Decision:** adds `mini-index-exchange`, the first Track F (distributed
+search) slice. A provider publishes an index segment by signing its
+`mini_lexical_index::IndexManifest` (`SegmentPublication::publish`); any node
+verifies the publication from bytes alone. `verify` checks the signature and
+derives the provider's `mini_web_types::ProviderPseudonym` from the verifying
+key; `verify_segment` additionally re-derives the segment's BLAKE3 content
+address and checks it equals the published `segment_id` and that the segment
+shape matches the manifest; `accept_published_segment` is the full receive
+path over untrusted segment and publication bytes, returning the validated
+segment and its provider or a precise error. A canonical
+`to_bytes`/`from_bytes` wire encoding, with bounded decode, lets publications
+be exchanged.
+
+**Reason:** §29 names content-addressed index-segment publish/verify as the
+distributed-search primitive after the single-node query chain (E5–E8, now
+complete). Acceptance rests on two independent, both-required checks: the
+**content address** (a segment's id is the BLAKE3 digest of its canonical
+bytes, so a provider cannot attach an id to content it did not produce — the
+bytes are their own proof) and the **signature** (so a third party cannot
+forge a publication in a provider's name). Together, "provider P published
+exactly this segment" is verifiable without any trusted registry, which is
+the concrete mechanism D-0312's plurality requires: many providers publish
+segments built from the same crawl observations, and anyone caches,
+replicates, and compares them by id without trusting whoever sent them.
+Signing the manifest (which binds the segment id) rather than a bare id, and
+under a domain-separated message, prevents a signature from being replayed
+into or out of any other protocol.
+
+**Constitutional impact:** strengthens the search-domain extension of
+Directive 16 without adding authority. A publication is a provenance
+attestation and carries no balance, stake, governance-weight, or ranking
+entitlement; which of several published segments a searcher uses is a
+selection/ranking choice made elsewhere and cannot be bought. Per Directive
+14 and D-0421, no new cryptography is introduced: signing and verification
+are `mini-crypto`'s existing Ed25519 / ML-DSA-65 primitives and BLAKE3
+content addresses, composed unchanged. The provider pseudonym is the BLAKE3
+digest of the verifying key and is explicitly not a governance identity,
+payment account, or vote.
+
+**Implementation status:** shipped in `mini-index-exchange` and added to the
+workspace. Focused local validation on Windows: `cargo fmt --all -- --check`,
+`cargo clippy -p mini-index-exchange --all-targets --all-features -- -D
+warnings`, and `cargo test -p mini-index-exchange --all-features` all pass —
+12 tests (8 unit + 4 integration) covering publish/verify round-trips, the
+full untrusted-accept path, a forged signature rejected, a tampered manifest
+breaking the signature, segment bytes not matching the published content
+address rejected, a right-id/wrong-shape manifest rejected, the plurality
+case (the same segment published by two providers yields two valid, distinct
+verified publications over one segment id), and trailing/truncated
+publication bytes rejected at every offset. A workspace-wide `cargo` run is
+not possible on the authoring machine (Windows) because of `mini-installer`'s
+Unix symlink path (the pre-existing condition tracked in D-0318);
+`mini-index-exchange` does not depend on `mini-installer`.
+
+**Required follow-up:** F3 (federated query merging across providers,
+preserving provenance); F4 (local re-ranking with the searcher's chosen
+profile); F5 (provider payments for measurable service); F6 (private query
+transport over relay/mix tiers); and the transport/storage wiring that
+actually moves publications between nodes (this crate defines and verifies
+the artifact; it does not move it).
+
+**Supersedes / superseded by:** none. Extends the MiniSearch track into
+Track F after D-0405/D-0420; supersedes nothing.

@@ -1,0 +1,23 @@
+[package]
+name = "mini-index-exchange"
+version = "0.0.1"
+description = "MiniSearch distributed-search index exchange (Track F2): publish and verify immutable, content-addressed index segments across providers without trust. A provider signs the segment it publishes; any node re-derives the content address and checks the signature before accepting. Pure protocol and verification -- no network, no ranking, no payment."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# mini-crypto for existing signing/verification primitives (no new
+# cryptography -- Directive 14, D-0421); mini-lexical-index for the
+# IndexSegment/IndexManifest being published; mini-web-types for the shared
+# IndexSegmentId and ProviderPseudonym identities. Deliberately no network,
+# storage, or value/governance crate: this crate describes and verifies a
+# publication and can do nothing else. A publication is a provenance
+# attestation, never a ranking, authority, or payment signal (D-0312,
+# Directive 16).
+mini-crypto = { path = "../mini-crypto" }
+mini-lexical-index = { path = "../mini-lexical-index" }
+mini-web-types = { path = "../mini-web-types" }
