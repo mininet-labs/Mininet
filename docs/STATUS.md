@@ -1108,7 +1108,17 @@ the top development priority.
   bounded same-host frontiers, explicit robots exclusions,
   depth/queue/URL-length limits, HTTPS-only by default, and no network
   client, parser, JavaScript execution, storage, indexing, ranking, or
-  payment logic. `mini-web-extract` (D-0371, Track E4) is the third code
+  payment logic. `mini-crawler-fetch` (proposed D-0425) is the separate
+  execution layer for one admitted request: a real platform-TLS HTTP(S)
+  backend with automatic redirects and decompression disabled, manual
+  redirect resolution, fresh DNS resolution and public-address validation
+  at every hop, DNS pinning into the HTTP client, strict time/body/port/
+  redirect limits, explicit robots authorization that fails closed while
+  unknown, supported-media admission, and a canonical transcript-derived
+  `CrawlObservationId`. It is **not** a crawler service: no robots parser or
+  cache, politeness clock, durable frontier, process sandbox, extraction
+  wiring, index pipeline, JavaScript, payment, or proof that claimed work was
+  useful. `mini-web-extract` (D-0371, Track E4) is the third code
   slice: a pure, hand-rolled static-HTML extractor (`extract(html: &str)
   -> PageExtract`) over already-fetched text — title, headings, visible
   text, links (unresolved `href`/anchor text), `<html lang>`, meta name/

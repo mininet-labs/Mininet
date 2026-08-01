@@ -14152,3 +14152,67 @@ research-doc description.
 **Supersedes / superseded by:** builds on and does not supersede D-0406
 or D-0423. Extends (does not supersede) `mini-ranker`'s D-0406 with one
 additive public function.
+
+### D-0425 — `mini-crawler-fetch`: bounded real HTTP(S) execution for MiniSearch Track E3  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** D-0312 (MiniSearch doctrine); D-0317
+(`mini-crawler` planning); D-0371 (`mini-web-extract`); D-0422 (signed crawl
+observation exchange); `docs/design/bounded-crawler-fetch-runtime.md`;
+MiniSearch Track E3; Directive 2, Directive 6, Directive 9, Directive 11,
+Directive 14.
+
+**Decision:** add `mini-crawler-fetch` as a separate execution crate rather
+than adding I/O dependencies to deterministic `mini-crawler`. It executes one
+already-admitted `CrawlRequest` using a real reqwest platform-TLS backend with
+automatic redirect handling and decompression disabled. Every hop is manually
+resolved; all answers must be public; approved socket addresses are pinned into
+the client; redirects repeat URL/scheme/port/DNS/address validation. Defaults
+are HTTPS-only, standard-port-only, five redirects, 5-second connect timeout,
+20-second request timeout and 8-MiB body. Unknown robots authorization fails
+closed. Successful supported content produces exact bytes, BLAKE3 digest,
+length, media type and a domain-separated canonical `CrawlObservationId`.
+
+**Reason:** the MiniSearch foundation had planning, extraction, indexing,
+ranking, querying and local federation but still no code that fetched a web
+page. A naive HTTP client would also create a high-impact SSRF primitive on
+every contributing participant device. Separating and narrowing the executor
+makes the network boundary independently replaceable while preserving the
+existing deterministic planner.
+
+**Alternatives:** automatic redirects and post-validation client re-resolution
+were rejected because they bypass hop authorization; transparent compression
+was rejected until separate compressed/expanded budgets exist; a private-
+address override was rejected because test convenience could become production
+authority; writing TLS/HTTP locally was rejected in favor of an established
+client and platform certificate validation.
+
+**Constitutional impact:** none intended. No invariant or authority changes.
+Search-provider resources still confer neither governance nor ranking power.
+The runtime neither pays providers nor asserts useful work, truth, independent
+corroboration or global availability. No identity or wallet key reaches the
+HTTP backend.
+
+**Implementation status:** proposal adds the new crate, real
+`ReqwestBackend`, injectable `FetchBackend`, address classifier, bounded
+runtime, four explicit `FetchStatus` variants and matching federation wire
+tags, plus tests covering public/private/mixed DNS answers, redirect escape,
+redirect limit, invalid schemes/credentials, HTTP/port policy, robots fail-
+closed behavior, timeout, response-size/media admission and deterministic
+observation identity. `README`, `STATUS` and product architecture are updated.
+
+**Failure point:** `Allowed` is supplied by the caller; no robots parser/cache
+establishes it yet. There is no durable frontier, politeness clock, process
+sandbox, extraction/index wiring, JavaScript, compressed-body support,
+corroboration, reward eligibility, or deployment. `FetchBackend` is a security
+contract: an alternative backend that ignores approved addresses would reopen
+DNS rebinding. Internal tests are not an external security audit.
+
+**Required follow-up:** robots parser/cache and per-origin scheduler; durable
+frontier; isolated extraction; observation-to-segment pipeline; real crawler
+service/CLI/UI; independent corroboration and only then separately reviewed
+resource accounting. Run external SSRF/TLS/parser review before enabling
+untrusted public crawl jobs on participant devices.
+
+**Supersedes / superseded by:** implements the missing execution portion of
+Track E3 after D-0317; builds on and does not supersede D-0312, D-0317,
+D-0371, or D-0422.

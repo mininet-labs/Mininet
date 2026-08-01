@@ -160,6 +160,13 @@ so, everywhere, on purpose.
   URL admission policy — bounded same-host frontiers, explicit robots
   exclusions, depth/queue/URL-length limits, and no network client,
   parser, JavaScript, storage, ranking, or payment logic
+- `mini-crawler-fetch` (proposed D-0425): the separate bounded execution
+  layer for one admitted crawl request — real HTTP(S), platform TLS,
+  manual redirects, DNS pinning, public-address/SSRF checks, identity
+  transfer encoding, response/time/port limits, explicit robots
+  authorization, media-type admission, and transcript-derived observation
+  ids; no robots parser/cache, durable frontier, extraction, JavaScript,
+  storage, indexing, payment, or claim that a fetch proves useful work
 - `mini-web-extract` (D-0371): sandboxed-in-principle static HTML
   extraction over already-fetched text — title, headings, visible text,
   unresolved links, language, metadata, a content digest, and hidden-
