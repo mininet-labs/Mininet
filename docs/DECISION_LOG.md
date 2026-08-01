@@ -14216,3 +14216,82 @@ untrusted public crawl jobs on participant devices.
 **Supersedes / superseded by:** implements the missing execution portion of
 Track E3 after D-0317; builds on and does not supersede D-0312, D-0317,
 D-0371, or D-0422.
+### D-0425 — `mini-search-federation`: local snapshot-history index, Track F7 of distributed search  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/design/
+federated-search-exchange-f1-f2.md`; `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29
+(Track F, PR F7); roadmap issue #175; D-0422 (`mini-search-federation`
+F1/F2); D-0420 (`mini-query`); Directive 4, Directive 16.
+
+**Decision:** add `SnapshotIndex`/`Snapshot` to `mini-search-federation`
+(Track F7, "Store and search versioned page observations"). F1's
+`publish_crawl_observation` already lets a caller record as many
+independent `CrawlObservation`s of one URL over time as it likes —
+nothing in the F1 wire format assumes one observation per URL — so the
+"store" half of F7 already existed; what was missing was "search."
+`SnapshotIndex` is a local, in-memory, per-URL history a caller builds
+by feeding it observations as they arrive (typically decoded via F1's
+own `read_crawl_observation`), mirroring `mini_query::
+DocumentContextTable`'s own "caller-built local table, not itself signed
+or stored" pattern. `insert_observation` is idempotent per object id and
+keeps each URL's history sorted by `observed_at_ms` regardless of
+insertion order, recomputing which snapshots represent a genuine content
+change (`content_changed`, from each snapshot's `content_digest`) so
+that signal is never insertion-order-dependent either. Query methods:
+`history` (full sorted history), `latest`, `at_or_before(ms)` ("what did
+this page look like at time T"), `between(after_ms, before_ms)` (using
+the identical inclusive-lower/exclusive-upper convention
+`mini_query::ParsedQuery`'s own `after_ms`/`before_ms` fields already
+use, so those fields can be passed straight through), and
+`distinct_versions` (only snapshots representing a real content change,
+filtering out repeat fetches of unchanged content automatically).
+
+**Reason:** F7 is the one remaining Track F piece (besides F5/F6, which
+need real payment/privacy infrastructure this batch does not build) that
+composes entirely from what F1 already stores — no new signing, no new
+wire format, no network. The "two consecutive unknown digests are not a
+change" rule was chosen deliberately: a crawler that never populates
+`content_digest` gets an honest "no version signal available," not a
+fabricated one.
+
+**Alternatives:** persisting `SnapshotIndex` as a signed, exchangeable
+object (its own F1-style wire format) was rejected for this batch — it
+would need its own trust/dedup/merge story (what happens when two
+peers' histories disagree about a snapshot's existence or timing) that
+is genuinely Track F5/F6-adjacent scope, not a small addition; today it
+stays a local, rebuild-from-observations-you-already-have view.
+Recomputing `content_changed` from a full pairwise history diff on every
+query (rather than once, at insertion time, cached on each `Snapshot`)
+was rejected as unnecessary — the value only ever depends on one
+adjacent pair and is cheap to keep current at insert time.
+
+**Constitutional impact:** none intended. No frozen invariant is
+amended. Purely additive: no existing crate's function signature
+changes; `mini-web-types`, `mini-lexical-index`, `mini-objects`,
+`mini-store`, `mini-query`, and `mini-ranker` are all unmodified. No new
+cryptography; this module performs no cryptographic operations at all.
+
+**Implementation status:** proposed code adds `crates/mini-search-
+federation/src/history.rs` and `tests/history.rs` (9 integration tests:
+empty history for an unrecorded URL, oldest-first ordering regardless of
+insertion order, idempotent re-insertion, `latest`, `at_or_before` at a
+point in time, `between`'s inclusive/exclusive bounds including
+one-sided ranges, `distinct_versions` correctly skipping unchanged
+repeat fetches, two consecutive unknown digests not treated as a change,
+and independent per-URL histories).
+
+**Failure point:** `SnapshotIndex` is entirely in-memory and
+per-process — not persisted, signed, or shared between peers; a caller
+restarting has to rebuild it by replaying whatever observations it can
+still reach. Its `content_changed` signal is only as good as whether a
+crawler actually populates `content_digest` — a crawler that never does
+gets an undifferentiated timeline, not an error.
+
+**Required follow-up:** persisting/sharing a `SnapshotIndex` (or its
+equivalent) across peers, once F1/F2's objects have a real transport, is
+separate follow-up work. F5 and F6 remain Track F's genuinely
+un-designed tail.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0422
+or D-0420. Does not modify either.

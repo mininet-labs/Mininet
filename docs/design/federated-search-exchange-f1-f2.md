@@ -1,17 +1,18 @@
-# Federated search exchange format, query merging, and local re-ranking: Track F1/F2/F3/F4 (D-0422, D-0423, D-0424)
+# Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0425)
 
 **Status:** Shipped (`mini-search-federation`). Wire format,
 signed-object publish/read, deterministic per-provider result merging,
-and local re-ranking under a caller's own profile — no network
-transport, no peer discovery, no scheduling.
+local re-ranking under a caller's own profile, and a local snapshot-
+history index — no network transport, no peer discovery, no scheduling.
 
 **Refs:** `docs/research/
 MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
 §29 ("Track F: Distributed search"), PR F1 ("Signed crawl-observation
 exchange"), PR F2 ("Content-addressed index segments"), PR F3
-("Federated query"), PR F4 ("Local re-ranking"); roadmap issue #175;
-D-0316 (`mini-web-types`); D-0405 (`mini-lexical-index`); D-0420
-(`mini-query`); D-0406 (`mini-ranker`); D-0422 (F1/F2); D-0423 (F3).
+("Federated query"), PR F4 ("Local re-ranking"), PR F7 ("Historical
+snapshots"); roadmap issue #175; D-0316 (`mini-web-types`); D-0405
+(`mini-lexical-index`); D-0420 (`mini-query`); D-0406 (`mini-ranker`);
+D-0422 (F1/F2); D-0423 (F3); D-0424 (F4).
 
 ## What this closes
 
@@ -120,6 +121,46 @@ reuses it as originally computed rather than re-running the
 diversity-aware greedy selection loop, which would be materially more
 work than "the user changed weights."
 
+## F7: historical snapshots (D-0425)
+
+F1's `publish_crawl_observation` already lets a caller store as many
+independent `CrawlObservation`s of the same URL over time as it likes —
+nothing about the F1 wire format assumes one observation per URL. What
+was missing was the *search* half: given a URL, find its observation
+history, what it looked like at a given time, or which observations
+represent a distinct version rather than a repeat fetch of unchanged
+content.
+
+`SnapshotIndex` is a small, local, in-memory structure a caller builds
+by feeding it observations as they arrive (typically via F1's own
+`read_crawl_observation`) — mirroring `mini_query::DocumentContextTable`'s
+own "caller-built local table, not itself signed or stored" pattern —
+and then queries:
+
+- `insert_observation(url, object_id, observed_at_ms, content_digest)` —
+  idempotent (inserting the same `object_id` twice is a no-op), keeps
+  each URL's history sorted by time, and recomputes which snapshots
+  represent a genuine content change (`content_changed`) so insertion
+  order never affects the result.
+- `history(url)` — the full sorted history.
+- `latest(url)` — the most recent snapshot.
+- `at_or_before(url, ms)` — "what did this page look like at time T,"
+  the most recent snapshot observed at or before `ms`.
+- `between(url, after_ms, before_ms)` — snapshots in a time window,
+  using the identical inclusive-lower/exclusive-upper convention
+  `mini_query::ParsedQuery`'s own `after_ms`/`before_ms` fields already
+  use, so a caller can pass those fields straight through without
+  re-deriving the boundary semantics.
+- `distinct_versions(url)` — only the snapshots that represent a real
+  version (the first, plus every later one whose content digest
+  actually changed), filtering out repeat fetches of unchanged content
+  without the caller having to do it by hand.
+
+A `content_digest` of `None` for two consecutive snapshots is treated as
+"no signal either way" (not a change) — this module does not invent a
+rule for what an unknown digest means, it just declines to claim a
+change it cannot actually observe.
+
 ## What's deliberately not here
 
 - No network transport. Nothing in this crate opens a socket, dials a
@@ -129,9 +170,8 @@ work than "the user changed weights."
   `mini-sync`'s existing type-agnostic replication (D-0080) is the
   closest existing analogue for "how would two nodes actually exchange
   these objects," but wiring it up is separate, later work.
-- No F5 (provider payments), F6 (private query transport), or F7
-  (historical snapshots). Each remains a one-line research-doc
-  description, not designed here.
+- No F5 (provider payments) or F6 (private query transport). Each
+  remains a one-line research-doc description, not designed here.
 - No cross-provider trust weighting: `federate_query` does not treat any
   provider as more or less trustworthy than another, and does not detect
   a provider flooding the merge with many near-duplicate low-quality
@@ -141,6 +181,10 @@ work than "the user changed weights."
   re-ranking of anything other than a `FederatedResult` list — a
   single-provider `ResultProvenance` list from `mini-query::search`
   directly is not accepted by `local_rerank` today.
+- `SnapshotIndex` is not itself signed, persisted, or exchanged — it is
+  a local view a caller builds from observations it already holds
+  (however it obtained them); this module does not decide how a
+  snapshot history is shared with, or verified against, a peer.
 
 ## Constitutional impact
 
@@ -160,9 +204,10 @@ all.
 
 `crates/mini-search-federation/`: `error.rs` (`FederationError`),
 `codec.rs` (`Writer`/`Reader`, private), `observation.rs` (F1),
-`segment.rs` (F2), `federate.rs` (F3), `rerank.rs` (F4), `lib.rs`.
-`crates/mini-ranker/src/rank.rs`: `rescore` (new, public) and
-`weighted_average` (new, private, shared by `combine` and `rescore`).
+`segment.rs` (F2), `federate.rs` (F3), `rerank.rs` (F4), `history.rs`
+(F7), `lib.rs`. `crates/mini-ranker/src/rank.rs`: `rescore` (new,
+public) and `weighted_average` (new, private, shared by `combine` and
+`rescore`).
 
 8 integration tests (`tests/federation.rs`, F1/F2): round trip with
 every field populated, round trip with every optional field absent,
@@ -185,7 +230,14 @@ signals, `max_results` truncation, an empty list re-ranks to empty. Plus
 2 new `mini-ranker` unit tests: `rescore` under the original profile
 reproduces the original score exactly; `rescore` under a lexical-only
 profile collapses the score to exactly the lexical signal and differs
-from the public-default score.
+from the public-default score. 9 integration tests (`tests/history.rs`,
+F7): empty history for an unrecorded URL, snapshots returned oldest-
+first regardless of insertion order, idempotent re-insertion of the same
+object id, `latest`, `at_or_before` at a point in time, `between`'s
+inclusive-lower/exclusive-upper bounds (including one-sided ranges),
+`distinct_versions` correctly skipping repeat fetches of unchanged
+content, two consecutive unknown digests not being treated as a change,
+and independent per-URL histories.
 
 ## Failure point
 
@@ -207,17 +259,28 @@ concurrently-queried providers, not something this module enforces.
 `local_rerank` only accepts `FederatedResult` (F3's own output type),
 not a bare single-provider result list, and never recomputes diversity
 (see F4 section above) — both deliberate, narrow scope choices, not
-oversights.
+oversights. `SnapshotIndex` is entirely in-memory and per-process — it
+is not itself persisted, signed, or shared between peers; a caller
+restarting from scratch has to rebuild it by replaying whatever
+observations it can still reach via `mini-store`. Its `content_changed`
+signal is only as good as the `content_digest` an observation actually
+carries — a crawler that never populates that field gets no version
+detection at all, just an undifferentiated timeline.
 
 ## Required follow-up
 
-F5 (provider payments), F6 (private query transport), and F7 (historical
-snapshots) remain the un-designed Track F tail. Wiring F1/F2's objects
-into a real transport (likely via `mini-sync`'s existing replication
-machinery, per D-0080's own finding that it already carries arbitrary
-object types over real TCP) — and, once that exists, wiring
-`federate_query` to real peer-fetched sources rather than only local
-ones — is separate follow-up work, not started.
+F5 (provider payments) and F6 (private query transport) remain the
+un-designed Track F tail — see `docs/design/
+cryptographic-architecture-and-flagship-research-protocol.md` (D-0421)
+for why F5 in particular needs its own dedicated anti-collusion-
+settlement doctrine before any implementation, not a quick composition.
+Wiring F1/F2's objects into a real transport (likely via `mini-sync`'s
+existing replication machinery, per D-0080's own finding that it already
+carries arbitrary object types over real TCP) — and, once that exists,
+wiring `federate_query` to real peer-fetched sources rather than only
+local ones, and persisting/sharing a `SnapshotIndex` across peers rather
+than rebuilding it per-process — is separate follow-up work, not
+started.
 
 ## Supersedes / superseded by
 
