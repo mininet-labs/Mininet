@@ -233,26 +233,68 @@ fn remove_duplicates(scored: &mut Vec<Candidate>) {
 /// average in basis points, normalized by the actual weight sum so a
 /// forked profile need not make its weights total 10000.
 fn combine(sig: &Signals, diversity: u16, profile: &RankingProfile) -> u16 {
-    let terms: [(u64, u64); 6] = [
-        (sig.lexical as u64, profile.lexical_weight.value() as u64),
-        (sig.phrase as u64, profile.phrase_weight.value() as u64),
-        (sig.link as u64, profile.link_weight.value() as u64),
-        (
-            sig.freshness as u64,
-            profile.freshness_weight.value() as u64,
-        ),
-        (
-            sig.originality as u64,
-            profile.originality_weight.value() as u64,
-        ),
-        (diversity as u64, profile.diversity_weight.value() as u64),
-    ];
+    weighted_average([
+        (sig.lexical, profile.lexical_weight.value()),
+        (sig.phrase, profile.phrase_weight.value()),
+        (sig.link, profile.link_weight.value()),
+        (sig.freshness, profile.freshness_weight.value()),
+        (sig.originality, profile.originality_weight.value()),
+        (diversity, profile.diversity_weight.value()),
+    ])
+}
+
+/// The one weighted-average-in-basis-points formula both [`combine`] (raw
+/// signals, at initial ranking time) and [`rescore`] (an already-computed
+/// [`RankingExplanation`], for local re-ranking under a different profile
+/// with no re-query) go through -- kept as one function so the two never
+/// drift into computing "the same score" two different ways.
+fn weighted_average(terms: [(u16, u16); 6]) -> u16 {
+    let terms: [(u64, u64); 6] = terms.map(|(s, w)| (s as u64, w as u64));
     let weight_sum: u64 = terms.iter().map(|(_, w)| *w).sum();
     if weight_sum == 0 {
         return 0;
     }
     let weighted: u64 = terms.iter().map(|(s, w)| s * w).sum();
     (weighted / weight_sum).min(signals::BPS_MAX as u64) as u16
+}
+
+/// Recompute a final score from an already-computed [`RankingExplanation`]
+/// under a *different* [`RankingProfile`]'s weights, with no index, corpus,
+/// or query needed -- Track F4's "apply your chosen profile locally"
+/// (`docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+/// §29). Uses the identical weighted-average formula [`rank`] itself uses,
+/// via [`weighted_average`], so a re-ranked score is never computed by a
+/// second, potentially-drifting implementation. The `diversity_bps` signal
+/// is reused as originally computed (it depends on the result set's own
+/// original ordering, not a raw per-document property, so recomputing it
+/// under a new order is a distinct, larger operation this function does
+/// not attempt -- callers wanting re-ranked diversity need a fresh `rank`
+/// call).
+pub fn rescore(explanation: &RankingExplanation, profile: &RankingProfile) -> Result<WeightBps> {
+    let score = weighted_average([
+        (
+            explanation.lexical_bps.value(),
+            profile.lexical_weight.value(),
+        ),
+        (
+            explanation.phrase_bps.value(),
+            profile.phrase_weight.value(),
+        ),
+        (explanation.link_bps.value(), profile.link_weight.value()),
+        (
+            explanation.freshness_bps.value(),
+            profile.freshness_weight.value(),
+        ),
+        (
+            explanation.originality_bps.value(),
+            profile.originality_weight.value(),
+        ),
+        (
+            explanation.diversity_bps.value(),
+            profile.diversity_weight.value(),
+        ),
+    ]);
+    Ok(WeightBps::new(score)?)
 }
 
 fn build_result(

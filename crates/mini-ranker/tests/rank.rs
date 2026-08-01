@@ -5,7 +5,7 @@
 
 use mini_crypto::{HashAlgorithm, Multihash};
 use mini_lexical_index::{Field, IndexBuilder, IndexSegment, UrlId};
-use mini_ranker::{rank, Corpus, DocumentMeta, Query, RankingProfile, RankingProfileId};
+use mini_ranker::{rank, rescore, Corpus, DocumentMeta, Query, RankingProfile, RankingProfileId};
 use mini_web_types::{AvailabilityState, CanonicalUrl, NormalizedHost, RestrictionReason, Scheme};
 
 fn url_id(seed: &[u8]) -> UrlId {
@@ -343,4 +343,40 @@ fn a_phrase_query_boosts_an_adjacent_match() {
     let top_term = t.first().unwrap().relevance_score_bps.value();
     let top_phrase = p.first().unwrap().relevance_score_bps.value();
     assert!(top_phrase > top_term);
+}
+
+#[test]
+fn rescore_reproduces_the_original_score_under_the_same_profile() {
+    let w = build_world();
+    let q = Query::new(["programming", "language"]);
+    let results = rank(&w.index, &w.corpus, &profile(), &q, w.now_ms, 10).unwrap();
+    for r in &results {
+        let recomputed = rescore(&r.explanation, &profile()).unwrap();
+        assert_eq!(recomputed, r.relevance_score_bps);
+    }
+}
+
+#[test]
+fn rescore_under_a_lexical_only_profile_differs_from_the_public_default() {
+    let w = build_world();
+    let q = Query::new(["programming", "language"]);
+    let results = rank(&w.index, &w.corpus, &profile(), &q, w.now_ms, 10).unwrap();
+    let lexical_only = RankingProfile {
+        id: RankingProfileId(digest(b"lexical-only")),
+        version: 1,
+        lexical_weight: mini_web_types::WeightBps::new(10_000).unwrap(),
+        phrase_weight: mini_web_types::WeightBps::ZERO,
+        link_weight: mini_web_types::WeightBps::ZERO,
+        freshness_weight: mini_web_types::WeightBps::ZERO,
+        originality_weight: mini_web_types::WeightBps::ZERO,
+        diversity_weight: mini_web_types::WeightBps::ZERO,
+        personalization: mini_web_types::PersonalizationPolicy::None,
+    };
+    let top = results.first().unwrap();
+    let rescored = rescore(&top.explanation, &lexical_only).unwrap();
+    // Under a lexical-only profile the score collapses to exactly the
+    // lexical signal, which for the public-default (mixed) profile is
+    // never the entire score -- so this must differ from the original.
+    assert_eq!(rescored, top.explanation.lexical_bps);
+    assert_ne!(rescored, top.relevance_score_bps);
 }

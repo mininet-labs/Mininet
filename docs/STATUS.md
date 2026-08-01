@@ -1164,13 +1164,14 @@ the top development priority.
   Explicitly a distinct system from `mini-private-index` (D-0310), which
   is not to be repurposed as the general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
-- **shipped, wire format + local merge only** — `mini-search-federation`
-  (D-0422/D-0423, Track F1/F2/F3 of distributed search, issue #175): the
-  signed, content-addressed exchange format two Track F peers need
-  before any federation can be built, plus deterministic merging of
-  per-provider query results. `publish_crawl_observation`/
-  `read_crawl_observation` (F1) wrap a `CrawlObservation` in a
-  hand-rolled canonical codec (mirroring `mini-lexical-index`'s own
+- **shipped, wire format + local merge/rerank only** —
+  `mini-search-federation` (D-0422/D-0423/D-0424, Track F1/F2/F3/F4 of
+  distributed search, issue #175): the signed, content-addressed
+  exchange format two Track F peers need before any federation can be
+  built, plus deterministic merging of per-provider query results, plus
+  local re-ranking under a caller's own profile. `publish_crawl_
+  observation`/`read_crawl_observation` (F1) wrap a `CrawlObservation`
+  in a hand-rolled canonical codec (mirroring `mini-lexical-index`'s own
   `Writer`/`Reader` discipline) and sign it as a `mini_objects::Object`.
   `publish_index_segment`/`read_index_segment` (F2) wrap an
   `IndexSegment`'s own already-canonical `to_bytes()`/`from_bytes()`
@@ -1187,24 +1188,32 @@ the top development priority.
   deduplicate by canonical URL keeping the higher-scoring copy (ties
   broken on provider-pseudonym bytes), sort by score with a
   canonical-URL-string tiebreak, truncate to `max_results` — proven
-  order-independent regardless of source list order. No new scoring,
-  filtering, or provenance logic; merging is the only new behavior.
-  **No network transport, no peer discovery, no scheduling — F3's
-  sources are local, not real remote peers yet — and no F4 (local
-  re-ranking against a caller's own personalized profile).** Real,
-  tested (8 F1/F2 integration tests including a tampered-payload case
-  proving decode-success and signature authenticity are genuinely
-  separate checks; 6 F3 integration tests including the order-
-  independence and shared-URL-dedup cases). Segments are bounded to
-  `mini_objects::MAX_PAYLOAD_BYTES` (8 MiB) with no splitting mechanism
-  (`mini-media`'s superblock pattern is the precedent if that ever
-  proves insufficient); `CrawlObservationId` is trusted as
-  caller-supplied with no derivation rule enforced anywhere in this
-  workspace yet; `federate_query` has no cap on concurrently-queried
-  sources and no cross-provider trust weighting. F4-F7 (local re-
-  ranking, provider payments, private query transport, historical
-  snapshots) remain one-line research-doc descriptions, not designed or
-  built. See `docs/design/federated-search-exchange-f1-f2.md`.
+  order-independent regardless of source list order. `local_rerank`
+  (F4) recomputes each already-merged result's score under a different,
+  caller-chosen profile with no re-query, via a new `mini_ranker::
+  rescore` export (D-0424) that shares its formula with `rank`'s own
+  internal `combine` through a common private helper, so a rescored
+  value is bit-for-bit what a fresh `rank` call under that profile would
+  have produced — proven by a test that flips the winner between two
+  documents engineered to win on opposite single-signal profiles.
+  Diversity is deliberately not recomputed on re-rank. **No network
+  transport, no peer discovery, no scheduling — F3/F4's inputs are
+  local, not real remote peers yet.** Real, tested (8 F1/F2 integration
+  tests including a tampered-payload case proving decode-success and
+  signature authenticity are genuinely separate checks; 6 F3 integration
+  tests including the order-independence and shared-URL-dedup cases; 5
+  F4 integration tests plus 2 new `mini-ranker` unit tests for
+  `rescore`). Segments are bounded to `mini_objects::MAX_PAYLOAD_BYTES`
+  (8 MiB) with no splitting mechanism (`mini-media`'s superblock pattern
+  is the precedent if that ever proves insufficient); `CrawlObservationId`
+  is trusted as caller-supplied with no derivation rule enforced
+  anywhere in this workspace yet; `federate_query` has no cap on
+  concurrently-queried sources and no cross-provider trust weighting;
+  `local_rerank` accepts only `FederatedResult`, not a bare
+  single-provider result list. F5-F7 (provider payments, private query
+  transport, historical snapshots) remain one-line research-doc
+  descriptions, not designed or built. See `docs/design/
+  federated-search-exchange-f1-f2.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,

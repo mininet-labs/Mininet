@@ -14,7 +14,11 @@
 //! [`mini_web_types::RankingExplanation`] that breaks the score down by
 //! signal. [`Query`] is the structured query, [`Corpus`]/[`DocumentMeta`]
 //! the per-document metadata, and the [`signals`] module the individual
-//! scoring functions.
+//! scoring functions. [`rescore`] recomputes a final score from an
+//! already-computed `RankingExplanation` under a *different* profile's
+//! weights, with no index/corpus/query needed — the same weighted-average
+//! formula `rank` itself uses, exposed so Track F4's local re-ranking
+//! (`mini-search-federation`) never has to re-derive it.
 //!
 //! ## What's deliberately NOT here
 //!
@@ -55,7 +59,7 @@ pub mod signals;
 pub use corpus::{Corpus, DocumentMeta};
 pub use error::{RankerError, Result};
 pub use query::Query;
-pub use rank::rank;
+pub use rank::{rank, rescore};
 
 // Re-exported so a caller names profiles, results, and weights with the
 // same vocabulary the rest of MiniSearch uses.
