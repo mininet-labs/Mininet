@@ -1,14 +1,16 @@
-# Federated search exchange format: Track F1/F2 (D-0422)
+# Federated search exchange format and query merging: Track F1/F2/F3 (D-0422, D-0423)
 
-**Status:** Shipped (`mini-search-federation`). Wire format and
-signed-object publish/read only — no network transport, no peer
-discovery, no scheduling, no federated query merging.
+**Status:** Shipped (`mini-search-federation`). Wire format,
+signed-object publish/read, and deterministic per-provider result
+merging — no network transport, no peer discovery, no scheduling, no
+local re-ranking against a second profile (F4).
 
 **Refs:** `docs/research/
 MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
 §29 ("Track F: Distributed search"), PR F1 ("Signed crawl-observation
-exchange") and PR F2 ("Content-addressed index segments"); roadmap issue
-#175; D-0316 (`mini-web-types`); D-0405 (`mini-lexical-index`).
+exchange"), PR F2 ("Content-addressed index segments"), PR F3
+("Federated query"); roadmap issue #175; D-0316 (`mini-web-types`);
+D-0405 (`mini-lexical-index`); D-0420 (`mini-query`); D-0422 (F1/F2).
 
 ## What this closes
 
@@ -60,23 +62,48 @@ take whatever `Did`/`Controller` the caller passes, exactly like
 `publish_media` does, so this decision does not have to choose a privacy
 posture on the caller's behalf.
 
+## F3: federated query merging (D-0423)
+
+`federate_query` runs the *unmodified* `mini_query::search` once per
+[`FederationSource`] (a provider's own `IndexSegment`/`Corpus`/
+`DocumentContextTable`/`IndexSegmentId`), then deterministically merges
+the per-provider result lists:
+
+1. Concatenate every provider's results, tagging each with the
+   `ProviderPseudonym` that supplied it.
+2. Deduplicate by canonical URL string: the higher `relevance_score_bps`
+   wins; ties break on the smaller provider-pseudonym bytes, so the
+   outcome never depends on the order sources were queried in.
+3. Sort the deduplicated set by score descending, tie-breaking on
+   canonical URL string bytes (mirroring `mini_ranker::rank`'s own
+   `UrlId`-byte tiebreak discipline), and truncate to `max_results`.
+
+No new scoring, filtering, or provenance logic is added — merging is the
+only new behavior, and it composes E6-E8's already-deterministic,
+already-provenanced per-provider output rather than re-deriving any of
+it. Every provider is queried with the identical profile/query/`now_ms`,
+so scores are directly comparable across providers without this module
+needing to normalize anything itself.
+
 ## What's deliberately not here
 
 - No network transport. Nothing in this crate opens a socket, dials a
-  peer, or knows what a "peer" is.
+  peer, or knows what a "peer" is. `federate_query` takes already-local
+  sources; it does not fetch anything.
 - No peer discovery, request/response protocol, or want-list logic —
   `mini-sync`'s existing type-agnostic replication (D-0080) is the
   closest existing analogue for "how would two nodes actually exchange
   these objects," but wiring it up is separate, later work.
-- No F3 (federated query merging), F4 (local re-ranking — already
-  possible today via `mini-query`'s `search`, just not across multiple
-  providers' segments), F5 (provider payments), F6 (private query
-  transport), or F7 (historical snapshots). Each remains a one-line
+- No F4 (local re-ranking against a second, personalized profile — F3's
+  merge already applies one shared profile, but does not let a caller
+  overlay their own after the fact), F5 (provider payments), F6 (private
+  query transport), or F7 (historical snapshots). Each remains a one-line
   research-doc description, not designed here.
-- No deduplication policy across peers publishing overlapping or
-  conflicting observations of the same URL — a real federation layer
-  needs one; this crate only makes each individual observation/segment
-  exchangeable and verifiable, it does not reconcile between them.
+- No cross-provider trust weighting: `federate_query` does not treat any
+  provider as more or less trustworthy than another, and does not detect
+  a provider flooding the merge with many near-duplicate low-quality
+  results beyond what `search`'s own `max_results` bound per provider
+  already limits.
 
 ## Constitutional impact
 
@@ -91,15 +118,21 @@ workspace already does.
 
 `crates/mini-search-federation/`: `error.rs` (`FederationError`),
 `codec.rs` (`Writer`/`Reader`, private), `observation.rs` (F1),
-`segment.rs` (F2), `lib.rs`. 8 integration tests
-(`tests/federation.rs`): round trip with every field populated, round
-trip with every optional field absent, wrong-object-type rejection for
-both object kinds, encrypted-payload rejection for both object kinds, a
-non-canonical index-segment payload caught at `IndexSegment::from_bytes`
-(not just this crate's own type check), and a tampered payload proven to
-still decode (well-formed bytes, different content) but fail signature
-verification — demonstrating decode-success and authenticity are
-genuinely separate checks, not one conflated with the other.
+`segment.rs` (F2), `federate.rs` (F3), `lib.rs`. 8 integration tests
+(`tests/federation.rs`, F1/F2): round trip with every field populated,
+round trip with every optional field absent, wrong-object-type rejection
+for both object kinds, encrypted-payload rejection for both object
+kinds, a non-canonical index-segment payload caught at
+`IndexSegment::from_bytes` (not just this crate's own type check), and a
+tampered payload proven to still decode (well-formed bytes, different
+content) but fail signature verification — demonstrating decode-success
+and authenticity are genuinely separate checks, not one conflated with
+the other. 6 integration tests (`tests/federate.rs`, F3): results from
+every provider merged and correctly tagged, a shared URL across two
+providers keeping the higher-scoring copy, merge output proven
+order-independent (forward vs. reversed source list), `max_results`
+truncation, an empty source list producing no results, and each result
+retaining its own `index_segment`/`source_observation` provenance.
 
 ## Failure point
 
@@ -112,18 +145,24 @@ pre-emptively builds. `CrawlObservationId` is trusted as caller-supplied
 with no derivation rule enforced here (none is defined anywhere in this
 workspace yet) — a caller could construct an observation with a
 misleading id, an integrity gap federation transport/discovery work will
-need to close, not this wire-format layer.
+need to close, not this wire-format layer. `federate_query` queries every
+source for up to `max_results` of its own candidates before merging —
+correct for a bounded, known source list, but the cost is linear in the
+number of sources with no cap on how many sources a caller may pass; a
+real federation layer will need its own bound on concurrently-queried
+providers, not something this module enforces.
 
 ## Required follow-up
 
-F3 (federated query merging) is the natural next Track F piece and the
-first one that actually needs multiple providers' segments composed —
-out of scope here. Wiring F1/F2's objects into a real transport (likely
-via `mini-sync`'s existing replication machinery, per D-0080's own
-finding that it already carries arbitrary object types over real TCP) is
-separate follow-up work, not started.
+F4 (local re-ranking against a caller's own personalized profile after
+the merge) is the natural next Track F piece. Wiring F1/F2's objects
+into a real transport (likely via `mini-sync`'s existing replication
+machinery, per D-0080's own finding that it already carries arbitrary
+object types over real TCP) — and, once that exists, wiring
+`federate_query` to real peer-fetched sources rather than only local
+ones — is separate follow-up work, not started.
 
 ## Supersedes / superseded by
 
-Builds on and does not supersede D-0316 or D-0405. Does not modify
-`mini-web-types` or `mini-lexical-index`.
+Builds on and does not supersede D-0316, D-0405, or D-0420. Does not
+modify `mini-web-types`, `mini-lexical-index`, or `mini-query`.

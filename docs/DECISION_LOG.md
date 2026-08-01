@@ -13976,3 +13976,88 @@ separate, not-yet-started follow-up.
 
 **Supersedes / superseded by:** builds on and does not supersede D-0316
 or D-0405. Does not modify either crate.
+
+### D-0423 — `mini-search-federation`: deterministic federated query merging, Track F3 of distributed search  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/design/
+federated-search-exchange-f1-f2.md`; `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29
+(Track F, PR F3); roadmap issue #175; D-0420 (`mini-query`); D-0422
+(`mini-search-federation` F1/F2); Directive 4, Directive 16.
+
+**Decision:** add `federate_query`/`FederationSource`/`FederatedResult`
+to `mini-search-federation`, implementing Track F3 ("federated query,"
+merging candidates from multiple providers while preserving provenance).
+`federate_query` runs the *unmodified* `mini_query::search` once per
+`FederationSource` (a provider's own `IndexSegment`/`Corpus`/
+`DocumentContextTable`/`IndexSegmentId`, all local — no network fetch),
+then deterministically merges the per-provider result lists: concatenate
+every provider's results tagged with its `ProviderPseudonym`;
+deduplicate by canonical URL string, the higher `relevance_score_bps`
+winning and ties breaking on the smaller provider-pseudonym bytes; sort
+the deduplicated set by score descending with a canonical-URL-string
+tiebreak (mirroring `mini_ranker::rank`'s own `UrlId`-byte tiebreak
+discipline); truncate to `max_results`. Every provider is queried with
+the identical profile/query/`now_ms`, so scores are directly comparable
+across providers without this module normalizing anything itself.
+
+**Reason:** F3 is the first Track F piece that actually needs multiple
+providers' segments composed, and D-0422 explicitly deferred it pending
+F1/F2 landing first. Reusing `mini_query::search` unmodified rather than
+re-deriving candidate selection or scoring keeps the D-0312 invariants
+(no pay-to-rank, no personalization, availability-filtered,
+byte-deterministic) enforced by the single existing mechanism per
+provider, with merging as the only genuinely new logic this module
+contributes.
+
+**Alternatives:** a "first provider wins" or "provider order determines
+priority" merge policy was rejected — it would make the merged result
+set depend on an arbitrary, caller-supplied source ordering rather than
+on the query-relevant content itself, breaking the same
+determinism-regardless-of-input-order property `mini_lexical_index` and
+`mini_ranker` both already guarantee. A trust-weighted merge (scoring
+some providers' results higher independent of their own local relevance
+score) was rejected as out of scope — no cross-provider trust or
+reputation mechanism exists anywhere in this workspace yet, and inventing
+one inside a query-merging function would smuggle an unreviewed policy
+decision into what should stay a mechanical merge.
+
+**Constitutional impact:** none intended. No frozen invariant is
+amended. Purely additive: `mini-query`, `mini-ranker`,
+`mini-lexical-index`, and `mini-web-types` are all unmodified. No new
+cryptography. Structurally continues D-0312: `federate_query` adds no
+payment, provider-priority, or personalization input to the merge: it
+computes only from each provider's own already-D-0312-compliant `search`
+output.
+
+**Implementation status:** proposed code adds `crates/mini-search-
+federation/src/federate.rs` and `tests/federate.rs` (6 integration
+tests: results from every provider merged and correctly tagged, a shared
+URL across two providers keeping the higher-scoring copy, merge output
+proven order-independent via forward vs. reversed source lists,
+`max_results` truncation, an empty source list producing no results, and
+each result retaining its own `index_segment`/`source_observation`
+provenance). Adds `mini-query` and `mini-ranker` as new
+`mini-search-federation` dependencies (both already-shipped, in-tree
+crates — no new external dependency).
+
+**Failure point:** `federate_query` queries every source for up to
+`max_results` of its own candidates before merging — correct for a
+bounded, known source list, but cost is linear in the number of sources
+with no cap on how many sources a caller may pass; a real federation
+layer will need its own bound on concurrently-queried providers. No
+cross-provider trust weighting or flood/spam detection: a provider
+returning many near-duplicate low-quality results is limited only by
+`search`'s own per-provider `max_results`, not by anything this module
+adds. Still entirely local — no network fetch, so "federated" here means
+"composed from multiple already-available local sources," not yet
+"composed from real remote peers."
+
+**Required follow-up:** F4 (local re-ranking against a caller's own
+personalized profile after the merge) is the natural next piece. Wiring
+real peer-fetched sources (via a future transport atop F1/F2's signed
+objects) into `federate_query` in place of only-local sources is
+separate, not-yet-started follow-up.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0420
+or D-0422. Does not modify `mini-query`.

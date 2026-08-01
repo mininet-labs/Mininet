@@ -24,6 +24,9 @@ pub enum FederationError {
     LexicalIndex(mini_lexical_index::LexicalIndexError),
     /// Underlying `mini-store` failure.
     Store(StoreError),
+    /// Underlying `mini-query` failure from a per-provider `search` call
+    /// during federated merging (Track F3).
+    Query(mini_query::QueryError),
 }
 
 impl From<ObjectError> for FederationError {
@@ -44,6 +47,12 @@ impl From<StoreError> for FederationError {
     }
 }
 
+impl From<mini_query::QueryError> for FederationError {
+    fn from(e: mini_query::QueryError) -> Self {
+        FederationError::Query(e)
+    }
+}
+
 impl core::fmt::Display for FederationError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -54,6 +63,7 @@ impl core::fmt::Display for FederationError {
             FederationError::Object(e) => write!(f, "object: {e:?}"),
             FederationError::LexicalIndex(e) => write!(f, "lexical index: {e:?}"),
             FederationError::Store(e) => write!(f, "store: {e:?}"),
+            FederationError::Query(e) => write!(f, "query: {e:?}"),
         }
     }
 }
