@@ -1,0 +1,25 @@
+[package]
+name = "mini-query"
+version = "0.0.1"
+description = "MiniSearch query parser and result provenance (Track E7/E8): a deterministic raw-query-string parser (exact phrases, site:, exclusion, before:/after:, lang:, type:) and per-result provenance (source observation, index segment, ranking profile, score components, availability). Composes mini-ranker/mini-lexical-index without modifying either."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# mini-web-types for the shared vocabulary (CanonicalUrl, WebMediaType,
+# CrawlObservationId, IndexSegmentId, RestrictionReason, AvailabilityState).
+# mini-lexical-index for the IndexSegment structural queries this crate
+# composes (term_documents) to apply exclusion filters. mini-ranker for the
+# actual scoring pass -- this crate never re-implements ranking, only
+# narrows the corpus rank() is handed and attaches provenance to its output.
+# Deliberately no network, storage, crawler, or value/governance crate.
+mini-web-types = { path = "../mini-web-types" }
+mini-lexical-index = { path = "../mini-lexical-index" }
+mini-ranker = { path = "../mini-ranker" }
+
+[dev-dependencies]
+mini-crypto = { path = "../mini-crypto" }

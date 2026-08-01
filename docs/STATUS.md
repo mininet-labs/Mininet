@@ -1121,11 +1121,28 @@ the top development priority.
   pay-to-rank (no payment input exists in `rank`), no personalization by
   default (no per-user state), availability filtered out rather than scored
   down, and byte-deterministic ordering (integer-only scoring, explicit
-  `now_ms`, UrlId tiebreak). Still no query CLI (E7), result
-  provenance/explanations (E8), search UI, network exchange, or
-  federated/distributed layer. Explicitly a distinct system from
-  `mini-private-index` (D-0310), which is not to be repurposed as the
-  general web index. See `docs/research/
+  `now_ms`, UrlId tiebreak). `mini-query` (D-0420, Track E7/E8) closes the
+  last two Track E sub-tracks: `parse_query` is a deterministic parser over
+  a fixed grammar (`"exact phrase"`, `-excluded_word`, `site:`/`host:`,
+  `before:`/`after:` dates with an exclusive `after:` boundary, `lang:`,
+  `type:`; malformed filter tokens are dropped silently rather than
+  failing the whole query), and `search` composes that output with the
+  *unmodified* `mini_ranker::rank` by cloning the caller's `Corpus` and
+  relabeling any document a parsed filter excludes to
+  `AvailabilityState::Restricted(RestrictionReason::UserFilter)` — reusing
+  `rank`'s own existing exclusion path rather than adding a second one, so
+  a `site:` filter and a robots exclusion are excluded through the
+  identical mechanism. Each result is wrapped in a `ResultProvenance`
+  carrying the `CrawlObservationId` it came from (via a new
+  `DocumentContextTable` — language/media-type/source-observation facts
+  neither the index nor the ranker corpus holds) and the caller-supplied
+  `IndexSegmentId`; the ranking profile and per-signal explanation were
+  already on `SearchResult` from E6 and are not duplicated. Still no CLI
+  binary wiring `parse_query`/`search` to real stdin/argv, no search UI,
+  no network exchange, and no federated/distributed layer (Track F, issue
+  #175). Explicitly a distinct system from `mini-private-index` (D-0310),
+  which is not to be repurposed as the general web index. See
+  `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,

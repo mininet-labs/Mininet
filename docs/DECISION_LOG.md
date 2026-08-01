@@ -13723,3 +13723,96 @@ level rather than silently deepening this one.
 **Supersedes / superseded by:** builds on and does not supersede D-0026.
 Does not modify `publish_media`, `read_manifest`, `missing_chunks`, or
 `assemble`.
+
+### D-0420 — `mini-query`: query parser and result provenance, Track E7/E8 of MiniSearch  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§E7-E8 (roadmap issue #167); D-0312 (MiniSearch doctrine); D-0405
+(`mini-lexical-index`); D-0406 (`mini-ranker`); Directive 4, Directive 16.
+
+**Decision:** add a new `crates/mini-query` crate with no new external
+dependency, only `mini-web-types`/`mini-lexical-index`/`mini-ranker`.
+`parse_query` (E7) is a deterministic, hand-rolled parser over a fixed
+token grammar: `"exact phrase"`, `-excluded_word`, `site:`/`host:`,
+`before:`/`after:` (`YYYY-MM-DD`, `after:` exclusive via a next-day
+boundary), `lang:`, `type:`. Malformed filter tokens are dropped
+silently rather than failing the whole query. `search` (E8) composes
+`parse_query`'s output with the unmodified `mini_ranker::rank`: it clones
+the caller's `Corpus`, and for every document failing a parsed filter
+(host, date window, excluded term, or — via a new `DocumentContextTable`
+carrying language/media type/source observation, since neither the index
+nor `mini_ranker::Corpus` holds those — language or media type) overwrites
+that document's `availability` to `AvailabilityState::Restricted(RestrictionReason::UserFilter)`
+before calling `rank`. `rank` itself is never modified: the existing
+"availability is a filter, not a signal" exclusion path (checked before
+any signal is computed) is reused verbatim, so a `site:` filter and a
+robots exclusion are excluded through the identical mechanism. Each
+returned `SearchResult` is wrapped in a `ResultProvenance` carrying its
+`CrawlObservationId` (looked up from `DocumentContextTable` via a
+canonical-URL-string reverse map built once per call) and the
+caller-supplied `IndexSegmentId`; the ranking profile and per-signal score
+breakdown were already on `SearchResult` from Track E6 and are not
+duplicated.
+
+**Reason:** `mini_ranker`'s own module doc names E7/E8 as explicitly out
+of its scope ("This is *not* a query parser... Track E7's job"; "No
+result provenance beyond the explanation... Track E8"), and issue #167's
+checklist names exactly these two remaining sub-tracks. Reusing
+`Restricted(UserFilter)` rather than adding a second candidate-selection
+path to `rank` keeps the D-0312 no-relevance-penalty invariant enforced
+by one mechanism instead of two that could drift apart.
+
+**Alternatives:** modifying `mini_ranker::rank` to accept filter
+predicates directly was rejected — it would grow a scoring crate's public
+signature for a concern (user-supplied query filters) that belongs at the
+query layer, and would require re-auditing `rank`'s own determinism/no-
+pay-to-rank/no-personalization guarantees instead of just this new
+crate's. A general external date/calendar dependency for `before:`/
+`after:` was rejected in favor of Howard Hinnant's public-domain
+`days_from_civil` integer algorithm (already used verbatim in `mini-
+airdrop` and elsewhere in this tree) — the crate's one `YYYY-MM-DD` need
+does not warrant a new dependency edge.
+
+**Constitutional impact:** none intended. No frozen invariant is
+amended. Purely additive: `mini_ranker::rank` and `mini_lexical_index`
+are unmodified (zero diff to either crate), and no existing crate's
+function signature changes. No new cryptography. Structurally continues
+D-0312: no payment/provider/bid input anywhere in this crate's types; no
+personalization token in the parser's grammar and no per-user state
+anywhere in this crate, since `rank` itself takes none; availability
+remains the sole exclusion mechanism, never a scoring input.
+
+**Implementation status:** proposed code adds `ParsedQuery`/`parse_query`
+(11 unit tests covering plain terms, phrase capture and single-phrase
+limit, exclusion lowercasing, host filter parse/reject, before/after
+date parsing including the exclusive-boundary and malformed-date cases,
+lang/type parsing including the `Other` fallback, and empty input);
+`DocumentContext`/`DocumentContextTable` (2 unit tests); `search`/
+`ResultProvenance` plus `crates/mini-query/tests/search.rs` (11
+integration tests over a three-document, two-host, two-language fixture:
+unfiltered match, `site:` restriction, exclusion, before/after date
+window, case-insensitive `lang:`, `type:`, phrase-plus-host composition,
+provenance attachment, a filtered-out document proven absent rather than
+merely low-ranked, empty-query short-circuit, and composition with a
+document already `Restricted(UserFilter)` by the caller). Added to the
+workspace members list.
+
+**Failure point:** the parser's grammar is fixed and small — no boolean
+operators (`AND`/`OR`), no nested grouping, no phrase exclusion (only
+single-word `-term`), no `type:`/`lang:` value validation beyond a lookup
+table (an unrecognized `type:` becomes `WebMediaType::Other` rather than
+being rejected). `search` clones the entire corpus per call, an O(document
+count) pass with no incremental/cached filtering — fine at the segment
+sizes this crate has been exercised against, unbounded at scale. No CLI
+binary yet (a caller, e.g. a future `mini-cli` subcommand, still needs to
+wire raw stdin/argv to `parse_query`).
+
+**Required follow-up:** a CLI entry point exposing `parse_query`/`search`
+to a real user; performance work if corpus-clone-per-query proves too
+slow at production segment sizes; Track F's distributed/federated search
+(issue #175) will need to decide how `search` composes across multiple
+index segments/corpora, which this crate does not attempt.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0405
+or D-0406. Does not modify either crate.
