@@ -73,6 +73,7 @@ members = [
     "crates/mini-econ-sim",
     "crates/mini-contribution",
     "crates/mini-query",
+    "crates/mini-search-federation",
 ]
 
 [workspace.package]

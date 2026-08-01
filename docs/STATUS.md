@@ -1160,12 +1160,39 @@ the top development priority.
   neither the index nor the ranker corpus holds) and the caller-supplied
   `IndexSegmentId`; the ranking profile and per-signal explanation were
   already on `SearchResult` from E6 and are not duplicated. Still no CLI
-  binary wiring `parse_query`/`search` to real stdin/argv, no search UI,
-  no network exchange, and no federated/distributed layer (Track F, issue
-  #175). Explicitly a distinct system from `mini-private-index` (D-0310),
-  which is not to be repurposed as the general web index. See
-  `docs/research/
+  binary wiring `parse_query`/`search` to real stdin/argv or search UI.
+  Explicitly a distinct system from `mini-private-index` (D-0310), which
+  is not to be repurposed as the general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
+- **shipped, wire format only** — `mini-search-federation` (D-0422,
+  Track F1/F2 of distributed search, issue #175): the signed,
+  content-addressed exchange format two Track F peers need before any
+  federation can be built. `publish_crawl_observation`/
+  `read_crawl_observation` (F1) wrap a `CrawlObservation` in a
+  hand-rolled canonical codec (mirroring `mini-lexical-index`'s own
+  `Writer`/`Reader` discipline) and sign it as a `mini_objects::Object`.
+  `publish_index_segment`/`read_index_segment` (F2) wrap an
+  `IndexSegment`'s own already-canonical `to_bytes()`/`from_bytes()`
+  (D-0405) directly — no second codec. Both readers reject the wrong
+  object type and an encrypted payload; neither verifies the wrapping
+  object's signature itself — that stays the caller's job via
+  `mini_objects::Object::verify_signature`, the same two-step pattern
+  every signed-object reader in this workspace already follows. No new
+  pseudonym-signing scheme invented — a caller wanting a scoped rather
+  than root signing identity already has SPEC-01 §10's
+  `incept_pairwise_pseudonym`. **No network transport, no peer discovery,
+  no scheduling, and no F3 (federated query merging) — this is the
+  exchange format, not the exchange.** Real, tested (8 integration
+  tests, including a tampered-payload case proving decode-success and
+  signature authenticity are genuinely separate checks). Segments are
+  bounded to `mini_objects::MAX_PAYLOAD_BYTES` (8 MiB) with no splitting
+  mechanism (`mini-media`'s superblock pattern is the precedent if that
+  ever proves insufficient); `CrawlObservationId` is trusted as
+  caller-supplied with no derivation rule enforced anywhere in this
+  workspace yet. F3-F7 (federated query, local re-ranking across
+  providers, provider payments, private query transport, historical
+  snapshots) remain one-line research-doc descriptions, not designed or
+  built. See `docs/design/federated-search-exchange-f1-f2.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,

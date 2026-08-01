@@ -13889,3 +13889,90 @@ rollout; no code follow-up is scheduled or implied by this entry.
 **Supersedes / superseded by:** supersedes nothing. Restates and
 cross-references D-0063, D-0068, D-0070, D-0095, D-0098, D-0099, and
 D-0322 without modifying any of them.
+
+### D-0422 — `mini-search-federation`: signed crawl-observation and index-segment exchange, Track F1/F2 of distributed search  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/design/
+federated-search-exchange-f1-f2.md`; `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29
+(Track F, PR F1/F2); roadmap issue #175; D-0316 (`mini-web-types`);
+D-0405 (`mini-lexical-index`); Directive 4, Directive 16.
+
+**Decision:** add `crates/mini-search-federation`, implementing Track
+F1 ("signed crawl-observation exchange") and F2 ("content-addressed
+index segments") — the two lowest pieces of the Track F distributed-
+search stack, and the two every later Track F piece (F3's federated
+query merging above all) needs a settled wire format for first.
+`publish_crawl_observation`/`read_crawl_observation` wrap a
+`mini_web_types::CrawlObservation` in a hand-rolled canonical codec
+(mirroring `mini-lexical-index`'s own `Writer`/`Reader` discipline) and
+sign it as a `mini_objects::Object`. `publish_index_segment`/
+`read_index_segment` wrap an `mini_lexical_index::IndexSegment`'s own
+already-canonical `to_bytes()`/`from_bytes()` directly, adding only the
+signed-object wrapper. Both readers reject the wrong object type and an
+encrypted payload; neither verifies the wrapping object's signature —
+that stays the caller's job via `mini_objects::Object::verify_signature`/
+`verify_provenance`, the identical two-step decode-then-authenticate
+pattern every other signed-object reader in this workspace already
+follows (`mini-forge::git_import`, `mini-media::read_manifest`,
+`mini-provenance`). No network transport, no peer discovery, no
+scheduling, no federated query merging — this is the exchange format two
+peers would need to agree on before any of that can be built, not the
+exchange itself.
+
+**Reason:** Track F's own research doc gives each of its seven PRs one
+line of description with no design underneath; F1 and F2 needed enough
+judgment (what does "signed" mean given `ProviderPseudonym` already
+exists as a separate in-payload identifier; what does "verify" mean given
+`IndexSegment::from_bytes` already enforces canonical form) to warrant a
+doctrine note rather than silent implementation, following this
+project's `docs/design/` ritual for any batch requiring a real judgment
+call.
+
+**Alternatives:** inventing a new pseudonym-derivation scheme for the
+wrapping object's signer was rejected — SPEC-01 §10's
+`Controller::incept_pairwise_pseudonym` already exists for a caller
+wanting a scoped rather than root signing identity, and this crate does
+not need to choose a privacy posture on the caller's behalf, matching how
+`mini-media`'s `publish_media` already takes whatever `Did`/`Controller`
+its caller passes. Re-encoding `IndexSegment` into a second wire format
+for F2 was rejected — its existing `to_bytes()`/`from_bytes()` (D-0405)
+is already canonical and content-addressed; wrapping those bytes directly
+avoids a second codec that could drift from the first.
+
+**Constitutional impact:** none intended. No frozen invariant is
+amended. Purely additive: `mini-web-types`, `mini-lexical-index`,
+`mini-objects`, and `mini-store` are all unmodified (zero diff to any of
+them). No new cryptography — reuses `mini-crypto`'s existing
+Multihash/Ed25519/BLAKE3 exactly as every other signed object in this
+workspace already does.
+
+**Implementation status:** proposed code adds `mini-search-federation`
+(`error.rs`, `codec.rs`, `observation.rs`, `segment.rs`, `lib.rs`) and
+`tests/federation.rs` (8 integration tests: full-field and
+no-optional-field round trips, wrong-object-type rejection for both
+object kinds, encrypted-payload rejection for both object kinds, a
+non-canonical index-segment payload caught at `IndexSegment::from_bytes`
+rather than just this crate's own type check, and a tampered payload
+proven to still decode but fail signature verification, demonstrating
+decode-success and authenticity are genuinely separate checks). Added to
+the workspace members list.
+
+**Failure point:** `publish_index_segment` bounds a segment to
+`mini_objects::MAX_PAYLOAD_BYTES` (8 MiB) with no splitting mechanism —
+`mini-media`'s superblock pattern (D-0419) is the precedent for closing
+that gap later, not pre-emptively built here. `CrawlObservationId` is
+trusted as caller-supplied with no derivation rule enforced anywhere in
+this workspace yet — a real federation/discovery layer will need to
+close that integrity gap, not this wire-format layer. No production
+caller uses either function yet.
+
+**Required follow-up:** F3 (federated query merging, the first Track F
+piece that actually needs multiple providers' segments composed) is the
+natural next piece; wiring these signed objects into a real transport
+(likely `mini-sync`'s existing replication machinery, per D-0080's
+finding that it already carries arbitrary object types over real TCP) is
+separate, not-yet-started follow-up.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0316
+or D-0405. Does not modify either crate.
