@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 66,
-    "files": 759,
-    "headings": 2438,
+    "files": 760,
+    "headings": 2452,
     "rust_symbols": 6718
   },
   "crates": {
@@ -57873,7 +57873,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 829112,
+      "bytes": 833343,
       "group": "docs",
       "headings": [
         {
@@ -58301,11 +58301,11 @@
         "signed",
         "design",
         "mini-consensus",
-        "status"
+        "research"
       ],
-      "lines": 13819,
+      "lines": 13892,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "926c36141b9b1afbdcc501094066a763ff190ae1ed6c1edc1595611f8dde0018",
+      "sha256": "7e426d758f63937878c37bcd2b6f06aa287123bd4e176c5f67b2ffeae9fcf962",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -59454,7 +59454,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 100246,
+      "bytes": 101780,
       "group": "docs",
       "headings": [
         {
@@ -59499,47 +59499,47 @@
         },
         {
           "level": 2,
-          "line": 628,
+          "line": 650,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 683,
+          "line": 705,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 744,
+          "line": 766,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 774,
+          "line": 796,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1061,
+          "line": 1083,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1294,
+          "line": 1316,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1385,
+          "line": 1407,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1465,
+          "line": 1487,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1531,
+          "line": 1553,
           "text": "Where to look for more detail"
         }
       ],
@@ -59569,9 +59569,9 @@
         "social",
         "network"
       ],
-      "lines": 1546,
+      "lines": 1568,
       "path": "docs/STATUS.md",
-      "sha256": "6709fafb6a2fea59927c6c9072bf4a312fe23a76e51409695cded86ce6bccc49",
+      "sha256": "f814eb2077643d7b47212461b68a6f1ff606ac7875580a6ef2698545cc9590c2",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -61370,6 +61370,113 @@
       "sha256": "ce242fbad67ce9f4494aa78acf6b13acdaa6da5a8f15d726396dc6e995adbb49",
       "symbols": [],
       "title": "Credential taxonomy: participant, human, role, resource"
+    },
+    {
+      "bytes": 16996,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Cryptographic architecture: composition over invention, and the flagship research protocol (D-0421)"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "Why this document exists"
+        },
+        {
+          "level": 2,
+          "line": 42,
+          "text": "Decision"
+        },
+        {
+          "level": 2,
+          "line": 63,
+          "text": "The six tracks, as they already exist in this repository"
+        },
+        {
+          "level": 3,
+          "line": 69,
+          "text": "1. Private proof of useful contribution"
+        },
+        {
+          "level": 3,
+          "line": 92,
+          "text": "2. Anti-collusion reward settlement"
+        },
+        {
+          "level": 3,
+          "line": 106,
+          "text": "3. Unlinkable personhood membership"
+        },
+        {
+          "level": 3,
+          "line": 122,
+          "text": "4. Private federated search"
+        },
+        {
+          "level": 3,
+          "line": 134,
+          "text": "5. Recoverable, post-quantum identities"
+        },
+        {
+          "level": 3,
+          "line": 146,
+          "text": "6. Proof-carrying Forge contributions"
+        },
+        {
+          "level": 2,
+          "line": 163,
+          "text": "What Mininet does not invent (restated, not modified)"
+        },
+        {
+          "level": 2,
+          "line": 179,
+          "text": "Required maturity gate for every construction named above"
+        },
+        {
+          "level": 2,
+          "line": 195,
+          "text": "7. The one open gap: anti-collusion reward settlement (research-only, this document)"
+        },
+        {
+          "level": 2,
+          "line": 248,
+          "text": "8. The flagship synthesis: Unlinkable Proof of Useful Contribution"
+        }
+      ],
+      "keywords": [
+        "already",
+        "design",
+        "document",
+        "protocol",
+        "research",
+        "contribution",
+        "one",
+        "doctrine",
+        "new",
+        "never",
+        "cryptographic",
+        "flagship",
+        "repository",
+        "private",
+        "useful",
+        "cryptography",
+        "primitives",
+        "below",
+        "composition",
+        "exists",
+        "six",
+        "exist",
+        "proof",
+        "anti-collusion"
+      ],
+      "lines": 307,
+      "path": "docs/design/cryptographic-architecture-and-flagship-research-protocol.md",
+      "sha256": "2a3bf3dff7a5be206dd2df9b5599fbae275436ba269cfad9914abbe82c7548a2",
+      "symbols": [],
+      "title": "Cryptographic architecture: composition over invention, and the flagship research protocol (D-0421)"
     },
     {
       "bytes": 5553,

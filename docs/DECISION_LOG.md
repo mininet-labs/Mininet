@@ -13816,3 +13816,76 @@ index segments/corpora, which this crate does not attempt.
 
 **Supersedes / superseded by:** builds on and does not supersede D-0405
 or D-0406. Does not modify either crate.
+
+### D-0421 — Cryptographic architecture: composition over invention, and the flagship research protocol  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/design/
+cryptographic-architecture-and-flagship-research-protocol.md`; CLAUDE.md's
+"No inventing cryptography" hard rule; D-0063; D-0068; D-0070; D-0095;
+D-0098; D-0099; D-0322; `docs/design/
+frontier-personhood-governance-and-consensus-proposals.md` (undecided
+research proposal); Directive 14.
+
+**Decision:** add `docs/design/
+cryptographic-architecture-and-flagship-research-protocol.md`, a synthesis
+document (no code, no new crate) that (1) states explicitly, as canonical
+framing, the composition-over-invention principle CLAUDE.md's hard rule
+and D-0063 already establish but never paired with a positive statement
+of where Mininet-specific protocol composition is required; (2) maps six
+tracks (private proof of useful contribution, anti-collusion reward
+settlement, unlinkable personhood membership, private federated search,
+recoverable post-quantum identities, proof-carrying Forge contributions)
+to the design docs and shipped code that already exist for each, crediting
+prior work rather than duplicating it; (3) names one real, previously
+undoctrined gap — anti-collusion reward settlement for `mini-contribution`
+(D-0417)'s open content/engagement claims, distinct from `mn602-mn603`'s
+resource-payment anonymity and `mini-attest`'s review-attestation
+unlinkability — without proposing an implementation for it; and (4) names
+"Unlinkable Proof of Useful Contribution" as a flagship synthesis label
+for where Tracks 1/2/3 eventually converge, with the same nine-phase
+staged-rollout shape `mn602-mn603` already committed to, generalized.
+
+**Reason:** this codebase already independently committed to "compose
+established primitives, treat new primitives as research" five separate
+times (`mn602-mn603`, `mn208`, `frontier-personhood`'s `mini-attest`
+tiers, `post-quantum-identity-migration`, and the shipped
+`mini-provenance`/`mini-forge::release` pair) without ever stating the
+pattern once, in one place, as canonical framing a reader could find
+without independently rediscovering all five. A founder-supplied research
+framework asking "should Mininet invent new cryptography" is best
+answered by pointing at what the repository already decided, honestly
+naming the one place it had not yet decided anything (§7, anti-collusion
+settlement), rather than treating the question as unanswered from
+scratch.
+
+**Alternatives:** writing full Phase-0 doctrine for the anti-collusion
+settlement gap (§7) in this same PR was rejected — `mn602-mn603`'s own
+precedent is that a Phase-0 doctrine document deserves a dedicated PR from
+whoever is prepared to own its phased rollout, the same discipline this
+document asks a future PR to follow rather than pre-empting. Silently
+folding the anti-collusion gap into `mini-contribution`'s existing D-0417
+doctrine was rejected — D-0417 already shipped as a vertical slice with
+its own scope; retroactively expanding it would blur what was actually
+reviewed and merged under that decision.
+
+**Constitutional impact:** none. No frozen invariant is amended, no
+existing crate's function signature changes, and no new authority is
+granted. Purely a documentation synthesis: it creates no capability that
+did not already exist across the five prior documents it indexes.
+
+**Implementation status:** doctrine only. Zero lines of implementation
+code, zero new dependencies, zero new crates.
+
+**Failure point:** a synthesis document can go stale faster than the six
+tracks it indexes actually move; this document explicitly asks whoever
+next ships code in any of Tracks 1-6 to update its status lines in the
+same PR, mirroring the discipline `docs/STATUS.md` already requires
+project-wide, but nothing enforces that mechanically.
+
+**Required follow-up:** a dedicated Phase-0 doctrine document for §7 (the
+anti-collusion settlement gap) when someone is ready to own its phased
+rollout; no code follow-up is scheduled or implied by this entry.
+
+**Supersedes / superseded by:** supersedes nothing. Restates and
+cross-references D-0063, D-0068, D-0070, D-0095, D-0098, D-0099, and
+D-0322 without modifying any of them.

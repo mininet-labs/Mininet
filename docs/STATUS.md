@@ -612,6 +612,28 @@ given time.
   `LookupPrivacyClass::PrivatePIR` remains exactly as unimplemented and
   D-0047-gated as before this decision. See `docs/design/
   mn208-pir-research-and-review-preparation.md`.
+- **doctrine synthesis only** — cryptographic architecture: composition
+  over invention, and the flagship research protocol (D-0421). No code,
+  no new crate. States as canonical framing the "compose established
+  primitives, treat new primitives as research" discipline this
+  repository already committed to five separate times (`mn602-mn603`,
+  `mn208`, `frontier-personhood`'s `mini-attest` tiers,
+  `post-quantum-identity-migration`, and the shipped `mini-provenance`/
+  `mini-forge::release` pair) without ever stating it once in one place;
+  maps six tracks (private proof of useful contribution, anti-collusion
+  reward settlement, unlinkable personhood membership, private federated
+  search, recoverable post-quantum identities, proof-carrying Forge
+  contributions) to what already exists for each; and names one real,
+  previously undoctrined gap — anti-collusion reward settlement for
+  `mini-contribution` (D-0417)'s open content/engagement claims, where a
+  single operator controlling both requester and provider identities can
+  currently fabricate unlimited self-traffic and extract settlement from
+  an ordinary signed receipt alone — without proposing an implementation
+  for it. Names "Unlinkable Proof of Useful Contribution" as a flagship
+  label for where the personhood, resource-payment, and anti-collusion-
+  settlement tracks eventually converge, staged the same nine-phase way
+  `mn602-mn603` already committed to. See `docs/design/
+  cryptographic-architecture-and-flagship-research-protocol.md`.
 - **doctrine-only** — free public commons and paid protected publishing
   (D-0311): ordinary public viewing, posting, replying, commenting,
   reacting, and searching are protocol entitlements independent of
