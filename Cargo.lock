@@ -2705,6 +2705,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-query"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-lexical-index",
+ "mini-ranker",
+ "mini-web-types",
+]
+
+[[package]]
 name = "mini-ranker"
 version = "0.0.1"
 dependencies = [

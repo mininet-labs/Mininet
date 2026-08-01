@@ -13646,3 +13646,246 @@ record-keeping.
 **Supersedes / superseded by:** builds on and does not supersede D-0004.
 Does not modify `checkout`, `validated_commit_tree`, `commit`, `put_tree`,
 or `put_file`.
+
+### D-0419 — `mini-media`: nested manifests for payloads beyond one manifest's ≤256-chunk cap  ·  *Proposed*
+
+**Date:** 2026-07-31 · **Refs:** roadmap #35 (huge-file handling design);
+`crates/mini-media/src/lib.rs`'s own module doc ("Long-form media nests
+manifests in a later batch"); D-0026 (`mini-media`); Directive 4,
+Directive 16.
+
+**Decision:** add `crates/mini-media/src/superblock.rs`: a `Superblock`
+object records a whole payload's total length and BLAKE3 digest plus an
+ordered list of ordinary `Manifest`s ("parts"). `publish_large_media`
+splits a payload into caller-chosen-size parts (`chunks_per_part`,
+bounded `1..=MAX_CHUNKS`), publishes each part exactly the way
+`publish_media` already does, and wraps them in one signed superblock.
+`assemble_superblock` reassembles and independently digest-checks every
+part via the existing `assemble`, then re-verifies the whole
+concatenation against the superblock's own recorded digest, so a mix of
+validly-signed but unrelated parts is still caught.
+`missing_superblock_chunks` reports, per part, either the part manifest
+itself (if not yet held) or that part's still-missing chunks. One level
+of nesting only, per the crate's own singular "nests manifests" scope;
+deeper nesting is not built.
+
+**Reason:** the crate's own module doc already named this exact gap as
+deferred to "a later batch." A superblock is the smallest composition
+that closes it: reusing `publish_media`/`assemble`/`missing_chunks`
+verbatim per part means no new chunking, signing, or digest logic is
+invented — only one more composition level over primitives this crate
+already proved correct.
+
+**Alternatives:** raising `MAX_CHUNKS`/`CHUNK_SIZE` to cover larger
+payloads directly is rejected — it does not remove the need for *some*
+finite bound, just moves it, and it would change `MAX_LINKS`-derived caps
+`mini-objects` itself sets for every object type, not just media.
+Unbounded recursive nesting (superblocks of superblocks) is rejected for
+this batch as more scope than the named gap requires; one level already
+gives `MAX_PARTS × MAX_TOTAL_LEN` (256 × 256 MiB = 64 GiB) of addressable
+payload.
+
+**Constitutional impact:** none intended. No frozen invariant is amended.
+Purely additive: no existing `mini-media` function signature changes, and
+downstream crates (`mini-forge`, `mini-cli`, `mini-installer`, `mini-
+bootstrap`, `mini-update`, `mini-desktop`, `mini-contribution`) are
+unaffected since none currently call the new functions. No new
+cryptography — reuses `mini-crypto`'s existing BLAKE3 hashing exactly as
+`publish_media`/`assemble` already do.
+
+**Implementation status:** proposed code adds `Superblock`,
+`publish_large_media`, `read_superblock`, `missing_superblock_chunks`,
+`assemble_superblock`, and `crates/mini-media/tests/superblock.rs`: a
+five-chunk payload splitting into three parts and round-tripping exactly;
+an empty payload producing one empty part; rejection of zero/oversized
+`chunks_per_part`; progressive assembly proving `missing_superblock_
+chunks` correctly distinguishes "part manifest not yet held" from
+"chunks still missing within an already-held part"; a forged superblock
+whose recorded digest doesn't match its real (individually valid) parts
+being caught; and a parse-time rejection of a superblock with zero parts.
+
+**Failure point:** `chunks_per_part` is a caller choice with no
+transport-informed default suggested here; a caller who always passes
+`MAX_CHUNKS` gets the fewest, largest parts, while one who passes `1` gets
+many small parts and more per-part object overhead — this doc does not
+recommend a value. `MAX_PARTS × MAX_TOTAL_LEN` is still a finite bound;
+a payload beyond 64 GiB is out of scope for this batch, same honest-limit
+discipline the crate already applies to `MAX_TOTAL_LEN` itself. No
+wiring into `mini-sync`'s want-list logic, no player/UI support for
+progressive nested playback, and no production caller uses this yet.
+
+**Required follow-up:** wiring `missing_superblock_chunks` into real
+`mini-sync` replication paths; a production caller (e.g. `mini-forge`
+release artifacts beyond 256 MiB); and, only if 64 GiB ever proves
+insufficient, a deliberately separate decision to add a second nesting
+level rather than silently deepening this one.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0026.
+Does not modify `publish_media`, `read_manifest`, `missing_chunks`, or
+`assemble`.
+
+### D-0420 — `mini-query`: query parser and result provenance, Track E7/E8 of MiniSearch  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
+§E7-E8 (roadmap issue #167); D-0312 (MiniSearch doctrine); D-0405
+(`mini-lexical-index`); D-0406 (`mini-ranker`); Directive 4, Directive 16.
+
+**Decision:** add a new `crates/mini-query` crate with no new external
+dependency, only `mini-web-types`/`mini-lexical-index`/`mini-ranker`.
+`parse_query` (E7) is a deterministic, hand-rolled parser over a fixed
+token grammar: `"exact phrase"`, `-excluded_word`, `site:`/`host:`,
+`before:`/`after:` (`YYYY-MM-DD`, `after:` exclusive via a next-day
+boundary), `lang:`, `type:`. Malformed filter tokens are dropped
+silently rather than failing the whole query. `search` (E8) composes
+`parse_query`'s output with the unmodified `mini_ranker::rank`: it clones
+the caller's `Corpus`, and for every document failing a parsed filter
+(host, date window, excluded term, or — via a new `DocumentContextTable`
+carrying language/media type/source observation, since neither the index
+nor `mini_ranker::Corpus` holds those — language or media type) overwrites
+that document's `availability` to `AvailabilityState::Restricted(RestrictionReason::UserFilter)`
+before calling `rank`. `rank` itself is never modified: the existing
+"availability is a filter, not a signal" exclusion path (checked before
+any signal is computed) is reused verbatim, so a `site:` filter and a
+robots exclusion are excluded through the identical mechanism. Each
+returned `SearchResult` is wrapped in a `ResultProvenance` carrying its
+`CrawlObservationId` (looked up from `DocumentContextTable` via a
+canonical-URL-string reverse map built once per call) and the
+caller-supplied `IndexSegmentId`; the ranking profile and per-signal score
+breakdown were already on `SearchResult` from Track E6 and are not
+duplicated.
+
+**Reason:** `mini_ranker`'s own module doc names E7/E8 as explicitly out
+of its scope ("This is *not* a query parser... Track E7's job"; "No
+result provenance beyond the explanation... Track E8"), and issue #167's
+checklist names exactly these two remaining sub-tracks. Reusing
+`Restricted(UserFilter)` rather than adding a second candidate-selection
+path to `rank` keeps the D-0312 no-relevance-penalty invariant enforced
+by one mechanism instead of two that could drift apart.
+
+**Alternatives:** modifying `mini_ranker::rank` to accept filter
+predicates directly was rejected — it would grow a scoring crate's public
+signature for a concern (user-supplied query filters) that belongs at the
+query layer, and would require re-auditing `rank`'s own determinism/no-
+pay-to-rank/no-personalization guarantees instead of just this new
+crate's. A general external date/calendar dependency for `before:`/
+`after:` was rejected in favor of Howard Hinnant's public-domain
+`days_from_civil` integer algorithm (already used verbatim in `mini-
+airdrop` and elsewhere in this tree) — the crate's one `YYYY-MM-DD` need
+does not warrant a new dependency edge.
+
+**Constitutional impact:** none intended. No frozen invariant is
+amended. Purely additive: `mini_ranker::rank` and `mini_lexical_index`
+are unmodified (zero diff to either crate), and no existing crate's
+function signature changes. No new cryptography. Structurally continues
+D-0312: no payment/provider/bid input anywhere in this crate's types; no
+personalization token in the parser's grammar and no per-user state
+anywhere in this crate, since `rank` itself takes none; availability
+remains the sole exclusion mechanism, never a scoring input.
+
+**Implementation status:** proposed code adds `ParsedQuery`/`parse_query`
+(11 unit tests covering plain terms, phrase capture and single-phrase
+limit, exclusion lowercasing, host filter parse/reject, before/after
+date parsing including the exclusive-boundary and malformed-date cases,
+lang/type parsing including the `Other` fallback, and empty input);
+`DocumentContext`/`DocumentContextTable` (2 unit tests); `search`/
+`ResultProvenance` plus `crates/mini-query/tests/search.rs` (11
+integration tests over a three-document, two-host, two-language fixture:
+unfiltered match, `site:` restriction, exclusion, before/after date
+window, case-insensitive `lang:`, `type:`, phrase-plus-host composition,
+provenance attachment, a filtered-out document proven absent rather than
+merely low-ranked, empty-query short-circuit, and composition with a
+document already `Restricted(UserFilter)` by the caller). Added to the
+workspace members list.
+
+**Failure point:** the parser's grammar is fixed and small — no boolean
+operators (`AND`/`OR`), no nested grouping, no phrase exclusion (only
+single-word `-term`), no `type:`/`lang:` value validation beyond a lookup
+table (an unrecognized `type:` becomes `WebMediaType::Other` rather than
+being rejected). `search` clones the entire corpus per call, an O(document
+count) pass with no incremental/cached filtering — fine at the segment
+sizes this crate has been exercised against, unbounded at scale. No CLI
+binary yet (a caller, e.g. a future `mini-cli` subcommand, still needs to
+wire raw stdin/argv to `parse_query`).
+
+**Required follow-up:** a CLI entry point exposing `parse_query`/`search`
+to a real user; performance work if corpus-clone-per-query proves too
+slow at production segment sizes; Track F's distributed/federated search
+(issue #175) will need to decide how `search` composes across multiple
+index segments/corpora, which this crate does not attempt.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0405
+or D-0406. Does not modify either crate.
+
+### D-0421 — Cryptographic architecture: composition over invention, and the flagship research protocol  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/design/
+cryptographic-architecture-and-flagship-research-protocol.md`; CLAUDE.md's
+"No inventing cryptography" hard rule; D-0063; D-0068; D-0070; D-0095;
+D-0098; D-0099; D-0322; `docs/design/
+frontier-personhood-governance-and-consensus-proposals.md` (undecided
+research proposal); Directive 14.
+
+**Decision:** add `docs/design/
+cryptographic-architecture-and-flagship-research-protocol.md`, a synthesis
+document (no code, no new crate) that (1) states explicitly, as canonical
+framing, the composition-over-invention principle CLAUDE.md's hard rule
+and D-0063 already establish but never paired with a positive statement
+of where Mininet-specific protocol composition is required; (2) maps six
+tracks (private proof of useful contribution, anti-collusion reward
+settlement, unlinkable personhood membership, private federated search,
+recoverable post-quantum identities, proof-carrying Forge contributions)
+to the design docs and shipped code that already exist for each, crediting
+prior work rather than duplicating it; (3) names one real, previously
+undoctrined gap — anti-collusion reward settlement for `mini-contribution`
+(D-0417)'s open content/engagement claims, distinct from `mn602-mn603`'s
+resource-payment anonymity and `mini-attest`'s review-attestation
+unlinkability — without proposing an implementation for it; and (4) names
+"Unlinkable Proof of Useful Contribution" as a flagship synthesis label
+for where Tracks 1/2/3 eventually converge, with the same nine-phase
+staged-rollout shape `mn602-mn603` already committed to, generalized.
+
+**Reason:** this codebase already independently committed to "compose
+established primitives, treat new primitives as research" five separate
+times (`mn602-mn603`, `mn208`, `frontier-personhood`'s `mini-attest`
+tiers, `post-quantum-identity-migration`, and the shipped
+`mini-provenance`/`mini-forge::release` pair) without ever stating the
+pattern once, in one place, as canonical framing a reader could find
+without independently rediscovering all five. A founder-supplied research
+framework asking "should Mininet invent new cryptography" is best
+answered by pointing at what the repository already decided, honestly
+naming the one place it had not yet decided anything (§7, anti-collusion
+settlement), rather than treating the question as unanswered from
+scratch.
+
+**Alternatives:** writing full Phase-0 doctrine for the anti-collusion
+settlement gap (§7) in this same PR was rejected — `mn602-mn603`'s own
+precedent is that a Phase-0 doctrine document deserves a dedicated PR from
+whoever is prepared to own its phased rollout, the same discipline this
+document asks a future PR to follow rather than pre-empting. Silently
+folding the anti-collusion gap into `mini-contribution`'s existing D-0417
+doctrine was rejected — D-0417 already shipped as a vertical slice with
+its own scope; retroactively expanding it would blur what was actually
+reviewed and merged under that decision.
+
+**Constitutional impact:** none. No frozen invariant is amended, no
+existing crate's function signature changes, and no new authority is
+granted. Purely a documentation synthesis: it creates no capability that
+did not already exist across the five prior documents it indexes.
+
+**Implementation status:** doctrine only. Zero lines of implementation
+code, zero new dependencies, zero new crates.
+
+**Failure point:** a synthesis document can go stale faster than the six
+tracks it indexes actually move; this document explicitly asks whoever
+next ships code in any of Tracks 1-6 to update its status lines in the
+same PR, mirroring the discipline `docs/STATUS.md` already requires
+project-wide, but nothing enforces that mechanically.
+
+**Required follow-up:** a dedicated Phase-0 doctrine document for §7 (the
+anti-collusion settlement gap) when someone is ready to own its phased
+rollout; no code follow-up is scheduled or implied by this entry.
+
+**Supersedes / superseded by:** supersedes nothing. Restates and
+cross-references D-0063, D-0068, D-0070, D-0095, D-0098, D-0099, and
+D-0322 without modifying any of them.

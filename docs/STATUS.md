@@ -612,6 +612,28 @@ given time.
   `LookupPrivacyClass::PrivatePIR` remains exactly as unimplemented and
   D-0047-gated as before this decision. See `docs/design/
   mn208-pir-research-and-review-preparation.md`.
+- **doctrine synthesis only** — cryptographic architecture: composition
+  over invention, and the flagship research protocol (D-0421). No code,
+  no new crate. States as canonical framing the "compose established
+  primitives, treat new primitives as research" discipline this
+  repository already committed to five separate times (`mn602-mn603`,
+  `mn208`, `frontier-personhood`'s `mini-attest` tiers,
+  `post-quantum-identity-migration`, and the shipped `mini-provenance`/
+  `mini-forge::release` pair) without ever stating it once in one place;
+  maps six tracks (private proof of useful contribution, anti-collusion
+  reward settlement, unlinkable personhood membership, private federated
+  search, recoverable post-quantum identities, proof-carrying Forge
+  contributions) to what already exists for each; and names one real,
+  previously undoctrined gap — anti-collusion reward settlement for
+  `mini-contribution` (D-0417)'s open content/engagement claims, where a
+  single operator controlling both requester and provider identities can
+  currently fabricate unlimited self-traffic and extract settlement from
+  an ordinary signed receipt alone — without proposing an implementation
+  for it. Names "Unlinkable Proof of Useful Contribution" as a flagship
+  label for where the personhood, resource-payment, and anti-collusion-
+  settlement tracks eventually converge, staged the same nine-phase way
+  `mn602-mn603` already committed to. See `docs/design/
+  cryptographic-architecture-and-flagship-research-protocol.md`.
 - **doctrine-only** — free public commons and paid protected publishing
   (D-0311): ordinary public viewing, posting, replying, commenting,
   reacting, and searching are protocol entitlements independent of
@@ -663,8 +685,22 @@ given time.
   randomized larger-configuration sample), founder-reviewed. Proves the
   coding/repair logic only — actually distributing regenerated shards to
   network holders is `mini-net`/`mini-store`'s unstarted job.
-- **not started** — cold/owner-only storage tiers, huge-file handling at
-  scale (roadmap Phase 4).
+- **shipped (D-0419, roadmap #35)** — `mini_media::superblock`: nested
+  manifests closing the exact gap `mini-media`'s own module doc named as
+  deferred ("one manifest addresses up to 256 chunks; long-form media
+  nests manifests in a later batch"). `publish_large_media` splits a
+  payload into caller-sized parts, publishes each as an ordinary manifest,
+  and wraps them in one signed `Superblock` recording the whole payload's
+  length and digest; `assemble_superblock` independently re-verifies both
+  each part's own digest and the whole concatenation, so a mix of
+  validly-signed but unrelated parts is still caught;
+  `missing_superblock_chunks` distinguishes "part manifest not yet held"
+  from "chunks still missing within an already-held part." One level of
+  nesting, addressing up to 64 GiB. Not wired into any `mini-sync`
+  replication path or production caller yet, and this is the addressing/
+  composition piece only — distributing shards/chunks at real network
+  scale remains `mini-net`/`mini-store`'s separately-scoped job.
+- **not started** — cold/owner-only storage tiers (roadmap Phase 4).
 
 ## 8. Networking
 
@@ -1107,11 +1143,28 @@ the top development priority.
   pay-to-rank (no payment input exists in `rank`), no personalization by
   default (no per-user state), availability filtered out rather than scored
   down, and byte-deterministic ordering (integer-only scoring, explicit
-  `now_ms`, UrlId tiebreak). Still no query CLI (E7), result
-  provenance/explanations (E8), search UI, network exchange, or
-  federated/distributed layer. Explicitly a distinct system from
-  `mini-private-index` (D-0310), which is not to be repurposed as the
-  general web index. See `docs/research/
+  `now_ms`, UrlId tiebreak). `mini-query` (D-0420, Track E7/E8) closes the
+  last two Track E sub-tracks: `parse_query` is a deterministic parser over
+  a fixed grammar (`"exact phrase"`, `-excluded_word`, `site:`/`host:`,
+  `before:`/`after:` dates with an exclusive `after:` boundary, `lang:`,
+  `type:`; malformed filter tokens are dropped silently rather than
+  failing the whole query), and `search` composes that output with the
+  *unmodified* `mini_ranker::rank` by cloning the caller's `Corpus` and
+  relabeling any document a parsed filter excludes to
+  `AvailabilityState::Restricted(RestrictionReason::UserFilter)` — reusing
+  `rank`'s own existing exclusion path rather than adding a second one, so
+  a `site:` filter and a robots exclusion are excluded through the
+  identical mechanism. Each result is wrapped in a `ResultProvenance`
+  carrying the `CrawlObservationId` it came from (via a new
+  `DocumentContextTable` — language/media-type/source-observation facts
+  neither the index nor the ranker corpus holds) and the caller-supplied
+  `IndexSegmentId`; the ranking profile and per-signal explanation were
+  already on `SearchResult` from E6 and are not duplicated. Still no CLI
+  binary wiring `parse_query`/`search` to real stdin/argv, no search UI,
+  no network exchange, and no federated/distributed layer (Track F, issue
+  #175). Explicitly a distinct system from `mini-private-index` (D-0310),
+  which is not to be repurposed as the general web index. See
+  `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,

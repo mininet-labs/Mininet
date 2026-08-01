@@ -15,12 +15,18 @@
 //! [`missing_chunks`] says exactly what a player/updater still needs; nothing
 //! ever restarts from zero.
 //!
-//! Honest limit: one manifest addresses up to 256 chunks (≈256 MiB). Long-form
-//! media nests manifests in a later batch; the beta promises nearby-first,
-//! relay-accelerated media — not a CDN.
+//! Honest limit: one manifest addresses up to 256 chunks (≈256 MiB).
+//! Long-form media nests manifests via [`superblock`] (D-0419); the beta
+//! promises nearby-first, relay-accelerated media — not a CDN.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
+
+mod superblock;
+pub use superblock::{
+    assemble_superblock, missing_superblock_chunks, publish_large_media, read_superblock,
+    Superblock, MAX_PARTS, MAX_SUPERBLOCK_TOTAL_LEN, SUPERBLOCK_TYPE,
+};
 
 use did_mini::{Controller, Did};
 use mini_crypto::HashAlgorithm;
