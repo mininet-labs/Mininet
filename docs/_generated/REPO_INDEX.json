@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 69,
-    "files": 790,
-    "headings": 2507,
+    "files": 795,
+    "headings": 2543,
     "rust_symbols": 7038
   },
   "crates": {
@@ -60530,7 +60530,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 872850,
+      "bytes": 877812,
       "group": "docs",
       "headings": [
         {
@@ -60960,9 +60960,9 @@
         "deterministic",
         "design"
       ],
-      "lines": 14549,
+      "lines": 14625,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "64205b6042a914a3653a11d64e74857758c78d6bcb37bb25626a4be1526b9444",
+      "sha256": "fd301afe7164d6f2cd6b7e5380bd469f3a33d397cb07ef64142ab65170833333",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -62111,7 +62111,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 110315,
+      "bytes": 111948,
       "group": "docs",
       "headings": [
         {
@@ -62181,22 +62181,22 @@
         },
         {
           "level": 2,
-          "line": 1441,
+          "line": 1463,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1532,
+          "line": 1554,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1612,
+          "line": 1634,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1678,
+          "line": 1700,
           "text": "Where to look for more detail"
         }
       ],
@@ -62226,9 +62226,9 @@
         "social",
         "network"
       ],
-      "lines": 1693,
+      "lines": 1715,
       "path": "docs/STATUS.md",
-      "sha256": "ced33310f6ba3485ee5a23e562ce9fb7ec21394de71ea52509dd2ede4e014fb7",
+      "sha256": "bb44705cc2bd9b95fd43efe8400ed9b651f3dc7cdfbfa433454ef59d80f32a40",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -63706,7 +63706,7 @@
       "title": "Android Keystore signer adapter + device delegation ceremony (issue #197, D-0334)"
     },
     {
-      "bytes": 20122,
+      "bytes": 21937,
       "group": "docs",
       "headings": [
         {
@@ -63726,52 +63726,52 @@
         },
         {
           "level": 2,
-          "line": 113,
+          "line": 115,
           "text": "What a resolution needs (D-0421 \u00a77's requirements, made precise)"
         },
         {
           "level": 2,
-          "line": 190,
+          "line": 194,
           "text": "Proposed (not yet built) crate boundaries"
         },
         {
           "level": 2,
-          "line": 213,
+          "line": 217,
           "text": "Voice/value wall (hard rule, restated for this track)"
         },
         {
           "level": 2,
-          "line": 226,
+          "line": 230,
           "text": "No new cryptography"
         },
         {
           "level": 2,
-          "line": 251,
+          "line": 255,
           "text": "Phased path (mirrors mn602-mn603's nine phases)"
         },
         {
           "level": 2,
-          "line": 294,
+          "line": 308,
           "text": "Constitutional impact"
         },
         {
           "level": 2,
-          "line": 302,
+          "line": 316,
           "text": "Implementation status"
         },
         {
           "level": 2,
-          "line": 307,
+          "line": 323,
           "text": "Failure point"
         },
         {
           "level": 2,
-          "line": 327,
+          "line": 347,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 336,
+          "line": 361,
           "text": "Supersedes / superseded by"
         }
       ],
@@ -63783,7 +63783,6 @@
         "budget",
         "subsidy",
         "requester-funded",
-        "never",
         "service",
         "track",
         "required",
@@ -63792,18 +63791,19 @@
         "requester",
         "claims",
         "own",
+        "never",
         "finality",
         "policy",
-        "preparation",
         "decision",
         "d-0421",
         "rule",
         "path",
-        "credential"
+        "credential",
+        "supplies"
       ],
-      "lines": 344,
+      "lines": 369,
       "path": "docs/design/anti-collusion-content-settlement-preparation.md",
-      "sha256": "e8aac637c2135409b298b02c0c88d1088b7232814ab34b15dafec907971d09a5",
+      "sha256": "b734d8a929553bea054c5de21a3b4fa96e8bd0069c3869b8094073131d01424c",
       "symbols": [],
       "title": "Anti-collusion content/engagement settlement preparation (Track F5, D-0427)"
     },
@@ -64723,6 +64723,223 @@
       "sha256": "4548b4b41cb1b16e2c9281640a41020c5f3cd287964c8449f0612a3859baf859",
       "symbols": [],
       "title": "External bridge adapter integration (post-MN-207, D-0097)"
+    },
+    {
+      "bytes": 37177,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "Decision and overall result"
+        },
+        {
+          "level": 2,
+          "line": 53,
+          "text": "1. Scope boundary"
+        },
+        {
+          "level": 2,
+          "line": 72,
+          "text": "2. Settlement classes"
+        },
+        {
+          "level": 3,
+          "line": 74,
+          "text": "2.1 Requester-funded market settlement"
+        },
+        {
+          "level": 3,
+          "line": 92,
+          "text": "2.2 Sponsor-funded settlement"
+        },
+        {
+          "level": 3,
+          "line": 106,
+          "text": "2.3 Protocol-subsidized settlement"
+        },
+        {
+          "level": 3,
+          "line": 116,
+          "text": "2.4 Authority-bearing settlement"
+        },
+        {
+          "level": 2,
+          "line": 130,
+          "text": "3. Typed policy schema"
+        },
+        {
+          "level": 2,
+          "line": 160,
+          "text": "4. Typed delivery transcript"
+        },
+        {
+          "level": 2,
+          "line": 188,
+          "text": "5. Typed claim schema"
+        },
+        {
+          "level": 2,
+          "line": 215,
+          "text": "6. Domain registry"
+        },
+        {
+          "level": 2,
+          "line": 231,
+          "text": "7. Validation and mutation order"
+        },
+        {
+          "level": 2,
+          "line": 268,
+          "text": "8. Accounting state and definitions"
+        },
+        {
+          "level": 2,
+          "line": 306,
+          "text": "9. Adversary and assumptions"
+        },
+        {
+          "level": 2,
+          "line": 347,
+          "text": "10. Privacy declaration and limits"
+        },
+        {
+          "level": 2,
+          "line": 371,
+          "text": "11. Audit semantics"
+        },
+        {
+          "level": 2,
+          "line": 401,
+          "text": "12. Precommitted falsification thresholds"
+        },
+        {
+          "level": 2,
+          "line": 425,
+          "text": "13. Fixed-vector results"
+        },
+        {
+          "level": 2,
+          "line": 477,
+          "text": "14. Exact failures and engineering consequences"
+        },
+        {
+          "level": 3,
+          "line": 479,
+          "text": "14.1 Real-delivery collusion drains the whole bounded subsidy \u2014 **FAIL**"
+        },
+        {
+          "level": 3,
+          "line": 495,
+          "text": "14.2 Known audit randomness is grindable \u2014 **FAIL**"
+        },
+        {
+          "level": 3,
+          "line": 510,
+          "text": "14.3 Economic-event equivalence is caller supplied \u2014 **PARTIAL**"
+        },
+        {
+          "level": 3,
+          "line": 522,
+          "text": "14.4 Distinct policies can pay the same semantic work \u2014 **PARTIAL**"
+        },
+        {
+          "level": 3,
+          "line": 538,
+          "text": "14.5 Rate-limit scarcity is not implemented \u2014 **PARTIAL**"
+        },
+        {
+          "level": 3,
+          "line": 550,
+          "text": "14.6 Deterministic claim-ID ordering is grindable if copied into production \u2014 **PARTIAL**"
+        },
+        {
+          "level": 3,
+          "line": 562,
+          "text": "14.7 Threshold counts do not prove independent authorities \u2014 **PARTIAL**"
+        },
+        {
+          "level": 3,
+          "line": 573,
+          "text": "14.8 Privacy is declared, not cryptographically achieved \u2014 **PARTIAL**"
+        },
+        {
+          "level": 3,
+          "line": 585,
+          "text": "14.9 Retained-state exhaustion can halt a subsidy program \u2014 **PARTIAL**"
+        },
+        {
+          "level": 3,
+          "line": 596,
+          "text": "14.10 Configured replay-state capacity exceeds the gate \u2014 **FAIL**"
+        },
+        {
+          "level": 3,
+          "line": 612,
+          "text": "14.11 Physical weak-device cost is unmeasured \u2014 **PARTIAL**"
+        },
+        {
+          "level": 2,
+          "line": 622,
+          "text": "15. What this model proves and does not prove"
+        },
+        {
+          "level": 2,
+          "line": 652,
+          "text": "16. Reproduction"
+        },
+        {
+          "level": 2,
+          "line": 666,
+          "text": "17. Phase transition rule"
+        },
+        {
+          "level": 2,
+          "line": 689,
+          "text": "18. Failure point"
+        },
+        {
+          "level": 2,
+          "line": 703,
+          "text": "19. Implementation status"
+        }
+      ],
+      "keywords": [
+        "model",
+        "partial",
+        "settlement",
+        "policy",
+        "claim",
+        "pass",
+        "transcript",
+        "domain",
+        "audit",
+        "fail",
+        "but",
+        "state",
+        "precommitted",
+        "exact",
+        "what",
+        "one",
+        "phase",
+        "falsification",
+        "decision",
+        "result",
+        "typed",
+        "privacy",
+        "threshold",
+        "does"
+      ],
+      "lines": 719,
+      "path": "docs/design/f5-phase2-settlement-model.md",
+      "sha256": "91a3748742b2041fb2c19e6b4d4a58eba39de08433156e2130c519879a5c2eeb",
+      "symbols": [],
+      "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
     },
     {
       "bytes": 13350,
@@ -76743,6 +76960,78 @@
       "title": "One-line, faithful distillations of each directive's own text below \u2014"
     },
     {
+      "bytes": 80213,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "enum",
+        "class",
+        "import",
+        "str",
+        "disclosure",
+        "tools",
+        "python3",
+        "issuer",
+        "auditor",
+        "model-v1",
+        "role",
+        "requester",
+        "privacydeclaration",
+        "tuple",
+        "f5_phase2_model",
+        "deterministic",
+        "settlement",
+        "file",
+        "production",
+        "json",
+        "dataclass",
+        "provider",
+        "coordinator",
+        "ledger"
+      ],
+      "lines": 2233,
+      "path": "tools/f5_phase2_model.py",
+      "sha256": "38c4cce9c61015c67f80213468305142af80bcf92cb13f3e79d86acca7f44cdd",
+      "symbols": [],
+      "title": "\"\"\"Deterministic, valueless Track F5 Phase-2 settlement model."
+    },
+    {
+      "bytes": 10285,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "vector",
+        "accepted",
+        "kind",
+        "already_accepted",
+        "detail",
+        "rejected",
+        "extraction_units",
+        "spent_units",
+        "state_digest",
+        "status",
+        "pass",
+        "claim",
+        "but",
+        "budget",
+        "zero",
+        "same",
+        "cannot",
+        "changing",
+        "commitment",
+        "consume",
+        "fail",
+        "tools",
+        "fixtures",
+        "f5_phase2_report"
+      ],
+      "lines": 34,
+      "path": "tools/fixtures/f5_phase2_report.jsonl",
+      "sha256": "39dfb267fb1ed1b7324d5345f8fe17db7bf0db4a811a10e36b3862a2bbd67932",
+      "symbols": [],
+      "title": "{\"kind\":\"f5-phase2-model\",\"model_version\":1,\"thresholds\":{\"audit_attack_claim_count\":60,\"max_abstract_verification_ops\":"
+    },
+    {
       "bytes": 16934,
       "group": "tools",
       "headings": [],
@@ -77037,6 +77326,78 @@
       "sha256": "26df395131acc5e1865cf09c32a403e716069b49570286f893f0669ea6a4f1f0",
       "symbols": [],
       "title": "The five canonical documents \u2014 read order for any non-trivial task"
+    },
+    {
+      "bytes": 31424,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "self",
+        "model",
+        "transcript",
+        "policy",
+        "replace",
+        "import",
+        "def",
+        "none",
+        "spec",
+        "assertraisesregex",
+        "valueerror",
+        "settlementclass",
+        "budget",
+        "make_policy",
+        "importlib",
+        "util",
+        "unittest",
+        "rate_limit_domain",
+        "sponsor_funded",
+        "privacy",
+        "version",
+        "settlement_class",
+        "service_class",
+        "authority"
+      ],
+      "lines": 848,
+      "path": "tools/test_f5_phase2_model.py",
+      "sha256": "7a97a7a6a086bcd0bc2c3d5a654b714596925963bdfdf12abd3bfda0b23b95bd",
+      "symbols": [],
+      "title": "from __future__ import annotations"
+    },
+    {
+      "bytes": 1099,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "spec",
+        "import",
+        "model",
+        "self",
+        "importlib",
+        "util",
+        "unittest",
+        "tools_root",
+        "vector_path",
+        "main",
+        "sys",
+        "path",
+        "module_path",
+        "loader",
+        "name",
+        "def",
+        "none",
+        "expected",
+        "actual",
+        "assertequal",
+        "tools",
+        "test_f5_phase2_vectors",
+        "future",
+        "annotations"
+      ],
+      "lines": 36,
+      "path": "tools/test_f5_phase2_vectors.py",
+      "sha256": "cae0c2eb9d4265c4e49450a7505fce6ebd162fa4f08233ea49f067fc0449aa29",
+      "symbols": [],
+      "title": "from __future__ import annotations"
     },
     {
       "bytes": 4694,
