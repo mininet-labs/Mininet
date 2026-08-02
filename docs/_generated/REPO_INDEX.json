@@ -2,8 +2,8 @@
   "counts": {
     "crates": 68,
     "files": 782,
-    "headings": 2499,
-    "rust_symbols": 6907
+    "headings": 2507,
+    "rust_symbols": 6947
   },
   "crates": {
     "did-mini": {
@@ -46727,7 +46727,7 @@
       "title": "use crate::error::{FederationError, Result};"
     },
     {
-      "bytes": 2836,
+      "bytes": 2842,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
@@ -46758,7 +46758,7 @@
       ],
       "lines": 82,
       "path": "crates/mini-search-federation/src/error.rs",
-      "sha256": "4109ec63cea3843729e6717b6095e3c80b41a5f6855a7f919f06ac20c13e2061",
+      "sha256": "4cf688871d41d3e2dbc82ef23af7099512b62037ec2f96b2b1401262d1a2a15d",
       "symbols": [
         {
           "kind": "type",
@@ -46896,202 +46896,297 @@
       "title": "use std::collections::HashMap;"
     },
     {
-      "bytes": 5999,
+      "bytes": 14705,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
-        "url",
-        "snapshot",
-        "history",
-        "self",
-        "object_id",
-        "observed_at_ms",
-        "snapshotindex",
-        "same",
         "observation",
-        "canonicalurl",
-        "option",
-        "observations",
-        "caller",
-        "u64",
-        "entries",
+        "default",
+        "usize",
+        "canonical",
+        "digest",
+        "history",
+        "local",
         "one",
-        "content_digest",
-        "by_url",
-        "new",
-        "snapshots",
-        "store",
-        "already",
+        "object",
+        "url",
+        "final",
+        "index",
+        "const",
+        "snapshotlimits",
+        "snapshotindex",
+        "objects",
         "time",
-        "what"
+        "derive",
+        "debug",
+        "clone",
+        "partialeq",
+        "last",
+        "earlier",
+        "digest-bearing"
       ],
-      "lines": 152,
+      "lines": 362,
       "path": "crates/mini-search-federation/src/history.rs",
-      "sha256": "03ba5daf9edef7d7486584a220d55b563e0e447519cdbcf24e6d04f4901c4e5e",
+      "sha256": "1f224951bd3f324ab2350d60d86b7183817374f7f6c02335992db60319b9b198",
       "symbols": [
         {
-          "kind": "struct",
+          "kind": "const",
           "line": 29,
-          "name": "Snapshot"
+          "name": "DEFAULT_MAX_SNAPSHOT_URLS"
+        },
+        {
+          "kind": "const",
+          "line": 31,
+          "name": "DEFAULT_MAX_SNAPSHOTS_PER_URL"
+        },
+        {
+          "kind": "const",
+          "line": 33,
+          "name": "DEFAULT_MAX_TOTAL_SNAPSHOTS"
+        },
+        {
+          "kind": "const",
+          "line": 35,
+          "name": "DEFAULT_MAX_SNAPSHOT_WIRE_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 37,
+          "name": "DEFAULT_MAX_TOTAL_SNAPSHOT_WIRE_BYTES"
         },
         {
           "kind": "struct",
-          "line": 47,
+          "line": 46,
+          "name": "SnapshotLimits"
+        },
+        {
+          "kind": "impl",
+          "line": 54,
+          "name": "Default"
+        },
+        {
+          "kind": "fn",
+          "line": 55,
+          "name": "default"
+        },
+        {
+          "kind": "enum",
+          "line": 72,
+          "name": "VersionRelation"
+        },
+        {
+          "kind": "struct",
+          "line": 88,
+          "name": "Snapshot"
+        },
+        {
+          "kind": "enum",
+          "line": 103,
+          "name": "SnapshotInsert"
+        },
+        {
+          "kind": "struct",
+          "line": 115,
           "name": "SnapshotIndex"
         },
         {
           "kind": "impl",
-          "line": 51,
+          "line": 123,
+          "name": "Default"
+        },
+        {
+          "kind": "fn",
+          "line": 124,
+          "name": "default"
+        },
+        {
+          "kind": "impl",
+          "line": 129,
           "name": "SnapshotIndex"
         },
         {
           "kind": "fn",
-          "line": 52,
+          "line": 132,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 64,
+          "line": 137,
+          "name": "with_limits"
+        },
+        {
+          "kind": "fn",
+          "line": 147,
+          "name": "limits"
+        },
+        {
+          "kind": "fn",
+          "line": 151,
+          "name": "len"
+        },
+        {
+          "kind": "fn",
+          "line": 155,
+          "name": "is_empty"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "url_count"
+        },
+        {
+          "kind": "fn",
+          "line": 165,
+          "name": "total_wire_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 177,
           "name": "insert_observation"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 230,
           "name": "history"
         },
         {
           "kind": "fn",
-          "line": 99,
+          "line": 240,
           "name": "latest"
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 248,
           "name": "at_or_before"
         },
         {
           "kind": "fn",
-          "line": 119,
+          "line": 261,
           "name": "between"
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 279,
           "name": "distinct_versions"
         },
         {
           "kind": "fn",
-          "line": 144,
-          "name": "recompute_content_changed"
+          "line": 300,
+          "name": "disagreements"
+        },
+        {
+          "kind": "fn",
+          "line": 308,
+          "name": "recompute_version_relations"
         }
       ],
-      "title": "use std::collections::HashMap;"
+      "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 3130,
+      "bytes": 2750,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
         "history",
-        "own",
         "observation",
+        "object",
+        "error",
         "federate",
         "rerank",
-        "local",
-        "result",
-        "what",
-        "error",
         "segment",
-        "index",
-        "results",
-        "caller",
-        "publish_crawl_observation",
-        "each",
-        "via",
-        "federate_query",
-        "see",
-        "codec",
         "signed",
-        "content-addressed",
-        "format",
+        "local",
+        "codec",
+        "minisearch",
         "observations",
-        "merging"
+        "what",
+        "here",
+        "publish_crawl_observation",
+        "read_crawl_observation",
+        "publish_index_segment",
+        "read_index_segment",
+        "decoded",
+        "applies",
+        "its",
+        "typed",
+        "fields",
+        "federate_query"
       ],
-      "lines": 64,
+      "lines": 58,
       "path": "crates/mini-search-federation/src/lib.rs",
-      "sha256": "3395a92925c4ab28cf6a46dc740ee5e50ee9e197f153a9f4972f971bbaf5ee8c",
+      "sha256": "ab811e1e3c0912a1424a86888fc95a7414bb35f1ed85ac50e9b8341de94d55ae",
       "symbols": [
         {
           "kind": "mod",
-          "line": 50,
+          "line": 40,
           "name": "codec"
         },
         {
           "kind": "mod",
-          "line": 51,
+          "line": 41,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 52,
+          "line": 42,
           "name": "federate"
         },
         {
           "kind": "mod",
-          "line": 53,
+          "line": 43,
           "name": "history"
         },
         {
           "kind": "mod",
-          "line": 54,
+          "line": 44,
           "name": "observation"
         },
         {
           "kind": "mod",
-          "line": 55,
+          "line": 45,
           "name": "rerank"
         },
         {
           "kind": "mod",
-          "line": 56,
+          "line": 46,
           "name": "segment"
         }
       ],
       "title": "mod codec;"
     },
     {
-      "bytes": 10669,
+      "bytes": 15357,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
         "object",
-        "crawlobservation",
+        "checked_add",
         "payload",
-        "observation",
-        "signed",
-        "const",
-        "obj",
-        "bytes",
-        "federationerror",
+        "total",
         "usize",
+        "crawlobservation",
+        "const",
+        "signed",
+        "obj",
+        "observation",
         "crawl_observation_type",
-        "encode_url",
         "mini_objects",
+        "caller",
         "store",
+        "reader",
         "result",
-        "u64",
         "publish_crawl_observation",
-        "encode_observation",
-        "decode_observation",
-        "decode_url",
+        "validate_multihash_len",
+        "bytes_field_len",
+        "url_wire_len",
         "content-addressed",
         "crawl-observation",
         "exchange",
-        "peer"
+        "publish"
       ],
-      "lines": 305,
+      "lines": 451,
       "path": "crates/mini-search-federation/src/observation.rs",
-      "sha256": "9d6f9017c692dc6e41c617e7261e9e76f75b2220bc3573ad327892c21828a06f",
+      "sha256": "64aeb2adfe6ed325a5b9e639ad0d681032f5d5cc1c8b4a7733991128799397aa",
       "symbols": [
         {
           "kind": "const",
@@ -47101,96 +47196,136 @@
         {
           "kind": "const",
           "line": 36,
-          "name": "MAX_HOST_BYTES"
+          "name": "MAX_MULTIHASH_BYTES"
         },
         {
           "kind": "const",
           "line": 37,
-          "name": "MAX_PATH_BYTES"
+          "name": "MAX_HOST_BYTES"
         },
         {
           "kind": "const",
           "line": 38,
-          "name": "MAX_QUERY_BYTES"
+          "name": "MAX_PATH_BYTES"
         },
         {
           "kind": "const",
           "line": 39,
+          "name": "MAX_QUERY_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 40,
           "name": "MAX_MEDIA_TYPE_OTHER_BYTES"
         },
         {
           "kind": "const",
-          "line": 43,
+          "line": 44,
           "name": "MAX_REDIRECT_CHAIN"
         },
         {
           "kind": "fn",
-          "line": 47,
+          "line": 53,
           "name": "publish_crawl_observation"
         },
         {
           "kind": "fn",
-          "line": 69,
+          "line": 75,
           "name": "read_crawl_observation"
         },
         {
           "kind": "fn",
-          "line": 81,
+          "line": 136,
+          "name": "checked_add"
+        },
+        {
+          "kind": "fn",
+          "line": 143,
+          "name": "validate_multihash_len"
+        },
+        {
+          "kind": "fn",
+          "line": 151,
+          "name": "bytes_field_len"
+        },
+        {
+          "kind": "fn",
+          "line": 160,
+          "name": "str_field_len"
+        },
+        {
+          "kind": "fn",
+          "line": 167,
+          "name": "url_wire_len"
+        },
+        {
+          "kind": "fn",
+          "line": 190,
+          "name": "status_wire_len"
+        },
+        {
+          "kind": "fn",
+          "line": 206,
+          "name": "media_type_wire_len"
+        },
+        {
+          "kind": "fn",
+          "line": 221,
           "name": "encode_observation"
         },
         {
           "kind": "fn",
-          "line": 105,
+          "line": 248,
           "name": "decode_observation"
         },
         {
           "kind": "fn",
-          "line": 149,
+          "line": 294,
           "name": "encode_url"
         },
         {
           "kind": "fn",
-          "line": 176,
+          "line": 320,
           "name": "decode_url"
         },
         {
           "kind": "fn",
-          "line": 198,
+          "line": 342,
           "name": "encode_status"
         },
         {
           "kind": "fn",
-          "line": 218,
+          "line": 363,
           "name": "decode_status"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 382,
           "name": "encode_opt_multihash"
         },
         {
           "kind": "fn",
-          "line": 247,
+          "line": 392,
           "name": "decode_opt_multihash"
         },
         {
           "kind": "fn",
-          "line": 258,
+          "line": 403,
           "name": "encode_media_type"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 421,
           "name": "decode_media_type"
         },
         {
           "kind": "fn",
-          "line": 288,
+          "line": 434,
           "name": "encode_opt_media_type"
         },
         {
           "kind": "fn",
-          "line": 298,
+          "line": 444,
           "name": "decode_opt_media_type"
         }
       ],
@@ -47403,38 +47538,38 @@
       "title": "use mini_crypto::{HashAlgorithm, Multihash};"
     },
     {
-      "bytes": 8418,
+      "bytes": 9311,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
-        "unwrap",
         "store",
         "root",
-        "device",
         "new",
-        "digest",
-        "url",
-        "none",
+        "unwrap",
+        "device",
         "obs",
-        "observation",
+        "url",
+        "digest",
+        "none",
+        "example",
         "human",
         "fetchstatus",
         "seed",
-        "obj",
-        "example",
+        "observation",
         "sample_observation",
         "publish_crawl_observation",
-        "read_crawl_observation",
         "memorybackend",
+        "org",
         "status",
+        "assert_eq",
         "controller",
-        "payload",
         "crawlobservation",
-        "crawlobservationid"
+        "crawlobservationid",
+        "did"
       ],
-      "lines": 239,
+      "lines": 267,
       "path": "crates/mini-search-federation/tests/federation.rs",
-      "sha256": "c7a5bf13962bd01a00f59b090dcb8066d77cda6f6a55783c657bf5b06383167f",
+      "sha256": "2338fae697bf891eb7e3ea764842acf7c3a293a3fc8a23dec8b937d3dbf7094c",
       "symbols": [
         {
           "kind": "fn",
@@ -47469,142 +47604,207 @@
         {
           "kind": "fn",
           "line": 94,
-          "name": "crawler_runtime_policy_statuses_round_trip_over_federation_wire"
+          "name": "publisher_rejects_typed_values_outside_its_own_reader_bounds"
+        },
+        {
+          "kind": "fn",
+          "line": 107,
+          "name": "publisher_rejects_an_overlong_redirect_chain_before_encoding"
         },
         {
           "kind": "fn",
           "line": 122,
+          "name": "crawler_runtime_policy_statuses_round_trip_over_federation_wire"
+        },
+        {
+          "kind": "fn",
+          "line": 150,
           "name": "reading_the_wrong_object_type_as_a_crawl_observation_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 163,
           "name": "a_tampered_crawl_observation_object_fails_signature_verification"
         },
         {
           "kind": "fn",
-          "line": 160,
+          "line": 188,
           "name": "small_segment"
         },
         {
           "kind": "fn",
-          "line": 174,
+          "line": 202,
           "name": "an_index_segment_round_trips_through_publish_and_read"
         },
         {
           "kind": "fn",
-          "line": 189,
+          "line": 217,
           "name": "reading_the_wrong_object_type_as_an_index_segment_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 202,
+          "line": 230,
           "name": "a_non_canonical_index_segment_payload_is_rejected_at_read_time"
         },
         {
           "kind": "fn",
-          "line": 219,
+          "line": 247,
           "name": "an_encrypted_payload_is_rejected_for_both_object_types"
         }
       ],
       "title": "use did_mini::{Capabilities, Controller};"
     },
     {
-      "bytes": 5762,
+      "bytes": 16472,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
         "index",
-        "some",
-        "digest",
-        "object_id",
-        "insert_observation",
-        "url",
-        "new",
-        "vec",
-        "snapshotindex",
-        "example",
-        "org",
-        "assert_eq",
-        "history",
-        "observed_at_ms",
+        "root",
+        "device",
+        "object",
+        "observation",
         "unwrap",
-        "assert",
-        "times",
-        "iter",
-        "map",
-        "collect",
-        "full",
+        "new",
         "seed",
-        "none",
-        "content_changed"
+        "assert",
+        "assert_eq",
+        "final_url",
+        "url",
+        "controller",
+        "did",
+        "is_empty",
+        "history",
+        "human",
+        "digest",
+        "published",
+        "snapshotindex",
+        "store",
+        "crawlobservation",
+        "clone",
+        "usize"
       ],
-      "lines": 163,
+      "lines": 534,
       "path": "crates/mini-search-federation/tests/history.rs",
-      "sha256": "3aecf66ace5e7748a443038dce3ffe6c915f80618d8c774146f1dac0fee60fa9",
+      "sha256": "b45c7c9ceec25adb7e71dd525e2ce15c54ed7c5e287babe3c007a4527fe5810c",
       "symbols": [
         {
           "kind": "fn",
-          "line": 9,
+          "line": 17,
+          "name": "human"
+        },
+        {
+          "kind": "fn",
+          "line": 27,
           "name": "digest"
         },
         {
           "kind": "fn",
-          "line": 13,
+          "line": 31,
           "name": "url"
         },
         {
           "kind": "fn",
-          "line": 24,
-          "name": "object_id"
+          "line": 42,
+          "name": "observation"
         },
         {
           "kind": "fn",
-          "line": 32,
+          "line": 63,
+          "name": "published"
+        },
+        {
+          "kind": "fn",
+          "line": 69,
+          "name": "insert"
+        },
+        {
+          "kind": "fn",
+          "line": 79,
+          "name": "count_limits"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
           "name": "history_is_empty_for_an_unrecorded_url"
         },
         {
           "kind": "fn",
-          "line": 39,
-          "name": "snapshots_are_returned_oldest_first_regardless_of_insertion_order"
+          "line": 106,
+          "name": "insertion_derives_identity_and_fields_from_the_canonical_object"
         },
         {
           "kind": "fn",
-          "line": 52,
-          "name": "inserting_the_same_object_id_twice_is_idempotent"
+          "line": 132,
+          "name": "an_in_memory_object_mutated_after_signing_cannot_keep_its_stale_id"
         },
         {
           "kind": "fn",
-          "line": 62,
-          "name": "latest_returns_the_most_recent_snapshot"
+          "line": 153,
+          "name": "insertion_reuses_f1_object_type_and_visibility_checks"
         },
         {
           "kind": "fn",
-          "line": 71,
-          "name": "at_or_before_finds_the_state_at_a_point_in_time"
+          "line": 177,
+          "name": "snapshots_are_oldest_first_regardless_of_insertion_order"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 209,
+          "name": "inserting_the_same_canonical_object_is_idempotent"
+        },
+        {
+          "kind": "fn",
+          "line": 234,
+          "name": "explicit_url_per_url_and_total_count_limits_fail_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 292,
+          "name": "per_snapshot_and_total_wire_byte_limits_fail_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 342,
+          "name": "zero_limits_reject_the_first_insertion"
+        },
+        {
+          "kind": "fn",
+          "line": 363,
+          "name": "latest_and_at_or_before_return_the_whole_equal_timestamp_group"
+        },
+        {
+          "kind": "fn",
+          "line": 386,
           "name": "between_bounds_are_inclusive_lower_exclusive_upper"
         },
         {
           "kind": "fn",
-          "line": 115,
-          "name": "distinct_versions_skips_repeat_fetches_of_unchanged_content"
+          "line": 414,
+          "name": "unknown_fetches_do_not_create_false_version_boundaries"
         },
         {
           "kind": "fn",
-          "line": 137,
-          "name": "two_consecutive_unknown_digests_are_not_treated_as_a_change"
+          "line": 443,
+          "name": "same_timestamp_disagreement_is_visible_and_not_a_fake_change_order"
         },
         {
           "kind": "fn",
-          "line": 149,
-          "name": "different_urls_have_independent_histories"
+          "line": 463,
+          "name": "same_timestamp_corroboration_collapses_to_one_version_representative"
+        },
+        {
+          "kind": "fn",
+          "line": 489,
+          "name": "a_later_agreed_digest_compares_to_the_last_earlier_agreed_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 509,
+          "name": "different_final_urls_have_independent_histories"
         }
       ],
-      "title": "use mini_crypto::{HashAlgorithm, Multihash};"
+      "title": "use did_mini::{Capabilities, Controller};"
     },
     {
       "bytes": 7948,
@@ -62769,7 +62969,7 @@
       "title": "Android Keystore signer adapter + device delegation ceremony (issue #197, D-0334)"
     },
     {
-      "bytes": 11183,
+      "bytes": 20122,
       "group": "docs",
       "headings": [
         {
@@ -62779,94 +62979,94 @@
         },
         {
           "level": 2,
-          "line": 23,
+          "line": 32,
           "text": "Decision"
         },
         {
           "level": 2,
-          "line": 51,
+          "line": 78,
           "text": "Role separation"
         },
         {
           "level": 2,
-          "line": 75,
-          "text": "What a resolution needs (D-0421 \u00a77's requirements, unchanged)"
+          "line": 113,
+          "text": "What a resolution needs (D-0421 \u00a77's requirements, made precise)"
         },
         {
           "level": 2,
-          "line": 102,
+          "line": 190,
           "text": "Proposed (not yet built) crate boundaries"
         },
         {
           "level": 2,
-          "line": 124,
+          "line": 213,
           "text": "Voice/value wall (hard rule, restated for this track)"
         },
         {
           "level": 2,
-          "line": 135,
+          "line": 226,
           "text": "No new cryptography"
         },
         {
           "level": 2,
-          "line": 152,
+          "line": 251,
           "text": "Phased path (mirrors mn602-mn603's nine phases)"
         },
         {
           "level": 2,
-          "line": 188,
+          "line": 294,
           "text": "Constitutional impact"
         },
         {
           "level": 2,
-          "line": 195,
+          "line": 302,
           "text": "Implementation status"
         },
         {
           "level": 2,
-          "line": 199,
+          "line": 307,
           "text": "Failure point"
         },
         {
           "level": 2,
-          "line": 207,
+          "line": 327,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 215,
+          "line": 336,
           "text": "Supersedes / superseded by"
         }
       ],
       "keywords": [
-        "mini-contribution",
         "settlement",
-        "role",
-        "claim",
-        "d-0421",
-        "document",
-        "tier",
-        "design",
-        "track",
-        "unchanged",
-        "does",
-        "problem",
+        "may",
+        "anti-collusion",
         "provider",
+        "budget",
+        "subsidy",
+        "requester-funded",
         "never",
-        "already",
-        "content",
-        "what",
-        "requirements",
-        "mn602-mn603",
-        "mini-attest",
-        "linkable",
-        "future",
-        "existing",
-        "engagement"
+        "service",
+        "track",
+        "required",
+        "tier",
+        "its",
+        "requester",
+        "claims",
+        "own",
+        "finality",
+        "policy",
+        "preparation",
+        "decision",
+        "d-0421",
+        "rule",
+        "path",
+        "credential"
       ],
-      "lines": 220,
+      "lines": 344,
       "path": "docs/design/anti-collusion-content-settlement-preparation.md",
-      "sha256": "acd9696243bda6a42408676863f75c47565f5cb8cb2e9b7ff4d1b559a62cc90c",
+      "sha256": "e8aac637c2135409b298b02c0c88d1088b7232814ab34b15dafec907971d09a5",
       "symbols": [],
       "title": "Anti-collusion content/engagement settlement preparation (Track F5, D-0427)"
     },
@@ -63271,7 +63471,7 @@
       "title": "Credential taxonomy: participant, human, role, resource"
     },
     {
-      "bytes": 17086,
+      "bytes": 12767,
       "group": "docs",
       "headings": [
         {
@@ -63281,99 +63481,119 @@
         },
         {
           "level": 2,
-          "line": 10,
+          "line": 5,
           "text": "Why this document exists"
         },
         {
           "level": 2,
-          "line": 42,
+          "line": 15,
           "text": "Decision"
         },
         {
           "level": 2,
-          "line": 63,
-          "text": "The six tracks, as they already exist in this repository"
+          "line": 29,
+          "text": "The six tracks"
         },
         {
           "level": 3,
-          "line": 69,
+          "line": 31,
           "text": "1. Private proof of useful contribution"
         },
         {
           "level": 3,
-          "line": 92,
-          "text": "2. Anti-collusion reward settlement"
+          "line": 40,
+          "text": "2. Anti-collusion settlement"
         },
         {
           "level": 3,
-          "line": 106,
+          "line": 56,
           "text": "3. Unlinkable personhood membership"
         },
         {
           "level": 3,
-          "line": 122,
-          "text": "4. Private federated search"
+          "line": 65,
+          "text": "4. Private and federated search"
         },
         {
           "level": 3,
-          "line": 134,
-          "text": "5. Recoverable, post-quantum identities"
+          "line": 76,
+          "text": "5. Recoverable post-quantum identities"
         },
         {
           "level": 3,
-          "line": 146,
+          "line": 82,
           "text": "6. Proof-carrying Forge contributions"
         },
         {
           "level": 2,
-          "line": 163,
-          "text": "What Mininet does not invent (restated, not modified)"
+          "line": 90,
+          "text": "What Mininet does not invent"
         },
         {
           "level": 2,
-          "line": 179,
-          "text": "Required maturity gate for every construction named above"
+          "line": 104,
+          "text": "Required maturity gate"
         },
         {
           "level": 2,
-          "line": 195,
-          "text": "7. The one open gap: anti-collusion reward settlement (research-only, this document)"
+          "line": 123,
+          "text": "7. Anti-collusion settlement gap \u2014 now owned by D-0427"
         },
         {
           "level": 2,
-          "line": 248,
-          "text": "8. The flagship synthesis: Unlinkable Proof of Useful Contribution"
+          "line": 146,
+          "text": "8. Flagship synthesis: Unlinkable Proof of Useful Contribution"
+        },
+        {
+          "level": 2,
+          "line": 162,
+          "text": "Constitutional impact"
+        },
+        {
+          "level": 2,
+          "line": 166,
+          "text": "Failure point"
+        },
+        {
+          "level": 2,
+          "line": 180,
+          "text": "Required follow-up"
+        },
+        {
+          "level": 2,
+          "line": 186,
+          "text": "Supersedes / superseded by"
         }
       ],
       "keywords": [
-        "already",
-        "design",
-        "document",
-        "protocol",
+        "prove",
         "research",
-        "contribution",
-        "one",
-        "doctrine",
-        "new",
-        "never",
+        "proof",
+        "settlement",
         "cryptographic",
+        "protocol",
+        "anti-collusion",
+        "d-0427",
+        "remains",
+        "design",
+        "composition",
+        "document",
+        "status",
+        "doctrine",
+        "authority",
+        "path",
+        "claim",
+        "architecture",
         "flagship",
-        "repository",
+        "exists",
+        "tracks",
         "private",
         "useful",
-        "cryptography",
-        "primitives",
-        "below",
-        "composition",
-        "exists",
-        "six",
-        "exist",
-        "proof",
-        "anti-collusion"
+        "contribution"
       ],
-      "lines": 308,
+      "lines": 188,
       "path": "docs/design/cryptographic-architecture-and-flagship-research-protocol.md",
-      "sha256": "3f61383001ceeaeb9800368e11ef884f0481a0d2b89bf5b981db85af1fa58a2b",
+      "sha256": "d72f5c31a69e03f3b87102b023fd6151fdf1bd3fc726b4e492d88b88682ee48e",
       "symbols": [],
       "title": "Cryptographic architecture: composition over invention, and the flagship research protocol (D-0421)"
     },
@@ -63768,106 +63988,126 @@
       "title": "External bridge adapter integration (post-MN-207, D-0097)"
     },
     {
-      "bytes": 16029,
+      "bytes": 13350,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0426)"
+          "text": "Federated search exchange, merging, local re-ranking, and observation history: Track F1/F2/F3/F4/F7"
         },
         {
           "level": 2,
-          "line": 17,
-          "text": "What this closes"
+          "line": 8,
+          "text": "Scope"
         },
         {
           "level": 2,
-          "line": 28,
-          "text": "Decision"
+          "line": 20,
+          "text": "F1 \u2014 signed crawl-observation exchange"
         },
         {
           "level": 2,
-          "line": 53,
-          "text": "Why not a new signing identity"
+          "line": 38,
+          "text": "F2 \u2014 content-addressed index segments"
         },
         {
           "level": 2,
+          "line": 44,
+          "text": "F3 \u2014 deterministic federated query merging"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "F4 \u2014 local re-ranking"
+        },
+        {
+          "level": 2,
+          "line": 63,
+          "text": "F7 \u2014 bounded local history over observations"
+        },
+        {
+          "level": 3,
           "line": 67,
-          "text": "F3: federated query merging (D-0423)"
+          "text": "Canonical-object insertion and provenance preservation"
+        },
+        {
+          "level": 3,
+          "line": 83,
+          "text": "Explicit count and byte bounds"
+        },
+        {
+          "level": 3,
+          "line": 97,
+          "text": "Deterministic order without false chronology"
+        },
+        {
+          "level": 3,
+          "line": 103,
+          "text": "Version relations"
         },
         {
           "level": 2,
-          "line": 90,
-          "text": "F4: local re-ranking (D-0424)"
+          "line": 119,
+          "text": "Tests"
         },
         {
           "level": 2,
-          "line": 124,
-          "text": "F7: historical snapshots (D-0426)"
-        },
-        {
-          "level": 2,
-          "line": 164,
+          "line": 144,
           "text": "What's deliberately not here"
         },
         {
           "level": 2,
-          "line": 189,
-          "text": "Constitutional impact"
+          "line": 155,
+          "text": "Constitutional and authority impact"
         },
         {
           "level": 2,
-          "line": 203,
-          "text": "Implementation status"
+          "line": 159,
+          "text": "Failure points"
         },
         {
           "level": 2,
-          "line": 242,
-          "text": "Failure point"
-        },
-        {
-          "level": 2,
-          "line": 270,
+          "line": 172,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 285,
+          "line": 181,
           "text": "Supersedes / superseded by"
         }
       ],
       "keywords": [
-        "own",
-        "already",
-        "query",
-        "merging",
         "local",
-        "federated",
+        "canonical",
         "re-ranking",
-        "what",
-        "object",
-        "format",
-        "track",
-        "d-0423",
-        "d-0424",
-        "new",
-        "caller",
-        "every",
-        "search",
-        "index",
-        "each",
-        "provider",
-        "does",
-        "exchange",
         "history",
-        "d-0422"
+        "signed",
+        "query",
+        "search",
+        "merging",
+        "observation",
+        "deterministic",
+        "object",
+        "payload",
+        "result",
+        "federated",
+        "exchange",
+        "index",
+        "bounded",
+        "provider",
+        "caller",
+        "publisher",
+        "crawl-observation",
+        "content-addressed",
+        "provenance",
+        "bounds"
       ],
-      "lines": 291,
+      "lines": 183,
       "path": "docs/design/federated-search-exchange-f1-f2.md",
-      "sha256": "05a45381590fca14ec3fb13543d096a9ceb6b598f81bb7c04efeeae7023d9893",
+      "sha256": "99cdc8d8580fbdace20e0b3afbb0e84748d67ce8213a3678f0568b373f4aa541",
       "symbols": [],
-      "title": "Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0426)"
+      "title": "Federated search exchange, merging, local re-ranking, and observation history: Track F1/F2/F3/F4/F7"
     },
     {
       "bytes": 7972,
