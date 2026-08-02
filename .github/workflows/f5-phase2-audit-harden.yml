@@ -16,8 +16,10 @@ jobs:
         with:
           ref: codex/f5-phase2-model
           fetch-depth: 0
-      - name: Model adaptive audit grinding and truth-sync doctrine
-        run: python3 tools/f5_phase2_audit_harden.py
+      - name: Correct transform, model adaptive grinding, and truth-sync doctrine
+        run: |
+          python3 tools/f5_phase2_audit_prepatch.py
+          python3 tools/f5_phase2_audit_harden.py
       - name: Commit exact hardened state
         run: |
           git config user.name "mininet-f5-finalizer"
