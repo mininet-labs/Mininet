@@ -216,6 +216,10 @@ pub enum FetchStatus {
     NetworkError,
     RobotsExcluded,
     UnsupportedScheme,
+    AddressBlocked,
+    ResponseTooLarge,
+    UnsupportedMediaType,
+    InvalidRedirect,
 }
 
 /// HTTP status code validated to the IANA range.

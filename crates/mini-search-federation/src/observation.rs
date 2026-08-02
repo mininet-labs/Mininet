@@ -206,6 +206,10 @@ fn encode_status(w: &mut Writer, s: &FetchStatus) {
         FetchStatus::NetworkError => w.u8(3),
         FetchStatus::RobotsExcluded => w.u8(4),
         FetchStatus::UnsupportedScheme => w.u8(5),
+        FetchStatus::AddressBlocked => w.u8(6),
+        FetchStatus::ResponseTooLarge => w.u8(7),
+        FetchStatus::UnsupportedMediaType => w.u8(8),
+        FetchStatus::InvalidRedirect => w.u8(9),
         // `FetchStatus` is `#[non_exhaustive]`; see the `Scheme` note above.
         _ => unreachable!("FetchStatus has no variants beyond the six above today"),
     }
@@ -222,6 +226,10 @@ fn decode_status(r: &mut Reader) -> Result<FetchStatus> {
         3 => FetchStatus::NetworkError,
         4 => FetchStatus::RobotsExcluded,
         5 => FetchStatus::UnsupportedScheme,
+        6 => FetchStatus::AddressBlocked,
+        7 => FetchStatus::ResponseTooLarge,
+        8 => FetchStatus::UnsupportedMediaType,
+        9 => FetchStatus::InvalidRedirect,
         _ => return Err(FederationError::BadEncoding),
     })
 }

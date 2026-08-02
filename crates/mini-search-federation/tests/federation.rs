@@ -91,6 +91,34 @@ fn an_observation_with_no_optional_fields_round_trips() {
 }
 
 #[test]
+fn crawler_runtime_policy_statuses_round_trip_over_federation_wire() {
+    let (root, device) = human(18);
+    for (index, status) in [
+        FetchStatus::AddressBlocked,
+        FetchStatus::ResponseTooLarge,
+        FetchStatus::UnsupportedMediaType,
+        FetchStatus::InvalidRedirect,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut store = Store::new(MemoryBackend::new());
+        let mut observation = sample_observation();
+        observation.id = CrawlObservationId(digest(&[index as u8]));
+        observation.status = status;
+        observation.content_digest = None;
+        observation.media_type = None;
+        observation.byte_length = None;
+
+        let id = publish_crawl_observation(&mut store, &root, &device, &observation).unwrap();
+        assert_eq!(
+            read_crawl_observation(&store.get(&id).unwrap()).unwrap(),
+            observation
+        );
+    }
+}
+
+#[test]
 fn reading_the_wrong_object_type_as_a_crawl_observation_is_rejected() {
     let (root, device) = human(12);
     let obj = ObjectBuilder::new(ObjectType::Custom("mini/something-else".to_string()))

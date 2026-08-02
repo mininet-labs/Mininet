@@ -1,0 +1,21 @@
+[package]
+name = "mini-crawler-fetch"
+version = "0.0.1"
+description = "Bounded HTTPS fetch execution for MiniSearch with SSRF and redirect defenses"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mini-crypto = { path = "../mini-crypto" }
+mini-crawler = { path = "../mini-crawler" }
+mini-web-types = { path = "../mini-web-types" }
+reqwest = { version = "0.13.4", default-features = false, features = ["native-tls-no-alpn"] }
+tokio = { version = "1.47", features = ["net", "time"] }
+url = "2.5.8"
+
+[dev-dependencies]
+tokio = { version = "1.47", features = ["macros", "rt"] }
