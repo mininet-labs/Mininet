@@ -19,8 +19,10 @@ jobs:
         with:
           ref: codex/f5-phase2-model
           fetch-depth: 0
-      - name: Harden model and truth-sync canonical documentation
-        run: python3 tools/f5_phase2_finalize.py
+      - name: Correct queued transformation, harden model, and truth-sync docs
+        run: |
+          python3 tools/f5_phase2_prepatch.py
+          python3 tools/f5_phase2_finalize.py
       - name: Commit exact generated state
         run: |
           git config user.name "mininet-f5-finalizer"
