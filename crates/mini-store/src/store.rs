@@ -8,6 +8,45 @@ use crate::{Result, StoreError};
 
 const MAX_SUBJECT_BYTES: usize = 64;
 
+/// Largest page accepted by [`Store::since_page`]. The backend may perform
+/// maintenance or one-time migration work, but steady-state returned work and
+/// allocation are bounded by this value.
+pub const MAX_TIME_PAGE_SIZE: usize = 1024;
+
+/// Stable continuation cursor for chronological object pages. Ordering is the
+/// exact `idx/time/<timestamp>/<object-id>` order, so equal timestamps remain
+/// unambiguous across page boundaries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TimeCursor {
+    pub timestamp_ms: u64,
+    pub object_id: ObjectId,
+}
+
+impl TimeCursor {
+    pub fn new(timestamp_ms: u64, object_id: ObjectId) -> Self {
+        Self {
+            timestamp_ms,
+            object_id,
+        }
+    }
+
+    fn index_key(&self) -> String {
+        format!(
+            "idx/time/{}/{}",
+            time_key(self.timestamp_ms),
+            self.object_id.as_str()
+        )
+    }
+}
+
+/// One bounded chronological page. `next` is present only when another row
+/// exists after the returned page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TimePage {
+    pub ids: Vec<ObjectId>,
+    pub next: Option<TimeCursor>,
+}
+
 /// Outcome of applying a head pointer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HeadState {
@@ -167,6 +206,57 @@ impl<B: Backend> Store<B> {
         Ok(out)
     }
 
+    /// Return at most `limit` objects at or after `start_ms`, strictly after
+    /// `after` when a continuation cursor is supplied. The cursor binds both
+    /// timestamp and object id, preventing equal-timestamp omissions or
+    /// duplicates.
+    pub fn since_page(
+        &self,
+        start_ms: u64,
+        after: Option<&TimeCursor>,
+        limit: usize,
+    ) -> Result<TimePage> {
+        if limit > MAX_TIME_PAGE_SIZE {
+            return Err(StoreError::LimitExceeded);
+        }
+        if limit == 0 {
+            return Ok(TimePage {
+                ids: Vec::new(),
+                next: None,
+            });
+        }
+        if after.is_some_and(|cursor| cursor.timestamp_ms < start_ms) {
+            return Err(StoreError::InvalidCursor);
+        }
+        let after_key = after.map_or_else(
+            || format!("idx/time/{}/", time_key(start_ms)),
+            TimeCursor::index_key,
+        );
+        let mut rows = self
+            .backend
+            .list_meta_prefix_page("idx/time/", &after_key, limit + 1)?;
+        let has_more = rows.len() > limit;
+        if has_more {
+            rows.truncate(limit);
+        }
+
+        let mut ids = Vec::with_capacity(rows.len());
+        let mut last_cursor = None;
+        for (key, _) in rows {
+            let (timestamp_ms, id_str) = parse_time_index_key(&key)?;
+            if timestamp_ms < start_ms {
+                return Err(StoreError::Corrupt);
+            }
+            let object_id = ObjectId::parse(id_str)?;
+            last_cursor = Some(TimeCursor::new(timestamp_ms, object_id.clone()));
+            ids.push(object_id);
+        }
+        Ok(TimePage {
+            ids,
+            next: if has_more { last_cursor } else { None },
+        })
+    }
+
     /// The `limit` most-recently-timestamped objects, newest first — the
     /// query a forge/feed UI needs for "what's new" without fetching and
     /// sorting every object body itself. Same ordering-hint caveat as
@@ -297,9 +387,17 @@ fn time_key(timestamp_ms: u64) -> String {
 /// so the parsing logic (and its corruption handling) exists once.
 fn parse_time_index_key(key: &str) -> Result<(u64, &str)> {
     let rest = key.strip_prefix("idx/time/").ok_or(StoreError::Corrupt)?;
-    let ts_str = rest.split('/').next().ok_or(StoreError::Corrupt)?;
+    let mut parts = rest.split('/');
+    let ts_str = parts.next().ok_or(StoreError::Corrupt)?;
+    let id_str = parts.next().ok_or(StoreError::Corrupt)?;
+    if parts.next().is_some()
+        || ts_str.len() != 20
+        || !ts_str.bytes().all(|byte| byte.is_ascii_digit())
+        || id_str.is_empty()
+    {
+        return Err(StoreError::Corrupt);
+    }
     let ts: u64 = ts_str.parse().map_err(|_| StoreError::Corrupt)?;
-    let id_str = rest.get(ts_str.len() + 1..).ok_or(StoreError::Corrupt)?;
     Ok((ts, id_str))
 }
 

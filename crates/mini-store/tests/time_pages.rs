@@ -72,10 +72,7 @@ fn memory_and_filesystem_pages_match_with_equal_and_out_of_order_timestamps() {
     expected.sort();
     assert_eq!(
         filesystem_ids,
-        expected
-            .into_iter()
-            .map(|(_, id)| id)
-            .collect::<Vec<_>>()
+        expected.into_iter().map(|(_, id)| id).collect::<Vec<_>>()
     );
 
     let memory_recent: Vec<String> = memory
@@ -94,7 +91,10 @@ fn memory_and_filesystem_pages_match_with_equal_and_out_of_order_timestamps() {
 
     drop(filesystem);
     let reopened = Store::new(FsBackend::open(&root).unwrap());
-    assert_eq!(collect_pages(&reopened, 20, 3), collect_pages(&memory, 20, 3));
+    assert_eq!(
+        collect_pages(&reopened, 20, 3),
+        collect_pages(&memory, 20, 3)
+    );
     let _ = std::fs::remove_dir_all(root);
 }
 

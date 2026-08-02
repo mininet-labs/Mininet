@@ -28,10 +28,11 @@
 mod backend;
 mod cache;
 mod store;
+mod time_index;
 
 pub use backend::{Backend, FsBackend, MemoryBackend};
 pub use cache::{CacheTier, ViewConditions};
-pub use store::{HeadState, Store};
+pub use store::{HeadState, Store, TimeCursor, TimePage, MAX_TIME_PAGE_SIZE};
 
 use did_mini::IdentityError;
 use mini_objects::ObjectError;
@@ -53,9 +54,14 @@ pub enum StoreError {
     BadHead,
     /// The requested object is not in the store.
     NotFound,
-    /// The backend returned bytes that do not derive the requested id — a
-    /// corrupted or malicious backend (content-addressing violated).
+    /// The backend returned bytes that do not derive the requested id, or
+    /// a local reconstructible index failed structural validation.
     Corrupt,
+    /// A caller-supplied page size or local bounded-index count exceeded its
+    /// declared ceiling.
+    LimitExceeded,
+    /// A continuation cursor did not belong to the requested ordered range.
+    InvalidCursor,
 }
 
 impl core::fmt::Display for StoreError {
@@ -66,7 +72,9 @@ impl core::fmt::Display for StoreError {
             StoreError::Identity(e) => write!(f, "identity: {e}"),
             StoreError::BadHead => write!(f, "structurally invalid head object"),
             StoreError::NotFound => write!(f, "object not found"),
-            StoreError::Corrupt => write!(f, "backend bytes do not match requested id"),
+            StoreError::Corrupt => write!(f, "corrupt object or reconstructible index"),
+            StoreError::LimitExceeded => write!(f, "store limit exceeded"),
+            StoreError::InvalidCursor => write!(f, "invalid ordered-index cursor"),
         }
     }
 }

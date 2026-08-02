@@ -44,6 +44,9 @@ const MANIFEST_BYTES: usize = 44;
 
 const PENDING_MAGIC: &[u8; 8] = b"MNTPND01";
 
+type MetadataRow = (String, Vec<u8>);
+type QueryRows = (Vec<MetadataRow>, bool);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Manifest {
     generation: u64,
@@ -151,10 +154,7 @@ impl BaseWriter {
         self.file.seek(SeekFrom::End(0))?;
         self.file.write_all(&record)?;
         self.last_key = Some(key.to_string());
-        self.count = self
-            .count
-            .checked_add(1)
-            .ok_or(StoreError::LimitExceeded)?;
+        self.count = self.count.checked_add(1).ok_or(StoreError::LimitExceeded)?;
         Ok(())
     }
 
@@ -246,11 +246,8 @@ impl<'a> LockedIndex<'a> {
     }
 
     fn read_manifest(&self) -> Result<Manifest> {
-        let bytes = read_regular(
-            &self.index_root.join(MANIFEST_FILE),
-            "time-index manifest",
-        )?
-        .ok_or(StoreError::Corrupt)?;
+        let bytes = read_regular(&self.index_root.join(MANIFEST_FILE), "time-index manifest")?
+            .ok_or(StoreError::Corrupt)?;
         decode_manifest(&bytes)
     }
 
@@ -270,10 +267,7 @@ impl<'a> LockedIndex<'a> {
     }
 
     fn write_pending(&self, key: &str) -> Result<()> {
-        atomic_write(
-            &self.index_root.join(PENDING_FILE),
-            &encode_pending(key)?,
-        )
+        atomic_write(&self.index_root.join(PENDING_FILE), &encode_pending(key)?)
     }
 
     fn clear_pending(&self) -> Result<()> {
@@ -283,12 +277,7 @@ impl<'a> LockedIndex<'a> {
         )
     }
 
-    fn recover_pending(
-        &self,
-        key: &str,
-        mut manifest: Manifest,
-        actual_delta: u64,
-    ) -> Result<()> {
+    fn recover_pending(&self, key: &str, mut manifest: Manifest, actual_delta: u64) -> Result<()> {
         let metadata_exists = read_meta_value(self.root, key)?.is_some();
 
         if actual_delta == manifest.delta_count.saturating_add(1) {
@@ -499,12 +488,7 @@ impl<'a> LockedIndex<'a> {
         self.cleanup_orphan_bases(next_generation)
     }
 
-    fn query_forward(
-        &self,
-        manifest: &Manifest,
-        after: &str,
-        limit: usize,
-    ) -> Result<(Vec<(String, Vec<u8>)>, bool)> {
+    fn query_forward(&self, manifest: &Manifest, after: &str, limit: usize) -> Result<QueryRows> {
         validate_after_key(after)?;
         let mut delta = self.read_delta_keys(manifest.delta_count)?;
         delta.retain(|key| key.as_str() > after);
@@ -512,9 +496,7 @@ impl<'a> LockedIndex<'a> {
         delta.dedup();
 
         let extra = delta.len();
-        let base_budget = limit
-            .checked_add(extra)
-            .ok_or(StoreError::LimitExceeded)?;
+        let base_budget = limit.checked_add(extra).ok_or(StoreError::LimitExceeded)?;
         let mut candidates = delta;
         let mut base = BaseReader::open(
             &base_path(&self.index_root, manifest.generation),
@@ -530,19 +512,13 @@ impl<'a> LockedIndex<'a> {
         self.resolve_candidates(candidates.into_iter(), limit)
     }
 
-    fn query_reverse(
-        &self,
-        manifest: &Manifest,
-        limit: usize,
-    ) -> Result<(Vec<(String, Vec<u8>)>, bool)> {
+    fn query_reverse(&self, manifest: &Manifest, limit: usize) -> Result<QueryRows> {
         let mut delta = self.read_delta_keys(manifest.delta_count)?;
         delta.sort_by(|left, right| right.cmp(left));
         delta.dedup();
 
         let extra = delta.len();
-        let base_budget = limit
-            .checked_add(extra)
-            .ok_or(StoreError::LimitExceeded)?;
+        let base_budget = limit.checked_add(extra).ok_or(StoreError::LimitExceeded)?;
         let mut candidates = delta;
         let mut base = BaseReader::open(
             &base_path(&self.index_root, manifest.generation),
@@ -562,7 +538,7 @@ impl<'a> LockedIndex<'a> {
         &self,
         candidates: impl Iterator<Item = String>,
         limit: usize,
-    ) -> Result<(Vec<(String, Vec<u8>)>, bool)> {
+    ) -> Result<QueryRows> {
         let mut rows = Vec::with_capacity(limit);
         let mut stale = false;
         for key in candidates {
@@ -610,9 +586,7 @@ impl<'a> LockedIndex<'a> {
             let name = name.to_string_lossy();
             if name.starts_with("base-") && (name.ends_with(".idx") || name.ends_with(".tmp")) {
                 if !file_type.is_file() {
-                    return Err(StoreError::Io(
-                        "non-file time-index base entry".to_string(),
-                    ));
+                    return Err(StoreError::Io("non-file time-index base entry".to_string()));
                 }
                 fs::remove_file(path)?;
             }
@@ -648,9 +622,7 @@ impl<'a> LockedIndex<'a> {
                 }
                 if name != current_name {
                     if !file_type.is_file() {
-                        return Err(StoreError::Io(
-                            "non-file time-index base".to_string(),
-                        ));
+                        return Err(StoreError::Io("non-file time-index base".to_string()));
                     }
                     fs::remove_file(path)?;
                 }
@@ -707,11 +679,7 @@ pub(crate) fn last(root: &Path, limit: usize) -> Result<Vec<(String, Vec<u8>)>> 
     })
 }
 
-pub(crate) fn page(
-    root: &Path,
-    after: &str,
-    limit: usize,
-) -> Result<Vec<(String, Vec<u8>)>> {
+pub(crate) fn page(root: &Path, after: &str, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
     if limit == 0 {
         return Ok(Vec::new());
     }
@@ -1203,16 +1171,12 @@ mod tests {
 
     fn valid_key(timestamp: u64, seed: u8) -> String {
         let controller =
-            did_mini::Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32])
-                .unwrap();
+            did_mini::Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
         let object = mini_objects::ObjectBuilder::new(mini_objects::ObjectType::POST)
             .timestamp_ms(timestamp)
             .sign(&controller.did(), &controller)
             .unwrap();
-        format!(
-            "idx/time/{timestamp:020}/{}",
-            object.id().as_str()
-        )
+        format!("idx/time/{timestamp:020}/{}", object.id().as_str())
     }
 
     #[test]
@@ -1273,11 +1237,7 @@ mod tests {
         assert_eq!(rebuild(&root).unwrap(), 1);
 
         let manifest = with_locked(&root, |index| index.read_manifest()).unwrap();
-        fs::remove_file(base_path(
-            &root.join(INDEX_DIR),
-            manifest.generation,
-        ))
-        .unwrap();
+        fs::remove_file(base_path(&root.join(INDEX_DIR), manifest.generation)).unwrap();
         let rows = last(&root, 2).unwrap();
         assert_eq!(rows[0].0, key);
         let _ = fs::remove_dir_all(root);

@@ -51,6 +51,21 @@ pub trait Backend {
         all.truncate(limit);
         Ok(all)
     }
+
+    /// The first `limit` metadata entries strictly after `after`, in key
+    /// order. The default is semantically correct but not bounded-I/O;
+    /// backends with an ordered index override it.
+    fn list_meta_prefix_page(
+        &self,
+        prefix: &str,
+        after: &str,
+        limit: usize,
+    ) -> Result<Vec<(String, Vec<u8>)>> {
+        let mut all = self.list_meta_prefix(prefix)?;
+        all.retain(|(key, _)| key.as_str() > after);
+        all.truncate(limit);
+        Ok(all)
+    }
 }
 
 /// In-memory backend for tests.
@@ -111,6 +126,28 @@ impl Backend for MemoryBackend {
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect())
     }
+
+    fn list_meta_prefix_page(
+        &self,
+        prefix: &str,
+        after: &str,
+        limit: usize,
+    ) -> Result<Vec<(String, Vec<u8>)>> {
+        use std::ops::Bound::{Excluded, Included};
+
+        let upper = format!("{prefix}\u{7f}");
+        let lower = if after < prefix {
+            Included(prefix.to_string())
+        } else {
+            Excluded(after.to_string())
+        };
+        Ok(self
+            .meta
+            .range((lower, Excluded(upper)))
+            .take(limit)
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect())
+    }
 }
 
 /// Filesystem backend: `blobs/<first-2-chars>/<id>` with atomic tmp+rename
@@ -128,6 +165,13 @@ impl FsBackend {
         Ok(FsBackend {
             root: root.to_path_buf(),
         })
+    }
+
+    /// Delete and deterministically reconstruct the local ordered time index
+    /// from authoritative `idx/time/` metadata rows. This is maintenance and
+    /// legacy migration work, not a page-bounded query.
+    pub fn rebuild_time_index(&self) -> Result<usize> {
+        crate::time_index::rebuild(&self.root)
     }
 
     fn blob_path(&self, id: &str) -> Result<PathBuf> {
@@ -348,7 +392,14 @@ impl Backend for FsBackend {
         Self::existing_regular_file(&self.blob_path(id)?, &self.root.join("blobs"), "blob")
     }
     fn put_meta(&mut self, key: &str, value: &[u8]) -> Result<()> {
-        Self::atomic_write(&self.meta_path(key)?, value)
+        let path = self.meta_path(key)?;
+        if key.starts_with(crate::time_index::TIME_PREFIX) {
+            let root = self.root.clone();
+            return crate::time_index::put_time_meta(&root, key, || {
+                Self::atomic_write(&path, value)
+            });
+        }
+        Self::atomic_write(&path, value)
     }
     fn get_meta(&self, key: &str) -> Result<Option<Vec<u8>>> {
         Self::read_existing_regular_file(
@@ -408,6 +459,31 @@ impl Backend for FsBackend {
         out.sort_by(|a, b| a.0.cmp(&b.0));
         Ok(out)
     }
+
+    fn list_meta_prefix_last(&self, prefix: &str, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
+        if prefix == crate::time_index::TIME_PREFIX {
+            return crate::time_index::last(&self.root, limit);
+        }
+        let mut all = self.list_meta_prefix(prefix)?;
+        all.reverse();
+        all.truncate(limit);
+        Ok(all)
+    }
+
+    fn list_meta_prefix_page(
+        &self,
+        prefix: &str,
+        after: &str,
+        limit: usize,
+    ) -> Result<Vec<(String, Vec<u8>)>> {
+        if prefix == crate::time_index::TIME_PREFIX {
+            return crate::time_index::page(&self.root, after, limit);
+        }
+        let mut all = self.list_meta_prefix(prefix)?;
+        all.retain(|(key, _)| key.as_str() > after);
+        all.truncate(limit);
+        Ok(all)
+    }
 }
 
 #[cfg(test)]
@@ -453,7 +529,13 @@ mod tests {
     }
 
     #[test]
-    fn fs_backend_default_last_impl_agrees_with_memory_backend() {
+    fn fs_backend_ordered_last_agrees_with_memory_backend() {
+        fn object_id(seed: u8) -> String {
+            let digest = mini_crypto::Multihash::of(mini_crypto::HashAlgorithm::Blake3, &[seed]);
+            mini_crypto::encoding::encode(mini_crypto::encoding::BASE58BTC, &digest.to_bytes())
+                .unwrap()
+        }
+
         let dir = std::env::temp_dir().join(format!(
             "mini-store-list-last-test-{}-{}",
             std::process::id(),
@@ -464,13 +546,23 @@ mod tests {
         ));
         let mut fs_backend = FsBackend::open(&dir).unwrap();
         let mut mem_backend = MemoryBackend::new();
-        for (k, v) in [
-            ("idx/time/00000000000000001000/a", "a"),
-            ("idx/time/00000000000000002000/b", "b"),
-            ("idx/time/00000000000000003000/c", "c"),
-        ] {
-            fs_backend.put_meta(k, v.as_bytes()).unwrap();
-            mem_backend.put_meta(k, v.as_bytes()).unwrap();
+        let rows = [
+            (
+                format!("idx/time/00000000000000001000/{}", object_id(1)),
+                b"a".as_slice(),
+            ),
+            (
+                format!("idx/time/00000000000000002000/{}", object_id(2)),
+                b"b".as_slice(),
+            ),
+            (
+                format!("idx/time/00000000000000003000/{}", object_id(3)),
+                b"c".as_slice(),
+            ),
+        ];
+        for (key, value) in &rows {
+            fs_backend.put_meta(key, value).unwrap();
+            mem_backend.put_meta(key, value).unwrap();
         }
 
         assert_eq!(
