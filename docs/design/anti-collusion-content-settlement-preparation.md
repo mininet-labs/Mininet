@@ -99,8 +99,10 @@ without a new decision and threat analysis:
    necessary for requester-funded settlement. If credible operational
    independence cannot be demonstrated, work stops at a valueless phase.
 5. **Audit/challenge network** — permissionless verifiers apply deterministic
-   sampling and objective fraud-proof rules. Sampling randomness comes from a
-   precommitted public source; no auditor chooses targets privately. Heuristic
+   sampling and objective fraud-proof rules. The rule and randomness-source
+   commitment are fixed publicly before claims, but realized entropy must remain
+   unpredictable and unbiasable until claims are immutable; no auditor or beacon
+   operator chooses targets privately. Heuristic
    suspicion may guide local policy or research, but only a protocol-defined,
    independently verifiable proof may affect a sponsor/protocol budget. An
    auditor has no custody, minting, finality, personhood, ranking, or governance
@@ -144,9 +146,11 @@ Any future implementation must satisfy all of the following:
   claim “one human, one reward.” A scarce-resource or deposit-bound limit may
   be researched as a different economic assumption, but it must be labeled as
   such and can never become governance weight.
-- **Delayed, randomized, privacy-bounded audit.** Sampling rules and randomness
-  are public and fixed before the sampled claims exist. Audit proves only
-  declared transcript/accounting predicates. It must not publish a global
+- **Delayed, randomized, privacy-bounded audit.** Sampling rules and the
+  randomness-source commitment are public before claims, while realized entropy
+  is unavailable until the claim set is immutable. A known seed with variable
+  claim inputs is grindable and fails closed. Audit proves only declared
+  transcript/accounting predicates. It must not publish a global
   requester-provider graph, raw private query, protected content identifier,
   root DID, or stable activity history merely to make analysis easier.
 - **Objective response only.** A valid fraud proof may reject an unfinalized
@@ -292,9 +296,11 @@ No implementation phase is authorized by this document. Phase 1 predates it.
 Phase 2 is now complete under D-0428 as a deterministic Python model with a
 checked-in fixed report; it moves no value and selects no production
 construction. Its genuine-delivery collusion vector drains 100% of the bounded
-protocol budget against a precommitted 10% loss gate, and cross-policy semantic
-overlap remains unmeasured without a global activity registry, so the report
-sets `phase3_authorized` to `false`. Phases 3-9 remain unstarted and
+protocol budget against a precommitted 10% loss gate. A second attack gives
+claimants the realized audit seed before claim construction; all 60 submitted
+claims grind outside the 5% sample. Cross-policy semantic overlap also remains
+unmeasured without a global activity registry, so the report sets
+`phase3_authorized` to `false`. Phases 3-9 remain unstarted and
 unauthorized.
 
 ## Constitutional impact
@@ -326,10 +332,11 @@ This doctrine fails if any implementation:
 - reverses canonical finality;
 - lets payment affect organic ranking or governance; or
 - continues operating a subsidy program after its objective cap/audit safety
-  assumptions fail.
+  assumptions fail; or
+- reveals target-selection entropy while claimants can still grind claim IDs.
 
-A doctrine-only file can also drift. The first Phase-2 proposal must re-check
-all factual references against then-current code and update this file and
+This doctrine can drift. Every later F5 proposal must re-check its factual
+references against then-current code and truth-sync this file and
 `docs/STATUS.md` in the same proposal.
 
 ## Required follow-up
@@ -338,9 +345,10 @@ D-0428 completes Phase 2 and preserves its failed colluding-extraction gate.
 The next work is still **not a nullifier crate** and not real-value activation.
 A later, separately reviewed proposal may either narrow Phase 3 to a valueless
 delivery-integrity prototype that explicitly admits genuine colluders pass, or
-research an established scarcity construction and privacy-preserving policy-
-family allocation rule capable of bringing the declared colluding set below the
-precommitted 10% loss ceiling. Coordinate with roadmap #228/#229 so review- and
+research an established scarcity construction, privacy-preserving policy-family
+allocation rule, and delayed decentralized randomness construction capable of
+bringing the declared colluding set below the precommitted 10% loss ceiling and
+preventing adaptive sample grinding. Coordinate with roadmap #228/#229 so review- and
 settlement-context derivations cannot collide, and with #18 without pretending
 #18 is solved. No production anti-collusion or sponsor/protocol activation PR
 should be accepted while the D-0428 authorization result remains false.

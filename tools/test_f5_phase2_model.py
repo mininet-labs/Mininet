@@ -110,6 +110,30 @@ class TranscriptTests(unittest.TestCase):
         ):
             self.assertFalse(mutated.verify_for(self.policy, self.claim, now_ms=1_000))
 
+    def test_evidence_commitment_uses_the_declared_evidence_domain(self) -> None:
+        base = {
+            "version": self.transcript.version,
+            "domain": self.transcript.domain,
+            "policy_commitment": self.transcript.policy_commitment,
+            "settlement_class": self.transcript.settlement_class.value,
+            "service_class": self.transcript.service_class.value,
+            "request_event_commitment": self.transcript.request_event_commitment,
+            "requester_scope": self.transcript.requester_scope,
+            "provider_scope": self.transcript.provider_scope,
+            "challenge": self.transcript.challenge,
+            "response_commitment": self.transcript.response_commitment,
+            "issued_at_ms": self.transcript.issued_at_ms,
+            "expires_at_ms": self.transcript.expires_at_ms,
+        }
+        self.assertEqual(
+            self.transcript.evidence_commitment,
+            MODEL.model_commitment(MODEL.EVIDENCE_DOMAIN, base),
+        )
+        self.assertNotEqual(
+            self.transcript.evidence_commitment,
+            MODEL.model_commitment("delivery-evidence", base),
+        )
+
     def test_transcript_expiry_is_enforced(self) -> None:
         self.assertFalse(
             self.transcript.verify_for(self.policy, self.claim, now_ms=2_001)
@@ -184,6 +208,35 @@ class SettlementInvariantTests(unittest.TestCase):
         self.assertEqual(model.payer_balances["same-party"], 50)
         self.assertEqual(model.finalized_transfer_volume_units, 20)
         self.assertEqual(model.requester_funded_transfer_volume_units, 20)
+
+    def test_invalid_negative_amount_cannot_reduce_attempted_volume(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.REQUESTER_FUNDED,
+            "negative-attempt",
+            budget=0,
+        )
+        model = MODEL.SettlementModel(payer_balances={"payer": 10})
+        model.register_policy(policy)
+        claim, transcript = MODEL.make_claim(
+            policy,
+            event="negative-attempt-event",
+            requester="payer",
+            funder="payer",
+            provider="provider",
+            amount=1,
+            rate_tag=None,
+        )
+        malformed = replace(claim, amount_units=-10)
+        malformed = replace(malformed, claim_id=malformed.expected_claim_id())
+        outcome = model.submit(
+            malformed,
+            transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=1_000,
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.AMOUNT_INVALID)
+        self.assertEqual(model.attempted_volume_units, 0)
+        self.assertEqual(model.payer_balances["payer"], 10)
 
     def test_sponsor_budget_cannot_go_negative(self) -> None:
         policy = MODEL.make_policy(
@@ -668,6 +721,17 @@ class FailureHonestyTests(unittest.TestCase):
         self.assertEqual(leaky.cross_context_leakage_score(), 150)
         self.assertTrue(leaky.has_global_graph_fields())
 
+    def test_known_realized_audit_seed_is_grindable(self) -> None:
+        seed = "known-before-claim-construction"
+        results = [
+            MODEL.grind_unsampled_claim_id(seed, f"claim-{index}", 500)
+            for index in range(60)
+        ]
+        self.assertTrue(
+            all(not MODEL.audit_selected(seed, claim_id, 500) for claim_id, _ in results)
+        )
+        self.assertLess(max(attempts for _, attempts in results), 100)
+
     def test_audit_sampling_is_public_and_deterministic(self) -> None:
         first = [
             MODEL.audit_selected("public-seed", f"claim-{index}", 500)
@@ -702,6 +766,8 @@ class ReportTests(unittest.TestCase):
         )
         self.assertEqual(gates["maximum-budget-overrun"]["status"], "PASS")
         self.assertEqual(gates["maximum-colluding-extraction"]["status"], "FAIL")
+        self.assertEqual(gates["audit-randomness-grinding-resistance"]["status"], "FAIL")
+        self.assertEqual(gates["honest-false-rejection-rate"]["status"], "PARTIAL")
         self.assertEqual(gates["issuer-concentration"]["status"], "PARTIAL")
         self.assertEqual(gates["weak-device-verification-cpu"]["status"], "PARTIAL")
         self.assertFalse(authorization["phase3_authorized"])

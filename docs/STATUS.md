@@ -1258,7 +1258,9 @@ the top development priority.
   checks. Its decisive attack gate **fails**: 100 colluding requester/
   provider pairs with distinct roots/tags and genuine delivery drain 100%
   of a bounded protocol budget against a precommitted 10% ceiling. A
-  second vector remains **partial** by design: two independently committed
+  second gate **fails**: when the realized audit seed is known while claim
+  inputs remain variable, all 60 submitted IDs grind outside the 5% sample.
+  A separate vector remains **partial** by design: two independently committed
   policies can pay the same event because Mininet has no global activity
   registry; preventing unwanted overlap needs an explicit privacy-
   preserving policy-family rule. Issuer/auditor operational independence,

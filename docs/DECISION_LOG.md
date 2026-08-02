@@ -14375,8 +14375,9 @@ transcript, duplicate, and rate-limit domains; conserves payer/program value;
 and gives audit evaluation no path to rewrite canonical finality. It deliberately
 records rather than hides its decisive negative result: genuine-delivery
 colluders using many roots and unique placeholder rate tags consume 100% of the
-bounded protocol budget, exceeding the precommitted 10% loss gate. The generated
-authorization therefore remains `false`.
+bounded protocol budget, exceeding the precommitted 10% loss gate. Separately,
+a known realized audit seed lets adaptive claimants grind all 60 submitted IDs
+outside the 5% sample. The generated authorization therefore remains `false`.
 
 **Reason:** Phase 0 required an executable model that distinguishes accounting
 safety from anti-collusion. The model proves that finite budgets, replay checks,
@@ -14398,16 +14399,17 @@ adversarial test suite, one exact-output test, and one checked-in JSONL vector.
 No production crate, external dependency, wallet/chain behavior, credential,
 nullifier, issuer set, auditor network, sponsor fund, protocol subsidy, or real
 MINI activation exists. Accounting/replay/finality tests pass; the
-colluding-extraction gate fails; cross-policy semantic overlap,
-issuer/auditor independence, unlinkability, and physical weakest-device cost
-remain unmeasured.
+colluding-extraction and adaptive-audit-grinding gates fail; cross-policy
+semantic overlap, issuer/auditor independence, unlinkability, and physical
+weakest-device cost remain unmeasured.
 
 **Failure point:** the model's `request_event_commitment` and `ScopedRateTag` are
 scenario inputs. Different commitments can describe semantically identical work,
 and fresh tag strings are not proof of scarce entitlement, unique humans, or
 independent issuers. Separate policies can also pay the same event unless they
-precommit a privacy-preserving policy-family overlap rule. Threshold key counts
-can still be one operator behind several keys. A production implementation that
+precommit a privacy-preserving policy-family overlap rule. A deterministic
+sample is also grindable if its realized seed is known before claims are
+immutable. Threshold key counts can still be one operator behind several keys. A production implementation that
 copies those placeholders, treats claim-ID ordering as fair allocation, or
 equates challenge-valid delivery with independent demand would fail the doctrine
 while appearing mechanically correct.
@@ -14417,10 +14419,11 @@ must be separately scoped and exact-state reviewed. A narrowly valueless
 delivery-integrity prototype may proceed only if it says genuine colluders pass
 and makes no anti-collusion or real-value claim. Any sponsor/protocol anti-
 collusion or activation proposal must first define and externally review an
-explicit scarcity assumption and any policy-family overlap rule, preserve
-requester-funded permissionlessness, meet D-0047, demonstrate operational
-independence rather than key count, rerun the declared colluding set below the
-10% gate, and benchmark the exact verifier on the weakest supported device. F6
+explicit scarcity assumption, policy-family overlap rule, and decentralized
+delayed-randomness construction, preserve requester-funded permissionlessness,
+meet D-0047, demonstrate operational independence rather than key count, rerun
+the declared colluding set below the 10% gate, prevent adaptive sample grinding,
+and benchmark the exact verifier on the weakest supported device. F6
 remains separate and unstarted.
 
 **Supersedes / superseded by:** fulfills and supersedes D-0427's Phase-2

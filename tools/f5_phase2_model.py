@@ -410,7 +410,7 @@ class DeliveryChallengeTranscript:
             "issued_at_ms": issued_at_ms,
             "expires_at_ms": expires_at_ms,
         }
-        evidence_commitment = model_commitment("delivery-evidence", base)
+        evidence_commitment = model_commitment(EVIDENCE_DOMAIN, base)
         return cls(
             version=MODEL_VERSION,
             domain=DELIVERY_DOMAIN,
@@ -479,7 +479,7 @@ class DeliveryChallengeTranscript:
             "expires_at_ms": self.expires_at_ms,
         }
         return self.evidence_commitment == model_commitment(
-            "delivery-evidence",
+            EVIDENCE_DOMAIN,
             base,
         )
 
@@ -761,7 +761,7 @@ class SettlementModel:
         now_ms: int,
         attacker_controlled_scopes: set[str] | None = None,
     ) -> SubmissionOutcome:
-        self.attempted_volume_units += claim.amount_units
+        self.attempted_volume_units += max(claim.amount_units, 0)
         attacker_controlled_scopes = attacker_controlled_scopes or set()
         policy = self.policies.get(claim.policy_commitment)
         if policy is None:
@@ -1042,6 +1042,34 @@ def audit_selected(public_seed: str, claim_id: str, sample_bps: int) -> bool:
         16,
     )
     return value % 10_000 < sample_bps
+
+
+def grind_unsampled_claim_id(
+    public_seed: str,
+    candidate_prefix: str,
+    sample_bps: int,
+    *,
+    max_attempts: int = 100_000,
+) -> tuple[str, int]:
+    """Find a claim-id candidate excluded by a known deterministic sample.
+
+    This is an attack model, not a production API. If the realized sampling
+    seed is known while a claimant can vary claim-committed data, deterministic
+    public sampling is grindable. The rule/source may be precommitted, but the
+    realized entropy must remain unpredictable until claims are immutable.
+    """
+
+    _validate_identifier(candidate_prefix, "audit grinding prefix")
+    if max_attempts <= 0:
+        raise ValueError("audit grinding attempt bound must be positive")
+    for nonce in range(max_attempts):
+        candidate = model_commitment(
+            "audit-grind-candidate",
+            {"prefix": candidate_prefix, "nonce": nonce},
+        )
+        if not audit_selected(public_seed, candidate, sample_bps):
+            return candidate, nonce + 1
+    raise RuntimeError("unable to find an unsampled candidate within the bound")
 
 
 def audit_detection_probability_bps(
@@ -1724,6 +1752,51 @@ def run_fixed_vectors(
         collusion_policy.audit_sample_bps,
         thresholds.audit_attack_claim_count,
     )
+    known_audit_seed = "known-before-claim-construction"
+    grinding_results = [
+        grind_unsampled_claim_id(
+            known_audit_seed,
+            f"adaptive-claim-{index}",
+            collusion_policy.audit_sample_bps,
+        )
+        for index in range(thresholds.audit_attack_claim_count)
+    ]
+    grinding_selected = sum(
+        audit_selected(
+            known_audit_seed,
+            claim_id,
+            collusion_policy.audit_sample_bps,
+        )
+        for claim_id, _ in grinding_results
+    )
+    grinding_detection_bps = (
+        10_000 if grinding_selected > 0 else 0
+    )
+    grinding_max_attempts = max(attempts for _, attempts in grinding_results)
+    vectors.append(
+        VectorResult(
+            vector="known-audit-randomness-can-be-ground-away",
+            status=(
+                GateStatus.PASS
+                if grinding_detection_bps >= thresholds.min_audit_detection_bps
+                else GateStatus.FAIL
+            ),
+            accepted=len(grinding_results),
+            already_accepted=0,
+            rejected=0,
+            spent_units=0,
+            extraction_units=0,
+            detail=(
+                "with the realized seed known before claim construction, "
+                f"all {len(grinding_results)} submitted claim ids avoid the "
+                f"5% sample; maximum search was {grinding_max_attempts} candidates"
+            ),
+            state_digest=model_commitment(
+                "audit-grinding-vector",
+                grinding_results,
+            ),
+        )
+    )
     max_retained = max(
         sponsor_model.retained_state_bytes(sponsor_policy.commitment),
         collusion_model.retained_state_bytes(collusion_policy.commitment),
@@ -1764,11 +1837,11 @@ def run_fixed_vectors(
         ),
         GateResult(
             gate="honest-false-rejection-rate",
-            status=GateStatus.PASS,
+            status=GateStatus.PARTIAL,
             threshold=thresholds.max_honest_false_rejection_bps,
             observed=honest_rejections * 10_000 // honest_claims,
             unit="basis-points",
-            detail="the declared honest requester-funded vector is accepted",
+            detail="one structural honest vector passes, but one sample cannot establish a 1% population rate",
         ),
         GateResult(
             gate="cross-context-linkability-score",
@@ -1801,7 +1874,22 @@ def run_fixed_vectors(
             threshold=thresholds.min_audit_detection_bps,
             observed=detection_bps,
             unit="basis-points-for-60-objectively-invalid-claims",
-            detail="5% precommitted sampling detects at least one of 60 invalid claims with >=95% probability",
+            detail="5% sampling reaches >=95% detection only when claim ids are fixed before realized randomness is revealed",
+        ),
+        GateResult(
+            gate="audit-randomness-grinding-resistance",
+            status=(
+                GateStatus.PASS
+                if grinding_detection_bps >= thresholds.min_audit_detection_bps
+                else GateStatus.FAIL
+            ),
+            threshold=thresholds.min_audit_detection_bps,
+            observed=grinding_detection_bps,
+            unit="basis-points-observed-adaptive-campaign-detection",
+            detail=(
+                "FAIL: a known realized seed plus claimant-controlled ids lets "
+                "selective submission avoid every sampled target"
+            ),
         ),
         GateResult(
             gate="issuer-concentration",

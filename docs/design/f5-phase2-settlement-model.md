@@ -31,13 +31,15 @@ The result is deliberately not a success claim:
 | Authority isolation | **PASS** | The model exposes no ranking, personhood, governance, validator, moderation, reviewer, or constitutional-authority output. `AuthorityBearing` policy construction fails. |
 | Delivery integrity | **PARTIAL** | A transcript binds a fresh challenge and typed response, but this abstract model has no real transport, clock, signature, storage, or cryptographic challenge implementation. |
 | Collusion resistance | **FAIL** | One hundred attacker-controlled requester/provider pairs with unique roots/tags perform real delivery and drain 100% of a bounded protocol budget. The gate permits at most 10%. |
+| Adaptive audit sampling | **FAIL** | If the realized sampling seed is known while claim-committed inputs remain variable, attackers grind 60 claim IDs so every submitted claim avoids the 5% sample. |
 | Issuer/auditor independence | **PARTIAL** | Threshold counts and outage behavior are modeled, but no construction or independently operated set is selected or measured. Several keys may still be one authority. |
 | Privacy | **PARTIAL** | The declared cross-context score is zero and root DIDs/raw queries are excluded, but policy-local pairwise linkability and network metadata are not eliminated or measured. |
 | Weak-device cost | **PARTIAL** | Wire size, retained-state estimate, and abstract work are bounded; physical CPU and peak-memory measurements do not exist. |
 
 **Overall Phase-2 judgment:** the accounting shell resists unbounded issuance,
 replay, and central permission over voluntary payments, but the design does not
-yet resist economically valid collusion. Therefore the generated report sets
+yet resist economically valid collusion or adaptive sampling grind. Therefore
+the generated report sets
 `phase3_authorized` to `false`. This decision does not silently advance the
 roadmap.
 
@@ -212,7 +214,7 @@ The Phase-2 model uses distinct labels:
 
 - `mininet/f5/settlement-claim/model-v1`;
 - `mininet/f5/delivery-challenge/model-v1`;
-- `mininet/f5/delivery-evidence/model-v1`;
+- `mininet/f5/delivery-evidence/model-v1` (the actual evidence-commitment label, not a dead documentation constant);
 - `mininet/f5/settlement-duplicate/v1/<policy-name>`;
 - `mininet/f5/rate-limit/v1/<policy-name>`; and
 - `mininet/f5/model-commitment/v1`.
@@ -330,6 +332,9 @@ Three assumptions are intentionally exposed rather than hidden:
    entitlement, personhood, issuer independence, or honest issuance.
 3. `Availability` is a count. Several available keys may still be controlled by
    one organization or one machine.
+4. Ideal audit probability applies only when claim IDs are immutable before the
+   realized sampling entropy is knowable. A known seed plus variable claim data
+   is explicitly modeled as grindable.
 
 Those assumptions are the exact point where a purely mechanical model stops
 being anti-collusion.
@@ -360,15 +365,27 @@ convenient.
 
 ## 11. Audit semantics
 
-Audit sampling is deterministic from a precommitted public seed, claim ID, and
-policy sample rate. The model uses a 5% rate. For 60 independently sampleable,
-objectively invalid claims, the modeled probability of sampling at least one is
-9,539 basis points, above the 9,500-basis-point gate.
+The sampling **rule and randomness source commitment** must be public before
+claims. The realized entropy must not be knowable or selectively biasable until
+the claim set is immutable. No auditor may privately choose targets.
 
-That PASS does **not** apply to genuine-delivery collusion. A colluding claim
-that satisfies every objective transcript/accounting predicate is not an
-objectively invalid claim, so more sampling does not reveal its social intent.
-This is why the audit gate passes while the colluding-extraction gate fails.
+The model uses a 5% rate. If 60 objectively invalid claim IDs are already fixed
+before entropy is revealed and samples behave independently, the modeled
+probability of sampling at least one is 9,539 basis points, above the
+9,500-basis-point gate.
+
+The adaptive vector then gives the attacker the realized seed while allowing it
+to vary claim-committed inputs. `grind_unsampled_claim_id` finds an unsampled ID
+for every one of 60 submitted claims. Observed campaign detection is therefore
+0 basis points: **FAIL**. A preannounced static seed is not delayed random audit.
+A future design needs a decentralized, independently verifiable source whose
+realized value appears only after claims are irrevocably committed, plus explicit
+bias, withholding, fork, and liveness analysis. No single beacon operator may
+become the target-selection authority.
+
+Even an ungrindable sample does **not** detect genuine-delivery collusion. A
+colluding claim that satisfies every objective transcript/accounting predicate
+is not objectively invalid, so more sampling does not reveal its social intent.
 
 `evaluate_audit_allegation` accepts either a heuristic allegation or an
 objective transcript-failure allegation. It has no mutable settlement state.
@@ -385,9 +402,10 @@ The following values were committed before the fixed result vector was frozen:
 | Budget overrun | 0 model units | A finite budget is a hard accounting invariant, not a probabilistic target. |
 | Colluding extraction | at most 1,000 bps of the declared program budget | A bounded pilot that can lose more than 10% to the declared colluding set is not an acceptable anti-collusion design. This is a pilot research ceiling, not an accepted production-loss rate. |
 | Duplicate false negatives | 0 bps in fixed duplicate vectors | Exact replay and exact modeled-event duplication must never multiply value. |
-| Honest false rejection | at most 100 bps | A future measured system must not protect a subsidy by broadly excluding honest participants. The current fixed honest set is small and therefore only a structural check. |
+| Honest false rejection | at most 100 bps | A future measured system must not protect a subsidy by broadly excluding honest participants. One fixed honest vector is only a **PARTIAL** structural check, not a population estimate. |
 | Cross-context leakage score | 0 | Root or cross-domain identifiers are forbidden by construction. |
-| Audit detection | at least 9,500 bps for 60 objectively invalid claims | A large repeated objective fraud campaign should be detected with at least 95% probability under the declared sample rule. |
+| Ideal fixed-ID audit detection | at least 9,500 bps for 60 objectively invalid claims | A large repeated objective fraud campaign should be detected with at least 95% probability only when IDs are fixed before entropy is revealed. |
+| Adaptive audit-grinding resistance | at least 9,500 bps campaign detection | The same floor must hold when claimants can vary claim-committed inputs; a known realized seed fails this gate. |
 | Compromised issuers | at most 3,333 bps | More than one third compromised is outside the tentative tolerance; no issuer construction is selected, so result remains unmeasured. |
 | Compromised auditors | at most 3,333 bps | Same operational-concentration ceiling; key count alone is insufficient. |
 | Physical verification CPU | at most 50 ms per claim on the weakest benchmark device | Keeps verification interactive and abuse-bounded; unmeasured in Phase 2. |
@@ -420,6 +438,7 @@ reviewed vector change.
 | Issuer/auditor outage | **PASS** | Market claim succeeds; sponsor claim fails closed. |
 | Retained-state exhaustion | **PASS** | New claim is rejected instead of evicting replay state. |
 | False or heuristic audit allegation | **PASS** | No canonical state mutation. |
+| Known realized audit seed with variable claim IDs | **FAIL** | All 60 submitted claims are ground until they avoid the 5% sample. |
 | Root-DID/raw-query privacy declaration | **PASS** | Deliberately leaky declaration exceeds the zero-leakage gate. |
 | Genuine-delivery collusion | **FAIL** | 100 attacker claims drain all 1,000 program units; loss is bounded but not prevented. |
 
@@ -428,20 +447,23 @@ Measured gates from the frozen output:
 - budget overrun: **PASS**, observed `0`;
 - colluding extraction: **FAIL**, observed `10,000 bps` versus `1,000 bps`;
 - duplicate false negatives: **PASS**, observed `0 bps`;
-- honest false rejection in the declared vector: **PASS**, observed `0 bps`;
+- honest false rejection in the declared vector: **PARTIAL**, observed `0 bps`
+  from only one structural honest case;
 - cross-context leakage score: **PASS**, observed `0` under the narrow declared
   metric;
 - cross-policy semantic deduplication: **PARTIAL**, no global registry by
   design and no reviewed policy-family rule yet;
-- audit detection for 60 objectively invalid claims: **PASS**, observed
-  `9,539 bps`;
+- ideal fixed-ID audit detection for 60 objectively invalid claims: **PASS**,
+  observed `9,539 bps`;
+- adaptive audit-grinding resistance: **FAIL**, observed `0 bps` when the
+  realized seed is known during claim construction;
 - issuer concentration: **PARTIAL**, no construction/operator set;
 - auditor concentration: **PARTIAL**, no operator set;
 - physical CPU: **PARTIAL**, no weakest-device benchmark;
 - physical memory: **PARTIAL**, no allocator benchmark;
 - retained state: **PASS**, observed estimate `19,200 bytes`;
-- claim plus transcript: **PASS**, observed maximum `1,521 bytes`; and
-- abstract work: **PASS**, observed maximum `848` operations.
+- claim plus transcript: **PASS**, observed maximum `1,523 bytes`; and
+- abstract work: **PASS**, observed maximum `849` operations.
 
 ## 14. Exact failures and engineering consequences
 
@@ -461,7 +483,22 @@ allocation mechanism—and rerun the same colluding set. The model must fall bel
 the 10% gate without giving an issuer discretionary permission over ordinary
 requester-funded settlement.
 
-### 14.2 Economic-event equivalence is caller supplied — **PARTIAL**
+### 14.2 Known audit randomness is grindable — **FAIL**
+
+**Location:** `audit_selected`, `grind_unsampled_claim_id`, and fixed vector
+`known-audit-randomness-can-be-ground-away`.
+
+**Failure:** a deterministic public sample is not manipulation-resistant if its
+realized seed is known while claimants can vary event, nonce, or other
+claim-committed inputs. The attacker submits only IDs that hash outside the
+sample; all 60 modeled claims evade audit.
+
+**Long-term solution:** precommit the rule and source, not the realized value.
+Reveal decentralized, independently verifiable entropy only after the claim set
+is immutable. Analyze contributor bias, withholding, forks, fallback, and
+liveness; never give one beacon operator or auditor target-selection power.
+
+### 14.3 Economic-event equivalence is caller supplied — **PARTIAL**
 
 **Location:** `request_event_commitment` and derived `duplicate_identifier`.
 
@@ -473,7 +510,7 @@ canonical event definition derived from immutable request/service facts, plus
 an explicit statement of which semantically similar events are intentionally
 allowed to be paid twice. Do not add a central event adjudicator.
 
-### 14.3 Distinct policies can pay the same semantic work — **PARTIAL**
+### 14.4 Distinct policies can pay the same semantic work — **PARTIAL**
 
 **Location:** policy-scoped `duplicate_identifier` and fixed vector
 `distinct-policies-do-not-create-a-global-event-registry`.
@@ -489,7 +526,7 @@ precommitted privacy-preserving policy-family domain and overlap rule. Independe
 budgets must say when repeated service is legitimate. Do not infer semantic
 equivalence through a centralized requester-provider graph.
 
-### 14.4 Rate-limit scarcity is not implemented — **PARTIAL**
+### 14.5 Rate-limit scarcity is not implemented — **PARTIAL**
 
 **Location:** `ScopedRateTag` and scenario-supplied tag values.
 
@@ -501,7 +538,7 @@ for issuer-unlinkable, policy/epoch-scoped scarcity. It must prove outage and
 multi-issuer behavior, avoid cross-context linkage, and pass D-0047 review.
 Identity-root count is not an acceptable stand-in for humans.
 
-### 14.5 Deterministic claim-ID ordering is grindable if copied into production — **PARTIAL**
+### 14.6 Deterministic claim-ID ordering is grindable if copied into production — **PARTIAL**
 
 **Location:** `submit_canonical_batch`.
 
@@ -513,7 +550,7 @@ non-grindable public randomness/batch rule, pro-rata rule, or an explicitly
 accepted canonical-finality rule. The choice must be policy-visible and cannot
 be selected by an operator after claims arrive.
 
-### 14.6 Threshold counts do not prove independent authorities — **PARTIAL**
+### 14.7 Threshold counts do not prove independent authorities — **PARTIAL**
 
 **Location:** `Availability.issuers_available` and `auditors_available`.
 
@@ -524,7 +561,7 @@ model count.
 failure domains, rotation, recovery, and capture handling. A single issuer or
 auditor must never become necessary for requester-funded settlement.
 
-### 14.7 Privacy is declared, not cryptographically achieved — **PARTIAL**
+### 14.8 Privacy is declared, not cryptographically achieved — **PARTIAL**
 
 **Location:** `PrivacyDeclaration`.
 
@@ -536,7 +573,7 @@ after a role-by-role metadata analysis. Pairwise identifiers must rotate by
 policy/epoch, and auditing must operate over commitments/proofs rather than a
 published social graph.
 
-### 14.8 Retained-state exhaustion can halt a subsidy program — **PARTIAL**
+### 14.9 Retained-state exhaustion can halt a subsidy program — **PARTIAL**
 
 **Location:** `max_retained_keys` fail-closed check.
 
@@ -547,7 +584,7 @@ attacker fill the finite state allowance and stop new claims.
 checkpointing, and bounded archival proofs before network use. The safe failure
 is program-local halt, never eviction that silently re-enables replay.
 
-### 14.9 Physical weak-device cost is unmeasured — **PARTIAL**
+### 14.10 Physical weak-device cost is unmeasured — **PARTIAL**
 
 **Location:** abstract operation, wire, and retained-state estimates.
 
@@ -579,6 +616,7 @@ It does not prove:
 - semantic event uniqueness;
 - anonymous or unlinkable settlement;
 - fair scarce-budget allocation;
+- unpredictable, unbiasable, and live audit randomness;
 - physical performance;
 - network partition liveness;
 - production atomicity across processes; or
@@ -610,9 +648,11 @@ A later Phase-3 proposal must:
 2. remain valueless;
 3. limit its claim to delivery freshness/transcript integrity;
 4. state that real colluders can pass;
-5. introduce no requester-funded permission gate;
-6. select no real-value activation path; and
-7. receive independent exact-head human review.
+5. treat audit sampling as unsafe unless claims are immutable before realized
+   entropy is known;
+6. introduce no requester-funded permission gate;
+7. select no real-value activation path; and
+8. receive independent exact-head human review.
 
 Any later proposal claiming anti-collusion or activating sponsor/protocol value
 must additionally resolve or explicitly narrow every FAIL/PARTIAL item above,
@@ -624,7 +664,8 @@ known.
 D-0428 fails if it is used to claim that F5 anti-collusion is implemented, that
 delivery proves independent demand, that identity roots are humans, that
 threshold key count proves independent operators, or that a bounded 100% budget
-drain is acceptable merely because no overrun occurred.
+drain is acceptable merely because no overrun occurred, or that a known
+sampling seed remains safe while claim IDs are attacker-variable.
 
 It also fails if a later implementation copies model-only claim-ID ordering,
 model-only SHA-256 commitments, arbitrary rate tags, or abstract timing into a
