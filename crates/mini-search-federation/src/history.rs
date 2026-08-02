@@ -1,151 +1,334 @@
-//! F7: historical snapshots — "Store and search versioned page
-//! observations" (`docs/research/
-//! MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
-//! §29).
+//! F7: bounded local history over signed crawl-observation objects.
 //!
-//! F1 (`publish_crawl_observation`) already lets a caller store as many
-//! independent [`mini_web_types::CrawlObservation`]s of the same URL over
-//! time as it likes — nothing about F1's wire format assumes one
-//! observation per URL. What was missing is the *search* half: given a
-//! URL, find its observation history, what it looked like at a given
-//! time, or which observations actually represent a distinct version
-//! (not just a re-fetch of unchanged content). [`SnapshotIndex`] is a
-//! small, local, in-memory structure a caller builds by feeding it
-//! observations as they arrive — mirroring [`crate::rerank`]'s or
-//! `mini_query::DocumentContextTable`'s own "caller-built local table,
-//! not itself signed or stored" pattern — and then queries.
+//! F1 (`publish_crawl_observation`) already stores independent
+//! [`mini_web_types::CrawlObservation`] objects over time. This module builds
+//! a rebuildable local view over those objects. It deliberately does not turn
+//! crawler-claimed timestamps into canonical time, one provider's observation
+//! into truth, or an absent digest into a content change.
+//!
+//! Authentication remains layered exactly as in F1: callers verify the
+//! wrapping [`mini_objects::Object`] before calling `read_crawl_observation`,
+//! then pass the resulting observation and object id here. This index checks
+//! internal consistency, deterministic ordering, and bounded memory; it does
+//! not re-verify signatures or derive the still-caller-supplied
+//! `CrawlObservationId`.
 
 use std::collections::HashMap;
 
 use mini_crypto::Multihash;
 use mini_objects::ObjectId;
-use mini_web_types::CanonicalUrl;
+use mini_web_types::{CanonicalUrl, CrawlObservation};
 
-/// One observation's place in a URL's history: when it was made, which
-/// signed [`mini_objects::Object`] (from [`crate::publish_crawl_observation`])
-/// holds the full observation, and whether it represents a genuine content
-/// change from the immediately-preceding snapshot in this index.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Snapshot {
-    pub object_id: ObjectId,
-    pub observed_at_ms: u64,
-    pub content_digest: Option<Multihash>,
-    /// `true` for the first snapshot of a URL, or if `content_digest`
-    /// differs from the previous snapshot's; `false` if it matches
-    /// (a re-fetch that found the same content). Two consecutive `None`
-    /// digests are treated as unchanged (no signal either way), not as a
-    /// change.
-    pub content_changed: bool,
+use crate::error::{FederationError, Result};
+
+/// Conservative default for the number of final URLs held by one local index.
+pub const DEFAULT_MAX_SNAPSHOT_URLS: usize = 4_096;
+/// Conservative default history depth for one final URL.
+pub const DEFAULT_MAX_SNAPSHOTS_PER_URL: usize = 256;
+/// Conservative default total observation count across the local index.
+pub const DEFAULT_MAX_TOTAL_SNAPSHOTS: usize = 32_768;
+
+/// Explicit local-memory bounds for [`SnapshotIndex`]. A zero field is valid
+/// and disables insertion for that dimension.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SnapshotLimits {
+    pub max_urls: usize,
+    pub max_snapshots_per_url: usize,
+    pub max_total_snapshots: usize,
 }
 
-/// A local index from canonical URL to its observation history, sorted by
-/// `observed_at_ms` ascending. Not signed, not itself stored — a caller
-/// builds one from whatever observations it already holds (typically
-/// fetched via [`crate::read_crawl_observation`] from a [`mini_store::Store`])
-/// and queries it in memory.
-#[derive(Debug, Default, Clone)]
+impl Default for SnapshotLimits {
+    fn default() -> Self {
+        SnapshotLimits {
+            max_urls: DEFAULT_MAX_SNAPSHOT_URLS,
+            max_snapshots_per_url: DEFAULT_MAX_SNAPSHOTS_PER_URL,
+            max_total_snapshots: DEFAULT_MAX_TOTAL_SNAPSHOTS,
+        }
+    }
+}
+
+/// What this observation can honestly say about the last earlier known digest.
+///
+/// This is an observation relation, not proof of when the origin changed. The
+/// timestamp is supplied by the crawler and several providers may disagree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum VersionRelation {
+    /// First digest-bearing observation in the locally held history.
+    Baseline,
+    /// Same digest as the last earlier digest-bearing observation.
+    Unchanged,
+    /// Different digest from the last earlier digest-bearing observation.
+    Changed,
+    /// This observation carries no digest, so no version statement is possible.
+    Unknown,
+    /// Digest-bearing observations carrying the same timestamp disagree.
+    /// No arbitrary object-id ordering is promoted into a temporal change.
+    SameTimestampDisagreement,
+}
+
+/// One F1 observation in a final URL's local history.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Snapshot {
+    /// Content id of the signed F1 object that carried `observation`.
+    pub object_id: ObjectId,
+    /// Full decoded observation, preserving crawler pseudonym, requested/final
+    /// URL, status, digest, redirect chain, and claimed observation time.
+    pub observation: CrawlObservation,
+    /// Relation to the last earlier known digest, recomputed deterministically
+    /// whenever insertion changes ordering.
+    pub version_relation: VersionRelation,
+}
+
+/// Result of inserting one signed-observation object.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SnapshotInsert {
+    Inserted,
+    AlreadyPresent,
+}
+
+/// A bounded local index from an observation's **final URL** to its history.
+///
+/// The index is not signed, persisted, or exchanged. It is reconstructed from
+/// whatever authenticated F1 objects the caller already holds. `requested_url`
+/// aliases and redirect discovery remain in each stored observation but are not
+/// silently indexed as if they were the fetched resource itself.
+#[derive(Debug, Clone)]
 pub struct SnapshotIndex {
-    by_url: HashMap<String, Vec<Snapshot>>,
+    limits: SnapshotLimits,
+    by_final_url: HashMap<String, Vec<Snapshot>>,
+    object_bindings: HashMap<ObjectId, String>,
+    total_snapshots: usize,
+}
+
+impl Default for SnapshotIndex {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SnapshotIndex {
+    /// Create an index with conservative weak-device-oriented bounds.
     pub fn new() -> Self {
+        Self::with_limits(SnapshotLimits::default())
+    }
+
+    /// Create an index with caller-selected explicit bounds.
+    pub fn with_limits(limits: SnapshotLimits) -> Self {
         SnapshotIndex {
-            by_url: HashMap::new(),
+            limits,
+            by_final_url: HashMap::new(),
+            object_bindings: HashMap::new(),
+            total_snapshots: 0,
         }
     }
 
-    /// Record one observation of `url`. Idempotent: inserting the same
-    /// `object_id` for the same URL twice is a no-op. Snapshots are kept
-    /// sorted by `observed_at_ms`; `content_changed` is (re)computed for
-    /// every snapshot whose predecessor could have changed, so insertion
-    /// order does not matter — the same set of observations always
-    /// produces the same history.
+    pub fn limits(&self) -> SnapshotLimits {
+        self.limits
+    }
+
+    pub fn len(&self) -> usize {
+        self.total_snapshots
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.total_snapshots == 0
+    }
+
+    pub fn url_count(&self) -> usize {
+        self.by_final_url.len()
+    }
+
+    /// Insert one already-decoded F1 observation, deriving every indexed field
+    /// from that typed observation rather than accepting parallel caller-supplied
+    /// URL/time/digest values that could disagree with it.
+    ///
+    /// The same object id with the exact same observation is idempotent. Reusing
+    /// one content id for different observation bytes or a different final URL
+    /// fails closed as [`FederationError::ConflictingObjectBinding`].
     pub fn insert_observation(
         &mut self,
-        url: &CanonicalUrl,
         object_id: ObjectId,
-        observed_at_ms: u64,
-        content_digest: Option<Multihash>,
-    ) {
-        let entries = self.by_url.entry(url.canonical_string()).or_default();
-        if entries.iter().any(|s| s.object_id == object_id) {
-            return;
+        observation: CrawlObservation,
+    ) -> Result<SnapshotInsert> {
+        let key = observation.final_url.canonical_string();
+
+        if let Some(existing_key) = self.object_bindings.get(&object_id) {
+            let existing = self
+                .by_final_url
+                .get(existing_key)
+                .and_then(|entries| entries.iter().find(|entry| entry.object_id == object_id))
+                .ok_or(FederationError::ConflictingObjectBinding)?;
+            if existing_key != &key || existing.observation != observation {
+                return Err(FederationError::ConflictingObjectBinding);
+            }
+            return Ok(SnapshotInsert::AlreadyPresent);
         }
+
+        let is_new_url = !self.by_final_url.contains_key(&key);
+        if (is_new_url && self.by_final_url.len() >= self.limits.max_urls)
+            || self.total_snapshots >= self.limits.max_total_snapshots
+            || self
+                .by_final_url
+                .get(&key)
+                .is_some_and(|entries| entries.len() >= self.limits.max_snapshots_per_url)
+        {
+            return Err(FederationError::LimitExceeded);
+        }
+
+        let binding_id = object_id.clone();
+        let entries = self.by_final_url.entry(key.clone()).or_default();
         entries.push(Snapshot {
             object_id,
-            observed_at_ms,
-            content_digest,
-            content_changed: false, // recomputed below
+            observation,
+            version_relation: VersionRelation::Unknown,
         });
         entries.sort_by(|a, b| {
-            a.observed_at_ms
-                .cmp(&b.observed_at_ms)
+            a.observation
+                .observed_at_ms
+                .cmp(&b.observation.observed_at_ms)
                 .then_with(|| a.object_id.as_str().cmp(b.object_id.as_str()))
         });
-        recompute_content_changed(entries);
+        recompute_version_relations(entries);
+
+        self.object_bindings.insert(binding_id, key);
+        self.total_snapshots += 1;
+        Ok(SnapshotInsert::Inserted)
     }
 
-    /// Full history for `url`, oldest first. Empty if nothing has been
-    /// recorded for it.
-    pub fn history(&self, url: &CanonicalUrl) -> &[Snapshot] {
-        self.by_url
-            .get(&url.canonical_string())
+    /// Full history for a final URL, oldest claimed timestamp first. Equal
+    /// timestamps are deterministically ordered by object id but are not
+    /// treated as a real temporal order.
+    pub fn history(&self, final_url: &CanonicalUrl) -> &[Snapshot] {
+        self.by_final_url
+            .get(&final_url.canonical_string())
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
 
-    /// The most recent snapshot of `url`, if any.
-    pub fn latest(&self, url: &CanonicalUrl) -> Option<&Snapshot> {
-        self.history(url).last()
+    /// Every observation at the greatest timestamp held for `final_url`.
+    /// Returning the whole timestamp group avoids arbitrarily selecting one
+    /// provider when equally-timestamped observations disagree.
+    pub fn latest(&self, final_url: &CanonicalUrl) -> &[Snapshot] {
+        self.at_or_before(final_url, u64::MAX)
     }
 
-    /// The most recent snapshot observed at or before `ms` — "what did
-    /// this page look like at time T" — or `None` if every snapshot postdates
-    /// `ms` or none exist.
-    pub fn at_or_before(&self, url: &CanonicalUrl, ms: u64) -> Option<&Snapshot> {
-        self.history(url)
-            .iter()
-            .rev()
-            .find(|s| s.observed_at_ms <= ms)
+    /// Every observation at the greatest crawler-claimed timestamp at or
+    /// before `ms`. Empty when none qualify. This answers “what observations
+    /// do I hold for the latest point not after T,” not “what was objectively
+    /// true at T.”
+    pub fn at_or_before(&self, final_url: &CanonicalUrl, ms: u64) -> &[Snapshot] {
+        let history = self.history(final_url);
+        let end = history.partition_point(|s| s.observation.observed_at_ms <= ms);
+        if end == 0 {
+            return &[];
+        }
+        let timestamp = history[end - 1].observation.observed_at_ms;
+        let start = history[..end]
+            .partition_point(|s| s.observation.observed_at_ms < timestamp);
+        &history[start..end]
     }
 
-    /// Snapshots of `url` in `[after_ms, before_ms)` — the identical
-    /// inclusive-lower/exclusive-upper convention `mini_query::ParsedQuery`'s
-    /// own `after_ms`/`before_ms` fields already use (an `after:` bound is
-    /// pre-adjusted to the next day's midnight by the caller, exactly as
-    /// `mini_query::parse_query` does), so a caller can pass those fields
-    /// straight through. Either bound may be omitted.
+    /// Observations in `[after_ms, before_ms)`, using the same lower-inclusive,
+    /// upper-exclusive convention as `mini_query::ParsedQuery`.
     pub fn between(
         &self,
-        url: &CanonicalUrl,
+        final_url: &CanonicalUrl,
         after_ms: Option<u64>,
         before_ms: Option<u64>,
     ) -> Vec<&Snapshot> {
-        self.history(url)
+        self.history(final_url)
             .iter()
-            .filter(|s| after_ms.is_none_or(|a| s.observed_at_ms >= a))
-            .filter(|s| before_ms.is_none_or(|b| s.observed_at_ms < b))
+            .filter(|s| after_ms.is_none_or(|a| s.observation.observed_at_ms >= a))
+            .filter(|s| before_ms.is_none_or(|b| s.observation.observed_at_ms < b))
             .collect()
     }
 
-    /// Only the snapshots that represent a distinct version (the first
-    /// snapshot, plus every later one whose content actually changed from
-    /// its predecessor) — "search versioned page observations" without
-    /// having to filter out repeat fetches of unchanged content by hand.
-    pub fn distinct_versions(&self, url: &CanonicalUrl) -> Vec<&Snapshot> {
-        self.history(url)
+    /// One deterministic representative observation for each locally
+    /// supportable version boundary. Unknown-digest and same-timestamp-
+    /// disagreement observations are excluded rather than promoted into false
+    /// changes. Multiple corroborating observations with the same timestamp and
+    /// digest collapse to the smallest object id after deterministic sorting.
+    pub fn distinct_versions(&self, final_url: &CanonicalUrl) -> Vec<&Snapshot> {
+        let mut versions: Vec<&Snapshot> = Vec::new();
+        for snapshot in self.history(final_url) {
+            if !matches!(
+                snapshot.version_relation,
+                VersionRelation::Baseline | VersionRelation::Changed
+            ) {
+                continue;
+            }
+            let duplicate_group = versions.iter().any(|existing| {
+                existing.observation.observed_at_ms == snapshot.observation.observed_at_ms
+                    && existing.observation.content_digest == snapshot.observation.content_digest
+            });
+            if !duplicate_group {
+                versions.push(snapshot);
+            }
+        }
+        versions
+    }
+
+    /// All observations in a same-timestamp group whose known digests disagree.
+    pub fn disagreements(&self, final_url: &CanonicalUrl) -> Vec<&Snapshot> {
+        self.history(final_url)
             .iter()
-            .filter(|s| s.content_changed)
+            .filter(|s| s.version_relation == VersionRelation::SameTimestampDisagreement)
             .collect()
     }
 }
 
-fn recompute_content_changed(entries: &mut [Snapshot]) {
-    for i in 0..entries.len() {
-        entries[i].content_changed = match i {
-            0 => true,
-            _ => entries[i].content_digest != entries[i - 1].content_digest,
-        };
+fn recompute_version_relations(entries: &mut [Snapshot]) {
+    for entry in entries.iter_mut() {
+        entry.version_relation = VersionRelation::Unknown;
+    }
+
+    let mut previous_known: Option<Multihash> = None;
+    let mut start = 0;
+    while start < entries.len() {
+        let timestamp = entries[start].observation.observed_at_ms;
+        let mut end = start + 1;
+        while end < entries.len() && entries[end].observation.observed_at_ms == timestamp {
+            end += 1;
+        }
+
+        let mut agreed_digest: Option<Multihash> = None;
+        let mut disagreement = false;
+        for entry in &entries[start..end] {
+            if let Some(digest) = &entry.observation.content_digest {
+                match &agreed_digest {
+                    None => agreed_digest = Some(digest.clone()),
+                    Some(existing) if existing != digest => disagreement = true,
+                    Some(_) => {}
+                }
+            }
+        }
+
+        if disagreement {
+            for entry in &mut entries[start..end] {
+                entry.version_relation = if entry.observation.content_digest.is_some() {
+                    VersionRelation::SameTimestampDisagreement
+                } else {
+                    VersionRelation::Unknown
+                };
+            }
+            // Do not choose one disagreeing digest as the next comparison base.
+        } else if let Some(digest) = agreed_digest {
+            let relation = match &previous_known {
+                None => VersionRelation::Baseline,
+                Some(previous) if previous == &digest => VersionRelation::Unchanged,
+                Some(_) => VersionRelation::Changed,
+            };
+            for entry in &mut entries[start..end] {
+                entry.version_relation = if entry.observation.content_digest.is_some() {
+                    relation
+                } else {
+                    VersionRelation::Unknown
+                };
+            }
+            previous_known = Some(digest);
+        }
+
+        start = end;
     }
 }
