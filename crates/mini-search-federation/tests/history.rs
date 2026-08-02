@@ -351,13 +351,7 @@ fn zero_limits_reject_the_first_insertion() {
     let object = published(
         &root,
         &device,
-        &observation(
-            "blocked",
-            url("example.org", "/"),
-            100,
-            Some(b"a"),
-            "a",
-        ),
+        &observation("blocked", url("example.org", "/"), 100, Some(b"a"), "a"),
     );
     assert_eq!(
         index.insert_observation(&object),
