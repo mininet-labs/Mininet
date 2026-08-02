@@ -14216,7 +14216,7 @@ untrusted public crawl jobs on participant devices.
 **Supersedes / superseded by:** implements the missing execution portion of
 Track E3 after D-0317; builds on and does not supersede D-0312, D-0317,
 D-0371, or D-0422.
-### D-0425 — `mini-search-federation`: local snapshot-history index, Track F7 of distributed search  ·  *Proposed*
+### D-0426 — `mini-search-federation`: local snapshot-history index, Track F7 of distributed search  ·  *Proposed*
 
 **Date:** 2026-08-01 · **Refs:** `docs/design/
 federated-search-exchange-f1-f2.md`; `docs/research/

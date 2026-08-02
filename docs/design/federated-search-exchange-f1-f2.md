@@ -1,4 +1,4 @@
-# Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0425)
+# Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0426)
 
 **Status:** Shipped (`mini-search-federation`). Wire format,
 signed-object publish/read, deterministic per-provider result merging,
@@ -121,7 +121,7 @@ reuses it as originally computed rather than re-running the
 diversity-aware greedy selection loop, which would be materially more
 work than "the user changed weights."
 
-## F7: historical snapshots (D-0425)
+## F7: historical snapshots (D-0426)
 
 F1's `publish_crawl_observation` already lets a caller store as many
 independent `CrawlObservation`s of the same URL over time as it likes —

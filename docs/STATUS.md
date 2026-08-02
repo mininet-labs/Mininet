@@ -1175,7 +1175,7 @@ the top development priority.
   is not to be repurposed as the general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
 - **shipped, wire format + local merge/rerank/history only** —
-  `mini-search-federation` (D-0422/D-0423/D-0424/D-0425, Track
+  `mini-search-federation` (D-0422/D-0423/D-0424/D-0426, Track
   F1/F2/F3/F4/F7 of distributed search, issue #175): the signed,
   content-addressed exchange format two Track F peers need before any
   federation can be built, plus deterministic merging of per-provider
@@ -1208,7 +1208,7 @@ the top development priority.
   have produced — proven by a test that flips the winner between two
   documents engineered to win on opposite single-signal profiles.
   Diversity is deliberately not recomputed on re-rank. `SnapshotIndex`
-  (F7, D-0425) is a local, in-memory per-URL observation history built
+  (F7, D-0426) is a local, in-memory per-URL observation history built
   from F1's own already-stored `CrawlObservation`s: `history`/`latest`/
   `at_or_before(ms)`/`between(after_ms, before_ms)` (the identical
   inclusive-lower/exclusive-upper convention `mini_query::ParsedQuery`

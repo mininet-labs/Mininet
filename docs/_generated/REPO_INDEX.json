@@ -60025,7 +60025,7 @@
       ],
       "lines": 14298,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "003d8b832a44842e3c7a5a3839c71ae626eb09f522f56546d0a13932ceeddeb8",
+      "sha256": "5b90c906154a0f476f7e01a51a13c1f62f6f0969400a427ab4a2fa4e75abfca2",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -61291,7 +61291,7 @@
       ],
       "lines": 1639,
       "path": "docs/STATUS.md",
-      "sha256": "8039712f9cb900202964f6d85a27c46cddb36bf9341f3b88f01110ee898155eb",
+      "sha256": "090aadaf13ae4e7d0c95543e2b5ecd642788f855205ddef3f254905974ad64df",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -63672,7 +63672,7 @@
         {
           "level": 1,
           "line": 1,
-          "text": "Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0425)"
+          "text": "Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0426)"
         },
         {
           "level": 2,
@@ -63702,7 +63702,7 @@
         {
           "level": 2,
           "line": 124,
-          "text": "F7: historical snapshots (D-0425)"
+          "text": "F7: historical snapshots (D-0426)"
         },
         {
           "level": 2,
@@ -63763,9 +63763,9 @@
       ],
       "lines": 291,
       "path": "docs/design/federated-search-exchange-f1-f2.md",
-      "sha256": "c2ddb818f7c9f3de1506f0a83d0ae2f51a6cb64c81ae1658ded78f1940e7dff6",
+      "sha256": "05a45381590fca14ec3fb13543d096a9ceb6b598f81bb7c04efeeae7023d9893",
       "symbols": [],
-      "title": "Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0425)"
+      "title": "Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0426)"
     },
     {
       "bytes": 7972,
