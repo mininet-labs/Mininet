@@ -54,6 +54,20 @@ fn observation(
     }
 }
 
+fn count_limits(
+    max_urls: usize,
+    max_snapshots_per_url: usize,
+    max_total_snapshots: usize,
+) -> SnapshotLimits {
+    SnapshotLimits {
+        max_urls,
+        max_snapshots_per_url,
+        max_total_snapshots,
+        max_snapshot_wire_bytes: usize::MAX,
+        max_total_snapshot_wire_bytes: usize::MAX,
+    }
+}
+
 fn insert(
     index: &mut SnapshotIndex,
     object_seed: &str,
@@ -72,6 +86,7 @@ fn history_is_empty_for_an_unrecorded_url() {
     assert!(index.latest(&u).is_empty());
     assert!(index.at_or_before(&u, 100).is_empty());
     assert_eq!(index.len(), 0);
+    assert_eq!(index.total_wire_bytes(), 0);
     assert!(index.is_empty());
 }
 
@@ -91,6 +106,11 @@ fn insertion_derives_the_final_url_and_preserves_the_full_observation() {
     );
     assert!(index.history(&requested).is_empty());
     assert_eq!(index.history(&final_url)[0].observation, expected);
+    assert!(index.history(&final_url)[0].wire_bytes > 0);
+    assert_eq!(
+        index.total_wire_bytes(),
+        index.history(&final_url)[0].wire_bytes
+    );
     assert_eq!(index.url_count(), 1);
     assert_eq!(index.len(), 1);
 }
@@ -136,12 +156,14 @@ fn inserting_the_same_object_and_observation_is_idempotent() {
             .unwrap(),
         SnapshotInsert::Inserted
     );
+    let wire_bytes = index.total_wire_bytes();
     assert_eq!(
         index.insert_observation(id, observed).unwrap(),
         SnapshotInsert::AlreadyPresent
     );
     assert_eq!(index.history(&u).len(), 1);
     assert_eq!(index.len(), 1);
+    assert_eq!(index.total_wire_bytes(), wire_bytes);
 }
 
 #[test]
@@ -187,15 +209,11 @@ fn one_object_id_cannot_be_rebound_to_another_final_url() {
 }
 
 #[test]
-fn explicit_url_per_url_and_total_limits_fail_closed() {
+fn explicit_url_per_url_and_total_count_limits_fail_closed() {
     let a = url("a.example", "/");
     let b = url("b.example", "/");
 
-    let mut url_limited = SnapshotIndex::with_limits(SnapshotLimits {
-        max_urls: 1,
-        max_snapshots_per_url: 4,
-        max_total_snapshots: 4,
-    });
+    let mut url_limited = SnapshotIndex::with_limits(count_limits(1, 4, 4));
     insert(
         &mut url_limited,
         "a1",
@@ -211,11 +229,7 @@ fn explicit_url_per_url_and_total_limits_fail_closed() {
         FederationError::LimitExceeded
     );
 
-    let mut per_url_limited = SnapshotIndex::with_limits(SnapshotLimits {
-        max_urls: 2,
-        max_snapshots_per_url: 1,
-        max_total_snapshots: 4,
-    });
+    let mut per_url_limited = SnapshotIndex::with_limits(count_limits(2, 1, 4));
     insert(
         &mut per_url_limited,
         "a1-per-url",
@@ -231,11 +245,7 @@ fn explicit_url_per_url_and_total_limits_fail_closed() {
         FederationError::LimitExceeded
     );
 
-    let mut total_limited = SnapshotIndex::with_limits(SnapshotLimits {
-        max_urls: 2,
-        max_snapshots_per_url: 2,
-        max_total_snapshots: 1,
-    });
+    let mut total_limited = SnapshotIndex::with_limits(count_limits(2, 2, 1));
     insert(
         &mut total_limited,
         "a1-total",
@@ -253,11 +263,74 @@ fn explicit_url_per_url_and_total_limits_fail_closed() {
 }
 
 #[test]
+fn per_snapshot_and_total_wire_byte_limits_fail_closed() {
+    let u = url("example.org", "/");
+    let first = observation("first", u.clone(), 100, Some(b"a"), "a");
+    let second = observation("second", u.clone(), 200, Some(b"b"), "b");
+
+    let mut probe = SnapshotIndex::new();
+    insert(&mut probe, "probe", first.clone());
+    let one_observation_bytes = probe.history(&u)[0].wire_bytes;
+    assert!(one_observation_bytes > 1);
+
+    let mut per_snapshot_limited = SnapshotIndex::with_limits(SnapshotLimits {
+        max_urls: 1,
+        max_snapshots_per_url: 2,
+        max_total_snapshots: 2,
+        max_snapshot_wire_bytes: one_observation_bytes - 1,
+        max_total_snapshot_wire_bytes: usize::MAX,
+    });
+    assert_eq!(
+        per_snapshot_limited
+            .insert_observation(object_id("too-large"), first.clone())
+            .unwrap_err(),
+        FederationError::LimitExceeded
+    );
+    assert!(per_snapshot_limited.is_empty());
+
+    let mut total_limited = SnapshotIndex::with_limits(SnapshotLimits {
+        max_urls: 1,
+        max_snapshots_per_url: 2,
+        max_total_snapshots: 2,
+        max_snapshot_wire_bytes: usize::MAX,
+        max_total_snapshot_wire_bytes: one_observation_bytes,
+    });
+    insert(&mut total_limited, "first-total", first);
+    let retained_bytes = total_limited.total_wire_bytes();
+    assert_eq!(
+        total_limited
+            .insert_observation(object_id("second-total"), second)
+            .unwrap_err(),
+        FederationError::LimitExceeded
+    );
+    assert_eq!(total_limited.len(), 1);
+    assert_eq!(total_limited.total_wire_bytes(), retained_bytes);
+}
+
+#[test]
+fn typed_observation_outside_f1_field_bounds_is_rejected_before_mutation() {
+    let oversized_url = url("example.org", &format!("/{}", "x".repeat(4_096)));
+    let oversized = observation("oversized", oversized_url, 100, Some(b"a"), "a");
+    let mut index = SnapshotIndex::with_limits(count_limits(1, 1, 1));
+
+    assert_eq!(
+        index
+            .insert_observation(object_id("oversized"), oversized)
+            .unwrap_err(),
+        FederationError::LimitExceeded
+    );
+    assert!(index.is_empty());
+    assert_eq!(index.total_wire_bytes(), 0);
+}
+
+#[test]
 fn zero_limits_reject_the_first_insertion() {
     let mut index = SnapshotIndex::with_limits(SnapshotLimits {
         max_urls: 0,
         max_snapshots_per_url: 0,
         max_total_snapshots: 0,
+        max_snapshot_wire_bytes: 0,
+        max_total_snapshot_wire_bytes: 0,
     });
     let u = url("example.org", "/");
     assert_eq!(
@@ -410,6 +483,46 @@ fn same_timestamp_digest_disagreement_is_not_promoted_to_a_change() {
     assert_eq!(
         index.history(&u)[2].version_relation,
         VersionRelation::Baseline
+    );
+}
+
+#[test]
+fn disagreement_does_not_replace_an_existing_comparison_base() {
+    let mut index = SnapshotIndex::new();
+    let u = url("example.org", "/");
+    insert(
+        &mut index,
+        "baseline",
+        observation("baseline", u.clone(), 50, Some(b"a"), "a"),
+    );
+    insert(
+        &mut index,
+        "disagree-a",
+        observation("disagree-a", u.clone(), 100, Some(b"b"), "b"),
+    );
+    insert(
+        &mut index,
+        "disagree-b",
+        observation("disagree-b", u.clone(), 100, Some(b"c"), "c"),
+    );
+    insert(
+        &mut index,
+        "later-a",
+        observation("later-a", u.clone(), 200, Some(b"a"), "d"),
+    );
+    insert(
+        &mut index,
+        "later-d",
+        observation("later-d", u.clone(), 300, Some(b"d"), "e"),
+    );
+
+    assert_eq!(
+        index.history(&u)[3].version_relation,
+        VersionRelation::Unchanged
+    );
+    assert_eq!(
+        index.history(&u)[4].version_relation,
+        VersionRelation::Changed
     );
 }
 
