@@ -19,6 +19,7 @@ jobs:
       - name: Integrate ordered filesystem index and run focused checks
         run: |
           python3 tools/fix_forge_time_index_fixture.py
+          python3 tools/fix_forge_time_index_clippy.py
           python3 tools/apply_forge_time_index.py
       - name: Commit integrated implementation
         run: |
