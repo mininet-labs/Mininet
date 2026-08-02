@@ -1375,7 +1375,17 @@ the top development priority.
   it. The caller still calls `envelope.add_link` itself; authority
   promotion is untouched. No dedup: calling the bridge twice over one
   Accepted envelope signs two distinct posts, honestly documented rather
-  than silently prevented. See `docs/DECISION_LOG.md` D-0429.
+  than silently prevented. `mini-cli` gains `mini intake
+  add|show|advance|publish-post`, a real developer-facing caller driving
+  the whole pipeline (intake a file, advance review state one legal step
+  at a time, publish an Accepted envelope as a signed post, attach the
+  resulting link) as one visible workflow — closing the "still not
+  built" gap D-0429's own Required follow-up first named. Intake
+  material lives under a separate `<home>/intake` `FsBackend`, distinct
+  from the signed-object `--store` path. No `--json` support yet
+  (matches `identity`/`kel`/`repo`/`pr`/`sync`'s existing convention). A
+  `mini-desktop` UI surface for the same workflow remains not built. See
+  `docs/DECISION_LOG.md` D-0429.
 - **shipped, prototype (D-0363, Track C4)** — `mini-commons-policy`
   gains `service_quote_for(entitlement, tier, prices, payload_mb,
   storage_days)`, the paid-service boundary against `mini-resource-pricing`

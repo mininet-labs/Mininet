@@ -12,7 +12,8 @@ use did_mini::Did;
 use crate::error::{CliError, Result};
 use crate::json::CommandResult;
 use crate::{
-    build, coordination, identity, installer, keystone, pr, provenance, release, repo, store, sync,
+    build, coordination, identity, installer, intake, keystone, pr, provenance, release, repo,
+    store, sync,
 };
 
 fn extract_flag(args: &mut Vec<String>, flag: &str) -> Option<String> {
@@ -112,6 +113,10 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
             dispatch_sync(home, store_path, args)
         }
         "keystone" => dispatch_keystone(home, args, json),
+        "intake" => {
+            reject_json(json, "intake")?;
+            dispatch_intake(home, store_path, args)
+        }
         "build" => dispatch_build(args, json),
         "release" => dispatch_release(home, store_path, args, json),
         "provenance" => dispatch_provenance(home, store_path, args, json),
@@ -180,6 +185,32 @@ fn dispatch_identity(home: &Path, mut args: Vec<String>) -> Result<String> {
         "show" => identity::cmd_show(home),
         other => Err(CliError::Usage(format!(
             "unknown `identity` subcommand: {other:?}"
+        ))),
+    }
+}
+
+fn dispatch_intake(home: &Path, store_path: &Path, mut args: Vec<String>) -> Result<String> {
+    let noun = next(&mut args, "intake")?;
+    match noun.as_str() {
+        "add" => {
+            let path = next(&mut args, "intake add")?;
+            intake::cmd_add(home, &path)
+        }
+        "show" => {
+            let id = next(&mut args, "intake show")?;
+            intake::cmd_show(home, &id)
+        }
+        "advance" => {
+            let id = next(&mut args, "intake advance")?;
+            let state = next(&mut args, "intake advance")?;
+            intake::cmd_advance(home, &id, &state)
+        }
+        "publish-post" => {
+            let id = next(&mut args, "intake publish-post")?;
+            intake::cmd_publish_post(home, store_path, &id)
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `intake` subcommand: {other:?}"
         ))),
     }
 }

@@ -45,6 +45,7 @@ mod coordination;
 mod error;
 pub mod identity;
 mod installer;
+mod intake;
 mod json;
 mod keystone;
 mod pr;

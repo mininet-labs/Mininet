@@ -14473,6 +14473,16 @@ shipped crates.
    already performs internally, not a second derivation). The caller
    still calls `envelope.add_link` itself; this crate mutates nothing
    about the envelope's review state or authority class.
+3. `mini-cli` gains `mini intake add|show|advance|publish-post`, a real
+   developer-facing caller driving the whole pipeline as one visible
+   workflow: intake a local text/Markdown file into a separate
+   `<home>/intake` `FsBackend` (distinct from the signed-object `--store`
+   path, mirroring `mini-intake`'s own two-storage-layer split),
+   advance its review state one legal step at a time, and publish an
+   Accepted envelope as a real signed post, attaching the resulting
+   `IntakeLink` back onto the envelope in the same command. Does not
+   support `--json` yet (matches `identity`/`kel`/`repo`/`pr`/`sync`'s
+   existing convention, cleanly rejected rather than silently ignored).
 
 **Reason:** the founder's own priority ordering names Social network
 (#4) as "wired to the free-commons entitlements (Track C) and to
@@ -14510,7 +14520,11 @@ are all refused; calling the bridge twice over one Accepted envelope
 produces two distinct signed posts (no hidden dedup claimed); a
 hand-built non-text envelope and a hand-built non-UTF-8-despite-
 `TextPlain`-labeled envelope are both refused (defense in depth beyond
-what `mini-intake`'s own coordinator already guarantees).
+what `mini-intake`'s own coordinator already guarantees). `mini-cli`'s
+`intake` command group: 4 integration tests driving the real `mini`
+binary end to end — add/show/advance(illegal transition refused)/
+advance(legal)/publish-post, `--json` cleanly rejected, an unknown
+intake id a clean usage error.
 
 **Failure point:** `mini-intake-social` has no dedup story of its own —
 calling it twice over the same Accepted envelope signs two distinct
@@ -14523,13 +14537,12 @@ other object type in this crate. Neither crate touches network
 transport, discovery, or the review UI a real "accept and publish" flow
 would need.
 
-**Required follow-up:** a real caller (CLI or `mini-desktop` UI) driving
-`advance_review_state`/`publish_accepted_intake_as_post`/`add_link`
-together as one visible workflow step, still not built; PR B4 (PDF/HTML
-extraction) remains separately blocked on licence/security review and
-out of this bridge's scope (Track B2 only ever stores text/Markdown);
-Track F5/F6 and the #18 Sybil-resistance gap are unrelated and
-unaffected by this batch.
+**Required follow-up:** a `mini-desktop` UI surface for the same
+add/advance/publish-post workflow the CLI now has, still not built; PR
+B4 (PDF/HTML extraction) remains separately blocked on licence/security
+review and out of this bridge's scope (Track B2 only ever stores text/
+Markdown); Track F5/F6 and the #18 Sybil-resistance gap are unrelated
+and unaffected by this batch.
 
 **Supersedes / superseded by:** builds on and does not supersede D-0313,
 D-0317, or D-0360.
