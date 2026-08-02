@@ -20,6 +20,7 @@ jobs:
         run: |
           python3 tools/fix_finalize_forge_page_signature.py
           python3 tools/fix_finalize_forge_clippy.py
+          python3 tools/fix_finalize_forge_nav.py
           python3 tools/finalize_forge_time_index.py
       - name: Commit exact merge candidate
         run: |
