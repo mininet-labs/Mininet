@@ -1,13 +1,13 @@
 //! Local ordered side index for `FsBackend`'s `idx/time/` metadata rows.
 //!
 //! The metadata files remain authoritative. This module is a delete-and-rebuild
-//! acceleration structure: immutable sorted runs, bounded runs per level, and a
-//! one-entry write-ahead journal make steady-state page queries logarithmic in
-//! history while keeping crash recovery local and deterministic. No remote
-//! index, daemon, database, or authority is introduced.
+//! acceleration structure: one immutable sorted base plus a strictly bounded
+//! append delta. Queries binary-search the base, inspect at most one bounded
+//! delta, and verify every returned key against its authoritative metadata row.
+//! A manifest detects a missing base, while a one-entry write-ahead journal
+//! recovers a metadata write interrupted before the side index was updated.
+//! No remote index, daemon, database, or authority is introduced.
 
-use std::cmp::Reverse;
-use std::collections::BinaryHeap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -19,42 +19,49 @@ use crate::{Result, StoreError};
 pub(crate) const TIME_PREFIX: &str = "idx/time/";
 
 const INDEX_DIR: &str = "ordered/time-v1";
-const RUNS_DIR: &str = "runs";
 const MARKER_FILE: &str = "version";
 const LOCK_FILE: &str = "lock";
 const PENDING_FILE: &str = "pending";
-const GENERATION_FILE: &str = "generation";
+const MANIFEST_FILE: &str = "manifest";
+const DELTA_FILE: &str = "delta";
 const MARKER: &[u8] = b"mini-store-time-index-v1\n";
 
-const RUN_MAGIC: &[u8; 8] = b"MNTIDX01";
-const RUN_VERSION: u16 = 1;
-const RUN_HEADER_BYTES: u64 = 20;
+const BASE_MAGIC: &[u8; 8] = b"MNTIDX01";
+const BASE_VERSION: u16 = 1;
+const BASE_HEADER_BYTES: u64 = 20;
 const MAX_KEY_BYTES: usize = 192;
 const RECORD_BYTES: usize = 8 + 2 + MAX_KEY_BYTES + 8;
-const MAX_LEVELS: u8 = 16;
-const MAX_RUNS_PER_LEVEL: usize = 4;
-const MAX_RUN_FILES: usize = MAX_LEVELS as usize * MAX_RUNS_PER_LEVEL * 2;
+
+/// Every steady-state query may inspect this many unsorted recent writes in
+/// addition to a logarithmic base seek and the requested page. Reaching the
+/// bound triggers a local compaction; migration/compaction is intentionally
+/// not claimed to be page-bounded work.
+const MAX_DELTA_RECORDS: u64 = 1_024;
+
+const MANIFEST_MAGIC: &[u8; 8] = b"MNTMAN01";
+const MANIFEST_VERSION: u16 = 1;
+const MANIFEST_BYTES: usize = 44;
 
 const PENDING_MAGIC: &[u8; 8] = b"MNTPND01";
 
-#[derive(Debug, Clone)]
-struct RunMeta {
-    path: PathBuf,
-    level: u8,
-    count: u64,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Manifest {
+    generation: u64,
+    base_count: u64,
+    delta_count: u64,
 }
 
 #[derive(Debug)]
-struct RunReader {
+struct BaseReader {
     file: File,
     count: u64,
 }
 
-impl RunReader {
-    fn open(meta: &RunMeta) -> Result<Self> {
-        let mut file = File::open(&meta.path)?;
-        let (level, count) = read_run_header(&mut file)?;
-        if level != meta.level || count != meta.count {
+impl BaseReader {
+    fn open(path: &Path, expected_count: u64) -> Result<Self> {
+        let mut file = open_regular(path, "time-index base")?;
+        let count = read_base_header(&mut file)?;
+        if count != expected_count {
             return Err(StoreError::Corrupt);
         }
         Ok(Self { file, count })
@@ -64,7 +71,7 @@ impl RunReader {
         if index >= self.count {
             return Err(StoreError::Corrupt);
         }
-        let offset = RUN_HEADER_BYTES
+        let offset = BASE_HEADER_BYTES
             .checked_add(
                 index
                     .checked_mul(RECORD_BYTES as u64)
@@ -91,10 +98,18 @@ impl RunReader {
         }
         Ok(low)
     }
+
+    fn contains(&mut self, needle: &str) -> Result<bool> {
+        let index = self.first_greater_than(needle)?;
+        if index == 0 {
+            return Ok(false);
+        }
+        Ok(self.read_key(index - 1)? == needle)
+    }
 }
 
 #[derive(Debug)]
-struct RunWriter {
+struct BaseWriter {
     file: File,
     temp_path: PathBuf,
     final_path: PathBuf,
@@ -102,18 +117,18 @@ struct RunWriter {
     last_key: Option<String>,
 }
 
-impl RunWriter {
+impl BaseWriter {
     fn new(index_root: &Path, generation: u64) -> Result<Self> {
-        let runs = index_root.join(RUNS_DIR);
-        let final_path = runs.join(format!("run-{generation:020}.run"));
-        let temp_path = runs.join(format!("run-{generation:020}.tmp"));
-        remove_regular_if_present(&temp_path, "time-index temporary run")?;
+        let final_path = base_path(index_root, generation);
+        let temp_path = index_root.join(format!("base-{generation:020}.tmp"));
+        remove_regular_if_present(&temp_path, "time-index base temporary")?;
+        remove_regular_if_present(&final_path, "orphaned time-index base")?;
         let mut file = OpenOptions::new()
             .create_new(true)
             .read(true)
             .write(true)
             .open(&temp_path)?;
-        write_run_header(&mut file, 0, 0)?;
+        write_base_header(&mut file, 0)?;
         Ok(Self {
             file,
             temp_path,
@@ -136,29 +151,20 @@ impl RunWriter {
         self.file.seek(SeekFrom::End(0))?;
         self.file.write_all(&record)?;
         self.last_key = Some(key.to_string());
-        self.count = self.count.checked_add(1).ok_or(StoreError::LimitExceeded)?;
+        self.count = self
+            .count
+            .checked_add(1)
+            .ok_or(StoreError::LimitExceeded)?;
         Ok(())
     }
 
-    fn finish(mut self, level: u8) -> Result<Option<RunMeta>> {
-        if level >= MAX_LEVELS {
-            return Err(StoreError::LimitExceeded);
-        }
-        if self.count == 0 {
-            drop(self.file);
-            remove_regular_if_present(&self.temp_path, "empty time-index run")?;
-            return Ok(None);
-        }
+    fn finish(mut self) -> Result<(PathBuf, u64)> {
         self.file.seek(SeekFrom::Start(0))?;
-        write_run_header(&mut self.file, level, self.count)?;
+        write_base_header(&mut self.file, self.count)?;
         self.file.sync_all()?;
         drop(self.file);
         fs::rename(&self.temp_path, &self.final_path)?;
-        Ok(Some(RunMeta {
-            path: self.final_path,
-            level,
-            count: self.count,
-        }))
+        Ok((self.final_path, self.count))
     }
 }
 
@@ -169,38 +175,97 @@ struct LockedIndex<'a> {
 }
 
 impl<'a> LockedIndex<'a> {
-    fn ensure_initialized(&self) -> Result<()> {
-        match read_regular(&self.index_root.join(MARKER_FILE), "time-index marker")? {
-            Some(bytes) if bytes == MARKER => match self.list_runs() {
-                Ok(_) => Ok(()),
-                Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
-                    self.rebuild().map(|_| ())
-                }
-                Err(error) => Err(error),
-            },
-            Some(_) | None => self.rebuild().map(|_| ()),
-        }
-    }
-
-    fn recover_pending(&self) -> Result<()> {
-        let pending_path = self.index_root.join(PENDING_FILE);
-        let Some(bytes) = read_regular(&pending_path, "time-index pending journal")? else {
+    fn prepare(&self) -> Result<()> {
+        let marker = read_regular(&self.index_root.join(MARKER_FILE), "time-index marker")?;
+        if marker.as_deref() != Some(MARKER) {
+            self.rebuild()?;
             return Ok(());
-        };
-        let key = match decode_pending(&bytes) {
-            Ok(key) => key,
-            Err(StoreError::Corrupt) => {
+        }
+
+        let pending = read_regular(
+            &self.index_root.join(PENDING_FILE),
+            "time-index pending journal",
+        )?;
+        let manifest = match self.read_manifest() {
+            Ok(manifest) => manifest,
+            Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
                 self.rebuild()?;
-                remove_regular_if_present(&pending_path, "corrupt time-index journal")?;
                 return Ok(());
             }
             Err(error) => return Err(error),
         };
-        if read_meta_value(self.root, &key)?.is_some() {
-            self.write_single_run(&key)?;
-            self.compact()?;
+
+        if let Err(error) = self.validate_base(&manifest) {
+            return match error {
+                StoreError::Corrupt | StoreError::LimitExceeded => self.rebuild().map(|_| ()),
+                other => Err(other),
+            };
         }
-        remove_regular_if_present(&pending_path, "time-index pending journal")?;
+
+        let actual_delta = match self.delta_record_count() {
+            Ok(count) => count,
+            Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
+                self.rebuild()?;
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
+        let allowed_extra = u64::from(pending.is_some());
+        if actual_delta < manifest.delta_count
+            || actual_delta > manifest.delta_count.saturating_add(allowed_extra)
+            || manifest.delta_count > MAX_DELTA_RECORDS
+        {
+            self.rebuild()?;
+            return Ok(());
+        }
+
+        if let Some(bytes) = pending {
+            let key = match decode_pending(&bytes) {
+                Ok(key) => key,
+                Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
+                    self.rebuild()?;
+                    return Ok(());
+                }
+                Err(error) => return Err(error),
+            };
+            self.recover_pending(&key, manifest, actual_delta)?;
+        } else if actual_delta != manifest.delta_count {
+            self.rebuild()?;
+        }
+
+        let manifest = self.read_manifest()?;
+        self.validate_base(&manifest)?;
+        if self.delta_record_count()? != manifest.delta_count {
+            self.rebuild()?;
+            return Ok(());
+        }
+        if manifest.delta_count >= MAX_DELTA_RECORDS {
+            self.compact(&manifest)?;
+        }
+        self.cleanup_orphan_bases(self.read_manifest()?.generation)
+    }
+
+    fn read_manifest(&self) -> Result<Manifest> {
+        let bytes = read_regular(
+            &self.index_root.join(MANIFEST_FILE),
+            "time-index manifest",
+        )?
+        .ok_or(StoreError::Corrupt)?;
+        decode_manifest(&bytes)
+    }
+
+    fn write_manifest(&self, manifest: &Manifest) -> Result<()> {
+        atomic_write(
+            &self.index_root.join(MANIFEST_FILE),
+            &encode_manifest(manifest),
+        )
+    }
+
+    fn validate_base(&self, manifest: &Manifest) -> Result<()> {
+        let _ = BaseReader::open(
+            &base_path(&self.index_root, manifest.generation),
+            manifest.base_count,
+        )?;
         Ok(())
     }
 
@@ -218,236 +283,380 @@ impl<'a> LockedIndex<'a> {
         )
     }
 
-    fn next_generation(&self) -> Result<u64> {
-        let path = self.index_root.join(GENERATION_FILE);
-        let current = match read_regular(&path, "time-index generation")? {
-            None => 0,
-            Some(bytes) if bytes.len() == 8 => {
-                let mut raw = [0u8; 8];
-                raw.copy_from_slice(&bytes);
-                u64::from_be_bytes(raw)
-            }
-            Some(_) => return Err(StoreError::Corrupt),
-        };
-        let next = current.checked_add(1).ok_or(StoreError::LimitExceeded)?;
-        atomic_write(&path, &next.to_be_bytes())?;
-        Ok(next)
-    }
+    fn recover_pending(
+        &self,
+        key: &str,
+        mut manifest: Manifest,
+        actual_delta: u64,
+    ) -> Result<()> {
+        let metadata_exists = read_meta_value(self.root, key)?.is_some();
 
-    fn write_single_run(&self, key: &str) -> Result<()> {
-        let generation = self.next_generation()?;
-        let mut writer = RunWriter::new(&self.index_root, generation)?;
-        writer.push(key)?;
-        let _ = writer.finish(0)?;
-        Ok(())
-    }
-
-    fn list_runs(&self) -> Result<Vec<RunMeta>> {
-        let runs_path = self.index_root.join(RUNS_DIR);
-        let mut runs = Vec::new();
-        for entry in fs::read_dir(&runs_path)? {
-            let entry = entry?;
-            let path = entry.path();
-            let file_type = entry.file_type()?;
-            if file_type.is_symlink() {
-                return Err(StoreError::Io(
-                    "symlink in ordered time-index runs".to_string(),
-                ));
-            }
-            if !file_type.is_file() {
-                return Err(StoreError::Io(
-                    "non-file in ordered time-index runs".to_string(),
-                ));
-            }
-            match path.extension().and_then(|extension| extension.to_str()) {
-                Some("tmp") => {
-                    fs::remove_file(path)?;
-                    continue;
-                }
-                Some("run") => {}
-                _ => {
-                    return Err(StoreError::Io(
-                        "unknown file in ordered time-index runs".to_string(),
-                    ))
-                }
-            }
-            let mut file = File::open(&path)?;
-            let (level, count) = read_run_header(&mut file)?;
-            runs.push(RunMeta { path, level, count });
-            if runs.len() > MAX_RUN_FILES {
-                return Err(StoreError::LimitExceeded);
-            }
-        }
-        runs.sort_by(|left, right| left.path.cmp(&right.path));
-        Ok(runs)
-    }
-
-    fn compact(&self) -> Result<()> {
-        loop {
-            let runs = match self.list_runs() {
-                Ok(runs) => runs,
-                Err(StoreError::LimitExceeded) => {
-                    self.rebuild()?;
-                    return Ok(());
-                }
-                Err(error) => return Err(error),
-            };
-            let mut selected: Option<(u8, Vec<RunMeta>)> = None;
-            for level in 0..MAX_LEVELS {
-                let at_level: Vec<RunMeta> = runs
-                    .iter()
-                    .filter(|run| run.level == level)
-                    .cloned()
-                    .collect();
-                if at_level.len() > MAX_RUNS_PER_LEVEL {
-                    if level + 1 >= MAX_LEVELS {
-                        return Err(StoreError::LimitExceeded);
-                    }
-                    selected = Some((level + 1, at_level));
-                    break;
-                }
-            }
-            let Some((target_level, inputs)) = selected else {
+        if actual_delta == manifest.delta_count.saturating_add(1) {
+            let extra = self.read_delta_key(manifest.delta_count)?;
+            if extra != key {
+                self.rebuild()?;
                 return Ok(());
-            };
-            self.merge_runs(&inputs, target_level)?;
-            for input in inputs {
-                remove_regular_if_present(&input.path, "compacted time-index run")?;
             }
+            if metadata_exists {
+                manifest.delta_count = actual_delta;
+                self.write_manifest(&manifest)?;
+            } else {
+                self.truncate_delta(manifest.delta_count)?;
+            }
+        } else if actual_delta == manifest.delta_count {
+            if metadata_exists && !self.contains_key(&manifest, key)? {
+                self.append_delta(&mut manifest, key)?;
+            }
+        } else {
+            self.rebuild()?;
+            return Ok(());
         }
+
+        self.clear_pending()?;
+        let manifest = self.read_manifest()?;
+        if manifest.delta_count >= MAX_DELTA_RECORDS {
+            self.compact(&manifest)?;
+        }
+        Ok(())
     }
 
-    fn merge_runs(&self, inputs: &[RunMeta], level: u8) -> Result<()> {
-        let generation = self.next_generation()?;
-        let mut writer = RunWriter::new(&self.index_root, generation)?;
-        let mut readers: Vec<RunReader> = inputs
+    fn contains_key(&self, manifest: &Manifest, key: &str) -> Result<bool> {
+        let mut base = BaseReader::open(
+            &base_path(&self.index_root, manifest.generation),
+            manifest.base_count,
+        )?;
+        if base.contains(key)? {
+            return Ok(true);
+        }
+        Ok(self
+            .read_delta_keys(manifest.delta_count)?
             .iter()
-            .map(RunReader::open)
-            .collect::<Result<_>>()?;
-        let mut heap: BinaryHeap<Reverse<(String, usize, u64)>> = BinaryHeap::new();
-        for (run_index, reader) in readers.iter_mut().enumerate() {
-            if reader.count > 0 {
-                heap.push(Reverse((reader.read_key(0)?, run_index, 0)));
-            }
+            .any(|candidate| candidate == key))
+    }
+
+    fn append_delta(&self, manifest: &mut Manifest, key: &str) -> Result<()> {
+        if manifest.delta_count >= MAX_DELTA_RECORDS {
+            self.compact(manifest)?;
+            *manifest = self.read_manifest()?;
         }
-        let mut last: Option<String> = None;
-        while let Some(Reverse((key, run_index, record_index))) = heap.pop() {
-            if last.as_deref() != Some(key.as_str()) {
-                writer.push(&key)?;
-                last = Some(key.clone());
-            }
-            let next = record_index + 1;
-            if next < readers[run_index].count {
-                let next_key = readers[run_index].read_key(next)?;
-                heap.push(Reverse((next_key, run_index, next)));
-            }
+        let delta_path = self.index_root.join(DELTA_FILE);
+        let expected_len = manifest
+            .delta_count
+            .checked_mul(RECORD_BYTES as u64)
+            .ok_or(StoreError::LimitExceeded)?;
+        reject_symlink_or_non_file_if_present(&delta_path, "time-index delta")?;
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .read(true)
+            .open(&delta_path)?;
+        if file.metadata()?.len() != expected_len {
+            return Err(StoreError::Corrupt);
         }
-        let _ = writer.finish(level)?;
+        file.write_all(&encode_record(key, manifest.delta_count)?)?;
+        file.sync_all()?;
+
+        manifest.delta_count = manifest
+            .delta_count
+            .checked_add(1)
+            .ok_or(StoreError::LimitExceeded)?;
+        self.write_manifest(manifest)
+    }
+
+    fn delta_record_count(&self) -> Result<u64> {
+        let path = self.index_root.join(DELTA_FILE);
+        let metadata = match fs::symlink_metadata(&path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(StoreError::Io("time-index delta is a symlink".to_string()))
+            }
+            Ok(metadata) if !metadata.is_file() => {
+                return Err(StoreError::Io(
+                    "time-index delta is not a regular file".to_string(),
+                ))
+            }
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(StoreError::Corrupt)
+            }
+            Err(error) => return Err(error.into()),
+        };
+        if metadata.len() % RECORD_BYTES as u64 != 0 {
+            return Err(StoreError::Corrupt);
+        }
+        let count = metadata.len() / RECORD_BYTES as u64;
+        if count > MAX_DELTA_RECORDS.saturating_add(1) {
+            return Err(StoreError::LimitExceeded);
+        }
+        Ok(count)
+    }
+
+    fn read_delta_key(&self, index: u64) -> Result<String> {
+        let path = self.index_root.join(DELTA_FILE);
+        let mut file = open_regular(&path, "time-index delta")?;
+        let offset = index
+            .checked_mul(RECORD_BYTES as u64)
+            .ok_or(StoreError::Corrupt)?;
+        file.seek(SeekFrom::Start(offset))?;
+        let mut record = [0u8; RECORD_BYTES];
+        file.read_exact(&mut record)?;
+        decode_record(&record, index)
+    }
+
+    fn read_delta_keys(&self, count: u64) -> Result<Vec<String>> {
+        if count > MAX_DELTA_RECORDS || self.delta_record_count()? != count {
+            return Err(StoreError::Corrupt);
+        }
+        let capacity = usize::try_from(count).map_err(|_| StoreError::LimitExceeded)?;
+        let mut keys = Vec::with_capacity(capacity);
+        for index in 0..count {
+            keys.push(self.read_delta_key(index)?);
+        }
+        Ok(keys)
+    }
+
+    fn truncate_delta(&self, count: u64) -> Result<()> {
+        let path = self.index_root.join(DELTA_FILE);
+        let file = OpenOptions::new().read(true).write(true).open(path)?;
+        file.set_len(
+            count
+                .checked_mul(RECORD_BYTES as u64)
+                .ok_or(StoreError::LimitExceeded)?,
+        )?;
+        file.sync_all()?;
         Ok(())
+    }
+
+    fn compact(&self, manifest: &Manifest) -> Result<()> {
+        if manifest.delta_count == 0 {
+            return Ok(());
+        }
+        let mut delta = self.read_delta_keys(manifest.delta_count)?;
+        delta.sort();
+        delta.dedup();
+
+        let next_generation = manifest
+            .generation
+            .checked_add(1)
+            .ok_or(StoreError::LimitExceeded)?;
+        let mut writer = BaseWriter::new(&self.index_root, next_generation)?;
+        let mut base = BaseReader::open(
+            &base_path(&self.index_root, manifest.generation),
+            manifest.base_count,
+        )?;
+
+        let mut base_index = 0u64;
+        let mut delta_index = 0usize;
+        while base_index < base.count || delta_index < delta.len() {
+            let base_key = if base_index < base.count {
+                Some(base.read_key(base_index)?)
+            } else {
+                None
+            };
+            let delta_key = delta.get(delta_index);
+            match (base_key.as_deref(), delta_key) {
+                (Some(left), Some(right)) if left < right.as_str() => {
+                    writer.push(left)?;
+                    base_index += 1;
+                }
+                (Some(left), Some(right)) if left == right.as_str() => {
+                    writer.push(left)?;
+                    base_index += 1;
+                    delta_index += 1;
+                }
+                (Some(_), Some(right)) => {
+                    writer.push(right)?;
+                    delta_index += 1;
+                }
+                (Some(left), None) => {
+                    writer.push(left)?;
+                    base_index += 1;
+                }
+                (None, Some(right)) => {
+                    writer.push(right)?;
+                    delta_index += 1;
+                }
+                (None, None) => break,
+            }
+        }
+
+        let (_, base_count) = writer.finish()?;
+        let next = Manifest {
+            generation: next_generation,
+            base_count,
+            delta_count: 0,
+        };
+
+        // If power is lost between these writes, the old manifest and empty
+        // delta disagree and the next open rebuilds from authoritative rows.
+        // After the manifest switch the new base is complete; the old base is
+        // only an orphan and never participates in a query.
+        atomic_write(&self.index_root.join(DELTA_FILE), b"")?;
+        self.write_manifest(&next)?;
+        remove_regular_if_present(
+            &base_path(&self.index_root, manifest.generation),
+            "superseded time-index base",
+        )?;
+        self.cleanup_orphan_bases(next_generation)
+    }
+
+    fn query_forward(
+        &self,
+        manifest: &Manifest,
+        after: &str,
+        limit: usize,
+    ) -> Result<(Vec<(String, Vec<u8>)>, bool)> {
+        validate_after_key(after)?;
+        let mut delta = self.read_delta_keys(manifest.delta_count)?;
+        delta.retain(|key| key.as_str() > after);
+        delta.sort();
+        delta.dedup();
+
+        let extra = delta.len();
+        let base_budget = limit
+            .checked_add(extra)
+            .ok_or(StoreError::LimitExceeded)?;
+        let mut candidates = delta;
+        let mut base = BaseReader::open(
+            &base_path(&self.index_root, manifest.generation),
+            manifest.base_count,
+        )?;
+        let mut index = base.first_greater_than(after)?;
+        while index < base.count && candidates.len() < base_budget.saturating_add(extra) {
+            candidates.push(base.read_key(index)?);
+            index += 1;
+        }
+        candidates.sort();
+        candidates.dedup();
+        self.resolve_candidates(candidates.into_iter(), limit)
+    }
+
+    fn query_reverse(
+        &self,
+        manifest: &Manifest,
+        limit: usize,
+    ) -> Result<(Vec<(String, Vec<u8>)>, bool)> {
+        let mut delta = self.read_delta_keys(manifest.delta_count)?;
+        delta.sort_by(|left, right| right.cmp(left));
+        delta.dedup();
+
+        let extra = delta.len();
+        let base_budget = limit
+            .checked_add(extra)
+            .ok_or(StoreError::LimitExceeded)?;
+        let mut candidates = delta;
+        let mut base = BaseReader::open(
+            &base_path(&self.index_root, manifest.generation),
+            manifest.base_count,
+        )?;
+        let mut remaining = base.count;
+        while remaining > 0 && candidates.len() < base_budget.saturating_add(extra) {
+            remaining -= 1;
+            candidates.push(base.read_key(remaining)?);
+        }
+        candidates.sort_by(|left, right| right.cmp(left));
+        candidates.dedup();
+        self.resolve_candidates(candidates.into_iter(), limit)
+    }
+
+    fn resolve_candidates(
+        &self,
+        candidates: impl Iterator<Item = String>,
+        limit: usize,
+    ) -> Result<(Vec<(String, Vec<u8>)>, bool)> {
+        let mut rows = Vec::with_capacity(limit);
+        let mut stale = false;
+        for key in candidates {
+            if rows.len() >= limit {
+                break;
+            }
+            match read_meta_value(self.root, &key)? {
+                Some(value) => rows.push((key, value)),
+                None => stale = true,
+            }
+        }
+        Ok((rows, stale))
     }
 
     fn rebuild(&self) -> Result<usize> {
-        self.clear_runs()?;
-        atomic_write(&self.index_root.join(GENERATION_FILE), &0u64.to_be_bytes())?;
-
-        let generation = self.next_generation()?;
-        let mut writer = RunWriter::new(&self.index_root, generation)?;
+        self.clear_base_files()?;
+        let generation = 1;
+        let mut writer = BaseWriter::new(&self.index_root, generation)?;
         visit_legacy_time_keys(self.root, |key| writer.push(key))?;
         let count = usize::try_from(writer.count).map_err(|_| StoreError::LimitExceeded)?;
-        let level = level_for_count(writer.count);
-        let _ = writer.finish(level)?;
+        let (_, base_count) = writer.finish()?;
+
+        atomic_write(&self.index_root.join(DELTA_FILE), b"")?;
+        self.write_manifest(&Manifest {
+            generation,
+            base_count,
+            delta_count: 0,
+        })?;
         atomic_write(&self.index_root.join(MARKER_FILE), MARKER)?;
         self.clear_pending()?;
         Ok(count)
     }
 
-    fn clear_runs(&self) -> Result<()> {
-        let runs_path = self.index_root.join(RUNS_DIR);
-        for entry in fs::read_dir(runs_path)? {
+    fn clear_base_files(&self) -> Result<()> {
+        for entry in fs::read_dir(&self.index_root)? {
             let entry = entry?;
+            let path = entry.path();
             let file_type = entry.file_type()?;
-            if file_type.is_symlink() || !file_type.is_file() {
+            if file_type.is_symlink() {
                 return Err(StoreError::Io(
-                    "unsafe entry in ordered time-index runs".to_string(),
+                    "symlink in time-index directory".to_string(),
                 ));
             }
-            fs::remove_file(entry.path())?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with("base-") && (name.ends_with(".idx") || name.ends_with(".tmp")) {
+                if !file_type.is_file() {
+                    return Err(StoreError::Io(
+                        "non-file time-index base entry".to_string(),
+                    ));
+                }
+                fs::remove_file(path)?;
+            }
         }
         Ok(())
     }
 
-    fn query_forward(&self, after: &str, limit: usize) -> Result<(Vec<(String, Vec<u8>)>, bool)> {
-        validate_after_key(after)?;
-        let runs = self.list_runs()?;
-        let mut readers: Vec<RunReader> = runs
-            .iter()
-            .map(RunReader::open)
-            .collect::<Result<_>>()?;
-        let mut heap: BinaryHeap<Reverse<(String, usize, u64)>> = BinaryHeap::new();
-        for (run_index, reader) in readers.iter_mut().enumerate() {
-            let record_index = reader.first_greater_than(after)?;
-            if record_index < reader.count {
-                let key = reader.read_key(record_index)?;
-                heap.push(Reverse((key, run_index, record_index)));
+    fn cleanup_orphan_bases(&self, current_generation: u64) -> Result<()> {
+        let current_name = format!("base-{current_generation:020}.idx");
+        let mut base_files = 0usize;
+        for entry in fs::read_dir(&self.index_root)? {
+            let entry = entry?;
+            let path = entry.path();
+            let file_type = entry.file_type()?;
+            if file_type.is_symlink() {
+                return Err(StoreError::Io(
+                    "symlink in time-index directory".to_string(),
+                ));
             }
-        }
-        let mut rows = Vec::with_capacity(limit);
-        let mut last: Option<String> = None;
-        let mut stale = false;
-        while rows.len() < limit {
-            let Some(Reverse((key, run_index, record_index))) = heap.pop() else {
-                break;
-            };
-            if last.as_deref() != Some(key.as_str()) {
-                match read_meta_value(self.root, &key)? {
-                    Some(value) => rows.push((key.clone(), value)),
-                    None => stale = true,
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with("base-") && name.ends_with(".tmp") {
+                if !file_type.is_file() {
+                    return Err(StoreError::Io(
+                        "non-file time-index base temporary".to_string(),
+                    ));
                 }
-                last = Some(key.clone());
-            }
-            let next = record_index + 1;
-            if next < readers[run_index].count {
-                let next_key = readers[run_index].read_key(next)?;
-                heap.push(Reverse((next_key, run_index, next)));
-            }
-        }
-        Ok((rows, stale))
-    }
-
-    fn query_reverse(&self, limit: usize) -> Result<(Vec<(String, Vec<u8>)>, bool)> {
-        let runs = self.list_runs()?;
-        let mut readers: Vec<RunReader> = runs
-            .iter()
-            .map(RunReader::open)
-            .collect::<Result<_>>()?;
-        let mut heap: BinaryHeap<(String, usize, u64)> = BinaryHeap::new();
-        for (run_index, reader) in readers.iter_mut().enumerate() {
-            if reader.count > 0 {
-                let record_index = reader.count - 1;
-                heap.push((reader.read_key(record_index)?, run_index, record_index));
-            }
-        }
-        let mut rows = Vec::with_capacity(limit);
-        let mut last: Option<String> = None;
-        let mut stale = false;
-        while rows.len() < limit {
-            let Some((key, run_index, record_index)) = heap.pop() else {
-                break;
-            };
-            if last.as_deref() != Some(key.as_str()) {
-                match read_meta_value(self.root, &key)? {
-                    Some(value) => rows.push((key.clone(), value)),
-                    None => stale = true,
+                fs::remove_file(path)?;
+            } else if name.starts_with("base-") && name.ends_with(".idx") {
+                base_files += 1;
+                if base_files > 8 {
+                    return Err(StoreError::LimitExceeded);
                 }
-                last = Some(key.clone());
-            }
-            if record_index > 0 {
-                let previous = record_index - 1;
-                let previous_key = readers[run_index].read_key(previous)?;
-                heap.push((previous_key, run_index, previous));
+                if name != current_name {
+                    if !file_type.is_file() {
+                        return Err(StoreError::Io(
+                            "non-file time-index base".to_string(),
+                        ));
+                    }
+                    fs::remove_file(path)?;
+                }
             }
         }
-        Ok((rows, stale))
+        Ok(())
     }
 }
 
@@ -459,9 +668,18 @@ where
     with_locked(root, |index| {
         index.write_pending(key)?;
         write_metadata()?;
-        index.write_single_run(key)?;
-        index.compact()?;
-        index.clear_pending()
+
+        let mut manifest = index.read_manifest()?;
+        if !index.contains_key(&manifest, key)? {
+            index.append_delta(&mut manifest, key)?;
+        }
+        index.clear_pending()?;
+
+        let manifest = index.read_manifest()?;
+        if manifest.delta_count >= MAX_DELTA_RECORDS {
+            index.compact(&manifest)?;
+        }
+        Ok(())
     })
 }
 
@@ -470,17 +688,20 @@ pub(crate) fn last(root: &Path, limit: usize) -> Result<Vec<(String, Vec<u8>)>> 
         return Ok(Vec::new());
     }
     with_locked(root, |index| {
-        let (rows, stale) = match index.query_reverse(limit) {
+        let manifest = index.read_manifest()?;
+        let (rows, stale) = match index.query_reverse(&manifest, limit) {
             Ok(result) => result,
             Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
                 index.rebuild()?;
-                index.query_reverse(limit)?
+                let manifest = index.read_manifest()?;
+                index.query_reverse(&manifest, limit)?
             }
             Err(error) => return Err(error),
         };
         if stale {
             index.rebuild()?;
-            return index.query_reverse(limit).map(|result| result.0);
+            let manifest = index.read_manifest()?;
+            return index.query_reverse(&manifest, limit).map(|result| result.0);
         }
         Ok(rows)
     })
@@ -495,17 +716,22 @@ pub(crate) fn page(
         return Ok(Vec::new());
     }
     with_locked(root, |index| {
-        let (rows, stale) = match index.query_forward(after, limit) {
+        let manifest = index.read_manifest()?;
+        let (rows, stale) = match index.query_forward(&manifest, after, limit) {
             Ok(result) => result,
             Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
                 index.rebuild()?;
-                index.query_forward(after, limit)?
+                let manifest = index.read_manifest()?;
+                index.query_forward(&manifest, after, limit)?
             }
             Err(error) => return Err(error),
         };
         if stale {
             index.rebuild()?;
-            return index.query_forward(after, limit).map(|result| result.0);
+            let manifest = index.read_manifest()?;
+            return index
+                .query_forward(&manifest, after, limit)
+                .map(|result| result.0);
         }
         Ok(rows)
     })
@@ -527,10 +753,9 @@ fn with_locked<T>(root: &Path, operation: impl FnOnce(&LockedIndex<'_>) -> Resul
         .open(lock_path)?;
     #[allow(clippy::incompatible_msrv)]
     lock.lock()?;
+
     let index = LockedIndex { root, index_root };
-    index.ensure_initialized()?;
-    index.recover_pending()?;
-    index.compact()?;
+    index.prepare()?;
     operation(&index)
 }
 
@@ -540,7 +765,6 @@ fn ensure_layout(root: &Path) -> Result<PathBuf> {
     ensure_existing_or_create_directory(&ordered, "ordered-index directory")?;
     let index_root = root.join(INDEX_DIR);
     ensure_existing_or_create_directory(&index_root, "time-index directory")?;
-    ensure_existing_or_create_directory(&index_root.join(RUNS_DIR), "time-index runs")?;
     Ok(index_root)
 }
 
@@ -571,6 +795,20 @@ fn reject_symlink_or_non_file_if_present(path: &Path, label: &str) -> Result<()>
         }
         Ok(_) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn open_regular(path: &Path, label: &str) -> Result<File> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            Err(StoreError::Io(format!("{label} is a symlink")))
+        }
+        Ok(metadata) if !metadata.is_file() => {
+            Err(StoreError::Io(format!("{label} is not a regular file")))
+        }
+        Ok(_) => Ok(File::open(path)?),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(StoreError::Corrupt),
         Err(error) => Err(error.into()),
     }
 }
@@ -621,17 +859,21 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn write_run_header(file: &mut File, level: u8, count: u64) -> Result<()> {
-    file.write_all(RUN_MAGIC)?;
-    file.write_all(&RUN_VERSION.to_be_bytes())?;
-    file.write_all(&[level, 0])?;
+fn base_path(index_root: &Path, generation: u64) -> PathBuf {
+    index_root.join(format!("base-{generation:020}.idx"))
+}
+
+fn write_base_header(file: &mut File, count: u64) -> Result<()> {
+    file.write_all(BASE_MAGIC)?;
+    file.write_all(&BASE_VERSION.to_be_bytes())?;
+    file.write_all(&[0, 0])?;
     file.write_all(&count.to_be_bytes())?;
     Ok(())
 }
 
-fn read_run_header(file: &mut File) -> Result<(u8, u64)> {
+fn read_base_header(file: &mut File) -> Result<u64> {
     file.seek(SeekFrom::Start(0))?;
-    let mut header = [0u8; RUN_HEADER_BYTES as usize];
+    let mut header = [0u8; BASE_HEADER_BYTES as usize];
     file.read_exact(&mut header).map_err(|error| {
         if error.kind() == std::io::ErrorKind::UnexpectedEof {
             StoreError::Corrupt
@@ -639,17 +881,17 @@ fn read_run_header(file: &mut File) -> Result<(u8, u64)> {
             error.into()
         }
     })?;
-    if &header[..8] != RUN_MAGIC || u16::from_be_bytes([header[8], header[9]]) != RUN_VERSION {
-        return Err(StoreError::Corrupt);
-    }
-    let level = header[10];
-    if level >= MAX_LEVELS || header[11] != 0 {
+    if &header[..8] != BASE_MAGIC
+        || u16::from_be_bytes([header[8], header[9]]) != BASE_VERSION
+        || header[10] != 0
+        || header[11] != 0
+    {
         return Err(StoreError::Corrupt);
     }
     let mut raw_count = [0u8; 8];
     raw_count.copy_from_slice(&header[12..20]);
     let count = u64::from_be_bytes(raw_count);
-    let expected = RUN_HEADER_BYTES
+    let expected = BASE_HEADER_BYTES
         .checked_add(
             count
                 .checked_mul(RECORD_BYTES as u64)
@@ -659,7 +901,52 @@ fn read_run_header(file: &mut File) -> Result<(u8, u64)> {
     if file.metadata()?.len() != expected {
         return Err(StoreError::Corrupt);
     }
-    Ok((level, count))
+    Ok(count)
+}
+
+fn encode_manifest(manifest: &Manifest) -> [u8; MANIFEST_BYTES] {
+    let mut bytes = [0u8; MANIFEST_BYTES];
+    bytes[..8].copy_from_slice(MANIFEST_MAGIC);
+    bytes[8..10].copy_from_slice(&MANIFEST_VERSION.to_be_bytes());
+    bytes[12..20].copy_from_slice(&manifest.generation.to_be_bytes());
+    bytes[20..28].copy_from_slice(&manifest.base_count.to_be_bytes());
+    bytes[28..36].copy_from_slice(&manifest.delta_count.to_be_bytes());
+    let checksum = bytes_checksum(&bytes[..36]);
+    bytes[36..44].copy_from_slice(&checksum.to_be_bytes());
+    bytes
+}
+
+fn decode_manifest(bytes: &[u8]) -> Result<Manifest> {
+    if bytes.len() != MANIFEST_BYTES
+        || &bytes[..8] != MANIFEST_MAGIC
+        || u16::from_be_bytes([bytes[8], bytes[9]]) != MANIFEST_VERSION
+        || bytes[10] != 0
+        || bytes[11] != 0
+    {
+        return Err(StoreError::Corrupt);
+    }
+    let mut raw_checksum = [0u8; 8];
+    raw_checksum.copy_from_slice(&bytes[36..44]);
+    if u64::from_be_bytes(raw_checksum) != bytes_checksum(&bytes[..36]) {
+        return Err(StoreError::Corrupt);
+    }
+    let generation = read_u64(&bytes[12..20]);
+    let base_count = read_u64(&bytes[20..28]);
+    let delta_count = read_u64(&bytes[28..36]);
+    if generation == 0 || delta_count > MAX_DELTA_RECORDS {
+        return Err(StoreError::Corrupt);
+    }
+    Ok(Manifest {
+        generation,
+        base_count,
+        delta_count,
+    })
+}
+
+fn read_u64(bytes: &[u8]) -> u64 {
+    let mut raw = [0u8; 8];
+    raw.copy_from_slice(bytes);
+    u64::from_be_bytes(raw)
 }
 
 fn encode_record(key: &str, ordinal: u64) -> Result<[u8; RECORD_BYTES]> {
@@ -678,9 +965,7 @@ fn encode_record(key: &str, ordinal: u64) -> Result<[u8; RECORD_BYTES]> {
 }
 
 fn decode_record(record: &[u8; RECORD_BYTES], expected_ordinal: u64) -> Result<String> {
-    let mut raw_ordinal = [0u8; 8];
-    raw_ordinal.copy_from_slice(&record[..8]);
-    let ordinal = u64::from_be_bytes(raw_ordinal);
+    let ordinal = read_u64(&record[..8]);
     if ordinal != expected_ordinal {
         return Err(StoreError::Corrupt);
     }
@@ -695,9 +980,7 @@ fn decode_record(record: &[u8; RECORD_BYTES], expected_ordinal: u64) -> Result<S
         return Err(StoreError::Corrupt);
     }
     let key_bytes = &record[10..10 + length];
-    let mut raw_checksum = [0u8; 8];
-    raw_checksum.copy_from_slice(&record[10 + MAX_KEY_BYTES..]);
-    if u64::from_be_bytes(raw_checksum) != record_checksum(ordinal, key_bytes) {
+    if read_u64(&record[10 + MAX_KEY_BYTES..]) != record_checksum(ordinal, key_bytes) {
         return Err(StoreError::Corrupt);
     }
     let key = String::from_utf8(key_bytes.to_vec()).map_err(|_| StoreError::Corrupt)?;
@@ -706,8 +989,17 @@ fn decode_record(record: &[u8; RECORD_BYTES], expected_ordinal: u64) -> Result<S
 }
 
 fn record_checksum(ordinal: u64, key: &[u8]) -> u64 {
+    let mut bytes = ordinal.to_be_bytes().to_vec();
+    bytes.extend_from_slice(key);
+    bytes_checksum(&bytes)
+}
+
+fn bytes_checksum(bytes: &[u8]) -> u64 {
+    // Non-authoritative corruption detector only. Metadata rows and object
+    // content addresses remain the source of truth; this is not a signature or
+    // a new cryptographic construction.
     let mut hash = 0xcbf29ce484222325u64;
-    for byte in ordinal.to_be_bytes().iter().chain(key.iter()) {
+    for byte in bytes {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x100000001b3);
     }
@@ -736,9 +1028,7 @@ fn decode_pending(bytes: &[u8]) -> Result<String> {
         return Err(StoreError::Corrupt);
     }
     let key_bytes = &bytes[10..10 + length];
-    let mut raw_checksum = [0u8; 8];
-    raw_checksum.copy_from_slice(&bytes[10 + length..]);
-    if u64::from_be_bytes(raw_checksum) != record_checksum(0, key_bytes) {
+    if read_u64(&bytes[10 + length..]) != record_checksum(0, key_bytes) {
         return Err(StoreError::Corrupt);
     }
     let key = String::from_utf8(key_bytes.to_vec()).map_err(|_| StoreError::Corrupt)?;
@@ -759,8 +1049,9 @@ fn validate_time_key(key: &str) -> Result<()> {
     {
         return Err(StoreError::Corrupt);
     }
-    ObjectId::parse(object_id).map_err(StoreError::Object)?;
-    Ok(())
+    ObjectId::parse(object_id)
+        .map(|_| ())
+        .map_err(|_| StoreError::Corrupt)
 }
 
 fn validate_after_key(key: &str) -> Result<()> {
@@ -779,19 +1070,6 @@ fn validate_after_key(key: &str) -> Result<()> {
     } else {
         validate_time_key(key).map_err(|_| StoreError::InvalidCursor)
     }
-}
-
-fn level_for_count(count: u64) -> u8 {
-    if count <= 1 {
-        return 0;
-    }
-    let mut level = 0u8;
-    let mut capacity = 1u64;
-    while level + 1 < MAX_LEVELS && count > capacity {
-        capacity = capacity.saturating_mul(MAX_RUNS_PER_LEVEL as u64 + 1);
-        level += 1;
-    }
-    level
 }
 
 fn read_meta_value(root: &Path, key: &str) -> Result<Option<Vec<u8>>> {
@@ -895,7 +1173,7 @@ fn visit_legacy_time_keys(root: &Path, mut visitor: impl FnMut(&str) -> Result<(
                 .file_name()
                 .into_string()
                 .map_err(|_| StoreError::Corrupt)?;
-            ObjectId::parse(&object_id).map_err(StoreError::Object)?;
+            ObjectId::parse(&object_id).map_err(|_| StoreError::Corrupt)?;
             object_ids.push(object_id);
         }
         object_ids.sort();
@@ -923,33 +1201,45 @@ mod tests {
         ))
     }
 
-    #[test]
-    fn record_round_trip_detects_reordering_and_corruption() {
-        let key = "idx/time/00000000000000000001/z2DgV4mM8hVtw4d7xAM";
-        // Use a real structurally valid id from a tiny object rather than
-        // depending on a handwritten multibase vector.
-        let root = did_mini::Controller::incept_single_from_seeds(&[1; 32], &[2; 32]).unwrap();
+    fn valid_key(timestamp: u64, seed: u8) -> String {
+        let controller =
+            did_mini::Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32])
+                .unwrap();
         let object = mini_objects::ObjectBuilder::new(mini_objects::ObjectType::POST)
-            .sign(&root.did(), &root)
+            .timestamp_ms(timestamp)
+            .sign(&controller.did(), &controller)
             .unwrap();
-        let key = format!("idx/time/00000000000000000001/{}", object.id().as_str());
+        format!(
+            "idx/time/{timestamp:020}/{}",
+            object.id().as_str()
+        )
+    }
+
+    #[test]
+    fn record_and_manifest_round_trip_detect_corruption() {
+        let key = valid_key(1, 1);
         let record = encode_record(&key, 7).unwrap();
         assert_eq!(decode_record(&record, 7).unwrap(), key);
         assert!(decode_record(&record, 6).is_err());
-
         let mut damaged = record;
         damaged[11] ^= 1;
         assert!(decode_record(&damaged, 7).is_err());
-        let _ = key;
+
+        let manifest = Manifest {
+            generation: 9,
+            base_count: 100,
+            delta_count: 3,
+        };
+        let encoded = encode_manifest(&manifest);
+        assert_eq!(decode_manifest(&encoded).unwrap(), manifest);
+        let mut damaged_manifest = encoded;
+        damaged_manifest[20] ^= 1;
+        assert!(decode_manifest(&damaged_manifest).is_err());
     }
 
     #[test]
     fn pending_journal_round_trips() {
-        let root = did_mini::Controller::incept_single_from_seeds(&[3; 32], &[4; 32]).unwrap();
-        let object = mini_objects::ObjectBuilder::new(mini_objects::ObjectType::POST)
-            .sign(&root.did(), &root)
-            .unwrap();
-        let key = format!("idx/time/00000000000000000002/{}", object.id().as_str());
+        let key = valid_key(2, 3);
         assert_eq!(decode_pending(&encode_pending(&key).unwrap()).unwrap(), key);
     }
 
@@ -958,11 +1248,7 @@ mod tests {
         let root = temp_root("journal");
         fs::create_dir_all(root.join("blobs")).unwrap();
         fs::create_dir_all(root.join("meta/idx/time/00000000000000000003")).unwrap();
-        let controller = did_mini::Controller::incept_single_from_seeds(&[5; 32], &[6; 32]).unwrap();
-        let object = mini_objects::ObjectBuilder::new(mini_objects::ObjectType::POST)
-            .sign(&controller.did(), &controller)
-            .unwrap();
-        let key = format!("idx/time/00000000000000000003/{}", object.id().as_str());
+        let key = valid_key(3, 5);
 
         with_locked(&root, |index| {
             index.write_pending(&key)?;
@@ -973,6 +1259,26 @@ mod tests {
 
         let rows = last(&root, 10).unwrap();
         assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0, key);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_missing_manifested_base_forces_rebuild() {
+        let root = temp_root("missing-base");
+        fs::create_dir_all(root.join("blobs")).unwrap();
+        fs::create_dir_all(root.join("meta/idx/time/00000000000000000004")).unwrap();
+        let key = valid_key(4, 7);
+        fs::write(root.join("meta").join(&key), b"").unwrap();
+        assert_eq!(rebuild(&root).unwrap(), 1);
+
+        let manifest = with_locked(&root, |index| index.read_manifest()).unwrap();
+        fs::remove_file(base_path(
+            &root.join(INDEX_DIR),
+            manifest.generation,
+        ))
+        .unwrap();
+        let rows = last(&root, 2).unwrap();
         assert_eq!(rows[0].0, key);
         let _ = fs::remove_dir_all(root);
     }
