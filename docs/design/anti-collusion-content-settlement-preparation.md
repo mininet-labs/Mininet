@@ -298,8 +298,10 @@ checked-in fixed report; it moves no value and selects no production
 construction. Its genuine-delivery collusion vector drains 100% of the bounded
 protocol budget against a precommitted 10% loss gate. A second attack gives
 claimants the realized audit seed before claim construction; all 60 submitted
-claims grind outside the 5% sample. Cross-policy semantic overlap also remains
-unmeasured without a global activity registry, so the report sets
+claims grind outside the 5% sample. The configured replay-state capacity is
+9,600,000 estimated bytes against an 8 MiB ceiling, so that gate also fails.
+Cross-policy semantic overlap remains unmeasured without a global activity
+registry, so the report sets
 `phase3_authorized` to `false`. Phases 3-9 remain unstarted and
 unauthorized.
 
@@ -333,7 +335,10 @@ This doctrine fails if any implementation:
 - lets payment affect organic ranking or governance; or
 - continues operating a subsidy program after its objective cap/audit safety
   assumptions fail; or
-- reveals target-selection entropy while claimants can still grind claim IDs.
+- reveals target-selection entropy while claimants can still grind claim IDs;
+  or
+- reports a bounded-state PASS from friendly observed fixtures while the
+  configured adversarial capacity exceeds the threshold.
 
 This doctrine can drift. Every later F5 proposal must re-check its factual
 references against then-current code and truth-sync this file and

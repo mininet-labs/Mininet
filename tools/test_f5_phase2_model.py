@@ -134,6 +134,36 @@ class TranscriptTests(unittest.TestCase):
             MODEL.model_commitment("delivery-evidence", base),
         )
 
+    def test_recomputed_pre_policy_transcript_is_rejected(self) -> None:
+        mutated = replace(self.transcript, issued_at_ms=-1)
+        base = {
+            "version": mutated.version,
+            "domain": mutated.domain,
+            "policy_commitment": mutated.policy_commitment,
+            "settlement_class": mutated.settlement_class.value,
+            "service_class": mutated.service_class.value,
+            "request_event_commitment": mutated.request_event_commitment,
+            "requester_scope": mutated.requester_scope,
+            "provider_scope": mutated.provider_scope,
+            "challenge": mutated.challenge,
+            "response_commitment": mutated.response_commitment,
+            "issued_at_ms": mutated.issued_at_ms,
+            "expires_at_ms": mutated.expires_at_ms,
+        }
+        mutated = replace(
+            mutated,
+            evidence_commitment=MODEL.model_commitment(MODEL.EVIDENCE_DOMAIN, base),
+        )
+        mutated_claim = replace(
+            self.claim,
+            delivery_evidence_commitment=mutated.evidence_commitment,
+        )
+        mutated_claim = replace(
+            mutated_claim,
+            claim_id=mutated_claim.expected_claim_id(),
+        )
+        self.assertFalse(mutated.verify_for(self.policy, mutated_claim, now_ms=1_000))
+
     def test_transcript_expiry_is_enforced(self) -> None:
         self.assertFalse(
             self.transcript.verify_for(self.policy, self.claim, now_ms=2_001)
@@ -314,6 +344,34 @@ class SettlementInvariantTests(unittest.TestCase):
         self.assertEqual(len(digests), 1)
         self.assertEqual(len(accepted_sets), 1)
         self.assertEqual(len(next(iter(accepted_sets))), 3)
+
+    def test_unknown_claim_schema_version_is_rejected(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.REQUESTER_FUNDED,
+            "claim-version",
+            budget=0,
+        )
+        model = MODEL.SettlementModel(payer_balances={"payer": 20})
+        model.register_policy(policy)
+        claim, transcript = MODEL.make_claim(
+            policy,
+            event="claim-version-event",
+            requester="payer",
+            funder="payer",
+            provider="provider",
+            amount=10,
+            rate_tag=None,
+        )
+        unknown = replace(claim, version=MODEL.MODEL_VERSION + 1)
+        unknown = replace(unknown, claim_id=unknown.expected_claim_id())
+        outcome = model.submit(
+            unknown,
+            transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=1_000,
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.UNSUPPORTED_VERSION)
+        self.assertEqual(model.payer_balances, {"payer": 20})
 
     def test_program_claim_must_match_policy_funding_source(self) -> None:
         policy = MODEL.make_policy(
@@ -767,6 +825,13 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(gates["maximum-budget-overrun"]["status"], "PASS")
         self.assertEqual(gates["maximum-colluding-extraction"]["status"], "FAIL")
         self.assertEqual(gates["audit-randomness-grinding-resistance"]["status"], "FAIL")
+        self.assertEqual(gates["retained-state-per-policy-epoch"]["status"], "FAIL")
+        self.assertEqual(
+            gates["retained-state-per-policy-epoch"]["observed"],
+            9_600_000,
+        )
+        self.assertEqual(gates["claim-plus-proof-wire-size"]["observed"], 16_384)
+        self.assertEqual(gates["abstract-verification-work"]["observed"], 10_000)
         self.assertEqual(gates["honest-false-rejection-rate"]["status"], "PARTIAL")
         self.assertEqual(gates["issuer-concentration"]["status"], "PARTIAL")
         self.assertEqual(gates["weak-device-verification-cpu"]["status"], "PARTIAL")

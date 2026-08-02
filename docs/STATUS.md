@@ -1260,7 +1260,9 @@ the top development priority.
   of a bounded protocol budget against a precommitted 10% ceiling. A
   second gate **fails**: when the realized audit seed is known while claim
   inputs remain variable, all 60 submitted IDs grind outside the 5% sample.
-  A separate vector remains **partial** by design: two independently committed
+  A third gate **fails** after measuring configured rather than friendly
+  observed capacity: 100,000 replay keys estimate to 9,600,000 bytes,
+  above the 8 MiB ceiling. A separate vector remains **partial** by design: two independently committed
   policies can pay the same event because Mininet has no global activity
   registry; preventing unwanted overlap needs an explicit privacy-
   preserving policy-family rule. Issuer/auditor operational independence,

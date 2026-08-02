@@ -32,14 +32,16 @@ The result is deliberately not a success claim:
 | Delivery integrity | **PARTIAL** | A transcript binds a fresh challenge and typed response, but this abstract model has no real transport, clock, signature, storage, or cryptographic challenge implementation. |
 | Collusion resistance | **FAIL** | One hundred attacker-controlled requester/provider pairs with unique roots/tags perform real delivery and drain 100% of a bounded protocol budget. The gate permits at most 10%. |
 | Adaptive audit sampling | **FAIL** | If the realized sampling seed is known while claim-committed inputs remain variable, attackers grind 60 claim IDs so every submitted claim avoids the 5% sample. |
+| Configured retained-state capacity | **FAIL** | The default modeled policy allows 100,000 replay keys, estimated at 9,600,000 bytes, above the precommitted 8 MiB ceiling. Fixture state was smaller, but the gate must measure what policy permits. |
 | Issuer/auditor independence | **PARTIAL** | Threshold counts and outage behavior are modeled, but no construction or independently operated set is selected or measured. Several keys may still be one authority. |
 | Privacy | **PARTIAL** | The declared cross-context score is zero and root DIDs/raw queries are excluded, but policy-local pairwise linkability and network metadata are not eliminated or measured. |
 | Weak-device cost | **PARTIAL** | Wire size, retained-state estimate, and abstract work are bounded; physical CPU and peak-memory measurements do not exist. |
 
 **Overall Phase-2 judgment:** the accounting shell resists unbounded issuance,
 replay, and central permission over voluntary payments, but the design does not
-yet resist economically valid collusion or adaptive sampling grind. Therefore
-the generated report sets
+yet resist economically valid collusion or adaptive sampling grind, and its
+default configured replay-state capacity exceeds the precommitted memory ceiling.
+Therefore the generated report sets
 `phase3_authorized` to `false`. This decision does not silently advance the
 roadmap.
 
@@ -168,8 +170,10 @@ commitment and must apply to a future policy/epoch.
 - issue and expiry times; and
 - a derived evidence commitment.
 
-The verifier checks all bindings, checks the current model time is inside the
-challenge window, and checks the transcript expires no later than the claim.
+The verifier checks all bindings, rejects an unsupported transcript version,
+rejects issue time before policy start, rejects malformed or post-policy windows,
+checks the current model time is inside the challenge window, and checks the
+transcript expires no later than the claim.
 
 The only permitted interpretation is:
 
@@ -229,28 +233,29 @@ and private-query domains.
 `SettlementModel.submit` performs checks before mutation in this order:
 
 1. locate the exact registered policy;
-2. reject the forbidden authority class;
-3. match policy commitment, settlement class, and service class;
-4. match funding epoch and, for sponsor/protocol classes, the exact committed
+2. reject an unsupported claim schema version;
+3. reject the forbidden authority class;
+4. match policy commitment, settlement class, and service class;
+5. match funding epoch and, for sponsor/protocol classes, the exact committed
    funding source;
-5. enforce positive amount and the per-claim cap;
-6. recompute and verify claim ID;
-7. recompute and verify the economic-event duplicate identifier;
-8. return `AlreadyAccepted` for an exact finalized retry, including a retry
+6. enforce positive amount and the per-claim cap;
+7. recompute and verify claim ID;
+8. recompute and verify the economic-event duplicate identifier;
+9. return `AlreadyAccepted` for an exact finalized retry, including a retry
    after the original claim window closes;
-9. enforce policy and new-claim expiry windows;
-10. reject caller-supplied finality;
-11. enforce combined wire-size and abstract-work caps;
-12. require and verify the delivery transcript when policy requires it;
-13. reject a previously accepted economic event in the policy domain;
-14. require, domain-check, and deduplicate the rate-limit tag where required;
-15. fail closed before exceeding retained replay-state capacity;
-16. check issuer/auditor availability only for sponsor/protocol classes;
-17. check payer balance or program budget; and
-18. atomically debit one source, credit the modeled recipient, record replay
+10. enforce policy and new-claim expiry windows;
+11. reject caller-supplied finality;
+12. enforce combined wire-size and abstract-work caps;
+13. require and verify the delivery transcript when policy requires it;
+14. reject a previously accepted economic event in the policy domain;
+15. require, domain-check, and deduplicate the rate-limit tag where required;
+16. fail closed before exceeding retained replay-state capacity;
+17. check issuer/auditor availability only for sponsor/protocol classes;
+18. check payer balance or program budget; and
+19. atomically debit one source, credit the modeled recipient, record replay
     keys, and create a canonical model finality reference.
 
-No rejection after step 17 mutates value or replay state. The exact same claim
+No rejection after step 18 mutates value or replay state. The exact same claim
 is idempotent; it does not charge twice.
 
 `submit_canonical_batch` sorts claims by claim ID before submitting them so all
@@ -461,9 +466,13 @@ Measured gates from the frozen output:
 - auditor concentration: **PARTIAL**, no operator set;
 - physical CPU: **PARTIAL**, no weakest-device benchmark;
 - physical memory: **PARTIAL**, no allocator benchmark;
-- retained state: **PASS**, observed estimate `19,200 bytes`;
-- claim plus transcript: **PASS**, observed maximum `1,523 bytes`; and
-- abstract work: **PASS**, observed maximum `849` operations.
+- retained-state configured capacity: **FAIL**, observed estimate
+  `9,600,000 bytes` versus an 8 MiB ceiling; the largest fixture state was
+  `19,200 bytes`;
+- claim plus transcript policy cap: **PASS**, configured at `16,384 bytes`;
+  the largest fixture used `1,523 bytes`; and
+- abstract-work policy cap: **PASS**, configured at `10,000 operations`;
+  the largest fixture used `849` operations.
 
 ## 14. Exact failures and engineering consequences
 
@@ -584,7 +593,23 @@ attacker fill the finite state allowance and stop new claims.
 checkpointing, and bounded archival proofs before network use. The safe failure
 is program-local halt, never eviction that silently re-enables replay.
 
-### 14.10 Physical weak-device cost is unmeasured — **PARTIAL**
+### 14.10 Configured replay-state capacity exceeds the gate — **FAIL**
+
+**Location:** `make_policy(max_retained_keys=100_000)`,
+`SettlementModel.RETAINED_KEY_ESTIMATE_BYTES`, and gate
+`retained-state-per-policy-epoch`.
+
+**Failure:** the earlier report measured only 19,200 bytes reached by the fixed
+fixtures. The policy permits 100,000 retained keys, estimated at 9,600,000
+bytes—above the precommitted 8 MiB threshold. Measuring a friendly fixture
+instead of the allowed adversarial capacity falsely reported PASS.
+
+**Long-term solution:** do not weaken the 8 MiB threshold after seeing the
+failure. A later proposal must lower the policy cap, define authenticated epoch
+compaction/checkpointing, or justify another bounded representation and then
+measure its configured worst case. Evicting replay state silently is forbidden.
+
+### 14.11 Physical weak-device cost is unmeasured — **PARTIAL**
 
 **Location:** abstract operation, wire, and retained-state estimates.
 
@@ -604,6 +629,7 @@ It proves inside the deterministic model that:
 - exact retry and same-event replay do not multiply spend;
 - policy/epoch/domain substitutions fail;
 - bounded input/state checks fail closed;
+- unknown claim versions and pre-policy transcripts are rejected;
 - audit evaluation cannot rewrite finality; and
 - the full report is reproducible byte-for-byte.
 
@@ -617,6 +643,7 @@ It does not prove:
 - anonymous or unlinkable settlement;
 - fair scarce-budget allocation;
 - unpredictable, unbiasable, and live audit randomness;
+- compliance with the 8 MiB configured retained-state gate;
 - physical performance;
 - network partition liveness;
 - production atomicity across processes; or
@@ -664,8 +691,9 @@ known.
 D-0428 fails if it is used to claim that F5 anti-collusion is implemented, that
 delivery proves independent demand, that identity roots are humans, that
 threshold key count proves independent operators, or that a bounded 100% budget
-drain is acceptable merely because no overrun occurred, or that a known
-sampling seed remains safe while claim IDs are attacker-variable.
+drain is acceptable merely because no overrun occurred, that a known
+sampling seed remains safe while claim IDs are attacker-variable, or that a
+small fixture state proves a larger configured capacity meets the memory gate.
 
 It also fails if a later implementation copies model-only claim-ID ordering,
 model-only SHA-256 commitments, arbitrary rate tags, or abstract timing into a

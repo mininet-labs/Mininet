@@ -84,6 +84,7 @@ class OutcomeCode(str, Enum):
     ACCEPTED = "accepted"
     ALREADY_ACCEPTED = "already-accepted"
     POLICY_UNKNOWN = "policy-unknown"
+    UNSUPPORTED_VERSION = "unsupported-version"
     AUTHORITY_CLASS_FORBIDDEN = "authority-class-forbidden"
     POLICY_MISMATCH = "policy-mismatch"
     CLASS_MISMATCH = "class-mismatch"
@@ -446,6 +447,13 @@ class DeliveryChallengeTranscript:
     ) -> bool:
         if self.version != MODEL_VERSION or self.domain != DELIVERY_DOMAIN:
             return False
+        if self.issued_at_ms < policy.starts_at_ms:
+            return False
+        if (
+            self.expires_at_ms <= self.issued_at_ms
+            or self.expires_at_ms > policy.expires_at_ms
+        ):
+            return False
         if self.policy_commitment != policy.commitment:
             return False
         if self.settlement_class is not policy.settlement_class:
@@ -766,6 +774,8 @@ class SettlementModel:
         policy = self.policies.get(claim.policy_commitment)
         if policy is None:
             return self._reject(claim, OutcomeCode.POLICY_UNKNOWN)
+        if claim.version != MODEL_VERSION:
+            return self._reject(claim, OutcomeCode.UNSUPPORTED_VERSION)
         if policy.settlement_class is SettlementClass.AUTHORITY_BEARING:
             return self._reject(claim, OutcomeCode.AUTHORITY_CLASS_FORBIDDEN)
         if claim.policy_commitment != policy.commitment:
@@ -1732,7 +1742,17 @@ def run_fixed_vectors(
         canonical_model.budget_overrun_units(protocol_policy.commitment),
         collusion_model.budget_overrun_units(collusion_policy.commitment),
     )
-    max_wire = max(
+    modeled_policies = (
+        requester_policy,
+        sponsor_policy,
+        protocol_policy,
+        wrong_epoch_policy,
+        overlap_policy_a,
+        overlap_policy_b,
+        collusion_policy,
+        retained_policy,
+    )
+    max_fixture_wire = max(
         claim.wire_size_bytes + transcript.wire_size_bytes
         for claim, transcript in (
             (requester_claim, requester_tx),
@@ -1740,13 +1760,19 @@ def run_fixed_vectors(
             (collusion_items[0][0], collusion_items[0][1]),
         )
     )
-    max_ops = max(
+    max_configured_wire = max(
+        policy.max_claim_proof_wire_bytes for policy in modeled_policies
+    )
+    max_fixture_ops = max(
         claim.abstract_verification_ops + transcript.abstract_verification_ops
         for claim, transcript in (
             (requester_claim, requester_tx),
             (sponsor_items[0][0], sponsor_items[0][1]),
             (collusion_items[0][0], collusion_items[0][1]),
         )
+    )
+    max_configured_ops = max(
+        policy.max_abstract_verification_ops for policy in modeled_policies
     )
     detection_bps = audit_detection_probability_bps(
         collusion_policy.audit_sample_bps,
@@ -1797,9 +1823,13 @@ def run_fixed_vectors(
             ),
         )
     )
-    max_retained = max(
+    max_observed_retained = max(
         sponsor_model.retained_state_bytes(sponsor_policy.commitment),
         collusion_model.retained_state_bytes(collusion_policy.commitment),
+    )
+    max_configured_retained = max(
+        policy.max_retained_keys * SettlementModel.RETAINED_KEY_ESTIMATE_BYTES
+        for policy in modeled_policies
     )
 
     gates = [
@@ -1913,7 +1943,10 @@ def run_fixed_vectors(
             threshold=thresholds.max_verification_cpu_ms,
             observed="unmeasured-no-weak-device-benchmark",
             unit="milliseconds-per-claim",
-            detail=f"abstract model work is bounded at {max_ops} operations; physical CPU remains a later benchmark gate",
+            detail=(
+                f"configured abstract-work cap is {max_configured_ops}; "
+                f"largest fixture used {max_fixture_ops}; physical CPU remains unmeasured"
+            ),
         ),
         GateResult(
             gate="weak-device-verification-memory",
@@ -1927,37 +1960,46 @@ def run_fixed_vectors(
             gate="retained-state-per-policy-epoch",
             status=(
                 GateStatus.PASS
-                if max_retained <= thresholds.max_retained_state_bytes
+                if max_configured_retained <= thresholds.max_retained_state_bytes
                 else GateStatus.FAIL
             ),
             threshold=thresholds.max_retained_state_bytes,
-            observed=max_retained,
-            unit="estimated-bytes",
-            detail="the model retains only bounded event/rate keys and fails closed before eviction",
+            observed=max_configured_retained,
+            unit="configured-estimated-bytes",
+            detail=(
+                f"configured policy capacity is measured, not only the "
+                f"{max_observed_retained}-byte fixture state; eviction still fails closed"
+            ),
         ),
         GateResult(
             gate="claim-plus-proof-wire-size",
             status=(
                 GateStatus.PASS
-                if max_wire <= thresholds.max_claim_proof_wire_bytes
+                if max_configured_wire <= thresholds.max_claim_proof_wire_bytes
                 else GateStatus.FAIL
             ),
             threshold=thresholds.max_claim_proof_wire_bytes,
-            observed=max_wire,
-            unit="bytes",
-            detail="canonical model claim plus transcript stays under the precommitted 16 KiB cap",
+            observed=max_configured_wire,
+            unit="configured-bytes",
+            detail=(
+                f"policy cap is compared directly with the 16 KiB gate; "
+                f"largest fixture used {max_fixture_wire} bytes"
+            ),
         ),
         GateResult(
             gate="abstract-verification-work",
             status=(
                 GateStatus.PASS
-                if max_ops <= thresholds.max_abstract_verification_ops
+                if max_configured_ops <= thresholds.max_abstract_verification_ops
                 else GateStatus.FAIL
             ),
             threshold=thresholds.max_abstract_verification_ops,
-            observed=max_ops,
-            unit="model-operations",
-            detail="bounded parse/binding accounting; not a substitute for the physical CPU gate",
+            observed=max_configured_ops,
+            unit="configured-model-operations",
+            detail=(
+                f"policy cap is compared directly with the gate; largest fixture "
+                f"used {max_fixture_ops}; this is not a physical CPU measurement"
+            ),
         ),
     ]
     return vectors, gates
@@ -2088,7 +2130,9 @@ def render_report(thresholds: Thresholds | None = None) -> str:
                 separators=(",", ":"),
             )
         )
-    all_pass = all(gate.status is GateStatus.PASS for gate in gates)
+    all_pass = all(
+        gate.status is GateStatus.PASS for gate in gates
+    ) and all(vector.status is GateStatus.PASS for vector in vectors)
     lines.append(
         json.dumps(
             {
