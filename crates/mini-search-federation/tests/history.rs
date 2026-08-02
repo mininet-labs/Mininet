@@ -295,9 +295,7 @@ fn latest_and_at_or_before_return_the_whole_equal_timestamp_group() {
     assert_eq!(index.at_or_before(&u, 250).len(), 2);
     assert_eq!(index.at_or_before(&u, 150).len(), 1);
     assert_eq!(
-        index.at_or_before(&u, 150)[0]
-            .observation
-            .observed_at_ms,
+        index.at_or_before(&u, 150)[0].observation.observed_at_ms,
         100
     );
     assert!(index.at_or_before(&u, 50).is_empty());
@@ -321,7 +319,10 @@ fn between_bounds_are_inclusive_lower_exclusive_upper() {
             .map(|s| s.observation.observed_at_ms)
             .collect::<Vec<_>>()
     };
-    assert_eq!(times(index.between(&u, Some(100), Some(300))), vec![100, 200]);
+    assert_eq!(
+        times(index.between(&u, Some(100), Some(300))),
+        vec![100, 200]
+    );
     assert_eq!(times(index.between(&u, None, Some(200))), vec![100]);
     assert_eq!(times(index.between(&u, Some(200), None)), vec![200, 300]);
 }
