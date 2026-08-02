@@ -11,8 +11,11 @@ pub enum FederationError {
     /// The wire payload was truncated, malformed, or not the canonical
     /// encoding of what it claims to be.
     BadEncoding,
-    /// A field exceeded this crate's bound before allocation.
+    /// A field or local index exceeded its bound before allocation.
     LimitExceeded,
+    /// One content-addressed observation object was presented with two
+    /// different decoded observations or final-URL bindings.
+    ConflictingObjectBinding,
     /// The object is not the expected object type.
     WrongObjectType,
     /// The object's payload was encrypted rather than public.
@@ -67,6 +70,9 @@ impl core::fmt::Display for FederationError {
         match self {
             FederationError::BadEncoding => write!(f, "bad encoding"),
             FederationError::LimitExceeded => write!(f, "limit exceeded"),
+            FederationError::ConflictingObjectBinding => {
+                write!(f, "conflicting observation-object binding")
+            }
             FederationError::WrongObjectType => write!(f, "wrong object type"),
             FederationError::NotPublicPayload => write!(f, "payload is not public"),
             FederationError::Object(e) => write!(f, "object: {e:?}"),
