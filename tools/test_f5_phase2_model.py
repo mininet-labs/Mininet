@@ -43,6 +43,18 @@ class PolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "settlement-specific"):
             replace(policy, rate_limit_domain="mininet/personhood/nullifier/v1")
 
+    def test_privacy_leaking_policy_cannot_be_constructed(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "privacy-policy",
+            budget=100,
+        )
+        leaky = MODEL.PrivacyDeclaration(
+            disclosures=((MODEL.Role.AUDITOR, (MODEL.Disclosure.ROOT_DID,)),)
+        )
+        with self.assertRaisesRegex(ValueError, "privacy declaration"):
+            replace(policy, privacy=leaky)
+
     def test_authority_bearing_policy_cannot_be_constructed(self) -> None:
         with self.assertRaisesRegex(ValueError, "forbidden"):
             MODEL.SettlementPolicy(
@@ -250,6 +262,46 @@ class SettlementInvariantTests(unittest.TestCase):
         self.assertEqual(len(accepted_sets), 1)
         self.assertEqual(len(next(iter(accepted_sets))), 3)
 
+    def test_program_claim_must_match_policy_funding_source(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "funding-source",
+            budget=100,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy)
+        valid, transcript = MODEL.make_claim(
+            policy,
+            event="funding-source-event",
+            requester="requester",
+            funder=policy.funding_source_commitment,
+            provider="provider",
+            amount=10,
+            rate_tag="funding-source-tag",
+        )
+        wrong = MODEL.SettlementClaim.create(
+            policy,
+            transcript,
+            requester_scope=valid.requester_scope,
+            funder_commitment="other-budget",
+            provider_scope=valid.provider_scope,
+            request_event_commitment=valid.request_event_commitment,
+            amount_units=valid.amount_units,
+            expires_at_ms=valid.expires_at_ms,
+            rate_limit_tag=valid.rate_limit_tag,
+        )
+        outcome = model.submit(
+            wrong,
+            transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        self.assertEqual(
+            outcome.code,
+            MODEL.OutcomeCode.FUNDING_SOURCE_MISMATCH,
+        )
+        self.assertEqual(model.program_remaining[policy.commitment], 100)
+
     def test_network_retry_is_idempotent(self) -> None:
         policy = MODEL.make_policy(
             MODEL.SettlementClass.SPONSOR_FUNDED,
@@ -279,9 +331,17 @@ class SettlementInvariantTests(unittest.TestCase):
             availability=MODEL.Availability(3, 3),
             now_ms=1_000,
         )
+        after_expiry = model.submit(
+            claim,
+            transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=2_001,
+        )
         self.assertEqual(first.code, MODEL.OutcomeCode.ACCEPTED)
         self.assertEqual(second.code, MODEL.OutcomeCode.ALREADY_ACCEPTED)
+        self.assertEqual(after_expiry.code, MODEL.OutcomeCode.ALREADY_ACCEPTED)
         self.assertEqual(second.spent_units, 0)
+        self.assertEqual(after_expiry.spent_units, 0)
         self.assertEqual(model.program_remaining[policy.commitment], 90)
 
     def test_identity_splitting_cannot_multiply_one_economic_event(self) -> None:

@@ -89,6 +89,7 @@ class OutcomeCode(str, Enum):
     CLASS_MISMATCH = "class-mismatch"
     SERVICE_MISMATCH = "service-mismatch"
     EPOCH_MISMATCH = "epoch-mismatch"
+    FUNDING_SOURCE_MISMATCH = "funding-source-mismatch"
     EXPIRED = "expired"
     LOCAL_FINALITY_FORBIDDEN = "local-finality-forbidden"
     AMOUNT_INVALID = "amount-invalid"
@@ -305,6 +306,10 @@ class SettlementPolicy:
             raise ValueError("wire-size bound must be positive")
         if self.max_abstract_verification_ops <= 0:
             raise ValueError("verification-work bound must be positive")
+        if self.privacy.cross_context_leakage_score() != 0:
+            raise ValueError(
+                "policy privacy declaration exceeds zero cross-context leakage budget"
+            )
 
         if self.settlement_class is SettlementClass.REQUESTER_FUNDED:
             if self.program_budget_units != 0:
@@ -771,19 +776,21 @@ class SettlementModel:
             return self._reject(claim, OutcomeCode.SERVICE_MISMATCH)
         if claim.funding_epoch != policy.epoch:
             return self._reject(claim, OutcomeCode.EPOCH_MISMATCH)
-        if now_ms < policy.starts_at_ms or now_ms > policy.expires_at_ms:
-            return self._reject(claim, OutcomeCode.EXPIRED)
-        if claim.expires_at_ms < now_ms or claim.expires_at_ms > policy.expires_at_ms:
-            return self._reject(claim, OutcomeCode.EXPIRED)
-        if claim.finality_reference is not None:
-            return self._reject(claim, OutcomeCode.LOCAL_FINALITY_FORBIDDEN)
         if claim.amount_units <= 0 or claim.amount_units > policy.max_claim_units:
             return self._reject(claim, OutcomeCode.AMOUNT_INVALID)
         if claim.expected_claim_id() != claim.claim_id:
             return self._reject(claim, OutcomeCode.CLAIM_ID_MISMATCH)
         if claim.expected_duplicate_identifier(policy) != claim.duplicate_identifier:
             return self._reject(claim, OutcomeCode.DUPLICATE_ID_MISMATCH)
+        if (
+            policy.settlement_class is not SettlementClass.REQUESTER_FUNDED
+            and claim.funder_commitment != policy.funding_source_commitment
+        ):
+            return self._reject(claim, OutcomeCode.FUNDING_SOURCE_MISMATCH)
 
+        # An exact retry of an already-finalized claim is a read of canonical
+        # state, not a new claim. It remains idempotently recognizable after
+        # the original submission window closes and cannot spend again.
         if claim.claim_id in self.accepted_records:
             prior = self.accepted_records[claim.claim_id]
             return SubmissionOutcome(
@@ -793,6 +800,13 @@ class SettlementModel:
                 extraction_units=0,
                 canonical_finality_reference=prior.canonical_finality_reference,
             )
+
+        if now_ms < policy.starts_at_ms or now_ms > policy.expires_at_ms:
+            return self._reject(claim, OutcomeCode.EXPIRED)
+        if claim.expires_at_ms < now_ms or claim.expires_at_ms > policy.expires_at_ms:
+            return self._reject(claim, OutcomeCode.EXPIRED)
+        if claim.finality_reference is not None:
+            return self._reject(claim, OutcomeCode.LOCAL_FINALITY_FORBIDDEN)
 
         total_wire = claim.wire_size_bytes + (
             transcript.wire_size_bytes if transcript else 0
@@ -1171,6 +1185,42 @@ def run_fixed_vectors(
         "two 40-unit claims finalize; the third is rejected and 20 units remain",
     )
 
+    funding_model = SettlementModel()
+    funding_model.register_policy(sponsor_policy)
+    valid_funding_claim, valid_funding_tx = make_claim(
+        sponsor_policy,
+        event="event-funding-source",
+        requester="funding-requester",
+        funder=sponsor_policy.funding_source_commitment,
+        provider="funding-provider",
+        amount=10,
+        rate_tag="funding-tag",
+    )
+    wrong_funding_claim = SettlementClaim.create(
+        sponsor_policy,
+        valid_funding_tx,
+        requester_scope=valid_funding_claim.requester_scope,
+        funder_commitment="different-sponsor-budget",
+        provider_scope=valid_funding_claim.provider_scope,
+        request_event_commitment=valid_funding_claim.request_event_commitment,
+        amount_units=valid_funding_claim.amount_units,
+        expires_at_ms=valid_funding_claim.expires_at_ms,
+        rate_limit_tag=valid_funding_claim.rate_limit_tag,
+    )
+    funding_outcome = funding_model.submit(
+        wrong_funding_claim,
+        valid_funding_tx,
+        availability=Availability(3, 3),
+        now_ms=now,
+    )
+    record(
+        "program-claim-must-name-policy-funding-source",
+        funding_model,
+        [funding_outcome],
+        GateStatus.PASS,
+        "a claim with a self-consistent id but the wrong sponsor budget is rejected before spend",
+    )
+
     protocol_policy = make_policy(
         SettlementClass.PROTOCOL_SUBSIDIZED,
         "protocol",
@@ -1253,12 +1303,18 @@ def run_fixed_vectors(
         availability=Availability(3, 3),
         now_ms=now,
     )
+    replay_after_expiry = replay_model.submit(
+        replay_claim,
+        replay_tx,
+        availability=Availability(0, 0),
+        now_ms=2_001,
+    )
     record(
         "network-retry-is-idempotent",
         replay_model,
-        [replay_first, replay_second],
+        [replay_first, replay_second, replay_after_expiry],
         GateStatus.PASS,
-        "the retry returns already-accepted and consumes no additional budget",
+        "retries before and after claim expiry return already-accepted and consume no additional budget",
     )
 
     split_model = SettlementModel()
@@ -1337,6 +1393,63 @@ def run_fixed_vectors(
         [cross_outcome],
         GateStatus.PASS,
         "changing the policy commitment invalidates the claim id/transcript binding",
+    )
+
+    overlap_policy_a = make_policy(
+        SettlementClass.SPONSOR_FUNDED,
+        "overlap-a",
+        budget=10,
+        max_claim=10,
+        epoch=7,
+    )
+    overlap_policy_b = make_policy(
+        SettlementClass.SPONSOR_FUNDED,
+        "overlap-b",
+        budget=10,
+        max_claim=10,
+        epoch=8,
+    )
+    overlap_model = SettlementModel()
+    overlap_model.register_policy(overlap_policy_a)
+    overlap_model.register_policy(overlap_policy_b)
+    overlap_a = make_claim(
+        overlap_policy_a,
+        event="same-semantic-work",
+        requester="overlap-requester-a",
+        funder=overlap_policy_a.funding_source_commitment,
+        provider="overlap-provider-a",
+        amount=10,
+        rate_tag="overlap-tag-a",
+    )
+    overlap_b = make_claim(
+        overlap_policy_b,
+        event="same-semantic-work",
+        requester="overlap-requester-b",
+        funder=overlap_policy_b.funding_source_commitment,
+        provider="overlap-provider-b",
+        amount=10,
+        rate_tag="overlap-tag-b",
+    )
+    overlap_outcomes = [
+        overlap_model.submit(
+            overlap_a[0],
+            overlap_a[1],
+            availability=Availability(3, 3),
+            now_ms=now,
+        ),
+        overlap_model.submit(
+            overlap_b[0],
+            overlap_b[1],
+            availability=Availability(3, 3),
+            now_ms=now,
+        ),
+    ]
+    record(
+        "distinct-policies-do-not-create-a-global-event-registry",
+        overlap_model,
+        overlap_outcomes,
+        GateStatus.PARTIAL,
+        "the same event commitment may consume two independently committed budgets; preventing unwanted overlap needs an explicit privacy-preserving policy-family rule, not a global activity graph",
     )
 
     rate_model = SettlementModel()
@@ -1572,10 +1685,20 @@ def run_fixed_vectors(
         )
     )
 
-    duplicate_attempts = 2
-    duplicate_false_negatives = 0
-    honest_claims = 1
-    honest_rejections = 0
+    duplicate_outcomes = [
+        replay_second,
+        replay_after_expiry,
+        split_outcomes[1],
+    ]
+    duplicate_attempts = len(duplicate_outcomes)
+    duplicate_false_negatives = sum(
+        outcome.spent_units > 0 for outcome in duplicate_outcomes
+    )
+    honest_outcomes = [requester_outcome]
+    honest_claims = len(honest_outcomes)
+    honest_rejections = sum(
+        outcome.code is not OutcomeCode.ACCEPTED for outcome in honest_outcomes
+    )
     max_budget_overrun = max(
         sponsor_model.budget_overrun_units(sponsor_policy.commitment),
         canonical_model.budget_overrun_units(protocol_policy.commitment),
@@ -1659,6 +1782,14 @@ def run_fixed_vectors(
             observed=PrivacyDeclaration.default().cross_context_leakage_score(),
             unit="declared-score",
             detail="default model uses policy-scoped commitments and coarse epochs, not root DIDs/raw queries",
+        ),
+        GateResult(
+            gate="cross-policy-semantic-deduplication",
+            status=GateStatus.PARTIAL,
+            threshold="explicit-policy-family-rule-or-declared-independent-budgets",
+            observed="unmeasured-no-global-registry-by-design",
+            unit="policy-overlap-semantics",
+            detail="separate policies may pay the same event; a global requester/provider activity graph is forbidden",
         ),
         GateResult(
             gate="audit-detection-probability",
@@ -1793,6 +1924,13 @@ def make_claim(
     rate_tag: str | ScopedRateTag | None,
 ) -> tuple[SettlementClaim, DeliveryChallengeTranscript]:
     event_commitment = model_commitment("request-event", event)
+    # Valid sponsor/protocol vectors derive the exact immutable funding source
+    # from the policy; only requester-funded claims choose a payer balance.
+    effective_funder = (
+        funder
+        if policy.settlement_class is SettlementClass.REQUESTER_FUNDED
+        else policy.funding_source_commitment
+    )
     transcript = DeliveryChallengeTranscript.create(
         policy,
         request_event_commitment=event_commitment,
@@ -1821,7 +1959,7 @@ def make_claim(
         policy,
         transcript,
         requester_scope=requester,
-        funder_commitment=funder,
+        funder_commitment=effective_funder,
         provider_scope=provider,
         request_event_commitment=event_commitment,
         amount_units=amount,

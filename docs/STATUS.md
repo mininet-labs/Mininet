@@ -1246,11 +1246,30 @@ the top development priority.
   concurrently-queried sources and no cross-provider trust weighting;
   `local_rerank` accepts only `FederatedResult`, not a bare
   single-provider result list; `SnapshotIndex` is entirely in-memory and
-  per-process, not persisted/signed/shared. F5/F6 (provider payments,
-  private query transport) remain undesigned and unbuilt. F5's Phase-0
-  doctrine now exists — `docs/design/
-  anti-collusion-content-settlement-preparation.md` (D-0427) — but
-  Phases 1-9 are not started; F6 has no doctrine document yet at all.
+  per-process, not persisted/signed/shared. F6 (private query transport) remains undesigned and unbuilt. F5 now
+  has its Phase-0 doctrine (D-0427) plus a completed **deterministic,
+  valueless Phase-2 falsification model** (D-0428) in `tools/
+  f5_phase2_model.py`, with adversarial tests and a byte-exact checked-in
+  JSONL result vector. Phase 1 is only the already-existing linkable
+  D-0417/D-0404 baseline, not anti-collusion code. The Phase-2 accounting
+  shell passes finite-budget conservation, exact funding-source binding,
+  retry/same-event replay, requester-funded issuer/auditor independence,
+  cross-domain rejection, bounded state/input, and finality-isolation
+  checks. Its decisive attack gate **fails**: 100 colluding requester/
+  provider pairs with distinct roots/tags and genuine delivery drain 100%
+  of a bounded protocol budget against a precommitted 10% ceiling. A
+  second vector remains **partial** by design: two independently committed
+  policies can pay the same event because Mininet has no global activity
+  registry; preventing unwanted overlap needs an explicit privacy-
+  preserving policy-family rule. Issuer/auditor operational independence,
+  cryptographic unlinkability, semantic event uniqueness, and physical
+  weakest-device CPU/memory remain unmeasured. The generated report
+  therefore sets `phase3_authorized` to `false`; no production settlement-
+  integrity/delivery-challenge/audit crate, credential, nullifier,
+  subsidy, or real-value activation is authorized. Phases 3-9 remain
+  unstarted; F6 still has no doctrine document. See `docs/design/
+  f5-phase2-settlement-model.md` and `docs/design/
+  federated-search-exchange-f1-f2.md`.
   See `docs/design/federated-search-exchange-f1-f2.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,

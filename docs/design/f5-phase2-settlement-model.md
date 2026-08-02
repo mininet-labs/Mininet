@@ -26,7 +26,7 @@ The result is deliberately not a success claim:
 | Requester-funded sovereignty | **PASS** | A requester-funded policy cannot contain an issuer threshold, auditor threshold, program budget, or collusion-limit domain. The fixed vector settles with zero issuers and zero auditors. |
 | Budget conservation | **PASS** | Sponsor/protocol claims debit one finite precommitted budget only after all checks pass. All 24 tested orderings of a four-claim race converge without a negative balance or overrun. |
 | Retry/replay idempotence | **PASS** | The exact same claim returns `AlreadyAccepted` and consumes zero additional value. A second claim for the same modeled economic-event commitment is rejected. |
-| Cross-policy/domain substitution | **PASS** | Policy, class, service, epoch, event, transcript, duplicate domain, and rate-limit domain are bound into deterministic model commitments. |
+| Cross-policy/domain substitution | **PASS** | Policy, funding source, class, service, epoch, event, transcript, duplicate domain, and rate-limit domain are bound into deterministic model commitments. |
 | Canonical finality wall | **PASS** | The model rejects caller-supplied finality and gives audit evaluation no mutable ledger handle. Audit output can request future-program action only. |
 | Authority isolation | **PASS** | The model exposes no ranking, personhood, governance, validator, moderation, reviewer, or constitutional-authority output. `AuthorityBearing` policy construction fails. |
 | Delivery integrity | **PARTIAL** | A transcript binds a fresh challenge and typed response, but this abstract model has no real transport, clock, signature, storage, or cryptographic challenge implementation. |
@@ -95,6 +95,7 @@ Structural rules:
 - a single claim cannot exceed the whole program budget;
 - issuer and auditor availability thresholds are positive;
 - a settlement-specific rate-limit domain is mandatory;
+- each claim must name the policy's exact committed funding source;
 - claims debit only the already registered program budget; and
 - an outage halts this program without affecting requester-funded settlement.
 
@@ -189,7 +190,7 @@ or user interfaces from quietly making that false inference.
 | `settlement_class`, `service_class` | Must match the policy. |
 | `request_event_commitment` | Caller-supplied modeled economic-event commitment. |
 | `requester_scope` | Policy-scoped requester label. |
-| `funder_commitment` | Existing payer or registered budget source. |
+| `funder_commitment` | Existing requester payer, or the exact sponsor/protocol funding source committed by policy. |
 | `provider_scope` | Policy-scoped provider label. |
 | `delivery_evidence_commitment` | Transcript evidence commitment. |
 | `amount_units` | Positive amount at or below the policy cap. |
@@ -228,13 +229,15 @@ and private-query domains.
 1. locate the exact registered policy;
 2. reject the forbidden authority class;
 3. match policy commitment, settlement class, and service class;
-4. match funding epoch;
-5. enforce policy and claim expiry windows;
-6. reject caller-supplied finality;
-7. enforce positive amount and per-claim cap;
-8. recompute and verify claim ID;
-9. recompute and verify the economic-event duplicate identifier;
-10. return `AlreadyAccepted` for an exact accepted retry;
+4. match funding epoch and, for sponsor/protocol classes, the exact committed
+   funding source;
+5. enforce positive amount and the per-claim cap;
+6. recompute and verify claim ID;
+7. recompute and verify the economic-event duplicate identifier;
+8. return `AlreadyAccepted` for an exact finalized retry, including a retry
+   after the original claim window closes;
+9. enforce policy and new-claim expiry windows;
+10. reject caller-supplied finality;
 11. enforce combined wire-size and abstract-work caps;
 12. require and verify the delivery transcript when policy requires it;
 13. reject a previously accepted economic event in the policy domain;
@@ -408,9 +411,11 @@ reviewed vector change.
 | Requester/provider self-payment | **PASS** | 40 units of volume, unchanged aggregate balance, zero protocol extraction. |
 | Finite sponsor budget | **PASS** | Two 40-unit claims accepted, third rejected, 20 of 100 remain. |
 | Four-claim concurrent race | **PASS** | All 24 input permutations produce the same three accepted claims and zero overrun. |
-| Exact network retry | **PASS** | Second submission is `AlreadyAccepted` with zero spend. |
+| Exact network retry | **PASS** | Retries before and after claim expiry are `AlreadyAccepted` with zero additional spend. |
 | Same event under different identity scopes | **PASS** | Claim IDs differ but the event duplicate identifier matches; second spend is rejected. |
+| Wrong committed sponsor funding source | **PASS** | A self-consistent claim naming another budget is rejected before spend. |
 | Cross-policy/epoch substitution | **PASS** | Rejected before spend. |
+| Same event under two independently committed policies | **PARTIAL** | Both may pay; avoiding unwanted overlap needs an explicit policy-family rule without a global activity graph. |
 | Personhood-domain tag substituted into settlement | **PASS** | Rejected for rate-limit domain mismatch. |
 | Issuer/auditor outage | **PASS** | Market claim succeeds; sponsor claim fails closed. |
 | Retained-state exhaustion | **PASS** | New claim is rejected instead of evicting replay state. |
@@ -426,6 +431,8 @@ Measured gates from the frozen output:
 - honest false rejection in the declared vector: **PASS**, observed `0 bps`;
 - cross-context leakage score: **PASS**, observed `0` under the narrow declared
   metric;
+- cross-policy semantic deduplication: **PARTIAL**, no global registry by
+  design and no reviewed policy-family rule yet;
 - audit detection for 60 objectively invalid claims: **PASS**, observed
   `9,539 bps`;
 - issuer concentration: **PARTIAL**, no construction/operator set;
@@ -466,7 +473,23 @@ canonical event definition derived from immutable request/service facts, plus
 an explicit statement of which semantically similar events are intentionally
 allowed to be paid twice. Do not add a central event adjudicator.
 
-### 14.3 Rate-limit scarcity is not implemented — **PARTIAL**
+### 14.3 Distinct policies can pay the same semantic work — **PARTIAL**
+
+**Location:** policy-scoped `duplicate_identifier` and fixed vector
+`distinct-policies-do-not-create-a-global-event-registry`.
+
+**Failure:** replay protection is intentionally policy-scoped. Two independently
+committed budgets can accept the same event commitment, and different event
+commitments may also describe equivalent work. A global event registry would
+reduce overlap but would create a cross-program activity graph and a new
+correlation authority.
+
+**Long-term solution:** policies that must share one entitlement need an explicit,
+precommitted privacy-preserving policy-family domain and overlap rule. Independent
+budgets must say when repeated service is legitimate. Do not infer semantic
+equivalence through a centralized requester-provider graph.
+
+### 14.4 Rate-limit scarcity is not implemented — **PARTIAL**
 
 **Location:** `ScopedRateTag` and scenario-supplied tag values.
 
@@ -478,7 +501,7 @@ for issuer-unlinkable, policy/epoch-scoped scarcity. It must prove outage and
 multi-issuer behavior, avoid cross-context linkage, and pass D-0047 review.
 Identity-root count is not an acceptable stand-in for humans.
 
-### 14.4 Deterministic claim-ID ordering is grindable if copied into production — **PARTIAL**
+### 14.5 Deterministic claim-ID ordering is grindable if copied into production — **PARTIAL**
 
 **Location:** `submit_canonical_batch`.
 
@@ -490,7 +513,7 @@ non-grindable public randomness/batch rule, pro-rata rule, or an explicitly
 accepted canonical-finality rule. The choice must be policy-visible and cannot
 be selected by an operator after claims arrive.
 
-### 14.5 Threshold counts do not prove independent authorities — **PARTIAL**
+### 14.6 Threshold counts do not prove independent authorities — **PARTIAL**
 
 **Location:** `Availability.issuers_available` and `auditors_available`.
 
@@ -501,7 +524,7 @@ model count.
 failure domains, rotation, recovery, and capture handling. A single issuer or
 auditor must never become necessary for requester-funded settlement.
 
-### 14.6 Privacy is declared, not cryptographically achieved — **PARTIAL**
+### 14.7 Privacy is declared, not cryptographically achieved — **PARTIAL**
 
 **Location:** `PrivacyDeclaration`.
 
@@ -513,7 +536,7 @@ after a role-by-role metadata analysis. Pairwise identifiers must rotate by
 policy/epoch, and auditing must operate over commitments/proofs rather than a
 published social graph.
 
-### 14.7 Retained-state exhaustion can halt a subsidy program — **PARTIAL**
+### 14.8 Retained-state exhaustion can halt a subsidy program — **PARTIAL**
 
 **Location:** `max_retained_keys` fail-closed check.
 
@@ -524,7 +547,7 @@ attacker fill the finite state allowance and stop new claims.
 checkpointing, and bounded archival proofs before network use. The safe failure
 is program-local halt, never eviction that silently re-enables replay.
 
-### 14.8 Physical weak-device cost is unmeasured — **PARTIAL**
+### 14.9 Physical weak-device cost is unmeasured — **PARTIAL**
 
 **Location:** abstract operation, wire, and retained-state estimates.
 
