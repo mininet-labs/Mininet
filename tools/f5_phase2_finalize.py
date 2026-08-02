@@ -43,13 +43,13 @@ f5-phase2-settlement-model.md`; `tools/f5_phase2_model.py`.
 checked-in fixed report as the exact falsification baseline before any F5
 production implementation. The model separates requester-funded,
 sponsor-funded, and protocol-subsidized settlement; makes authority-bearing
-settlement unconstructable; binds policy, service, epoch, event, transcript,
-duplicate, and rate-limit domains; conserves payer/program value; and gives
-audit evaluation no path to rewrite canonical finality. It deliberately records
-rather than hides its decisive negative result: genuine-delivery colluders using
-many roots and unique placeholder rate tags consume 100% of the bounded protocol
-budget, exceeding the precommitted 10% loss gate. The generated authorization
-therefore remains `false`.
+settlement unconstructable; binds policy, funding source, service, epoch, event,
+transcript, duplicate, and rate-limit domains; conserves payer/program value;
+and gives audit evaluation no path to rewrite canonical finality. It deliberately
+records rather than hides its decisive negative result: genuine-delivery
+colluders using many roots and unique placeholder rate tags consume 100% of the
+bounded protocol budget, exceeding the precommitted 10% loss gate. The generated
+authorization therefore remains `false`.
 
 **Reason:** Phase 0 required an executable model that distinguishes accounting
 safety from anti-collusion. The model proves that finite budgets, replay checks,
@@ -71,26 +71,30 @@ adversarial test suite, one exact-output test, and one checked-in JSONL vector.
 No production crate, external dependency, wallet/chain behavior, credential,
 nullifier, issuer set, auditor network, sponsor fund, protocol subsidy, or real
 MINI activation exists. Accounting/replay/finality tests pass; the
-colluding-extraction gate fails; issuer/auditor independence, unlinkability, and
-physical weakest-device cost remain unmeasured.
+colluding-extraction gate fails; cross-policy semantic overlap,
+issuer/auditor independence, unlinkability, and physical weakest-device cost
+remain unmeasured.
 
 **Failure point:** the model's `request_event_commitment` and `ScopedRateTag` are
 scenario inputs. Different commitments can describe semantically identical work,
 and fresh tag strings are not proof of scarce entitlement, unique humans, or
-independent issuers. Threshold key counts can also be one operator behind several
-keys. A production implementation that copies those placeholders, treats claim-ID
-ordering as fair allocation, or equates challenge-valid delivery with independent
-demand would fail the doctrine while appearing mechanically correct.
+independent issuers. Separate policies can also pay the same event unless they
+precommit a privacy-preserving policy-family overlap rule. Threshold key counts
+can still be one operator behind several keys. A production implementation that
+copies those placeholders, treats claim-ID ordering as fair allocation, or
+equates challenge-valid delivery with independent demand would fail the doctrine
+while appearing mechanically correct.
 
 **Required follow-up:** Phase 3 is not automatically authorized. Any later PR
 must be separately scoped and exact-state reviewed. A narrowly valueless
 delivery-integrity prototype may proceed only if it says genuine colluders pass
 and makes no anti-collusion or real-value claim. Any sponsor/protocol anti-
 collusion or activation proposal must first define and externally review an
-explicit scarcity assumption, preserve requester-funded permissionlessness,
-meet D-0047, demonstrate operational independence rather than key count, rerun
-the declared colluding set below the 10% gate, and benchmark the exact verifier
-on the weakest supported device. F6 remains separate and unstarted.
+explicit scarcity assumption and any policy-family overlap rule, preserve
+requester-funded permissionlessness, meet D-0047, demonstrate operational
+independence rather than key count, rerun the declared colluding set below the
+10% gate, and benchmark the exact verifier on the weakest supported device. F6
+remains separate and unstarted.
 
 **Supersedes / superseded by:** fulfills and supersedes D-0427's Phase-2
 required follow-up only. It does not supersede D-0427's doctrine, D-0417's
@@ -112,18 +116,22 @@ def update_status() -> None:
   f5_phase2_model.py`, with adversarial tests and a byte-exact checked-in
   JSONL result vector. Phase 1 is only the already-existing linkable
   D-0417/D-0404 baseline, not anti-collusion code. The Phase-2 accounting
-  shell passes finite-budget conservation, exact retry/same-event replay,
-  requester-funded issuer/auditor independence, cross-domain rejection,
-  bounded state/input, and finality-isolation checks. Its decisive attack
-  gate **fails**: 100 colluding requester/provider pairs with distinct
-  roots/tags and genuine delivery drain 100% of a bounded protocol budget
-  against a precommitted 10% ceiling. Issuer/auditor operational
-  independence, cryptographic unlinkability, semantic event uniqueness,
-  and physical weakest-device CPU/memory remain unmeasured. The generated
-  report therefore sets `phase3_authorized` to `false`; no production
-  settlement-integrity/delivery-challenge/audit crate, credential,
-  nullifier, subsidy, or real-value activation is authorized. Phases 3-9
-  remain unstarted; F6 still has no doctrine document. See `docs/design/
+  shell passes finite-budget conservation, exact funding-source binding,
+  retry/same-event replay, requester-funded issuer/auditor independence,
+  cross-domain rejection, bounded state/input, and finality-isolation
+  checks. Its decisive attack gate **fails**: 100 colluding requester/
+  provider pairs with distinct roots/tags and genuine delivery drain 100%
+  of a bounded protocol budget against a precommitted 10% ceiling. A
+  second vector remains **partial** by design: two independently committed
+  policies can pay the same event because Mininet has no global activity
+  registry; preventing unwanted overlap needs an explicit privacy-
+  preserving policy-family rule. Issuer/auditor operational independence,
+  cryptographic unlinkability, semantic event uniqueness, and physical
+  weakest-device CPU/memory remain unmeasured. The generated report
+  therefore sets `phase3_authorized` to `false`; no production settlement-
+  integrity/delivery-challenge/audit crate, credential, nullifier,
+  subsidy, or real-value activation is authorized. Phases 3-9 remain
+  unstarted; F6 still has no doctrine document. See `docs/design/
   f5-phase2-settlement-model.md` and `docs/design/
   federated-search-exchange-f1-f2.md`.'''
     replace_once(STATUS, old, new)
@@ -143,8 +151,10 @@ Phases 2-9 are unstarted.''',
 Phase 2 is now complete under D-0428 as a deterministic Python model with a
 checked-in fixed report; it moves no value and selects no production
 construction. Its genuine-delivery collusion vector drains 100% of the bounded
-protocol budget against a precommitted 10% loss gate, so the report sets
-`phase3_authorized` to `false`. Phases 3-9 remain unstarted and unauthorized.''',
+protocol budget against a precommitted 10% loss gate, and cross-policy semantic
+overlap remains unmeasured without a global activity registry, so the report
+sets `phase3_authorized` to `false`. Phases 3-9 remain unstarted and
+unauthorized.''',
     )
     replace_once(
         DOCTRINE,
@@ -167,16 +177,21 @@ accepted before that Phase-2 package is reviewed.''',
 The next work is still **not a nullifier crate** and not real-value activation.
 A later, separately reviewed proposal may either narrow Phase 3 to a valueless
 delivery-integrity prototype that explicitly admits genuine colluders pass, or
-research an established scarcity construction/ allocation rule capable of
-bringing the declared colluding set below the precommitted 10% loss ceiling.
-Coordinate with roadmap #228/#229 so review- and settlement-context derivations
-cannot collide, and with #18 without pretending #18 is solved. No production
-anti-collusion or sponsor/protocol activation PR should be accepted while the
-D-0428 authorization result remains false.''',
+research an established scarcity construction and privacy-preserving policy-
+family allocation rule capable of bringing the declared colluding set below the
+precommitted 10% loss ceiling. Coordinate with roadmap #228/#229 so review- and
+settlement-context derivations cannot collide, and with #18 without pretending
+#18 is solved. No production anti-collusion or sponsor/protocol activation PR
+should be accepted while the D-0428 authorization result remains false.''',
     )
 
 
 def main() -> None:
+    subprocess.run(
+        ["python3", str(ROOT / "tools" / "f5_phase2_harden.py")],
+        cwd=ROOT,
+        check=True,
+    )
     append_decision()
     update_status()
     update_doctrine()
