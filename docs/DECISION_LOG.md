@@ -14358,3 +14358,80 @@ Track F's other genuinely un-designed piece, not addressed here.
 **Supersedes / superseded by:** fulfills D-0421's own named Required
 follow-up; builds on and does not supersede D-0421, D-0417, D-0404, or
 D-0099.
+
+### D-0428 — F5 Phase-2 settlement transcript, adversary/economic model, and falsification gates  ·  *Proposed*
+
+**Date:** 2026-08-02 · **Refs:** D-0421 §7; D-0427; D-0417
+(`mini-contribution`); D-0404 (`mini-attest` Tier 0); D-0047; roadmap
+issues #18, #175, #228, and #229; `docs/design/
+f5-phase2-settlement-model.md`; `tools/f5_phase2_model.py`.
+
+**Decision:** adopt the deterministic, valueless F5 Phase-2 model and its
+checked-in fixed report as the exact falsification baseline before any F5
+production implementation. The model separates requester-funded,
+sponsor-funded, and protocol-subsidized settlement; makes authority-bearing
+settlement unconstructable; binds policy, funding source, service, epoch, event,
+transcript, duplicate, and rate-limit domains; conserves payer/program value;
+and gives audit evaluation no path to rewrite canonical finality. It deliberately
+records rather than hides its decisive negative result: genuine-delivery
+colluders using many roots and unique placeholder rate tags consume 100% of the
+bounded protocol budget, exceeding the precommitted 10% loss gate. Separately,
+a known realized audit seed lets adaptive claimants grind all 60 submitted IDs
+outside the 5% sample. The configured 100,000-key replay-state allowance is
+estimated at 9,600,000 bytes, above the precommitted 8 MiB gate. The generated
+authorization therefore remains `false`.
+
+**Reason:** Phase 0 required an executable model that distinguishes accounting
+safety from anti-collusion. The model proves that finite budgets, replay checks,
+and delivery challenges prevent unbounded issuance and fake non-delivery, but
+also proves that those mechanisms cannot manufacture independent demand. Merging
+a reproducible failed gate is safer and more scientifically honest than
+weakening the gate or shipping a mechanism that calls real delivery
+"collusion-resistant."
+
+**Constitutional impact:** no frozen invariant is amended and no authority is
+granted. This strengthens Directives 2, 4, 5, 9, 14, 16, and 18: ordinary
+requester-funded settlement has no issuer/auditor gate; budgets are finite;
+finality is not reversible; model outputs confer no ranking, personhood,
+governance, validator, moderation, reviewer, or constitutional authority; and
+no production cryptographic construction is selected.
+
+**Implementation status:** Phase 2 only. One deterministic Python model, one
+adversarial test suite, one exact-output test, and one checked-in JSONL vector.
+No production crate, external dependency, wallet/chain behavior, credential,
+nullifier, issuer set, auditor network, sponsor fund, protocol subsidy, or real
+MINI activation exists. Accounting/replay/finality tests pass; the
+colluding-extraction, adaptive-audit-grinding, and configured retained-state
+gates fail; cross-policy semantic overlap, issuer/auditor independence,
+unlinkability, and physical weakest-device cost remain unmeasured.
+
+**Failure point:** the model's `request_event_commitment` and `ScopedRateTag` are
+scenario inputs. Different commitments can describe semantically identical work,
+and fresh tag strings are not proof of scarce entitlement, unique humans, or
+independent issuers. Separate policies can also pay the same event unless they
+precommit a privacy-preserving policy-family overlap rule. A deterministic
+sample is also grindable if its realized seed is known before claims are
+immutable. The default replay-key capacity also exceeds the precommitted
+8 MiB estimate even though friendly fixtures stay below it. Threshold key
+counts can still be one operator behind several keys. A production implementation that
+copies those placeholders, treats claim-ID ordering as fair allocation, or
+equates challenge-valid delivery with independent demand would fail the doctrine
+while appearing mechanically correct.
+
+**Required follow-up:** Phase 3 is not automatically authorized. Any later PR
+must be separately scoped and exact-state reviewed. A narrowly valueless
+delivery-integrity prototype may proceed only if it says genuine colluders pass
+and makes no anti-collusion or real-value claim. Any sponsor/protocol anti-
+collusion or activation proposal must first define and externally review an
+explicit scarcity assumption, policy-family overlap rule, and decentralized
+delayed-randomness construction, preserve requester-funded permissionlessness,
+meet D-0047, demonstrate operational independence rather than key count, rerun
+the declared colluding set below the 10% gate, prevent adaptive sample grinding,
+meet the configured 8 MiB retained-state ceiling, and benchmark the exact
+verifier on the weakest supported device. F6 remains separate and unstarted.
+
+**Supersedes / superseded by:** fulfills and supersedes D-0427's Phase-2
+required follow-up only. It does not supersede D-0427's doctrine, D-0417's
+requester-funded baseline, D-0404's linkable Tier-0 reviews, or D-0099. Any later
+Phase-3-or-higher decision must cite this fixed report and its failed gate.
+

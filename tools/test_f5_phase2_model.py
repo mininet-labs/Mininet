@@ -1,0 +1,847 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import sys
+import unittest
+from dataclasses import replace
+from itertools import permutations
+from pathlib import Path
+
+
+MODULE_PATH = Path(__file__).with_name("f5_phase2_model.py")
+SPEC = importlib.util.spec_from_file_location("f5_phase2_model", MODULE_PATH)
+assert SPEC and SPEC.loader
+MODEL = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = MODEL
+SPEC.loader.exec_module(MODEL)
+
+
+class PolicyTests(unittest.TestCase):
+    def test_requester_funded_policy_cannot_require_gatekeepers(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.REQUESTER_FUNDED,
+            "market",
+            budget=0,
+        )
+        with self.assertRaisesRegex(ValueError, "issuer/auditor"):
+            replace(policy, issuer_threshold=1)
+        with self.assertRaisesRegex(ValueError, "collusion-limit"):
+            replace(
+                policy,
+                rate_limit_domain=f"{MODEL.RATE_LIMIT_DOMAIN_PREFIX}market",
+            )
+
+    def test_sponsor_policy_requires_finite_budget_and_scoped_rate_domain(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "sponsor",
+            budget=100,
+        )
+        with self.assertRaisesRegex(ValueError, "finite budget"):
+            replace(policy, program_budget_units=0)
+        with self.assertRaisesRegex(ValueError, "settlement-specific"):
+            replace(policy, rate_limit_domain="mininet/personhood/nullifier/v1")
+
+    def test_privacy_leaking_policy_cannot_be_constructed(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "privacy-policy",
+            budget=100,
+        )
+        leaky = MODEL.PrivacyDeclaration(
+            disclosures=((MODEL.Role.AUDITOR, (MODEL.Disclosure.ROOT_DID,)),)
+        )
+        with self.assertRaisesRegex(ValueError, "privacy declaration"):
+            replace(policy, privacy=leaky)
+
+    def test_authority_bearing_policy_cannot_be_constructed(self) -> None:
+        with self.assertRaisesRegex(ValueError, "forbidden"):
+            MODEL.SettlementPolicy(
+                version=MODEL.MODEL_VERSION,
+                settlement_class=MODEL.SettlementClass.AUTHORITY_BEARING,
+                service_class=MODEL.ServiceClass.BYTE_DELIVERY,
+                policy_name="authority",
+                funding_source_commitment="authority-budget",
+                epoch=1,
+                starts_at_ms=0,
+                expires_at_ms=10,
+                program_budget_units=10,
+                max_claim_units=1,
+                duplicate_domain=f"{MODEL.DUPLICATE_DOMAIN_PREFIX}authority",
+                rate_limit_domain=f"{MODEL.RATE_LIMIT_DOMAIN_PREFIX}authority",
+                challenge_required=True,
+                issuer_threshold=1,
+                auditor_threshold=1,
+                audit_sample_bps=500,
+                max_retained_keys=10,
+                max_claim_proof_wire_bytes=16_384,
+                max_abstract_verification_ops=10_000,
+                privacy=MODEL.PrivacyDeclaration.default(),
+            )
+
+
+class TranscriptTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "transcript",
+            budget=100,
+        )
+        self.claim, self.transcript = MODEL.make_claim(
+            self.policy,
+            event="transcript-event",
+            requester="requester",
+            funder="sponsor-budget",
+            provider="provider",
+            amount=10,
+            rate_tag="rate-1",
+        )
+
+    def test_transcript_binds_policy_parties_event_and_challenge(self) -> None:
+        self.assertTrue(
+            self.transcript.verify_for(self.policy, self.claim, now_ms=1_000)
+        )
+        for mutated in (
+            replace(self.transcript, provider_scope="attacker"),
+            replace(self.transcript, requester_scope="attacker"),
+            replace(self.transcript, challenge="other"),
+            replace(self.transcript, response_commitment="other"),
+        ):
+            self.assertFalse(mutated.verify_for(self.policy, self.claim, now_ms=1_000))
+
+    def test_evidence_commitment_uses_the_declared_evidence_domain(self) -> None:
+        base = {
+            "version": self.transcript.version,
+            "domain": self.transcript.domain,
+            "policy_commitment": self.transcript.policy_commitment,
+            "settlement_class": self.transcript.settlement_class.value,
+            "service_class": self.transcript.service_class.value,
+            "request_event_commitment": self.transcript.request_event_commitment,
+            "requester_scope": self.transcript.requester_scope,
+            "provider_scope": self.transcript.provider_scope,
+            "challenge": self.transcript.challenge,
+            "response_commitment": self.transcript.response_commitment,
+            "issued_at_ms": self.transcript.issued_at_ms,
+            "expires_at_ms": self.transcript.expires_at_ms,
+        }
+        self.assertEqual(
+            self.transcript.evidence_commitment,
+            MODEL.model_commitment(MODEL.EVIDENCE_DOMAIN, base),
+        )
+        self.assertNotEqual(
+            self.transcript.evidence_commitment,
+            MODEL.model_commitment("delivery-evidence", base),
+        )
+
+    def test_recomputed_pre_policy_transcript_is_rejected(self) -> None:
+        mutated = replace(self.transcript, issued_at_ms=-1)
+        base = {
+            "version": mutated.version,
+            "domain": mutated.domain,
+            "policy_commitment": mutated.policy_commitment,
+            "settlement_class": mutated.settlement_class.value,
+            "service_class": mutated.service_class.value,
+            "request_event_commitment": mutated.request_event_commitment,
+            "requester_scope": mutated.requester_scope,
+            "provider_scope": mutated.provider_scope,
+            "challenge": mutated.challenge,
+            "response_commitment": mutated.response_commitment,
+            "issued_at_ms": mutated.issued_at_ms,
+            "expires_at_ms": mutated.expires_at_ms,
+        }
+        mutated = replace(
+            mutated,
+            evidence_commitment=MODEL.model_commitment(MODEL.EVIDENCE_DOMAIN, base),
+        )
+        mutated_claim = replace(
+            self.claim,
+            delivery_evidence_commitment=mutated.evidence_commitment,
+        )
+        mutated_claim = replace(
+            mutated_claim,
+            claim_id=mutated_claim.expected_claim_id(),
+        )
+        self.assertFalse(mutated.verify_for(self.policy, mutated_claim, now_ms=1_000))
+
+    def test_transcript_expiry_is_enforced(self) -> None:
+        self.assertFalse(
+            self.transcript.verify_for(self.policy, self.claim, now_ms=2_001)
+        )
+
+    def test_claim_and_transcript_have_explicit_bounds(self) -> None:
+        wire = self.claim.wire_size_bytes + self.transcript.wire_size_bytes
+        work = (
+            self.claim.abstract_verification_ops
+            + self.transcript.abstract_verification_ops
+        )
+        self.assertLessEqual(wire, self.policy.max_claim_proof_wire_bytes)
+        self.assertLessEqual(work, self.policy.max_abstract_verification_ops)
+
+
+class SettlementInvariantTests(unittest.TestCase):
+    def test_requester_funded_settlement_survives_total_f5_outage(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.REQUESTER_FUNDED,
+            "market-outage",
+            budget=0,
+        )
+        model = MODEL.SettlementModel(
+            payer_balances={"payer": 50, "provider": 0}
+        )
+        model.register_policy(policy)
+        claim, transcript = MODEL.make_claim(
+            policy,
+            event="market-outage-event",
+            requester="payer-scope",
+            funder="payer",
+            provider="provider",
+            amount=20,
+            rate_tag=None,
+        )
+        outcome = model.submit(
+            claim,
+            transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=1_000,
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.ACCEPTED)
+        self.assertEqual(model.payer_balances, {"payer": 30, "provider": 20})
+        self.assertTrue(model.requester_value_is_conserved())
+
+    def test_requester_self_payment_has_volume_but_zero_net_extraction(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.REQUESTER_FUNDED,
+            "self-pay",
+            budget=0,
+        )
+        model = MODEL.SettlementModel(payer_balances={"same-party": 50})
+        model.register_policy(policy)
+        claim, transcript = MODEL.make_claim(
+            policy,
+            event="self-pay-event",
+            requester="same-party",
+            funder="same-party",
+            provider="same-party",
+            amount=20,
+            rate_tag=None,
+        )
+        outcome = model.submit(
+            claim,
+            transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=1_000,
+            attacker_controlled_scopes={"same-party"},
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.ACCEPTED)
+        self.assertEqual(outcome.extraction_units, 0)
+        self.assertEqual(model.payer_balances["same-party"], 50)
+        self.assertEqual(model.finalized_transfer_volume_units, 20)
+        self.assertEqual(model.requester_funded_transfer_volume_units, 20)
+
+    def test_invalid_negative_amount_cannot_reduce_attempted_volume(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.REQUESTER_FUNDED,
+            "negative-attempt",
+            budget=0,
+        )
+        model = MODEL.SettlementModel(payer_balances={"payer": 10})
+        model.register_policy(policy)
+        claim, transcript = MODEL.make_claim(
+            policy,
+            event="negative-attempt-event",
+            requester="payer",
+            funder="payer",
+            provider="provider",
+            amount=1,
+            rate_tag=None,
+        )
+        malformed = replace(claim, amount_units=-10)
+        malformed = replace(malformed, claim_id=malformed.expected_claim_id())
+        outcome = model.submit(
+            malformed,
+            transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=1_000,
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.AMOUNT_INVALID)
+        self.assertEqual(model.attempted_volume_units, 0)
+        self.assertEqual(model.payer_balances["payer"], 10)
+
+    def test_sponsor_budget_cannot_go_negative(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "bounded-sponsor",
+            budget=100,
+            max_claim=40,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy)
+        items = [
+            MODEL.make_claim(
+                policy,
+                event=f"event-{index}",
+                requester=f"requester-{index}",
+                funder="sponsor",
+                provider=f"provider-{index}",
+                amount=40,
+                rate_tag=f"tag-{index}",
+            )
+            for index in range(3)
+        ]
+        outcomes = model.submit_canonical_batch(
+            items,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        self.assertEqual(
+            sum(outcome.code is MODEL.OutcomeCode.ACCEPTED for outcome in outcomes),
+            2,
+        )
+        self.assertEqual(model.program_remaining[policy.commitment], 20)
+        self.assertEqual(model.budget_overrun_units(policy.commitment), 0)
+        self.assertTrue(model.program_value_is_conserved(policy.commitment))
+
+    def test_canonical_batch_is_permutation_independent(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.PROTOCOL_SUBSIDIZED,
+            "race",
+            budget=90,
+            max_claim=30,
+        )
+        items = [
+            MODEL.make_claim(
+                policy,
+                event=f"race-{index}",
+                requester=f"requester-{index}",
+                funder="epoch-budget",
+                provider=f"provider-{index}",
+                amount=30,
+                rate_tag=f"race-tag-{index}",
+            )
+            for index in range(4)
+        ]
+        digests: set[str] = set()
+        accepted_sets: set[tuple[str, ...]] = set()
+        for ordering in permutations(items):
+            model = MODEL.SettlementModel()
+            model.register_policy(policy)
+            outcomes = model.submit_canonical_batch(
+                list(ordering),
+                availability=MODEL.Availability(3, 3),
+                now_ms=1_000,
+            )
+            digests.add(model.state_digest())
+            accepted_sets.add(
+                tuple(
+                    sorted(
+                        outcome.claim_id
+                        for outcome in outcomes
+                        if outcome.code is MODEL.OutcomeCode.ACCEPTED
+                    )
+                )
+            )
+        self.assertEqual(len(digests), 1)
+        self.assertEqual(len(accepted_sets), 1)
+        self.assertEqual(len(next(iter(accepted_sets))), 3)
+
+    def test_unknown_claim_schema_version_is_rejected(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.REQUESTER_FUNDED,
+            "claim-version",
+            budget=0,
+        )
+        model = MODEL.SettlementModel(payer_balances={"payer": 20})
+        model.register_policy(policy)
+        claim, transcript = MODEL.make_claim(
+            policy,
+            event="claim-version-event",
+            requester="payer",
+            funder="payer",
+            provider="provider",
+            amount=10,
+            rate_tag=None,
+        )
+        unknown = replace(claim, version=MODEL.MODEL_VERSION + 1)
+        unknown = replace(unknown, claim_id=unknown.expected_claim_id())
+        outcome = model.submit(
+            unknown,
+            transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=1_000,
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.UNSUPPORTED_VERSION)
+        self.assertEqual(model.payer_balances, {"payer": 20})
+
+    def test_program_claim_must_match_policy_funding_source(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "funding-source",
+            budget=100,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy)
+        valid, transcript = MODEL.make_claim(
+            policy,
+            event="funding-source-event",
+            requester="requester",
+            funder=policy.funding_source_commitment,
+            provider="provider",
+            amount=10,
+            rate_tag="funding-source-tag",
+        )
+        wrong = MODEL.SettlementClaim.create(
+            policy,
+            transcript,
+            requester_scope=valid.requester_scope,
+            funder_commitment="other-budget",
+            provider_scope=valid.provider_scope,
+            request_event_commitment=valid.request_event_commitment,
+            amount_units=valid.amount_units,
+            expires_at_ms=valid.expires_at_ms,
+            rate_limit_tag=valid.rate_limit_tag,
+        )
+        outcome = model.submit(
+            wrong,
+            transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        self.assertEqual(
+            outcome.code,
+            MODEL.OutcomeCode.FUNDING_SOURCE_MISMATCH,
+        )
+        self.assertEqual(model.program_remaining[policy.commitment], 100)
+
+    def test_network_retry_is_idempotent(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "retry",
+            budget=100,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy)
+        claim, transcript = MODEL.make_claim(
+            policy,
+            event="retry-event",
+            requester="requester",
+            funder="sponsor",
+            provider="provider",
+            amount=10,
+            rate_tag="retry-tag",
+        )
+        first = model.submit(
+            claim,
+            transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        second = model.submit(
+            claim,
+            transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        after_expiry = model.submit(
+            claim,
+            transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=2_001,
+        )
+        self.assertEqual(first.code, MODEL.OutcomeCode.ACCEPTED)
+        self.assertEqual(second.code, MODEL.OutcomeCode.ALREADY_ACCEPTED)
+        self.assertEqual(after_expiry.code, MODEL.OutcomeCode.ALREADY_ACCEPTED)
+        self.assertEqual(second.spent_units, 0)
+        self.assertEqual(after_expiry.spent_units, 0)
+        self.assertEqual(model.program_remaining[policy.commitment], 90)
+
+    def test_identity_splitting_cannot_multiply_one_economic_event(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "split",
+            budget=100,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy)
+        first, first_transcript = MODEL.make_claim(
+            policy,
+            event="same-economic-event",
+            requester="root-a",
+            funder="sponsor",
+            provider="provider-a",
+            amount=10,
+            rate_tag="tag-a",
+        )
+        second, second_transcript = MODEL.make_claim(
+            policy,
+            event="same-economic-event",
+            requester="root-b",
+            funder="sponsor",
+            provider="provider-b",
+            amount=10,
+            rate_tag="tag-b",
+        )
+        self.assertNotEqual(first.claim_id, second.claim_id)
+        self.assertEqual(first.duplicate_identifier, second.duplicate_identifier)
+        first_outcome = model.submit(
+            first,
+            first_transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        second_outcome = model.submit(
+            second,
+            second_transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        self.assertEqual(first_outcome.code, MODEL.OutcomeCode.ACCEPTED)
+        self.assertEqual(
+            second_outcome.code,
+            MODEL.OutcomeCode.DUPLICATE_ECONOMIC_EVENT,
+        )
+
+    def test_cross_epoch_policy_substitution_is_rejected_before_spend(self) -> None:
+        policy_a = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "policy-a",
+            budget=100,
+            epoch=7,
+        )
+        policy_b = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "policy-b",
+            budget=100,
+            epoch=8,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy_a)
+        model.register_policy(policy_b)
+        claim, transcript = MODEL.make_claim(
+            policy_a,
+            event="cross-policy-event",
+            requester="requester",
+            funder="sponsor",
+            provider="provider",
+            amount=10,
+            rate_tag="tag",
+        )
+        substituted = replace(claim, policy_commitment=policy_b.commitment)
+        outcome = model.submit(
+            substituted,
+            transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.EPOCH_MISMATCH)
+        self.assertEqual(model.program_remaining[policy_a.commitment], 100)
+        self.assertEqual(model.program_remaining[policy_b.commitment], 100)
+
+    def test_same_epoch_policy_substitution_invalidates_claim_id(self) -> None:
+        policy_a = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "same-epoch-policy-a",
+            budget=100,
+            epoch=7,
+        )
+        policy_b = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "same-epoch-policy-b",
+            budget=100,
+            epoch=7,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy_a)
+        model.register_policy(policy_b)
+        claim, transcript = MODEL.make_claim(
+            policy_a,
+            event="same-epoch-cross-policy-event",
+            requester="requester",
+            funder="sponsor",
+            provider="provider",
+            amount=10,
+            rate_tag="tag",
+        )
+        substituted = replace(claim, policy_commitment=policy_b.commitment)
+        outcome = model.submit(
+            substituted,
+            transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.CLAIM_ID_MISMATCH)
+        self.assertEqual(model.program_remaining[policy_a.commitment], 100)
+        self.assertEqual(model.program_remaining[policy_b.commitment], 100)
+
+    def test_non_settlement_rate_tag_cannot_be_substituted(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "rate-domain",
+            budget=100,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy)
+        claim, transcript = MODEL.make_claim(
+            policy,
+            event="rate-domain-event",
+            requester="requester",
+            funder="sponsor",
+            provider="provider",
+            amount=10,
+            rate_tag=MODEL.ScopedRateTag(
+                "mininet/personhood/nullifier/v1",
+                "cross-context-secret",
+            ),
+        )
+        outcome = model.submit(
+            claim,
+            transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        self.assertEqual(
+            outcome.code,
+            MODEL.OutcomeCode.RATE_LIMIT_DOMAIN_MISMATCH,
+        )
+
+    def test_role_disappearance_is_local_to_subsidized_class(self) -> None:
+        market_policy = MODEL.make_policy(
+            MODEL.SettlementClass.REQUESTER_FUNDED,
+            "outage-market",
+            budget=0,
+        )
+        sponsor_policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "outage-sponsor",
+            budget=100,
+        )
+        model = MODEL.SettlementModel(
+            payer_balances={"payer": 20, "market-provider": 0}
+        )
+        model.register_policy(market_policy)
+        model.register_policy(sponsor_policy)
+        market_claim, market_transcript = MODEL.make_claim(
+            market_policy,
+            event="market-event",
+            requester="payer",
+            funder="payer",
+            provider="market-provider",
+            amount=10,
+            rate_tag=None,
+        )
+        sponsor_claim, sponsor_transcript = MODEL.make_claim(
+            sponsor_policy,
+            event="sponsor-event",
+            requester="requester",
+            funder="sponsor",
+            provider="sponsor-provider",
+            amount=10,
+            rate_tag="sponsor-tag",
+        )
+        market_outcome = model.submit(
+            market_claim,
+            market_transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=1_000,
+        )
+        sponsor_outcome = model.submit(
+            sponsor_claim,
+            sponsor_transcript,
+            availability=MODEL.Availability(0, 0),
+            now_ms=1_000,
+        )
+        self.assertEqual(market_outcome.code, MODEL.OutcomeCode.ACCEPTED)
+        self.assertEqual(
+            sponsor_outcome.code,
+            MODEL.OutcomeCode.ISSUER_UNAVAILABLE,
+        )
+        self.assertEqual(model.program_remaining[sponsor_policy.commitment], 100)
+
+    def test_retained_state_limit_fails_closed_without_eviction(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "retained",
+            budget=100,
+            max_claim=10,
+            max_retained_keys=2,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy)
+        first, first_transcript = MODEL.make_claim(
+            policy,
+            event="retained-1",
+            requester="requester-1",
+            funder="sponsor",
+            provider="provider-1",
+            amount=10,
+            rate_tag="retained-tag-1",
+        )
+        second, second_transcript = MODEL.make_claim(
+            policy,
+            event="retained-2",
+            requester="requester-2",
+            funder="sponsor",
+            provider="provider-2",
+            amount=10,
+            rate_tag="retained-tag-2",
+        )
+        self.assertEqual(
+            model.submit(
+                first,
+                first_transcript,
+                availability=MODEL.Availability(3, 3),
+                now_ms=1_000,
+            ).code,
+            MODEL.OutcomeCode.ACCEPTED,
+        )
+        self.assertEqual(
+            model.submit(
+                second,
+                second_transcript,
+                availability=MODEL.Availability(3, 3),
+                now_ms=1_000,
+            ).code,
+            MODEL.OutcomeCode.RETAINED_STATE_LIMIT,
+        )
+        self.assertEqual(model.program_remaining[policy.commitment], 90)
+
+
+class FailureHonestyTests(unittest.TestCase):
+    def test_real_delivery_by_colluders_passes_delivery_check(self) -> None:
+        policy = MODEL.make_policy(
+            MODEL.SettlementClass.PROTOCOL_SUBSIDIZED,
+            "collusion",
+            budget=100,
+            max_claim=10,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy)
+        outcomes = []
+        controlled = set()
+        for index in range(10):
+            requester = f"attacker-requester-{index}"
+            provider = f"attacker-provider-{index}"
+            controlled.update((requester, provider))
+            claim, transcript = MODEL.make_claim(
+                policy,
+                event=f"real-delivery-{index}",
+                requester=requester,
+                funder="protocol-budget",
+                provider=provider,
+                amount=10,
+                rate_tag=f"attacker-tag-{index}",
+            )
+            outcomes.append(
+                model.submit(
+                    claim,
+                    transcript,
+                    availability=MODEL.Availability(3, 3),
+                    now_ms=1_000,
+                    attacker_controlled_scopes=controlled,
+                )
+            )
+        self.assertTrue(
+            all(outcome.code is MODEL.OutcomeCode.ACCEPTED for outcome in outcomes)
+        )
+        self.assertEqual(sum(outcome.extraction_units for outcome in outcomes), 100)
+        self.assertEqual(model.program_remaining[policy.commitment], 0)
+        self.assertEqual(model.budget_overrun_units(policy.commitment), 0)
+
+    def test_audit_allegation_has_no_canonical_state_handle(self) -> None:
+        for response in (
+            MODEL.evaluate_audit_allegation(
+                MODEL.AllegationKind.HEURISTIC_COLLUSION,
+                objective_proof_valid=False,
+            ),
+            MODEL.evaluate_audit_allegation(
+                MODEL.AllegationKind.OBJECTIVE_TRANSCRIPT_FAILURE,
+                objective_proof_valid=False,
+            ),
+            MODEL.evaluate_audit_allegation(
+                MODEL.AllegationKind.OBJECTIVE_TRANSCRIPT_FAILURE,
+                objective_proof_valid=True,
+            ),
+        ):
+            self.assertFalse(response.canonical_state_mutation_permitted)
+
+    def test_privacy_budget_detects_global_graph_fields(self) -> None:
+        safe = MODEL.PrivacyDeclaration.default()
+        leaky = MODEL.PrivacyDeclaration(
+            disclosures=(
+                (
+                    MODEL.Role.AUDITOR,
+                    (MODEL.Disclosure.ROOT_DID, MODEL.Disclosure.RAW_QUERY),
+                ),
+            )
+        )
+        self.assertEqual(safe.cross_context_leakage_score(), 0)
+        self.assertFalse(safe.has_global_graph_fields())
+        self.assertEqual(leaky.cross_context_leakage_score(), 150)
+        self.assertTrue(leaky.has_global_graph_fields())
+
+    def test_known_realized_audit_seed_is_grindable(self) -> None:
+        seed = "known-before-claim-construction"
+        results = [
+            MODEL.grind_unsampled_claim_id(seed, f"claim-{index}", 500)
+            for index in range(60)
+        ]
+        self.assertTrue(
+            all(not MODEL.audit_selected(seed, claim_id, 500) for claim_id, _ in results)
+        )
+        self.assertLess(max(attempts for _, attempts in results), 100)
+
+    def test_audit_sampling_is_public_and_deterministic(self) -> None:
+        first = [
+            MODEL.audit_selected("public-seed", f"claim-{index}", 500)
+            for index in range(200)
+        ]
+        second = [
+            MODEL.audit_selected("public-seed", f"claim-{index}", 500)
+            for index in range(200)
+        ]
+        self.assertEqual(first, second)
+        self.assertEqual(
+            MODEL.audit_detection_probability_bps(500, 60),
+            MODEL.audit_detection_probability_bps(500, 60),
+        )
+        self.assertGreaterEqual(
+            MODEL.audit_detection_probability_bps(500, 60),
+            9_500,
+        )
+
+
+class ReportTests(unittest.TestCase):
+    def test_fixed_vectors_are_deterministic_and_preserve_failed_gates(self) -> None:
+        first = MODEL.render_report()
+        second = MODEL.render_report()
+        self.assertEqual(first, second)
+        self.assertNotIn("TBD", first)
+
+        records = [json.loads(line) for line in first.splitlines()]
+        gates = {record["gate"]: record for record in records if record["kind"] == "gate"}
+        authorization = next(
+            record for record in records if record["kind"] == "authorization"
+        )
+        self.assertEqual(gates["maximum-budget-overrun"]["status"], "PASS")
+        self.assertEqual(gates["maximum-colluding-extraction"]["status"], "FAIL")
+        self.assertEqual(gates["audit-randomness-grinding-resistance"]["status"], "FAIL")
+        self.assertEqual(gates["retained-state-per-policy-epoch"]["status"], "FAIL")
+        self.assertEqual(
+            gates["retained-state-per-policy-epoch"]["observed"],
+            9_600_000,
+        )
+        self.assertEqual(gates["claim-plus-proof-wire-size"]["observed"], 16_384)
+        self.assertEqual(gates["abstract-verification-work"]["observed"], 10_000)
+        self.assertEqual(gates["honest-false-rejection-rate"]["status"], "PARTIAL")
+        self.assertEqual(gates["issuer-concentration"]["status"], "PARTIAL")
+        self.assertEqual(gates["weak-device-verification-cpu"]["status"], "PARTIAL")
+        self.assertFalse(authorization["phase3_authorized"])
+
+    def test_all_vector_names_are_unique(self) -> None:
+        vectors, _ = MODEL.run_fixed_vectors()
+        names = [vector.vector for vector in vectors]
+        self.assertEqual(len(names), len(set(names)))
+
+
+if __name__ == "__main__":
+    unittest.main()
