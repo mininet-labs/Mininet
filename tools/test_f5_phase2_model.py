@@ -330,7 +330,7 @@ class SettlementInvariantTests(unittest.TestCase):
             MODEL.OutcomeCode.DUPLICATE_ECONOMIC_EVENT,
         )
 
-    def test_cross_policy_substitution_invalidates_claim(self) -> None:
+    def test_cross_epoch_policy_substitution_is_rejected_before_spend(self) -> None:
         policy_a = MODEL.make_policy(
             MODEL.SettlementClass.SPONSOR_FUNDED,
             "policy-a",
@@ -349,6 +349,42 @@ class SettlementInvariantTests(unittest.TestCase):
         claim, transcript = MODEL.make_claim(
             policy_a,
             event="cross-policy-event",
+            requester="requester",
+            funder="sponsor",
+            provider="provider",
+            amount=10,
+            rate_tag="tag",
+        )
+        substituted = replace(claim, policy_commitment=policy_b.commitment)
+        outcome = model.submit(
+            substituted,
+            transcript,
+            availability=MODEL.Availability(3, 3),
+            now_ms=1_000,
+        )
+        self.assertEqual(outcome.code, MODEL.OutcomeCode.EPOCH_MISMATCH)
+        self.assertEqual(model.program_remaining[policy_a.commitment], 100)
+        self.assertEqual(model.program_remaining[policy_b.commitment], 100)
+
+    def test_same_epoch_policy_substitution_invalidates_claim_id(self) -> None:
+        policy_a = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "same-epoch-policy-a",
+            budget=100,
+            epoch=7,
+        )
+        policy_b = MODEL.make_policy(
+            MODEL.SettlementClass.SPONSOR_FUNDED,
+            "same-epoch-policy-b",
+            budget=100,
+            epoch=7,
+        )
+        model = MODEL.SettlementModel()
+        model.register_policy(policy_a)
+        model.register_policy(policy_b)
+        claim, transcript = MODEL.make_claim(
+            policy_a,
+            event="same-epoch-cross-policy-event",
             requester="requester",
             funder="sponsor",
             provider="provider",
