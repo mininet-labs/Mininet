@@ -1270,7 +1270,6 @@ the top development priority.
   unstarted; F6 still has no doctrine document. See `docs/design/
   f5-phase2-settlement-model.md` and `docs/design/
   federated-search-exchange-f1-f2.md`.
-  See `docs/design/federated-search-exchange-f1-f2.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,

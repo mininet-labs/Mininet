@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 68,
-    "files": 789,
-    "headings": 2545,
+    "files": 787,
+    "headings": 2541,
     "rust_symbols": 6947
   },
   "crates": {
@@ -991,58 +991,6 @@
       "sha256": "234491f4c07545216efd5a96860dff65089b37319b14e6d9cd802b7aead37670",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
-    },
-    {
-      "bytes": 1158,
-      "group": "ci",
-      "headings": [
-        {
-          "level": 1,
-          "line": 10,
-          "text": "One-shot branch-local finalization. Temporary files are removed by the"
-        },
-        {
-          "level": 1,
-          "line": 11,
-          "text": "connected maintainer after the generated commit lands, so this job never"
-        },
-        {
-          "level": 1,
-          "line": 12,
-          "text": "needs to push a workflow-file mutation with its GITHUB_TOKEN."
-        }
-      ],
-      "keywords": [
-        "git",
-        "commit",
-        "name",
-        "github",
-        "generated",
-        "push",
-        "codex",
-        "f5-phase2-model",
-        "f5-phase2-finalize",
-        "one-shot",
-        "branch-local",
-        "finalization",
-        "temporary",
-        "files",
-        "removed",
-        "connected",
-        "maintainer",
-        "lands",
-        "job",
-        "never",
-        "needs",
-        "workflow-file",
-        "mutation",
-        "its"
-      ],
-      "lines": 34,
-      "path": ".github/workflows/f5-phase2-finalize.yml",
-      "sha256": "75993b247d356e2be0eacfce786c5cd7859085abe0df2f52aabb52205c67ec2f",
-      "symbols": [],
-      "title": "One-shot branch-local finalization. Temporary files are removed by the"
     },
     {
       "bytes": 2166,
@@ -61426,7 +61374,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 109015,
+      "bytes": 108959,
       "group": "docs",
       "headings": [
         {
@@ -61496,22 +61444,22 @@
         },
         {
           "level": 2,
-          "line": 1421,
+          "line": 1420,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1512,
+          "line": 1511,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1592,
+          "line": 1591,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1658,
+          "line": 1657,
           "text": "Where to look for more detail"
         }
       ],
@@ -61541,9 +61489,9 @@
         "social",
         "network"
       ],
-      "lines": 1673,
+      "lines": 1672,
       "path": "docs/STATUS.md",
-      "sha256": "069e5987da0d4f8dec2c9f6e108a65ae816077979f056653d18fc4159b957fc4",
+      "sha256": "11a921d017667656f3fc11a7ed42256feecbf9507d60ca6232d8bb9e017aaca1",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -76263,48 +76211,6 @@
       "sha256": "c7634d76eafd1bf37937ccb12909a771da08e686f7be81af839b697a4c52307e",
       "symbols": [],
       "title": "One-line, faithful distillations of each directive's own text below \u2014"
-    },
-    {
-      "bytes": 10595,
-      "group": "tools",
-      "headings": [
-        {
-          "level": 3,
-          "line": 35,
-          "text": "D-0428 \u2014 F5 Phase-2 settlement transcript, adversary/economic model, and falsification gates  \u00b7  *Proposed*"
-        }
-      ],
-      "keywords": [
-        "model",
-        "path",
-        "one",
-        "gate",
-        "settlement",
-        "text",
-        "count",
-        "root",
-        "production",
-        "d-0428",
-        "phase-2",
-        "transcript",
-        "falsification",
-        "its",
-        "import",
-        "decision_log",
-        "status",
-        "old",
-        "encoding",
-        "utf-8",
-        "implementation",
-        "requester-funded",
-        "finality",
-        "protocol"
-      ],
-      "lines": 207,
-      "path": "tools/f5_phase2_finalize.py",
-      "sha256": "b0b83d22dd2261812e0e5d67348d8cc05d03b7c504964c2f8b1c105745b5c1f8",
-      "symbols": [],
-      "title": "D-0428 \u2014 F5 Phase-2 settlement transcript, adversary/economic model, and falsification gates  \u00b7  *Proposed*"
     },
     {
       "bytes": 75307,
