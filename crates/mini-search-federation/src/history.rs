@@ -9,9 +9,9 @@
 //! Authentication remains layered exactly as in F1: callers verify the
 //! wrapping [`mini_objects::Object`] before calling `read_crawl_observation`,
 //! then pass the resulting observation and object id here. This index checks
-//! internal consistency, deterministic ordering, and bounded memory; it does
-//! not re-verify signatures or derive the still-caller-supplied
-//! `CrawlObservationId`.
+//! internal consistency, deterministic ordering, canonical F1 field bounds,
+//! and bounded memory proxies; it does not re-verify signatures or derive the
+//! still-caller-supplied `CrawlObservationId`.
 
 use std::collections::HashMap;
 
@@ -20,21 +20,34 @@ use mini_objects::ObjectId;
 use mini_web_types::{CanonicalUrl, CrawlObservation};
 
 use crate::error::{FederationError, Result};
+use crate::observation::observation_wire_len;
 
-/// Conservative default for the number of final URLs held by one local index.
+/// Default ceiling for the number of final URLs held by one local index.
+/// Production defaults still require weakest-device measurement; callers may
+/// choose smaller limits immediately.
 pub const DEFAULT_MAX_SNAPSHOT_URLS: usize = 4_096;
-/// Conservative default history depth for one final URL.
+/// Default history depth for one final URL.
 pub const DEFAULT_MAX_SNAPSHOTS_PER_URL: usize = 256;
-/// Conservative default total observation count across the local index.
+/// Default total observation count across the local index.
 pub const DEFAULT_MAX_TOTAL_SNAPSHOTS: usize = 32_768;
+/// Default canonical F1 payload-byte ceiling for one stored observation.
+pub const DEFAULT_MAX_SNAPSHOT_WIRE_BYTES: usize = 64 * 1024;
+/// Default total canonical F1 payload-byte ceiling across the index.
+pub const DEFAULT_MAX_TOTAL_SNAPSHOT_WIRE_BYTES: usize = 16 * 1024 * 1024;
 
 /// Explicit local-memory bounds for [`SnapshotIndex`]. A zero field is valid
 /// and disables insertion for that dimension.
+///
+/// The byte fields count canonical F1 payload bytes, not allocator-specific
+/// Rust heap overhead. This makes the accounting deterministic and reviewable,
+/// while remaining an honest proxy rather than a claim of exact resident RAM.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SnapshotLimits {
     pub max_urls: usize,
     pub max_snapshots_per_url: usize,
     pub max_total_snapshots: usize,
+    pub max_snapshot_wire_bytes: usize,
+    pub max_total_snapshot_wire_bytes: usize,
 }
 
 impl Default for SnapshotLimits {
@@ -43,6 +56,8 @@ impl Default for SnapshotLimits {
             max_urls: DEFAULT_MAX_SNAPSHOT_URLS,
             max_snapshots_per_url: DEFAULT_MAX_SNAPSHOTS_PER_URL,
             max_total_snapshots: DEFAULT_MAX_TOTAL_SNAPSHOTS,
+            max_snapshot_wire_bytes: DEFAULT_MAX_SNAPSHOT_WIRE_BYTES,
+            max_total_snapshot_wire_bytes: DEFAULT_MAX_TOTAL_SNAPSHOT_WIRE_BYTES,
         }
     }
 }
@@ -75,6 +90,8 @@ pub struct Snapshot {
     /// Full decoded observation, preserving crawler pseudonym, requested/final
     /// URL, status, digest, redirect chain, and claimed observation time.
     pub observation: CrawlObservation,
+    /// Canonical F1 payload size used for deterministic local budget accounting.
+    pub wire_bytes: usize,
     /// Relation to the last earlier known digest, recomputed deterministically
     /// whenever insertion changes ordering.
     pub version_relation: VersionRelation,
@@ -99,6 +116,7 @@ pub struct SnapshotIndex {
     by_final_url: HashMap<String, Vec<Snapshot>>,
     object_bindings: HashMap<ObjectId, String>,
     total_snapshots: usize,
+    total_wire_bytes: usize,
 }
 
 impl Default for SnapshotIndex {
@@ -108,7 +126,8 @@ impl Default for SnapshotIndex {
 }
 
 impl SnapshotIndex {
-    /// Create an index with conservative weak-device-oriented bounds.
+    /// Create an index with explicit, unbenchmarked safety ceilings. These are
+    /// finite defaults, not a production weakest-device claim.
     pub fn new() -> Self {
         Self::with_limits(SnapshotLimits::default())
     }
@@ -120,6 +139,7 @@ impl SnapshotIndex {
             by_final_url: HashMap::new(),
             object_bindings: HashMap::new(),
             total_snapshots: 0,
+            total_wire_bytes: 0,
         }
     }
 
@@ -139,13 +159,21 @@ impl SnapshotIndex {
         self.by_final_url.len()
     }
 
+    /// Canonical F1 payload bytes currently counted against this local index's
+    /// deterministic byte budget.
+    pub fn total_wire_bytes(&self) -> usize {
+        self.total_wire_bytes
+    }
+
     /// Insert one already-decoded F1 observation, deriving every indexed field
     /// from that typed observation rather than accepting parallel caller-supplied
     /// URL/time/digest values that could disagree with it.
     ///
     /// The same object id with the exact same observation is idempotent. Reusing
     /// one content id for different observation bytes or a different final URL
-    /// fails closed as [`FederationError::ConflictingObjectBinding`].
+    /// fails closed as [`FederationError::ConflictingObjectBinding`]. A new
+    /// observation must also satisfy the same canonical field bounds as F1's
+    /// publisher/reader and every configured count/byte ceiling before mutation.
     pub fn insert_observation(
         &mut self,
         object_id: ObjectId,
@@ -165,11 +193,18 @@ impl SnapshotIndex {
             return Ok(SnapshotInsert::AlreadyPresent);
         }
 
+        let wire_bytes = observation_wire_len(&observation)?;
+        let next_total_wire_bytes = self
+            .total_wire_bytes
+            .checked_add(wire_bytes)
+            .ok_or(FederationError::LimitExceeded)?;
         let is_new_url = !self.by_final_url.contains_key(&key);
         let snapshots_for_url = self.by_final_url.get(&key).map_or(0, Vec::len);
         if (is_new_url && self.by_final_url.len() >= self.limits.max_urls)
             || self.total_snapshots >= self.limits.max_total_snapshots
             || snapshots_for_url >= self.limits.max_snapshots_per_url
+            || wire_bytes > self.limits.max_snapshot_wire_bytes
+            || next_total_wire_bytes > self.limits.max_total_snapshot_wire_bytes
         {
             return Err(FederationError::LimitExceeded);
         }
@@ -179,6 +214,7 @@ impl SnapshotIndex {
         entries.push(Snapshot {
             object_id,
             observation,
+            wire_bytes,
             version_relation: VersionRelation::Unknown,
         });
         entries.sort_by(|a, b| {
@@ -191,6 +227,7 @@ impl SnapshotIndex {
 
         self.object_bindings.insert(binding_id, key);
         self.total_snapshots += 1;
+        self.total_wire_bytes = next_total_wire_bytes;
         Ok(SnapshotInsert::Inserted)
     }
 
