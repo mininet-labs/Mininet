@@ -222,8 +222,7 @@ impl SnapshotIndex {
             return &[];
         }
         let timestamp = history[end - 1].observation.observed_at_ms;
-        let start = history[..end]
-            .partition_point(|s| s.observation.observed_at_ms < timestamp);
+        let start = history[..end].partition_point(|s| s.observation.observed_at_ms < timestamp);
         &history[start..end]
     }
 
