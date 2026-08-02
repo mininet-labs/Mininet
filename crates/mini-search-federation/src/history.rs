@@ -6,21 +6,22 @@
 //! crawler-claimed timestamps into canonical time, one provider's observation
 //! into truth, or an absent digest into a content change.
 //!
-//! Authentication remains layered exactly as in F1: callers verify the
-//! wrapping [`mini_objects::Object`] before calling `read_crawl_observation`,
-//! then pass the resulting observation and object id here. This index checks
-//! internal consistency, deterministic ordering, canonical F1 field bounds,
-//! and bounded memory proxies; it does not re-verify signatures or derive the
-//! still-caller-supplied `CrawlObservationId`.
+//! [`SnapshotIndex::insert_observation`] accepts the actual
+//! [`mini_objects::Object`], re-parses its canonical bytes, confirms its
+//! content id still matches those bytes, and then decodes the F1 payload. This
+//! prevents a caller from pairing a valid object id with unsigned shadow
+//! URL/time/digest fields. Signature and KEL provenance verification remain a
+//! separate caller responsibility, exactly as in F1: content-address integrity
+//! is not publisher authenticity.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use mini_crypto::Multihash;
-use mini_objects::ObjectId;
+use mini_objects::{Object, ObjectId};
 use mini_web_types::{CanonicalUrl, CrawlObservation};
 
 use crate::error::{FederationError, Result};
-use crate::observation::observation_wire_len;
+use crate::observation::{observation_wire_len, read_crawl_observation};
 
 /// Default ceiling for the number of final URLs held by one local index.
 /// Production defaults still require weakest-device measurement; callers may
@@ -85,7 +86,7 @@ pub enum VersionRelation {
 /// One F1 observation in a final URL's local history.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Snapshot {
-    /// Content id of the signed F1 object that carried `observation`.
+    /// Content id of the canonical F1 object that carried `observation`.
     pub object_id: ObjectId,
     /// Full decoded observation, preserving crawler pseudonym, requested/final
     /// URL, status, digest, redirect chain, and claimed observation time.
@@ -97,7 +98,7 @@ pub struct Snapshot {
     pub version_relation: VersionRelation,
 }
 
-/// Result of inserting one signed-observation object.
+/// Result of inserting one canonical observation object.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SnapshotInsert {
     Inserted,
@@ -114,7 +115,7 @@ pub enum SnapshotInsert {
 pub struct SnapshotIndex {
     limits: SnapshotLimits,
     by_final_url: HashMap<String, Vec<Snapshot>>,
-    object_bindings: HashMap<ObjectId, String>,
+    object_ids: HashSet<ObjectId>,
     total_snapshots: usize,
     total_wire_bytes: usize,
 }
@@ -137,7 +138,7 @@ impl SnapshotIndex {
         SnapshotIndex {
             limits,
             by_final_url: HashMap::new(),
-            object_bindings: HashMap::new(),
+            object_ids: HashSet::new(),
             total_snapshots: 0,
             total_wire_bytes: 0,
         }
@@ -165,34 +166,27 @@ impl SnapshotIndex {
         self.total_wire_bytes
     }
 
-    /// Insert one already-decoded F1 observation, deriving every indexed field
-    /// from that typed observation rather than accepting parallel caller-supplied
-    /// URL/time/digest values that could disagree with it.
+    /// Insert one F1 object after re-deriving its content id and decoded typed
+    /// observation from the object's own canonical bytes.
     ///
-    /// The same object id with the exact same observation is idempotent. Reusing
-    /// one content id for different observation bytes or a different final URL
-    /// fails closed as [`FederationError::ConflictingObjectBinding`]. A new
-    /// observation must also satisfy the same canonical field bounds as F1's
-    /// publisher/reader and every configured count/byte ceiling before mutation.
-    pub fn insert_observation(
-        &mut self,
-        object_id: ObjectId,
-        observation: CrawlObservation,
-    ) -> Result<SnapshotInsert> {
-        let key = observation.final_url.canonical_string();
+    /// This method verifies content-address integrity and F1 structural bounds;
+    /// it deliberately does **not** verify the publisher's signature or KEL
+    /// provenance. Callers must perform that separate F1 authentication step
+    /// before treating the resulting history as an authenticated publisher
+    /// statement.
+    pub fn insert_observation(&mut self, object: &Object) -> Result<SnapshotInsert> {
+        // Reparse the current bytes so an in-memory object mutated after signing
+        // cannot retain a stale id and enter history under that old id.
+        let canonical = Object::from_bytes(&object.to_bytes())?;
+        object.verify_integrity(canonical.id())?;
+        let object_id = canonical.id().clone();
+        let observation = read_crawl_observation(&canonical)?;
 
-        if let Some(existing_key) = self.object_bindings.get(&object_id) {
-            let existing = self
-                .by_final_url
-                .get(existing_key)
-                .and_then(|entries| entries.iter().find(|entry| entry.object_id == object_id))
-                .ok_or(FederationError::ConflictingObjectBinding)?;
-            if existing_key != &key || existing.observation != observation {
-                return Err(FederationError::ConflictingObjectBinding);
-            }
+        if self.object_ids.contains(&object_id) {
             return Ok(SnapshotInsert::AlreadyPresent);
         }
 
+        let key = observation.final_url.canonical_string();
         let wire_bytes = observation_wire_len(&observation)?;
         let next_total_wire_bytes = self
             .total_wire_bytes
@@ -209,10 +203,9 @@ impl SnapshotIndex {
             return Err(FederationError::LimitExceeded);
         }
 
-        let binding_id = object_id.clone();
-        let entries = self.by_final_url.entry(key.clone()).or_default();
+        let entries = self.by_final_url.entry(key).or_default();
         entries.push(Snapshot {
-            object_id,
+            object_id: object_id.clone(),
             observation,
             wire_bytes,
             version_relation: VersionRelation::Unknown,
@@ -225,7 +218,7 @@ impl SnapshotIndex {
         });
         recompute_version_relations(entries);
 
-        self.object_bindings.insert(binding_id, key);
+        self.object_ids.insert(object_id);
         self.total_snapshots += 1;
         self.total_wire_bytes = next_total_wire_bytes;
         Ok(SnapshotInsert::Inserted)
