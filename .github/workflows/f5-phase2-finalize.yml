@@ -7,9 +7,8 @@ on:
 permissions:
   contents: write
 
-# One-shot branch-local finalization. Temporary files are removed by the
-# connected maintainer after the generated commit lands, so this job never
-# needs to push a workflow-file mutation with its GITHUB_TOKEN.
+# One-shot final cleanup. The job removes this workflow, all temporary helpers,
+# fixes STATUS, reruns the model tests, and regenerates navigation before push.
 jobs:
   finalize:
     if: github.head_ref == 'codex/f5-phase2-model'
@@ -19,15 +18,13 @@ jobs:
         with:
           ref: codex/f5-phase2-model
           fetch-depth: 0
-      - name: Correct queued transformation, harden model, and truth-sync docs
-        run: |
-          python3 tools/f5_phase2_prepatch.py
-          python3 tools/f5_phase2_finalize.py
-      - name: Commit exact generated state
+      - name: Clean exact merge candidate and rebuild navigation
+        run: python3 tools/f5_phase2_cleanup.py
+      - name: Commit exact merge candidate
         run: |
           git config user.name "mininet-f5-finalizer"
           git config user.email "actions@users.noreply.github.com"
           git add -A
           git diff --cached --exit-code && exit 1 || true
-          git commit -m "docs: record F5 Phase-2 model status"
+          git commit -m "chore: finalize F5 Phase-2 merge candidate"
           git push origin HEAD:codex/f5-phase2-model
