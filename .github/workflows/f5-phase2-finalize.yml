@@ -7,7 +7,9 @@ on:
 permissions:
   contents: write
 
-# One-shot branch-local finalization. The successful run deletes this workflow.
+# One-shot branch-local finalization. Temporary files are removed by the
+# connected maintainer after the generated commit lands, so this job never
+# needs to push a workflow-file mutation with its GITHUB_TOKEN.
 jobs:
   finalize:
     if: github.head_ref == 'codex/f5-phase2-model'
@@ -17,10 +19,8 @@ jobs:
         with:
           ref: codex/f5-phase2-model
           fetch-depth: 0
-      - name: Truth-sync decision, status, doctrine, and navigation
+      - name: Harden model and truth-sync canonical documentation
         run: python3 tools/f5_phase2_finalize.py
-      - name: Remove one-shot automation
-        run: rm .github/workflows/f5-phase2-finalize.yml tools/f5_phase2_finalize.py
       - name: Commit exact generated state
         run: |
           git config user.name "mininet-f5-finalizer"
