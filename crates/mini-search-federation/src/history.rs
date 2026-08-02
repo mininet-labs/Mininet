@@ -166,12 +166,10 @@ impl SnapshotIndex {
         }
 
         let is_new_url = !self.by_final_url.contains_key(&key);
+        let snapshots_for_url = self.by_final_url.get(&key).map_or(0, Vec::len);
         if (is_new_url && self.by_final_url.len() >= self.limits.max_urls)
             || self.total_snapshots >= self.limits.max_total_snapshots
-            || self
-                .by_final_url
-                .get(&key)
-                .is_some_and(|entries| entries.len() >= self.limits.max_snapshots_per_url)
+            || snapshots_for_url >= self.limits.max_snapshots_per_url
         {
             return Err(FederationError::LimitExceeded);
         }
