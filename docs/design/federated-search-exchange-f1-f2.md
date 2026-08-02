@@ -1,290 +1,167 @@
-# Federated search exchange format, query merging, local re-ranking, and history: Track F1/F2/F3/F4/F7 (D-0422, D-0423, D-0424, D-0426)
+# Federated search exchange, merging, local re-ranking, and observation history: Track F1/F2/F3/F4/F7
 
-**Status:** Shipped (`mini-search-federation`). Wire format,
-signed-object publish/read, deterministic per-provider result merging,
-local re-ranking under a caller's own profile, and a local snapshot-
-history index — no network transport, no peer discovery, no scheduling.
+**Decisions:** D-0422, D-0423, D-0424, D-0426  
+**Status:** Shipped and tested within the bounds stated below. No real federation transport, peer discovery, provider payment implementation, private query transport, or shared history consensus exists.
 
-**Refs:** `docs/research/
-MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`
-§29 ("Track F: Distributed search"), PR F1 ("Signed crawl-observation
-exchange"), PR F2 ("Content-addressed index segments"), PR F3
-("Federated query"), PR F4 ("Local re-ranking"), PR F7 ("Historical
-snapshots"); roadmap issue #175; D-0316 (`mini-web-types`); D-0405
-(`mini-lexical-index`); D-0420 (`mini-query`); D-0406 (`mini-ranker`);
-D-0422 (F1/F2); D-0423 (F3); D-0424 (F4).
+**Refs:** `docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29; roadmap issue #175; D-0316 (`mini-web-types`); D-0405 (`mini-lexical-index`); D-0406 (`mini-ranker`); D-0420 (`mini-query`); D-0427 (F5 doctrine).
 
-## What this closes
+## Scope
 
-Track F's own research doc gives each of its seven PRs (F1-F7) one line
-of description. F1 and F2 are the two PRs every later Track F piece
-depends on: F3 ("federated query," merging candidates from multiple
-providers) cannot exist until there is an agreed wire format for what a
-"provider" actually exchanges, and F1/F2 are exactly that format for the
-two object kinds MiniSearch already produces — a crawl observation
-(what a crawler saw) and an index segment (what an indexer built from
-observations).
+`mini-search-federation` supplies the deterministic local and signed-object pieces two independent MiniSearch providers need before a real transport can be built:
 
-## Decision
+- **F1:** signed crawl-observation objects;
+- **F2:** signed immutable index-segment objects;
+- **F3:** deterministic merging of per-provider query results;
+- **F4:** caller-local re-ranking under a selected profile; and
+- **F7:** a bounded, rebuildable local history over authenticated crawl observations.
 
-Add `mini-search-federation`, wrapping each already-existing type in a
-signed, content-addressed `mini_objects::Object` — the identical pattern
-`mini-media`'s `publish_media` and `mini-forge`'s `git_import` already
-use, not a new signing or storage model:
+These pieces preserve provenance and plurality. They do not appoint a canonical search provider, canonical index, truth oracle, trusted timestamp service, or payment authority.
 
-- **F1** — `publish_crawl_observation`/`read_crawl_observation` wrap a
-  `mini_web_types::CrawlObservation` (already shipped, D-0316) in a
-  hand-rolled canonical codec (mirroring `mini-lexical-index`'s own
-  `Writer`/`Reader` discipline: big-endian integers, u32-length-prefixed
-  byte strings, hard caps before allocation) and sign it.
-- **F2** — `publish_index_segment`/`read_index_segment` wrap an
-  `mini_lexical_index::IndexSegment`'s own already-canonical
-  `to_bytes()`/`from_bytes()` (D-0405) directly — no re-encoding, since
-  that codec is already content-addressed and canonical-form-enforcing.
+## F1 — signed crawl-observation exchange
 
-Both readers reject the wrong object type and an encrypted payload.
-Neither reader verifies the wrapping object's *signature* — that stays
-the caller's job via `mini_objects::Object::verify_signature`/
-`verify_provenance` against the publishing peer's KEL, the same two-step
-"decode, then separately authenticate" pattern every signed-object reader
-in this workspace already follows (`mini-forge::git_import`,
-`mini-media::read_manifest`, `mini-provenance`).
+`publish_crawl_observation` wraps an existing `mini_web_types::CrawlObservation` in a signed, content-addressed `mini_objects::Object`. `read_crawl_observation` decodes the canonical payload and rejects the wrong object type, encrypted payloads, malformed fields, unsupported wire tags, and oversized collections.
 
-## Why not a new signing identity
+Authentication remains layered:
 
-`mini_web_types::ProviderPseudonym` already exists as the crawler's
-chosen pseudonymous identifier *inside* a `CrawlObservation`'s own
-`crawler` field — this crate does not touch it, and does not invent a
-second pseudonym mechanism for the object's own `did-mini` signer. A
-caller wanting the object-level signer to be a scoped pseudonym rather
-than a root identity already has SPEC-01 §10's
-`Controller::incept_pairwise_pseudonym` (shipped, used elsewhere in this
-workspace) for that; `publish_crawl_observation`/`publish_index_segment`
-take whatever `Did`/`Controller` the caller passes, exactly like
-`publish_media` does, so this decision does not have to choose a privacy
-posture on the caller's behalf.
+1. decode the object and payload;
+2. verify the wrapping object's integrity/signature/provenance against the publisher's KEL; and
+3. only then use the decoded observation as an authenticated statement from that publisher.
 
-## F3: federated query merging (D-0423)
+The reader does not silently perform step 2. A well-formed payload is not automatically authentic. The observation still contains a caller-supplied `CrawlObservationId`; deriving and enforcing that ID remains a separate integrity gap.
 
-`federate_query` runs the *unmodified* `mini_query::search` once per
-[`FederationSource`] (a provider's own `IndexSegment`/`Corpus`/
-`DocumentContextTable`/`IndexSegmentId`), then deterministically merges
-the per-provider result lists:
+`ProviderPseudonym` is carried inside the observation. The signed object may itself be authored under a scoped `did:mini` pseudonym selected by the caller. This crate does not invent a second pseudonym scheme or force a root identity into search history.
 
-1. Concatenate every provider's results, tagging each with the
-   `ProviderPseudonym` that supplied it.
-2. Deduplicate by canonical URL string: the higher `relevance_score_bps`
-   wins; ties break on the smaller provider-pseudonym bytes, so the
-   outcome never depends on the order sources were queried in.
-3. Sort the deduplicated set by score descending, tie-breaking on
-   canonical URL string bytes (mirroring `mini_ranker::rank`'s own
-   `UrlId`-byte tiebreak discipline), and truncate to `max_results`.
+## F2 — content-addressed index segments
 
-No new scoring, filtering, or provenance logic is added — merging is the
-only new behavior, and it composes E6-E8's already-deterministic,
-already-provenanced per-provider output rather than re-deriving any of
-it. Every provider is queried with the identical profile/query/`now_ms`,
-so scores are directly comparable across providers without this module
-needing to normalize anything itself.
+`publish_index_segment` signs the existing canonical `IndexSegment::to_bytes()` representation. `read_index_segment` delegates canonical-form validation to `IndexSegment::from_bytes()` rather than introducing a second index codec.
 
-## F4: local re-ranking (D-0424)
+A segment is bounded by `mini_objects::MAX_PAYLOAD_BYTES` (8 MiB). Segment splitting is not implemented. If that limit becomes operationally restrictive, a separately reviewed composition similar to `mini-media` superblocks is the existing precedent.
 
-`local_rerank` takes an already-merged `FederatedResult` list (typically
-`federate_query`'s own output) and recomputes each result's final score
-under a *different*, caller-chosen `RankingProfile` — with no index,
-corpus, or network round trip. Every `SearchResult` already carries a
-`RankingExplanation` (the six per-signal scores from whichever profile
-originally produced it); re-ranking is exactly recombining those six
-numbers under a new set of weights.
+## F3 — deterministic federated query merging
 
-To make that recombination honest rather than a second, possibly-
-drifting implementation of the same math, this batch adds one small,
-purely additive export to `mini-ranker` itself: `pub fn rescore
-(explanation: &RankingExplanation, profile: &RankingProfile) ->
-Result<WeightBps>`. `rank`'s own internal `combine` function is
-refactored (behavior unchanged, all 10 pre-existing `mini-ranker` tests
-still pass unmodified) to route through the same private
-`weighted_average` helper `rescore` calls — so a score computed via
-`rescore` under profile P is bit-for-bit identical to what a fresh `rank`
-call under profile P would have produced from the same signals, by
-construction, not by inspection.
+`federate_query` runs the unmodified `mini_query::search` once per local `FederationSource`, with the same query, profile, time input, and per-source result bound. It then:
 
-`local_rerank` then re-sorts by the new scores (descending,
-canonical-URL-string tiebreak — the identical convention
-`federate_query` uses) and truncates to `max_results`. Each result's
-`ranking_profile` field is updated to the new profile's id, so it
-honestly names whichever profile actually produced the displayed score.
-The `diversity_bps` signal is *not* recomputed — it depends on the
-result set's own original ordering (how many higher-ranked results
-already shared a host), not a raw per-document property, so re-ranking
-reuses it as originally computed rather than re-running the
-diversity-aware greedy selection loop, which would be materially more
-work than "the user changed weights."
+1. tags every result with the supplying `ProviderPseudonym`;
+2. deduplicates by canonical URL, keeping the higher score and breaking equal-score ties by provider-pseudonym bytes;
+3. sorts by score descending, then canonical URL; and
+4. truncates to `max_results`.
 
-## F7: historical snapshots (D-0426)
+The result is independent of source-list order. The function adds no payment, bid, stake, provider trust, or governance input. It performs no network I/O and has no bound on how many sources the caller may supply; a real remote federation layer must impose its own concurrency/work limits.
 
-F1's `publish_crawl_observation` already lets a caller store as many
-independent `CrawlObservation`s of the same URL over time as it likes —
-nothing about the F1 wire format assumes one observation per URL. What
-was missing was the *search* half: given a URL, find its observation
-history, what it looked like at a given time, or which observations
-represent a distinct version rather than a repeat fetch of unchanged
-content.
+## F4 — local re-ranking
 
-`SnapshotIndex` is a small, local, in-memory structure a caller builds
-by feeding it observations as they arrive (typically via F1's own
-`read_crawl_observation`) — mirroring `mini_query::DocumentContextTable`'s
-own "caller-built local table, not itself signed or stored" pattern —
-and then queries:
+`local_rerank` takes F3 output and recomputes the final score under a caller-selected `RankingProfile` without querying a provider again. It calls `mini_ranker::rescore`, which shares one private weighted-average implementation with `rank`; local re-ranking therefore does not maintain a second scoring formula that can drift.
 
-- `insert_observation(url, object_id, observed_at_ms, content_digest)` —
-  idempotent (inserting the same `object_id` twice is a no-op), keeps
-  each URL's history sorted by time, and recomputes which snapshots
-  represent a genuine content change (`content_changed`) so insertion
-  order never affects the result.
-- `history(url)` — the full sorted history.
-- `latest(url)` — the most recent snapshot.
-- `at_or_before(url, ms)` — "what did this page look like at time T,"
-  the most recent snapshot observed at or before `ms`.
-- `between(url, after_ms, before_ms)` — snapshots in a time window,
-  using the identical inclusive-lower/exclusive-upper convention
-  `mini_query::ParsedQuery`'s own `after_ms`/`before_ms` fields already
-  use, so a caller can pass those fields straight through without
-  re-deriving the boundary semantics.
-- `distinct_versions(url)` — only the snapshots that represent a real
-  version (the first, plus every later one whose content digest
-  actually changed), filtering out repeat fetches of unchanged content
-  without the caller having to do it by hand.
+The result's `ranking_profile` is updated and the list is re-sorted deterministically. The original `diversity_bps` component is reused rather than recomputed because it depends on the original result ordering. A caller requiring diversity to be recalculated must perform a fresh ranking operation.
 
-A `content_digest` of `None` for two consecutive snapshots is treated as
-"no signal either way" (not a change) — this module does not invent a
-rule for what an unknown digest means, it just declines to claim a
-change it cannot actually observe.
+Payment cannot improve organic relevance: no payment/provider-revenue field exists in `rank`, `rescore`, `federate_query`, or `local_rerank`.
+
+## F7 — bounded local history over observations
+
+F1 already stores multiple independent observations of the same resource. F7 adds a local search/view layer over those objects without inventing a canonical history.
+
+### Typed insertion and provenance preservation
+
+`SnapshotIndex::insert_observation` accepts exactly:
+
+```text
+(ObjectId of the signed F1 wrapper, decoded CrawlObservation)
+```
+
+It does not accept separate URL, timestamp, digest, crawler, or status arguments. Every indexed field is derived from the typed observation, preventing unsigned shadow fields from disagreeing with the signed payload.
+
+The index keys by `observation.final_url`. It preserves the complete observation—including requested URL, redirect chain, crawler pseudonym, fetch status, media type, byte length, claimed timestamp, and digest—beside the wrapper `ObjectId`.
+
+The same object ID and exact observation are idempotent. Reusing one object ID for different observation bytes or another final URL fails closed as `FederationError::ConflictingObjectBinding`.
+
+### Explicit bounds
+
+`SnapshotLimits` bounds:
+
+- the number of final URLs;
+- snapshots per final URL; and
+- total snapshots.
+
+Conservative defaults are exported, and callers may choose smaller limits. All three limits are checked before mutation; zero disables insertion for that dimension. This is a local weak-device safety bound, not a network quota or provider entitlement.
+
+### Deterministic order without false chronology
+
+Histories are ordered by crawler-claimed `observed_at_ms`, then object ID for deterministic storage. That order is not represented as canonical time or proof of when the origin changed.
+
+`latest` and `at_or_before` return the entire greatest equal-timestamp group. They do not silently choose one provider when equally timestamped observations disagree.
+
+### Version relations
+
+Each `Snapshot` receives one of:
+
+- `Baseline` — first digest-bearing observation after the locally held history has an agreed comparison base;
+- `Unchanged` — same digest as the last earlier agreed digest;
+- `Changed` — different digest from the last earlier agreed digest;
+- `Unknown` — no digest, therefore no version claim; or
+- `SameTimestampDisagreement` — two or more known digests disagree at the same claimed timestamp.
+
+Unknown observations do not reset the previous known digest and do not create a false change. A same-timestamp disagreement is exposed through `disagreements`; no arbitrary object-ID ordering is promoted into a temporal version transition. A later agreed digest after an unresolved disagreement becomes a new local baseline.
+
+`distinct_versions` includes only `Baseline`/`Changed` observations, excludes unknown/disputed groups, and collapses same-timestamp same-digest corroboration to one deterministic representative.
+
+These are relations among locally held observations. They do not prove that content was true, complete, globally visible, or changed at a precise real-world instant.
+
+## Tests
+
+The crate's existing suites cover F1/F2 canonical round trips and signature-layer separation, F3 merge order/deduplication/provenance, and F4 score recombination.
+
+F7's adversarial suite covers:
+
+- empty history;
+- final-URL derivation and preservation of the full typed observation;
+- insertion-order-independent sorting;
+- exact duplicate idempotence;
+- refusal to rebind an object ID to altered bytes or another final URL;
+- URL, per-URL, total, and zero limits;
+- equal-timestamp groups for `latest`/`at_or_before`;
+- lower-inclusive/upper-exclusive windows;
+- unknown-digest gaps;
+- same-timestamp digest disagreement;
+- same-timestamp corroboration; and
+- independent final-URL histories.
+
+Passing these tests proves the stated local mechanics. It does not authenticate a caller that skipped F1 signature/provenance verification, establish a trustworthy timestamp, corroborate a remote page, or create a deployed federation.
 
 ## What's deliberately not here
 
-- No network transport. Nothing in this crate opens a socket, dials a
-  peer, or knows what a "peer" is. `federate_query` takes already-local
-  sources; it does not fetch anything.
-- No peer discovery, request/response protocol, or want-list logic —
-  `mini-sync`'s existing type-agnostic replication (D-0080) is the
-  closest existing analogue for "how would two nodes actually exchange
-  these objects," but wiring it up is separate, later work.
-- No F5 (provider payments) or F6 (private query transport). Each
-  remains a one-line research-doc description, not designed here.
-- No cross-provider trust weighting: `federate_query` does not treat any
-  provider as more or less trustworthy than another, and does not detect
-  a provider flooding the merge with many near-duplicate low-quality
-  results beyond what `search`'s own `max_results` bound per provider
-  already limits.
-- No diversity recomputation on re-rank (see F4 section above) and no
-  re-ranking of anything other than a `FederatedResult` list — a
-  single-provider `ResultProvenance` list from `mini-query::search`
-  directly is not accepted by `local_rerank` today.
-- `SnapshotIndex` is not itself signed, persisted, or exchanged — it is
-  a local view a caller builds from observations it already holds
-  (however it obtained them); this module does not decide how a
-  snapshot history is shared with, or verified against, a peer.
+- No network transport, peer discovery, request protocol, want-list, or scheduler.
+- No automatic signature/KEL verification inside the payload readers or history index.
+- No canonical provider roster or cross-provider trust weight.
+- No shared/persisted/signed `SnapshotIndex`; it is rebuilt from held observations.
+- No consensus over page history or authoritative answer to “what was true at T.”
+- No provider-payment implementation. F5 now has a dedicated Phase-0 doctrine in `docs/design/anti-collusion-content-settlement-preparation.md` (D-0427), but no implementation phase is authorized or started.
+- No private query transport (F6); it remains undesigned.
+- No payment, subsidy, or provider revenue in organic ranking.
 
-## Constitutional impact
+## Constitutional and authority impact
 
-None intended. No frozen invariant is amended. Almost entirely additive:
-no existing crate's function signature *changes* (`mini-web-types`,
-`mini-lexical-index`, `mini-objects`, `mini-store`, `mini-query` are all
-unmodified); `mini-ranker` gains one new public function (`rescore`) and
-one internal refactor (`combine` now routes through the same helper
-`rescore` uses) with zero behavior change to `rank` itself, verified by
-all 10 pre-existing `mini-ranker` tests passing unmodified plus 2 new
-ones. No new cryptography — reuses `mini-crypto`'s existing
-Multihash/Ed25519/BLAKE3 exactly as every other signed object in this
-workspace already does; F3/F4 perform no cryptographic operations at
-all.
+No frozen invariant is amended. Search providers remain replaceable edge participants. Signed observations are claims by their publishers, not institutional truth. Indexes and rankings remain plural and forkable. Provider work or payment creates no governance, personhood, moderation, validator, or organic-ranking authority.
 
-## Implementation status
+## Failure points
 
-`crates/mini-search-federation/`: `error.rs` (`FederationError`),
-`codec.rs` (`Writer`/`Reader`, private), `observation.rs` (F1),
-`segment.rs` (F2), `federate.rs` (F3), `rerank.rs` (F4), `history.rs`
-(F7), `lib.rs`. `crates/mini-ranker/src/rank.rs`: `rescore` (new,
-public) and `weighted_average` (new, private, shared by `combine` and
-`rescore`).
+This design fails if a caller:
 
-8 integration tests (`tests/federation.rs`, F1/F2): round trip with
-every field populated, round trip with every optional field absent,
-wrong-object-type rejection for both object kinds, encrypted-payload
-rejection for both object kinds, a non-canonical index-segment payload
-caught at `IndexSegment::from_bytes` (not just this crate's own type
-check), and a tampered payload proven to still decode (well-formed
-bytes, different content) but fail signature verification. 6 integration
-tests (`tests/federate.rs`, F3): results from every provider merged and
-correctly tagged, a shared URL across two providers keeping the
-higher-scoring copy, merge output proven order-independent (forward vs.
-reversed source list), `max_results` truncation, an empty source list
-producing no results, and each result retaining its own
-`index_segment`/`source_observation` provenance. 5 integration tests
-(`tests/rerank.rs`, F4): score and `ranking_profile` update correctly,
-re-ranking under the *same* profile reproduces the original order
-exactly, re-ranking under a genuinely different (single-signal) profile
-flips the winner between two documents engineered to win on opposite
-signals, `max_results` truncation, an empty list re-ranks to empty. Plus
-2 new `mini-ranker` unit tests: `rescore` under the original profile
-reproduces the original score exactly; `rescore` under a lexical-only
-profile collapses the score to exactly the lexical signal and differs
-from the public-default score. 9 integration tests (`tests/history.rs`,
-F7): empty history for an unrecorded URL, snapshots returned oldest-
-first regardless of insertion order, idempotent re-insertion of the same
-object id, `latest`, `at_or_before` at a point in time, `between`'s
-inclusive-lower/exclusive-upper bounds (including one-sided ranges),
-`distinct_versions` correctly skipping repeat fetches of unchanged
-content, two consecutive unknown digests not being treated as a change,
-and independent per-URL histories.
-
-## Failure point
-
-`publish_index_segment` bounds a segment to `mini_objects::MAX_PAYLOAD_
-BYTES` (8 MiB) with no splitting mechanism — a segment larger than that
-cannot be published through this crate today; `mini-media`'s superblock
-pattern (D-0419) is the precedent for how a future "segment too large"
-gap would be closed if one is ever hit, not something this crate
-pre-emptively builds. `CrawlObservationId` is trusted as caller-supplied
-with no derivation rule enforced here (none is defined anywhere in this
-workspace yet) — a caller could construct an observation with a
-misleading id, an integrity gap federation transport/discovery work will
-need to close, not this wire-format layer. `federate_query` queries
-every source for up to `max_results` of its own candidates before
-merging — correct for a bounded, known source list, but the cost is
-linear in the number of sources with no cap on how many sources a caller
-may pass; a real federation layer will need its own bound on
-concurrently-queried providers, not something this module enforces.
-`local_rerank` only accepts `FederatedResult` (F3's own output type),
-not a bare single-provider result list, and never recomputes diversity
-(see F4 section above) — both deliberate, narrow scope choices, not
-oversights. `SnapshotIndex` is entirely in-memory and per-process — it
-is not itself persisted, signed, or shared between peers; a caller
-restarting from scratch has to rebuild it by replaying whatever
-observations it can still reach via `mini-store`. Its `content_changed`
-signal is only as good as the `content_digest` an observation actually
-carries — a crawler that never populates that field gets no version
-detection at all, just an undifferentiated timeline.
+- treats successful decode as signature/provenance verification;
+- treats crawler timestamps as canonical time;
+- selects one disagreeing provider through an arbitrary tie-break and calls it truth;
+- feeds unbounded observations into a weak device;
+- lets provider identity or payment alter relevance;
+- presents a local `SnapshotIndex` as a globally complete archive; or
+- introduces a central transport/payment/history service that other search operations cannot survive without.
 
 ## Required follow-up
 
-F5 (provider payments) and F6 (private query transport) remain the
-un-designed Track F tail — see `docs/design/
-cryptographic-architecture-and-flagship-research-protocol.md` (D-0421)
-for why F5 in particular needs its own dedicated anti-collusion-
-settlement doctrine before any implementation, not a quick composition.
-Wiring F1/F2's objects into a real transport (likely via `mini-sync`'s
-existing replication machinery, per D-0080's own finding that it already
-carries arbitrary object types over real TCP) — and, once that exists,
-wiring `federate_query` to real peer-fetched sources rather than only
-local ones, and persisting/sharing a `SnapshotIndex` across peers rather
-than rebuilding it per-process — is separate follow-up work, not
-started.
+- Enforce a canonical derivation rule for `CrawlObservationId`.
+- Wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits.
+- Persist or exchange history only after defining conflict, omission, provenance, and privacy semantics for a shared history object.
+- Keep F5 behind D-0427's Phase-2 transcript/threat/economic-model gate; do not jump directly to a nullifier or payment crate.
+- Write a separate F6 private-query-transport doctrine before implementation.
 
 ## Supersedes / superseded by
 
-Builds on and does not supersede D-0316, D-0405, D-0406, or D-0420.
-Does not modify `mini-web-types`, `mini-lexical-index`, or `mini-query`.
-Extends (does not supersede) `mini-ranker`'s D-0406 with one additive
-public function.
+Builds on and does not supersede D-0316, D-0405, D-0406, or D-0420. D-0427 supplies the separate doctrine for F5; it does not modify F1-F4/F7 behavior.
