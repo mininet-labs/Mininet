@@ -37,6 +37,8 @@ const RECORD_BYTES: usize = 8 + 2 + MAX_KEY_BYTES + 8;
 /// bound triggers a local compaction; migration/compaction is intentionally
 /// not claimed to be page-bounded work.
 const MAX_DELTA_RECORDS: u64 = 1_024;
+const MAX_FORWARD_QUERY_ROWS: usize = crate::MAX_TIME_PAGE_SIZE + 1;
+const MAX_INDEX_DIRECTORY_ENTRIES: usize = 16;
 
 const MANIFEST_MAGIC: &[u8; 8] = b"MNTMAN01";
 const MANIFEST_VERSION: u16 = 1;
@@ -228,7 +230,15 @@ impl<'a> LockedIndex<'a> {
                 }
                 Err(error) => return Err(error),
             };
-            self.recover_pending(&key, manifest, actual_delta)?;
+            if let Err(error) = self.recover_pending(&key, manifest, actual_delta) {
+                match error {
+                    StoreError::Corrupt | StoreError::LimitExceeded => {
+                        self.rebuild()?;
+                        return Ok(());
+                    }
+                    other => return Err(other),
+                }
+            }
         } else if actual_delta != manifest.delta_count {
             self.rebuild()?;
         }
@@ -596,8 +606,21 @@ impl<'a> LockedIndex<'a> {
 
     fn cleanup_orphan_bases(&self, current_generation: u64) -> Result<()> {
         let current_name = format!("base-{current_generation:020}.idx");
+        let permanent = [
+            MARKER_FILE,
+            LOCK_FILE,
+            PENDING_FILE,
+            MANIFEST_FILE,
+            DELTA_FILE,
+        ];
+        let mut entries = 0usize;
         let mut base_files = 0usize;
         for entry in fs::read_dir(&self.index_root)? {
+            entries = entries.checked_add(1).ok_or(StoreError::LimitExceeded)?;
+            if entries > MAX_INDEX_DIRECTORY_ENTRIES {
+                return Err(StoreError::LimitExceeded);
+            }
+
             let entry = entry?;
             let path = entry.path();
             let file_type = entry.file_type()?;
@@ -608,6 +631,7 @@ impl<'a> LockedIndex<'a> {
             }
             let name = entry.file_name();
             let name = name.to_string_lossy();
+
             if name.starts_with("base-") && name.ends_with(".tmp") {
                 if !file_type.is_file() {
                     return Err(StoreError::Io(
@@ -615,18 +639,41 @@ impl<'a> LockedIndex<'a> {
                     ));
                 }
                 fs::remove_file(path)?;
-            } else if name.starts_with("base-") && name.ends_with(".idx") {
+                continue;
+            }
+            if name.starts_with("base-") && name.ends_with(".idx") {
                 base_files += 1;
                 if base_files > 8 {
                     return Err(StoreError::LimitExceeded);
                 }
+                if !file_type.is_file() {
+                    return Err(StoreError::Io("non-file time-index base".to_string()));
+                }
                 if name != current_name {
-                    if !file_type.is_file() {
-                        return Err(StoreError::Io("non-file time-index base".to_string()));
-                    }
                     fs::remove_file(path)?;
                 }
+                continue;
             }
+            if name.ends_with(".tmp-write") {
+                if !file_type.is_file() {
+                    return Err(StoreError::Io(
+                        "non-file time-index atomic temporary".to_string(),
+                    ));
+                }
+                fs::remove_file(path)?;
+                continue;
+            }
+            if permanent.contains(&name.as_ref()) {
+                if !file_type.is_file() {
+                    return Err(StoreError::Io(
+                        "non-file permanent time-index entry".to_string(),
+                    ));
+                }
+                continue;
+            }
+            return Err(StoreError::Io(format!(
+                "unknown entry in time-index directory: {name}"
+            )));
         }
         Ok(())
     }
@@ -642,7 +689,19 @@ where
         write_metadata()?;
 
         let mut manifest = index.read_manifest()?;
-        if !index.contains_key(&manifest, key)? {
+        let indexed = match index.contains_key(&manifest, key) {
+            Ok(indexed) => indexed,
+            Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
+                // The metadata row is already authoritative. Rebuild the
+                // disposable acceleration index rather than leaving a
+                // permanent pending journal that wedges later writes.
+                index.rebuild()?;
+                manifest = index.read_manifest()?;
+                index.contains_key(&manifest, key)?
+            }
+            Err(error) => return Err(error),
+        };
+        if !indexed {
             index.append_delta(&mut manifest, key)?;
         }
         index.clear_pending()?;
@@ -656,6 +715,9 @@ where
 }
 
 pub(crate) fn last(root: &Path, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
+    if limit > crate::MAX_TIME_PAGE_SIZE {
+        return Err(StoreError::LimitExceeded);
+    }
     if limit == 0 {
         return Ok(Vec::new());
     }
@@ -680,6 +742,9 @@ pub(crate) fn last(root: &Path, limit: usize) -> Result<Vec<(String, Vec<u8>)>> 
 }
 
 pub(crate) fn page(root: &Path, after: &str, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
+    if limit > MAX_FORWARD_QUERY_ROWS {
+        return Err(StoreError::LimitExceeded);
+    }
     if limit == 0 {
         return Ok(Vec::new());
     }
@@ -737,17 +802,32 @@ fn ensure_layout(root: &Path) -> Result<PathBuf> {
 }
 
 fn ensure_existing_or_create_directory(path: &Path, label: &str) -> Result<()> {
+    let validate_existing = || -> Result<()> {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                Err(StoreError::Io(format!("{label} is a symlink")))
+            }
+            Ok(metadata) if !metadata.is_dir() => {
+                Err(StoreError::Io(format!("{label} is not a directory")))
+            }
+            Ok(_) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    };
+
     match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() => {
-            Err(StoreError::Io(format!("{label} is a symlink")))
-        }
-        Ok(metadata) if !metadata.is_dir() => {
-            Err(StoreError::Io(format!("{label} is not a directory")))
-        }
-        Ok(_) => Ok(()),
+        Ok(_) => validate_existing(),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            fs::create_dir(path)?;
-            Ok(())
+            match fs::create_dir(path) {
+                Ok(()) => Ok(()),
+                // Independent processes may both observe the directory as
+                // absent before one creates it. Revalidate the winner rather
+                // than turning that safe race into a write failure.
+                Err(create_error) if create_error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    validate_existing()
+                }
+                Err(create_error) => Err(create_error.into()),
+            }
         }
         Err(error) => Err(error.into()),
     }
@@ -1240,6 +1320,76 @@ mod tests {
         fs::remove_file(base_path(&root.join(INDEX_DIR), manifest.generation)).unwrap();
         let rows = last(&root, 2).unwrap();
         assert_eq!(rows[0].0, key);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_journaled_delta_append_is_committed_exactly_once() {
+        use std::io::Write as _;
+
+        let root = temp_root("journal-delta");
+        fs::create_dir_all(root.join("blobs")).unwrap();
+        fs::create_dir_all(root.join("meta")).unwrap();
+        let key = valid_key(8, 9);
+
+        with_locked(&root, |index| {
+            index.write_pending(&key)?;
+            let metadata_path = root.join("meta").join(&key);
+            fs::create_dir_all(metadata_path.parent().unwrap())?;
+            fs::write(&metadata_path, b"")?;
+
+            // Simulate loss of power after the delta record is durable but
+            // before the manifest count is advanced.
+            let manifest = index.read_manifest()?;
+            let delta_path = index.index_root.join(DELTA_FILE);
+            let mut delta = OpenOptions::new().append(true).open(delta_path)?;
+            delta.write_all(&encode_record(&key, manifest.delta_count)?)?;
+            delta.sync_all()?;
+            Ok(())
+        })
+        .unwrap();
+
+        let first = last(&root, 10).unwrap();
+        let second = last(&root, 10).unwrap();
+        assert_eq!(first, second);
+        assert_eq!(first.len(), 1);
+        assert_eq!(first[0].0, key);
+        let manifest = with_locked(&root, |index| index.read_manifest()).unwrap();
+        assert_eq!(manifest.base_count + manifest.delta_count, 1);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn manual_compaction_preserves_sorted_unique_rows() {
+        let root = temp_root("compact");
+        fs::create_dir_all(root.join("blobs")).unwrap();
+        fs::create_dir_all(root.join("meta")).unwrap();
+        let keys = [valid_key(30, 11), valid_key(10, 13), valid_key(30, 15)];
+
+        with_locked(&root, |index| {
+            let mut manifest = index.read_manifest()?;
+            for key in &keys {
+                let path = root.join("meta").join(key);
+                fs::create_dir_all(path.parent().unwrap())?;
+                fs::write(path, b"")?;
+                index.append_delta(&mut manifest, key)?;
+            }
+            index.compact(&manifest)?;
+            let compacted = index.read_manifest()?;
+            assert_eq!(compacted.delta_count, 0);
+            assert_eq!(compacted.base_count, 3);
+            let (rows, stale) =
+                index.query_forward(&compacted, "idx/time/00000000000000000000/", 10)?;
+            assert!(!stale);
+            let mut expected = keys.to_vec();
+            expected.sort();
+            assert_eq!(
+                rows.into_iter().map(|(key, _)| key).collect::<Vec<_>>(),
+                expected
+            );
+            Ok(())
+        })
+        .unwrap();
         let _ = fs::remove_dir_all(root);
     }
 }

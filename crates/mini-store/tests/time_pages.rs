@@ -146,6 +146,63 @@ fn page_limits_fail_closed() {
         store.since_page(0, None, MAX_TIME_PAGE_SIZE + 1),
         Err(StoreError::LimitExceeded)
     );
+    assert_eq!(
+        store.recent(MAX_TIME_PAGE_SIZE + 1),
+        Err(StoreError::LimitExceeded)
+    );
+}
+
+#[test]
+fn a_partial_delta_tail_rebuilds_from_authoritative_metadata() {
+    use std::io::Write as _;
+
+    let root = temp_root("partial-delta");
+    let mut store = Store::new(FsBackend::open(&root).unwrap());
+    for object in objects().into_iter().take(4) {
+        store.insert(&object).unwrap();
+    }
+    let expected = collect_pages(&store, 0, 2);
+    drop(store);
+
+    let mut delta = std::fs::OpenOptions::new()
+        .append(true)
+        .open(root.join("ordered/time-v1/delta"))
+        .unwrap();
+    delta.write_all(&[0xff]).unwrap();
+    delta.sync_all().unwrap();
+    drop(delta);
+
+    let reopened = Store::new(FsBackend::open(&root).unwrap());
+    assert_eq!(collect_pages(&reopened, 0, 2), expected);
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn independent_filesystem_writers_preserve_every_time_row() {
+    let root = temp_root("concurrent-writers");
+    let objects = objects();
+    std::thread::scope(|scope| {
+        for object in objects.iter() {
+            let root = &root;
+            scope.spawn(move || {
+                let mut store = Store::new(FsBackend::open(root).unwrap());
+                store.insert(object).unwrap();
+            });
+        }
+    });
+
+    let store = Store::new(FsBackend::open(&root).unwrap());
+    let actual = collect_pages(&store, 0, 2);
+    let mut expected: Vec<(u64, String)> = objects
+        .iter()
+        .map(|object| (object.timestamp_ms, object.id().as_str().to_string()))
+        .collect();
+    expected.sort();
+    assert_eq!(
+        actual,
+        expected.into_iter().map(|(_, id)| id).collect::<Vec<_>>()
+    );
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[cfg(unix)]

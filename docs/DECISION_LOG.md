@@ -14435,3 +14435,53 @@ required follow-up only. It does not supersede D-0427's doctrine, D-0417's
 requester-funded baseline, D-0404's linkable Tier-0 reviews, or D-0099. Any later
 Phase-3-or-higher decision must cite this fixed report and its failed gate.
 
+### D-0430 — Local non-authoritative ordered time index and stable filesystem pages  ·  *Proposed*
+
+**Date:** 2026-08-03 · **Refs:** D-0066 (self-hosted forge resequencing),
+D-0327 (`idx/time` first slice), D-0331 (`MemoryBackend` bounded recent),
+`docs/design/self-hosted-forge-spine.md` Batch 5,
+`docs/planning/forge-bounded-fs-index-pages.md`.
+
+**Decision:** complete Batch 5's chronological local-index slice without a
+hosted index authority. `FsBackend` maintains a disposable local ordered side
+index for authoritative `idx/time/<timestamp>/<object-id>` rows: one immutable
+sorted fixed-width base, a 1,024-record append delta, a checksummed manifest, an
+OS-backed cross-process lock, and a one-entry crash-recovery journal. Every
+returned row is rechecked against authoritative metadata. `Store::since_page`
+uses a stable `(timestamp_ms, object_id)` cursor; `Store::recent` and
+`since_page` reject limits above 1,024. The old full-suffix `Store::since`
+remains compatible and explicitly unbounded.
+
+**Reason:** a long-lived local forge must page its own history without reading
+every row and without outsourcing discovery to GitHub, a hosted search service,
+or another operator. A reconstructible local acceleration index gives bounded
+steady-state reads while preserving object/metadata files as the sole source of
+truth.
+
+**Constitutional impact:** strengthens Directives 2 and 9 by removing pressure
+for a mandatory hosted index while bounding weak-device work; constrained by
+Directive 14 because no new cryptographic trust claim is made, and Directive 16
+because index position, volume, and recency create no governance weight.
+
+**Implementation status:** implemented and tested in this proposal. Memory and
+filesystem backends produce identical stable pages; equal timestamps,
+out-of-order writes, reopen, concurrent writers, legacy rebuild, partial tails,
+missing bases, journal interruption, compaction, page limits, and symlinked index
+paths are covered. No external dependency or object-wire change is added.
+
+**Failure point:** the side index is not authority and may be deleted/rebuilt.
+A first query after migration or detected corruption and each compaction can scan
+all chronological metadata while holding the local lock. `Store::since` remains
+an unbounded compatibility API; only `idx/time` is accelerated; author timestamps
+are not freshness evidence; parent-directory fsync, cross-index transactionality,
+and physical weakest-device latency remain unmeasured.
+
+**Required follow-up:** migrate interactive forge/feed callers to `since_page`,
+benchmark page/rebuild/compaction behavior on the weakest supported device, and
+add other bounded compound indexes only for measured callers. Never replace this
+local reconstructible facility with a mandatory hosted index.
+
+**Supersedes / superseded by:** fulfills D-0331's named `FsBackend` and forward-
+pagination limitations. It does not supersede D-0327's index-key contract or any
+object, sync, feed, or governance decision.
+

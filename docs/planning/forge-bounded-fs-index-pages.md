@@ -1,81 +1,98 @@
 # Forge Batch 5: bounded filesystem metadata index and stable pages (D-0430)
 
-**Status:** work claimed; implementation in progress. Do not duplicate this
-slice while PR #287 is open.
-
-**Base:** current `main` after merged D-0428 / PR #285.
-
+**Status:** implementation complete in proposed PR #287; no merge or release
+claim until exact-head CI and human review complete.  
+**Base:** `main` after merged D-0428 / PR #285.  
 **Non-collision:** PR #286 owns the social/intake publication path. This work is
-limited to `mini-store` ordered metadata queries, their tests, and exact status /
-decision-log truth-sync. It does not touch `mini-social`, `mini-intake*`,
-`mini-desktop`, or the new `mini intake` commands.
+limited to `mini-store` ordered time-index queries, tests, and truth-sync.
 
 ## Problem
 
-Batch 5 names local object indexing at scale as unfinished. The in-memory
-backend can answer `Store::recent(limit)` in `O(log n + limit)`, but
-`FsBackend` still inherits a fallback that recursively reads and sorts every
-metadata row under `idx/time/`. `Store::since(cursor)` also has no bounded,
-stable continuation cursor. A forge/feed client on a long-lived device therefore
-pays work proportional to total history for an operation whose result is only a
-small page.
+Batch 5 names local object indexing at scale as unfinished. Before this change,
+`MemoryBackend` could answer `Store::recent(limit)` in `O(log n + limit)`, but
+`FsBackend` recursively read and sorted every metadata row under `idx/time/`.
+`Store::since(cursor)` also returned an unbounded suffix with no stable
+continuation cursor. Long-lived devices therefore paid work proportional to all
+history for a small forge/feed page.
 
-Moving this cost into a centralized index service would violate the project
-rather than solve it. The index must remain local, reconstructible from the
-content-addressed store, non-authoritative, and safe to delete/rebuild.
+Solving that with a hosted index would create a new mandatory authority. The
+solution here stays local, reconstructible, non-authoritative, and removable.
 
-## Intended implementation
+## Implemented mechanism
 
-1. Add a local `idx/time/` ordered side index for `FsBackend`, maintained under
-   an OS-backed cross-process lock.
-2. Keep the side index explicitly **non-authoritative**. Object and metadata
-   files remain source-of-truth; the side index only accelerates enumeration.
-3. Use a sorted immutable base plus a bounded append delta. Queries read only a
-   bounded delta and seek fixed-width base records; periodic compaction absorbs
-   the delta. A one-time legacy-store rebuild may scan existing `idx/time/`
-   rows and is reported honestly as migration work, not a bounded query.
-4. Journal an in-flight metadata insertion so a crash cannot leave a committed
-   metadata row missing from the side index or a side-index row pretending a
-   metadata row exists.
-5. Override `FsBackend::list_meta_prefix_last("idx/time/", limit)` with the
-   ordered index while retaining the existing safe fallback for other prefixes.
-6. Add a forward `Backend::list_meta_prefix_page` primitive. `MemoryBackend`
-   uses its `BTreeMap`; `FsBackend` uses the ordered time index for `idx/time/`
-   and the documented fallback elsewhere.
-7. Add `Store::since_page` with a stable `(timestamp_ms, object_id)` cursor so
-   equal timestamps never create duplicates or omissions across pages.
-8. Preserve the existing `since` and `recent` APIs. This is additive and does
-   not change object bytes, signatures, index key format, sync, governance, or
-   feed ordering.
+1. `FsBackend` maintains a local `ordered/time-v1` side index under an OS-backed
+   cross-process file lock.
+2. Authoritative state remains the existing content-addressed object plus
+   `meta/idx/time/<timestamp>/<object-id>` row. The side index is acceleration
+   only; every emitted row is rechecked against authoritative metadata.
+3. The side index contains one immutable sorted fixed-width base plus an append
+   delta capped at 1,024 records. Queries binary-search the base and inspect at
+   most the bounded delta. Compaction merges delta into a new base.
+4. A checksummed manifest names the exact current base and counts base/delta
+   records. A missing, truncated, malformed, or inconsistent index rebuilds
+   deterministically from authoritative metadata.
+5. A one-entry write-ahead journal covers the critical order: journal intent →
+   persist authoritative time row → append side-index record → advance manifest
+   → clear journal. Recovery handles interruption before metadata, after
+   metadata, and after delta append but before manifest advancement.
+6. `Backend::list_meta_prefix_page` adds ordered forward pages. `MemoryBackend`
+   uses a bounded `BTreeMap` range; `FsBackend` uses the side index for the exact
+   `idx/time/` prefix and preserves the safe full-scan fallback elsewhere.
+7. `Store::since_page(start_ms, cursor, limit)` binds its cursor to both the
+   20-digit timestamp and object ID, so equal timestamps cannot be skipped or
+   duplicated. `Store::recent` and `since_page` reject pages over 1,024.
+8. The legacy `Store::since` API remains for compatibility and is explicitly
+   documented as unbounded. No object bytes, signatures, index-key format,
+   synchronization, feed ordering, governance rule, or authority class changes.
 
-## Hard boundaries
+## Evidence
 
-- No SQLite, remote database, hosted search service, or mandatory daemon.
-- No new cryptography and no trust claim for the acceleration index.
-- No silent loss of results after a crash; fail closed on malformed index files
-  and provide a deterministic local rebuild path.
-- No symlink/path-traversal regression in `FsBackend`.
-- No balance, payment, reputation, or governance dependency.
-- No claim that the one-time legacy rebuild or periodic compaction is bounded by
-  page size. The promise is bounded steady-state query work, not free migration.
+- Memory and filesystem pages agree exactly with equal and out-of-order
+  timestamps.
+- Two-item pages cover every object exactly once and survive reopen.
+- Independent filesystem writers converge under the OS lock.
+- Deleting the side index triggers deterministic legacy rebuild.
+- Missing manifested bases and partial delta tails rebuild safely.
+- Journal recovery commits a durable delta append exactly once.
+- Manual compaction preserves sorted unique rows.
+- Hostile cursors, zero limits, excessive limits, and symlinked index paths fail
+  safely.
+- Focused `mini-store` tests and strict Clippy pass before the permanent commit;
+  full exact-head repository CI remains the merge gate.
 
-## Required adversarial evidence
+## Hard boundaries and honest limits
 
-- Memory and filesystem backends return identical ordering and page boundaries.
-- Out-of-order timestamp insertion still produces canonical chronological pages.
-- Multiple objects at one timestamp paginate without duplication or omission.
-- Reopening the store preserves page results.
-- A legacy store with no side index rebuilds deterministically.
-- Simulated interruption before/after metadata persistence recovers one index
-  entry, not zero or two semantic entries.
-- Partial delta tails, malformed records, hostile cursors, symlinked index
-  paths, zero limits, and page-limit abuse fail safely.
-- Existing full workspace tests, governance checks, dependency checks,
-  reproducibility, and Android jobs remain green.
+- No SQLite, hosted search, mandatory daemon, network call, or trusted index
+  operator.
+- No new cryptography. The fixed-record checksum detects accidental/local index
+  corruption; it is not authentication. Objects and metadata remain truth.
+- Steady-state page work is bounded by page size, a 1,024-record delta, and
+  logarithmic fixed-record base seeks. The index directory itself is capped and
+  unknown entries fail closed.
+- One-time migration/rebuild and periodic compaction are `O(total time-index
+  rows)`, hold the local index lock, and are not claimed to be page-bounded.
+- The compatibility `Store::since` full-suffix API is still unbounded.
+- Only chronological `idx/time/` pages are accelerated. Author/type/link compound
+  queries remain separate future work.
+- Timestamps are author claims used for deterministic display ordering, never
+  freshness, arrival, consensus, or trust evidence.
+- The side index is not signed, replicated, consensus state, or a source of
+  governance/ranking authority. Deleting it must never delete objects.
+- File contents are synced before rename, but this preserves the existing
+  `FsBackend` durability model; parent-directory fsync and a transaction across
+  every object index remain future hardening.
+- Physical weakest-device latency and compaction-pause benchmarks are not yet
+  recorded.
+
+## Required follow-up
+
+Adopt `since_page` in forge/feed clients that currently request unbounded history;
+benchmark page and compaction latency on the weakest supported device; and add
+bounded compound indexes only when a measured caller requires them. Do not move
+this function to a central indexing service.
 
 ## Merge condition
 
-This document is not the deliverable. The PR remains draft until code, tests,
-truth-sync, generated navigation, and exact-head CI all exist. Human review must
-inspect the local-index format and crash protocol; AI output carries no approval
-weight.
+The PR remains unmergeable until generated navigation is current, all exact-head
+workflows are green, and the repository's required independent human approvals
+review the final SHA. AI output carries zero approval weight.

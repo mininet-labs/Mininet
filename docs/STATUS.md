@@ -1013,29 +1013,26 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   same two homes exercises real cross-invocation persistence, not just
   an in-memory guard. Supports `--json` (D-0078's envelope shape). 3
   tests in `crates/mini-cli/src/keystone.rs`.
-- **partial** — Batch 5's "local object indexing at scale," first slice
-  (D-0327): `mini_store::Store::since`/`Store::recent` add a
-  chronological `idx/time/` index alongside the pre-existing author/
-  type/link indexes, so a caller can query "what's new since cursor X"
-  or "the N most recent objects" without fetching and sorting every
-  object body. Real, tested (3 new tests, both backends). **A genuinely
-  bounded "most recent N" query shipped next (D-0331):**
-  `Backend::list_meta_prefix_last` — `MemoryBackend`'s implementation is
-  real `O(log n + limit)` (`BTreeMap::range(...).rev().take(limit)`),
-  not a full-subtree read; `Store::recent` now calls it directly instead
-  of `since(0)` reversed/truncated client-side. Honestly still not fully
-  bounded — `FsBackend` inherits the trait's non-bounded default
-  (deliberately: a real bounded reverse walk over a plain directory tree
-  needs either a sorted early-stopping traversal or an on-disk sorted
-  index, and building that alongside `FsBackend`'s existing
-  symlink/path-traversal defenses without risking a new vulnerability
-  wasn't attempted in this slice), and `Store::since`'s own forward scan
-  is completely unchanged — `Backend::list_meta_prefix` still has no
-  upper-bound key, so it still reads the whole `idx/time/` subtree's
-  index rows before filtering, same asymptotic cost the three
-  pre-existing indexes already accept. A real bounded `FsBackend`
-  implementation and a bounded forward range scan both remain future
-  work.
+- **shipped in this proposal (D-0430)** — Batch 5's chronological local
+  object-index slice is now bounded on both shipped backends. The existing
+  authoritative `idx/time/<20-digit-timestamp>/<object-id>` rows remain
+  unchanged; `FsBackend` adds a local, disposable `ordered/time-v1` side index
+  consisting of one sorted fixed-width base plus a strictly bounded 1,024-row
+  append delta. An OS-backed cross-process lock, checksummed manifest, and
+  one-entry journal recover interrupted writes; missing/truncated/inconsistent
+  files rebuild from authoritative metadata. Every query result is rechecked
+  against its metadata row, so the side index never becomes authority.
+  `Backend::list_meta_prefix_page` and `Store::since_page` add stable forward
+  pagination using a `(timestamp_ms, object_id)` cursor; equal timestamps do not
+  duplicate or disappear. `Store::recent` and `since_page` reject limits above
+  1,024. Memory/Fs ordering parity, out-of-order writes, reopen, concurrent
+  writers, rebuild, partial tails, missing bases, journal recovery, compaction,
+  cursor/limit abuse, and symlink refusal are tested. Honest limits: legacy
+  rebuild and compaction are full-history maintenance under a local lock;
+  compatibility `Store::since` remains unbounded; only `idx/time` is accelerated;
+  timestamps are ordering hints, not freshness; physical weakest-device and
+  parent-directory-fsync behavior remain follow-up. No remote index, daemon,
+  dependency, object-wire, sync, ranking, payment, or governance change.
 - **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
   Batch 1's remaining deferred item. Exports a commit chain (commit → tree
   → blobs, recursively through every ancestor) as real git SHA-256-object-

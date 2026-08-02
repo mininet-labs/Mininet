@@ -39,12 +39,10 @@ pub trait Backend {
     /// `list_meta_prefix` before reversing and truncating, exactly the cost
     /// `Store::recent` already paid before this method existed. Override
     /// this when a backend can genuinely stop scanning once `limit` results
-    /// are found, as [`MemoryBackend`] now does; `FsBackend` does not yet
-    /// (a real bounded reverse walk over a plain directory tree needs
-    /// either a sorted-order early-stopping traversal or an on-disk sorted
-    /// index this backend doesn't have — real follow-up work, not silently
-    /// assumed solved here, the same honest caveat D-0327 already recorded
-    /// for the forward case).
+    /// are found. [`MemoryBackend`] does this for every prefix;
+    /// [`FsBackend`] does it for the exact `idx/time/` prefix through a local,
+    /// reconstructible ordered side index. Other filesystem prefixes retain
+    /// the semantically correct full-scan fallback.
     fn list_meta_prefix_last(&self, prefix: &str, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
         let mut all = self.list_meta_prefix(prefix)?;
         all.reverse();

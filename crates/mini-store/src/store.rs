@@ -178,22 +178,14 @@ impl<B: Backend> Store<B> {
         self.ids_under(&format!("idx/link/{}/", target.as_str()))
     }
 
-    /// Ids of objects with `timestamp_ms >= cursor_ms`, oldest first — the
-    /// incremental catch-up query a peer re-issues with the last cursor it
-    /// already saw, first concrete slice of Batch 5's "local object
-    /// indexing at scale" (`docs/design/self-hosted-forge-spine.md`).
-    /// `timestamp_ms` is author-claimed (see [`mini_objects::Object::
-    /// timestamp_ms`]'s own doc: "ordering hint, not a proof"), so this is a
-    /// convenience/UX ordering, never a freshness or arrival-order
-    /// guarantee — the same honest caveat `did_mini::witness`'s
-    /// `observed_epoch` field carries for the same reason.
+    /// Ids of objects with `timestamp_ms >= cursor_ms`, oldest first.
     ///
-    /// Still O(rows under `idx/time/`) like every other index in this
-    /// store — [`crate::Backend::list_meta_prefix`] has no upper-bound key,
-    /// so this reads the whole matching subtree's index rows (not the
-    /// objects themselves) before filtering. A genuinely bounded, paginated
-    /// range scan needs a `Backend` range-query primitive; that remains
-    /// follow-up work, not claimed here.
+    /// This compatibility API intentionally returns the whole suffix and may
+    /// scan/allocate proportional to it. New interactive callers should use
+    /// [`Self::since_page`], whose stable `(timestamp, object id)` cursor and
+    /// page-size ceiling provide bounded steady-state work on both shipped
+    /// backends. Timestamps remain author-claimed ordering hints, never proof
+    /// of freshness or arrival order.
     pub fn since(&self, cursor_ms: u64) -> Result<Vec<ObjectId>> {
         let mut out = Vec::new();
         for (key, _) in self.backend.list_meta_prefix("idx/time/")? {
@@ -265,6 +257,9 @@ impl<B: Backend> Store<B> {
     /// bounded scan on backends that implement it genuinely (see that
     /// method's own docs for which do today).
     pub fn recent(&self, limit: usize) -> Result<Vec<ObjectId>> {
+        if limit > MAX_TIME_PAGE_SIZE {
+            return Err(StoreError::LimitExceeded);
+        }
         let mut out = Vec::new();
         for (key, _) in self.backend.list_meta_prefix_last("idx/time/", limit)? {
             let (_, id_str) = parse_time_index_key(&key)?;
