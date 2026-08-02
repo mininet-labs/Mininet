@@ -19,7 +19,9 @@ These pieces preserve provenance and plurality. They do not appoint a canonical 
 
 ## F1 — signed crawl-observation exchange
 
-`publish_crawl_observation` wraps an existing `mini_web_types::CrawlObservation` in a signed, content-addressed `mini_objects::Object`. `read_crawl_observation` decodes the canonical payload and rejects the wrong object type, encrypted payloads, malformed fields, unsupported wire tags, and oversized collections.
+`publish_crawl_observation` wraps an existing `mini_web_types::CrawlObservation` in a signed, content-addressed `mini_objects::Object`. `read_crawl_observation` decodes the canonical payload and rejects the wrong object type, encrypted payloads, malformed fields, unsupported wire tags, and oversized fields or collections.
+
+Publication now applies the same host/path/query/media-type/redirect/multihash bounds before encoding. A caller cannot construct a large but typed in-memory observation that the publisher accepts and the crate's own reader later rejects solely because it violates the reader's wire limits. `observation_wire_len` computes the exact bounded canonical payload size without allocating the encoded payload first; F7 reuses that one source of truth for byte-budget accounting.
 
 Authentication remains layered:
 
@@ -74,15 +76,19 @@ The index keys by `observation.final_url`. It preserves the complete observation
 
 The same object ID and exact observation are idempotent. Reusing one object ID for different observation bytes or another final URL fails closed as `FederationError::ConflictingObjectBinding`.
 
-### Explicit bounds
+### Explicit count and byte bounds
 
-`SnapshotLimits` bounds:
+`SnapshotLimits` bounds all five independent growth dimensions:
 
 - the number of final URLs;
-- snapshots per final URL; and
-- total snapshots.
+- snapshots per final URL;
+- total snapshots;
+- canonical F1 payload bytes for one snapshot; and
+- total canonical F1 payload bytes across the index.
 
-Conservative defaults are exported, and callers may choose smaller limits. All three limits are checked before mutation; zero disables insertion for that dimension. This is a local weak-device safety bound, not a network quota or provider entitlement.
+Every limit is checked before mutation; zero disables insertion for that dimension. A `Snapshot` records its canonical `wire_bytes`, and the index exposes `total_wire_bytes`. Exact Rust allocator overhead is platform-dependent, so wire bytes are explicitly a deterministic budget proxy rather than a claim of exact resident RAM.
+
+The exported defaults are finite, but they are **not** represented as weakest-device benchmarks. Production defaults still require measurement on the oldest supported phones; callers may lower the limits immediately. This is a local safety budget, not a network quota, provider entitlement, or completeness guarantee.
 
 ### Deterministic order without false chronology
 
@@ -110,22 +116,26 @@ These are relations among locally held observations. They do not prove that cont
 
 The crate's existing suites cover F1/F2 canonical round trips and signature-layer separation, F3 merge order/deduplication/provenance, and F4 score recombination.
 
+The F1 hardening tests prove the publisher refuses typed observations with an overlong URL field or redirect chain instead of creating self-undecodable objects.
+
 F7's adversarial suite covers:
 
 - empty history;
 - final-URL derivation and preservation of the full typed observation;
 - insertion-order-independent sorting;
-- exact duplicate idempotence;
+- exact duplicate idempotence without double-counting bytes;
 - refusal to rebind an object ID to altered bytes or another final URL;
-- URL, per-URL, total, and zero limits;
+- URL, per-URL, total-count, per-snapshot-byte, total-byte, and zero limits;
+- refusal of typed observations outside F1's canonical field bounds;
 - equal-timestamp groups for `latest`/`at_or_before`;
 - lower-inclusive/upper-exclusive windows;
 - unknown-digest gaps;
 - same-timestamp digest disagreement;
+- preservation of an earlier comparison base across disagreement;
 - same-timestamp corroboration; and
 - independent final-URL histories.
 
-Passing these tests proves the stated local mechanics. It does not authenticate a caller that skipped F1 signature/provenance verification, establish a trustworthy timestamp, corroborate a remote page, or create a deployed federation.
+Passing these tests proves the stated local mechanics. It does not authenticate a caller that skipped F1 signature/provenance verification, establish a trustworthy timestamp, corroborate a remote page, benchmark the default budgets on weak hardware, or create a deployed federation.
 
 ## What's deliberately not here
 
@@ -149,7 +159,8 @@ This design fails if a caller:
 - treats successful decode as signature/provenance verification;
 - treats crawler timestamps as canonical time;
 - selects one disagreeing provider through an arbitrary tie-break and calls it truth;
-- feeds unbounded observations into a weak device;
+- bypasses or misrepresents the finite count/byte budgets;
+- markets unbenchmarked defaults as proven weak-device capacity;
 - lets provider identity or payment alter relevance;
 - presents a local `SnapshotIndex` as a globally complete archive; or
 - introduces a central transport/payment/history service that other search operations cannot survive without.
@@ -157,6 +168,7 @@ This design fails if a caller:
 ## Required follow-up
 
 - Enforce a canonical derivation rule for `CrawlObservationId`.
+- Benchmark F7 budgets on weakest supported devices before production defaults are claimed.
 - Wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits.
 - Persist or exchange history only after defining conflict, omission, provenance, and privacy semantics for a shared history object.
 - Keep F5 behind D-0427's Phase-2 transcript/threat/economic-model gate; do not jump directly to a nullifier or payment crate.
