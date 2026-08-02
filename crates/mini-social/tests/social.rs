@@ -6,11 +6,11 @@ use did_mini::{Capabilities, Controller, Did};
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
 use mini_social::{
     comments, community_members, feed, followers, following, known_profiles, publish_comment,
-    publish_community, publish_post, publish_profile, publish_profile_details, publish_wall,
-    publish_wall_linkage, reaction_counts, resolve_community, resolve_post, resolve_profile,
-    resolve_wall, resolve_wall_linkage, set_follow, set_membership, set_reaction, FeedFilter,
-    FeedReason, MembershipMode, PublicProfileDraft, PublicProfileField, ReactionKind, SocialError,
-    VisibilityPolicy, MAX_POST_BYTES,
+    publish_community, publish_media_post, publish_post, publish_profile, publish_profile_details,
+    publish_wall, publish_wall_linkage, reaction_counts, resolve_community, resolve_post,
+    resolve_profile, resolve_wall, resolve_wall_linkage, set_follow, set_membership, set_reaction,
+    FeedFilter, FeedReason, MembershipMode, PostKind, PublicProfileDraft, PublicProfileField,
+    ReactionKind, SocialError, VisibilityPolicy, MAX_POST_BYTES,
 };
 use mini_store::{MemoryBackend, Store};
 
@@ -848,4 +848,154 @@ fn publish_post_at_exactly_the_bound_succeeds() {
     let object = publish_post(&mut store, &owner.did(), &device, &exact, 100, 1).unwrap();
     let resolved = resolve_post(&store, object.id()).unwrap();
     assert_eq!(resolved.text.len(), MAX_POST_BYTES);
+}
+
+#[test]
+fn publish_media_post_round_trips_with_the_media_link_intact() {
+    let (owner, device) = human(71);
+    let mut store = Store::new(MemoryBackend::new());
+    // Any already-published object id stands in for a real media manifest
+    // here -- `publish_media_post` only cares that it is a well-formed
+    // `ObjectId`, not what type of object it names.
+    let media = publish_post(
+        &mut store,
+        &owner.did(),
+        &device,
+        "manifest stand-in",
+        90,
+        1,
+    )
+    .unwrap()
+    .id()
+    .clone();
+
+    let object = publish_media_post(
+        &mut store,
+        &owner.did(),
+        &device,
+        media.clone(),
+        "caption",
+        100,
+        2,
+    )
+    .unwrap();
+    let resolved = resolve_post(&store, object.id()).unwrap();
+
+    assert_eq!(resolved.text, "caption");
+    match resolved.kind {
+        PostKind::Media { media: linked } => assert_eq!(linked, media),
+        other => panic!("expected PostKind::Media, got {other:?}"),
+    }
+}
+
+#[test]
+fn publish_media_post_rejects_an_oversized_caption_before_signing() {
+    let (owner, device) = human(72);
+    let mut store = Store::new(MemoryBackend::new());
+    let media = publish_post(
+        &mut store,
+        &owner.did(),
+        &device,
+        "manifest stand-in",
+        90,
+        1,
+    )
+    .unwrap()
+    .id()
+    .clone();
+    let oversized_caption = "x".repeat(MAX_POST_BYTES + 1);
+
+    let author_object_count_before = store.by_author(&owner.did()).unwrap().len();
+    assert!(matches!(
+        publish_media_post(
+            &mut store,
+            &owner.did(),
+            &device,
+            media,
+            &oversized_caption,
+            100,
+            2,
+        ),
+        Err(SocialError::FieldTooLarge)
+    ));
+    // Nothing was signed/inserted for the rejected caption.
+    assert_eq!(
+        store.by_author(&owner.did()).unwrap().len(),
+        author_object_count_before
+    );
+}
+
+#[test]
+fn resolve_post_rejects_a_post_with_more_than_one_link() {
+    let (owner, device) = human(73);
+    let mut store = Store::new(MemoryBackend::new());
+    let a = publish_post(&mut store, &owner.did(), &device, "a", 90, 1)
+        .unwrap()
+        .id()
+        .clone();
+    let b = publish_post(&mut store, &owner.did(), &device, "b", 91, 2)
+        .unwrap()
+        .id()
+        .clone();
+
+    let multi_linked = ObjectBuilder::new(ObjectType::POST)
+        .sequence(3)
+        .link("media", a)
+        .link("media", b)
+        .payload(Payload::Public(b"two links".to_vec()))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.insert(&multi_linked).unwrap();
+
+    assert!(matches!(
+        resolve_post(&store, multi_linked.id()),
+        Err(SocialError::BadPost)
+    ));
+}
+
+#[test]
+fn resolve_post_rejects_an_unrecognized_link_relation() {
+    let (owner, device) = human(74);
+    let mut store = Store::new(MemoryBackend::new());
+    let target = publish_post(&mut store, &owner.did(), &device, "target", 90, 1)
+        .unwrap()
+        .id()
+        .clone();
+
+    let unknown_rel = ObjectBuilder::new(ObjectType::POST)
+        .sequence(2)
+        .link("re", target)
+        .payload(Payload::Public(b"not a media link".to_vec()))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.insert(&unknown_rel).unwrap();
+
+    assert!(matches!(
+        resolve_post(&store, unknown_rel.id()),
+        Err(SocialError::BadPost)
+    ));
+}
+
+#[test]
+fn feed_excludes_a_malformed_post_but_keeps_valid_ones() {
+    let (owner, device) = human(75);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let good = publish_post(&mut store, &owner.did(), &device, "a real post", 100, 1).unwrap();
+    // Hand-built, bypassing publish_post's own bound -- the same way a peer
+    // running older/different code could insert a POST-tagged object that
+    // fails decode_post's structural validation.
+    let bad = ObjectBuilder::new(ObjectType::POST)
+        .timestamp_ms(101)
+        .sequence(2)
+        .payload(Payload::Public(vec![b'x'; MAX_POST_BYTES + 1]))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.insert(&bad).unwrap();
+
+    let items = feed(&store, &owner.did(), FeedFilter::Chronological, 50).unwrap();
+    let ids: Vec<_> = items.iter().map(|item| item.id.clone()).collect();
+    assert!(ids.contains(good.id()));
+    assert!(!ids.contains(bad.id()));
+    assert_eq!(items.len(), 1);
 }

@@ -1,5 +1,10 @@
 //! Exercises Mininet Intake plus the Track B5 publication bridge through
-//! the real `mini` CLI: intake a local text file, advance its review state,
+//! the CLI's real command-dispatch path (`mini_cli::run`, exactly what the
+//! compiled `mini` binary's `main.rs` calls -- not direct
+//! `mini_intake`/`mini_intake_social` library calls, but also not a
+//! spawned subprocess; matches this crate's other command-group test
+//! files' own convention, see D-0078's decision-log entry for the same
+//! honest phrasing): intake a local text file, advance its review state,
 //! and publish the accepted result as a real signed `mini-social` post --
 //! the end-to-end workflow D-0429's own Required follow-up named as still
 //! missing before this batch.
@@ -124,6 +129,68 @@ fn add_advance_and_publish_post_end_to_end() {
     ]);
     assert!(shown_after.contains("review_state=Accepted"));
     assert!(shown_after.contains("links=1"));
+}
+
+#[test]
+fn publishing_the_same_intake_twice_through_the_real_binary_is_idempotent() {
+    let home = tempdir("home-dup");
+    let store = tempdir("store-dup");
+    let home_str = home.to_str().unwrap().to_string();
+    let store_str = store.to_str().unwrap().to_string();
+
+    run(&["--home", &home_str, "identity", "init"]);
+    let notes_path = home.join("notes.txt");
+    fs::write(&notes_path, "publish me only once").unwrap();
+    let added = run(&[
+        "--home",
+        &home_str,
+        "--store",
+        &store_str,
+        "intake",
+        "add",
+        notes_path.to_str().unwrap(),
+    ]);
+    let id = intake_id_of(&added);
+    run(&[
+        "--home",
+        &home_str,
+        "--store",
+        &store_str,
+        "intake",
+        "advance",
+        &id,
+        "under-review",
+    ]);
+    run(&[
+        "--home", &home_str, "--store", &store_str, "intake", "advance", &id, "accepted",
+    ]);
+
+    let first = run(&[
+        "--home",
+        &home_str,
+        "--store",
+        &store_str,
+        "intake",
+        "publish-post",
+        &id,
+    ]);
+    assert!(first.starts_with("published post "));
+
+    let second = run(&[
+        "--home",
+        &home_str,
+        "--store",
+        &store_str,
+        "intake",
+        "publish-post",
+        &id,
+    ]);
+    assert!(second.contains("already published as post"));
+
+    let shown = run(&[
+        "--home", &home_str, "--store", &store_str, "intake", "show", &id,
+    ]);
+    assert!(shown.contains("links=1"));
 }
 
 #[test]

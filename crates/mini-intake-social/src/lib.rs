@@ -12,13 +12,21 @@
 //! [`publish_accepted_intake_as_post`] takes an already-`Accepted`
 //! [`IntakeEnvelope`] whose declared media type is `TextPlain`/`Markdown`
 //! (the only two kinds `mini-intake`'s Track B2 coordinator ever stores),
-//! reads its immutable source bytes back via [`mini_intake::read_source_bytes`],
-//! and publishes them as a bounded [`mini_social::Post`] via
-//! [`mini_social::publish_post`] — the same length-bound-before-sign
-//! discipline `mini-social`'s other object types already have. It returns
-//! both the produced [`mini_objects::Object`] and the matching
-//! [`IntakeLink::Post`] target, derived from the post's own content id, not
-//! invented separately.
+//! reads its immutable source bytes back via
+//! [`mini_intake::read_verified_source_bytes`] — re-verified against the
+//! envelope's declared digest/length/intake id, not merely fetched by
+//! digest key, since a content-addressed backend can "repair" a blob to
+//! different bytes under the same key (see that function's docs) — and
+//! publishes them as a bounded [`mini_social::Post`] via
+//! [`mini_social::build_post`]/[`mini_social::publish_post`] — the same
+//! length-bound-before-sign discipline `mini-social`'s other object types
+//! already have. It returns both the produced [`mini_objects::Object`] and
+//! the matching [`IntakeLink::Post`] target, derived from the post's own
+//! content id, not invented separately. [`build_accepted_intake_post`]
+//! exposes the signing step alone (no store insert) for a caller that
+//! needs to durably persist the exact signed bytes before committing them
+//! — `mini-cli`'s crash-recoverable publish journal is exactly such a
+//! caller; see that function's docs.
 //!
 //! ## What this crate deliberately does not do
 //!
@@ -74,6 +82,39 @@ where
     IB: Backend,
     SB: Backend,
 {
+    let post = build_accepted_intake_post(
+        intake_backend,
+        human,
+        device,
+        envelope,
+        timestamp_ms,
+        sequence,
+    )?;
+    social_store
+        .insert(&post)
+        .map_err(IntakeSocialError::Store)?;
+    let link = intake_link_for_post(&post)?;
+    Ok((post, link))
+}
+
+/// The signing half of [`publish_accepted_intake_as_post`], split out so a
+/// caller that needs to durably persist the exact signed bytes *before*
+/// inserting them anywhere (e.g. `mini-cli`'s crash-recoverable publish
+/// journal — a retry after a crash must reuse this exact signature rather
+/// than allocate a new sequence/timestamp and sign a second, distinct,
+/// still-feed-eligible post) has one real path to do that. Performs the
+/// exact same `Accepted`/media-type/source-integrity checks
+/// [`publish_accepted_intake_as_post`] does; the caller is responsible for
+/// inserting the returned object into a store and attaching the matching
+/// [`intake_link_for_post`] itself.
+pub fn build_accepted_intake_post<IB: Backend>(
+    intake_backend: &IB,
+    human: &Did,
+    device: &Controller,
+    envelope: &IntakeEnvelope,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
     if envelope.review_state() != ReviewState::Accepted {
         return Err(IntakeSocialError::NotAccepted);
     }
@@ -82,20 +123,26 @@ where
         _ => return Err(IntakeSocialError::UnsupportedMediaType),
     }
 
-    let bytes = mini_intake::read_source_bytes(intake_backend, &envelope.source.digest)?;
+    let bytes = mini_intake::read_verified_source_bytes(intake_backend, envelope)?;
     let text = std::str::from_utf8(&bytes).map_err(|_| IntakeSocialError::NotUtf8)?;
 
-    let post =
-        mini_social::publish_post(social_store, human, device, text, timestamp_ms, sequence)?;
-    let link = post_link(&post)?;
-    Ok((post, link))
+    Ok(mini_social::build_post(
+        human,
+        device,
+        text,
+        timestamp_ms,
+        sequence,
+    )?)
 }
 
 /// Decode an already-published post's content id back into the
 /// [`Multihash`] an [`IntakeLink::Post`] carries — the same decode
 /// [`mini_objects::ObjectId::parse`] performs internally, not a second
-/// derivation of the id.
-fn post_link(post: &Object) -> Result<IntakeLink> {
+/// derivation of the id. Public so a caller resuming a journaled,
+/// already-signed post (see [`build_accepted_intake_post`]) can derive the
+/// same link this crate would have produced, without a second, divergent
+/// derivation.
+pub fn intake_link_for_post(post: &Object) -> Result<IntakeLink> {
     let bytes = mini_crypto::encoding::decode(post.id().as_str())?;
     let digest = Multihash::from_bytes(&bytes)?;
     Ok(IntakeLink::Post(digest))

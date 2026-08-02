@@ -1353,38 +1353,44 @@ the top development priority.
   shows every call succeeds — the operational half of "ensure public
   view/post/comment/reply/react paths do not require payment" that
   D-0361 alone (crate-only) could not demonstrate.
-- **shipped (D-0429)** — `mini-social` gains a canonical, bounded
-  `Post`/`publish_post`/`resolve_post`/`MAX_POST_BYTES`, closing a real
-  gap: every other object type this crate publishes already bounded its
-  payload before signing and offered a shared decode path; plain posts
-  did not — the only caller in this workspace (`mini-desktop`) built a
-  raw, unbounded `ObjectBuilder` directly. The new functions keep the
-  exact same wire shape (UTF-8 text bytes, unmodified), so every
-  already-published `POST` object still decodes unchanged; only the
-  bound-before-sign / bound-on-decode discipline is new. `mini-desktop`'s
-  plain-text post composer is rewired onto it. New leaf crate
-  `mini-intake-social` composes this with `mini-intake` to close Track
-  B5's remaining gap named in `mini-intake`'s own module docs ("no
-  publication linking (Track B5)"): `publish_accepted_intake_as_post`
-  takes an already-`Accepted` `IntakeEnvelope` (text/Markdown only, the
-  only kinds Track B2 ever stores), publishes its source bytes as a real
-  signed `Post`, and returns the matching `IntakeLink::Post` target — the
-  founder's own priority language "wired to Mininet Intake... as the
-  native... document/evidence intake boundary" (Social network, priority
-  #4), previously ungated `add_link` (D-0360) with no real caller behind
-  it. The caller still calls `envelope.add_link` itself; authority
-  promotion is untouched. No dedup: calling the bridge twice over one
-  Accepted envelope signs two distinct posts, honestly documented rather
-  than silently prevented. `mini-cli` gains `mini intake
+- **shipped (D-0429)** — `mini-social` gains a canonical, bounded `POST`
+  model — `Post`/`PostKind`(`Plain`/`Media`)/`decode_post`/`publish_post`/
+  `publish_media_post`/`resolve_post`/`MAX_POST_BYTES` — used by every
+  producer and reader in this workspace, not left as an optional path
+  alongside old raw ones: `mini-desktop`'s previously hand-built,
+  unbounded `publish_media_post`/`post_text` are rewired onto it, and
+  `mini_social::feed` now structurally validates every candidate via
+  `decode_post` instead of admitting anything tagged `POST` by type
+  alone. New leaf crate `mini-intake-social` composes this with
+  `mini-intake` to close Track B5's remaining gap named in
+  `mini-intake`'s own module docs ("no publication linking (Track B5)"):
+  `publish_accepted_intake_as_post` takes an already-`Accepted`
+  `IntakeEnvelope` (text/Markdown only, the only kinds Track B2 ever
+  stores), publishes its source bytes as a real signed `Post` — now
+  re-verified against the envelope's own declared digest/length/intake
+  id via `mini_intake::read_verified_source_bytes`, not merely fetched
+  by digest key, since a content-addressed backend can silently
+  "repair" a blob under a key to different bytes — and returns the
+  matching `IntakeLink::Post` target. `mini-cli` gains `mini intake
   add|show|advance|publish-post`, a real developer-facing caller driving
-  the whole pipeline (intake a file, advance review state one legal step
-  at a time, publish an Accepted envelope as a signed post, attach the
-  resulting link) as one visible workflow — closing the "still not
-  built" gap D-0429's own Required follow-up first named. Intake
-  material lives under a separate `<home>/intake` `FsBackend`, distinct
-  from the signed-object `--store` path. No `--json` support yet
-  (matches `identity`/`kel`/`repo`/`pr`/`sync`'s existing convention). A
-  `mini-desktop` UI surface for the same workflow remains not built. See
+  the whole pipeline as one visible workflow, now idempotent and
+  crash-recoverable: an OS-backed per-intake-id lock plus a persisted
+  publish journal mean a crash between signing and completing an attempt
+  is recovered by reusing the exact signed bytes on retry rather than
+  signing a second, distinct, still feed-eligible orphan post, and a
+  second `publish-post` call (or a concurrent one) returns the existing
+  post instead of duplicating it. `IntakeEnvelope::add_link` is now
+  idempotent (exact-duplicate no-op) and bounded at construction time,
+  not only at decode time. All four of these hardenings were found by an
+  exact-head AI-assisted review posted on the open PR (evidence, not one
+  of the required human approvals) and verified against the actual code
+  before being fixed. Intake material lives under a separate
+  `<home>/intake` `FsBackend`, distinct from the signed-object `--store`
+  path. No `--json` support yet (matches `identity`/`kel`/`repo`/`pr`/
+  `sync`'s existing convention). `ReviewState::Accepted` remains a local
+  workflow state only — no reviewer identity, signature, or reason is
+  captured; a `mini-desktop` UI surface for the same workflow, and
+  signed review attestations, both remain not built. See
   `docs/DECISION_LOG.md` D-0429.
 - **shipped, prototype (D-0363, Track C4)** — `mini-commons-policy`
   gains `service_quote_for(entitlement, tier, prices, payload_mb,

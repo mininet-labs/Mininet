@@ -19,8 +19,10 @@ use crate::media::detect_media_type;
 /// Derive this content's [`IntakeId`] from its digest, not from the file
 /// path or name — two different local paths holding byte-identical
 /// content must resolve to the exact same intake id (this is what makes
-/// deduplication content-addressed rather than path-addressed).
-fn intake_id_for(source_digest: &Multihash) -> IntakeId {
+/// deduplication content-addressed rather than path-addressed). Public so
+/// a caller re-verifying a fetched source (see [`read_verified_source_bytes`])
+/// can recompute it from scratch rather than trusting a stored field.
+pub fn derive_intake_id(source_digest: &Multihash) -> IntakeId {
     IntakeId(Multihash::of(
         HashAlgorithm::Blake3,
         &source_digest.to_bytes(),
@@ -61,6 +63,36 @@ pub fn read_source_bytes<B: Backend>(backend: &B, digest: &Multihash) -> Result<
         .ok_or(IntakeCoordError::Store(mini_store::StoreError::NotFound))
 }
 
+/// [`read_source_bytes`], but re-verified against `envelope` before
+/// returning: the digest is a lookup key only, not a proof — a
+/// content-addressed `Backend::put_blob` (e.g. `FsBackend`) "repairs" an
+/// existing blob under a key to whatever bytes it is next asked to write
+/// there, so a corrupted, buggy, or malicious local backend can substitute
+/// bytes after an envelope reached `Accepted` while the envelope itself
+/// keeps claiming the old digest/length/id unchanged. Any caller about to
+/// treat fetched source bytes as authoritative (signing them, publishing
+/// them under an envelope's identity) must call this, not
+/// [`read_source_bytes`] directly.
+pub fn read_verified_source_bytes<B: Backend>(
+    backend: &B,
+    envelope: &IntakeEnvelope,
+) -> Result<Vec<u8>> {
+    let bytes = read_source_bytes(backend, &envelope.source.digest)?;
+
+    if bytes.len() as u64 != envelope.source.byte_length {
+        return Err(IntakeCoordError::SourceLengthMismatch);
+    }
+    let actual_digest = Multihash::of(envelope.source.digest.algorithm(), &bytes);
+    if actual_digest != envelope.source.digest {
+        return Err(IntakeCoordError::SourceDigestMismatch);
+    }
+    let actual_intake_id = derive_intake_id(&actual_digest);
+    if actual_intake_id != envelope.intake_id {
+        return Err(IntakeCoordError::IntakeIdMismatch);
+    }
+    Ok(bytes)
+}
+
 /// Intake one local text/Markdown file: hash it, store the immutable
 /// source bytes, and create (or, on a dedup hit, return the existing)
 /// [`IntakeEnvelope`].
@@ -91,7 +123,7 @@ pub fn intake_local_file<B: Backend>(
     std::str::from_utf8(&bytes).map_err(|_| IntakeCoordError::NotUtf8)?;
 
     let digest = Multihash::of(HashAlgorithm::Blake3, &bytes);
-    let intake_id = intake_id_for(&digest);
+    let intake_id = derive_intake_id(&digest);
     let envelope_key = backend_key(&intake_id.0.to_bytes());
 
     if let Some(existing) = backend.get_blob(&envelope_key)? {

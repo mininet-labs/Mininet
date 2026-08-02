@@ -20,6 +20,20 @@ pub enum IntakeCoordError {
     /// The file's bytes are not valid UTF-8 text, so they cannot honestly be
     /// labeled `MediaType::TextPlain`/`MediaType::Markdown`.
     NotUtf8,
+    /// [`crate::read_verified_source_bytes`]: the bytes fetched from the
+    /// backend under the envelope's declared digest key have a different
+    /// length than `SourceRecord.byte_length` claims.
+    SourceLengthMismatch,
+    /// [`crate::read_verified_source_bytes`]: the bytes fetched from the
+    /// backend do not hash to the envelope's declared source digest — the
+    /// backend served substituted content under that key.
+    SourceDigestMismatch,
+    /// [`crate::read_verified_source_bytes`]: the intake id derived from
+    /// the actually-fetched bytes' digest does not match
+    /// `envelope.intake_id` — should be unreachable once
+    /// `SourceDigestMismatch` is checked first, kept as an independent
+    /// defense-in-depth check rather than assumed to follow from it.
+    IntakeIdMismatch,
 }
 
 impl fmt::Display for IntakeCoordError {
@@ -32,6 +46,24 @@ impl fmt::Display for IntakeCoordError {
                 write!(f, "unsupported media type for local text/Markdown intake")
             }
             IntakeCoordError::NotUtf8 => write!(f, "source bytes are not valid UTF-8 text"),
+            IntakeCoordError::SourceLengthMismatch => {
+                write!(
+                    f,
+                    "fetched source bytes have the wrong length for this envelope"
+                )
+            }
+            IntakeCoordError::SourceDigestMismatch => {
+                write!(
+                    f,
+                    "fetched source bytes do not hash to this envelope's declared digest"
+                )
+            }
+            IntakeCoordError::IntakeIdMismatch => {
+                write!(
+                    f,
+                    "fetched source bytes' derived intake id does not match this envelope"
+                )
+            }
         }
     }
 }

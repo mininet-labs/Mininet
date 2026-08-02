@@ -25,8 +25,10 @@ pub enum IntakeSocialError {
     /// Reading the immutable source bytes back from `mini-intake`'s backend
     /// failed.
     Intake(IntakeCoordError),
-    /// Publishing (or decoding) the resulting `mini-social` post failed.
+    /// Signing the resulting `mini-social` post failed.
     Social(SocialError),
+    /// Inserting the signed post into the social store failed.
+    Store(mini_store::StoreError),
     /// Deriving the produced post's [`mini_intake_types::IntakeLink::Post`]
     /// target from its object id failed.
     Crypto(CryptoError),
@@ -44,6 +46,7 @@ impl core::fmt::Display for IntakeSocialError {
             IntakeSocialError::NotUtf8 => write!(f, "source bytes are not valid UTF-8"),
             IntakeSocialError::Intake(e) => write!(f, "intake: {e}"),
             IntakeSocialError::Social(e) => write!(f, "social: {e}"),
+            IntakeSocialError::Store(e) => write!(f, "store: {e}"),
             IntakeSocialError::Crypto(e) => write!(f, "crypto: {e}"),
         }
     }

@@ -39,6 +39,9 @@ mod coordinator;
 mod error;
 mod media;
 
-pub use coordinator::{intake_local_file, load_envelope, read_source_bytes, save_envelope};
+pub use coordinator::{
+    derive_intake_id, intake_local_file, load_envelope, read_source_bytes,
+    read_verified_source_bytes, save_envelope,
+};
 pub use error::{IntakeCoordError, Result};
 pub use media::detect_media_type;

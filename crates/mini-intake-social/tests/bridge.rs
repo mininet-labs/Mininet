@@ -285,6 +285,59 @@ fn an_accepted_non_text_envelope_is_refused() {
 }
 
 #[test]
+fn source_bytes_substituted_after_acceptance_are_refused_not_signed() {
+    // The bridge must re-verify fetched source bytes against the envelope's
+    // own declared digest/length/intake id before signing them
+    // (`mini_intake::read_verified_source_bytes`), not merely trust
+    // whatever the backend returns under the digest key -- a
+    // content-addressed `Backend::put_blob` (e.g. `FsBackend`) "repairs" an
+    // existing blob under a key to whatever bytes it is next asked to
+    // write there, so a corrupted/malicious backend can substitute content
+    // after an envelope reached Accepted while the envelope keeps claiming
+    // the old digest/length/id.
+    let dir = tempdir().unwrap();
+    let path = write_temp(dir.path(), "notes.txt", "the reviewed original text");
+    let mut intake_backend = MemoryBackend::new();
+    let mut envelope = intake_local_file(&mut intake_backend, &path, 1_000).unwrap();
+    envelope
+        .advance_review_state(ReviewState::UnderReview)
+        .unwrap();
+    envelope
+        .advance_review_state(ReviewState::Accepted)
+        .unwrap();
+
+    // Corrupt the blob under the exact same content-addressed key, same
+    // length as the original so a length-only check alone would not catch
+    // it.
+    let original_len = envelope.source.byte_length as usize;
+    let substituted: Vec<u8> = b"XYZ".iter().cycle().take(original_len).copied().collect();
+    intake_backend
+        .put_blob(&backend_key(&envelope.source.digest), &substituted)
+        .unwrap();
+
+    let (human, device) = human(9);
+    let mut social_store = Store::new(MemoryBackend::new());
+
+    let result = publish_accepted_intake_as_post(
+        &intake_backend,
+        &mut social_store,
+        &human,
+        &device,
+        &envelope,
+        2_000,
+        1,
+    );
+    assert!(matches!(
+        result,
+        Err(IntakeSocialError::Intake(
+            mini_intake::IntakeCoordError::SourceDigestMismatch
+        ))
+    ));
+    // No object must have been signed/inserted for the substituted text.
+    assert!(social_store.by_author(&human).unwrap().is_empty());
+}
+
+#[test]
 fn non_utf8_source_bytes_are_refused_even_with_a_text_media_type() {
     // Defense in depth: `mini-intake`'s own coordinator already refuses
     // non-UTF-8 bytes at intake time, so this envelope is hand-built to
