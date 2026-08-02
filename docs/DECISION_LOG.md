@@ -14435,3 +14435,101 @@ required follow-up only. It does not supersede D-0427's doctrine, D-0417's
 requester-funded baseline, D-0404's linkable Tier-0 reviews, or D-0099. Any later
 Phase-3-or-higher decision must cite this fixed report and its failed gate.
 
+### D-0429 — `mini-social`: canonical bounded `publish_post`/`resolve_post`, plus `mini-intake-social`: the missing Track B5 intake-to-post publication caller  ·  *Proposed*
+
+**Date:** 2026-08-02 · **Refs:** founder direction 2026-07-18 (Social
+network priority #4, `docs/STATUS.md` "Top development priority");
+D-0313 (`mini-intake-types`, Track B1); D-0317 (`mini-intake`, Track B2);
+D-0360 (Track B5, `IntakeEnvelope::add_link` gated on `Accepted`);
+roadmap issue #175 (adjacent); P1, Directive 16.
+
+**Decision:** two composed pieces, both pure additive code over already-
+shipped crates.
+
+1. `mini-social` gains `Post`/`publish_post`/`resolve_post`/
+   `MAX_POST_BYTES`. Every other object type this crate publishes
+   (`PROFILE`, `WALL`, `COMMENT`, `COMMUNITY`) already bounds its payload
+   before signing and offers a shared, tested decode path; plain posts
+   did not — every caller (in this workspace, only `mini-desktop`) built
+   a raw `ObjectBuilder` directly with no length check at all. The new
+   functions close that gap without changing the wire format: the
+   payload stays the post's UTF-8 bytes unmodified, so every already-
+   published `POST` object (including `mini-desktop`'s own three
+   hand-built ones) still decodes under `resolve_post`. `mini-desktop`'s
+   plain-text post composer is rewired to call `publish_post` instead of
+   hand-rolling; its media-caption post (payload plus a `media` link)
+   and its own local sequence-numbering unit tests are unchanged — they
+   are a structurally different post shape and unrelated test fixtures,
+   not the gap being closed.
+2. New leaf crate `mini-intake-social` bridges `mini-intake` to
+   `mini-social`: `publish_accepted_intake_as_post` takes an already-
+   `Accepted` `IntakeEnvelope` whose declared media type is `TextPlain`/
+   `Markdown` (the only two kinds Track B2's coordinator ever stores),
+   reads its immutable source bytes back via
+   `mini_intake::read_source_bytes`, and publishes them as a bounded
+   `mini_social::Post`, returning both the produced `Object` and the
+   matching `IntakeLink::Post` target (a plain multihash decode of the
+   post's own content id — the same decode `mini_objects::ObjectId::parse`
+   already performs internally, not a second derivation). The caller
+   still calls `envelope.add_link` itself; this crate mutates nothing
+   about the envelope's review state or authority class.
+
+**Reason:** the founder's own priority ordering names Social network
+(#4) as "wired to the free-commons entitlements (Track C) and to
+Mininet Intake (Track B) as the native... document/evidence intake
+boundary." Track C's wiring already exists (D-0362's `tests/
+social_commons.rs`); Track B's did not — `mini-intake`'s own module docs
+say so explicitly ("no publication linking (Track B5)"), and D-0360
+gated `IntakeEnvelope::add_link` behind `Accepted` review with no caller
+in this workspace ever actually driving that gate against a real target
+crate. A survey of `mini-social` before starting also found the
+unrelated, independently real gap in plain-post publishing (zero length
+validation, no shared decode path) — fixed first since the intake
+bridge needed a bounded `publish_post` to compose with anyway, not as
+scope creep.
+
+**Constitutional impact:** none. No frozen invariant is amended. P1
+holds: neither `mini-social` nor `mini-intake-social` gains a dependency
+on `mini-forge`/`mini-chain` voting, and neither ever will — a linked
+post carries no governance weight. Directive 16 holds for the same
+reason. No new cryptography: `publish_post` reuses `mini-social`'s own
+existing `did-mini` KEL signing pattern verbatim; the `IntakeLink::Post`
+derivation is a plain multihash decode, not a new construction.
+`AuthorityClass` promotion is untouched — a linked post's authority
+class is still whatever the envelope already carried.
+
+**Implementation status:** implemented and tested in this proposal.
+`mini-social`: 6 new integration tests (round trip, over-the-bound
+rejection at publish and at resolve time, wrong object type, encrypted
+payload, non-UTF-8 bytes, exact-bound success). `mini-intake-social`: 8
+integration tests, all driving real signed identities and a real
+`mini_intake::intake_local_file` pipeline (not synthetic shortcuts) —
+Accepted text and Markdown envelopes publish correctly with a verified
+matching `IntakeLink`; `Unreviewed`/`UnderReview`/`Rejected` envelopes
+are all refused; calling the bridge twice over one Accepted envelope
+produces two distinct signed posts (no hidden dedup claimed); a
+hand-built non-text envelope and a hand-built non-UTF-8-despite-
+`TextPlain`-labeled envelope are both refused (defense in depth beyond
+what `mini-intake`'s own coordinator already guarantees).
+
+**Failure point:** `mini-intake-social` has no dedup story of its own —
+calling it twice over the same Accepted envelope signs two distinct
+`POST` objects, which is honestly documented rather than silently
+prevented; a caller wanting idempotence must track that itself (e.g. by
+checking `envelope.links()` for an existing `IntakeLink::Post` before
+calling again). `publish_post`'s bound is a length check only — it does
+not sanitize, moderate, or otherwise interpret post text, matching every
+other object type in this crate. Neither crate touches network
+transport, discovery, or the review UI a real "accept and publish" flow
+would need.
+
+**Required follow-up:** a real caller (CLI or `mini-desktop` UI) driving
+`advance_review_state`/`publish_accepted_intake_as_post`/`add_link`
+together as one visible workflow step, still not built; PR B4 (PDF/HTML
+extraction) remains separately blocked on licence/security review and
+out of this bridge's scope (Track B2 only ever stores text/Markdown);
+Track F5/F6 and the #18 Sybil-resistance gap are unrelated and
+unaffected by this batch.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0313,
+D-0317, or D-0360.

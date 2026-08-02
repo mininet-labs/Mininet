@@ -18,11 +18,11 @@ use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectBuilder, ObjectType, OpaqueRoute, Payload};
 use mini_social::{
     comments, community_members, feed, followers, following, known_profiles, publish_comment,
-    publish_community, publish_profile, publish_profile_details, publish_wall, resolve_community,
-    resolve_profile, set_follow, set_membership, set_reaction, FeedFilter, FeedItem,
-    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
-    PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
-    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
+    publish_community, publish_post, publish_profile, publish_profile_details, publish_wall,
+    resolve_community, resolve_profile, set_follow, set_membership, set_reaction, FeedFilter,
+    FeedItem, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile,
+    PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES,
+    MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{
@@ -267,15 +267,16 @@ impl Workspace {
             .identity
             .as_ref()
             .ok_or_else(|| "identity is locked".to_string())?;
-        let post = ObjectBuilder::new(ObjectType::POST)
-            .timestamp_ms(now_ms())
-            .sequence(self.sequence)
-            .payload(Payload::Public(text.as_bytes().to_vec()))
-            .sign(self.human_did()?, &identity.device)
-            .map_err(|error| error.to_string())?;
-        self.store
-            .insert(&post)
-            .map_err(|error| error.to_string())?;
+        let human = self.human_did()?.clone();
+        publish_post(
+            &mut self.store,
+            &human,
+            &identity.device,
+            text,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
     }

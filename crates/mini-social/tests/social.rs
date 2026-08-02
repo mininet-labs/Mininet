@@ -6,11 +6,11 @@ use did_mini::{Capabilities, Controller, Did};
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
 use mini_social::{
     comments, community_members, feed, followers, following, known_profiles, publish_comment,
-    publish_community, publish_profile, publish_profile_details, publish_wall,
-    publish_wall_linkage, reaction_counts, resolve_community, resolve_profile, resolve_wall,
-    resolve_wall_linkage, set_follow, set_membership, set_reaction, FeedFilter, FeedReason,
-    MembershipMode, PublicProfileDraft, PublicProfileField, ReactionKind, SocialError,
-    VisibilityPolicy,
+    publish_community, publish_post, publish_profile, publish_profile_details, publish_wall,
+    publish_wall_linkage, reaction_counts, resolve_community, resolve_post, resolve_profile,
+    resolve_wall, resolve_wall_linkage, set_follow, set_membership, set_reaction, FeedFilter,
+    FeedReason, MembershipMode, PublicProfileDraft, PublicProfileField, ReactionKind, SocialError,
+    VisibilityPolicy, MAX_POST_BYTES,
 };
 use mini_store::{MemoryBackend, Store};
 
@@ -739,4 +739,113 @@ fn resolve_profile_rejects_wrong_type_cross_author_and_trailing_payload() {
     assert_eq!(directory.len(), 1);
     assert_eq!(directory[0].human, other.did());
     assert_eq!(directory[0].display_name, "Other");
+}
+
+#[test]
+fn publish_post_round_trips_through_resolve_post() {
+    let (owner, device) = human(65);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let object = publish_post(&mut store, &owner.did(), &device, "hello, mininet", 100, 1).unwrap();
+    let resolved = resolve_post(&store, object.id()).unwrap();
+
+    assert_eq!(resolved.id, *object.id());
+    assert_eq!(resolved.author, owner.did());
+    assert_eq!(resolved.text, "hello, mininet");
+    assert_eq!(resolved.timestamp_ms, 100);
+}
+
+#[test]
+fn publish_post_rejects_text_over_the_bound() {
+    let (owner, device) = human(66);
+    let mut store = Store::new(MemoryBackend::new());
+    let oversized = "x".repeat(MAX_POST_BYTES + 1);
+
+    assert!(matches!(
+        publish_post(&mut store, &owner.did(), &device, &oversized, 100, 1),
+        Err(SocialError::FieldTooLarge)
+    ));
+    assert!(store.by_author(&owner.did()).unwrap().is_empty());
+}
+
+#[test]
+fn resolve_post_rejects_an_already_stored_object_that_exceeds_the_bound() {
+    let (owner, device) = human(67);
+    let mut store = Store::new(MemoryBackend::new());
+    // A hand-built object bypasses `publish_post`'s own length check, the
+    // same way an object from a peer running older/different code could.
+    // `resolve_post` must independently enforce the bound on decode, not
+    // only on encode.
+    let oversized = ObjectBuilder::new(ObjectType::POST)
+        .sequence(1)
+        .payload(Payload::Public(vec![b'x'; MAX_POST_BYTES + 1]))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.insert(&oversized).unwrap();
+
+    assert!(matches!(
+        resolve_post(&store, oversized.id()),
+        Err(SocialError::BadPost)
+    ));
+}
+
+#[test]
+fn resolve_post_rejects_the_wrong_object_type_and_an_encrypted_payload() {
+    let (owner, device) = human(68);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let profile = publish_profile(
+        &mut store,
+        &owner.did(),
+        &device,
+        "Name",
+        "bio",
+        None,
+        100,
+        1,
+    )
+    .unwrap();
+    assert!(matches!(
+        resolve_post(&store, profile.id()),
+        Err(SocialError::BadPost)
+    ));
+
+    let encrypted = ObjectBuilder::new(ObjectType::POST)
+        .sequence(2)
+        .payload(Payload::Encrypted(vec![1, 2, 3]))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.insert(&encrypted).unwrap();
+    assert!(matches!(
+        resolve_post(&store, encrypted.id()),
+        Err(SocialError::BadPost)
+    ));
+}
+
+#[test]
+fn resolve_post_rejects_non_utf8_bytes() {
+    let (owner, device) = human(69);
+    let mut store = Store::new(MemoryBackend::new());
+    let invalid_utf8 = ObjectBuilder::new(ObjectType::POST)
+        .sequence(1)
+        .payload(Payload::Public(vec![0xff, 0xfe, 0xfd]))
+        .sign(&owner.did(), &device)
+        .unwrap();
+    store.insert(&invalid_utf8).unwrap();
+
+    assert!(matches!(
+        resolve_post(&store, invalid_utf8.id()),
+        Err(SocialError::BadPost)
+    ));
+}
+
+#[test]
+fn publish_post_at_exactly_the_bound_succeeds() {
+    let (owner, device) = human(70);
+    let mut store = Store::new(MemoryBackend::new());
+    let exact = "x".repeat(MAX_POST_BYTES);
+
+    let object = publish_post(&mut store, &owner.did(), &device, &exact, 100, 1).unwrap();
+    let resolved = resolve_post(&store, object.id()).unwrap();
+    assert_eq!(resolved.text.len(), MAX_POST_BYTES);
 }

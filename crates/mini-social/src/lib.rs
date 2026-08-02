@@ -29,12 +29,15 @@
 
 mod discovery;
 mod pairing;
+mod post;
 mod wall;
 
 pub use discovery::{
     LocalProfileAnnouncer, LocalProfileScanner, NearbyProfile, PROFILE_DISCOVERY_GROUP,
     PROFILE_DISCOVERY_PORT,
 };
+
+pub use post::{publish_post, resolve_post, Post, MAX_POST_BYTES};
 
 pub use pairing::{
     create_pairing_acceptance, create_pairing_offer, receive_pairing_acceptance,
@@ -96,6 +99,9 @@ pub enum SocialError {
     BadInteraction,
     /// A community or membership object was structurally invalid.
     BadCommunity,
+    /// A post object was structurally invalid, wrongly typed, or exceeded
+    /// [`MAX_POST_BYTES`].
+    BadPost,
     /// Local profile discovery I/O failed.
     Io(String),
     /// A pairing offer/acceptance was structurally invalid, truncated, or
@@ -126,6 +132,7 @@ impl core::fmt::Display for SocialError {
             SocialError::BadProfile => write!(f, "structurally invalid profile object"),
             SocialError::BadInteraction => write!(f, "structurally invalid comment or reaction"),
             SocialError::BadCommunity => write!(f, "structurally invalid community object"),
+            SocialError::BadPost => write!(f, "structurally invalid or oversized post object"),
             SocialError::Io(error) => write!(f, "local profile discovery i/o: {error}"),
             SocialError::PairingMalformed => write!(f, "malformed pairing offer or acceptance"),
             SocialError::PairingExpired => write!(f, "pairing offer expired or window too long"),
