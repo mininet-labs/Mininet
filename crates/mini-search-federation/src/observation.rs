@@ -91,7 +91,10 @@ pub fn read_crawl_observation(obj: &Object) -> Result<CrawlObservation> {
 /// protocol-facing limit.
 pub(crate) fn observation_wire_len(o: &CrawlObservation) -> Result<usize> {
     let mut total = 0usize;
-    checked_add(&mut total, bytes_field_len(o.id.0.to_bytes().len())?)?;
+    checked_add(
+        &mut total,
+        bytes_field_len(validate_multihash_len(o.id.0.to_bytes().len())?)?,
+    )?;
     checked_add(&mut total, url_wire_len(&o.requested_url)?)?;
     checked_add(&mut total, url_wire_len(&o.final_url)?)?;
     checked_add(&mut total, 8)?; // observed_at_ms
@@ -131,7 +134,7 @@ pub(crate) fn observation_wire_len(o: &CrawlObservation) -> Result<usize> {
 }
 
 fn checked_add(total: &mut usize, value: usize) -> Result<()> {
-    *total = total
+    *total = (*total)
         .checked_add(value)
         .ok_or(FederationError::LimitExceeded)?;
     Ok(())
@@ -168,7 +171,10 @@ fn url_wire_len(url: &CanonicalUrl) -> Result<usize> {
     }
 
     let mut total = 1usize; // scheme
-    checked_add(&mut total, str_field_len(url.host.as_str(), MAX_HOST_BYTES)?)?;
+    checked_add(
+        &mut total,
+        str_field_len(url.host.as_str(), MAX_HOST_BYTES)?,
+    )?;
     checked_add(&mut total, 1)?; // port option tag
     if url.port.is_some() {
         checked_add(&mut total, 2)?;
