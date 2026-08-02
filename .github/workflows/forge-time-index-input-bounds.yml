@@ -16,8 +16,10 @@ jobs:
         with:
           ref: codex/forge-bounded-fs-index-pages
           fetch-depth: 0
-      - name: Bound time-index control and metadata reads
-        run: python3 tools/harden_forge_time_index_input_bounds.py
+      - name: Bound time-index control, metadata, and rebuild inputs
+        run: |
+          python3 tools/harden_forge_time_index_input_bounds.py
+          python3 tools/harden_forge_time_index_rebuild_bounds.py
       - name: Commit exact hardened state
         run: |
           git config user.name "mininet-index-hardener"
