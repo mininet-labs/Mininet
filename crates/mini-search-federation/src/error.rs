@@ -11,7 +11,7 @@ pub enum FederationError {
     /// The wire payload was truncated, malformed, or not the canonical
     /// encoding of what it claims to be.
     BadEncoding,
-    /// A field exceeded this crate's bound before allocation.
+    /// A field or local index exceeded its bound before allocation.
     LimitExceeded,
     /// The object is not the expected object type.
     WrongObjectType,

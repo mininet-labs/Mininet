@@ -91,6 +91,34 @@ fn an_observation_with_no_optional_fields_round_trips() {
 }
 
 #[test]
+fn publisher_rejects_typed_values_outside_its_own_reader_bounds() {
+    let (root, device) = human(19);
+    let mut store = Store::new(MemoryBackend::new());
+    let mut obs = sample_observation();
+    obs.final_url = url("example.org", &format!("/{}", "x".repeat(4_096)));
+
+    assert_eq!(
+        publish_crawl_observation(&mut store, &root, &device, &obs),
+        Err(FederationError::LimitExceeded)
+    );
+}
+
+#[test]
+fn publisher_rejects_an_overlong_redirect_chain_before_encoding() {
+    let (root, device) = human(20);
+    let mut store = Store::new(MemoryBackend::new());
+    let mut obs = sample_observation();
+    obs.redirect_chain = (0..65)
+        .map(|index| url("example.org", &format!("/redirect-{index}")))
+        .collect();
+
+    assert_eq!(
+        publish_crawl_observation(&mut store, &root, &device, &obs),
+        Err(FederationError::LimitExceeded)
+    );
+}
+
+#[test]
 fn crawler_runtime_policy_statuses_round_trip_over_federation_wire() {
     let (root, device) = human(18);
     for (index, status) in [

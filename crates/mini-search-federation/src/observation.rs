@@ -33,6 +33,7 @@ use crate::error::{FederationError, Result};
 /// The custom object type carrying a signed [`CrawlObservation`].
 pub const CRAWL_OBSERVATION_TYPE: &str = "mini/crawl-observation";
 
+const MAX_MULTIHASH_BYTES: usize = 128;
 const MAX_HOST_BYTES: usize = 253;
 const MAX_PATH_BYTES: usize = 4096;
 const MAX_QUERY_BYTES: usize = 4096;
@@ -44,13 +45,18 @@ const MAX_REDIRECT_CHAIN: usize = 64;
 
 /// Publish `observation` as a signed, content-addressed object. Returns the
 /// wrapping object's id (the exchange/dedup key a peer would request by).
+///
+/// The same field bounds the reader enforces are checked before encoding, so
+/// this function can never publish an object that this crate's own reader must
+/// reject merely because a caller constructed an oversized typed value in
+/// memory.
 pub fn publish_crawl_observation<B: Backend>(
     store: &mut Store<B>,
     human: &Did,
     device: &Controller,
     observation: &CrawlObservation,
 ) -> Result<ObjectId> {
-    let payload = encode_observation(observation);
+    let payload = encode_observation(observation)?;
     let obj = ObjectBuilder::new(ObjectType::Custom(CRAWL_OBSERVATION_TYPE.to_string()))
         .timestamp_ms(observation.observed_at_ms)
         .payload(Payload::Public(payload))
@@ -74,11 +80,146 @@ pub fn read_crawl_observation(obj: &Object) -> Result<CrawlObservation> {
         Payload::Public(b) => b,
         Payload::Encrypted(_) => return Err(FederationError::NotPublicPayload),
     };
-    let observation = decode_observation(bytes)?;
-    Ok(observation)
+    decode_observation(bytes)
 }
 
-fn encode_observation(o: &CrawlObservation) -> Vec<u8> {
+/// Exact canonical payload length after applying every F1 field bound.
+///
+/// F7 uses this as a deterministic, allocation-independent storage-budget
+/// proxy. It intentionally measures canonical wire bytes rather than Rust heap
+/// implementation details, which are platform-dependent and unsuitable for a
+/// protocol-facing limit.
+pub(crate) fn observation_wire_len(o: &CrawlObservation) -> Result<usize> {
+    let mut total = 0usize;
+    checked_add(
+        &mut total,
+        bytes_field_len(validate_multihash_len(o.id.0.to_bytes().len())?)?,
+    )?;
+    checked_add(&mut total, url_wire_len(&o.requested_url)?)?;
+    checked_add(&mut total, url_wire_len(&o.final_url)?)?;
+    checked_add(&mut total, 8)?; // observed_at_ms
+    checked_add(&mut total, status_wire_len(&o.status)?)?;
+
+    checked_add(&mut total, 1)?; // content_digest option tag
+    if let Some(digest) = &o.content_digest {
+        checked_add(
+            &mut total,
+            bytes_field_len(validate_multihash_len(digest.to_bytes().len())?)?,
+        )?;
+    }
+
+    checked_add(&mut total, 1)?; // media_type option tag
+    if let Some(media_type) = &o.media_type {
+        checked_add(&mut total, media_type_wire_len(media_type)?)?;
+    }
+
+    checked_add(&mut total, 1)?; // byte_length option tag
+    if o.byte_length.is_some() {
+        checked_add(&mut total, 8)?;
+    }
+
+    if o.redirect_chain.len() > MAX_REDIRECT_CHAIN {
+        return Err(FederationError::LimitExceeded);
+    }
+    checked_add(&mut total, 4)?; // redirect count
+    for redirect in &o.redirect_chain {
+        checked_add(&mut total, url_wire_len(redirect)?)?;
+    }
+
+    checked_add(
+        &mut total,
+        bytes_field_len(validate_multihash_len(o.crawler.0.to_bytes().len())?)?,
+    )?;
+    Ok(total)
+}
+
+fn checked_add(total: &mut usize, value: usize) -> Result<()> {
+    *total = (*total)
+        .checked_add(value)
+        .ok_or(FederationError::LimitExceeded)?;
+    Ok(())
+}
+
+fn validate_multihash_len(len: usize) -> Result<usize> {
+    if len > MAX_MULTIHASH_BYTES {
+        Err(FederationError::LimitExceeded)
+    } else {
+        Ok(len)
+    }
+}
+
+fn bytes_field_len(len: usize) -> Result<usize> {
+    if len > u32::MAX as usize {
+        return Err(FederationError::LimitExceeded);
+    }
+    4usize
+        .checked_add(len)
+        .ok_or(FederationError::LimitExceeded)
+}
+
+fn str_field_len(value: &str, max: usize) -> Result<usize> {
+    if value.len() > max {
+        return Err(FederationError::LimitExceeded);
+    }
+    bytes_field_len(value.len())
+}
+
+fn url_wire_len(url: &CanonicalUrl) -> Result<usize> {
+    match url.scheme {
+        Scheme::Http | Scheme::Https => {}
+        _ => return Err(FederationError::BadEncoding),
+    }
+
+    let mut total = 1usize; // scheme
+    checked_add(
+        &mut total,
+        str_field_len(url.host.as_str(), MAX_HOST_BYTES)?,
+    )?;
+    checked_add(&mut total, 1)?; // port option tag
+    if url.port.is_some() {
+        checked_add(&mut total, 2)?;
+    }
+    checked_add(&mut total, str_field_len(&url.path, MAX_PATH_BYTES)?)?;
+    checked_add(&mut total, 1)?; // query option tag
+    if let Some(query) = &url.query {
+        checked_add(&mut total, str_field_len(query, MAX_QUERY_BYTES)?)?;
+    }
+    Ok(total)
+}
+
+fn status_wire_len(status: &FetchStatus) -> Result<usize> {
+    match status {
+        FetchStatus::Success(_) => Ok(3),
+        FetchStatus::RedirectLimitExceeded
+        | FetchStatus::Timeout
+        | FetchStatus::NetworkError
+        | FetchStatus::RobotsExcluded
+        | FetchStatus::UnsupportedScheme
+        | FetchStatus::AddressBlocked
+        | FetchStatus::ResponseTooLarge
+        | FetchStatus::UnsupportedMediaType
+        | FetchStatus::InvalidRedirect => Ok(1),
+        _ => Err(FederationError::BadEncoding),
+    }
+}
+
+fn media_type_wire_len(media_type: &WebMediaType) -> Result<usize> {
+    match media_type {
+        WebMediaType::Html
+        | WebMediaType::TextPlain
+        | WebMediaType::Markdown
+        | WebMediaType::Json
+        | WebMediaType::Pdf
+        | WebMediaType::Image => Ok(1),
+        WebMediaType::Other(value) => 1usize
+            .checked_add(str_field_len(value, MAX_MEDIA_TYPE_OTHER_BYTES)?)
+            .ok_or(FederationError::LimitExceeded),
+        _ => Err(FederationError::BadEncoding),
+    }
+}
+
+fn encode_observation(o: &CrawlObservation) -> Result<Vec<u8>> {
+    let expected_len = observation_wire_len(o)?;
     let mut w = Writer::new();
     w.bytes(&o.id.0.to_bytes());
     encode_url(&mut w, &o.requested_url);
@@ -99,13 +240,16 @@ fn encode_observation(o: &CrawlObservation) -> Vec<u8> {
         encode_url(&mut w, u);
     }
     w.bytes(&o.crawler.0.to_bytes());
-    w.into_bytes()
+    let bytes = w.into_bytes();
+    debug_assert_eq!(bytes.len(), expected_len);
+    Ok(bytes)
 }
 
 fn decode_observation(bytes: &[u8]) -> Result<CrawlObservation> {
     let mut r = Reader::new(bytes);
     let id = CrawlObservationId(
-        Multihash::from_bytes(&r.bytes_limited(128)?).map_err(|_| FederationError::BadEncoding)?,
+        Multihash::from_bytes(&r.bytes_limited(MAX_MULTIHASH_BYTES)?)
+            .map_err(|_| FederationError::BadEncoding)?,
     );
     let requested_url = decode_url(&mut r)?;
     let final_url = decode_url(&mut r)?;
@@ -127,7 +271,8 @@ fn decode_observation(bytes: &[u8]) -> Result<CrawlObservation> {
         redirect_chain.push(decode_url(&mut r)?);
     }
     let crawler = ProviderPseudonym(
-        Multihash::from_bytes(&r.bytes_limited(128)?).map_err(|_| FederationError::BadEncoding)?,
+        Multihash::from_bytes(&r.bytes_limited(MAX_MULTIHASH_BYTES)?)
+            .map_err(|_| FederationError::BadEncoding)?,
     );
     if !r.finished() {
         return Err(FederationError::BadEncoding);
@@ -150,10 +295,9 @@ fn encode_url(w: &mut Writer, u: &CanonicalUrl) {
     w.u8(match u.scheme {
         Scheme::Http => 0,
         Scheme::Https => 1,
-        // `Scheme` is `#[non_exhaustive]` in `mini-web-types`; a future
-        // variant there needs a matching wire-format decision here, not a
-        // silent fallback.
-        _ => unreachable!("Scheme has only Http/Https today"),
+        // `observation_wire_len` rejects any future unsupported variant before
+        // this encoder is reached.
+        _ => unreachable!("validated URL scheme"),
     });
     w.str(u.host.as_str());
     match u.port {
@@ -210,8 +354,9 @@ fn encode_status(w: &mut Writer, s: &FetchStatus) {
         FetchStatus::ResponseTooLarge => w.u8(7),
         FetchStatus::UnsupportedMediaType => w.u8(8),
         FetchStatus::InvalidRedirect => w.u8(9),
-        // `FetchStatus` is `#[non_exhaustive]`; see the `Scheme` note above.
-        _ => unreachable!("FetchStatus has no variants beyond the six above today"),
+        // `observation_wire_len` rejects any future unsupported variant before
+        // this encoder is reached.
+        _ => unreachable!("validated fetch status"),
     }
 }
 
@@ -248,7 +393,7 @@ fn decode_opt_multihash(r: &mut Reader) -> Result<Option<Multihash>> {
     Ok(match r.u8()? {
         0 => None,
         1 => Some(
-            Multihash::from_bytes(&r.bytes_limited(128)?)
+            Multihash::from_bytes(&r.bytes_limited(MAX_MULTIHASH_BYTES)?)
                 .map_err(|_| FederationError::BadEncoding)?,
         ),
         _ => return Err(FederationError::BadEncoding),
@@ -267,8 +412,9 @@ fn encode_media_type(w: &mut Writer, t: &WebMediaType) {
             w.u8(6);
             w.str(s);
         }
-        // `WebMediaType` is `#[non_exhaustive]`; see the `Scheme` note above.
-        _ => unreachable!("WebMediaType has no variants beyond the seven above today"),
+        // `observation_wire_len` rejects any future unsupported variant before
+        // this encoder is reached.
+        _ => unreachable!("validated web media type"),
     }
 }
 

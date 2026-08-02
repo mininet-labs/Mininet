@@ -1,306 +1,188 @@
 # Cryptographic architecture: composition over invention, and the flagship research protocol (D-0421)
 
-**Status:** Doctrine and research-roadmap synthesis only. No code, no new
-crate, no new cryptographic primitive. This document creates no new
-capability and modifies no existing crate's behavior; it names, cross-
-references, and closes gaps in the *framing* around work this repository
-has already scattered across a dozen documents, and names one genuinely
-un-doctrined gap for future research.
+**Status:** Canonical doctrine/research-roadmap synthesis. No cryptographic primitive, protocol activation, authority, or implementation is created by this document. D-0427 now supplies the dedicated Phase-0 doctrine for the anti-collusion settlement gap originally named here; implementation remains unstarted.
 
 ## Why this document exists
 
-CLAUDE.md's "no inventing cryptography" rule and D-0063 (`docs/DECISION_LOG.md`)
-already say what Mininet must never build: proprietary hash functions,
-ciphers, signature schemes, RNGs, password hashing, TLS, or general-purpose
-ZK curves/proving systems. That rule is a *fence*. It has never been paired,
-in one place, with the *field inside the fence* — a positive statement of
-where Mininet-specific protocol composition over standard primitives is
-not just permitted but required, because no existing off-the-shelf protocol
-expresses Mininet's participant-owned, privacy-preserving, no-central-
-platform economic model.
+`CLAUDE.md` and D-0063 already define the fence: Mininet does not invent proprietary hashes, ciphers, signature schemes, RNGs, password hashing, TLS, or general-purpose ZK curves/proving systems. What was missing was the positive rule inside that fence:
 
-That positive statement already exists — just distributed. `docs/design/
-mn602-mn603-anonymous-resource-payment-preparation.md` (D-0099),
-`docs/design/mn208-pir-research-and-review-preparation.md` (D-0098),
-`docs/design/frontier-personhood-governance-and-consensus-proposals.md`,
-`docs/design/post-quantum-identity-migration.md` (D-0095/D-0322), and the
-shipped `mini-provenance`/`mini-forge::release` code (D-0068, D-0070) each
-independently commit to the same discipline: standard primitives,
-Mininet-specific *assembly*, staged maturity, external review before real
-value. This document is the index that says so explicitly, so a reader —
-founder, auditor, or a future agent picking up this codebase — does not
-have to independently discover that the pieces already agree. It also
-names the one piece that does not yet exist anywhere: an anti-collusion
-reward-settlement doctrine for open, un-gated content/engagement
-contribution (§7 below).
+> Mininet may compose Mininet-specific protocols from established, independently analyzed primitives when no off-the-shelf protocol expresses the required participant sovereignty, privacy, and authority boundaries. A new composition remains experimental until its transcript, assumptions, non-goals, abuse model, migration/shutdown path, weakest-device cost, and external-review gate are explicit.
 
-**Refs:** CLAUDE.md's "No inventing cryptography" hard rule; D-0063
-(no-new-crypto clarification and founder override); Directive 14
-("simplicity is security"); the six design docs and two shipped crates
-named throughout this document.
+This is not permission to solve social questions with cryptographic vocabulary. A proof can bind a transcript or hide a witness. It cannot make one root one human, prove genuine attention, prove two organizations are independent, or prove social value.
+
+**Refs:** Directive 14; D-0063; D-0068; D-0070; D-0095/D-0322; D-0098; D-0099; D-0427; `docs/INVARIANTS.md` hard limitations.
 
 ## Decision
 
-Adopt, as canonical framing (not new policy — this restates and organizes
-decisions already made):
+Use established primitives, narrow typed protocols, staged maturity, and external review. Prefer composition over duplicated implementations and prefer removal over sophistication. “More true to Mininet” means:
 
-> Mininet composes Mininet-specific *protocols* from established,
-> independently-analyzed cryptographic *primitives*. A primitive is never
-> invented in-house. A protocol composing primitives is Mininet's to
-> design, but ships only as `experimental` until it has a written threat
-> model, an external-review requirement gating real value, and a named
-> shutdown/migration path — the same discipline D-0068's build provenance,
-> D-0070's release transparency log, and every `mn6xx`/`mn2xx` research
-> doc listed below already apply individually.
+- fewer trusted intermediaries;
+- no new central authority;
+- less metadata learned by the network;
+- deterministic verification of a bounded claim;
+- participant-owned keys and local choice;
+- explicit degradation when an edge service disappears; and
+- no conversion of money, service history, or cryptographic credentials into political authority.
 
-"More true to the project" means fewer trusted intermediaries, better
-participant privacy, and verifiable useful contribution — never novel
-mathematics pursued for its own sake, and never a claim that cryptography
-alone can settle a question (genuine human attention, one-person
-uniqueness, or social value) that INVARIANTS.md's own frozen "hard,
-temporary limitations" section already admits are open.
+Every research track below keeps its own acceptance gate. Shared plumbing or a shared program name does not make several incomplete tracks collectively production-ready.
 
-## The six tracks, as they already exist in this repository
-
-Each track below is a live research or implementation surface already
-present in this repository. Nothing here re-derives them; each entry
-states current status honestly and links onward rather than duplicating.
+## The six tracks
 
 ### 1. Private proof of useful contribution
 
-**Status: doctrine only, staged, not implemented.**
-`docs/design/mn602-mn603-anonymous-resource-payment-preparation.md`
-(D-0099) is the primary doctrine: online-spend, issuer-backed, fixed-
-denomination blind-signature tokens for relay/mix/storage/bridge/private-
-index resource credit, with a nine-phase rollout (Phase 0 doctrine → …
-→ Phase 9 limited MINI-backed pilot) and an explicit "No new
-cryptography" section naming Privacy Pass, GNU Taler, and Coconut as
-prior-art reference points, none embedded. `mini-resource-pricing`
-(D-0302) is the only shipped code in this space, and it is pure quoting —
-no keys, no issuance, no transfers. `docs/design/
-frontier-personhood-governance-and-consensus-proposals.md` §3
-(`mini-attest`) independently designs a three-tier assurance ladder for
-the adjacent case of *review/attestation* eligibility from a completed
-engagement (Tier 0 linkable receipts → Tier 1 Merkle-accumulator
-membership hiding → Tier 2 blind/threshold issuance with scoped
-nullifiers), naming the same candidate families (Coconut/BBS-style
-credentials, Privacy Pass-like issuance, Semaphore-like nullifiers) this
-document's flagship protocol (§8) also needs. These are not yet unified
-into one crate; §8 below is where that unification is proposed as future
-work, not built now.
+**Current status:** doctrine/research preparation, not activated.  
+**Primary source:** `docs/design/mn602-mn603-anonymous-resource-payment-preparation.md` (D-0099).
 
-### 2. Anti-collusion reward settlement
+D-0099 defines online-spend, issuer-backed, fixed-denomination blind resource credits as a research path for relay/mix/storage/bridge/private-index service, with strict role separation and a phased path from transparent valueless tokens to a separately reviewed limited real-value pilot. Privacy Pass, GNU Taler, Coconut/BBS-style credentials, and related systems are prior-art references, not silently selected dependencies.
 
-**Status: partially doctrined, one real gap. See §7.**
-`docs/design/treasury-economic-model.md` names "receipt-verifier/oracle
-collusion" as an explicit threat (its adversarial-scenario list, item 13)
-but does not resolve it with a protocol. `docs/design/
-contribution-and-settlement-coordinator.md` (D-0417, shipped as
-`mini-contribution`) settles real `PaymentClaim`s from role/split/
-evidence-bound completions, but its evidence is a signed receipt from the
-existing `mini-engagement`/`mini-settlement` machinery — linkable,
-un-audited beyond signature validity, and with no delivery-challenge or
-duplicate-detection layer. This is the one track named in the source
-framework with no existing Mininet doctrine document. §7 opens it.
+`mini-resource-pricing` remains quoting only. No blind token, redemption, or wallet crate is implied by this synthesis.
+
+### 2. Anti-collusion settlement
+
+**Current status:** Phase-0 doctrine exists (D-0427); no implementation phase is started.  
+**Primary source:** `docs/design/anti-collusion-content-settlement-preparation.md`.
+
+D-0417's `mini-contribution` is a requester-funded, linkable baseline. A signed receipt can prove that typed parties signed a transcript and that a verified delivery verdict was bound into a claim. It cannot prove requester/provider independence or genuine demand.
+
+D-0427 supplies the distinction this document's original short problem statement lacked:
+
+- an operator paying itself from its own finalized balance can fabricate unlimited **claim volume**, but cannot create unlimited net protocol value;
+- the commons-loss problem begins when a sponsor, treasury, emission/subsidy budget, or farmable privilege pays the claim.
+
+Therefore requester-funded voluntary settlement must remain independent of anti-collusion issuers/auditors. Sponsor-funded and protocol-subsidized settlement require finite precommitted budgets, typed policy, duplicate/rate-limit rules, objective challenge/audit behavior, and a shutdown path that affects only that program.
+
+Delivery challenges prove freshness/delivery/replay resistance only. They do not prove collusion resistance, human demand, usefulness, or one-human-one-claim.
 
 ### 3. Unlinkable personhood membership
 
-**Status: doctrine only (research proposal, not accepted).**
-`docs/design/frontier-personhood-governance-and-consensus-proposals.md`
-§1 ("Sybil-resistant personhood") and §2 ("privacy-preserving
-liveness/personhood proof") lay out an evidence-wallet →
-published-policy → aggregate-proof → distributed-issuance →
-credential-and-nullifier → recovery architecture, explicitly marked
-"Research and design proposal; not accepted, not implemented." Its own
-§1.7 names the residual unsolved problem plainly: establishing
-one-person eligibility in the first place remains open — the same
-admission INVARIANTS.md's frozen hard-limitations section already makes
-("identity-root ≠ verified human"). `mini-uniqueness` (shipped) is the
-current, much narrower three-signal fusion prototype; it does not
-implement anonymous credentials or nullifiers.
+**Current status:** research proposal only; one-person uniqueness remains unresolved.  
+**Primary source:** `docs/design/frontier-personhood-governance-and-consensus-proposals.md`.
 
-### 4. Private federated search
+The proposed architecture separates evidence, policy, aggregate proof, credential issuance, scoped nullifiers, and recovery. `mini-uniqueness` remains a narrower signal-fusion prototype and is not an anonymous unique-human credential.
 
-**Status: research and review preparation only.**
-`docs/design/mn208-pir-research-and-review-preparation.md` (D-0098)
-freezes a first PIR workload and a candidate-technique portfolio
-(explicitly "research targets, not selections") before any PIR crate
-exists. This directly extends Track E (MiniSearch, D-0312) — `mini-query`
-(D-0420, this same PR) implements Track E7/E8 (query parsing, result
-provenance) with no privacy-preserving retrieval yet; Track F
-(distributed/federated search, roadmap issue #175, not started) is where
-MN-208's PIR research would eventually connect, and is out of scope here.
+The strongest honest future statement is policy- and epoch-bound risk-limited eligibility, not metaphysical proof of biological uniqueness. Identity-root count must not be described as human count.
 
-### 5. Recoverable, post-quantum identities
+### 4. Private and federated search
 
-**Status: Phase 0/1 shipped (verify-only), production migration gated.**
-`docs/design/post-quantum-identity-migration.md` (D-0095/D-0322) is
-further along than the other five: `mini-crypto`'s `SignatureSuite::
-MlDsa65` verify-only support is real, shipped code (D-0322), using the
-already-standardized ML-DSA-65 (FIPS 204) construction — not a new
-primitive. Its own "hard rule: no production migration before external
-review" section keeps every recovery-policy, multi-suite-signing, and
-key-evolution mechanism the source framework describes (§5 of the pasted
-research) as declared future phases, not implemented today.
+**Current status:** mixed.
+
+- F1/F2 signed observation/segment exchange format, F3 deterministic local federation, F4 local re-ranking, and F7 bounded local observation history are implemented in `mini-search-federation` (D-0422/D-0423/D-0424/D-0426).
+- F5 has Phase-0 anti-collusion settlement doctrine only (D-0427).
+- F6 private query transport remains undesigned.
+- PIR remains research/review preparation under `docs/design/mn208-pir-research-and-review-preparation.md` (D-0098).
+
+No implemented Track F function performs a private remote query or pays a provider. Local plurality and signed data exchange are foundations, not deployment.
+
+### 5. Recoverable post-quantum identities
+
+**Current status:** follow `docs/STATUS.md` and `docs/design/post-quantum-identity-migration.md`; production migration remains externally gated.
+
+Mininet uses standardized ML-DSA-65 through reviewed external implementation code rather than implementing lattice mathematics in-house. Verify/sign/provisioning slices do not by themselves migrate a KEL, preserve recovery semantics, or activate PQ authority. A live-break recovery path must distinguish identities with pre-break anchors from those without them.
 
 ### 6. Proof-carrying Forge contributions
 
-**Status: shipped and in production use in this repository's own workflow.**
-The most mature of the six. `mini-provenance` (D-0068) implements
-SLSA/in-toto-style signed build-provenance objects with independent-
-builder agreement counting. `mini-forge::release` (D-0070) adds a
-release transparency log, rollback protection, and equivocation
-detection. `mini-build-runner-wasmtime` (D-0069) is the isolated,
-capability-gated executor those provenance claims describe. `mini-cli`'s
-`build`/`release`/`provenance`/`installer` subcommands (D-0077) and
-`tools/no_github_outage_demo.sh` (D-0081) prove the whole pipeline end to
-end. No cryptography was invented for this track: it composes
-`mini-crypto`'s existing Ed25519/BLAKE3 primitives exactly as every other
-signed object in this codebase does. This is the existence proof that
-the "compose, don't invent" discipline this document names is not
-aspirational — it already shipped, once, all the way through.
+**Current status:** the most mature composition track.
 
-## What Mininet does not invent (restated, not modified)
+`mini-provenance`, `mini-build-runner-wasmtime`, and `mini-forge::release` compose signed build provenance, isolated execution, independent-builder agreement, a release transparency log, rollback protection, and equivocation detection. This is the repository's proof that “compose established primitives, do not invent them” can reach a real end-to-end workflow.
 
-CLAUDE.md's hard rule already lists this; it is not repeated in full
-here to avoid two documents drifting apart. In summary: no proprietary
-hash function, symmetric cipher, signature algorithm, RNG, password
-hashing, TLS, or general-purpose ZK curve/proving system. Every
-protocol named in §§1-8 of this document composes from a fixed set of
-already-shipped or already-standardized building blocks: `mini-crypto`'s
-Ed25519/X25519/AEAD/BLAKE3 (in production use throughout this
-workspace), ML-DSA-65 (FIPS 204, D-0322), and — for the *research-stage*
-tracks only, never yet embedded — externally-reviewed constructions
-named by reference (Privacy Pass, GNU Taler, Coconut/BBS, Semaphore-style
-nullifiers, standard PIR techniques). None of the reference constructions
-above has been selected, vendored, or implemented by this repository;
-naming them as research targets is not adopting them.
+It does not turn AI evidence into approval, repository access into authority, or a release into owner adoption.
 
-## Required maturity gate for every construction named above
+## What Mininet does not invent
 
-Restating what D-0068, D-0070, D-0095/D-0322, D-0098, and D-0099 already
-each independently require, so future work in any of the six tracks does
-not have to re-derive it: before real value or real personal data ever
-touches a construction from this document, it needs — at minimum — a
-written threat model, explicit non-goals, a protocol transcript
-specification, a domain-separation registry entry (extending
-`mini-crypto`'s existing domain-separation discipline), replay/downgrade
-analysis, abuse/collusion analysis, test vectors, at least one reference
-implementation, and a named maturity label (`experimental` →
-`candidate` → `activated`, mirroring D-0070's `Version`/rollback
-machinery's own maturity posture). External cryptographic review is
-required — not optional — before any construction backs real MINI or
-reveals real personal data, per D-0047's existing external-audit gate.
+The hard rule remains in `CLAUDE.md`; this document does not create a second drifting list. In summary, Mininet does not invent:
 
-## 7. The one open gap: anti-collusion reward settlement (research-only, this document)
+- cryptographic hash functions;
+- symmetric ciphers or AEADs;
+- signature algorithms;
+- RNGs or password hashing;
+- TLS;
+- general-purpose proving curves/systems; or
+- mathematical constructions merely to avoid an external dependency.
 
-No prior Mininet document owns this problem directly, though two
-adjacent ones (`mn602-mn603`, `mini-attest` Tier 2) solve *pieces* of it.
-Naming the gap precisely, per the source framework, without proposing an
-implementation:
+Naming a prior-art construction as a candidate is not adopting, vendoring, implementing, or auditing it.
 
-**The problem.** `mini-contribution` (D-0417) already settles a
-`PaymentClaim` when `DeliveryEvidence` binds a role, a split, and a
-signed completion. That evidence is an ordinary signed receipt: a single
-operator controlling both the requester identity and the provider
-identity can fabricate an arbitrarily large volume of self-traffic and
-extract unlimited settlement, because nothing in the current design
-distinguishes "a real distinct human requested this" from "a signature
-exists." Ordinary signed receipts — the source framework's own words —
-are insufficient for exactly this reason.
+## Required maturity gate
 
-**What a resolution would need**, restated from the source framework as
-research requirements, not a design:
+Before any research composition here backs real MINI, real authority, or real personal data, require at minimum:
 
-- requester-funded payment (never unlimited protocol-issued subsidy per
-  claim — the treasury economic model's existing "cannot pay unlimited
-  newly issued MINI for views" constraint already rules this out);
-- unpredictable delivery challenges a fabricated self-traffic loop cannot
-  precompute;
-- bounded, explicitly-labeled protocol subsidies only, never
-  indistinguishable from paid settlement (the same non-negotiable
-  constraint `mn602-mn603` already carries for resource-payment
-  subsidies — inherited here, not re-derived);
-- a personhood or scarce-resource constraint on claim frequency (which
-  inherits Track 3's residual unsolved problem: this cannot be
-  "one-human-one-claim" until Sybil resistance itself is solved, per
-  INVARIANTS.md's frozen hard limitation);
-- duplicate/collusion detection across claims, not just per-claim
-  signature validity;
-- privacy-preserving rate limiting (a nullifier-style scoped-context
-  mechanism, structurally similar to `mini-attest` Tier 2's per-context
-  nullifier — reusable research, not reusable code, since the settlement
-  context and the attestation context are different domains and must use
-  different domain-separated nullifier derivations);
-- delayed, randomized audits over settled claims, not just at-claim-time
-  verification.
+1. exact typed claim and protocol transcript;
+2. explicit adversary, assumptions, privacy budget, and non-goals;
+3. canonical encoding and domain-separation registry entry;
+4. replay, downgrade, cross-domain, recovery, issuer/auditor/provider collusion, and metadata analysis;
+5. bounded malformed-input and denial-of-service behavior;
+6. deterministic test vectors and adversarial simulation;
+7. weakest-supported-device benchmarks;
+8. at least one independent verifier implementation for a proof-critical path;
+9. migration, shutdown, and role-disappearance behavior;
+10. external cryptographic/privacy review under D-0047;
+11. independent economic/mechanism review where value or subsidy is involved; and
+12. a separate exact-state activation decision for the reviewed artifact and parameters.
 
-**What this document does not do:** propose a token format, a crate
-boundary, a threshold-issuance scheme, or a phased rollout for this gap.
-Following `mn602-mn603`'s own precedent, that belongs in its own Phase-0
-doctrine document once someone is prepared to own the phased rollout
-`mn602-mn603` §"What's required before any code PR" models — a Phase 1
-non-monetary prototype, Phase 2 real (but valueless) delivery-challenge
-mechanics, external cryptographic review before Phase 9's real-value
-pilot. This document only asserts that the gap is real, precisely
-scoped, and not accidentally already solved by an adjacent doc.
+Tests passing, founder review, multiple agreeing AI systems, or several keys under one organization are not substitutes for independent review or operational independence.
 
-## 8. The flagship synthesis: Unlinkable Proof of Useful Contribution
+## 7. Anti-collusion settlement gap — now owned by D-0427
 
-Not a new cipher — a name for where Tracks 1, 2 (§7), and 3 (personhood)
-converge, because a single implementation eventually needs all three:
+This section originally named the gap but deliberately refused to design it in the same PR. The required dedicated Phase-0 document now exists at `docs/design/anti-collusion-content-settlement-preparation.md` (D-0427).
 
-> A provider proves entitlement to a bounded reward for serving an
-> authentic request, while settlement cannot trivially link the
-> requester, provider, content, and their other activity, and fabricated
-> self-traffic cannot create unlimited issuance.
+The canonical problem statement is now:
 
-This is not proposed as new work to start now. It is named so that when
-Track 1 (`mn602-mn603`), Track 2/§7 (anti-collusion settlement), and
-Track 3 (`mini-attest`, personhood) each eventually produce real code,
-the people building them know in advance that a single coherent protocol
-— not three independently-drifting ones — is the actual target, and can
-share domain-separated nullifier derivation, blind/threshold-issuance
-tooling, and external-review scheduling rather than each re-deriving it.
-The staged path below is the same nine-phase shape `mn602-mn603` already
-committed to, generalized:
+> A signed service receipt proves a signed transcript, not economic independence. Ordinary voluntary requester-funded transfers may remain permissionless. Any third-party or commons-funded reward program must ensure that colluding identities cannot consume more than a finite precommitted budget or multiply a capped entitlement, while avoiding a central permission authority and without publishing a surveillance graph.
 
-1. Signed, transparent (linkable) receipts — `mini-contribution` (D-0417)
-   already provides this for the content/engagement case; `mn602-mn603`
-   Phase 1 provides it for the resource-payment case.
-2. Scoped pseudonyms and replay-preventing nullifiers — `mini-attest`
-   Tier 1 (Merkle-accumulator membership hiding) is the closest existing
-   design.
-3. Batched settlement with concealed individual requests.
-4. Zero-knowledge verification of receipt rules (an established proving
-   system used, not designed — per this document's own composition
-   rule).
-5. Collusion-resistant subsidy limits — directly inherits §7's open
-   requirements above.
-6. Independent cryptographic review (D-0047's existing external-audit
-   gate; not new process).
-7. A restricted, valueless economic pilot.
-8. Governance-controlled activation (`mini-forge::governance`'s existing
-   `propose`/`approve`/`merge` machinery — not a new governance
-   mechanism).
+A resolution requires, according to the exact funded class:
 
-**Constitutional impact:** none. This document creates no crate, changes
-no function signature, and grants no new authority. It is pure doctrine
-synthesis plus one newly-named (not newly-designed) research gap.
+- immutable funding/policy class and budget commitment;
+- no unbounded per-claim issuance;
+- fresh typed delivery challenges, honestly scoped to delivery integrity;
+- cross-claim replay/duplicate resistance;
+- a settlement-domain rate-limit credential only where the funded policy requires one;
+- no one-human claim until personhood is independently accepted and audited;
+- delayed precommitted random sampling and objective fraud proofs;
+- no reversal of canonical finality or confiscation of unrelated balances;
+- no effect on personhood, ranking, moderation, governance, validation, or review quorum; and
+- issuer/auditor disappearance that halts only the affected subsidy program.
 
-**Implementation status:** none. Zero lines of implementation code.
+The next phase is a transcript, settlement-class schema, adversary/economic model, simulator, privacy budget, and numeric falsification thresholds. It is not a nullifier crate.
 
-**Failure point:** a synthesis document risks becoming stale faster than
-the six tracks it indexes evolve; whoever next ships code in any of
-Tracks 1-6 should update this document's status lines in the same PR,
-the same discipline `docs/STATUS.md` already requires project-wide.
+## 8. Flagship synthesis: Unlinkable Proof of Useful Contribution
 
-**Required follow-up:** a dedicated Phase-0 doctrine document for §7 (the
-anti-collusion settlement gap) when someone is ready to own its phased
-rollout, mirroring `mn602-mn603`'s own structure; no other follow-up is
-implied or scheduled by this document.
+This is a label for eventual convergence, not a new cipher or an authorization to start implementation:
 
-**Supersedes / superseded by:** supersedes nothing — restates and
-cross-references D-0063, D-0068, D-0070, D-0095, D-0098, D-0099, D-0322,
-and the (undecided) frontier-personhood proposal without modifying any of
-them.
+> A provider proves entitlement to a bounded payment or subsidy for a typed useful service, while the protocol minimizes linkage among requester, provider, content/query, funding source, and other activity; replay and capped-entitlement multiplication are rejected; and no proof or payment creates political authority.
+
+The synthesis requires three independently mature tracks:
+
+- private resource/payment credentials;
+- anti-collusion/cap integrity for third-party or commons-funded claims; and
+- an accepted scoped membership/rate-limit assumption where policy requires one.
+
+Requester-funded market settlement does not wait for this synthesis and must not be placed behind its issuers. A protocol-subsidized real-value pilot does wait for the applicable reviewed pieces and a separate activation.
+
+A coherent future implementation may share reviewed credential/nullifier tooling, but secrets and domains must remain distinct across settlement, personhood, review, resource payment, governance, and search.
+
+## Constitutional impact
+
+None. This document and D-0427 add doctrine, not authority. They strengthen the practical application of Directives 2, 4, 5, 9, 14, 16, and 18: remove central dependencies, preserve canonical ownership, learn less data, keep complexity bounded, keep money separate from voice, and ensure edge services can disappear without taking the core with them.
+
+## Failure point
+
+This synthesis fails if future work:
+
+- calls receipt validity proof of genuine human demand;
+- calls a delivery challenge collusion resistance;
+- makes a credential issuer necessary for ordinary requester-funded payments;
+- hides an uncapped subsidy behind privacy terminology;
+- treats multiple keys as organizational independence;
+- shares nullifiers/secrets across authority domains;
+- lets audit heuristics seize balances or lower humanness;
+- converts provider revenue into ranking/governance authority; or
+- skips external review because primitives were individually standardized.
+
+## Required follow-up
+
+- D-0427 Phase 2: transcript/schema/threat/economic model and precommitted numeric gates.
+- Continue each other track only through its own documented maturity process.
+- Whoever changes a track's real status updates this synthesis and `docs/STATUS.md` in the same proposal.
+
+## Supersedes / superseded by
+
+Supersedes nothing. It cross-references and organizes D-0063, D-0068, D-0070, D-0095/D-0322, D-0098, D-0099, and D-0427 without modifying their authority or activation status.

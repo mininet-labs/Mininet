@@ -634,6 +634,21 @@ given time.
   settlement tracks eventually converge, staged the same nine-phase way
   `mn602-mn603` already committed to. See `docs/design/
   cryptographic-architecture-and-flagship-research-protocol.md`.
+- **doctrine and research preparation only** — anti-collusion content/
+  engagement settlement preparation, Track F5 (D-0427). The dedicated
+  Phase-0 document D-0421 §7 named as required follow-up. Restates §7's
+  problem/requirements unweakened; separates five roles (requester,
+  provider, settlement coordinator, collusion-limit issuer, auditor);
+  names three not-yet-built crates (`mini-settlement-integrity`,
+  `mini-delivery-challenge`, `mini-settlement-audit`); recognizes
+  `mini-contribution` (D-0417) + `mini-attest` Tier 0 (D-0404) as
+  already constituting Phase 1 with no new code; lays out Phases 2-9
+  mirroring `mn602-mn603`'s nine-phase shape. **No code, no new crate,
+  no dependency added** — `mini-contribution`, `mini-attest`,
+  `mini-engagement`, `mini-execution`, and `mini-settlement` are all
+  unmodified. Does not solve the #18 Sybil-resistance dependency Phase 9
+  requires. See `docs/design/
+  anti-collusion-content-settlement-preparation.md`.
 - **doctrine-only** — free public commons and paid protected publishing
   (D-0311): ordinary public viewing, posting, replying, commenting,
   reacting, and searching are protocol entitlements independent of
@@ -1174,12 +1189,13 @@ the top development priority.
   Explicitly a distinct system from `mini-private-index` (D-0310), which
   is not to be repurposed as the general web index. See `docs/research/
   MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md`.
-- **shipped, wire format + local merge/rerank only** —
-  `mini-search-federation` (D-0422/D-0423/D-0424, Track F1/F2/F3/F4 of
-  distributed search, issue #175): the signed, content-addressed
-  exchange format two Track F peers need before any federation can be
-  built, plus deterministic merging of per-provider query results, plus
-  local re-ranking under a caller's own profile. `publish_crawl_
+- **shipped, wire format + local merge/rerank/history only** —
+  `mini-search-federation` (D-0422/D-0423/D-0424/D-0426, Track
+  F1/F2/F3/F4/F7 of distributed search, issue #175): the signed,
+  content-addressed exchange format two Track F peers need before any
+  federation can be built, plus deterministic merging of per-provider
+  query results, plus local re-ranking under a caller's own profile,
+  plus a local snapshot-history index. `publish_crawl_
   observation`/`read_crawl_observation` (F1) wrap a `CrawlObservation`
   in a hand-rolled canonical codec (mirroring `mini-lexical-index`'s own
   `Writer`/`Reader` discipline) and sign it as a `mini_objects::Object`.
@@ -1206,24 +1222,36 @@ the top development priority.
   value is bit-for-bit what a fresh `rank` call under that profile would
   have produced — proven by a test that flips the winner between two
   documents engineered to win on opposite single-signal profiles.
-  Diversity is deliberately not recomputed on re-rank. **No network
-  transport, no peer discovery, no scheduling — F3/F4's inputs are
-  local, not real remote peers yet.** Real, tested (8 F1/F2 integration
-  tests including a tampered-payload case proving decode-success and
-  signature authenticity are genuinely separate checks; 6 F3 integration
-  tests including the order-independence and shared-URL-dedup cases; 5
-  F4 integration tests plus 2 new `mini-ranker` unit tests for
-  `rescore`). Segments are bounded to `mini_objects::MAX_PAYLOAD_BYTES`
+  Diversity is deliberately not recomputed on re-rank. `SnapshotIndex`
+  (F7, D-0426) is a local, in-memory per-URL observation history built
+  from F1's own already-stored `CrawlObservation`s: `history`/`latest`/
+  `at_or_before(ms)`/`between(after_ms, before_ms)` (the identical
+  inclusive-lower/exclusive-upper convention `mini_query::ParsedQuery`
+  already uses) and `distinct_versions` (only snapshots whose content
+  digest actually changed from the previous one, filtering out repeat
+  fetches of unchanged content). **No network transport, no peer
+  discovery, no scheduling — F3/F4/F7's inputs and outputs are all
+  local, not exchanged with real remote peers yet.** Real, tested (8
+  F1/F2 integration tests including a tampered-payload case proving
+  decode-success and signature authenticity are genuinely separate
+  checks; 6 F3 integration tests including the order-independence and
+  shared-URL-dedup cases; 5 F4 integration tests plus 2 new
+  `mini-ranker` unit tests for `rescore`; 9 F7 integration tests
+  including insertion-order independence and the unchanged-content
+  filter). Segments are bounded to `mini_objects::MAX_PAYLOAD_BYTES`
   (8 MiB) with no splitting mechanism (`mini-media`'s superblock pattern
   is the precedent if that ever proves insufficient); `CrawlObservationId`
   is trusted as caller-supplied with no derivation rule enforced
   anywhere in this workspace yet; `federate_query` has no cap on
   concurrently-queried sources and no cross-provider trust weighting;
   `local_rerank` accepts only `FederatedResult`, not a bare
-  single-provider result list. F5-F7 (provider payments, private query
-  transport, historical snapshots) remain one-line research-doc
-  descriptions, not designed or built. See `docs/design/
-  federated-search-exchange-f1-f2.md`.
+  single-provider result list; `SnapshotIndex` is entirely in-memory and
+  per-process, not persisted/signed/shared. F5/F6 (provider payments,
+  private query transport) remain undesigned and unbuilt. F5's Phase-0
+  doctrine now exists — `docs/design/
+  anti-collusion-content-settlement-preparation.md` (D-0427) — but
+  Phases 1-9 are not started; F6 has no doctrine document yet at all.
+  See `docs/design/federated-search-exchange-f1-f2.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,

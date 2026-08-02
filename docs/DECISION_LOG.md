@@ -14216,3 +14216,145 @@ untrusted public crawl jobs on participant devices.
 **Supersedes / superseded by:** implements the missing execution portion of
 Track E3 after D-0317; builds on and does not supersede D-0312, D-0317,
 D-0371, or D-0422.
+### D-0426 — `mini-search-federation`: local snapshot-history index, Track F7 of distributed search  ·  *Proposed*
+
+**Date:** 2026-08-01 · **Refs:** `docs/design/
+federated-search-exchange-f1-f2.md`; `docs/research/
+MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29
+(Track F, PR F7); roadmap issue #175; D-0422 (`mini-search-federation`
+F1/F2); D-0420 (`mini-query`); Directive 4, Directive 16.
+
+**Decision:** add `SnapshotIndex`/`Snapshot` to `mini-search-federation`
+(Track F7, "Store and search versioned page observations"). F1's
+`publish_crawl_observation` already lets a caller record as many
+independent `CrawlObservation`s of one URL over time as it likes —
+nothing in the F1 wire format assumes one observation per URL — so the
+"store" half of F7 already existed; what was missing was "search."
+`SnapshotIndex` is a local, in-memory, per-URL history a caller builds
+by feeding it observations as they arrive (typically decoded via F1's
+own `read_crawl_observation`), mirroring `mini_query::
+DocumentContextTable`'s own "caller-built local table, not itself signed
+or stored" pattern. `insert_observation` is idempotent per object id and
+keeps each URL's history sorted by `observed_at_ms` regardless of
+insertion order, recomputing which snapshots represent a genuine content
+change (`content_changed`, from each snapshot's `content_digest`) so
+that signal is never insertion-order-dependent either. Query methods:
+`history` (full sorted history), `latest`, `at_or_before(ms)` ("what did
+this page look like at time T"), `between(after_ms, before_ms)` (using
+the identical inclusive-lower/exclusive-upper convention
+`mini_query::ParsedQuery`'s own `after_ms`/`before_ms` fields already
+use, so those fields can be passed straight through), and
+`distinct_versions` (only snapshots representing a real content change,
+filtering out repeat fetches of unchanged content automatically).
+
+**Reason:** F7 is the one remaining Track F piece (besides F5/F6, which
+need real payment/privacy infrastructure this batch does not build) that
+composes entirely from what F1 already stores — no new signing, no new
+wire format, no network. The "two consecutive unknown digests are not a
+change" rule was chosen deliberately: a crawler that never populates
+`content_digest` gets an honest "no version signal available," not a
+fabricated one.
+
+**Alternatives:** persisting `SnapshotIndex` as a signed, exchangeable
+object (its own F1-style wire format) was rejected for this batch — it
+would need its own trust/dedup/merge story (what happens when two
+peers' histories disagree about a snapshot's existence or timing) that
+is genuinely Track F5/F6-adjacent scope, not a small addition; today it
+stays a local, rebuild-from-observations-you-already-have view.
+Recomputing `content_changed` from a full pairwise history diff on every
+query (rather than once, at insertion time, cached on each `Snapshot`)
+was rejected as unnecessary — the value only ever depends on one
+adjacent pair and is cheap to keep current at insert time.
+
+**Constitutional impact:** none intended. No frozen invariant is
+amended. Purely additive: no existing crate's function signature
+changes; `mini-web-types`, `mini-lexical-index`, `mini-objects`,
+`mini-store`, `mini-query`, and `mini-ranker` are all unmodified. No new
+cryptography; this module performs no cryptographic operations at all.
+
+**Implementation status:** proposed code adds `crates/mini-search-
+federation/src/history.rs` and `tests/history.rs` (9 integration tests:
+empty history for an unrecorded URL, oldest-first ordering regardless of
+insertion order, idempotent re-insertion, `latest`, `at_or_before` at a
+point in time, `between`'s inclusive/exclusive bounds including
+one-sided ranges, `distinct_versions` correctly skipping unchanged
+repeat fetches, two consecutive unknown digests not treated as a change,
+and independent per-URL histories).
+
+**Failure point:** `SnapshotIndex` is entirely in-memory and
+per-process — not persisted, signed, or shared between peers; a caller
+restarting has to rebuild it by replaying whatever observations it can
+still reach. Its `content_changed` signal is only as good as whether a
+crawler actually populates `content_digest` — a crawler that never does
+gets an undifferentiated timeline, not an error.
+
+**Required follow-up:** persisting/sharing a `SnapshotIndex` (or its
+equivalent) across peers, once F1/F2's objects have a real transport, is
+separate follow-up work. F5 and F6 remain Track F's genuinely
+un-designed tail.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0422
+or D-0420. Does not modify either.
+
+### D-0427 — Anti-collusion content/engagement settlement preparation, Track F5 doctrine (D-0421's §7 follow-up)  ·  *Proposed*
+
+**Date:** 2026-08-02 · **Refs:** D-0421 (§7, the named anti-collusion
+settlement gap this document resolves as a Phase-0 doctrine); D-0417
+(`mini-contribution`); D-0404 (`mini-attest` Tier 0); D-0099
+(mn602-mn603, whose nine-phase shape this document mirrors); roadmap
+issue #175 (Track F); roadmap issues #228/#229 (`mini-attest` Tier 1/2);
+`docs/design/anti-collusion-content-settlement-preparation.md`;
+Directive 14, Directive 16; roadmap issue #18 (Sybil resistance,
+unsolved, explicitly not solved by this document).
+
+**Decision:** adopt `docs/design/
+anti-collusion-content-settlement-preparation.md` as the dedicated
+Phase-0 doctrine document D-0421 §7 names as required follow-up before
+any Track F5 ("provider payments," generalized to any open, un-gated
+content/engagement settlement) implementation. The document restates
+D-0421 §7's problem and requirements without weakening them, names five
+separable roles (requester, provider, settlement coordinator,
+collusion-limit issuer, auditor), proposes three not-yet-built crate
+boundaries (`mini-settlement-integrity`, `mini-delivery-challenge`,
+`mini-settlement-audit`), and lays out a nine-phase path mirroring
+mn602-mn603's own — recognizing that `mini-contribution` (D-0417) +
+`mini-attest` Tier 0 (D-0404) already constitute Phase 1 (a linkable,
+signed settlement baseline) without any new code.
+
+**Reason:** D-0421 named this gap but explicitly declined to design a
+resolution in the same document, per its own "this document does not
+propose a token format, a crate boundary, a threshold-issuance scheme,
+or a phased rollout for this gap" — reserving that for whoever is ready
+to own it. Writing that Phase-0 document now, following this
+repository's established doctrine-first pattern, closes the one
+un-doctrined branch Track F's autonomous continuation would otherwise
+have blocked on, without pre-committing to any implementation Sybil
+resistance (#18) has not yet made safe to build toward real value.
+
+**Constitutional impact:** none. This document creates no crate, changes
+no function signature, and grants no new authority. `mini-contribution`,
+`mini-attest`, `mini-engagement`, `mini-execution`, and `mini-settlement`
+are all unmodified. Directive 16's voice/value wall is restated, not
+newly imposed: none of the three proposed crates may ever be imported by
+`mini-forge::governance` or `mini-chain` voting.
+
+**Implementation status:** none. Zero lines of implementation code; no
+crate scaffolded.
+
+**Failure point:** a doctrine-only document can drift from the crates it
+describes; whoever first ships Phase 2 code must re-verify this
+document's role-separation and requirements sections against
+`mini-contribution`'s and `mini-attest`'s then-current shape before
+building on them. The document also cannot itself resolve the #18
+Sybil-resistance dependency Phase 9 requires — that remains open
+regardless of how far Phases 2-8 progress.
+
+**Required follow-up:** someone ready to own Phase 2's non-monetary
+nullifier prototype; explicit coordination with roadmap #228/#229 so the
+settlement-context and review-context nullifier derivations stay
+domain-separated by design; F6 (private query transport) remains
+Track F's other genuinely un-designed piece, not addressed here.
+
+**Supersedes / superseded by:** fulfills D-0421's own named Required
+follow-up; builds on and does not supersede D-0421, D-0417, D-0404, or
+D-0099.
