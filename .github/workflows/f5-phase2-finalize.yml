@@ -1,0 +1,30 @@
+name: f5-phase2-finalize
+
+on:
+  push:
+    branches: [codex/f5-phase2-model]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message == 'chore: run F5 Phase-2 finalizer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/f5-phase2-model
+          fetch-depth: 0
+      - name: Truth-sync decision, status, doctrine, and navigation
+        run: python3 tools/f5_phase2_finalize.py
+      - name: Remove one-shot automation
+        run: rm .github/workflows/f5-phase2-finalize.yml tools/f5_phase2_finalize.py
+      - name: Commit exact generated state
+        run: |
+          git config user.name "mininet-f5-finalizer"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "docs: record F5 Phase-2 model status"
+          git push origin HEAD:codex/f5-phase2-model
