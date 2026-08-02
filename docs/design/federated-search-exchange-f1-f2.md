@@ -21,15 +21,17 @@ These pieces preserve provenance and plurality. They do not appoint a canonical 
 
 `publish_crawl_observation` wraps an existing `mini_web_types::CrawlObservation` in a signed, content-addressed `mini_objects::Object`. `read_crawl_observation` decodes the canonical payload and rejects the wrong object type, encrypted payloads, malformed fields, unsupported wire tags, and oversized fields or collections.
 
-Publication now applies the same host/path/query/media-type/redirect/multihash bounds before encoding. A caller cannot construct a large but typed in-memory observation that the publisher accepts and the crate's own reader later rejects solely because it violates the reader's wire limits. `observation_wire_len` computes the exact bounded canonical payload size without allocating the encoded payload first; F7 reuses that one source of truth for byte-budget accounting.
+Publication applies the same host/path/query/media-type/redirect/multihash bounds before encoding. A caller cannot construct a large but typed in-memory observation that the publisher accepts and the crate's own reader later rejects solely because it violates the reader's wire limits. `observation_wire_len` computes the exact bounded canonical payload size without allocating the encoded payload first; F7 reuses that one source of truth for byte-budget accounting.
 
 Authentication remains layered:
 
-1. decode the object and payload;
-2. verify the wrapping object's integrity/signature/provenance against the publisher's KEL; and
-3. only then use the decoded observation as an authenticated statement from that publisher.
+1. canonical object/content-address integrity;
+2. wrapping-object signature and provenance against the publisher's KEL; and
+3. typed F1 payload decoding and use as that publisher's statement.
 
-The reader does not silently perform step 2. A well-formed payload is not automatically authentic. The observation still contains a caller-supplied `CrawlObservationId`; deriving and enforcing that ID remains a separate integrity gap.
+`read_crawl_observation` performs step 3, not step 2. `SnapshotIndex::insert_observation` additionally re-parses the object's current bytes and verifies its stored content id still matches them, but still has no KEL input and therefore cannot authenticate the publisher. A well-formed, content-address-consistent payload is not automatically authentic.
+
+The observation still contains a caller-supplied `CrawlObservationId`; deriving and enforcing that ID remains a separate integrity gap.
 
 `ProviderPseudonym` is carried inside the observation. The signed object may itself be authored under a scoped `did:mini` pseudonym selected by the caller. This crate does not invent a second pseudonym scheme or force a root identity into search history.
 
@@ -62,19 +64,21 @@ Payment cannot improve organic relevance: no payment/provider-revenue field exis
 
 F1 already stores multiple independent observations of the same resource. F7 adds a local search/view layer over those objects without inventing a canonical history.
 
-### Typed insertion and provenance preservation
+### Canonical-object insertion and provenance preservation
 
-`SnapshotIndex::insert_observation` accepts exactly:
+`SnapshotIndex::insert_observation` accepts the actual F1 `mini_objects::Object`.
+It does not accept an independently supplied object id, URL, timestamp, digest, crawler, status, or decoded observation. Before mutation it:
 
-```text
-(ObjectId of the signed F1 wrapper, decoded CrawlObservation)
-```
+1. serializes and re-parses the object's current canonical bytes;
+2. verifies that the object's stored content id still matches the id derived from those bytes, catching an in-memory object mutated after signing;
+3. applies the existing F1 type/visibility/field decoder; and
+4. derives all indexed state from that decoded observation.
 
-It does not accept separate URL, timestamp, digest, crawler, or status arguments. Every indexed field is derived from the typed observation, preventing unsigned shadow fields from disagreeing with the signed payload.
+This removes the unsigned-shadow-field problem and prevents a caller from pairing an arbitrary valid-looking `ObjectId` with unrelated observation data. It does **not** verify the publisher's signature or KEL provenance; callers still perform that separate F1 authentication step before treating the history as authenticated.
 
-The index keys by `observation.final_url`. It preserves the complete observation—including requested URL, redirect chain, crawler pseudonym, fetch status, media type, byte length, claimed timestamp, and digest—beside the wrapper `ObjectId`.
+The index keys by `observation.final_url`. It preserves the complete observation—including requested URL, redirect chain, crawler pseudonym, fetch status, media type, byte length, claimed timestamp, and digest—beside the canonical wrapper `ObjectId`.
 
-The same object ID and exact observation are idempotent. Reusing one object ID for different observation bytes or another final URL fails closed as `FederationError::ConflictingObjectBinding`.
+Reinserting the exact same canonical object is idempotent. A different canonical object, even one carrying the same observation, remains a distinct publisher statement/corroboration object.
 
 ### Explicit count and byte bounds
 
@@ -118,15 +122,15 @@ The crate's existing suites cover F1/F2 canonical round trips and signature-laye
 
 The F1 hardening tests prove the publisher refuses typed observations with an overlong URL field or redirect chain instead of creating self-undecodable objects.
 
-F7's adversarial suite covers:
+F7's 16-test adversarial suite covers:
 
 - empty history;
-- final-URL derivation and preservation of the full typed observation;
+- canonical-object-derived identity/final URL and preservation of the full typed observation;
+- rejection of an object mutated after signing while retaining a stale content id;
+- reuse of F1 wrong-type and encrypted-payload rejection;
 - insertion-order-independent sorting;
-- exact duplicate idempotence without double-counting bytes;
-- refusal to rebind an object ID to altered bytes or another final URL;
+- exact-object idempotence without double-counting bytes;
 - URL, per-URL, total-count, per-snapshot-byte, total-byte, and zero limits;
-- refusal of typed observations outside F1's canonical field bounds;
 - equal-timestamp groups for `latest`/`at_or_before`;
 - lower-inclusive/upper-exclusive windows;
 - unknown-digest gaps;
@@ -156,7 +160,7 @@ No frozen invariant is amended. Search providers remain replaceable edge partici
 
 This design fails if a caller:
 
-- treats successful decode as signature/provenance verification;
+- treats content-address consistency or successful decode as signature/provenance verification;
 - treats crawler timestamps as canonical time;
 - selects one disagreeing provider through an arbitrary tie-break and calls it truth;
 - bypasses or misrepresents the finite count/byte budgets;
