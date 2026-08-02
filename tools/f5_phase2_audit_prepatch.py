@@ -13,22 +13,22 @@ old = '''    replace_count(
         'model_commitment(EVIDENCE_DOMAIN, base)',
         2,
     )'''
-new = '''    replace_once(
+new = """    replace_once(
         MODEL,
-        'evidence_commitment = model_commitment("delivery-evidence", base)',
+        'evidence_commitment = model_commitment(\"delivery-evidence\", base)',
         'evidence_commitment = model_commitment(EVIDENCE_DOMAIN, base)',
     )
     replace_once(
         MODEL,
         '''return self.evidence_commitment == model_commitment(
-            "delivery-evidence",
+            \"delivery-evidence\",
             base,
         )''',
         '''return self.evidence_commitment == model_commitment(
             EVIDENCE_DOMAIN,
             base,
         )''',
-    )'''
+    )"""
 count = text.count(old)
 if count != 1:
     raise SystemExit(f"expected one evidence transform, found {count}")
@@ -36,7 +36,10 @@ path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 model_doc = root / "docs" / "design" / "f5-phase2-settlement-model.md"
 doc = model_doc.read_text(encoding="utf-8")
-for old_value, new_value in (("`1,521 bytes`", "`1,523 bytes`"), ("`848` operations", "`849` operations")):
+for old_value, new_value in (
+    ("`1,521 bytes`", "`1,523 bytes`"),
+    ("`848` operations", "`849` operations"),
+):
     count = doc.count(old_value)
     if count != 1:
         raise SystemExit(f"expected one numeric truth target {old_value}, found {count}")
