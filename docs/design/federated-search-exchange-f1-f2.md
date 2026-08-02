@@ -94,13 +94,13 @@ Histories are ordered by crawler-claimed `observed_at_ms`, then object ID for de
 
 Each `Snapshot` receives one of:
 
-- `Baseline` — first digest-bearing observation after the locally held history has an agreed comparison base;
+- `Baseline` — an agreed digest when no earlier agreed digest exists in the locally held history;
 - `Unchanged` — same digest as the last earlier agreed digest;
 - `Changed` — different digest from the last earlier agreed digest;
 - `Unknown` — no digest, therefore no version claim; or
 - `SameTimestampDisagreement` — two or more known digests disagree at the same claimed timestamp.
 
-Unknown observations do not reset the previous known digest and do not create a false change. A same-timestamp disagreement is exposed through `disagreements`; no arbitrary object-ID ordering is promoted into a temporal version transition. A later agreed digest after an unresolved disagreement becomes a new local baseline.
+Unknown observations do not reset the previous known digest and do not create a false change. A same-timestamp disagreement is exposed through `disagreements`; no arbitrary object-ID ordering is promoted into a temporal version transition, and no disagreeing digest becomes the next comparison base. A later agreed digest compares with the last earlier agreed digest when one exists; only when none exists does it establish a local baseline.
 
 `distinct_versions` includes only `Baseline`/`Changed` observations, excludes unknown/disputed groups, and collapses same-timestamp same-digest corroboration to one deterministic representative.
 
