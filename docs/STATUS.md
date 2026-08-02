@@ -634,6 +634,21 @@ given time.
   settlement tracks eventually converge, staged the same nine-phase way
   `mn602-mn603` already committed to. See `docs/design/
   cryptographic-architecture-and-flagship-research-protocol.md`.
+- **doctrine and research preparation only** — anti-collusion content/
+  engagement settlement preparation, Track F5 (D-0427). The dedicated
+  Phase-0 document D-0421 §7 named as required follow-up. Restates §7's
+  problem/requirements unweakened; separates five roles (requester,
+  provider, settlement coordinator, collusion-limit issuer, auditor);
+  names three not-yet-built crates (`mini-settlement-integrity`,
+  `mini-delivery-challenge`, `mini-settlement-audit`); recognizes
+  `mini-contribution` (D-0417) + `mini-attest` Tier 0 (D-0404) as
+  already constituting Phase 1 with no new code; lays out Phases 2-9
+  mirroring `mn602-mn603`'s nine-phase shape. **No code, no new crate,
+  no dependency added** — `mini-contribution`, `mini-attest`,
+  `mini-engagement`, `mini-execution`, and `mini-settlement` are all
+  unmodified. Does not solve the #18 Sybil-resistance dependency Phase 9
+  requires. See `docs/design/
+  anti-collusion-content-settlement-preparation.md`.
 - **doctrine-only** — free public commons and paid protected publishing
   (D-0311): ordinary public viewing, posting, replying, commenting,
   reacting, and searching are protocol entitlements independent of
@@ -1232,11 +1247,11 @@ the top development priority.
   `local_rerank` accepts only `FederatedResult`, not a bare
   single-provider result list; `SnapshotIndex` is entirely in-memory and
   per-process, not persisted/signed/shared. F5/F6 (provider payments,
-  private query transport) remain one-line research-doc descriptions,
-  not designed or built — F5 in particular needs its own dedicated
-  anti-collusion-settlement doctrine (see D-0421's named gap) before any
-  implementation. See `docs/design/
-  federated-search-exchange-f1-f2.md`.
+  private query transport) remain undesigned and unbuilt. F5's Phase-0
+  doctrine now exists — `docs/design/
+  anti-collusion-content-settlement-preparation.md` (D-0427) — but
+  Phases 1-9 are not started; F6 has no doctrine document yet at all.
+  See `docs/design/federated-search-exchange-f1-f2.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,

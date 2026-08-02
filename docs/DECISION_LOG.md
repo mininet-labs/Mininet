@@ -14295,3 +14295,66 @@ un-designed tail.
 
 **Supersedes / superseded by:** builds on and does not supersede D-0422
 or D-0420. Does not modify either.
+
+### D-0427 — Anti-collusion content/engagement settlement preparation, Track F5 doctrine (D-0421's §7 follow-up)  ·  *Proposed*
+
+**Date:** 2026-08-02 · **Refs:** D-0421 (§7, the named anti-collusion
+settlement gap this document resolves as a Phase-0 doctrine); D-0417
+(`mini-contribution`); D-0404 (`mini-attest` Tier 0); D-0099
+(mn602-mn603, whose nine-phase shape this document mirrors); roadmap
+issue #175 (Track F); roadmap issues #228/#229 (`mini-attest` Tier 1/2);
+`docs/design/anti-collusion-content-settlement-preparation.md`;
+Directive 14, Directive 16; roadmap issue #18 (Sybil resistance,
+unsolved, explicitly not solved by this document).
+
+**Decision:** adopt `docs/design/
+anti-collusion-content-settlement-preparation.md` as the dedicated
+Phase-0 doctrine document D-0421 §7 names as required follow-up before
+any Track F5 ("provider payments," generalized to any open, un-gated
+content/engagement settlement) implementation. The document restates
+D-0421 §7's problem and requirements without weakening them, names five
+separable roles (requester, provider, settlement coordinator,
+collusion-limit issuer, auditor), proposes three not-yet-built crate
+boundaries (`mini-settlement-integrity`, `mini-delivery-challenge`,
+`mini-settlement-audit`), and lays out a nine-phase path mirroring
+mn602-mn603's own — recognizing that `mini-contribution` (D-0417) +
+`mini-attest` Tier 0 (D-0404) already constitute Phase 1 (a linkable,
+signed settlement baseline) without any new code.
+
+**Reason:** D-0421 named this gap but explicitly declined to design a
+resolution in the same document, per its own "this document does not
+propose a token format, a crate boundary, a threshold-issuance scheme,
+or a phased rollout for this gap" — reserving that for whoever is ready
+to own it. Writing that Phase-0 document now, following this
+repository's established doctrine-first pattern, closes the one
+un-doctrined branch Track F's autonomous continuation would otherwise
+have blocked on, without pre-committing to any implementation Sybil
+resistance (#18) has not yet made safe to build toward real value.
+
+**Constitutional impact:** none. This document creates no crate, changes
+no function signature, and grants no new authority. `mini-contribution`,
+`mini-attest`, `mini-engagement`, `mini-execution`, and `mini-settlement`
+are all unmodified. Directive 16's voice/value wall is restated, not
+newly imposed: none of the three proposed crates may ever be imported by
+`mini-forge::governance` or `mini-chain` voting.
+
+**Implementation status:** none. Zero lines of implementation code; no
+crate scaffolded.
+
+**Failure point:** a doctrine-only document can drift from the crates it
+describes; whoever first ships Phase 2 code must re-verify this
+document's role-separation and requirements sections against
+`mini-contribution`'s and `mini-attest`'s then-current shape before
+building on them. The document also cannot itself resolve the #18
+Sybil-resistance dependency Phase 9 requires — that remains open
+regardless of how far Phases 2-8 progress.
+
+**Required follow-up:** someone ready to own Phase 2's non-monetary
+nullifier prototype; explicit coordination with roadmap #228/#229 so the
+settlement-context and review-context nullifier derivations stay
+domain-separated by design; F6 (private query transport) remains
+Track F's other genuinely un-designed piece, not addressed here.
+
+**Supersedes / superseded by:** fulfills D-0421's own named Required
+follow-up; builds on and does not supersede D-0421, D-0417, D-0404, or
+D-0099.

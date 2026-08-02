@@ -297,8 +297,9 @@ the same discipline `docs/STATUS.md` already requires project-wide.
 
 **Required follow-up:** a dedicated Phase-0 doctrine document for §7 (the
 anti-collusion settlement gap) when someone is ready to own its phased
-rollout, mirroring `mn602-mn603`'s own structure; no other follow-up is
-implied or scheduled by this document.
+rollout, mirroring `mn602-mn603`'s own structure — **done:** see
+`docs/design/anti-collusion-content-settlement-preparation.md` (D-0427).
+No other follow-up is implied or scheduled by this document.
 
 **Supersedes / superseded by:** supersedes nothing — restates and
 cross-references D-0063, D-0068, D-0070, D-0095, D-0098, D-0099, D-0322,

@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 68,
-    "files": 781,
-    "headings": 2486,
+    "files": 782,
+    "headings": 2499,
     "rust_symbols": 6907
   },
   "crates": {
@@ -59593,7 +59593,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 857328,
+      "bytes": 860873,
       "group": "docs",
       "headings": [
         {
@@ -60010,9 +60010,9 @@
         "review",
         "audit",
         "closes",
+        "doctrine",
         "log",
         "batch",
-        "doctrine",
         "decision",
         "local",
         "release",
@@ -60023,9 +60023,9 @@
         "deterministic",
         "design"
       ],
-      "lines": 14298,
+      "lines": 14361,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "5b90c906154a0f476f7e01a51a13c1f62f6f0969400a427ab4a2fa4e75abfca2",
+      "sha256": "1763aaa71e99d29cc2500784d1c51af76a5fb0ded0e45cb7f161091d6fe6bb15",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -61174,7 +61174,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 106649,
+      "bytes": 107649,
       "group": "docs",
       "headings": [
         {
@@ -61219,47 +61219,47 @@
         },
         {
           "level": 2,
-          "line": 650,
+          "line": 665,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 705,
+          "line": 720,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 766,
+          "line": 781,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 796,
+          "line": 811,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1083,
+          "line": 1098,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1387,
+          "line": 1402,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1478,
+          "line": 1493,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1558,
+          "line": 1573,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1624,
+          "line": 1639,
           "text": "Where to look for more detail"
         }
       ],
@@ -61289,9 +61289,9 @@
         "social",
         "network"
       ],
-      "lines": 1639,
+      "lines": 1654,
       "path": "docs/STATUS.md",
-      "sha256": "090aadaf13ae4e7d0c95543e2b5ecd642788f855205ddef3f254905974ad64df",
+      "sha256": "a2b159585773e7692cb5341daf224e01ffdf18c88a621422ce6d0473d1521083",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -62769,6 +62769,108 @@
       "title": "Android Keystore signer adapter + device delegation ceremony (issue #197, D-0334)"
     },
     {
+      "bytes": 11183,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Anti-collusion content/engagement settlement preparation (Track F5, D-0427)"
+        },
+        {
+          "level": 2,
+          "line": 23,
+          "text": "Decision"
+        },
+        {
+          "level": 2,
+          "line": 51,
+          "text": "Role separation"
+        },
+        {
+          "level": 2,
+          "line": 75,
+          "text": "What a resolution needs (D-0421 \u00a77's requirements, unchanged)"
+        },
+        {
+          "level": 2,
+          "line": 102,
+          "text": "Proposed (not yet built) crate boundaries"
+        },
+        {
+          "level": 2,
+          "line": 124,
+          "text": "Voice/value wall (hard rule, restated for this track)"
+        },
+        {
+          "level": 2,
+          "line": 135,
+          "text": "No new cryptography"
+        },
+        {
+          "level": 2,
+          "line": 152,
+          "text": "Phased path (mirrors mn602-mn603's nine phases)"
+        },
+        {
+          "level": 2,
+          "line": 188,
+          "text": "Constitutional impact"
+        },
+        {
+          "level": 2,
+          "line": 195,
+          "text": "Implementation status"
+        },
+        {
+          "level": 2,
+          "line": 199,
+          "text": "Failure point"
+        },
+        {
+          "level": 2,
+          "line": 207,
+          "text": "Required follow-up"
+        },
+        {
+          "level": 2,
+          "line": 215,
+          "text": "Supersedes / superseded by"
+        }
+      ],
+      "keywords": [
+        "mini-contribution",
+        "settlement",
+        "role",
+        "claim",
+        "d-0421",
+        "document",
+        "tier",
+        "design",
+        "track",
+        "unchanged",
+        "does",
+        "problem",
+        "provider",
+        "never",
+        "already",
+        "content",
+        "what",
+        "requirements",
+        "mn602-mn603",
+        "mini-attest",
+        "linkable",
+        "future",
+        "existing",
+        "engagement"
+      ],
+      "lines": 220,
+      "path": "docs/design/anti-collusion-content-settlement-preparation.md",
+      "sha256": "acd9696243bda6a42408676863f75c47565f5cb8cb2e9b7ff4d1b559a62cc90c",
+      "symbols": [],
+      "title": "Anti-collusion content/engagement settlement preparation (Track F5, D-0427)"
+    },
+    {
       "bytes": 4830,
       "group": "docs",
       "headings": [
@@ -63169,7 +63271,7 @@
       "title": "Credential taxonomy: participant, human, role, resource"
     },
     {
-      "bytes": 16996,
+      "bytes": 17086,
       "group": "docs",
       "headings": [
         {
@@ -63269,9 +63371,9 @@
         "proof",
         "anti-collusion"
       ],
-      "lines": 307,
+      "lines": 308,
       "path": "docs/design/cryptographic-architecture-and-flagship-research-protocol.md",
-      "sha256": "2a3bf3dff7a5be206dd2df9b5599fbae275436ba269cfad9914abbe82c7548a2",
+      "sha256": "3f61383001ceeaeb9800368e11ef884f0481a0d2b89bf5b981db85af1fa58a2b",
       "symbols": [],
       "title": "Cryptographic architecture: composition over invention, and the flagship research protocol (D-0421)"
     },
