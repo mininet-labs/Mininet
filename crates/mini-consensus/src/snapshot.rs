@@ -23,8 +23,9 @@ pub struct ConsensusSnapshot {
 }
 
 impl ConsensusSnapshot {
-    /// Construct an internally consistent snapshot. Finality is verified later
-    /// by [`Self::into_chain`] against the receiver's own validator set/oracle.
+    /// Construct an internally consistent snapshot. Finality and the deeper
+    /// monetary/supply invariants are verified later by [`Self::into_chain`]
+    /// inside `mini-execution`, where those invariants are owned.
     pub fn new(header: BlockHeader, qc: QuorumCertificate, state: LedgerState) -> Result<Self> {
         if header.height == 0
             || header.timestamp_ms != header.height
@@ -34,8 +35,6 @@ impl ConsensusSnapshot {
         {
             return Err(ConsensusError::SnapshotProofMismatch);
         }
-        state.verify_supply_conservation()?;
-        state.verify_balance_map_total()?;
         Ok(Self { header, qc, state })
     }
 
