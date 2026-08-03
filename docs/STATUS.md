@@ -715,7 +715,24 @@ given time.
   replication path or production caller yet, and this is the addressing/
   composition piece only — distributing shards/chunks at real network
   scale remains `mini-net`/`mini-store`'s separately-scoped job.
-- **not started** — cold/owner-only storage tiers (roadmap Phase 4).
+- **shipped (D-0434, roadmap #34)** — cold/owner-only storage tiers.
+  `mini_store::owner_seal` gives `mini_objects::Payload::Encrypted` (a wire
+  variant every reader had rejected since the object model's inception) a
+  real construction: a NaCl/libsodium sealed-box built entirely from
+  already-reviewed `mini-crypto` primitives (`AgreementSecretKey`/X25519,
+  HKDF-SHA256, ChaCha20-Poly1305), with a deliberately independent sealing
+  keypair rather than one derived from a device's Ed25519 KEL key. A sixth
+  `CacheTier::ColdArchive` variant sits alongside the existing five:
+  `advertises() == false` (same ceiling as `PrivateOnly`), set only
+  explicitly via `Store::set_cache_tier`, never touched by
+  `Store::note_view`. Confidentiality only, not integrity — a caller
+  wraps sealed bytes in an ordinarily-signed `Object` for source
+  authenticity. Not KEL-bound (losing the sealing key loses everything
+  sealed to it, with no recovery path yet), not a network protocol
+  (`mini-sync`'s ingest still rejects `Payload::Encrypted` outright,
+  unchanged), and no pruning/retention policy yet reads the `ColdArchive`
+  signal — it exists as a marker with no consumer. See
+  `docs/design/cold-storage-and-owner-only-encryption.md`.
 
 ## 8. Networking
 

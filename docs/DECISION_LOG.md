@@ -14980,3 +14980,114 @@ call, once a real deployment's shape is known — not guessed at here.
 D-0422/D-0423/D-0424/D-0426, D-0432, D-0405, D-0406, or D-0420. Does not
 modify F1/F2/F3/F4/F7's own wire formats, merge policy, or ranking
 behavior.
+
+### D-0434 — Cold/owner-only storage: sealed-box encryption + `CacheTier::ColdArchive` (roadmap #34)  ·  *Accepted*
+
+**Date:** 2026-08-03 · **Refs:** roadmap #34 (Phase 4.6, "Storage privacy:
+cold storage, owner-only storage, encryption"); `docs/STATUS.md`'s
+"not started — cold/owner-only storage tiers" line; `crates/mini-store/
+src/cache.rs`'s existing `CacheTier` (2026-07-07 founder decision:
+"encrypted content can never be promoted past `PrivateOnly`"); `mini-
+objects::Payload::Encrypted`, present in the wire format since the object
+model's inception, never constructed by any crate before this entry;
+`docs/design/cold-storage-and-owner-only-encryption.md` (full design and
+honest-limits writeup).
+
+**Decision:** add a `mini-store::owner_seal` module giving
+`Payload::Encrypted` a real construction — `OwnerSealingKey`/
+`OwnerSealingPublicKey` (independent X25519 keypairs, not derived from a
+device's Ed25519 KEL key) plus `seal_for_owner`/`open_as_owner`,
+implementing the NaCl/libsodium sealed-box pattern entirely from
+already-reviewed `mini-crypto` primitives: a fresh
+`AgreementSecretKey::generate()` per call, `agree()` with the recipient's
+public key, `KdfSuite::HkdfSha256::derive_aead_key_from_shared` with a
+domain-separated `info` string, a fresh `AeadNonce`, and
+`AeadSuite::ChaCha20Poly1305` encrypt/decrypt. The wire format is
+`ephemeral_public(32) || nonce(12) || ciphertext`, bounds-checked against
+`mini_objects::MAX_PAYLOAD_BYTES` on both seal and open. Also add a sixth
+`CacheTier::ColdArchive` variant (wire tag 5) alongside the existing five:
+`advertises() == false`, same ceiling as `PrivateOnly`, set only via
+`Store::set_cache_tier` and never touched (promoted or demoted) by
+`Store::note_view` — a retention signal for content the owner wants kept
+indefinitely without treating it as "currently in use."
+
+**Reason:** every reader in the workspace already had a match arm for
+`Payload::Encrypted` that uniformly rejected it, and `CacheTier` already
+had the *availability* half of "owner-only" (`PrivateOnly`/
+`PinnedByOwner`) but no way to actually produce encrypted content, and no
+tier for indefinite retention that isn't "actively pinned because in
+use." A device's Ed25519 KEL key was deliberately not reused/converted
+for sealing (the libsodium `crypto_sign_ed25519_sk_to_curve25519`
+transform would be a second distinct cryptographic construction layered
+on top of reaching into `did-mini`'s core identity model) — Directive 14
+("simplicity is security... prefer the smaller, well-trodden
+construction") favors an independent, purpose-built keypair the caller
+stores the same way it already stores signing-key seeds
+(`Controller::export_current_and_next_keys_for_storage` is the existing
+precedent for a caller handling raw key material for its own storage).
+
+**Constitutional impact:** none. No frozen invariant is weakened — the
+frozen "`PrivateOnly`-ceiling" rule in `cache.rs`'s module doc is
+preserved verbatim; `ColdArchive` sits at or below it, never above.
+Voice/value wall (P1, Directive 16) untouched: `mini-store` gains a
+dependency on `mini-crypto` (promoted from dev-only to a real
+dependency), no new crate dependency at all, and no edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or `mini-forge`/`mini-chain` voting in
+either direction. No generic `encrypt(bytes)`/`decrypt(bytes)` surface:
+`seal_for_owner`/`open_as_owner` take a concrete `OwnerSealingPublicKey`/
+`OwnerSealingKey`, not an arbitrary key blob, matching the typed-domain
+rule every other signing/sealing entry point in this workspace already
+follows.
+
+**Implementation status:** shipped and tested.
+`crates/mini-store/src/owner_seal.rs`: `OwnerSealingKey`,
+`OwnerSealingPublicKey`, `seal_for_owner`, `open_as_owner`, all exported
+from the crate root. `crates/mini-store/src/cache.rs`:
+`CacheTier::ColdArchive` (byte 5), `advertises()` unchanged (already
+excludes it), `Store::note_view`'s never-touch guard extended to include
+it alongside `PinnedByOwner`/`CommittedStorage`. `StoreError::Crypto`
+(wrapping `mini_crypto::CryptoError`) added for the new fallible paths.
+11 new adversarial tests in `crates/mini-store/tests/owner_seal.rs`
+(round trip; wrong-key rejection; tampered ciphertext/AAD/ephemeral-
+public-key each fail closed independently; truncated input at five
+boundary lengths rejected; oversized sealed-byte input rejected without
+attempting to process 16 MiB of bogus data; oversized plaintext rejected
+before sealing; two seals of the same plaintext produce different
+ciphertext; empty-plaintext round trip; `from_seed` determinism) plus 2
+new tests in `crates/mini-store/tests/cache.rs`
+(`cold_archive_round_trips_and_never_advertises`,
+`cold_archive_is_never_touched_by_a_view`). Full workspace ritual green:
+`cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets
+--all-features -- -D warnings`, `cargo test --workspace --all-features`,
+`cargo deny check`, governance baseline check, `work_claims.py validate`,
+nav regen.
+
+**Failure point:** the sealing keypair has no relationship to KEL
+rotation, delegation, or recovery — losing it loses access to everything
+sealed to it, with no social-recovery path the way a signing key could
+theoretically gain one. Every object sealed under one `OwnerSealingKey`
+becomes readable if that long-term key is later compromised; only the
+per-seal ephemeral key is one-time, not the recipient key. `seal_for_owner`
+provides confidentiality only, no signature — a caller wanting source
+authenticity still wraps the sealed bytes in an ordinarily-signed
+`Object`. No transport exists for a sealed object: `mini-sync`'s ingest
+pipeline still rejects `Payload::Encrypted` outright (unchanged, pre-
+existing behavior), so a sealed object stored locally does not propagate
+anywhere. No eviction/pruning policy reads the `ColdArchive` signal yet —
+it is a retention marker with no consumer.
+
+**Required follow-up:** design binding a sealing keypair to KEL
+delegation/rotation once a real device-loss/recovery story for owner-only
+content exists. Design whether/how a `ColdArchive`-tiered sealed object
+should ever leave the local machine (e.g. an owner's own second device
+pulling it back) — today nothing transports `Payload::Encrypted` objects
+at all. Wire an actual pruning/retention policy consumer for the
+`ColdArchive` signal. Roadmap #33 (storage economic incentive review)
+remains separate, untouched work.
+
+**Supersedes / superseded by:** new ground — no prior decision addressed
+`Payload::Encrypted` construction or a sixth `CacheTier` variant. Builds
+on and does not modify `cache.rs`'s existing five-tier model or its
+frozen `PrivateOnly`-ceiling rule (2026-07-07 founder decision); builds on
+and does not modify `mini-crypto`'s existing `agreement`/`kdf`/`aead`
+modules (all reused unchanged).
