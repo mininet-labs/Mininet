@@ -1,0 +1,35 @@
+name: consensus-snapshot-stage4
+
+on:
+  push:
+    branches:
+      - codex/consensus-snapshot-sync
+    paths:
+      - tools/apply_consensus_snapshot_stage4.py
+      - .github/workflows/consensus-snapshot-stage4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/consensus-snapshot-sync
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.1
+          components: clippy
+      - name: Apply final D-0207 weak-device and archive fixes
+        run: python3 tools/apply_consensus_snapshot_stage4.py
+      - name: Commit permanent D-0207 hardening
+        run: |
+          git config user.name "mininet-consensus-snapshot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "consensus: finish D-0207 archive hardening"
+          git push origin HEAD:codex/consensus-snapshot-sync
