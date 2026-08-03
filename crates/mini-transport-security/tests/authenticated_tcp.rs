@@ -68,7 +68,6 @@ fn mutually_authenticated_peers_bind_identity_to_one_real_tcp_channel() {
             &channel.channel_binding(),
             1_000,
             2_000,
-            [91; 32],
         )
         .unwrap();
         let sealed_server_claim = channel
@@ -93,7 +92,6 @@ fn mutually_authenticated_peers_bind_identity_to_one_real_tcp_channel() {
         &channel.channel_binding(),
         1_000,
         2_000,
-        [90; 32],
     )
     .unwrap();
     let sealed_client_claim = channel
