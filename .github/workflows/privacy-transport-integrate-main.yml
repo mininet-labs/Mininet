@@ -1,4 +1,4 @@
-name: privacy-transport-integrate-main
+name: privacy-transport-finalize-push
 
 on:
   push:
@@ -9,11 +9,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: privacy-transport-integrate-main
+  group: privacy-transport-finalize-push
   cancel-in-progress: true
 
 jobs:
-  integrate:
+  finalize:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -24,73 +24,38 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.94.1
-      - name: Merge current main and resolve generated files only
+          components: clippy,rustfmt
+      - name: Correct focused evidence counts
         run: |
-          git config user.name "mininet-privacy-transport"
-          git config user.email "actions@users.noreply.github.com"
-          git fetch origin main
-          set +e
-          git merge --no-commit --no-ff origin/main
-          merge_status=$?
-          set -e
-          if [ "$merge_status" -ne 0 ]; then
-            unresolved="$(git diff --name-only --diff-filter=U)"
-            if [ -z "$unresolved" ]; then
-              echo "merge failed without unresolved files"
-              exit 1
-            fi
-            while IFS= read -r path; do
-              case "$path" in
-                docs/_generated/*)
-                  git checkout --theirs -- "$path"
-                  git add "$path"
-                  ;;
-                Cargo.lock)
-                  git checkout --theirs -- "$path"
-                  git add "$path"
-                  ;;
-                Cargo.toml)
-                  git checkout --theirs -- "$path"
-                  python3 - <<'PY'
-          from pathlib import Path
-          path = Path("Cargo.toml")
-          text = path.read_text(encoding="utf-8")
-          member = '    "crates/mini-transport-security",\n'
-          if member not in text:
-              anchor = '    "crates/mini-transport-policy",\n'
-              if text.count(anchor) != 1:
-                  raise SystemExit("Cargo workspace anchor changed")
-              text = text.replace(anchor, anchor + member, 1)
-          path.write_text(text, encoding="utf-8")
-          PY
-                  git add "$path"
-                  ;;
-                .github/workflows/ci.yml)
-                  git checkout --ours -- "$path"
-                  git add "$path"
-                  ;;
-                *)
-                  echo "unexpected merge conflict: $path"
-                  exit 1
-                  ;;
-              esac
-            done <<EOF
-          $unresolved
-          EOF
-          fi
           python3 - <<'PY'
           from pathlib import Path
-          path = Path("Cargo.toml")
+          path = Path("tools/apply_privacy_transport_stage2.py")
           text = path.read_text(encoding="utf-8")
-          member = '    "crates/mini-transport-security",\n'
-          if member not in text:
-              anchor = '    "crates/mini-transport-policy",\n'
-              if text.count(anchor) != 1:
-                  raise SystemExit("Cargo workspace anchor changed")
-              path.write_text(text.replace(anchor, anchor + member, 1), encoding="utf-8")
+          old = """Focused formatting, 66 unit tests, four
+          real-socket tests, and strict Clippy"""
+          new = """Focused formatting, 64 unit tests, three
+          real-socket tests plus one discovery/session integration test, and strict Clippy"""
+          if text.count(old) != 1:
+              raise SystemExit("stage-two evidence-count target changed")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
           PY
-          cargo generate-lockfile
+      - name: Apply advertisement-to-session binding and truth sync
+        run: python3 tools/apply_privacy_transport_stage2.py
+      - name: Format and regenerate navigation
+        run: |
+          cargo fmt --all
           python3 tools/mininet_nav.py build
+      - name: Test focused privacy and relay crates
+        run: cargo test -p mini-transport-security -p mini-relay --all-targets --all-features
+      - name: Strict Clippy for focused crates
+        run: cargo clippy -p mini-transport-security -p mini-relay --all-targets --all-features -- -D warnings
+      - name: Commit tested permanent tree without changing workflows
+        run: |
+          git checkout HEAD -- .github/workflows/ci.yml .github/workflows/privacy-transport-integrate-main.yml
+          rm -f tools/apply_privacy_transport_stage2.py
+          git config user.name "mininet-privacy-transport"
+          git config user.email "actions@users.noreply.github.com"
           git add -A
-          git commit -m "merge main into privacy transport security"
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "privacy: bind discovery to sessions and truth-sync D-0377"
           git push origin HEAD:codex/privacy-transport-security
