@@ -31,7 +31,11 @@ const DOMAIN: &[u8] = b"mini-execution/ledger-snapshot/v1";
 impl LedgerState {
     /// Encode the entire deterministic state in one canonical byte sequence.
     pub fn to_snapshot_bytes(&self) -> Result<Vec<u8>> {
-        for count in [self.finalized.len(), self.rejected.len(), self.balances.len()] {
+        for count in [
+            self.finalized.len(),
+            self.rejected.len(),
+            self.balances.len(),
+        ] {
             if count > MAX_LEDGER_SNAPSHOT_ENTRIES {
                 return Err(ExecutionError::SnapshotTooLarge);
             }
@@ -388,16 +392,7 @@ mod tests {
             vec![(payer_account, Amount::from_micro(1_000))],
         )
         .unwrap();
-        let claim = sign_claim(
-            &payer,
-            &account(12),
-            250,
-            0,
-            10_000,
-            b"snapshot-test",
-            0,
-        )
-        .unwrap();
+        let claim = sign_claim(&payer, &account(12), 250, 0, 10_000, b"snapshot-test", 0).unwrap();
         apply_block(&genesis, &SettlementBlockBody::new(vec![claim])).unwrap()
     }
 
@@ -420,10 +415,25 @@ mod tests {
     }
 
     #[test]
-    fn tampering_is_rejected() {
+    fn unbound_network_mutation_changes_the_state_commitment() {
+        let state = populated_state();
+        let mut bytes = state.to_snapshot_bytes().unwrap();
+        // The execution codec deliberately accepts any 32-byte
+        // network id. Consensus authentication, not an implicit
+        // hard-coded network, binds it to a finalized header.
+        bytes[DOMAIN.len()] ^= 0x80;
+        let mutated = LedgerState::from_snapshot_bytes(&bytes).unwrap();
+        assert_ne!(mutated.network_id(), state.network_id());
+        assert_ne!(mutated.commitment(), state.commitment());
+    }
+
+    #[test]
+    fn supply_tampering_is_rejected() {
         let mut bytes = populated_state().to_snapshot_bytes().unwrap();
-        let index = DOMAIN.len() + 7;
-        bytes[index] ^= 0x80;
+        // The final byte is part of unallocated_circulating. Changing
+        // it breaks balances + unallocated == circulating supply.
+        let last = bytes.len() - 1;
+        bytes[last] ^= 1;
         assert!(LedgerState::from_snapshot_bytes(&bytes).is_err());
     }
 

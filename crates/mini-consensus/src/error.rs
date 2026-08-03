@@ -40,6 +40,21 @@ pub enum ConsensusError {
         /// The height the supplied block claimed.
         got: u64,
     },
+    /// Local persistent consensus archive I/O or structural failure.
+    Storage(String),
+    /// The peer/archive belongs to a different settlement network.
+    StateSyncWrongNetwork,
+    /// The peer no longer retains a checkpoint covering the request.
+    StateSyncUnavailable {
+        earliest_height: u64,
+        tip_height: u64,
+    },
+    /// A snapshot did not match its header, QC, or state commitment.
+    SnapshotProofMismatch,
+    /// A snapshot would move a node backward or replace the same height.
+    SnapshotNotNewer { current: u64, got: u64 },
+    /// Persistent history already contains different bytes for this height.
+    ArchiveConflict { height: u64 },
 }
 
 impl core::fmt::Display for ConsensusError {
@@ -59,6 +74,28 @@ impl core::fmt::Display for ConsensusError {
                     "catch-up block out of order: expected height {expected}, got {got}"
                 )
             }
+            ConsensusError::Storage(message) => write!(f, "consensus archive: {message}"),
+            ConsensusError::StateSyncWrongNetwork => {
+                write!(f, "state-sync response belongs to another network")
+            }
+            ConsensusError::StateSyncUnavailable {
+                earliest_height,
+                tip_height,
+            } => write!(
+                f,
+                "state sync unavailable: earliest checkpoint {earliest_height}, tip {tip_height}"
+            ),
+            ConsensusError::SnapshotProofMismatch => {
+                write!(f, "snapshot header, QC, and state commitment disagree")
+            }
+            ConsensusError::SnapshotNotNewer { current, got } => write!(
+                f,
+                "snapshot height {got} does not advance current height {current}"
+            ),
+            ConsensusError::ArchiveConflict { height } => write!(
+                f,
+                "persistent archive contains conflicting bytes at height {height}"
+            ),
         }
     }
 }
@@ -80,5 +117,11 @@ impl From<mini_execution::ExecutionError> for ConsensusError {
 impl From<mini_bearer::BearerError> for ConsensusError {
     fn from(e: mini_bearer::BearerError) -> Self {
         ConsensusError::Transport(e)
+    }
+}
+
+impl From<std::io::Error> for ConsensusError {
+    fn from(error: std::io::Error) -> Self {
+        ConsensusError::Storage(error.to_string())
     }
 }

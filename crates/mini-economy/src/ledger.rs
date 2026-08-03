@@ -55,11 +55,11 @@ impl VestingPosition {
 /// independent of proposer timestamps and local wall clocks.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MonetaryLedger {
-    genesis_circulating: Amount,
-    total_issued: Amount,
-    policy_time_ms: u128,
-    last_epoch: Option<u64>,
-    positions: Vec<VestingPosition>,
+    pub(crate) genesis_circulating: Amount,
+    pub(crate) total_issued: Amount,
+    pub(crate) policy_time_ms: u128,
+    pub(crate) last_epoch: Option<u64>,
+    pub(crate) positions: Vec<VestingPosition>,
 }
 
 impl MonetaryLedger {

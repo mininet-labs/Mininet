@@ -138,8 +138,8 @@ mod tests {
         let block_hash = header.hash();
         let mut votes = Vec::new();
         for seed in [10u8, 20, 30, 40] {
-            let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32])
-                .unwrap();
+            let mut root =
+                Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
             let device = Controller::incept_device_single_from_seeds(
                 &root.did(),
                 &[seed + 2; 32],
@@ -149,7 +149,9 @@ mod tests {
             root.delegate_device(&device.did(), Capabilities::primary())
                 .unwrap();
             roots.push(root.did());
-            directory.0.insert(root.did().scid().to_string(), root.kel());
+            directory
+                .0
+                .insert(root.did().scid().to_string(), root.kel());
             directory
                 .0
                 .insert(device.did().scid().to_string(), device.kel());

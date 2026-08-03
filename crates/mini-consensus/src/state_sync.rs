@@ -87,11 +87,7 @@ impl StateSyncResponse {
         }
     }
 
-    pub fn unavailable(
-        network_id: [u8; 32],
-        earliest_height: u64,
-        tip_height: u64,
-    ) -> Self {
+    pub fn unavailable(network_id: [u8; 32], earliest_height: u64, tip_height: u64) -> Self {
         Self {
             network_id,
             payload: StateSyncPayload::Unavailable {
@@ -121,8 +117,9 @@ impl StateSyncResponse {
 
     pub fn block_count(&self) -> usize {
         match &self.payload {
-            StateSyncPayload::Blocks(blocks)
-            | StateSyncPayload::Snapshot { blocks, .. } => blocks.len(),
+            StateSyncPayload::Blocks(blocks) | StateSyncPayload::Snapshot { blocks, .. } => {
+                blocks.len()
+            }
             _ => 0,
         }
     }
@@ -269,7 +266,10 @@ mod tests {
             StateSyncResponse::blocks([3; 32], Vec::new()),
         ] {
             let bytes = response.to_wire_bytes().unwrap();
-            assert_eq!(StateSyncResponse::from_wire_bytes(&bytes).unwrap(), response);
+            assert_eq!(
+                StateSyncResponse::from_wire_bytes(&bytes).unwrap(),
+                response
+            );
         }
     }
 }

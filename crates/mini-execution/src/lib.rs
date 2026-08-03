@@ -61,10 +61,12 @@ mod admission;
 mod body;
 mod chain;
 mod error;
+mod snapshot;
 mod state;
 
 pub use admission::{AdmissionError, AdmissionPolicy, PaymentAdmissionPool};
 pub use body::{SettlementBlockBody, MAX_CLAIMS_PER_BLOCK};
 pub use chain::LedgerChain;
 pub use error::{ExecutionError, Result};
+pub use snapshot::{MAX_LEDGER_SNAPSHOT_BYTES, MAX_LEDGER_SNAPSHOT_ENTRIES};
 pub use state::{apply_block, LedgerState, MAX_ACCOUNT_BYTES};

@@ -4,9 +4,7 @@
 //! authority. Import reconstructs only a state that could satisfy the same
 //! supply/vesting invariants as an ordinarily executed [`MonetaryLedger`].
 
-use crate::{
-    Amount, EconomyError, MonetaryLedger, Result, VestingPosition, VestingSubject,
-};
+use crate::{Amount, EconomyError, MonetaryLedger, Result, VestingPosition, VestingSubject};
 
 /// Hard cap on vesting positions carried by one state snapshot.
 ///
@@ -68,9 +66,8 @@ impl MonetaryLedger {
         for position in &snapshot.positions {
             validate_position(position, snapshot.policy_time_ms)?;
             issued_from_positions = issued_from_positions.checked_add(position.amount)?;
-            greatest_epoch = Some(greatest_epoch.map_or(position.epoch, |epoch: u64| {
-                epoch.max(position.epoch)
-            }));
+            greatest_epoch =
+                Some(greatest_epoch.map_or(position.epoch, |epoch: u64| epoch.max(position.epoch)));
         }
         if issued_from_positions != snapshot.total_issued {
             return Err(EconomyError::InvalidSnapshot);
@@ -108,9 +105,7 @@ fn validate_position(position: &VestingPosition, policy_time_ms: u128) -> Result
             }
         }
         VestingSubject::Beneficiary(beneficiary) => {
-            if beneficiary.is_empty()
-                || beneficiary.len() > MAX_SNAPSHOT_BENEFICIARY_BYTES
-            {
+            if beneficiary.is_empty() || beneficiary.len() > MAX_SNAPSHOT_BENEFICIARY_BYTES {
                 return Err(EconomyError::InvalidSnapshot);
             }
         }

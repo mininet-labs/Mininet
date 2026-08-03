@@ -110,6 +110,9 @@ mod error;
 mod evidence;
 mod node;
 mod round;
+mod snapshot;
+mod state_sync;
+mod store;
 mod wire;
 
 pub mod net;
@@ -120,4 +123,9 @@ pub use error::{ConsensusError, Result};
 pub use evidence::{verify_equivocation, EquivocationEvidence};
 pub use node::{ConsensusNode, Emit, NodeConfig};
 pub use round::{proposer_for, Action, Round, Step, NIL};
+pub use snapshot::ConsensusSnapshot;
+pub use state_sync::{
+    StateSyncPayload, StateSyncRequest, StateSyncResponse, MAX_STATE_SYNC_BLOCKS,
+};
+pub use store::{ConsensusArchive, ConsensusArchiveConfig};
 pub use wire::{sign_proposal, verify_proposal, ConsensusMessage, Proposal, MAX_MESSAGE_BYTES};

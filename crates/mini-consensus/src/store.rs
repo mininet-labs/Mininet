@@ -311,9 +311,7 @@ impl ConsensusArchive {
                 }
                 continue;
             }
-            let expected = tip_height
-                .checked_add(1)
-                .ok_or(ConsensusError::TooLarge)?;
+            let expected = tip_height.checked_add(1).ok_or(ConsensusError::TooLarge)?;
             if height != expected {
                 return Err(ConsensusError::CatchupOutOfOrder {
                     expected,
@@ -332,11 +330,8 @@ impl ConsensusArchive {
         if last.header.height % self.config.snapshot_interval == 0
             || distance >= self.config.max_suffix_blocks as u64
         {
-            let snapshot = ConsensusSnapshot::new(
-                last.header.clone(),
-                last.qc.clone(),
-                final_state.clone(),
-            )?;
+            let snapshot =
+                ConsensusSnapshot::new(last.header.clone(), last.qc.clone(), final_state.clone())?;
             self.write_snapshot_locked(&snapshot)?;
             self.prune_blocks_through_locked(snapshot.height())?;
         }
@@ -349,9 +344,7 @@ impl ConsensusArchive {
         blocks: &[FinalizedBlock],
         final_state: &LedgerState,
     ) -> Result<()> {
-        if snapshot.network_id() != self.config.network_id
-            || blocks.len() > MAX_STATE_SYNC_BLOCKS
-        {
+        if snapshot.network_id() != self.config.network_id || blocks.len() > MAX_STATE_SYNC_BLOCKS {
             return Err(ConsensusError::StateSyncWrongNetwork);
         }
         verify_contiguous(snapshot.height(), blocks)?;
@@ -365,7 +358,10 @@ impl ConsensusArchive {
         self.write_snapshot_locked(snapshot)?;
         self.clear_blocks_locked()?;
         for block in blocks {
-            atomic_write(&self.block_path(block.header.height), &block.to_wire_bytes()?)?;
+            atomic_write(
+                &self.block_path(block.header.height),
+                &block.to_wire_bytes()?,
+            )?;
         }
 
         if blocks.len() >= self.config.max_suffix_blocks {
@@ -387,7 +383,8 @@ impl ConsensusArchive {
             &self.root.join(SNAPSHOT_FILE),
             "consensus snapshot",
             mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES,
-        )? else {
+        )?
+        else {
             return Ok(None);
         };
         Ok(Some(ConsensusSnapshot::from_wire_bytes(&bytes)?))
@@ -403,9 +400,7 @@ impl ConsensusArchive {
         let mut rows = Vec::new();
         let mut entries = 0usize;
         for entry in fs::read_dir(&dir)? {
-            entries = entries
-                .checked_add(1)
-                .ok_or(ConsensusError::TooLarge)?;
+            entries = entries.checked_add(1).ok_or(ConsensusError::TooLarge)?;
             if entries > MAX_ARCHIVE_DIRECTORY_ENTRIES {
                 return Err(ConsensusError::TooLarge);
             }
@@ -509,9 +504,9 @@ fn parse_block_name(name: &str) -> Result<u64> {
 
 fn ensure_directory(path: &Path, label: &str) -> Result<()> {
     match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() => Err(ConsensusError::Storage(format!(
-            "{label} is a symlink"
-        ))),
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            Err(ConsensusError::Storage(format!("{label} is a symlink")))
+        }
         Ok(metadata) if !metadata.is_dir() => Err(ConsensusError::Storage(format!(
             "{label} is not a directory"
         ))),
@@ -628,7 +623,6 @@ fn sync_parent_directory(path: &Path) -> Result<()> {
 mod tests {
     use did_mini::Controller;
     use mini_chain::{BlockHeader, QuorumCertificate};
-    use mini_economy::Amount;
 
     use super::*;
 
@@ -677,14 +671,12 @@ mod tests {
             ..ConsensusArchiveConfig::default()
         };
         let archive = ConsensusArchive::open(&root, config).unwrap();
-        let state = LedgerState::with_genesis_supply(Amount::from_micro(10));
+        let state = LedgerState::new();
         let mut previous = [0; 32];
         for height in 1..=5 {
             let finalized = block(height, previous, &state);
             previous = finalized.header.hash();
-            archive
-                .record_verified_batch(&[finalized], &state)
-                .unwrap();
+            archive.record_verified_batch(&[finalized], &state).unwrap();
         }
 
         let response = archive.recovery_response().unwrap();
@@ -730,9 +722,7 @@ mod tests {
         let archive = ConsensusArchive::open(&root, config).unwrap();
         let state = LedgerState::new();
         let finalized = block(1, [0; 32], &state);
-        archive
-            .record_verified_batch(&[finalized], &state)
-            .unwrap();
+        archive.record_verified_batch(&[finalized], &state).unwrap();
         fs::write(archive.block_path(1), b"corrupt").unwrap();
         assert!(archive.recovery_response().is_err());
         let _ = fs::remove_dir_all(root);
