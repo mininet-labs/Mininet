@@ -3,7 +3,7 @@
     "crates": 68,
     "files": 790,
     "headings": 2550,
-    "rust_symbols": 7065
+    "rust_symbols": 7072
   },
   "crates": {
     "did-mini": {
@@ -52819,7 +52819,7 @@
       "title": "use did_mini::{Capabilities, Controller, Did};"
     },
     {
-      "bytes": 7303,
+      "bytes": 10436,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
@@ -52848,9 +52848,9 @@
         "memorybackend",
         "storeerror"
       ],
-      "lines": 230,
+      "lines": 322,
       "path": "crates/mini-store/tests/time_pages.rs",
-      "sha256": "544941ba9b8934918576d969068ed03cd1689a52327fdbecd5ebe358c5f39ea9",
+      "sha256": "0e6f2583b875976380b9078b7854ec32e64b997965309a19612410c825ecc2b5",
       "symbols": [
         {
           "kind": "fn",
@@ -52898,8 +52898,43 @@
           "name": "independent_filesystem_writers_preserve_every_time_row"
         },
         {
-          "kind": "fn",
+          "kind": "const",
+          "line": 208,
+          "name": "PROCESS_WRITER_ROOT"
+        },
+        {
+          "kind": "const",
+          "line": 209,
+          "name": "PROCESS_WRITER_SEED"
+        },
+        {
+          "kind": "const",
           "line": 210,
+          "name": "PROCESS_WRITER_TIMESTAMP"
+        },
+        {
+          "kind": "const",
+          "line": 211,
+          "name": "PROCESS_WRITER_SEQUENCE"
+        },
+        {
+          "kind": "fn",
+          "line": 213,
+          "name": "process_object"
+        },
+        {
+          "kind": "fn",
+          "line": 226,
+          "name": "process_writer_child"
+        },
+        {
+          "kind": "fn",
+          "line": 246,
+          "name": "independent_process_writers_preserve_every_time_row"
+        },
+        {
+          "kind": "fn",
+          "line": 302,
           "name": "a_symlinked_ordered_index_is_refused"
         }
       ],
@@ -60457,7 +60492,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 869275,
+      "bytes": 869283,
       "group": "docs",
       "headings": [
         {
@@ -60889,7 +60924,7 @@
       ],
       "lines": 14494,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "2b385527e390ac72e12e37461dc58a8cdc4e007ccff25d301bcd15eca812a451",
+      "sha256": "0e3f5ffa2603c3865c0689ed325749b58e60a9c3292c2f56260ff8d2d4efbdd6",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -62038,7 +62073,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 109616,
+      "bytes": 109660,
       "group": "docs",
       "headings": [
         {
@@ -62103,27 +62138,27 @@
         },
         {
           "level": 2,
-          "line": 1099,
+          "line": 1100,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1425,
+          "line": 1426,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1516,
+          "line": 1517,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1596,
+          "line": 1597,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1662,
+          "line": 1663,
           "text": "Where to look for more detail"
         }
       ],
@@ -62153,9 +62188,9 @@
         "social",
         "network"
       ],
-      "lines": 1677,
+      "lines": 1678,
       "path": "docs/STATUS.md",
-      "sha256": "38138ea01af1106db81e150abe0d8b50545eedff6872b0a7ffb94f35b421b64e",
+      "sha256": "f8ec84306b83db9dcc766ee1a7df94719554824b281c7bf0271116939c8e0b73",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -74140,7 +74175,7 @@
       "title": "Distributed build worker \u2014 bounded Batch 5 slice"
     },
     {
-      "bytes": 6355,
+      "bytes": 6445,
       "group": "docs",
       "headings": [
         {
@@ -74165,17 +74200,17 @@
         },
         {
           "level": 2,
-          "line": 65,
+          "line": 66,
           "text": "Hard boundaries and honest limits"
         },
         {
           "level": 2,
-          "line": 98,
+          "line": 99,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 105,
+          "line": 106,
           "text": "Merge condition"
         }
       ],
@@ -74186,11 +74221,13 @@
         "pages",
         "base",
         "local",
-        "object",
         "store",
+        "object",
+        "time",
         "side",
         "bounded",
-        "time",
+        "every",
+        "row",
         "cursor",
         "authoritative",
         "journal",
@@ -74198,16 +74235,14 @@
         "stable",
         "limits",
         "work",
-        "every",
-        "row",
         "idx",
         "remains",
         "append",
         "manifest"
       ],
-      "lines": 110,
+      "lines": 111,
       "path": "docs/planning/forge-bounded-fs-index-pages.md",
-      "sha256": "ab59ef98aa1b17df5674074bf9bca06e03d41b36a14e2c87d7e235c2a1be45bb",
+      "sha256": "601e1b473dd1488f347fb2af9df0cc3bc5c9cc47c55711fbfb8c2ac09eba6b19",
       "symbols": [],
       "title": "Forge Batch 5: bounded filesystem metadata index and stable pages (D-0430)"
     },

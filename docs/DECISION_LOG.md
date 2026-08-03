@@ -14465,7 +14465,7 @@ because index position, volume, and recency create no governance weight.
 
 **Implementation status:** implemented and tested in this proposal. Memory and
 filesystem backends produce identical stable pages; equal timestamps,
-out-of-order writes, reopen, concurrent writers, legacy rebuild, partial tails,
+out-of-order writes, reopen, real cross-process writers, legacy rebuild, partial tails,
 missing bases, journal interruption, compaction, page limits, and symlinked index
 paths are covered. No external dependency or object-wire change is added.
 

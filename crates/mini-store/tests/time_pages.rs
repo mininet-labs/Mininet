@@ -205,6 +205,98 @@ fn independent_filesystem_writers_preserve_every_time_row() {
     let _ = std::fs::remove_dir_all(root);
 }
 
+const PROCESS_WRITER_ROOT: &str = "MININET_TIME_PAGE_PROCESS_ROOT";
+const PROCESS_WRITER_SEED: &str = "MININET_TIME_PAGE_PROCESS_SEED";
+const PROCESS_WRITER_TIMESTAMP: &str = "MININET_TIME_PAGE_PROCESS_TIMESTAMP";
+const PROCESS_WRITER_SEQUENCE: &str = "MININET_TIME_PAGE_PROCESS_SEQUENCE";
+
+fn process_object(seed: u8, timestamp_ms: u64, sequence: u64) -> Object {
+    let controller = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+    ObjectBuilder::new(ObjectType::POST)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .payload(Payload::Public(
+            format!("process-post-{seed}-{sequence}").into_bytes(),
+        ))
+        .sign(&controller.did(), &controller)
+        .unwrap()
+}
+
+#[test]
+fn process_writer_child() {
+    let Some(root) = std::env::var_os(PROCESS_WRITER_ROOT) else {
+        return;
+    };
+    let seed: u8 = std::env::var(PROCESS_WRITER_SEED).unwrap().parse().unwrap();
+    let timestamp_ms: u64 = std::env::var(PROCESS_WRITER_TIMESTAMP)
+        .unwrap()
+        .parse()
+        .unwrap();
+    let sequence: u64 = std::env::var(PROCESS_WRITER_SEQUENCE)
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    let object = process_object(seed, timestamp_ms, sequence);
+    let mut store = Store::new(FsBackend::open(std::path::Path::new(&root)).unwrap());
+    store.insert(&object).unwrap();
+}
+
+#[test]
+fn independent_process_writers_preserve_every_time_row() {
+    let root = temp_root("process-writers");
+    let executable = std::env::current_exe().unwrap();
+    let specs: Vec<(u8, u64, u64)> = (0u8..8)
+        .map(|index| {
+            (
+                80 + index,
+                [40u64, 10, 30, 20, 20, 50, 5, 30][index as usize],
+                u64::from(index) + 1,
+            )
+        })
+        .collect();
+
+    let mut children = Vec::new();
+    for (seed, timestamp_ms, sequence) in &specs {
+        children.push(
+            std::process::Command::new(&executable)
+                .arg("--exact")
+                .arg("process_writer_child")
+                .arg("--nocapture")
+                .env(PROCESS_WRITER_ROOT, &root)
+                .env(PROCESS_WRITER_SEED, seed.to_string())
+                .env(PROCESS_WRITER_TIMESTAMP, timestamp_ms.to_string())
+                .env(PROCESS_WRITER_SEQUENCE, sequence.to_string())
+                .spawn()
+                .unwrap(),
+        );
+    }
+    for mut child in children {
+        assert!(child.wait().unwrap().success());
+    }
+
+    let store = Store::new(FsBackend::open(&root).unwrap());
+    let actual = collect_pages(&store, 0, 2);
+    let mut expected: Vec<(u64, String)> = specs
+        .into_iter()
+        .map(|(seed, timestamp_ms, sequence)| {
+            (
+                timestamp_ms,
+                process_object(seed, timestamp_ms, sequence)
+                    .id()
+                    .as_str()
+                    .to_string(),
+            )
+        })
+        .collect();
+    expected.sort();
+    assert_eq!(
+        actual,
+        expected.into_iter().map(|(_, id)| id).collect::<Vec<_>>()
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
 #[cfg(unix)]
 #[test]
 fn a_symlinked_ordered_index_is_refused() {

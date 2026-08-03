@@ -50,7 +50,8 @@ solution here stays local, reconstructible, non-authoritative, and removable.
 - Memory and filesystem pages agree exactly with equal and out-of-order
   timestamps.
 - Two-item pages cover every object exactly once and survive reopen.
-- Independent filesystem writers converge under the OS lock.
+- Eight independently spawned test processes write one shared filesystem store
+  concurrently and preserve every canonical time row under the OS lock.
 - Deleting the side index triggers deterministic legacy rebuild.
 - Missing manifested bases and partial delta tails rebuild safely.
 - Journal recovery commits a durable delta append exactly once.

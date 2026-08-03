@@ -1026,7 +1026,8 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   pagination using a `(timestamp_ms, object_id)` cursor; equal timestamps do not
   duplicate or disappear. `Store::recent` and `since_page` reject limits above
   1,024. Memory/Fs ordering parity, out-of-order writes, reopen, concurrent
-  writers, rebuild, partial tails, missing bases, journal recovery, compaction,
+  threads and independently spawned process writers, rebuild, partial tails,
+  missing bases, journal recovery, compaction,
   cursor/limit abuse, and symlink refusal are tested. Honest limits: legacy
   rebuild and compaction are full-history maintenance under a local lock;
   compatibility `Store::since` remains unbounded; only `idx/time` is accelerated;
