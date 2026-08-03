@@ -18,11 +18,16 @@ jobs:
           fetch-depth: 0
       - name: Bound time-index inputs and truth-sync cursor semantics
         run: |
+          python3 tools/prepatch_forge_input_hardener.py
           python3 tools/harden_forge_time_index_input_bounds.py
           python3 tools/harden_forge_time_index_rebuild_bounds.py
           python3 tools/fix_forge_memory_page_upper_bound.py
           python3 tools/optimize_forge_time_index_delta_reads.py
           python3 tools/document_forge_time_page_live_semantics.py
+          cargo fmt --all
+          cargo test -p mini-store --all-features
+          cargo clippy -p mini-store --all-targets --all-features -- -D warnings
+          python3 tools/mininet_nav.py build
       - name: Commit exact hardened state
         run: |
           git config user.name "mininet-index-hardener"
