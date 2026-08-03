@@ -23,6 +23,33 @@ jobs:
         with:
           ref: codex/forge-bounded-fs-index-pages
           fetch-depth: 0
+      - name: Make sequential duplicate-site patches explicit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("tools/merge_pr287_after_286.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''    count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f"{path}: expected exactly one replacement target, found {count}: "
+                      f"{old[:160]!r}"
+                  )
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          '''
+          new = '''    count = text.count(old)
+              if count < 1:
+                  raise SystemExit(
+                      f"{path}: expected at least one replacement target, found {count}: "
+                      f"{old[:160]!r}"
+                  )
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          '''
+          if text.count(old) != 1:
+              raise SystemExit("integration helper shape changed unexpectedly")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Merge current main, apply review fixes, and run full checks
         run: python3 tools/merge_pr287_after_286.py
       - name: Commit combined verified state
