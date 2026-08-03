@@ -78,19 +78,26 @@ pub struct ConsensusArchive {
     config: ConsensusArchiveConfig,
 }
 
+#[derive(Debug)]
+struct RecordPlan {
+    block_writes: Vec<(u64, Vec<u8>)>,
+    snapshot: Option<(u64, Vec<u8>)>,
+}
+
+#[derive(Debug)]
+struct SnapshotInstallPlan {
+    snapshot_bytes: Vec<u8>,
+    block_writes: Vec<(u64, Vec<u8>)>,
+    compacted_snapshot_bytes: Option<Vec<u8>>,
+}
+
 impl ConsensusArchive {
     pub fn open(root: impl AsRef<Path>, config: ConsensusArchiveConfig) -> Result<Self> {
         let config = config.validate()?;
         let root = root.as_ref().to_path_buf();
         ensure_directory(&root, "consensus archive root")?;
         ensure_directory(&root.join(BLOCKS_DIR), "consensus archive blocks")?;
-        reject_symlink_or_non_file_if_present(&root.join(LOCK_FILE), "consensus archive lock")?;
-        let _ = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(root.join(LOCK_FILE))?;
+        let _ = open_archive_lock(&root.join(LOCK_FILE))?;
         Ok(Self { root, config })
     }
 
@@ -172,6 +179,11 @@ impl ConsensusArchive {
             return Err(ConsensusError::StateSyncWrongNetwork);
         }
         self.with_lock(|archive| {
+            // Every deterministic rejection is checked before the durable
+            // journal exists. Under the same archive lock, no ordinary writer
+            // can advance the tip between this preflight and application, so a
+            // stale/conflicting response cannot poison recovery forever.
+            archive.validate_install_locked(response, final_state)?;
             let pending = encode_pending_install(response, final_state)?;
             atomic_write(&archive.root.join(INSTALL_PENDING_FILE), &pending)?;
             archive.apply_install_locked(response, final_state)?;
@@ -181,13 +193,7 @@ impl ConsensusArchive {
 
     fn with_lock<T>(&self, operation: impl FnOnce(&Self) -> Result<T>) -> Result<T> {
         let path = self.root.join(LOCK_FILE);
-        reject_symlink_or_non_file_if_present(&path, "consensus archive lock")?;
-        let lock = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(path)?;
+        let lock = open_archive_lock(&path)?;
         #[allow(clippy::incompatible_msrv)]
         lock.lock()?;
         let result = (|| {
@@ -224,6 +230,29 @@ impl ConsensusArchive {
             "consensus archive install journal",
         )?;
         sync_parent_directory(&self.root)
+    }
+
+    fn validate_install_locked(
+        &self,
+        response: &StateSyncResponse,
+        final_state: &LedgerState,
+    ) -> Result<()> {
+        match &response.payload {
+            StateSyncPayload::Blocks(blocks) => {
+                self.prepare_record_locked(blocks, final_state).map(|_| ())
+            }
+            StateSyncPayload::Snapshot { snapshot, blocks } => self
+                .prepare_snapshot_install_locked(snapshot, blocks, final_state)
+                .map(|_| ()),
+            StateSyncPayload::WrongNetwork => Err(ConsensusError::StateSyncWrongNetwork),
+            StateSyncPayload::Unavailable {
+                earliest_height,
+                tip_height,
+            } => Err(ConsensusError::StateSyncUnavailable {
+                earliest_height: *earliest_height,
+                tip_height: *tip_height,
+            }),
+        }
     }
 
     fn apply_install_locked(
@@ -345,9 +374,35 @@ impl ConsensusArchive {
     }
 
     fn record_locked(&self, blocks: &[FinalizedBlock], final_state: &LedgerState) -> Result<()> {
-        if blocks.is_empty() {
-            return Ok(());
+        let plan = self.prepare_record_locked(blocks, final_state)?;
+        self.apply_record_plan_locked(plan)
+    }
+
+    fn prepare_record_locked(
+        &self,
+        blocks: &[FinalizedBlock],
+        final_state: &LedgerState,
+    ) -> Result<RecordPlan> {
+        if blocks.len() > MAX_STATE_SYNC_BLOCKS {
+            return Err(ConsensusError::StateSyncTooManyBlocks {
+                maximum: MAX_STATE_SYNC_BLOCKS,
+                got: blocks.len(),
+            });
         }
+        if blocks.is_empty() {
+            return Ok(RecordPlan {
+                block_writes: Vec::new(),
+                snapshot: None,
+            });
+        }
+        if final_state.network_id() != self.config.network_id {
+            return Err(ConsensusError::StateSyncWrongNetwork);
+        }
+        let last = blocks.last().expect("non-empty checked above");
+        if last.header.state_root != final_state.commitment() {
+            return Err(ConsensusError::SnapshotProofMismatch);
+        }
+
         let current_snapshot = self.read_snapshot_locked()?;
         let snapshot_height = current_snapshot
             .as_ref()
@@ -369,6 +424,7 @@ impl ConsensusArchive {
         let mut tip_hash = existing
             .last()
             .map_or(snapshot_hash, |block| block.header.hash());
+        let mut block_writes = Vec::new();
 
         for block in blocks {
             let height = block.header.height;
@@ -376,10 +432,17 @@ impl ConsensusArchive {
                 continue;
             }
             let bytes = block.to_wire_bytes()?;
-            let path = self.block_path(height);
             if height <= tip_height {
+                if let Some((_, planned)) = block_writes.iter().find(|(planned_height, _)| {
+                    *planned_height == height
+                }) {
+                    if planned != &bytes {
+                        return Err(ConsensusError::ArchiveConflict { height });
+                    }
+                    continue;
+                }
                 let existing = read_regular_limited(
-                    &path,
+                    &self.block_path(height),
                     "consensus finalized block",
                     crate::MAX_MESSAGE_BYTES,
                 )?
@@ -411,24 +474,36 @@ impl ConsensusArchive {
             if suffix_bytes > MAX_ARCHIVE_RECOVERY_BYTES {
                 return Err(ConsensusError::TooLarge);
             }
-            atomic_write(&path, &bytes)?;
+            block_writes.push((height, bytes));
             tip_height = height;
             tip_hash = block.header.hash();
         }
 
-        let last = blocks.last().expect("non-empty checked above");
-        if last.header.state_root != final_state.commitment() {
-            return Err(ConsensusError::SnapshotProofMismatch);
-        }
         let distance = last.header.height.saturating_sub(snapshot_height);
-        if last.header.height % self.config.snapshot_interval == 0
+        let snapshot = if last.header.height % self.config.snapshot_interval == 0
             || distance >= self.config.max_suffix_blocks as u64
             || suffix_bytes >= MAX_ARCHIVE_SUFFIX_BYTES
         {
             let snapshot =
                 ConsensusSnapshot::new(last.header.clone(), last.qc.clone(), final_state.clone())?;
-            self.write_snapshot_locked(&snapshot)?;
-            self.prune_blocks_through_locked(snapshot.height())?;
+            Some((snapshot.height(), snapshot.to_wire_bytes()?))
+        } else {
+            None
+        };
+
+        Ok(RecordPlan {
+            block_writes,
+            snapshot,
+        })
+    }
+
+    fn apply_record_plan_locked(&self, plan: RecordPlan) -> Result<()> {
+        for (height, bytes) in plan.block_writes {
+            atomic_write(&self.block_path(height), &bytes)?;
+        }
+        if let Some((height, bytes)) = plan.snapshot {
+            atomic_write(&self.root.join(SNAPSHOT_FILE), &bytes)?;
+            self.prune_blocks_through_locked(height)?;
         }
         Ok(())
     }
@@ -439,8 +514,24 @@ impl ConsensusArchive {
         blocks: &[FinalizedBlock],
         final_state: &LedgerState,
     ) -> Result<()> {
-        if snapshot.network_id() != self.config.network_id || blocks.len() > MAX_STATE_SYNC_BLOCKS {
+        let plan = self.prepare_snapshot_install_locked(snapshot, blocks, final_state)?;
+        self.apply_snapshot_install_plan_locked(plan)
+    }
+
+    fn prepare_snapshot_install_locked(
+        &self,
+        snapshot: &ConsensusSnapshot,
+        blocks: &[FinalizedBlock],
+        final_state: &LedgerState,
+    ) -> Result<SnapshotInstallPlan> {
+        if snapshot.network_id() != self.config.network_id {
             return Err(ConsensusError::StateSyncWrongNetwork);
+        }
+        if blocks.len() > MAX_STATE_SYNC_BLOCKS {
+            return Err(ConsensusError::StateSyncTooManyBlocks {
+                maximum: MAX_STATE_SYNC_BLOCKS,
+                got: blocks.len(),
+            });
         }
         verify_chain(snapshot.height(), snapshot.header.hash(), blocks)?;
         let incoming_tip = blocks
@@ -475,25 +566,38 @@ impl ConsensusArchive {
             return Err(ConsensusError::SnapshotProofMismatch);
         }
 
-        self.write_snapshot_locked(snapshot)?;
-        self.clear_blocks_locked()?;
+        let snapshot_bytes = snapshot.to_wire_bytes()?;
+        let mut block_writes = Vec::with_capacity(blocks.len());
         for block in blocks {
-            atomic_write(
-                &self.block_path(block.header.height),
-                &block.to_wire_bytes()?,
-            )?;
+            block_writes.push((block.header.height, block.to_wire_bytes()?));
         }
+        let compacted_snapshot_bytes = if blocks.len() >= self.config.max_suffix_blocks {
+            let last = blocks
+                .last()
+                .expect("non-empty when suffix reaches positive retention bound");
+            let newer =
+                ConsensusSnapshot::new(last.header.clone(), last.qc.clone(), final_state.clone())?;
+            Some(newer.to_wire_bytes()?)
+        } else {
+            None
+        };
 
-        if blocks.len() >= self.config.max_suffix_blocks {
-            if let Some(last) = blocks.last() {
-                let newer = ConsensusSnapshot::new(
-                    last.header.clone(),
-                    last.qc.clone(),
-                    final_state.clone(),
-                )?;
-                self.write_snapshot_locked(&newer)?;
-                self.clear_blocks_locked()?;
-            }
+        Ok(SnapshotInstallPlan {
+            snapshot_bytes,
+            block_writes,
+            compacted_snapshot_bytes,
+        })
+    }
+
+    fn apply_snapshot_install_plan_locked(&self, plan: SnapshotInstallPlan) -> Result<()> {
+        atomic_write(&self.root.join(SNAPSHOT_FILE), &plan.snapshot_bytes)?;
+        self.clear_blocks_locked()?;
+        for (height, bytes) in plan.block_writes {
+            atomic_write(&self.block_path(height), &bytes)?;
+        }
+        if let Some(bytes) = plan.compacted_snapshot_bytes {
+            atomic_write(&self.root.join(SNAPSHOT_FILE), &bytes)?;
+            self.clear_blocks_locked()?;
         }
         Ok(())
     }
@@ -510,6 +614,7 @@ impl ConsensusArchive {
         Ok(Some(ConsensusSnapshot::from_wire_bytes(&bytes)?))
     }
 
+    #[cfg(test)]
     fn write_snapshot_locked(&self, snapshot: &ConsensusSnapshot) -> Result<()> {
         atomic_write(&self.root.join(SNAPSHOT_FILE), &snapshot.to_wire_bytes()?)
     }
@@ -773,27 +878,71 @@ fn reject_symlink_or_non_file_if_present(path: &Path, label: &str) -> Result<()>
     }
 }
 
-fn read_regular_limited(path: &Path, label: &str, max: usize) -> Result<Option<Vec<u8>>> {
-    let metadata = match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() => {
-            return Err(ConsensusError::Storage(format!("{label} is a symlink")))
-        }
-        Ok(metadata) if !metadata.is_file() => {
-            return Err(ConsensusError::Storage(format!(
-                "{label} is not a regular file"
-            )))
-        }
-        Ok(metadata) => metadata,
+fn configure_no_follow(options: &mut OpenOptions) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // Win32 FILE_FLAG_OPEN_REPARSE_POINT: open the link/reparse point
+        // itself rather than following it, then reject it by handle metadata.
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+}
+
+fn open_archive_lock(path: &Path) -> Result<File> {
+    let mut options = OpenOptions::new();
+    options
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true);
+    configure_no_follow(&mut options);
+    let file = options.open(path)?;
+    let metadata = file.metadata()?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(ConsensusError::Storage(
+            "consensus archive lock is not a regular file".to_string(),
+        ));
+    }
+    Ok(file)
+}
+
+fn open_regular_readonly(path: &Path, label: &str) -> Result<Option<File>> {
+    let mut options = OpenOptions::new();
+    options.read(true);
+    configure_no_follow(&mut options);
+    let file = match options.open(path) {
+        Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(error.into()),
     };
-    let len = usize::try_from(metadata.len()).map_err(|_| ConsensusError::TooLarge)?;
+    let metadata = file.metadata()?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(ConsensusError::Storage(format!(
+            "{label} is not a regular file"
+        )));
+    }
+    Ok(Some(file))
+}
+
+fn read_regular_limited(path: &Path, label: &str, max: usize) -> Result<Option<Vec<u8>>> {
+    // Open first with no-follow semantics, then derive length/type from the
+    // opened handle. A concurrent rename can no longer substitute a symlink
+    // between an lstat check and a following File::open.
+    let Some(file) = open_regular_readonly(path, label)? else {
+        return Ok(None);
+    };
+    let len = usize::try_from(file.metadata()?.len()).map_err(|_| ConsensusError::TooLarge)?;
     if len > max {
         return Err(ConsensusError::TooLarge);
     }
     let mut bytes = Vec::with_capacity(len);
-    File::open(path)?
-        .take(max.saturating_add(1) as u64)
+    file.take(max.saturating_add(1) as u64)
         .read_to_end(&mut bytes)?;
     if bytes.len() > max {
         return Err(ConsensusError::TooLarge);
@@ -1112,6 +1261,103 @@ mod tests {
             .record_verified_batch(core::slice::from_ref(&second), &state)
             .is_err());
         assert!(!archive.block_path(2).exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn stale_snapshot_rejection_never_poisoned_the_archive_journal() {
+        let root = temp_root("stale-install");
+        let config = ConsensusArchiveConfig {
+            snapshot_interval: 100,
+            max_suffix_blocks: 10,
+            ..ConsensusArchiveConfig::default()
+        };
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        let state = LedgerState::new();
+        let first = block(1, [0; 32], &state);
+        let second = block(2, first.header.hash(), &state);
+        archive
+            .record_verified_batch(core::slice::from_ref(&first), &state)
+            .unwrap();
+        archive
+            .record_verified_batch(core::slice::from_ref(&second), &state)
+            .unwrap();
+
+        let stale =
+            ConsensusSnapshot::new(first.header.clone(), first.qc.clone(), state.clone()).unwrap();
+        let response = StateSyncResponse::snapshot(config.network_id, stale, Vec::new());
+        assert_eq!(
+            archive.install_verified_response(&response, &state),
+            Err(ConsensusError::SnapshotNotNewer { current: 2, got: 1 })
+        );
+        assert!(!root.join(INSTALL_PENDING_FILE).exists());
+        assert_eq!(archive.recovery_response().unwrap().block_count(), 2);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mismatched_final_state_is_rejected_before_journal_or_block_write() {
+        let root = temp_root("mismatched-state");
+        let config = ConsensusArchiveConfig {
+            snapshot_interval: 100,
+            max_suffix_blocks: 10,
+            ..ConsensusArchiveConfig::default()
+        };
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        let state = LedgerState::new();
+        let mut inconsistent = block(1, [0; 32], &state);
+        inconsistent.header.state_root = [9; 32];
+        inconsistent.qc.block_hash = inconsistent.header.hash();
+        let response = StateSyncResponse::blocks(config.network_id, vec![inconsistent]);
+
+        assert_eq!(
+            archive.install_verified_response(&response, &state),
+            Err(ConsensusError::SnapshotProofMismatch)
+        );
+        assert!(!archive.block_path(1).exists());
+        assert!(!root.join(INSTALL_PENDING_FILE).exists());
+        assert_eq!(archive.recovery_response().unwrap().block_count(), 0);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn oversized_snapshot_suffix_reports_its_actual_limit_error() {
+        let root = temp_root("snapshot-block-limit");
+        let config = ConsensusArchiveConfig::default();
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        let state = LedgerState::new();
+        let first = block(1, [0; 32], &state);
+        let snapshot =
+            ConsensusSnapshot::new(first.header.clone(), first.qc.clone(), state.clone()).unwrap();
+        let response = StateSyncResponse::snapshot(
+            config.network_id,
+            snapshot,
+            vec![first; MAX_STATE_SYNC_BLOCKS + 1],
+        );
+        assert_eq!(
+            archive.install_verified_response(&response, &state),
+            Err(ConsensusError::StateSyncTooManyBlocks {
+                maximum: MAX_STATE_SYNC_BLOCKS,
+                got: MAX_STATE_SYNC_BLOCKS + 1,
+            })
+        );
+        assert!(!root.join(INSTALL_PENDING_FILE).exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_regular_archive_file_is_refused_by_the_open_itself() {
+        use std::os::unix::fs::symlink;
+
+        let root = temp_root("symlink-file");
+        let archive =
+            ConsensusArchive::open(&root, ConsensusArchiveConfig::default()).unwrap();
+        let target = root.join("outside-snapshot.bin");
+        fs::write(&target, b"not a snapshot").unwrap();
+        symlink(&target, root.join(SNAPSHOT_FILE)).unwrap();
+        assert!(archive.recovery_response().is_err());
+        let _ = fs::remove_file(root.join(SNAPSHOT_FILE));
         let _ = fs::remove_dir_all(root);
     }
 

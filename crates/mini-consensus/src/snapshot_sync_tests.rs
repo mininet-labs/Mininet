@@ -17,7 +17,8 @@ use mini_execution::{apply_block, LedgerChain, SettlementBlockBody};
 use crate::catchup::FinalizedBlock;
 use crate::net::{serve_state_sync_over_tcp, state_sync_over_tcp};
 use crate::{
-    ConsensusArchive, ConsensusArchiveConfig, ConsensusNode, NodeConfig, StateSyncResponse,
+    ConsensusArchive, ConsensusArchiveConfig, ConsensusError, ConsensusNode, ConsensusSnapshot,
+    NodeConfig, StateSyncResponse,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -214,6 +215,73 @@ fn a_bad_second_block_leaves_the_destination_completely_unchanged() {
     let mut destination = ConsensusNode::new(node_config(&fixture));
     let before = destination.commitment();
     assert!(destination.apply_state_sync(response).is_err());
+    assert_eq!(destination.finalized_height(), 0);
+    assert_eq!(destination.commitment(), before);
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn peer_block_state_sync_rejects_gap_duplicate_and_reordering_all_or_nothing() {
+    let fixture = fixture();
+    let root = temp_root("peer-ordering");
+    let (_archive, _source_chain, blocks) = build_archive(&root, &fixture);
+    let cases = [
+        (vec![blocks[0].clone(), blocks[2].clone()], 2, 3),
+        (vec![blocks[0].clone(), blocks[0].clone()], 2, 1),
+        (vec![blocks[1].clone(), blocks[0].clone()], 1, 2),
+    ];
+
+    for (malformed_suffix, expected, got) in cases {
+        let encoded = StateSyncResponse::blocks(
+            mini_settlement::MININET_NETWORK_ID,
+            malformed_suffix,
+        )
+        .to_wire_bytes()
+        .unwrap();
+        let response = StateSyncResponse::from_wire_bytes(&encoded).unwrap();
+        let mut destination = ConsensusNode::new(node_config(&fixture));
+        let before = destination.commitment();
+        assert_eq!(
+            destination.apply_state_sync(response).unwrap_err(),
+            ConsensusError::CatchupOutOfOrder { expected, got }
+        );
+        assert_eq!(destination.finalized_height(), 0);
+        assert_eq!(destination.commitment(), before);
+    }
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn peer_snapshot_state_sync_rejects_a_gapped_suffix_all_or_nothing() {
+    let fixture = fixture();
+    let root = temp_root("peer-snapshot-gap");
+    let (_archive, _source_chain, blocks) = build_archive(&root, &fixture);
+    let snapshot = ConsensusSnapshot::new(
+        blocks[0].header.clone(),
+        blocks[0].qc.clone(),
+        LedgerChain::genesis().state().clone(),
+    )
+    .unwrap();
+    let encoded = StateSyncResponse::snapshot(
+        mini_settlement::MININET_NETWORK_ID,
+        snapshot,
+        vec![blocks[2].clone()],
+    )
+    .to_wire_bytes()
+    .unwrap();
+    let response = StateSyncResponse::from_wire_bytes(&encoded).unwrap();
+
+    let mut destination = ConsensusNode::new(node_config(&fixture));
+    let before = destination.commitment();
+    assert_eq!(
+        destination.apply_state_sync(response).unwrap_err(),
+        ConsensusError::CatchupOutOfOrder {
+            expected: 2,
+            got: 3,
+        }
+    );
     assert_eq!(destination.finalized_height(), 0);
     assert_eq!(destination.commitment(), before);
 

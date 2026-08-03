@@ -44,6 +44,9 @@ pub enum ConsensusError {
     Storage(String),
     /// The peer/archive belongs to a different settlement network.
     StateSyncWrongNetwork,
+    /// A state-sync response contains more finalized suffix blocks than the
+    /// protocol's explicit per-response bound.
+    StateSyncTooManyBlocks { maximum: usize, got: usize },
     /// The peer no longer retains a checkpoint covering the request.
     StateSyncUnavailable {
         earliest_height: u64,
@@ -78,6 +81,10 @@ impl core::fmt::Display for ConsensusError {
             ConsensusError::StateSyncWrongNetwork => {
                 write!(f, "state-sync response belongs to another network")
             }
+            ConsensusError::StateSyncTooManyBlocks { maximum, got } => write!(
+                f,
+                "state-sync response contains {got} suffix blocks; maximum is {maximum}"
+            ),
             ConsensusError::StateSyncUnavailable {
                 earliest_height,
                 tip_height,
