@@ -41,7 +41,8 @@ impl ReplayCache {
 
     /// Remove ids whose signed validity window has ended before `now_ms`.
     pub fn prune_expired(&mut self, now_ms: u64) {
-        self.seen.retain(|_, expires_at_ms| *expires_at_ms >= now_ms);
+        self.seen
+            .retain(|_, expires_at_ms| *expires_at_ms >= now_ms);
     }
 
     /// Record `id` until `expires_at_ms`, rejecting a duplicate. Capacity is a
