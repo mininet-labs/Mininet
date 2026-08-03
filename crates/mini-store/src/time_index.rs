@@ -168,6 +168,7 @@ impl BaseWriter {
         self.file.sync_all()?;
         drop(self.file);
         fs::rename(&self.temp_path, &self.final_path)?;
+        sync_parent_directory(&self.final_path)?;
         Ok((self.final_path, self.count))
     }
 }
@@ -534,6 +535,9 @@ impl<'a> LockedIndex<'a> {
         delta.dedup();
 
         let extra = delta.len();
+        // `candidates` already contains `extra` delta rows. A total budget of
+        // `limit + extra` therefore reads at most `limit` base rows; the extra
+        // slots cover keys duplicated between base and delta before dedup.
         let base_budget = limit.checked_add(extra).ok_or(StoreError::LimitExceeded)?;
         let mut candidates = delta;
         let mut base = BaseReader::open(
@@ -541,7 +545,7 @@ impl<'a> LockedIndex<'a> {
             manifest.base_count,
         )?;
         let mut index = base.first_greater_than(after)?;
-        while index < base.count && candidates.len() < base_budget.saturating_add(extra) {
+        while index < base.count && candidates.len() < base_budget {
             candidates.push(base.read_key(index)?);
             index += 1;
         }
@@ -556,6 +560,8 @@ impl<'a> LockedIndex<'a> {
         delta.dedup();
 
         let extra = delta.len();
+        // Same accounting as the forward scan: the delta rows already occupy
+        // `extra` candidate slots, so only `limit` base rows are read.
         let base_budget = limit.checked_add(extra).ok_or(StoreError::LimitExceeded)?;
         let mut candidates = delta;
         let mut base = BaseReader::open(
@@ -563,7 +569,7 @@ impl<'a> LockedIndex<'a> {
             manifest.base_count,
         )?;
         let mut remaining = base.count;
-        while remaining > 0 && candidates.len() < base_budget.saturating_add(extra) {
+        while remaining > 0 && candidates.len() < base_budget {
             remaining -= 1;
             candidates.push(base.read_key(remaining)?);
         }
@@ -967,6 +973,29 @@ fn remove_regular_if_present(path: &Path, label: &str) -> Result<()> {
     }
 }
 
+/// Make an already-completed rename durable in the containing directory
+/// where the standard library exposes a directory file descriptor. The side
+/// index remains reconstructible authority-free state, but returning success
+/// should not knowingly leave Unix rename persistence to a later unrelated
+/// write.
+fn sync_parent_directory(path: &Path) -> Result<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| StoreError::Io("time-index path has no containing directory".to_string()))?;
+    #[cfg(unix)]
+    {
+        File::open(parent)?.sync_all()?;
+    }
+    #[cfg(not(unix))]
+    {
+        // `std` does not expose a portable directory-fsync operation on every
+        // target. Those platforms retain the reconstructible-index fallback;
+        // the limitation is recorded in D-0430 rather than hidden.
+        let _ = parent;
+    }
+    Ok(())
+}
+
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     let temp = path.with_extension("tmp-write");
     remove_regular_if_present(&temp, "time-index atomic temporary file")?;
@@ -979,6 +1008,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
         file.sync_all()?;
     }
     fs::rename(temp, path)?;
+    sync_parent_directory(path)?;
     Ok(())
 }
 
@@ -1475,6 +1505,50 @@ mod tests {
             assert_eq!(
                 rows.into_iter().map(|(key, _)| key).collect::<Vec<_>>(),
                 expected
+            );
+            Ok(())
+        })
+        .unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compaction_collapses_a_key_present_in_both_base_and_delta() {
+        let root = temp_root("compact-existing-duplicate");
+        fs::create_dir_all(root.join("blobs")).unwrap();
+        fs::create_dir_all(root.join("meta")).unwrap();
+        let existing = valid_key(20, 21);
+        let delta_only = valid_key(30, 23);
+
+        let existing_path = root.join("meta").join(&existing);
+        fs::create_dir_all(existing_path.parent().unwrap()).unwrap();
+        fs::write(existing_path, b"").unwrap();
+        assert_eq!(rebuild(&root).unwrap(), 1);
+
+        with_locked(&root, |index| {
+            let mut manifest = index.read_manifest()?;
+            assert_eq!(manifest.base_count, 1);
+            assert_eq!(manifest.delta_count, 0);
+
+            // Exercise the defensive equality branch directly. Normal writes
+            // call `contains_key` first, but recovery/corruption hardening must
+            // still collapse a key that appears in both sorted inputs.
+            index.append_delta(&mut manifest, &existing)?;
+            let delta_path = root.join("meta").join(&delta_only);
+            fs::create_dir_all(delta_path.parent().unwrap())?;
+            fs::write(delta_path, b"")?;
+            index.append_delta(&mut manifest, &delta_only)?;
+
+            index.compact(&manifest)?;
+            let compacted = index.read_manifest()?;
+            assert_eq!(compacted.delta_count, 0);
+            assert_eq!(compacted.base_count, 2);
+            let (rows, stale) =
+                index.query_forward(&compacted, "idx/time/00000000000000000000/", 10)?;
+            assert!(!stale);
+            assert_eq!(
+                rows.into_iter().map(|(key, _)| key).collect::<Vec<_>>(),
+                vec![existing.clone(), delta_only.clone()]
             );
             Ok(())
         })

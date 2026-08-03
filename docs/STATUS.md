@@ -1033,7 +1033,8 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   compatibility `Store::since` remains unbounded; only `idx/time` is accelerated;
   timestamps are ordering hints, not freshness; a later/backdated arrival can
   sort before an issued cursor, so pages are not a lossless sync frontier;
-  physical weakest-device and parent-directory-fsync behavior remain follow-up.
+  physical weakest-device measurements, non-Unix directory-durability
+  semantics, and cross-index transactions remain follow-up.
   Completeness assumes all local time-row writers use this version's `FsBackend`;
   an older concurrent binary, downgrade, or manual filesystem mutation can bypass
   the side index and requires `rebuild_time_index()`. No remote index, daemon,

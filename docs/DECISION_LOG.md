@@ -14479,8 +14479,9 @@ frontier. Completeness also assumes every local chronological metadata write
 uses this version's `FsBackend` path: a concurrently running older binary,
 downgrade, or manual filesystem mutation can bypass the side index and requires
 an explicit `rebuild_time_index()` before bounded pages are trusted complete.
-Parent-directory fsync, cross-index transactionality, and physical weakest-
-device latency remain unmeasured.
+Containing-directory fsync after side-index renames is implemented on Unix;
+cross-index transactionality, non-Unix directory-durability semantics, and
+physical weakest-device latency remain unmeasured.
 
 **Required follow-up:** migrate interactive forge/feed callers to `since_page`,
 benchmark page/rebuild/compaction behavior on the weakest supported device, and

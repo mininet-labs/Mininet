@@ -90,9 +90,9 @@ solution here stays local, reconstructible, non-authoritative, and removable.
   without updating the side index; the next bounded page cannot discover that
   omission without an unbounded scan. Stop mixed-version writers and run
   `FsBackend::rebuild_time_index()` after downgrade/out-of-band repair.
-- File contents are synced before rename, but this preserves the existing
-  `FsBackend` durability model; parent-directory fsync and a transaction across
-  every object index remain future hardening.
+- New base/control-file contents are synced before rename and the containing
+  directory is synced after rename on Unix. Non-Unix directory-durability
+  semantics and a transaction across every object index remain future hardening.
 - Physical weakest-device latency and compaction-pause benchmarks are not yet
   recorded.
 
