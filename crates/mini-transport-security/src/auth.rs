@@ -159,12 +159,12 @@ impl SessionAuthClaim {
         channel_binding: &[u8; 32],
         issued_at_ms: u64,
         expires_at_ms: u64,
-        nonce: [u8; 32],
     ) -> Result<Self> {
         if device.delegator().is_none_or(|delegator| delegator != root) {
             return Err(TransportSecurityError::IdentityMismatch);
         }
         validate_window(issued_at_ms, expires_at_ms, issued_at_ms)?;
+        let nonce = mini_crypto::random_32()?;
         let endpoint_id = TransportEndpointId::derive(&device.did(), &routing_key);
         let mut claim = Self {
             role,
@@ -225,7 +225,11 @@ impl SessionAuthClaim {
             return Err(TransportSecurityError::CapabilityDenied);
         }
         device_kel.verify_message(&self.signing_bytes(channel_binding)?, &self.signatures)?;
-        replay.check_and_record(self.replay_id(channel_binding))?;
+        replay.check_and_record(
+            self.replay_id(channel_binding),
+            self.expires_at_ms,
+            now_ms,
+        )?;
 
         Ok(AuthenticatedPeer {
             root: self.root.clone(),
@@ -440,6 +444,38 @@ mod tests {
     }
 
     #[test]
+    fn issue_generates_fresh_nonce_internally() {
+        let (root, device) = identity();
+        let routing = AgreementSecretKey::from_seed(&[8; 32]).public_key();
+        let binding = binding();
+        let first = SessionAuthClaim::issue(
+            &root.did(),
+            &device,
+            SessionRole::Initiator,
+            TransportPurpose::Relay,
+            routing,
+            &binding,
+            1_000,
+            2_000,
+        )
+        .unwrap();
+        let second = SessionAuthClaim::issue(
+            &root.did(),
+            &device,
+            SessionRole::Initiator,
+            TransportPurpose::Relay,
+            routing,
+            &binding,
+            1_000,
+            2_000,
+        )
+        .unwrap();
+
+        assert_ne!(first.nonce, second.nonce);
+        assert_ne!(first.replay_id(&binding), second.replay_id(&binding));
+    }
+
+    #[test]
     fn claim_round_trips_and_authenticates_the_exact_session() {
         let (root, device) = identity();
         let routing = AgreementSecretKey::from_seed(&[8; 32]).public_key();
@@ -453,7 +489,6 @@ mod tests {
             &binding,
             1_000,
             2_000,
-            [9; 32],
         )
         .unwrap();
         let decoded = SessionAuthClaim::from_bytes(&claim.to_bytes().unwrap()).unwrap();
@@ -489,7 +524,6 @@ mod tests {
             &binding,
             1_000,
             2_000,
-            [9; 32],
         )
         .unwrap();
         let mut pins = FreshnessPins::new();
@@ -549,7 +583,6 @@ mod tests {
             &binding,
             1_000,
             2_000,
-            [9; 32],
         )
         .unwrap();
         let pre_revoke = root.kel();
@@ -593,7 +626,6 @@ mod tests {
             &binding,
             1_000,
             2_000,
-            [10; 32],
         )
         .unwrap();
         let mut pins = FreshnessPins::new();
