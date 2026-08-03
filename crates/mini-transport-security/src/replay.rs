@@ -60,7 +60,10 @@ mod tests {
     fn duplicate_is_rejected_and_oldest_is_evicted() {
         let mut cache = ReplayCache::new(2).unwrap();
         cache.check_and_record([1; 32]).unwrap();
-        assert_eq!(cache.check_and_record([1; 32]), Err(TransportSecurityError::Replay));
+        assert_eq!(
+            cache.check_and_record([1; 32]),
+            Err(TransportSecurityError::Replay)
+        );
         cache.check_and_record([2; 32]).unwrap();
         cache.check_and_record([3; 32]).unwrap();
         cache.check_and_record([1; 32]).unwrap();

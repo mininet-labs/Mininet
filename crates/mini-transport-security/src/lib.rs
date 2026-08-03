@@ -30,19 +30,18 @@ mod replay;
 mod selection;
 
 pub use advertisement::{
-    PeerAdvertisement, SecurePexResponse, VerifiedPeerAdvertisement,
-    MAX_PEER_ADVERTISEMENT_BYTES, MAX_PEER_ADVERTISEMENT_LIFETIME_MS,
-    MAX_SECURE_PEX_BYTES, MAX_SECURE_PEX_RECORDS, PEER_ADVERTISEMENT_VERSION,
+    PeerAdvertisement, SecurePexResponse, VerifiedPeerAdvertisement, MAX_PEER_ADVERTISEMENT_BYTES,
+    MAX_PEER_ADVERTISEMENT_LIFETIME_MS, MAX_SECURE_PEX_BYTES, MAX_SECURE_PEX_RECORDS,
+    PEER_ADVERTISEMENT_VERSION,
 };
 pub use auth::{
-    AuthenticatedPeer, SessionAuthClaim, SessionRole, TransportEndpointId,
-    TransportPurpose, MAX_SESSION_AUTH_BYTES, MAX_SESSION_AUTH_LIFETIME_MS,
-    SESSION_AUTH_VERSION,
+    AuthenticatedPeer, SessionAuthClaim, SessionRole, TransportEndpointId, TransportPurpose,
+    MAX_SESSION_AUTH_BYTES, MAX_SESSION_AUTH_LIFETIME_MS, SESSION_AUTH_VERSION,
 };
 pub use error::{Result, TransportSecurityError};
 pub use gate::{executable_transport, ExecutableTransport};
 pub use replay::{ReplayCache, MAX_REPLAY_CACHE_ENTRIES};
 pub use selection::{
-    diverse_dial_plan, DialAttempt, PeerSelectionPolicy, MAX_DIAL_TIMEOUT_MS,
-    MAX_SELECTED_PEERS, MIN_DIAL_TIMEOUT_MS,
+    diverse_dial_plan, DialAttempt, PeerSelectionPolicy, MAX_DIAL_TIMEOUT_MS, MAX_SELECTED_PEERS,
+    MIN_DIAL_TIMEOUT_MS,
 };

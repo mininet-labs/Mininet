@@ -33,7 +33,8 @@ impl Writer {
     }
 
     pub(crate) fn bytes(&mut self, value: &[u8]) -> Result<()> {
-        let length = u32::try_from(value.len()).map_err(|_| TransportSecurityError::LimitExceeded)?;
+        let length =
+            u32::try_from(value.len()).map_err(|_| TransportSecurityError::LimitExceeded)?;
         self.u32(length);
         self.raw(value);
         Ok(())

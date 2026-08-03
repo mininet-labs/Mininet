@@ -7,9 +7,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
-use did_mini::{
-    verify_delegation, Capabilities, Controller, Did, FreshnessPins, IndexedSig, Kel,
-};
+use did_mini::{verify_delegation, Capabilities, Controller, Did, FreshnessPins, IndexedSig, Kel};
 use mini_crypto::{
     AgreementPublicKey, HashAlgorithm, KeyAgreementSuite, Signature, SignatureSuite,
 };
@@ -173,9 +171,7 @@ impl PeerAdvertisement {
         encode_unsigned(&mut writer, self)?;
         let count = u16::try_from(self.signatures.len())
             .map_err(|_| TransportSecurityError::LimitExceeded)?;
-        if self.signatures.is_empty()
-            || self.signatures.len() > MAX_PEER_ADVERTISEMENT_SIGNATURES
-        {
+        if self.signatures.is_empty() || self.signatures.len() > MAX_PEER_ADVERTISEMENT_SIGNATURES {
             return Err(TransportSecurityError::LimitExceeded);
         }
         writer.u16(count);
@@ -231,10 +227,8 @@ impl PeerAdvertisement {
         for _ in 0..signature_count {
             let index = reader.u32()?;
             let suite = SignatureSuite::from_tag(reader.u8()?)?;
-            let signature = Signature::from_suite_bytes(
-                suite,
-                reader.bytes(suite.signature_len())?,
-            )?;
+            let signature =
+                Signature::from_suite_bytes(suite, reader.bytes(suite.signature_len())?)?;
             signatures.push(IndexedSig { index, signature });
         }
         if !reader.finished() {
@@ -424,8 +418,7 @@ mod tests {
     use super::*;
 
     fn identity(seed: u8) -> (Controller, Controller) {
-        let mut root =
-            Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+        let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
         let device = Controller::incept_device_single_from_seeds(
             &root.did(),
             &[seed + 2; 32],

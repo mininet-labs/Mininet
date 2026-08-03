@@ -4,21 +4,15 @@ use std::thread;
 use did_mini::{Capabilities, Controller, FreshnessPins};
 use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
 use mini_crypto::AgreementSecretKey;
-use mini_transport_security::{
-    ReplayCache, SessionAuthClaim, SessionRole, TransportPurpose,
-};
+use mini_transport_security::{ReplayCache, SessionAuthClaim, SessionRole, TransportPurpose};
 
 const AUTH_AAD: &[u8] = b"mini-transport-security/authenticated-tcp-test/v1";
 
 fn identity(seed: u8) -> (Controller, Controller) {
-    let mut root =
-        Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
-    let device = Controller::incept_device_single_from_seeds(
-        &root.did(),
-        &[seed + 2; 32],
-        &[seed + 3; 32],
-    )
-    .unwrap();
+    let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+    let device =
+        Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
+            .unwrap();
     root.delegate_device(&device.did(), Capabilities::primary())
         .unwrap();
     (root, device)

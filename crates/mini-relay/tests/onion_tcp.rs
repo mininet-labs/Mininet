@@ -4,8 +4,8 @@ use std::thread;
 use mini_bearer::{Bearer, TcpBearer};
 use mini_crypto::AgreementSecretKey;
 use mini_relay::{
-    build_onion, open_onion_destination, ConnectionId, OnionForward, OnionHop,
-    OnionPacket, OnionReplayCache, RelayRole,
+    build_onion, open_onion_destination, ConnectionId, OnionForward, OnionHop, OnionPacket,
+    OnionReplayCache, RelayRole,
 };
 use mini_transport_policy::PayloadSizeClass;
 
@@ -61,19 +61,14 @@ fn three_independent_tcp_relays_forward_only_layered_ciphertext() {
         assert!(!contains(&bytes, b"private over three real sockets"));
         let packet = OnionPacket::from_bytes(&bytes).unwrap();
         let mut replay = OnionReplayCache::new(32).unwrap();
-        let peeled = packet
-            .peel(&rendezvous_secret, 5_000, &mut replay)
-            .unwrap();
+        let peeled = packet.peel(&rendezvous_secret, 5_000, &mut replay).unwrap();
         assert_eq!(peeled.role, RelayRole::Rendezvous);
         assert_eq!(peeled.next_hop, delivery_address.to_string().as_bytes());
         let OnionForward::Next(next) = peeled.forward else {
             panic!("rendezvous hop must forward another onion packet");
         };
         let next_bytes = next.to_bytes().unwrap();
-        assert!(!contains(
-            &next_bytes,
-            b"private over three real sockets"
-        ));
+        assert!(!contains(&next_bytes, b"private over three real sockets"));
         send(delivery_address, &next_bytes);
     });
 
@@ -87,18 +82,12 @@ fn three_independent_tcp_relays_forward_only_layered_ciphertext() {
         let mut replay = OnionReplayCache::new(32).unwrap();
         let peeled = packet.peel(&entry_secret, 5_000, &mut replay).unwrap();
         assert_eq!(peeled.role, RelayRole::Entry);
-        assert_eq!(
-            peeled.next_hop,
-            rendezvous_address.to_string().as_bytes()
-        );
+        assert_eq!(peeled.next_hop, rendezvous_address.to_string().as_bytes());
         let OnionForward::Next(next) = peeled.forward else {
             panic!("entry hop must forward another onion packet");
         };
         let next_bytes = next.to_bytes().unwrap();
-        assert!(!contains(
-            &next_bytes,
-            b"private over three real sockets"
-        ));
+        assert!(!contains(&next_bytes, b"private over three real sockets"));
         send(rendezvous_address, &next_bytes);
     });
 
@@ -142,5 +131,7 @@ fn three_independent_tcp_relays_forward_only_layered_ciphertext() {
 }
 
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-    haystack.windows(needle.len()).any(|window| window == needle)
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
 }

@@ -2984,6 +2984,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-transport-security"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-bearer",
+ "mini-crypto",
+ "mini-privacy-policy",
+]
+
+[[package]]
 name = "mini-treasury"
 version = "0.0.1"
 dependencies = [

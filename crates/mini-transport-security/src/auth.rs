@@ -5,9 +5,7 @@
 //! caller-supplied KELs and rollback pins. No certificate authority, DNS name,
 //! hosted registry, or trust-on-first-use rule is introduced.
 
-use did_mini::{
-    verify_delegation, Capabilities, Controller, Did, FreshnessPins, IndexedSig, Kel,
-};
+use did_mini::{verify_delegation, Capabilities, Controller, Did, FreshnessPins, IndexedSig, Kel};
 use mini_crypto::{
     AgreementPublicKey, HashAlgorithm, KeyAgreementSuite, Signature, SignatureSuite,
 };
@@ -307,10 +305,8 @@ impl SessionAuthClaim {
         for _ in 0..signature_count {
             let index = reader.u32()?;
             let suite = SignatureSuite::from_tag(reader.u8()?)?;
-            let signature = Signature::from_suite_bytes(
-                suite,
-                reader.bytes(suite.signature_len())?,
-            )?;
+            let signature =
+                Signature::from_suite_bytes(suite, reader.bytes(suite.signature_len())?)?;
             signatures.push(IndexedSig { index, signature });
         }
         if !reader.finished() {
@@ -353,9 +349,7 @@ impl SessionAuthClaim {
     }
 
     fn replay_id(&self, channel_binding: &[u8; 32]) -> [u8; 32] {
-        let mut transcript = Vec::with_capacity(
-            AUTH_REPLAY_DOMAIN.len() + 32 + 32 + 32 + 2,
-        );
+        let mut transcript = Vec::with_capacity(AUTH_REPLAY_DOMAIN.len() + 32 + 32 + 32 + 2);
         transcript.extend_from_slice(AUTH_REPLAY_DOMAIN);
         transcript.extend_from_slice(channel_binding);
         transcript.extend_from_slice(&self.endpoint_id.to_bytes());
@@ -392,12 +386,8 @@ mod tests {
 
     fn identity() -> (Controller, Controller) {
         let mut root = Controller::incept_single_from_seeds(&[1; 32], &[2; 32]).unwrap();
-        let device = Controller::incept_device_single_from_seeds(
-            &root.did(),
-            &[3; 32],
-            &[4; 32],
-        )
-        .unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[3; 32], &[4; 32]).unwrap();
         root.delegate_device(&device.did(), Capabilities::primary())
             .unwrap();
         (root, device)

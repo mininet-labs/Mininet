@@ -12,8 +12,8 @@
 use std::collections::{HashSet, VecDeque};
 
 use mini_crypto::{
-    random_32, AeadKey, AeadNonce, AeadSuite, AgreementPublicKey, AgreementSecretKey,
-    KdfSuite, KeyAgreementSuite,
+    random_32, AeadKey, AeadNonce, AeadSuite, AgreementPublicKey, AgreementSecretKey, KdfSuite,
+    KeyAgreementSuite,
 };
 use mini_transport_policy::PayloadSizeClass;
 
@@ -104,9 +104,12 @@ impl OnionReplayCache {
 
 /// Build one fixed-role onion circuit. `destination_key` belongs to the final
 /// endpoint, not the delivery relay. Every hop key should come from a verified,
-/// signed peer advertisement.
+/// signed peer advertisement. `destination_connection_id` is visible only in
+/// the destination-encrypted envelope; each relay layer receives an independent
+/// random public connection id so observers cannot correlate hops by one shared
+/// cleartext circuit identifier.
 pub fn build_onion(
-    connection_id: ConnectionId,
+    destination_connection_id: ConnectionId,
     size_class: PayloadSizeClass,
     hops: &[OnionHop],
     destination_key: AgreementPublicKey,
@@ -119,34 +122,29 @@ pub fn build_onion(
     }
 
     let destination = DestinationEnvelope::seal(
-        connection_id,
+        destination_connection_id,
         size_class,
         destination_key,
         plaintext,
     )?;
     let mut inner = destination.to_bytes()?;
+    let mut public_connection_ids = HashSet::with_capacity(ONION_HOP_COUNT + 1);
+    public_connection_ids.insert(destination_connection_id);
 
     for (index, hop) in hops.iter().enumerate().rev() {
+        let connection_id = ConnectionId::generate()?;
+        if !public_connection_ids.insert(connection_id) {
+            return Err(RelayError::InvalidOnionRoute);
+        }
         let ephemeral_secret = AgreementSecretKey::generate()?;
         let ephemeral_key = ephemeral_secret.public_key();
         let shared = ephemeral_secret.agree(&hop.routing_key)?;
         let nonce = AeadNonce::generate()?;
         let replay_token = random_32()?;
-        let hop_plaintext = encode_hop_plaintext(
-            hop.role,
-            expires_at_ms,
-            replay_token,
-            &hop.next_hop,
-            &inner,
-        )?;
+        let hop_plaintext =
+            encode_hop_plaintext(hop.role, expires_at_ms, replay_token, &hop.next_hop, &inner)?;
         let hop_index = u8::try_from(index).map_err(|_| RelayError::InvalidOnionRoute)?;
-        let aad = hop_aad(
-            connection_id,
-            size_class,
-            hop_index,
-            ephemeral_key,
-            nonce,
-        );
+        let aad = hop_aad(connection_id, size_class, hop_index, ephemeral_key, nonce);
         let key = derive_key(HOP_KEY_DOMAIN, &shared.to_bytes(), &aad)?;
         let ciphertext = key.encrypt(&nonce, &hop_plaintext, &aad)?;
         let packet = OnionPacket {
@@ -194,7 +192,7 @@ impl OnionPacket {
 
         let forward = if self.hop_index as usize + 1 < ONION_HOP_COUNT {
             let next = OnionPacket::from_bytes(&decoded.inner)?;
-            if next.connection_id != self.connection_id
+            if next.connection_id == self.connection_id
                 || next.size_class != self.size_class
                 || next.hop_index != self.hop_index + 1
             {
@@ -205,7 +203,7 @@ impl OnionPacket {
             // Validate the destination envelope's public binding now, but do
             // not decrypt it: the delivery relay does not hold that key.
             let destination = DestinationEnvelope::from_bytes(&decoded.inner)?;
-            if destination.connection_id != self.connection_id
+            if destination.connection_id == self.connection_id
                 || destination.size_class != self.size_class
             {
                 return Err(RelayError::OnionDestinationMismatch);
@@ -265,7 +263,8 @@ impl OnionPacket {
             reader.raw(agreement_suite.public_key_len())?,
         )?;
         let nonce = AeadNonce::from_bytes(reader.raw(AeadSuite::DEFAULT.nonce_len())?)?;
-        let ciphertext = reader.bytes_limited(max_onion_ciphertext_bytes(size_class, hop_index)?)?;
+        let ciphertext =
+            reader.bytes_limited(max_onion_ciphertext_bytes(size_class, hop_index)?)?;
         if !reader.finished() {
             return Err(RelayError::TrailingBytes);
         }
@@ -480,12 +479,7 @@ fn derive_key(domain: &[u8], shared: &[u8; 32], aad: &[u8]) -> Result<AeadKey> {
     let mut info = Vec::with_capacity(domain.len() + aad.len());
     info.extend_from_slice(domain);
     info.extend_from_slice(aad);
-    Ok(KdfSuite::DEFAULT.derive_aead_key(
-        Some(domain),
-        shared,
-        &info,
-        AeadSuite::DEFAULT,
-    )?)
+    Ok(KdfSuite::DEFAULT.derive_aead_key(Some(domain), shared, &info, AeadSuite::DEFAULT)?)
 }
 
 fn hop_aad(
@@ -564,16 +558,13 @@ fn fixed_payload_bytes(size_class: PayloadSizeClass) -> usize {
     }
 }
 
-fn max_onion_ciphertext_bytes(
-    size_class: PayloadSizeClass,
-    hop_index: u8,
-) -> Result<usize> {
+fn max_onion_ciphertext_bytes(size_class: PayloadSizeClass, hop_index: u8) -> Result<usize> {
     let destination = 1usize
         .checked_add(16 + 1 + 1 + 32 + 12 + 4)
         .and_then(|value| value.checked_add(fixed_payload_bytes(size_class) + AEAD_TAG_BYTES))
         .ok_or(RelayError::LimitExceeded)?;
-    let public_header = 1 + 16 + 1 + 1 + 1 + 1 + 32 + 12 + 4;
-    let hop_plaintext_overhead = 1 + 8 + 32 + 4 + NEXT_HOP_PAD_BYTES + 4;
+    let public_header: usize = 1 + 16 + 1 + 1 + 1 + 1 + 32 + 12 + 4;
+    let hop_plaintext_overhead: usize = 1 + 8 + 32 + 4 + NEXT_HOP_PAD_BYTES + 4;
     let remaining_layers = ONION_HOP_COUNT
         .checked_sub(hop_index as usize)
         .ok_or(RelayError::InvalidOnionRoute)?;
@@ -650,7 +641,9 @@ mod tests {
         .unwrap();
 
         let mut destination_envelope = None;
+        let mut public_connection_ids = HashSet::new();
         for (index, secret) in secrets.iter().enumerate() {
+            assert!(public_connection_ids.insert(packet.connection_id));
             let mut replay = OnionReplayCache::new(8).unwrap();
             let peeled = packet.peel(secret, 5_000, &mut replay).unwrap();
             assert_eq!(peeled.role, hops[index].role);
@@ -660,6 +653,7 @@ mod tests {
                 OnionForward::Destination(bytes) => destination_envelope = Some(bytes),
             }
         }
+        assert_eq!(public_connection_ids.len(), ONION_HOP_COUNT);
         let opened = open_onion_destination(&destination_envelope.unwrap(), &destination).unwrap();
         assert_eq!(opened, b"private application payload");
     }

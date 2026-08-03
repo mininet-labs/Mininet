@@ -9,9 +9,7 @@ use std::net::IpAddr;
 
 use mini_crypto::HashAlgorithm;
 
-use crate::{
-    Result, TransportEndpointId, TransportSecurityError, VerifiedPeerAdvertisement,
-};
+use crate::{Result, TransportEndpointId, TransportSecurityError, VerifiedPeerAdvertisement};
 
 pub const MAX_SELECTED_PEERS: usize = 64;
 pub const MIN_DIAL_TIMEOUT_MS: u64 = 100;
@@ -79,12 +77,13 @@ pub fn diverse_dial_plan(
 
     let mut selected = Vec::with_capacity(policy.max_peers);
     let mut endpoints = HashSet::new();
+    let mut routing_keys = HashSet::new();
     let mut prefix_counts: HashMap<NetworkPrefix, usize> = HashMap::new();
     for (_, record) in candidates {
         if selected.len() >= policy.max_peers {
             break;
         }
-        if !endpoints.insert(record.endpoint_id()) {
+        if !endpoints.insert(record.endpoint_id()) || !routing_keys.insert(record.routing_key()) {
             continue;
         }
         let prefix = NetworkPrefix::from_ip(record.address().ip());
@@ -154,8 +153,7 @@ mod tests {
     use crate::{PeerAdvertisement, ReplayCache};
 
     fn verified(seed: u8, address: &str) -> VerifiedPeerAdvertisement {
-        let mut root =
-            Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+        let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
         let device = Controller::incept_device_single_from_seeds(
             &root.did(),
             &[seed + 2; 32],
