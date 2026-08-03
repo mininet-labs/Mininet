@@ -7,6 +7,9 @@ work: preflight-before-journal, validate-before-write archive plans, race-free
 no-follow opens, a truthful suffix-limit error, and peer-facing gap/duplicate/
 reordering tests. The PR stays draft until those changes pass on the integrated
 exact head.  
+**Runner state:** the integrated remediation commit is now prepared; the
+repository-wide exact-head checks remain the engineering gate before review
+threads can be resolved.  
 **Roadmap:** issue #45.  
 **Base:** D-0093 block-only catch-up and D-0200–D-0206 networked consensus.
 
