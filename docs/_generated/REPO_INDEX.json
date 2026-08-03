@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 70,
-    "files": 810,
-    "headings": 2567,
-    "rust_symbols": 7280
+    "files": 813,
+    "headings": 2578,
+    "rust_symbols": 7317
   },
   "crates": {
     "did-mini": {
@@ -53149,7 +53149,7 @@
       "title": "use did_mini::{Capabilities, Controller};"
     },
     {
-      "bytes": 517,
+      "bytes": 497,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
@@ -53158,8 +53158,8 @@
         "path",
         "mini-store",
         "did-mini",
-        "mini-objects",
         "mini-crypto",
+        "mini-objects",
         "cargo",
         "toml",
         "package",
@@ -53178,9 +53178,9 @@
         "head",
         "pointers"
       ],
-      "lines": 18,
+      "lines": 16,
       "path": "crates/mini-store/Cargo.toml",
-      "sha256": "e6c3a04bd213c0a5247ade185be9f3e32c3984a1f0e55b42e91ade5db6d0149d",
+      "sha256": "77a03166481bd3693ab5b5fc2f6a40b1399ac45b5b7c15c404aeb4f97706b3e7",
       "symbols": [],
       "title": "[package]"
     },
@@ -53509,38 +53509,38 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 6122,
+      "bytes": 6838,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
         "cachetier",
-        "content",
+        "store",
         "self",
-        "policy",
+        "content",
         "tier",
         "cache",
-        "store",
         "never",
+        "some",
+        "policy",
         "ephemeralcache",
         "local",
-        "some",
         "user",
         "privateonly",
         "backend",
         "storage",
-        "seedcache",
-        "committedstorage",
-        "pinnedbyowner",
         "tier_key",
+        "set_cache_tier",
+        "note_view",
         "battery",
-        "object",
         "advertised",
         "objectid",
-        "whether"
+        "seedcache",
+        "committedstorage",
+        "pinnedbyowner"
       ],
-      "lines": 159,
+      "lines": 170,
       "path": "crates/mini-store/src/cache.rs",
-      "sha256": "6ec14bf2680d8e662974819688cfb65561ad540df7fc6f3cd0e87cc9f7f3bbc1",
+      "sha256": "01196c1368de0418448db95c8e6a257c4042dbd10e165d2b7d64eab07b5bd6d0",
       "symbols": [
         {
           "kind": "enum",
@@ -53549,90 +53549,90 @@
         },
         {
           "kind": "impl",
-          "line": 41,
+          "line": 47,
           "name": "CacheTier"
         },
         {
           "kind": "fn",
-          "line": 43,
+          "line": 49,
           "name": "advertises"
         },
         {
           "kind": "fn",
-          "line": 50,
+          "line": 56,
           "name": "to_byte"
         },
         {
           "kind": "fn",
-          "line": 60,
+          "line": 67,
           "name": "from_byte"
         },
         {
           "kind": "struct",
-          "line": 76,
+          "line": 84,
           "name": "ViewConditions"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 97,
           "name": "tier_key"
         },
         {
           "kind": "impl",
-          "line": 93,
+          "line": 101,
           "name": "Store<B>"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 104,
           "name": "cache_tier"
         },
         {
           "kind": "fn",
-          "line": 109,
+          "line": 117,
           "name": "set_cache_tier"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 137,
           "name": "note_view"
         }
       ],
       "title": "use did_mini::BaseDeviceRole;"
     },
     {
-      "bytes": 3884,
+      "bytes": 4369,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
         "storeerror",
         "store",
         "object",
-        "backend",
         "write",
+        "backend",
         "error",
         "result",
         "fmt",
+        "self",
         "core",
         "std",
         "objecterror",
         "identityerror",
+        "cryptoerror",
         "head",
         "identity",
-        "self",
+        "owner_seal",
         "type",
+        "failed",
+        "crypto",
         "cache",
         "local",
         "same",
-        "failed",
-        "invalid",
-        "requested",
-        "corrupt",
-        "time_index"
+        "invalid"
       ],
-      "lines": 99,
+      "lines": 111,
       "path": "crates/mini-store/src/lib.rs",
-      "sha256": "ed688ecb7d426a1fae95427b9ee01f2936a468d5844d703bcdc636cf13b0bbc6",
+      "sha256": "a15caa4e18b767b39778b452b38a599048df8c25c9ef5d0fca32ffc960dd166d",
       "symbols": [
         {
           "kind": "mod",
@@ -53647,70 +53647,227 @@
         {
           "kind": "mod",
           "line": 30,
-          "name": "store"
+          "name": "owner_seal"
         },
         {
           "kind": "mod",
           "line": 31,
+          "name": "store"
+        },
+        {
+          "kind": "mod",
+          "line": 32,
           "name": "time_index"
         },
         {
           "kind": "type",
-          "line": 41,
+          "line": 44,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 46,
+          "line": 49,
           "name": "StoreError"
         },
         {
           "kind": "impl",
-          "line": 67,
+          "line": 73,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 68,
+          "line": 74,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 82,
+          "line": 89,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 84,
+          "line": 91,
           "name": "From<ObjectError>"
         },
         {
           "kind": "fn",
-          "line": 85,
+          "line": 92,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 89,
+          "line": 96,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 90,
+          "line": 97,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 94,
+          "line": 101,
+          "name": "From<CryptoError>"
+        },
+        {
+          "kind": "fn",
+          "line": 102,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 106,
           "name": "From<std::io::Error>"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 107,
           "name": "from"
         }
       ],
       "title": "mod backend;"
+    },
+    {
+      "bytes": 6233,
+      "group": "crate:mini-store",
+      "headings": [],
+      "keywords": [
+        "key",
+        "ownersealingkey",
+        "storeerror",
+        "self",
+        "ownersealingpublickey",
+        "const",
+        "bytes",
+        "ephemeral",
+        "sealing",
+        "map_err",
+        "crypto",
+        "generate",
+        "fmt",
+        "recipient",
+        "public",
+        "plaintext",
+        "public_key_len",
+        "nonce_len",
+        "public_key",
+        "x25519",
+        "ciphertext",
+        "same",
+        "agreementsecretkey",
+        "result"
+      ],
+      "lines": 151,
+      "path": "crates/mini-store/src/owner_seal.rs",
+      "sha256": "ca9f7f9cf0444a23411e82be52d1bfc6a0de8c7865b9cb9a8f8bbad3c53a08eb",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 21,
+          "name": "SEAL_INFO"
+        },
+        {
+          "kind": "const",
+          "line": 22,
+          "name": "AEAD_SUITE"
+        },
+        {
+          "kind": "const",
+          "line": 23,
+          "name": "KDF_SUITE"
+        },
+        {
+          "kind": "const",
+          "line": 25,
+          "name": "PUBLIC_KEY_LEN"
+        },
+        {
+          "kind": "const",
+          "line": 26,
+          "name": "NONCE_LEN"
+        },
+        {
+          "kind": "const",
+          "line": 28,
+          "name": "AEAD_TAG_LEN"
+        },
+        {
+          "kind": "const",
+          "line": 32,
+          "name": "MIN_SEALED_LEN"
+        },
+        {
+          "kind": "const",
+          "line": 36,
+          "name": "MAX_SEALED_LEN"
+        },
+        {
+          "kind": "struct",
+          "line": 44,
+          "name": "OwnerSealingKey"
+        },
+        {
+          "kind": "struct",
+          "line": 49,
+          "name": "OwnerSealingPublicKey"
+        },
+        {
+          "kind": "impl",
+          "line": 51,
+          "name": "OwnerSealingKey"
+        },
+        {
+          "kind": "fn",
+          "line": 53,
+          "name": "generate"
+        },
+        {
+          "kind": "fn",
+          "line": 61,
+          "name": "from_seed"
+        },
+        {
+          "kind": "fn",
+          "line": 66,
+          "name": "public_key"
+        },
+        {
+          "kind": "impl",
+          "line": 71,
+          "name": "core::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 72,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 79,
+          "name": "OwnerSealingPublicKey"
+        },
+        {
+          "kind": "fn",
+          "line": 81,
+          "name": "to_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 86,
+          "name": "from_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 100,
+          "name": "seal_for_owner"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "open_as_owner"
+        }
+      ],
+      "title": "use mini_crypto::{"
     },
     {
       "bytes": 17015,
@@ -54442,7 +54599,7 @@
       "title": "use std::fs::{self, File, OpenOptions};"
     },
     {
-      "bytes": 7678,
+      "bytes": 8790,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
@@ -54471,9 +54628,9 @@
         "root",
         "seq"
       ],
-      "lines": 226,
+      "lines": 260,
       "path": "crates/mini-store/tests/cache.rs",
-      "sha256": "ada47de00e501fff1b2cf2f7ce67ce11fa8c5f65ad1a23187c849c0ed95f3a27",
+      "sha256": "d13f8abbf7231fe44c641e02124efafac38174921e396d38d433394ca2ea3b1e",
       "symbols": [
         {
           "kind": "fn",
@@ -54544,9 +54701,111 @@
           "kind": "fn",
           "line": 201,
           "name": "pinned_and_committed_tiers_are_never_downgraded_by_a_view"
+        },
+        {
+          "kind": "fn",
+          "line": 228,
+          "name": "cold_archive_round_trips_and_never_advertises"
+        },
+        {
+          "kind": "fn",
+          "line": 243,
+          "name": "cold_archive_is_never_touched_by_a_view"
         }
       ],
       "title": "use did_mini::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, Capabilities, Controller, Did};"
+    },
+    {
+      "bytes": 3867,
+      "group": "crate:mini-store",
+      "headings": [],
+      "keywords": [
+        "owner",
+        "unwrap",
+        "aad",
+        "sealed",
+        "ownersealingkey",
+        "public_key",
+        "open_as_owner",
+        "seal_for_owner",
+        "generate",
+        "plaintext",
+        "assert",
+        "is_err",
+        "secret",
+        "opened",
+        "assert_eq",
+        "len",
+        "sealed1",
+        "sealed2",
+        "seed",
+        "owner_seal",
+        "round_trip_recovers_the_exact_plaintext",
+        "wrong_owner_key_fails_to_open",
+        "tampered_ciphertext_fails_closed",
+        "tampered_aad_fails_closed"
+      ],
+      "lines": 112,
+      "path": "crates/mini-store/tests/owner_seal.rs",
+      "sha256": "ca84790f868dc79717feb80d3a899edc103f180d83be036534ac1e72757da364",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 7,
+          "name": "round_trip_recovers_the_exact_plaintext"
+        },
+        {
+          "kind": "fn",
+          "line": 19,
+          "name": "wrong_owner_key_fails_to_open"
+        },
+        {
+          "kind": "fn",
+          "line": 28,
+          "name": "tampered_ciphertext_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 38,
+          "name": "tampered_aad_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 46,
+          "name": "tampered_ephemeral_public_key_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 56,
+          "name": "truncated_input_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 66,
+          "name": "oversized_input_is_rejected_before_any_allocation"
+        },
+        {
+          "kind": "fn",
+          "line": 76,
+          "name": "oversized_plaintext_is_rejected_before_sealing"
+        },
+        {
+          "kind": "fn",
+          "line": 84,
+          "name": "two_seals_of_the_same_plaintext_produce_different_ciphertext"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "empty_plaintext_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "from_seed_is_deterministic_and_public_key_matches"
+        }
+      ],
+      "title": "use mini_store::{open_as_owner, seal_for_owner, OwnerSealingKey};"
     },
     {
       "bytes": 19320,
@@ -62354,7 +62613,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 899640,
+      "bytes": 906459,
       "group": "docs",
       "headings": [
         {
@@ -62777,16 +63036,16 @@
         "batch",
         "local",
         "signed",
+        "roadmap",
         "release",
         "first",
-        "roadmap",
         "phase",
         "status",
         "deterministic"
       ],
-      "lines": 14983,
+      "lines": 15094,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "371d8ff74b71b4d52d417097e1f25ecf14e93080eb1319130fcc4ad194f27b25",
+      "sha256": "5fffb9cc057fe270f0aaa3ea9a34af72e7065aa487dfa105b669ae9067254496",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -63935,7 +64194,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 117728,
+      "bytes": 118900,
       "group": "docs",
       "headings": [
         {
@@ -63985,42 +64244,42 @@
         },
         {
           "level": 2,
-          "line": 720,
+          "line": 737,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 781,
+          "line": 798,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 811,
+          "line": 828,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1107,
+          "line": 1124,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1543,
+          "line": 1560,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1634,
+          "line": 1651,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1714,
+          "line": 1731,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1780,
+          "line": 1797,
           "text": "Where to look for more detail"
         }
       ],
@@ -64050,9 +64309,9 @@
         "social",
         "network"
       ],
-      "lines": 1795,
+      "lines": 1812,
       "path": "docs/STATUS.md",
-      "sha256": "72efc57ea6ea75c24ff472554b5de8bb66f80723bb160a5b1df246c30e0b8a19",
+      "sha256": "5cded324877d1b40bfda31b62e4b5aca5bf4b3f5f53a1f0f7c20aa7dc6672043",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -65851,6 +66110,98 @@
       "sha256": "a634da1a15c180b637e78c3709eb4394a7f7827196b54c533ab3d2ebf8b6a66e",
       "symbols": [],
       "title": "Bridge / pluggable transport (MN-207, D-0309)"
+    },
+    {
+      "bytes": 13503,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Cold and owner-only storage tiers: giving `Payload::Encrypted` a real construction"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "The gap this closes"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "What this adds"
+        },
+        {
+          "level": 2,
+          "line": 18,
+          "text": "The sealed-box construction (composition of prior art, not new cryptography)"
+        },
+        {
+          "level": 3,
+          "line": 48,
+          "text": "Why a separate sealing keypair, not a device's existing Ed25519 KEL key"
+        },
+        {
+          "level": 2,
+          "line": 54,
+          "text": "What `CacheTier::ColdArchive` does and does not do"
+        },
+        {
+          "level": 2,
+          "line": 62,
+          "text": "Constitutional and authority impact"
+        },
+        {
+          "level": 2,
+          "line": 66,
+          "text": "Honest limits (what this is not)"
+        },
+        {
+          "level": 2,
+          "line": 75,
+          "text": "Tests"
+        },
+        {
+          "level": 2,
+          "line": 87,
+          "text": "Required follow-up"
+        },
+        {
+          "level": 2,
+          "line": 94,
+          "text": "Supersedes / superseded by"
+        }
+      ],
+      "keywords": [
+        "storage",
+        "encrypted",
+        "new",
+        "key",
+        "never",
+        "cold",
+        "owner-only",
+        "already",
+        "ciphertext",
+        "nonce",
+        "payload",
+        "construction",
+        "what",
+        "existing",
+        "mini-store",
+        "privateonly",
+        "shared",
+        "tiers",
+        "cachetier",
+        "sealed",
+        "pinnedbyowner",
+        "other",
+        "content",
+        "owner"
+      ],
+      "lines": 97,
+      "path": "docs/design/cold-storage-and-owner-only-encryption.md",
+      "sha256": "843d7dc324d1cd9b09cf83ef12d16e8e1cae49d996334ad250b0e8f79e292f91",
+      "symbols": [],
+      "title": "Cold and owner-only storage tiers: giving `Payload::Encrypted` a real construction"
     },
     {
       "bytes": 14220,
@@ -78374,7 +78725,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 28800,
+      "bytes": 30074,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -78403,9 +78754,9 @@
         "independently",
         "both"
       ],
-      "lines": 577,
+      "lines": 602,
       "path": "governance/work-claims.json",
-      "sha256": "8bc171646f8490058c5334ea4dc533f2b91f5c8b1d49b01217172fa3b8e8e621",
+      "sha256": "aae149f023c5cabe8d6d64e9fea1d1957bfd8300da68e226e3af53110278b11e",
       "symbols": [],
       "title": "{"
     },

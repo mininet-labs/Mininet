@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-07-30T00:08:46Z",
+  "updated_at": "2026-08-03T00:00:00Z",
   "claims": [
     {
       "issue": 122,
@@ -571,6 +571,29 @@
         "D-0416"
       ],
       "notes": "Next large Day-0 payment portion of roadmap #61 after merged PR #273: standalone bounded PaymentClaim wire codec and deterministic node-local admission pool with signature/network/payee/expiry preflight, conflict and aggregate-overspend refusal, global/byte/per-payer limits, candidate ordering, and canonical revalidation. No authenticated network submission, re-gossip, fees, inclusion guarantee, persistence, privacy, or activation."
+    },
+    {
+      "issue": 34,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/sandbox-d7xndc",
+      "pull_request": 293,
+      "lease_expires": "2026-08-10",
+      "paths": [
+        "crates/mini-store/src/owner_seal.rs",
+        "crates/mini-store/src/cache.rs",
+        "crates/mini-store/src/lib.rs",
+        "crates/mini-store/Cargo.toml",
+        "crates/mini-store/tests/owner_seal.rs",
+        "crates/mini-store/tests/cache.rs",
+        "docs/design/cold-storage-and-owner-only-encryption.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0434"
+      ],
+      "notes": "Roadmap #34 (Phase 4.6): cold/owner-only storage tiers. mini_store::owner_seal gives mini_objects::Payload::Encrypted a real sealed-box construction composed from existing mini-crypto primitives (independent X25519 sealing keypair, not KEL-derived), plus CacheTier::ColdArchive (never advertised, never touched by note_view). Coordination evidence only; no approval or release claim. Orthogonal to the in-flight consensus (issue #61/#289) and privacy/transport (#292) work; chosen specifically to avoid collision with those tracks."
     }
   ]
 }

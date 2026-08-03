@@ -223,3 +223,37 @@ fn pinned_and_committed_tiers_are_never_downgraded_by_a_view() {
         .unwrap();
     assert_eq!(tier, CacheTier::CommittedStorage);
 }
+
+#[test]
+fn cold_archive_round_trips_and_never_advertises() {
+    let (h, d) = human(10);
+    let mut store = Store::new(MemoryBackend::new());
+    let secret = encrypted_post(&h.did(), &d, 1);
+    store.insert(&secret).unwrap();
+
+    store
+        .set_cache_tier(secret.id(), CacheTier::ColdArchive)
+        .unwrap();
+    let tier = store.cache_tier(secret.id()).unwrap();
+    assert_eq!(tier, CacheTier::ColdArchive);
+    assert!(!tier.advertises());
+}
+
+#[test]
+fn cold_archive_is_never_touched_by_a_view() {
+    let (h, d) = human(10);
+    let mut store = Store::new(MemoryBackend::new());
+    let post = public_post(&h.did(), &d, 1);
+    store.insert(&post).unwrap();
+    store
+        .set_cache_tier(post.id(), CacheTier::ColdArchive)
+        .unwrap();
+
+    // Even a maximally permissive seeding policy does not touch it.
+    let role = BaseDeviceRole::always_on_default();
+    let tier = store
+        .note_view(post.id(), &role, permissive_conditions())
+        .unwrap();
+    assert_eq!(tier, CacheTier::ColdArchive);
+    assert_eq!(store.cache_tier(post.id()).unwrap(), CacheTier::ColdArchive);
+}
