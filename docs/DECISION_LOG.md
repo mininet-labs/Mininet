@@ -14980,3 +14980,76 @@ call, once a real deployment's shape is known — not guessed at here.
 D-0422/D-0423/D-0424/D-0426, D-0432, D-0405, D-0406, or D-0420. Does not
 modify F1/F2/F3/F4/F7's own wire formats, merge policy, or ranking
 behavior.
+
+
+### D-0377 — Optional channel-bound peer authentication, secure PEX, and three-hop onion transport  ·  *Proposed*
+
+**Date:** 2026-08-03 · **Refs:** D-0015 (anonymous CH1), D-0301
+(transport-policy tiers), D-0305 (Sphinx/Loopix research profile), D-0306
+(`mini-relay` vocabulary), issues #291/#24/#27/#72, PR #292; Directives
+2/5/6/16.
+
+**Decision:** preserve `mini-bearer::Channel` as an anonymous,
+forward-secret base and add optional self-certifying endpoint authentication in
+a separate `mini-transport-security` crate. A `SessionAuthClaim` binds one exact
+CH1 channel transcript to a `did:mini` root/device delegation, endpoint role,
+typed purpose, rotating X25519 routing key, bounded validity window, and replay
+nonce. Signed `PeerAdvertisement` records bind network id, dial address,
+endpoint id, and the same routing key; `verify_advertised` requires the dialed
+record and live channel proof to name the same endpoint. Local peer selection is
+bounded, caller-seeded, input-order-independent, duplicate-resistant, and capped
+per IPv4 `/24` or IPv6 `/48`.
+
+For `PrivacyTier::Relayed`, extend `mini-relay` with exactly three independently
+encrypted layers (`Entry -> Rendezvous -> Delivery`) around a destination-
+encrypted fixed-size payload. Each public hop uses an independent random
+connection id; next-hop tokens are opaque and padded; every layer binds role,
+hop index, size class, ephemeral routing key, nonce, expiry, and replay token.
+The compact format is explicitly not Sphinx and carries no global-observer
+anonymity claim. `Mixed` and `Burst` remain runtime-fail-closed until the exact
+D-0305 executor receives independent review under #72.
+
+**Reason:** anonymous encryption alone does not authenticate a peer, unsigned
+PEX permits redirect/eclipse attacks, and the previous live relay path exposed
+application plaintext at the entry relay. Solving those concrete gaps must not
+turn a certificate authority, hosted directory, canonical relay list, trusted
+first peer, or administrative unmasking key into a new control point. Keeping
+identity optional also prevents direct-session hardening from destroying
+pairwise/anonymous onion and future mix hops.
+
+**Constitutional impact:** strengthens Directive 2 by avoiding mandatory
+operators; Directive 5 by keeping keys and identity proof local; Directive 6 by
+making authenticated identity optional and pairwise-compatible; and Directive
+16 by separating availability/routing from truth and governance. No balance,
+payment, storage, bandwidth, provider revenue, or service metric enters route,
+identity, personhood, validator, review, or governance authority. No admin,
+law-enforcement, recovery, traffic-master, or escrowed unmasking key exists.
+
+**Implementation status:** complete in draft PR #292. Permanent code covers
+bounded canonical claims/advertisements/PEX, KEL rollback pins, delegated
+capability checks, replay/expiry, structurally bound dial+session verification,
+local prefix-diverse selection, the Direct/Relayed execution gate, and three-hop
+destination-encrypted onion forwarding. Focused formatting, 64 unit tests, three
+real-socket tests plus one discovery/session integration test, and strict Clippy passed before truth sync; exact-head
+workspace/governance/reproducibility/Android workflows remain the merge floor.
+
+**Failure point:** a first-contact verifier cannot know about a later unseen KEL
+revocation without witness/gossip freshness; IP-prefix diversity does not prove
+independent ASN/operator/jurisdiction; public relay addresses remain blockable;
+TCP transcript shape remains fingerprintable; NAT traversal/reconnect are absent;
+and three-hop onion routing does not defeat global timing, volume,
+intersection, predecessor, or congestion correlation. `Mixed`/`Burst` are not
+operational and fail closed rather than inheriting a false anonymity label.
+
+**Required follow-up:** complete #24's authenticated NAT traversal and relay
+fallback; implement private bridge distribution and self-hostable pluggable
+bearers from #27's review; add witness/gossip KEL freshness; build and externally
+review the exact D-0305 Sphinx/Loopix executor under #72 before opening the
+Mixed/Burst gate; run hostile-network and weakest-device measurements. None of
+these may introduce a mandatory checkpoint, CA, bridge directory, cloud front,
+or unmasking authority.
+
+**Supersedes / superseded by:** tightens D-0015's former "future endpoint
+authentication" status and extends D-0306 from relay vocabulary/hop-by-hop
+envelopes to real layered execution. It does not supersede D-0305: the mixnet
+profile remains separate and externally gated.

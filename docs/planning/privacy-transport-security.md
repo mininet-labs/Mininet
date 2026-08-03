@@ -1,6 +1,6 @@
 # Privacy and transport security completion (#291)
 
-**Status:** implementation in progress on `codex/privacy-transport-security`.
+**Status:** P0/P1 implementation complete in draft PR #292; no merge, release, production, or anonymity-certification claim until exact-head workflows and human review pass.
 **Authority:** engineering work only. This document grants no production,
 mainnet, anonymity, or external-audit claim.
 
@@ -92,6 +92,29 @@ runtime evidence that those mechanisms exist.
 - NAT traversal, reconnect, bridge/pluggable transports, background daemon
   supervision, and hostile-country censorship measurements remain separate
   deployment work.
+
+## Implemented evidence
+
+- `mini-transport-security` provides canonical bounded codecs for channel-bound
+  delegated-device claims, signed peer advertisements, secure PEX responses,
+  local-seeded prefix-diverse dial plans, and the runtime privacy-tier gate.
+- `SessionAuthClaim::verify_advertised` structurally binds the signed endpoint
+  selected during discovery to the identity/routing key proved by the live CH1
+  transcript. A different genuine endpoint cannot replace it after redirect.
+- `mini-relay` provides exactly three independent X25519/AEAD layers, distinct
+  public hop identifiers, padded opaque next-hop tokens, per-hop expiry/replay
+  checks, fixed-size destination payloads, and destination-only decryption.
+- Permanent adversarial tests cover truncation, canonical re-encoding, wrong
+  role/purpose/channel/network, KEL rollback/revocation, redirect, expiry,
+  replay, duplicate/prefix concentration, wrong relay, route/key reuse,
+  tampering, cross-hop identifier separation, and payload-size bounds.
+- Real TCP tests prove mutual delegated-device authentication over one CH1 and
+  three independent relay sockets forwarding only layered ciphertext before the
+  destination opens the application payload.
+- Focused evidence at commit `7009828`: 53 `mini-relay` unit tests, two relay
+  real-socket tests, 11 `mini-transport-security` unit tests, one authenticated
+  real-socket test, and strict Clippy all passed. Exact-head workspace evidence
+  remains the merge gate.
 
 ## Merge floor
 

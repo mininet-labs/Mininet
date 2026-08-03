@@ -11,7 +11,7 @@ use mini_crypto::{
 };
 
 use crate::codec::{Reader, Writer};
-use crate::{ReplayCache, Result, TransportSecurityError};
+use crate::{ReplayCache, Result, TransportSecurityError, VerifiedPeerAdvertisement};
 
 pub const SESSION_AUTH_VERSION: u8 = 1;
 pub const MAX_SESSION_AUTH_BYTES: usize = 64 * 1024;
@@ -235,6 +235,44 @@ impl SessionAuthClaim {
             capabilities,
             purpose: self.purpose,
         })
+    }
+
+    /// Verify this live CH1 proof against the exact signed endpoint the
+    /// caller selected and dialed. This closes the discovery-to-session seam:
+    /// a second genuine endpoint at a redirected address cannot substitute its
+    /// own valid identity after the advertisement has been accepted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn verify_advertised(
+        &self,
+        advertisement: &VerifiedPeerAdvertisement,
+        expected_role: SessionRole,
+        expected_purpose: TransportPurpose,
+        channel_binding: &[u8; 32],
+        now_ms: u64,
+        root_kel: &Kel,
+        device_kel: &Kel,
+        freshness: &mut FreshnessPins,
+        replay: &mut ReplayCache,
+    ) -> Result<AuthenticatedPeer> {
+        if advertisement.root() != &self.root || advertisement.device() != &self.device {
+            return Err(TransportSecurityError::IdentityMismatch);
+        }
+        if advertisement.endpoint_id() != self.endpoint_id {
+            return Err(TransportSecurityError::EndpointMismatch);
+        }
+        if advertisement.routing_key() != self.routing_key {
+            return Err(TransportSecurityError::RoutingKeyMismatch);
+        }
+        self.verify(
+            expected_role,
+            expected_purpose,
+            channel_binding,
+            now_ms,
+            root_kel,
+            device_kel,
+            freshness,
+            replay,
+        )
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>> {

@@ -2,8 +2,8 @@
   "counts": {
     "crates": 71,
     "files": 828,
-    "headings": 2614,
-    "rust_symbols": 7477
+    "headings": 2618,
+    "rust_symbols": 7478
   },
   "crates": {
     "did-mini": {
@@ -1194,40 +1194,40 @@
       "title": "Blocking bootstrap baseline: validate that the"
     },
     {
-      "bytes": 3318,
+      "bytes": 2479,
       "group": "ci",
       "headings": [],
       "keywords": [
-        "path",
-        "git",
-        "text",
-        "anchor",
-        "cargo",
-        "member",
-        "checkout",
-        "merge",
-        "add",
-        "github",
-        "main",
-        "unresolved",
-        "encoding",
-        "utf-8",
-        "privacy-transport-integrate-main",
         "name",
+        "git",
+        "run",
+        "github",
+        "clippy",
+        "focused",
+        "path",
+        "workflows",
+        "tools",
+        "yml",
         "codex",
         "privacy-transport-security",
-        "origin",
-        "theirs",
-        "toml",
         "python3",
-        "workflows",
-        "yml"
+        "apply_privacy_transport_stage2",
+        "text",
+        "old",
+        "strict",
+        "cargo",
+        "privacy-transport-integrate-main",
+        "privacy-transport-finalize-push",
+        "push",
+        "true",
+        "uses",
+        "actions"
       ],
-      "lines": 97,
+      "lines": 62,
       "path": ".github/workflows/privacy-transport-integrate-main.yml",
-      "sha256": "2ed8805098aaef412a78580a09b976b8a28070980371c93edbde51673a2442a1",
+      "sha256": "28f38e888cafd36e08c65234abfef6f6ada5eb32b0fe6b186a58ec3e9c734658",
       "symbols": [],
-      "title": "name: privacy-transport-integrate-main"
+      "title": "name: privacy-transport-finalize-push"
     },
     {
       "bytes": 5767,
@@ -7103,7 +7103,7 @@
       "title": "The channel composes Mininet's own vetted primitives (X25519 + HKDF-SHA256 +"
     },
     {
-      "bytes": 3859,
+      "bytes": 4171,
       "group": "crate:mini-bearer",
       "headings": [
         {
@@ -7123,31 +7123,36 @@
         },
         {
           "level": 2,
-          "line": 46,
+          "line": 48,
           "text": "`TcpBearer` \u2014 a real network transport (D-0042)"
         },
         {
           "level": 2,
-          "line": 70,
+          "line": 72,
           "text": "Not yet"
         },
         {
           "level": 2,
-          "line": 77,
+          "line": 81,
           "text": "Build & test"
         }
       ],
       "keywords": [
         "real",
+        "channel",
         "bearer",
         "tcpbearer",
-        "channel",
-        "mini-bearer",
         "anonymous",
         "layer",
+        "mini-bearer",
         "ble",
+        "one",
+        "need",
         "same",
+        "binding",
+        "purpose",
         "connection",
+        "valid",
         "payload",
         "transport",
         "d-0042",
@@ -7155,17 +7160,12 @@
         "frames",
         "relay",
         "bearers",
-        "one",
-        "need",
         "trait",
-        "already",
-        "handshake",
-        "binding",
-        "authentication"
+        "already"
       ],
-      "lines": 84,
+      "lines": 88,
       "path": "crates/mini-bearer/README.md",
-      "sha256": "26122f3d95ed4c007cfd2228489dc5c9623af24d2500ff788fb12b4bb41d235a",
+      "sha256": "3970bb67f91bad2015e40329b177beeb4a6e4bed804e253fcd348ce6ca4be22f",
       "symbols": [],
       "title": "mini-bearer"
     },
@@ -34943,7 +34943,7 @@
       "title": "Only the local randomness primitive (ephemeral peer id generation) \u2014 no"
     },
     {
-      "bytes": 3148,
+      "bytes": 3935,
       "group": "crate:mini-net",
       "headings": [
         {
@@ -34974,43 +34974,48 @@
         {
           "level": 2,
           "line": 44,
+          "text": "Secure discovery alternative (D-0377 proposal)"
+        },
+        {
+          "level": 2,
+          "line": 59,
           "text": "Honest limits"
         },
         {
           "level": 2,
-          "line": 66,
+          "line": 81,
           "text": "Build & test"
         }
       ],
       "keywords": [
+        "mini-net",
         "gossip",
         "real",
-        "mini-net",
-        "terminal",
         "peer",
-        "network",
-        "example",
+        "terminal",
         "live",
+        "network",
+        "discovery",
+        "example",
         "demo",
+        "routing",
         "message",
+        "same",
         "cargo",
         "honest",
         "own",
-        "discovery",
         "broadcast",
         "local",
-        "routing",
         "routingtable",
         "gossiprouter",
-        "same",
+        "first",
         "run",
         "gossip_live_demo",
-        "socket",
-        "above"
+        "socket"
       ],
-      "lines": 73,
+      "lines": 88,
       "path": "crates/mini-net/README.md",
-      "sha256": "adfa4e59066d4a3e509aec7c86db3aedd66a2f8ee4b2b2e9e1f574618f2eb006",
+      "sha256": "c2e606bcc76b0d20872f5c7df4d68a1e335d406dce2e76f3b82bb2c891e4eedf",
       "symbols": [],
       "title": "mini-net"
     },
@@ -56888,7 +56893,7 @@
       "title": "use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};"
     },
     {
-      "bytes": 20252,
+      "bytes": 21690,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
@@ -56899,15 +56904,15 @@
         "did",
         "transcript",
         "derive",
-        "transportendpointid",
-        "routing_key",
         "sessionrole",
         "transportpurpose",
+        "transportendpointid",
         "to_bytes",
         "debug",
         "clone",
         "partialeq",
         "match",
+        "routing_key",
         "mini-transport-security",
         "endpoint_domain",
         "from_tag",
@@ -56917,9 +56922,9 @@
         "u64",
         "endpoint"
       ],
-      "lines": 590,
+      "lines": 628,
       "path": "crates/mini-transport-security/src/auth.rs",
-      "sha256": "ef95c479dfbe7b7921d7939bdf887449044bec8c90e0967a590fb6d636d99cbb",
+      "sha256": "962af5570ad4ca7aa81456048cd48bd6f06c9f24d26d2f6240385306b36eb526",
       "symbols": [
         {
           "kind": "const",
@@ -57063,57 +57068,62 @@
         },
         {
           "kind": "fn",
-          "line": 240,
+          "line": 245,
+          "name": "verify_advertised"
+        },
+        {
+          "kind": "fn",
+          "line": 278,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 271,
+          "line": 309,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 333,
+          "line": 371,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 351,
+          "line": 389,
           "name": "replay_id"
         },
         {
           "kind": "fn",
-          "line": 363,
+          "line": 401,
           "name": "validate_window"
         },
         {
           "kind": "mod",
-          "line": 380,
+          "line": 418,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 387,
+          "line": 425,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 396,
+          "line": 434,
           "name": "binding"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 443,
           "name": "claim_round_trips_and_authenticates_the_exact_session"
         },
         {
           "kind": "fn",
-          "line": 441,
+          "line": 479,
           "name": "another_channel_role_or_purpose_cannot_reuse_the_proof"
         },
         {
           "kind": "fn",
-          "line": 501,
+          "line": 539,
           "name": "revoked_device_and_duplicate_claim_fail_closed"
         }
       ],
@@ -57597,7 +57607,7 @@
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 3986,
+      "bytes": 3963,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
@@ -57626,9 +57636,9 @@
         "replaycache",
         "sessionauthclaim"
       ],
-      "lines": 123,
+      "lines": 119,
       "path": "crates/mini-transport-security/tests/advertised_binding.rs",
-      "sha256": "02e9001242a9a91dfea0e147f6238d59f5edba8f3be4705ea344675b8fc2f4d1",
+      "sha256": "b7a0f1da2d3f18bc161a3757012feaff51736674aceb07c422ddbfb0a0eaa169",
       "symbols": [
         {
           "kind": "fn",
@@ -57637,12 +57647,12 @@
         },
         {
           "kind": "fn",
-          "line": 23,
+          "line": 19,
           "name": "channel_binding"
         },
         {
           "kind": "fn",
-          "line": 32,
+          "line": 28,
           "name": "dialed_advertisement_and_live_session_must_name_the_same_endpoint"
         }
       ],
@@ -63916,7 +63926,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 899640,
+      "bytes": 904262,
       "group": "docs",
       "headings": [
         {
@@ -64346,9 +64356,9 @@
         "status",
         "deterministic"
       ],
-      "lines": 14983,
+      "lines": 15056,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "371d8ff74b71b4d52d417097e1f25ecf14e93080eb1319130fcc4ad194f27b25",
+      "sha256": "d8e47a4b5baab324966f93592b54f8a09de13977d3457b98e270c0a30a84079a",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -65497,7 +65507,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 117728,
+      "bytes": 119875,
       "group": "docs",
       "headings": [
         {
@@ -65584,6 +65594,11 @@
           "level": 2,
           "line": 1780,
           "text": "Where to look for more detail"
+        },
+        {
+          "level": 2,
+          "line": 1797,
+          "text": "Privacy and transport security \u2014 D-0377 proposal"
         }
       ],
       "keywords": [
@@ -65605,16 +65620,16 @@
         "top",
         "development",
         "value",
+        "privacy",
+        "security",
         "decision",
         "one",
         "design",
-        "claude",
-        "social",
-        "network"
+        "claude"
       ],
-      "lines": 1795,
+      "lines": 1829,
       "path": "docs/STATUS.md",
-      "sha256": "72efc57ea6ea75c24ff472554b5de8bb66f80723bb160a5b1df246c30e0b8a19",
+      "sha256": "f43245f31bc53c6378e40f5ec04afe6fdeb23f8f5ca6b9b7c443b8cdb8ba972a",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -65726,7 +65741,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 26345,
+      "bytes": 29469,
       "group": "docs",
       "headings": [
         {
@@ -65778,6 +65793,11 @@
           "level": 2,
           "line": 132,
           "text": "What this document is not"
+        },
+        {
+          "level": 2,
+          "line": 149,
+          "text": "Transport/privacy addendum \u2014 D-0377"
         }
       ],
       "keywords": [
@@ -65806,9 +65826,9 @@
         "machine",
         "single"
       ],
-      "lines": 147,
+      "lines": 167,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "04612ba0964d7cafee27d8d6f571dd7dfd019c8aeb64825a247149c1274be722",
+      "sha256": "1d732c008d8a925b5a449f8c9c08278cacbe110d59092c058444312a202c8593",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -77850,7 +77870,7 @@
       "title": "Native release retrieval \u2014 preliminary implementation report"
     },
     {
-      "bytes": 5478,
+      "bytes": 7066,
       "group": "docs",
       "headings": [
         {
@@ -77901,6 +77921,11 @@
         {
           "level": 2,
           "line": 96,
+          "text": "Implemented evidence"
+        },
+        {
+          "level": 2,
+          "line": 119,
           "text": "Merge floor"
         }
       ],
@@ -77917,6 +77942,7 @@
         "key",
         "authentication",
         "signed",
+        "review",
         "anonymous",
         "authenticated",
         "but",
@@ -77924,15 +77950,14 @@
         "its",
         "relay",
         "device",
-        "bounded",
         "mix",
         "pairwise",
         "self-certifying",
         "discovery"
       ],
-      "lines": 108,
+      "lines": 131,
       "path": "docs/planning/privacy-transport-security.md",
-      "sha256": "5a63f9f767e5dd40a9a97965eee60554584c969129a30d331fd6d668bf7ebaf8",
+      "sha256": "7cf8e9250a2641df5b4b4415a58adc9b8f21a9080f8fc242d3fa0d15d201f4a5",
       "symbols": [],
       "title": "Privacy and transport security completion (#291)"
     },
@@ -80504,7 +80529,7 @@
       "title": "Pinning the toolchain is part of moving toward reproducible builds (SPEC-11)."
     },
     {
-      "bytes": 18600,
+      "bytes": 18645,
       "group": "tools",
       "headings": [
         {
@@ -80656,7 +80681,7 @@
       ],
       "lines": 336,
       "path": "tools/apply_privacy_transport_stage2.py",
-      "sha256": "85ad07af3b5aef79b7e203a5e12ff56609e3a1f8e3b2e993027e4970ec691921",
+      "sha256": "509957cd0a488f0f683bf2d78aaf09811257b71c008f992ebd985f9f5d30328c",
       "symbols": [],
       "title": "---------------------------------------------------------------------------"
     },

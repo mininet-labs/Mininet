@@ -2,19 +2,15 @@ use did_mini::{Capabilities, Controller, FreshnessPins};
 use mini_bearer::{Initiator, Responder};
 use mini_crypto::AgreementSecretKey;
 use mini_transport_security::{
-    PeerAdvertisement, ReplayCache, SessionAuthClaim, SessionRole,
-    TransportPurpose, TransportSecurityError,
+    PeerAdvertisement, ReplayCache, SessionAuthClaim, SessionRole, TransportPurpose,
+    TransportSecurityError,
 };
 
 fn identity(seed: u8) -> (Controller, Controller) {
-    let mut root =
-        Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
-    let device = Controller::incept_device_single_from_seeds(
-        &root.did(),
-        &[seed + 2; 32],
-        &[seed + 3; 32],
-    )
-    .unwrap();
+    let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
+    let device =
+        Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
+            .unwrap();
     root.delegate_device(&device.did(), Capabilities::primary())
         .unwrap();
     (root, device)
