@@ -89,15 +89,20 @@ runtime evidence that those mechanisms exist.
 - Transport endpoint authentication reveals the presented pairwise/root and
   device to that counterparty. Callers needing unlinkability must use pairwise
   identities or anonymous onion/mix hops, not a global root.
-- NAT traversal, reconnect, bridge/pluggable transports, background daemon
-  supervision, and hostile-country censorship measurements remain separate
-  deployment work.
+- NAT traversal, reconnect, background daemon supervision, and hostile-country
+  censorship measurements remain separate deployment work. Bridge,
+  pluggable-transport, and camouflage adapters belong in the existing
+  `mini-bridge::PluggableTransport` and `PtProcessManager` subsystem; extend and
+  independently review that boundary instead of duplicating bridge management
+  in `mini-transport-security`.
 
 ## Implemented evidence
 
 - `mini-transport-security` provides canonical bounded codecs for channel-bound
   delegated-device claims, signed peer advertisements, secure PEX responses,
   local-seeded prefix-diverse dial plans, and the runtime privacy-tier gate.
+  Both public issue APIs generate signed replay nonces internally through
+  `mini_crypto::random_32`; callers cannot inject deterministic fixture values.
 - `SessionAuthClaim::verify_advertised` structurally binds the signed endpoint
   selected during discovery to the identity/routing key proved by the live CH1
   transcript. A different genuine endpoint cannot replace it after redirect.
