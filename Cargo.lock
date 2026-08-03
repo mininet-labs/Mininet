@@ -2924,6 +2924,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-search-federation-net"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-bearer",
+ "mini-crypto",
+ "mini-lexical-index",
+ "mini-objects",
+ "mini-query",
+ "mini-ranker",
+ "mini-search-federation",
+ "mini-store",
+ "mini-sync",
+ "mini-web-types",
+]
+
+[[package]]
 name = "mini-settlement"
 version = "0.0.1"
 dependencies = [
