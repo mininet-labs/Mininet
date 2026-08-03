@@ -574,7 +574,7 @@
     },
     {
       "issue": 34,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/sandbox-d7xndc",
       "pull_request": 293,
@@ -593,7 +593,29 @@
       "decision_ids": [
         "D-0434"
       ],
-      "notes": "Roadmap #34 (Phase 4.6): cold/owner-only storage tiers. mini_store::owner_seal gives mini_objects::Payload::Encrypted a real sealed-box construction composed from existing mini-crypto primitives (independent X25519 sealing keypair, not KEL-derived), plus CacheTier::ColdArchive (never advertised, never touched by note_view). Coordination evidence only; no approval or release claim. Orthogonal to the in-flight consensus (issue #61/#289) and privacy/transport (#292) work; chosen specifically to avoid collision with those tracks."
+      "notes": "Roadmap #34 (Phase 4.6): cold/owner-only storage tiers. mini_store::owner_seal gives mini_objects::Payload::Encrypted a real sealed-box construction composed from existing mini-crypto primitives (independent X25519 sealing keypair, not KEL-derived), plus CacheTier::ColdArchive (never advertised, never touched by note_view). Coordination evidence only; no approval or release claim. Orthogonal to the in-flight consensus (issue #61/#289) and privacy/transport (#292) work; chosen specifically to avoid collision with those tracks. PR #293 merged to main 2026-08-03T14:44:33Z; closed here (issue #175 branch) since this next registry-touching proposal is the following PR to touch this file, per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+    },
+    {
+      "issue": 175,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/sandbox-d7xndc",
+      "pull_request": null,
+      "lease_expires": "2026-08-10",
+      "paths": [
+        "crates/mini-search-federation-net/src/query.rs",
+        "crates/mini-search-federation-net/src/lib.rs",
+        "crates/mini-search-federation-net/src/error.rs",
+        "crates/mini-search-federation-net/Cargo.toml",
+        "crates/mini-search-federation-net/tests/query_over_tcp.rs",
+        "docs/design/f6-private-query-transport.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0435"
+      ],
+      "notes": "Track F6 Phase 1 (roadmap #175, distributed/federated search): bounded, confidential-in-transit remote query transport in mini-search-federation-net's new query module (remote_query/serve_query). Explicitly not a private-information-retrieval scheme -- the queried peer sees the exact query text; true query-content privacy is separate future work gated behind issue #72's external crypto review. Coordination evidence only; no approval or release claim. Closes the last remaining piece of Track F (F1/F2/F2b/F3/F4/F7 already shipped)."
     }
   ]
 }

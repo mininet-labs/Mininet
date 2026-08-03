@@ -15091,3 +15091,112 @@ on and does not modify `cache.rs`'s existing five-tier model or its
 frozen `PrivateOnly`-ceiling rule (2026-07-07 founder decision); builds on
 and does not modify `mini-crypto`'s existing `agreement`/`kdf`/`aead`
 modules (all reused unchanged).
+
+### D-0435 — Track F6 Phase 1: bounded, confidential-in-transit remote query transport  ·  *Accepted*
+
+**Date:** 2026-08-03 · **Refs:** roadmap #175 (Track F, distributed/
+federated search); `docs/design/federated-search-exchange-f1-f2.md`
+(F1-F5/F7); `docs/design/f6-private-query-transport.md` (full doctrine);
+`mini-search-federation-net`'s own crate doc, which named this exact gap
+before this entry ("Sending a caller's search query to a remote peer for
+server-side evaluation is Track F6 (private query transport), explicitly
+undesigned and out of scope"); issue #72 (external crypto audit gate).
+
+**Decision:** add a `query` module to `mini-search-federation-net`:
+`remote_query` (client) sends a bounded raw query string, a
+`RankingProfile`, and a `max_results` cap to one already-dialed peer over
+an already-established `mini_bearer::Channel`; `serve_query` (server)
+runs the unmodified `mini_query::parse_query`/`mini_query::search`
+against its own locally-held `IndexSegment`/`Corpus`/
+`DocumentContextTable`/`IndexSegmentId` and returns a bounded,
+ranked-result response. Every field is bounded (`MAX_QUERY_TEXT_BYTES` =
+512, `MAX_QUERY_RESULTS` = 64, plus per-field caps on the response mirroring
+F1/F2b's own title/snippet/host/path/jurisdiction orders of magnitude); a
+compliant server never returns more results than the request's own
+`max_results`. Unlike F1/F2/F2b, the response is not wrapped in a signed
+`Object` — it is answered fresh for exactly this one live request, not
+meant to be durably stored or independently re-verified later, so its
+only integrity property ("came from whoever is on the other end of this
+channel") is exactly what the channel's own AEAD already provides.
+
+**Reason:** every other Track F piece assumed a caller already held (or
+had bulk-pulled) a full index segment before running `federate_query`
+locally — reasonable when the caller wants many queries against the same
+source, wasteful when it wants a handful of results from one already-known
+provider. This closes that gap the way `mini-search-federation-net`'s own
+crate doc predicted it eventually would need to: a direct query/response
+mode, honestly scoped as **not** a private-information-retrieval
+scheme — the queried provider sees the exact query text, because
+`parse_query`/`search` need real terms to run and this decision does not
+invent a PIR/oblivious-keyword-search construction to hide them from a
+crate that has never had one reviewed. That is the correct Phase 1 floor,
+stated plainly rather than papered over, exactly as the Sphinx/Loopix mix
+executor's absence is stated plainly for `mini-relay`'s Mixed/Burst tiers
+(both gated behind issue #72's external crypto review before any attempt
+to close them). Requester-anonymity needed no new code at all:
+`mini_bearer::Channel`/CH1 is identity-agnostic by construction, so a
+query round trip already discloses no client identity, exactly as any
+other CH1 session.
+
+**Constitutional impact:** none. No frozen invariant touched. No
+voice/value wall edge (P1, Directive 16): `mini-search-federation-net`
+gains no new crate dependency beyond promoting `mini-crypto` from a
+dev-only to a real dependency (for `Multihash`, already used elsewhere in
+this crate family) and using `mini-query`/`mini-bearer`, both already
+dependencies. No generic `sign(bytes)`/authority surface — there is no
+signing in this module at all, deliberately (see "Decision" above); no
+payment, ranking-authority, or truth-oracle claim, since the response is
+one provider's own computed opinion, exactly as every other Track F
+source already is.
+
+**Implementation status:** shipped and tested.
+`crates/mini-search-federation-net/src/query.rs`: `WireResult`,
+`remote_query`, `serve_query`, `MAX_QUERY_TEXT_BYTES`,
+`MAX_QUERY_RESULTS`, all exported from the crate root. A purpose-built
+bounded wire codec for `CanonicalUrl`/`AvailabilityState`/
+`RankingProfile`/`RankingProfileId`/`IndexSegmentId` local to this module
+(not reusing `mini-search-federation`'s internal F1/F2b codec — a
+different wire message answering a different question, per the design
+doc's own reasoning). `NetError::Query` added for the underlying
+`mini-query` error path. 6 new unit tests (round trip matches an
+equivalent local `search` call; oversized query text rejected before
+sending; zero/oversized `max_results` rejected; a compliant server never
+exceeds the requested `max_results`; every current
+`AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/`Scheme`/
+`PersonalizationPolicy` variant round-trips with a future-variant-safe
+fallback for each `#[non_exhaustive]` enum; a tampered ciphertext fails
+closed) plus one new real-socket integration test
+(`tests/query_over_tcp.rs`) proving `remote_query`/`serve_query` over an
+actual `TcpBearer` pair, mirroring `live_over_tcp.rs`'s own handshake
+pattern. Full workspace ritual green: `cargo fmt --all -- --check`,
+`cargo clippy --workspace --all-targets --all-features -- -D warnings`,
+`cargo test --workspace --all-features`, `cargo deny check`, governance
+baseline check, `work_claims.py validate`, nav regen.
+
+**Failure point:** the queried provider sees the caller's exact query
+terms — this is the stated floor, not an oversight, but it means F6
+Phase 1 must never be presented as query-content-private. The response is
+not integrated into F3's `FederatedResult`/`federate_query` merge path; a
+caller wanting to blend a live remote query with local/pulled sources
+must convert `WireResult`s itself today. No caller/provider authentication
+beyond whatever the channel itself provides — a caller wanting "this
+exact peer answered" needs `mini-transport-security`'s optional
+authentication layered on top once that crate's own review lands. No
+rate limiting, caching, or query-logging policy; no multi-provider
+fan-out.
+
+**Required follow-up:** true query-content privacy against the queried
+provider itself (PIR/oblivious keyword search), gated behind issue #72's
+external review, not attempted here. Wire `remote_query`'s results into
+F3's merge path. Optional `mini-transport-security` authentication once
+reviewed. Rate limiting/caching/query-logging policy, left to callers.
+`remote_query_many` (multi-provider fan-out), once a real deployment
+shape motivates it.
+
+**Supersedes / superseded by:** new ground — no prior decision addressed
+sending live query terms to a remote peer. Builds on and does not modify
+F1-F5/F7's own object formats, merge policy, or ranking behavior
+(`docs/design/federated-search-exchange-f1-f2.md`), `mini_query::
+parse_query`/`search` (unmodified, reused exactly as-is), or
+`mini-search-federation-net`'s existing advertise/pull/assemble exchange
+(`message.rs`/`session.rs`/`multi.rs`/`assemble.rs`, all untouched).

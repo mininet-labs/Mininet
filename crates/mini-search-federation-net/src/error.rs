@@ -1,5 +1,6 @@
 use mini_bearer::BearerError;
 use mini_objects::ObjectError;
+use mini_query::QueryError;
 use mini_store::StoreError;
 use mini_sync::SyncError;
 
@@ -38,6 +39,9 @@ pub enum NetError {
     /// [`crate::assemble_federation_source`]: no F2b corpus bundle in the
     /// trusted id set declares the segment's own `IndexSegmentId`.
     NoMatchingCorpusBundle,
+    /// F6 [`crate::serve_query`]: the underlying `mini-query` parse/rank
+    /// pass failed.
+    Query(QueryError),
 }
 
 impl core::fmt::Display for NetError {
@@ -66,10 +70,16 @@ impl core::fmt::Display for NetError {
                 f,
                 "no F2b corpus bundle in the trusted id set declares this segment's id"
             ),
+            NetError::Query(e) => write!(f, "query: {e}"),
         }
     }
 }
 impl std::error::Error for NetError {}
+impl From<QueryError> for NetError {
+    fn from(e: QueryError) -> Self {
+        NetError::Query(e)
+    }
+}
 impl From<BearerError> for NetError {
     fn from(e: BearerError) -> Self {
         NetError::Bearer(e)

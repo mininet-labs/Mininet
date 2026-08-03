@@ -15,19 +15,23 @@
 //! 1. A tiny bounded advertisement exchange ([`message`], private wire
 //!    format) so a client learns *which* ids to ask `mini-sync` to retrieve.
 //!    No query terms, ranking profile, or free text of any kind crosses the
-//!    wire here — a peer states which object ids it holds, nothing more.
-//!    Sending a caller's search query to a remote peer for server-side
-//!    evaluation is Track F6 (private query transport), explicitly
-//!    undesigned and out of scope; this crate never does that.
-//! 2. A federation-specific post-check ([`pull_source`]) on top of
+//!    wire in this exchange — a peer states which object ids it holds,
+//!    nothing more.
+//! 2. [`remote_query`]/[`serve_query`] (Track F6 Phase 1, [`query`]) are
+//!    the deliberate, separately-scoped exception: a bounded query string
+//!    *does* cross the wire here, confidential-in-transit only — the
+//!    queried peer sees it in full. This is not a private-information-
+//!    retrieval scheme; see `docs/design/f6-private-query-transport.md`
+//!    for the full doctrine on what this is and is not.
+//! 3. A federation-specific post-check ([`pull_source`]) on top of
 //!    `mini-sync`'s already-verified ingest: every returned object must
 //!    decode as F1/F2/F2b, and, when the caller names an expected provider,
 //!    must actually be authored by that identity. `mini-sync` proves an
 //!    object is validly signed by *some* real identity; this crate is what
 //!    makes "this session's objects, from this provider" a checked claim
 //!    rather than an assumption a relaying/confused peer could violate.
-//! 3. A source-count bound across a multi-peer session ([`pull_from_sources`]).
-//! 4. [`assemble_federation_source`], which turns a
+//! 4. A source-count bound across a multi-peer session ([`pull_from_sources`]).
+//! 5. [`assemble_federation_source`], which turns a
 //!    [`SourcePullReport::trusted`] id set into a real, owned
 //!    [`OwnedFederationSource`] ready for
 //!    [`mini_search_federation::federate_query`] — pairing a pulled F2
@@ -61,9 +65,11 @@ mod assemble;
 mod error;
 mod message;
 mod multi;
+mod query;
 mod session;
 
 pub use assemble::{assemble_federation_source, OwnedFederationSource};
 pub use error::{NetError, Result};
 pub use multi::{pull_from_sources, FederationPullReport, PeerSource};
+pub use query::{remote_query, serve_query, WireResult, MAX_QUERY_RESULTS, MAX_QUERY_TEXT_BYTES};
 pub use session::{pull_source, serve_source, SourcePullReport};

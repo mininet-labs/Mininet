@@ -1278,7 +1278,10 @@ the top development priority.
   concurrently-queried sources and no cross-provider trust weighting;
   `local_rerank` accepts only `FederatedResult`, not a bare
   single-provider result list; `SnapshotIndex` is entirely in-memory and
-  per-process, not persisted/signed/shared. F6 (private query transport) remains undesigned and unbuilt. F5 now
+  per-process, not persisted/signed/shared. F6 (private query transport)
+  Phase 1 is now shipped (D-0435, below) -- bounded, confidential-in-transit
+  query/response only, explicitly **not** a private-information-retrieval
+  scheme (the queried provider sees the exact query text). F5 now
   has its Phase-0 doctrine (D-0427) plus a completed **deterministic,
   valueless Phase-2 falsification model** (D-0428) in `tools/
   f5_phase2_model.py`, with adversarial tests and a byte-exact checked-in
@@ -1371,6 +1374,26 @@ the top development priority.
   to which provider/segment when a peer serves several segments at once.
   See `docs/design/federated-search-exchange-f1-f2.md`'s "F1/F2/F2b
   transport and assembly" section.
+- **shipped** — Track F6 Phase 1: bounded, confidential-in-transit remote
+  query transport (D-0435, `mini-search-federation-net`'s new `query`
+  module, roadmap #175). `remote_query`/`serve_query` let a caller send a
+  bounded raw query string, `RankingProfile`, and `max_results` cap to one
+  already-dialed peer and get back ranked results computed by the
+  unmodified `mini_query::parse_query`/`search` against the peer's own
+  held index — no bulk index pull required for a handful of results.
+  **Not** a private-information-retrieval scheme: the queried peer sees
+  the query text in full; true query-content privacy is separate future
+  work gated behind issue #72's external crypto review, the same gate
+  Sphinx/Loopix sits behind. Requester anonymity needed no new code —
+  `mini_bearer::Channel`/CH1 already discloses no client identity. Not
+  wrapped in a signed `Object` (a live answer, not a durable one); not
+  wired into F3's `FederatedResult` merge path yet. Real, tested: 6 unit
+  tests (round trip matches local `search`; oversized query/`max_results`
+  bounds; a compliant server never over-returns; every current
+  `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/`Scheme`/
+  `PersonalizationPolicy` variant round-trips with a future-safe fallback;
+  tampered ciphertext fails closed) plus one real `TcpBearer` socket test.
+  See `docs/design/f6-private-query-transport.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
