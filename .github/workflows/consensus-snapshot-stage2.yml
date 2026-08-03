@@ -17,6 +17,7 @@ on:
       - crates/mini-consensus/src/node.rs
       - crates/mini-consensus/src/net.rs
       - crates/mini-consensus/src/store.rs
+      - crates/mini-consensus/src/state_sync.rs
       - crates/mini-consensus/src/snapshot_sync_tests.rs
 
 permissions:
@@ -34,6 +35,18 @@ jobs:
         with:
           toolchain: 1.94.1
           components: clippy
+      - name: Adapt stage-two node patch to the boxed snapshot payload
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tools/apply_consensus_snapshot_stage2.py")
+          text = path.read_text(encoding="utf-8")
+          old = "snapshot.clone().into_chain("
+          new = "snapshot.as_ref().clone().into_chain("
+          if text.count(old) != 1:
+              raise SystemExit("stage-two snapshot node target changed")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Apply and test node/archive/TCP integration
         run: python3 tools/apply_consensus_snapshot_stage2.py
       - name: Commit permanent implementation
