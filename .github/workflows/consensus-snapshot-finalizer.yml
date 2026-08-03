@@ -1,0 +1,194 @@
+name: consensus-snapshot-finalizer
+
+on:
+  push:
+    branches:
+      - codex/consensus-snapshot-sync
+    paths:
+      - .github/workflows/consensus-snapshot-finalizer.yml
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+
+concurrency:
+  group: consensus-snapshot-finalizer
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/consensus-snapshot-sync
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.1
+          components: clippy,rustfmt
+      - name: Apply any remaining hardening and integrate main
+        run: |
+          set -euo pipefail
+          git config user.name "mininet-consensus-snapshot"
+          git config user.email "actions@users.noreply.github.com"
+
+          if [ -e tools/apply_consensus_snapshot_stage4.py ]; then
+            python3 tools/apply_consensus_snapshot_stage4.py
+          fi
+
+          git rm --ignore-unmatch \
+            .github/workflows/consensus-snapshot-stage4.yml \
+            .github/workflows/consensus-snapshot-stage5.yml \
+            tools/apply_consensus_snapshot_stage4.py
+
+          git fetch origin main
+          git merge --no-edit origin/main
+
+          git rm .github/workflows/consensus-snapshot-finalizer.yml
+          python3 tools/generate_repo_navigation.py --write
+          git diff --check
+      - name: Validate clean integrated tree
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          cargo test --workspace --all-targets --all-features
+          python3 tools/check_governance.py
+          python3 tools/check_work_claims.py
+      - name: Push final exact head
+        id: push
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "merge: finalize D-0207 on current main"
+          git push origin HEAD:codex/consensus-snapshot-sync
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Wait for exact-head repository workflows
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.push.outputs.sha }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = os.environ["FINAL_SHA"]
+          token = os.environ["GITHUB_TOKEN"]
+          required = {
+              "ci",
+              "governance-policy",
+              "reproducibility",
+              "android-ci",
+              "android-reproducibility",
+          }
+          deadline = time.time() + 50 * 60
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          while time.time() < deadline:
+              req = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&per_page=100",
+                  headers=headers,
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  runs = json.load(response).get("workflow_runs", [])
+
+              by_name = {name: [] for name in required}
+              for run in runs:
+                  if run.get("name") in by_name:
+                      by_name[run["name"]].append(run)
+
+              present = {name for name, values in by_name.items() if values}
+              active = [
+                  run for values in by_name.values() for run in values
+                  if run.get("status") != "completed"
+              ]
+              success = {
+                  name for name, values in by_name.items()
+                  if any(
+                      run.get("status") == "completed"
+                      and run.get("conclusion") == "success"
+                      for run in values
+                  )
+              }
+              failed = [
+                  (name, run.get("conclusion"), run.get("html_url"))
+                  for name, values in by_name.items()
+                  for run in values
+                  if run.get("status") == "completed"
+                  and run.get("conclusion") not in {"success", "neutral", "skipped"}
+              ]
+              if failed:
+                  raise SystemExit(f"required exact-head workflow failed: {failed}")
+              if present == required and success == required and not active:
+                  print(f"all required workflows passed on {sha}")
+                  break
+              print(
+                  f"waiting on {sha}: present={sorted(present)} "
+                  f"success={sorted(success)} active={len(active)}"
+              )
+              time.sleep(20)
+          else:
+              raise SystemExit(f"timed out waiting for required workflows on {sha}")
+          PY
+      - name: Correct PR record and mark ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.push.outputs.sha }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/pr-body.md <<EOF
+          ## D-0207 — Authenticated snapshots, persistent catch-up, and bounded pruning
+
+          Resolves the weak/long-offline-device state-sync slice of #45 without introducing a checkpoint authority.
+
+          ### Implemented
+
+          - Canonical, versioned codecs for the complete deterministic monetary and execution state.
+          - A snapshot binds the exact finalized block header, quorum certificate, state commitment, and settlement-network identifier.
+          - The receiving node verifies the QC with its own static validator set and KEL oracle, recomputes the state commitment, and rejects wrong-network, forged, non-quorate, stale, gapped, duplicate, conflicting, truncated, oversized, or non-canonical input.
+          - Encrypted snapshot-aware state sync returns either a bounded finalized suffix or one authenticated snapshot followed by a bounded suffix; a snapshot-only page remains useful when a later block does not fit.
+          - Adoption is all-or-nothing against a cloned chain, so a bad later block cannot partially advance live or persistent state.
+          - The local archive provides atomic replacement, file locking, symlink refusal, bounded files/directories/retained bytes, crash-replay journals for peer installs, restart recovery, bounded recent history, and safe pruning after checkpoint durability.
+          - Ordinary live commits persist the verified finalized block without rewriting a complete-state journal at every height.
+          - Response construction is linear in one snapshot plus the selected suffix rather than repeatedly cloning and serializing the snapshot.
+          - Real-TCP tests prove a long-offline node reaches the exact cluster state and reopens from its independently verified local recovery state.
+
+          ### Authority boundaries
+
+          - No checkpoint operator, hosted snapshot authority, admin key, hardcoded trusted peer, trust-on-first-use rule, or majority-by-download rule.
+          - Peers and local archives supply bytes only. Canonical state remains the locally verified QC plus deterministic state commitment.
+          - Balance, storage, bandwidth, service, and snapshot volume confer no validator weight, governance voice, personhood, ownership, or ranking power.
+          - No new cryptography and no production, mainnet, real-money, or external-audit claim.
+
+          ### Honest limitations
+
+          Verification is scoped to the repository's current static validator-set model. Historical validator-set transitions, long-range/weak-subjectivity policy, chunked Merkle state transfer, automatic peer discovery/selection/retry, and physical weakest-device benchmarks remain separate work. AI-generated engineering evidence carries zero approval weight.
+
+          ### Exact-head evidence
+
+          Final head: \`${FINAL_SHA}\`
+
+          Before this PR was marked ready, that exact head passed repository CI, governance policy, reproducibility, Android CI, Android reproducibility, dependency audit/deny, full formatting, strict Clippy, and the complete workspace test suite.
+
+          Refs #45
+          EOF
+
+          jq -n \
+            --arg title "Consensus: authenticated snapshots, persistent catch-up, and bounded pruning (D-0207)" \
+            --rawfile body /tmp/pr-body.md \
+            '{title: $title, body: $body}' > /tmp/pr-update.json
+          gh api --method PATCH repos/mininet-labs/Mininet/pulls/289 --input /tmp/pr-update.json
+          gh pr ready 289 --repo mininet-labs/Mininet
+          gh pr view 289 --repo mininet-labs/Mininet \
+            --json isDraft,mergeable,mergeStateStatus,headRefOid,statusCheckRollup
