@@ -26,6 +26,30 @@ def replace_once(path: Path, old: str, new: str) -> None:
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
+def replace_in_function(
+    path: Path,
+    function_name: str,
+    old: str,
+    new: str,
+) -> None:
+    text = path.read_text(encoding="utf-8")
+    marker = f"    fn {function_name}"
+    start = text.find(marker)
+    if start < 0:
+        raise SystemExit(f"{path}: function not found: {function_name}")
+    end = text.find("\n    fn ", start + len(marker))
+    if end < 0:
+        end = len(text)
+    segment = text[start:end]
+    count = segment.count(old)
+    if count != 1:
+        raise SystemExit(
+            f"{path}:{function_name}: expected one target, found {count}: {old[:160]!r}"
+        )
+    segment = segment.replace(old, new, 1)
+    path.write_text(text[:start] + segment + text[end:], encoding="utf-8")
+
+
 def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True)
 
@@ -41,8 +65,9 @@ replace_once(
 """,
 )
 
-replace_once(
+replace_in_function(
     TIME_INDEX,
+    "query_forward",
     """        let extra = delta.len();
         let base_budget = limit.checked_add(extra).ok_or(StoreError::LimitExceeded)?;
         let mut candidates = delta;
@@ -55,16 +80,18 @@ replace_once(
         let mut candidates = delta;
 """,
 )
-replace_once(
+replace_in_function(
     TIME_INDEX,
+    "query_forward",
     """        while index < base.count && candidates.len() < base_budget.saturating_add(extra) {
 """,
     """        while index < base.count && candidates.len() < base_budget {
 """,
 )
 
-replace_once(
+replace_in_function(
     TIME_INDEX,
+    "query_reverse",
     """        let extra = delta.len();
         let base_budget = limit.checked_add(extra).ok_or(StoreError::LimitExceeded)?;
         let mut candidates = delta;
@@ -76,8 +103,9 @@ replace_once(
         let mut candidates = delta;
 """,
 )
-replace_once(
+replace_in_function(
     TIME_INDEX,
+    "query_reverse",
     """        while remaining > 0 && candidates.len() < base_budget.saturating_add(extra) {
 """,
     """        while remaining > 0 && candidates.len() < base_budget {
