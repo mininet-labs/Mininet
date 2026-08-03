@@ -2,10 +2,9 @@
 """Run and pre-commit PR #289 review remediation for the legacy CI attempt.
 
 The original remediation workflow merges `main` immediately after invoking this
-path. This wrapper therefore commits the permanent source changes and removes
-all temporary orchestration before returning, so Git has a clean worktree for
-that merge. The final PR diff contains neither this wrapper nor the copied base
-helper.
+path and then performs one unconditional commit. This wrapper commits the source
+changes and temporary-file removals first, then leaves one legitimate planning
+truth-sync change for that workflow-owned commit.
 """
 
 from pathlib import Path
@@ -15,8 +14,8 @@ import subprocess
 base = Path("tools/apply_consensus_snapshot_review_fixes_base.py")
 runpy.run_path(str(base), run_name="__main__")
 
-path = Path("crates/mini-consensus/src/store.rs")
-text = path.read_text(encoding="utf-8")
+store = Path("crates/mini-consensus/src/store.rs")
+text = store.read_text(encoding="utf-8")
 obsolete = """    fn write_snapshot_locked(&self, snapshot: &ConsensusSnapshot) -> Result<()> {
         atomic_write(&self.root.join(SNAPSHOT_FILE), &snapshot.to_wire_bytes()?)
     }
@@ -24,7 +23,7 @@ obsolete = """    fn write_snapshot_locked(&self, snapshot: &ConsensusSnapshot) 
 """
 if text.count(obsolete) != 1:
     raise SystemExit("obsolete write_snapshot_locked method was not found exactly once")
-path.write_text(text.replace(obsolete, "", 1), encoding="utf-8")
+store.write_text(text.replace(obsolete, "", 1), encoding="utf-8")
 
 subprocess.run(
     [
@@ -50,3 +49,22 @@ subprocess.run(
     ],
     check=True,
 )
+
+# Leave one permanent, review-relevant documentation change uncommitted. The
+# legacy workflow stages and commits it before merging main, avoiding an empty
+# unconditional commit while preserving an honest audit trail.
+plan = Path("docs/planning/consensus-snapshot-sync.md")
+text = plan.read_text(encoding="utf-8")
+old = """**Review remediation:** five inline findings are now bound to permanent regression
+work: preflight-before-journal, validate-before-write archive plans, race-free
+no-follow opens, a truthful suffix-limit error, and peer-facing gap/duplicate/
+reordering tests. The PR stays draft until those changes pass on the integrated
+exact head.  
+"""
+new = old + """**Runner state:** the integrated remediation commit is now prepared; the
+repository-wide exact-head checks remain the engineering gate before review
+threads can be resolved.  
+"""
+if text.count(old) != 1:
+    raise SystemExit("planning review-remediation paragraph was not found exactly once")
+plan.write_text(text.replace(old, new, 1), encoding="utf-8")
