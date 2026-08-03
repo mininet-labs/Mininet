@@ -171,7 +171,6 @@ mod tests {
             address.parse().unwrap(),
             1_000,
             2_000,
-            [seed + 5; 32],
         )
         .unwrap();
         let mut freshness = FreshnessPins::new();
