@@ -14,16 +14,25 @@ import subprocess
 base = Path("tools/apply_consensus_snapshot_review_fixes_base.py")
 runpy.run_path(str(base), run_name="__main__")
 
+# The snapshot writer is a deliberate test-only crash-injection hook. Mark it as
+# such so the normal library target has no dead-code warning while the archive
+# interruption test can still construct the precise partial state it verifies.
 store = Path("crates/mini-consensus/src/store.rs")
 text = store.read_text(encoding="utf-8")
-obsolete = """    fn write_snapshot_locked(&self, snapshot: &ConsensusSnapshot) -> Result<()> {
+writer = """    fn write_snapshot_locked(&self, snapshot: &ConsensusSnapshot) -> Result<()> {
         atomic_write(&self.root.join(SNAPSHOT_FILE), &snapshot.to_wire_bytes()?)
     }
 
 """
-if text.count(obsolete) != 1:
-    raise SystemExit("obsolete write_snapshot_locked method was not found exactly once")
-store.write_text(text.replace(obsolete, "", 1), encoding="utf-8")
+annotated_writer = """    #[cfg(test)]
+    fn write_snapshot_locked(&self, snapshot: &ConsensusSnapshot) -> Result<()> {
+        atomic_write(&self.root.join(SNAPSHOT_FILE), &snapshot.to_wire_bytes()?)
+    }
+
+"""
+if text.count(writer) != 1:
+    raise SystemExit("test-only write_snapshot_locked method was not found exactly once")
+store.write_text(text.replace(writer, annotated_writer, 1), encoding="utf-8")
 
 subprocess.run(
     [
