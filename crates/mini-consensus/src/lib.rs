@@ -80,6 +80,15 @@
 //!   governance-visible strike.
 //! - **Static validator set.** The set is fixed for a run; on-chain
 //!   validator-set changes are separate, later work.
+//! - **State sync is bounded and persistent, but deliberately static-set.**
+//!   D-0207 adds QC-bound exact execution snapshots, a local journaled archive,
+//!   bounded recent history, pruning, restart recovery, and encrypted
+//!   snapshot-plus-suffix transfer. The receiver verifies every QC and state
+//!   commitment locally; the peer/archive has no authority. One response is
+//!   limited to one bearer frame and one exact state is capped at 8 MiB.
+//!   Historical validator-set transitions, long-range/weak-subjectivity rules,
+//!   chunked Merkle state transfer, peer selection/retry, and physical weakest-
+//!   device benchmarks remain separate work.
 //! - **[`net::TcpMesh`] is transport, not discovery.** It assumes every
 //!   peer's address is known and the mesh is fully connected (or connected
 //!   via [`net::TcpMesh::establish_topology`]'s partial-mesh support) before

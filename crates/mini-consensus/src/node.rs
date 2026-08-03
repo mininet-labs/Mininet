@@ -764,6 +764,37 @@ mod tests {
     }
 
     #[test]
+    fn compatibility_history_is_strictly_capped() {
+        let fx = fixture();
+        let mut node = a_node(&fx, 0);
+        for height in 1..=(MAX_CATCHUP_BLOCKS as u64 + 5) {
+            let header = BlockHeader {
+                height,
+                prev_hash: [0; 32],
+                state_root: [0; 32],
+                timestamp_ms: height,
+                proposer: fx.signers[0].0.did(),
+            };
+            node.remember_history(FinalizedBlock {
+                qc: QuorumCertificate {
+                    height,
+                    round: 0,
+                    block_hash: header.hash(),
+                    votes: Vec::new(),
+                },
+                header,
+                body: SettlementBlockBody::new(Vec::new()),
+            });
+        }
+        assert_eq!(node.history.len(), MAX_CATCHUP_BLOCKS);
+        assert_eq!(node.history.front().unwrap().header.height, 6);
+        assert_eq!(
+            node.history.back().unwrap().header.height,
+            MAX_CATCHUP_BLOCKS as u64 + 5
+        );
+    }
+
+    #[test]
     fn a_proposal_from_the_designated_proposer_is_prevoted() {
         let fx = fixture();
         let p_idx = proposer_index(&fx, 1, 0);

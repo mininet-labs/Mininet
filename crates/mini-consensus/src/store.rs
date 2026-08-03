@@ -24,7 +24,14 @@ const LOCK_FILE: &str = "archive.lock";
 const INSTALL_PENDING_FILE: &str = "install.pending";
 const INSTALL_PENDING_DOMAIN: &[u8] = b"mini-consensus/archive-install/v1";
 const TEMP_SUFFIX: &str = "tmp-write";
-const MAX_ARCHIVE_DIRECTORY_ENTRIES: usize = 4_096;
+/// A stable suffix must fit one encrypted state-sync response by itself.
+const MAX_ARCHIVE_SUFFIX_BYTES: usize = mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES;
+/// A crash can leave the old stable suffix plus one journaled response batch.
+/// Recovery may inspect both, but successful replay compacts back below the
+/// stable bound before removing the journal.
+const MAX_ARCHIVE_RECOVERY_BYTES: usize =
+    MAX_ARCHIVE_SUFFIX_BYTES + mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES;
+const MAX_ARCHIVE_DIRECTORY_ENTRIES: usize = MAX_CATCHUP_BLOCKS + MAX_STATE_SYNC_BLOCKS;
 const MAX_PENDING_INSTALL_BYTES: usize = mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES
     + MAX_LEDGER_SNAPSHOT_BYTES
     + INSTALL_PENDING_DOMAIN.len()
@@ -132,7 +139,12 @@ impl ConsensusArchive {
         {
             return Err(ConsensusError::SnapshotProofMismatch);
         }
-        self.with_lock(|archive| archive.record_locked(blocks, final_state))
+
+        // Live commits use the same replayable exact journal as peer state
+        // sync. This closes the crash window between a durable block row and
+        // the snapshot/prune operation that may immediately follow it.
+        let response = StateSyncResponse::blocks(self.config.network_id, blocks.to_vec());
+        self.install_verified_response(&response, final_state)
     }
 
     /// Replace local recovery state with an already verified response.
@@ -278,6 +290,21 @@ impl ConsensusArchive {
             ));
         }
 
+        // Serialize the base response once. The previous implementation
+        // cloned and re-serialized a potentially 8 MiB snapshot for every
+        // candidate block, turning a 256-block page into gigabytes of needless
+        // weak-device work. Each candidate is now encoded once for its length;
+        // the final response is constructed once after selection.
+        let base_response = if use_snapshot {
+            StateSyncResponse::snapshot(
+                self.config.network_id,
+                snapshot.clone().expect("use_snapshot implies snapshot"),
+                Vec::new(),
+            )
+        } else {
+            StateSyncResponse::blocks(self.config.network_id, Vec::new())
+        };
+        let mut wire_size = base_response.to_wire_bytes()?.len();
         let mut selected = Vec::new();
         for block in candidates.into_iter().take(MAX_STATE_SYNC_BLOCKS) {
             let expected = base_height
@@ -288,33 +315,19 @@ impl ConsensusArchive {
                     "consensus archive suffix is not contiguous".to_string(),
                 ));
             }
-            selected.push(block);
-            let trial = if use_snapshot {
-                StateSyncResponse::snapshot(
-                    self.config.network_id,
-                    snapshot.clone().expect("use_snapshot implies snapshot"),
-                    selected.clone(),
-                )
-            } else {
-                StateSyncResponse::blocks(self.config.network_id, selected.clone())
-            };
-            if matches!(trial.to_wire_bytes(), Err(ConsensusError::TooLarge)) {
-                selected.pop();
+            let block_len = block.to_wire_bytes()?.len();
+            let next_size = wire_size
+                .checked_add(4)
+                .and_then(|size| size.checked_add(block_len))
+                .ok_or(ConsensusError::TooLarge)?;
+            if next_size > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
                 break;
             }
+            wire_size = next_size;
+            selected.push(block);
         }
 
         if selected.is_empty() && tip_height > base_height {
-            let base_response = if use_snapshot {
-                StateSyncResponse::snapshot(
-                    self.config.network_id,
-                    snapshot.clone().expect("use_snapshot implies snapshot"),
-                    Vec::new(),
-                )
-            } else {
-                StateSyncResponse::blocks(self.config.network_id, Vec::new())
-            };
-            base_response.to_wire_bytes()?;
             return Err(ConsensusError::TooLarge);
         }
 
@@ -338,6 +351,11 @@ impl ConsensusArchive {
             .as_ref()
             .map_or(0, ConsensusSnapshot::height);
         let existing = self.read_blocks_locked()?;
+        let mut suffix_bytes = existing.iter().try_fold(0usize, |total, block| {
+            total
+                .checked_add(block.to_wire_bytes()?.len())
+                .ok_or(ConsensusError::TooLarge)
+        })?;
         let mut tip_height = existing
             .last()
             .map_or(snapshot_height, |block| block.header.height);
@@ -372,6 +390,12 @@ impl ConsensusArchive {
                     got: height,
                 });
             }
+            suffix_bytes = suffix_bytes
+                .checked_add(bytes.len())
+                .ok_or(ConsensusError::TooLarge)?;
+            if suffix_bytes > MAX_ARCHIVE_RECOVERY_BYTES {
+                return Err(ConsensusError::TooLarge);
+            }
             atomic_write(&path, &bytes)?;
             tip_height = height;
         }
@@ -383,6 +407,7 @@ impl ConsensusArchive {
         let distance = last.header.height.saturating_sub(snapshot_height);
         if last.header.height % self.config.snapshot_interval == 0
             || distance >= self.config.max_suffix_blocks as u64
+            || suffix_bytes >= MAX_ARCHIVE_SUFFIX_BYTES
         {
             let snapshot =
                 ConsensusSnapshot::new(last.header.clone(), last.qc.clone(), final_state.clone())?;
@@ -402,6 +427,30 @@ impl ConsensusArchive {
             return Err(ConsensusError::StateSyncWrongNetwork);
         }
         verify_contiguous(snapshot.height(), blocks)?;
+        let incoming_tip = blocks
+            .last()
+            .map_or(snapshot.height(), |block| block.header.height);
+        let current_snapshot = self.read_snapshot_locked()?;
+        let current_blocks = self.read_blocks_locked()?;
+        let current_tip = current_blocks.last().map_or(
+            current_snapshot
+                .as_ref()
+                .map_or(0, ConsensusSnapshot::height),
+            |block| block.header.height,
+        );
+        if incoming_tip < current_tip {
+            return Err(ConsensusError::SnapshotNotNewer {
+                current: current_tip,
+                got: incoming_tip,
+            });
+        }
+        if let Some(current) = &current_snapshot {
+            if current.height() == snapshot.height() && current != snapshot {
+                return Err(ConsensusError::ArchiveConflict {
+                    height: snapshot.height(),
+                });
+            }
+        }
         let expected_root = blocks
             .last()
             .map_or(snapshot.header.state_root, |block| block.header.state_root);
@@ -453,6 +502,7 @@ impl ConsensusArchive {
         ensure_directory(&dir, "consensus archive blocks")?;
         let mut rows = Vec::new();
         let mut entries = 0usize;
+        let mut total_bytes = 0usize;
         for entry in fs::read_dir(&dir)? {
             entries = entries.checked_add(1).ok_or(ConsensusError::TooLarge)?;
             if entries > MAX_ARCHIVE_DIRECTORY_ENTRIES {
@@ -471,6 +521,14 @@ impl ConsensusArchive {
                 ));
             }
             let height = parse_block_name(&entry.file_name().to_string_lossy())?;
+            let file_len =
+                usize::try_from(entry.metadata()?.len()).map_err(|_| ConsensusError::TooLarge)?;
+            total_bytes = total_bytes
+                .checked_add(file_len)
+                .ok_or(ConsensusError::TooLarge)?;
+            if total_bytes > MAX_ARCHIVE_RECOVERY_BYTES {
+                return Err(ConsensusError::TooLarge);
+            }
             let bytes = read_regular_limited(
                 &entry.path(),
                 "consensus finalized block",
@@ -812,6 +870,27 @@ mod tests {
         assert_eq!(
             reopened.recovery_response().unwrap(),
             archive.recovery_response().unwrap()
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn response_selection_stays_within_one_frame_without_repeated_snapshot_growth() {
+        let root = temp_root("response-bound");
+        let config = ConsensusArchiveConfig {
+            snapshot_interval: 1,
+            max_suffix_blocks: 8,
+            ..ConsensusArchiveConfig::default()
+        };
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        let state = LedgerState::new();
+        let first = block(1, [0; 32], &state);
+        archive
+            .record_verified_batch(core::slice::from_ref(&first), &state)
+            .unwrap();
+        let response = archive.recovery_response().unwrap();
+        assert!(
+            response.to_wire_bytes().unwrap().len() <= mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES
         );
         let _ = fs::remove_dir_all(root);
     }

@@ -24,16 +24,14 @@
 //! - **No peer selection or retry policy.** A caller supplies one peer's
 //!   [`CatchupResponse`]; choosing which peer to ask, retrying a bad one, or
 //!   querying several for agreement is a host concern, not this module's.
-//! - **No unbounded history.** A serving node only answers from whatever it
-//!   still holds in memory (see [`crate::node::ConsensusNode::history_since`]);
-//!   there is no persistence or pruning policy yet — a first slice, the same
-//!   honest-limit shape `mini-net`'s `RoutingTable`/`GossipRouter` document
-//!   for their own first-slice bounds.
-//! - **No partial-batch application.** [`CatchupResponse::from_wire_bytes`]
-//!   bounds the count before allocating ([`MAX_CATCHUP_BLOCKS`]), but a
-//!   response that fails partway through `catch_up` leaves the node at
-//!   whatever height it reached before the failing block — never silently
-//!   further, never rolled back.
+//! - **Compatibility suffix only.** The in-memory compatibility history is
+//!   now capped at [`MAX_CATCHUP_BLOCKS`]. Durable restart recovery, authenticated
+//!   snapshots, and pruning live in [`crate::ConsensusArchive`] / the D-0207
+//!   state-sync path; this legacy request/response remains for block-only peers.
+//! - **All-or-nothing application.** [`CatchupResponse::from_wire_bytes`]
+//!   bounds the count before allocating, and [`crate::ConsensusNode::catch_up`]
+//!   executes the entire batch against a cloned chain before swapping live
+//!   state. A bad later block leaves the node at its original height.
 
 use mini_chain::{BlockHeader, QuorumCertificate, Vote, MAX_VOTES_PER_CERTIFICATE};
 use mini_execution::SettlementBlockBody;

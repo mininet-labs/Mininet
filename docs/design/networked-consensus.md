@@ -1,4 +1,4 @@
-# Networked BFT consensus — `mini-consensus` (D-0200 through D-0205)
+# Networked BFT consensus — `mini-consensus` (D-0200 through D-0207)
 
 This document records the design of the first layer in this tree that runs
 consensus across a process boundary: `mini-consensus`. It is the split the
@@ -98,6 +98,25 @@ node is a height's proposer, the three online nodes get no proposal, time out,
 prevote/precommit `nil`, and **view-change to round 1** with a fresh proposer —
 and still finalize every height in lockstep to identical state.
 
+
+### Persistent authenticated state sync (D-0207)
+
+D-0093's block-only catch-up is now joined by a complete-state recovery path.
+`ConsensusSnapshot` carries exact canonical `LedgerState` bytes together with
+the finalized header and QC. A receiver reconstructs a chain only after its own
+static validator set/KEL oracle verifies the QC and the decoded state's
+commitment equals the header root; the serving peer and local archive have zero
+checkpoint authority.
+
+`ConsensusArchive` stores a durable snapshot plus a count/byte-bounded contiguous
+suffix under an OS file lock and replayable exact install journal. Live commits
+and peer installs are persisted before the node swaps state; interrupted
+replacement is replayed on reopen. `ConsensusNode::apply_state_sync` verifies an
+entire blocks-or-snapshot response on a cloned chain, preventing partial apply.
+The compatibility in-memory history is capped. A real encrypted-TCP test proves
+a node that starts at genesis reaches a source archive's exact snapshot+suffix
+tip and reopens to the same state commitment.
+
 ## Honest limits (the part that is not built)
 
 Safety — never two conflicting decisions at one height — is implemented in
@@ -108,13 +127,13 @@ can no longer front-run the designated proposer to waste a round. The
 remaining gaps are liveness/DoS, transport-security, and deployment, not
 correctness:
 
-- **No state-sync for a node that missed a whole height.** Messages are now
-  dedup-flooded (re-gossiped) across the mesh (D-0205), so a partial but
-  connected graph is live and a peer that missed a *directly-sent* message
-  still gets it by relay. But re-gossip only re-delivers messages *still
-  circulating* — a node that was down for an entire height and missed those
-  messages will not catch up from flooding alone; a snapshot/catch-up protocol
-  is separate, later work.
+- **State sync is static-set and one-frame, not a universal checkpoint
+  protocol.** D-0207 persists QC-bound exact snapshots and a bounded suffix,
+  but verifies them against the caller's current static validator set. It does
+  not prove historical validator-set transitions, solve long-range key
+  compromise/weak subjectivity, or transfer states larger than the 8 MiB exact
+  state / one bearer-frame response caps. Chunked Merkle state proofs and
+  physical weak-device measurements remain later work.
 - **Equivocation is detected but not punished (D-0204).** A validator that
   double-signs (two different votes for one `(height, round, phase)`) is now
   caught: it is counted at most once and its conflicting second vote is
@@ -132,22 +151,24 @@ correctness:
 
 ## Next slices (in priority order)
 
-1. **State-sync / catch-up** — let a node that was down for an entire height
-   (and so missed the messages that are no longer circulating) recover the
-   finalized state from a peer. Re-gossip (D-0205) covers messages still in
-   flight; this covers the ones that are gone.
-2. **Peer discovery** — route the topology through `mini-net`'s overlay
-   instead of a caller-supplied address/edge list, so nodes *learn* their
-   neighbors rather than being handed them.
-3. **Act on equivocation** — a slashing/governance layer that *consumes* the
-   `EquivocationEvidence` this crate now produces (D-0204); also collect
-   proposal-equivocation, not just vote-equivocation.
-4. **Secured links** — wrap links in `mini_bearer::Channel` authenticated
-   encryption.
-5. **Dynamic validator sets.**
+1. **Chunked authenticated large-state sync and weakest-device evidence** —
+   replace the one-frame ceiling with independently verifiable Merkle chunks,
+   bounded resumability, and real phone CPU/memory/flash-pause measurements.
+2. **Dynamic validator sets and historical checkpoint verification** — prove
+   every set transition and define the explicit long-range/weak-subjectivity
+   rule without installing a privileged checkpoint operator.
+3. **Peer discovery, retry, and eclipse resistance** — route state-sync and
+   live topology through `mini-net`, query independently chosen peers, and keep
+   peer availability distinct from finality authority.
+4. **Act on equivocation** — consume verified evidence through future role
+   transitions; also collect proposal equivocation.
+5. **Deployment hardening** — reconnect/background serving, pruning across
+   upgrades, and multi-machine hostile-network drills.
 
 None of these change what "final" means (frozen in `mini-chain`); they add the
-security, robustness, and operational machinery layered around it. View-change
+security, robustness, and operational machinery layered around it. Persistent
+QC-bound state sync and bounded pruning are **implemented in proposal D-0207**.
+View-change
 (the round-0 slice's largest gap) is **shipped** (D-0201), signed proposals
 (view-change's largest residual) are **shipped** (D-0202), a non-blocking
 buffered mesh (no dead-peer back-pressure) is **shipped** (D-0203),

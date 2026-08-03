@@ -183,6 +183,12 @@ fn encode_monetary(out: &mut Vec<u8>, snapshot: &MonetaryLedgerSnapshot) -> Resu
                 out.extend_from_slice(&snapshot.eligible_count.to_be_bytes());
             }
             VestingSubject::Beneficiary(beneficiary) => {
+                if beneficiary.is_empty() {
+                    return Err(ExecutionError::SnapshotMalformed);
+                }
+                if beneficiary.len() > MAX_SNAPSHOT_BENEFICIARY_BYTES {
+                    return Err(ExecutionError::SnapshotTooLarge);
+                }
                 out.push(1);
                 put_bytes(out, beneficiary.as_bytes())?;
             }

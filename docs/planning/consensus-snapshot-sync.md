@@ -1,89 +1,116 @@
-# Consensus snapshots, persistent catch-up, and bounded pruning (D-0432)
+# Consensus authenticated snapshots, persistent catch-up, and bounded pruning (D-0207)
 
-**Status:** work claimed; implementation in progress. Do not duplicate this
-slice while the associated draft PR is open.
+**Status:** implementation complete in draft PR #289; no merge, production,
+release, or activation claim until exact-head CI and review complete.  
+**Roadmap:** issue #45.  
+**Base:** D-0093 block-only catch-up and D-0200–D-0206 networked consensus.
 
-**Issue:** #45 — a weak device or long-offline node must reach chain tip without
-re-executing all history from genesis.
+## Problem
 
-## Existing foundation
+D-0093 lets a late node pull bounded finalized blocks over the existing
+encrypted channel and reapply every block through `LedgerChain::
+apply_finalized_block`. Its first slice retained an unbounded in-memory vector,
+lost all catch-up history on restart, and could not help a node older than the
+retained suffix. A hosted checkpoint service would solve availability by
+creating a new trust and censorship point. D-0207 keeps recovery local and
+makes any serving peer an untrusted byte source.
 
-D-0093 already ships bounded finalized-block catch-up over the encrypted
-`mini-bearer::Channel`. Every received block is applied through the same
-`LedgerChain::apply_finalized_block` path used by live consensus, so a serving
-peer is not a trust anchor. The remaining gap is structural: finalized history
-is an unbounded in-memory `Vec`, disappears on restart, cannot be pruned safely,
-and cannot bootstrap a node whose requested height is older than the serving
-peer's retained suffix.
+## Implemented mechanism
 
-## Claimed deliverable
+1. `mini-economy::MonetaryLedgerSnapshot` exports/imports exact issuance and
+   vesting state under count, subject, epoch, and checked-supply invariants.
+2. `mini-execution::LedgerState::{to_snapshot_bytes,from_snapshot_bytes}`
+   provides one canonical, byte-bounded complete-state codec. Decode enforces
+   ordered maps, account/rejection tags, monetary invariants, supply
+   conservation, balance totals, and byte-exact re-encoding.
+3. `LedgerChain::from_finalized_snapshot` accepts state only when the receiver's
+   own static `ValidatorSet`/KEL oracle verifies the QC, the QC names the exact
+   header, the logical timestamp is deterministic, the settlement-network id
+   matches, and the header state root equals the decoded state commitment.
+4. `mini-consensus::ConsensusSnapshot` binds that header, QC, and state. A peer
+   or disk file that merely parses receives no authority.
+5. `StateSyncRequest/Response` carries either a contiguous finalized-block
+   suffix, one authenticated snapshot plus a suffix, or an explicit wrong-
+   network/unavailable result. Counts, fields, exact state, and the whole
+   response are bounded before allocation.
+6. `ConsensusArchive` is a local, optional, non-authoritative filesystem cache:
+   OS-backed cross-process lock, regular-file/symlink checks, file and
+   containing-directory sync on Unix, exact install journal, replay after
+   interruption, periodic snapshots, a count/byte-bounded suffix, and pruning
+   only after a replacement snapshot is durable.
+7. `ConsensusNode::apply_state_sync` verifies the entire response on a cloned
+   chain before changing live or persistent state. A failure in the last block
+   leaves the node at its original height. Live commits are also journaled
+   before the node swaps its chain.
+8. `state_sync_over_tcp` / `serve_state_sync_over_tcp` reuse the anonymous,
+   forward-secret `mini-bearer::Channel` with a state-sync-specific AAD domain.
+   The transport protects bytes; the QC/state checks provide authority.
+9. Compatibility `history_since` is retained but uses a capped deque. A node
+   with an archive recovers by the same verified state-sync path on restart.
 
-1. **Authenticated checkpoint snapshot.** A versioned snapshot binds a finalized
-   `BlockHeader`, its `QuorumCertificate`, the exact serialized `LedgerState`,
-   the resulting state commitment, and the settlement-network identifier. Import
-   verifies the certificate against the caller-supplied validator set/KEL oracle,
-   recomputes the state commitment, and rejects any mismatch before adoption.
-2. **Persistent local consensus store.** A filesystem-backed store atomically
-   persists the latest authenticated snapshot plus a bounded contiguous suffix of
-   finalized blocks. Files are size-capped, versioned, checksummed for local
-   corruption detection, symlink-safe, and recoverable after interrupted writes.
-   The checksum is not authentication; QC and state-root verification remain the
-   trust mechanism.
-3. **Restart recovery.** `ConsensusNode` can be constructed from a verified local
-   snapshot and replay its retained suffix through ordinary finalized-block
-   validation, restoring height, tip hash, state, and catch-up service without
-   trusting local bytes.
-4. **Snapshot-aware catch-up.** A peer request receives either a contiguous block
-   suffix or one authenticated snapshot followed by a bounded suffix. The
-   requester verifies the snapshot and then every later block. A peer may supply
-   bytes; it cannot choose canonical state.
-5. **Safe pruning.** Retention is explicit and bounded. A snapshot is durably
-   installed before history below it is removed. At least one verified checkpoint
-   and a configured recent suffix remain available. Pruning never deletes the
-   canonical live state and never changes finality.
-6. **Encrypted transport composition.** Snapshot exchange reuses the existing
-   `Channel` catch-up transport and receives strict frame, snapshot, state,
-   certificate, block-count, and total-byte limits before allocation.
-7. **Adversarial evidence.** Permanent tests cover tampered state, wrong state
-   root, forged/insufficient QC, wrong network, gap/duplicate/out-of-order suffix,
-   corrupted/truncated/oversized files, interrupted replacement, reopen/recovery,
-   pruning boundaries, a server whose suffix no longer reaches genesis, and a
-   real-TCP late node reaching the exact cluster state from snapshot plus suffix.
+## Evidence
 
-## Authority and constitutional boundaries
+- canonical economy/execution state round trips byte-identically;
+- truncation, oversize, malformed ordering/tags, wrong supply, and tampering
+  fail closed;
+- a structurally matching QC without quorum is rejected by local finality
+  verification;
+- snapshot wrong-network, wrong-root, and state tampering fail;
+- a bad second block causes zero partial application;
+- the compatibility history drops its oldest row at the declared cap;
+- archive snapshots/prunes/reopens, rejects corrupt/symlinked/oversized state,
+  and replays an interrupted exact install journal idempotently;
+- response construction serializes a large snapshot base once, then accounts
+  each candidate block once, rather than cloning an 8 MiB state per candidate;
+- a real TCP test transfers snapshot plus suffix between independent nodes and
+  the destination/reopened archive reaches the exact source height and state
+  commitment.
 
-- No checkpoint operator, hosted snapshot server, admin key, hardcoded trusted
-  peer, or majority-by-download rule is introduced.
-- The validator set and KEL oracle supplied by the node remain the authority used
-  by ordinary finality verification; a snapshot provider has zero authority.
-- Balance, storage, bandwidth, snapshot volume, and service availability confer
-  no vote, validator weight, governance standing, ranking, or personhood status.
-- Snapshots are local/peer-served acceleration objects, not consensus truth and
-  not a new mint, governance, or update path.
-- No new cryptography. Existing hashes, object codecs, signatures, QCs, and
-  encrypted channels are composed; D-0047 remains untouched.
+## Authority and constitutional boundary
 
-## Explicit non-goals
+- No checkpoint operator, hard-coded trusted peer, hosted snapshot authority,
+  admin key, majority-by-download rule, forced update, or central availability
+  service exists.
+- Objects/QCs and deterministic state commitments remain truth. The archive is
+  deletable local acceleration/recovery state.
+- Balance, payment, storage, bandwidth, provider revenue, and archive size have
+  no output into validator weight, governance, personhood, ranking, review
+  quorum, or constitutional legitimacy.
+- No new cryptography. Existing finality, KEL verification, content/state
+  commitments, and encrypted channels are composed without weakening them.
 
-- Dynamic validator-set epochs and long-range/weak-subjectivity checkpoint
-  governance. The current validator set is static; snapshot verification is
-  scoped honestly to that model.
-- Peer discovery, multi-peer selection, reputation, automatic trust-on-first-use,
-  background daemon operation, or a public snapshot CDN.
-- Full historical/archive queries after pruning.
-- Production genesis, issuance activation, real-money use, or mainnet claims.
+## Honest limits
 
-## Failure conditions
+- Validator membership is static in this slice. No historical validator-set
+  transition proof, weak-subjectivity checkpoint, or long-range key-compromise
+  solution is claimed.
+- Exact state is transparent and capped at 8 MiB; one response must fit a
+  roughly 16 MiB encrypted bearer frame. Larger state needs a future chunked,
+  authenticated Merkle/state-proof protocol, not a raised unbounded limit.
+- The stable retained block suffix is count- and byte-bounded; callers repeat
+  requests when the retained tip is more than one response away.
+- Peer discovery, endpoint authentication, retry/multi-peer selection, eclipse
+  resistance, and background serving are not implemented here.
+- A local attacker able to erase/roll back the entire archive can deny or roll
+  back local availability. QCs prevent invention of an unfinalized state, but
+  no hardware monotonic counter or external checkpoint is introduced.
+- Full-state decode and snapshot creation remain proportional to state size;
+  physical weakest-device CPU, memory, flash-wear, and pause measurements are
+  not yet recorded.
+- This is prototype consensus/state code, not external audit or real-value
+  activation.
 
-The proposal fails if a node can adopt state without independently verifying a
-QC and recomputed state commitment; if one server becomes required; if pruning
-can remove the last recoverable verified checkpoint; if corrupted local files
-silently become canonical; if an untrusted frame can force unbounded allocation;
-or if snapshot service affects voice, identity, ranking, or ownership rules.
+## Required follow-up
 
-## Merge floor
+Issue #45 retains: chunked authenticated state transfer, historical dynamic
+validator-set proofs and explicit long-range policy, weak-device benchmarks,
+peer selection/retry/eclipsing tests, pruning policy across upgrades, and client
+integration. None may introduce a mandatory checkpoint authority.
 
-The PR remains draft until implementation, exact-state documentation, generated
-navigation, focused adversarial tests, full workspace CI, dependency checks,
-governance checks, reproducibility, Android jobs, and exact-head review are all
-complete. AI work carries zero approval weight.
+## Merge condition
+
+The PR remains unmergeable until generated navigation is current, all exact-head
+format/Clippy/workspace/dependency/governance/reproducibility/Android workflows
+are green, review findings are resolved against the final SHA, and the
+applicable repository approval rule is satisfied. AI output carries zero
+approval weight.

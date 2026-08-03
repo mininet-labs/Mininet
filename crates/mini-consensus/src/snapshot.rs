@@ -192,6 +192,18 @@ mod tests {
     }
 
     #[test]
+    fn a_structurally_matching_but_non_quorate_qc_is_rejected_locally() {
+        let (snapshot, validators, directory) = proof();
+        let mut qc = snapshot.qc.clone();
+        qc.votes.clear();
+        let structural =
+            ConsensusSnapshot::new(snapshot.header.clone(), qc, snapshot.state.clone()).unwrap();
+        assert!(structural
+            .into_chain(mini_settlement::MININET_NETWORK_ID, &validators, &directory)
+            .is_err());
+    }
+
+    #[test]
     fn wrong_network_and_tampered_state_fail_closed() {
         let (snapshot, validators, directory) = proof();
         assert!(snapshot

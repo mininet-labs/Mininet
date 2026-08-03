@@ -111,17 +111,26 @@ given time.
   closing the founder's 2026-07-12 in-depth review's `5.3`/`5.4` "wire
   authenticated encrypted channels into consensus now" finding — no new
   cryptography, the same construction `mini-sync`/`mini-cli`'s `sync
-  connect`/`listen` already use). **State-sync/catch-up is shipped**
-  (D-0093): `mini_consensus::{CatchupRequest, CatchupResponse, FinalizedBlock}`
-  plus `ConsensusNode::{history_since, catch_up}` let a node that missed
-  heights pull already-finalized blocks from a peer and re-verify/apply
-  them via the same `apply_finalized_block` call live consensus uses —
-  never a trust shortcut. Proven over real TCP
-  (`a_late_joining_node_catches_up_via_real_tcp_and_matches_the_clusters_state`):
-  a fifth node that never runs a single Tendermint round reaches the exact
-  state a four-node cluster converged on. First slice: history is
-  unbounded in-memory (no pruning/persistence), and no peer-selection/retry
-  policy. The equivocation evidence is no longer silently dropped by
+  connect`/`listen` already use). **State-sync/catch-up now has two layers.** D-0093's
+  bounded block-only `CatchupRequest`/`CatchupResponse` remains a compatibility
+  path and still re-verifies every block through `apply_finalized_block`.
+  **Implemented in this proposal (D-0207):** canonical complete
+  `LedgerState` snapshots bind settlement-network id, exact monetary/payment
+  state, finalized header, state commitment, and QC; receivers verify the QC
+  against their own static validator set/KEL oracle before replacing state.
+  `ConsensusArchive` adds a local non-authoritative cross-process-locked,
+  journaled filesystem checkpoint plus count/byte-bounded suffix, atomic
+  replacement, restart recovery, and pruning only behind a durable snapshot.
+  `ConsensusNode` applies a whole snapshot/suffix on a cloned chain (a bad late
+  block changes nothing), caps compatibility history, journals live commits,
+  and can reopen from the same verified archive path. Real TCP tests prove a
+  long-offline independent node reaches the source's exact height/commitment
+  over the existing encrypted `Channel`. No peer or archive becomes a trust
+  anchor. Honest limits: static validator set only; no historical set-transition
+  or weak-subjectivity/long-range rule; exact transparent state capped at 8 MiB
+  and one response at one bearer frame; no chunked Merkle state proofs,
+  discovery/retry/multi-peer/eclipse policy, external audit, or physical
+  weakest-device measurements. The equivocation evidence is no longer silently dropped by
   the network driver (D-0088: `mini_consensus::EquivocatorRegistry`
   independently re-verifies and records every flagged root instead of
   discarding the emit), but nothing yet *acts* on a flagged root — no
