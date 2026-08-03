@@ -1,10 +1,12 @@
 # Forge Batch 5: bounded filesystem metadata index and stable pages (D-0430)
 
-**Status:** implementation complete in proposed PR #287; no merge or release
-claim until exact-head CI and human review complete.  
-**Base:** `main` after merged D-0428 / PR #285.  
-**Non-collision:** PR #286 owns the social/intake publication path. This work is
-limited to `mini-store` ordered time-index queries, tests, and truth-sync.
+**Status:** implementation complete in PR #287 and integrated with current
+`main` after merged PRs #286 and #288; no merge or release claim until the new
+exact-head workflows and human review complete.  
+**Integrated base:** `5c93364e307013891bf934fafe6240b80c97b7de`.  
+**Scope isolation:** the merged social/intake path remains outside this change.
+This work is limited to `mini-store` ordered time-index queries, tests, and
+truth-sync.
 
 ## Problem
 
@@ -55,7 +57,8 @@ solution here stays local, reconstructible, non-authoritative, and removable.
 - Deleting the side index triggers deterministic legacy rebuild.
 - Missing manifested bases and partial delta tails rebuild safely.
 - Journal recovery commits a durable delta append exactly once.
-- Manual compaction preserves sorted unique rows.
+- Manual compaction preserves sorted unique rows, including a key present in
+  both the immutable base and append delta.
 - Hostile cursors, zero limits, excessive limits, and symlinked index paths fail
   safely.
 - Marker, manifest, journal, and authoritative time-row values are size-checked
@@ -106,5 +109,5 @@ this function to a central indexing service.
 ## Merge condition
 
 The PR remains unmergeable until generated navigation is current, all exact-head
-workflows are green, and the repository's required independent human approvals
-review the final SHA. AI output carries zero approval weight.
+workflows are green, and the applicable repository governance review requirement
+is satisfied for the final SHA. AI output carries zero approval weight.
