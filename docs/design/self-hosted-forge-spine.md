@@ -558,25 +558,23 @@ GitHub, so the honest claim is narrower than a firewall drill: read and
 run this one script to see the whole developer lifecycle, including
 failure recovery, complete without GitHub ever being named or required.
 
-**Local object indexing — first slice shipped (D-0327), a genuinely
-bounded "most recent N" query shipped next (D-0331).**
-`mini_store::Store::since`/`Store::recent` add a chronological index
-(`idx/time/<timestamp>/<id>` rows) alongside the pre-existing author/
-type/link indexes, so a forge/feed UI or CLI can query "what's new" or
-"everything since cursor X" without fetching and sorting every object
-body. `Store::recent` now calls a real `Backend::list_meta_prefix_last`
-method instead of reading the whole `idx/time/` subtree via `since(0)`
-and reversing/truncating client-side; `MemoryBackend`'s implementation
-is genuinely bounded (real `O(log n + limit)`, not a full-subtree read).
-`FsBackend` still inherits the trait's non-bounded default — a real
-bounded reverse walk over a plain directory tree needs either a sorted
-early-stopping traversal or an on-disk sorted index, deliberately not
-attempted yet rather than risking a security regression in `FsBackend`'s
-already-hardened symlink/path-traversal defenses. `Store::since`'s own
-forward scan is unchanged and still not bounded (`Backend::
-list_meta_prefix` has no upper-bound key) — a genuinely bounded,
-paginated forward range scan is still open. That, compound queries
-across indexes, and the other three items below remain open.
+**Local object indexing — bounded chronological filesystem slice shipped
+in this proposal (D-0430), building on D-0327/D-0331.**
+`mini_store::Store::since`/`Store::recent` retain the existing authoritative
+`idx/time/<timestamp>/<id>` rows. `MemoryBackend` already had bounded reverse
+ranges; `FsBackend` now has a local non-authoritative ordered side index with a
+sorted fixed-width base, 1,024-row append delta, manifest, cross-process lock,
+and crash-recovery journal. `Store::since_page` adds stable forward pages keyed
+by `(timestamp_ms, object_id)`, and both interactive APIs cap pages at 1,024.
+Malformed or missing acceleration data rebuilds from authoritative metadata;
+results are rechecked against those rows. Migration/rebuild and compaction are
+full-history maintenance, the old full-suffix `Store::since` remains unbounded,
+and author/type/link compound pagination is still open. Pages are stable over a
+fixed view but are not a lossless sync frontier: later/backdated arrivals can
+sort before an issued author-timestamp cursor. Completeness also assumes local
+time-row writers use this version's `FsBackend`; mixed-version/out-of-band
+writes require an explicit side-index rebuild. No hosted index or mandatory
+daemon is introduced.
 
 **Distributed build workers — first bounded slice implemented (D-0409
 proposed).** `mini build serve` accepts one explicitly initiated request and
