@@ -2932,6 +2932,8 @@ dependencies = [
  "mini-crypto",
  "mini-lexical-index",
  "mini-objects",
+ "mini-query",
+ "mini-ranker",
  "mini-search-federation",
  "mini-store",
  "mini-sync",

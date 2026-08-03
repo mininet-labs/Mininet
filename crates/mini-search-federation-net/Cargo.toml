@@ -1,7 +1,7 @@
 [package]
 name = "mini-search-federation-net"
 version = "0.0.1"
-description = "Bounded, authenticated real-transport delivery of mini-search-federation's F1/F2 signed objects between two Mininet peers (Track F required follow-up: 'wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits'). No query terms ever cross the wire -- a peer advertises which F1/F2 object ids it holds, nothing more; private remote querying is Track F6, deliberately undesigned and out of scope here."
+description = "Bounded, authenticated real-transport delivery of mini-search-federation's F1/F2/F2b signed objects between two Mininet peers (Track F required follow-up: 'wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits'), plus assembly of a pulled F2 segment + F2b corpus bundle into a real federate_query-ready source. No query terms ever cross the wire -- a peer advertises which object ids it holds, nothing more; private remote querying is Track F6, deliberately undesigned and out of scope here."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -16,18 +16,25 @@ publish = false
 # crate is generic over (same abstraction mini-sync/mini-relay already use).
 # mini-sync supplies the actual trust boundary (KEL-verified provenance,
 # bounded exact retrieval) this crate wraps rather than reimplementing.
-# mini-search-federation for the F1/F2 object-type constants and readers
-# this crate's advertisement filter checks against.
+# mini-search-federation for the F1/F2/F2b object-type constants and
+# readers this crate's advertisement filter checks against, and its own
+# federate_query/FederationSource that assemble.rs feeds real pulled data
+# into. mini-lexical-index/mini-ranker/mini-query/mini-web-types only for
+# the IndexSegment/Corpus/DocumentContextTable/IndexSegmentId/
+# ProviderPseudonym types assemble.rs rebuilds from a pulled F2b bundle --
+# no new indexing/ranking/query logic here, just reassembly.
 did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-store = { path = "../mini-store" }
 mini-bearer = { path = "../mini-bearer" }
 mini-sync = { path = "../mini-sync" }
 mini-search-federation = { path = "../mini-search-federation" }
+mini-lexical-index = { path = "../mini-lexical-index" }
+mini-ranker = { path = "../mini-ranker" }
+mini-query = { path = "../mini-query" }
+mini-web-types = { path = "../mini-web-types" }
 
 [dev-dependencies]
 # Only for building sample CrawlObservation/IndexSegment fixtures in this
 # crate's own tests (unit tests in src/session.rs and the tests/ suite).
 mini-crypto = { path = "../mini-crypto" }
-mini-web-types = { path = "../mini-web-types" }
-mini-lexical-index = { path = "../mini-lexical-index" }

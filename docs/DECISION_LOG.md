@@ -14811,3 +14811,115 @@ fully open, unrelated to this crate).
 **Supersedes / superseded by:** builds on and does not supersede
 D-0422/D-0423/D-0424/D-0426 or D-0075/D-0080. Does not modify F1-F4/F7
 wire formats, merge policy, or ranking behavior.
+
+### D-0433 — F2b signed corpus/context bundle, and wiring a network-pulled source into a real `federate_query` call  ·  *Accepted*
+
+**Date:** 2026-08-03 · **Refs:** D-0432 (`mini-search-federation-net`,
+whose own "Required follow-up" names exactly this gap); D-0422/D-0423/
+D-0424/D-0426 (`mini-search-federation` F1/F2/F3/F4/F7); D-0405
+(`mini-lexical-index`); D-0406 (`mini-ranker`); D-0420 (`mini-query`);
+roadmap issue #175; `docs/design/federated-search-exchange-f1-f2.md`.
+
+**Decision:** add F2b to `mini-search-federation` —
+`publish_corpus_bundle`/`read_corpus_bundle` wrap a source's declared
+`(UrlId, DocumentMeta)`/`(UrlId, DocumentContext)` entries for one
+`IndexSegmentId` in a signed, content-addressed object
+(`CORPUS_BUNDLE_TYPE = "mini/corpus-bundle"`) — and add
+`assemble_federation_source` to `mini-search-federation-net`, which finds
+the one F2 index segment and the F2b bundle declaring that exact
+`IndexSegmentId` among a trusted pulled id set, rebuilds a fresh
+`Corpus`/`DocumentContextTable` from the bundle's declared entries, and
+returns an `OwnedFederationSource` whose `as_source()` borrows a real
+`mini_search_federation::FederationSource`. This closes D-0432's own
+named gap: before this entry, a network-pulled F2 segment could
+authenticate and decode but could never actually feed a live
+`federate_query` call, because `Corpus`/`DocumentContextTable` had no
+wire format at all. A new integration test
+(`federated_query_over_tcp.rs`) proves the whole path end to end: a
+provider publishes an F2 segment plus F2b bundle, a peer pulls both over
+a real `TcpBearer`/`TcpStream` socket, assembles them, and an unmodified
+`federate_query` call merges that pulled source with a second, local
+source — ranking the strongly-linked local document above the
+weakly-linked pulled one under the identical query and profile, proving
+the merge is genuinely computed from the pulled bytes, not asserted.
+
+As part of this, F1's own `encode_url`/`decode_url`/
+`encode_media_type`/`decode_media_type` (and their wire-length
+counterparts) moved from `observation.rs` into the shared `codec.rs`,
+`pub(crate)`, so F2b reuses the identical bounds/encoding instead of a
+second hand-rolled copy that could silently drift from F1's. `observation.rs`'s
+own copies were deleted, not duplicated; all pre-existing F1/F2 tests
+still pass unchanged after the move (confirmed by re-running the full
+`mini-search-federation` suite before adding a single line of F2b code).
+
+**Reason:** `Corpus`/`DocumentContextTable` expose no enumeration API —
+only point lookup by `UrlId` (by design, per their own module docs: "the
+index answers what text exists, corpus answers what a document is").
+F2b therefore does not introspect an assembled table; it takes the
+`(UrlId, _)` entry pairs a caller already holds (the same pairs it
+called `.insert()` with when building its own `Corpus`/
+`DocumentContextTable`) and hands the same pairs back on read, so a
+caller re-inserts them into fresh tables exactly as it would have built
+them from scratch. This avoids growing `mini-ranker`/`mini-query`'s own
+public surface with a new iteration API just for this transport case —
+Directive 14 ("simplicity is security... prefer the smaller, well-trodden
+construction"), applied to keep the change contained to the crates that
+actually need it.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting is
+introduced anywhere in this change (voice/value wall, P1/Directive 16,
+untouched — `mini-search-federation-net`'s `Cargo.toml` gained
+`mini-lexical-index`/`mini-ranker`/`mini-query`/`mini-web-types` only, all
+already-reviewed non-value, non-governance crates). No generic
+`sign(bytes)`-shaped authority surface: `publish_corpus_bundle` takes a
+concrete `IndexSegmentId` and typed entry slices, not opaque bytes. F2b
+is the provider's own declared metadata — pairing it with an F2 segment
+from the same signer establishes attribution, not independent
+corroboration; nothing here creates a truth oracle, ranking authority, or
+personhood signal.
+
+**Implementation status:** shipped and tested. `mini-search-federation`:
+new `CORPUS_BUNDLE_TYPE`, `CorpusBundle`, `publish_corpus_bundle`,
+`read_corpus_bundle`; 8 new integration tests (round trip across every
+`AvailabilityState`/`RestrictionReason`/`UnavailabilityReason` variant
+including both `#[non_exhaustive]` enums' current variants with a
+future-variant-safe fallback; empty bundle; wrong object type; encrypted
+payload; two independent oversized-field rejections — title,
+jurisdiction; tamper detection; independently-keyed doc/context counts).
+`mini-search-federation-net`: `assemble_federation_source`,
+`OwnedFederationSource`; `is_federation_object` (renamed from
+`is_f1_or_f2`) now also recognizes `CORPUS_BUNDLE_TYPE`; 4 new
+`assemble.rs` tests for the fail-closed paths (`NoIndexSegment`,
+`AmbiguousIndexSegment`, `NoMatchingCorpusBundle`) plus successful
+rebuild, and the capstone live TCP + `federate_query` test above. Full
+workspace ritual green: `cargo fmt --all -- --check`, `cargo clippy
+--workspace --all-targets --all-features -- -D warnings`, `cargo test
+--workspace --all-features`, `cargo deny check`, governance baseline
+check, `work_claims.py validate`, nav regen.
+
+**Failure point:** `assemble_federation_source` handles one segment's
+worth of trusted ids per call and requires the caller to already know
+which pulled ids belong to which provider/segment — it does not scan an
+entire multi-provider store to auto-discover segment/bundle pairs, so a
+peer serving several segments in one session needs the caller to split
+`pull_source`'s `trusted` set (or call `pull_source` per segment) itself.
+A corpus bundle is exactly what its signer declared; nothing here
+independently corroborates a title/snippet/availability claim against the
+underlying content, the same honesty gap F1 already has for crawl
+observations. `pull_from_sources`'s lack of per-peer fault isolation
+(named in D-0432) is unchanged by this entry. Peer discovery/scheduling
+and Track F6 remain exactly as open as D-0432 left them.
+
+**Required follow-up:** add per-peer fault isolation to
+`pull_from_sources` (D-0432's own still-open item). Design peer
+discovery/scheduling once a first real deployment needs it. Write Track
+F6's private-query-transport doctrine before any query ever crosses a
+wire to a remote peer. Consider whether a future track needs
+`assemble_federation_source` to handle multiple segments per peer in one
+call, once a real deployment's shape is known — not guessed at here.
+
+**Supersedes / superseded by:** builds on and does not supersede
+D-0422/D-0423/D-0424/D-0426, D-0432, D-0405, D-0406, or D-0420. Does not
+modify F1/F2/F3/F4/F7's own wire formats, merge policy, or ranking
+behavior.

@@ -1,4 +1,4 @@
-//! One bounded, authenticated F1/F2 pull from a single peer: advertise ->
+//! One bounded, authenticated F1/F2/F2b pull from a single peer: advertise ->
 //! generic verified retrieval -> a federation-specific post-check.
 //!
 //! The generic `mini_sync::request_retrieval`/`serve_retrieval` exchange
@@ -21,7 +21,7 @@
 use did_mini::Did;
 use mini_bearer::{Bearer, Channel};
 use mini_objects::{Object, ObjectId, ObjectType};
-use mini_search_federation::{CRAWL_OBSERVATION_TYPE, INDEX_SEGMENT_TYPE};
+use mini_search_federation::{CORPUS_BUNDLE_TYPE, CRAWL_OBSERVATION_TYPE, INDEX_SEGMENT_TYPE};
 use mini_store::{Backend, Store};
 use mini_sync::KelCache;
 
@@ -30,11 +30,13 @@ use crate::message::{Msg, MAX_ADVERTISE_IDS};
 
 const ADV_AAD: &[u8] = b"MINI/SEARCHFED-ADV1";
 
-fn is_f1_or_f2(t: &ObjectType) -> bool {
+fn is_federation_object(t: &ObjectType) -> bool {
     matches!(
         t,
         ObjectType::Custom(name)
-            if name == CRAWL_OBSERVATION_TYPE || name == INDEX_SEGMENT_TYPE
+            if name == CRAWL_OBSERVATION_TYPE
+                || name == INDEX_SEGMENT_TYPE
+                || name == CORPUS_BUNDLE_TYPE
     )
 }
 
@@ -58,17 +60,17 @@ pub struct SourcePullReport {
     /// The underlying `mini-sync` exact-retrieval counters.
     pub retrieval: mini_sync::RetrievalReport,
     /// Ids that passed both the generic ingest boundary and this crate's
-    /// F1/F2-type + provider-identity check. Only these are this source's
-    /// verified contribution.
+    /// F1/F2/F2b-type + provider-identity check. Only these are this
+    /// source's verified contribution.
     pub trusted: Vec<ObjectId>,
-    /// Ingested successfully but not an F1/F2 object type.
+    /// Ingested successfully but not an F1/F2/F2b object type.
     pub wrong_type: usize,
-    /// Ingested successfully, is F1/F2, but authored by someone other than
-    /// `expected_provider`. Zero whenever the caller passes `None`.
+    /// Ingested successfully, is F1/F2/F2b, but authored by someone other
+    /// than `expected_provider`. Zero whenever the caller passes `None`.
     pub wrong_provider: usize,
 }
 
-/// Client side: pull up to `max_objects` F1/F2 objects from one peer over an
+/// Client side: pull up to `max_objects` F1/F2/F2b objects from one peer over an
 /// already-established channel. `expected_provider`, when given, binds this
 /// session to a specific identity -- objects from anyone else are excluded
 /// from [`SourcePullReport::trusted`] even though `mini-sync` already
@@ -126,7 +128,7 @@ pub fn pull_source<B: Backend>(
             // `report.retrieval.ingest`, nothing federation-specific to add.
             Err(_) => continue,
         };
-        if !is_f1_or_f2(&obj.object_type) {
+        if !is_federation_object(&obj.object_type) {
             report.wrong_type += 1;
             continue;
         }
@@ -144,8 +146,8 @@ pub fn pull_source<B: Backend>(
 
 /// Server side: answer one peer's advertisement request and serve exactly
 /// what was advertised (never more). `candidate_ids` is the caller's own
-/// record of ids it is willing to advertise as F1/F2 sources (e.g. ids it
-/// has itself published) -- this crate does not scan the store to build
+/// record of ids it is willing to advertise as F1/F2/F2b sources (e.g. ids
+/// it has itself published) -- this crate does not scan the store to build
 /// that set, the same way `mini-sync`'s exact-retrieval keeps selection
 /// policy outside the generic wire layer.
 ///
@@ -168,7 +170,7 @@ pub fn serve_source<B: Backend>(
             break;
         }
         match store.get(id) {
-            Ok(obj) if is_f1_or_f2(&obj.object_type) => selected.push(id.clone()),
+            Ok(obj) if is_federation_object(&obj.object_type) => selected.push(id.clone()),
             _ => continue,
         }
     }
@@ -193,8 +195,9 @@ pub fn serve_source<B: Backend>(
 
 #[cfg(test)]
 mod tests {
-    //! `serve_source`'s `is_f1_or_f2` filter means a *compliant* server can
-    //! never advertise a non-F1/F2 object -- so proving `pull_source`'s own
+    //! `serve_source`'s `is_federation_object` filter means a *compliant*
+    //! server can never advertise a non-F1/F2/F2b object -- so proving
+    //! `pull_source`'s own
     //! wrong-type defense-in-depth genuinely fires requires a server that
     //! does not go through `serve_source` at all. That server can only be
     //! built with access to the private `Msg`/`send`/`recv` this module

@@ -26,18 +26,28 @@
 //! timestamps are not canonical time, missing digests are not changes, and
 //! equally timestamped providers may disagree. See [`VersionRelation`].
 //!
+//! [`publish_corpus_bundle`]/[`read_corpus_bundle`] (F2b) wrap a source's
+//! declared `(UrlId, DocumentMeta)`/`(UrlId, DocumentContext)` entries the
+//! same signed way F1/F2 do, so a network-pulled F2 segment can finally be
+//! paired with the corpus/context data `federate_query` also needs --
+//! before this, a real federated query could only ever run over in-process
+//! data.
+//!
 //! ## What's deliberately NOT here
 //!
 //! No network transport, peer discovery, request scheduling, provider payment
 //! implementation (F5), or private query transport (F6). F7 is a rebuildable
 //! local view, not a signed shared history or a truth oracle. Default local
 //! budgets are finite but unbenchmarked; production weakest-device limits still
-//! require measurement.
+//! require measurement. A corpus bundle is a provider's own declared
+//! metadata, not independently corroborated -- pairing it with an F2 segment
+//! from the same signer establishes attribution, not truth.
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
 mod codec;
+mod corpus_bundle;
 mod error;
 mod federate;
 mod history;
@@ -45,6 +55,9 @@ mod observation;
 mod rerank;
 mod segment;
 
+pub use corpus_bundle::{
+    publish_corpus_bundle, read_corpus_bundle, CorpusBundle, CORPUS_BUNDLE_TYPE,
+};
 pub use error::{FederationError, Result};
 pub use federate::{federate_query, FederatedResult, FederationSource};
 pub use history::{
