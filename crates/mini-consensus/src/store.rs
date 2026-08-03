@@ -433,9 +433,10 @@ impl ConsensusArchive {
             }
             let bytes = block.to_wire_bytes()?;
             if height <= tip_height {
-                if let Some((_, planned)) = block_writes.iter().find(|(planned_height, _)| {
-                    *planned_height == height
-                }) {
+                if let Some((_, planned)) = block_writes
+                    .iter()
+                    .find(|(planned_height, _)| *planned_height == height)
+                {
                     if planned != &bytes {
                         return Err(ConsensusError::ArchiveConflict { height });
                     }
@@ -896,11 +897,7 @@ fn configure_no_follow(options: &mut OpenOptions) {
 
 fn open_archive_lock(path: &Path) -> Result<File> {
     let mut options = OpenOptions::new();
-    options
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true);
+    options.create(true).truncate(false).read(true).write(true);
     configure_no_follow(&mut options);
     let file = options.open(path)?;
     let metadata = file.metadata()?;
@@ -1351,8 +1348,7 @@ mod tests {
         use std::os::unix::fs::symlink;
 
         let root = temp_root("symlink-file");
-        let archive =
-            ConsensusArchive::open(&root, ConsensusArchiveConfig::default()).unwrap();
+        let archive = ConsensusArchive::open(&root, ConsensusArchiveConfig::default()).unwrap();
         let target = root.join("outside-snapshot.bin");
         fs::write(&target, b"not a snapshot").unwrap();
         symlink(&target, root.join(SNAPSHOT_FILE)).unwrap();

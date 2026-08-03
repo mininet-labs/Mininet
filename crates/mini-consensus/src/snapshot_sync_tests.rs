@@ -233,12 +233,10 @@ fn peer_block_state_sync_rejects_gap_duplicate_and_reordering_all_or_nothing() {
     ];
 
     for (malformed_suffix, expected, got) in cases {
-        let encoded = StateSyncResponse::blocks(
-            mini_settlement::MININET_NETWORK_ID,
-            malformed_suffix,
-        )
-        .to_wire_bytes()
-        .unwrap();
+        let encoded =
+            StateSyncResponse::blocks(mini_settlement::MININET_NETWORK_ID, malformed_suffix)
+                .to_wire_bytes()
+                .unwrap();
         let response = StateSyncResponse::from_wire_bytes(&encoded).unwrap();
         let mut destination = ConsensusNode::new(node_config(&fixture));
         let before = destination.commitment();

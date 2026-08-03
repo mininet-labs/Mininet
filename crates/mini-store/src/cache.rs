@@ -36,6 +36,12 @@ pub enum CacheTier {
     PrivateOnly,
     /// The owner intentionally pinned this; never auto-downgraded.
     PinnedByOwner,
+    /// The owner wants this retained indefinitely without treating it as
+    /// actively in use: never advertised (same ceiling as [`CacheTier::PrivateOnly`]),
+    /// set once explicitly via [`Store::set_cache_tier`], and never touched
+    /// by [`Store::note_view`] (see `docs/design/cold-storage-and-owner-only-encryption.md`,
+    /// D-0434).
+    ColdArchive,
 }
 
 impl CacheTier {
@@ -54,6 +60,7 @@ impl CacheTier {
             CacheTier::CommittedStorage => 2,
             CacheTier::PrivateOnly => 3,
             CacheTier::PinnedByOwner => 4,
+            CacheTier::ColdArchive => 5,
         }
     }
 
@@ -64,6 +71,7 @@ impl CacheTier {
             2 => Some(CacheTier::CommittedStorage),
             3 => Some(CacheTier::PrivateOnly),
             4 => Some(CacheTier::PinnedByOwner),
+            5 => Some(CacheTier::ColdArchive),
             _ => None,
         }
     }
@@ -115,8 +123,11 @@ impl<B: Backend> Store<B> {
     /// is local and identity-free by construction.
     ///
     /// Rules, most specific first:
-    /// 1. [`CacheTier::PinnedByOwner`] and [`CacheTier::CommittedStorage`] are
-    ///    never downgraded by a view.
+    /// 1. [`CacheTier::PinnedByOwner`], [`CacheTier::CommittedStorage`], and
+    ///    [`CacheTier::ColdArchive`] are never touched by a view — the first
+    ///    two because they are never auto-downgraded, and `ColdArchive`
+    ///    because it is set once explicitly and is not a "currently in use"
+    ///    signal a view should update at all.
     /// 2. Encrypted content can only ever become [`CacheTier::PrivateOnly`] —
     ///    it is never advertised, no matter how permissive the policy.
     /// 3. Otherwise, the object is promoted to [`CacheTier::SeedCache`] only
@@ -133,7 +144,7 @@ impl<B: Backend> Store<B> {
         let current = self.cache_tier(id)?;
         if matches!(
             current,
-            CacheTier::PinnedByOwner | CacheTier::CommittedStorage
+            CacheTier::PinnedByOwner | CacheTier::CommittedStorage | CacheTier::ColdArchive
         ) {
             return Ok(current);
         }

@@ -1,7 +1,7 @@
 # Federated search exchange, merging, local re-ranking, and observation history: Track F1/F2/F3/F4/F7
 
-**Decisions:** D-0422, D-0423, D-0424, D-0426  
-**Status:** Shipped and tested within the bounds stated below. No real federation transport, peer discovery, provider payment implementation, private query transport, or shared history consensus exists.
+**Decisions:** D-0422, D-0423, D-0424, D-0426, D-0432, D-0433  
+**Status:** Shipped and tested within the bounds stated below. D-0432 (`mini-search-federation-net`) closes this document's "wire F1/F2 objects through a bounded real transport" follow-up item: a bounded, authenticated pull of F1/F2/F2b objects between two peers now exists. D-0433 adds F2b (signed corpus/context bundles) and `assemble_federation_source`, closing the "define a signed transmittable Corpus/DocumentContextTable" follow-up: a network-pulled source can now feed a real `federate_query` call end to end, proven by a live two-peer test over a real TCP socket. Peer discovery, provider payment implementation, private query transport, a scheduler, and shared history consensus still do not exist.
 
 **Refs:** `docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29; roadmap issue #175; D-0316 (`mini-web-types`); D-0405 (`mini-lexical-index`); D-0406 (`mini-ranker`); D-0420 (`mini-query`); D-0427 (F5 doctrine).
 
@@ -40,6 +40,14 @@ The observation still contains a caller-supplied `CrawlObservationId`; deriving 
 `publish_index_segment` signs the existing canonical `IndexSegment::to_bytes()` representation. `read_index_segment` delegates canonical-form validation to `IndexSegment::from_bytes()` rather than introducing a second index codec.
 
 A segment is bounded by `mini_objects::MAX_PAYLOAD_BYTES` (8 MiB). Segment splitting is not implemented. If that limit becomes operationally restrictive, a separately reviewed composition similar to `mini-media` superblocks is the existing precedent.
+
+## F2b — signed corpus/context bundle (D-0433, `mini-search-federation`)
+
+`federate_query`'s own `FederationSource` needs a `Corpus`/`DocumentContextTable` alongside an `IndexSegment` -- the index answers "which documents contain this term," the corpus/context tables answer "what is this document" (title, snippet, freshness, availability, language, source observation). Until F2b, neither table had a wire format, so a network-pulled F2 segment alone could never feed a real `federate_query` call.
+
+`publish_corpus_bundle`/`read_corpus_bundle` wrap a source's declared `(UrlId, DocumentMeta)`/`(UrlId, DocumentContext)` entries for one `IndexSegmentId` in a signed, content-addressed object, reusing F1's shared URL/media-type codec (`crate::codec`) rather than a second one. `Corpus`/`DocumentContextTable` expose no enumeration API (only point lookup by `UrlId`), so this module works on the entry pairs a caller already holds (the same pairs it called `.insert()` with) rather than introspecting an assembled table.
+
+A corpus bundle is the provider's own declared metadata -- pairing it with an F2 segment from the same signer establishes attribution, not independent corroboration. Bounded the same way F1/F2 are: per-field length caps (title, snippet, jurisdiction, language), a pre-allocation entry-count ceiling independent of the overall `mini_objects::MAX_PAYLOAD_BYTES` check, and full coverage of every `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason` variant with a future-variant-safe fallback (both enums are `#[non_exhaustive]` upstream).
 
 ## F3 — deterministic federated query merging
 
@@ -141,9 +149,57 @@ F7's 16-test adversarial suite covers:
 
 Passing these tests proves the stated local mechanics. It does not authenticate a caller that skipped F1 signature/provenance verification, establish a trustworthy timestamp, corroborate a remote page, benchmark the default budgets on weak hardware, or create a deployed federation.
 
+## F1/F2/F2b transport and assembly (D-0432/D-0433, `mini-search-federation-net`)
+
+A caller can now pull F1/F2/F2b objects from one already-connected peer over
+any `mini_bearer::Bearer`/`Channel`, and assemble a pulled F2 segment plus
+F2b corpus bundle into a real, owned source ready for `federate_query`. This
+is deliberately the smallest addition that closes the transport gap, not a
+general federation service:
+
+- A tiny bounded advertisement message precedes the pull: a peer states
+  which object ids it holds (id strings only, capped count). No query
+  terms, ranking profile, or free text of any kind crosses the wire — that
+  would be Track F6 (private query transport), which stays undesigned and
+  out of scope.
+- The actual object transfer and trust boundary is `mini_sync::
+  request_retrieval`/`serve_retrieval`, unmodified — this crate does not
+  reimplement KEL-verified provenance checking or bounded exact retrieval,
+  it reuses it.
+- On top of that generic boundary (which only proves an object is validly
+  signed by *some* real identity), `pull_source` adds a federation-specific
+  check: every returned object must decode as F1/F2/F2b, and, when the
+  caller names an expected provider, must actually be authored by that
+  identity. Objects failing either check remain in the local store (the
+  generic trust boundary is not forked) but are excluded from the
+  caller-visible `trusted` set.
+- `pull_from_sources` bounds how many distinct peers one federation-refresh
+  session may contact (`max_sources`), refusing rather than silently
+  truncating an over-long peer list.
+- `assemble_federation_source` (D-0433) takes a `trusted` id set, finds its
+  one F2 segment and the F2b bundle declaring that exact `IndexSegmentId`,
+  rebuilds a fresh `Corpus`/`DocumentContextTable` from the bundle's
+  declared entries, and returns an `OwnedFederationSource` whose
+  `as_source()` borrows a real `FederationSource` -- callers pass it to
+  `federate_query` directly, alongside local or other peers' sources. Fails
+  closed (not silently) on zero or multiple segments, or no matching
+  bundle.
+
+What this does **not** do: peer discovery or connection setup (callers
+dial/handshake exactly as any other `mini_bearer`/`mini_sync` caller);
+scheduling or refresh policy; fault isolation across peers in one session
+(the first peer that errors aborts the whole `pull_from_sources` call); or
+auto-discovery of which pulled ids belong to which provider/segment when a
+peer serves several segments at once (`assemble_federation_source` handles
+one segment's worth of trusted ids per call, typically one `pull_source`
+call's own `trusted` set).
+
 ## What's deliberately not here
 
-- No network transport, peer discovery, request protocol, want-list, or scheduler.
+- No automatic wiring of a network pull into a live federated query, peer
+  discovery, request scheduling, or fault-tolerant multi-peer sessions —
+  see "F1/F2 transport" above for exactly what D-0432 does and does not
+  cover.
 - No automatic signature/KEL verification inside the payload readers or history index.
 - No canonical provider roster or cross-provider trust weight.
 - No shared/persisted/signed `SnapshotIndex`; it is rebuilt from held observations.
@@ -173,11 +229,11 @@ This design fails if a caller:
 
 - Enforce a canonical derivation rule for `CrawlObservationId`.
 - Benchmark F7 budgets on weakest supported devices before production defaults are claimed.
-- Wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits.
+- Done (D-0432): wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits. Done (D-0433): define a signed, transmittable form for a source's `Corpus`/`DocumentContextTable` (F2b) and assemble a pulled segment+bundle into a real `federate_query`-ready source. Still open: peer discovery/scheduling on top of the bounded pull, per-peer fault isolation in `pull_from_sources`, and auto-discovery of segment/bundle pairs when a peer serves several segments at once.
 - Persist or exchange history only after defining conflict, omission, provenance, and privacy semantics for a shared history object.
 - Keep F5 behind D-0427's Phase-2 transcript/threat/economic-model gate; do not jump directly to a nullifier or payment crate.
 - Write a separate F6 private-query-transport doctrine before implementation.
 
 ## Supersedes / superseded by
 
-Builds on and does not supersede D-0316, D-0405, D-0406, or D-0420. D-0427 supplies the separate doctrine for F5; it does not modify F1-F4/F7 behavior.
+Builds on and does not supersede D-0316, D-0405, D-0406, or D-0420. D-0427 supplies the separate doctrine for F5; it does not modify F1-F4/F7 behavior. D-0432 adds the F1/F2/F2b transport described above; D-0433 adds F2b's wire format and `assemble_federation_source`. Neither modifies F1-F4/F7's own wire formats or merge/rank behavior.

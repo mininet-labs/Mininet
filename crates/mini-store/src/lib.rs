@@ -27,14 +27,17 @@
 
 mod backend;
 mod cache;
+mod owner_seal;
 mod store;
 mod time_index;
 
 pub use backend::{Backend, FsBackend, MemoryBackend};
 pub use cache::{CacheTier, ViewConditions};
+pub use owner_seal::{open_as_owner, seal_for_owner, OwnerSealingKey, OwnerSealingPublicKey};
 pub use store::{HeadState, Store, TimeCursor, TimePage, MAX_TIME_PAGE_SIZE};
 
 use did_mini::IdentityError;
+use mini_crypto::CryptoError;
 use mini_objects::ObjectError;
 
 /// Result alias for this crate.
@@ -62,6 +65,9 @@ pub enum StoreError {
     LimitExceeded,
     /// A continuation cursor did not belong to the requested ordered range.
     InvalidCursor,
+    /// An owner-sealing operation (`owner_seal` module) failed: bad key,
+    /// tampered ciphertext, or a suite/length mismatch.
+    Crypto(CryptoError),
 }
 
 impl core::fmt::Display for StoreError {
@@ -75,6 +81,7 @@ impl core::fmt::Display for StoreError {
             StoreError::Corrupt => write!(f, "corrupt object or reconstructible index"),
             StoreError::LimitExceeded => write!(f, "store limit exceeded"),
             StoreError::InvalidCursor => write!(f, "invalid ordered-index cursor"),
+            StoreError::Crypto(e) => write!(f, "owner-seal crypto: {e}"),
         }
     }
 }
@@ -89,6 +96,11 @@ impl From<ObjectError> for StoreError {
 impl From<IdentityError> for StoreError {
     fn from(e: IdentityError) -> Self {
         StoreError::Identity(e)
+    }
+}
+impl From<CryptoError> for StoreError {
+    fn from(e: CryptoError) -> Self {
+        StoreError::Crypto(e)
     }
 }
 impl From<std::io::Error> for StoreError {

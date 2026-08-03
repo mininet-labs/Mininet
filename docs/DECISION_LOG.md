@@ -14813,3 +14813,335 @@ checkpoint service.
 D-0200–D-0206. It supersedes only those decisions' statements that catch-up
 history is necessarily unbounded and memory-only.
 
+### D-0432 — `mini-search-federation-net`: bounded, authenticated real transport for Track F1/F2 objects  ·  *Accepted*
+
+**Date:** 2026-08-03 · **Refs:** D-0422/D-0423/D-0424/D-0426
+(`mini-search-federation`, Track F1/F2/F3/F4/F7); D-0075/D-0080
+(`mini-sync`'s `Bearer`/`Channel`-generic, KEL-verified exact-retrieval
+trust boundary, proved to generalize to arbitrary object types); roadmap
+issue #175; `docs/design/federated-search-exchange-f1-f2.md`'s own
+"Required follow-up" bullet ("Wire F1/F2 objects through a bounded real
+transport with authenticated peer behavior and source-count limits").
+
+**Decision:** add a new crate, `mini-search-federation-net`, that lets one
+peer pull another peer's F1 (`CRAWL_OBSERVATION_TYPE`)/F2
+(`INDEX_SEGMENT_TYPE`) signed objects over any already-connected
+`mini_bearer::Bearer`/`Channel`. It does not reimplement a transport or a
+trust boundary: the actual object transfer is `mini_sync::
+request_retrieval`/`serve_retrieval`, called unmodified. Three things are
+added on top of that generic exchange:
+
+1. A tiny bounded advertisement message (`message::Msg::
+   AdvertiseRequest`/`AdvertiseResponse`, capped at `MAX_ADVERTISE_IDS =
+   4096` ids, 128 bytes per id) so a client learns which ids to ask
+   `mini-sync` to retrieve. Only object-id strings cross this wire — no
+   query terms, ranking profile, or free text of any kind. Sending a
+   caller's search query to a remote peer for server-side evaluation is
+   Track F6 (private query transport), which
+   `federated-search-exchange-f1-f2.md` explicitly keeps undesigned; this
+   crate never does that.
+2. A federation-specific post-check (`pull_source`) on top of
+   `mini-sync`'s already-verified ingest. `mini-sync` proves a returned
+   object is validly signed by *some* real, KEL-verified identity; it
+   says nothing about whether that object is F1/F2 or from the peer the
+   caller meant to trust. `pull_source` checks both: every id in
+   `SourcePullReport.trusted` decoded as F1/F2, and, when the caller
+   names an `expected_provider`, is authored by exactly that identity.
+   Objects failing either check stay in the local store (the generic
+   trust boundary in `mini-sync` is not forked) but are excluded from
+   `trusted` — callers must only treat `trusted` ids as this source's
+   verified contribution.
+3. `pull_from_sources` bounds how many distinct peers one
+   federation-refresh session may contact (`max_sources`), refusing
+   rather than silently truncating a caller's over-long peer list.
+
+**Reason:** the design doc's own "What's deliberately not here" list
+named "no network transport" as the gap since D-0422; this closes it with
+the smallest addition that does so honestly. Reusing `mini-sync`'s
+already-shipped, already-tested `request_retrieval`/`serve_retrieval`
+(rather than a new bespoke protocol) follows Directive 14 ("simplicity is
+security... prefer the smaller, well-trodden construction over a bespoke
+one") and D-0080's own finding that this generic pull already generalizes
+to arbitrary object types. The advertisement step is kept to id strings
+only, on purpose, so this crate cannot become a backdoor path into Track
+F6 (remote query evaluation) before that track has its own doctrine.
+
+**Constitutional impact:** none. `mini-search-federation-net` carries no
+value/governance edge (it depends on `did-mini`, `mini-objects`,
+`mini-store`, `mini-bearer`, `mini-sync`, `mini-search-federation` only;
+no `Cargo.toml` edge to `mini-value`/`mini-bounty`/`mini-treasury` or to
+`mini-forge`/`mini-chain` voting — the voice/value wall, P1/Directive 16,
+is untouched). No new signing/authority function was added outside
+existing typed-domain patterns — `pull_source`/`serve_source` take
+concrete `Bearer`/`Channel`/`Store`/`KelCache` parameters, not a generic
+`sign(bytes)`-shaped surface. No frozen invariant is amended; identity
+roots are still just identity roots, no "verified human" claim is made
+anywhere in this crate.
+
+**Implementation status:** shipped and tested. Public API: `pull_source`,
+`serve_source`, `PeerSource`, `pull_from_sources`, `FederationPullReport`,
+`SourcePullReport`, `NetError`. 6 tests: 2 in-crate unit tests
+(`src/session.rs`) proving the wrong-type and wrong-provider
+defense-in-depth paths actually fire against a noncompliant/relaying
+peer — cases a black-box test using only `serve_source` cannot reach,
+since `serve_source`'s own filter already prevents a *compliant* server
+from offering them; 4 black-box integration tests
+(`tests/pull_from_sources.rs`, `tests/live_over_tcp.rs`) covering a
+compliant two-peer F1+F2 pull, `pull_from_sources`'s `TooManySources`
+refusal, a real two-peer pull over an actual `TcpBearer`/`TcpStream`
+socket (mirroring `mini-sync`'s own `sync_over_tcp.rs`), and a peer
+capping its offer to what the client actually asked for. `cargo fmt
+--all`, `cargo clippy --workspace --all-targets --all-features -- -D
+warnings`, and `cargo test -p mini-search-federation-net` all pass.
+
+**Failure point:** this crate does not wire a network pull into
+`federate_query` — that needs each source's `Corpus`/
+`DocumentContextTable` transmitted too, and nothing in this workspace yet
+defines a signed, transmittable form for those, so a caller cannot yet
+run a real federated *query* across freshly-pulled remote data without
+separate, unbuilt glue. It has no peer discovery or connection setup
+(callers dial/handshake exactly as any other `mini_bearer`/`mini_sync`
+caller already does) and no scheduling/refresh policy. `pull_from_sources`
+has no fault isolation across peers: the first peer that errors aborts
+the whole session, so one flaky/hostile peer can deny federation from
+every other peer in the same call. None of this is silently assumed away
+— `src/lib.rs`'s module doc and `docs/design/
+federated-search-exchange-f1-f2.md`'s new "F1/F2 transport" section both
+state it plainly.
+
+**Required follow-up:** define a signed, transmittable form for a
+source's `Corpus`/`DocumentContextTable` so a network pull can feed
+`federate_query` directly (today's F2 `IndexSegment` alone is not
+enough). Add per-peer fault isolation to `pull_from_sources` so one
+uncooperative peer does not abort an entire multi-source session. Design
+peer discovery/scheduling once a first real deployment needs it — neither
+is designed or started here. Write Track F6's private-query-transport
+doctrine before any query ever crosses a wire to a remote peer (still
+fully open, unrelated to this crate).
+
+**Supersedes / superseded by:** builds on and does not supersede
+D-0422/D-0423/D-0424/D-0426 or D-0075/D-0080. Does not modify F1-F4/F7
+wire formats, merge policy, or ranking behavior.
+
+### D-0433 — F2b signed corpus/context bundle, and wiring a network-pulled source into a real `federate_query` call  ·  *Accepted*
+
+**Date:** 2026-08-03 · **Refs:** D-0432 (`mini-search-federation-net`,
+whose own "Required follow-up" names exactly this gap); D-0422/D-0423/
+D-0424/D-0426 (`mini-search-federation` F1/F2/F3/F4/F7); D-0405
+(`mini-lexical-index`); D-0406 (`mini-ranker`); D-0420 (`mini-query`);
+roadmap issue #175; `docs/design/federated-search-exchange-f1-f2.md`.
+
+**Decision:** add F2b to `mini-search-federation` —
+`publish_corpus_bundle`/`read_corpus_bundle` wrap a source's declared
+`(UrlId, DocumentMeta)`/`(UrlId, DocumentContext)` entries for one
+`IndexSegmentId` in a signed, content-addressed object
+(`CORPUS_BUNDLE_TYPE = "mini/corpus-bundle"`) — and add
+`assemble_federation_source` to `mini-search-federation-net`, which finds
+the one F2 index segment and the F2b bundle declaring that exact
+`IndexSegmentId` among a trusted pulled id set, rebuilds a fresh
+`Corpus`/`DocumentContextTable` from the bundle's declared entries, and
+returns an `OwnedFederationSource` whose `as_source()` borrows a real
+`mini_search_federation::FederationSource`. This closes D-0432's own
+named gap: before this entry, a network-pulled F2 segment could
+authenticate and decode but could never actually feed a live
+`federate_query` call, because `Corpus`/`DocumentContextTable` had no
+wire format at all. A new integration test
+(`federated_query_over_tcp.rs`) proves the whole path end to end: a
+provider publishes an F2 segment plus F2b bundle, a peer pulls both over
+a real `TcpBearer`/`TcpStream` socket, assembles them, and an unmodified
+`federate_query` call merges that pulled source with a second, local
+source — ranking the strongly-linked local document above the
+weakly-linked pulled one under the identical query and profile, proving
+the merge is genuinely computed from the pulled bytes, not asserted.
+
+As part of this, F1's own `encode_url`/`decode_url`/
+`encode_media_type`/`decode_media_type` (and their wire-length
+counterparts) moved from `observation.rs` into the shared `codec.rs`,
+`pub(crate)`, so F2b reuses the identical bounds/encoding instead of a
+second hand-rolled copy that could silently drift from F1's. `observation.rs`'s
+own copies were deleted, not duplicated; all pre-existing F1/F2 tests
+still pass unchanged after the move (confirmed by re-running the full
+`mini-search-federation` suite before adding a single line of F2b code).
+
+**Reason:** `Corpus`/`DocumentContextTable` expose no enumeration API —
+only point lookup by `UrlId` (by design, per their own module docs: "the
+index answers what text exists, corpus answers what a document is").
+F2b therefore does not introspect an assembled table; it takes the
+`(UrlId, _)` entry pairs a caller already holds (the same pairs it
+called `.insert()` with when building its own `Corpus`/
+`DocumentContextTable`) and hands the same pairs back on read, so a
+caller re-inserts them into fresh tables exactly as it would have built
+them from scratch. This avoids growing `mini-ranker`/`mini-query`'s own
+public surface with a new iteration API just for this transport case —
+Directive 14 ("simplicity is security... prefer the smaller, well-trodden
+construction"), applied to keep the change contained to the crates that
+actually need it.
+
+**Constitutional impact:** none. No dependency edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain` voting is
+introduced anywhere in this change (voice/value wall, P1/Directive 16,
+untouched — `mini-search-federation-net`'s `Cargo.toml` gained
+`mini-lexical-index`/`mini-ranker`/`mini-query`/`mini-web-types` only, all
+already-reviewed non-value, non-governance crates). No generic
+`sign(bytes)`-shaped authority surface: `publish_corpus_bundle` takes a
+concrete `IndexSegmentId` and typed entry slices, not opaque bytes. F2b
+is the provider's own declared metadata — pairing it with an F2 segment
+from the same signer establishes attribution, not independent
+corroboration; nothing here creates a truth oracle, ranking authority, or
+personhood signal.
+
+**Implementation status:** shipped and tested. `mini-search-federation`:
+new `CORPUS_BUNDLE_TYPE`, `CorpusBundle`, `publish_corpus_bundle`,
+`read_corpus_bundle`; 8 new integration tests (round trip across every
+`AvailabilityState`/`RestrictionReason`/`UnavailabilityReason` variant
+including both `#[non_exhaustive]` enums' current variants with a
+future-variant-safe fallback; empty bundle; wrong object type; encrypted
+payload; two independent oversized-field rejections — title,
+jurisdiction; tamper detection; independently-keyed doc/context counts).
+`mini-search-federation-net`: `assemble_federation_source`,
+`OwnedFederationSource`; `is_federation_object` (renamed from
+`is_f1_or_f2`) now also recognizes `CORPUS_BUNDLE_TYPE`; 4 new
+`assemble.rs` tests for the fail-closed paths (`NoIndexSegment`,
+`AmbiguousIndexSegment`, `NoMatchingCorpusBundle`) plus successful
+rebuild, and the capstone live TCP + `federate_query` test above. Full
+workspace ritual green: `cargo fmt --all -- --check`, `cargo clippy
+--workspace --all-targets --all-features -- -D warnings`, `cargo test
+--workspace --all-features`, `cargo deny check`, governance baseline
+check, `work_claims.py validate`, nav regen.
+
+**Failure point:** `assemble_federation_source` handles one segment's
+worth of trusted ids per call and requires the caller to already know
+which pulled ids belong to which provider/segment — it does not scan an
+entire multi-provider store to auto-discover segment/bundle pairs, so a
+peer serving several segments in one session needs the caller to split
+`pull_source`'s `trusted` set (or call `pull_source` per segment) itself.
+A corpus bundle is exactly what its signer declared; nothing here
+independently corroborates a title/snippet/availability claim against the
+underlying content, the same honesty gap F1 already has for crawl
+observations. `pull_from_sources`'s lack of per-peer fault isolation
+(named in D-0432) is unchanged by this entry. Peer discovery/scheduling
+and Track F6 remain exactly as open as D-0432 left them.
+
+**Required follow-up:** add per-peer fault isolation to
+`pull_from_sources` (D-0432's own still-open item). Design peer
+discovery/scheduling once a first real deployment needs it. Write Track
+F6's private-query-transport doctrine before any query ever crosses a
+wire to a remote peer. Consider whether a future track needs
+`assemble_federation_source` to handle multiple segments per peer in one
+call, once a real deployment's shape is known — not guessed at here.
+
+**Supersedes / superseded by:** builds on and does not supersede
+D-0422/D-0423/D-0424/D-0426, D-0432, D-0405, D-0406, or D-0420. Does not
+modify F1/F2/F3/F4/F7's own wire formats, merge policy, or ranking
+behavior.
+
+### D-0434 — Cold/owner-only storage: sealed-box encryption + `CacheTier::ColdArchive` (roadmap #34)  ·  *Accepted*
+
+**Date:** 2026-08-03 · **Refs:** roadmap #34 (Phase 4.6, "Storage privacy:
+cold storage, owner-only storage, encryption"); `docs/STATUS.md`'s
+"not started — cold/owner-only storage tiers" line; `crates/mini-store/
+src/cache.rs`'s existing `CacheTier` (2026-07-07 founder decision:
+"encrypted content can never be promoted past `PrivateOnly`"); `mini-
+objects::Payload::Encrypted`, present in the wire format since the object
+model's inception, never constructed by any crate before this entry;
+`docs/design/cold-storage-and-owner-only-encryption.md` (full design and
+honest-limits writeup).
+
+**Decision:** add a `mini-store::owner_seal` module giving
+`Payload::Encrypted` a real construction — `OwnerSealingKey`/
+`OwnerSealingPublicKey` (independent X25519 keypairs, not derived from a
+device's Ed25519 KEL key) plus `seal_for_owner`/`open_as_owner`,
+implementing the NaCl/libsodium sealed-box pattern entirely from
+already-reviewed `mini-crypto` primitives: a fresh
+`AgreementSecretKey::generate()` per call, `agree()` with the recipient's
+public key, `KdfSuite::HkdfSha256::derive_aead_key_from_shared` with a
+domain-separated `info` string, a fresh `AeadNonce`, and
+`AeadSuite::ChaCha20Poly1305` encrypt/decrypt. The wire format is
+`ephemeral_public(32) || nonce(12) || ciphertext`, bounds-checked against
+`mini_objects::MAX_PAYLOAD_BYTES` on both seal and open. Also add a sixth
+`CacheTier::ColdArchive` variant (wire tag 5) alongside the existing five:
+`advertises() == false`, same ceiling as `PrivateOnly`, set only via
+`Store::set_cache_tier` and never touched (promoted or demoted) by
+`Store::note_view` — a retention signal for content the owner wants kept
+indefinitely without treating it as "currently in use."
+
+**Reason:** every reader in the workspace already had a match arm for
+`Payload::Encrypted` that uniformly rejected it, and `CacheTier` already
+had the *availability* half of "owner-only" (`PrivateOnly`/
+`PinnedByOwner`) but no way to actually produce encrypted content, and no
+tier for indefinite retention that isn't "actively pinned because in
+use." A device's Ed25519 KEL key was deliberately not reused/converted
+for sealing (the libsodium `crypto_sign_ed25519_sk_to_curve25519`
+transform would be a second distinct cryptographic construction layered
+on top of reaching into `did-mini`'s core identity model) — Directive 14
+("simplicity is security... prefer the smaller, well-trodden
+construction") favors an independent, purpose-built keypair the caller
+stores the same way it already stores signing-key seeds
+(`Controller::export_current_and_next_keys_for_storage` is the existing
+precedent for a caller handling raw key material for its own storage).
+
+**Constitutional impact:** none. No frozen invariant is weakened — the
+frozen "`PrivateOnly`-ceiling" rule in `cache.rs`'s module doc is
+preserved verbatim; `ColdArchive` sits at or below it, never above.
+Voice/value wall (P1, Directive 16) untouched: `mini-store` gains a
+dependency on `mini-crypto` (promoted from dev-only to a real
+dependency), no new crate dependency at all, and no edge to `mini-value`/
+`mini-bounty`/`mini-treasury` or `mini-forge`/`mini-chain` voting in
+either direction. No generic `encrypt(bytes)`/`decrypt(bytes)` surface:
+`seal_for_owner`/`open_as_owner` take a concrete `OwnerSealingPublicKey`/
+`OwnerSealingKey`, not an arbitrary key blob, matching the typed-domain
+rule every other signing/sealing entry point in this workspace already
+follows.
+
+**Implementation status:** shipped and tested.
+`crates/mini-store/src/owner_seal.rs`: `OwnerSealingKey`,
+`OwnerSealingPublicKey`, `seal_for_owner`, `open_as_owner`, all exported
+from the crate root. `crates/mini-store/src/cache.rs`:
+`CacheTier::ColdArchive` (byte 5), `advertises()` unchanged (already
+excludes it), `Store::note_view`'s never-touch guard extended to include
+it alongside `PinnedByOwner`/`CommittedStorage`. `StoreError::Crypto`
+(wrapping `mini_crypto::CryptoError`) added for the new fallible paths.
+11 new adversarial tests in `crates/mini-store/tests/owner_seal.rs`
+(round trip; wrong-key rejection; tampered ciphertext/AAD/ephemeral-
+public-key each fail closed independently; truncated input at five
+boundary lengths rejected; oversized sealed-byte input rejected without
+attempting to process 16 MiB of bogus data; oversized plaintext rejected
+before sealing; two seals of the same plaintext produce different
+ciphertext; empty-plaintext round trip; `from_seed` determinism) plus 2
+new tests in `crates/mini-store/tests/cache.rs`
+(`cold_archive_round_trips_and_never_advertises`,
+`cold_archive_is_never_touched_by_a_view`). Full workspace ritual green:
+`cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets
+--all-features -- -D warnings`, `cargo test --workspace --all-features`,
+`cargo deny check`, governance baseline check, `work_claims.py validate`,
+nav regen.
+
+**Failure point:** the sealing keypair has no relationship to KEL
+rotation, delegation, or recovery — losing it loses access to everything
+sealed to it, with no social-recovery path the way a signing key could
+theoretically gain one. Every object sealed under one `OwnerSealingKey`
+becomes readable if that long-term key is later compromised; only the
+per-seal ephemeral key is one-time, not the recipient key. `seal_for_owner`
+provides confidentiality only, no signature — a caller wanting source
+authenticity still wraps the sealed bytes in an ordinarily-signed
+`Object`. No transport exists for a sealed object: `mini-sync`'s ingest
+pipeline still rejects `Payload::Encrypted` outright (unchanged, pre-
+existing behavior), so a sealed object stored locally does not propagate
+anywhere. No eviction/pruning policy reads the `ColdArchive` signal yet —
+it is a retention marker with no consumer.
+
+**Required follow-up:** design binding a sealing keypair to KEL
+delegation/rotation once a real device-loss/recovery story for owner-only
+content exists. Design whether/how a `ColdArchive`-tiered sealed object
+should ever leave the local machine (e.g. an owner's own second device
+pulling it back) — today nothing transports `Payload::Encrypted` objects
+at all. Wire an actual pruning/retention policy consumer for the
+`ColdArchive` signal. Roadmap #33 (storage economic incentive review)
+remains separate, untouched work.
+
+**Supersedes / superseded by:** new ground — no prior decision addressed
+`Payload::Encrypted` construction or a sixth `CacheTier` variant. Builds
+on and does not modify `cache.rs`'s existing five-tier model or its
+frozen `PrivateOnly`-ceiling rule (2026-07-07 founder decision); builds on
+and does not modify `mini-crypto`'s existing `agreement`/`kdf`/`aead`
+modules (all reused unchanged).
