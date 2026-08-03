@@ -1060,13 +1060,19 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   already-parsed objects, it does not fetch anything), merge/rename/
   submodule/LFS/signed-tag support, and a governed-adoption ceremony for
   when imported history is allowed onto a real branch.
-- **proposed implementation slice (D-0407, issue #266)** — Forge-native
-  contributor coordination: signed working-group charter proposals, task
-  briefs, deterministic local task suggestions, expiring work claims, and
-  exact-state technical-review handoffs, exposed through `mini team` and
-  `mini task`. This is coordination evidence only; no team delegation,
-  automatic recruitment, personnel directory, approval, canonicalization,
-  release, owner adoption, or Forge cutover is implemented. The branch proves
+- **shipped (D-0407, issue #266)** — Forge-native contributor coordination:
+  signed working-group charter proposals, task briefs, deterministic local
+  task suggestions, expiring work claims, and exact-state technical-review
+  handoffs, exposed through `mini team` and `mini task`. Merged to `main`
+  (`crates/mini-forge/src/coordination.rs`, `crates/mini-cli/src/
+  coordination.rs`); D-0431 corrects the Decision Log's own status field,
+  which had drifted out of sync with the merge. This is coordination
+  evidence only; no team delegation, automatic recruitment, personnel
+  directory, approval, canonicalization, release, owner adoption, or Forge
+  cutover is implemented — `mini team propose` still structurally refuses
+  any lifecycle beyond `proposed`/`incubating`, and nothing converts a
+  charter's `domain_paths`/`reserved_actions` into an actual
+  `governance::Policy` modifier (issue #263, still open). The branch proves
   local object verification and a two-home shared-store CLI flow; live
   multi-machine exchange and external review remain follow-up work.
 - **not started** — `mini-devd` (local daemon), machine-readable
