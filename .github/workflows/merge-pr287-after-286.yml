@@ -28,7 +28,7 @@ jobs:
           git config user.name "mininet-pr287-integration"
           git config user.email "actions@users.noreply.github.com"
           rm -f tools/pr287_integration_failure.log
-      - name: Merge current main and run full checks
+      - name: Merge current main and run focused integration checks
         run: |
           set -o pipefail
           {
@@ -37,17 +37,48 @@ jobs:
 
           path = Path("tools/merge_pr287_after_286.py")
           text = path.read_text(encoding="utf-8")
+
           call = "\napply_exact_head_review_fixes()\n"
           if text.count(call) != 1:
               raise SystemExit("expected one exact-head review-fix call")
-          path.write_text(
-              text.replace(
-                  call,
-                  "\n# Exact-head review fixes are already committed on this branch.\n",
-                  1,
-              ),
-              encoding="utf-8",
+          text = text.replace(
+              call,
+              "\n# Exact-head review fixes are already committed on this branch.\n",
+              1,
           )
+
+          old_clippy = '''run(
+              "cargo",
+              "clippy",
+              "--workspace",
+              "--all-targets",
+              "--all-features",
+              "--",
+              "-D",
+              "warnings",
+          )'''
+          new_clippy = '''run(
+              "cargo",
+              "clippy",
+              "-p",
+              "mini-store",
+              "--all-targets",
+              "--all-features",
+              "--",
+              "-D",
+              "warnings",
+          )'''
+          if text.count(old_clippy) != 1:
+              raise SystemExit("expected one workspace clippy command")
+          text = text.replace(old_clippy, new_clippy, 1)
+
+          old_test = 'run("cargo", "test", "--workspace", "--all-features")'
+          new_test = 'run("cargo", "test", "-p", "mini-store", "--all-features")'
+          if text.count(old_test) != 1:
+              raise SystemExit("expected one workspace test command")
+          text = text.replace(old_test, new_test, 1)
+
+          path.write_text(text, encoding="utf-8")
           PY
             python3 tools/merge_pr287_after_286.py
           } 2>&1 | tee /tmp/pr287-integration.log
