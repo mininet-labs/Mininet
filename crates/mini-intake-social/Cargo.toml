@@ -1,0 +1,22 @@
+[package]
+name = "mini-intake-social"
+version = "0.0.1"
+description = "Bridges an Accepted mini-intake IntakeEnvelope to a real, signed mini-social Post, closing Track B5's remaining gap (`IntakeEnvelope::add_link` gates on Accepted review but nothing previously called it against a real target crate). Publishes text/Markdown intake source bytes as a bounded mini_social::Post and returns the matching mini_intake_types::IntakeLink::Post -- the caller still calls add_link itself, so authority promotion stays exactly where mini-intake-types already puts it."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-crypto = { path = "../mini-crypto" }
+mini-intake = { path = "../mini-intake" }
+mini-intake-types = { path = "../mini-intake-types" }
+mini-objects = { path = "../mini-objects" }
+mini-social = { path = "../mini-social" }
+mini-store = { path = "../mini-store" }
+
+[dev-dependencies]
+tempfile = "3"

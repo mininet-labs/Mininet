@@ -2474,6 +2474,9 @@ dependencies = [
  "mini-crypto",
  "mini-forge",
  "mini-installer",
+ "mini-intake",
+ "mini-intake-social",
+ "mini-intake-types",
  "mini-keystone",
  "mini-media",
  "mini-objects",
@@ -2686,6 +2689,20 @@ version = "0.0.1"
 dependencies = [
  "mini-crypto",
  "mini-intake-types",
+ "mini-store",
+ "tempfile",
+]
+
+[[package]]
+name = "mini-intake-social"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-intake",
+ "mini-intake-types",
+ "mini-objects",
+ "mini-social",
  "mini-store",
  "tempfile",
 ]

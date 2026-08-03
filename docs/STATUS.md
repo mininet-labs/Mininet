@@ -1063,13 +1063,19 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   already-parsed objects, it does not fetch anything), merge/rename/
   submodule/LFS/signed-tag support, and a governed-adoption ceremony for
   when imported history is allowed onto a real branch.
-- **proposed implementation slice (D-0407, issue #266)** — Forge-native
-  contributor coordination: signed working-group charter proposals, task
-  briefs, deterministic local task suggestions, expiring work claims, and
-  exact-state technical-review handoffs, exposed through `mini team` and
-  `mini task`. This is coordination evidence only; no team delegation,
-  automatic recruitment, personnel directory, approval, canonicalization,
-  release, owner adoption, or Forge cutover is implemented. The branch proves
+- **shipped (D-0407, issue #266)** — Forge-native contributor coordination:
+  signed working-group charter proposals, task briefs, deterministic local
+  task suggestions, expiring work claims, and exact-state technical-review
+  handoffs, exposed through `mini team` and `mini task`. Merged to `main`
+  (`crates/mini-forge/src/coordination.rs`, `crates/mini-cli/src/
+  coordination.rs`); D-0431 corrects the Decision Log's own status field,
+  which had drifted out of sync with the merge. This is coordination
+  evidence only; no team delegation, automatic recruitment, personnel
+  directory, approval, canonicalization, release, owner adoption, or Forge
+  cutover is implemented — `mini team propose` still structurally refuses
+  any lifecycle beyond `proposed`/`incubating`, and nothing converts a
+  charter's `domain_paths`/`reserved_actions` into an actual
+  `governance::Policy` modifier (issue #263, still open). The branch proves
   local object verification and a two-home shared-store CLI flow; live
   multi-machine exchange and external review remain follow-up work.
 - **not started** — `mini-devd` (local daemon), machine-readable
@@ -1356,6 +1362,45 @@ the top development priority.
   shows every call succeeds — the operational half of "ensure public
   view/post/comment/reply/react paths do not require payment" that
   D-0361 alone (crate-only) could not demonstrate.
+- **shipped (D-0429)** — `mini-social` gains a canonical, bounded `POST`
+  model — `Post`/`PostKind`(`Plain`/`Media`)/`decode_post`/`publish_post`/
+  `publish_media_post`/`resolve_post`/`MAX_POST_BYTES` — used by every
+  producer and reader in this workspace, not left as an optional path
+  alongside old raw ones: `mini-desktop`'s previously hand-built,
+  unbounded `publish_media_post`/`post_text` are rewired onto it, and
+  `mini_social::feed` now structurally validates every candidate via
+  `decode_post` instead of admitting anything tagged `POST` by type
+  alone. New leaf crate `mini-intake-social` composes this with
+  `mini-intake` to close Track B5's remaining gap named in
+  `mini-intake`'s own module docs ("no publication linking (Track B5)"):
+  `publish_accepted_intake_as_post` takes an already-`Accepted`
+  `IntakeEnvelope` (text/Markdown only, the only kinds Track B2 ever
+  stores), publishes its source bytes as a real signed `Post` — now
+  re-verified against the envelope's own declared digest/length/intake
+  id via `mini_intake::read_verified_source_bytes`, not merely fetched
+  by digest key, since a content-addressed backend can silently
+  "repair" a blob under a key to different bytes — and returns the
+  matching `IntakeLink::Post` target. `mini-cli` gains `mini intake
+  add|show|advance|publish-post`, a real developer-facing caller driving
+  the whole pipeline as one visible workflow, now idempotent and
+  crash-recoverable: an OS-backed per-intake-id lock plus a persisted
+  publish journal mean a crash between signing and completing an attempt
+  is recovered by reusing the exact signed bytes on retry rather than
+  signing a second, distinct, still feed-eligible orphan post, and a
+  second `publish-post` call (or a concurrent one) returns the existing
+  post instead of duplicating it. `IntakeEnvelope::add_link` is now
+  idempotent (exact-duplicate no-op) and bounded at construction time,
+  not only at decode time. All four of these hardenings were found by an
+  exact-head AI-assisted review posted on the open PR (evidence, not one
+  of the required human approvals) and verified against the actual code
+  before being fixed. Intake material lives under a separate
+  `<home>/intake` `FsBackend`, distinct from the signed-object `--store`
+  path. No `--json` support yet (matches `identity`/`kel`/`repo`/`pr`/
+  `sync`'s existing convention). `ReviewState::Accepted` remains a local
+  workflow state only — no reviewer identity, signature, or reason is
+  captured; a `mini-desktop` UI surface for the same workflow, and
+  signed review attestations, both remain not built. See
+  `docs/DECISION_LOG.md` D-0429.
 - **shipped, prototype (D-0363, Track C4)** — `mini-commons-policy`
   gains `service_quote_for(entitlement, tier, prices, payload_mb,
   storage_days)`, the paid-service boundary against `mini-resource-pricing`

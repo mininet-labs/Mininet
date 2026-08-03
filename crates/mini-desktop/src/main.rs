@@ -15,14 +15,15 @@ use eframe::egui;
 use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
 use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
-use mini_objects::{ObjectBuilder, ObjectType, OpaqueRoute, Payload};
+use mini_objects::{ObjectType, OpaqueRoute};
 use mini_social::{
     comments, community_members, feed, followers, following, known_profiles, publish_comment,
-    publish_community, publish_profile, publish_profile_details, publish_wall, resolve_community,
-    resolve_profile, set_follow, set_membership, set_reaction, FeedFilter, FeedItem,
-    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
-    PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
-    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
+    publish_community, publish_media_post, publish_post, publish_profile, publish_profile_details,
+    publish_wall, resolve_community, resolve_post, resolve_profile, set_follow, set_membership,
+    set_reaction, FeedFilter, FeedItem, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
+    NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy,
+    MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
+    MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{
@@ -267,15 +268,16 @@ impl Workspace {
             .identity
             .as_ref()
             .ok_or_else(|| "identity is locked".to_string())?;
-        let post = ObjectBuilder::new(ObjectType::POST)
-            .timestamp_ms(now_ms())
-            .sequence(self.sequence)
-            .payload(Payload::Public(text.as_bytes().to_vec()))
-            .sign(self.human_did()?, &identity.device)
-            .map_err(|error| error.to_string())?;
-        self.store
-            .insert(&post)
-            .map_err(|error| error.to_string())?;
+        let human = self.human_did()?.clone();
+        publish_post(
+            &mut self.store,
+            &human,
+            &identity.device,
+            text,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
     }
@@ -547,16 +549,16 @@ impl Workspace {
         )
         .map_err(|error| error.to_string())?;
         self.sequence = base_sequence.saturating_add(manifest.chunks.len() as u64 + 1);
-        let post = ObjectBuilder::new(ObjectType::POST)
-            .timestamp_ms(now_ms())
-            .sequence(self.sequence)
-            .link("media", manifest.id)
-            .payload(Payload::Public(caption.as_bytes().to_vec()))
-            .sign(&human, &identity.device)
-            .map_err(|error| error.to_string())?;
-        self.store
-            .insert(&post)
-            .map_err(|error| error.to_string())?;
+        publish_media_post(
+            &mut self.store,
+            &human,
+            &identity.device,
+            manifest.id,
+            caption,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
     }
@@ -750,14 +752,13 @@ impl Workspace {
     }
 
     fn post_text(&self, item: &FeedItem) -> String {
-        self.store
-            .get(&item.id)
-            .ok()
-            .and_then(|object| match object.payload {
-                Payload::Public(bytes) => String::from_utf8(bytes).ok(),
-                Payload::Encrypted(_) => None,
-            })
-            .unwrap_or_else(|| "[unreadable or encrypted post]".to_string())
+        // Canonical path only: `resolve_post` re-applies the same
+        // structural validation `feed` already used to admit this item
+        // (type, bound, UTF-8, link shape), rather than re-decoding the
+        // raw payload here and risking a second, divergent decode rule.
+        resolve_post(&self.store, &item.id)
+            .map(|post| post.text)
+            .unwrap_or_else(|_| "[unreadable or encrypted post]".to_string())
     }
 
     fn communities(&self) -> Vec<(mini_objects::ObjectId, String, String, usize, bool)> {

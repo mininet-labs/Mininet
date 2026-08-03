@@ -29,11 +29,17 @@
 
 mod discovery;
 mod pairing;
+mod post;
 mod wall;
 
 pub use discovery::{
     LocalProfileAnnouncer, LocalProfileScanner, NearbyProfile, PROFILE_DISCOVERY_GROUP,
     PROFILE_DISCOVERY_PORT,
+};
+
+pub use post::{
+    build_post, decode_post, publish_media_post, publish_post, resolve_post, Post, PostKind,
+    MAX_POST_BYTES,
 };
 
 pub use pairing::{
@@ -80,7 +86,9 @@ pub type Result<T> = core::result::Result<T, SocialError>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SocialError {
-    /// A profile field exceeded its limit.
+    /// A field (profile, wall, pairing, or post/caption) exceeded its own
+    /// type's maximum size — shared across object types, so the message
+    /// deliberately does not name one specific type.
     FieldTooLarge,
     /// Underlying store failure.
     Store(StoreError),
@@ -96,6 +104,9 @@ pub enum SocialError {
     BadInteraction,
     /// A community or membership object was structurally invalid.
     BadCommunity,
+    /// A post object was structurally invalid, wrongly typed, or exceeded
+    /// [`MAX_POST_BYTES`].
+    BadPost,
     /// Local profile discovery I/O failed.
     Io(String),
     /// A pairing offer/acceptance was structurally invalid, truncated, or
@@ -118,7 +129,7 @@ pub enum SocialError {
 impl core::fmt::Display for SocialError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            SocialError::FieldTooLarge => write!(f, "profile field too large"),
+            SocialError::FieldTooLarge => write!(f, "field exceeds its maximum size"),
             SocialError::Store(e) => write!(f, "store: {e}"),
             SocialError::Object(e) => write!(f, "object: {e}"),
             SocialError::Identity(e) => write!(f, "identity: {e}"),
@@ -126,6 +137,7 @@ impl core::fmt::Display for SocialError {
             SocialError::BadProfile => write!(f, "structurally invalid profile object"),
             SocialError::BadInteraction => write!(f, "structurally invalid comment or reaction"),
             SocialError::BadCommunity => write!(f, "structurally invalid community object"),
+            SocialError::BadPost => write!(f, "structurally invalid or oversized post object"),
             SocialError::Io(error) => write!(f, "local profile discovery i/o: {error}"),
             SocialError::PairingMalformed => write!(f, "malformed pairing offer or acceptance"),
             SocialError::PairingExpired => write!(f, "pairing offer expired or window too long"),
@@ -996,7 +1008,14 @@ pub fn feed<B: Backend>(
     let mut push_posts = |author: &Did, reason: FeedReason| -> Result<()> {
         for id in store.by_author(author)? {
             let obj = store.get(&id)?;
-            if obj.object_type == ObjectType::POST {
+            // A type tag alone is not sufficient: an old/alternative client
+            // (or a bare `ObjectBuilder`) can insert a `POST`-tagged object
+            // that is oversized, non-UTF-8, encrypted, or carries an
+            // unrecognized link shape. `decode_post` is the one canonical
+            // structural validator every producer/reader shares — an
+            // object that fails it is silently excluded from the feed
+            // rather than surfaced as a broken entry.
+            if obj.object_type == ObjectType::POST && post::decode_post(&obj).is_ok() {
                 items.push(FeedItem {
                     id: obj.id().clone(),
                     author: obj.author_human.clone(),
