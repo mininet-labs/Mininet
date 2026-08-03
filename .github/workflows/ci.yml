@@ -113,103 +113,106 @@ jobs:
   # and on any pull request that touches something other than `docs/**` or
   # markdown.
 
-  # One-shot branch-local integration job. The action commits only the tested
-  # non-workflow tree; the connector restores this file after the push.
-  snapshot-stage5:
+  # Temporary same-repository runner for PR #289 review remediation. It is
+  # removed from the tested permanent commit before that commit is pushed.
+  snapshot-review-remediation:
     if: github.event_name == 'pull_request' && github.head_ref == 'codex/consensus-snapshot-sync'
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: codex/consensus-snapshot-sync
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
         with:
           toolchain: 1.94.1
-          components: clippy
-      - name: Correct stage-five patch assumptions
+          components: clippy,rustfmt
+      - name: Apply review fixes and integrate current main
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("tools/apply_consensus_snapshot_stage5.py")
-          text = path.read_text(encoding="utf-8")
-          start_marker = '''replace_once(
-              "crates/mini-consensus/src/state_sync.rs",
-              ''' + "'''" + '''        if out.len() > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {'''
-          end_marker = '''replace_once(
-              "crates/mini-consensus/src/state_sync.rs",
-              ''' + "'''" + '''mod tests {'''
-          start = text.index(start_marker)
-          end = text.index(end_marker, start)
-          replacement = '''replace_once(
-              "crates/mini-consensus/src/state_sync.rs",
-              """        if out.len() > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
-                      return Err(ConsensusError::TooLarge);
-                  }
-                  Ok(out)
-              }
-
-              pub fn from_wire_bytes(bytes: &[u8]) -> Result<Self> {
-          """,
-              """        if out.len() != exact_len {
-                      return Err(ConsensusError::Malformed);
-                  }
-                  Ok(out)
-              }
-
-              pub fn from_wire_bytes(bytes: &[u8]) -> Result<Self> {
-          """,
-          )
-          replace_once(
-              "crates/mini-consensus/src/state_sync.rs",
-              """fn encode_blocks(out: &mut Vec<u8>, blocks: &[FinalizedBlock]) -> Result<()> {
-          """,
-              """fn checked_blocks_wire_len(mut length: usize, blocks: &[FinalizedBlock]) -> Result<usize> {
-              if blocks.len() > MAX_STATE_SYNC_BLOCKS {
-                  return Err(ConsensusError::TooLarge);
-              }
-              length = length.checked_add(4).ok_or(ConsensusError::TooLarge)?;
-              for block in blocks {
-                  let block_len = block.to_wire_bytes()?.len();
-                  length = length
-                      .checked_add(4)
-                      .and_then(|value| value.checked_add(block_len))
-                      .ok_or(ConsensusError::TooLarge)?;
-                  if length > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
-                      return Err(ConsensusError::TooLarge);
-                  }
-              }
-              Ok(length)
-          }
-
-          fn encode_blocks(out: &mut Vec<u8>, blocks: &[FinalizedBlock]) -> Result<()> {
-          """,
-          )
-          '''
-          text = text[:start] + replacement + text[end:]
-          old_count = '''        let count = MAX_LEDGER_SNAPSHOT_BYTES / (beneficiary.len() + 64) + 2;
-          '''
-          new_count = '''        let count = MAX_LEDGER_SNAPSHOT_BYTES / (beneficiary.len() + 64) + 8;
-          '''
-          if text.count(old_count) != 1:
-              raise SystemExit("stage-five oversized fixture target changed")
-          text = text.replace(old_count, new_count, 1)
-          old_delta = "            let delta = target.checked_sub(before).unwrap_or(0);\n"
-          new_delta = "            let delta = target.saturating_sub(before);\n"
-          if text.count(old_delta) != 1:
-              raise SystemExit("stage-five delta target changed")
-          path.write_text(text.replace(old_delta, new_delta, 1), encoding="utf-8")
-          PY
-      - name: Apply and validate final D-0207 recovery fixes
-        run: python3 tools/apply_consensus_snapshot_stage5.py
-      - name: Commit the tested non-workflow tree
-        run: |
-          git checkout HEAD -- .github/workflows/ci.yml
+          set -euo pipefail
           git config user.name "mininet-consensus-snapshot"
           git config user.email "actions@users.noreply.github.com"
+          python3 tools/apply_consensus_snapshot_review_fixes.py
+
+          git rm --ignore-unmatch \
+            .github/workflows/consensus-snapshot-finalizer.yml \
+            .github/workflows/consensus-snapshot-stage4.yml \
+            .github/workflows/consensus-snapshot-stage5.yml \
+            tools/apply_consensus_snapshot_stage4.py \
+            tools/apply_consensus_snapshot_review_fixes.py
+
+          git fetch origin main
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+          if [ "$merge_status" -ne 0 ]; then
+            unresolved="$(git diff --name-only --diff-filter=U)"
+            [ -n "$unresolved" ] || { echo "merge failed without unresolved paths"; exit 1; }
+            while IFS= read -r path; do
+              [ -n "$path" ] || continue
+              case "$path" in
+                .github/workflows/ci.yml|Cargo.lock|docs/_generated/*)
+                  git checkout --theirs -- "$path"
+                  git add "$path"
+                  ;;
+                docs/DECISION_LOG.md|docs/STATUS.md)
+                  git show ":2:$path" > /tmp/ours
+                  git show ":1:$path" > /tmp/base
+                  git show ":3:$path" > /tmp/theirs
+                  git merge-file --union /tmp/ours /tmp/base /tmp/theirs
+                  cp /tmp/ours "$path"
+                  git add "$path"
+                  ;;
+                .github/workflows/consensus-snapshot-finalizer.yml|.github/workflows/consensus-snapshot-stage4.yml|.github/workflows/consensus-snapshot-stage5.yml)
+                  git rm --ignore-unmatch "$path"
+                  ;;
+                *)
+                  echo "unexpected merge conflict: $path"
+                  exit 1
+                  ;;
+              esac
+            done <<EOF
+          $unresolved
+          EOF
+          fi
+
+          git checkout origin/main -- .github/workflows/ci.yml
+          cargo generate-lockfile
+          cargo fmt --all
+          python3 tools/mininet_nav.py build
+          git diff --check
+      - name: Validate integrated candidate
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          cargo test --workspace --all-targets --all-features
+          python3 -m unittest discover -s tools -p 'test_*.py'
+          rm -rf /tmp/mininet-canonical
+          git worktree add --detach /tmp/mininet-canonical origin/main
+          python3 tools/check_governance.py \
+            --mode baseline \
+            --canonical-root /tmp/mininet-canonical \
+            --candidate-activation
+          python3 tools/work_claims.py validate
+          git worktree remove --force /tmp/mininet-canonical
+      - name: Push tested permanent tree
+        id: push
+        run: |
+          set -euo pipefail
           git add -A
           git diff --cached --exit-code && exit 1 || true
-          git commit -m "consensus: close D-0207 recovery and bound gaps"
+          git commit -m "fix: resolve PR 289 archive and state-sync review findings"
           git push origin HEAD:codex/consensus-snapshot-sync
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Record evidence without granting approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.push.outputs.sha }}
+        run: |
+          gh pr comment 289 --repo mininet-labs/Mininet --body "Review remediation passed full integrated validation on \`${FINAL_SHA}\`. Deterministic install failures are now preflighted before journaling; record/snapshot plans validate before all writes; no-follow handle opens close the archive read TOCTOU; oversized suffixes use a dedicated error; and hostile gap/duplicate/reordering responses exercise the peer-facing acceptance path. The permanent diff contains no temporary workflow or helper. AI evidence carries zero approval weight; exact-head repository workflows remain required."
