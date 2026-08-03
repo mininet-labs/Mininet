@@ -129,6 +129,67 @@ jobs:
         with:
           toolchain: 1.94.1
           components: clippy
+      - name: Correct the state-sync encode patch split
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tools/apply_consensus_snapshot_stage5.py")
+          text = path.read_text(encoding="utf-8")
+          start_marker = '''replace_once(
+              "crates/mini-consensus/src/state_sync.rs",
+              ''' + "'''" + '''        if out.len() > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {'''
+          end_marker = '''replace_once(
+              "crates/mini-consensus/src/state_sync.rs",
+              ''' + "'''" + '''mod tests {'''
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          replacement = '''replace_once(
+              "crates/mini-consensus/src/state_sync.rs",
+              """        if out.len() > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
+                      return Err(ConsensusError::TooLarge);
+                  }
+                  Ok(out)
+              }
+
+              pub fn from_wire_bytes(bytes: &[u8]) -> Result<Self> {
+          """,
+              """        if out.len() != exact_len {
+                      return Err(ConsensusError::Malformed);
+                  }
+                  Ok(out)
+              }
+
+              pub fn from_wire_bytes(bytes: &[u8]) -> Result<Self> {
+          """,
+          )
+          replace_once(
+              "crates/mini-consensus/src/state_sync.rs",
+              """fn encode_blocks(out: &mut Vec<u8>, blocks: &[FinalizedBlock]) -> Result<()> {
+          """,
+              """fn checked_blocks_wire_len(mut length: usize, blocks: &[FinalizedBlock]) -> Result<usize> {
+              if blocks.len() > MAX_STATE_SYNC_BLOCKS {
+                  return Err(ConsensusError::TooLarge);
+              }
+              length = length.checked_add(4).ok_or(ConsensusError::TooLarge)?;
+              for block in blocks {
+                  let block_len = block.to_wire_bytes()?.len();
+                  length = length
+                      .checked_add(4)
+                      .and_then(|value| value.checked_add(block_len))
+                      .ok_or(ConsensusError::TooLarge)?;
+                  if length > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
+                      return Err(ConsensusError::TooLarge);
+                  }
+              }
+              Ok(length)
+          }
+
+          fn encode_blocks(out: &mut Vec<u8>, blocks: &[FinalizedBlock]) -> Result<()> {
+          """,
+          )
+          '''
+          path.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
+          PY
       - name: Apply and validate final D-0207 recovery fixes
         run: python3 tools/apply_consensus_snapshot_stage5.py
       - name: Commit the tested non-workflow tree
