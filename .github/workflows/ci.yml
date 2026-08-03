@@ -129,6 +129,20 @@ jobs:
         with:
           toolchain: 1.94.1
           components: clippy,rustfmt
+      - name: Correct focused evidence counts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tools/apply_privacy_transport_stage2.py")
+          text = path.read_text(encoding="utf-8")
+          old = """Focused formatting, 66 unit tests, four
+          real-socket tests, and strict Clippy"""
+          new = """Focused formatting, 64 unit tests, three
+          real-socket tests plus one discovery/session integration test, and strict Clippy"""
+          if text.count(old) != 1:
+              raise SystemExit("stage-two evidence-count target changed")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Apply advertisement-to-session binding and truth sync
         run: python3 tools/apply_privacy_transport_stage2.py
       - name: Format and regenerate navigation
