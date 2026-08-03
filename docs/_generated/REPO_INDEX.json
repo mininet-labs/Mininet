@@ -1,7 +1,7 @@
 {
   "counts": {
     "crates": 69,
-    "files": 795,
+    "files": 794,
     "headings": 2543,
     "rust_symbols": 7038
   },
@@ -284,26 +284,6 @@
     }
   },
   "files": [
-    {
-      "bytes": 108,
-      "group": "root",
-      "headings": [],
-      "keywords": [
-        "claude",
-        "scheduled_tasks",
-        "lock",
-        "sessionid",
-        "b1174e2-6c39-5dd7-8c12-28ac1a5d0c44",
-        "pid",
-        "procstart",
-        "acquiredat"
-      ],
-      "lines": 1,
-      "path": ".claude/scheduled_tasks.lock",
-      "sha256": "68bc6ed761dff5faa961252195badaa33d88b830b9afa8a5ba75bd8be9832c2e",
-      "symbols": [],
-      "title": "{\"sessionId\":\"9b1174e2-6c39-5dd7-8c12-28ac1a5d0c44\",\"pid\":569,\"procStart\":\"3714\",\"acquiredAt\":1785713449122}"
-    },
     {
       "bytes": 835,
       "group": "ci",
@@ -60530,7 +60510,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 877812,
+      "bytes": 882581,
       "group": "docs",
       "headings": [
         {
@@ -60948,21 +60928,21 @@
         "audit",
         "closes",
         "doctrine",
+        "decision",
         "log",
         "batch",
-        "decision",
         "local",
         "release",
         "first",
         "signed",
         "roadmap",
         "phase",
-        "deterministic",
-        "design"
+        "status",
+        "deterministic"
       ],
-      "lines": 14625,
+      "lines": 14704,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "fd301afe7164d6f2cd6b7e5380bd469f3a33d397cb07ef64142ab65170833333",
+      "sha256": "7e62e766d9848fe2b75a79ccafb924fe82cee258e2d7b1a05693511fe2daab19",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -62111,7 +62091,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 111948,
+      "bytes": 112371,
       "group": "docs",
       "headings": [
         {
@@ -62176,27 +62156,27 @@
         },
         {
           "level": 2,
-          "line": 1098,
+          "line": 1104,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1463,
+          "line": 1469,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1554,
+          "line": 1560,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1634,
+          "line": 1640,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1700,
+          "line": 1706,
           "text": "Where to look for more detail"
         }
       ],
@@ -62226,9 +62206,9 @@
         "social",
         "network"
       ],
-      "lines": 1715,
+      "lines": 1721,
       "path": "docs/STATUS.md",
-      "sha256": "bb44705cc2bd9b95fd43efe8400ed9b651f3dc7cdfbfa433454ef59d80f32a40",
+      "sha256": "7f5a48fb614572f32c3e0e0da5f3186cd338ce8c5d5ce811e8d20f6f51e59ade",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -77439,7 +77419,6 @@
   "format": "mininet.repo_index.v1",
   "purpose": "Offline navigation/search metadata. Regenerate with tools/mininet_nav.py build.",
   "root_files": [
-    ".claude/scheduled_tasks.lock",
     "AGENTS.md",
     "CLAUDE.md",
     "CONTRIBUTING.md",
