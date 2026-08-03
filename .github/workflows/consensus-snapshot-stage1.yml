@@ -22,6 +22,56 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.94.1
+      - name: Correct the one stale mini-economy module-list assumption
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tools/apply_consensus_snapshot_stage1.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''replace_once(
+              "crates/mini-economy/src/lib.rs",
+              """mod ledger;
+          mod policy;
+          mod simulation;
+          """,
+              """mod ledger;
+          mod policy;
+          mod simulation;
+          mod snapshot;
+          """,
+          )
+          replace_once(
+              "crates/mini-economy/src/lib.rs",
+              """pub use simulation::{run_scenario, Scenario, ScenarioReport, YearReport};
+          """,
+              """pub use simulation::{run_scenario, Scenario, ScenarioReport, YearReport};
+          pub use snapshot::{
+              MonetaryLedgerSnapshot, MAX_SNAPSHOT_BENEFICIARY_BYTES, MAX_VESTING_POSITIONS,
+          };
+          """,
+          )'''
+          new = '''replace_once(
+              "crates/mini-economy/src/lib.rs",
+              """mod ledger;
+          """,
+              """mod ledger;
+          mod snapshot;
+          """,
+          )
+          replace_once(
+              "crates/mini-economy/src/lib.rs",
+              """pub use ledger::{MonetaryLedger, VestingPosition, VestingSubject};
+          """,
+              """pub use ledger::{MonetaryLedger, VestingPosition, VestingSubject};
+          pub use snapshot::{
+              MonetaryLedgerSnapshot, MAX_SNAPSHOT_BENEFICIARY_BYTES, MAX_VESTING_POSITIONS,
+          };
+          """,
+          )'''
+          if text.count(old) != 1:
+              raise SystemExit("stage-one economy patch target changed")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Apply and test snapshot/archive stage
         run: python3 tools/apply_consensus_snapshot_stage1.py
       - name: Commit permanent implementation
