@@ -66,8 +66,10 @@ pub enum StateSyncPayload {
     /// A contiguous run beginning at `request.from_height + 1`.
     Blocks(Vec<FinalizedBlock>),
     /// A newer authenticated checkpoint plus blocks immediately after it.
+    /// Boxed so the control/blocks-only variants do not pay the full in-memory
+    /// size of the state-bearing snapshot on every response value.
     Snapshot {
-        snapshot: ConsensusSnapshot,
+        snapshot: Box<ConsensusSnapshot>,
         blocks: Vec<FinalizedBlock>,
     },
 }
@@ -111,7 +113,10 @@ impl StateSyncResponse {
     ) -> Self {
         Self {
             network_id,
-            payload: StateSyncPayload::Snapshot { snapshot, blocks },
+            payload: StateSyncPayload::Snapshot {
+                snapshot: Box::new(snapshot),
+                blocks,
+            },
         }
     }
 
@@ -190,7 +195,10 @@ impl StateSyncResponse {
                     reader.bytes(mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES)?,
                 )?;
                 let blocks = decode_blocks(&mut reader)?;
-                StateSyncPayload::Snapshot { snapshot, blocks }
+                StateSyncPayload::Snapshot {
+                    snapshot: Box::new(snapshot),
+                    blocks,
+                }
             }
             _ => return Err(ConsensusError::Malformed),
         };
