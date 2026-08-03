@@ -1,0 +1,16 @@
+[package]
+name = "mini-transport-security"
+version = "0.0.1"
+description = "Optional channel-bound did:mini peer authentication, signed discovery, anti-eclipse selection, and fail-closed privacy-tier execution for Mininet."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-bearer = { path = "../mini-bearer" }
+mini-crypto = { path = "../mini-crypto" }
+mini-privacy-policy = { path = "../mini-privacy-policy" }
