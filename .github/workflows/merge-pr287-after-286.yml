@@ -23,6 +23,11 @@ jobs:
         with:
           ref: codex/forge-bounded-fs-index-pages
           fetch-depth: 0
+      - name: Configure the integration identity
+        run: |
+          git config user.name "mininet-pr287-integration"
+          git config user.email "actions@users.noreply.github.com"
+          rm -f tools/pr287_integration_failure.log
       - name: Merge current main, apply review fixes, and run full checks
         run: |
           set -o pipefail
@@ -64,8 +69,6 @@ jobs:
           } 2>&1 | tee /tmp/pr287-integration.log
       - name: Commit combined verified state
         run: |
-          git config user.name "mininet-pr287-integration"
-          git config user.email "actions@users.noreply.github.com"
           git add -A
           git diff --cached --exit-code && exit 1 || true
           git commit -m "merge: integrate current main and review fixes for D-0430"
@@ -77,8 +80,6 @@ jobs:
           git reset --hard HEAD
           git clean -fd
           tail -n 600 /tmp/pr287-integration.log > tools/pr287_integration_failure.log
-          git config user.name "mininet-pr287-integration"
-          git config user.email "actions@users.noreply.github.com"
           git add tools/pr287_integration_failure.log
           git commit -m "ci: capture PR 287 integration failure"
           git push origin HEAD:codex/forge-bounded-fs-index-pages
