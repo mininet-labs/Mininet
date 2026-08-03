@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+STORE = ROOT / "crates/mini-store/src/store.rs"
 PLANNING = ROOT / "docs/planning/forge-bounded-fs-index-pages.md"
 DECISIONS = ROOT / "docs/DECISION_LOG.md"
 STATUS = ROOT / "docs/STATUS.md"
@@ -36,6 +37,17 @@ def regex_once(path: Path, pattern: str, replacement: str) -> None:
 def run(*args: str) -> None:
     subprocess.run(args, cwd=ROOT, check=True)
 
+
+replace_once(
+    STORE,
+    "/// Largest page accepted by [`Store::since_page`]. The backend may perform\n"
+    "/// maintenance or one-time migration work, but steady-state returned work and\n"
+    "/// allocation are bounded by this value.\n",
+    "/// Largest result page accepted by [`Store::since_page`] and\n"
+    "/// [`Store::recent`]. Internal filesystem-index work additionally inspects the\n"
+    "/// separately bounded 1,024-record delta and logarithmic fixed-width base\n"
+    "/// seeks; maintenance and one-time migration may scan full history.\n",
+)
 
 replace_once(
     PLANNING,
@@ -81,4 +93,5 @@ regex_once(
 
 SELF.unlink()
 WORKFLOW.unlink()
+run("cargo", "fmt", "--all")
 run("python3", "tools/mininet_nav.py", "build")
