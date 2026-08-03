@@ -38,7 +38,6 @@ fn dialed_advertisement_and_live_session_must_name_the_same_endpoint() {
         "127.0.0.1:9000".parse().unwrap(),
         1_000,
         2_000,
-        [30; 32],
     )
     .unwrap();
     let mut advertisement_pins = FreshnessPins::new();
@@ -68,7 +67,6 @@ fn dialed_advertisement_and_live_session_must_name_the_same_endpoint() {
         &binding,
         1_000,
         2_000,
-        [60; 32],
     )
     .unwrap();
     let mut session_pins = FreshnessPins::new();
@@ -97,7 +95,6 @@ fn dialed_advertisement_and_live_session_must_name_the_same_endpoint() {
         &binding,
         1_000,
         2_000,
-        [61; 32],
     )
     .unwrap();
     let accepted = advertised_claim
