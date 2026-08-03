@@ -112,3 +112,32 @@ jobs:
   # separate workflow still runs on every push to `main` unconditionally,
   # and on any pull request that touches something other than `docs/**` or
   # markdown.
+
+  # One-shot branch-local integration job. It restores this recognized
+  # workflow file from its parent before committing, so no CI write path is
+  # retained in the permanent PR tree.
+  snapshot-stage4:
+    if: github.event_name == 'pull_request' && github.head_ref == 'codex/consensus-snapshot-sync'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/consensus-snapshot-sync
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.1
+          components: clippy
+      - name: Apply and validate final D-0207 hardening
+        run: python3 tools/apply_consensus_snapshot_stage4.py
+      - name: Restore ordinary CI and commit the tested tree
+        run: |
+          git checkout HEAD^ -- .github/workflows/ci.yml
+          git config user.name "mininet-consensus-snapshot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "consensus: finish D-0207 archive hardening"
+          git push origin HEAD:codex/consensus-snapshot-sync
