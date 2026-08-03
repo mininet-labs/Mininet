@@ -1,0 +1,47 @@
+name: consensus-snapshot-stage2
+
+on:
+  push:
+    branches:
+      - codex/consensus-snapshot-sync
+    paths:
+      - tools/apply_consensus_snapshot_stage2.py
+      - .github/workflows/consensus-snapshot-stage2.yml
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - tools/apply_consensus_snapshot_stage2.py
+      - .github/workflows/consensus-snapshot-stage2.yml
+      - crates/mini-consensus/src/node.rs
+      - crates/mini-consensus/src/net.rs
+      - crates/mini-consensus/src/store.rs
+      - crates/mini-consensus/src/snapshot_sync_tests.rs
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/consensus-snapshot-sync
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.1
+          components: clippy
+      - name: Apply and test node/archive/TCP integration
+        run: python3 tools/apply_consensus_snapshot_stage2.py
+      - name: Commit permanent implementation
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "mininet-consensus-snapshot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "consensus: wire authenticated snapshot state sync"
+          git push origin HEAD:codex/consensus-snapshot-sync
