@@ -3,7 +3,7 @@
     "crates": 68,
     "files": 790,
     "headings": 2550,
-    "rust_symbols": 7059
+    "rust_symbols": 7065
   },
   "crates": {
     "did-mini": {
@@ -51375,7 +51375,7 @@
       "title": "mini-store"
     },
     {
-      "bytes": 22741,
+      "bytes": 23080,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
@@ -51404,9 +51404,9 @@
         "store",
         "std"
       ],
-      "lines": 603,
+      "lines": 615,
       "path": "crates/mini-store/src/backend.rs",
-      "sha256": "7062904c86608d9eeccdb65c62747841755b775f0d379b4f9273e96c1969d334",
+      "sha256": "8baebc46907ec10183793fb4b9909f0e026da335be220787b8e27e63a856e6e7",
       "symbols": [
         {
           "kind": "trait",
@@ -51515,138 +51515,143 @@
         },
         {
           "kind": "struct",
-          "line": 154,
+          "line": 157,
           "name": "FsBackend"
         },
         {
           "kind": "impl",
-          "line": 158,
+          "line": 161,
           "name": "FsBackend"
         },
         {
           "kind": "fn",
-          "line": 160,
+          "line": 163,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 171,
+          "line": 174,
           "name": "rebuild_time_index"
         },
         {
           "kind": "fn",
-          "line": 175,
+          "line": 178,
           "name": "blob_path"
         },
         {
           "kind": "fn",
-          "line": 183,
+          "line": 186,
           "name": "meta_path"
         },
         {
           "kind": "fn",
-          "line": 203,
+          "line": 206,
           "name": "meta_prefix_walk_root"
         },
         {
           "kind": "fn",
-          "line": 244,
+          "line": 247,
           "name": "safe_existing_meta_directory"
         },
         {
           "kind": "fn",
-          "line": 277,
+          "line": 280,
           "name": "atomic_write"
         },
         {
           "kind": "fn",
-          "line": 294,
+          "line": 297,
           "name": "safe_existing_parent"
         },
         {
           "kind": "fn",
-          "line": 339,
+          "line": 342,
           "name": "existing_regular_file"
         },
         {
           "kind": "fn",
-          "line": 356,
+          "line": 359,
           "name": "read_existing_regular_file"
         },
         {
           "kind": "impl",
-          "line": 369,
+          "line": 372,
           "name": "Backend"
         },
         {
           "kind": "fn",
-          "line": 370,
+          "line": 373,
           "name": "put_blob"
         },
         {
           "kind": "fn",
-          "line": 386,
+          "line": 389,
           "name": "get_blob"
         },
         {
           "kind": "fn",
-          "line": 389,
+          "line": 392,
           "name": "has_blob"
         },
         {
           "kind": "fn",
-          "line": 392,
+          "line": 395,
           "name": "put_meta"
         },
         {
           "kind": "fn",
-          "line": 402,
+          "line": 405,
           "name": "get_meta"
         },
         {
           "kind": "fn",
-          "line": 409,
+          "line": 412,
           "name": "list_meta_prefix"
         },
         {
           "kind": "fn",
-          "line": 461,
+          "line": 464,
           "name": "list_meta_prefix_last"
         },
         {
           "kind": "fn",
-          "line": 471,
+          "line": 474,
           "name": "list_meta_prefix_page"
         },
         {
           "kind": "mod",
-          "line": 488,
+          "line": 491,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 493,
+          "line": 496,
           "name": "memory_backend_last_returns_descending_order_bounded_by_limit"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 533,
           "name": "fs_backend_ordered_last_agrees_with_memory_backend"
         },
         {
           "kind": "fn",
-          "line": 531,
+          "line": 534,
           "name": "object_id"
         },
         {
           "kind": "fn",
-          "line": 575,
+          "line": 578,
           "name": "prefix_walk_root_uses_only_complete_path_segments"
         },
         {
           "kind": "fn",
-          "line": 594,
+          "line": 597,
           "name": "prefix_walk_root_rejects_hostile_or_ambiguous_prefixes"
+        },
+        {
+          "kind": "fn",
+          "line": 607,
+          "name": "memory_backend_page_above_the_prefix_range_is_empty"
         }
       ],
       "title": "use std::collections::BTreeMap;"
@@ -51856,23 +51861,22 @@
       "title": "mod backend;"
     },
     {
-      "bytes": 16467,
+      "bytes": 16926,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
         "backend",
         "self",
         "object",
-        "as_str",
         "store",
-        "envelope",
+        "as_str",
         "format",
         "objectid",
         "idx",
         "put_meta",
+        "envelope",
         "result",
         "timecursor",
-        "storeerror",
         "timestamp_ms",
         "bytes",
         "private",
@@ -51883,11 +51887,12 @@
         "derive",
         "debug",
         "object_id",
-        "content"
+        "content",
+        "time_key"
       ],
-      "lines": 438,
+      "lines": 444,
       "path": "crates/mini-store/src/store.rs",
-      "sha256": "a419f886330cbc5887059957265eff610647aa1c7a2308b4a41dfb307368fe09",
+      "sha256": "fb2eeda100951964d22281110cdf2b314cab84812161decb321f69d321f5a762",
       "symbols": [
         {
           "kind": "const",
@@ -51901,210 +51906,210 @@
         },
         {
           "kind": "struct",
-          "line": 20,
+          "line": 23,
           "name": "TimeCursor"
         },
         {
           "kind": "impl",
-          "line": 25,
+          "line": 28,
           "name": "TimeCursor"
         },
         {
           "kind": "fn",
-          "line": 26,
+          "line": 29,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 33,
+          "line": 36,
           "name": "index_key"
         },
         {
           "kind": "struct",
-          "line": 45,
+          "line": 48,
           "name": "TimePage"
         },
         {
           "kind": "enum",
-          "line": 52,
+          "line": 55,
           "name": "HeadState"
         },
         {
           "kind": "struct",
-          "line": 61,
+          "line": 64,
           "name": "Store"
         },
         {
           "kind": "impl",
-          "line": 65,
+          "line": 68,
           "name": "Store<B>"
         },
         {
           "kind": "fn",
-          "line": 67,
+          "line": 70,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 74,
+          "line": 77,
           "name": "insert"
         },
         {
           "kind": "fn",
-          "line": 100,
+          "line": 103,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 117,
           "name": "contains"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 125,
           "name": "insert_private"
         },
         {
           "kind": "fn",
-          "line": 134,
+          "line": 137,
           "name": "get_private"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 153,
           "name": "contains_private"
         },
         {
           "kind": "fn",
-          "line": 157,
+          "line": 160,
           "name": "private_by_route"
         },
         {
           "kind": "fn",
-          "line": 162,
+          "line": 165,
           "name": "all_ids"
         },
         {
           "kind": "fn",
-          "line": 167,
+          "line": 170,
           "name": "by_author"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 175,
           "name": "by_type"
         },
         {
           "kind": "fn",
-          "line": 177,
+          "line": 180,
           "name": "linking_to"
         },
         {
           "kind": "fn",
-          "line": 189,
+          "line": 192,
           "name": "since"
         },
         {
           "kind": "fn",
-          "line": 205,
+          "line": 211,
           "name": "since_page"
         },
         {
           "kind": "fn",
-          "line": 259,
+          "line": 265,
           "name": "recent"
         },
         {
           "kind": "fn",
-          "line": 271,
+          "line": 277,
           "name": "ids_under"
         },
         {
           "kind": "fn",
-          "line": 288,
+          "line": 294,
           "name": "apply_head"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 332,
           "name": "resolve_head"
         },
         {
           "kind": "fn",
-          "line": 339,
+          "line": 345,
           "name": "missing_links"
         },
         {
           "kind": "fn",
-          "line": 352,
+          "line": 358,
           "name": "want_list"
         },
         {
           "kind": "fn",
-          "line": 376,
+          "line": 382,
           "name": "time_key"
         },
         {
           "kind": "fn",
-          "line": 383,
+          "line": 389,
           "name": "parse_time_index_key"
         },
         {
           "kind": "fn",
-          "line": 399,
+          "line": 405,
           "name": "type_key"
         },
         {
           "kind": "fn",
-          "line": 414,
+          "line": 420,
           "name": "route_key"
         },
         {
           "kind": "fn",
-          "line": 422,
+          "line": 428,
           "name": "encode_slot"
         },
         {
           "kind": "fn",
-          "line": 429,
+          "line": 435,
           "name": "decode_slot"
         }
       ],
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 49340,
+      "bytes": 54653,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
-        "self",
         "const",
-        "file",
+        "self",
         "u64",
+        "file",
         "index",
         "str",
-        "count",
         "base",
-        "key",
+        "count",
         "result",
+        "key",
         "path",
         "storeerror",
         "low",
         "usize",
         "corrupt",
         "temp_path",
+        "max_key_bytes",
         "record_bytes",
         "manifest",
         "basereader",
         "read_key",
         "basewriter",
         "metadata",
-        "seek",
         "generation"
       ],
-      "lines": 1396,
+      "lines": 1536,
       "path": "crates/mini-store/src/time_index.rs",
-      "sha256": "68e9ac9aea8b2686a4541826bb0fe8bd6166d9ab276086898a3998735af2fe74",
+      "sha256": "84ab094366ee5962a1e48ec088278be1d727bc4a10e153be0d46fb48fecda57b",
       "symbols": [
         {
           "kind": "const",
@@ -52183,368 +52188,393 @@
         },
         {
           "kind": "const",
-          "line": 43,
-          "name": "MANIFEST_MAGIC"
+          "line": 42,
+          "name": "MAX_PENDING_BYTES"
         },
         {
           "kind": "const",
-          "line": 44,
-          "name": "MANIFEST_VERSION"
+          "line": 43,
+          "name": "MAX_TIME_METADATA_VALUE_BYTES"
         },
         {
           "kind": "const",
           "line": 45,
-          "name": "MANIFEST_BYTES"
+          "name": "MANIFEST_MAGIC"
+        },
+        {
+          "kind": "const",
+          "line": 46,
+          "name": "MANIFEST_VERSION"
         },
         {
           "kind": "const",
           "line": 47,
+          "name": "MANIFEST_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 49,
           "name": "PENDING_MAGIC"
         },
         {
           "kind": "type",
-          "line": 49,
+          "line": 51,
           "name": "MetadataRow"
         },
         {
           "kind": "type",
-          "line": 50,
+          "line": 52,
           "name": "QueryRows"
         },
         {
           "kind": "struct",
-          "line": 53,
+          "line": 55,
           "name": "Manifest"
         },
         {
           "kind": "struct",
-          "line": 60,
+          "line": 62,
           "name": "BaseReader"
         },
         {
           "kind": "impl",
-          "line": 65,
+          "line": 67,
           "name": "BaseReader"
         },
         {
           "kind": "fn",
-          "line": 66,
+          "line": 68,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 75,
+          "line": 77,
           "name": "read_key"
         },
         {
           "kind": "fn",
-          "line": 92,
+          "line": 94,
           "name": "first_greater_than"
         },
         {
           "kind": "fn",
-          "line": 107,
+          "line": 109,
           "name": "contains"
         },
         {
           "kind": "struct",
-          "line": 117,
+          "line": 119,
           "name": "BaseWriter"
         },
         {
           "kind": "impl",
-          "line": 125,
+          "line": 127,
           "name": "BaseWriter"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 128,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 146,
+          "line": 148,
           "name": "push"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 165,
           "name": "finish"
         },
         {
           "kind": "struct",
-          "line": 174,
+          "line": 176,
           "name": "LockedIndex"
         },
         {
           "kind": "impl",
-          "line": 179,
+          "line": 181,
           "name": "LockedIndex<'a>"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 182,
           "name": "prepare"
         },
         {
           "kind": "fn",
-          "line": 258,
+          "line": 279,
           "name": "read_manifest"
         },
         {
           "kind": "fn",
-          "line": 264,
+          "line": 289,
           "name": "write_manifest"
         },
         {
           "kind": "fn",
-          "line": 271,
+          "line": 296,
           "name": "validate_base"
         },
         {
           "kind": "fn",
-          "line": 279,
+          "line": 304,
           "name": "write_pending"
         },
         {
           "kind": "fn",
-          "line": 283,
+          "line": 308,
           "name": "clear_pending"
         },
         {
           "kind": "fn",
-          "line": 290,
+          "line": 315,
           "name": "recover_pending"
         },
         {
           "kind": "fn",
-          "line": 322,
+          "line": 347,
           "name": "contains_key"
         },
         {
           "kind": "fn",
-          "line": 336,
+          "line": 361,
           "name": "append_delta"
         },
         {
           "kind": "fn",
-          "line": 365,
+          "line": 390,
           "name": "delta_record_count"
         },
         {
           "kind": "fn",
-          "line": 392,
+          "line": 417,
           "name": "read_delta_key"
         },
         {
           "kind": "fn",
-          "line": 404,
+          "line": 429,
           "name": "read_delta_keys"
         },
         {
           "kind": "fn",
-          "line": 416,
+          "line": 444,
           "name": "truncate_delta"
         },
         {
           "kind": "fn",
-          "line": 428,
+          "line": 456,
           "name": "compact"
         },
         {
           "kind": "fn",
-          "line": 501,
+          "line": 529,
           "name": "query_forward"
         },
         {
           "kind": "fn",
-          "line": 525,
+          "line": 553,
           "name": "query_reverse"
         },
         {
           "kind": "fn",
-          "line": 547,
+          "line": 575,
           "name": "resolve_candidates"
         },
         {
           "kind": "fn",
-          "line": 566,
+          "line": 594,
           "name": "rebuild"
         },
         {
           "kind": "fn",
-          "line": 585,
+          "line": 613,
           "name": "clear_base_files"
         },
         {
           "kind": "fn",
-          "line": 607,
+          "line": 669,
           "name": "cleanup_orphan_bases"
         },
         {
           "kind": "fn",
-          "line": 777,
+          "line": 839,
           "name": "with_locked"
         },
         {
           "kind": "fn",
-          "line": 795,
+          "line": 857,
           "name": "ensure_layout"
         },
         {
           "kind": "fn",
-          "line": 804,
+          "line": 866,
           "name": "ensure_existing_or_create_directory"
         },
         {
           "kind": "fn",
-          "line": 836,
+          "line": 898,
           "name": "reject_symlink_or_non_file_if_present"
         },
         {
           "kind": "fn",
-          "line": 850,
+          "line": 912,
           "name": "open_regular"
         },
         {
           "kind": "fn",
-          "line": 864,
-          "name": "read_regular"
+          "line": 926,
+          "name": "read_regular_limited"
         },
         {
           "kind": "fn",
-          "line": 878,
+          "line": 953,
           "name": "remove_regular_if_present"
         },
         {
           "kind": "fn",
-          "line": 895,
+          "line": 970,
           "name": "atomic_write"
         },
         {
           "kind": "fn",
-          "line": 910,
+          "line": 985,
           "name": "base_path"
         },
         {
           "kind": "fn",
-          "line": 914,
+          "line": 989,
           "name": "write_base_header"
         },
         {
           "kind": "fn",
-          "line": 922,
+          "line": 997,
           "name": "read_base_header"
         },
         {
           "kind": "fn",
-          "line": 955,
+          "line": 1030,
           "name": "encode_manifest"
         },
         {
           "kind": "fn",
-          "line": 967,
+          "line": 1042,
           "name": "decode_manifest"
         },
         {
           "kind": "fn",
-          "line": 994,
+          "line": 1069,
           "name": "read_u64"
         },
         {
           "kind": "fn",
-          "line": 1000,
+          "line": 1075,
           "name": "encode_record"
         },
         {
           "kind": "fn",
-          "line": 1015,
+          "line": 1090,
           "name": "decode_record"
         },
         {
           "kind": "fn",
-          "line": 1039,
+          "line": 1114,
           "name": "record_checksum"
         },
         {
           "kind": "fn",
-          "line": 1045,
+          "line": 1120,
           "name": "bytes_checksum"
         },
         {
           "kind": "fn",
-          "line": 1057,
+          "line": 1132,
           "name": "encode_pending"
         },
         {
           "kind": "fn",
-          "line": 1070,
+          "line": 1145,
           "name": "decode_pending"
         },
         {
           "kind": "fn",
-          "line": 1087,
+          "line": 1162,
           "name": "validate_time_key"
         },
         {
           "kind": "fn",
-          "line": 1105,
+          "line": 1180,
           "name": "validate_after_key"
         },
         {
           "kind": "fn",
-          "line": 1123,
+          "line": 1198,
           "name": "read_meta_value"
         },
         {
           "kind": "fn",
-          "line": 1160,
+          "line": 1249,
           "name": "visit_legacy_time_keys"
         },
         {
           "kind": "mod",
-          "line": 1238,
+          "line": 1327,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 1241,
+          "line": 1330,
           "name": "temp_root"
         },
         {
           "kind": "fn",
-          "line": 1252,
+          "line": 1341,
           "name": "valid_key"
         },
         {
           "kind": "fn",
-          "line": 1263,
+          "line": 1352,
           "name": "record_and_manifest_round_trip_detect_corruption"
         },
         {
           "kind": "fn",
-          "line": 1285,
+          "line": 1374,
           "name": "pending_journal_round_trips"
         },
         {
           "kind": "fn",
-          "line": 1291,
+          "line": 1380,
           "name": "a_persisted_metadata_row_is_recovered_from_the_journal"
         },
         {
           "kind": "fn",
-          "line": 1311,
+          "line": 1400,
           "name": "a_missing_manifested_base_forces_rebuild"
         },
         {
           "kind": "fn",
-          "line": 1327,
+          "line": 1416,
           "name": "a_journaled_delta_append_is_committed_exactly_once"
         },
         {
           "kind": "fn",
-          "line": 1363,
+          "line": 1452,
           "name": "manual_compaction_preserves_sorted_unique_rows"
+        },
+        {
+          "kind": "fn",
+          "line": 1486,
+          "name": "an_oversized_pending_journal_is_rebuilt_without_unbounded_allocation"
+        },
+        {
+          "kind": "fn",
+          "line": 1508,
+          "name": "an_oversized_authoritative_time_value_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 1526,
+          "name": "an_unknown_side_index_entry_fails_closed_during_rebuild"
         }
       ],
       "title": "use std::fs::{self, File, OpenOptions};"
@@ -60427,7 +60457,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 868839,
+      "bytes": 868974,
       "group": "docs",
       "headings": [
         {
@@ -60857,9 +60887,9 @@
         "deterministic",
         "design"
       ],
-      "lines": 14488,
+      "lines": 14490,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "68fc6ab6179272a5662a9424ec3bc9c4cfe4f859d44d983912d6f2395aef974a",
+      "sha256": "440368a9cb53ff1171805b693e9442498fb7d5520b594ee21a124fd43afef98b",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -62008,7 +62038,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 109293,
+      "bytes": 109400,
       "group": "docs",
       "headings": [
         {
@@ -62073,27 +62103,27 @@
         },
         {
           "level": 2,
-          "line": 1095,
+          "line": 1097,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1421,
+          "line": 1423,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1512,
+          "line": 1514,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1592,
+          "line": 1594,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1658,
+          "line": 1660,
           "text": "Where to look for more detail"
         }
       ],
@@ -62123,9 +62153,9 @@
         "social",
         "network"
       ],
-      "lines": 1673,
+      "lines": 1675,
       "path": "docs/STATUS.md",
-      "sha256": "3f0b4d5087735581bfea074746ca5a1faa16c569e06f85fd12b65403cc42b6d8",
+      "sha256": "e14c732bacdcc45878cc62a595b6ad6168df81d6da2443c964ecf483c698d780",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -66730,7 +66760,7 @@
       "title": "Private lookup and the public-DHT boundary (MN-208, D-0310)"
     },
     {
-      "bytes": 36325,
+      "bytes": 36474,
       "group": "docs",
       "headings": [
         {
@@ -66780,12 +66810,12 @@
         },
         {
           "level": 2,
-          "line": 595,
+          "line": 597,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 604,
+          "line": 606,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -66815,9 +66845,9 @@
         "external",
         "d-0066"
       ],
-      "lines": 622,
+      "lines": 624,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "cd340fe498e39389c0c1cd5b4ca24c39cacff7b3bfb9dc91c81d48b165531d78",
+      "sha256": "d9903ce4719469907aed9d438422d531748e9b182979dc6bd4e75120a18c4a76",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
@@ -74110,7 +74140,7 @@
       "title": "Distributed build worker \u2014 bounded Batch 5 slice"
     },
     {
-      "bytes": 5450,
+      "bytes": 5898,
       "group": "docs",
       "headings": [
         {
@@ -74135,17 +74165,17 @@
         },
         {
           "level": 2,
-          "line": 63,
+          "line": 65,
           "text": "Hard boundaries and honest limits"
         },
         {
           "level": 2,
-          "line": 87,
+          "line": 92,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 94,
+          "line": 99,
           "text": "Merge condition"
         }
       ],
@@ -74155,29 +74185,29 @@
         "delta",
         "pages",
         "base",
+        "local",
         "object",
         "store",
         "side",
         "bounded",
-        "local",
         "time",
-        "forge",
+        "cursor",
+        "authoritative",
+        "journal",
         "filesystem",
+        "stable",
         "limits",
         "work",
-        "fsbackend",
         "every",
         "row",
         "idx",
-        "cursor",
-        "unbounded",
-        "authoritative",
+        "remains",
         "append",
-        "journal"
+        "manifest"
       ],
-      "lines": 99,
+      "lines": 104,
       "path": "docs/planning/forge-bounded-fs-index-pages.md",
-      "sha256": "b606c7aa6d589ed31d7403141340c3124a8165f0fa808f5a8355a0196fc9c6e6",
+      "sha256": "a664c239f379bdc4ef4e3466ab93dd85f4e3ce675c3079998d8102caad2116e1",
       "symbols": [],
       "title": "Forge Batch 5: bounded filesystem metadata index and stable pages (D-0430)"
     },

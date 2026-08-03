@@ -14473,8 +14473,10 @@ paths are covered. No external dependency or object-wire change is added.
 A first query after migration or detected corruption and each compaction can scan
 all chronological metadata while holding the local lock. `Store::since` remains
 an unbounded compatibility API; only `idx/time` is accelerated; author timestamps
-are not freshness evidence; parent-directory fsync, cross-index transactionality,
-and physical weakest-device latency remain unmeasured.
+are not freshness evidence; and a later/backdated arrival can sort before an
+already-issued page cursor, so this is browsing rather than a lossless sync
+frontier. Parent-directory fsync, cross-index transactionality, and physical
+weakest-device latency remain unmeasured.
 
 **Required follow-up:** migrate interactive forge/feed callers to `since_page`,
 benchmark page/rebuild/compaction behavior on the weakest supported device, and

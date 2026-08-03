@@ -569,8 +569,10 @@ by `(timestamp_ms, object_id)`, and both interactive APIs cap pages at 1,024.
 Malformed or missing acceleration data rebuilds from authoritative metadata;
 results are rechecked against those rows. Migration/rebuild and compaction are
 full-history maintenance, the old full-suffix `Store::since` remains unbounded,
-and author/type/link compound pagination is still open. No hosted index or
-mandatory daemon is introduced.
+and author/type/link compound pagination is still open. Pages are stable over a
+fixed view but are not a lossless sync frontier: later/backdated arrivals can
+sort before an issued author-timestamp cursor. No hosted index or mandatory
+daemon is introduced.
 
 **Distributed build workers — first bounded slice implemented (D-0409
 proposed).** `mini build serve` accepts one explicitly initiated request and

@@ -13,9 +13,12 @@ const MAX_SUBJECT_BYTES: usize = 64;
 /// allocation are bounded by this value.
 pub const MAX_TIME_PAGE_SIZE: usize = 1024;
 
-/// Stable continuation cursor for chronological object pages. Ordering is the
-/// exact `idx/time/<timestamp>/<object-id>` order, so equal timestamps remain
-/// unambiguous across page boundaries.
+/// Stable continuation cursor for chronological object pages over a fixed
+/// local index view. Ordering is the exact
+/// `idx/time/<timestamp>/<object-id>` order, so equal timestamps remain
+/// unambiguous across page boundaries. This is a display/browsing cursor, not
+/// a lossless synchronization frontier: an object arriving later with an
+/// author-claimed timestamp before the cursor will sort before it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TimeCursor {
     pub timestamp_ms: u64,
@@ -199,9 +202,12 @@ impl<B: Backend> Store<B> {
     }
 
     /// Return at most `limit` objects at or after `start_ms`, strictly after
-    /// `after` when a continuation cursor is supplied. The cursor binds both
-    /// timestamp and object id, preventing equal-timestamp omissions or
-    /// duplicates.
+    /// `after` when a continuation cursor is supplied. For a fixed index view,
+    /// binding timestamp and object id prevents equal-timestamp omissions or
+    /// duplicates. This does not create snapshot or sync semantics: concurrent
+    /// late/backdated arrivals may sort before an already-issued cursor and must
+    /// be discovered by the normal content/want-list sync path, not this page
+    /// cursor.
     pub fn since_page(
         &self,
         start_ms: u64,

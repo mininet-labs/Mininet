@@ -39,6 +39,8 @@ const RECORD_BYTES: usize = 8 + 2 + MAX_KEY_BYTES + 8;
 const MAX_DELTA_RECORDS: u64 = 1_024;
 const MAX_FORWARD_QUERY_ROWS: usize = crate::MAX_TIME_PAGE_SIZE + 1;
 const MAX_INDEX_DIRECTORY_ENTRIES: usize = 16;
+const MAX_PENDING_BYTES: u64 = (8 + 2 + MAX_KEY_BYTES + 8) as u64;
+const MAX_TIME_METADATA_VALUE_BYTES: u64 = 4 * 1024;
 
 const MANIFEST_MAGIC: &[u8; 8] = b"MNTMAN01";
 const MANIFEST_VERSION: u16 = 1;
@@ -178,16 +180,35 @@ struct LockedIndex<'a> {
 
 impl<'a> LockedIndex<'a> {
     fn prepare(&self) -> Result<()> {
-        let marker = read_regular(&self.index_root.join(MARKER_FILE), "time-index marker")?;
+        let marker = match read_regular_limited(
+            &self.index_root.join(MARKER_FILE),
+            "time-index marker",
+            MARKER.len() as u64,
+        ) {
+            Ok(marker) => marker,
+            Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
+                self.rebuild()?;
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
         if marker.as_deref() != Some(MARKER) {
             self.rebuild()?;
             return Ok(());
         }
 
-        let pending = read_regular(
+        let pending = match read_regular_limited(
             &self.index_root.join(PENDING_FILE),
             "time-index pending journal",
-        )?;
+            MAX_PENDING_BYTES,
+        ) {
+            Ok(pending) => pending,
+            Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
+                self.rebuild()?;
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
         let manifest = match self.read_manifest() {
             Ok(manifest) => manifest,
             Err(StoreError::Corrupt) | Err(StoreError::LimitExceeded) => {
@@ -256,8 +277,12 @@ impl<'a> LockedIndex<'a> {
     }
 
     fn read_manifest(&self) -> Result<Manifest> {
-        let bytes = read_regular(&self.index_root.join(MANIFEST_FILE), "time-index manifest")?
-            .ok_or(StoreError::Corrupt)?;
+        let bytes = read_regular_limited(
+            &self.index_root.join(MANIFEST_FILE),
+            "time-index manifest",
+            MANIFEST_BYTES as u64,
+        )?
+        .ok_or(StoreError::Corrupt)?;
         decode_manifest(&bytes)
     }
 
@@ -406,9 +431,12 @@ impl<'a> LockedIndex<'a> {
             return Err(StoreError::Corrupt);
         }
         let capacity = usize::try_from(count).map_err(|_| StoreError::LimitExceeded)?;
+        let mut file = open_regular(&self.index_root.join(DELTA_FILE), "time-index delta")?;
         let mut keys = Vec::with_capacity(capacity);
         for index in 0..count {
-            keys.push(self.read_delta_key(index)?);
+            let mut record = [0u8; RECORD_BYTES];
+            file.read_exact(&mut record)?;
+            keys.push(decode_record(&record, index)?);
         }
         Ok(keys)
     }
@@ -583,7 +611,20 @@ impl<'a> LockedIndex<'a> {
     }
 
     fn clear_base_files(&self) -> Result<()> {
+        let permanent = [
+            MARKER_FILE,
+            LOCK_FILE,
+            PENDING_FILE,
+            MANIFEST_FILE,
+            DELTA_FILE,
+        ];
+        let mut entries = 0usize;
         for entry in fs::read_dir(&self.index_root)? {
+            entries = entries.checked_add(1).ok_or(StoreError::LimitExceeded)?;
+            if entries > MAX_INDEX_DIRECTORY_ENTRIES {
+                return Err(StoreError::LimitExceeded);
+            }
+
             let entry = entry?;
             let path = entry.path();
             let file_type = entry.file_type()?;
@@ -599,7 +640,28 @@ impl<'a> LockedIndex<'a> {
                     return Err(StoreError::Io("non-file time-index base entry".to_string()));
                 }
                 fs::remove_file(path)?;
+                continue;
             }
+            if name.ends_with(".tmp-write") {
+                if !file_type.is_file() {
+                    return Err(StoreError::Io(
+                        "non-file time-index atomic temporary".to_string(),
+                    ));
+                }
+                fs::remove_file(path)?;
+                continue;
+            }
+            if permanent.contains(&name.as_ref()) {
+                if !file_type.is_file() {
+                    return Err(StoreError::Io(
+                        "non-file permanent time-index entry".to_string(),
+                    ));
+                }
+                continue;
+            }
+            return Err(StoreError::Io(format!(
+                "unknown entry in time-index directory: {name}"
+            )));
         }
         Ok(())
     }
@@ -861,18 +923,31 @@ fn open_regular(path: &Path, label: &str) -> Result<File> {
     }
 }
 
-fn read_regular(path: &Path, label: &str) -> Result<Option<Vec<u8>>> {
-    match fs::symlink_metadata(path) {
+fn read_regular_limited(path: &Path, label: &str, max_bytes: u64) -> Result<Option<Vec<u8>>> {
+    let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => {
-            Err(StoreError::Io(format!("{label} is a symlink")))
+            return Err(StoreError::Io(format!("{label} is a symlink")))
         }
         Ok(metadata) if !metadata.is_file() => {
-            Err(StoreError::Io(format!("{label} is not a regular file")))
+            return Err(StoreError::Io(format!("{label} is not a regular file")))
         }
-        Ok(_) => Ok(Some(fs::read(path)?)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(error.into()),
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    if metadata.len() > max_bytes {
+        return Err(StoreError::LimitExceeded);
     }
+
+    let capacity = usize::try_from(metadata.len()).map_err(|_| StoreError::LimitExceeded)?;
+    let mut bytes = Vec::with_capacity(capacity);
+    File::open(path)?
+        .take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(StoreError::LimitExceeded);
+    }
+    Ok(Some(bytes))
 }
 
 fn remove_regular_if_present(path: &Path, label: &str) -> Result<()> {
@@ -1151,7 +1226,21 @@ fn read_meta_value(root: &Path, key: &str) -> Result<Option<Vec<u8>>> {
         Ok(metadata) if !metadata.is_file() => Err(StoreError::Io(
             "non-file time-index metadata row".to_string(),
         )),
-        Ok(_) => Ok(Some(fs::read(current)?)),
+        Ok(metadata) => {
+            if metadata.len() > MAX_TIME_METADATA_VALUE_BYTES {
+                return Err(StoreError::LimitExceeded);
+            }
+            let capacity =
+                usize::try_from(metadata.len()).map_err(|_| StoreError::LimitExceeded)?;
+            let mut value = Vec::with_capacity(capacity);
+            File::open(current)?
+                .take(MAX_TIME_METADATA_VALUE_BYTES + 1)
+                .read_to_end(&mut value)?;
+            if value.len() as u64 > MAX_TIME_METADATA_VALUE_BYTES {
+                return Err(StoreError::LimitExceeded);
+            }
+            Ok(Some(value))
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error.into()),
     }
@@ -1390,6 +1479,57 @@ mod tests {
             Ok(())
         })
         .unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn an_oversized_pending_journal_is_rebuilt_without_unbounded_allocation() {
+        let root = temp_root("oversized-pending");
+        fs::create_dir_all(root.join("blobs")).unwrap();
+        fs::create_dir_all(root.join("meta")).unwrap();
+        let key = valid_key(12, 17);
+        let metadata_path = root.join("meta").join(&key);
+        fs::create_dir_all(metadata_path.parent().unwrap()).unwrap();
+        fs::write(metadata_path, b"").unwrap();
+        assert_eq!(rebuild(&root).unwrap(), 1);
+
+        fs::write(
+            root.join(INDEX_DIR).join(PENDING_FILE),
+            vec![0x41; MAX_PENDING_BYTES as usize + 1],
+        )
+        .unwrap();
+        let rows = last(&root, 2).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0, key);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn an_oversized_authoritative_time_value_fails_closed() {
+        let root = temp_root("oversized-value");
+        fs::create_dir_all(root.join("blobs")).unwrap();
+        fs::create_dir_all(root.join("meta")).unwrap();
+        let key = valid_key(13, 19);
+        let metadata_path = root.join("meta").join(&key);
+        fs::create_dir_all(metadata_path.parent().unwrap()).unwrap();
+        fs::write(
+            metadata_path,
+            vec![0x42; MAX_TIME_METADATA_VALUE_BYTES as usize + 1],
+        )
+        .unwrap();
+        assert_eq!(rebuild(&root).unwrap(), 1);
+        assert_eq!(last(&root, 2), Err(StoreError::LimitExceeded));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn an_unknown_side_index_entry_fails_closed_during_rebuild() {
+        let root = temp_root("unknown-entry");
+        fs::create_dir_all(root.join("blobs")).unwrap();
+        fs::create_dir_all(root.join("meta")).unwrap();
+        assert_eq!(rebuild(&root).unwrap(), 0);
+        fs::write(root.join(INDEX_DIR).join("unexpected"), b"hostile").unwrap();
+        assert!(matches!(rebuild(&root), Err(StoreError::Io(_))));
         let _ = fs::remove_dir_all(root);
     }
 }

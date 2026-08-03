@@ -57,6 +57,8 @@ solution here stays local, reconstructible, non-authoritative, and removable.
 - Manual compaction preserves sorted unique rows.
 - Hostile cursors, zero limits, excessive limits, and symlinked index paths fail
   safely.
+- Marker, manifest, journal, and authoritative time-row values are size-checked
+  before allocation; oversized local files rebuild or fail closed.
 - Focused `mini-store` tests and strict Clippy pass before the permanent commit;
   full exact-head repository CI remains the merge gate.
 
@@ -67,15 +69,18 @@ solution here stays local, reconstructible, non-authoritative, and removable.
 - No new cryptography. The fixed-record checksum detects accidental/local index
   corruption; it is not authentication. Objects and metadata remain truth.
 - Steady-state page work is bounded by page size, a 1,024-record delta, and
-  logarithmic fixed-record base seeks. The index directory itself is capped and
-  unknown entries fail closed.
+  logarithmic fixed-record base seeks. The index directory and every control-file
+  or metadata-value allocation are capped; unknown entries fail closed.
 - One-time migration/rebuild and periodic compaction are `O(total time-index
   rows)`, hold the local index lock, and are not claimed to be page-bounded.
 - The compatibility `Store::since` full-suffix API is still unbounded.
 - Only chronological `idx/time/` pages are accelerated. Author/type/link compound
   queries remain separate future work.
 - Timestamps are author claims used for deterministic display ordering, never
-  freshness, arrival, consensus, or trust evidence.
+  freshness, arrival, consensus, or trust evidence. `since_page` is stable for
+  a fixed local index view, not a lossless live-sync frontier: a later-arriving
+  object with an older claimed timestamp can sort before the current cursor.
+  Lossless discovery remains the content/want-list synchronization layer.
 - The side index is not signed, replicated, consensus state, or a source of
   governance/ranking authority. Deleting it must never delete objects.
 - File contents are synced before rename, but this preserves the existing

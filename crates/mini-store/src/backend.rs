@@ -134,6 +134,9 @@ impl Backend for MemoryBackend {
         use std::ops::Bound::{Excluded, Included};
 
         let upper = format!("{prefix}\u{7f}");
+        if after >= upper.as_str() {
+            return Ok(Vec::new());
+        }
         let lower = if after < prefix {
             Included(prefix.to_string())
         } else {
@@ -598,5 +601,14 @@ mod tests {
         for prefix in ["/idx", "idx//type", "idx/../head", "idx/./head", "/"] {
             assert!(backend.meta_prefix_walk_root(prefix).is_err(), "{prefix}");
         }
+    }
+
+    #[test]
+    fn memory_backend_page_above_the_prefix_range_is_empty() {
+        let backend = MemoryBackend::new();
+        assert!(backend
+            .list_meta_prefix_page("idx/time/", "zzzz", 1)
+            .unwrap()
+            .is_empty());
     }
 }

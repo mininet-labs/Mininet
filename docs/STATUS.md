@@ -1030,8 +1030,10 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   cursor/limit abuse, and symlink refusal are tested. Honest limits: legacy
   rebuild and compaction are full-history maintenance under a local lock;
   compatibility `Store::since` remains unbounded; only `idx/time` is accelerated;
-  timestamps are ordering hints, not freshness; physical weakest-device and
-  parent-directory-fsync behavior remain follow-up. No remote index, daemon,
+  timestamps are ordering hints, not freshness; a later/backdated arrival can
+  sort before an issued cursor, so pages are not a lossless sync frontier;
+  physical weakest-device and parent-directory-fsync behavior remain follow-up.
+  No remote index, daemon,
   dependency, object-wire, sync, ranking, payment, or governance change.
 - **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
   Batch 1's remaining deferred item. Exports a commit chain (commit → tree
