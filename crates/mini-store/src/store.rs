@@ -8,6 +8,49 @@ use crate::{Result, StoreError};
 
 const MAX_SUBJECT_BYTES: usize = 64;
 
+/// Largest result page accepted by [`Store::since_page`] and
+/// [`Store::recent`]. Internal filesystem-index work additionally inspects the
+/// separately bounded 1,024-record delta and logarithmic fixed-width base
+/// seeks; maintenance and one-time migration may scan full history.
+pub const MAX_TIME_PAGE_SIZE: usize = 1024;
+
+/// Stable continuation cursor for chronological object pages over a fixed
+/// local index view. Ordering is the exact
+/// `idx/time/<timestamp>/<object-id>` order, so equal timestamps remain
+/// unambiguous across page boundaries. This is a display/browsing cursor, not
+/// a lossless synchronization frontier: an object arriving later with an
+/// author-claimed timestamp before the cursor will sort before it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TimeCursor {
+    pub timestamp_ms: u64,
+    pub object_id: ObjectId,
+}
+
+impl TimeCursor {
+    pub fn new(timestamp_ms: u64, object_id: ObjectId) -> Self {
+        Self {
+            timestamp_ms,
+            object_id,
+        }
+    }
+
+    fn index_key(&self) -> String {
+        format!(
+            "idx/time/{}/{}",
+            time_key(self.timestamp_ms),
+            self.object_id.as_str()
+        )
+    }
+}
+
+/// One bounded chronological page. `next` is present only when another row
+/// exists after the returned page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TimePage {
+    pub ids: Vec<ObjectId>,
+    pub next: Option<TimeCursor>,
+}
+
 /// Outcome of applying a head pointer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HeadState {
@@ -139,22 +182,14 @@ impl<B: Backend> Store<B> {
         self.ids_under(&format!("idx/link/{}/", target.as_str()))
     }
 
-    /// Ids of objects with `timestamp_ms >= cursor_ms`, oldest first — the
-    /// incremental catch-up query a peer re-issues with the last cursor it
-    /// already saw, first concrete slice of Batch 5's "local object
-    /// indexing at scale" (`docs/design/self-hosted-forge-spine.md`).
-    /// `timestamp_ms` is author-claimed (see [`mini_objects::Object::
-    /// timestamp_ms`]'s own doc: "ordering hint, not a proof"), so this is a
-    /// convenience/UX ordering, never a freshness or arrival-order
-    /// guarantee — the same honest caveat `did_mini::witness`'s
-    /// `observed_epoch` field carries for the same reason.
+    /// Ids of objects with `timestamp_ms >= cursor_ms`, oldest first.
     ///
-    /// Still O(rows under `idx/time/`) like every other index in this
-    /// store — [`crate::Backend::list_meta_prefix`] has no upper-bound key,
-    /// so this reads the whole matching subtree's index rows (not the
-    /// objects themselves) before filtering. A genuinely bounded, paginated
-    /// range scan needs a `Backend` range-query primitive; that remains
-    /// follow-up work, not claimed here.
+    /// This compatibility API intentionally returns the whole suffix and may
+    /// scan/allocate proportional to it. New interactive callers should use
+    /// [`Self::since_page`], whose stable `(timestamp, object id)` cursor and
+    /// page-size ceiling provide bounded steady-state work on both shipped
+    /// backends. Timestamps remain author-claimed ordering hints, never proof
+    /// of freshness or arrival order.
     pub fn since(&self, cursor_ms: u64) -> Result<Vec<ObjectId>> {
         let mut out = Vec::new();
         for (key, _) in self.backend.list_meta_prefix("idx/time/")? {
@@ -167,6 +202,60 @@ impl<B: Backend> Store<B> {
         Ok(out)
     }
 
+    /// Return at most `limit` objects at or after `start_ms`, strictly after
+    /// `after` when a continuation cursor is supplied. For a fixed index view,
+    /// binding timestamp and object id prevents equal-timestamp omissions or
+    /// duplicates. This does not create snapshot or sync semantics: concurrent
+    /// late/backdated arrivals may sort before an already-issued cursor and must
+    /// be discovered by the normal content/want-list sync path, not this page
+    /// cursor.
+    pub fn since_page(
+        &self,
+        start_ms: u64,
+        after: Option<&TimeCursor>,
+        limit: usize,
+    ) -> Result<TimePage> {
+        if limit > MAX_TIME_PAGE_SIZE {
+            return Err(StoreError::LimitExceeded);
+        }
+        if limit == 0 {
+            return Ok(TimePage {
+                ids: Vec::new(),
+                next: None,
+            });
+        }
+        if after.is_some_and(|cursor| cursor.timestamp_ms < start_ms) {
+            return Err(StoreError::InvalidCursor);
+        }
+        let after_key = after.map_or_else(
+            || format!("idx/time/{}/", time_key(start_ms)),
+            TimeCursor::index_key,
+        );
+        let mut rows = self
+            .backend
+            .list_meta_prefix_page("idx/time/", &after_key, limit + 1)?;
+        let has_more = rows.len() > limit;
+        if has_more {
+            rows.truncate(limit);
+        }
+
+        let mut ids = Vec::with_capacity(rows.len());
+        let mut last_cursor = None;
+        for (key, _) in rows {
+            let (timestamp_ms, id_str) = parse_time_index_key(&key)?;
+            if timestamp_ms < start_ms {
+                return Err(StoreError::Corrupt);
+            }
+            let object_id = ObjectId::parse(id_str)?;
+            last_cursor = Some(TimeCursor::new(timestamp_ms, object_id.clone()));
+            ids.push(object_id);
+        }
+        Ok(TimePage {
+            ids,
+            next: if has_more { last_cursor } else { None },
+        })
+    }
+
     /// The `limit` most-recently-timestamped objects, newest first — the
     /// query a forge/feed UI needs for "what's new" without fetching and
     /// sorting every object body itself. Same ordering-hint caveat as
@@ -175,6 +264,9 @@ impl<B: Backend> Store<B> {
     /// bounded scan on backends that implement it genuinely (see that
     /// method's own docs for which do today).
     pub fn recent(&self, limit: usize) -> Result<Vec<ObjectId>> {
+        if limit > MAX_TIME_PAGE_SIZE {
+            return Err(StoreError::LimitExceeded);
+        }
         let mut out = Vec::new();
         for (key, _) in self.backend.list_meta_prefix_last("idx/time/", limit)? {
             let (_, id_str) = parse_time_index_key(&key)?;
@@ -297,9 +389,17 @@ fn time_key(timestamp_ms: u64) -> String {
 /// so the parsing logic (and its corruption handling) exists once.
 fn parse_time_index_key(key: &str) -> Result<(u64, &str)> {
     let rest = key.strip_prefix("idx/time/").ok_or(StoreError::Corrupt)?;
-    let ts_str = rest.split('/').next().ok_or(StoreError::Corrupt)?;
+    let mut parts = rest.split('/');
+    let ts_str = parts.next().ok_or(StoreError::Corrupt)?;
+    let id_str = parts.next().ok_or(StoreError::Corrupt)?;
+    if parts.next().is_some()
+        || ts_str.len() != 20
+        || !ts_str.bytes().all(|byte| byte.is_ascii_digit())
+        || id_str.is_empty()
+    {
+        return Err(StoreError::Corrupt);
+    }
     let ts: u64 = ts_str.parse().map_err(|_| StoreError::Corrupt)?;
-    let id_str = rest.get(ts_str.len() + 1..).ok_or(StoreError::Corrupt)?;
     Ok((ts, id_str))
 }
 
