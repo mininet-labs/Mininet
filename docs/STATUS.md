@@ -114,7 +114,7 @@ given time.
   connect`/`listen` already use). **State-sync/catch-up now has two layers.** D-0093's
   bounded block-only `CatchupRequest`/`CatchupResponse` remains a compatibility
   path and still re-verifies every block through `apply_finalized_block`.
-  **Implemented in this proposal (D-0207):** canonical complete
+  **Implemented in this PR (D-0207):** canonical complete
   `LedgerState` snapshots bind settlement-network id, exact monetary/payment
   state, finalized header, state commitment, and QC; receivers verify the QC
   against their own static validator set/KEL oracle before replacing state.
@@ -131,7 +131,8 @@ given time.
   or weak-subjectivity/long-range rule; exact transparent state capped at 8 MiB
   and one response at one bearer frame; no chunked Merkle state proofs,
   discovery/retry/multi-peer/eclipse policy, external audit, or physical
-  weakest-device measurements. The equivocation evidence is no longer silently dropped by
+  weakest-device measurements. State-sync sockets have local I/O deadlines, but
+  peer choice and retry remain host policy. The equivocation evidence is no longer silently dropped by
   the network driver (D-0088: `mini_consensus::EquivocatorRegistry`
   independently re-verifies and records every flagged root instead of
   discarding the emit), but nothing yet *acts* on a flagged root — no

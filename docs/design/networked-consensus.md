@@ -124,8 +124,8 @@ full via Tendermint locking, and **proposals are now signed** (D-0202): a node
 accepts a proposal for `(height, round)` only if it is signed by a `VOTE`-
 capable device of exactly `proposer_for(height, round)`, so a Byzantine node
 can no longer front-run the designated proposer to waste a round. The
-remaining gaps are liveness/DoS, transport-security, and deployment, not
-correctness:
+remaining gaps are liveness/DoS, endpoint authentication/discovery, and
+deployment, not finality correctness:
 
 - **State sync is static-set and one-frame, not a universal checkpoint
   protocol.** D-0207 persists QC-bound exact snapshots and a bounded suffix,
@@ -143,9 +143,11 @@ correctness:
   enforcement.
 - **Static validator set.** Fixed for a run; on-chain set changes are later
   work.
-- **`TcpMesh` is transport, not discovery or security.** Cleartext, addresses
-  known up front, no reconnect, no NAT traversal. Authenticated encryption is
-  `mini_bearer::Channel`'s job; overlay discovery/gossip is `mini-net`'s.
+- **`TcpMesh` is encrypted transport, not endpoint authentication or
+  discovery.** Every link uses the anonymous forward-secret
+  `mini_bearer::Channel`; addresses are still known up front, peer identity is
+  proved only by signed payloads, and there is no reconnect or NAT traversal.
+  Overlay discovery/selection remains `mini-net`/host work.
 - **Threads over loopback, not machines over the internet.** A real network
   transport exercising the real protocol, not a deployment.
 

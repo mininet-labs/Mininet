@@ -63,15 +63,13 @@
 //! Safety — never two conflicting decisions at one height — is implemented in
 //! full via Tendermint locking, and finality is still exactly
 //! [`mini_chain::verify_finality`]'s `>2/3`-distinct-roots rule. The remaining
-//! gaps are liveness/DoS, transport security, and deployment, not correctness:
+//! gaps are liveness/DoS, endpoint authentication/discovery, and deployment,
+//! not finality correctness:
 //!
-//! - **Single-hop vote broadcast, not full gossip.** The host broadcasts each
-//!   vote once; it does not re-gossip past rounds' votes. The crash-recovery
-//!   path (a silent proposer) does not depend on that; the POLC-re-proposal
-//!   path (paper line 28) does, so it is only as robust as the links are
-//!   lossless. The *transport* no longer drops traffic to a merely-slow peer
-//!   (see [`net::TcpMesh`]'s non-blocking buffered links), but a genuinely
-//!   dropped or partitioned message is still not re-delivered.
+//! - **Dedup-flooded gossip, not durable retransmission.** D-0205 re-gossips
+//!   each newly seen proposal/vote across any connected topology, but there is
+//!   no acknowledgement, retry queue, or historical replay after a partition.
+//!   A genuinely dropped message may still require a later round to recover.
 //! - **No equivocation slashing.** A validator that double-signs is counted
 //!   at most once per root (P2) and cannot manufacture a quorum; the attempt
 //!   *is* detected, verified, and recorded ([`verify_equivocation`],

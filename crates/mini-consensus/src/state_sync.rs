@@ -164,8 +164,37 @@ impl StateSyncResponse {
         Ok(length)
     }
 
+    pub(crate) fn wire_len(&self) -> Result<usize> {
+        let mut length = DOMAIN
+            .len()
+            .checked_add(32 + 1)
+            .ok_or(ConsensusError::TooLarge)?;
+        match &self.payload {
+            StateSyncPayload::WrongNetwork => {}
+            StateSyncPayload::Unavailable { .. } => {
+                length = length.checked_add(16).ok_or(ConsensusError::TooLarge)?;
+            }
+            StateSyncPayload::Blocks(blocks) => {
+                length = checked_blocks_wire_len(length, blocks)?;
+            }
+            StateSyncPayload::Snapshot { snapshot, blocks } => {
+                let snapshot_len = snapshot.to_wire_bytes()?.len();
+                length = length
+                    .checked_add(4)
+                    .and_then(|value| value.checked_add(snapshot_len))
+                    .ok_or(ConsensusError::TooLarge)?;
+                length = checked_blocks_wire_len(length, blocks)?;
+            }
+        }
+        if length > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
+            return Err(ConsensusError::TooLarge);
+        }
+        Ok(length)
+    }
+
     pub fn to_wire_bytes(&self) -> Result<Vec<u8>> {
-        let mut out = Vec::new();
+        let exact_len = self.wire_len()?;
+        let mut out = Vec::with_capacity(exact_len);
         out.extend_from_slice(DOMAIN);
         out.extend_from_slice(&self.network_id);
         match &self.payload {
@@ -189,8 +218,8 @@ impl StateSyncResponse {
                 encode_blocks(&mut out, blocks)?;
             }
         }
-        if out.len() > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
-            return Err(ConsensusError::TooLarge);
+        if out.len() != exact_len {
+            return Err(ConsensusError::Malformed);
         }
         Ok(out)
     }
@@ -238,6 +267,24 @@ impl StateSyncResponse {
     }
 }
 
+fn checked_blocks_wire_len(mut length: usize, blocks: &[FinalizedBlock]) -> Result<usize> {
+    if blocks.len() > MAX_STATE_SYNC_BLOCKS {
+        return Err(ConsensusError::TooLarge);
+    }
+    length = length.checked_add(4).ok_or(ConsensusError::TooLarge)?;
+    for block in blocks {
+        let block_len = block.to_wire_bytes()?.len();
+        length = length
+            .checked_add(4)
+            .and_then(|value| value.checked_add(block_len))
+            .ok_or(ConsensusError::TooLarge)?;
+        if length > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
+            return Err(ConsensusError::TooLarge);
+        }
+    }
+    Ok(length)
+}
+
 fn encode_blocks(out: &mut Vec<u8>, blocks: &[FinalizedBlock]) -> Result<()> {
     if blocks.len() > MAX_STATE_SYNC_BLOCKS {
         return Err(ConsensusError::TooLarge);
@@ -273,7 +320,42 @@ fn put_bytes(out: &mut Vec<u8>, bytes: &[u8]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use did_mini::Controller;
+    use mini_chain::{BlockHeader, QuorumCertificate};
+    use mini_execution::SettlementBlockBody;
+
     use super::*;
+
+    fn block(height: u64) -> FinalizedBlock {
+        let proposer = Controller::incept_single_from_seeds(&[1; 32], &[2; 32])
+            .unwrap()
+            .did();
+        let header = BlockHeader {
+            height,
+            prev_hash: [0; 32],
+            state_root: [0; 32],
+            timestamp_ms: height,
+            proposer,
+        };
+        FinalizedBlock {
+            qc: QuorumCertificate {
+                height,
+                round: 0,
+                block_hash: header.hash(),
+                votes: Vec::new(),
+            },
+            header,
+            body: SettlementBlockBody::new(Vec::new()),
+        }
+    }
+
+    #[test]
+    fn response_count_over_cap_fails_before_final_buffer_allocation() {
+        let response =
+            StateSyncResponse::blocks([3; 32], vec![block(1); MAX_STATE_SYNC_BLOCKS + 1]);
+        assert_eq!(response.wire_len(), Err(ConsensusError::TooLarge));
+        assert_eq!(response.to_wire_bytes(), Err(ConsensusError::TooLarge));
+    }
 
     #[test]
     fn request_round_trips_and_rejects_trailing_bytes() {

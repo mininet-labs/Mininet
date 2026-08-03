@@ -46,7 +46,8 @@ impl LedgerState {
             return Err(ExecutionError::SnapshotTooLarge);
         }
 
-        let mut out = Vec::new();
+        let exact_len = snapshot_encoded_len(self, &monetary)?;
+        let mut out = Vec::with_capacity(exact_len);
         out.extend_from_slice(DOMAIN);
         out.extend_from_slice(&self.network_id);
 
@@ -73,8 +74,8 @@ impl LedgerState {
         out.extend_from_slice(&self.allocated_circulating.as_micro().to_be_bytes());
         out.extend_from_slice(&self.unallocated_circulating.as_micro().to_be_bytes());
 
-        if out.len() > MAX_LEDGER_SNAPSHOT_BYTES {
-            return Err(ExecutionError::SnapshotTooLarge);
+        if out.len() != exact_len {
+            return Err(ExecutionError::SnapshotMalformed);
         }
         Ok(out)
     }
@@ -160,6 +161,69 @@ impl LedgerState {
         }
         Ok(state)
     }
+}
+
+fn snapshot_encoded_len(state: &LedgerState, monetary: &MonetaryLedgerSnapshot) -> Result<usize> {
+    let mut length = 0usize;
+    add_snapshot_len(&mut length, DOMAIN.len() + 32)?;
+
+    add_snapshot_len(&mut length, 4)?;
+    for payer in state.finalized.keys() {
+        let _ = u32::try_from(payer.len()).map_err(|_| ExecutionError::SnapshotTooLarge)?;
+        add_snapshot_len(&mut length, 4 + payer.len() + 8 + 32)?;
+    }
+
+    add_snapshot_len(&mut length, 4)?;
+    add_snapshot_len(
+        &mut length,
+        state
+            .rejected
+            .len()
+            .checked_mul(33)
+            .ok_or(ExecutionError::SnapshotTooLarge)?,
+    )?;
+
+    add_snapshot_len(&mut length, 16 + 16 + 16 + 1)?;
+    if monetary.last_epoch.is_some() {
+        add_snapshot_len(&mut length, 8)?;
+    }
+    add_snapshot_len(&mut length, 4)?;
+    for position in &monetary.positions {
+        add_snapshot_len(&mut length, 8 + 1)?;
+        match &position.subject {
+            VestingSubject::HumanSnapshot(_) => add_snapshot_len(&mut length, 32 + 8)?,
+            VestingSubject::Beneficiary(beneficiary) => {
+                if beneficiary.is_empty() {
+                    return Err(ExecutionError::SnapshotMalformed);
+                }
+                if beneficiary.len() > MAX_SNAPSHOT_BENEFICIARY_BYTES {
+                    return Err(ExecutionError::SnapshotTooLarge);
+                }
+                let _ = u32::try_from(beneficiary.len())
+                    .map_err(|_| ExecutionError::SnapshotTooLarge)?;
+                add_snapshot_len(&mut length, 4 + beneficiary.len())?;
+            }
+        }
+        add_snapshot_len(&mut length, 1 + 16 + 16 + 8)?;
+    }
+
+    add_snapshot_len(&mut length, 4)?;
+    for account in state.balances.keys() {
+        let _ = u32::try_from(account.len()).map_err(|_| ExecutionError::SnapshotTooLarge)?;
+        add_snapshot_len(&mut length, 4 + account.len() + 16)?;
+    }
+    add_snapshot_len(&mut length, 16 + 16)?;
+    Ok(length)
+}
+
+fn add_snapshot_len(total: &mut usize, additional: usize) -> Result<()> {
+    *total = total
+        .checked_add(additional)
+        .ok_or(ExecutionError::SnapshotTooLarge)?;
+    if *total > MAX_LEDGER_SNAPSHOT_BYTES {
+        return Err(ExecutionError::SnapshotTooLarge);
+    }
+    Ok(())
 }
 
 fn encode_monetary(out: &mut Vec<u8>, snapshot: &MonetaryLedgerSnapshot) -> Result<()> {
@@ -441,6 +505,42 @@ mod tests {
         let last = bytes.len() - 1;
         bytes[last] ^= 1;
         assert!(LedgerState::from_snapshot_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn oversized_state_is_rejected_by_preflight_before_output_allocation() {
+        let beneficiary = "b".repeat(MAX_SNAPSHOT_BENEFICIARY_BYTES);
+        let count = MAX_LEDGER_SNAPSHOT_BYTES / (beneficiary.len() + 64) + 8;
+        let positions: Vec<_> = (0..count)
+            .map(|_| VestingPosition {
+                epoch: 0,
+                subject: VestingSubject::Beneficiary(beneficiary.clone()),
+                channel: Channel::Service,
+                amount: Amount::from_micro(1),
+                starts_at_policy_ms: 0,
+                duration_ms: 0,
+            })
+            .collect();
+        let total = Amount::from_micro(count as u128);
+        let monetary = MonetaryLedger::import_snapshot(MonetaryLedgerSnapshot {
+            genesis_circulating: Amount::ZERO,
+            total_issued: total,
+            policy_time_ms: 0,
+            last_epoch: Some(0),
+            positions,
+        })
+        .unwrap();
+        let mut state = LedgerState::new();
+        state.monetary = monetary;
+        state.unallocated_circulating = total;
+        assert_eq!(
+            snapshot_encoded_len(&state, &state.monetary.export_snapshot()),
+            Err(ExecutionError::SnapshotTooLarge)
+        );
+        assert_eq!(
+            state.to_snapshot_bytes(),
+            Err(ExecutionError::SnapshotTooLarge)
+        );
     }
 
     #[test]

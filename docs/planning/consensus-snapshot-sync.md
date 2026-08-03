@@ -60,9 +60,14 @@ makes any serving peer an untrusted byte source.
 - a bad second block causes zero partial application;
 - the compatibility history drops its oldest row at the declared cap;
 - archive snapshots/prunes/reopens, rejects corrupt/symlinked/oversized state,
-  and replays an interrupted exact install journal idempotently;
-- response construction serializes a large snapshot base once, then accounts
-  each candidate block once, rather than cloning an 8 MiB state per candidate;
+  removes an orphaned interrupted block temp, refuses a missing/gapped or
+  wrong-parent suffix before appending, and replays an interrupted exact install
+  journal idempotently;
+- exact-state and state-sync response encoders calculate aggregate bounds
+  before allocating their final output buffers; response selection serializes a
+  large snapshot base once rather than cloning an 8 MiB state per candidate;
+- selected and accepted state-sync peers are subject to connect/read/write
+  deadlines, so one silent peer can delay only until the local timeout;
 - a real TCP test transfers snapshot plus suffix between independent nodes and
   the destination/reopened archive reaches the exact source height and state
   commitment.
@@ -95,6 +100,16 @@ makes any serving peer an untrusted byte source.
 - A local attacker able to erase/roll back the entire archive can deny or roll
   back local availability. QCs prevent invention of an unfinalized state, but
   no hardware monotonic counter or external checkpoint is introduced.
+- The archive directory must be owner-controlled. Static symlink/non-file checks
+  fail closed, but pathname checks are not a capability-secure sandbox against a
+  concurrent attacker who already controls the containing directory.
+- Atomic replacement and parent-directory durability are exercised on Unix/Linux
+  (including Android's filesystem model). Equivalent crash durability on
+  non-Unix filesystems remains unproven and requires a platform adapter/test.
+- Archive-enabled nodes fail closed: a local durability, size, or snapshot-write
+  failure prevents that node from swapping to the newly finalized state. Very
+  large validator certificates can therefore hit the one-frame snapshot ceiling;
+  chunked state/QC transfer is the long-term solution, not silent data loss.
 - Full-state decode and snapshot creation remain proportional to state size;
   physical weakest-device CPU, memory, flash-wear, and pause measurements are
   not yet recorded.

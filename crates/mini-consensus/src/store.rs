@@ -259,8 +259,11 @@ impl ConsensusArchive {
         }
         let mut blocks = self.read_blocks_locked()?;
         let snapshot_height = snapshot.as_ref().map_or(0, ConsensusSnapshot::height);
+        let snapshot_hash = snapshot
+            .as_ref()
+            .map_or([0u8; 32], |value| value.header.hash());
         blocks.retain(|block| block.header.height > snapshot_height);
-        verify_contiguous(snapshot_height, &blocks)?;
+        verify_chain(snapshot_height, snapshot_hash, &blocks)?;
 
         let tip_height = blocks
             .last()
@@ -349,7 +352,12 @@ impl ConsensusArchive {
         let snapshot_height = current_snapshot
             .as_ref()
             .map_or(0, ConsensusSnapshot::height);
-        let existing = self.read_blocks_locked()?;
+        let snapshot_hash = current_snapshot
+            .as_ref()
+            .map_or([0u8; 32], |value| value.header.hash());
+        let mut existing = self.read_blocks_locked()?;
+        existing.retain(|block| block.header.height > snapshot_height);
+        verify_chain(snapshot_height, snapshot_hash, &existing)?;
         let mut suffix_bytes = existing.iter().try_fold(0usize, |total, block| {
             total
                 .checked_add(block.to_wire_bytes()?.len())
@@ -358,6 +366,9 @@ impl ConsensusArchive {
         let mut tip_height = existing
             .last()
             .map_or(snapshot_height, |block| block.header.height);
+        let mut tip_hash = existing
+            .last()
+            .map_or(snapshot_hash, |block| block.header.hash());
 
         for block in blocks {
             let height = block.header.height;
@@ -389,6 +400,11 @@ impl ConsensusArchive {
                     got: height,
                 });
             }
+            if block.header.prev_hash != tip_hash {
+                return Err(ConsensusError::Storage(
+                    "finalized block parent does not match archive tip".to_string(),
+                ));
+            }
             suffix_bytes = suffix_bytes
                 .checked_add(bytes.len())
                 .ok_or(ConsensusError::TooLarge)?;
@@ -397,6 +413,7 @@ impl ConsensusArchive {
             }
             atomic_write(&path, &bytes)?;
             tip_height = height;
+            tip_hash = block.header.hash();
         }
 
         let last = blocks.last().expect("non-empty checked above");
@@ -425,7 +442,7 @@ impl ConsensusArchive {
         if snapshot.network_id() != self.config.network_id || blocks.len() > MAX_STATE_SYNC_BLOCKS {
             return Err(ConsensusError::StateSyncWrongNetwork);
         }
-        verify_contiguous(snapshot.height(), blocks)?;
+        verify_chain(snapshot.height(), snapshot.header.hash(), blocks)?;
         let incoming_tip = blocks
             .last()
             .map_or(snapshot.height(), |block| block.header.height);
@@ -501,6 +518,7 @@ impl ConsensusArchive {
         let dir = self.root.join(BLOCKS_DIR);
         ensure_directory(&dir, "consensus archive blocks")?;
         let mut rows = Vec::new();
+        let mut stale_temps = Vec::new();
         let mut entries = 0usize;
         let mut total_bytes = 0usize;
         for entry in fs::read_dir(&dir)? {
@@ -520,7 +538,7 @@ impl ConsensusArchive {
                     "non-file in consensus block archive".to_string(),
                 ));
             }
-            let height = parse_block_name(&entry.file_name().to_string_lossy())?;
+            let name = entry.file_name().to_string_lossy().into_owned();
             let file_len =
                 usize::try_from(entry.metadata()?.len()).map_err(|_| ConsensusError::TooLarge)?;
             total_bytes = total_bytes
@@ -529,6 +547,14 @@ impl ConsensusArchive {
             if total_bytes > MAX_ARCHIVE_RECOVERY_BYTES {
                 return Err(ConsensusError::TooLarge);
             }
+            if parse_temp_block_name(&name)?.is_some() {
+                if file_len > crate::MAX_MESSAGE_BYTES {
+                    return Err(ConsensusError::TooLarge);
+                }
+                stale_temps.push(entry.path());
+                continue;
+            }
+            let height = parse_block_name(&name)?;
             let bytes = read_regular_limited(
                 &entry.path(),
                 "consensus finalized block",
@@ -544,6 +570,13 @@ impl ConsensusArchive {
                 ));
             }
             rows.push(block);
+        }
+        let removed_temps = !stale_temps.is_empty();
+        for path in stale_temps {
+            remove_regular_if_present(&path, "interrupted consensus block write")?;
+        }
+        if removed_temps {
+            sync_parent_directory(&dir)?;
         }
         rows.sort_by_key(|block| block.header.height);
         if rows
@@ -649,18 +682,42 @@ fn take_len_prefixed<'a>(
     Ok(value)
 }
 
-fn verify_contiguous(base_height: u64, blocks: &[FinalizedBlock]) -> Result<()> {
-    let mut expected = base_height;
+fn verify_chain(base_height: u64, base_hash: [u8; 32], blocks: &[FinalizedBlock]) -> Result<()> {
+    let mut expected_height = base_height;
+    let mut expected_parent = base_hash;
     for block in blocks {
-        expected = expected.checked_add(1).ok_or(ConsensusError::TooLarge)?;
-        if block.header.height != expected {
+        expected_height = expected_height
+            .checked_add(1)
+            .ok_or(ConsensusError::TooLarge)?;
+        if block.header.height != expected_height {
             return Err(ConsensusError::CatchupOutOfOrder {
-                expected,
+                expected: expected_height,
                 got: block.header.height,
             });
         }
+        if block.header.prev_hash != expected_parent {
+            return Err(ConsensusError::Storage(
+                "consensus archive parent chain is broken".to_string(),
+            ));
+        }
+        expected_parent = block.header.hash();
     }
     Ok(())
+}
+
+fn parse_temp_block_name(name: &str) -> Result<Option<u64>> {
+    let Some(number) = name.strip_suffix(".tmp-write") else {
+        return Ok(None);
+    };
+    if number.len() != 20 || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(ConsensusError::Storage(
+            "malformed interrupted consensus block filename".to_string(),
+        ));
+    }
+    number
+        .parse()
+        .map(Some)
+        .map_err(|_| ConsensusError::Storage("invalid temporary block height".to_string()))
 }
 
 fn parse_block_name(name: &str) -> Result<u64> {
@@ -981,6 +1038,80 @@ mod tests {
         )
         .unwrap();
         assert_eq!(archive.recovery_response(), Err(ConsensusError::TooLarge));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn orphaned_block_temp_is_removed_during_recovery() {
+        let root = temp_root("orphan-temp");
+        let config = ConsensusArchiveConfig {
+            snapshot_interval: 100,
+            max_suffix_blocks: 10,
+            ..ConsensusArchiveConfig::default()
+        };
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        let state = LedgerState::new();
+        let first = block(1, [0; 32], &state);
+        archive
+            .record_verified_batch(core::slice::from_ref(&first), &state)
+            .unwrap();
+        let second = block(2, first.header.hash(), &state);
+        let temp = root.join(BLOCKS_DIR).join(format!("{:020}.tmp-write", 2));
+        fs::write(&temp, second.to_wire_bytes().unwrap()).unwrap();
+
+        let reopened = ConsensusArchive::open(&root, config).unwrap();
+        let response = reopened.recovery_response().unwrap();
+        assert_eq!(response.block_count(), 1);
+        assert!(!temp.exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_missing_middle_block_prevents_any_later_append() {
+        let root = temp_root("missing-middle");
+        let config = ConsensusArchiveConfig {
+            snapshot_interval: 100,
+            max_suffix_blocks: 10,
+            ..ConsensusArchiveConfig::default()
+        };
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        let state = LedgerState::new();
+        let first = block(1, [0; 32], &state);
+        let second = block(2, first.header.hash(), &state);
+        let third = block(3, second.header.hash(), &state);
+        for value in [&first, &second, &third] {
+            archive
+                .record_verified_batch(core::slice::from_ref(value), &state)
+                .unwrap();
+        }
+        fs::remove_file(archive.block_path(2)).unwrap();
+        let fourth = block(4, third.header.hash(), &state);
+        assert!(archive
+            .record_verified_batch(core::slice::from_ref(&fourth), &state)
+            .is_err());
+        assert!(!archive.block_path(4).exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_new_block_with_the_wrong_parent_is_never_persisted() {
+        let root = temp_root("wrong-parent");
+        let config = ConsensusArchiveConfig {
+            snapshot_interval: 100,
+            max_suffix_blocks: 10,
+            ..ConsensusArchiveConfig::default()
+        };
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        let state = LedgerState::new();
+        let first = block(1, [0; 32], &state);
+        archive
+            .record_verified_batch(core::slice::from_ref(&first), &state)
+            .unwrap();
+        let second = block(2, [9; 32], &state);
+        assert!(archive
+            .record_verified_batch(core::slice::from_ref(&second), &state)
+            .is_err());
+        assert!(!archive.block_path(2).exists());
         let _ = fs::remove_dir_all(root);
     }
 
