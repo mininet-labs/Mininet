@@ -14475,8 +14475,12 @@ all chronological metadata while holding the local lock. `Store::since` remains
 an unbounded compatibility API; only `idx/time` is accelerated; author timestamps
 are not freshness evidence; and a later/backdated arrival can sort before an
 already-issued page cursor, so this is browsing rather than a lossless sync
-frontier. Parent-directory fsync, cross-index transactionality, and physical
-weakest-device latency remain unmeasured.
+frontier. Completeness also assumes every local chronological metadata write
+uses this version's `FsBackend` path: a concurrently running older binary,
+downgrade, or manual filesystem mutation can bypass the side index and requires
+an explicit `rebuild_time_index()` before bounded pages are trusted complete.
+Parent-directory fsync, cross-index transactionality, and physical weakest-
+device latency remain unmeasured.
 
 **Required follow-up:** migrate interactive forge/feed callers to `since_page`,
 benchmark page/rebuild/compaction behavior on the weakest supported device, and

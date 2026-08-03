@@ -571,7 +571,9 @@ results are rechecked against those rows. Migration/rebuild and compaction are
 full-history maintenance, the old full-suffix `Store::since` remains unbounded,
 and author/type/link compound pagination is still open. Pages are stable over a
 fixed view but are not a lossless sync frontier: later/backdated arrivals can
-sort before an issued author-timestamp cursor. No hosted index or mandatory
+sort before an issued author-timestamp cursor. Completeness also assumes local
+time-row writers use this version's `FsBackend`; mixed-version/out-of-band
+writes require an explicit side-index rebuild. No hosted index or mandatory
 daemon is introduced.
 
 **Distributed build workers — first bounded slice implemented (D-0409

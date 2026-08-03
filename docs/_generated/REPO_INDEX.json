@@ -51861,38 +51861,38 @@
       "title": "mod backend;"
     },
     {
-      "bytes": 16926,
+      "bytes": 17015,
       "group": "crate:mini-store",
       "headings": [],
       "keywords": [
-        "backend",
         "self",
+        "backend",
         "object",
         "store",
         "as_str",
         "format",
         "objectid",
+        "result",
         "idx",
         "put_meta",
         "envelope",
-        "result",
         "timecursor",
         "timestamp_ms",
-        "bytes",
         "private",
         "new",
         "head",
-        "objectenvelopev2",
         "page",
         "derive",
         "debug",
         "object_id",
         "content",
-        "time_key"
+        "time_key",
+        "objectenvelopev2",
+        "storeerror"
       ],
-      "lines": 444,
+      "lines": 445,
       "path": "crates/mini-store/src/store.rs",
-      "sha256": "fb2eeda100951964d22281110cdf2b314cab84812161decb321f69d321f5a762",
+      "sha256": "9cb78499e72415a150f4f383b1f8355bbf8f294dc961347b277807a0b6734d69",
       "symbols": [
         {
           "kind": "const",
@@ -51901,177 +51901,177 @@
         },
         {
           "kind": "const",
-          "line": 14,
+          "line": 15,
           "name": "MAX_TIME_PAGE_SIZE"
         },
         {
           "kind": "struct",
-          "line": 23,
+          "line": 24,
           "name": "TimeCursor"
         },
         {
           "kind": "impl",
-          "line": 28,
+          "line": 29,
           "name": "TimeCursor"
         },
         {
           "kind": "fn",
-          "line": 29,
+          "line": 30,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 36,
+          "line": 37,
           "name": "index_key"
         },
         {
           "kind": "struct",
-          "line": 48,
+          "line": 49,
           "name": "TimePage"
         },
         {
           "kind": "enum",
-          "line": 55,
+          "line": 56,
           "name": "HeadState"
         },
         {
           "kind": "struct",
-          "line": 64,
+          "line": 65,
           "name": "Store"
         },
         {
           "kind": "impl",
-          "line": 68,
+          "line": 69,
           "name": "Store<B>"
         },
         {
           "kind": "fn",
-          "line": 70,
+          "line": 71,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 77,
+          "line": 78,
           "name": "insert"
         },
         {
           "kind": "fn",
-          "line": 103,
+          "line": 104,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 117,
+          "line": 118,
           "name": "contains"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 126,
           "name": "insert_private"
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 138,
           "name": "get_private"
         },
         {
           "kind": "fn",
-          "line": 153,
+          "line": 154,
           "name": "contains_private"
         },
         {
           "kind": "fn",
-          "line": 160,
+          "line": 161,
           "name": "private_by_route"
         },
         {
           "kind": "fn",
-          "line": 165,
+          "line": 166,
           "name": "all_ids"
         },
         {
           "kind": "fn",
-          "line": 170,
+          "line": 171,
           "name": "by_author"
         },
         {
           "kind": "fn",
-          "line": 175,
+          "line": 176,
           "name": "by_type"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 181,
           "name": "linking_to"
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 193,
           "name": "since"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 212,
           "name": "since_page"
         },
         {
           "kind": "fn",
-          "line": 265,
+          "line": 266,
           "name": "recent"
         },
         {
           "kind": "fn",
-          "line": 277,
+          "line": 278,
           "name": "ids_under"
         },
         {
           "kind": "fn",
-          "line": 294,
+          "line": 295,
           "name": "apply_head"
         },
         {
           "kind": "fn",
-          "line": 332,
+          "line": 333,
           "name": "resolve_head"
         },
         {
           "kind": "fn",
-          "line": 345,
+          "line": 346,
           "name": "missing_links"
         },
         {
           "kind": "fn",
-          "line": 358,
+          "line": 359,
           "name": "want_list"
         },
         {
           "kind": "fn",
-          "line": 382,
+          "line": 383,
           "name": "time_key"
         },
         {
           "kind": "fn",
-          "line": 389,
+          "line": 390,
           "name": "parse_time_index_key"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 406,
           "name": "type_key"
         },
         {
           "kind": "fn",
-          "line": 420,
+          "line": 421,
           "name": "route_key"
         },
         {
           "kind": "fn",
-          "line": 428,
+          "line": 429,
           "name": "encode_slot"
         },
         {
           "kind": "fn",
-          "line": 435,
+          "line": 436,
           "name": "decode_slot"
         }
       ],
@@ -60457,7 +60457,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 868974,
+      "bytes": 869275,
       "group": "docs",
       "headings": [
         {
@@ -60887,9 +60887,9 @@
         "deterministic",
         "design"
       ],
-      "lines": 14490,
+      "lines": 14494,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "440368a9cb53ff1171805b693e9442498fb7d5520b594ee21a124fd43afef98b",
+      "sha256": "2b385527e390ac72e12e37461dc58a8cdc4e007ccff25d301bcd15eca812a451",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -62038,7 +62038,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 109400,
+      "bytes": 109616,
       "group": "docs",
       "headings": [
         {
@@ -62103,27 +62103,27 @@
         },
         {
           "level": 2,
-          "line": 1097,
+          "line": 1099,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1423,
+          "line": 1425,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1514,
+          "line": 1516,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1594,
+          "line": 1596,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1660,
+          "line": 1662,
           "text": "Where to look for more detail"
         }
       ],
@@ -62153,9 +62153,9 @@
         "social",
         "network"
       ],
-      "lines": 1675,
+      "lines": 1677,
       "path": "docs/STATUS.md",
-      "sha256": "e14c732bacdcc45878cc62a595b6ad6168df81d6da2443c964ecf483c698d780",
+      "sha256": "38138ea01af1106db81e150abe0d8b50545eedff6872b0a7ffb94f35b421b64e",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -66760,7 +66760,7 @@
       "title": "Private lookup and the public-DHT boundary (MN-208, D-0310)"
     },
     {
-      "bytes": 36474,
+      "bytes": 36628,
       "group": "docs",
       "headings": [
         {
@@ -66810,12 +66810,12 @@
         },
         {
           "level": 2,
-          "line": 597,
+          "line": 599,
           "text": "Batch 6 \u2014 resume horizontal breadth"
         },
         {
           "level": 2,
-          "line": 606,
+          "line": 608,
           "text": "Cryptography and governance notes from the audit, applied opportunistically"
         }
       ],
@@ -66845,9 +66845,9 @@
         "external",
         "d-0066"
       ],
-      "lines": 624,
+      "lines": 626,
       "path": "docs/design/self-hosted-forge-spine.md",
-      "sha256": "d9903ce4719469907aed9d438422d531748e9b182979dc6bd4e75120a18c4a76",
+      "sha256": "2ba1ae8370d28ef8eb6e9d46bbbbea63f71962a7df30a4717310c91ebb4aa0b3",
       "symbols": [],
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
@@ -74140,7 +74140,7 @@
       "title": "Distributed build worker \u2014 bounded Batch 5 slice"
     },
     {
-      "bytes": 5898,
+      "bytes": 6355,
       "group": "docs",
       "headings": [
         {
@@ -74170,12 +74170,12 @@
         },
         {
           "level": 2,
-          "line": 92,
+          "line": 98,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 99,
+          "line": 105,
           "text": "Merge condition"
         }
       ],
@@ -74205,9 +74205,9 @@
         "append",
         "manifest"
       ],
-      "lines": 104,
+      "lines": 110,
       "path": "docs/planning/forge-bounded-fs-index-pages.md",
-      "sha256": "a664c239f379bdc4ef4e3466ab93dd85f4e3ce675c3079998d8102caad2116e1",
+      "sha256": "ab59ef98aa1b17df5674074bf9bca06e03d41b36a14e2c87d7e235c2a1be45bb",
       "symbols": [],
       "title": "Forge Batch 5: bounded filesystem metadata index and stable pages (D-0430)"
     },

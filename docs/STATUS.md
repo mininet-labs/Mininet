@@ -1033,7 +1033,9 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   timestamps are ordering hints, not freshness; a later/backdated arrival can
   sort before an issued cursor, so pages are not a lossless sync frontier;
   physical weakest-device and parent-directory-fsync behavior remain follow-up.
-  No remote index, daemon,
+  Completeness assumes all local time-row writers use this version's `FsBackend`;
+  an older concurrent binary, downgrade, or manual filesystem mutation can bypass
+  the side index and requires `rebuild_time_index()`. No remote index, daemon,
   dependency, object-wire, sync, ranking, payment, or governance change.
 - **shipped** — Git SHA-256 export bridge (`mini_forge::git_export`),
   Batch 1's remaining deferred item. Exports a commit chain (commit → tree

@@ -8,9 +8,10 @@ use crate::{Result, StoreError};
 
 const MAX_SUBJECT_BYTES: usize = 64;
 
-/// Largest page accepted by [`Store::since_page`]. The backend may perform
-/// maintenance or one-time migration work, but steady-state returned work and
-/// allocation are bounded by this value.
+/// Largest result page accepted by [`Store::since_page`] and
+/// [`Store::recent`]. Internal filesystem-index work additionally inspects the
+/// separately bounded 1,024-record delta and logarithmic fixed-width base
+/// seeks; maintenance and one-time migration may scan full history.
 pub const MAX_TIME_PAGE_SIZE: usize = 1024;
 
 /// Stable continuation cursor for chronological object pages over a fixed

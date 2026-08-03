@@ -83,6 +83,12 @@ solution here stays local, reconstructible, non-authoritative, and removable.
   Lossless discovery remains the content/want-list synchronization layer.
 - The side index is not signed, replicated, consensus state, or a source of
   governance/ranking authority. Deleting it must never delete objects.
+- Completeness assumes local chronological metadata writes use this version's
+  `FsBackend::put_meta` path. A concurrently running older binary, downgrade,
+  or manual/out-of-band filesystem mutation can add an authoritative time row
+  without updating the side index; the next bounded page cannot discover that
+  omission without an unbounded scan. Stop mixed-version writers and run
+  `FsBackend::rebuild_time_index()` after downgrade/out-of-band repair.
 - File contents are synced before rename, but this preserves the existing
   `FsBackend` durability model; parent-directory fsync and a transaction across
   every object index remain future hardening.
