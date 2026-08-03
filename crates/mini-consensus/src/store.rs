@@ -9,7 +9,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use mini_execution::LedgerState;
+use mini_execution::{LedgerState, MAX_LEDGER_SNAPSHOT_BYTES};
 
 use crate::catchup::{FinalizedBlock, MAX_CATCHUP_BLOCKS};
 use crate::error::{ConsensusError, Result};
@@ -21,8 +21,14 @@ use crate::state_sync::{
 const SNAPSHOT_FILE: &str = "snapshot.bin";
 const BLOCKS_DIR: &str = "blocks";
 const LOCK_FILE: &str = "archive.lock";
+const INSTALL_PENDING_FILE: &str = "install.pending";
+const INSTALL_PENDING_DOMAIN: &[u8] = b"mini-consensus/archive-install/v1";
 const TEMP_SUFFIX: &str = "tmp-write";
 const MAX_ARCHIVE_DIRECTORY_ENTRIES: usize = 4_096;
+const MAX_PENDING_INSTALL_BYTES: usize = mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES
+    + MAX_LEDGER_SNAPSHOT_BYTES
+    + INSTALL_PENDING_DOMAIN.len()
+    + 8;
 
 /// Local retention policy. It affects availability only, never finality.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,7 +135,12 @@ impl ConsensusArchive {
         self.with_lock(|archive| archive.record_locked(blocks, final_state))
     }
 
-    /// Replace local recovery state with an already verified snapshot response.
+    /// Replace local recovery state with an already verified response.
+    ///
+    /// The exact response plus resulting state are journaled before any
+    /// snapshot/block replacement. Reopening the archive replays the same
+    /// operation idempotently; a process crash can delay availability but
+    /// cannot leave an unjournaled half-install that is mistaken for truth.
     pub(crate) fn install_verified_response(
         &self,
         response: &StateSyncResponse,
@@ -140,19 +151,11 @@ impl ConsensusArchive {
         {
             return Err(ConsensusError::StateSyncWrongNetwork);
         }
-        self.with_lock(|archive| match &response.payload {
-            StateSyncPayload::Blocks(blocks) => archive.record_locked(blocks, final_state),
-            StateSyncPayload::Snapshot { snapshot, blocks } => {
-                archive.install_snapshot_locked(snapshot, blocks, final_state)
-            }
-            StateSyncPayload::WrongNetwork => Err(ConsensusError::StateSyncWrongNetwork),
-            StateSyncPayload::Unavailable {
-                earliest_height,
-                tip_height,
-            } => Err(ConsensusError::StateSyncUnavailable {
-                earliest_height: *earliest_height,
-                tip_height: *tip_height,
-            }),
+        self.with_lock(|archive| {
+            let pending = encode_pending_install(response, final_state)?;
+            atomic_write(&archive.root.join(INSTALL_PENDING_FILE), &pending)?;
+            archive.apply_install_locked(response, final_state)?;
+            archive.clear_pending_install_locked()
         })
     }
 
@@ -167,10 +170,61 @@ impl ConsensusArchive {
             .open(path)?;
         #[allow(clippy::incompatible_msrv)]
         lock.lock()?;
-        let result = operation(self);
+        let result = (|| {
+            self.recover_pending_install_locked()?;
+            operation(self)
+        })();
         #[allow(clippy::incompatible_msrv)]
         let _ = lock.unlock();
         result
+    }
+
+    fn recover_pending_install_locked(&self) -> Result<()> {
+        let Some(bytes) = read_regular_limited(
+            &self.root.join(INSTALL_PENDING_FILE),
+            "consensus archive install journal",
+            MAX_PENDING_INSTALL_BYTES,
+        )?
+        else {
+            return Ok(());
+        };
+        let (response, final_state) = decode_pending_install(&bytes)?;
+        if response.network_id != self.config.network_id
+            || final_state.network_id() != self.config.network_id
+        {
+            return Err(ConsensusError::StateSyncWrongNetwork);
+        }
+        self.apply_install_locked(&response, &final_state)?;
+        self.clear_pending_install_locked()
+    }
+
+    fn clear_pending_install_locked(&self) -> Result<()> {
+        remove_regular_if_present(
+            &self.root.join(INSTALL_PENDING_FILE),
+            "consensus archive install journal",
+        )?;
+        sync_parent_directory(&self.root)
+    }
+
+    fn apply_install_locked(
+        &self,
+        response: &StateSyncResponse,
+        final_state: &LedgerState,
+    ) -> Result<()> {
+        match &response.payload {
+            StateSyncPayload::Blocks(blocks) => self.record_locked(blocks, final_state),
+            StateSyncPayload::Snapshot { snapshot, blocks } => {
+                self.install_snapshot_locked(snapshot, blocks, final_state)
+            }
+            StateSyncPayload::WrongNetwork => Err(ConsensusError::StateSyncWrongNetwork),
+            StateSyncPayload::Unavailable {
+                earliest_height,
+                tip_height,
+            } => Err(ConsensusError::StateSyncUnavailable {
+                earliest_height: *earliest_height,
+                tip_height: *tip_height,
+            }),
+        }
     }
 
     fn response_locked(&self, from_height: u64) -> Result<StateSyncResponse> {
@@ -472,6 +526,71 @@ impl ConsensusArchive {
     }
 }
 
+fn encode_pending_install(
+    response: &StateSyncResponse,
+    final_state: &LedgerState,
+) -> Result<Vec<u8>> {
+    let response_bytes = response.to_wire_bytes()?;
+    let state_bytes = final_state.to_snapshot_bytes()?;
+    let response_len = u32::try_from(response_bytes.len()).map_err(|_| ConsensusError::TooLarge)?;
+    let state_len = u32::try_from(state_bytes.len()).map_err(|_| ConsensusError::TooLarge)?;
+    let mut out = Vec::with_capacity(
+        INSTALL_PENDING_DOMAIN.len() + 8 + response_bytes.len() + state_bytes.len(),
+    );
+    out.extend_from_slice(INSTALL_PENDING_DOMAIN);
+    out.extend_from_slice(&response_len.to_be_bytes());
+    out.extend_from_slice(&response_bytes);
+    out.extend_from_slice(&state_len.to_be_bytes());
+    out.extend_from_slice(&state_bytes);
+    if out.len() > MAX_PENDING_INSTALL_BYTES {
+        return Err(ConsensusError::TooLarge);
+    }
+    Ok(out)
+}
+
+fn decode_pending_install(bytes: &[u8]) -> Result<(StateSyncResponse, LedgerState)> {
+    if bytes.len() > MAX_PENDING_INSTALL_BYTES || !bytes.starts_with(INSTALL_PENDING_DOMAIN) {
+        return Err(ConsensusError::Malformed);
+    }
+    let mut position = INSTALL_PENDING_DOMAIN.len();
+    let response_bytes = take_len_prefixed(
+        bytes,
+        &mut position,
+        mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES,
+    )?;
+    let state_bytes = take_len_prefixed(bytes, &mut position, MAX_LEDGER_SNAPSHOT_BYTES)?;
+    if position != bytes.len() {
+        return Err(ConsensusError::Malformed);
+    }
+    Ok((
+        StateSyncResponse::from_wire_bytes(response_bytes)?,
+        LedgerState::from_snapshot_bytes(state_bytes)?,
+    ))
+}
+
+fn take_len_prefixed<'a>(
+    bytes: &'a [u8],
+    position: &mut usize,
+    maximum: usize,
+) -> Result<&'a [u8]> {
+    let length_end = position.checked_add(4).ok_or(ConsensusError::Malformed)?;
+    let length_bytes = bytes
+        .get(*position..length_end)
+        .ok_or(ConsensusError::Malformed)?;
+    let length = u32::from_be_bytes(length_bytes.try_into().expect("four-byte slice")) as usize;
+    if length > maximum {
+        return Err(ConsensusError::TooLarge);
+    }
+    let end = length_end
+        .checked_add(length)
+        .ok_or(ConsensusError::Malformed)?;
+    let value = bytes
+        .get(length_end..end)
+        .ok_or(ConsensusError::Malformed)?;
+    *position = end;
+    Ok(value)
+}
+
 fn verify_contiguous(base_height: u64, blocks: &[FinalizedBlock]) -> Result<()> {
     let mut expected = base_height;
     for block in blocks {
@@ -725,6 +844,64 @@ mod tests {
         archive.record_verified_batch(&[finalized], &state).unwrap();
         fs::write(archive.block_path(1), b"corrupt").unwrap();
         assert!(archive.recovery_response().is_err());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn interrupted_snapshot_install_is_replayed_exactly_on_reopen() {
+        let root = temp_root("pending-install");
+        let config = ConsensusArchiveConfig {
+            snapshot_interval: 100,
+            max_suffix_blocks: 10,
+            ..ConsensusArchiveConfig::default()
+        };
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        let state = LedgerState::new();
+        let first = block(1, [0; 32], &state);
+        archive
+            .record_verified_batch(core::slice::from_ref(&first), &state)
+            .unwrap();
+
+        let second = block(2, first.header.hash(), &state);
+        let snapshot =
+            ConsensusSnapshot::new(second.header.clone(), second.qc.clone(), state.clone())
+                .unwrap();
+        let response = StateSyncResponse::snapshot(config.network_id, snapshot.clone(), Vec::new());
+        let pending = encode_pending_install(&response, &state).unwrap();
+
+        archive
+            .with_lock(|locked| {
+                atomic_write(&locked.root.join(INSTALL_PENDING_FILE), &pending)?;
+                // Simulate process loss after the new snapshot rename but
+                // before old suffix cleanup and journal removal.
+                locked.write_snapshot_locked(&snapshot)
+            })
+            .unwrap();
+
+        let reopened = ConsensusArchive::open(&root, config).unwrap();
+        let recovered = reopened.recovery_response().unwrap();
+        match recovered.payload {
+            StateSyncPayload::Snapshot { snapshot, blocks } => {
+                assert_eq!(snapshot.height(), 2);
+                assert!(blocks.is_empty());
+            }
+            other => panic!("expected recovered snapshot, got {other:?}"),
+        }
+        assert!(!root.join(INSTALL_PENDING_FILE).exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn oversized_install_journal_fails_closed_before_allocation() {
+        let root = temp_root("oversized-install");
+        let config = ConsensusArchiveConfig::default();
+        let archive = ConsensusArchive::open(&root, config).unwrap();
+        fs::write(
+            root.join(INSTALL_PENDING_FILE),
+            vec![0x41; MAX_PENDING_INSTALL_BYTES + 1],
+        )
+        .unwrap();
+        assert_eq!(archive.recovery_response(), Err(ConsensusError::TooLarge));
         let _ = fs::remove_dir_all(root);
     }
 

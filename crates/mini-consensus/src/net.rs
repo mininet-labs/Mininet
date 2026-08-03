@@ -55,6 +55,8 @@ use crate::catchup::{CatchupRequest, CatchupResponse};
 use crate::consequence::EquivocatorRegistry;
 use crate::error::{ConsensusError, Result};
 use crate::node::{ConsensusNode, Emit};
+use crate::state_sync::{StateSyncRequest, StateSyncResponse};
+use crate::store::ConsensusArchive;
 use crate::wire::ConsensusMessage;
 
 /// AEAD associated data for catch-up request/response frames — distinct from
@@ -125,6 +127,59 @@ pub fn serve_catch_up_over_tcp<O: ValidatorOracle>(
     };
     let sealed_response = channel.seal(&response.to_wire_bytes(), CATCHUP_AAD)?;
     bearer.send(&sealed_response)?;
+    Ok(())
+}
+
+/// AEAD associated data for authenticated-snapshot state sync. It is distinct
+/// from live consensus and legacy block-only catch-up, preventing ciphertext
+/// cross-protocol replay even though all three reuse the same Channel primitive.
+const STATE_SYNC_AAD: &[u8] = b"mini-consensus/state-sync-channel/v1";
+
+/// Pull one bounded blocks-or-snapshot response from an explicitly selected
+/// peer and apply it only after local QC/state verification. The peer supplies
+/// bytes, never trust. Repeat if the archive tip is more than one response away.
+pub fn state_sync_over_tcp<O: ValidatorOracle>(
+    node: &mut ConsensusNode<O>,
+    peer_addr: SocketAddr,
+) -> Result<usize> {
+    let before = node.finalized_height();
+    let stream = TcpStream::connect(peer_addr).map_err(mini_bearer::BearerError::from)?;
+    let mut bearer = TcpBearer::from_stream(stream)?;
+
+    let (initiator, hello) = Initiator::start()?;
+    bearer.send(&hello)?;
+    let response = bearer.recv()?;
+    let mut channel = initiator.finish(&response)?;
+
+    let request = StateSyncRequest {
+        network_id: node.state().network_id(),
+        from_height: before,
+    };
+    bearer.send(&channel.seal(&request.to_wire_bytes(), STATE_SYNC_AAD)?)?;
+    let sealed_response = bearer.recv()?;
+    let plaintext = channel.open(&sealed_response, STATE_SYNC_AAD)?;
+    let response = StateSyncResponse::from_wire_bytes(&plaintext)?;
+    node.apply_state_sync(response)?;
+    usize::try_from(node.finalized_height().saturating_sub(before))
+        .map_err(|_| ConsensusError::TooLarge)
+}
+
+/// Serve one bounded state-sync request from a local non-authoritative archive.
+/// The encrypted, anonymous transport does not authenticate the peer; it does
+/// not need to, because the receiver independently verifies every payload.
+pub fn serve_state_sync_over_tcp(archive: &ConsensusArchive, listener: &TcpListener) -> Result<()> {
+    let (stream, _) = listener.accept().map_err(mini_bearer::BearerError::from)?;
+    let mut bearer = TcpBearer::from_stream(stream)?;
+
+    let hello = bearer.recv()?;
+    let (mut channel, hello_response) = Responder::respond(&hello)?;
+    bearer.send(&hello_response)?;
+
+    let sealed_request = bearer.recv()?;
+    let plaintext = channel.open(&sealed_request, STATE_SYNC_AAD)?;
+    let request = StateSyncRequest::from_wire_bytes(&plaintext)?;
+    let response = archive.response(request)?;
+    bearer.send(&channel.seal(&response.to_wire_bytes()?, STATE_SYNC_AAD)?)?;
     Ok(())
 }
 

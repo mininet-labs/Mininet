@@ -27,6 +27,8 @@ use mini_execution::{apply_block, LedgerChain, SettlementBlockBody};
 use crate::catchup::{FinalizedBlock, MAX_CATCHUP_BLOCKS};
 use crate::error::{ConsensusError, Result};
 use crate::round::{proposer_for, Action, Round, Step};
+use crate::state_sync::{StateSyncPayload, StateSyncRequest, StateSyncResponse};
+use crate::store::ConsensusArchive;
 use crate::wire::{sign_proposal, verify_proposal, ConsensusMessage, Proposal};
 
 /// Builds the block body this node proposes when it is a height's proposer and
@@ -107,12 +109,12 @@ pub struct ConsensusNode<O> {
     /// Messages for heights beyond the current one, buffered and replayed on
     /// advance (a faster peer routinely runs a height ahead).
     pending: Vec<ConsensusMessage>,
-    /// Every block this node has finalized, kept so a peer that fell behind
-    /// can be served a catch-up response (see [`crate::catchup`]). First
-    /// slice: unbounded, in-memory, no pruning/persistence — the same
-    /// honest-limit shape `mini-net`'s `RoutingTable` documents for its own
-    /// first slice.
-    history: Vec<FinalizedBlock>,
+    /// Recent finalized blocks available for the compatibility catch-up
+    /// endpoint. The deque is strictly capped; durable history/snapshots live
+    /// in `archive` when configured.
+    history: VecDeque<FinalizedBlock>,
+    /// Optional local, non-authoritative persistent recovery archive.
+    archive: Option<ConsensusArchive>,
 }
 
 impl<O> core::fmt::Debug for ConsensusNode<O> {
@@ -145,8 +147,33 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
             round,
             values: HashMap::new(),
             pending: Vec::new(),
-            history: Vec::new(),
+            history: VecDeque::new(),
+            archive: None,
         }
+    }
+
+    /// Stand up a node and independently recover the best locally retained
+    /// snapshot/suffix. The archive is storage, never a trust oracle: every
+    /// checkpoint QC and every suffix block are verified through the same
+    /// validator set, KEL oracle, and execution path as network state sync.
+    pub fn new_with_archive(config: NodeConfig<O>, archive: ConsensusArchive) -> Result<Self> {
+        let mut node = Self::new(config);
+        if archive.network_id() != node.state().network_id() {
+            return Err(ConsensusError::StateSyncWrongNetwork);
+        }
+        node.archive = Some(archive.clone());
+        loop {
+            let before = node.finalized_height();
+            let response = archive.response(StateSyncRequest {
+                network_id: node.state().network_id(),
+                from_height: before,
+            })?;
+            node.apply_state_sync_internal(response, false, false)?;
+            if node.finalized_height() == before {
+                break;
+            }
+        }
+        Ok(node)
     }
 
     /// The height currently being decided (one past the finalized tip).
@@ -212,39 +239,153 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
     /// live consensus does — a peer cannot use catch-up to hand this node
     /// a state no real quorum ever decided.
     pub fn catch_up(&mut self, blocks: Vec<FinalizedBlock>) -> Result<Vec<Emit>> {
-        let mut emits = Vec::new();
-        for block in blocks {
-            let expected = self.current_height();
-            if block.header.height != expected {
-                return Err(ConsensusError::CatchupOutOfOrder {
-                    expected,
-                    got: block.header.height,
-                });
-            }
-            let commitment = self.chain.apply_finalized_block(
-                &block.header,
-                &block.body,
-                &block.qc,
-                &self.validators,
-                &self.oracle,
-            )?;
-            emits.push(Emit::Committed {
-                height: block.header.height,
-                commitment,
-            });
-            self.history.push(block);
+        self.apply_state_sync(StateSyncResponse::blocks(self.state().network_id(), blocks))
+    }
+
+    /// Apply one peer/archive response all-or-nothing. Every block is first
+    /// executed against a cloned chain; a late failure leaves live state and
+    /// persistent state unchanged. A snapshot replaces state only after its
+    /// QC and state commitment verify against this node's own validator data.
+    pub fn apply_state_sync(&mut self, response: StateSyncResponse) -> Result<Vec<Emit>> {
+        self.apply_state_sync_internal(response, true, true)
+    }
+
+    fn apply_state_sync_internal(
+        &mut self,
+        response: StateSyncResponse,
+        start_round: bool,
+        persist: bool,
+    ) -> Result<Vec<Emit>> {
+        if response.network_id != self.state().network_id() {
+            return Err(ConsensusError::StateSyncWrongNetwork);
         }
-        // Resume live round-driving fresh at whatever height catch-up
-        // reached -- the same reset `commit` performs after every height.
+        let before = self.finalized_height();
+        let (candidate, mut emits, retained, replace_history) =
+            self.verify_state_sync(&response)?;
+        if candidate.height() == before {
+            return Ok(Vec::new());
+        }
+
+        if persist {
+            if let Some(archive) = self.archive.clone() {
+                archive.install_verified_response(&response, candidate.state())?;
+            }
+        }
+
+        self.chain = candidate;
+        if replace_history {
+            self.history.clear();
+        }
+        for block in retained {
+            self.remember_history(block);
+        }
         self.round = Round::new(
             self.current_height(),
             self.validators.clone(),
             self.root.clone(),
         );
         self.values.clear();
-        let start_actions = self.round.start();
-        self.drive(start_actions, &mut emits)?;
+        // Buffered live-round messages were collected relative to the old tip.
+        // Re-gossip can repopulate them; replaying them after a state jump is a
+        // larger ambiguity than dropping them.
+        self.pending.clear();
+        if start_round {
+            let actions = self.round.start();
+            self.drive(actions, &mut emits)?;
+        }
         Ok(emits)
+    }
+
+    fn verify_state_sync(
+        &self,
+        response: &StateSyncResponse,
+    ) -> Result<(LedgerChain, Vec<Emit>, Vec<FinalizedBlock>, bool)> {
+        match &response.payload {
+            StateSyncPayload::WrongNetwork => Err(ConsensusError::StateSyncWrongNetwork),
+            StateSyncPayload::Unavailable {
+                earliest_height,
+                tip_height,
+            } => Err(ConsensusError::StateSyncUnavailable {
+                earliest_height: *earliest_height,
+                tip_height: *tip_height,
+            }),
+            StateSyncPayload::Blocks(blocks) => {
+                let mut candidate = self.chain.clone();
+                let mut emits = Vec::new();
+                for block in blocks {
+                    let expected = candidate
+                        .height()
+                        .checked_add(1)
+                        .ok_or(ConsensusError::TooLarge)?;
+                    if block.header.height != expected {
+                        return Err(ConsensusError::CatchupOutOfOrder {
+                            expected,
+                            got: block.header.height,
+                        });
+                    }
+                    let commitment = candidate.apply_finalized_block(
+                        &block.header,
+                        &block.body,
+                        &block.qc,
+                        &self.validators,
+                        &self.oracle,
+                    )?;
+                    emits.push(Emit::Committed {
+                        height: block.header.height,
+                        commitment,
+                    });
+                }
+                Ok((candidate, emits, blocks.clone(), false))
+            }
+            StateSyncPayload::Snapshot { snapshot, blocks } => {
+                if snapshot.height() <= self.finalized_height() {
+                    return Err(ConsensusError::SnapshotNotNewer {
+                        current: self.finalized_height(),
+                        got: snapshot.height(),
+                    });
+                }
+                let mut candidate = snapshot.as_ref().clone().into_chain(
+                    response.network_id,
+                    &self.validators,
+                    &self.oracle,
+                )?;
+                let mut emits = vec![Emit::Committed {
+                    height: snapshot.height(),
+                    commitment: candidate.state().commitment(),
+                }];
+                for block in blocks {
+                    let expected = candidate
+                        .height()
+                        .checked_add(1)
+                        .ok_or(ConsensusError::TooLarge)?;
+                    if block.header.height != expected {
+                        return Err(ConsensusError::CatchupOutOfOrder {
+                            expected,
+                            got: block.header.height,
+                        });
+                    }
+                    let commitment = candidate.apply_finalized_block(
+                        &block.header,
+                        &block.body,
+                        &block.qc,
+                        &self.validators,
+                        &self.oracle,
+                    )?;
+                    emits.push(Emit::Committed {
+                        height: block.header.height,
+                        commitment,
+                    });
+                }
+                Ok((candidate, emits, blocks.clone(), true))
+            }
+        }
+    }
+
+    fn remember_history(&mut self, block: FinalizedBlock) {
+        self.history.push_back(block);
+        while self.history.len() > MAX_CATCHUP_BLOCKS {
+            self.history.pop_front();
+        }
     }
 
     /// Feed one message (peer's or this node's own) into the node.
@@ -469,24 +610,29 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
             .get(&qc.block_hash)
             .ok_or(ConsensusError::Stalled)?
             .clone();
-        let commitment = self.chain.apply_finalized_block(
+        let mut candidate = self.chain.clone();
+        let commitment = candidate.apply_finalized_block(
             &value.header,
             &value.body,
             &qc,
             &self.validators,
             &self.oracle,
         )?;
-        self.history.push(FinalizedBlock {
+        let finalized = FinalizedBlock {
             header: value.header.clone(),
             body: value.body.clone(),
             qc,
-        });
+        };
+        if let Some(archive) = self.archive.clone() {
+            archive.record_verified_batch(core::slice::from_ref(&finalized), candidate.state())?;
+        }
+        self.chain = candidate;
+        self.remember_history(finalized);
         emits.push(Emit::Committed {
             height: value.header.height,
             commitment,
         });
 
-        // Advance to the next height and replay anything that was waiting.
         self.round = Round::new(
             self.current_height(),
             self.validators.clone(),

@@ -115,6 +115,9 @@ mod state_sync;
 mod store;
 mod wire;
 
+#[cfg(test)]
+mod snapshot_sync_tests;
+
 pub mod net;
 
 pub use catchup::{CatchupRequest, CatchupResponse, FinalizedBlock, MAX_CATCHUP_BLOCKS};

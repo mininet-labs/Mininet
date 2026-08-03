@@ -58,8 +58,8 @@ fn fixture() -> Fixture {
             (root, device)
         })
         .collect();
-    let validators = ValidatorSet::new(signers.iter().map(|(root, _)| root.did()).collect())
-        .unwrap();
+    let validators =
+        ValidatorSet::new(signers.iter().map(|(root, _)| root.did()).collect()).unwrap();
     let mut oracle = Directory::default();
     for (root, device) in &signers {
         oracle.insert(root.kel());
@@ -74,8 +74,7 @@ fn fixture() -> Fixture {
 
 fn node_config(fixture: &Fixture) -> NodeConfig<Directory> {
     let root = fixture.signers[0].0.did();
-    let device = Controller::incept_device_single_from_seeds(&root, &[12; 32], &[13; 32])
-        .unwrap();
+    let device = Controller::incept_device_single_from_seeds(&root, &[12; 32], &[13; 32]).unwrap();
     NodeConfig {
         root,
         device,
@@ -85,11 +84,7 @@ fn node_config(fixture: &Fixture) -> NodeConfig<Directory> {
     }
 }
 
-fn finalized_block(
-    chain: &LedgerChain,
-    height: u64,
-    fixture: &Fixture,
-) -> FinalizedBlock {
+fn finalized_block(chain: &LedgerChain, height: u64, fixture: &Fixture) -> FinalizedBlock {
     let body = SettlementBlockBody::new(Vec::new());
     let next = apply_block(chain.state(), &body).unwrap();
     let header = BlockHeader {
@@ -191,11 +186,14 @@ fn a_long_offline_node_reaches_the_exact_tip_via_real_tcp_and_reopens() {
     assert_eq!(late.finalized_height(), source_chain.height());
     assert_eq!(late.commitment(), source_chain.state().commitment());
 
-    let reopened = ConsensusArchive::open(&root, ConsensusArchiveConfig {
-        snapshot_interval: 2,
-        max_suffix_blocks: 2,
-        ..ConsensusArchiveConfig::default()
-    })
+    let reopened = ConsensusArchive::open(
+        &root,
+        ConsensusArchiveConfig {
+            snapshot_interval: 2,
+            max_suffix_blocks: 2,
+            ..ConsensusArchiveConfig::default()
+        },
+    )
     .unwrap();
     let restored = ConsensusNode::new_with_archive(node_config(&fixture), reopened).unwrap();
     assert_eq!(restored.finalized_height(), source_chain.height());
@@ -211,10 +209,7 @@ fn a_bad_second_block_leaves_the_destination_completely_unchanged() {
     let (_archive, _source_chain, blocks) = build_archive(&root, &fixture);
     let mut response_blocks = blocks[..2].to_vec();
     response_blocks[1].header.prev_hash = [9; 32];
-    let response = StateSyncResponse::blocks(
-        mini_settlement::MININET_NETWORK_ID,
-        response_blocks,
-    );
+    let response = StateSyncResponse::blocks(mini_settlement::MININET_NETWORK_ID, response_blocks);
 
     let mut destination = ConsensusNode::new(node_config(&fixture));
     let before = destination.commitment();
