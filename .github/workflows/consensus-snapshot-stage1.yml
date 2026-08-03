@@ -36,12 +36,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.94.1
-      - name: Correct the one stale mini-economy module-list assumption
+      - name: Correct stage-one source assumptions before the permanent commit
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path("tools/apply_consensus_snapshot_stage1.py")
-          text = path.read_text(encoding="utf-8")
+
+          script = Path("tools/apply_consensus_snapshot_stage1.py")
+          text = script.read_text(encoding="utf-8")
           old = '''replace_once(
               "crates/mini-economy/src/lib.rs",
               """mod ledger;
@@ -84,7 +85,20 @@ jobs:
           )'''
           if text.count(old) != 1:
               raise SystemExit("stage-one economy patch target changed")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          script.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          store = Path("crates/mini-consensus/src/store.rs")
+          text = store.read_text(encoding="utf-8")
+          old_import = "    use mini_economy::Amount;\n"
+          old_state = "        let state = LedgerState::with_genesis_supply(Amount::from_micro(10));\n"
+          if text.count(old_import) != 1 or text.count(old_state) != 1:
+              raise SystemExit("consensus archive test dependency target changed")
+          text = text.replace(old_import, "", 1).replace(
+              old_state,
+              "        let state = LedgerState::new();\n",
+              1,
+          )
+          store.write_text(text, encoding="utf-8")
           PY
       - name: Apply and test snapshot/archive stage
         run: python3 tools/apply_consensus_snapshot_stage1.py
