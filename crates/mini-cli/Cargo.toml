@@ -21,6 +21,9 @@ mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
 mini-forge = { path = "../mini-forge" }
 mini-installer = { path = "../mini-installer" }
+mini-intake = { path = "../mini-intake" }
+mini-intake-social = { path = "../mini-intake-social" }
+mini-intake-types = { path = "../mini-intake-types" }
 mini-keystone = { path = "../mini-keystone" }
 mini-media = { path = "../mini-media" }
 mini-objects = { path = "../mini-objects" }

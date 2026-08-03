@@ -115,9 +115,22 @@ impl IntakeEnvelope {
     /// social post, profile section, or audit citation the moment it is
     /// parsed — exactly the authority-without-review shortcut this
     /// crate's core rule forbids.
+    ///
+    /// Idempotent and bounded at construction time, not only at decode
+    /// time: an exact-duplicate `link` (e.g. a caller retrying the same
+    /// logical attach after a crash) is a harmless no-op rather than a
+    /// second entry, and a call that would push past [`MAX_LINKS`] is
+    /// rejected here rather than only discovered later when `to_bytes`'s
+    /// own output fails to `from_bytes` back.
     pub fn add_link(&mut self, link: IntakeLink) -> Result<()> {
         if self.review_state != ReviewState::Accepted {
             return Err(IntakeError::LinkRequiresAcceptedReview);
+        }
+        if self.links.contains(&link) {
+            return Ok(());
+        }
+        if self.links.len() >= MAX_LINKS {
+            return Err(IntakeError::LimitExceeded);
         }
         self.links.push(link);
         Ok(())
@@ -416,6 +429,50 @@ mod tests {
             .unwrap();
         envelope.add_link(IntakeLink::Issue(1)).unwrap();
         assert_eq!(envelope.links(), &[IntakeLink::Issue(1)]);
+    }
+
+    #[test]
+    fn attaching_the_exact_same_link_twice_is_an_idempotent_no_op() {
+        // The retry-after-a-crash case: a caller that isn't sure whether
+        // its previous `add_link` call actually persisted must be able to
+        // call it again with the same value and get one link, not two.
+        let mut envelope = IntakeEnvelope::new(sample_id(), sample_source());
+        envelope
+            .advance_review_state(ReviewState::UnderReview)
+            .unwrap();
+        envelope
+            .advance_review_state(ReviewState::Accepted)
+            .unwrap();
+        envelope.add_link(IntakeLink::Issue(7)).unwrap();
+        envelope.add_link(IntakeLink::Issue(7)).unwrap();
+        assert_eq!(envelope.links(), &[IntakeLink::Issue(7)]);
+    }
+
+    #[test]
+    fn add_link_is_bounded_at_construction_time_not_only_at_decode_time() {
+        let mut envelope = IntakeEnvelope::new(sample_id(), sample_source());
+        envelope
+            .advance_review_state(ReviewState::UnderReview)
+            .unwrap();
+        envelope
+            .advance_review_state(ReviewState::Accepted)
+            .unwrap();
+        for i in 0..MAX_LINKS as u32 {
+            envelope.add_link(IntakeLink::Issue(i)).unwrap();
+        }
+        assert_eq!(envelope.links().len(), MAX_LINKS);
+        assert_eq!(
+            envelope.add_link(IntakeLink::Issue(MAX_LINKS as u32)),
+            Err(IntakeError::LimitExceeded)
+        );
+        assert_eq!(envelope.links().len(), MAX_LINKS);
+        // What was already at the bound must still round-trip: this is
+        // exactly the property that used to break silently -- a
+        // caller could previously exceed MAX_LINKS at construction time
+        // and only discover it when `from_bytes` later refused to decode
+        // the resulting bytes.
+        let decoded = IntakeEnvelope::from_bytes(&envelope.to_bytes()).unwrap();
+        assert_eq!(decoded.links().len(), MAX_LINKS);
     }
 
     #[test]

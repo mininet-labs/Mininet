@@ -35,6 +35,9 @@ pub enum CliError {
     /// A `mini-keystone`/`mini-presence` operation failed (`mini keystone
     /// run`).
     Keystone(String),
+    /// A `mini-intake`/`mini-intake-types`/`mini-intake-social` operation
+    /// failed (`mini intake ...`).
+    Intake(String),
     /// The command line itself was malformed (missing/unknown flag, wrong
     /// argument count).
     Usage(String),
@@ -64,6 +67,7 @@ impl fmt::Display for CliError {
             CliError::Installer(e) => write!(f, "installer error: {e}"),
             CliError::Build(e) => write!(f, "build error: {e}"),
             CliError::Keystone(e) => write!(f, "keystone demo error: {e}"),
+            CliError::Intake(e) => write!(f, "intake error: {e}"),
             CliError::Usage(e) => write!(f, "usage error: {e}"),
         }
     }
@@ -90,6 +94,7 @@ impl CliError {
             CliError::Installer(_) => "installer",
             CliError::Build(_) => "build",
             CliError::Keystone(_) => "keystone",
+            CliError::Intake(_) => "intake",
             CliError::Usage(_) => "usage",
         }
     }

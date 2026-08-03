@@ -1,11 +1,20 @@
 use std::fs;
 
 use mini_intake::{
-    intake_local_file, load_envelope, read_source_bytes, save_envelope, IntakeCoordError,
+    intake_local_file, load_envelope, read_source_bytes, read_verified_source_bytes, save_envelope,
+    IntakeCoordError,
 };
 use mini_intake_types::{AuthorityClass, MediaType, ReviewState};
-use mini_store::MemoryBackend;
+use mini_store::{Backend, MemoryBackend};
 use tempfile::tempdir;
+
+/// Mirrors the private `backend_key` encoding in `mini-intake`'s
+/// coordinator (base58btc of the raw digest bytes) so tests can reach in
+/// and corrupt a blob under its exact content-addressed key, the same way
+/// a corrupted/buggy/malicious local backend would.
+fn blob_key(digest: &mini_crypto::Multihash) -> String {
+    mini_crypto::encoding::encode(mini_crypto::encoding::BASE58BTC, &digest.to_bytes()).unwrap()
+}
 
 fn write_temp(dir: &std::path::Path, name: &str, contents: &str) -> std::path::PathBuf {
     let path = dir.join(name);
@@ -155,4 +164,78 @@ fn a_real_fs_backend_round_trips_across_reopens() {
         read_source_bytes(&backend, &reloaded.source.digest).unwrap(),
         b"durable content"
     );
+}
+
+#[test]
+fn read_verified_source_bytes_accepts_a_valid_untouched_source() {
+    let dir = tempdir().unwrap();
+    let path = write_temp(dir.path(), "clean.md", "nothing corrupted here");
+    let mut backend = MemoryBackend::new();
+
+    let envelope = intake_local_file(&mut backend, &path, 1_000).unwrap();
+    let bytes = read_verified_source_bytes(&backend, &envelope).unwrap();
+    assert_eq!(bytes, b"nothing corrupted here");
+}
+
+#[test]
+fn read_verified_source_bytes_rejects_bytes_substituted_under_the_same_digest_key() {
+    let dir = tempdir().unwrap();
+    let path = write_temp(dir.path(), "reviewed.md", "the material that was reviewed");
+    let mut backend = MemoryBackend::new();
+
+    let envelope = intake_local_file(&mut backend, &path, 1_000).unwrap();
+    // Simulate a corrupted/malicious backend: overwrite the blob under the
+    // exact same content-addressed key with different bytes of the *same
+    // length* (built to match, not hand-counted), so a length-only check
+    // alone would not catch it.
+    let original_len = envelope.source.byte_length as usize;
+    let substituted: Vec<u8> = b"XYZ".iter().cycle().take(original_len).copied().collect();
+    assert_ne!(substituted, b"the material that was reviewed".to_vec());
+    let key = blob_key(&envelope.source.digest);
+    backend.put_blob(&key, &substituted).unwrap();
+
+    let result = read_verified_source_bytes(&backend, &envelope);
+    assert!(matches!(
+        result,
+        Err(IntakeCoordError::SourceDigestMismatch)
+    ));
+}
+
+#[test]
+fn read_verified_source_bytes_rejects_a_wrong_length_substitution() {
+    let dir = tempdir().unwrap();
+    let path = write_temp(dir.path(), "reviewed2.md", "original");
+    let mut backend = MemoryBackend::new();
+
+    let envelope = intake_local_file(&mut backend, &path, 1_000).unwrap();
+    let key = blob_key(&envelope.source.digest);
+    backend
+        .put_blob(&key, b"a much longer substituted body")
+        .unwrap();
+
+    let result = read_verified_source_bytes(&backend, &envelope);
+    assert!(matches!(
+        result,
+        Err(IntakeCoordError::SourceLengthMismatch)
+    ));
+}
+
+#[test]
+fn read_verified_source_bytes_rejects_a_hand_built_envelope_with_a_mismatched_intake_id() {
+    let dir = tempdir().unwrap();
+    let path = write_temp(dir.path(), "a.md", "content A");
+    let mut backend = MemoryBackend::new();
+    let envelope_a = intake_local_file(&mut backend, &path, 1_000).unwrap();
+
+    let path_b = write_temp(dir.path(), "b.md", "content B, different length!!");
+    let envelope_b = intake_local_file(&mut backend, &path_b, 2_000).unwrap();
+
+    // Hand-build an envelope whose source record points at B's real,
+    // uncorrupted digest but whose intake_id is A's — this must be caught
+    // independently of the digest check, not assumed to follow from it.
+    let mismatched =
+        mini_intake_types::IntakeEnvelope::new(envelope_a.intake_id, envelope_b.source.clone());
+
+    let result = read_verified_source_bytes(&backend, &mismatched);
+    assert!(matches!(result, Err(IntakeCoordError::IntakeIdMismatch)));
 }
