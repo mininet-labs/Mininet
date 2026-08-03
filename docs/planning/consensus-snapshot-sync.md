@@ -40,8 +40,9 @@ makes any serving peer an untrusted byte source.
    only after a replacement snapshot is durable.
 7. `ConsensusNode::apply_state_sync` verifies the entire response on a cloned
    chain before changing live or persistent state. A failure in the last block
-   leaves the node at its original height. Live commits are also journaled
-   before the node swaps its chain.
+   leaves the node at its original height. Verified live block rows are
+   persisted before chain swap using atomic rows and snapshot-before-prune;
+   peer snapshot/suffix replacement uses the replayable exact install journal.
 8. `state_sync_over_tcp` / `serve_state_sync_over_tcp` reuse the anonymous,
    forward-secret `mini-bearer::Channel` with a state-sync-specific AAD domain.
    The transport protects bytes; the QC/state checks provide authority.

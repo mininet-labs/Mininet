@@ -142,6 +142,28 @@ impl StateSyncResponse {
         }
     }
 
+    /// Exact encoded length before adding any finalized suffix blocks. This
+    /// serializes a snapshot once for its length but never clones its complete
+    /// execution state merely to probe candidate page sizes.
+    pub(crate) fn base_wire_len(snapshot: Option<&ConsensusSnapshot>) -> Result<usize> {
+        // domain + network id + tag + block count
+        let mut length = DOMAIN
+            .len()
+            .checked_add(32 + 1 + 4)
+            .ok_or(ConsensusError::TooLarge)?;
+        if let Some(snapshot) = snapshot {
+            let snapshot_len = snapshot.to_wire_bytes()?.len();
+            length = length
+                .checked_add(4)
+                .and_then(|value| value.checked_add(snapshot_len))
+                .ok_or(ConsensusError::TooLarge)?;
+        }
+        if length > mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES {
+            return Err(ConsensusError::TooLarge);
+        }
+        Ok(length)
+    }
+
     pub fn to_wire_bytes(&self) -> Result<Vec<u8>> {
         let mut out = Vec::new();
         out.extend_from_slice(DOMAIN);
@@ -264,6 +286,15 @@ mod tests {
         let mut trailing = bytes;
         trailing.push(0);
         assert!(StateSyncRequest::from_wire_bytes(&trailing).is_err());
+    }
+
+    #[test]
+    fn computed_empty_blocks_base_length_matches_the_real_wire() {
+        let response = StateSyncResponse::blocks([7; 32], Vec::new());
+        assert_eq!(
+            StateSyncResponse::base_wire_len(None).unwrap(),
+            response.to_wire_bytes().unwrap().len()
+        );
     }
 
     #[test]

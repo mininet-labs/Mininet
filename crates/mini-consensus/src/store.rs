@@ -126,7 +126,7 @@ impl ConsensusArchive {
         blocks: &[FinalizedBlock],
         final_state: &LedgerState,
     ) -> Result<()> {
-        if blocks.len() > MAX_CATCHUP_BLOCKS {
+        if blocks.len() > MAX_STATE_SYNC_BLOCKS {
             return Err(ConsensusError::TooLarge);
         }
         if blocks.is_empty() {
@@ -139,12 +139,20 @@ impl ConsensusArchive {
         {
             return Err(ConsensusError::SnapshotProofMismatch);
         }
+        let batch_bytes = blocks.iter().try_fold(0usize, |total, block| {
+            total
+                .checked_add(block.to_wire_bytes()?.len())
+                .ok_or(ConsensusError::TooLarge)
+        })?;
+        if batch_bytes > MAX_ARCHIVE_SUFFIX_BYTES {
+            return Err(ConsensusError::TooLarge);
+        }
 
-        // Live commits use the same replayable exact journal as peer state
-        // sync. This closes the crash window between a durable block row and
-        // the snapshot/prune operation that may immediately follow it.
-        let response = StateSyncResponse::blocks(self.config.network_id, blocks.to_vec());
-        self.install_verified_response(&response, final_state)
+        // A live node persists before swapping its chain, but does not rewrite
+        // the full state journal per block. Each block row and any periodic
+        // snapshot are atomic; peer snapshot/suffix replacement retains the
+        // heavier replayable exact journal below.
+        self.with_lock(|archive| archive.record_locked(blocks, final_state))
     }
 
     /// Replace local recovery state with an already verified response.
@@ -290,21 +298,12 @@ impl ConsensusArchive {
             ));
         }
 
-        // Serialize the base response once. The previous implementation
-        // cloned and re-serialized a potentially 8 MiB snapshot for every
-        // candidate block, turning a 256-block page into gigabytes of needless
-        // weak-device work. Each candidate is now encoded once for its length;
-        // the final response is constructed once after selection.
-        let base_response = if use_snapshot {
-            StateSyncResponse::snapshot(
-                self.config.network_id,
-                snapshot.clone().expect("use_snapshot implies snapshot"),
-                Vec::new(),
-            )
-        } else {
-            StateSyncResponse::blocks(self.config.network_id, Vec::new())
-        };
-        let mut wire_size = base_response.to_wire_bytes()?.len();
+        // Account the base once without cloning a potentially 8 MiB
+        // `LedgerState`. Each candidate is encoded once for its length; the
+        // final response is constructed once after selection.
+        let mut wire_size = StateSyncResponse::base_wire_len(
+            use_snapshot.then(|| snapshot.as_ref().expect("use_snapshot implies snapshot")),
+        )?;
         let mut selected = Vec::new();
         for block in candidates.into_iter().take(MAX_STATE_SYNC_BLOCKS) {
             let expected = base_height
@@ -327,7 +326,7 @@ impl ConsensusArchive {
             selected.push(block);
         }
 
-        if selected.is_empty() && tip_height > base_height {
+        if selected.is_empty() && tip_height > base_height && !use_snapshot {
             return Err(ConsensusError::TooLarge);
         }
 
@@ -432,12 +431,11 @@ impl ConsensusArchive {
             .map_or(snapshot.height(), |block| block.header.height);
         let current_snapshot = self.read_snapshot_locked()?;
         let current_blocks = self.read_blocks_locked()?;
-        let current_tip = current_blocks.last().map_or(
-            current_snapshot
-                .as_ref()
-                .map_or(0, ConsensusSnapshot::height),
-            |block| block.header.height,
-        );
+        let current_snapshot_height = current_snapshot
+            .as_ref()
+            .map_or(0, ConsensusSnapshot::height);
+        let current_block_height = current_blocks.last().map_or(0, |block| block.header.height);
+        let current_tip = current_snapshot_height.max(current_block_height);
         if incoming_tip < current_tip {
             return Err(ConsensusError::SnapshotNotNewer {
                 current: current_tip,
@@ -445,7 +443,9 @@ impl ConsensusArchive {
             });
         }
         if let Some(current) = &current_snapshot {
-            if current.height() == snapshot.height() && current != snapshot {
+            if current.height() == snapshot.height()
+                && current.header.hash() != snapshot.header.hash()
+            {
                 return Err(ConsensusError::ArchiveConflict {
                     height: snapshot.height(),
                 });

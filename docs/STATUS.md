@@ -122,7 +122,8 @@ given time.
   journaled filesystem checkpoint plus count/byte-bounded suffix, atomic
   replacement, restart recovery, and pruning only behind a durable snapshot.
   `ConsensusNode` applies a whole snapshot/suffix on a cloned chain (a bad late
-  block changes nothing), caps compatibility history, journals live commits,
+  block changes nothing), caps compatibility history, persists verified live
+  block rows before chain swap without rewriting full-state journals per block,
   and can reopen from the same verified archive path. Real TCP tests prove a
   long-offline independent node reaches the source's exact height/commitment
   over the existing encrypted `Channel`. No peer or archive becomes a trust
