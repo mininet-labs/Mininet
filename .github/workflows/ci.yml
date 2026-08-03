@@ -137,6 +137,20 @@ jobs:
           git config user.name "mininet-consensus-snapshot"
           git config user.email "actions@users.noreply.github.com"
           python3 tools/apply_consensus_snapshot_review_fixes.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("crates/mini-consensus/src/store.rs")
+          text = path.read_text(encoding="utf-8")
+          obsolete = """    fn write_snapshot_locked(&self, snapshot: &ConsensusSnapshot) -> Result<()> {
+              atomic_write(&self.root.join(SNAPSHOT_FILE), &snapshot.to_wire_bytes()?)
+          }
+
+          """
+          if text.count(obsolete) != 1:
+              raise SystemExit("obsolete write_snapshot_locked method was not found exactly once")
+          path.write_text(text.replace(obsolete, "", 1), encoding="utf-8")
+          PY
 
           git rm --ignore-unmatch \
             .github/workflows/consensus-snapshot-finalizer.yml \
