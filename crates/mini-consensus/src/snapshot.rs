@@ -109,7 +109,6 @@ mod tests {
 
     use did_mini::{Capabilities, Controller, Did, Kel};
     use mini_chain::{sign_vote, ValidatorOracle, VoteKind};
-    use mini_economy::Amount;
     use mini_execution::LedgerState;
 
     use super::*;
@@ -126,7 +125,7 @@ mod tests {
     fn proof() -> (ConsensusSnapshot, ValidatorSet, Directory) {
         let mut roots = Vec::new();
         let mut directory = Directory::default();
-        let state = LedgerState::with_genesis_supply(Amount::from_micro(10));
+        let state = LedgerState::new();
         let header = BlockHeader {
             height: 1,
             prev_hash: [0; 32],
