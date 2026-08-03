@@ -45,6 +45,7 @@ members = [
     "crates/mini-installer",
     "crates/mini-privacy-policy",
     "crates/mini-transport-policy",
+    "crates/mini-transport-security",
     "crates/mini-resource-pricing",
     "crates/mini-relay",
     "crates/mini-bridge",
