@@ -1,1 +1,0 @@
-Temporary check trigger. This file is removed in the next commit.
