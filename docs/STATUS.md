@@ -1235,9 +1235,12 @@ the top development priority.
   inclusive-lower/exclusive-upper convention `mini_query::ParsedQuery`
   already uses) and `distinct_versions` (only snapshots whose content
   digest actually changed from the previous one, filtering out repeat
-  fetches of unchanged content). **No network transport, no peer
-  discovery, no scheduling — F3/F4/F7's inputs and outputs are all
-  local, not exchanged with real remote peers yet.** Real, tested (8
+  fetches of unchanged content). **F3/F4/F7's own inputs and outputs
+  remain local — no query ever leaves the caller's machine.** A separate
+  crate, `mini-search-federation-net` (D-0432), now carries F1/F2
+  *objects* (not queries) between two peers over a bounded, authenticated
+  real transport; see the dedicated bullet below. No peer discovery or
+  scheduling on top of that bounded pull exists yet. Real, tested (8
   F1/F2 integration tests including a tampered-payload case proving
   decode-success and signature authenticity are genuinely separate
   checks; 6 F3 integration tests including the order-independence and
@@ -1280,6 +1283,41 @@ the top development priority.
   unstarted; F6 still has no doctrine document. See `docs/design/
   f5-phase2-settlement-model.md` and `docs/design/
   federated-search-exchange-f1-f2.md`.
+- **shipped** — `mini-search-federation-net` (D-0432, Track F required
+  follow-up, issue #175): bounded, authenticated real-transport delivery
+  of `mini-search-federation`'s F1/F2 signed objects between two peers
+  over any `mini_bearer::Bearer`/`Channel`. Does not reinvent a trust
+  boundary — the actual transfer is `mini_sync::request_retrieval`/
+  `serve_retrieval`, unmodified. Adds three things on top: (1) a tiny
+  bounded advertisement exchange (`serve_source`/`pull_source`'s
+  `request_advertisement` step) so a client learns which ids to retrieve
+  — id strings only, capped count, no query terms, ranking profile, or
+  free text ever cross the wire (that would be Track F6, still
+  undesigned and explicitly out of scope); (2) a federation-specific
+  post-check that `mini-sync`'s generic ingest alone doesn't give: every
+  returned object must decode as F1 (`CRAWL_OBSERVATION_TYPE`) or F2
+  (`INDEX_SEGMENT_TYPE`), and, when the caller names an expected
+  provider, must actually be authored by that identity — objects that
+  fail either check stay in the local store (the generic trust boundary
+  is not forked) but are excluded from the caller-visible `trusted` set,
+  proven by two dedicated tests using a noncompliant server that bypasses
+  `serve_source`'s own type filter and a compliant server relaying a
+  second, differently-authored provider's content; (3) `pull_from_sources`
+  bounds how many distinct peers one federation-refresh session may
+  contact (`max_sources`), refusing rather than truncating an over-long
+  peer list. Real, tested (2 unit tests exercising the noncompliant-peer
+  defense-in-depth paths that a compliant peer alone cannot reach; 4
+  integration tests including a real two-peer pull over an actual TCP
+  socket, mirroring `mini-sync`'s own `sync_over_tcp.rs`). What's
+  deliberately NOT here: no automatic feed of pulled F2 segments into
+  `federate_query` (that needs each source's `Corpus`/
+  `DocumentContextTable` too, and nothing in this workspace yet defines a
+  signed, transmittable form for those); no peer discovery or connection
+  setup (callers dial/handshake exactly as any other `mini_bearer`/
+  `mini_sync` caller); no scheduling or refresh policy; no fault
+  isolation across peers in one `pull_from_sources` session — the first
+  peer that errors aborts the whole call. See `docs/design/
+  federated-search-exchange-f1-f2.md`'s new "F1/F2 transport" section.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,

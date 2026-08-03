@@ -1,0 +1,33 @@
+[package]
+name = "mini-search-federation-net"
+version = "0.0.1"
+description = "Bounded, authenticated real-transport delivery of mini-search-federation's F1/F2 signed objects between two Mininet peers (Track F required follow-up: 'wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits'). No query terms ever cross the wire -- a peer advertises which F1/F2 object ids it holds, nothing more; private remote querying is Track F6, deliberately undesigned and out of scope here."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# did-mini for the provider identity a caller expects a session's objects to
+# be authored by. mini-objects for Object/ObjectId. mini-store for the local
+# Store a pull lands in. mini-bearer for the Bearer/Channel transport this
+# crate is generic over (same abstraction mini-sync/mini-relay already use).
+# mini-sync supplies the actual trust boundary (KEL-verified provenance,
+# bounded exact retrieval) this crate wraps rather than reimplementing.
+# mini-search-federation for the F1/F2 object-type constants and readers
+# this crate's advertisement filter checks against.
+did-mini = { path = "../did-mini" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }
+mini-bearer = { path = "../mini-bearer" }
+mini-sync = { path = "../mini-sync" }
+mini-search-federation = { path = "../mini-search-federation" }
+
+[dev-dependencies]
+# Only for building sample CrawlObservation/IndexSegment fixtures in this
+# crate's own tests (unit tests in src/session.rs and the tests/ suite).
+mini-crypto = { path = "../mini-crypto" }
+mini-web-types = { path = "../mini-web-types" }
+mini-lexical-index = { path = "../mini-lexical-index" }

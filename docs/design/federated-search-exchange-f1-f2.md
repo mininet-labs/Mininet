@@ -1,7 +1,7 @@
 # Federated search exchange, merging, local re-ranking, and observation history: Track F1/F2/F3/F4/F7
 
-**Decisions:** D-0422, D-0423, D-0424, D-0426  
-**Status:** Shipped and tested within the bounds stated below. No real federation transport, peer discovery, provider payment implementation, private query transport, or shared history consensus exists.
+**Decisions:** D-0422, D-0423, D-0424, D-0426, D-0432  
+**Status:** Shipped and tested within the bounds stated below. D-0432 (`mini-search-federation-net`) closes this document's "wire F1/F2 objects through a bounded real transport" follow-up item: a bounded, authenticated pull of F1/F2 objects between two peers now exists. Peer discovery, provider payment implementation, private query transport, a scheduler, and shared history consensus still do not exist.
 
 **Refs:** `docs/research/MININET_NATIVE_INTAKE_PUBLIC_COMMONS_AND_OPEN_WEB_SEARCH_20260718.md` §29; roadmap issue #175; D-0316 (`mini-web-types`); D-0405 (`mini-lexical-index`); D-0406 (`mini-ranker`); D-0420 (`mini-query`); D-0427 (F5 doctrine).
 
@@ -141,9 +141,46 @@ F7's 16-test adversarial suite covers:
 
 Passing these tests proves the stated local mechanics. It does not authenticate a caller that skipped F1 signature/provenance verification, establish a trustworthy timestamp, corroborate a remote page, benchmark the default budgets on weak hardware, or create a deployed federation.
 
+## F1/F2 transport (D-0432, `mini-search-federation-net`)
+
+A caller can now pull F1/F2 objects from one already-connected peer over any
+`mini_bearer::Bearer`/`Channel`. This is deliberately the smallest addition
+that closes the transport gap, not a general federation service:
+
+- A tiny bounded advertisement message precedes the pull: a peer states
+  which F1/F2 object ids it holds (id strings only, capped count). No query
+  terms, ranking profile, or free text of any kind crosses the wire — that
+  would be Track F6 (private query transport), which stays undesigned and
+  out of scope.
+- The actual object transfer and trust boundary is `mini_sync::
+  request_retrieval`/`serve_retrieval`, unmodified — this crate does not
+  reimplement KEL-verified provenance checking or bounded exact retrieval,
+  it reuses it.
+- On top of that generic boundary (which only proves an object is validly
+  signed by *some* real identity), `pull_source` adds a federation-specific
+  check: every returned object must decode as F1/F2, and, when the caller
+  names an expected provider, must actually be authored by that identity.
+  Objects failing either check remain in the local store (the generic trust
+  boundary is not forked) but are excluded from the caller-visible `trusted`
+  set.
+- `pull_from_sources` bounds how many distinct peers one federation-refresh
+  session may contact (`max_sources`), refusing rather than silently
+  truncating an over-long peer list.
+
+What this does **not** do: automatically feed pulled F2 segments into
+`federate_query` (that needs each source's `Corpus`/`DocumentContextTable`
+too, and nothing in this workspace yet defines a signed, transmittable form
+for those); peer discovery or connection setup (callers dial/handshake
+exactly as any other `mini_bearer`/`mini_sync` caller); scheduling or
+refresh policy; or fault isolation across peers in one session (the first
+peer that errors aborts the whole `pull_from_sources` call).
+
 ## What's deliberately not here
 
-- No network transport, peer discovery, request protocol, want-list, or scheduler.
+- No automatic wiring of a network pull into a live federated query, peer
+  discovery, request scheduling, or fault-tolerant multi-peer sessions —
+  see "F1/F2 transport" above for exactly what D-0432 does and does not
+  cover.
 - No automatic signature/KEL verification inside the payload readers or history index.
 - No canonical provider roster or cross-provider trust weight.
 - No shared/persisted/signed `SnapshotIndex`; it is rebuilt from held observations.
@@ -173,11 +210,11 @@ This design fails if a caller:
 
 - Enforce a canonical derivation rule for `CrawlObservationId`.
 - Benchmark F7 budgets on weakest supported devices before production defaults are claimed.
-- Wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits.
+- Done (D-0432): wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits. Still open: define a signed, transmittable form for a source's `Corpus`/`DocumentContextTable` so a network pull can feed `federate_query` directly, and add peer discovery/scheduling on top of the bounded pull.
 - Persist or exchange history only after defining conflict, omission, provenance, and privacy semantics for a shared history object.
 - Keep F5 behind D-0427's Phase-2 transcript/threat/economic-model gate; do not jump directly to a nullifier or payment crate.
 - Write a separate F6 private-query-transport doctrine before implementation.
 
 ## Supersedes / superseded by
 
-Builds on and does not supersede D-0316, D-0405, D-0406, or D-0420. D-0427 supplies the separate doctrine for F5; it does not modify F1-F4/F7 behavior.
+Builds on and does not supersede D-0316, D-0405, D-0406, or D-0420. D-0427 supplies the separate doctrine for F5; it does not modify F1-F4/F7 behavior. D-0432 adds the F1/F2 transport described above; it does not modify F1-F4/F7 wire formats or merge/rank behavior.

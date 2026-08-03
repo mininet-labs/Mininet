@@ -14701,3 +14701,113 @@ has a sharper starting point than before.
 only. D-0407's own Decision/Reason/Constitutional-impact/Implementation-
 status/Failure-point/Required-follow-up text is left unedited and stands
 as written; this entry does not alter its substantive scope or analysis.
+
+### D-0432 — `mini-search-federation-net`: bounded, authenticated real transport for Track F1/F2 objects  ·  *Accepted*
+
+**Date:** 2026-08-03 · **Refs:** D-0422/D-0423/D-0424/D-0426
+(`mini-search-federation`, Track F1/F2/F3/F4/F7); D-0075/D-0080
+(`mini-sync`'s `Bearer`/`Channel`-generic, KEL-verified exact-retrieval
+trust boundary, proved to generalize to arbitrary object types); roadmap
+issue #175; `docs/design/federated-search-exchange-f1-f2.md`'s own
+"Required follow-up" bullet ("Wire F1/F2 objects through a bounded real
+transport with authenticated peer behavior and source-count limits").
+
+**Decision:** add a new crate, `mini-search-federation-net`, that lets one
+peer pull another peer's F1 (`CRAWL_OBSERVATION_TYPE`)/F2
+(`INDEX_SEGMENT_TYPE`) signed objects over any already-connected
+`mini_bearer::Bearer`/`Channel`. It does not reimplement a transport or a
+trust boundary: the actual object transfer is `mini_sync::
+request_retrieval`/`serve_retrieval`, called unmodified. Three things are
+added on top of that generic exchange:
+
+1. A tiny bounded advertisement message (`message::Msg::
+   AdvertiseRequest`/`AdvertiseResponse`, capped at `MAX_ADVERTISE_IDS =
+   4096` ids, 128 bytes per id) so a client learns which ids to ask
+   `mini-sync` to retrieve. Only object-id strings cross this wire — no
+   query terms, ranking profile, or free text of any kind. Sending a
+   caller's search query to a remote peer for server-side evaluation is
+   Track F6 (private query transport), which
+   `federated-search-exchange-f1-f2.md` explicitly keeps undesigned; this
+   crate never does that.
+2. A federation-specific post-check (`pull_source`) on top of
+   `mini-sync`'s already-verified ingest. `mini-sync` proves a returned
+   object is validly signed by *some* real, KEL-verified identity; it
+   says nothing about whether that object is F1/F2 or from the peer the
+   caller meant to trust. `pull_source` checks both: every id in
+   `SourcePullReport.trusted` decoded as F1/F2, and, when the caller
+   names an `expected_provider`, is authored by exactly that identity.
+   Objects failing either check stay in the local store (the generic
+   trust boundary in `mini-sync` is not forked) but are excluded from
+   `trusted` — callers must only treat `trusted` ids as this source's
+   verified contribution.
+3. `pull_from_sources` bounds how many distinct peers one
+   federation-refresh session may contact (`max_sources`), refusing
+   rather than silently truncating a caller's over-long peer list.
+
+**Reason:** the design doc's own "What's deliberately not here" list
+named "no network transport" as the gap since D-0422; this closes it with
+the smallest addition that does so honestly. Reusing `mini-sync`'s
+already-shipped, already-tested `request_retrieval`/`serve_retrieval`
+(rather than a new bespoke protocol) follows Directive 14 ("simplicity is
+security... prefer the smaller, well-trodden construction over a bespoke
+one") and D-0080's own finding that this generic pull already generalizes
+to arbitrary object types. The advertisement step is kept to id strings
+only, on purpose, so this crate cannot become a backdoor path into Track
+F6 (remote query evaluation) before that track has its own doctrine.
+
+**Constitutional impact:** none. `mini-search-federation-net` carries no
+value/governance edge (it depends on `did-mini`, `mini-objects`,
+`mini-store`, `mini-bearer`, `mini-sync`, `mini-search-federation` only;
+no `Cargo.toml` edge to `mini-value`/`mini-bounty`/`mini-treasury` or to
+`mini-forge`/`mini-chain` voting — the voice/value wall, P1/Directive 16,
+is untouched). No new signing/authority function was added outside
+existing typed-domain patterns — `pull_source`/`serve_source` take
+concrete `Bearer`/`Channel`/`Store`/`KelCache` parameters, not a generic
+`sign(bytes)`-shaped surface. No frozen invariant is amended; identity
+roots are still just identity roots, no "verified human" claim is made
+anywhere in this crate.
+
+**Implementation status:** shipped and tested. Public API: `pull_source`,
+`serve_source`, `PeerSource`, `pull_from_sources`, `FederationPullReport`,
+`SourcePullReport`, `NetError`. 6 tests: 2 in-crate unit tests
+(`src/session.rs`) proving the wrong-type and wrong-provider
+defense-in-depth paths actually fire against a noncompliant/relaying
+peer — cases a black-box test using only `serve_source` cannot reach,
+since `serve_source`'s own filter already prevents a *compliant* server
+from offering them; 4 black-box integration tests
+(`tests/pull_from_sources.rs`, `tests/live_over_tcp.rs`) covering a
+compliant two-peer F1+F2 pull, `pull_from_sources`'s `TooManySources`
+refusal, a real two-peer pull over an actual `TcpBearer`/`TcpStream`
+socket (mirroring `mini-sync`'s own `sync_over_tcp.rs`), and a peer
+capping its offer to what the client actually asked for. `cargo fmt
+--all`, `cargo clippy --workspace --all-targets --all-features -- -D
+warnings`, and `cargo test -p mini-search-federation-net` all pass.
+
+**Failure point:** this crate does not wire a network pull into
+`federate_query` — that needs each source's `Corpus`/
+`DocumentContextTable` transmitted too, and nothing in this workspace yet
+defines a signed, transmittable form for those, so a caller cannot yet
+run a real federated *query* across freshly-pulled remote data without
+separate, unbuilt glue. It has no peer discovery or connection setup
+(callers dial/handshake exactly as any other `mini_bearer`/`mini_sync`
+caller already does) and no scheduling/refresh policy. `pull_from_sources`
+has no fault isolation across peers: the first peer that errors aborts
+the whole session, so one flaky/hostile peer can deny federation from
+every other peer in the same call. None of this is silently assumed away
+— `src/lib.rs`'s module doc and `docs/design/
+federated-search-exchange-f1-f2.md`'s new "F1/F2 transport" section both
+state it plainly.
+
+**Required follow-up:** define a signed, transmittable form for a
+source's `Corpus`/`DocumentContextTable` so a network pull can feed
+`federate_query` directly (today's F2 `IndexSegment` alone is not
+enough). Add per-peer fault isolation to `pull_from_sources` so one
+uncooperative peer does not abort an entire multi-source session. Design
+peer discovery/scheduling once a first real deployment needs it — neither
+is designed or started here. Write Track F6's private-query-transport
+doctrine before any query ever crosses a wire to a remote peer (still
+fully open, unrelated to this crate).
+
+**Supersedes / superseded by:** builds on and does not supersede
+D-0422/D-0423/D-0424/D-0426 or D-0075/D-0080. Does not modify F1-F4/F7
+wire formats, merge policy, or ranking behavior.
