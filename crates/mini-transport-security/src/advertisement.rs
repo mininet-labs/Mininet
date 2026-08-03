@@ -101,13 +101,13 @@ impl PeerAdvertisement {
         address: SocketAddr,
         issued_at_ms: u64,
         expires_at_ms: u64,
-        nonce: [u8; 32],
     ) -> Result<Self> {
         if device.delegator().is_none_or(|delegator| delegator != root) {
             return Err(TransportSecurityError::IdentityMismatch);
         }
         validate_address(address)?;
         validate_window(issued_at_ms, expires_at_ms, issued_at_ms)?;
+        let nonce = mini_crypto::random_32()?;
         let endpoint_id = TransportEndpointId::derive(&device.did(), &routing_key);
         let mut advertisement = Self {
             network_id,
@@ -158,7 +158,7 @@ impl PeerAdvertisement {
             return Err(TransportSecurityError::CapabilityDenied);
         }
         device_kel.verify_message(&self.signing_bytes()?, &self.signatures)?;
-        replay.check_and_record(self.replay_id())?;
+        replay.check_and_record(self.replay_id(), self.expires_at_ms, now_ms)?;
         Ok(VerifiedPeerAdvertisement {
             advertisement: self.clone(),
             capabilities,
@@ -431,6 +431,35 @@ mod tests {
     }
 
     #[test]
+    fn issue_generates_fresh_nonce_internally() {
+        let (root, device) = identity(10);
+        let routing = AgreementSecretKey::from_seed(&[20; 32]).public_key();
+        let first = PeerAdvertisement::issue(
+            [7; 32],
+            &root.did(),
+            &device,
+            routing,
+            "127.0.0.1:9000".parse().unwrap(),
+            1_000,
+            2_000,
+        )
+        .unwrap();
+        let second = PeerAdvertisement::issue(
+            [7; 32],
+            &root.did(),
+            &device,
+            routing,
+            "127.0.0.1:9000".parse().unwrap(),
+            1_000,
+            2_000,
+        )
+        .unwrap();
+
+        assert_ne!(first.nonce, second.nonce);
+        assert_ne!(first.replay_id(), second.replay_id());
+    }
+
+    #[test]
     fn signed_advertisement_round_trips_and_verifies() {
         let (root, device) = identity(10);
         let routing = AgreementSecretKey::from_seed(&[20; 32]).public_key();
@@ -442,7 +471,6 @@ mod tests {
             "127.0.0.1:9000".parse().unwrap(),
             1_000,
             2_000,
-            [8; 32],
         )
         .unwrap();
         let decoded = PeerAdvertisement::from_bytes(&advertisement.to_bytes().unwrap()).unwrap();
@@ -474,7 +502,6 @@ mod tests {
             "127.0.0.1:9000".parse().unwrap(),
             1_000,
             2_000,
-            [8; 32],
         )
         .unwrap();
         let mut pins = FreshnessPins::new();
@@ -550,7 +577,6 @@ mod tests {
             "127.0.0.1:9000".parse().unwrap(),
             1_000,
             2_000,
-            [8; 32],
         )
         .unwrap();
         let response = SecurePexResponse {
