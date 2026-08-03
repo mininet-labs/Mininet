@@ -24,16 +24,14 @@
 //! - **No peer selection or retry policy.** A caller supplies one peer's
 //!   [`CatchupResponse`]; choosing which peer to ask, retrying a bad one, or
 //!   querying several for agreement is a host concern, not this module's.
-//! - **No unbounded history.** A serving node only answers from whatever it
-//!   still holds in memory (see [`crate::node::ConsensusNode::history_since`]);
-//!   there is no persistence or pruning policy yet — a first slice, the same
-//!   honest-limit shape `mini-net`'s `RoutingTable`/`GossipRouter` document
-//!   for their own first-slice bounds.
-//! - **No partial-batch application.** [`CatchupResponse::from_wire_bytes`]
-//!   bounds the count before allocating ([`MAX_CATCHUP_BLOCKS`]), but a
-//!   response that fails partway through `catch_up` leaves the node at
-//!   whatever height it reached before the failing block — never silently
-//!   further, never rolled back.
+//! - **Compatibility suffix only.** The in-memory compatibility history is
+//!   now capped at [`MAX_CATCHUP_BLOCKS`]. Durable restart recovery, authenticated
+//!   snapshots, and pruning live in [`crate::ConsensusArchive`] / the D-0207
+//!   state-sync path; this legacy request/response remains for block-only peers.
+//! - **All-or-nothing application.** [`CatchupResponse::from_wire_bytes`]
+//!   bounds the count before allocating, and [`crate::ConsensusNode::catch_up`]
+//!   executes the entire batch against a cloned chain before swapping live
+//!   state. A bad later block leaves the node at its original height.
 
 use mini_chain::{BlockHeader, QuorumCertificate, Vote, MAX_VOTES_PER_CERTIFICATE};
 use mini_execution::SettlementBlockBody;
@@ -49,6 +47,7 @@ pub const MAX_CATCHUP_BLOCKS: usize = 1024;
 const DOMAIN: &[u8] = b"mini-consensus/catchup/v1";
 const TAG_REQUEST: u8 = 0;
 const TAG_RESPONSE: u8 = 1;
+const FINALIZED_BLOCK_DOMAIN: &[u8] = b"mini-consensus/finalized-block/v1";
 
 /// One already-finalized block: everything
 /// [`mini_execution::LedgerChain::apply_finalized_block`] needs to
@@ -63,6 +62,40 @@ pub struct FinalizedBlock {
     pub body: SettlementBlockBody,
     /// The quorum certificate proving this block finalized.
     pub qc: QuorumCertificate,
+}
+
+impl FinalizedBlock {
+    /// Canonical standalone bytes used by persistent history and state sync.
+    pub fn to_wire_bytes(&self) -> Result<Vec<u8>> {
+        let mut out = Vec::new();
+        out.extend_from_slice(FINALIZED_BLOCK_DOMAIN);
+        encode_header(&mut out, &self.header);
+        encode_body(&mut out, &self.body);
+        encode_qc(&mut out, &self.qc);
+        if out.len() > crate::MAX_MESSAGE_BYTES {
+            return Err(ConsensusError::TooLarge);
+        }
+        Ok(out)
+    }
+
+    pub fn from_wire_bytes(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() > crate::MAX_MESSAGE_BYTES {
+            return Err(ConsensusError::TooLarge);
+        }
+        let mut reader = Reader::new(bytes);
+        if reader.take(FINALIZED_BLOCK_DOMAIN.len())? != FINALIZED_BLOCK_DOMAIN {
+            return Err(ConsensusError::Malformed);
+        }
+        let block = FinalizedBlock {
+            header: decode_header(&mut reader)?,
+            body: decode_body(&mut reader)?,
+            qc: decode_qc(&mut reader)?,
+        };
+        if !reader.finished() || block.to_wire_bytes()?.as_slice() != bytes {
+            return Err(ConsensusError::Malformed);
+        }
+        Ok(block)
+    }
 }
 
 /// "Send me every block after `from_height`."
@@ -153,7 +186,7 @@ impl CatchupResponse {
     }
 }
 
-fn encode_qc(w: &mut Vec<u8>, qc: &QuorumCertificate) {
+pub(crate) fn encode_qc(w: &mut Vec<u8>, qc: &QuorumCertificate) {
     w.extend_from_slice(&qc.height.to_be_bytes());
     w.extend_from_slice(&qc.round.to_be_bytes());
     w.extend_from_slice(&qc.block_hash);
@@ -163,7 +196,7 @@ fn encode_qc(w: &mut Vec<u8>, qc: &QuorumCertificate) {
     }
 }
 
-fn decode_qc(r: &mut Reader<'_>) -> Result<QuorumCertificate> {
+pub(crate) fn decode_qc(r: &mut Reader<'_>) -> Result<QuorumCertificate> {
     let height = r.u64()?;
     let round = r.u32()?;
     let mut block_hash = [0u8; 32];

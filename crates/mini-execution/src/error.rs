@@ -32,6 +32,16 @@ pub enum ExecutionError {
     InvalidGenesisAllocation,
     AmountOverflow,
     SupplyConservationViolation,
+    /// Exact ledger snapshot bytes were truncated, non-canonical, or
+    /// structurally inconsistent.
+    SnapshotMalformed,
+    /// A snapshot or one of its bounded collections exceeded the declared cap.
+    SnapshotTooLarge,
+    /// A snapshot belongs to a different settlement/consensus network.
+    SnapshotWrongNetwork,
+    /// The snapshot header/QC/state commitment do not describe one finalized
+    /// checkpoint.
+    SnapshotProofMismatch,
     /// A candidate block's `timestamp_ms` did not equal its own height.
     /// `timestamp_ms` is deterministic logical time, not proposer-supplied
     /// wall time (roadmap #44's timestamp-attack finding): a signature only
@@ -75,6 +85,14 @@ impl fmt::Display for ExecutionError {
             ExecutionError::AmountOverflow => write!(f, "account amount arithmetic overflow"),
             ExecutionError::SupplyConservationViolation => {
                 write!(f, "account balances plus unallocated value do not equal circulating supply")
+            }
+            ExecutionError::SnapshotMalformed => write!(f, "ledger snapshot is malformed"),
+            ExecutionError::SnapshotTooLarge => write!(f, "ledger snapshot exceeds its cap"),
+            ExecutionError::SnapshotWrongNetwork => {
+                write!(f, "ledger snapshot belongs to another network")
+            }
+            ExecutionError::SnapshotProofMismatch => {
+                write!(f, "ledger snapshot proof does not match its finalized header")
             }
             ExecutionError::TimestampNotDeterministic { expected, got } => write!(
                 f,

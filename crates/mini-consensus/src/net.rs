@@ -34,8 +34,9 @@
 //!   (re-gossips) every message across those edges, so any **connected** graph
 //!   is live — a vote reaches a non-adjacent peer via relay. Overlay peer
 //!   *discovery* (`mini-net`) and a bearer that redials are still separate,
-//!   later work; so is state-sync for a node that was down and missed a whole
-//!   height (re-gossip only re-delivers messages still circulating).
+//!   later work. D-0207 state sync is available over a separately selected
+//!   one-shot encrypted TCP peer, but discovery, peer selection, retry,
+//!   multi-peer comparison, and background serving remain host responsibilities.
 //! - **Best-effort, non-blocking broadcast.** Every link is a non-blocking
 //!   socket with a bounded per-link outbound buffer. A broadcast queues bytes
 //!   and flushes whatever the socket accepts right now; a slow or wedged peer
@@ -55,6 +56,8 @@ use crate::catchup::{CatchupRequest, CatchupResponse};
 use crate::consequence::EquivocatorRegistry;
 use crate::error::{ConsensusError, Result};
 use crate::node::{ConsensusNode, Emit};
+use crate::state_sync::{StateSyncPayload, StateSyncRequest, StateSyncResponse};
+use crate::store::ConsensusArchive;
 use crate::wire::ConsensusMessage;
 
 /// AEAD associated data for catch-up request/response frames — distinct from
@@ -125,6 +128,116 @@ pub fn serve_catch_up_over_tcp<O: ValidatorOracle>(
     };
     let sealed_response = channel.seal(&response.to_wire_bytes(), CATCHUP_AAD)?;
     bearer.send(&sealed_response)?;
+    Ok(())
+}
+
+/// AEAD associated data for authenticated-snapshot state sync. It is distinct
+/// from live consensus and legacy block-only catch-up, preventing ciphertext
+/// cross-protocol replay even though all three reuse the same Channel primitive.
+const STATE_SYNC_AAD: &[u8] = b"mini-consensus/state-sync-channel/v1";
+
+/// Maximum time one selected/accepted state-sync peer may spend on any
+/// connect/read/write step. Peer selection and retry remain host policy, but a
+/// malicious peer cannot hold this synchronous helper forever.
+const STATE_SYNC_IO_TIMEOUT: Duration = Duration::from_secs(120);
+
+fn configure_state_sync_stream(stream: &TcpStream, timeout: Duration) -> Result<()> {
+    stream
+        .set_read_timeout(Some(timeout))
+        .map_err(mini_bearer::BearerError::from)?;
+    stream
+        .set_write_timeout(Some(timeout))
+        .map_err(mini_bearer::BearerError::from)?;
+    Ok(())
+}
+
+fn open_state_sync_client(
+    peer_addr: SocketAddr,
+    timeout: Duration,
+) -> Result<(TcpBearer, Channel)> {
+    let stream =
+        TcpStream::connect_timeout(&peer_addr, timeout).map_err(mini_bearer::BearerError::from)?;
+    configure_state_sync_stream(&stream, timeout)?;
+    let mut bearer = TcpBearer::from_stream(stream)?;
+    let (initiator, hello) = Initiator::start()?;
+    bearer.send(&hello)?;
+    let response = bearer.recv()?;
+    let channel = initiator.finish(&response)?;
+    Ok((bearer, channel))
+}
+
+fn accept_state_sync_server(
+    listener: &TcpListener,
+    timeout: Duration,
+) -> Result<(TcpBearer, Channel)> {
+    let (stream, _) = listener.accept().map_err(mini_bearer::BearerError::from)?;
+    configure_state_sync_stream(&stream, timeout)?;
+    let mut bearer = TcpBearer::from_stream(stream)?;
+    let hello = bearer.recv()?;
+    let (channel, hello_response) = Responder::respond(&hello)?;
+    bearer.send(&hello_response)?;
+    Ok((bearer, channel))
+}
+
+/// Pull one bounded blocks-or-snapshot response from an explicitly selected
+/// peer and apply it only after local QC/state verification. The peer supplies
+/// bytes, never trust. Repeat if the archive tip is more than one response away.
+pub fn state_sync_over_tcp<O: ValidatorOracle>(
+    node: &mut ConsensusNode<O>,
+    peer_addr: SocketAddr,
+) -> Result<usize> {
+    state_sync_over_tcp_with_timeout(node, peer_addr, STATE_SYNC_IO_TIMEOUT)
+}
+
+fn state_sync_over_tcp_with_timeout<O: ValidatorOracle>(
+    node: &mut ConsensusNode<O>,
+    peer_addr: SocketAddr,
+    timeout: Duration,
+) -> Result<usize> {
+    let before = node.finalized_height();
+    let (mut bearer, mut channel) = open_state_sync_client(peer_addr, timeout)?;
+
+    let request = StateSyncRequest {
+        network_id: node.state().network_id(),
+        from_height: before,
+    };
+    bearer.send(&channel.seal(&request.to_wire_bytes(), STATE_SYNC_AAD)?)?;
+    let sealed_response = bearer.recv()?;
+    let plaintext = channel.open(&sealed_response, STATE_SYNC_AAD)?;
+    let response = StateSyncResponse::from_wire_bytes(&plaintext)?;
+    let applied = match &response.payload {
+        StateSyncPayload::Blocks(blocks) => blocks.len(),
+        StateSyncPayload::Snapshot { snapshot, blocks } => {
+            let target = blocks
+                .last()
+                .map_or(snapshot.height(), |block| block.header.height);
+            let delta = target.saturating_sub(before);
+            usize::try_from(delta).map_err(|_| ConsensusError::TooLarge)?
+        }
+        StateSyncPayload::WrongNetwork | StateSyncPayload::Unavailable { .. } => 0,
+    };
+    node.apply_state_sync(response)?;
+    Ok(applied)
+}
+
+/// Serve one bounded state-sync request from a local non-authoritative archive.
+/// The encrypted, anonymous transport does not authenticate the peer; it does
+/// not need to, because the receiver independently verifies every payload.
+pub fn serve_state_sync_over_tcp(archive: &ConsensusArchive, listener: &TcpListener) -> Result<()> {
+    serve_state_sync_over_tcp_with_timeout(archive, listener, STATE_SYNC_IO_TIMEOUT)
+}
+
+fn serve_state_sync_over_tcp_with_timeout(
+    archive: &ConsensusArchive,
+    listener: &TcpListener,
+    timeout: Duration,
+) -> Result<()> {
+    let (mut bearer, mut channel) = accept_state_sync_server(listener, timeout)?;
+    let sealed_request = bearer.recv()?;
+    let plaintext = channel.open(&sealed_request, STATE_SYNC_AAD)?;
+    let request = StateSyncRequest::from_wire_bytes(&plaintext)?;
+    let response = archive.response(request)?;
+    bearer.send(&channel.seal(&response.to_wire_bytes()?, STATE_SYNC_AAD)?)?;
     Ok(())
 }
 
@@ -677,6 +790,34 @@ fn handle_emits<O: ValidatorOracle>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_state_sync_client_is_not_held_forever_by_a_silent_peer() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (_stream, _) = listener.accept().unwrap();
+            std::thread::sleep(Duration::from_millis(250));
+        });
+        let started = Instant::now();
+        assert!(open_state_sync_client(address, Duration::from_millis(30)).is_err());
+        assert!(started.elapsed() < Duration::from_secs(2));
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn a_state_sync_server_is_not_held_forever_after_accept() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let client = std::thread::spawn(move || {
+            let _stream = TcpStream::connect(address).unwrap();
+            std::thread::sleep(Duration::from_millis(250));
+        });
+        let started = Instant::now();
+        assert!(accept_state_sync_server(&listener, Duration::from_millis(30)).is_err());
+        assert!(started.elapsed() < Duration::from_secs(2));
+        client.join().unwrap();
+    }
 
     #[test]
     fn a_peer_that_never_reads_cannot_block_us_or_grow_our_buffer_past_the_cap() {
