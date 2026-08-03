@@ -195,7 +195,12 @@ jobs:
           '''
           if text.count(old_count) != 1:
               raise SystemExit("stage-five oversized fixture target changed")
-          path.write_text(text.replace(old_count, new_count, 1), encoding="utf-8")
+          text = text.replace(old_count, new_count, 1)
+          old_delta = "            let delta = target.checked_sub(before).unwrap_or(0);\n"
+          new_delta = "            let delta = target.saturating_sub(before);\n"
+          if text.count(old_delta) != 1:
+              raise SystemExit("stage-five delta target changed")
+          path.write_text(text.replace(old_delta, new_delta, 1), encoding="utf-8")
           PY
       - name: Apply and validate final D-0207 recovery fixes
         run: python3 tools/apply_consensus_snapshot_stage5.py
