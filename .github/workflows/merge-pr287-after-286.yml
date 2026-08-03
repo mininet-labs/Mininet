@@ -1,9 +1,13 @@
 name: merge-pr287-after-286
 
 on:
-  push:
+  pull_request:
     branches:
-      - codex/forge-bounded-fs-index-pages
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
     paths:
       - tools/merge_pr287_after_286.py
       - .github/workflows/merge-pr287-after-286.yml
@@ -11,15 +15,20 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: pr287-main-integration
+  cancel-in-progress: true
+
 jobs:
   integrate:
+    if: github.event.pull_request.number == 287 && github.head_ref == 'codex/forge-bounded-fs-index-pages'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: codex/forge-bounded-fs-index-pages
           fetch-depth: 0
-      - name: Merge main, resolve D-0429/D-0430, and run full checks
+      - name: Merge current main, apply review fixes, and run full checks
         run: python3 tools/merge_pr287_after_286.py
       - name: Commit combined verified state
         run: |
@@ -27,5 +36,5 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add -A
           git diff --cached --exit-code && exit 1 || true
-          git commit -m "merge: integrate D-0429 before D-0430"
+          git commit -m "merge: integrate current main and review fixes for D-0430"
           git push origin HEAD:codex/forge-bounded-fs-index-pages
