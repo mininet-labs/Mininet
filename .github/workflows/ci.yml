@@ -145,6 +145,12 @@ jobs:
             tools/apply_consensus_snapshot_stage4.py \
             tools/apply_consensus_snapshot_review_fixes.py
 
+          # Make the review remediation a clean commit before merging main;
+          # otherwise Git refuses to merge because the temporary-file removals
+          # and source rewrites are still uncommitted in the worktree.
+          git add -A
+          git commit -m "fix: stage PR 289 review remediation before main integration"
+
           git fetch origin main
           set +e
           git merge --no-commit --no-ff origin/main
