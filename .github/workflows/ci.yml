@@ -130,6 +130,22 @@ jobs:
         with:
           toolchain: 1.94.1
           components: clippy
+      - name: Adapt stage-four target to rustfmt-wrapped code
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tools/apply_consensus_snapshot_stage4.py")
+          text = path.read_text(encoding="utf-8")
+          old = "            current_snapshot.as_ref().map_or(0, ConsensusSnapshot::height),\n"
+          new = (
+              "            current_snapshot\n"
+              "                .as_ref()\n"
+              "                .map_or(0, ConsensusSnapshot::height),\n"
+          )
+          if text.count(old) != 1:
+              raise SystemExit("stage-four current-tip target changed")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Apply and validate final D-0207 hardening
         run: python3 tools/apply_consensus_snapshot_stage4.py
       - name: Restore ordinary CI and commit the tested tree
