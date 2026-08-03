@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - codex/consensus-snapshot-sync
-    paths:
-      - tools/apply_consensus_snapshot_stage4.py
-      - .github/workflows/consensus-snapshot-stage4.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
