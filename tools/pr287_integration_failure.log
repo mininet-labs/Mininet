@@ -1,14 +1,1 @@
-Committer identity unknown
-
-*** Please tell me who you are.
-
-Run
-
-  git config --global user.email "you@example.com"
-  git config --global user.name "Your Name"
-
-to set your account's default identity.
-Omit --global to set the identity only in this repository.
-
-fatal: empty ident name (for <runner@runnervmvrwv9.uk340cp5r1nerkbqsxxnybntmd.gx.internal.cloudapp.net>) not allowed
-
+/home/runner/work/Mininet/Mininet/docs/planning/forge-bounded-fs-index-pages.md: expected at least one replacement target, found 0: '- File contents are synced before rename, but this preserves the existing\n  `FsBackend` durability model; parent-directory fsync and a transaction across\n  ever'
