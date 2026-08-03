@@ -46,6 +46,21 @@ def extract_block(path: Path, start_marker: str, end_marker: str) -> str:
     return text[start:end].rstrip() + "\n"
 
 
+def has_merge_marker(text: str) -> bool:
+    """Recognize Git conflict-marker lines without flagging document rulers.
+
+    `DECISION_LOG.md` and `STATUS.md` legitimately contain long lines of `=`.
+    Looking for the substring `=======` therefore rejected valid documents after
+    every successful test run. Git's separator is an exact seven-equals line;
+    the opening/closing markers carry their standard prefixes.
+    """
+
+    for line in text.splitlines():
+        if line == "=======" or line.startswith("<<<<<<< ") or line.startswith(">>>>>>> "):
+            return True
+    return False
+
+
 # Preserve the proposal-specific truth before main's D-0429 documentation is
 # selected during conflict resolution.
 d0430_decision = extract_tail(DECISIONS, D0430_MARKER)
@@ -140,7 +155,7 @@ run("python3", "tools/mininet_nav.py", "build")
 # No conflict marker may survive, and both decisions must remain singular.
 for path in (DECISIONS, STATUS):
     text = path.read_text(encoding="utf-8")
-    if "<<<<<<<" in text or ">>>>>>>" in text or "=======" in text:
+    if has_merge_marker(text):
         raise SystemExit(f"merge marker survived in {path}")
 if DECISIONS.read_text(encoding="utf-8").count(D0430_MARKER) != 1:
     raise SystemExit("D-0430 is not singular after integration")
