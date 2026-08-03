@@ -30,7 +30,11 @@ jobs:
 
           path = Path("tools/merge_pr287_after_286.py")
           text = path.read_text(encoding="utf-8")
-          old = '''    count = text.count(old)
+          old = '''def replace_once_or_already(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding="utf-8")
+              if new in text and old not in text:
+                  return
+              count = text.count(old)
               if count != 1:
                   raise SystemExit(
                       f"{path}: expected exactly one replacement target, found {count}: "
@@ -38,7 +42,11 @@ jobs:
                   )
               path.write_text(text.replace(old, new, 1), encoding="utf-8")
           '''
-          new = '''    count = text.count(old)
+          new = '''def replace_once_or_already(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding="utf-8")
+              if new in text and old not in text:
+                  return
+              count = text.count(old)
               if count < 1:
                   raise SystemExit(
                       f"{path}: expected at least one replacement target, found {count}: "
