@@ -1,7 +1,7 @@
 {
   "counts": {
     "crates": 69,
-    "files": 797,
+    "files": 798,
     "headings": 2550,
     "rust_symbols": 7165
   },
@@ -1184,6 +1184,42 @@
       "sha256": "4dfcc5a4d2fa7bfb9eb5b969dd6d6bf05b4178e7a1e8d2563318bf3e557c3402",
       "symbols": [],
       "title": "Blocking bootstrap baseline: validate that the"
+    },
+    {
+      "bytes": 1081,
+      "group": "ci",
+      "headings": [],
+      "keywords": [
+        "git",
+        "pr287-nav-refresh",
+        "github",
+        "name",
+        "workflows",
+        "yml",
+        "codex",
+        "forge-bounded-fs-index-pages",
+        "navigation",
+        "push",
+        "true",
+        "actions",
+        "regenerate",
+        "run",
+        "commit",
+        "config",
+        "user",
+        "branches",
+        "paths",
+        "permissions",
+        "contents",
+        "write",
+        "concurrency",
+        "group"
+      ],
+      "lines": 37,
+      "path": ".github/workflows/pr287-nav-refresh.yml",
+      "sha256": "49e2c254be6f2d11562ef51fbb4ca6a4caf5ab43d6a8c355dec14c43ce46ab2a",
+      "symbols": [],
+      "title": "name: pr287-nav-refresh"
     },
     {
       "bytes": 5767,
@@ -74902,7 +74938,7 @@
       "title": "Distributed build worker \u2014 bounded Batch 5 slice"
     },
     {
-      "bytes": 6477,
+      "bytes": 6661,
       "group": "docs",
       "headings": [
         {
@@ -74912,64 +74948,64 @@
         },
         {
           "level": 2,
-          "line": 9,
+          "line": 11,
           "text": "Problem"
         },
         {
           "level": 2,
-          "line": 21,
+          "line": 23,
           "text": "Implemented mechanism"
         },
         {
           "level": 2,
-          "line": 48,
+          "line": 50,
           "text": "Evidence"
         },
         {
           "level": 2,
-          "line": 66,
+          "line": 69,
           "text": "Hard boundaries and honest limits"
         },
         {
           "level": 2,
-          "line": 99,
+          "line": 102,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 106,
+          "line": 109,
           "text": "Merge condition"
         }
       ],
       "keywords": [
         "index",
-        "metadata",
         "delta",
-        "pages",
+        "metadata",
         "base",
+        "pages",
         "local",
         "store",
-        "object",
         "time",
-        "side",
         "bounded",
+        "object",
         "every",
         "row",
-        "cursor",
+        "side",
         "authoritative",
+        "append",
         "journal",
         "filesystem",
         "stable",
         "limits",
+        "new",
+        "remains",
         "work",
         "idx",
-        "remains",
-        "append",
-        "manifest"
+        "cursor"
       ],
-      "lines": 111,
+      "lines": 114,
       "path": "docs/planning/forge-bounded-fs-index-pages.md",
-      "sha256": "f2934d0cb664c1a57d84d983ab59ad17b4ea31e14c95f9ed7a7cee9e0cfad961",
+      "sha256": "ad8d669cea5c3580ede6b3fb3c9aaaec9058c280acdd98e40539210c67e30875",
       "symbols": [],
       "title": "Forge Batch 5: bounded filesystem metadata index and stable pages (D-0430)"
     },
