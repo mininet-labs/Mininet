@@ -21,6 +21,7 @@ jobs:
           python3 tools/harden_forge_time_index_input_bounds.py
           python3 tools/harden_forge_time_index_rebuild_bounds.py
           python3 tools/fix_forge_memory_page_upper_bound.py
+          python3 tools/optimize_forge_time_index_delta_reads.py
       - name: Commit exact hardened state
         run: |
           git config user.name "mininet-index-hardener"
