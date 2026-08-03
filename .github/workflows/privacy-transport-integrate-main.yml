@@ -1,0 +1,96 @@
+name: privacy-transport-integrate-main
+
+on:
+  push:
+    branches:
+      - codex/privacy-transport-security
+
+permissions:
+  contents: write
+
+concurrency:
+  group: privacy-transport-integrate-main
+  cancel-in-progress: true
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/privacy-transport-security
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.1
+      - name: Merge current main and resolve generated files only
+        run: |
+          git config user.name "mininet-privacy-transport"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin main
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+          if [ "$merge_status" -ne 0 ]; then
+            unresolved="$(git diff --name-only --diff-filter=U)"
+            if [ -z "$unresolved" ]; then
+              echo "merge failed without unresolved files"
+              exit 1
+            fi
+            while IFS= read -r path; do
+              case "$path" in
+                docs/_generated/*)
+                  git checkout --theirs -- "$path"
+                  git add "$path"
+                  ;;
+                Cargo.lock)
+                  git checkout --theirs -- "$path"
+                  git add "$path"
+                  ;;
+                Cargo.toml)
+                  git checkout --theirs -- "$path"
+                  python3 - <<'PY'
+          from pathlib import Path
+          path = Path("Cargo.toml")
+          text = path.read_text(encoding="utf-8")
+          member = '    "crates/mini-transport-security",\n'
+          if member not in text:
+              anchor = '    "crates/mini-transport-policy",\n'
+              if text.count(anchor) != 1:
+                  raise SystemExit("Cargo workspace anchor changed")
+              text = text.replace(anchor, anchor + member, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+                  git add "$path"
+                  ;;
+                .github/workflows/ci.yml)
+                  git checkout --ours -- "$path"
+                  git add "$path"
+                  ;;
+                *)
+                  echo "unexpected merge conflict: $path"
+                  exit 1
+                  ;;
+              esac
+            done <<EOF
+          $unresolved
+          EOF
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("Cargo.toml")
+          text = path.read_text(encoding="utf-8")
+          member = '    "crates/mini-transport-security",\n'
+          if member not in text:
+              anchor = '    "crates/mini-transport-policy",\n'
+              if text.count(anchor) != 1:
+                  raise SystemExit("Cargo workspace anchor changed")
+              path.write_text(text.replace(anchor, anchor + member, 1), encoding="utf-8")
+          PY
+          cargo generate-lockfile
+          python3 tools/mininet_nav.py build
+          git add -A
+          git commit -m "merge main into privacy transport security"
+          git push origin HEAD:codex/privacy-transport-security
