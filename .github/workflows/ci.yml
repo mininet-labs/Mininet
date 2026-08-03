@@ -129,7 +129,7 @@ jobs:
         with:
           toolchain: 1.94.1
           components: clippy
-      - name: Correct the state-sync encode patch split
+      - name: Correct stage-five patch assumptions
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -188,7 +188,14 @@ jobs:
           """,
           )
           '''
-          path.write_text(text[:start] + replacement + text[end:], encoding="utf-8")
+          text = text[:start] + replacement + text[end:]
+          old_count = '''        let count = MAX_LEDGER_SNAPSHOT_BYTES / (beneficiary.len() + 64) + 2;
+          '''
+          new_count = '''        let count = MAX_LEDGER_SNAPSHOT_BYTES / (beneficiary.len() + 64) + 8;
+          '''
+          if text.count(old_count) != 1:
+              raise SystemExit("stage-five oversized fixture target changed")
+          path.write_text(text.replace(old_count, new_count, 1), encoding="utf-8")
           PY
       - name: Apply and validate final D-0207 recovery fixes
         run: python3 tools/apply_consensus_snapshot_stage5.py
