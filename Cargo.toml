@@ -77,6 +77,7 @@ members = [
     "crates/mini-contribution",
     "crates/mini-query",
     "crates/mini-search-federation",
+    "crates/mini-search-federation-net",
 ]
 
 [workspace.package]

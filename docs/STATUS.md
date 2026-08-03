@@ -1238,9 +1238,15 @@ the top development priority.
   inclusive-lower/exclusive-upper convention `mini_query::ParsedQuery`
   already uses) and `distinct_versions` (only snapshots whose content
   digest actually changed from the previous one, filtering out repeat
-  fetches of unchanged content). **No network transport, no peer
-  discovery, no scheduling — F3/F4/F7's inputs and outputs are all
-  local, not exchanged with real remote peers yet.** Real, tested (8
+  fetches of unchanged content). **F3/F4/F7's own inputs and outputs
+  remain local — no query ever leaves the caller's machine.** F2b
+  (D-0433, below) gives a source's `Corpus`/`DocumentContextTable` a
+  signed wire form, and a separate crate, `mini-search-federation-net`
+  (D-0432/D-0433), carries F1/F2/F2b *objects* (not queries) between two
+  peers over a bounded, authenticated real transport and can assemble a
+  pulled segment+bundle into a real `federate_query`-ready source; see
+  the dedicated bullets below. No peer discovery or scheduling on top of
+  that bounded pull exists yet. Real, tested (8
   F1/F2 integration tests including a tampered-payload case proving
   decode-success and signature authenticity are genuinely separate
   checks; 6 F3 integration tests including the order-independence and
@@ -1283,6 +1289,71 @@ the top development priority.
   unstarted; F6 still has no doctrine document. See `docs/design/
   f5-phase2-settlement-model.md` and `docs/design/
   federated-search-exchange-f1-f2.md`.
+- **shipped** — `mini-search-federation`'s F2b (D-0433, Track F required
+  follow-up, issue #175): `publish_corpus_bundle`/`read_corpus_bundle`
+  wrap a source's declared `(UrlId, DocumentMeta)`/`(UrlId,
+  DocumentContext)` entries for one `IndexSegmentId` in a signed,
+  content-addressed object, reusing F1's shared URL/media-type codec
+  (moved into `codec.rs` as part of this change — `observation.rs`'s own
+  copies were deleted, not duplicated) rather than a second one. Neither
+  `mini_ranker::Corpus` nor `mini_query::DocumentContextTable` exposes
+  enumeration (only point lookup by `UrlId`), so this works on the entry
+  pairs a caller already holds rather than introspecting an assembled
+  table. Every `AvailabilityState`/`RestrictionReason`/
+  `UnavailabilityReason` variant round-trips, including the two
+  `#[non_exhaustive]` enums' current variants, with a future-variant-safe
+  fallback. Bounded the same way F1/F2 are: per-field length caps (title,
+  snippet, jurisdiction, language), a pre-allocation entry-count ceiling
+  independent of `mini_objects::MAX_PAYLOAD_BYTES`. Real, tested (8
+  integration tests: full round trip across every availability/
+  restriction variant, empty bundle, wrong object type, encrypted
+  payload, two independent oversized-field rejections, tamper detection,
+  independently-keyed doc/context counts).
+- **shipped** — `mini-search-federation-net` (D-0432/D-0433, Track F
+  required follow-up, issue #175): bounded, authenticated real-transport
+  delivery of `mini-search-federation`'s F1/F2/F2b signed objects between
+  two peers over any `mini_bearer::Bearer`/`Channel`, plus assembly of a
+  pulled F2 segment + F2b bundle into a real, owned source ready for
+  `federate_query`. Does not reinvent a trust boundary — the actual
+  transfer is `mini_sync::request_retrieval`/`serve_retrieval`,
+  unmodified. Adds four things on top: (1) a tiny bounded advertisement
+  exchange (`serve_source`/`pull_source`'s `request_advertisement` step)
+  so a client learns which ids to retrieve — id strings only, capped
+  count, no query terms, ranking profile, or free text ever cross the
+  wire (that would be Track F6, still undesigned and explicitly out of
+  scope); (2) a federation-specific post-check that `mini-sync`'s generic
+  ingest alone doesn't give: every returned object must decode as F1
+  (`CRAWL_OBSERVATION_TYPE`), F2 (`INDEX_SEGMENT_TYPE`), or F2b
+  (`CORPUS_BUNDLE_TYPE`), and, when the caller names an expected
+  provider, must actually be authored by that identity — objects that
+  fail either check stay in the local store (the generic trust boundary
+  is not forked) but are excluded from the caller-visible `trusted` set,
+  proven by two dedicated tests using a noncompliant server that bypasses
+  `serve_source`'s own type filter and a compliant server relaying a
+  second, differently-authored provider's content; (3) `pull_from_sources`
+  bounds how many distinct peers one federation-refresh session may
+  contact (`max_sources`), refusing rather than truncating an over-long
+  peer list; (4) `assemble_federation_source` finds the one F2 segment
+  and the F2b bundle declaring that exact `IndexSegmentId` among a
+  trusted id set, rebuilds a fresh `Corpus`/`DocumentContextTable` from
+  the bundle's declared entries, and returns an `OwnedFederationSource`
+  whose `as_source()` borrows a real `FederationSource` — fails closed
+  (not silently) on zero/multiple segments or no matching bundle, proven
+  by 4 dedicated tests. Real, tested overall (2 unit tests exercising the
+  noncompliant-peer defense-in-depth paths that a compliant peer alone
+  cannot reach; 9 integration tests including a real two-peer pull over
+  an actual TCP socket mirroring `mini-sync`'s own `sync_over_tcp.rs`,
+  and — the capstone — a live test proving an unmodified `federate_query`
+  call merges one local source with one pulled over a real TCP socket
+  and ranks them correctly by `inbound_links` under the identical
+  profile). What's deliberately NOT here: peer discovery or connection
+  setup (callers dial/handshake exactly as any other `mini_bearer`/
+  `mini_sync` caller); scheduling or refresh policy; fault isolation
+  across peers in one `pull_from_sources` session — the first peer that
+  errors aborts the whole call; auto-discovery of which pulled ids belong
+  to which provider/segment when a peer serves several segments at once.
+  See `docs/design/federated-search-exchange-f1-f2.md`'s "F1/F2/F2b
+  transport and assembly" section.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
