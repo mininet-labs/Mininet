@@ -28,7 +28,7 @@ jobs:
           git config user.name "mininet-pr287-integration"
           git config user.email "actions@users.noreply.github.com"
           rm -f tools/pr287_integration_failure.log
-      - name: Merge current main, apply review fixes, and run full checks
+      - name: Merge current main and run full checks
         run: |
           set -o pipefail
           {
@@ -37,33 +37,17 @@ jobs:
 
           path = Path("tools/merge_pr287_after_286.py")
           text = path.read_text(encoding="utf-8")
-          old = '''def replace_once_or_already(path: Path, old: str, new: str) -> None:
-              text = path.read_text(encoding="utf-8")
-              if new in text and old not in text:
-                  return
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(
-                      f"{path}: expected exactly one replacement target, found {count}: "
-                      f"{old[:160]!r}"
-                  )
-              path.write_text(text.replace(old, new, 1), encoding="utf-8")
-          '''
-          new = '''def replace_once_or_already(path: Path, old: str, new: str) -> None:
-              text = path.read_text(encoding="utf-8")
-              if new in text and old not in text:
-                  return
-              count = text.count(old)
-              if count < 1:
-                  raise SystemExit(
-                      f"{path}: expected at least one replacement target, found {count}: "
-                      f"{old[:160]!r}"
-                  )
-              path.write_text(text.replace(old, new, 1), encoding="utf-8")
-          '''
-          if text.count(old) != 1:
-              raise SystemExit("integration helper shape changed unexpectedly")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          call = "\napply_exact_head_review_fixes()\n"
+          if text.count(call) != 1:
+              raise SystemExit("expected one exact-head review-fix call")
+          path.write_text(
+              text.replace(
+                  call,
+                  "\n# Exact-head review fixes are already committed on this branch.\n",
+                  1,
+              ),
+              encoding="utf-8",
+          )
           PY
             python3 tools/merge_pr287_after_286.py
           } 2>&1 | tee /tmp/pr287-integration.log
@@ -71,7 +55,7 @@ jobs:
         run: |
           git add -A
           git diff --cached --exit-code && exit 1 || true
-          git commit -m "merge: integrate current main and review fixes for D-0430"
+          git commit -m "merge: integrate current main after D-0430 review"
           git push origin HEAD:codex/forge-bounded-fs-index-pages
       - name: Preserve bounded diagnostics on failure
         if: failure()
