@@ -1,0 +1,51 @@
+name: consensus-snapshot-stage3
+
+on:
+  push:
+    branches:
+      - codex/consensus-snapshot-sync
+    paths:
+      - tools/apply_consensus_snapshot_stage3.py
+      - .github/workflows/consensus-snapshot-stage3.yml
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - tools/apply_consensus_snapshot_stage3.py
+      - .github/workflows/consensus-snapshot-stage3.yml
+      - crates/mini-consensus/src/store.rs
+      - crates/mini-consensus/src/node.rs
+      - crates/mini-consensus/src/snapshot.rs
+      - crates/mini-execution/src/snapshot.rs
+      - docs/STATUS.md
+      - docs/DECISION_LOG.md
+      - docs/design/networked-consensus.md
+      - docs/planning/consensus-snapshot-sync.md
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/consensus-snapshot-sync
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.1
+          components: clippy
+      - name: Apply bounds, tests, truth-sync, and full validation
+        run: python3 tools/apply_consensus_snapshot_stage3.py
+      - name: Commit permanent D-0207 state
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "mininet-consensus-snapshot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "consensus: finalize authenticated snapshot sync (D-0207)"
+          git push origin HEAD:codex/consensus-snapshot-sync
