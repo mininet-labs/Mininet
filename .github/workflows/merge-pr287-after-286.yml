@@ -1,0 +1,31 @@
+name: merge-pr287-after-286
+
+on:
+  push:
+    branches:
+      - codex/forge-bounded-fs-index-pages
+    paths:
+      - tools/merge_pr287_after_286.py
+      - .github/workflows/merge-pr287-after-286.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/forge-bounded-fs-index-pages
+          fetch-depth: 0
+      - name: Merge main, resolve D-0429/D-0430, and run full checks
+        run: python3 tools/merge_pr287_after_286.py
+      - name: Commit combined verified state
+        run: |
+          git config user.name "mininet-pr287-integration"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --exit-code && exit 1 || true
+          git commit -m "merge: integrate D-0429 before D-0430"
+          git push origin HEAD:codex/forge-bounded-fs-index-pages
