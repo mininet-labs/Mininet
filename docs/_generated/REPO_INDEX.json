@@ -1,7 +1,7 @@
 {
   "counts": {
     "crates": 69,
-    "files": 798,
+    "files": 797,
     "headings": 2550,
     "rust_symbols": 7165
   },
@@ -1184,42 +1184,6 @@
       "sha256": "4dfcc5a4d2fa7bfb9eb5b969dd6d6bf05b4178e7a1e8d2563318bf3e557c3402",
       "symbols": [],
       "title": "Blocking bootstrap baseline: validate that the"
-    },
-    {
-      "bytes": 1081,
-      "group": "ci",
-      "headings": [],
-      "keywords": [
-        "git",
-        "pr287-nav-refresh",
-        "github",
-        "name",
-        "workflows",
-        "yml",
-        "codex",
-        "forge-bounded-fs-index-pages",
-        "navigation",
-        "push",
-        "true",
-        "actions",
-        "regenerate",
-        "run",
-        "commit",
-        "config",
-        "user",
-        "branches",
-        "paths",
-        "permissions",
-        "contents",
-        "write",
-        "concurrency",
-        "group"
-      ],
-      "lines": 37,
-      "path": ".github/workflows/pr287-nav-refresh.yml",
-      "sha256": "49e2c254be6f2d11562ef51fbb4ca6a4caf5ab43d6a8c355dec14c43ce46ab2a",
-      "symbols": [],
-      "title": "name: pr287-nav-refresh"
     },
     {
       "bytes": 5767,
