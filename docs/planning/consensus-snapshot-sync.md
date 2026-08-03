@@ -7,9 +7,11 @@ work: preflight-before-journal, validate-before-write archive plans, race-free
 no-follow opens, a truthful suffix-limit error, and peer-facing gap/duplicate/
 reordering tests. The PR stays draft until those changes pass on the integrated
 exact head.  
-**Runner state:** the integrated remediation commit is now prepared; the
-repository-wide exact-head checks remain the engineering gate before review
-threads can be resolved.  
+**Integrated validation:** remediation predecessor `b68e42013d1ca8ee7398747512ff0a8f863545fe`
+passed full workspace formatting, strict Clippy, all-target/all-feature tests,
+governance validators, work-claim validation, dependency audit, and dependency
+deny after merging current `main`. This documentation-only commit triggers the
+remaining exact-head repository workflows and changes no protocol behavior.  
 **Roadmap:** issue #45.  
 **Base:** D-0093 block-only catch-up and D-0200–D-0206 networked consensus.
 
