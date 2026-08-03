@@ -32,6 +32,7 @@ fn mutually_authenticated_peers_bind_identity_to_one_real_tcp_channel() {
     let client_device_kel = client_device.kel();
     let server_root_kel = server_root.kel();
     let server_device_kel = server_device.kel();
+    let server_root_did = server_root.did();
 
     let client_routing = AgreementSecretKey::from_seed(&[70; 32]).public_key();
     let server_routing = AgreementSecretKey::from_seed(&[80; 32]).public_key();
@@ -127,6 +128,6 @@ fn mutually_authenticated_peers_bind_identity_to_one_real_tcp_channel() {
     let authenticated_client = server.join().unwrap();
     assert_eq!(authenticated_client.root, client_root.did());
     assert_eq!(authenticated_client.routing_key, client_routing);
-    assert_eq!(authenticated_server.root, server_root.did());
+    assert_eq!(authenticated_server.root, server_root_did);
     assert_eq!(authenticated_server.routing_key, server_routing);
 }
