@@ -2,14 +2,20 @@
 """Run and pre-commit PR #289 review remediation for the legacy CI attempt.
 
 The original remediation workflow merges `main` immediately after invoking this
-path and then performs one unconditional commit. This wrapper commits the source
-changes and temporary-file removals first, then leaves one legitimate planning
-truth-sync change for that workflow-owned commit.
+path and then performs one unconditional commit. This wrapper installs the test
+fixture target, commits the source changes and temporary-file removals first,
+then leaves one legitimate planning truth-sync change for that workflow-owned
+commit.
 """
 
 from pathlib import Path
 import runpy
 import subprocess
+
+# The full workspace test suite compiles real wasm32-wasip2 guest fixtures. The
+# legacy remediation workflow predates the standard CI target-install step, so
+# install the pinned toolchain's target before validation reaches those tests.
+subprocess.run(["rustup", "target", "add", "wasm32-wasip2"], check=True)
 
 base = Path("tools/apply_consensus_snapshot_review_fixes_base.py")
 runpy.run_path(str(base), run_name="__main__")
