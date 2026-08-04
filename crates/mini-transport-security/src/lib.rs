@@ -50,5 +50,5 @@ pub use runtime::{
 };
 pub use selection::{
     diverse_dial_plan, DialAttempt, PeerSelectionPolicy, MAX_DIAL_TIMEOUT_MS, MAX_SELECTED_PEERS,
-    MIN_DIAL_TIMEOUT_MS,
+    MAX_SELECTION_CANDIDATES, MIN_DIAL_TIMEOUT_MS,
 };

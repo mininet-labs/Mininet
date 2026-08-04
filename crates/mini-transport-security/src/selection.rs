@@ -11,6 +11,10 @@ use mini_crypto::HashAlgorithm;
 
 use crate::{Result, TransportEndpointId, TransportSecurityError, VerifiedPeerAdvertisement};
 
+/// Maximum verified records accepted by one selection call before any
+/// allocation/sort. Larger local pools must be sampled or processed in bounded
+/// batches by the caller.
+pub const MAX_SELECTION_CANDIDATES: usize = 1_024;
 pub const MAX_SELECTED_PEERS: usize = 64;
 pub const MIN_DIAL_TIMEOUT_MS: u64 = 100;
 pub const MAX_DIAL_TIMEOUT_MS: u64 = 60_000;
@@ -64,6 +68,9 @@ pub fn diverse_dial_plan(
     policy: PeerSelectionPolicy,
 ) -> Result<Vec<DialAttempt>> {
     let policy = policy.validate()?;
+    if records.len() > MAX_SELECTION_CANDIDATES {
+        return Err(TransportSecurityError::LimitExceeded);
+    }
     let mut candidates: Vec<_> = records
         .iter()
         .map(|record| (selection_score(record, local_seed), record))
@@ -215,6 +222,16 @@ mod tests {
             })
             .count();
         assert!(same_prefix <= 1);
+    }
+
+    #[test]
+    fn candidate_input_is_bounded_before_sorting() {
+        let record = verified(10, "10.0.0.1:9000");
+        let oversized = vec![record; MAX_SELECTION_CANDIDATES + 1];
+        assert_eq!(
+            diverse_dial_plan(&oversized, [1; 32], PeerSelectionPolicy::default()),
+            Err(TransportSecurityError::LimitExceeded)
+        );
     }
 
     #[test]

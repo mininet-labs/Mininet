@@ -355,3 +355,26 @@ fn an_existing_mini_bridge_channel_enters_the_same_identity_seam() {
     assert_eq!(connection.peer().endpoint_id, advertisement.endpoint_id());
     let _ = server_thread.join().unwrap();
 }
+#[test]
+fn expired_advertisement_is_rejected_before_dial() {
+    let client = Identity::new(10);
+    let server = Identity::new(40);
+    let (listener, address) = listener();
+    let advertisement = verified_advertisement(&server, address);
+    drop(listener);
+    let mut freshness = FreshnessPins::new();
+    let mut replay = ReplayCache::new(32).unwrap();
+    let result = connect_authenticated_tcp(
+        client.local(),
+        TransportPurpose::PeerExchange,
+        1_000,
+        2_000,
+        2_001,
+        AuthenticatedDialTarget::new(&advertisement, &server.root.kel(), &server.device.kel()),
+        5_000,
+        &mut freshness,
+        &mut replay,
+    );
+    assert_eq!(result.unwrap_err(), TransportSecurityError::Expired);
+    assert!(replay.is_empty());
+}

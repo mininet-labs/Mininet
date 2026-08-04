@@ -200,7 +200,7 @@ fn authenticated_search_response_carries_the_peer_bound_provider_label() {
         &mut replay,
     )
     .unwrap();
-    let expected_provider = authenticated_provider_pseudonym(connection.peer());
+    let expected_provider = authenticated_provider_pseudonym(&connection);
     let remote = remote_query_authenticated(&mut connection, "hello", &profile, 8).unwrap();
     assert_eq!(remote.provider(), &expected_provider);
     assert_eq!(remote.results().len(), 1);

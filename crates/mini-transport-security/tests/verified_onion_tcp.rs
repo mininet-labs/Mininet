@@ -127,6 +127,7 @@ fn signed_discovery_selection_and_verified_route_forward_ciphertext_over_three_s
         PayloadSizeClass::Small,
         destination_public,
         PLAINTEXT,
+        1_000,
         10_000,
     )
     .unwrap();
@@ -136,7 +137,8 @@ fn signed_discovery_selection_and_verified_route_forward_ciphertext_over_three_s
         let mut bearer = TcpBearer::from_stream(stream).unwrap();
         let opaque = bearer.recv().unwrap();
         assert!(!contains(&opaque, PLAINTEXT));
-        open_onion_destination(&opaque, &destination_secret).unwrap()
+        let mut replay = OnionReplayCache::new(32).unwrap();
+        open_onion_destination(&opaque, &destination_secret, 5_000, &mut replay).unwrap()
     });
 
     let delivery_address = delivery.address;

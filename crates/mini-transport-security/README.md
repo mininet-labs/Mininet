@@ -17,7 +17,8 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
   dial hints; the live CH1 session must still prove the same endpoint and key.
 - `SecurePexResponse` carries a bounded canonical list of signed advertisements.
 - `diverse_dial_plan` is locally seeded, input-order-independent, duplicate-
-  resistant, and capped per IPv4 `/24` or IPv6 `/48` prefix.
+  resistant, capped per IPv4 `/24` or IPv6 `/48` prefix, and rejects more than
+  1,024 candidates before allocation/sort.
 - `AuthenticatedConnection<B>` owns one bearer, the exact CH1 channel, and the
   peer verified on that channel as one object. It exposes authenticated `send`
   and `recv`, not detachable raw identity state.
@@ -29,7 +30,7 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
   `authenticate_established_responder` accept a channel established by any
   bearer, including `mini-bridge` adapters, without making the bridge an
   identity authority.
-- `build_verified_onion_route` accepts three already-verified endpoints and
+- `build_verified_onion_route` accepts three live same-network verified endpoints and
   rejects visible endpoint, routing-key, root, or device reuse before building
   the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`. A permanent
   integration test starts with signed advertisements and local selection, then
@@ -69,9 +70,11 @@ channel; it is not personhood, operator independence, reputation, or truth.
   ASN, jurisdiction, or operator identity.
 - Endpoint authentication protects identity binding, not traffic shape or IP
   metadata. It can increase linkability when a global root is presented.
-- The three-hop onion implementation lives in `mini-relay`; it protects payload
-  confidentiality and separates endpoint knowledge, but is not Sphinx and does
-  not defeat a global timing/volume observer.
+- The onion-v2 implementation in `mini-relay` protects payload confidentiality,
+  separates endpoint knowledge, bounds remaining lifetime, and requires
+  fail-closed relay/destination replay state. It is not Sphinx and does not
+  defeat a global timing/volume observer; crash persistence and flood controls
+  remain deployment responsibilities.
 - The bridge seam reuses `mini-bridge::PluggableTransport` and
   `PtProcessManager`; no real obfs4/WebTunnel/Snowflake adapter is added here.
 - NAT traversal, reconnect, private bridge distribution, multipath migration,

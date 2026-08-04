@@ -32,7 +32,8 @@ fn three_independent_tcp_relays_forward_only_layered_ciphertext() {
         let (stream, _) = destination_listener.accept().unwrap();
         let mut bearer = TcpBearer::from_stream(stream).unwrap();
         let opaque = bearer.recv().unwrap();
-        open_onion_destination(&opaque, &destination_secret).unwrap()
+        let mut replay = OnionReplayCache::new(32).unwrap();
+        open_onion_destination(&opaque, &destination_secret, 5_000, &mut replay).unwrap()
     });
 
     let (delivery_listener, delivery_address) = listener();
@@ -114,6 +115,7 @@ fn three_independent_tcp_relays_forward_only_layered_ciphertext() {
         &hops,
         AgreementSecretKey::from_seed(&[9; 32]).public_key(),
         b"private over three real sockets",
+        1_000,
         10_000,
     )
     .unwrap();

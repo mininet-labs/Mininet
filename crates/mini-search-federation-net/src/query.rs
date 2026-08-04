@@ -19,9 +19,7 @@ use mini_crypto::{HashAlgorithm, Multihash};
 use mini_lexical_index::IndexSegment;
 use mini_query::{parse_query, search, DocumentContextTable};
 use mini_ranker::Corpus;
-use mini_transport_security::{
-    AuthenticatedConnection, AuthenticatedPeer, TransportPurpose, TransportSecurityError,
-};
+use mini_transport_security::{AuthenticatedConnection, TransportPurpose, TransportSecurityError};
 use mini_web_types::{
     AvailabilityState, CanonicalUrl, IndexSegmentId, NormalizedHost, PersonalizationPolicy,
     ProviderPseudonym, RankingProfile, RankingProfileId, RestrictionReason, Scheme,
@@ -515,13 +513,18 @@ impl AuthenticatedQueryResults {
     }
 }
 
-/// Derive a rotating search-provider pseudonym from an authenticated transport
-/// endpoint. The endpoint id already commits to the delegated device and current
-/// X25519 routing key, so key rotation also rotates this provider label.
-pub fn authenticated_provider_pseudonym(peer: &AuthenticatedPeer) -> ProviderPseudonym {
-    let mut transcript = Vec::with_capacity(AUTHENTICATED_PROVIDER_DOMAIN.len() + 32);
+/// Derive a channel-scoped provider pseudonym from a sealed authenticated
+/// connection. Binding both the verified endpoint and exact CH1 transcript
+/// prevents a caller from manufacturing provenance from a freely constructed
+/// `AuthenticatedPeer`, avoids cross-session tracking, and stays stable for
+/// repeated queries on this one connection.
+pub fn authenticated_provider_pseudonym<B: Bearer>(
+    connection: &AuthenticatedConnection<B>,
+) -> ProviderPseudonym {
+    let mut transcript = Vec::with_capacity(AUTHENTICATED_PROVIDER_DOMAIN.len() + 64);
     transcript.extend_from_slice(AUTHENTICATED_PROVIDER_DOMAIN);
-    transcript.extend_from_slice(&peer.endpoint_id.to_bytes());
+    transcript.extend_from_slice(&connection.peer().endpoint_id.to_bytes());
+    transcript.extend_from_slice(&connection.channel_binding());
     ProviderPseudonym(Multihash::of(HashAlgorithm::Blake3, &transcript))
 }
 
@@ -563,7 +566,7 @@ pub fn remote_query_authenticated<B: Bearer>(
         _ => return Err(NetError::Protocol),
     };
     Ok(AuthenticatedQueryResults {
-        provider: authenticated_provider_pseudonym(connection.peer()),
+        provider: authenticated_provider_pseudonym(connection),
         results,
     })
 }

@@ -79,10 +79,11 @@ identity or connection system:
   `AuthenticatedConnection<B>` that owns the bearer, exact CH1 channel, and peer
   verified on that channel. The response remains ordinary bounded F6 wire data;
   no durable signature or false re-verifiability claim is added.
-- `authenticated_provider_pseudonym` domain-separates and hashes the verified
-  `TransportEndpointId`. Because that endpoint id commits to the delegated device
-  and current X25519 routing key, routing-key rotation also rotates the search
-  provider label rather than creating a permanent global identifier.
+- `authenticated_provider_pseudonym` accepts the sealed connection, then
+  domain-separates and hashes both its verified `TransportEndpointId` and exact
+  CH1 binding. The label is stable for repeated queries on that connection but
+  rotates across channels, preventing the named API from becoming a permanent
+  cross-session tracking identifier.
 - `AuthenticatedQueryResults` has private fields. External callers can inspect
   its provider and results but cannot construct one with an arbitrary provider
   label. `merge_authenticated_remote_results` consumes this sealed value through
@@ -97,10 +98,10 @@ A real TCP integration test proves signed advertisement verification, CH1,
 provider labeling, and typed merge in one path. A second test proves a valid
 `PeerExchange`-purpose connection is rejected by the authenticated search API.
 
-**Exact remaining failure:** endpoint-bound provenance proves who controlled one
-transport endpoint for one session, not that the provider's index is honest or
-independently operated. Pairwise/routing-key rotation intentionally changes the
-provider label, so durable cross-rotation reputation requires a separate,
+**Exact remaining failure:** endpoint-and-channel-bound provenance proves who
+controlled one transport endpoint for one session, not that the provider's
+index is honest or independently operated. Every new channel intentionally
+changes the provider label, so durable reputation requires a separate,
 privacy-conscious continuity design. The anonymous legacy path can still be
 caller-mislabeled because that is its explicit contract.
 

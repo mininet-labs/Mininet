@@ -265,18 +265,28 @@ fn verify_expected_claim(
             advertisement,
             root_kel,
             device_kel,
-        } => claim.verify_advertised(
-            advertisement,
-            role,
-            purpose,
-            binding,
-            now_ms,
-            root_kel,
-            device_kel,
-            freshness,
-            replay,
-        ),
+        } => {
+            ensure_advertisement_live(advertisement, now_ms)?;
+            claim.verify_advertised(
+                advertisement,
+                role,
+                purpose,
+                binding,
+                now_ms,
+                root_kel,
+                device_kel,
+                freshness,
+                replay,
+            )
+        }
     }
+}
+
+fn ensure_advertisement_live(advertisement: &VerifiedPeerAdvertisement, now_ms: u64) -> Result<()> {
+    if now_ms > advertisement.expires_at_ms() {
+        return Err(TransportSecurityError::Expired);
+    }
+    Ok(())
 }
 
 /// Dial one signed endpoint over TCP, establish CH1, and authenticate the live
@@ -293,6 +303,7 @@ pub fn connect_authenticated_tcp(
     freshness: &mut FreshnessPins,
     replay: &mut ReplayCache,
 ) -> Result<AuthenticatedConnection<TcpBearer>> {
+    ensure_advertisement_live(target.advertisement, now_ms)?;
     let (bearer, channel) = establish_tcp_initiator(target.advertisement.address(), timeout_ms)?;
     authenticate_established_initiator(
         bearer,
@@ -324,10 +335,21 @@ pub fn connect_first_authenticated_tcp(
     freshness: &mut FreshnessPins,
     replay: &mut ReplayCache,
 ) -> Result<AuthenticatedConnection<TcpBearer>> {
-    let records: Vec<_> = targets
-        .iter()
-        .map(|target| target.advertisement.clone())
-        .collect();
+    if targets.len() > crate::MAX_SELECTION_CANDIDATES {
+        return Err(TransportSecurityError::LimitExceeded);
+    }
+    let expected_network = targets
+        .first()
+        .map(|target| target.advertisement.network_id());
+    let mut records = Vec::with_capacity(targets.len());
+    for target in targets {
+        if Some(target.advertisement.network_id()) != expected_network {
+            return Err(TransportSecurityError::WrongNetwork);
+        }
+        if now_ms <= target.advertisement.expires_at_ms() {
+            records.push(target.advertisement.clone());
+        }
+    }
     let plan = diverse_dial_plan(&records, local_seed, policy)?;
     let mut attempted = 0usize;
 
@@ -404,8 +426,16 @@ pub fn build_verified_onion_route(
     size_class: PayloadSizeClass,
     destination_key: AgreementPublicKey,
     plaintext: &[u8],
+    now_ms: u64,
     expires_at_ms: u64,
 ) -> Result<OnionPacket> {
+    let expected_network = relays[0].advertisement.network_id();
+    for relay in &relays {
+        ensure_advertisement_live(relay.advertisement, now_ms)?;
+        if relay.advertisement.network_id() != expected_network {
+            return Err(TransportSecurityError::WrongNetwork);
+        }
+    }
     for left in 0..relays.len() {
         for right in left + 1..relays.len() {
             let a = relays[left].advertisement;
@@ -436,6 +466,7 @@ pub fn build_verified_onion_route(
         &hops,
         destination_key,
         plaintext,
+        now_ms,
         expires_at_ms,
     )?)
 }
@@ -498,9 +529,81 @@ mod tests {
             PayloadSizeClass::Small,
             destination.public_key(),
             b"payload",
+            1_500,
             10_000,
         );
         assert_eq!(result, Err(TransportSecurityError::RouteEndpointReuse));
+    }
+
+    #[test]
+    fn verified_route_rechecks_expiry_and_network_at_use_time() {
+        let a = verified(10, "10.0.0.1:9000");
+        let b = verified(20, "10.0.1.1:9000");
+        let c = verified(30, "10.0.2.1:9000");
+        let destination = AgreementSecretKey::from_seed(&[99; 32]);
+        assert_eq!(
+            build_verified_onion_route(
+                [
+                    VerifiedRelay::new(&a, b"rendezvous"),
+                    VerifiedRelay::new(&b, b"delivery"),
+                    VerifiedRelay::new(&c, b"destination"),
+                ],
+                ConnectionId::from_bytes([1; 16]),
+                PayloadSizeClass::Small,
+                destination.public_key(),
+                b"payload",
+                2_001,
+                10_000,
+            ),
+            Err(TransportSecurityError::Expired)
+        );
+
+        let mut foreign_root = Controller::incept_single_from_seeds(&[60; 32], &[61; 32]).unwrap();
+        let foreign_device =
+            Controller::incept_device_single_from_seeds(&foreign_root.did(), &[62; 32], &[63; 32])
+                .unwrap();
+        foreign_root
+            .delegate_device(&foreign_device.did(), Capabilities::primary())
+            .unwrap();
+        let foreign_routing = AgreementSecretKey::from_seed(&[64; 32]).public_key();
+        let foreign = PeerAdvertisement::issue(
+            [8; 32],
+            &foreign_root.did(),
+            &foreign_device,
+            foreign_routing,
+            "10.0.3.1:9000".parse().unwrap(),
+            1_000,
+            2_000,
+        )
+        .unwrap();
+        let mut freshness = FreshnessPins::new();
+        let mut replay = ReplayCache::new(8).unwrap();
+        let foreign = foreign
+            .verify(
+                [8; 32],
+                1_500,
+                &foreign_root.kel(),
+                &foreign_device.kel(),
+                &mut freshness,
+                &mut replay,
+            )
+            .unwrap();
+        assert_eq!(
+            build_verified_onion_route(
+                [
+                    VerifiedRelay::new(&a, b"rendezvous"),
+                    VerifiedRelay::new(&b, b"delivery"),
+                    VerifiedRelay::new(&foreign, b"destination"),
+                ],
+                ConnectionId::from_bytes([1; 16]),
+                PayloadSizeClass::Small,
+                destination.public_key(),
+                b"payload",
+                1_500,
+                10_000,
+            ),
+            Err(TransportSecurityError::WrongNetwork)
+        );
     }
 
     #[test]
@@ -519,6 +622,7 @@ mod tests {
             PayloadSizeClass::Small,
             destination.public_key(),
             b"payload",
+            1_500,
             10_000,
         )
         .unwrap();

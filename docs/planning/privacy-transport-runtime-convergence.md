@@ -88,8 +88,9 @@ remain available as explicitly weaker alternatives.
 | No identity leak to a redirected endpoint | **PASS** | Responder sends and verifies first; the initiator sends its claim only after the selected advertisement matches. | Network metadata still reveals the initiator IP to the contacted address. |
 | Failed-attempt state atomicity | **PASS** | Freshness/replay values are cloned and committed only after full verification and successful exchange. | Crash-persistent replay state remains the host application's responsibility. |
 | Central naming/bridge authority avoidance | **PASS** | Caller-held KELs, self-certifying endpoints, local selection, and reuse of the existing pluggable-transport boundary; no CA, canonical list, or bridge directory. | First-contact unseen KEL revocation still needs witness/gossip evidence. |
-| Relay role separation at route build | **PARTIAL** | Three verified records must differ by endpoint id, routing key, visible root, and device. | One hidden operator can control several valid pairwise roots, devices, prefixes, or ASNs. |
-| Authenticated F6 provider labeling | **PASS for the named API** | Typed `SearchQuery` proof, private `AuthenticatedQueryResults` fields, endpoint-derived provider pseudonym, and sealed merge path. | Anonymous/legacy APIs intentionally retain caller-owned labeling; provider identity does not prove result truth. |
+| Relay role separation at route build | **PARTIAL** | Three live, same-network verified records must differ by endpoint id, routing key, visible root, and device. | One hidden operator can control several valid pairwise roots, devices, prefixes, or ASNs. |
+| Relay and destination replay defense | **PASS in-process** | Onion v2 encrypts expiry/replay tokens for every relay and destination; validity-window entries are never evicted while live, malformed inner packets do not consume state, and capacity fails closed. | Hosts must persist equivalent state across restart; authenticated packet floods can still exhaust bounded capacity and require rate/resource controls. |
+| Authenticated F6 provider labeling | **PASS for the named API** | Typed `SearchQuery` proof, private `AuthenticatedQueryResults` fields, channel-scoped endpoint+CH1 provider pseudonym, and sealed merge path. | Anonymous/legacy APIs intentionally retain caller-owned labeling; provider identity does not prove result truth or continuity across sessions. |
 | Global traffic-analysis resistance | **FAIL** | Mixed/Burst remain runtime-fail-closed rather than inheriting a false claim. | CH1/TCP timing, volume, transcript shape, and three-hop correlation remain visible until an independently reviewed mix/camouflage system exists. |
 
 ## Permanent evidence
@@ -100,7 +101,9 @@ remain available as explicitly weaker alternatives.
   three-relay-socket -> destination-only plaintext test.
 - `mini-search-federation-net` strict Clippy and all focused tests pass,
   including a real authenticated F6 query/merge and wrong-purpose rejection.
-- `mini-relay` unit and real-socket onion tests pass unchanged.
+- `mini-relay` unit and real-socket onion tests pass after the onion-v2
+  replay/lifetime upgrade, including destination replay, fail-closed capacity,
+  expiry pruning, excessive-lifetime rejection, and malformed-state atomicity.
 - Tests prove redirect rejection before initiator disclosure, no partial
   freshness/replay mutation, bounded retry over an unreachable first hint,
   reuse of a `mini-bridge`-established channel, distinct verified onion roles,
@@ -133,8 +136,9 @@ remain available as explicitly weaker alternatives.
   operator, ASN, jurisdiction, or human ownership.
 - First-contact KEL freshness cannot reveal an unseen later revocation without
   witness/gossip receipts.
-- Named F6 proves endpoint control, not index honesty. Privacy-preserving
-  continuity across rotating provider endpoints remains undesigned.
+- Named F6 proves endpoint control on one exact channel, not index honesty.
+  Provider labels intentionally rotate across channels; privacy-preserving
+  durable continuity remains undesigned.
 - True query-content privacy against the provider requires independently
   reviewed PIR/oblivious-search work; the provider still sees the query.
 
