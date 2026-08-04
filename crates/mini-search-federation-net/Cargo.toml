@@ -1,7 +1,7 @@
 [package]
 name = "mini-search-federation-net"
 version = "0.0.1"
-description = "Bounded, authenticated real-transport delivery of mini-search-federation's F1/F2/F2b signed objects between two Mininet peers (Track F required follow-up: 'wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits'), plus assembly of a pulled F2 segment + F2b corpus bundle into a real federate_query-ready source. No query terms ever cross the wire -- a peer advertises which object ids it holds, nothing more; private remote querying is Track F6, deliberately undesigned and out of scope here."
+description = "Bounded, authenticated real-transport delivery of mini-search-federation's F1/F2/F2b signed objects between two Mininet peers (Track F required follow-up: 'wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits'), plus assembly of a pulled F2 segment + F2b corpus bundle into a real federate_query-ready source. The advertise/pull exchange never sends query terms -- a peer advertises which object ids it holds, nothing more. Track F6 Phase 1 (remote_query/serve_query) is the deliberate, separately-scoped exception: a bounded query string does cross the wire, confidential-in-transit only -- not a private-information-retrieval scheme, see docs/design/f6-private-query-transport.md."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -22,7 +22,10 @@ publish = false
 # into. mini-lexical-index/mini-ranker/mini-query/mini-web-types only for
 # the IndexSegment/Corpus/DocumentContextTable/IndexSegmentId/
 # ProviderPseudonym types assemble.rs rebuilds from a pulled F2b bundle --
-# no new indexing/ranking/query logic here, just reassembly.
+# no new indexing/ranking/query logic here, just reassembly. mini-crypto
+# for Multihash, reused directly by query.rs's wire codec (RankingProfileId/
+# IndexSegmentId/CrawlObservationId are all Multihash-backed) rather than
+# introducing a second id representation.
 did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-store = { path = "../mini-store" }
@@ -33,8 +36,4 @@ mini-lexical-index = { path = "../mini-lexical-index" }
 mini-ranker = { path = "../mini-ranker" }
 mini-query = { path = "../mini-query" }
 mini-web-types = { path = "../mini-web-types" }
-
-[dev-dependencies]
-# Only for building sample CrawlObservation/IndexSegment fixtures in this
-# crate's own tests (unit tests in src/session.rs and the tests/ suite).
 mini-crypto = { path = "../mini-crypto" }
