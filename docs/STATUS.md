@@ -744,6 +744,29 @@ given time.
   unchanged), and no pruning/retention policy yet reads the `ColdArchive`
   signal — it exists as a marker with no consumer. See
   `docs/design/cold-storage-and-owner-only-encryption.md`.
+- **shipped (D-0437, roadmap #42)** — `mini-storage-fraud`: cross-identity
+  storage-fraud collision evidence. `StorageCommitmentClaim` binds one
+  identity root to one `mini_spacetime::StorageCommitment` over a
+  `replica_id` the crate itself derives from the signer's DID (not a
+  free-form caller value); `CollisionEvidence`/`verify_collision` prove
+  two *different* identity roots naming the *identical* commitment
+  cannot both have sealed independently, since `mini-porep::seal`'s DRG
+  construction guarantees distinct identity-bound replica ids always
+  produce distinct Merkle roots. Mirrors
+  `mini_consensus::evidence::EquivocationEvidence`'s own restraint
+  exactly: detects and proves, assigns no penalty, excludes nobody,
+  creates no consensus authority. **Not** a network-timing/latency fraud
+  detector — issue #42's other named scenario ("answering challenges via
+  a fast network fetch") needs a live network deployment to calibrate
+  against and is explicitly out of scope, named as required follow-up
+  rather than attempted with an unreviewed heuristic. Real, tested: 12
+  unit tests including an end-to-end proof that two providers genuinely,
+  independently sealing the same source data under their own derived
+  replica ids over the real `mini_porep::seal` path produce two different
+  roots. No live registration point yet — `mini-net`/`mini-store`'s
+  network shard distribution remains unstarted, so nothing observes real
+  claims from real storage providers today. See
+  `docs/design/storage-fraud-detection.md`.
 
 ## 8. Networking
 

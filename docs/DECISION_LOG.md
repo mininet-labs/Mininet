@@ -15431,3 +15431,103 @@ completing its named follow-up. Does not modify F1-F5/F7's object formats
 or `federate_query`'s external behavior/signature (only its internal
 implementation, now delegating to the newly extracted
 `merge_federated_results`).
+
+### D-0437 — Cross-identity storage-fraud collision evidence (`mini-storage-fraud`)  ·  *Accepted*
+
+**Date:** 2026-08-04 · **Refs:** roadmap #42 (Phase 5.7, storage-fraud
+detection); #31 (Phase 4.3, replication-uniqueness, `mini-porep`,
+D-0063/D-0064); `mini_consensus::evidence::EquivocationEvidence` (D-0204),
+whose "detect and prove, assign no penalty" scope this decision
+deliberately mirrors; `docs/design/storage-fraud-detection.md` (full
+doctrine).
+
+**Decision:** add a new crate, `mini-storage-fraud`, with two pieces.
+`StorageCommitmentClaim`: a signed, typed statement binding one identity
+root to one `mini_spacetime::StorageCommitment`, over a `replica_id` the
+crate itself derives from the signer's own DID and a caller-supplied
+context (`derive_replica_id`, `Blake3(domain || provider.scid() ||
+context)`) rather than accepting a free-form caller-chosen value.
+`CollisionEvidence`/`verify_collision`: two such claims from *different*
+identity roots naming the *identical* commitment is direct,
+cryptographically checkable evidence that at least one of them did not
+actually seal an independent replica — because `mini-porep::seal`'s own
+DRG construction (already proven by its
+`different_replica_ids_seal_to_different_replicas` test) guarantees two
+genuinely independent, honest sealers under two different identity-bound
+replica ids can never end up at the same committed Merkle root.
+`verify_collision` checks both claims verify against their claimed root's
+KEL, the roots really differ, the committed `StorageCommitment`s really
+are identical, and each claim's own derived replica id really does
+differ — rejecting a fabricated or self-collision "accusation" the same
+way `verify_equivocation` does for conflicting votes.
+
+**Reason:** issue #42 names two storage-fraud scenarios: single-copy
+collusion across claimed-distinct identities, and answering possession
+challenges via a fast network fetch rather than genuine local holding.
+Only the first is a composition of primitives this repo already has
+reviewed (`mini-porep`'s DRG sealing, `mini-spacetime`'s PDP commitment,
+`did-mini`'s signing/KEL verification) — the second needs a live network
+deployment to establish any honest latency baseline and is a materially
+harder, unreviewed systems-security problem; attempting it here would
+mean shipping an unreviewed heuristic under the "fraud detection" label,
+exactly the overclaiming honesty-over-polish forbids. Scoping this
+decision to collision evidence only, and naming the timing-based scenario
+as explicit future work, is the same discipline F6's "not a PIR scheme"
+disclaimer and `mini-relay`'s Mixed/Burst fail-closed gate already
+established for this repo. Binding `replica_id` to identity *inside* the
+crate (not left to the caller) is the load-bearing design choice: without
+it, two colluding identities could simply agree on one `replica_id` and
+legitimately seal to the same root with no misbehavior implied at all.
+
+**Constitutional impact:** none. No frozen invariant touched. No
+voice/value wall edge (P1, Directive 16): `mini-storage-fraud` depends
+only on `did-mini`, `mini-crypto`, `mini-porep`, and `mini-spacetime` — no
+`mini-value`/`mini-bounty`/`mini-treasury` edge in either direction, and
+no crate outside `mini-storage-fraud` depends on it. No generic
+`sign(bytes)`/authority surface: `StorageCommitmentClaim::issue` takes a
+specific typed request (`provider`, `context`, `commitment`,
+`issued_at_ms`), not raw bytes. No penalty, exclusion, reward clawback, or
+consensus authority is created — `verify_collision` only ever returns
+whether the two claims constitute genuine evidence; nothing here acts on
+that answer.
+
+**Implementation status:** `commitment_claim.rs`
+(`StorageCommitmentClaim`/`derive_replica_id`, with full `to_bytes`/
+`from_bytes` wire codec) and `collision.rs`
+(`CollisionEvidence`/`verify_collision`) shipped, exported from the crate
+root. 12 tests: `derive_replica_id` is deterministic and differs across
+providers and across contexts; a genuine claim verifies, a claim against
+the wrong KEL and a tampered commitment both fail; a claim round-trips
+through its wire encoding; a genuine two-provider collision verifies; a
+same-provider "collision" (duplicate claim, not fraud), two claims naming
+different commitments, and a forged second claim are each correctly
+rejected; and an end-to-end test proves two providers genuinely,
+independently sealing the *same* source data under their own
+`derive_replica_id`-bound replica ids over the real `mini_porep::seal`
+path produce two different Merkle roots — confirming the scheme is sound
+against real sealing, not just the derivation function in isolation.
+
+**Failure point:** collision evidence proves two *specific* identity
+roots shared a replica; it says nothing about whether those two roots are
+themselves controlled by one Sybil operator (a different, already-tracked
+open problem, #18/#21). No consequence layer consumes this evidence yet
+— a collision object is exactly as actionable as a future human/
+governance process chooses to make it. `StorageCommitmentClaim` has no
+live registration point yet; nothing in `mini-net`/`mini-store` observes
+real claims from real storage providers today.
+
+**Required follow-up:** a real consequence layer (governance review,
+reward exclusion, or future consensus-level accounting) consuming
+`CollisionEvidence`, deliberately not built here. Network-timing/latency-
+based fraud detection, once a live network deployment exists to calibrate
+against. Wiring `StorageCommitmentClaim` into a real storage-provider
+registration flow once `mini-net`/`mini-store`'s network shard
+distribution exists.
+
+**Supersedes / superseded by:** new ground — no prior decision addressed
+cross-identity storage-collusion detection. Builds on and does not modify
+`mini-porep`'s sealing/audit/challenge-response construction (D-0063/
+D-0064) or `mini-spacetime`'s `StorageCommitment`/PDP machinery. A
+sibling to, not an extension of, `mini_consensus::evidence::
+EquivocationEvidence` (D-0204) — `mini-storage-fraud` does not depend on
+`mini-consensus`.
