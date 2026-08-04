@@ -27,7 +27,9 @@ jobs:
           ref: codex/privacy-transport-runtime-convergence
 
       - name: Apply final review hardening
-        run: python3 tools/apply_pr296_final_review_hardening.py
+        run: |
+          python3 tools/apply_pr296_final_review_hardening.py
+          python3 tools/fix_pr296_final_review_clippy.py
 
       - name: Format
         run: cargo fmt --all
@@ -57,12 +59,14 @@ jobs:
       - name: Remove staging machinery and regenerate navigation
         run: |
           rm tools/apply_pr296_final_review_hardening.py
+          rm tools/fix_pr296_final_review_clippy.py
           rm .github/workflows/pr296-final-review-hardening.yml
           python3 tools/mininet_nav.py build
 
       - name: Verify clean permanent tree
         run: |
           test ! -e tools/apply_pr296_final_review_hardening.py
+          test ! -e tools/fix_pr296_final_review_clippy.py
           test ! -e .github/workflows/pr296-final-review-hardening.yml
           git status --short
 
