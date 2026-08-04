@@ -16,9 +16,10 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
   id, validity window, and internally generated replay nonce. Advertisements are
   dial hints; the live CH1 session must still prove the same endpoint and key.
 - `SecurePexResponse` carries a bounded canonical list of signed advertisements.
-- `diverse_dial_plan` is locally seeded, input-order-independent, duplicate-
-  resistant, capped per IPv4 `/24` or IPv6 `/48` prefix, and rejects more than
-  1,024 candidates before allocation/sort.
+- `diverse_dial_plan` is locally seeded, input-order-independent, rejects
+  repeated endpoint ids, routing keys, visible roots, and visible devices, caps
+  IPv4 `/24` and IPv6 `/48` concentration, and rejects more than 1,024 candidates
+  before allocation/sort.
 - `AuthenticatedConnection<B>` owns one bearer, the exact CH1 channel, and the
   peer verified on that channel as one object. It exposes authenticated `send`
   and `recv`, not detachable raw identity state, and permanently poisons itself

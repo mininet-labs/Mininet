@@ -15292,8 +15292,9 @@ sending; zero/oversized `max_results` rejected; a compliant server never
 exceeds the requested `max_results`; every current
 `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/`Scheme`/
 `PersonalizationPolicy` variant round-trips with a future-variant-safe
-fallback for each `#[non_exhaustive]` enum; a tampered ciphertext fails
-closed) plus one new real-socket integration test
+fallback for each `#[non_exhaustive]` enum; outbound and inbound field/score
+bounds are symmetric; profile substitution is rejected; a tampered ciphertext
+fails closed) plus one new real-socket integration test
 (`tests/query_over_tcp.rs`) proving `remote_query`/`serve_query` over an
 actual `TcpBearer` pair, mirroring `live_over_tcp.rs`'s own handshake
 pattern. Full workspace ritual green: `cargo fmt --all -- --check`,
@@ -15350,8 +15351,10 @@ function applied to results freshly computed from local
 `mini_query::ResultProvenance`, rejecting any `relevance_score_bps` or
 `explanation` component above `WeightBps::MAX` — a value a compliant
 `serve_query` can never produce, since `mini_query::search` only ever
-emits validated `WeightBps`, but `WireResult`'s own wire codec does not
-itself bound these fields on decode) and `merge_remote_results(local:
+emits validated `WeightBps`; the F6 wire decoder now rejects the same
+values, while this conversion repeats the check for public `WireResult`
+values constructed locally or received through legacy code) and
+`merge_remote_results(local:
 Vec<FederatedResult>, remote: Vec<WireResult>, remote_provider:
 ProviderPseudonym, max_results: usize) -> Result<Vec<FederatedResult>>`,
 which folds a `remote_query` response into a caller's own local/pulled

@@ -1,4 +1,4 @@
-//! Locally seeded, bounded, prefix-diverse peer selection.
+//! Locally seeded, bounded, visible-identity- and prefix-diverse peer selection.
 //!
 //! This raises the cost of an eclipse without pretending IP diversity proves
 //! independent ownership. Selection is independent of advertisement input order
@@ -60,8 +60,11 @@ pub struct DialAttempt {
 }
 
 /// Build a bounded dial order. Records must already have passed signature and
-/// KEL verification. Duplicate endpoint ids and concentrated network prefixes
-/// are skipped; no majority or peer vote is consulted.
+/// KEL verification. Duplicate endpoint ids, routing keys, visible roots, visible
+/// devices, and concentrated network prefixes are skipped; no majority or peer
+/// vote is consulted. Visible identity diversity raises eclipse cost but does not
+/// prove independent operators: one adversary can still control many pairwise
+/// roots or apparently unrelated network prefixes.
 pub fn diverse_dial_plan(
     records: &[VerifiedPeerAdvertisement],
     local_seed: [u8; 32],
@@ -85,12 +88,18 @@ pub fn diverse_dial_plan(
     let mut selected = Vec::with_capacity(policy.max_peers);
     let mut endpoints = HashSet::new();
     let mut routing_keys = HashSet::new();
+    let mut roots = HashSet::new();
+    let mut devices = HashSet::new();
     let mut prefix_counts: HashMap<NetworkPrefix, usize> = HashMap::new();
     for (_, record) in candidates {
         if selected.len() >= policy.max_peers {
             break;
         }
-        if !endpoints.insert(record.endpoint_id()) || !routing_keys.insert(record.routing_key()) {
+        if endpoints.contains(&record.endpoint_id())
+            || routing_keys.contains(&record.routing_key())
+            || roots.contains(record.root())
+            || devices.contains(record.device())
+        {
             continue;
         }
         let prefix = NetworkPrefix::from_ip(record.address().ip());
@@ -99,6 +108,10 @@ pub fn diverse_dial_plan(
             continue;
         }
         *count += 1;
+        endpoints.insert(record.endpoint_id());
+        routing_keys.insert(record.routing_key());
+        roots.insert(record.root().clone());
+        devices.insert(record.device().clone());
         selected.push(DialAttempt {
             endpoint_id: record.endpoint_id(),
             address: record.address(),
@@ -222,6 +235,70 @@ mod tests {
             })
             .count();
         assert!(same_prefix <= 1);
+    }
+
+    #[test]
+    fn one_visible_identity_cannot_fill_multiple_selection_slots() {
+        let mut root = Controller::incept_single_from_seeds(&[60; 32], &[61; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[62; 32], &[63; 32]).unwrap();
+        root.delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+
+        let make_record = |routing_seed: u8, address: &str| {
+            let routing = AgreementSecretKey::from_seed(&[routing_seed; 32]).public_key();
+            let advertisement = PeerAdvertisement::issue(
+                [7; 32],
+                &root.did(),
+                &device,
+                routing,
+                address.parse().unwrap(),
+                1_000,
+                2_000,
+            )
+            .unwrap();
+            let mut freshness = FreshnessPins::new();
+            let mut replay = ReplayCache::new(8).unwrap();
+            advertisement
+                .verify(
+                    [7; 32],
+                    1_500,
+                    &root.kel(),
+                    &device.kel(),
+                    &mut freshness,
+                    &mut replay,
+                )
+                .unwrap()
+        };
+
+        let same_identity_a = make_record(64, "10.0.0.1:9000");
+        let same_identity_b = make_record(65, "10.0.1.1:9000");
+        let independent = verified(80, "10.0.2.1:9000");
+        let policy = PeerSelectionPolicy {
+            max_peers: 3,
+            max_per_network_prefix: 3,
+            dial_timeout_ms: 1_000,
+        };
+        let plan = diverse_dial_plan(
+            &[
+                same_identity_a.clone(),
+                same_identity_b.clone(),
+                independent,
+            ],
+            [9; 32],
+            policy,
+        )
+        .unwrap();
+
+        assert_eq!(plan.len(), 2);
+        let same_identity_slots = plan
+            .iter()
+            .filter(|attempt| {
+                attempt.endpoint_id == same_identity_a.endpoint_id()
+                    || attempt.endpoint_id == same_identity_b.endpoint_id()
+            })
+            .count();
+        assert_eq!(same_identity_slots, 1);
     }
 
     #[test]

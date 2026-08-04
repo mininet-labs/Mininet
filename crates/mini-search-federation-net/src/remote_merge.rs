@@ -39,10 +39,11 @@ use crate::query::{AuthenticatedQueryResults, WireResult};
 /// `provider`. Rejects (`NetError::Protocol`) any `relevance_score_bps` or
 /// `explanation` component above [`WeightBps::MAX`] -- values a compliant
 /// [`crate::serve_query`] can never produce, since [`mini_query::search`]
-/// only ever emits validated [`WeightBps`]. `WireResult`'s wire codec does
-/// not itself bound these fields (unlike e.g. `RankingProfile`'s decoded
-/// weights), so this is the real fail-closed check for a wire peer that
-/// sends an out-of-range score.
+/// only ever emits validated [`WeightBps`]. The F6 wire decoder also
+/// rejects these values; this conversion deliberately repeats the check because
+/// [`WireResult`] is public and can be constructed locally without passing
+/// through the decoder. Invalid local or legacy inputs therefore still fail
+/// closed before entering the typed federated merge.
 pub fn federated_result_from_wire(
     wire: WireResult,
     provider: ProviderPseudonym,

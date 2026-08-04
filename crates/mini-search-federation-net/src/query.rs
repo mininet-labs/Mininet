@@ -332,6 +332,78 @@ fn decode_profile(r: &mut Reader) -> Result<RankingProfile> {
     })
 }
 
+fn validate_multihash(value: &Multihash) -> Result<()> {
+    if value.to_bytes().len() > MAX_MULTIHASH_BYTES {
+        return Err(NetError::LimitExceeded);
+    }
+    Ok(())
+}
+
+fn validate_profile(profile: &RankingProfile) -> Result<()> {
+    validate_multihash(&profile.id.0)
+}
+
+fn validate_url(url: &CanonicalUrl) -> Result<()> {
+    if url.host.as_str().len() > MAX_HOST_BYTES
+        || url.path.len() > MAX_PATH_BYTES
+        || url
+            .query
+            .as_ref()
+            .is_some_and(|query| query.len() > MAX_URL_QUERY_BYTES)
+    {
+        return Err(NetError::LimitExceeded);
+    }
+    Ok(())
+}
+
+fn validate_availability(availability: &AvailabilityState) -> Result<()> {
+    if let AvailabilityState::Restricted(RestrictionReason::LegalRestriction { jurisdiction }) =
+        availability
+    {
+        if jurisdiction.len() > MAX_JURISDICTION_BYTES {
+            return Err(NetError::LimitExceeded);
+        }
+    }
+    Ok(())
+}
+
+fn validate_wire_result(result: &WireResult) -> Result<()> {
+    validate_url(&result.url)?;
+    validate_availability(&result.availability)?;
+    validate_multihash(&result.ranking_profile.0)?;
+    validate_multihash(&result.source_observation)?;
+    validate_multihash(&result.index_segment.0)?;
+    if result.title.len() > MAX_TITLE_BYTES || result.snippet.len() > MAX_SNIPPET_BYTES {
+        return Err(NetError::LimitExceeded);
+    }
+    if result.relevance_score_bps > WeightBps::MAX.value()
+        || result
+            .explanation
+            .iter()
+            .any(|weight| *weight > WeightBps::MAX.value())
+    {
+        return Err(NetError::Protocol);
+    }
+    Ok(())
+}
+
+fn validate_query_response(
+    results: &[WireResult],
+    requested_profile: &RankingProfile,
+    max_results: u32,
+) -> Result<()> {
+    if max_results == 0 || max_results > MAX_QUERY_RESULTS || results.len() > max_results as usize {
+        return Err(NetError::LimitExceeded);
+    }
+    for result in results {
+        validate_wire_result(result)?;
+        if result.ranking_profile != requested_profile.id {
+            return Err(NetError::Protocol);
+        }
+    }
+    Ok(())
+}
+
 fn encode_result(w: &mut Writer, r: &WireResult) {
     encode_url(w, &r.url);
     w.str(&r.title);
@@ -379,7 +451,35 @@ fn decode_result(r: &mut Reader) -> Result<WireResult> {
 }
 
 impl Msg {
-    fn encode(&self) -> Vec<u8> {
+    fn validate(&self) -> Result<()> {
+        match self {
+            Msg::QueryRequest {
+                query,
+                profile,
+                max_results,
+            } => {
+                if query.len() > MAX_QUERY_TEXT_BYTES
+                    || *max_results == 0
+                    || *max_results > MAX_QUERY_RESULTS
+                {
+                    return Err(NetError::LimitExceeded);
+                }
+                validate_profile(profile)
+            }
+            Msg::QueryResponse { results } => {
+                if results.len() > MAX_QUERY_RESULTS as usize {
+                    return Err(NetError::LimitExceeded);
+                }
+                for result in results {
+                    validate_wire_result(result)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn encode(&self) -> Result<Vec<u8>> {
+        self.validate()?;
         let mut w = Writer::new();
         match self {
             Msg::QueryRequest {
@@ -400,7 +500,7 @@ impl Msg {
                 }
             }
         }
-        w.finish()
+        Ok(w.finish())
     }
 
     fn decode(bytes: &[u8]) -> Result<Msg> {
@@ -433,12 +533,13 @@ impl Msg {
         if !r.finished() {
             return Err(NetError::Protocol);
         }
+        msg.validate()?;
         Ok(msg)
     }
 }
 
 fn send(bearer: &mut dyn Bearer, chan: &mut Channel, msg: &Msg) -> Result<()> {
-    let ct = chan.seal(&msg.encode(), QUERY_AAD)?;
+    let ct = chan.seal(&msg.encode()?, QUERY_AAD)?;
     bearer.send(&ct)?;
     Ok(())
 }
@@ -478,9 +579,7 @@ pub fn remote_query(
     )?;
     match recv(bearer, chan)? {
         Msg::QueryResponse { results } => {
-            if results.len() > max_results as usize {
-                return Err(NetError::LimitExceeded);
-            }
+            validate_query_response(&results, profile, max_results)?;
             Ok(results)
         }
         _ => Err(NetError::Protocol),
@@ -554,13 +653,11 @@ pub fn remote_query_authenticated<B: Bearer>(
         profile: profile.clone(),
         max_results,
     };
-    connection.send(&request.encode(), QUERY_AAD)?;
+    connection.send(&request.encode()?, QUERY_AAD)?;
     let response = Msg::decode(&connection.recv(QUERY_AAD)?)?;
     let results = match response {
         Msg::QueryResponse { results } => {
-            if results.len() > max_results as usize {
-                return Err(NetError::LimitExceeded);
-            }
+            validate_query_response(&results, profile, max_results)?;
             results
         }
         _ => return Err(NetError::Protocol),
@@ -634,7 +731,8 @@ pub fn serve_query_authenticated<B: Bearer>(
             index_segment: rp.index_segment,
         })
         .collect();
-    connection.send(&Msg::QueryResponse { results }.encode(), QUERY_AAD)?;
+    let response = Msg::QueryResponse { results };
+    connection.send(&response.encode()?, QUERY_AAD)?;
     Ok(())
 }
 
@@ -857,6 +955,70 @@ mod tests {
                 MAX_QUERY_RESULTS + 1
             ),
             Err(NetError::LimitExceeded)
+        );
+    }
+
+    #[test]
+    fn outbound_and_inbound_codecs_enforce_the_same_field_bounds() {
+        let (_, _, _, segment_id, profile) = fixture();
+        let base = WireResult {
+            url: url("example.org", "/"),
+            title: "title".to_string(),
+            snippet: "snippet".to_string(),
+            relevance_score_bps: 100,
+            availability: AvailabilityState::Available,
+            ranking_profile: profile.id.clone(),
+            explanation: [100, 0, 0, 0, 0, 0],
+            source_observation: digest(b"obs"),
+            index_segment: segment_id,
+        };
+
+        let mut oversized_title = base.clone();
+        oversized_title.title = "x".repeat(MAX_TITLE_BYTES + 1);
+        assert_eq!(
+            Msg::QueryResponse {
+                results: vec![oversized_title]
+            }
+            .encode(),
+            Err(NetError::LimitExceeded)
+        );
+
+        let mut invalid_score = base;
+        invalid_score.relevance_score_bps = WeightBps::MAX.value() + 1;
+        assert_eq!(
+            Msg::QueryResponse {
+                results: vec![invalid_score.clone()]
+            }
+            .encode(),
+            Err(NetError::Protocol)
+        );
+
+        // Bypass the outbound validator to emulate a malicious peer and prove
+        // the decoder applies the same semantic score bound.
+        let mut writer = Writer::new();
+        writer.u8(T_RESPONSE);
+        writer.u32(1);
+        encode_result(&mut writer, &invalid_score);
+        assert_eq!(Msg::decode(&writer.finish()), Err(NetError::Protocol));
+    }
+
+    #[test]
+    fn a_response_for_another_ranking_profile_is_rejected() {
+        let (_, _, _, segment_id, profile) = fixture();
+        let result = WireResult {
+            url: url("example.org", "/"),
+            title: "title".to_string(),
+            snippet: "snippet".to_string(),
+            relevance_score_bps: 100,
+            availability: AvailabilityState::Available,
+            ranking_profile: RankingProfileId(digest(b"wrong-profile")),
+            explanation: [100, 0, 0, 0, 0, 0],
+            source_observation: digest(b"obs"),
+            index_segment: segment_id,
+        };
+        assert_eq!(
+            validate_query_response(&[result], &profile, 8),
+            Err(NetError::Protocol)
         );
     }
 
