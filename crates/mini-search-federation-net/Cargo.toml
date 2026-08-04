@@ -37,3 +37,4 @@ mini-ranker = { path = "../mini-ranker" }
 mini-query = { path = "../mini-query" }
 mini-web-types = { path = "../mini-web-types" }
 mini-crypto = { path = "../mini-crypto" }
+mini-transport-security = { path = "../mini-transport-security" }

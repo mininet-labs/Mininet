@@ -3,6 +3,7 @@ use mini_objects::ObjectError;
 use mini_query::QueryError;
 use mini_store::StoreError;
 use mini_sync::SyncError;
+use mini_transport_security::TransportSecurityError;
 
 /// Result alias for this crate.
 pub type Result<T> = core::result::Result<T, NetError>;
@@ -42,6 +43,9 @@ pub enum NetError {
     /// F6 [`crate::serve_query`]: the underlying `mini-query` parse/rank
     /// pass failed.
     Query(QueryError),
+    /// Optional named-peer authentication or authenticated-channel runtime
+    /// failed. Anonymous CH1 querying remains a separate API.
+    TransportSecurity(TransportSecurityError),
 }
 
 impl core::fmt::Display for NetError {
@@ -71,10 +75,16 @@ impl core::fmt::Display for NetError {
                 "no F2b corpus bundle in the trusted id set declares this segment's id"
             ),
             NetError::Query(e) => write!(f, "query: {e}"),
+            NetError::TransportSecurity(e) => write!(f, "transport security: {e}"),
         }
     }
 }
 impl std::error::Error for NetError {}
+impl From<TransportSecurityError> for NetError {
+    fn from(e: TransportSecurityError) -> Self {
+        NetError::TransportSecurity(e)
+    }
+}
 impl From<QueryError> for NetError {
     fn from(e: QueryError) -> Self {
         NetError::Query(e)

@@ -15,18 +15,24 @@
 //! encryption already gives.
 
 use mini_bearer::{Bearer, Channel};
-use mini_crypto::Multihash;
+use mini_crypto::{HashAlgorithm, Multihash};
 use mini_lexical_index::IndexSegment;
 use mini_query::{parse_query, search, DocumentContextTable};
 use mini_ranker::Corpus;
+use mini_transport_security::{
+    AuthenticatedConnection, AuthenticatedPeer, TransportPurpose, TransportSecurityError,
+};
 use mini_web_types::{
     AvailabilityState, CanonicalUrl, IndexSegmentId, NormalizedHost, PersonalizationPolicy,
-    RankingProfile, RankingProfileId, RestrictionReason, Scheme, UnavailabilityReason, WeightBps,
+    ProviderPseudonym, RankingProfile, RankingProfileId, RestrictionReason, Scheme,
+    UnavailabilityReason, WeightBps,
 };
 
 use crate::error::{NetError, Result};
 
 const QUERY_AAD: &[u8] = b"MINI/SEARCHFED-QUERY1";
+const AUTHENTICATED_PROVIDER_DOMAIN: &[u8] =
+    b"mini-search-federation-net/authenticated-provider/v1";
 
 /// Hard ceiling on a raw query string's byte length.
 pub const MAX_QUERY_TEXT_BYTES: usize = 512;
@@ -481,6 +487,136 @@ pub fn remote_query(
         }
         _ => Err(NetError::Protocol),
     }
+}
+
+/// Remote results whose provider label came from the peer identity proved on
+/// the exact channel carrying the response. Unlike `merge_remote_results`'s
+/// legacy caller-supplied label, this value has no public constructor that takes
+/// an arbitrary provider pseudonym.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthenticatedQueryResults {
+    pub provider: ProviderPseudonym,
+    pub results: Vec<WireResult>,
+}
+
+/// Derive a rotating search-provider pseudonym from an authenticated transport
+/// endpoint. The endpoint id already commits to the delegated device and current
+/// X25519 routing key, so key rotation also rotates this provider label.
+pub fn authenticated_provider_pseudonym(peer: &AuthenticatedPeer) -> ProviderPseudonym {
+    let mut transcript = Vec::with_capacity(AUTHENTICATED_PROVIDER_DOMAIN.len() + 32);
+    transcript.extend_from_slice(AUTHENTICATED_PROVIDER_DOMAIN);
+    transcript.extend_from_slice(&peer.endpoint_id.to_bytes());
+    ProviderPseudonym(Multihash::of(HashAlgorithm::Blake3, &transcript))
+}
+
+/// Named-provider form of [`remote_query`]. The same bounded request and response
+/// codec is used, but the connection must have been authenticated specifically
+/// for [`TransportPurpose::SearchQuery`], and the returned provider label is
+/// derived from that verified peer rather than accepted from the caller.
+pub fn remote_query_authenticated<B: Bearer>(
+    connection: &mut AuthenticatedConnection<B>,
+    query_text: &str,
+    profile: &RankingProfile,
+    max_results: u32,
+) -> Result<AuthenticatedQueryResults> {
+    if connection.peer().purpose != TransportPurpose::SearchQuery {
+        return Err(NetError::TransportSecurity(
+            TransportSecurityError::WrongPurpose,
+        ));
+    }
+    if query_text.len() > MAX_QUERY_TEXT_BYTES {
+        return Err(NetError::LimitExceeded);
+    }
+    if max_results == 0 || max_results > MAX_QUERY_RESULTS {
+        return Err(NetError::LimitExceeded);
+    }
+    let request = Msg::QueryRequest {
+        query: query_text.to_string(),
+        profile: profile.clone(),
+        max_results,
+    };
+    connection.send(&request.encode(), QUERY_AAD)?;
+    let response = Msg::decode(&connection.recv(QUERY_AAD)?)?;
+    let results = match response {
+        Msg::QueryResponse { results } => {
+            if results.len() > max_results as usize {
+                return Err(NetError::LimitExceeded);
+            }
+            results
+        }
+        _ => return Err(NetError::Protocol),
+    };
+    Ok(AuthenticatedQueryResults {
+        provider: authenticated_provider_pseudonym(connection.peer()),
+        results,
+    })
+}
+
+/// Named-peer form of [`serve_query`]. The requester must have proved a
+/// channel-bound identity for the typed search purpose before any query bytes
+/// are accepted. This is optional; providers may continue to serve anonymous
+/// CH1 callers through [`serve_query`].
+#[allow(clippy::too_many_arguments)]
+pub fn serve_query_authenticated<B: Bearer>(
+    connection: &mut AuthenticatedConnection<B>,
+    index: &IndexSegment,
+    corpus: &Corpus,
+    contexts: &DocumentContextTable,
+    index_segment: IndexSegmentId,
+    now_ms: u64,
+) -> Result<()> {
+    if connection.peer().purpose != TransportPurpose::SearchQuery {
+        return Err(NetError::TransportSecurity(
+            TransportSecurityError::WrongPurpose,
+        ));
+    }
+    let request = Msg::decode(&connection.recv(QUERY_AAD)?)?;
+    let (query, profile, max_results) = match request {
+        Msg::QueryRequest {
+            query,
+            profile,
+            max_results,
+        } => (query, profile, max_results),
+        _ => return Err(NetError::Protocol),
+    };
+    if max_results == 0 || max_results > MAX_QUERY_RESULTS {
+        return Err(NetError::LimitExceeded);
+    }
+
+    let parsed = parse_query(&query);
+    let ranked = search(
+        index,
+        corpus,
+        contexts,
+        &profile,
+        &parsed,
+        index_segment,
+        now_ms,
+        max_results as usize,
+    )?;
+    let results: Vec<WireResult> = ranked
+        .into_iter()
+        .map(|rp| WireResult {
+            url: rp.result.url,
+            title: rp.result.title,
+            snippet: rp.result.snippet,
+            relevance_score_bps: rp.result.relevance_score_bps.value(),
+            availability: rp.result.availability,
+            ranking_profile: rp.result.ranking_profile,
+            explanation: [
+                rp.result.explanation.lexical_bps.value(),
+                rp.result.explanation.phrase_bps.value(),
+                rp.result.explanation.link_bps.value(),
+                rp.result.explanation.freshness_bps.value(),
+                rp.result.explanation.originality_bps.value(),
+                rp.result.explanation.diversity_bps.value(),
+            ],
+            source_observation: rp.source_observation.0,
+            index_segment: rp.index_segment,
+        })
+        .collect();
+    connection.send(&Msg::QueryResponse { results }.encode(), QUERY_AAD)?;
+    Ok(())
 }
 
 /// Server side: answer one peer's query against this provider's own

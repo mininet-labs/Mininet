@@ -33,7 +33,7 @@ use mini_web_types::{
 };
 
 use crate::error::{NetError, Result};
-use crate::query::WireResult;
+use crate::query::{AuthenticatedQueryResults, WireResult};
 
 /// Convert one [`WireResult`] into a typed [`FederatedResult`] tagged with
 /// `provider`. Rejects (`NetError::Protocol`) any `relevance_score_bps` or
@@ -96,6 +96,18 @@ pub fn merge_remote_results(
         combined.push(federated_result_from_wire(wire, remote_provider.clone())?);
     }
     Ok(merge_federated_results(combined, max_results))
+}
+
+/// Merge authenticated remote results without accepting a caller-selected
+/// provider label. The label is carried by [`AuthenticatedQueryResults`], which
+/// can only be produced by the named-peer query path on an authenticated
+/// transport connection.
+pub fn merge_authenticated_remote_results(
+    local: Vec<FederatedResult>,
+    remote: AuthenticatedQueryResults,
+    max_results: usize,
+) -> Result<Vec<FederatedResult>> {
+    merge_remote_results(local, remote.results, remote.provider, max_results)
 }
 
 #[cfg(test)]
