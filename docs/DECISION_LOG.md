@@ -15493,7 +15493,8 @@ legal-unmasking, or traffic-master key exists. No balance, payment, stake,
 storage, bandwidth, provider revenue, or service metric enters identity,
 routing, ranking, personhood, validator, review, or governance authority.
 
-**Implementation status:** complete in draft PR #296. Permanent code adds the
+**Implementation status:** complete and focused-test green in PR #296, pending
+independent human review and merge. Permanent code adds the
 runtime module, typed search purpose, peer-bound authenticated F6 query/merge,
 and verified onion-route builder. Permanent real-socket tests prove signed
 advertisement -> CH1 -> exact peer binding -> application data; signed discovery

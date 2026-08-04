@@ -66937,7 +66937,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 934944,
+      "bytes": 935005,
       "group": "docs",
       "headings": [
         {
@@ -67367,9 +67367,9 @@
         "transport",
         "status"
       ],
-      "lines": 15549,
+      "lines": 15550,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "e3b73f65a6be14c2080d2b212b5cca57929cccd4d520effa559eeee1f4b18145",
+      "sha256": "e0c1394ac4caa0bd11af4a0bed9e490a664ab5c55f701a35f44e225d167ec09f",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68518,7 +68518,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 125342,
+      "bytes": 125285,
       "group": "docs",
       "headings": [
         {
@@ -68588,27 +68588,27 @@
         },
         {
           "level": 2,
-          "line": 1615,
+          "line": 1613,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1706,
+          "line": 1704,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1786,
+          "line": 1784,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1852,
+          "line": 1850,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 1869,
+          "line": 1867,
           "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0438"
         }
       ],
@@ -68638,9 +68638,9 @@
         "claude",
         "social"
       ],
-      "lines": 1906,
+      "lines": 1904,
       "path": "docs/STATUS.md",
-      "sha256": "1d4e6d03849d0ce5190b7cdd6a7c2b1419ed0a07cb3cfec93fd4e5297873e75d",
+      "sha256": "7e4b17d92824cf05e0d5217d3691eae74ace5b60b220f9eddafcf5d63a2721bf",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -71533,7 +71533,7 @@
       "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
     },
     {
-      "bytes": 17368,
+      "bytes": 17554,
       "group": "docs",
       "headings": [
         {
@@ -71597,30 +71597,30 @@
         "query",
         "provider",
         "track",
-        "caller",
         "one",
         "design",
+        "caller",
+        "path",
         "search",
-        "does",
-        "other",
-        "exactly",
         "results",
         "private",
         "transport",
         "gap",
         "what",
-        "scope",
+        "merge",
+        "independent",
+        "does",
         "own",
         "peer",
+        "other",
+        "exactly",
         "real",
         "queried",
-        "here",
-        "doctrine",
-        "closes"
+        "doctrine"
       ],
       "lines": 130,
       "path": "docs/design/f6-private-query-transport.md",
-      "sha256": "efdf96aa2f1fd3a9a5b450a9ccb47e0bab8c504128a76aca00e94db3f5eb6dad",
+      "sha256": "ff5f271d73205298b23f0feeb339478c477da13469629d65767cac9edeacf70f",
       "symbols": [],
       "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
@@ -81147,7 +81147,7 @@
       "title": "Native release retrieval \u2014 preliminary implementation report"
     },
     {
-      "bytes": 12604,
+      "bytes": 12633,
       "group": "docs",
       "headings": [
         {
@@ -81220,12 +81220,12 @@
         "endpoint",
         "bounded",
         "verified",
-        "state",
         "identity",
         "exact",
         "one",
         "connection",
         "peer",
+        "state",
         "channel",
         "authenticated",
         "onion",
@@ -81244,7 +81244,7 @@
       ],
       "lines": 178,
       "path": "docs/planning/privacy-transport-runtime-convergence.md",
-      "sha256": "cfd92ef3cd68007ff9b4a1b8704796144a85e216a38167871cac44e2820f0143",
+      "sha256": "d57beffc5f5d79e3098218ad1d6bb5be125ce337383426ab41dd5b4e0361376f",
       "symbols": [],
       "title": "Privacy transport runtime convergence"
     },

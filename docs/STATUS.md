@@ -1395,15 +1395,15 @@ the top development priority.
   **Not** a private-information-retrieval scheme: the queried peer sees
   the query text in full; true query-content privacy is separate future
   work gated behind issue #72's external crypto review, the same gate
-  Sphinx/Loopix sits behind. Requester anonymity needed no new code —
-  `mini_bearer::Channel`/CH1 already discloses no client identity. Not
-  wrapped in a signed `Object` (a live answer, not a durable one). Real,
-  tested: 6 unit tests (round trip matches local `search`; oversized
-  query/`max_results` bounds; a compliant server never over-returns; every
-  current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/
-  `Scheme`/`PersonalizationPolicy` variant round-trips with a future-safe
-  fallback; tampered ciphertext fails closed) plus one real `TcpBearer`
-  socket test. See `docs/design/f6-private-query-transport.md`.
+  Sphinx/Loopix sits behind. The anonymous Phase 1 path uses identity-free
+  CH1; PR #296's optional named path is mutual authentication and therefore
+  discloses a requester root or pairwise identity. Responses are not wrapped
+  in signed `Object`s (live answers, not durable ones). Real, tested: local/
+  remote equivalence; request/result/field bounds before encoding and after
+  decoding; canonical URL/profile validation; requested-profile attribution;
+  displayability preservation; unknown future wire tags failing closed;
+  tamper rejection; and real `TcpBearer` socket coverage. See
+  `docs/design/f6-private-query-transport.md`.
 - **shipped** — Track F6 Phase 2: wire remote query results into F3's
   federated merge (D-0436, roadmap #175). `mini-search-federation`'s
   `federate_query` merge step (dedup by URL, higher score wins, ties break
@@ -1412,20 +1412,18 @@ the top development priority.
   behavior. `mini-search-federation-net`'s new `remote_merge` module
   bridges a `remote_query` response into that same policy:
   `federated_result_from_wire` converts one `WireResult` into a typed
-  `mini_query::ResultProvenance` (rejecting any `relevance_score_bps` or
-  `explanation` component above `WeightBps::MAX`, since `WireResult`'s
-  wire codec does not itself bound those fields on decode), and
-  `merge_remote_results` folds a whole response into a caller's own
-  local/pulled results, failing closed on the first invalid entry rather
-  than dropping it silently. The merged result's provider tag is
-  caller-asserted, not cryptographically verified — F6 provides no
-  caller/provider authentication beyond the channel itself; binding it to
-  `mini-transport-security`'s authenticated peer identity is named
-  follow-up, not attempted here. Real, tested: 8 new unit tests (valid
-  round trip; out-of-range score and explanation component each rejected;
-  URL-collision dedup by score; `max_results` respected across the
-  combined set; an invalid remote result fails the whole merge). See
-  `docs/design/f6-private-query-transport.md`.
+  `mini_query::ResultProvenance` and invokes the same canonical-field,
+  multihash, URL, score, and displayability validator as the wire decoder,
+  repeating typed score conversion as defense in depth. `merge_remote_results`
+  folds a whole response into a caller's local/pulled results and fails closed
+  on the first invalid entry. Its legacy provider tag remains caller-asserted
+  for anonymous/out-of-band use. PR #296 adds a separate named path:
+  `SearchQuery`-purpose `AuthenticatedConnection`, private
+  `AuthenticatedQueryResults`, an endpoint-derived provider label stable across
+  channels to preserve F3 determinism and prevent handshake grinding, and a
+  sealed merge that accepts no caller-selected replacement label. Endpoint
+  rotation intentionally rotates the label; provider honesty and cross-rotation
+  continuity remain unsolved. See `docs/design/f6-private-query-transport.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
