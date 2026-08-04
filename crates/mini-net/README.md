@@ -41,6 +41,21 @@ This crate's own library code stays deliberately transport-agnostic —
 `mini-bearer` is a dev-dependency used only by the example above, not by
 `RoutingTable`/`GossipRouter` themselves.
 
+## Secure discovery alternative (D-0377 proposal)
+
+`mini-net::pex` remains a legacy unauthenticated availability exchange and must
+never be treated as identity authority. `mini-transport-security` adds signed,
+expiring, network-bound `PeerAdvertisement` records, a bounded
+`SecurePexResponse`, and locally seeded prefix-diverse dial planning. The live
+CH1 connection must then prove the same endpoint id and X25519 routing key via
+`SessionAuthClaim::verify_advertised`; a signed record alone is still only a
+dial hint.
+
+This raises first-contact eclipse cost without creating a canonical bootstrap
+list, certificate authority, hosted directory, trusted first peer, or
+majority-by-download rule. It does not prove independent ASN/operator ownership
+and does not implement NAT traversal.
+
 ## Honest limits
 
 This crate is the routing/broadcast *logic*, still not a fully running

@@ -19,16 +19,20 @@
 //! The capability/pseudonym/envelope machinery in this crate is real,
 //! tested Rust, composing only already-reviewed primitives from
 //! `mini-crypto` (via `did-mini` and `mini-bearer` — no new cryptography).
-//! **What this crate does not do**: dial a socket, run a live multi-hop
-//! relay over real network connections, or provide NAT traversal/address
-//! discovery — `RelayEnvelope::seal`/`open` are proven in-process against
-//! paired `mini_bearer::Channel`s in this crate's own tests, the same way
-//! `mini-bearer`'s own channel tests work, but a live multi-process relay
-//! demo (like `mini-net`'s gossip demo) is explicitly future work, not
-//! this lane. `MN-208` (restricting `mini-net` DHT lookups) is out of
-//! scope entirely: `mini-net` has no DHT value-storage layer yet to
-//! restrict — see tracking issue #144 for why that's a separate future
-//! lane, not silently dropped here.
+//! [`build_onion`] adds the concrete `PrivacyTier::Relayed` execution path:
+//! exactly three independently encrypted layers (`Entry -> Rendezvous ->
+//! Delivery`) around a destination-encrypted fixed-size payload. Each relay
+//! learns only its own role, one opaque next-hop token, and the next ciphertext;
+//! no relay receives the application plaintext or both endpoints. This compact
+//! Mininet onion is deliberately **not** called Sphinx and does not claim global
+//! traffic-analysis resistance. Mixed/Burst remain a separate Sphinx/Loopix
+//! implementation gated behind independent review.
+//!
+//! What remains outside this crate: discovery and authenticated endpoint
+//! advertisements (`mini-transport-security`), NAT traversal, reconnect,
+//! background service supervision, and the externally reviewed mix executor.
+//! `MN-208` (restricting `mini-net` DHT lookups) also remains separate:
+//! `mini-net` has no DHT value-storage layer yet to restrict.
 //!
 //! [`plan::roles_for_route_decision`] bridges `mini_transport_policy::
 //! route`'s decision output to this crate's role planning — closing the
@@ -42,6 +46,7 @@ mod connection;
 mod envelope;
 mod error;
 mod mailbox;
+mod onion;
 mod plan;
 mod role;
 mod role_separation;
@@ -51,6 +56,11 @@ pub use envelope::{RelayEnvelope, ENVELOPE_VERSION};
 pub use error::{RelayError, Result};
 pub use mailbox::{
     MailboxGrant, MailboxId, MailboxToken, MailboxTokenCommitment, MAILBOX_GRANT_VERSION,
+};
+pub use onion::{
+    build_onion, open_onion_destination, OnionForward, OnionHop, OnionPacket, OnionReplayCache,
+    PeeledOnion, LARGE_ONION_PAYLOAD_BYTES, MAX_ONION_NEXT_HOP_BYTES, MAX_ONION_REPLAY_ENTRIES,
+    MEDIUM_ONION_PAYLOAD_BYTES, ONION_HOP_COUNT, ONION_VERSION, SMALL_ONION_PAYLOAD_BYTES,
 };
 pub use plan::roles_for_route_decision;
 pub use role::RelayRole;

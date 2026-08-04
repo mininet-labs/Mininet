@@ -27,6 +27,21 @@ pub enum RelayError {
     UnsupportedMailboxGrantVersion,
     /// The relay envelope's format version is not recognized.
     UnsupportedEnvelopeVersion,
+    /// The layered onion packet's format version is not recognized.
+    UnsupportedOnionVersion,
+    /// The onion route is not exactly Entry -> Rendezvous -> Delivery, repeats
+    /// a routing key, contains an invalid token, or is not canonically framed.
+    InvalidOnionRoute,
+    /// A relay received a packet for another hop or a broken inner chain.
+    WrongOnionHop,
+    /// The onion packet's signed/encrypted validity window ended.
+    OnionExpired,
+    /// A per-hop replay token was already processed.
+    OnionReplay,
+    /// The application payload does not fit the selected fixed-size class.
+    OnionPayloadTooLarge,
+    /// The delivery layer and destination envelope disagree on circuit metadata.
+    OnionDestinationMismatch,
     /// A mailbox check was made against a mailbox the grant was not
     /// issued for.
     MailboxMismatch,
@@ -84,6 +99,19 @@ impl core::fmt::Display for RelayError {
             }
             RelayError::UnsupportedEnvelopeVersion => {
                 write!(f, "unsupported or unrecognized relay envelope version")
+            }
+            RelayError::UnsupportedOnionVersion => {
+                write!(f, "unsupported or unrecognized onion packet version")
+            }
+            RelayError::InvalidOnionRoute => write!(f, "invalid or non-canonical onion route"),
+            RelayError::WrongOnionHop => write!(f, "onion packet belongs to another hop"),
+            RelayError::OnionExpired => write!(f, "onion packet has expired"),
+            RelayError::OnionReplay => write!(f, "onion hop replay detected"),
+            RelayError::OnionPayloadTooLarge => {
+                write!(f, "payload exceeds the selected fixed-size onion class")
+            }
+            RelayError::OnionDestinationMismatch => {
+                write!(f, "destination envelope does not match the onion circuit")
             }
             RelayError::MailboxMismatch => {
                 write!(f, "mailbox grant does not cover the requested mailbox")

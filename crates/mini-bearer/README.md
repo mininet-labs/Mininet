@@ -39,9 +39,11 @@ Authenticity lives in the payload, not the pipe:
 Frame and channel size caps are enforced before buffering or AEAD allocation, so
 a hostile nearby peer cannot force unbounded memory growth through this crate.
 
-A future upgrade can add endpoint *pseudonym* authentication (a SIGMA/Noise-XX
-step keyed by a per-session pairwise pseudonym) without changing this crate's
-shape or the anonymity property.
+D-0377 adds optional endpoint authentication in the separate
+`mini-transport-security` crate without changing this anonymous base. A signed
+`did:mini` root/device proof binds one role, typed purpose, and rotating X25519
+routing key to this channel's 32-byte binding. Pairwise identities remain valid;
+a caller that does not need a named peer keeps anonymous CH1 unchanged.
 
 ## `TcpBearer` — a real network transport (D-0042)
 
@@ -71,8 +73,10 @@ the caller redials).
 
 Real BLE and local-Wi-Fi/mDNS **radio** bearer adapters (device-specific,
 need real hardware); a reliability/reassembly layer for bearers that drop
-or reorder frames; a pairwise-pseudonym authenticated handshake variant;
-rekeying for very long sessions. These build on the same trait and channel.
+or reorder frames; transcript camouflage/pluggable transports; rekeying for
+very long sessions. These build on the same trait and channel. Endpoint
+identity remains an optional layer above this crate, not a mandatory handshake
+field that would destroy anonymous onion/mix hops.
 
 ## Build & test
 
