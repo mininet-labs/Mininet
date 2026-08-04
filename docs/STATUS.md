@@ -111,17 +111,28 @@ given time.
   closing the founder's 2026-07-12 in-depth review's `5.3`/`5.4` "wire
   authenticated encrypted channels into consensus now" finding — no new
   cryptography, the same construction `mini-sync`/`mini-cli`'s `sync
-  connect`/`listen` already use). **State-sync/catch-up is shipped**
-  (D-0093): `mini_consensus::{CatchupRequest, CatchupResponse, FinalizedBlock}`
-  plus `ConsensusNode::{history_since, catch_up}` let a node that missed
-  heights pull already-finalized blocks from a peer and re-verify/apply
-  them via the same `apply_finalized_block` call live consensus uses —
-  never a trust shortcut. Proven over real TCP
-  (`a_late_joining_node_catches_up_via_real_tcp_and_matches_the_clusters_state`):
-  a fifth node that never runs a single Tendermint round reaches the exact
-  state a four-node cluster converged on. First slice: history is
-  unbounded in-memory (no pruning/persistence), and no peer-selection/retry
-  policy. The equivocation evidence is no longer silently dropped by
+  connect`/`listen` already use). **State-sync/catch-up now has two layers.** D-0093's
+  bounded block-only `CatchupRequest`/`CatchupResponse` remains a compatibility
+  path and still re-verifies every block through `apply_finalized_block`.
+  **Implemented in this PR (D-0207):** canonical complete
+  `LedgerState` snapshots bind settlement-network id, exact monetary/payment
+  state, finalized header, state commitment, and QC; receivers verify the QC
+  against their own static validator set/KEL oracle before replacing state.
+  `ConsensusArchive` adds a local non-authoritative cross-process-locked,
+  journaled filesystem checkpoint plus count/byte-bounded suffix, atomic
+  replacement, restart recovery, and pruning only behind a durable snapshot.
+  `ConsensusNode` applies a whole snapshot/suffix on a cloned chain (a bad late
+  block changes nothing), caps compatibility history, persists verified live
+  block rows before chain swap without rewriting full-state journals per block,
+  and can reopen from the same verified archive path. Real TCP tests prove a
+  long-offline independent node reaches the source's exact height/commitment
+  over the existing encrypted `Channel`. No peer or archive becomes a trust
+  anchor. Honest limits: static validator set only; no historical set-transition
+  or weak-subjectivity/long-range rule; exact transparent state capped at 8 MiB
+  and one response at one bearer frame; no chunked Merkle state proofs,
+  discovery/retry/multi-peer/eclipse policy, external audit, or physical
+  weakest-device measurements. State-sync sockets have local I/O deadlines, but
+  peer choice and retry remain host policy. The equivocation evidence is no longer silently dropped by
   the network driver (D-0088: `mini_consensus::EquivocatorRegistry`
   independently re-verifies and records every flagged root instead of
   discarding the emit), but nothing yet *acts* on a flagged root — no
@@ -715,7 +726,24 @@ given time.
   replication path or production caller yet, and this is the addressing/
   composition piece only — distributing shards/chunks at real network
   scale remains `mini-net`/`mini-store`'s separately-scoped job.
-- **not started** — cold/owner-only storage tiers (roadmap Phase 4).
+- **shipped (D-0434, roadmap #34)** — cold/owner-only storage tiers.
+  `mini_store::owner_seal` gives `mini_objects::Payload::Encrypted` (a wire
+  variant every reader had rejected since the object model's inception) a
+  real construction: a NaCl/libsodium sealed-box built entirely from
+  already-reviewed `mini-crypto` primitives (`AgreementSecretKey`/X25519,
+  HKDF-SHA256, ChaCha20-Poly1305), with a deliberately independent sealing
+  keypair rather than one derived from a device's Ed25519 KEL key. A sixth
+  `CacheTier::ColdArchive` variant sits alongside the existing five:
+  `advertises() == false` (same ceiling as `PrivateOnly`), set only
+  explicitly via `Store::set_cache_tier`, never touched by
+  `Store::note_view`. Confidentiality only, not integrity — a caller
+  wraps sealed bytes in an ordinarily-signed `Object` for source
+  authenticity. Not KEL-bound (losing the sealing key loses everything
+  sealed to it, with no recovery path yet), not a network protocol
+  (`mini-sync`'s ingest still rejects `Payload::Encrypted` outright,
+  unchanged), and no pruning/retention policy yet reads the `ColdArchive`
+  signal — it exists as a marker with no consumer. See
+  `docs/design/cold-storage-and-owner-only-encryption.md`.
 
 ## 8. Networking
 
