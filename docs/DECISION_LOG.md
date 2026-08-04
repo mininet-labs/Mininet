@@ -15495,7 +15495,8 @@ and local selection -> verified three-role onion -> three relay sockets ->
 destination-only plaintext; redirect
 rejection before initiator disclosure; atomic freshness/replay state on failure;
 bounded retry past an unreachable first hint; reuse of a `mini-bridge` channel;
-validity-window, fail-closed relay and destination replay state; advertisement
+onion-v2 domain separation, clock-skew-bounded validity, fail-closed relay and
+ destination replay state; advertisement
 expiry/network rechecks; bounded selection input; channel-scoped authenticated
 search-provider provenance; and wrong-purpose rejection. Focused
 strict Clippy and all tests for `mini-transport-security`,

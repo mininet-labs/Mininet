@@ -29,12 +29,15 @@ pub const MAX_ONION_REPLAY_ENTRIES: usize = 65_536;
 /// Maximum remaining validity accepted when a relay or destination processes a
 /// packet. This bounds replay-state retention even for adversarial senders.
 pub const MAX_ONION_LIFETIME_MS: u64 = 30 * 60 * 1000;
+/// Clock disagreement tolerated when a relay compares the encrypted absolute
+/// expiry against its local time. Retention remains bounded to lifetime + skew.
+pub const MAX_ONION_CLOCK_SKEW_MS: u64 = 30 * 1000;
 pub const SMALL_ONION_PAYLOAD_BYTES: usize = 4 * 1024;
 pub const MEDIUM_ONION_PAYLOAD_BYTES: usize = 64 * 1024;
 pub const LARGE_ONION_PAYLOAD_BYTES: usize = 1024 * 1024;
 
-const HOP_KEY_DOMAIN: &[u8] = b"mini-relay/onion-hop-key/v1";
-const DESTINATION_KEY_DOMAIN: &[u8] = b"mini-relay/onion-destination-key/v1";
+const HOP_KEY_DOMAIN: &[u8] = b"mini-relay/onion-hop-key/v2";
+const DESTINATION_KEY_DOMAIN: &[u8] = b"mini-relay/onion-destination-key/v2";
 const NEXT_HOP_PAD_BYTES: usize = MAX_ONION_NEXT_HOP_BYTES;
 const AEAD_TAG_BYTES: usize = 16;
 const DESTINATION_FRAME_OVERHEAD_BYTES: usize = 8 + 32 + 4;
@@ -570,7 +573,10 @@ fn validate_onion_window(now_ms: u64, expires_at_ms: u64) -> Result<()> {
     if remaining == 0 {
         return Err(RelayError::OnionExpired);
     }
-    if remaining > MAX_ONION_LIFETIME_MS {
+    let maximum = MAX_ONION_LIFETIME_MS
+        .checked_add(MAX_ONION_CLOCK_SKEW_MS)
+        .ok_or(RelayError::LimitExceeded)?;
+    if remaining > maximum {
         return Err(RelayError::OnionLifetimeTooLong);
     }
     Ok(())
@@ -818,6 +824,48 @@ mod tests {
     }
 
     #[test]
+    fn authenticated_but_malformed_inner_packet_does_not_consume_replay_state() {
+        let relay_secret = AgreementSecretKey::from_seed(&[1; 32]);
+        let ephemeral_secret = AgreementSecretKey::from_seed(&[2; 32]);
+        let ephemeral_key = ephemeral_secret.public_key();
+        let shared = ephemeral_secret.agree(&relay_secret.public_key()).unwrap();
+        let nonce = AeadNonce::from_bytes(&[3; 12]).unwrap();
+        let connection_id = ConnectionId::from_bytes([4; 16]);
+        let aad = hop_aad(
+            connection_id,
+            PayloadSizeClass::Small,
+            0,
+            ephemeral_key,
+            nonce,
+        );
+        let key = derive_key(HOP_KEY_DOMAIN, &shared.to_bytes(), &aad).unwrap();
+        let plaintext = encode_hop_plaintext(
+            RelayRole::Entry,
+            EXPIRES_AT_MS,
+            [5; 32],
+            b"next-hop",
+            b"not-a-canonical-inner-onion",
+        )
+        .unwrap();
+        let packet = OnionPacket {
+            connection_id,
+            size_class: PayloadSizeClass::Small,
+            hop_index: 0,
+            ephemeral_key,
+            nonce,
+            ciphertext: key.encrypt(&nonce, &plaintext, &aad).unwrap(),
+        };
+        let mut replay = OnionReplayCache::new(1).unwrap();
+        assert!(packet
+            .peel(&relay_secret, PROCESS_NOW_MS, &mut replay)
+            .is_err());
+        assert!(replay.is_empty());
+        replay
+            .check_and_record([6; 32], EXPIRES_AT_MS, PROCESS_NOW_MS)
+            .unwrap();
+    }
+
+    #[test]
     fn replay_capacity_fails_closed_until_entries_expire() {
         let mut cache = OnionReplayCache::new(2).unwrap();
         cache.check_and_record([1; 32], 2_000, 1_000).unwrap();
@@ -855,7 +903,7 @@ mod tests {
                 destination.public_key(),
                 b"payload",
                 BUILD_NOW_MS,
-                BUILD_NOW_MS + MAX_ONION_LIFETIME_MS + 1,
+                BUILD_NOW_MS + MAX_ONION_LIFETIME_MS + MAX_ONION_CLOCK_SKEW_MS + 1,
             ),
             Err(RelayError::OnionLifetimeTooLong)
         );
