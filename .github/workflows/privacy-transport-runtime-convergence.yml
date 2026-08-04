@@ -1,0 +1,57 @@
+name: privacy-transport-runtime-convergence
+
+on:
+  push:
+    branches: [codex/privacy-transport-runtime-convergence]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  apply-test-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Show pinned toolchain
+        run: rustup show
+
+      - name: Apply permanent changes
+        run: |
+          python3 tools/apply_runtime_convergence_stage1.py
+          python3 tools/apply_runtime_convergence_stage2.py
+
+      - name: Format
+        run: cargo fmt --all
+
+      - name: Strict focused Clippy
+        run: |
+          cargo clippy -p mini-transport-security --all-targets --all-features -- -D warnings
+          cargo clippy -p mini-search-federation-net --all-targets --all-features -- -D warnings
+
+      - name: Focused tests
+        run: |
+          cargo test -p mini-transport-security --all-features
+          cargo test -p mini-search-federation-net --all-features
+          cargo test -p mini-relay --all-features
+
+      - name: Remove staging machinery and regenerate navigation
+        run: |
+          rm tools/apply_runtime_convergence_stage1.py
+          rm tools/apply_runtime_convergence_stage2.py
+          rm .github/workflows/privacy-transport-runtime-convergence.yml
+          python3 tools/mininet_nav.py build
+
+      - name: Commit exact tested tree
+        run: |
+          git config user.name "mininet-runtime-convergence"
+          git config user.email "runtime-convergence@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "no resulting change"; exit 1; }
+          git commit -m "feat: converge authenticated transport runtime and search provenance"
+          git push origin HEAD:codex/privacy-transport-runtime-convergence
