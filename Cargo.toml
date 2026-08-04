@@ -78,6 +78,7 @@ members = [
     "crates/mini-query",
     "crates/mini-search-federation",
     "crates/mini-search-federation-net",
+    "crates/mini-storage-fraud",
 ]
 
 [workspace.package]
