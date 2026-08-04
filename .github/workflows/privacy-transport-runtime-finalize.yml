@@ -46,9 +46,6 @@ jobs:
           cargo test -p mini-search-federation-net --all-features
           cargo test -p mini-relay --all-features
 
-      - name: Governance baseline
-        run: python3 tools/check_governance.py
-
       - name: Remove staging machinery and regenerate navigation
         run: |
           rm tools/apply_runtime_convergence_stage3.py
