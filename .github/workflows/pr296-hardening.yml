@@ -1,0 +1,40 @@
+name: pr296-hardening
+
+on:
+  push:
+    branches:
+      - codex/privacy-transport-runtime-convergence
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          ref: codex/privacy-transport-runtime-convergence
+      - run: python3 tools/apply_runtime_convergence_stage5.py
+      - run: cargo fmt --all
+      - run: cargo clippy -p mini-relay --all-targets --all-features -- -D warnings
+      - run: cargo clippy -p mini-transport-security --all-targets --all-features -- -D warnings
+      - run: cargo clippy -p mini-search-federation-net --all-targets --all-features -- -D warnings
+      - run: cargo test -p mini-relay --all-features
+      - run: cargo test -p mini-transport-security --all-features
+      - run: cargo test -p mini-search-federation-net --all-features
+      - run: |
+          rm tools/apply_runtime_convergence_stage5.py
+          rm .github/workflows/pr296-hardening.yml
+          python3 tools/mininet_nav.py build
+      - run: |
+          test ! -e tools/apply_runtime_convergence_stage5.py
+          test ! -e .github/workflows/pr296-hardening.yml
+      - run: |
+          git config user.name mininet-runtime-convergence
+          git config user.email runtime-convergence@users.noreply.github.com
+          git add -A
+          git diff --cached --quiet && exit 1
+          git commit -m 'fix: make onion replay and runtime freshness fail closed'
+          git push origin HEAD:codex/privacy-transport-runtime-convergence
