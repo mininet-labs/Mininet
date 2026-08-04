@@ -24,7 +24,9 @@ jobs:
           fetch-depth: 0
           ref: codex/privacy-transport-runtime-convergence
       - name: Apply hardening
-        run: python3 tools/apply_pr296_final_protocol_boundaries.py
+        run: |
+          python3 tools/apply_pr296_final_protocol_boundaries.py
+          python3 tools/fix_pr296_profile_and_url_validation.py
       - name: Format
         run: cargo fmt --all
       - name: Clippy
@@ -49,11 +51,13 @@ jobs:
       - name: Clean and regenerate
         run: |
           rm tools/apply_pr296_final_protocol_boundaries.py
+          rm tools/fix_pr296_profile_and_url_validation.py
           rm .github/workflows/pr296-final-protocol-boundaries.yml
           python3 tools/mininet_nav.py build
       - name: Verify cleanup
         run: |
           test ! -e tools/apply_pr296_final_protocol_boundaries.py
+          test ! -e tools/fix_pr296_profile_and_url_validation.py
           test ! -e .github/workflows/pr296-final-protocol-boundaries.yml
           git status --short
       - name: Commit tested tree
