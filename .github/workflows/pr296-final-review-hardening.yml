@@ -44,8 +44,15 @@ jobs:
           cargo test -p mini-transport-security --all-features
           cargo test -p mini-search-federation-net --all-features
 
-      - name: Governance baseline
-        run: python3 tools/check_governance.py --canonical-root "$(git rev-parse origin/main)"
+      - name: Governance baseline against canonical main
+        run: |
+          canonical="$(mktemp -d)"
+          rmdir "$canonical"
+          git worktree add --detach "$canonical" origin/main
+          status=0
+          python3 tools/check_governance.py --canonical-root "$canonical" || status=$?
+          git worktree remove --force "$canonical"
+          exit "$status"
 
       - name: Remove staging machinery and regenerate navigation
         run: |
