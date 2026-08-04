@@ -202,8 +202,8 @@ fn authenticated_search_response_carries_the_peer_bound_provider_label() {
     .unwrap();
     let expected_provider = authenticated_provider_pseudonym(connection.peer());
     let remote = remote_query_authenticated(&mut connection, "hello", &profile, 8).unwrap();
-    assert_eq!(remote.provider, expected_provider);
-    assert_eq!(remote.results.len(), 1);
+    assert_eq!(remote.provider(), &expected_provider);
+    assert_eq!(remote.results().len(), 1);
 
     let merged = merge_authenticated_remote_results(Vec::new(), remote, 8).unwrap();
     assert_eq!(merged.len(), 1);

@@ -1,7 +1,7 @@
 [package]
 name = "mini-search-federation-net"
 version = "0.0.1"
-description = "Bounded, authenticated real-transport delivery of mini-search-federation's F1/F2/F2b signed objects between two Mininet peers (Track F required follow-up: 'wire F1/F2 objects through a bounded real transport with authenticated peer behavior and source-count limits'), plus assembly of a pulled F2 segment + F2b corpus bundle into a real federate_query-ready source. The advertise/pull exchange never sends query terms -- a peer advertises which object ids it holds, nothing more. Track F6 Phase 1 (remote_query/serve_query) is the deliberate, separately-scoped exception: a bounded query string does cross the wire, confidential-in-transit only -- not a private-information-retrieval scheme, see docs/design/f6-private-query-transport.md."
+description = "Bounded real-transport delivery of signed federated-search objects plus anonymous or optionally channel-authenticated remote query/merge. The named path derives provider provenance from the exact authenticated transport endpoint; neither path is private information retrieval."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -25,7 +25,9 @@ publish = false
 # no new indexing/ranking/query logic here, just reassembly. mini-crypto
 # for Multihash, reused directly by query.rs's wire codec (RankingProfileId/
 # IndexSegmentId/CrawlObservationId are all Multihash-backed) rather than
-# introducing a second id representation.
+# introducing a second id representation. mini-transport-security supplies the
+# optional named-session runtime; it remains an identity-binding layer, never a
+# ranking, discovery, personhood, or truth authority.
 did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-store = { path = "../mini-store" }

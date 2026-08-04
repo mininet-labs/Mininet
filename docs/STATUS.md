@@ -1866,35 +1866,38 @@ dishonest `treasury_balance_micro` input.
   only says what's true today, not why.
 
 
-## Privacy and transport security — D-0377 proposal
+## Privacy transport runtime convergence — D-0377 and proposed D-0437
 
-- **implemented in PR #292** — optional channel-bound endpoint authentication:
-  `SessionAuthClaim` proves one delegated `did:mini` device, typed purpose,
-  endpoint role, and X25519 routing key on one exact anonymous CH1 transcript.
-  Caller-held KELs, `FreshnessPins`, expiry, and bounded replay state verify the
-  proof; `verify_advertised` also requires it to match the signed endpoint that
-  was selected and dialed.
-- **implemented in PR #292** — signed secure discovery: network-bound,
-  expiring `PeerAdvertisement` records and bounded `SecurePexResponse` framing;
-  locally seeded input-order-independent dial planning rejects duplicate
-  endpoint/routing keys and caps IPv4 `/24` or IPv6 `/48` concentration.
-  Records are availability hints, never truth or governance authority.
-- **implemented in PR #292** — real Tier-1 onion execution: independent
-  Entry/Rendezvous/Delivery X25519+AEAD layers, independent public hop ids,
-  padded opaque routing tokens, per-hop expiry/replay checks, fixed-size
-  destination-encrypted payloads, and a real three-socket convergence test.
-  No relay receives application plaintext or both endpoint identities.
-- **fail-closed** — `PrivacyTier::Mixed` and `Burst` have no operational
+- **shipped in PR #292** — optional channel-bound endpoint authentication,
+  signed network-bound discovery, validity-window replay retention, local
+  prefix-diverse dial planning, real three-hop destination-encrypted onion
+  forwarding, and a runtime-fail-closed Mixed/Burst gate.
+- **implemented in draft PR #296** — `AuthenticatedConnection<B>` fuses one
+  bearer, exact CH1 channel, and peer verified on that channel. The TCP path
+  performs signed-advertisement dial, responder-first proof, exact
+  advertisement/session binding, and transactional freshness/replay commit.
+- **implemented in draft PR #296** — bounded local retry discards every failed
+  attempt whole; bridge-created channels enter the same authentication seam
+  through the existing `mini-bridge` boundary; verified onion route assembly
+  rejects visible endpoint/routing-key/root/device reuse across roles.
+- **implemented in draft PR #296** — optional named F6 search uses the distinct
+  `SearchQuery` purpose, derives a rotating provider pseudonym from the endpoint
+  proved on the response channel, and seals the authenticated merge input behind
+  private fields. Anonymous search and caller-labeled legacy merge remain
+  available as explicitly weaker contracts.
+- **fail-closed** — `PrivacyTier::Mixed` and `Burst` still have no operational
   executor. `mini_transport_security::executable_transport` refuses them until
   the exact D-0305 Sphinx/Loopix implementation receives #72's independent
-  review. Policy vocabulary is not treated as implementation evidence.
-- **open exact limits** — first-contact KEL freshness/witness gossip; independent
-  ASN/operator/jurisdiction evidence; NAT traversal and reconnect; private
-  bridge operations; pluggable/camouflaged bearers; ISP-throttling resistance;
-  and global timing/volume/intersection protection. See
-  `docs/audits/issue-27-censorship-resistance-review.md`.
+  review.
+- **open exact limits** — first-contact KEL witness freshness; independent
+  operator/ASN/jurisdiction evidence; NAT traversal and reconnect; private
+  bridge operations; real camouflage adapters; ISP-throttling resistance;
+  global timing/volume/intersection protection; and privacy-preserving
+  continuity for rotating authenticated search providers.
 
-**Authority boundary:** anonymous CH1 remains available; pairwise identities
-remain valid; there is no CA, canonical relay/bootstrap registry, hosted
-identity directory, trusted first peer, majority-by-download rule, admin or
-unmasking key, or value-to-routing/voice path.
+**Authority boundary:** anonymous CH1 and pairwise identities remain valid;
+there is no CA, canonical relay/bootstrap registry, hosted identity directory,
+trusted first peer, majority-by-download rule, admin/unmasking key, or
+value-to-routing/ranking/voice path. An authenticated endpoint proves control of
+one key-bound endpoint on one channel, not personhood, operator independence,
+result truth, or governance standing.

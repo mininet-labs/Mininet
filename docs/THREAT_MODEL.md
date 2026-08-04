@@ -146,21 +146,28 @@ quietly re-centralizes what the core was designed to keep decentralized.
   safe.
 
 
-## Transport/privacy addendum — D-0377
+## Transport/privacy addendum — D-0377 and proposed D-0437
 
 | Threat | Current mechanism | Status / exact failure |
 |---|---|---|
-| **Unsigned discovery redirect** | Signed, expiring, network-bound `PeerAdvertisement` plus `SessionAuthClaim::verify_advertised`, which binds the dialed record to the live CH1 identity/routing key. | **Closed for the verified path.** Legacy `mini-net::pex` remains unauthenticated and is documented as availability-only; callers that use it directly retain redirect risk. |
-| **Endpoint impersonation on encrypted CH1** | Optional delegated-device signature over channel binding, role, typed purpose, pairwise/root identity, rotating X25519 key, expiry, and replay nonce. | **Closed within caller-supplied KEL freshness.** First-contact unseen revocation remains open until witness/gossip freshness exists. |
-| **Bootstrap eclipse** | Caller-local seeded ordering, endpoint/routing-key deduplication, bounded timeouts, IPv4 `/24` and IPv6 `/48` caps. | **Partial.** One adversary can acquire diverse prefixes/ASNs or control all discovery sources; address diversity is not operator independence. |
+| **Unsigned discovery redirect** | Signed, expiring, network-bound `PeerAdvertisement`; `connect_authenticated_tcp` establishes CH1 and invokes `verify_advertised` before returning a connection. | **Closed for the runtime path.** Legacy `mini-net::pex` and specialist callers composing lower-level APIs directly retain caller-owned redirect risk. |
+| **Redirected genuine endpoint collecting initiator identity** | Runtime authentication is responder-first: the dialed peer proves the exact advertised endpoint before the initiator sends its claim. | **Closed for named runtime sessions.** The contacted address still observes source-IP/network metadata. |
+| **Partial freshness/replay mutation on failed authentication** | Runtime verification clones `FreshnessPins` and `ReplayCache` and commits only after the full exchange succeeds. | **Closed in-process.** Crash-persistent replay state remains a host responsibility. |
+| **Endpoint impersonation on encrypted CH1** | Delegated-device signature over channel binding, role, typed purpose, pairwise/root identity, rotating X25519 key, expiry, and replay nonce. | **Closed within caller-supplied KEL freshness.** First-contact unseen revocation remains open until witness/gossip freshness exists. |
+| **Bootstrap eclipse** | Caller-local seeded ordering, endpoint/routing-key deduplication, bounded retry/timeouts, IPv4 `/24` and IPv6 `/48` caps. | **Partial.** One adversary can acquire diverse prefixes/ASNs or control all discovery sources; address diversity is not operator independence. |
+| **Bridge adapter becoming identity authority** | Any `mini-bridge::PluggableTransport` may establish the bearer/channel, but the same independent session proof verifies identity afterward. | **Closed structurally.** A malicious/blockable adapter can deny or observe availability; it cannot make its descriptor an accepted peer identity. |
+| **One visible endpoint assigned multiple onion roles** | `build_verified_onion_route` rejects endpoint-id, routing-key, visible-root, or device reuse before Entry/Rendezvous/Delivery construction. | **Partial.** One hidden operator can control several pairwise roots, devices, addresses, or ASNs. |
 | **Entry-relay plaintext exposure** | Three independent Entry/Rendezvous/Delivery X25519+AEAD layers around a destination-encrypted fixed-size payload. | **Closed for payload content.** Each relay still observes its local predecessor, timing, volume class, and opaque next-hop token. |
 | **Cross-hop clear identifier correlation** | Every relay layer has an independent random public connection id; the destination id exists only inside destination encryption. | **Closed for explicit circuit ids.** Timing/volume correlation remains open. |
-| **Public relay/bridge blocking** | No canonical relay registry; signed endpoints and local route rotation permit many independent relays. | **Partial.** Known TCP addresses remain enumerable and blockable; private bridge distribution and pluggable bearers are unbuilt. |
-| **DPI/protocol fingerprinting** | Payload encryption and fixed destination size classes. | **Open/critical.** CH1 handshake, TCP framing, size classes, timing, and connection behavior remain recognizable; no camouflage profile exists. |
-| **ISP throttling/blackholing** | Local BLE/Wi-Fi fallback and bounded timeouts. | **Open/critical.** Internet TCP can be delayed or dropped; multipath migration and progress-aware resumable routing are unbuilt. |
+| **Forged F6 provider label after authenticated query** | `SearchQuery`-purpose `AuthenticatedConnection`, endpoint-derived provider pseudonym, private `AuthenticatedQueryResults` fields, and `merge_authenticated_remote_results`. | **Closed for the named API.** Anonymous/legacy merge is intentionally caller-labeled; endpoint control does not prove result truth. |
+| **Purpose confusion in provider provenance** | `SearchQuery` is a distinct signed purpose, and authenticated query APIs reject any other purpose. | **Closed for the typed API.** A provider still sees the full query and may log or manipulate results. |
+| **Public relay/bridge blocking** | No canonical relay registry; signed endpoints and local route rotation permit many independent relays. | **Partial.** Known TCP addresses remain enumerable and blockable; private bridge distribution and real camouflage adapters are unbuilt. |
+| **DPI/protocol fingerprinting** | Payload encryption and fixed destination size classes. | **Open/critical.** CH1 handshake, TCP framing, size classes, timing, and connection behavior remain recognizable; no reviewed camouflage profile exists. |
+| **ISP throttling/blackholing** | Bounded timeouts prevent indefinite stalls. | **Open/critical.** Internet TCP can be delayed or dropped; multipath migration and progress-aware resumable routing are unbuilt. |
 | **Global timing/volume/intersection observer** | Relayed payload separation only; Mixed/Burst runtime gate. | **Open/critical.** Three-hop onion is not a mixnet. The D-0305 Sphinx/Loopix executor and external review remain mandatory. |
-| **Administrative unmasking/capture** | No traffic master key, escrow key, CA, hosted directory, canonical relay list, or identity-correlation service; pairwise identity is valid. | **Closed structurally in D-0377's types.** Future adapters must preserve this dependency wall. |
+| **Administrative unmasking/capture** | No traffic master key, escrow key, CA, hosted directory, canonical relay list, or identity-correlation service; pairwise identity is valid. | **Closed structurally in the current types.** Future adapters and continuity schemes must preserve this dependency wall. |
 
 The complete state-censorship assessment and concrete mitigation sequence are in
 `docs/audits/issue-27-censorship-resistance-review.md`. This addendum does not
-claim NAT traversal, camouflage, or global anonymity exists.
+claim NAT traversal, camouflage, private query content, independent operators,
+or global anonymity exists.

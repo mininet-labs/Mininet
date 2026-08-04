@@ -107,7 +107,8 @@ pub fn merge_authenticated_remote_results(
     remote: AuthenticatedQueryResults,
     max_results: usize,
 ) -> Result<Vec<FederatedResult>> {
-    merge_remote_results(local, remote.results, remote.provider, max_results)
+    let (provider, results) = remote.into_parts();
+    merge_remote_results(local, results, provider, max_results)
 }
 
 #[cfg(test)]

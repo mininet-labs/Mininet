@@ -495,8 +495,24 @@ pub fn remote_query(
 /// an arbitrary provider pseudonym.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthenticatedQueryResults {
-    pub provider: ProviderPseudonym,
-    pub results: Vec<WireResult>,
+    provider: ProviderPseudonym,
+    results: Vec<WireResult>,
+}
+
+impl AuthenticatedQueryResults {
+    /// Provider label derived from the endpoint authenticated on the response
+    /// channel. No public constructor accepts an arbitrary replacement label.
+    pub fn provider(&self) -> &ProviderPseudonym {
+        &self.provider
+    }
+
+    pub fn results(&self) -> &[WireResult] {
+        &self.results
+    }
+
+    pub(crate) fn into_parts(self) -> (ProviderPseudonym, Vec<WireResult>) {
+        (self.provider, self.results)
+    }
 }
 
 /// Derive a rotating search-provider pseudonym from an authenticated transport

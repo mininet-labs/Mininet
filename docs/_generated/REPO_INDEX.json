@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 71,
-    "files": 843,
-    "headings": 2625,
-    "rust_symbols": 7893
+    "files": 844,
+    "headings": 2642,
+    "rust_symbols": 7896
   },
   "crates": {
     "did-mini": {
@@ -48822,7 +48822,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 2686,
+      "bytes": 2395,
       "group": "crate:mini-search-federation-net",
       "headings": [
         {
@@ -48903,38 +48903,48 @@
         {
           "level": 1,
           "line": 28,
-          "text": "introducing a second id representation."
+          "text": "introducing a second id representation. mini-transport-security supplies the"
+        },
+        {
+          "level": 1,
+          "line": 29,
+          "text": "optional named-session runtime; it remains an identity-binding layer, never a"
+        },
+        {
+          "level": 1,
+          "line": 30,
+          "text": "ranking, discovery, personhood, or truth authority."
         }
       ],
       "keywords": [
         "path",
         "mini-sync",
-        "f2b",
         "query",
-        "bounded",
-        "mini-search-federation",
-        "pulled",
         "workspace",
         "true",
         "did-mini",
-        "objects",
         "mini-objects",
         "mini-store",
         "mini-bearer",
+        "supplies",
         "rather",
+        "mini-search-federation",
+        "f2b",
         "assemble",
-        "real",
+        "pulled",
         "mini-lexical-index",
         "mini-ranker",
         "mini-query",
         "mini-web-types",
         "indexsegmentid",
+        "ranking",
         "mini-crypto",
-        "wire"
+        "mini-transport-security",
+        "provider"
       ],
-      "lines": 41,
+      "lines": 43,
       "path": "crates/mini-search-federation-net/Cargo.toml",
-      "sha256": "43f5f4d455cf8b16a1be8e75bc955f1c486cbcb78ddb74a26630f494699daa40",
+      "sha256": "3756cb6657451233a8deb55ea6bc6b46bc3426cb05784b1c786b1893f6886712",
       "symbols": [],
       "title": "did-mini for the provider identity a caller expects a session's objects to"
     },
@@ -49118,72 +49128,72 @@
       "title": "use mini_bearer::BearerError;"
     },
     {
-      "bytes": 4367,
+      "bytes": 4647,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
         "query",
-        "session",
         "peer",
-        "does",
+        "session",
         "multi",
         "bounded",
         "signed",
         "f2b",
         "wire",
         "real",
+        "does",
         "object",
         "mini-sync",
-        "what",
+        "provider",
         "assemble",
         "error",
         "message",
         "remote_merge",
+        "authenticated",
         "corpus",
         "peers",
-        "mini_bearer",
         "channel",
-        "ids",
-        "pull_source",
-        "caller"
+        "named",
+        "already",
+        "what"
       ],
-      "lines": 84,
+      "lines": 87,
       "path": "crates/mini-search-federation-net/src/lib.rs",
-      "sha256": "b886f17551e6dbe524056ddb95fa79d3ec8fbda1f2a41f4c628214b99f676c24",
+      "sha256": "d68bd3792ee0ba1e2b64314338a16b5a27cfa9e71c74e6c92662faaa67dc3f6d",
       "symbols": [
         {
           "kind": "mod",
-          "line": 64,
+          "line": 67,
           "name": "assemble"
         },
         {
           "kind": "mod",
-          "line": 65,
+          "line": 68,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 66,
+          "line": 69,
           "name": "message"
         },
         {
           "kind": "mod",
-          "line": 67,
+          "line": 70,
           "name": "multi"
         },
         {
           "kind": "mod",
-          "line": 68,
+          "line": 71,
           "name": "query"
         },
         {
           "kind": "mod",
-          "line": 69,
+          "line": 72,
           "name": "remote_merge"
         },
         {
           "kind": "mod",
-          "line": 70,
+          "line": 73,
           "name": "session"
         }
       ],
@@ -49334,7 +49344,7 @@
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 31012,
+      "bytes": 31474,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -49359,13 +49369,13 @@
         "wireresult",
         "bytes",
         "bytes_limited",
+        "results",
         "response",
-        "own",
-        "request"
+        "own"
       ],
-      "lines": 917,
+      "lines": 933,
       "path": "crates/mini-search-federation-net/src/query.rs",
-      "sha256": "4c7dda76159732619f957d06b1a23770f822c4e2a8b20c68813fdbfaa9f1c81d",
+      "sha256": "a143a456c1791bda718db192456ed44d916fb635060368dd19ee00fa60873e60",
       "symbols": [
         {
           "kind": "const",
@@ -49638,85 +49648,100 @@
           "name": "AuthenticatedQueryResults"
         },
         {
+          "kind": "impl",
+          "line": 502,
+          "name": "AuthenticatedQueryResults"
+        },
+        {
           "kind": "fn",
           "line": 505,
+          "name": "provider"
+        },
+        {
+          "kind": "fn",
+          "line": 509,
+          "name": "results"
+        },
+        {
+          "kind": "fn",
+          "line": 521,
           "name": "authenticated_provider_pseudonym"
         },
         {
           "kind": "fn",
-          "line": 516,
+          "line": 532,
           "name": "remote_query_authenticated"
         },
         {
           "kind": "fn",
-          "line": 560,
+          "line": 576,
           "name": "serve_query_authenticated"
         },
         {
           "kind": "fn",
-          "line": 627,
+          "line": 643,
           "name": "serve_query"
         },
         {
           "kind": "mod",
-          "line": 686,
+          "line": 702,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 692,
+          "line": 708,
           "name": "channels"
         },
         {
           "kind": "fn",
-          "line": 706,
+          "line": 722,
           "name": "url"
         },
         {
           "kind": "fn",
-          "line": 717,
+          "line": 733,
           "name": "digest"
         },
         {
           "kind": "fn",
-          "line": 721,
+          "line": 737,
           "name": "fixture"
         },
         {
           "kind": "fn",
-          "line": 765,
+          "line": 781,
           "name": "round_trip_matches_a_local_search"
         },
         {
           "kind": "fn",
-          "line": 812,
+          "line": 828,
           "name": "oversized_query_text_is_rejected_before_sending"
         },
         {
           "kind": "fn",
-          "line": 824,
+          "line": 840,
           "name": "zero_or_oversized_max_results_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 845,
+          "line": 861,
           "name": "a_compliant_server_never_exceeds_the_requested_max_results"
         },
         {
           "kind": "fn",
-          "line": 868,
+          "line": 884,
           "name": "tampered_ciphertext_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 891,
+          "line": 907,
           "name": "every_availability_variant_round_trips_through_the_wire_codec"
         }
       ],
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 9195,
+      "bytes": 9232,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -49745,9 +49770,9 @@
         "neterror",
         "relevance_score_bps"
       ],
-      "lines": 223,
+      "lines": 224,
       "path": "crates/mini-search-federation-net/src/remote_merge.rs",
-      "sha256": "b44d3a69a41c6e05d0726ed724a37d8bb3854914b7a9f89a6b3b81c4c3b972f7",
+      "sha256": "35024a5ab7eecf466de1fa5e35666ff95a1946fff8c87a16bd7fd58aa8af772c",
       "symbols": [
         {
           "kind": "fn",
@@ -49766,57 +49791,57 @@
         },
         {
           "kind": "mod",
-          "line": 114,
+          "line": 115,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 123,
           "name": "digest"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 127,
           "name": "url"
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 138,
           "name": "wire_result"
         },
         {
           "kind": "fn",
-          "line": 151,
+          "line": 152,
           "name": "provider"
         },
         {
           "kind": "fn",
-          "line": 156,
+          "line": 157,
           "name": "a_valid_wire_result_converts_and_round_trips_its_fields"
         },
         {
           "kind": "fn",
-          "line": 169,
+          "line": 170,
           "name": "an_out_of_range_relevance_score_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 178,
+          "line": 179,
           "name": "an_out_of_range_explanation_component_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 188,
+          "line": 189,
           "name": "merging_deduplicates_a_url_present_in_both_local_and_remote_by_score"
         },
         {
           "kind": "fn",
-          "line": 202,
+          "line": 203,
           "name": "merging_respects_max_results_across_the_combined_set"
         },
         {
           "kind": "fn",
-          "line": 213,
+          "line": 214,
           "name": "an_invalid_remote_result_fails_the_whole_merge_rather_than_dropping_silently"
         }
       ],
@@ -50002,7 +50027,7 @@
       "title": "use did_mini::{Capabilities, Controller};"
     },
     {
-      "bytes": 8700,
+      "bytes": 8705,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -50033,7 +50058,7 @@
       ],
       "lines": 268,
       "path": "crates/mini-search-federation-net/tests/authenticated_query_over_tcp.rs",
-      "sha256": "c3ab3a20ec649ac1e8bf28a00dbc6168b5f4951151fa24ac8ce94845727f345a",
+      "sha256": "dcf6ecaac65cd6602b442acc0b08bc3bc720f8453d34188197009feb8b63c28d",
       "symbols": [
         {
           "kind": "const",
@@ -58797,7 +58822,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 2802,
+      "bytes": 4610,
       "group": "crate:mini-transport-security",
       "headings": [
         {
@@ -58812,44 +58837,49 @@
         },
         {
           "level": 2,
-          "line": 26,
+          "line": 38,
+          "text": "Transactional verification boundary"
+        },
+        {
+          "level": 2,
+          "line": 47,
           "text": "Authority boundary"
         },
         {
           "level": 2,
-          "line": 38,
+          "line": 60,
           "text": "Exact limits"
         }
       ],
       "keywords": [
         "endpoint",
         "key",
-        "routing",
-        "authority",
+        "identity",
         "exact",
+        "channel",
+        "authority",
+        "one",
+        "ch1",
+        "freshness",
+        "boundary",
+        "authentication",
+        "device",
+        "root",
+        "replay",
+        "routing",
         "global",
         "mini-transport-security",
         "implemented",
-        "ch1",
-        "device",
-        "root",
-        "freshness",
+        "verification",
+        "peer",
+        "connection",
+        "binding",
         "bounded",
-        "identity",
-        "does",
-        "what",
-        "boundary",
-        "limits",
-        "authentication",
-        "anonymous",
-        "channel",
-        "signs",
-        "one",
-        "binding"
+        "dial"
       ],
-      "lines": 55,
+      "lines": 80,
       "path": "crates/mini-transport-security/README.md",
-      "sha256": "549cb8b89ca10a84bbedc1707728881a51895864f326f3e39b24fd9267b9f289",
+      "sha256": "42a8e0f5e290e925f5a828bc12da387fd4b5f0b832166fe39da058884e43d354",
       "symbols": [],
       "title": "mini-transport-security"
     },
@@ -66488,7 +66518,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 927599,
+      "bytes": 933116,
       "group": "docs",
       "headings": [
         {
@@ -66896,8 +66926,8 @@
         "accepted",
         "track",
         "issue",
-        "real",
         "proposed",
+        "real",
         "android",
         "founder",
         "beta",
@@ -66915,12 +66945,12 @@
         "roadmap",
         "release",
         "first",
-        "status",
-        "deterministic"
+        "transport",
+        "status"
       ],
-      "lines": 15434,
+      "lines": 15523,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "a8d3640303f3762d27d63e4a4b6bb0f2186afecc06330b033da642adba8f5322",
+      "sha256": "6cb94f40b0ce20c37eecab162d140e73991a18738485e341c80eaab93d44bf1e",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68069,7 +68099,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 125018,
+      "bytes": 125219,
       "group": "docs",
       "headings": [
         {
@@ -68160,7 +68190,7 @@
         {
           "level": 2,
           "line": 1869,
-          "text": "Privacy and transport security \u2014 D-0377 proposal"
+          "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0437"
         }
       ],
       "keywords": [
@@ -68183,15 +68213,15 @@
         "development",
         "value",
         "privacy",
-        "security",
         "decision",
         "one",
         "design",
-        "claude"
+        "claude",
+        "social"
       ],
-      "lines": 1901,
+      "lines": 1904,
       "path": "docs/STATUS.md",
-      "sha256": "901cb219de44b5494c86fd06d976043fa8400e40277013d652f4934bda30dc64",
+      "sha256": "30c69b4982ae09ccedb3ed27c42cab551d8b54e043c9788596285ad863ca4d60",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -68303,7 +68333,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 29469,
+      "bytes": 31384,
       "group": "docs",
       "headings": [
         {
@@ -68359,7 +68389,7 @@
         {
           "level": 2,
           "line": 149,
-          "text": "Transport/privacy addendum \u2014 D-0377"
+          "text": "Transport/privacy addendum \u2014 D-0377 and proposed D-0437"
         }
       ],
       "keywords": [
@@ -68388,9 +68418,9 @@
         "machine",
         "single"
       ],
-      "lines": 167,
+      "lines": 174,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "1d732c008d8a925b5a449f8c9c08278cacbe110d59092c058444312a202c8593",
+      "sha256": "1bafec9f860b03cc55efe47b858c801fdeebcba32a54c1d33cd7230dc876927a",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -71084,7 +71114,7 @@
       "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
     },
     {
-      "bytes": 13631,
+      "bytes": 15685,
       "group": "docs",
       "headings": [
         {
@@ -71129,44 +71159,49 @@
         },
         {
           "level": 2,
-          "line": 69,
+          "line": 70,
+          "text": "Phase 3: optional authenticated provider provenance (D-0437, PR #296)"
+        },
+        {
+          "level": 2,
+          "line": 107,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 76,
+          "line": 114,
           "text": "Supersedes / superseded by"
         }
       ],
       "keywords": [
         "phase",
         "query",
-        "caller",
-        "track",
         "provider",
-        "design",
+        "track",
+        "caller",
         "one",
+        "design",
         "search",
         "does",
-        "peer",
+        "other",
         "exactly",
         "results",
         "private",
+        "transport",
         "gap",
         "what",
         "scope",
-        "document",
         "own",
-        "other",
+        "peer",
         "real",
-        "wants",
         "queried",
         "here",
-        "transport"
+        "doctrine",
+        "closes"
       ],
-      "lines": 79,
+      "lines": 117,
       "path": "docs/design/f6-private-query-transport.md",
-      "sha256": "3e01417282ef82a0148ee4d8f39d006f242b704e362bb6bf28511b1399c78e97",
+      "sha256": "a1b11d564e61319358889f0638a0cf8ef8f834ee941a7ff641da0d4b550aaf2f",
       "symbols": [],
       "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
@@ -80691,6 +80726,108 @@
       "sha256": "02815a39991405f079501ede7993d2c5e6590f944eb56a2cb39ca201fb78d76a",
       "symbols": [],
       "title": "Native release retrieval \u2014 preliminary implementation report"
+    },
+    {
+      "bytes": 8789,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Privacy transport runtime convergence"
+        },
+        {
+          "level": 2,
+          "line": 10,
+          "text": "Why this PR exists"
+        },
+        {
+          "level": 2,
+          "line": 25,
+          "text": "Implemented mechanisms"
+        },
+        {
+          "level": 3,
+          "line": 27,
+          "text": "One authenticated connection object"
+        },
+        {
+          "level": 3,
+          "line": 47,
+          "text": "Bounded retry without a trusted first peer"
+        },
+        {
+          "level": 3,
+          "line": 55,
+          "text": "Existing bridge boundary, no second process authority"
+        },
+        {
+          "level": 3,
+          "line": 64,
+          "text": "Verified onion route construction"
+        },
+        {
+          "level": 3,
+          "line": 71,
+          "text": "Peer-bound F6 search provenance"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "Verdict matrix"
+        },
+        {
+          "level": 2,
+          "line": 95,
+          "text": "Permanent evidence"
+        },
+        {
+          "level": 2,
+          "line": 108,
+          "text": "Frozen authority boundaries"
+        },
+        {
+          "level": 2,
+          "line": 121,
+          "text": "Honest non-claims and required follow-up"
+        },
+        {
+          "level": 2,
+          "line": 138,
+          "text": "Merge floor"
+        }
+      ],
+      "keywords": [
+        "bounded",
+        "verified",
+        "state",
+        "endpoint",
+        "one",
+        "connection",
+        "peer",
+        "channel",
+        "identity",
+        "exact",
+        "authenticated",
+        "bridge",
+        "authority",
+        "onion",
+        "merge",
+        "provider",
+        "selected",
+        "ch1",
+        "binding",
+        "pass",
+        "transport",
+        "runtime",
+        "first",
+        "existing"
+      ],
+      "lines": 147,
+      "path": "docs/planning/privacy-transport-runtime-convergence.md",
+      "sha256": "e700e740ef37aa9d5afadff5a2a7b9303ec3aacecbe89652f1b48dff4e4488bd",
+      "symbols": [],
+      "title": "Privacy transport runtime convergence"
     },
     {
       "bytes": 7458,

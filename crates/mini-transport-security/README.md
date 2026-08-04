@@ -1,7 +1,7 @@
 # mini-transport-security
 
-Optional self-certifying endpoint authentication and secure peer-discovery
-primitives above Mininet's anonymous `mini-bearer::Channel`.
+Optional self-certifying endpoint authentication, secure peer discovery, and an
+executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
 
 ## What is implemented
 
@@ -9,19 +9,40 @@ primitives above Mininet's anonymous `mini-bearer::Channel`.
   `did:mini` device for one endpoint role and typed transport purpose.
 - Verification uses caller-supplied root/device KELs, delegation capability
   checks, highest-sequence freshness pins, bounded validity windows, and a
-  bounded replay cache.
+  validity-window replay cache that fails closed at capacity.
 - `TransportEndpointId` binds the presented device or pairwise DID to its
   current X25519 routing key. Rotating the routing key rotates the endpoint id.
 - `PeerAdvertisement` signs a network id, dial address, routing key, endpoint
-  id, validity window, and replay nonce. Advertisements remain dial hints; the
-  live CH1 session must still prove the same endpoint and routing key.
-- `SecurePexResponse` carries a bounded canonical list of signed
-  advertisements.
+  id, validity window, and internally generated replay nonce. Advertisements are
+  dial hints; the live CH1 session must still prove the same endpoint and key.
+- `SecurePexResponse` carries a bounded canonical list of signed advertisements.
 - `diverse_dial_plan` is locally seeded, input-order-independent, duplicate-
   resistant, and capped per IPv4 `/24` or IPv6 `/48` prefix.
-- `executable_transport` permits the implemented Direct and Relayed executors
-  and refuses Mixed/Burst until the exact mix executor receives independent
-  review.
+- `AuthenticatedConnection<B>` owns one bearer, the exact CH1 channel, and the
+  peer verified on that channel as one object. It exposes authenticated `send`
+  and `recv`, not detachable raw identity state.
+- `connect_authenticated_tcp` performs signed-advertisement dial, CH1, encrypted
+  responder-first authentication, and exact advertisement/session binding.
+  `connect_first_authenticated_tcp` retries a bounded local diverse plan and
+  returns no partially accepted state from failed attempts.
+- `authenticate_established_initiator` and
+  `authenticate_established_responder` accept a channel established by any
+  bearer, including `mini-bridge` adapters, without making the bridge an
+  identity authority.
+- `build_verified_onion_route` accepts three already-verified endpoints and
+  rejects visible endpoint, routing-key, root, or device reuse before building
+  the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`.
+- `executable_transport` permits implemented Direct and Relayed execution and
+  refuses Mixed/Burst until the exact mix executor receives independent review.
+
+## Transactional verification boundary
+
+Runtime authentication clones `FreshnessPins` and `ReplayCache`, verifies the
+complete remote proof, and commits those states only when the exchange reaches a
+fully authenticated connection. A redirected genuine endpoint is rejected
+before the initiator sends its own identity proof. Network, decode, identity,
+role, purpose, freshness, or replay failure returns no accepted connection and
+cannot partially advance caller-held freshness/replay state.
 
 ## Authority boundary
 
@@ -33,7 +54,8 @@ selection input.
 
 Anonymous CH1 remains valid. A caller that needs unlinkability should present a
 pairwise identity or use onion/mix routing rather than authenticating a global
-root to every counterparty.
+root to every counterparty. An authenticated endpoint proves key control on one
+channel; it is not personhood, operator independence, reputation, or truth.
 
 ## Exact limits
 
@@ -47,8 +69,11 @@ root to every counterparty.
 - The three-hop onion implementation lives in `mini-relay`; it protects payload
   confidentiality and separates endpoint knowledge, but is not Sphinx and does
   not defeat a global timing/volume observer.
-- NAT traversal, reconnect, pluggable/camouflaged transports, bridge
-  distribution, and background service supervision remain deployment work.
+- The bridge seam reuses `mini-bridge::PluggableTransport` and
+  `PtProcessManager`; no real obfs4/WebTunnel/Snowflake adapter is added here.
+- NAT traversal, reconnect, private bridge distribution, multipath migration,
+  and background service supervision remain deployment work.
 
-See `docs/planning/privacy-transport-security.md` and
+See `docs/planning/privacy-transport-runtime-convergence.md`,
+`docs/planning/privacy-transport-security.md`, and
 `docs/audits/issue-27-censorship-resistance-review.md`.
