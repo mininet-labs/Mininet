@@ -29,6 +29,7 @@ jobs:
         run: |
           python3 tools/apply_runtime_convergence_stage1.py
           python3 tools/apply_runtime_convergence_stage2.py
+          python3 tools/apply_runtime_convergence_fix1.py
 
       - name: Format
         run: cargo fmt --all
@@ -48,6 +49,7 @@ jobs:
         run: |
           rm tools/apply_runtime_convergence_stage1.py
           rm tools/apply_runtime_convergence_stage2.py
+          rm tools/apply_runtime_convergence_fix1.py
           rm .github/workflows/privacy-transport-runtime-convergence.yml
           python3 tools/mininet_nav.py build
 
