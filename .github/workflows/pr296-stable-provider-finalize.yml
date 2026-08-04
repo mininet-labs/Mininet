@@ -24,7 +24,9 @@ jobs:
           fetch-depth: 0
           ref: codex/privacy-transport-runtime-convergence
       - name: Apply stable-provider and enum hardening
-        run: python3 tools/apply_pr296_stable_provider_and_enum_hardening.py
+        run: |
+          python3 tools/apply_pr296_stable_provider_and_enum_hardening.py
+          python3 tools/fix_pr296_stable_provider_clippy.py
       - name: Format
         run: cargo fmt --all
       - name: Strict Clippy
@@ -47,11 +49,13 @@ jobs:
       - name: Regenerate navigation and clean staging
         run: |
           rm tools/apply_pr296_stable_provider_and_enum_hardening.py
+          rm tools/fix_pr296_stable_provider_clippy.py
           rm .github/workflows/pr296-stable-provider-finalize.yml
           python3 tools/mininet_nav.py build
       - name: Verify cleanup
         run: |
           test ! -e tools/apply_pr296_stable_provider_and_enum_hardening.py
+          test ! -e tools/fix_pr296_stable_provider_clippy.py
           test ! -e .github/workflows/pr296-stable-provider-finalize.yml
           git status --short
       - name: Commit tested tree
