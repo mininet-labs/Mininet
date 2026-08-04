@@ -160,6 +160,9 @@ pub fn build_onion(
     expires_at_ms: u64,
 ) -> Result<OnionPacket> {
     validate_route(hops)?;
+    if hops.iter().any(|hop| hop.routing_key == destination_key) {
+        return Err(RelayError::InvalidOnionRoute);
+    }
     validate_onion_window(now_ms, expires_at_ms)?;
 
     let destination = DestinationEnvelope::seal(
@@ -264,6 +267,11 @@ impl OnionPacket {
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        if self.hop_index as usize >= ONION_HOP_COUNT
+            || self.ciphertext.len() != onion_ciphertext_bytes(self.size_class, self.hop_index)?
+        {
+            return Err(RelayError::InvalidOnionRoute);
+        }
         let mut writer = Writer::new();
         writer.u8(ONION_VERSION);
         writer.raw(&self.connection_id.to_bytes());
@@ -982,6 +990,18 @@ mod tests {
             Err(RelayError::InvalidOnionRoute)
         );
         let (hops, _) = route();
+        assert_eq!(
+            build_onion(
+                ConnectionId::from_bytes([7; 16]),
+                PayloadSizeClass::Small,
+                &hops,
+                hops[2].routing_key,
+                b"payload",
+                BUILD_NOW_MS,
+                EXPIRES_AT_MS,
+            ),
+            Err(RelayError::InvalidOnionRoute)
+        );
         let oversized = vec![0u8; SMALL_ONION_PAYLOAD_BYTES];
         assert_eq!(
             build_onion(
@@ -1035,16 +1055,14 @@ mod tests {
 
         let mut shorter = packet.clone();
         shorter.ciphertext.pop().unwrap();
-        assert_eq!(
-            OnionPacket::from_bytes(&shorter.to_bytes().unwrap()),
-            Err(RelayError::InvalidOnionRoute)
-        );
+        assert_eq!(shorter.to_bytes(), Err(RelayError::InvalidOnionRoute));
 
-        let mut longer = packet;
+        let mut longer = packet.clone();
         longer.ciphertext.push(0);
-        assert_eq!(
-            OnionPacket::from_bytes(&longer.to_bytes().unwrap()),
-            Err(RelayError::LimitExceeded)
-        );
+        assert_eq!(longer.to_bytes(), Err(RelayError::InvalidOnionRoute));
+
+        let mut wrong_hop = packet;
+        wrong_hop.hop_index = ONION_HOP_COUNT as u8;
+        assert_eq!(wrong_hop.to_bytes(), Err(RelayError::InvalidOnionRoute));
     }
 }

@@ -3,7 +3,7 @@
     "crates": 71,
     "files": 846,
     "headings": 2642,
-    "rust_symbols": 7961
+    "rust_symbols": 7963
   },
   "crates": {
     "did-mini": {
@@ -47201,7 +47201,7 @@
       "title": "use did_mini::{Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 37058,
+      "bytes": 37809,
       "group": "crate:mini-relay",
       "headings": [],
       "keywords": [
@@ -47230,9 +47230,9 @@
         "vec",
         "replay"
       ],
-      "lines": 1051,
+      "lines": 1069,
       "path": "crates/mini-relay/src/onion.rs",
-      "sha256": "28b3c07a9fc229bb951cd8761bd11b84cdf1ce718a86ad454b4fc034610da102",
+      "sha256": "9e6d4cc1a7418eaf2f6dd72c0c6b4262098ed2dba0f23fcfcdc435793b327961",
       "symbols": [
         {
           "kind": "const",
@@ -47371,207 +47371,207 @@
         },
         {
           "kind": "impl",
-          "line": 205,
+          "line": 208,
           "name": "OnionPacket"
         },
         {
           "kind": "fn",
-          "line": 206,
+          "line": 209,
           "name": "peel"
         },
         {
           "kind": "fn",
-          "line": 266,
+          "line": 269,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 284,
+          "line": 292,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 335,
+          "line": 343,
           "name": "open_onion_destination"
         },
         {
           "kind": "struct",
-          "line": 349,
-          "name": "DestinationEnvelope"
-        },
-        {
-          "kind": "impl",
           "line": 357,
           "name": "DestinationEnvelope"
         },
         {
+          "kind": "impl",
+          "line": 365,
+          "name": "DestinationEnvelope"
+        },
+        {
           "kind": "fn",
-          "line": 358,
+          "line": 366,
           "name": "seal"
         },
         {
           "kind": "fn",
-          "line": 383,
+          "line": 391,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 404,
+          "line": 412,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 416,
+          "line": 424,
           "name": "from_bytes"
         },
         {
           "kind": "struct",
-          "line": 456,
+          "line": 464,
           "name": "HopPlaintext"
         },
         {
           "kind": "fn",
-          "line": 464,
+          "line": 472,
           "name": "encode_hop_plaintext"
         },
         {
           "kind": "fn",
-          "line": 485,
+          "line": 493,
           "name": "decode_hop_plaintext"
         },
         {
           "kind": "fn",
-          "line": 515,
+          "line": 523,
           "name": "validate_route"
         },
         {
           "kind": "fn",
-          "line": 533,
+          "line": 541,
           "name": "route_role"
         },
         {
           "kind": "fn",
-          "line": 542,
+          "line": 550,
           "name": "derive_key"
         },
         {
           "kind": "fn",
-          "line": 549,
+          "line": 557,
           "name": "hop_aad"
         },
         {
           "kind": "fn",
-          "line": 569,
+          "line": 577,
           "name": "destination_aad"
         },
         {
           "kind": "fn",
-          "line": 586,
+          "line": 594,
           "name": "validate_onion_window"
         },
         {
           "kind": "fn",
-          "line": 602,
+          "line": 610,
           "name": "encode_fixed_payload"
         },
         {
           "kind": "struct",
-          "line": 628,
+          "line": 636,
           "name": "DestinationPlaintext"
         },
         {
           "kind": "fn",
-          "line": 634,
+          "line": 642,
           "name": "decode_fixed_payload"
         },
         {
           "kind": "fn",
-          "line": 668,
+          "line": 676,
           "name": "fixed_payload_bytes"
         },
         {
           "kind": "fn",
-          "line": 684,
+          "line": 692,
           "name": "onion_ciphertext_bytes"
         },
         {
           "kind": "fn",
-          "line": 707,
+          "line": 715,
           "name": "size_class_tag"
         },
         {
           "kind": "fn",
-          "line": 715,
+          "line": 723,
           "name": "size_class_from_tag"
         },
         {
           "kind": "mod",
-          "line": 725,
+          "line": 733,
           "name": "tests"
         },
         {
           "kind": "const",
-          "line": 728,
+          "line": 736,
           "name": "BUILD_NOW_MS"
         },
         {
           "kind": "const",
-          "line": 729,
+          "line": 737,
           "name": "PROCESS_NOW_MS"
         },
         {
           "kind": "const",
-          "line": 730,
+          "line": 738,
           "name": "EXPIRES_AT_MS"
         },
         {
           "kind": "fn",
-          "line": 732,
+          "line": 740,
           "name": "route"
         },
         {
           "kind": "fn",
-          "line": 758,
+          "line": 766,
           "name": "three_relays_and_destination_each_reject_replay"
         },
         {
           "kind": "fn",
-          "line": 814,
+          "line": 822,
           "name": "wrong_relay_tampering_expiry_and_replay_fail_closed"
         },
         {
           "kind": "fn",
-          "line": 854,
+          "line": 862,
           "name": "authenticated_but_malformed_inner_packet_does_not_consume_replay_state"
         },
         {
           "kind": "fn",
-          "line": 896,
+          "line": 904,
           "name": "replay_capacity_fails_closed_until_entries_expire"
         },
         {
           "kind": "fn",
-          "line": 910,
+          "line": 918,
           "name": "wall_clock_rollback_cannot_resurrect_an_expired_onion_token"
         },
         {
           "kind": "fn",
-          "line": 924,
+          "line": 932,
           "name": "zero_or_excessive_remaining_lifetime_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 954,
+          "line": 962,
           "name": "route_roles_keys_and_payload_size_are_strict"
         },
         {
           "kind": "fn",
-          "line": 1001,
+          "line": 1021,
           "name": "packet_round_trip_is_canonical_and_bounded"
         },
         {
           "kind": "fn",
-          "line": 1022,
+          "line": 1042,
           "name": "declared_size_class_rejects_shorter_or_longer_ciphertext"
         }
       ],
@@ -49429,7 +49429,7 @@
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 36917,
+      "bytes": 39155,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -49458,9 +49458,9 @@
         "results",
         "response"
       ],
-      "lines": 1098,
+      "lines": 1166,
       "path": "crates/mini-search-federation-net/src/query.rs",
-      "sha256": "1d9cdf1b05176929c155d47e73bfcdc2ad3a1b679fa24d3e3b2436886191e99a",
+      "sha256": "307da1091f2b987fffa37c3af0d947f27622ea60f8858add2aa8df64a104708d",
       "symbols": [
         {
           "kind": "const",
@@ -49699,172 +49699,177 @@
         },
         {
           "kind": "fn",
-          "line": 346,
+          "line": 347,
           "name": "validate_url"
         },
         {
           "kind": "fn",
-          "line": 359,
+          "line": 371,
           "name": "validate_availability"
         },
         {
           "kind": "fn",
-          "line": 370,
+          "line": 382,
           "name": "validate_wire_result"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 405,
           "name": "validate_query_response"
         },
         {
           "kind": "fn",
-          "line": 407,
+          "line": 422,
           "name": "encode_result"
         },
         {
           "kind": "fn",
-          "line": 420,
+          "line": 435,
           "name": "decode_result"
         },
         {
           "kind": "impl",
-          "line": 453,
+          "line": 468,
           "name": "Msg"
         },
         {
           "kind": "fn",
-          "line": 454,
+          "line": 469,
           "name": "validate"
         },
         {
           "kind": "fn",
-          "line": 481,
+          "line": 496,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 506,
+          "line": 521,
           "name": "decode"
         },
         {
           "kind": "fn",
-          "line": 541,
+          "line": 556,
           "name": "send"
         },
         {
           "kind": "fn",
-          "line": 546,
+          "line": 561,
           "name": "recv"
         },
         {
           "kind": "fn",
-          "line": 558,
+          "line": 573,
           "name": "remote_query"
         },
         {
           "kind": "struct",
-          "line": 594,
+          "line": 609,
           "name": "AuthenticatedQueryResults"
         },
         {
           "kind": "impl",
-          "line": 599,
+          "line": 614,
           "name": "AuthenticatedQueryResults"
         },
         {
           "kind": "fn",
-          "line": 602,
+          "line": 617,
           "name": "provider"
         },
         {
           "kind": "fn",
-          "line": 606,
+          "line": 621,
           "name": "results"
         },
         {
           "kind": "fn",
-          "line": 620,
+          "line": 635,
           "name": "authenticated_provider_pseudonym"
         },
         {
           "kind": "fn",
-          "line": 634,
+          "line": 649,
           "name": "remote_query_authenticated"
         },
         {
           "kind": "fn",
-          "line": 676,
+          "line": 691,
           "name": "serve_query_authenticated"
         },
         {
           "kind": "fn",
-          "line": 744,
+          "line": 759,
           "name": "serve_query"
         },
         {
           "kind": "mod",
-          "line": 803,
+          "line": 818,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 809,
+          "line": 824,
           "name": "channels"
         },
         {
           "kind": "fn",
-          "line": 823,
+          "line": 838,
           "name": "url"
         },
         {
           "kind": "fn",
-          "line": 834,
+          "line": 849,
           "name": "digest"
         },
         {
           "kind": "fn",
-          "line": 838,
+          "line": 853,
           "name": "fixture"
         },
         {
           "kind": "fn",
-          "line": 882,
+          "line": 897,
           "name": "round_trip_matches_a_local_search"
         },
         {
           "kind": "fn",
-          "line": 929,
+          "line": 944,
           "name": "oversized_query_text_is_rejected_before_sending"
         },
         {
           "kind": "fn",
-          "line": 941,
+          "line": 956,
           "name": "zero_or_oversized_max_results_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 962,
+          "line": 977,
           "name": "outbound_and_inbound_codecs_enforce_the_same_field_bounds"
         },
         {
           "kind": "fn",
-          "line": 1006,
+          "line": 1043,
+          "name": "a_ranked_response_cannot_reintroduce_a_filtered_document"
+        },
+        {
+          "kind": "fn",
+          "line": 1074,
           "name": "a_response_for_another_ranking_profile_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 1026,
+          "line": 1094,
           "name": "a_compliant_server_never_exceeds_the_requested_max_results"
         },
         {
           "kind": "fn",
-          "line": 1049,
+          "line": 1117,
           "name": "tampered_ciphertext_fails_closed"
         },
         {
           "kind": "fn",
-          "line": 1072,
+          "line": 1140,
           "name": "every_availability_variant_round_trips_through_the_wire_codec"
         }
       ],
@@ -58952,7 +58957,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 5492,
+      "bytes": 5732,
       "group": "crate:mini-transport-security",
       "headings": [
         {
@@ -58967,54 +58972,54 @@
         },
         {
           "level": 2,
-          "line": 46,
+          "line": 49,
           "text": "Transactional verification boundary"
         },
         {
           "level": 2,
-          "line": 55,
+          "line": 58,
           "text": "Authority boundary"
         },
         {
           "level": 2,
-          "line": 68,
+          "line": 71,
           "text": "Exact limits"
         }
       ],
       "keywords": [
         "endpoint",
-        "channel",
         "key",
+        "channel",
         "identity",
         "exact",
         "one",
         "ch1",
+        "routing",
         "authority",
         "freshness",
-        "replay",
-        "routing",
+        "rejects",
         "boundary",
         "authentication",
         "connection",
         "device",
         "root",
+        "replay",
         "authenticated",
-        "state",
-        "global",
+        "relay",
         "mini-transport-security",
         "implemented",
         "verification",
         "peer",
         "binding"
       ],
-      "lines": 92,
+      "lines": 95,
       "path": "crates/mini-transport-security/README.md",
-      "sha256": "3ccbf7273a0f4799813f5d4126d5d51f3d4e8b3924e77b549e8b70410d419f2c",
+      "sha256": "176fc207ec811f0b514c10ae7e2c1335b734e32e0d05d248f9545610fb0bef8f",
       "symbols": [],
       "title": "mini-transport-security"
     },
     {
-      "bytes": 20156,
+      "bytes": 20650,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
@@ -59043,9 +59048,9 @@
         "agreementpublickey",
         "usize"
       ],
-      "lines": 593,
+      "lines": 608,
       "path": "crates/mini-transport-security/src/advertisement.rs",
-      "sha256": "1415c44564be1ff67d3f06804843cb0797ca243965eb6fa8627d07b14e6834a6",
+      "sha256": "70ac1f5438138c2fd6bc84bb0eb652c45578a31c2ade75bcca3cc29e7afecc3e",
       "symbols": [
         {
           "kind": "const",
@@ -59219,62 +59224,62 @@
         },
         {
           "kind": "fn",
-          "line": 302,
+          "line": 309,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 338,
+          "line": 345,
           "name": "encode_unsigned"
         },
         {
           "kind": "fn",
-          "line": 352,
+          "line": 359,
           "name": "encode_address"
         },
         {
           "kind": "fn",
-          "line": 366,
+          "line": 373,
           "name": "decode_address"
         },
         {
           "kind": "fn",
-          "line": 387,
+          "line": 394,
           "name": "validate_address"
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 404,
           "name": "validate_window"
         },
         {
           "kind": "mod",
-          "line": 414,
+          "line": 421,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 420,
+          "line": 427,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 434,
+          "line": 441,
           "name": "issue_generates_fresh_nonce_internally"
         },
         {
           "kind": "fn",
-          "line": 463,
+          "line": 470,
           "name": "signed_advertisement_round_trips_and_verifies"
         },
         {
           "kind": "fn",
-          "line": 494,
+          "line": 501,
           "name": "redirect_network_expiry_and_replay_fail_closed"
         },
         {
           "kind": "fn",
-          "line": 569,
+          "line": 576,
           "name": "secure_pex_is_bounded_and_canonical"
         }
       ],
@@ -60150,13 +60155,13 @@
       "title": "use std::net::{SocketAddr, TcpStream};"
     },
     {
-      "bytes": 11048,
+      "bytes": 12750,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
         "record",
         "self",
-        "octets",
+        "records",
         "max_peers",
         "endpoint_id",
         "policy",
@@ -60164,7 +60169,6 @@
         "networkprefix",
         "address",
         "hashset",
-        "records",
         "const",
         "usize",
         "clone",
@@ -60176,12 +60180,13 @@
         "selection",
         "default",
         "dialattempt",
-        "ipaddr",
-        "u64"
+        "transportsecurityerror",
+        "u64",
+        "dial_timeout_ms"
       ],
-      "lines": 323,
+      "lines": 371,
       "path": "crates/mini-transport-security/src/selection.rs",
-      "sha256": "e24c0f4b8ceb2ed70863e74f6e4798aa5e03c2be18333c0ac8af29afde63b266",
+      "sha256": "670a943da2ee4bd582a025d435b6139f52f3d3c7c722325908f41af4e6d667b4",
       "symbols": [
         {
           "kind": "const",
@@ -60245,52 +60250,57 @@
         },
         {
           "kind": "enum",
-          "line": 126,
+          "line": 134,
           "name": "NetworkPrefix"
         },
         {
           "kind": "impl",
-          "line": 131,
+          "line": 139,
           "name": "NetworkPrefix"
         },
         {
           "kind": "fn",
-          "line": 132,
+          "line": 140,
           "name": "from_ip"
         },
         {
           "kind": "fn",
-          "line": 148,
+          "line": 156,
           "name": "selection_score"
         },
         {
           "kind": "mod",
-          "line": 168,
+          "line": 176,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 175,
+          "line": 183,
           "name": "verified"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 219,
           "name": "selection_is_input_order_independent_and_prefix_bounded"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 249,
           "name": "one_visible_identity_cannot_fill_multiple_selection_slots"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 313,
+          "name": "selection_rejects_mixed_network_records"
+        },
+        {
+          "kind": "fn",
+          "line": 353,
           "name": "candidate_input_is_bounded_before_sorting"
         },
         {
           "kind": "fn",
-          "line": 315,
+          "line": 363,
           "name": "local_seed_is_part_of_the_selection_score"
         }
       ],
@@ -66917,7 +66927,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 933841,
+      "bytes": 934218,
       "group": "docs",
       "headings": [
         {
@@ -67347,9 +67357,9 @@
         "transport",
         "status"
       ],
-      "lines": 15536,
+      "lines": 15540,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "b65017515a914e97848c3fd544e246ffcb459a5f9b3f05cc6018bcb285d5d1d5",
+      "sha256": "8fe039fa2d51bfad9b235a1ff1202af8657faa3ad7305abe0ff55f5dd1dab302",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68732,7 +68742,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 33357,
+      "bytes": 33783,
       "group": "docs",
       "headings": [
         {
@@ -68819,7 +68829,7 @@
       ],
       "lines": 179,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "5e9f4d8fa02ad2c9fceba8de02c093450dad9571563cdfef9e101d32e004ff46",
+      "sha256": "021f71194cbcc0629d1396aad61ddfa4d13628336cbe16b01cf9b5e292df20bc",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -71513,7 +71523,7 @@
       "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
     },
     {
-      "bytes": 16163,
+      "bytes": 16404,
       "group": "docs",
       "headings": [
         {
@@ -71553,22 +71563,22 @@
         },
         {
           "level": 2,
-          "line": 56,
+          "line": 57,
           "text": "Phase 2: wiring into F3's merge path (D-0436)"
         },
         {
           "level": 2,
-          "line": 72,
+          "line": 73,
           "text": "Phase 3: optional authenticated provider provenance (D-0438, PR #296)"
         },
         {
           "level": 2,
-          "line": 111,
+          "line": 112,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 118,
+          "line": 119,
           "text": "Supersedes / superseded by"
         }
       ],
@@ -71598,9 +71608,9 @@
         "doctrine",
         "closes"
       ],
-      "lines": 121,
+      "lines": 122,
       "path": "docs/design/f6-private-query-transport.md",
-      "sha256": "cc7a114725bf9c12a0a9e7ba0805c898bd06e7b6c774697dd24d130ba65f36b7",
+      "sha256": "0a962e2c1390cced5b2c278461330793c704cdff8cd67d6b1829a600ea426d36",
       "symbols": [],
       "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
@@ -81127,7 +81137,7 @@
       "title": "Native release retrieval \u2014 preliminary implementation report"
     },
     {
-      "bytes": 10772,
+      "bytes": 10951,
       "group": "docs",
       "headings": [
         {
@@ -81182,17 +81192,17 @@
         },
         {
           "level": 2,
-          "line": 121,
+          "line": 123,
           "text": "Frozen authority boundaries"
         },
         {
           "level": 2,
-          "line": 134,
+          "line": 136,
           "text": "Honest non-claims and required follow-up"
         },
         {
           "level": 2,
-          "line": 152,
+          "line": 154,
           "text": "Merge floor"
         }
       ],
@@ -81222,9 +81232,9 @@
         "existing",
         "bridge"
       ],
-      "lines": 161,
+      "lines": 163,
       "path": "docs/planning/privacy-transport-runtime-convergence.md",
-      "sha256": "8901eb439a0f0f985d01fe2d51b43f2aeb4fce92c74646448f5a2e97e4ee2b2e",
+      "sha256": "3e8e8df4ddef90791bca8c72258831ee8a4332c156cb28328f35f6476c2e702a",
       "symbols": [],
       "title": "Privacy transport runtime convergence"
     },

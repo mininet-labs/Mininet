@@ -89,7 +89,7 @@ remain available as explicitly weaker alternatives.
 | Failed-attempt state atomicity | **PASS** | Freshness/replay values are cloned and committed only after full verification and successful exchange. | Crash-persistent replay state remains the host application's responsibility. |
 | Ordered connection state after transport failure | **PASS** | `AuthenticatedConnection` permanently poisons itself after bearer send/receive or channel-open failure, so a caller cannot continue after an ambiguous CH1 counter/stream position. | Recovery requires a new channel; the generic lower-level `Channel` + `Bearer` APIs remain caller-managed. |
 | Central naming/bridge authority avoidance | **PASS** | Caller-held KELs, self-certifying endpoints, locally seeded selection that deduplicates visible roots/devices as well as endpoint/routing keys, and reuse of the existing pluggable-transport boundary; no CA, canonical list, or bridge directory. | First-contact unseen KEL revocation still needs witness/gossip evidence; pairwise roots do not prove independent operators. |
-| Relay role separation at route build | **PARTIAL** | Three live, same-network verified records must differ by endpoint id, routing key, visible root, and device. | One hidden operator can control several valid pairwise roots, devices, prefixes, or ASNs. |
+| Relay role separation at route build | **PARTIAL** | Three live, same-network verified records must differ by endpoint id, routing key, visible root, and device; the destination key must differ from every relay routing key. | One hidden operator can control several valid pairwise roots, devices, prefixes, or ASNs. |
 | Relay and destination replay defense | **PASS in-process** | Onion v2 uses v2 key domains, encrypts expiry/replay tokens for every relay and destination, bounds lifetime with explicit clock-skew tolerance, retains a monotonic local time high-water mark so wall-clock rollback cannot resurrect expired tokens, never evicts live entries, records only after inner validation, and fails closed at capacity. | Hosts must persist equivalent replay state and its time high-water mark across restart; authenticated packet floods can still exhaust bounded capacity and require rate/resource controls. |
 | Authenticated F6 provider labeling | **PASS for the named API** | Typed `SearchQuery` proof, private `AuthenticatedQueryResults` fields, channel-scoped endpoint+CH1 provider pseudonym, and sealed merge path. | Anonymous/legacy APIs intentionally retain caller-owned labeling; provider identity does not prove result truth or continuity across sessions. |
 | Global traffic-analysis resistance | **FAIL** | Mixed/Burst remain runtime-fail-closed rather than inheriting a false claim. | CH1/TCP timing, volume, transcript shape, and three-hop correlation remain visible until an independently reviewed mix/camouflage system exists. |
@@ -104,12 +104,14 @@ remain available as explicitly weaker alternatives.
   `Relay`-purpose `AuthenticatedConnection`s.
 - `mini-search-federation-net` strict Clippy and all focused tests pass,
   including a real authenticated F6 query/merge, wrong-purpose rejection,
-  symmetric outbound/decode bounds, and requested-profile enforcement.
+  symmetric outbound/decode bounds, requested-profile enforcement, and rejection
+  of non-displayable ranked results.
 - `mini-relay` unit and real-socket onion tests pass after the onion-v2
   replay/lifetime upgrade, including destination replay, fail-closed capacity,
   monotonic time under wall-clock rollback, expiry pruning, excessive-lifetime
-  rejection, malformed-state atomicity, and exact ciphertext length for every
-  declared payload size class and hop.
+  rejection, malformed-state atomicity, exact ciphertext length for every
+  declared payload size class and hop, outbound packet-state validation, and
+  destination/relay key separation.
 - Tests prove redirect rejection before initiator disclosure, no partial
   freshness/replay mutation, bounded retry over an unreachable first hint,
   reuse of a `mini-bridge`-established channel, distinct verified onion roles,

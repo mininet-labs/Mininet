@@ -48,8 +48,9 @@ Adversarial coverage in `crates/mini-search-federation-net/src/query.rs` (unit t
 - an oversized query string is rejected before encoding;
 - `max_results` of zero or above `MAX_QUERY_RESULTS` is rejected;
 - a compliant server never returns more results than the request's own `max_results`;
-- the same field, score, count, URL, jurisdiction, and multihash bounds run before encoding and after decoding, so a provider cannot emit a message its own peer would reject solely because local metadata was oversized;
+- the same field, score, count, canonical-URL, ranking-profile-version, jurisdiction, and multihash validation runs before encoding and after decoding, so a provider cannot emit a message its own peer rejects because local public fields were oversized, mutated, or semantically invalid;
 - a response is rejected if any result names a ranking profile other than the one requested, preserving F3's same-profile score-comparability premise;
+- a ranked response rejects `Restricted` and `Unavailable` results, so a malicious provider cannot reinsert a document that the ranker structurally excludes before scoring;
 - every current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason` variant round-trips through the `WireResult` codec, with a future-variant-safe fallback for both `#[non_exhaustive]` enums, mirroring F2b's own coverage discipline;
 - a tampered ciphertext fails closed (the channel's own AEAD authentication, exercised the same way `session.rs`'s tests already prove it for the advertise exchange).
 

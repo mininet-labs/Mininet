@@ -74,6 +74,14 @@ pub fn diverse_dial_plan(
     if records.len() > MAX_SELECTION_CANDIDATES {
         return Err(TransportSecurityError::LimitExceeded);
     }
+    if let Some(expected_network) = records.first().map(VerifiedPeerAdvertisement::network_id) {
+        if records
+            .iter()
+            .any(|record| record.network_id() != expected_network)
+        {
+            return Err(TransportSecurityError::WrongNetwork);
+        }
+    }
     let mut candidates: Vec<_> = records
         .iter()
         .map(|record| (selection_score(record, local_seed), record))
@@ -299,6 +307,46 @@ mod tests {
             })
             .count();
         assert_eq!(same_identity_slots, 1);
+    }
+
+    #[test]
+    fn selection_rejects_mixed_network_records() {
+        let local = verified(10, "10.0.0.1:9000");
+        let mut foreign_root = Controller::incept_single_from_seeds(&[90; 32], &[91; 32]).unwrap();
+        let foreign_device =
+            Controller::incept_device_single_from_seeds(&foreign_root.did(), &[92; 32], &[93; 32])
+                .unwrap();
+        foreign_root
+            .delegate_device(&foreign_device.did(), Capabilities::primary())
+            .unwrap();
+        let foreign_routing = AgreementSecretKey::from_seed(&[94; 32]).public_key();
+        let foreign = PeerAdvertisement::issue(
+            [8; 32],
+            &foreign_root.did(),
+            &foreign_device,
+            foreign_routing,
+            "10.0.1.1:9000".parse().unwrap(),
+            1_000,
+            2_000,
+        )
+        .unwrap();
+        let mut freshness = FreshnessPins::new();
+        let mut replay = ReplayCache::new(8).unwrap();
+        let foreign = foreign
+            .verify(
+                [8; 32],
+                1_500,
+                &foreign_root.kel(),
+                &foreign_device.kel(),
+                &mut freshness,
+                &mut replay,
+            )
+            .unwrap();
+
+        assert_eq!(
+            diverse_dial_plan(&[local, foreign], [1; 32], PeerSelectionPolicy::default(),),
+            Err(TransportSecurityError::WrongNetwork)
+        );
     }
 
     #[test]

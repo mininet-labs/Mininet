@@ -15,7 +15,8 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
 - `PeerAdvertisement` signs a network id, dial address, routing key, endpoint
   id, validity window, and internally generated replay nonce. Advertisements are
   dial hints; the live CH1 session must still prove the same endpoint and key.
-- `SecurePexResponse` carries a bounded canonical list of signed advertisements.
+- `SecurePexResponse` carries a bounded canonical list of signed advertisements
+  and rejects any record whose network id differs from its outer response.
 - `diverse_dial_plan` is locally seeded, input-order-independent, rejects
   repeated endpoint ids, routing keys, visible roots, and visible devices, caps
   IPv4 `/24` and IPv6 `/48` concentration, and rejects more than 1,024 candidates
@@ -34,9 +35,11 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
   bearer, including `mini-bridge` adapters, without making the bridge an
   identity authority.
 - `build_verified_onion_route` accepts three live same-network verified endpoints and
-  rejects visible endpoint, routing-key, root, or device reuse before building
-  the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`. A permanent
-  integration tests start with signed advertisements and local selection, then
+  rejects visible endpoint, routing-key, root, or device reuse before building;
+  the lower onion constructor also rejects using any relay routing key as the
+  destination key, so no relay can become the destination by caller mistake,
+  then builds the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`.
+  Permanent integration tests start with signed advertisements and local selection, then
   forward only ciphertext until the destination alone recovers plaintext. One
   full-chain test uses a typed `Relay`-purpose authenticated CH1 connection for
   client-to-entry, both relay-to-relay hops, and delivery-to-destination.

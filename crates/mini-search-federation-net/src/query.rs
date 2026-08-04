@@ -340,7 +340,8 @@ fn validate_multihash(value: &Multihash) -> Result<()> {
 }
 
 fn validate_profile(profile: &RankingProfile) -> Result<()> {
-    validate_multihash(&profile.id.0)
+    validate_multihash(&profile.id.0)?;
+    profile.validate().map_err(|_| NetError::Protocol)
 }
 
 fn validate_url(url: &CanonicalUrl) -> Result<()> {
@@ -352,6 +353,17 @@ fn validate_url(url: &CanonicalUrl) -> Result<()> {
             .is_some_and(|query| query.len() > MAX_URL_QUERY_BYTES)
     {
         return Err(NetError::LimitExceeded);
+    }
+    let reconstructed = CanonicalUrl::new(
+        url.scheme,
+        url.host.clone(),
+        url.port,
+        url.path.clone(),
+        url.query.clone(),
+    )
+    .map_err(|_| NetError::Protocol)?;
+    if reconstructed != *url {
+        return Err(NetError::Protocol);
     }
     Ok(())
 }
@@ -370,6 +382,9 @@ fn validate_availability(availability: &AvailabilityState) -> Result<()> {
 fn validate_wire_result(result: &WireResult) -> Result<()> {
     validate_url(&result.url)?;
     validate_availability(&result.availability)?;
+    if !result.availability.is_displayable() {
+        return Err(NetError::Protocol);
+    }
     validate_multihash(&result.ranking_profile.0)?;
     validate_multihash(&result.source_observation)?;
     validate_multihash(&result.index_segment.0)?;
@@ -983,6 +998,28 @@ mod tests {
             Err(NetError::LimitExceeded)
         );
 
+        let mut invalid_url = base.clone();
+        invalid_url.url.path = "relative".to_string();
+        assert_eq!(
+            Msg::QueryResponse {
+                results: vec![invalid_url]
+            }
+            .encode(),
+            Err(NetError::Protocol)
+        );
+
+        let mut invalid_profile = profile.clone();
+        invalid_profile.version = 0;
+        assert_eq!(
+            Msg::QueryRequest {
+                query: "hello".to_string(),
+                profile: invalid_profile,
+                max_results: 8,
+            }
+            .encode(),
+            Err(NetError::Protocol)
+        );
+
         let mut invalid_score = base;
         invalid_score.relevance_score_bps = WeightBps::MAX.value() + 1;
         assert_eq!(
@@ -999,6 +1036,37 @@ mod tests {
         writer.u8(T_RESPONSE);
         writer.u32(1);
         encode_result(&mut writer, &invalid_score);
+        assert_eq!(Msg::decode(&writer.finish()), Err(NetError::Protocol));
+    }
+
+    #[test]
+    fn a_ranked_response_cannot_reintroduce_a_filtered_document() {
+        let (_, _, _, segment_id, profile) = fixture();
+        let restricted = WireResult {
+            url: url("example.org", "/"),
+            title: "title".to_string(),
+            snippet: "snippet".to_string(),
+            relevance_score_bps: 100,
+            availability: AvailabilityState::Restricted(RestrictionReason::UserFilter),
+            ranking_profile: profile.id.clone(),
+            explanation: [100, 0, 0, 0, 0, 0],
+            source_observation: digest(b"obs"),
+            index_segment: segment_id,
+        };
+        assert_eq!(
+            Msg::QueryResponse {
+                results: vec![restricted.clone()]
+            }
+            .encode(),
+            Err(NetError::Protocol)
+        );
+
+        // Emulate a malicious peer that bypassed the encoder and prove the
+        // decoder independently preserves the displayability invariant.
+        let mut writer = Writer::new();
+        writer.u8(T_RESPONSE);
+        writer.u32(1);
+        encode_result(&mut writer, &restricted);
         assert_eq!(Msg::decode(&writer.finish()), Err(NetError::Protocol));
     }
 
