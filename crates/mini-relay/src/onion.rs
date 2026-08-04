@@ -86,6 +86,10 @@ pub struct PeeledOnion {
 pub struct OnionReplayCache {
     capacity: usize,
     seen: HashMap<[u8; 32], u64>,
+    // Security time is monotonic within this cache even when the host wall clock
+    // moves backwards. Once a validity window has expired locally, a later clock
+    // rollback must not make its replay token admissible again.
+    highest_now_ms: u64,
 }
 
 impl OnionReplayCache {
@@ -96,6 +100,7 @@ impl OnionReplayCache {
         Ok(Self {
             capacity,
             seen: HashMap::with_capacity(capacity.min(1024)),
+            highest_now_ms: 0,
         })
     }
 
@@ -107,8 +112,15 @@ impl OnionReplayCache {
         self.seen.is_empty()
     }
 
+    fn advance_time(&mut self, now_ms: u64) -> u64 {
+        self.highest_now_ms = self.highest_now_ms.max(now_ms);
+        self.highest_now_ms
+    }
+
     pub fn prune_expired(&mut self, now_ms: u64) {
-        self.seen.retain(|_, expires_at_ms| *expires_at_ms > now_ms);
+        let effective_now_ms = self.advance_time(now_ms);
+        self.seen
+            .retain(|_, expires_at_ms| *expires_at_ms > effective_now_ms);
     }
 
     pub fn check_and_record(
@@ -117,8 +129,10 @@ impl OnionReplayCache {
         expires_at_ms: u64,
         now_ms: u64,
     ) -> Result<()> {
-        validate_onion_window(now_ms, expires_at_ms)?;
-        self.prune_expired(now_ms);
+        let effective_now_ms = self.advance_time(now_ms);
+        validate_onion_window(effective_now_ms, expires_at_ms)?;
+        self.seen
+            .retain(|_, stored_expires_at_ms| *stored_expires_at_ms > effective_now_ms);
         if self.seen.contains_key(&token) {
             return Err(RelayError::OnionReplay);
         }
@@ -877,6 +891,20 @@ mod tests {
         assert_eq!(cache.len(), 2);
         cache.check_and_record([3; 32], 3_000, 2_001).unwrap();
         assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn wall_clock_rollback_cannot_resurrect_an_expired_onion_token() {
+        let mut cache = OnionReplayCache::new(2).unwrap();
+        cache.check_and_record([1; 32], 2_000, 1_000).unwrap();
+        cache.prune_expired(2_500);
+        assert!(cache.is_empty());
+
+        assert_eq!(
+            cache.check_and_record([1; 32], 2_000, 1_500),
+            Err(RelayError::OnionExpired)
+        );
+        cache.check_and_record([2; 32], 3_000, 1_500).unwrap();
     }
 
     #[test]

@@ -75,7 +75,8 @@ channel; it is not personhood, operator independence, reputation, or truth.
   metadata. It can increase linkability when a global root is presented.
 - The onion-v2 implementation in `mini-relay` protects payload confidentiality,
   separates endpoint knowledge, uses v2 cryptographic domains, bounds remaining
-  lifetime with explicit clock-skew tolerance, and requires fail-closed
+  lifetime with explicit clock-skew tolerance, retains a monotonic local
+  time high-water mark against wall-clock rollback, and requires fail-closed
   relay/destination replay state. It is not Sphinx and does not
   defeat a global timing/volume observer; crash persistence and flood controls
   remain deployment responsibilities.
