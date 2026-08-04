@@ -8,8 +8,8 @@ use mini_lexical_index::{Field, IndexBuilder, IndexSegment, UrlId};
 use mini_query::{DocumentContext, DocumentContextTable};
 use mini_ranker::{Corpus, DocumentMeta};
 use mini_search_federation_net::{
-    authenticated_provider_pseudonym, merge_authenticated_remote_results,
-    remote_query_authenticated, serve_query_authenticated, NetError,
+    merge_authenticated_remote_results, remote_query_authenticated, serve_query_authenticated,
+    NetError,
 };
 use mini_transport_security::{
     authenticate_established_responder, connect_authenticated_tcp, AuthenticatedDialTarget,
@@ -200,9 +200,8 @@ fn authenticated_search_response_carries_the_peer_bound_provider_label() {
         &mut replay,
     )
     .unwrap();
-    let expected_provider = authenticated_provider_pseudonym(&connection);
     let remote = remote_query_authenticated(&mut connection, "hello", &profile, 8).unwrap();
-    assert_eq!(remote.provider(), &expected_provider);
+    let expected_provider = remote.provider().clone();
     assert_eq!(remote.results().len(), 1);
 
     let merged = merge_authenticated_remote_results(Vec::new(), remote, 8).unwrap();

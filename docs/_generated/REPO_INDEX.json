@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 71,
-    "files": 845,
+    "files": 846,
     "headings": 2642,
-    "rust_symbols": 7923
+    "rust_symbols": 7946
   },
   "crates": {
     "did-mini": {
@@ -49198,7 +49198,7 @@
       "title": "use mini_bearer::BearerError;"
     },
     {
-      "bytes": 4647,
+      "bytes": 4609,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -49227,9 +49227,9 @@
         "already",
         "what"
       ],
-      "lines": 87,
+      "lines": 86,
       "path": "crates/mini-search-federation-net/src/lib.rs",
-      "sha256": "d68bd3792ee0ba1e2b64314338a16b5a27cfa9e71c74e6c92662faaa67dc3f6d",
+      "sha256": "73ce8fd2e95c4488d0e072ef02e2828132572bc673667ad2fceb10816a68b7f3",
       "symbols": [
         {
           "kind": "mod",
@@ -49414,7 +49414,7 @@
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 31667,
+      "bytes": 31663,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -49445,7 +49445,7 @@
       ],
       "lines": 936,
       "path": "crates/mini-search-federation-net/src/query.rs",
-      "sha256": "4bb47901ce98b251e8ee667eba9a080d981771912c26fbebf12ba660a57f1545",
+      "sha256": "30fba0296b2a7060da6b36f09b21d1a70326387d2e1398a1c904dbf857a287a1",
       "symbols": [
         {
           "kind": "const",
@@ -50097,7 +50097,7 @@
       "title": "use did_mini::{Capabilities, Controller};"
     },
     {
-      "bytes": 8699,
+      "bytes": 8590,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -50123,12 +50123,12 @@
         "none",
         "doc_id",
         "contexts",
-        "provider",
-        "verified_advertisement"
+        "profile",
+        "provider"
       ],
-      "lines": 268,
+      "lines": 267,
       "path": "crates/mini-search-federation-net/tests/authenticated_query_over_tcp.rs",
-      "sha256": "dce1b0199372fb62265a40c436796c559dd91055e4c57bc143233a7b4c827938",
+      "sha256": "a99ab72ecb74924b6fbc6da2852c67fd5cfae1b108579c09c75a387d4c4db132",
       "symbols": [
         {
           "kind": "const",
@@ -50192,7 +50192,7 @@
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 214,
           "name": "a_peer_exchange_proof_cannot_be_reused_as_search_provider_provenance"
         }
       ],
@@ -58892,7 +58892,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 5089,
+      "bytes": 5351,
       "group": "crate:mini-transport-security",
       "headings": [
         {
@@ -58907,49 +58907,49 @@
         },
         {
           "level": 2,
-          "line": 42,
+          "line": 45,
           "text": "Transactional verification boundary"
         },
         {
           "level": 2,
-          "line": 51,
+          "line": 54,
           "text": "Authority boundary"
         },
         {
           "level": 2,
-          "line": 64,
+          "line": 67,
           "text": "Exact limits"
         }
       ],
       "keywords": [
         "endpoint",
+        "channel",
         "key",
         "identity",
         "exact",
-        "channel",
-        "authority",
         "one",
         "ch1",
+        "authority",
         "freshness",
         "replay",
         "boundary",
         "authentication",
+        "connection",
         "device",
         "root",
         "routing",
+        "authenticated",
         "state",
         "global",
         "mini-transport-security",
         "implemented",
         "verification",
         "peer",
-        "connection",
-        "binding",
-        "bounded"
+        "binding"
       ],
-      "lines": 87,
+      "lines": 90,
       "path": "crates/mini-transport-security/README.md",
-      "sha256": "a8188ac36badd9fc2e2e30f08dabd68e451fc93e83b76646ac243e3be9aa9a3c",
+      "sha256": "a1d5d047dcabfe031cfaa4b0e586dca97e57f7d5caa152e23d2d081414239a4c",
       "symbols": [],
       "title": "mini-transport-security"
     },
@@ -59510,7 +59510,7 @@
       "title": "use crate::{Result, TransportSecurityError};"
     },
     {
-      "bytes": 4611,
+      "bytes": 4975,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
@@ -59522,6 +59522,7 @@
         "failed",
         "result",
         "fmt",
+        "bearer",
         "core",
         "bearererror",
         "relayerror",
@@ -59531,17 +59532,16 @@
         "identity",
         "transport-security",
         "value",
+        "authenticated",
         "operation",
-        "bearer",
+        "connection",
         "relay",
         "match",
-        "authentication",
-        "authenticated",
-        "truncated"
+        "authentication"
       ],
-      "lines": 113,
+      "lines": 120,
       "path": "crates/mini-transport-security/src/error.rs",
-      "sha256": "1708f11d080b264d0a1e1825387e5141c510a09316ad65675231febb8f390afc",
+      "sha256": "70f233aabfa7aaaf8daa424dc2dd170f11422db88e46dc1a5502b0ceb4158a5a",
       "symbols": [
         {
           "kind": "type",
@@ -59555,57 +59555,57 @@
         },
         {
           "kind": "impl",
-          "line": 47,
+          "line": 50,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 48,
+          "line": 51,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 88,
+          "line": 95,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 90,
+          "line": 97,
           "name": "From<BearerError>"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 98,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 96,
+          "line": 103,
           "name": "From<RelayError>"
         },
         {
           "kind": "fn",
-          "line": 97,
+          "line": 104,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 102,
+          "line": 109,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 103,
+          "line": 110,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 108,
+          "line": 115,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 109,
+          "line": 116,
           "name": "from"
         }
       ],
@@ -59843,38 +59843,38 @@
       "title": "use std::collections::HashMap;"
     },
     {
-      "bytes": 20383,
+      "bytes": 23631,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
         "self",
-        "channel",
         "kel",
+        "channel",
         "identity",
         "bearer",
         "root_kel",
         "device_kel",
         "peer",
+        "send",
         "advertisement",
-        "localsessionidentity",
+        "ciphertext",
+        "err",
+        "error",
         "new",
-        "peerexpectation",
-        "authenticatedconnection",
         "one",
         "verifiedpeeradvertisement",
         "const",
+        "localsessionidentity",
+        "peerexpectation",
         "advertised",
         "authenticateddialtarget",
-        "send",
+        "authenticatedconnection",
         "recv",
-        "authenticated",
-        "did",
-        "result",
-        "derive"
+        "ch1"
       ],
-      "lines": 632,
+      "lines": 726,
       "path": "crates/mini-transport-security/src/runtime.rs",
-      "sha256": "8e45e7d353050c37c481cf4257ba4a097461d0603b9024a1643cad2bd34e7721",
+      "sha256": "ac70ec6ae3ee9281decb0c96af3ea2381e2c49f28b1312ea0a67bbf36ca2f5bd",
       "symbols": [
         {
           "kind": "const",
@@ -59938,107 +59938,142 @@
         },
         {
           "kind": "impl",
-          "line": 113,
+          "line": 114,
           "name": "AuthenticatedConnection<B>"
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 115,
           "name": "peer"
         },
         {
           "kind": "fn",
-          "line": 118,
+          "line": 119,
           "name": "channel_binding"
         },
         {
           "kind": "fn",
-          "line": 123,
+          "line": 127,
           "name": "send"
         },
         {
           "kind": "fn",
-          "line": 130,
+          "line": 140,
           "name": "recv"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 158,
+          "name": "ensure_usable"
+        },
+        {
+          "kind": "fn",
+          "line": 171,
           "name": "authenticate_established_initiator"
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 227,
           "name": "authenticate_established_responder"
         },
         {
           "kind": "fn",
-          "line": 247,
+          "line": 280,
           "name": "verify_expected_claim"
         },
         {
           "kind": "fn",
-          "line": 285,
+          "line": 318,
           "name": "ensure_advertisement_live"
         },
         {
           "kind": "fn",
-          "line": 295,
+          "line": 328,
           "name": "connect_authenticated_tcp"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 359,
           "name": "connect_first_authenticated_tcp"
         },
         {
           "kind": "fn",
-          "line": 383,
+          "line": 416,
           "name": "establish_tcp_initiator"
         },
         {
           "kind": "struct",
-          "line": 405,
+          "line": 438,
           "name": "VerifiedRelay"
         },
         {
           "kind": "impl",
-          "line": 410,
+          "line": 443,
           "name": "VerifiedRelay<'a>"
         },
         {
           "kind": "fn",
-          "line": 411,
+          "line": 444,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 456,
           "name": "build_verified_onion_route"
         },
         {
           "kind": "mod",
-          "line": 475,
+          "line": 508,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 482,
+          "line": 515,
           "name": "verified"
         },
         {
+          "kind": "struct",
+          "line": 551,
+          "name": "FailingBearer"
+        },
+        {
+          "kind": "impl",
+          "line": 553,
+          "name": "Bearer"
+        },
+        {
           "kind": "fn",
-          "line": 518,
+          "line": 554,
+          "name": "send"
+        },
+        {
+          "kind": "fn",
+          "line": 558,
+          "name": "recv"
+        },
+        {
+          "kind": "fn",
+          "line": 562,
+          "name": "try_recv"
+        },
+        {
+          "kind": "fn",
+          "line": 568,
+          "name": "bearer_send_failure_permanently_poisons_the_ordered_connection"
+        },
+        {
+          "kind": "fn",
+          "line": 612,
           "name": "verified_route_rejects_reusing_one_endpoint_for_two_roles"
         },
         {
           "kind": "fn",
-          "line": 539,
+          "line": 633,
           "name": "verified_route_rechecks_expiry_and_network_at_use_time"
         },
         {
           "kind": "fn",
-          "line": 610,
+          "line": 704,
           "name": "three_distinct_verified_endpoints_build_an_onion"
         }
       ],
@@ -60237,6 +60272,123 @@
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, FreshnessPins};"
+    },
+    {
+      "bytes": 11308,
+      "group": "crate:mini-transport-security",
+      "headings": [],
+      "keywords": [
+        "identity",
+        "unwrap",
+        "new",
+        "kel",
+        "listener",
+        "root",
+        "node",
+        "device",
+        "local",
+        "seed",
+        "self",
+        "address",
+        "freshness",
+        "replay",
+        "now_ms",
+        "expires_at_ms",
+        "tcplistener",
+        "controller",
+        "bearer",
+        "const",
+        "advertisement",
+        "network_id",
+        "freshnesspins",
+        "tcpbearer"
+      ],
+      "lines": 331,
+      "path": "crates/mini-transport-security/tests/authenticated_onion_chain_tcp.rs",
+      "sha256": "e9df2b96eca0a19015c9ab9a19a9bb3d18dd2cd9d27c42df2582897f745dd28b",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 17,
+          "name": "NETWORK_ID"
+        },
+        {
+          "kind": "const",
+          "line": 18,
+          "name": "ONION_AAD"
+        },
+        {
+          "kind": "const",
+          "line": 19,
+          "name": "PLAINTEXT"
+        },
+        {
+          "kind": "const",
+          "line": 20,
+          "name": "NOW_MS"
+        },
+        {
+          "kind": "const",
+          "line": 21,
+          "name": "EXPIRES_AT_MS"
+        },
+        {
+          "kind": "struct",
+          "line": 23,
+          "name": "Identity"
+        },
+        {
+          "kind": "impl",
+          "line": 29,
+          "name": "Identity"
+        },
+        {
+          "kind": "fn",
+          "line": 30,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 47,
+          "name": "local"
+        },
+        {
+          "kind": "struct",
+          "line": 56,
+          "name": "Node"
+        },
+        {
+          "kind": "fn",
+          "line": 63,
+          "name": "listener"
+        },
+        {
+          "kind": "fn",
+          "line": 69,
+          "name": "node"
+        },
+        {
+          "kind": "fn",
+          "line": 102,
+          "name": "accept_relay"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "connect_relay"
+        },
+        {
+          "kind": "fn",
+          "line": 152,
+          "name": "contains"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "every_onion_socket_uses_the_same_authenticated_runtime_seam"
+        }
+      ],
+      "title": "use std::net::{SocketAddr, TcpListener};"
     },
     {
       "bytes": 4738,
@@ -66690,7 +66842,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 933541,
+      "bytes": 933659,
       "group": "docs",
       "headings": [
         {
@@ -67120,9 +67272,9 @@
         "transport",
         "status"
       ],
-      "lines": 15531,
+      "lines": 15533,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d8c678ec7b396704b754b14382a22060d7125884a673f0ac172bd022234fcb5f",
+      "sha256": "bf97b0c5228f533a1c146a588cea04afa706adac8463b0af6649685b70631195",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68505,7 +68657,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 32136,
+      "bytes": 32494,
       "group": "docs",
       "headings": [
         {
@@ -68590,9 +68742,9 @@
         "machine",
         "single"
       ],
-      "lines": 176,
+      "lines": 177,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "2fde913806e02e0fad0b537fd668c2508965d15231ecf4464053ac69a5756be4",
+      "sha256": "2dc65c2698d1d79949f21dcb3c525defe107ede4b66297141ad563d4babaa81e",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -71286,7 +71438,7 @@
       "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
     },
     {
-      "bytes": 15709,
+      "bytes": 15746,
       "group": "docs",
       "headings": [
         {
@@ -71336,12 +71488,12 @@
         },
         {
           "level": 2,
-          "line": 108,
+          "line": 109,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 115,
+          "line": 116,
           "text": "Supersedes / superseded by"
         }
       ],
@@ -71371,9 +71523,9 @@
         "doctrine",
         "closes"
       ],
-      "lines": 118,
+      "lines": 119,
       "path": "docs/design/f6-private-query-transport.md",
-      "sha256": "73db12498186ce348d112443e8cb22c79ad4b40d55212e167bf5d18a547a7dba",
+      "sha256": "a7f0d75dfcc217e8e031e8ef98bf240236d1874306be4a7f8361c457ad289bf5",
       "symbols": [],
       "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
@@ -80900,7 +81052,7 @@
       "title": "Native release retrieval \u2014 preliminary implementation report"
     },
     {
-      "bytes": 9739,
+      "bytes": 10315,
       "group": "docs",
       "headings": [
         {
@@ -80950,54 +81102,54 @@
         },
         {
           "level": 2,
-          "line": 96,
+          "line": 97,
           "text": "Permanent evidence"
         },
         {
           "level": 2,
-          "line": 114,
+          "line": 118,
           "text": "Frozen authority boundaries"
         },
         {
           "level": 2,
-          "line": 127,
+          "line": 131,
           "text": "Honest non-claims and required follow-up"
         },
         {
           "level": 2,
-          "line": 145,
+          "line": 149,
           "text": "Merge floor"
         }
       ],
       "keywords": [
+        "state",
+        "connection",
         "bounded",
         "verified",
-        "state",
         "endpoint",
         "one",
-        "connection",
         "peer",
         "channel",
         "identity",
         "exact",
+        "transport",
         "authenticated",
-        "bridge",
-        "authority",
         "onion",
         "merge",
         "provider",
         "selected",
         "ch1",
         "binding",
+        "failure",
         "pass",
-        "transport",
         "runtime",
         "first",
-        "existing"
+        "existing",
+        "bridge"
       ],
-      "lines": 154,
+      "lines": 158,
       "path": "docs/planning/privacy-transport-runtime-convergence.md",
-      "sha256": "963c982e9c488bd6139aea2d12da6fe0e14126cf54ea6081eb3bb341dc737d8c",
+      "sha256": "bd9671ed756cfdc36b07b7102c001226f63c00bb9b9c7d5cd871ac95dc0545e5",
       "symbols": [],
       "title": "Privacy transport runtime convergence"
     },

@@ -38,6 +38,9 @@ pub enum TransportSecurityError {
     },
     /// Two onion roles reused a visible endpoint, routing key, root, or device.
     RouteEndpointReuse,
+    /// A bearer send/receive or channel-open failure made the ordered CH1 state
+    /// ambiguous. The connection is permanently unusable and must be replaced.
+    ConnectionPoisoned,
     Bearer(BearerError),
     Relay(RelayError),
     Identity(IdentityError),
@@ -76,6 +79,10 @@ impl core::fmt::Display for TransportSecurityError {
             Self::RouteEndpointReuse => write!(
                 f,
                 "one visible transport endpoint, routing key, root, or device was assigned multiple onion roles"
+            ),
+            Self::ConnectionPoisoned => write!(
+                f,
+                "authenticated connection is unusable after an ambiguous bearer/channel failure"
             ),
             Self::Bearer(error) => write!(f, "bearer/channel operation failed: {error}"),
             Self::Relay(error) => write!(f, "relay/onion operation failed: {error}"),

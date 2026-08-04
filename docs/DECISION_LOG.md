@@ -15497,8 +15497,10 @@ rejection before initiator disclosure; atomic freshness/replay state on failure;
 bounded retry past an unreachable first hint; reuse of a `mini-bridge` channel;
 onion-v2 domain separation, clock-skew-bounded validity, fail-closed relay and
  destination replay state; advertisement
-expiry/network rechecks; bounded selection input; channel-scoped authenticated
-search-provider provenance; and wrong-purpose rejection. Focused
+expiry/network rechecks; bounded selection input; permanent connection poisoning
+on ambiguous bearer/channel failure; authenticated CH1 on every socket in a full
+onion chain; sealed channel-scoped search-provider provenance; and wrong-purpose
+rejection. Focused
 strict Clippy and all tests for `mini-transport-security`,
 `mini-search-federation-net`, and `mini-relay` pass. Exact-head full workspace,
 dependency, governance, reproducibility, Android, CodeQL, and human-review checks

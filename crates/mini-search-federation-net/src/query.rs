@@ -518,7 +518,7 @@ impl AuthenticatedQueryResults {
 /// prevents a caller from manufacturing provenance from a freely constructed
 /// `AuthenticatedPeer`, avoids cross-session tracking, and stays stable for
 /// repeated queries on this one connection.
-pub fn authenticated_provider_pseudonym<B: Bearer>(
+fn authenticated_provider_pseudonym<B: Bearer>(
     connection: &AuthenticatedConnection<B>,
 ) -> ProviderPseudonym {
     let mut transcript = Vec::with_capacity(AUTHENTICATED_PROVIDER_DOMAIN.len() + 64);

@@ -108,6 +108,7 @@ pub struct AuthenticatedConnection<B: Bearer> {
     bearer: B,
     channel: Channel,
     peer: AuthenticatedPeer,
+    usable: bool,
 }
 
 impl<B: Bearer> AuthenticatedConnection<B> {
@@ -120,16 +121,46 @@ impl<B: Bearer> AuthenticatedConnection<B> {
     }
 
     /// Encrypt and send one application frame on the authenticated channel.
+    /// A bearer failure after sealing permanently poisons the connection because
+    /// CH1's local send counter has already advanced and remote receipt is
+    /// unknowable.
     pub fn send(&mut self, plaintext: &[u8], aad: &[u8]) -> Result<()> {
+        self.ensure_usable()?;
         let ciphertext = self.channel.seal(plaintext, aad)?;
-        self.bearer.send(&ciphertext)?;
+        if let Err(error) = self.bearer.send(&ciphertext) {
+            self.usable = false;
+            return Err(error.into());
+        }
         Ok(())
     }
 
-    /// Receive, authenticate, and decrypt one application frame.
+    /// Receive, authenticate, and decrypt one application frame. Any bearer or
+    /// AEAD failure poisons the ordered connection rather than letting a caller
+    /// continue from an uncertain stream position.
     pub fn recv(&mut self, aad: &[u8]) -> Result<Vec<u8>> {
-        let ciphertext = self.bearer.recv()?;
-        Ok(self.channel.open(&ciphertext, aad)?)
+        self.ensure_usable()?;
+        let ciphertext = match self.bearer.recv() {
+            Ok(ciphertext) => ciphertext,
+            Err(error) => {
+                self.usable = false;
+                return Err(error.into());
+            }
+        };
+        match self.channel.open(&ciphertext, aad) {
+            Ok(plaintext) => Ok(plaintext),
+            Err(error) => {
+                self.usable = false;
+                Err(error.into())
+            }
+        }
+    }
+
+    fn ensure_usable(&self) -> Result<()> {
+        if self.usable {
+            Ok(())
+        } else {
+            Err(TransportSecurityError::ConnectionPoisoned)
+        }
     }
 }
 
@@ -185,6 +216,7 @@ pub fn authenticate_established_initiator<B: Bearer>(
         bearer,
         channel,
         peer,
+        usable: true,
     })
 }
 
@@ -240,6 +272,7 @@ pub fn authenticate_established_responder<B: Bearer>(
         bearer,
         channel,
         peer,
+        usable: true,
     })
 }
 
@@ -512,6 +545,67 @@ mod tests {
                 &mut replay,
             )
             .unwrap()
+    }
+
+    #[derive(Debug)]
+    struct FailingBearer;
+
+    impl Bearer for FailingBearer {
+        fn send(&mut self, _frame: &[u8]) -> mini_bearer::Result<()> {
+            Err(BearerError::Closed)
+        }
+
+        fn recv(&mut self) -> mini_bearer::Result<Vec<u8>> {
+            Err(BearerError::Closed)
+        }
+
+        fn try_recv(&mut self) -> mini_bearer::Result<Option<Vec<u8>>> {
+            Err(BearerError::Closed)
+        }
+    }
+
+    #[test]
+    fn bearer_send_failure_permanently_poisons_the_ordered_connection() {
+        let (root, device) = {
+            let mut root = Controller::incept_single_from_seeds(&[80; 32], &[81; 32]).unwrap();
+            let device =
+                Controller::incept_device_single_from_seeds(&root.did(), &[82; 32], &[83; 32])
+                    .unwrap();
+            root.delegate_device(&device.did(), Capabilities::primary())
+                .unwrap();
+            (root, device)
+        };
+        let routing = AgreementSecretKey::from_seed(&[84; 32]).public_key();
+        let (initiator, hello) = mini_bearer::Initiator::start().unwrap();
+        let (_responder, response) = mini_bearer::Responder::respond(&hello).unwrap();
+        let channel = initiator.finish(&response).unwrap();
+        let peer = AuthenticatedPeer {
+            root: root.did(),
+            device: device.did(),
+            endpoint_id: crate::TransportEndpointId::derive(&device.did(), &routing),
+            routing_key: routing,
+            capabilities: Capabilities::primary(),
+            purpose: TransportPurpose::PeerExchange,
+        };
+        let mut connection = AuthenticatedConnection {
+            bearer: FailingBearer,
+            channel,
+            peer,
+            usable: true,
+        };
+
+        assert_eq!(
+            connection.send(b"first", b"aad"),
+            Err(TransportSecurityError::Bearer(BearerError::Closed))
+        );
+        assert_eq!(
+            connection.send(b"second", b"aad"),
+            Err(TransportSecurityError::ConnectionPoisoned)
+        );
+        assert_eq!(
+            connection.recv(b"aad"),
+            Err(TransportSecurityError::ConnectionPoisoned)
+        );
     }
 
     #[test]

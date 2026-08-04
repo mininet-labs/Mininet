@@ -21,7 +21,9 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
   1,024 candidates before allocation/sort.
 - `AuthenticatedConnection<B>` owns one bearer, the exact CH1 channel, and the
   peer verified on that channel as one object. It exposes authenticated `send`
-  and `recv`, not detachable raw identity state.
+  and `recv`, not detachable raw identity state, and permanently poisons itself
+  after an ambiguous bearer/channel failure instead of risking counter reuse or
+  stream desynchronization.
 - `connect_authenticated_tcp` performs signed-advertisement dial, CH1, encrypted
   responder-first authentication, and exact advertisement/session binding.
   `connect_first_authenticated_tcp` retries a bounded local diverse plan and
@@ -33,9 +35,10 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
 - `build_verified_onion_route` accepts three live same-network verified endpoints and
   rejects visible endpoint, routing-key, root, or device reuse before building
   the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`. A permanent
-  integration test starts with signed advertisements and local selection, then
-  forwards only ciphertext across three real relay sockets until the destination
-  alone recovers plaintext.
+  integration tests start with signed advertisements and local selection, then
+  forward only ciphertext until the destination alone recovers plaintext. One
+  full-chain test uses a typed `Relay`-purpose authenticated CH1 connection for
+  client-to-entry, both relay-to-relay hops, and delivery-to-destination.
 - `executable_transport` permits implemented Direct and Relayed execution and
   refuses Mixed/Burst until the exact mix executor receives independent review.
 

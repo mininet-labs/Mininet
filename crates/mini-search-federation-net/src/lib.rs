@@ -76,9 +76,8 @@ pub use assemble::{assemble_federation_source, OwnedFederationSource};
 pub use error::{NetError, Result};
 pub use multi::{pull_from_sources, FederationPullReport, PeerSource};
 pub use query::{
-    authenticated_provider_pseudonym, remote_query, remote_query_authenticated, serve_query,
-    serve_query_authenticated, AuthenticatedQueryResults, WireResult, MAX_QUERY_RESULTS,
-    MAX_QUERY_TEXT_BYTES,
+    remote_query, remote_query_authenticated, serve_query, serve_query_authenticated,
+    AuthenticatedQueryResults, WireResult, MAX_QUERY_RESULTS, MAX_QUERY_TEXT_BYTES,
 };
 pub use remote_merge::{
     federated_result_from_wire, merge_authenticated_remote_results, merge_remote_results,

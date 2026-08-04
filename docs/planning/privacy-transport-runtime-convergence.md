@@ -87,6 +87,7 @@ remain available as explicitly weaker alternatives.
 | Discovery-to-live-session binding | **PASS** | `connect_authenticated_tcp` can return only after `verify_advertised` checks root, device, endpoint id, and routing key on the exact CH1 binding. | Lower-level primitives remain public for specialist callers; bypassing the runtime API preserves their caller-owned composition risk. |
 | No identity leak to a redirected endpoint | **PASS** | Responder sends and verifies first; the initiator sends its claim only after the selected advertisement matches. | Network metadata still reveals the initiator IP to the contacted address. |
 | Failed-attempt state atomicity | **PASS** | Freshness/replay values are cloned and committed only after full verification and successful exchange. | Crash-persistent replay state remains the host application's responsibility. |
+| Ordered connection state after transport failure | **PASS** | `AuthenticatedConnection` permanently poisons itself after bearer send/receive or channel-open failure, so a caller cannot continue after an ambiguous CH1 counter/stream position. | Recovery requires a new channel; the generic lower-level `Channel` + `Bearer` APIs remain caller-managed. |
 | Central naming/bridge authority avoidance | **PASS** | Caller-held KELs, self-certifying endpoints, local selection, and reuse of the existing pluggable-transport boundary; no CA, canonical list, or bridge directory. | First-contact unseen KEL revocation still needs witness/gossip evidence. |
 | Relay role separation at route build | **PARTIAL** | Three live, same-network verified records must differ by endpoint id, routing key, visible root, and device. | One hidden operator can control several valid pairwise roots, devices, prefixes, or ASNs. |
 | Relay and destination replay defense | **PASS in-process** | Onion v2 uses v2 key domains, encrypts expiry/replay tokens for every relay and destination, bounds lifetime with explicit clock-skew tolerance, never evicts live entries, records only after inner validation, and fails closed at capacity. | Hosts must persist equivalent state across restart; authenticated packet floods can still exhaust bounded capacity and require rate/resource controls. |
@@ -97,8 +98,10 @@ remain available as explicitly weaker alternatives.
 
 - `mini-transport-security` strict Clippy and all focused tests pass, including
   four real-TCP authentication/runtime tests, verified-route unit tests, and one
-  end-to-end signed-discovery -> local selection -> verified onion-route ->
-  three-relay-socket -> destination-only plaintext test.
+  signed-discovery -> local selection -> verified onion-route ->
+  three-relay-socket -> destination-only plaintext test, plus a full chain where
+  client, every relay-to-relay hop, and delivery-to-destination all use typed
+  `Relay`-purpose `AuthenticatedConnection`s.
 - `mini-search-federation-net` strict Clippy and all focused tests pass,
   including a real authenticated F6 query/merge and wrong-purpose rejection.
 - `mini-relay` unit and real-socket onion tests pass after the onion-v2
@@ -107,7 +110,8 @@ remain available as explicitly weaker alternatives.
 - Tests prove redirect rejection before initiator disclosure, no partial
   freshness/replay mutation, bounded retry over an unreachable first hint,
   reuse of a `mini-bridge`-established channel, distinct verified onion roles,
-  signed advertisements feeding real three-socket onion forwarding, provider
+  signed advertisements feeding real onion forwarding with CH1 authentication
+  on every socket, connection poisoning after ambiguous transport failure, provider
   labels derived from the authenticated peer, and inability to reuse a
   `PeerExchange` proof as `SearchQuery` authority.
 
