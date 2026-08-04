@@ -21,6 +21,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: codex/privacy-transport-runtime-convergence
+      - run: python3 tools/patch_runtime_convergence_stage7.py
       - run: python3 tools/apply_runtime_convergence_stage7.py
       - run: python3 tools/apply_runtime_convergence_stage7_fix.py
       - run: cargo fmt --all
@@ -31,11 +32,13 @@ jobs:
       - run: cargo test -p mini-transport-security --all-features
       - run: cargo test -p mini-search-federation-net --all-features
       - run: |
+          rm tools/patch_runtime_convergence_stage7.py
           rm tools/apply_runtime_convergence_stage7.py
           rm tools/apply_runtime_convergence_stage7_fix.py
           rm .github/workflows/pr296-authenticated-onion-finalize.yml
           python3 tools/mininet_nav.py build
       - run: |
+          test ! -e tools/patch_runtime_convergence_stage7.py
           test ! -e tools/apply_runtime_convergence_stage7.py
           test ! -e tools/apply_runtime_convergence_stage7_fix.py
           test ! -e .github/workflows/pr296-authenticated-onion-finalize.yml
