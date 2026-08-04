@@ -379,7 +379,7 @@ fn validate_availability(availability: &AvailabilityState) -> Result<()> {
     Ok(())
 }
 
-fn validate_wire_result(result: &WireResult) -> Result<()> {
+pub(crate) fn validate_wire_result(result: &WireResult) -> Result<()> {
     validate_url(&result.url)?;
     validate_availability(&result.availability)?;
     if !result.availability.is_displayable() {

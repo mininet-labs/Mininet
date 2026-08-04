@@ -87,7 +87,7 @@ remain available as explicitly weaker alternatives.
 |---|---|---|---|
 | Discovery-to-live-session binding | **PASS** | `connect_authenticated_tcp` can return only after `verify_advertised` checks root, device, endpoint id, and routing key on the exact CH1 binding. | Lower-level primitives remain public for specialist callers; bypassing the runtime API preserves their caller-owned composition risk. |
 | No identity leak to a redirected endpoint | **PASS** | Responder sends and verifies first; the initiator sends its claim only after the selected advertisement matches. | Network metadata still reveals the initiator IP to the contacted address. |
-| Failed-attempt state atomicity | **PASS** | Freshness/replay values are cloned and committed only after full verification and successful exchange. | Crash-persistent replay state remains the host application's responsibility. |
+| Failed-attempt state atomicity | **PASS** | Freshness/replay values are cloned and committed only after full verification and successful exchange. | This proves in-process atomicity only; restart-surviving replay state remains unimplemented because the concrete caches have no persistence/import API. |
 | Ordered connection state after transport failure | **PASS** | `AuthenticatedConnection` permanently poisons itself after bearer send/receive or channel-open failure, so a caller cannot continue after an ambiguous CH1 counter/stream position. | Recovery requires a new channel; the generic lower-level `Channel` + `Bearer` APIs remain caller-managed. |
 | Central naming/bridge authority avoidance | **PASS** | Caller-held KELs, self-certifying endpoints, locally seeded selection that deduplicates visible roots/devices as well as endpoint/routing keys, and reuse of the existing pluggable-transport boundary; no CA, canonical list, or bridge directory. | First-contact unseen KEL revocation still needs witness/gossip evidence; pairwise roots do not prove independent operators. |
 | Relay role separation at route build | **PARTIAL** | Three live, same-network verified records must differ by endpoint id, routing key, visible root, and device; the destination key must differ from every relay routing key. | One hidden operator can control several valid pairwise roots, devices, prefixes, or ASNs. The builder accepts a caller-supplied destination key and does not itself prove a destination identity. |
@@ -106,8 +106,9 @@ remain available as explicitly weaker alternatives.
   `Relay`-purpose `AuthenticatedConnection`s.
 - `mini-search-federation-net` strict Clippy and all focused tests pass,
   including a real authenticated F6 query/merge, wrong-purpose rejection,
-  symmetric outbound/decode bounds, requested-profile enforcement, and rejection
-  of non-displayable ranked results.
+  symmetric outbound/decode bounds, requested-profile enforcement, rejection
+  of non-displayable ranked results, and the same validation at the public
+  local/legacy merge boundary.
 - `mini-relay` unit and real-socket onion tests pass after the onion-v2
   replay/lifetime upgrade, including destination replay, fail-closed capacity,
   monotonic time under wall-clock rollback, expiry pruning, excessive-lifetime

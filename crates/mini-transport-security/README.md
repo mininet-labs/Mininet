@@ -35,12 +35,13 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
   bearer, including `mini-bridge` adapters, without making the bridge an
   identity authority.
 - `build_verified_onion_route` accepts three live same-network verified
-  endpoints and rejects visible endpoint, routing-key, root, or device reuse.
-  The lower onion constructor also rejects using any relay routing key as the
-  destination key, so no relay becomes the destination by caller mistake, then
-  builds the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`. The
+  endpoints, rejects visible endpoint, routing-key, root, or device reuse, and
+  delegates construction of the `Entry -> Rendezvous -> Delivery` onion to
+  `mini-relay`. The lower constructor rejects using any relay routing key as the
+  destination key, so no relay becomes the destination by caller mistake. The
   destination key itself remains caller-supplied rather than identity-verified.
-  Permanent integration tests start with signed advertisements and local selection, then
+  Permanent integration tests start with signed advertisements and local
+  selection, then
   forward only ciphertext until the destination alone recovers plaintext. One
   full-chain test uses a typed `Relay`-purpose authenticated CH1 connection for
   client-to-entry, both relay-to-relay hops, and delivery-to-destination.

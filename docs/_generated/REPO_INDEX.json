@@ -49429,7 +49429,7 @@
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 39155,
+      "bytes": 39166,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -49460,7 +49460,7 @@
       ],
       "lines": 1166,
       "path": "crates/mini-search-federation-net/src/query.rs",
-      "sha256": "307da1091f2b987fffa37c3af0d947f27622ea60f8858add2aa8df64a104708d",
+      "sha256": "467cbe591e7bf89283bf589cad7937ec27d2fb3454e265721469d4b3b3780615",
       "symbols": [
         {
           "kind": "const",
@@ -49709,11 +49709,6 @@
         },
         {
           "kind": "fn",
-          "line": 382,
-          "name": "validate_wire_result"
-        },
-        {
-          "kind": "fn",
           "line": 405,
           "name": "validate_query_response"
         },
@@ -49876,107 +49871,112 @@
       "title": "use mini_bearer::{Bearer, Channel};"
     },
     {
-      "bytes": 9334,
+      "bytes": 10176,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
         "wire",
         "bps",
         "explanation",
-        "federatedresult",
-        "provider",
-        "remote",
         "wireresult",
+        "federatedresult",
         "result",
+        "provider",
         "mini_search_federation",
         "peer",
-        "local",
-        "merge",
-        "combined",
-        "federated_result_from_wire",
         "caller",
+        "typed",
+        "merge",
+        "weightbps",
+        "url",
+        "remote",
         "own",
-        "merge_federated_results",
-        "results",
+        "local",
         "query",
         "providerpseudonym",
-        "remote_provider",
-        "weightbps",
         "neterror",
-        "relevance_score_bps"
+        "relevance_score_bps",
+        "federated_result_from_wire",
+        "one",
+        "same"
       ],
-      "lines": 225,
+      "lines": 242,
       "path": "crates/mini-search-federation-net/src/remote_merge.rs",
-      "sha256": "2f8af49984b0fc82d59f11c7b11dcb9400745d7dce8d9a69129584a080781cc1",
+      "sha256": "e1e9bb3bbac3989bbfa9e8b4c7091c20862c1795a957ff6e162f945fcf437a10",
       "symbols": [
         {
           "kind": "fn",
-          "line": 47,
+          "line": 48,
           "name": "federated_result_from_wire"
         },
         {
           "kind": "fn",
-          "line": 88,
+          "line": 94,
           "name": "merge_remote_results"
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 112,
           "name": "merge_authenticated_remote_results"
         },
         {
           "kind": "mod",
-          "line": 116,
+          "line": 122,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 124,
+          "line": 130,
           "name": "digest"
         },
         {
           "kind": "fn",
-          "line": 128,
+          "line": 134,
           "name": "url"
         },
         {
           "kind": "fn",
-          "line": 139,
+          "line": 145,
           "name": "wire_result"
         },
         {
           "kind": "fn",
-          "line": 153,
+          "line": 159,
           "name": "provider"
         },
         {
           "kind": "fn",
-          "line": 158,
+          "line": 164,
           "name": "a_valid_wire_result_converts_and_round_trips_its_fields"
         },
         {
           "kind": "fn",
-          "line": 171,
+          "line": 177,
+          "name": "a_locally_constructed_filtered_result_cannot_bypass_f6_validation"
+        },
+        {
+          "kind": "fn",
+          "line": 188,
           "name": "an_out_of_range_relevance_score_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 197,
           "name": "an_out_of_range_explanation_component_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 190,
+          "line": 207,
           "name": "merging_deduplicates_a_url_present_in_both_local_and_remote_by_score"
         },
         {
           "kind": "fn",
-          "line": 204,
+          "line": 221,
           "name": "merging_respects_max_results_across_the_combined_set"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 232,
           "name": "an_invalid_remote_result_fails_the_whole_merge_rather_than_dropping_silently"
         }
       ],
@@ -58957,7 +58957,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 6221,
+      "bytes": 6227,
       "group": "crate:mini-transport-security",
       "headings": [
         {
@@ -58972,17 +58972,17 @@
         },
         {
           "level": 2,
-          "line": 50,
+          "line": 51,
           "text": "Transactional verification boundary"
         },
         {
           "level": 2,
-          "line": 59,
+          "line": 60,
           "text": "Authority boundary"
         },
         {
           "level": 2,
-          "line": 72,
+          "line": 73,
           "text": "Exact limits"
         }
       ],
@@ -59012,9 +59012,9 @@
         "verification",
         "peer"
       ],
-      "lines": 101,
+      "lines": 102,
       "path": "crates/mini-transport-security/README.md",
-      "sha256": "90f584b95fa704598be7b16b6c0eac85d2b2455dde03a976a0c66a2279122177",
+      "sha256": "167e11c97c0998d814b3dc2720050e01c7356902e3c6131ca1104025a4201aa5",
       "symbols": [],
       "title": "mini-transport-security"
     },
@@ -66927,7 +66927,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 934738,
+      "bytes": 934830,
       "group": "docs",
       "headings": [
         {
@@ -67357,9 +67357,9 @@
         "transport",
         "status"
       ],
-      "lines": 15547,
+      "lines": 15548,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "220b4916bf75f2ffe2f71179345150c25ea540b25deb9294d087f07e5f4d2ee5",
+      "sha256": "36891bce67ef353ee19706e55c46627f45c7dd5b292f0bcb0bacb5080df4415d",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68742,7 +68742,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 34197,
+      "bytes": 34164,
       "group": "docs",
       "headings": [
         {
@@ -68829,7 +68829,7 @@
       ],
       "lines": 180,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "2591df0db66a36b90e8a073bdb2a925522b3683d30e1d804f824e119220ebbc7",
+      "sha256": "5762c300cda794549bf6c33c4afc7d221b519f168e110d0cda2b328258dd8061",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -71523,7 +71523,7 @@
       "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
     },
     {
-      "bytes": 16973,
+      "bytes": 17099,
       "group": "docs",
       "headings": [
         {
@@ -71610,7 +71610,7 @@
       ],
       "lines": 127,
       "path": "docs/design/f6-private-query-transport.md",
-      "sha256": "18b23b0809e294489271f2e3193f459b00bfd59a0cecf1fc239d13210457c16b",
+      "sha256": "09575d860deef16a1733ec7ddafc0e57773b31ad078dded5e038ba4e4eee8d43",
       "symbols": [],
       "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
@@ -81137,7 +81137,7 @@
       "title": "Native release retrieval \u2014 preliminary implementation report"
     },
     {
-      "bytes": 12227,
+      "bytes": 12367,
       "group": "docs",
       "headings": [
         {
@@ -81192,49 +81192,49 @@
         },
         {
           "level": 2,
-          "line": 125,
+          "line": 126,
           "text": "Frozen authority boundaries"
         },
         {
           "level": 2,
-          "line": 138,
+          "line": 139,
           "text": "Honest non-claims and required follow-up"
         },
         {
           "level": 2,
-          "line": 164,
+          "line": 165,
           "text": "Merge floor"
         }
       ],
       "keywords": [
-        "state",
-        "connection",
         "bounded",
         "verified",
+        "state",
         "endpoint",
         "channel",
         "exact",
         "one",
+        "connection",
         "peer",
         "identity",
         "ch1",
         "binding",
-        "transport",
         "authenticated",
         "onion",
         "merge",
         "provider",
         "selected",
-        "failure",
-        "pass",
+        "transport",
         "runtime",
         "first",
         "existing",
-        "bridge"
+        "bridge",
+        "second",
+        "authority"
       ],
-      "lines": 175,
+      "lines": 176,
       "path": "docs/planning/privacy-transport-runtime-convergence.md",
-      "sha256": "0f0020d555684bd7b11111e31d0a63d5de1d61ad9fbfa21387dfe73367013a92",
+      "sha256": "11765d025aa108e8390d9847e7b666f33dbcda248f9534d39266fbe500d6f0e2",
       "symbols": [],
       "title": "Privacy transport runtime convergence"
     },

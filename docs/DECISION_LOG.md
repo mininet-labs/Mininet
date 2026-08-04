@@ -15353,7 +15353,8 @@ function applied to results freshly computed from local
 `serve_query` can never produce, since `mini_query::search` only ever
 emits validated `WeightBps`; the F6 wire decoder now rejects the same
 values, while this conversion repeats the check for public `WireResult`
-values constructed locally or received through legacy code) and
+values constructed locally or received through legacy code; the conversion
+now invokes the complete shared validator before its typed score conversion) and
 `merge_remote_results(local:
 Vec<FederatedResult>, remote: Vec<WireResult>, remote_provider:
 ProviderPseudonym, max_results: usize) -> Result<Vec<FederatedResult>>`,
