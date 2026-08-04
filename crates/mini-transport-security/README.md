@@ -34,11 +34,12 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
   `authenticate_established_responder` accept a channel established by any
   bearer, including `mini-bridge` adapters, without making the bridge an
   identity authority.
-- `build_verified_onion_route` accepts three live same-network verified endpoints and
-  rejects visible endpoint, routing-key, root, or device reuse before building;
-  the lower onion constructor also rejects using any relay routing key as the
-  destination key, so no relay can become the destination by caller mistake,
-  then builds the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`.
+- `build_verified_onion_route` accepts three live same-network verified
+  endpoints and rejects visible endpoint, routing-key, root, or device reuse.
+  The lower onion constructor also rejects using any relay routing key as the
+  destination key, so no relay becomes the destination by caller mistake, then
+  builds the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`. The
+  destination key itself remains caller-supplied rather than identity-verified.
   Permanent integration tests start with signed advertisements and local selection, then
   forward only ciphertext until the destination alone recovers plaintext. One
   full-chain test uses a typed `Relay`-purpose authenticated CH1 connection for
@@ -77,13 +78,18 @@ channel; it is not personhood, operator independence, reputation, or truth.
   ASN, jurisdiction, or operator identity.
 - Endpoint authentication protects identity binding, not traffic shape or IP
   metadata. It can increase linkability when a global root is presented.
+  Authentication is mutual: responder-first ordering protects the initiator from
+  a redirect, but any initiator reaching the service receives the responder's
+  named proof before proving itself. Use pairwise service identities where that
+  disclosure matters. No server-only authenticated connection exists yet.
 - The onion-v2 implementation in `mini-relay` protects payload confidentiality,
   separates endpoint knowledge, uses v2 cryptographic domains, bounds remaining
   lifetime with explicit clock-skew tolerance, retains a monotonic local
   time high-water mark against wall-clock rollback, and requires fail-closed
   relay/destination replay state. It is not Sphinx and does not
-  defeat a global timing/volume observer; crash persistence and flood controls
-  remain deployment responsibilities.
+  defeat a global timing/volume observer. The concrete replay caches are
+  in-memory and expose no persistence/import API; crash persistence is therefore
+  unimplemented, while flood controls remain a deployment responsibility.
 - The bridge seam reuses `mini-bridge::PluggableTransport` and
   `PtProcessManager`; no real obfs4/WebTunnel/Snowflake adapter is added here.
 - NAT traversal, reconnect, private bridge distribution, multipath migration,

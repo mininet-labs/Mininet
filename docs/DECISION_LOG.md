@@ -15465,7 +15465,8 @@ size, and relay/destination-key boundaries.
 Close D-0436's named F6 provenance gap with a distinct signed
 `TransportPurpose::SearchQuery`. The optional named query path operates on an
 `AuthenticatedConnection`, derives a rotating `ProviderPseudonym` from the
-verified `TransportEndpointId`, returns an `AuthenticatedQueryResults` with
+verified `TransportEndpointId` plus exact CH1 binding, returns an
+`AuthenticatedQueryResults` with
 private fields, and merges it without accepting a caller-selected provider
 label. Preserve anonymous CH1 querying and the legacy caller-labeled merge API;
 identity disclosure remains optional.
@@ -15510,8 +15511,9 @@ onion chain; sealed channel-scoped search-provider provenance; symmetric F6 wire
 ranker-filter preservation; and wrong-purpose rejection. Focused
 strict Clippy and all tests for `mini-transport-security`,
 `mini-search-federation-net`, and `mini-relay` pass. Exact-head full workspace,
-dependency, governance, reproducibility, Android, CodeQL, and human-review checks
-remain the merge floor.
+dependency, governance, reproducibility, Android, and human-review checks
+remain the merge floor. No CodeQL workflow exists in the repository, so no
+CodeQL result is claimed.
 
 **Failure point:** a verified endpoint proves control of one key-bound endpoint
 on one channel, not personhood, honesty, independent operation, ASN/jurisdiction
@@ -15520,14 +15522,19 @@ privacy-preserving durable continuity across sessions is intentionally undesigne
 First-contact KEL freshness still cannot reveal an unseen later revocation.
 Known TCP endpoints remain blockable/fingerprintable; NAT traversal, reconnect,
 private bridge distribution, multipath migration, and real camouflage adapters
-are absent. The three-hop onion remains correlatable by a global timing/volume
-observer; Mixed/Burst stay closed.
+are absent. The named F6 path is mutual authentication—there is no server-only
+provider proof for an unnamed requester. Relay selection verifies relay records,
+not the caller-supplied destination key's identity. Replay caches are in-memory
+concrete types with no persistence/import API. The three-hop onion remains
+correlatable by a global timing/volume observer; Mixed/Burst stay closed.
 
 **Required follow-up:** add witness/gossip KEL freshness; independently evidenced
 operator/ASN/jurisdiction diversity; issue #24 NAT/reconnect/relay fallback;
 private bridge distribution and reviewed adapters under the existing
-`mini-bridge` boundary; privacy-conscious provider continuity if a real product
-needs cross-rotation reputation; and the externally reviewed D-0305 mix executor
+`mini-bridge` boundary; a server-only authenticated connection for anonymous F6
+requesters; a persistent replay-cache design; an optional typed destination-
+identity wrapper; privacy-conscious provider continuity if a real product needs
+cross-rotation reputation; and the externally reviewed D-0305 mix executor
 under #72. None may introduce a mandatory checkpoint, canonical directory,
 cloud front, unmasking key, or value-derived authority.
 

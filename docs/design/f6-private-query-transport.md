@@ -94,8 +94,10 @@ identity or connection system:
   a crate-private split, closing Phase 2's silent caller-mislabel path for the
   named API.
 - The anonymous `remote_query`/`serve_query` and legacy
-  `merge_remote_results` APIs remain available. Identity disclosure is optional,
-  not made mandatory for search.
+  `merge_remote_results` APIs remain available. Identity disclosure is optional
+  for search as a whole, but the authenticated provider-provenance path uses the
+  mutual `AuthenticatedConnection` exchange. There is no mode that proves only
+  the provider while leaving the requester entirely unnamed.
 
 A real TCP integration test proves signed advertisement verification, CH1,
 `SearchQuery`-purpose mutual authentication, bounded remote search, peer-derived
@@ -107,11 +109,14 @@ controlled one transport endpoint for one session, not that the provider's
 index is honest or independently operated. Every new channel intentionally
 changes the provider label, so durable reputation requires a separate,
 privacy-conscious continuity design. The anonymous legacy path can still be
-caller-mislabeled because that is its explicit contract.
+caller-mislabeled because that is its explicit contract. The named path also
+requires requester authentication: pairwise identity limits linkage, but true
+server-only provider authentication is not implemented.
 
 ## Required follow-up
 
 - True query-content privacy against the queried provider itself (PIR/oblivious keyword search) — a distinct, harder cryptographic problem, gated behind issue #72's external review, not attempted here.
+- Design a server-only authenticated connection for callers that need peer-bound provider provenance without disclosing a requester identity; it must preserve anonymous CH1 and avoid a CA or global service identity requirement.
 - Decide whether a future privacy-preserving continuity proof should link rotating authenticated provider labels without turning one global provider identity into a tracking or ranking authority.
 - Rate limiting, caching, and query logging policy — all left to the caller, as stated above.
 - Multi-provider fan-out (`remote_query_many`, mirroring `pull_from_sources`) feeding the same Phase 2 merge in one call, once a real deployment shape motivates it.

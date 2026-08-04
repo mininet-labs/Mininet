@@ -74,7 +74,8 @@ A distinct signed `TransportPurpose::SearchQuery` prevents a generic peer proof
 from being replayed as search-provider provenance.
 `remote_query_authenticated`/`serve_query_authenticated` operate only on an
 `AuthenticatedConnection`. The provider pseudonym is domain-separated from the
-verified `TransportEndpointId`, so routing-key rotation also rotates the label.
+verified `TransportEndpointId` and exact CH1 binding, so routing-key rotation or
+opening a new channel rotates the label.
 `AuthenticatedQueryResults` has private fields, and
 `merge_authenticated_remote_results` consumes it without accepting a caller-
 selected provider label. Anonymous CH1 and the legacy caller-labeled merge API
@@ -89,9 +90,10 @@ remain available as explicitly weaker alternatives.
 | Failed-attempt state atomicity | **PASS** | Freshness/replay values are cloned and committed only after full verification and successful exchange. | Crash-persistent replay state remains the host application's responsibility. |
 | Ordered connection state after transport failure | **PASS** | `AuthenticatedConnection` permanently poisons itself after bearer send/receive or channel-open failure, so a caller cannot continue after an ambiguous CH1 counter/stream position. | Recovery requires a new channel; the generic lower-level `Channel` + `Bearer` APIs remain caller-managed. |
 | Central naming/bridge authority avoidance | **PASS** | Caller-held KELs, self-certifying endpoints, locally seeded selection that deduplicates visible roots/devices as well as endpoint/routing keys, and reuse of the existing pluggable-transport boundary; no CA, canonical list, or bridge directory. | First-contact unseen KEL revocation still needs witness/gossip evidence; pairwise roots do not prove independent operators. |
-| Relay role separation at route build | **PARTIAL** | Three live, same-network verified records must differ by endpoint id, routing key, visible root, and device; the destination key must differ from every relay routing key. | One hidden operator can control several valid pairwise roots, devices, prefixes, or ASNs. |
-| Relay and destination replay defense | **PASS in-process** | Onion v2 uses v2 key domains, encrypts expiry/replay tokens for every relay and destination, bounds lifetime with explicit clock-skew tolerance, retains a monotonic local time high-water mark so wall-clock rollback cannot resurrect expired tokens, never evicts live entries, records only after inner validation, and fails closed at capacity. | Hosts must persist equivalent replay state and its time high-water mark across restart; authenticated packet floods can still exhaust bounded capacity and require rate/resource controls. |
+| Relay role separation at route build | **PARTIAL** | Three live, same-network verified records must differ by endpoint id, routing key, visible root, and device; the destination key must differ from every relay routing key. | One hidden operator can control several valid pairwise roots, devices, prefixes, or ASNs. The builder accepts a caller-supplied destination key and does not itself prove a destination identity. |
+| Relay and destination replay defense | **PASS in-process** | Onion v2 uses v2 key domains, encrypts expiry/replay tokens for every relay and destination, bounds lifetime with explicit clock-skew tolerance, retains a monotonic local time high-water mark so wall-clock rollback cannot resurrect expired tokens, never evicts live entries, records only after inner validation, and fails closed at capacity. | The concrete replay caches expose no persistence/import API, so restart durability is unimplemented—not merely deployment configuration. Authenticated floods can still exhaust bounded capacity. |
 | Authenticated F6 provider labeling | **PASS for the named API** | Typed `SearchQuery` proof, private `AuthenticatedQueryResults` fields, channel-scoped endpoint+CH1 provider pseudonym, and sealed merge path. | Anonymous/legacy APIs intentionally retain caller-owned labeling; provider identity does not prove result truth or continuity across sessions. |
+| Provider authentication without requester identity | **FAIL** | Anonymous F6 remains available, and the named path can use a pairwise requester identity. | The current `AuthenticatedConnection` exchange is mutual: obtaining peer-bound provider provenance also discloses a requester identity. No server-only authenticated F6 connection exists. |
 | Global traffic-analysis resistance | **FAIL** | Mixed/Burst remain runtime-fail-closed rather than inheriting a false claim. | CH1/TCP timing, volume, transcript shape, and three-hop correlation remain visible until an independently reviewed mix/camouflage system exists. |
 
 ## Permanent evidence
@@ -147,7 +149,15 @@ remain available as explicitly weaker alternatives.
   witness/gossip receipts.
 - Named F6 proves endpoint control on one exact channel, not index honesty.
   Provider labels intentionally rotate across channels; privacy-preserving
-  durable continuity remains undesigned.
+  durable continuity remains undesigned. The named exchange is mutual, so there
+  is no provider-authenticated/requester-anonymous mode yet; use a pairwise
+  requester identity or the explicitly weaker anonymous path.
+- `build_verified_onion_route` verifies relay records, not the caller-supplied
+  destination key's identity. Endpoint destinations need a future typed wrapper
+  if that binding becomes a product requirement.
+- `ReplayCache` and `OnionReplayCache` are in-memory concrete types with no
+  persistence/export surface. Restart-surviving replay protection needs a
+  reviewed persistent cache design rather than a documentation instruction.
 - True query-content privacy against the provider requires independently
   reviewed PIR/oblivious-search work; the provider still sees the query.
 
@@ -155,8 +165,10 @@ remain available as explicitly weaker alternatives.
 
 The final SHA must contain no staging helper or write-capable workflow and must
 pass formatting, strict Clippy, complete workspace tests, dependency policy,
-governance, reproducibility, Android, Android reproducibility, CodeQL, and
-navigation checks. Human approval is mandatory; AI-authored code and evidence
+governance, reproducibility, Android, Android reproducibility, and navigation
+checks. No CodeQL workflow exists in this repository, so this PR makes no CodeQL
+claim. Any future hosted or self-hosted scanner is supplemental evidence, never
+review authority. Human approval is mandatory; AI-authored code and evidence
 carry zero approval weight.
 
 Refs #291, #292, #296, #24, #27, #72, #175, #289, #293, #294.

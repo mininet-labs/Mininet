@@ -58957,7 +58957,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 5732,
+      "bytes": 6221,
       "group": "crate:mini-transport-security",
       "headings": [
         {
@@ -58972,17 +58972,17 @@
         },
         {
           "level": 2,
-          "line": 49,
+          "line": 50,
           "text": "Transactional verification boundary"
         },
         {
           "level": 2,
-          "line": 58,
+          "line": 59,
           "text": "Authority boundary"
         },
         {
           "level": 2,
-          "line": 71,
+          "line": 72,
           "text": "Exact limits"
         }
       ],
@@ -58996,25 +58996,25 @@
         "ch1",
         "routing",
         "authority",
+        "authentication",
         "freshness",
         "rejects",
         "boundary",
-        "authentication",
         "connection",
         "device",
         "root",
         "replay",
         "authenticated",
         "relay",
+        "destination",
         "mini-transport-security",
         "implemented",
         "verification",
-        "peer",
-        "binding"
+        "peer"
       ],
-      "lines": 95,
+      "lines": 101,
       "path": "crates/mini-transport-security/README.md",
-      "sha256": "176fc207ec811f0b514c10ae7e2c1335b734e32e0d05d248f9545610fb0bef8f",
+      "sha256": "90f584b95fa704598be7b16b6c0eac85d2b2455dde03a976a0c66a2279122177",
       "symbols": [],
       "title": "mini-transport-security"
     },
@@ -66927,7 +66927,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 934218,
+      "bytes": 934738,
       "group": "docs",
       "headings": [
         {
@@ -67357,9 +67357,9 @@
         "transport",
         "status"
       ],
-      "lines": 15540,
+      "lines": 15547,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "8fe039fa2d51bfad9b235a1ff1202af8657faa3ad7305abe0ff55f5dd1dab302",
+      "sha256": "220b4916bf75f2ffe2f71179345150c25ea540b25deb9294d087f07e5f4d2ee5",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68742,7 +68742,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 33783,
+      "bytes": 34197,
       "group": "docs",
       "headings": [
         {
@@ -68827,9 +68827,9 @@
         "machine",
         "single"
       ],
-      "lines": 179,
+      "lines": 180,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "021f71194cbcc0629d1396aad61ddfa4d13628336cbe16b01cf9b5e292df20bc",
+      "sha256": "2591df0db66a36b90e8a073bdb2a925522b3683d30e1d804f824e119220ebbc7",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -71523,7 +71523,7 @@
       "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
     },
     {
-      "bytes": 16404,
+      "bytes": 16973,
       "group": "docs",
       "headings": [
         {
@@ -71573,12 +71573,12 @@
         },
         {
           "level": 2,
-          "line": 112,
+          "line": 116,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 119,
+          "line": 124,
           "text": "Supersedes / superseded by"
         }
       ],
@@ -71608,9 +71608,9 @@
         "doctrine",
         "closes"
       ],
-      "lines": 122,
+      "lines": 127,
       "path": "docs/design/f6-private-query-transport.md",
-      "sha256": "0a962e2c1390cced5b2c278461330793c704cdff8cd67d6b1829a600ea426d36",
+      "sha256": "18b23b0809e294489271f2e3193f459b00bfd59a0cecf1fc239d13210457c16b",
       "symbols": [],
       "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
@@ -81137,7 +81137,7 @@
       "title": "Native release retrieval \u2014 preliminary implementation report"
     },
     {
-      "bytes": 10951,
+      "bytes": 12227,
       "group": "docs",
       "headings": [
         {
@@ -81182,27 +81182,27 @@
         },
         {
           "level": 2,
-          "line": 83,
+          "line": 84,
           "text": "Verdict matrix"
         },
         {
           "level": 2,
-          "line": 97,
+          "line": 99,
           "text": "Permanent evidence"
         },
         {
           "level": 2,
-          "line": 123,
+          "line": 125,
           "text": "Frozen authority boundaries"
         },
         {
           "level": 2,
-          "line": 136,
+          "line": 138,
           "text": "Honest non-claims and required follow-up"
         },
         {
           "level": 2,
-          "line": 154,
+          "line": 164,
           "text": "Merge floor"
         }
       ],
@@ -81212,19 +81212,19 @@
         "bounded",
         "verified",
         "endpoint",
+        "channel",
+        "exact",
         "one",
         "peer",
-        "channel",
         "identity",
-        "exact",
+        "ch1",
+        "binding",
         "transport",
         "authenticated",
         "onion",
         "merge",
         "provider",
         "selected",
-        "ch1",
-        "binding",
         "failure",
         "pass",
         "runtime",
@@ -81232,9 +81232,9 @@
         "existing",
         "bridge"
       ],
-      "lines": 163,
+      "lines": 175,
       "path": "docs/planning/privacy-transport-runtime-convergence.md",
-      "sha256": "3e8e8df4ddef90791bca8c72258831ee8a4332c156cb28328f35f6476c2e702a",
+      "sha256": "0f0020d555684bd7b11111e31d0a63d5de1d61ad9fbfa21387dfe73367013a92",
       "symbols": [],
       "title": "Privacy transport runtime convergence"
     },
