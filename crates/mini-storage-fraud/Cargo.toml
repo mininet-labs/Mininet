@@ -1,0 +1,16 @@
+[package]
+name = "mini-storage-fraud"
+version = "0.0.1"
+description = "Cross-identity storage-fraud detection: signed StorageCommitmentClaim and CollisionEvidence proving two distinct identity roots published the identical mini-porep replica commitment (single-copy sharing / collusion), mirroring mini-consensus::evidence's own 'detect and prove, assign no penalty' scope (roadmap #42, D-0437). Not a network-timing/latency fraud detector -- see docs/design/storage-fraud-detection.md."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-crypto = { path = "../mini-crypto" }
+mini-porep = { path = "../mini-porep" }
+mini-spacetime = { path = "../mini-spacetime" }
