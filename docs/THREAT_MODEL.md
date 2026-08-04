@@ -146,7 +146,7 @@ quietly re-centralizes what the core was designed to keep decentralized.
   safe.
 
 
-## Transport/privacy addendum — D-0377 and proposed D-0437
+## Transport/privacy addendum — D-0377 and proposed D-0438
 
 | Threat | Current mechanism | Status / exact failure |
 |---|---|---|

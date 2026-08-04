@@ -1866,7 +1866,7 @@ dishonest `treasury_balance_micro` input.
   only says what's true today, not why.
 
 
-## Privacy transport runtime convergence — D-0377 and proposed D-0437
+## Privacy transport runtime convergence — D-0377 and proposed D-0438
 
 - **shipped in PR #292** — optional channel-bound endpoint authentication,
   signed network-bound discovery, validity-window replay retention, local

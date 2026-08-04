@@ -15087,7 +15087,7 @@ destination-encrypted onion forwarding. Focused formatting, 64 unit tests, three
 real-socket tests plus one discovery/session integration test, and strict
 Clippy passed at merge. PR #296 subsequently adds the executable runtime seam,
 rechecks advertisement liveness at use time, and upgrades onion replay handling;
-see D-0437.
+see D-0438.
 
 **Failure point:** a first-contact verifier cannot know about a later unseen KEL
 revocation without witness/gossip freshness; IP-prefix diversity does not prove
@@ -15419,7 +15419,7 @@ fully fresh data every time, at whatever latency/bandwidth cost that
 implies; no problem for this slice's scope, a real concern for any
 production scheduler built on top.
 
-**Required follow-up:** D-0437/PR #296 closes the named `remote_provider`
+**Required follow-up:** D-0438/PR #296 closes the named `remote_provider`
 caller-assertion gap with an optional channel-authenticated, sealed result path;
 the anonymous legacy API intentionally retains caller-owned labeling.
 `remote_query_many`-style multi-provider
@@ -15435,7 +15435,7 @@ or `federate_query`'s external behavior/signature (only its internal
 implementation, now delegating to the newly extracted
 `merge_federated_results`).
 
-### D-0437 — Authenticated transport runtime convergence and peer-bound F6 provenance  ·  *Proposed*
+### D-0438 — Authenticated transport runtime convergence and peer-bound F6 provenance  ·  *Proposed*
 
 **Date:** 2026-08-04 · **Refs:** D-0377, D-0435, D-0436; PR #296;
 issues #291/#24/#27/#72/#175; merged PRs #292/#294; Directives

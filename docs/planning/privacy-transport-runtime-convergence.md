@@ -5,7 +5,7 @@ claims remain gated on exact-head CI and human review.
 **Base state inspected:** current `main` at
 `e60191c4a0fdc8be42995cc2fb21b9a56e910f44`, after PRs #289, #293, #294,
 and #292 merged.  
-**Decision track:** D-0377 plus proposed D-0437.
+**Decision track:** D-0377 plus proposed D-0438.
 
 ## Why this PR exists
 

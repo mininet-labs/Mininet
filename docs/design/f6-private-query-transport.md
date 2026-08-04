@@ -1,6 +1,6 @@
 # Track F6: private query transport — Phase 0 doctrine, Phase 1 and Phase 2 slices
 
-**Decisions:** D-0435 (Phase 1), D-0436 (Phase 2), D-0437 (optional authenticated provider provenance) (see `docs/DECISION_LOG.md`)
+**Decisions:** D-0435 (Phase 1), D-0436 (Phase 2), D-0438 (optional authenticated provider provenance) (see `docs/DECISION_LOG.md`)
 **Status:** Phases 1 and 2 are merged. Phase 3 is implemented in draft PR #296. None is a private-information-retrieval scheme — see "What Phase 1 is not" below.
 **Refs:** roadmap [#175](../../issues/175) (Track F, distributed/federated search); `docs/design/federated-search-exchange-f1-f2.md` (F1-F5/F7, which this document builds on and does not modify); `mini-search-federation-net`'s own crate doc, which named this exact gap ("Sending a caller's search query to a remote peer for server-side evaluation is Track F6 (private query transport), explicitly undesigned and out of scope"); issue #72 (external crypto audit gate).
 
@@ -67,7 +67,7 @@ Phase 1 left one of its own named non-goals open: a `remote_query` response coul
 Tests (`crates/mini-search-federation-net/src/remote_merge.rs`): a valid wire result converts and round-trips every field; an out-of-range `relevance_score_bps` is rejected; an out-of-range `explanation` component is rejected; a URL present in both local and remote results deduplicates by score exactly as `federate_query`'s own documented policy promises; `max_results` is respected across the combined set; a single invalid remote result fails the whole merge rather than returning a partial one.
 
 
-## Phase 3: optional authenticated provider provenance (D-0437, PR #296)
+## Phase 3: optional authenticated provider provenance (D-0438, PR #296)
 
 Phase 3 composes F6 with `mini-transport-security` instead of creating a second
 identity or connection system:
@@ -115,4 +115,4 @@ caller-mislabeled because that is its explicit contract.
 
 ## Supersedes / superseded by
 
-New ground — no prior decision addressed sending live query terms to a remote peer. Phase 2 (D-0436) builds directly on Phase 1 (D-0435), completing its merge follow-up. Phase 3 (D-0437) closes Phase 2's named caller-asserted-provider gap for an optional named path while preserving anonymous querying unchanged. None modifies F1-F5/F7's object formats or `federate_query`'s external behavior/signature. All build on and do not modify `mini_query::parse_query`/`search`, or the existing advertise/pull/assemble exchange.
+New ground — no prior decision addressed sending live query terms to a remote peer. Phase 2 (D-0436) builds directly on Phase 1 (D-0435), completing its merge follow-up. Phase 3 (D-0438) closes Phase 2's named caller-asserted-provider gap for an optional named path while preserving anonymous querying unchanged. None modifies F1-F5/F7's object formats or `federate_query`'s external behavior/signature. All build on and do not modify `mini_query::parse_query`/`search`, or the existing advertise/pull/assemble exchange.

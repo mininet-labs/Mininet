@@ -67299,7 +67299,7 @@
       ],
       "lines": 15533,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "bf97b0c5228f533a1c146a588cea04afa706adac8463b0af6649685b70631195",
+      "sha256": "ac28bd5df5f674053d69e4028bfd00d37a1024119b65288d3ef58ff781581579",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68539,7 +68539,7 @@
         {
           "level": 2,
           "line": 1869,
-          "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0437"
+          "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0438"
         }
       ],
       "keywords": [
@@ -68570,7 +68570,7 @@
       ],
       "lines": 1905,
       "path": "docs/STATUS.md",
-      "sha256": "7deb34bd10a14329a65c721ed680f61fa306521a5f6d6e27d6bd5aab00cf740e",
+      "sha256": "353ba1531b2b5065146314a87d863cd3f02777e2e87790d19357f317e9547890",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -68738,7 +68738,7 @@
         {
           "level": 2,
           "line": 149,
-          "text": "Transport/privacy addendum \u2014 D-0377 and proposed D-0437"
+          "text": "Transport/privacy addendum \u2014 D-0377 and proposed D-0438"
         }
       ],
       "keywords": [
@@ -68769,7 +68769,7 @@
       ],
       "lines": 178,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "8cde35107ec939591a5eb13883686cbe6ca268d29dbe09183131b35a34c17ab6",
+      "sha256": "777efbe1818bb258724acdc3e6bb105c0c38a925abbc688bb2511d87c1eb8fcb",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -71509,7 +71509,7 @@
         {
           "level": 2,
           "line": 70,
-          "text": "Phase 3: optional authenticated provider provenance (D-0437, PR #296)"
+          "text": "Phase 3: optional authenticated provider provenance (D-0438, PR #296)"
         },
         {
           "level": 2,
@@ -71550,7 +71550,7 @@
       ],
       "lines": 119,
       "path": "docs/design/f6-private-query-transport.md",
-      "sha256": "a7f0d75dfcc217e8e031e8ef98bf240236d1874306be4a7f8361c457ad289bf5",
+      "sha256": "a3645c7cbbcb0eafb5a2900b07d036c421e044142f5b04bd3172355343c286f0",
       "symbols": [],
       "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
@@ -81174,7 +81174,7 @@
       ],
       "lines": 160,
       "path": "docs/planning/privacy-transport-runtime-convergence.md",
-      "sha256": "08dd5e953c989a4d047cf4138401ea75adb24ecbfde8acb1fa946f8f5c329969",
+      "sha256": "e378e699a3648eb4fdfdb0dae6366b4f019ab5a604b979be7f1db23cc038610c",
       "symbols": [],
       "title": "Privacy transport runtime convergence"
     },
