@@ -106,7 +106,9 @@ remain available as explicitly weaker alternatives.
   including a real authenticated F6 query/merge and wrong-purpose rejection.
 - `mini-relay` unit and real-socket onion tests pass after the onion-v2
   replay/lifetime upgrade, including destination replay, fail-closed capacity,
-  expiry pruning, excessive-lifetime rejection, and malformed-state atomicity.
+  monotonic time under wall-clock rollback, expiry pruning, excessive-lifetime
+  rejection, malformed-state atomicity, and exact ciphertext length for every
+  declared payload size class and hop.
 - Tests prove redirect rejection before initiator disclosure, no partial
   freshness/replay mutation, bounded retry over an unreachable first hint,
   reuse of a `mini-bridge`-established channel, distinct verified onion roles,

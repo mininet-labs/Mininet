@@ -306,8 +306,11 @@ impl OnionPacket {
             reader.raw(agreement_suite.public_key_len())?,
         )?;
         let nonce = AeadNonce::from_bytes(reader.raw(AeadSuite::DEFAULT.nonce_len())?)?;
-        let ciphertext =
-            reader.bytes_limited(max_onion_ciphertext_bytes(size_class, hop_index)?)?;
+        let expected_ciphertext_bytes = onion_ciphertext_bytes(size_class, hop_index)?;
+        let ciphertext = reader.bytes_limited(expected_ciphertext_bytes)?;
+        if ciphertext.len() != expected_ciphertext_bytes {
+            return Err(RelayError::InvalidOnionRoute);
+        }
         if !reader.finished() {
             return Err(RelayError::TrailingBytes);
         }
@@ -670,7 +673,15 @@ fn fixed_payload_bytes(size_class: PayloadSizeClass) -> usize {
     }
 }
 
-fn max_onion_ciphertext_bytes(size_class: PayloadSizeClass, hop_index: u8) -> Result<usize> {
+/// Exact encrypted-body length for one hop and payload class.
+///
+/// Size classes are a traffic-shape and allocation boundary, not a suggestion.
+/// The previous decoder used the total packet length as a ciphertext maximum,
+/// leaving one public-header worth of attacker-controlled slack per packet. A
+/// malicious sender could therefore create canonical, oversized packets for a
+/// declared class. Computing the exact body length and requiring equality keeps
+/// every accepted packet on the same fixed-size profile as `build_onion`.
+fn onion_ciphertext_bytes(size_class: PayloadSizeClass, hop_index: u8) -> Result<usize> {
     let destination = 1usize
         .checked_add(16 + 1 + 1 + 32 + 12 + 4)
         .and_then(|value| value.checked_add(fixed_payload_bytes(size_class) + AEAD_TAG_BYTES))
@@ -680,15 +691,17 @@ fn max_onion_ciphertext_bytes(size_class: PayloadSizeClass, hop_index: u8) -> Re
     let remaining_layers = ONION_HOP_COUNT
         .checked_sub(hop_index as usize)
         .ok_or(RelayError::InvalidOnionRoute)?;
-    let mut length = destination;
+    let mut packet_bytes = destination;
     for _ in 0..remaining_layers {
-        length = public_header
+        packet_bytes = public_header
             .checked_add(hop_plaintext_overhead)
-            .and_then(|value| value.checked_add(length))
+            .and_then(|value| value.checked_add(packet_bytes))
             .and_then(|value| value.checked_add(AEAD_TAG_BYTES))
             .ok_or(RelayError::LimitExceeded)?;
     }
-    Ok(length)
+    packet_bytes
+        .checked_sub(public_header)
+        .ok_or(RelayError::InvalidOnionRoute)
 }
 
 fn size_class_tag(size_class: PayloadSizeClass) -> u8 {
@@ -1003,5 +1016,35 @@ mod tests {
         for cut in 0..bytes.len() {
             assert!(OnionPacket::from_bytes(&bytes[..cut]).is_err());
         }
+    }
+
+    #[test]
+    fn declared_size_class_rejects_shorter_or_longer_ciphertext() {
+        let (hops, _) = route();
+        let destination = AgreementSecretKey::from_seed(&[9; 32]);
+        let packet = build_onion(
+            ConnectionId::from_bytes([7; 16]),
+            PayloadSizeClass::Small,
+            &hops,
+            destination.public_key(),
+            b"payload",
+            BUILD_NOW_MS,
+            EXPIRES_AT_MS,
+        )
+        .unwrap();
+
+        let mut shorter = packet.clone();
+        shorter.ciphertext.pop().unwrap();
+        assert_eq!(
+            OnionPacket::from_bytes(&shorter.to_bytes().unwrap()),
+            Err(RelayError::InvalidOnionRoute)
+        );
+
+        let mut longer = packet;
+        longer.ciphertext.push(0);
+        assert_eq!(
+            OnionPacket::from_bytes(&longer.to_bytes().unwrap()),
+            Err(RelayError::LimitExceeded)
+        );
     }
 }

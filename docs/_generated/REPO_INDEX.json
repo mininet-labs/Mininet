@@ -3,7 +3,7 @@
     "crates": 71,
     "files": 846,
     "headings": 2642,
-    "rust_symbols": 7950
+    "rust_symbols": 7951
   },
   "crates": {
     "did-mini": {
@@ -47201,7 +47201,7 @@
       "title": "use did_mini::{Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 35337,
+      "bytes": 37058,
       "group": "crate:mini-relay",
       "headings": [],
       "keywords": [
@@ -47230,9 +47230,9 @@
         "vec",
         "replay"
       ],
-      "lines": 1008,
+      "lines": 1051,
       "path": "crates/mini-relay/src/onion.rs",
-      "sha256": "ace3ac78b97708f41beaff514c34efc602920f626c677b2350eae28d6c6c6bc5",
+      "sha256": "28b3c07a9fc229bb951cd8761bd11b84cdf1ce718a86ad454b4fc034610da102",
       "symbols": [
         {
           "kind": "const",
@@ -47391,183 +47391,188 @@
         },
         {
           "kind": "fn",
-          "line": 332,
+          "line": 335,
           "name": "open_onion_destination"
         },
         {
           "kind": "struct",
-          "line": 346,
+          "line": 349,
           "name": "DestinationEnvelope"
         },
         {
           "kind": "impl",
-          "line": 354,
+          "line": 357,
           "name": "DestinationEnvelope"
         },
         {
           "kind": "fn",
-          "line": 355,
+          "line": 358,
           "name": "seal"
         },
         {
           "kind": "fn",
-          "line": 380,
+          "line": 383,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 401,
+          "line": 404,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 413,
+          "line": 416,
           "name": "from_bytes"
         },
         {
           "kind": "struct",
-          "line": 453,
+          "line": 456,
           "name": "HopPlaintext"
         },
         {
           "kind": "fn",
-          "line": 461,
+          "line": 464,
           "name": "encode_hop_plaintext"
         },
         {
           "kind": "fn",
-          "line": 482,
+          "line": 485,
           "name": "decode_hop_plaintext"
         },
         {
           "kind": "fn",
-          "line": 512,
+          "line": 515,
           "name": "validate_route"
         },
         {
           "kind": "fn",
-          "line": 530,
+          "line": 533,
           "name": "route_role"
         },
         {
           "kind": "fn",
-          "line": 539,
+          "line": 542,
           "name": "derive_key"
         },
         {
           "kind": "fn",
-          "line": 546,
+          "line": 549,
           "name": "hop_aad"
         },
         {
           "kind": "fn",
-          "line": 566,
+          "line": 569,
           "name": "destination_aad"
         },
         {
           "kind": "fn",
-          "line": 583,
+          "line": 586,
           "name": "validate_onion_window"
         },
         {
           "kind": "fn",
-          "line": 599,
+          "line": 602,
           "name": "encode_fixed_payload"
         },
         {
           "kind": "struct",
-          "line": 625,
+          "line": 628,
           "name": "DestinationPlaintext"
         },
         {
           "kind": "fn",
-          "line": 631,
+          "line": 634,
           "name": "decode_fixed_payload"
         },
         {
           "kind": "fn",
-          "line": 665,
+          "line": 668,
           "name": "fixed_payload_bytes"
         },
         {
           "kind": "fn",
-          "line": 673,
-          "name": "max_onion_ciphertext_bytes"
+          "line": 684,
+          "name": "onion_ciphertext_bytes"
         },
         {
           "kind": "fn",
-          "line": 694,
+          "line": 707,
           "name": "size_class_tag"
         },
         {
           "kind": "fn",
-          "line": 702,
+          "line": 715,
           "name": "size_class_from_tag"
         },
         {
           "kind": "mod",
-          "line": 712,
+          "line": 725,
           "name": "tests"
         },
         {
           "kind": "const",
-          "line": 715,
+          "line": 728,
           "name": "BUILD_NOW_MS"
         },
         {
           "kind": "const",
-          "line": 716,
+          "line": 729,
           "name": "PROCESS_NOW_MS"
         },
         {
           "kind": "const",
-          "line": 717,
+          "line": 730,
           "name": "EXPIRES_AT_MS"
         },
         {
           "kind": "fn",
-          "line": 719,
+          "line": 732,
           "name": "route"
         },
         {
           "kind": "fn",
-          "line": 745,
+          "line": 758,
           "name": "three_relays_and_destination_each_reject_replay"
         },
         {
           "kind": "fn",
-          "line": 801,
+          "line": 814,
           "name": "wrong_relay_tampering_expiry_and_replay_fail_closed"
         },
         {
           "kind": "fn",
-          "line": 841,
+          "line": 854,
           "name": "authenticated_but_malformed_inner_packet_does_not_consume_replay_state"
         },
         {
           "kind": "fn",
-          "line": 883,
+          "line": 896,
           "name": "replay_capacity_fails_closed_until_entries_expire"
         },
         {
           "kind": "fn",
-          "line": 897,
+          "line": 910,
           "name": "wall_clock_rollback_cannot_resurrect_an_expired_onion_token"
         },
         {
           "kind": "fn",
-          "line": 911,
+          "line": 924,
           "name": "zero_or_excessive_remaining_lifetime_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 941,
+          "line": 954,
           "name": "route_roles_keys_and_payload_size_are_strict"
         },
         {
           "kind": "fn",
-          "line": 988,
+          "line": 1001,
           "name": "packet_round_trip_is_canonical_and_bounded"
+        },
+        {
+          "kind": "fn",
+          "line": 1022,
+          "name": "declared_size_class_rejects_shorter_or_longer_ciphertext"
         }
       ],
       "title": "use std::collections::{HashMap, HashSet};"
@@ -68677,7 +68682,7 @@
       "title": "Testing this repository"
     },
     {
-      "bytes": 32608,
+      "bytes": 32889,
       "group": "docs",
       "headings": [
         {
@@ -68762,9 +68767,9 @@
         "machine",
         "single"
       ],
-      "lines": 177,
+      "lines": 178,
       "path": "docs/THREAT_MODEL.md",
-      "sha256": "3372c8273e698e76101f2b72a6b929e283172ab998557d6dea4533d527f4475f",
+      "sha256": "8cde35107ec939591a5eb13883686cbe6ca268d29dbe09183131b35a34c17ab6",
       "symbols": [],
       "title": "Threat model \u2014 what could actually kill this"
     },
@@ -81072,7 +81077,7 @@
       "title": "Native release retrieval \u2014 preliminary implementation report"
     },
     {
-      "bytes": 10454,
+      "bytes": 10571,
       "group": "docs",
       "headings": [
         {
@@ -81127,17 +81132,17 @@
         },
         {
           "level": 2,
-          "line": 118,
+          "line": 120,
           "text": "Frozen authority boundaries"
         },
         {
           "level": 2,
-          "line": 131,
+          "line": 133,
           "text": "Honest non-claims and required follow-up"
         },
         {
           "level": 2,
-          "line": 149,
+          "line": 151,
           "text": "Merge floor"
         }
       ],
@@ -81167,9 +81172,9 @@
         "existing",
         "bridge"
       ],
-      "lines": 158,
+      "lines": 160,
       "path": "docs/planning/privacy-transport-runtime-convergence.md",
-      "sha256": "f0e99ed4822575c6bfcb22e9be45960bc918718bd385c4f92bb3ce76a6d6a87d",
+      "sha256": "08dd5e953c989a4d047cf4138401ea75adb24ecbfde8acb1fa946f8f5c329969",
       "symbols": [],
       "title": "Privacy transport runtime convergence"
     },
