@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 70,
-    "files": 823,
-    "headings": 2597,
-    "rust_symbols": 7606
+    "files": 824,
+    "headings": 2598,
+    "rust_symbols": 7621
   },
   "crates": {
     "did-mini": {
@@ -48745,7 +48745,7 @@
       "title": "use mini_bearer::BearerError;"
     },
     {
-      "bytes": 4101,
+      "bytes": 4193,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -48765,18 +48765,18 @@
         "assemble",
         "error",
         "message",
+        "remote_merge",
         "corpus",
         "peers",
         "mini_bearer",
         "channel",
         "ids",
         "pull_source",
-        "caller",
-        "provider"
+        "caller"
       ],
-      "lines": 76,
+      "lines": 78,
       "path": "crates/mini-search-federation-net/src/lib.rs",
-      "sha256": "e7275f0b2b79437679af286319b94991f1bc9f4c6704ce2d077747516c2a8173",
+      "sha256": "9399736c6127fbefbad4fa8969e596b4b3dc80b4cc3be7e8f36a9dba1dbe9205",
       "symbols": [
         {
           "kind": "mod",
@@ -48806,6 +48806,11 @@
         {
           "kind": "mod",
           "line": 69,
+          "name": "remote_merge"
+        },
+        {
+          "kind": "mod",
+          "line": 70,
           "name": "session"
         }
       ],
@@ -49311,6 +49316,108 @@
         }
       ],
       "title": "use mini_bearer::{Bearer, Channel};"
+    },
+    {
+      "bytes": 8654,
+      "group": "crate:mini-search-federation-net",
+      "headings": [],
+      "keywords": [
+        "wire",
+        "bps",
+        "explanation",
+        "federatedresult",
+        "wireresult",
+        "result",
+        "provider",
+        "remote",
+        "peer",
+        "mini_search_federation",
+        "combined",
+        "federated_result_from_wire",
+        "caller",
+        "own",
+        "local",
+        "merge_federated_results",
+        "query",
+        "providerpseudonym",
+        "remote_provider",
+        "weightbps",
+        "neterror",
+        "relevance_score_bps",
+        "url",
+        "one"
+      ],
+      "lines": 211,
+      "path": "crates/mini-search-federation-net/src/remote_merge.rs",
+      "sha256": "8a3cf613ef4e7d4e747dd6ce3fdce574b9212e454c70c5fc6d104cd5f8aa2f69",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 46,
+          "name": "federated_result_from_wire"
+        },
+        {
+          "kind": "fn",
+          "line": 87,
+          "name": "merge_remote_results"
+        },
+        {
+          "kind": "mod",
+          "line": 102,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 110,
+          "name": "digest"
+        },
+        {
+          "kind": "fn",
+          "line": 114,
+          "name": "url"
+        },
+        {
+          "kind": "fn",
+          "line": 125,
+          "name": "wire_result"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "provider"
+        },
+        {
+          "kind": "fn",
+          "line": 144,
+          "name": "a_valid_wire_result_converts_and_round_trips_its_fields"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "an_out_of_range_relevance_score_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "an_out_of_range_explanation_component_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 176,
+          "name": "merging_deduplicates_a_url_present_in_both_local_and_remote_by_score"
+        },
+        {
+          "kind": "fn",
+          "line": 190,
+          "name": "merging_respects_max_results_across_the_combined_set"
+        },
+        {
+          "kind": "fn",
+          "line": 201,
+          "name": "an_invalid_remote_result_fails_the_whole_merge_rather_than_dropping_silently"
+        }
+      ],
+      "title": "use mini_query::ResultProvenance;"
     },
     {
       "bytes": 15343,
@@ -50233,38 +50340,38 @@
       "title": "use mini_objects::ObjectError;"
     },
     {
-      "bytes": 5707,
+      "bytes": 6553,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
         "provider",
-        "result",
         "source",
         "search",
+        "results",
+        "result",
         "own",
-        "federatedresult",
+        "merge",
         "mini_query",
         "corpus",
-        "results",
-        "merged",
-        "merge",
-        "one",
-        "every",
-        "relevance_score_bps",
+        "federatedresult",
+        "candidates",
         "providerpseudonym",
-        "url",
         "max_results",
-        "its",
-        "key",
-        "candidate",
         "federationsource",
-        "query",
-        "providers",
-        "provenance"
+        "federate_query",
+        "module",
+        "one",
+        "deterministic",
+        "policy",
+        "every",
+        "same",
+        "its",
+        "already",
+        "local"
       ],
-      "lines": 145,
+      "lines": 163,
       "path": "crates/mini-search-federation/src/federate.rs",
-      "sha256": "6f49c1046550fc77872902d4fb66123eac02a2a139f4d0fa2e1b08ef3460b682",
+      "sha256": "96e34bb7d13aece05796bb7fb3c51c348cf1357da2a3f8478bde8de3b6de3ffc",
       "symbols": [
         {
           "kind": "struct",
@@ -50283,7 +50390,12 @@
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 114,
+          "name": "merge_federated_results"
+        },
+        {
+          "kind": "fn",
+          "line": 155,
           "name": "better"
         }
       ],
@@ -50477,7 +50589,7 @@
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 3450,
+      "bytes": 3475,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
@@ -50508,7 +50620,7 @@
       ],
       "lines": 71,
       "path": "crates/mini-search-federation/src/lib.rs",
-      "sha256": "c0a3c8d4d7a907a5f6fe0e9a139b7dfcc4bed29939790ca2c2bf19b186009571",
+      "sha256": "ab518c9340e19374523c435fed9b9bbe49f5983eba5582b245593d3fe5e19995",
       "symbols": [
         {
           "kind": "mod",
@@ -64359,7 +64471,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 916455,
+      "bytes": 922978,
       "group": "docs",
       "headings": [
         {
@@ -64781,17 +64893,17 @@
         "log",
         "batch",
         "local",
+        "phase",
         "signed",
         "roadmap",
-        "phase",
         "release",
         "first",
         "status",
         "deterministic"
       ],
-      "lines": 15257,
+      "lines": 15362,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "f77030457ad4c4c4e8cb196216472cd30685cdfd2c6bb45e95848ec620d2e0f0",
+      "sha256": "014d27f0920c03057497dfa1cdc5967bc417619bd60c79bf50714c100da2a200",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -65940,7 +66052,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 121422,
+      "bytes": 122871,
       "group": "docs",
       "headings": [
         {
@@ -66010,22 +66122,22 @@
         },
         {
           "level": 2,
-          "line": 1594,
+          "line": 1615,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1685,
+          "line": 1706,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1765,
+          "line": 1786,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1831,
+          "line": 1852,
           "text": "Where to look for more detail"
         }
       ],
@@ -66055,9 +66167,9 @@
         "social",
         "network"
       ],
-      "lines": 1846,
+      "lines": 1867,
       "path": "docs/STATUS.md",
-      "sha256": "df251b7368c0382e4802a8cc75447283887d352eae1a36afbe16ba7f95fa3165",
+      "sha256": "430f3b6ce03db4a750c6c9ab266898faf04d870e8b2a70948b784d630bc8a01d",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -68863,13 +68975,13 @@
       "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
     },
     {
-      "bytes": 10464,
+      "bytes": 13631,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Track F6: private query transport \u2014 Phase 0 doctrine and Phase 1 slice"
+          "text": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
         },
         {
           "level": 2,
@@ -68904,45 +69016,50 @@
         {
           "level": 2,
           "line": 54,
+          "text": "Phase 2: wiring into F3's merge path (D-0436)"
+        },
+        {
+          "level": 2,
+          "line": 69,
           "text": "Required follow-up"
         },
         {
           "level": 2,
-          "line": 62,
+          "line": 76,
           "text": "Supersedes / superseded by"
         }
       ],
       "keywords": [
-        "query",
         "phase",
+        "query",
         "caller",
         "track",
         "provider",
         "design",
-        "exactly",
         "one",
         "search",
         "does",
         "peer",
-        "real",
+        "exactly",
         "results",
         "private",
+        "gap",
         "what",
         "scope",
         "document",
         "own",
         "other",
+        "real",
         "wants",
         "queried",
         "here",
-        "transport",
-        "doctrine"
+        "transport"
       ],
-      "lines": 65,
+      "lines": 79,
       "path": "docs/design/f6-private-query-transport.md",
-      "sha256": "a802ad9998f88f929e9c3c1d123ba4b9bd6da8827e0bca29f4db666037db5590",
+      "sha256": "3e01417282ef82a0148ee4d8f39d006f242b704e362bb6bf28511b1399c78e97",
       "symbols": [],
-      "title": "Track F6: private query transport \u2014 Phase 0 doctrine and Phase 1 slice"
+      "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
     {
       "bytes": 18834,
@@ -80635,7 +80752,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 31502,
+      "bytes": 32022,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -80664,9 +80781,9 @@
         "independently",
         "both"
       ],
-      "lines": 622,
+      "lines": 626,
       "path": "governance/work-claims.json",
-      "sha256": "84bcb953850a14e3408b35408a434fc4888b0943b839860cc97f77fcaba6b946",
+      "sha256": "e94f4bfccd8847289ad0c9f4aa74d61c64e7c22967893fc7f5a37a1adf076508",
       "symbols": [],
       "title": "{"
     },

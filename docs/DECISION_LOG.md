@@ -15254,3 +15254,108 @@ F1-F5/F7's own object formats, merge policy, or ranking behavior
 parse_query`/`search` (unmodified, reused exactly as-is), or
 `mini-search-federation-net`'s existing advertise/pull/assemble exchange
 (`message.rs`/`session.rs`/`multi.rs`/`assemble.rs`, all untouched).
+
+### D-0436 — Track F6 Phase 2: wire remote query results into F3's federated merge  ·  *Accepted*
+
+**Date:** 2026-08-04 · **Refs:** D-0435 (F6 Phase 1, named this exact
+follow-up: "Wire `remote_query`'s results into F3's merge path");
+`docs/design/federated-search-exchange-f1-f2.md` (F3's `federate_query`/
+`FederatedResult` merge policy); `docs/design/f6-private-query-transport.md`
+§"Non-goals" ("Not integrated into F3's typed merge path... deliberately
+deferred rather than rushed into this slice").
+
+**Decision:** extract `mini-search-federation::federate::federate_query`'s
+dedup/sort/truncate merge step into a standalone public function,
+`merge_federated_results(results: Vec<FederatedResult>, max_results: usize)
+-> Vec<FederatedResult>`; `federate_query` itself is now exactly that
+function applied to results freshly computed from local
+`FederationSource`s, with no behavior change. Add a new
+`mini-search-federation-net::remote_merge` module with
+`federated_result_from_wire(wire: WireResult, provider: ProviderPseudonym)
+-> Result<FederatedResult>` (converts one F6 wire result into a typed
+`mini_query::ResultProvenance`, rejecting any `relevance_score_bps` or
+`explanation` component above `WeightBps::MAX` — a value a compliant
+`serve_query` can never produce, since `mini_query::search` only ever
+emits validated `WeightBps`, but `WireResult`'s own wire codec does not
+itself bound these fields on decode) and `merge_remote_results(local:
+Vec<FederatedResult>, remote: Vec<WireResult>, remote_provider:
+ProviderPseudonym, max_results: usize) -> Result<Vec<FederatedResult>>`,
+which folds a `remote_query` response into a caller's own local/pulled
+results via the same `merge_federated_results` policy, failing closed on
+the first out-of-range wire result rather than silently dropping it.
+
+**Reason:** F6 Phase 1 deliberately stopped short of this because
+`federate_query`'s typed merge expected a real `Corpus`/
+`DocumentContextTable`-backed `FederationSource`, not a flat list of
+already-computed remote results — handing a `WireResult` list to
+`federate_query` directly was never possible without either re-deriving a
+fake local index (impossible; the caller never held the remote's corpus)
+or duplicating the merge policy ad hoc in `mini-search-federation-net`
+(rejected: two independent implementations of the same dedup/tiebreak
+policy drift). Extracting the merge step as its own function is the
+minimal change that lets a second crate reuse the identical policy
+without either problem — `federate_query`'s own behavior is provably
+unchanged since it now just calls the extracted function once. The
+`remote_provider` tag on merged remote results is explicitly documented
+as caller-asserted, not cryptographically verified, matching F6 Phase 1's
+own stated floor: a query response carries no `Object`/signature
+wrapping, and F6 provides no caller/provider authentication beyond the
+channel itself (a caller names `remote_provider` from whatever it already
+knows out-of-band about who it dialed — an advertisement it resolved, its
+own session setup). Stating that plainly rather than implying the
+resulting `FederatedResult`'s provider tag carries the same guarantee an
+`Object`-signed F1/F2 provider tag does is the same honesty-over-polish
+discipline every other Track F non-goal already gets.
+
+**Constitutional impact:** none. No frozen invariant touched. No
+voice/value wall edge (P1, Directive 16): no new crate dependency anywhere
+— `mini-search-federation-net` already depended on
+`mini-search-federation` for its F1/F2/F2b object-type constants, and this
+adds only a new re-export from an existing dependency edge. No generic
+`sign(bytes)`/authority surface — no signing anywhere in this slice. No
+payment, ranking-authority, or truth-oracle claim: a merged remote result
+is still exactly one provider's own computed opinion, now just sitting in
+the same ranked list as local ones, with its provenance (and the fact
+that its provider label is unverified) fully preserved on the
+`FederatedResult` itself rather than erased by the merge.
+
+**Implementation status:** `merge_federated_results` extracted and
+exported from `mini-search-federation`; `remote_merge` module (bridge
+conversion + merge) added to `mini-search-federation-net`, exported from
+its crate root. Eight new unit tests: valid round trip preserves every
+field; out-of-range `relevance_score_bps` and out-of-range `explanation`
+components are each rejected; a URL present in both local and remote
+results deduplicates by score exactly as `federate_query`'s own doctrine
+promises; `max_results` is respected across the combined set; a single
+invalid remote result fails the whole merge rather than silently
+returning a partial one. All prior F1-F7/F6-Phase-1 tests (including the
+existing `federated_query_over_tcp` and `query_over_tcp` live-socket
+tests) still pass unmodified, confirming `federate_query`'s extraction
+is behavior-preserving.
+
+**Failure point:** the `remote_provider` tag is caller-asserted, not
+proven — a caller who mislabels which peer answered gets a merged result
+set with an incorrect provenance label, silently. `mini-transport-security`
+(once reviewed) closing that gap for the *channel's* peer identity still
+would not, by itself, prove that identity is the same one whose
+`ProviderPseudonym` a caller chooses to pass here; wiring the two together
+is real follow-up, not attempted in this slice. No caching or
+freshness policy on merged remote results — a caller re-querying gets
+fully fresh data every time, at whatever latency/bandwidth cost that
+implies; no problem for this slice's scope, a real concern for any
+production scheduler built on top.
+
+**Required follow-up:** bind `remote_provider` to `mini-transport-security`'s
+authenticated peer identity once that crate lands review, closing the
+caller-assertion gap named above. `remote_query_many`-style multi-provider
+fan-out feeding this same merge in one call, once a real deployment shape
+motivates it (still not attempted — F6 Phase 1's own deferred item).
+True query-content privacy against the queried provider (PIR/oblivious
+keyword search) remains gated behind issue #72's external review,
+unaffected by this slice.
+
+**Supersedes / superseded by:** builds directly on D-0435 (F6 Phase 1),
+completing its named follow-up. Does not modify F1-F5/F7's object formats
+or `federate_query`'s external behavior/signature (only its internal
+implementation, now delegating to the newly extracted
+`merge_federated_results`).

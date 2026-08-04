@@ -59,7 +59,7 @@ pub use corpus_bundle::{
     publish_corpus_bundle, read_corpus_bundle, CorpusBundle, CORPUS_BUNDLE_TYPE,
 };
 pub use error::{FederationError, Result};
-pub use federate::{federate_query, FederatedResult, FederationSource};
+pub use federate::{federate_query, merge_federated_results, FederatedResult, FederationSource};
 pub use history::{
     Snapshot, SnapshotIndex, SnapshotInsert, SnapshotLimits, VersionRelation,
     DEFAULT_MAX_SNAPSHOTS_PER_URL, DEFAULT_MAX_SNAPSHOT_URLS, DEFAULT_MAX_SNAPSHOT_WIRE_BYTES,

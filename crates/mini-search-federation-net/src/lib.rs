@@ -66,10 +66,12 @@ mod error;
 mod message;
 mod multi;
 mod query;
+mod remote_merge;
 mod session;
 
 pub use assemble::{assemble_federation_source, OwnedFederationSource};
 pub use error::{NetError, Result};
 pub use multi::{pull_from_sources, FederationPullReport, PeerSource};
 pub use query::{remote_query, serve_query, WireResult, MAX_QUERY_RESULTS, MAX_QUERY_TEXT_BYTES};
+pub use remote_merge::{federated_result_from_wire, merge_remote_results};
 pub use session::{pull_source, serve_source, SourcePullReport};

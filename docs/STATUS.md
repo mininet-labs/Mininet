@@ -1397,14 +1397,35 @@ the top development priority.
   work gated behind issue #72's external crypto review, the same gate
   Sphinx/Loopix sits behind. Requester anonymity needed no new code —
   `mini_bearer::Channel`/CH1 already discloses no client identity. Not
-  wrapped in a signed `Object` (a live answer, not a durable one); not
-  wired into F3's `FederatedResult` merge path yet. Real, tested: 6 unit
-  tests (round trip matches local `search`; oversized query/`max_results`
-  bounds; a compliant server never over-returns; every current
-  `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/`Scheme`/
-  `PersonalizationPolicy` variant round-trips with a future-safe fallback;
-  tampered ciphertext fails closed) plus one real `TcpBearer` socket test.
-  See `docs/design/f6-private-query-transport.md`.
+  wrapped in a signed `Object` (a live answer, not a durable one). Real,
+  tested: 6 unit tests (round trip matches local `search`; oversized
+  query/`max_results` bounds; a compliant server never over-returns; every
+  current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/
+  `Scheme`/`PersonalizationPolicy` variant round-trips with a future-safe
+  fallback; tampered ciphertext fails closed) plus one real `TcpBearer`
+  socket test. See `docs/design/f6-private-query-transport.md`.
+- **shipped** — Track F6 Phase 2: wire remote query results into F3's
+  federated merge (D-0436, roadmap #175). `mini-search-federation`'s
+  `federate_query` merge step (dedup by URL, higher score wins, ties break
+  on provider pseudonym bytes) is now a standalone public function,
+  `merge_federated_results`, with `federate_query` itself unchanged in
+  behavior. `mini-search-federation-net`'s new `remote_merge` module
+  bridges a `remote_query` response into that same policy:
+  `federated_result_from_wire` converts one `WireResult` into a typed
+  `mini_query::ResultProvenance` (rejecting any `relevance_score_bps` or
+  `explanation` component above `WeightBps::MAX`, since `WireResult`'s
+  wire codec does not itself bound those fields on decode), and
+  `merge_remote_results` folds a whole response into a caller's own
+  local/pulled results, failing closed on the first invalid entry rather
+  than dropping it silently. The merged result's provider tag is
+  caller-asserted, not cryptographically verified — F6 provides no
+  caller/provider authentication beyond the channel itself; binding it to
+  `mini-transport-security`'s authenticated peer identity is named
+  follow-up, not attempted here. Real, tested: 8 new unit tests (valid
+  round trip; out-of-range score and explanation component each rejected;
+  URL-collision dedup by score; `max_results` respected across the
+  combined set; an invalid remote result fails the whole merge). See
+  `docs/design/f6-private-query-transport.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
