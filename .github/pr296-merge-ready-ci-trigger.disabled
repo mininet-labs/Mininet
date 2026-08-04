@@ -1,0 +1,1 @@
+PR #296 merge-ready exact-head CI trigger. This non-workflow file is removed in the next commit; no trigger or staging artifact remains in the tested PR diff.
