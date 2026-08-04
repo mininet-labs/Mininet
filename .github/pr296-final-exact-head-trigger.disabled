@@ -1,0 +1,1 @@
+PR #296 final exact-head CI trigger. This non-workflow file is removed in the next commit so the tested permanent tree contains no trigger or staging artifact.
