@@ -1,0 +1,63 @@
+name: pr296-stable-provider-finalize
+
+on:
+  push:
+    branches: [codex/privacy-transport-runtime-convergence]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr296-stable-provider-finalize
+  cancel-in-progress: true
+
+jobs:
+  validate-and-commit:
+    if: github.head_ref == '' || github.head_ref == 'codex/privacy-transport-runtime-convergence'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          ref: codex/privacy-transport-runtime-convergence
+      - name: Apply stable-provider and enum hardening
+        run: python3 tools/apply_pr296_stable_provider_and_enum_hardening.py
+      - name: Format
+        run: cargo fmt --all
+      - name: Strict Clippy
+        run: |
+          cargo clippy -p mini-search-federation-net --all-targets --all-features -- -D warnings
+          cargo clippy -p mini-search-federation --all-targets --all-features -- -D warnings
+      - name: Focused tests
+        run: |
+          cargo test -p mini-search-federation-net --all-features
+          cargo test -p mini-search-federation --all-features
+      - name: Governance
+        run: |
+          canonical="$(mktemp -d)"
+          rmdir "$canonical"
+          git worktree add --detach "$canonical" origin/main
+          status=0
+          python3 tools/check_governance.py --canonical-root "$canonical" || status=$?
+          git worktree remove --force "$canonical"
+          exit "$status"
+      - name: Regenerate navigation and clean staging
+        run: |
+          rm tools/apply_pr296_stable_provider_and_enum_hardening.py
+          rm .github/workflows/pr296-stable-provider-finalize.yml
+          python3 tools/mininet_nav.py build
+      - name: Verify cleanup
+        run: |
+          test ! -e tools/apply_pr296_stable_provider_and_enum_hardening.py
+          test ! -e .github/workflows/pr296-stable-provider-finalize.yml
+          git status --short
+      - name: Commit tested tree
+        run: |
+          git config user.name mininet-runtime-convergence
+          git config user.email runtime-convergence@users.noreply.github.com
+          git add -A
+          git diff --cached --quiet && exit 1
+          git commit -m 'fix: stabilize authenticated provider labels and fail closed on future enums'
+          git push origin HEAD:codex/privacy-transport-runtime-convergence
