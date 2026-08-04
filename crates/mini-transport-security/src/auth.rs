@@ -225,11 +225,7 @@ impl SessionAuthClaim {
             return Err(TransportSecurityError::CapabilityDenied);
         }
         device_kel.verify_message(&self.signing_bytes(channel_binding)?, &self.signatures)?;
-        replay.check_and_record(
-            self.replay_id(channel_binding),
-            self.expires_at_ms,
-            now_ms,
-        )?;
+        replay.check_and_record(self.replay_id(channel_binding), self.expires_at_ms, now_ms)?;
 
         Ok(AuthenticatedPeer {
             root: self.root.clone(),
