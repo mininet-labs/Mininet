@@ -1881,9 +1881,10 @@ dishonest `treasury_balance_micro` input.
   through the existing `mini-bridge` boundary; verified onion route assembly
   rejects visible endpoint/routing-key/root/device reuse across roles.
 - **implemented in draft PR #296** — optional named F6 search uses the distinct
-  `SearchQuery` purpose, derives a channel-scoped provider pseudonym from the
-  endpoint and exact CH1 binding proved on the response channel, and seals the authenticated merge input behind
-  private fields. Anonymous search and caller-labeled legacy merge remain
+  `SearchQuery` purpose, derives a provider pseudonym from the verified advertised
+  endpoint, keeps it stable across channels so F3 tie-breaks remain deterministic,
+  and seals the authenticated merge input behind private fields. Anonymous search
+  and caller-labeled legacy merge remain
   available as explicitly weaker contracts.
 - **fail-closed** — `PrivacyTier::Mixed` and `Burst` still have no operational
   executor. `mini_transport_security::executable_transport` refuses them until

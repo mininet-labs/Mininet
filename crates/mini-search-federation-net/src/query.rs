@@ -3,9 +3,12 @@
 //! `docs/design/f6-private-query-transport.md` for the full doctrine --
 //! most importantly, this is **not** a private-information-retrieval
 //! scheme: the queried peer sees the caller's exact query text. What it
-//! does provide is that the query never crosses the wire in cleartext (the
-//! channel's own AEAD covers it) and that the requester discloses no
-//! identity of its own to run a query (CH1 needs none).
+//! does provide for the anonymous `remote_query` path is that the query
+//! never crosses the wire in cleartext (the channel's own AEAD covers it)
+//! and that the requester discloses no identity of its own (CH1 needs none).
+//! The optional `remote_query_authenticated` path is mutual authentication:
+//! it binds provider provenance but also discloses the requester's chosen
+//! root or pairwise identity, as documented in the Phase 3 limits.
 //!
 //! Unlike F1/F2/F2b, a query response is not wrapped in a signed `Object`:
 //! it is answered fresh for exactly this request and is not meant to be
@@ -166,9 +169,9 @@ fn encode_scheme(w: &mut Writer, s: Scheme) {
     match s {
         Scheme::Http => w.u8(0),
         Scheme::Https => w.u8(1),
-        // `Scheme` is `#[non_exhaustive]` upstream; any future variant this
-        // crate does not know about yet still round-trips as Https rather
-        // than failing to encode at all.
+        // Protocol-level validation rejects unknown future variants before
+        // this private encoder is reached. Keep a deterministic defensive
+        // fallback for direct internal test construction only.
         _ => w.u8(1),
     }
 }
@@ -217,10 +220,8 @@ fn encode_availability(w: &mut Writer, a: &AvailabilityState) {
                 UnavailabilityReason::FetchFailed => w.u8(1),
                 UnavailabilityReason::Gone => w.u8(2),
                 UnavailabilityReason::UnsupportedContent => w.u8(3),
-                // `UnavailabilityReason` is `#[non_exhaustive]` upstream; a
-                // future variant this crate does not know about yet still
-                // round-trips as a generic "unavailable, unspecified" state
-                // rather than failing to encode at all.
+                // Protocol-level validation rejects unknown future variants;
+                // this private fallback exists only for defensive internal use.
                 _ => w.u8(255),
             }
         }
@@ -239,9 +240,8 @@ fn encode_availability(w: &mut Writer, a: &AvailabilityState) {
                 _ => w.u8(255),
             }
         }
-        // `AvailabilityState` is `#[non_exhaustive]` upstream; a future
-        // top-level variant still round-trips as a generic restriction
-        // rather than failing to encode.
+        // Protocol-level validation rejects unknown future variants;
+        // this private fallback exists only for defensive internal use.
         _ => {
             w.u8(2);
             w.u8(255);
@@ -256,7 +256,7 @@ fn decode_availability(r: &mut Reader) -> Result<AvailabilityState> {
             1 => UnavailabilityReason::FetchFailed,
             2 => UnavailabilityReason::Gone,
             3 => UnavailabilityReason::UnsupportedContent,
-            255 => UnavailabilityReason::FetchFailed,
+            255 => return Err(NetError::Protocol),
             _ => return Err(NetError::Protocol),
         }),
         2 => AvailabilityState::Restricted(match r.u8()? {
@@ -268,7 +268,7 @@ fn decode_availability(r: &mut Reader) -> Result<AvailabilityState> {
             3 => RestrictionReason::Spam,
             4 => RestrictionReason::UserFilter,
             5 => RestrictionReason::SafetyWarning,
-            255 => RestrictionReason::UserFilter,
+            255 => return Err(NetError::Protocol),
             _ => return Err(NetError::Protocol),
         }),
         _ => return Err(NetError::Protocol),
@@ -279,8 +279,8 @@ fn encode_personalization(w: &mut Writer, p: &PersonalizationPolicy) {
     match p {
         PersonalizationPolicy::None => w.u8(0),
         PersonalizationPolicy::LocalUserControlled => w.u8(1),
-        // `PersonalizationPolicy` is `#[non_exhaustive]` upstream; a future
-        // variant still round-trips as `None` rather than failing to encode.
+        // Protocol-level validation rejects unknown future variants;
+        // this private fallback exists only for defensive internal use.
         _ => w.u8(0),
     }
 }
@@ -341,10 +341,18 @@ fn validate_multihash(value: &Multihash) -> Result<()> {
 
 fn validate_profile(profile: &RankingProfile) -> Result<()> {
     validate_multihash(&profile.id.0)?;
-    profile.validate().map_err(|_| NetError::Protocol)
+    profile.validate().map_err(|_| NetError::Protocol)?;
+    match profile.personalization {
+        PersonalizationPolicy::None | PersonalizationPolicy::LocalUserControlled => Ok(()),
+        _ => Err(NetError::Protocol),
+    }
 }
 
 fn validate_url(url: &CanonicalUrl) -> Result<()> {
+    match url.scheme {
+        Scheme::Http | Scheme::Https => {}
+        _ => return Err(NetError::Protocol),
+    }
     if url.host.as_str().len() > MAX_HOST_BYTES
         || url.path.len() > MAX_PATH_BYTES
         || url
@@ -369,14 +377,33 @@ fn validate_url(url: &CanonicalUrl) -> Result<()> {
 }
 
 fn validate_availability(availability: &AvailabilityState) -> Result<()> {
-    if let AvailabilityState::Restricted(RestrictionReason::LegalRestriction { jurisdiction }) =
-        availability
-    {
-        if jurisdiction.len() > MAX_JURISDICTION_BYTES {
-            return Err(NetError::LimitExceeded);
+    match availability {
+        AvailabilityState::Available
+        | AvailabilityState::Unavailable(
+            UnavailabilityReason::NotFetched
+            | UnavailabilityReason::FetchFailed
+            | UnavailabilityReason::Gone
+            | UnavailabilityReason::UnsupportedContent,
+        )
+        | AvailabilityState::Restricted(
+            RestrictionReason::RobotsExcluded
+            | RestrictionReason::Malware
+            | RestrictionReason::Spam
+            | RestrictionReason::UserFilter
+            | RestrictionReason::SafetyWarning,
+        ) => Ok(()),
+        AvailabilityState::Restricted(RestrictionReason::LegalRestriction { jurisdiction }) => {
+            if jurisdiction.len() > MAX_JURISDICTION_BYTES {
+                Err(NetError::LimitExceeded)
+            } else {
+                Ok(())
+            }
         }
+        AvailabilityState::Unavailable(_) | AvailabilityState::Restricted(_) => {
+            Err(NetError::Protocol)
+        }
+        _ => Err(NetError::Protocol),
     }
-    Ok(())
 }
 
 pub(crate) fn validate_wire_result(result: &WireResult) -> Result<()> {
@@ -627,18 +654,22 @@ impl AuthenticatedQueryResults {
     }
 }
 
-/// Derive a channel-scoped provider pseudonym from a sealed authenticated
-/// connection. Binding both the verified endpoint and exact CH1 transcript
-/// prevents a caller from manufacturing provenance from a freely constructed
-/// `AuthenticatedPeer`, avoids cross-session tracking, and stays stable for
-/// repeated queries on this one connection.
+/// Derive a provider pseudonym from the endpoint proved on a sealed
+/// authenticated connection. The helper is private, so callers cannot attach an
+/// arbitrary peer label. The label deliberately excludes the CH1 binding:
+/// `ProviderPseudonym` participates in F3's equal-score deduplication tie-break,
+/// and channel randomness there would make identical source sets merge
+/// differently on every connection and let a responder grind handshakes for a
+/// favorable tie-break. `TransportEndpointId` already commits to the delegated
+/// device/pairwise identity and current routing key and is disclosed by the
+/// selected advertisement, so this adds no linkability beyond that endpoint.
+/// Rotating the routing key, device, or pairwise identity rotates the label.
 fn authenticated_provider_pseudonym<B: Bearer>(
     connection: &AuthenticatedConnection<B>,
 ) -> ProviderPseudonym {
-    let mut transcript = Vec::with_capacity(AUTHENTICATED_PROVIDER_DOMAIN.len() + 64);
+    let mut transcript = Vec::with_capacity(AUTHENTICATED_PROVIDER_DOMAIN.len() + 32);
     transcript.extend_from_slice(AUTHENTICATED_PROVIDER_DOMAIN);
     transcript.extend_from_slice(&connection.peer().endpoint_id.to_bytes());
-    transcript.extend_from_slice(&connection.channel_binding());
     ProviderPseudonym(Multihash::of(HashAlgorithm::Blake3, &transcript))
 }
 
@@ -971,6 +1002,40 @@ mod tests {
             ),
             Err(NetError::LimitExceeded)
         );
+    }
+
+    #[test]
+    fn unknown_wire_enum_tags_fail_closed() {
+        let mut unavailable = Reader::new(&[1, 255]);
+        assert!(matches!(
+            decode_availability(&mut unavailable),
+            Err(NetError::Protocol)
+        ));
+
+        let mut restricted = Reader::new(&[2, 255]);
+        assert!(matches!(
+            decode_availability(&mut restricted),
+            Err(NetError::Protocol)
+        ));
+
+        let (_, _, _, _, profile) = fixture();
+        let mut profile_writer = Writer::new();
+        encode_profile(&mut profile_writer, &profile);
+        let mut profile_bytes = profile_writer.finish();
+        *profile_bytes.last_mut().unwrap() = 255;
+        assert!(matches!(
+            decode_profile(&mut Reader::new(&profile_bytes)),
+            Err(NetError::Protocol)
+        ));
+
+        let mut url_writer = Writer::new();
+        encode_url(&mut url_writer, &url("example.org", "/"));
+        let mut url_bytes = url_writer.finish();
+        url_bytes[0] = 255;
+        assert!(matches!(
+            decode_url(&mut Reader::new(&url_bytes)),
+            Err(NetError::Protocol)
+        ));
     }
 
     #[test]

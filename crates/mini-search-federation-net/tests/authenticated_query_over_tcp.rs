@@ -211,6 +211,72 @@ fn authenticated_search_response_carries_the_peer_bound_provider_label() {
 }
 
 #[test]
+fn one_authenticated_endpoint_has_one_provider_label_across_channels() {
+    let client = Identity::new(10);
+    let provider = Identity::new(40);
+    let (listener, address) = listener();
+    let advertisement = verified_advertisement(&provider, address);
+    let provider_root_kel = provider.root.kel();
+    let provider_device_kel = provider.device.kel();
+    let client_root_kel = client.root.kel();
+    let client_device_kel = client.device.kel();
+    let (index, corpus, contexts, segment_id, profile) = fixture();
+
+    let server_thread = thread::spawn(move || {
+        let mut freshness = FreshnessPins::new();
+        let mut replay = ReplayCache::new(32).unwrap();
+        for _ in 0..2 {
+            let (stream, _) = listener.accept().unwrap();
+            let (bearer, channel) = responder_channel(TcpBearer::from_stream(stream).unwrap());
+            let mut connection = authenticate_established_responder(
+                bearer,
+                channel,
+                provider.local(),
+                TransportPurpose::SearchQuery,
+                1_000,
+                2_000,
+                1_500,
+                PeerExpectation::identity(&client_root_kel, &client_device_kel),
+                &mut freshness,
+                &mut replay,
+            )
+            .unwrap();
+            serve_query_authenticated(
+                &mut connection,
+                &index,
+                &corpus,
+                &contexts,
+                segment_id.clone(),
+                1_500,
+            )
+            .unwrap();
+        }
+    });
+
+    let mut freshness = FreshnessPins::new();
+    let mut replay = ReplayCache::new(32).unwrap();
+    let mut labels = Vec::new();
+    for _ in 0..2 {
+        let mut connection = connect_authenticated_tcp(
+            client.local(),
+            TransportPurpose::SearchQuery,
+            1_000,
+            2_000,
+            1_500,
+            AuthenticatedDialTarget::new(&advertisement, &provider_root_kel, &provider_device_kel),
+            5_000,
+            &mut freshness,
+            &mut replay,
+        )
+        .unwrap();
+        let remote = remote_query_authenticated(&mut connection, "hello", &profile, 8).unwrap();
+        labels.push(remote.provider().clone());
+    }
+    assert_eq!(labels[0], labels[1]);
+    server_thread.join().unwrap();
+}
+
+#[test]
 fn a_peer_exchange_proof_cannot_be_reused_as_search_provider_provenance() {
     let client = Identity::new(10);
     let provider = Identity::new(40);

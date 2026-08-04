@@ -51,7 +51,7 @@ Adversarial coverage in `crates/mini-search-federation-net/src/query.rs` (unit t
 - the same field, score, count, canonical-URL, ranking-profile-version, jurisdiction, and multihash validation runs before encoding and after decoding, so a provider cannot emit a message its own peer rejects because local public fields were oversized, mutated, or semantically invalid;
 - a response is rejected if any result names a ranking profile other than the one requested, preserving F3's same-profile score-comparability premise;
 - a ranked response rejects `Restricted` and `Unavailable` results, so a malicious provider cannot reinsert a document that the ranker structurally excludes before scoring;
-- every current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason` variant round-trips through the `WireResult` codec, with a future-variant-safe fallback for both `#[non_exhaustive]` enums, mirroring F2b's own coverage discipline;
+- every current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason` variant round-trips through the internal codec, while any future unknown `#[non_exhaustive]` scheme, personalization, availability, or reason variant fails protocol validation instead of being silently reinterpreted;
 - a tampered ciphertext fails closed (the channel's own AEAD authentication, exercised the same way `session.rs`'s tests already prove it for the advertise exchange).
 
 ## Phase 2: wiring into F3's merge path (D-0436)
@@ -82,11 +82,13 @@ identity or connection system:
   `AuthenticatedConnection<B>` that owns the bearer, exact CH1 channel, and peer
   verified on that channel. The response remains ordinary bounded F6 wire data;
   no durable signature or false re-verifiability claim is added.
-- The named query constructor internally domain-separates and hashes both the
-  sealed connection's verified `TransportEndpointId` and exact
-  CH1 binding. The label is stable for repeated queries on that connection but
-  rotates across channels, preventing the named API from becoming a permanent
-  cross-session tracking identifier.
+- The named query constructor privately domain-separates and hashes the sealed
+  connection's verified `TransportEndpointId`. The label is stable across
+  channels to the same advertised endpoint, preserving F3's deterministic
+  equal-score provider tie-break and preventing responder handshake grinding.
+  This creates no additional cross-session identifier beyond the endpoint id the
+  caller already selected; routing-key, device, or pairwise-identity rotation
+  rotates the label.
 - The provider-derivation helper is private, and `AuthenticatedQueryResults`
   has private fields. External callers can inspect
   its provider and results but cannot construct one with an arbitrary provider
@@ -104,11 +106,12 @@ A real TCP integration test proves signed advertisement verification, CH1,
 provider labeling, and typed merge in one path. A second test proves a valid
 `PeerExchange`-purpose connection is rejected by the authenticated search API.
 
-**Exact remaining failure:** endpoint-and-channel-bound provenance proves who
-controlled one transport endpoint for one session, not that the provider's
-index is honest or independently operated. Every new channel intentionally
-changes the provider label, so durable reputation requires a separate,
-privacy-conscious continuity design. The anonymous legacy path can still be
+**Exact remaining failure:** endpoint-bound provenance proves who controlled
+one advertised transport endpoint, not that the provider's index is honest or
+independently operated. The label is stable only while that endpoint id remains
+stable; routing-key, device, or pairwise-identity rotation breaks continuity, so
+durable reputation still requires a separate privacy-conscious design. The
+anonymous legacy path can still be
 caller-mislabeled because that is its explicit contract. The named path also
 requires requester authentication: pairwise identity limits linkage, but true
 server-only provider authentication is not implemented.
@@ -117,7 +120,7 @@ server-only provider authentication is not implemented.
 
 - True query-content privacy against the queried provider itself (PIR/oblivious keyword search) — a distinct, harder cryptographic problem, gated behind issue #72's external review, not attempted here.
 - Design a server-only authenticated connection for callers that need peer-bound provider provenance without disclosing a requester identity; it must preserve anonymous CH1 and avoid a CA or global service identity requirement.
-- Decide whether a future privacy-preserving continuity proof should link rotating authenticated provider labels without turning one global provider identity into a tracking or ranking authority.
+- Decide whether a future privacy-preserving continuity proof should link authenticated provider labels across endpoint rotation without turning one global provider identity into a tracking or ranking authority.
 - Rate limiting, caching, and query logging policy — all left to the caller, as stated above.
 - Multi-provider fan-out (`remote_query_many`, mirroring `pull_from_sources`) feeding the same Phase 2 merge in one call, once a real deployment shape motivates it.
 

@@ -15465,9 +15465,8 @@ size, and relay/destination-key boundaries.
 
 Close D-0436's named F6 provenance gap with a distinct signed
 `TransportPurpose::SearchQuery`. The optional named query path operates on an
-`AuthenticatedConnection`, derives a rotating `ProviderPseudonym` from the
-verified `TransportEndpointId` plus exact CH1 binding, returns an
-`AuthenticatedQueryResults` with
+`AuthenticatedConnection`, privately derives a `ProviderPseudonym` from the
+verified `TransportEndpointId`, returns an `AuthenticatedQueryResults` with
 private fields, and merges it without accepting a caller-selected provider
 label. Preserve anonymous CH1 querying and the legacy caller-labeled merge API;
 identity disclosure remains optional.
@@ -15508,7 +15507,8 @@ expiry/network rechecks; same-network and visible-identity-diverse selection;
 secure-PEX outer/inner network consistency; destination/relay key separation;
 exact inbound/outbound onion sizing; bounded selection input; permanent connection
 poisoning on ambiguous bearer/channel failure; authenticated CH1 on every socket in a full
-onion chain; sealed channel-scoped search-provider provenance; symmetric F6 wire bounds, profile attribution,
+onion chain; sealed endpoint-stable search-provider provenance that preserves
+F3 deterministic tie-breaks and removes channel-handshake grinding; symmetric F6 wire bounds, profile attribution,
 ranker-filter preservation; and wrong-purpose rejection. Focused
 strict Clippy and all tests for `mini-transport-security`,
 `mini-search-federation-net`, and `mini-relay` pass. Exact-head full workspace,
@@ -15518,8 +15518,9 @@ CodeQL result is claimed.
 
 **Failure point:** a verified endpoint proves control of one key-bound endpoint
 on one channel, not personhood, honesty, independent operation, ASN/jurisdiction
-diversity, or result truth. Every authenticated F6 connection receives a channel-scoped provider label;
-privacy-preserving durable continuity across sessions is intentionally undesigned.
+diversity, or result truth. An authenticated F6 label is stable for one advertised
+endpoint but rotates with its routing key, device, or pairwise identity;
+privacy-preserving continuity across endpoint rotation is intentionally undesigned.
 First-contact KEL freshness still cannot reveal an unseen later revocation.
 Known TCP endpoints remain blockable/fingerprintable; NAT traversal, reconnect,
 private bridge distribution, multipath migration, and real camouflage adapters
