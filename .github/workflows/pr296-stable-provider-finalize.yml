@@ -27,6 +27,7 @@ jobs:
         run: |
           python3 tools/apply_pr296_stable_provider_and_enum_hardening.py
           python3 tools/fix_pr296_stable_provider_clippy.py
+          python3 tools/fix_pr296_unknown_decode_tags.py
       - name: Format
         run: cargo fmt --all
       - name: Strict Clippy
@@ -50,12 +51,14 @@ jobs:
         run: |
           rm tools/apply_pr296_stable_provider_and_enum_hardening.py
           rm tools/fix_pr296_stable_provider_clippy.py
+          rm tools/fix_pr296_unknown_decode_tags.py
           rm .github/workflows/pr296-stable-provider-finalize.yml
           python3 tools/mininet_nav.py build
       - name: Verify cleanup
         run: |
           test ! -e tools/apply_pr296_stable_provider_and_enum_hardening.py
           test ! -e tools/fix_pr296_stable_provider_clippy.py
+          test ! -e tools/fix_pr296_unknown_decode_tags.py
           test ! -e .github/workflows/pr296-stable-provider-finalize.yml
           git status --short
       - name: Commit tested tree
