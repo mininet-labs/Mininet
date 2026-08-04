@@ -1,1 +1,0 @@
-PR #296 final exact-head CI trigger. This non-workflow file is removed by the next commit; the tested merge candidate contains no trigger or staging artifact.
