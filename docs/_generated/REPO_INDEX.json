@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 71,
-    "files": 836,
-    "headings": 2614,
-    "rust_symbols": 7736
+    "files": 840,
+    "headings": 2625,
+    "rust_symbols": 7823
   },
   "crates": {
     "did-mini": {
@@ -48822,7 +48822,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 2390,
+      "bytes": 2620,
       "group": "crate:mini-search-federation-net",
       "headings": [
         {
@@ -48888,48 +48888,53 @@
         {
           "level": 1,
           "line": 25,
-          "text": "no new indexing/ranking/query logic here, just reassembly."
+          "text": "no new indexing/ranking/query logic here, just reassembly. mini-crypto"
         },
         {
           "level": 1,
-          "line": 38,
-          "text": "Only for building sample CrawlObservation/IndexSegment fixtures in this"
+          "line": 26,
+          "text": "for Multihash, reused directly by query.rs's wire codec (RankingProfileId/"
         },
         {
           "level": 1,
-          "line": 39,
-          "text": "crate's own tests (unit tests in src/session.rs and the tests/ suite)."
+          "line": 27,
+          "text": "IndexSegmentId/CrawlObservationId are all Multihash-backed) rather than"
+        },
+        {
+          "level": 1,
+          "line": 28,
+          "text": "introducing a second id representation."
         }
       ],
       "keywords": [
         "path",
         "mini-sync",
         "f2b",
+        "query",
+        "bounded",
         "mini-search-federation",
         "pulled",
         "workspace",
         "true",
         "did-mini",
-        "session",
         "objects",
         "mini-objects",
         "mini-store",
         "mini-bearer",
-        "bounded",
-        "own",
+        "rather",
         "assemble",
         "real",
         "mini-lexical-index",
         "mini-ranker",
         "mini-query",
         "mini-web-types",
-        "indexsegment",
-        "object",
-        "transport"
+        "indexsegmentid",
+        "mini-crypto",
+        "wire"
       ],
-      "lines": 41,
+      "lines": 40,
       "path": "crates/mini-search-federation-net/Cargo.toml",
-      "sha256": "99b6d2749dcf26270ae30e2538166a810266b902ed086d49182ff00c18cc184b",
+      "sha256": "05df4f2f39b009829fe026b5f74cca98d9064ec146672addc5621b202b56d8cf",
       "symbols": [],
       "title": "did-mini for the provider identity a caller expects a session's objects to"
     },
@@ -48991,7 +48996,7 @@
       "title": "use mini_lexical_index::IndexSegment;"
     },
     {
-      "bytes": 3444,
+      "bytes": 3758,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
@@ -48999,12 +49004,13 @@
         "write",
         "set",
         "segment",
+        "self",
         "result",
         "fmt",
         "trusted",
-        "self",
         "error",
         "core",
+        "queryerror",
         "bearererror",
         "syncerror",
         "objecterror",
@@ -49017,52 +49023,41 @@
         "sync",
         "store",
         "more",
-        "index",
-        "one"
+        "index"
       ],
-      "lines": 93,
+      "lines": 103,
       "path": "crates/mini-search-federation-net/src/error.rs",
-      "sha256": "b71f8fab1387bef33615ad0dec145f00fa4fc3296fdadd03d9c515df3dd02a98",
+      "sha256": "e50578903334d780083f428e1f519018c4493d70f4bab967e2b0833bf8ded7e7",
       "symbols": [
         {
           "kind": "type",
-          "line": 7,
+          "line": 8,
           "name": "Result"
         },
         {
           "kind": "enum",
-          "line": 12,
+          "line": 13,
           "name": "NetError"
         },
         {
           "kind": "impl",
-          "line": 43,
+          "line": 47,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 48,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 72,
+          "line": 77,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 73,
-          "name": "From<BearerError>"
-        },
-        {
-          "kind": "fn",
-          "line": 74,
-          "name": "from"
-        },
-        {
-          "kind": "impl",
           "line": 78,
-          "name": "From<SyncError>"
+          "name": "From<QueryError>"
         },
         {
           "kind": "fn",
@@ -49072,7 +49067,7 @@
         {
           "kind": "impl",
           "line": 83,
-          "name": "From<ObjectError>"
+          "name": "From<BearerError>"
         },
         {
           "kind": "fn",
@@ -49082,73 +49077,103 @@
         {
           "kind": "impl",
           "line": 88,
-          "name": "From<StoreError>"
+          "name": "From<SyncError>"
         },
         {
           "kind": "fn",
           "line": 89,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 93,
+          "name": "From<ObjectError>"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 98,
+          "name": "From<StoreError>"
+        },
+        {
+          "kind": "fn",
+          "line": 99,
           "name": "from"
         }
       ],
       "title": "use mini_bearer::BearerError;"
     },
     {
-      "bytes": 3755,
+      "bytes": 4193,
       "group": "crate:mini-search-federation-net",
       "headings": [],
       "keywords": [
+        "query",
         "session",
         "peer",
         "does",
         "multi",
+        "bounded",
         "signed",
         "f2b",
+        "wire",
         "real",
         "object",
         "mini-sync",
-        "query",
-        "caller",
+        "what",
         "assemble",
         "error",
         "message",
-        "bounded",
+        "remote_merge",
         "corpus",
         "peers",
         "mini_bearer",
         "channel",
-        "wire",
-        "transport",
-        "what",
         "ids",
-        "pull_source"
+        "pull_source",
+        "caller"
       ],
-      "lines": 70,
+      "lines": 78,
       "path": "crates/mini-search-federation-net/src/lib.rs",
-      "sha256": "d316c75cc89c363405f67da718c51a05eb17e7e0f112a7e0278f990731db34c6",
+      "sha256": "9399736c6127fbefbad4fa8969e596b4b3dc80b4cc3be7e8f36a9dba1dbe9205",
       "symbols": [
         {
           "kind": "mod",
-          "line": 60,
+          "line": 64,
           "name": "assemble"
         },
         {
           "kind": "mod",
-          "line": 61,
+          "line": 65,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 62,
+          "line": 66,
           "name": "message"
         },
         {
           "kind": "mod",
-          "line": 63,
+          "line": 67,
           "name": "multi"
         },
         {
           "kind": "mod",
-          "line": 64,
+          "line": 68,
+          "name": "query"
+        },
+        {
+          "kind": "mod",
+          "line": 69,
+          "name": "remote_merge"
+        },
+        {
+          "kind": "mod",
+          "line": 70,
           "name": "session"
         }
       ],
@@ -49297,6 +49322,465 @@
         }
       ],
       "title": "use did_mini::Did;"
+    },
+    {
+      "bytes": 25723,
+      "group": "crate:mini-search-federation-net",
+      "headings": [],
+      "keywords": [
+        "self",
+        "usize",
+        "u32",
+        "const",
+        "query",
+        "u16",
+        "result",
+        "string",
+        "take",
+        "max",
+        "writer",
+        "new",
+        "reader",
+        "neterror",
+        "vec",
+        "len",
+        "str",
+        "one",
+        "channel",
+        "wireresult",
+        "bytes",
+        "bytes_limited",
+        "str_limited",
+        "response"
+      ],
+      "lines": 781,
+      "path": "crates/mini-search-federation-net/src/query.rs",
+      "sha256": "03e7510e273494cc9d80e0b49c6b71ade83c73e27c921a05f1138837aa2c196d",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 29,
+          "name": "QUERY_AAD"
+        },
+        {
+          "kind": "const",
+          "line": 32,
+          "name": "MAX_QUERY_TEXT_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 35,
+          "name": "MAX_QUERY_RESULTS"
+        },
+        {
+          "kind": "const",
+          "line": 37,
+          "name": "MAX_HOST_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 38,
+          "name": "MAX_PATH_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 39,
+          "name": "MAX_URL_QUERY_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 40,
+          "name": "MAX_TITLE_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 41,
+          "name": "MAX_SNIPPET_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 42,
+          "name": "MAX_JURISDICTION_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 43,
+          "name": "MAX_MULTIHASH_BYTES"
+        },
+        {
+          "kind": "struct",
+          "line": 50,
+          "name": "WireResult"
+        },
+        {
+          "kind": "const",
+          "line": 74,
+          "name": "T_REQUEST"
+        },
+        {
+          "kind": "const",
+          "line": 75,
+          "name": "T_RESPONSE"
+        },
+        {
+          "kind": "struct",
+          "line": 77,
+          "name": "Writer"
+        },
+        {
+          "kind": "impl",
+          "line": 78,
+          "name": "Writer"
+        },
+        {
+          "kind": "fn",
+          "line": 79,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 82,
+          "name": "u8"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "u16"
+        },
+        {
+          "kind": "fn",
+          "line": 88,
+          "name": "u32"
+        },
+        {
+          "kind": "fn",
+          "line": 91,
+          "name": "bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 95,
+          "name": "str"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "opt_str"
+        },
+        {
+          "kind": "fn",
+          "line": 107,
+          "name": "finish"
+        },
+        {
+          "kind": "struct",
+          "line": 112,
+          "name": "Reader"
+        },
+        {
+          "kind": "impl",
+          "line": 116,
+          "name": "Reader<'a>"
+        },
+        {
+          "kind": "fn",
+          "line": 117,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 120,
+          "name": "take"
+        },
+        {
+          "kind": "fn",
+          "line": 128,
+          "name": "u8"
+        },
+        {
+          "kind": "fn",
+          "line": 131,
+          "name": "u16"
+        },
+        {
+          "kind": "fn",
+          "line": 135,
+          "name": "u32"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "bytes_limited"
+        },
+        {
+          "kind": "fn",
+          "line": 146,
+          "name": "str_limited"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "opt_str_limited"
+        },
+        {
+          "kind": "fn",
+          "line": 156,
+          "name": "finished"
+        },
+        {
+          "kind": "fn",
+          "line": 161,
+          "name": "encode_scheme"
+        },
+        {
+          "kind": "fn",
+          "line": 171,
+          "name": "decode_scheme"
+        },
+        {
+          "kind": "fn",
+          "line": 179,
+          "name": "encode_url"
+        },
+        {
+          "kind": "fn",
+          "line": 192,
+          "name": "decode_url"
+        },
+        {
+          "kind": "fn",
+          "line": 206,
+          "name": "encode_availability"
+        },
+        {
+          "kind": "fn",
+          "line": 247,
+          "name": "decode_availability"
+        },
+        {
+          "kind": "fn",
+          "line": 274,
+          "name": "encode_personalization"
+        },
+        {
+          "kind": "fn",
+          "line": 283,
+          "name": "decode_personalization"
+        },
+        {
+          "kind": "fn",
+          "line": 291,
+          "name": "encode_profile"
+        },
+        {
+          "kind": "fn",
+          "line": 302,
+          "name": "decode_profile"
+        },
+        {
+          "kind": "fn",
+          "line": 331,
+          "name": "encode_result"
+        },
+        {
+          "kind": "fn",
+          "line": 344,
+          "name": "decode_result"
+        },
+        {
+          "kind": "impl",
+          "line": 377,
+          "name": "Msg"
+        },
+        {
+          "kind": "fn",
+          "line": 378,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 402,
+          "name": "decode"
+        },
+        {
+          "kind": "fn",
+          "line": 436,
+          "name": "send"
+        },
+        {
+          "kind": "fn",
+          "line": 441,
+          "name": "recv"
+        },
+        {
+          "kind": "fn",
+          "line": 453,
+          "name": "remote_query"
+        },
+        {
+          "kind": "fn",
+          "line": 491,
+          "name": "serve_query"
+        },
+        {
+          "kind": "mod",
+          "line": 550,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 556,
+          "name": "channels"
+        },
+        {
+          "kind": "fn",
+          "line": 570,
+          "name": "url"
+        },
+        {
+          "kind": "fn",
+          "line": 581,
+          "name": "digest"
+        },
+        {
+          "kind": "fn",
+          "line": 585,
+          "name": "fixture"
+        },
+        {
+          "kind": "fn",
+          "line": 629,
+          "name": "round_trip_matches_a_local_search"
+        },
+        {
+          "kind": "fn",
+          "line": 676,
+          "name": "oversized_query_text_is_rejected_before_sending"
+        },
+        {
+          "kind": "fn",
+          "line": 688,
+          "name": "zero_or_oversized_max_results_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 709,
+          "name": "a_compliant_server_never_exceeds_the_requested_max_results"
+        },
+        {
+          "kind": "fn",
+          "line": 732,
+          "name": "tampered_ciphertext_fails_closed"
+        },
+        {
+          "kind": "fn",
+          "line": 755,
+          "name": "every_availability_variant_round_trips_through_the_wire_codec"
+        }
+      ],
+      "title": "use mini_bearer::{Bearer, Channel};"
+    },
+    {
+      "bytes": 8654,
+      "group": "crate:mini-search-federation-net",
+      "headings": [],
+      "keywords": [
+        "wire",
+        "bps",
+        "explanation",
+        "federatedresult",
+        "wireresult",
+        "result",
+        "provider",
+        "remote",
+        "peer",
+        "mini_search_federation",
+        "combined",
+        "federated_result_from_wire",
+        "caller",
+        "own",
+        "local",
+        "merge_federated_results",
+        "query",
+        "providerpseudonym",
+        "remote_provider",
+        "weightbps",
+        "neterror",
+        "relevance_score_bps",
+        "url",
+        "one"
+      ],
+      "lines": 211,
+      "path": "crates/mini-search-federation-net/src/remote_merge.rs",
+      "sha256": "8a3cf613ef4e7d4e747dd6ce3fdce574b9212e454c70c5fc6d104cd5f8aa2f69",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 46,
+          "name": "federated_result_from_wire"
+        },
+        {
+          "kind": "fn",
+          "line": 87,
+          "name": "merge_remote_results"
+        },
+        {
+          "kind": "mod",
+          "line": 102,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 110,
+          "name": "digest"
+        },
+        {
+          "kind": "fn",
+          "line": 114,
+          "name": "url"
+        },
+        {
+          "kind": "fn",
+          "line": 125,
+          "name": "wire_result"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "provider"
+        },
+        {
+          "kind": "fn",
+          "line": 144,
+          "name": "a_valid_wire_result_converts_and_round_trips_its_fields"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "an_out_of_range_relevance_score_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "an_out_of_range_explanation_component_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 176,
+          "name": "merging_deduplicates_a_url_present_in_both_local_and_remote_by_score"
+        },
+        {
+          "kind": "fn",
+          "line": 190,
+          "name": "merging_respects_max_results_across_the_combined_set"
+        },
+        {
+          "kind": "fn",
+          "line": 201,
+          "name": "an_invalid_remote_result_fails_the_whole_merge_rather_than_dropping_silently"
+        }
+      ],
+      "title": "use mini_query::ResultProvenance;"
     },
     {
       "bytes": 15343,
@@ -49697,6 +50181,68 @@
         }
       ],
       "title": "use std::thread;"
+    },
+    {
+      "bytes": 3650,
+      "group": "crate:mini-search-federation-net",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "bearer",
+        "digest",
+        "url",
+        "chan",
+        "corpus",
+        "new",
+        "none",
+        "hello",
+        "response",
+        "doc_id",
+        "search",
+        "demo",
+        "stream",
+        "results",
+        "handshake_responder",
+        "handshake_initiator",
+        "remote_query",
+        "channel",
+        "tcpbearer",
+        "multihash",
+        "canonicalurl",
+        "title",
+        "contexts"
+      ],
+      "lines": 113,
+      "path": "crates/mini-search-federation-net/tests/query_over_tcp.rs",
+      "sha256": "0f4498dd2c42e106c15deae402fb0377d9bbe80d50fa0cd5a7493c6a33b6da8b",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 20,
+          "name": "digest"
+        },
+        {
+          "kind": "fn",
+          "line": 24,
+          "name": "url"
+        },
+        {
+          "kind": "fn",
+          "line": 35,
+          "name": "handshake_responder"
+        },
+        {
+          "kind": "fn",
+          "line": 42,
+          "name": "handshake_initiator"
+        },
+        {
+          "kind": "fn",
+          "line": 50,
+          "name": "a_client_queries_a_real_peer_over_a_real_tcp_socket_and_gets_ranked_results"
+        }
+      ],
+      "title": "use std::net::{TcpListener, TcpStream};"
     },
     {
       "bytes": 1757,
@@ -50157,38 +50703,38 @@
       "title": "use mini_objects::ObjectError;"
     },
     {
-      "bytes": 5707,
+      "bytes": 6553,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
         "provider",
-        "result",
         "source",
         "search",
+        "results",
+        "result",
         "own",
-        "federatedresult",
+        "merge",
         "mini_query",
         "corpus",
-        "results",
-        "merged",
-        "merge",
-        "one",
-        "every",
-        "relevance_score_bps",
+        "federatedresult",
+        "candidates",
         "providerpseudonym",
-        "url",
         "max_results",
-        "its",
-        "key",
-        "candidate",
         "federationsource",
-        "query",
-        "providers",
-        "provenance"
+        "federate_query",
+        "module",
+        "one",
+        "deterministic",
+        "policy",
+        "every",
+        "same",
+        "its",
+        "already",
+        "local"
       ],
-      "lines": 145,
+      "lines": 163,
       "path": "crates/mini-search-federation/src/federate.rs",
-      "sha256": "6f49c1046550fc77872902d4fb66123eac02a2a139f4d0fa2e1b08ef3460b682",
+      "sha256": "96e34bb7d13aece05796bb7fb3c51c348cf1357da2a3f8478bde8de3b6de3ffc",
       "symbols": [
         {
           "kind": "struct",
@@ -50207,7 +50753,12 @@
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 114,
+          "name": "merge_federated_results"
+        },
+        {
+          "kind": "fn",
+          "line": 155,
           "name": "better"
         }
       ],
@@ -50401,7 +50952,7 @@
       "title": "use std::collections::{HashMap, HashSet};"
     },
     {
-      "bytes": 3450,
+      "bytes": 3475,
       "group": "crate:mini-search-federation",
       "headings": [],
       "keywords": [
@@ -50432,7 +50983,7 @@
       ],
       "lines": 71,
       "path": "crates/mini-search-federation/src/lib.rs",
-      "sha256": "c0a3c8d4d7a907a5f6fe0e9a139b7dfcc4bed29939790ca2c2bf19b186009571",
+      "sha256": "ab518c9340e19374523c435fed9b9bbe49f5983eba5582b245593d3fe5e19995",
       "symbols": [
         {
           "kind": "mod",
@@ -58428,7 +58979,7 @@
       "title": "use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};"
     },
     {
-      "bytes": 22593,
+      "bytes": 22546,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
@@ -58457,9 +59008,9 @@
         "u64",
         "endpoint"
       ],
-      "lines": 660,
+      "lines": 656,
       "path": "crates/mini-transport-security/src/auth.rs",
-      "sha256": "d4f94b4802ff9f38360ff4fce79117b12c95d8a1c1ad608fd0ac129c262e7eb3",
+      "sha256": "7764d413a4813279d2f526254a81afbbfaf53e12ba7e6d754c9491e1f1335042",
       "symbols": [
         {
           "kind": "const",
@@ -58603,67 +59154,67 @@
         },
         {
           "kind": "fn",
-          "line": 249,
+          "line": 245,
           "name": "verify_advertised"
         },
         {
           "kind": "fn",
-          "line": 282,
+          "line": 278,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 313,
+          "line": 309,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 371,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 393,
+          "line": 389,
           "name": "replay_id"
         },
         {
           "kind": "fn",
-          "line": 405,
+          "line": 401,
           "name": "validate_window"
         },
         {
           "kind": "mod",
-          "line": 422,
+          "line": 418,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 429,
+          "line": 425,
           "name": "identity"
         },
         {
           "kind": "fn",
-          "line": 438,
+          "line": 434,
           "name": "binding"
         },
         {
           "kind": "fn",
-          "line": 447,
+          "line": 443,
           "name": "issue_generates_fresh_nonce_internally"
         },
         {
           "kind": "fn",
-          "line": 479,
+          "line": 475,
           "name": "claim_round_trips_and_authenticates_the_exact_session"
         },
         {
           "kind": "fn",
-          "line": 514,
+          "line": 510,
           "name": "another_channel_role_or_purpose_cannot_reuse_the_proof"
         },
         {
           "kind": "fn",
-          "line": 573,
+          "line": 569,
           "name": "revoked_device_and_duplicate_claim_fail_closed"
         }
       ],
@@ -65476,7 +66027,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 914326,
+      "bytes": 927599,
       "group": "docs",
       "headings": [
         {
@@ -65898,17 +66449,17 @@
         "log",
         "batch",
         "local",
+        "phase",
         "signed",
         "roadmap",
         "release",
         "first",
-        "phase",
         "status",
         "deterministic"
       ],
-      "lines": 15220,
+      "lines": 15434,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "41868210fc7651155bb6daaf61b6bb04b63fa63df2265d1f2f7fd9fca9842eee",
+      "sha256": "a8d3640303f3762d27d63e4a4b6bb0f2186afecc06330b033da642adba8f5322",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -67057,7 +67608,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 121974,
+      "bytes": 125018,
       "group": "docs",
       "headings": [
         {
@@ -67127,27 +67678,27 @@
         },
         {
           "level": 2,
-          "line": 1571,
+          "line": 1615,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1662,
+          "line": 1706,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1742,
+          "line": 1786,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1808,
+          "line": 1852,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 1825,
+          "line": 1869,
           "text": "Privacy and transport security \u2014 D-0377 proposal"
         }
       ],
@@ -67177,9 +67728,9 @@
         "design",
         "claude"
       ],
-      "lines": 1857,
+      "lines": 1901,
       "path": "docs/STATUS.md",
-      "sha256": "b040e5a8e5297e9331765c86fe7dad4a292b266a8d3b052ec3b6b21899bf6c21",
+      "sha256": "901cb219de44b5494c86fd06d976043fa8400e40277013d652f4934bda30dc64",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -70070,6 +70621,93 @@
       "sha256": "91a3748742b2041fb2c19e6b4d4a58eba39de08433156e2130c519879a5c2eeb",
       "symbols": [],
       "title": "F5 Phase 2: settlement transcript, adversary/economic model, and falsification gates"
+    },
+    {
+      "bytes": 13631,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "The gap this closes"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "What Phase 1 is (and is not)"
+        },
+        {
+          "level": 2,
+          "line": 26,
+          "text": "Wire design"
+        },
+        {
+          "level": 2,
+          "line": 35,
+          "text": "Server-side scope"
+        },
+        {
+          "level": 2,
+          "line": 39,
+          "text": "Constitutional and authority impact"
+        },
+        {
+          "level": 2,
+          "line": 43,
+          "text": "Tests"
+        },
+        {
+          "level": 2,
+          "line": 54,
+          "text": "Phase 2: wiring into F3's merge path (D-0436)"
+        },
+        {
+          "level": 2,
+          "line": 69,
+          "text": "Required follow-up"
+        },
+        {
+          "level": 2,
+          "line": 76,
+          "text": "Supersedes / superseded by"
+        }
+      ],
+      "keywords": [
+        "phase",
+        "query",
+        "caller",
+        "track",
+        "provider",
+        "design",
+        "one",
+        "search",
+        "does",
+        "peer",
+        "exactly",
+        "results",
+        "private",
+        "gap",
+        "what",
+        "scope",
+        "document",
+        "own",
+        "other",
+        "real",
+        "wants",
+        "queried",
+        "here",
+        "transport"
+      ],
+      "lines": 79,
+      "path": "docs/design/f6-private-query-transport.md",
+      "sha256": "3e01417282ef82a0148ee4d8f39d006f242b704e362bb6bf28511b1399c78e97",
+      "symbols": [],
+      "title": "Track F6: private query transport \u2014 Phase 0 doctrine, Phase 1 and Phase 2 slices"
     },
     {
       "bytes": 18834,
@@ -81854,7 +82492,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 30006,
+      "bytes": 32022,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -81883,9 +82521,9 @@
         "independently",
         "both"
       ],
-      "lines": 600,
+      "lines": 626,
       "path": "governance/work-claims.json",
-      "sha256": "85cb0cfca5ca514236863f30ce8727b7e7728023dc159645072e60fd7246884e",
+      "sha256": "e94f4bfccd8847289ad0c9f4aa74d61c64e7c22967893fc7f5a37a1adf076508",
       "symbols": [],
       "title": "{"
     },

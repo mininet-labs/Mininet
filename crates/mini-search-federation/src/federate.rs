@@ -80,8 +80,7 @@ pub fn federate_query(
     now_ms: u64,
     max_results: usize,
 ) -> Result<Vec<FederatedResult>> {
-    let mut merged: HashMap<String, FederatedResult> = HashMap::new();
-
+    let mut candidates = Vec::new();
     for source in sources {
         let results = search(
             source.index,
@@ -94,19 +93,38 @@ pub fn federate_query(
             max_results,
         )?;
         for result in results {
-            let key = result.result.url.canonical_string();
-            let candidate = FederatedResult {
+            candidates.push(FederatedResult {
                 result,
                 provider: source.provider.clone(),
-            };
-            match merged.get(&key) {
-                None => {
+            });
+        }
+    }
+    Ok(merge_federated_results(candidates, max_results))
+}
+
+/// The dedup/sort/truncate merge policy documented at module level, exposed
+/// standalone so a caller who already holds [`FederatedResult`]s from
+/// somewhere other than a fresh [`search`] call over a local
+/// [`FederationSource`] -- e.g. `mini-search-federation-net`'s Track F6
+/// remote-query results, tagged with the answering peer's
+/// [`mini_web_types::ProviderPseudonym`] -- can fold them into the same
+/// deterministic merge [`federate_query`] itself uses, rather than
+/// reimplementing the dedup/tiebreak policy. `federate_query` is exactly
+/// this function applied to results freshly computed from local sources.
+pub fn merge_federated_results(
+    results: Vec<FederatedResult>,
+    max_results: usize,
+) -> Vec<FederatedResult> {
+    let mut merged: HashMap<String, FederatedResult> = HashMap::new();
+    for candidate in results {
+        let key = candidate.result.result.url.canonical_string();
+        match merged.get(&key) {
+            None => {
+                merged.insert(key, candidate);
+            }
+            Some(existing) => {
+                if better(&candidate, existing) {
                     merged.insert(key, candidate);
-                }
-                Some(existing) => {
-                    if better(&candidate, existing) {
-                        merged.insert(key, candidate);
-                    }
                 }
             }
         }
@@ -128,7 +146,7 @@ pub fn federate_query(
             })
     });
     out.truncate(max_results);
-    Ok(out)
+    out
 }
 
 /// `a` wins over `b` if it scores strictly higher, or on a tie if its
