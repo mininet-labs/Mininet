@@ -1,63 +1,4 @@
-#!/usr/bin/env python3
-"""Add final PR #296 discovery-to-onion convergence evidence."""
-
-from pathlib import Path
-
-
-def read(path: str) -> str:
-    return Path(path).read_text(encoding="utf-8")
-
-
-def write(path: str, text: str) -> None:
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding="utf-8")
-
-
-def replace_exact(path: str, old: str, new: str, expected: int = 1) -> None:
-    text = read(path)
-    count = text.count(old)
-    if count != expected:
-        raise SystemExit(
-            f"{path}: expected {expected} matches, found {count}: {old[:120]!r}"
-        )
-    write(path, text.replace(old, new))
-
-
-runtime_test = "crates/mini-transport-security/tests/runtime_tcp.rs"
-planning = "docs/planning/privacy-transport-runtime-convergence.md"
-decision = "docs/DECISION_LOG.md"
-readme = "crates/mini-transport-security/README.md"
-
-# Avoid OS-specific reset/EOF details in the redirect test, and keep an
-# unresponsive listener bound so the retry test cannot race port reuse.
-replace_exact(
-    runtime_test,
-    """    assert!(matches!(
-        redirect_thread.join().unwrap(),
-        TransportSecurityError::Bearer(mini_bearer::BearerError::Closed)
-    ));
-""",
-    """    assert!(matches!(
-        redirect_thread.join().unwrap(),
-        TransportSecurityError::Bearer(_)
-    ));
-""",
-)
-replace_exact(
-    runtime_test,
-    """    let (closed_listener, bad_address) = listener();
-    drop(closed_listener);
-    let (good_listener, good_address) = listener();
-""",
-    """    // Keep the first address bound but deliberately unserviced. This proves
-    // the read timeout/retry path without racing ephemeral-port reuse.
-    let (_unresponsive_listener, bad_address) = listener();
-    let (good_listener, good_address) = listener();
-""",
-)
-
-verified_onion_test = r'''use std::collections::HashMap;
+use std::collections::HashMap;
 use std::net::{SocketAddr, TcpListener};
 use std::thread;
 
@@ -65,8 +6,7 @@ use did_mini::{Capabilities, Controller, FreshnessPins};
 use mini_bearer::{Bearer, TcpBearer};
 use mini_crypto::AgreementSecretKey;
 use mini_relay::{
-    open_onion_destination, ConnectionId, OnionForward, OnionPacket, OnionReplayCache,
-    RelayRole,
+    open_onion_destination, ConnectionId, OnionForward, OnionPacket, OnionReplayCache, RelayRole,
 };
 use mini_transport_policy::PayloadSizeClass;
 use mini_transport_security::{
@@ -93,12 +33,9 @@ fn listener() -> (TcpListener, SocketAddr) {
 fn verified_node(seed: u8) -> RelayNode {
     let (listener, address) = listener();
     let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
-    let device = Controller::incept_device_single_from_seeds(
-        &root.did(),
-        &[seed + 2; 32],
-        &[seed + 3; 32],
-    )
-    .unwrap();
+    let device =
+        Controller::incept_device_single_from_seeds(&root.did(), &[seed + 2; 32], &[seed + 3; 32])
+            .unwrap();
     root.delegate_device(&device.did(), Capabilities::primary())
         .unwrap();
     let secret = AgreementSecretKey::from_seed(&[seed + 4; 32]);
@@ -228,9 +165,7 @@ fn signed_discovery_selection_and_verified_route_forward_ciphertext_over_three_s
         assert!(!contains(&bytes, PLAINTEXT));
         let packet = OnionPacket::from_bytes(&bytes).unwrap();
         let mut replay = OnionReplayCache::new(32).unwrap();
-        let peeled = packet
-            .peel(&rendezvous.secret, 5_000, &mut replay)
-            .unwrap();
+        let peeled = packet.peel(&rendezvous.secret, 5_000, &mut replay).unwrap();
         assert_eq!(peeled.role, RelayRole::Rendezvous);
         assert_eq!(peeled.next_hop, delivery_token);
         let OnionForward::Next(next) = peeled.forward else {
@@ -269,57 +204,3 @@ fn signed_discovery_selection_and_verified_route_forward_ciphertext_over_three_s
     delivery_thread.join().unwrap();
     assert_eq!(destination_thread.join().unwrap(), PLAINTEXT);
 }
-'''
-write(
-    "crates/mini-transport-security/tests/verified_onion_tcp.rs",
-    verified_onion_test,
-)
-
-replace_exact(
-    planning,
-    """- `mini-transport-security` strict Clippy and all focused tests pass, including
-  four new real-TCP runtime tests and verified-route unit tests.
-""",
-    """- `mini-transport-security` strict Clippy and all focused tests pass, including
-  four real-TCP authentication/runtime tests, verified-route unit tests, and one
-  end-to-end signed-discovery -> local selection -> verified onion-route ->
-  three-relay-socket -> destination-only plaintext test.
-""",
-)
-replace_exact(
-    planning,
-    """  reuse of a `mini-bridge`-established channel, distinct verified onion roles,
-  provider labels derived from the authenticated peer, and inability to reuse a
-""",
-    """  reuse of a `mini-bridge`-established channel, distinct verified onion roles,
-  signed advertisements feeding real three-socket onion forwarding, provider
-  labels derived from the authenticated peer, and inability to reuse a
-""",
-)
-replace_exact(
-    decision,
-    """and verified onion-route builder. Permanent real-socket tests prove signed
-advertisement -> CH1 -> exact peer binding -> application data; redirect
-""",
-    """and verified onion-route builder. Permanent real-socket tests prove signed
-advertisement -> CH1 -> exact peer binding -> application data; signed discovery
-and local selection -> verified three-role onion -> three relay sockets ->
-destination-only plaintext; redirect
-""",
-)
-replace_exact(
-    readme,
-    """- `build_verified_onion_route` accepts three already-verified endpoints and
-  rejects visible endpoint, routing-key, root, or device reuse before building
-  the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`.
-""",
-    """- `build_verified_onion_route` accepts three already-verified endpoints and
-  rejects visible endpoint, routing-key, root, or device reuse before building
-  the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`. A permanent
-  integration test starts with signed advertisements and local selection, then
-  forwards only ciphertext across three real relay sockets until the destination
-  alone recovers plaintext.
-""",
-)
-
-print("stage 4 applied")

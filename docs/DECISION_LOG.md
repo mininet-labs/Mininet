@@ -15487,7 +15487,9 @@ routing, ranking, personhood, validator, review, or governance authority.
 **Implementation status:** complete in draft PR #296. Permanent code adds the
 runtime module, typed search purpose, peer-bound authenticated F6 query/merge,
 and verified onion-route builder. Permanent real-socket tests prove signed
-advertisement -> CH1 -> exact peer binding -> application data; redirect
+advertisement -> CH1 -> exact peer binding -> application data; signed discovery
+and local selection -> verified three-role onion -> three relay sockets ->
+destination-only plaintext; redirect
 rejection before initiator disclosure; atomic freshness/replay state on failure;
 bounded retry past an unreachable first hint; reuse of a `mini-bridge` channel;
 authenticated search-provider provenance; and wrong-purpose rejection. Focused

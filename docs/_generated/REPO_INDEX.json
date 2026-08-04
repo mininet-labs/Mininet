@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 71,
-    "files": 844,
+    "files": 845,
     "headings": 2642,
-    "rust_symbols": 7896
+    "rust_symbols": 7904
   },
   "crates": {
     "did-mini": {
@@ -58822,7 +58822,7 @@
       "title": "[package]"
     },
     {
-      "bytes": 4610,
+      "bytes": 4810,
       "group": "crate:mini-transport-security",
       "headings": [
         {
@@ -58837,17 +58837,17 @@
         },
         {
           "level": 2,
-          "line": 38,
+          "line": 41,
           "text": "Transactional verification boundary"
         },
         {
           "level": 2,
-          "line": 47,
+          "line": 50,
           "text": "Authority boundary"
         },
         {
           "level": 2,
-          "line": 60,
+          "line": 63,
           "text": "Exact limits"
         }
       ],
@@ -58877,9 +58877,9 @@
         "bounded",
         "dial"
       ],
-      "lines": 80,
+      "lines": 83,
       "path": "crates/mini-transport-security/README.md",
-      "sha256": "42a8e0f5e290e925f5a828bc12da387fd4b5f0b832166fe39da058884e43d354",
+      "sha256": "637efdf65fbac36c4185474e9b4a8227c2703157d504919415f9d6b5b8202c92",
       "symbols": [],
       "title": "mini-transport-security"
     },
@@ -60201,7 +60201,7 @@
       "title": "use std::net::TcpListener;"
     },
     {
-      "bytes": 12075,
+      "bytes": 12173,
       "group": "crate:mini-transport-security",
       "headings": [],
       "keywords": [
@@ -60230,9 +60230,9 @@
         "server",
         "network_id"
       ],
-      "lines": 357,
+      "lines": 358,
       "path": "crates/mini-transport-security/tests/runtime_tcp.rs",
-      "sha256": "b22bb4cd1c54a13dbe6925c78c7b8f237cf04d4b8149ae2b9ae8f9ce326f2c43",
+      "sha256": "3f28cbac8b634e59b0abed0e8759d7bc9d180f056141a3011c91b65c38cea2ca",
       "symbols": [
         {
           "kind": "const",
@@ -60296,11 +60296,88 @@
         },
         {
           "kind": "fn",
-          "line": 292,
+          "line": 293,
           "name": "an_existing_mini_bridge_channel_enters_the_same_identity_seam"
         }
       ],
       "title": "use std::net::{SocketAddr, TcpListener};"
+    },
+    {
+      "bytes": 7571,
+      "group": "crate:mini-transport-security",
+      "headings": [],
+      "keywords": [
+        "unwrap",
+        "listener",
+        "address",
+        "advertisement",
+        "seed",
+        "bearer",
+        "new",
+        "nodes",
+        "plaintext",
+        "relaynode",
+        "root",
+        "bytes",
+        "plan",
+        "delivery",
+        "network_id",
+        "contains",
+        "socketaddr",
+        "tcplistener",
+        "tcpbearer",
+        "agreementsecretkey",
+        "verifiedrelay",
+        "secret",
+        "device",
+        "node"
+      ],
+      "lines": 207,
+      "path": "crates/mini-transport-security/tests/verified_onion_tcp.rs",
+      "sha256": "f8969ad80ce87d2005dd4ddf69e459861193b8b72395ed532b91690c168f86ce",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 17,
+          "name": "NETWORK_ID"
+        },
+        {
+          "kind": "const",
+          "line": 18,
+          "name": "PLAINTEXT"
+        },
+        {
+          "kind": "struct",
+          "line": 20,
+          "name": "RelayNode"
+        },
+        {
+          "kind": "fn",
+          "line": 27,
+          "name": "listener"
+        },
+        {
+          "kind": "fn",
+          "line": 33,
+          "name": "verified_node"
+        },
+        {
+          "kind": "fn",
+          "line": 72,
+          "name": "send"
+        },
+        {
+          "kind": "fn",
+          "line": 77,
+          "name": "contains"
+        },
+        {
+          "kind": "fn",
+          "line": 84,
+          "name": "signed_discovery_selection_and_verified_route_forward_ciphertext_over_three_sockets"
+        }
+      ],
+      "title": "use std::collections::HashMap;"
     },
     {
       "bytes": 1139,
@@ -66518,7 +66595,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 933116,
+      "bytes": 933236,
       "group": "docs",
       "headings": [
         {
@@ -66948,9 +67025,9 @@
         "transport",
         "status"
       ],
-      "lines": 15523,
+      "lines": 15525,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "6cb94f40b0ce20c37eecab162d140e73991a18738485e341c80eaab93d44bf1e",
+      "sha256": "23359824fdc445a07faaebf0743f837e316c760c8bbe1e1ceddc52d64a5d3d8e",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -80728,7 +80805,7 @@
       "title": "Native release retrieval \u2014 preliminary implementation report"
     },
     {
-      "bytes": 8789,
+      "bytes": 9006,
       "group": "docs",
       "headings": [
         {
@@ -80783,17 +80860,17 @@
         },
         {
           "level": 2,
-          "line": 108,
+          "line": 111,
           "text": "Frozen authority boundaries"
         },
         {
           "level": 2,
-          "line": 121,
+          "line": 124,
           "text": "Honest non-claims and required follow-up"
         },
         {
           "level": 2,
-          "line": 138,
+          "line": 141,
           "text": "Merge floor"
         }
       ],
@@ -80823,9 +80900,9 @@
         "first",
         "existing"
       ],
-      "lines": 147,
+      "lines": 150,
       "path": "docs/planning/privacy-transport-runtime-convergence.md",
-      "sha256": "e700e740ef37aa9d5afadff5a2a7b9303ec3aacecbe89652f1b48dff4e4488bd",
+      "sha256": "62553d35d94a5532a4aea554f8951e24f27828066015233e2f48f1841a3bdb62",
       "symbols": [],
       "title": "Privacy transport runtime convergence"
     },

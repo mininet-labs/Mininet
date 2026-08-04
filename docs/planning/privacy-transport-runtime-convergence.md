@@ -95,14 +95,17 @@ remain available as explicitly weaker alternatives.
 ## Permanent evidence
 
 - `mini-transport-security` strict Clippy and all focused tests pass, including
-  four new real-TCP runtime tests and verified-route unit tests.
+  four real-TCP authentication/runtime tests, verified-route unit tests, and one
+  end-to-end signed-discovery -> local selection -> verified onion-route ->
+  three-relay-socket -> destination-only plaintext test.
 - `mini-search-federation-net` strict Clippy and all focused tests pass,
   including a real authenticated F6 query/merge and wrong-purpose rejection.
 - `mini-relay` unit and real-socket onion tests pass unchanged.
 - Tests prove redirect rejection before initiator disclosure, no partial
   freshness/replay mutation, bounded retry over an unreachable first hint,
   reuse of a `mini-bridge`-established channel, distinct verified onion roles,
-  provider labels derived from the authenticated peer, and inability to reuse a
+  signed advertisements feeding real three-socket onion forwarding, provider
+  labels derived from the authenticated peer, and inability to reuse a
   `PeerExchange` proof as `SearchQuery` authority.
 
 ## Frozen authority boundaries

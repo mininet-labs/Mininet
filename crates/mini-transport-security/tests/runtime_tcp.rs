@@ -201,7 +201,7 @@ fn redirected_genuine_identity_is_rejected_before_client_identity_disclosure() {
     );
     assert!(matches!(
         redirect_thread.join().unwrap(),
-        TransportSecurityError::Bearer(mini_bearer::BearerError::Closed)
+        TransportSecurityError::Bearer(_)
     ));
 }
 
@@ -211,8 +211,9 @@ fn bounded_retry_skips_an_unreachable_hint_and_accepts_only_the_verified_peer() 
     let bad = Identity::new(40);
     let good = Identity::new(70);
 
-    let (closed_listener, bad_address) = listener();
-    drop(closed_listener);
+    // Keep the first address bound but deliberately unserviced. This proves
+    // the read timeout/retry path without racing ephemeral-port reuse.
+    let (_unresponsive_listener, bad_address) = listener();
     let (good_listener, good_address) = listener();
     let bad_advertisement = verified_advertisement(&bad, bad_address);
     let good_advertisement = verified_advertisement(&good, good_address);

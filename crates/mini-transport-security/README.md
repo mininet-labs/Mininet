@@ -31,7 +31,10 @@ executable connection seam above Mininet's anonymous `mini-bearer::Channel`.
   identity authority.
 - `build_verified_onion_route` accepts three already-verified endpoints and
   rejects visible endpoint, routing-key, root, or device reuse before building
-  the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`.
+  the `Entry -> Rendezvous -> Delivery` onion in `mini-relay`. A permanent
+  integration test starts with signed advertisements and local selection, then
+  forwards only ciphertext across three real relay sockets until the destination
+  alone recovers plaintext.
 - `executable_transport` permits implemented Direct and Relayed execution and
   refuses Mixed/Burst until the exact mix executor receives independent review.
 
