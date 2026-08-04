@@ -29,7 +29,7 @@ const DOMAIN: &[u8] = b"mini-consensus/msg/v2";
 /// Domain tag for the bytes a proposer signs — distinct from the message
 /// framing tag so a proposal signature can never be confused with any other
 /// signed object in this tree.
-const PROPOSAL_SIGN_DOMAIN: &[u8] = b"mini-consensus/proposal/v1";
+const PROPOSAL_SIGN_DOMAIN: &[u8] = b"mini-consensus/proposal/v2";
 
 /// Hard cap on device signatures in one proposal (a well-formed proposal
 /// carries one device's signature; the bound stops a malformed frame forcing
@@ -94,6 +94,7 @@ impl Proposal {
         round: u32,
         valid_round: i64,
         block_hash: &[u8; 32],
+        body_hash: &[u8; 32],
         proposer_root: &Did,
     ) -> Vec<u8> {
         let mut w = Vec::new();
@@ -102,6 +103,7 @@ impl Proposal {
         w.extend_from_slice(&round.to_be_bytes());
         w.extend_from_slice(&valid_round.to_be_bytes());
         w.extend_from_slice(block_hash);
+        w.extend_from_slice(body_hash);
         let r = proposer_root.as_str().as_bytes();
         w.extend_from_slice(&(r.len() as u32).to_be_bytes());
         w.extend_from_slice(r);
@@ -132,6 +134,7 @@ pub fn sign_proposal(
         round,
         valid_round,
         &header.hash(),
+        &body.hash(),
         proposer_root,
     );
     let signature = device.sign_message(&transcript);
@@ -169,6 +172,7 @@ pub fn verify_proposal(proposal: &Proposal, root_kel: &Kel, device_kel: &Kel) ->
         proposal.round,
         proposal.valid_round,
         &proposal.header.hash(),
+        &proposal.body.hash(),
         &proposal.proposer_root,
     );
     device_kel
@@ -519,6 +523,14 @@ mod tests {
         let mut tampered = p.clone();
         tampered.round = 3;
         assert!(verify_proposal(&tampered, &root.kel(), &device.kel()).is_err());
+
+        // The state root alone does not bind claims that execution drops (for
+        // example an invalid signature). The proposal transcript must bind
+        // the exact body so an intermediary cannot add/remove such claims
+        // while preserving the signed header.
+        let mut tampered_body = p.clone();
+        tampered_body.body.claims[0].amount_micro += 1;
+        assert!(verify_proposal(&tampered_body, &root.kel(), &device.kel()).is_err());
 
         // A different validator's KELs must not verify this proposal.
         let (other_root, other_device) = {

@@ -31,9 +31,14 @@ const AEAD_TAG_LEN: usize = 16;
 /// key, a nonce, and an empty plaintext's authentication tag.
 const MIN_SEALED_LEN: usize = PUBLIC_KEY_LEN + NONCE_LEN + AEAD_TAG_LEN;
 
-/// The largest a sealed-box byte string can legally be, bounded by
-/// [`MAX_PAYLOAD_BYTES`] the same way every other payload variant already is.
-const MAX_SEALED_LEN: usize = PUBLIC_KEY_LEN + NONCE_LEN + MAX_PAYLOAD_BYTES + AEAD_TAG_LEN;
+/// Largest plaintext that can still produce a legal `Payload::Encrypted`.
+/// Framing and the AEAD tag must fit inside the object's payload ceiling too.
+pub const MAX_OWNER_SEAL_PLAINTEXT_BYTES: usize =
+    MAX_PAYLOAD_BYTES - PUBLIC_KEY_LEN - NONCE_LEN - AEAD_TAG_LEN;
+
+/// A sealed box is itself the encrypted payload, so its complete framing must
+/// fit inside the object format's payload ceiling.
+const MAX_SEALED_LEN: usize = MAX_PAYLOAD_BYTES;
 
 /// An owner's private sealing key: the secret half of an independent X25519
 /// keypair used only for [`open_as_owner`]. Deliberately **not** a device's
@@ -102,7 +107,7 @@ pub fn seal_for_owner(
     plaintext: &[u8],
     aad: &[u8],
 ) -> Result<Vec<u8>> {
-    if plaintext.len() > MAX_PAYLOAD_BYTES {
+    if plaintext.len() > MAX_OWNER_SEAL_PLAINTEXT_BYTES {
         return Err(StoreError::LimitExceeded);
     }
     let ephemeral = AgreementSecretKey::generate().map_err(StoreError::Crypto)?;

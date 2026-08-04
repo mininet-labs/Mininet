@@ -4,7 +4,7 @@
 
 use did_mini::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, Capabilities, Controller, Did};
 use mini_objects::{Object, ObjectBuilder, ObjectType, Payload};
-use mini_store::{CacheTier, MemoryBackend, Store, ViewConditions};
+use mini_store::{CacheTier, MemoryBackend, Store, StoreError, ViewConditions};
 
 fn human(seed: u8) -> (Controller, Controller) {
     let mut root = Controller::incept_single_from_seeds(&[seed; 32], &[seed + 1; 32]).unwrap();
@@ -112,6 +112,42 @@ fn opening_encrypted_content_never_leaks_availability() {
         .note_view(secret.id(), &role, permissive_conditions())
         .unwrap();
     assert_eq!(tier_again, CacheTier::PrivateOnly);
+}
+
+#[test]
+fn encrypted_content_rejects_explicit_advertising_tiers() {
+    let (h, d) = human(11);
+    let mut store = Store::new(MemoryBackend::new());
+    let secret = encrypted_post(&h.did(), &d, 1);
+    store.insert(&secret).unwrap();
+
+    for tier in [
+        CacheTier::SeedCache,
+        CacheTier::CommittedStorage,
+        CacheTier::PinnedByOwner,
+    ] {
+        assert_eq!(
+            store.set_cache_tier(secret.id(), tier),
+            Err(StoreError::PrivateContentAdvertising)
+        );
+        assert!(!store.cache_tier(secret.id()).unwrap().advertises());
+    }
+}
+
+#[test]
+fn a_predeclared_advertising_tier_cannot_bypass_private_insert_policy() {
+    let (h, d) = human(12);
+    let mut store = Store::new(MemoryBackend::new());
+    let secret = encrypted_post(&h.did(), &d, 1);
+    store
+        .set_cache_tier(secret.id(), CacheTier::PinnedByOwner)
+        .unwrap();
+
+    assert_eq!(
+        store.insert(&secret),
+        Err(StoreError::PrivateContentAdvertising)
+    );
+    assert!(!store.contains(secret.id()).unwrap());
 }
 
 #[test]

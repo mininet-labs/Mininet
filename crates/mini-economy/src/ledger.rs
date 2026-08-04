@@ -107,7 +107,10 @@ impl MonetaryLedger {
 
     /// Validate and apply one next epoch atomically.
     pub fn apply_epoch(&self, plan: &ScalableEpochPlan, policy: &IssuancePolicy) -> Result<Self> {
-        let expected_epoch = self.last_epoch.map_or(0, |epoch| epoch.saturating_add(1));
+        let expected_epoch = match self.last_epoch {
+            None => 0,
+            Some(epoch) => epoch.checked_add(1).ok_or(EconomyError::UnexpectedEpoch)?,
+        };
         if plan.epoch != expected_epoch {
             return Err(EconomyError::UnexpectedEpoch);
         }

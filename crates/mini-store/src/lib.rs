@@ -33,7 +33,10 @@ mod time_index;
 
 pub use backend::{Backend, FsBackend, MemoryBackend};
 pub use cache::{CacheTier, ViewConditions};
-pub use owner_seal::{open_as_owner, seal_for_owner, OwnerSealingKey, OwnerSealingPublicKey};
+pub use owner_seal::{
+    open_as_owner, seal_for_owner, OwnerSealingKey, OwnerSealingPublicKey,
+    MAX_OWNER_SEAL_PLAINTEXT_BYTES,
+};
 pub use store::{HeadState, Store, TimeCursor, TimePage, MAX_TIME_PAGE_SIZE};
 
 use did_mini::IdentityError;
@@ -68,6 +71,8 @@ pub enum StoreError {
     /// An owner-sealing operation (`owner_seal` module) failed: bad key,
     /// tampered ciphertext, or a suite/length mismatch.
     Crypto(CryptoError),
+    /// An encrypted object was assigned a tier that advertises its presence.
+    PrivateContentAdvertising,
 }
 
 impl core::fmt::Display for StoreError {
@@ -82,6 +87,9 @@ impl core::fmt::Display for StoreError {
             StoreError::LimitExceeded => write!(f, "store limit exceeded"),
             StoreError::InvalidCursor => write!(f, "invalid ordered-index cursor"),
             StoreError::Crypto(e) => write!(f, "owner-seal crypto: {e}"),
+            StoreError::PrivateContentAdvertising => {
+                write!(f, "encrypted content cannot use an advertising cache tier")
+            }
         }
     }
 }

@@ -11,7 +11,11 @@ use mini_settlement::PaymentClaim;
 /// Hard cap on claims per block — an allocation/CPU bound applied before
 /// any signature verification, the same discipline
 /// `mini_chain::MAX_VOTES_PER_CERTIFICATE` applies to untrusted vote lists.
-pub const MAX_CLAIMS_PER_BLOCK: usize = 100_000;
+/// This matches the default admission-pool ceiling. Keeping the consensus
+/// ceiling at the same operational bound prevents a Byzantine proposer from
+/// turning one otherwise-valid proposal into tens of thousands of signature
+/// verifications that honest validators must complete before voting.
+pub const MAX_CLAIMS_PER_BLOCK: usize = 4_096;
 
 /// An ordered list of claims proposed for inclusion at one height.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
