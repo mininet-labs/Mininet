@@ -1,4 +1,5 @@
 name: pr296-monotonic-replay-finalize
+# Triggered after the workflow existed in the parent commit.
 
 on:
   push:
