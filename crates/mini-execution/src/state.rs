@@ -28,13 +28,13 @@ pub const MAX_ACCOUNT_BYTES: usize = 4_096;
 /// height: one `(sequence, digest)` high-water-mark per payer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LedgerState {
-    network_id: [u8; 32],
-    finalized: BTreeMap<Vec<u8>, (u64, [u8; 32])>,
-    rejected: BTreeMap<[u8; 32], CanonicalRejection>,
-    monetary: MonetaryLedger,
-    balances: BTreeMap<Vec<u8>, Amount>,
-    allocated_circulating: Amount,
-    unallocated_circulating: Amount,
+    pub(crate) network_id: [u8; 32],
+    pub(crate) finalized: BTreeMap<Vec<u8>, (u64, [u8; 32])>,
+    pub(crate) rejected: BTreeMap<[u8; 32], CanonicalRejection>,
+    pub(crate) monetary: MonetaryLedger,
+    pub(crate) balances: BTreeMap<Vec<u8>, Amount>,
+    pub(crate) allocated_circulating: Amount,
+    pub(crate) unallocated_circulating: Amount,
 }
 
 impl LedgerState {

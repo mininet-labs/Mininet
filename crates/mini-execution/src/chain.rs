@@ -76,6 +76,40 @@ impl LedgerChain {
         })
     }
 
+    /// Restore a chain from a complete state whose commitment is bound to
+    /// one locally-verified quorum-finalized header. This is the only state-
+    /// replacement path; an unsigned state blob can never become canonical.
+    pub fn from_finalized_snapshot(
+        header: &BlockHeader,
+        state: LedgerState,
+        qc: &QuorumCertificate,
+        validators: &ValidatorSet,
+        oracle: &dyn ValidatorOracle,
+        expected_network_id: [u8; 32],
+    ) -> Result<Self> {
+        if state.network_id() != expected_network_id {
+            return Err(ExecutionError::SnapshotWrongNetwork);
+        }
+        state.verify_supply_conservation()?;
+        state.verify_balance_map_total()?;
+        verify_finality(qc, validators, oracle)?;
+        if header.height == 0
+            || header.timestamp_ms != header.height
+            || qc.height != header.height
+            || qc.block_hash != header.hash()
+        {
+            return Err(ExecutionError::SnapshotProofMismatch);
+        }
+        if header.state_root != state.commitment() {
+            return Err(ExecutionError::StateRootMismatch);
+        }
+        Ok(LedgerChain {
+            height: header.height,
+            tip_hash: header.hash(),
+            state,
+        })
+    }
+
     /// The current finalized height.
     pub fn height(&self) -> u64 {
         self.height

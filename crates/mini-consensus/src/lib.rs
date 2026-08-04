@@ -63,15 +63,13 @@
 //! Safety — never two conflicting decisions at one height — is implemented in
 //! full via Tendermint locking, and finality is still exactly
 //! [`mini_chain::verify_finality`]'s `>2/3`-distinct-roots rule. The remaining
-//! gaps are liveness/DoS, transport security, and deployment, not correctness:
+//! gaps are liveness/DoS, endpoint authentication/discovery, and deployment,
+//! not finality correctness:
 //!
-//! - **Single-hop vote broadcast, not full gossip.** The host broadcasts each
-//!   vote once; it does not re-gossip past rounds' votes. The crash-recovery
-//!   path (a silent proposer) does not depend on that; the POLC-re-proposal
-//!   path (paper line 28) does, so it is only as robust as the links are
-//!   lossless. The *transport* no longer drops traffic to a merely-slow peer
-//!   (see [`net::TcpMesh`]'s non-blocking buffered links), but a genuinely
-//!   dropped or partitioned message is still not re-delivered.
+//! - **Dedup-flooded gossip, not durable retransmission.** D-0205 re-gossips
+//!   each newly seen proposal/vote across any connected topology, but there is
+//!   no acknowledgement, retry queue, or historical replay after a partition.
+//!   A genuinely dropped message may still require a later round to recover.
 //! - **No equivocation slashing.** A validator that double-signs is counted
 //!   at most once per root (P2) and cannot manufacture a quorum; the attempt
 //!   *is* detected, verified, and recorded ([`verify_equivocation`],
@@ -80,6 +78,15 @@
 //!   governance-visible strike.
 //! - **Static validator set.** The set is fixed for a run; on-chain
 //!   validator-set changes are separate, later work.
+//! - **State sync is bounded and persistent, but deliberately static-set.**
+//!   D-0207 adds QC-bound exact execution snapshots, a local journaled archive,
+//!   bounded recent history, pruning, restart recovery, and encrypted
+//!   snapshot-plus-suffix transfer. The receiver verifies every QC and state
+//!   commitment locally; the peer/archive has no authority. One response is
+//!   limited to one bearer frame and one exact state is capped at 8 MiB.
+//!   Historical validator-set transitions, long-range/weak-subjectivity rules,
+//!   chunked Merkle state transfer, peer selection/retry, and physical weakest-
+//!   device benchmarks remain separate work.
 //! - **[`net::TcpMesh`] is transport, not discovery.** It assumes every
 //!   peer's address is known and the mesh is fully connected (or connected
 //!   via [`net::TcpMesh::establish_topology`]'s partial-mesh support) before
@@ -110,7 +117,13 @@ mod error;
 mod evidence;
 mod node;
 mod round;
+mod snapshot;
+mod state_sync;
+mod store;
 mod wire;
+
+#[cfg(test)]
+mod snapshot_sync_tests;
 
 pub mod net;
 
@@ -120,4 +133,9 @@ pub use error::{ConsensusError, Result};
 pub use evidence::{verify_equivocation, EquivocationEvidence};
 pub use node::{ConsensusNode, Emit, NodeConfig};
 pub use round::{proposer_for, Action, Round, Step, NIL};
+pub use snapshot::ConsensusSnapshot;
+pub use state_sync::{
+    StateSyncPayload, StateSyncRequest, StateSyncResponse, MAX_STATE_SYNC_BLOCKS,
+};
+pub use store::{ConsensusArchive, ConsensusArchiveConfig};
 pub use wire::{sign_proposal, verify_proposal, ConsensusMessage, Proposal, MAX_MESSAGE_BYTES};

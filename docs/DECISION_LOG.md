@@ -14759,6 +14759,60 @@ only. D-0407's own Decision/Reason/Constitutional-impact/Implementation-
 status/Failure-point/Required-follow-up text is left unedited and stands
 as written; this entry does not alter its substantive scope or analysis.
 
+### D-0207 — QC-bound ledger snapshots, persistent catch-up, and bounded local pruning  ·  *Proposed*
+
+**Date:** 2026-08-03 · **Refs:** D-0093, D-0200–D-0206, roadmap #45,
+Directives 2/4/5/6/11/16, M1–M3.
+
+**Decision:** extend block-only catch-up with a versioned exact execution-state
+snapshot bound to one finalized block header and quorum certificate. A receiver
+accepts a snapshot only after its own static `ValidatorSet` and KEL oracle verify
+the QC, the settlement-network id matches, and the decoded state's canonical
+commitment equals the header state root. Persist recovery state in an optional,
+local, non-authoritative `ConsensusArchive`: replayable exact journal,
+cross-process lock, regular-file/symlink refusal, synced atomic replacement,
+count/byte-bounded finalized suffix, periodic snapshots, and pruning only after
+a durable replacement checkpoint. Apply peer responses all-or-nothing on a
+cloned chain and reuse the existing encrypted channel with a dedicated AAD
+domain. No peer, archive, hosted service, or downloaded-majority count becomes a
+checkpoint authority.
+
+**Reason:** D-0093 correctly reused finalized blocks and local finality checks,
+but its unbounded in-memory history vanished on restart and could not serve a
+long-offline weak device. Local QC-bound snapshots close that operational gap
+without outsourcing truth to a checkpoint operator.
+
+**Constitutional impact:** strengthens deterministic ownership/finality
+(Directives 4/5 and M1–M3), failure recovery (Directive 6), weak-device bounds
+(Directive 11), self-hosting/no mandatory provider (Directive 2), and the
+voice/value wall (Directive 16). Snapshot/archive size, service, balance, and
+bandwidth confer no validator, governance, personhood, ranking, or review
+weight. No frozen rule or cryptographic primitive is changed.
+
+**Implementation status:** implemented and adversarially tested in proposed PR
+#289: canonical monetary/execution snapshot codecs; locally verified
+`ConsensusSnapshot`; bounded state-sync framing; journaled filesystem archive;
+bounded compatibility history; all-or-nothing node adoption; encrypted real-TCP
+snapshot+suffix convergence and restart proof.
+
+**Failure point:** the construction assumes the caller supplies the correct
+static validator set/KEL history. It does not verify historical dynamic-set
+transitions or solve long-range key compromise/weak subjectivity. Exact state is
+transparent, capped at 8 MiB, and one response must fit one roughly 16 MiB
+bearer frame. There is no chunked Merkle state proof, peer discovery/retry/
+multi-peer eclipse policy, hardware monotonic rollback anchor, physical
+weak-device benchmark, external audit, or production/value activation.
+
+**Required follow-up:** roadmap #45 retains chunked authenticated state transfer,
+dynamic-set transition/checkpoint rules, long-range policy, weakest-device
+benchmarks, peer selection/retry/eclipse tests, pruning across upgrades, and
+client/background-serving integration. None may introduce a mandatory trusted
+checkpoint service.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0093 or
+D-0200–D-0206. It supersedes only those decisions' statements that catch-up
+history is necessarily unbounded and memory-only.
+
 ### D-0432 — `mini-search-federation-net`: bounded, authenticated real transport for Track F1/F2 objects  ·  *Accepted*
 
 **Date:** 2026-08-03 · **Refs:** D-0422/D-0423/D-0424/D-0426
