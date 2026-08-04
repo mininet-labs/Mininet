@@ -1,9 +1,10 @@
 name: privacy-transport-runtime-finalize
-# The workflow exists in the parent commit so this update triggers the push run.
 
 on:
   push:
     branches: [codex/privacy-transport-runtime-convergence]
+  pull_request:
+    branches: [main]
 
 concurrency:
   group: pr-296-runtime-finalize
@@ -17,6 +18,7 @@ env:
 
 jobs:
   apply-test-and-push:
+    if: github.head_ref == '' || github.head_ref == 'codex/privacy-transport-runtime-convergence'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
