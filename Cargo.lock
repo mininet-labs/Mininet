@@ -2976,6 +2976,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-storage-fraud"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-porep",
+ "mini-spacetime",
+]
+
+[[package]]
 name = "mini-store"
 version = "0.0.1"
 dependencies = [
