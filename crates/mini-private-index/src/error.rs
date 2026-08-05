@@ -15,6 +15,10 @@ pub enum IndexError {
     Truncated,
     /// Bytes remained after a complete decode.
     TrailingBytes,
+    /// A signature list arrived unsorted or with a repeated key index,
+    /// so one logical object would have had more than one valid wire
+    /// encoding -- and, being content-addressed, more than one identity.
+    NoncanonicalSignatureOrder,
     /// A declared count or length exceeded a hard decode limit.
     LimitExceeded,
     /// An unrecognized [`crate::LookupPurpose`] tag.
@@ -50,6 +54,9 @@ impl core::fmt::Display for IndexError {
         match self {
             IndexError::Truncated => write!(f, "private-index bytes truncated"),
             IndexError::TrailingBytes => write!(f, "trailing bytes after private-index structure"),
+            IndexError::NoncanonicalSignatureOrder => {
+                write!(f, "signature indices are unsorted or repeated")
+            }
             IndexError::LimitExceeded => write!(f, "decode limit exceeded"),
             IndexError::BadLookupPurpose => write!(f, "unrecognized lookup purpose tag"),
             IndexError::BadSizeClass => write!(f, "unrecognized record size class tag"),

@@ -744,6 +744,59 @@ given time.
   unchanged), and no pruning/retention policy yet reads the `ColdArchive`
   signal — it exists as a marker with no consumer. See
   `docs/design/cold-storage-and-owner-only-encryption.md`.
+- **experimental, not integrated (D-0439, superseding D-0437; roadmap #42 — partial)** —
+  `mini-storage-fraud`: identity-bound replica registration and
+  replica-conflict evidence. `derive_replica_id(root, device, context)`
+  fixes the replica id a provider must seal under, over a typed
+  `ReplicaContextV1` (network, assignment, shard, ordinal, policy
+  version) rather than opaque caller bytes. `audit_and_attest` runs
+  `mini_porep`'s real registration audit under an auditor-chosen seed and
+  signs only if every sampled challenge verifies;
+  `RegistrationReceipt`/`RegistrationPolicy` count distinct auditor
+  *roots*, forbid self-attestation, and require pairwise-distinct seeds.
+  `RegisteredReplicaClaim` carries the full `SealCommitment` plus that
+  quorum, verifies delegation under the new `Capabilities::STORE`,
+  verifies signatures against the KEL state at a pinned sequence and
+  event digest (so claims survive ordinary key rotation), and *derives*
+  the `mini_spacetime::StorageCommitment` from the audited seal instead
+  of accepting one alongside it. `ReplicaRegistry` refuses a duplicate
+  replica root — the primary enforcement point; `verify_conflict` is the
+  cross-registry backstop and returns an explicitly **unattributed**
+  conflict.
+  **What it does not do:** attribute fault to either party, detect
+  timing/latency fraud, assign any penalty, or resist Sybil (a quorum of
+  `n` roots may be one operator, #18). Every timestamp in these objects
+  is self-reported. The residual attack is a corrupt auditor quorum, and
+  `AuditAttestation::issue` is exposed so that attack is testable rather
+  than assumed away. No live registration surface exists —
+  `mini-net`/`mini-store` shard distribution is still unstarted.
+  Unaudited prototype cryptography under the D-0047/#72 gate; the
+  decision stays *Proposed* pending founder review of four open protocol
+  questions. 30 adversarial tests and 5 golden-vector tests. This
+  supersedes PR #297's `StorageCommitmentClaim`/`CollisionEvidence`,
+  which external review found unsound (it authenticated duplicate bytes
+  without binding them to any seal, and admitted a trivial
+  frame-an-honest-provider attack). See
+  `docs/design/storage-fraud-detection.md`.
+- **shipped (D-0440)** — shared correctness floor. `did-mini` now owns
+  the shared wire limits (`MAX_SIGNATURES`, `MAX_KEYS`,
+  `MAX_SIGNATURE_BYTES`, `MAX_DID_BYTES`) and the canonical
+  signature-order rule (`signatures_are_canonical`,
+  `canonicalize_signatures`), plus historical key-state verification
+  (`Kel::key_state_at`, `verify_message_at`, `event_digest_at`,
+  `head_digest`) so durable signed evidence survives its signer's key
+  rotation. Seven already-merged decoders (`mini-attest`, `mini-bridge`,
+  `mini-objects` ×3, `mini-private-index`, `mini-relay`) capped
+  signatures at 16 while `did-mini` permits 64 — a >16-key identity could
+  sign an object it could not then decode — and accepted unsorted or
+  repeated lists, giving one content-addressed object more than one
+  identity. Both are corrected against the shared rule.
+  `mini_porep::sample_challenges` now reserves
+  `max(1, count / (num_layers + 1))` challenges for the final layer: it
+  previously sampled uniformly, so an audit could draw no final-layer
+  challenge and never constrain `SealCommitment::replica_root` at all
+  (about one audit in twenty-six for a 2-layer seal with 8 challenges),
+  letting a forged replica root pass.
 
 ## 8. Networking
 

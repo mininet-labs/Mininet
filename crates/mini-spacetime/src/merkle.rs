@@ -107,11 +107,37 @@ pub struct MerkleProof {
     siblings: Vec<Option<[u8; 32]>>,
 }
 
+/// How many sibling levels a proof for a tree of `leaf_count` leaves must
+/// carry: one per level below the root, mirroring [`MerkleTree::from_leaf_hashes`]'s
+/// repeated halving exactly rather than assuming a power-of-two shape.
+fn proof_depth(leaf_count: usize) -> usize {
+    let mut width = leaf_count;
+    let mut depth = 0;
+    while width > 1 {
+        width = width.div_ceil(2);
+        depth += 1;
+    }
+    depth
+}
+
 impl MerkleProof {
     /// Verify that `leaf_data` hashes into `root` at [`Self::leaf_index`],
     /// for a tree of `leaf_count` total leaves.
+    ///
+    /// The sibling list must have exactly the length `leaf_count` implies.
+    /// Without that check a proof's shape is unconstrained, and because a
+    /// `None` sibling is a no-op in the fold below, extra trailing `None`s
+    /// verify exactly as the honest proof does — so one logical proof would
+    /// have unlimited valid encodings, and any decoder for this type would
+    /// allocate from an unbounded peer-supplied list. Proofs travel only
+    /// in-process today, which is why this was latent rather than exploitable;
+    /// the check belongs here regardless, so it holds the moment a wire codec
+    /// exists.
     pub fn verify(&self, leaf_data: &[u8], root: [u8; 32], leaf_count: usize) -> bool {
         if self.leaf_index >= leaf_count {
+            return false;
+        }
+        if self.siblings.len() != proof_depth(leaf_count) {
             return false;
         }
         let mut hash = leaf_hash(leaf_data);
@@ -212,5 +238,119 @@ mod tests {
         let tree_b = MerkleTree::from_blocks(&data_b).unwrap();
         let proof = tree_a.prove(1).unwrap();
         assert!(!proof.verify(&data_a[1], tree_b.root(), 5));
+    }
+}
+
+#[cfg(test)]
+mod proof_shape_tests {
+    use super::*;
+
+    fn blocks(n: usize) -> Vec<Vec<u8>> {
+        (0..n).map(|i| vec![i as u8; 16]).collect()
+    }
+
+    #[test]
+    fn the_expected_depth_matches_the_tree_the_builder_actually_produces() {
+        for leaf_count in 1..=64usize {
+            let tree = MerkleTree::from_blocks(&blocks(leaf_count)).unwrap();
+            let proof = tree.prove(0).unwrap();
+            assert_eq!(
+                proof.siblings.len(),
+                proof_depth(leaf_count),
+                "depth disagrees at leaf_count {leaf_count}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_honest_proof_still_verifies() {
+        for leaf_count in [1usize, 2, 3, 5, 8, 13, 17, 32] {
+            let data = blocks(leaf_count);
+            let tree = MerkleTree::from_blocks(&data).unwrap();
+            for (index, block) in data.iter().enumerate() {
+                let proof = tree.prove(index).unwrap();
+                assert!(
+                    proof.verify(block, tree.root(), leaf_count),
+                    "leaf {index} of {leaf_count} stopped verifying"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_proof_padded_with_extra_siblings_is_rejected() {
+        // A `None` sibling is a no-op in the fold, so before the shape check a
+        // padded proof verified exactly as the honest one did -- one logical
+        // proof with unlimited valid encodings.
+        let data = blocks(8);
+        let tree = MerkleTree::from_blocks(&data).unwrap();
+        let honest = tree.prove(3).unwrap();
+        assert!(honest.verify(&data[3], tree.root(), 8));
+
+        let mut padded = honest.clone();
+        padded.siblings.push(None);
+        assert!(!padded.verify(&data[3], tree.root(), 8));
+
+        let mut heavily_padded = honest.clone();
+        heavily_padded
+            .siblings
+            .extend(std::iter::repeat_n(None, 64));
+        assert!(!heavily_padded.verify(&data[3], tree.root(), 8));
+    }
+
+    #[test]
+    fn a_truncated_proof_is_rejected() {
+        let data = blocks(8);
+        let tree = MerkleTree::from_blocks(&data).unwrap();
+        let mut short = tree.prove(3).unwrap();
+        short.siblings.pop();
+        assert!(!short.verify(&data[3], tree.root(), 8));
+    }
+
+    #[test]
+    fn a_proof_is_refused_under_a_tree_size_of_a_different_depth() {
+        let data = blocks(8);
+        let tree = MerkleTree::from_blocks(&data).unwrap();
+        let proof = tree.prove(3).unwrap();
+
+        for wrong_count in [4usize, 16, 17] {
+            assert_ne!(proof_depth(wrong_count), proof_depth(8));
+            assert!(
+                !proof.verify(&data[3], tree.root(), wrong_count),
+                "accepted under a leaf_count of {wrong_count}"
+            );
+        }
+    }
+
+    #[test]
+    fn shape_does_not_distinguish_tree_sizes_that_share_a_depth() {
+        // The honest limit of the shape check, pinned so nobody reads more
+        // into it than it gives: 5 and 8 leaves both produce depth-3 proofs,
+        // so a proof from the 8-leaf tree still folds to the same value when a
+        // caller declares 5. That is not a forgery -- the fold reproduces the
+        // *same root*, so what was proven is still "this leaf is at index 3 of
+        // the tree with that root". It matters only if a caller takes `root`
+        // from a trusted source and `leaf_count` from an untrusted one, which
+        // callers must not do; in `mini-porep` both come from the same signed
+        // SealCommitment.
+        let data = blocks(8);
+        let tree = MerkleTree::from_blocks(&data).unwrap();
+        let proof = tree.prove(3).unwrap();
+
+        assert_eq!(proof_depth(5), proof_depth(8));
+        assert!(proof.verify(&data[3], tree.root(), 5));
+    }
+
+    #[test]
+    fn a_single_leaf_tree_has_a_zero_length_proof() {
+        let data = blocks(1);
+        let tree = MerkleTree::from_blocks(&data).unwrap();
+        let proof = tree.prove(0).unwrap();
+        assert!(proof.siblings.is_empty());
+        assert!(proof.verify(&data[0], tree.root(), 1));
+
+        let mut padded = proof.clone();
+        padded.siblings.push(None);
+        assert!(!padded.verify(&data[0], tree.root(), 1));
     }
 }

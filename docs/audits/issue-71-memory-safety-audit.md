@@ -6,6 +6,18 @@ coverage across this workspace, and check whether that guarantee actually
 holds transitively — the attribute only forbids `unsafe` in *this
 workspace's own code*, not in anything it depends on.
 
+> **Retrospective scope note (added 2026-08-05, D-0441).** This audit covered
+> **22 crates and 40 external dependencies**, the whole workspace as it stood
+> when it was written. The workspace now holds **72 crates**, so the "22/22
+> carry `#![forbid(unsafe_code)]`" result below is a historical statement about
+> roughly a third of today's tree, not current whole-workspace coverage. The
+> convention has held for crates added since — every `src/lib.rs` in the tree
+> still carries the attribute — but that is an observation, not this audit's
+> verified finding. Re-running the checks below at a named commit, under the
+> scope header `docs/audits/README.md` now requires, is the way to make it one.
+> The original text is left unedited, per the same append-only discipline the
+> decision log uses.
+
 ## 1. Workspace `#![forbid(unsafe_code)]` coverage
 
 Checked every crate's `src/lib.rs` for the attribute directly (not just

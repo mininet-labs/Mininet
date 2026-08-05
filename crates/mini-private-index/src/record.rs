@@ -17,7 +17,10 @@ pub const RECORD_VERSION: u8 = 1;
 const SIGNING_DOMAIN: &[u8] = b"mininet/mini-private-index/record/v1";
 
 const MAX_DID_BYTES: usize = 256;
-const MAX_SIGNATURES: usize = 16;
+/// Mirrors `did_mini::MAX_SIGNATURES` rather than restating a smaller
+/// number: a cap below did-mini's own would let a legitimate threshold
+/// identity sign an object it could not then decode.
+const MAX_SIGNATURES: usize = did_mini::MAX_SIGNATURES;
 const MAX_SIG_BYTES: usize = 256;
 
 /// A coarse, fixed set of payload sizes — publishing at a fixed size
@@ -194,6 +197,10 @@ impl PrivateIndexRecord {
                 index,
                 signature: sig,
             });
+        }
+
+        if !did_mini::signatures_are_canonical(&signature) {
+            return Err(IndexError::NoncanonicalSignatureOrder);
         }
         if !r.finished() {
             return Err(IndexError::TrailingBytes);

@@ -14,6 +14,10 @@ pub enum ObjectError {
     Truncated,
     /// Bytes remained after a complete decode.
     TrailingBytes,
+    /// A signature list arrived unsorted or with a repeated key index,
+    /// so one logical object would have had more than one valid wire
+    /// encoding -- and, being content-addressed, more than one identity.
+    NoncanonicalSignatureOrder,
     /// A field was structurally invalid.
     BadObject,
     /// A declared count or length exceeded a hard decode limit.
@@ -52,6 +56,9 @@ impl core::fmt::Display for ObjectError {
         match self {
             ObjectError::Truncated => write!(f, "object bytes truncated"),
             ObjectError::TrailingBytes => write!(f, "trailing bytes after object"),
+            ObjectError::NoncanonicalSignatureOrder => {
+                write!(f, "signature indices are unsorted or repeated")
+            }
             ObjectError::BadObject => write!(f, "structurally invalid object"),
             ObjectError::LimitExceeded => write!(f, "decode limit exceeded"),
             ObjectError::IdMismatch => write!(f, "object id does not match bytes"),

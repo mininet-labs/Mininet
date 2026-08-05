@@ -5,7 +5,7 @@
 //! and uses a caller-local seed, so no discovery peer controls first position.
 
 use std::collections::{HashMap, HashSet};
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use mini_crypto::HashAlgorithm;
 
@@ -136,9 +136,39 @@ enum NetworkPrefix {
     V6([u8; 6]),
 }
 
+/// The well-known RFC 6052 NAT64 prefix, `64:ff9b::/96`.
+const NAT64_WELL_KNOWN_PREFIX: [u8; 12] = [
+    0x00, 0x64, 0xff, 0x9b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+];
+
+/// Reduce an address to the form its prefix bucket should be computed from.
+///
+/// An IPv4 host can be advertised as itself, as an IPv4-mapped IPv6 address, or
+/// through the well-known NAT64 prefix. Bucketing those three forms separately
+/// would let one operator holding a single /24 occupy three prefix buckets and
+/// so take three times its share of a bounded dial plan, while an honest
+/// operator takes one. Rejecting the translated forms is not an option here --
+/// an IPv6-only host reaches IPv4 peers precisely through them -- so the
+/// embedded IPv4 address decides the bucket instead.
+fn canonical_prefix_ip(ip: IpAddr) -> IpAddr {
+    let IpAddr::V6(value) = ip else {
+        return ip;
+    };
+    if let Some(mapped) = value.to_ipv4_mapped() {
+        return IpAddr::V4(mapped);
+    }
+    let octets = value.octets();
+    if octets[..12] == NAT64_WELL_KNOWN_PREFIX {
+        return IpAddr::V4(Ipv4Addr::new(
+            octets[12], octets[13], octets[14], octets[15],
+        ));
+    }
+    ip
+}
+
 impl NetworkPrefix {
     fn from_ip(ip: IpAddr) -> Self {
-        match ip {
+        match canonical_prefix_ip(ip) {
             IpAddr::V4(value) => {
                 let octets = value.octets();
                 Self::V4([octets[0], octets[1], octets[2]])
@@ -213,6 +243,38 @@ mod tests {
                 &mut replay,
             )
             .unwrap()
+    }
+
+    #[test]
+    fn one_operator_cannot_hold_three_prefix_buckets_for_one_slash_24() {
+        // Anti-eclipse regression. The same IPv4 host advertised as itself, as
+        // an IPv4-mapped IPv6 address, and through the well-known NAT64 prefix
+        // used to occupy three separate buckets, so a single /24 took three
+        // times its share of a bounded dial plan.
+        let direct: IpAddr = "1.2.3.4".parse().unwrap();
+        let mapped: IpAddr = "::ffff:1.2.3.4".parse().unwrap();
+        let nat64: IpAddr = "64:ff9b::1.2.3.4".parse().unwrap();
+        let neighbour: IpAddr = "1.2.3.99".parse().unwrap();
+
+        let bucket = NetworkPrefix::from_ip(direct);
+        assert_eq!(NetworkPrefix::from_ip(mapped), bucket);
+        assert_eq!(NetworkPrefix::from_ip(nat64), bucket);
+        // Same /24, so also the same bucket -- that part was already correct.
+        assert_eq!(NetworkPrefix::from_ip(neighbour), bucket);
+
+        // A genuinely different /24 and a genuinely native IPv6 address still
+        // get their own buckets; canonicalizing must not collapse everything.
+        assert_ne!(NetworkPrefix::from_ip("9.9.9.9".parse().unwrap()), bucket);
+        assert_ne!(
+            NetworkPrefix::from_ip("2001:db8::1".parse().unwrap()),
+            bucket
+        );
+        // A NAT64-looking address that is not the well-known prefix is native
+        // IPv6 and must not be reinterpreted as the IPv4 it appears to embed.
+        assert_ne!(
+            NetworkPrefix::from_ip("64:ff9b:1::1.2.3.4".parse().unwrap()),
+            bucket
+        );
     }
 
     #[test]
