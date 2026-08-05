@@ -24,6 +24,9 @@ jobs:
           fetch-depth: 0
           ref: codex/privacy-transport-runtime-convergence
 
+      - name: Install workspace test target
+        run: rustup target add wasm32-wasip2
+
       - name: Reconcile merged PR 297 truth
         run: python3 tools/apply_pr296_post297_merge.py
 
