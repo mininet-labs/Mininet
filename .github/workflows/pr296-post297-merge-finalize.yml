@@ -27,8 +27,8 @@ jobs:
       - name: Reconcile merged PR 297 truth
         run: python3 tools/apply_pr296_post297_merge.py
 
-      - name: Regenerate combined lockfile
-        run: cargo generate-lockfile
+      - name: Refresh combined lockfile without full dependency re-resolution
+        run: cargo check --workspace --all-features
 
       - name: Format
         run: cargo fmt --all
@@ -40,7 +40,9 @@ jobs:
         run: cargo test --workspace --all-features
 
       - name: Dependency policy
-        run: cargo deny check
+        uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe
+        with:
+          command: check
 
       - name: Remove staging machinery and regenerate navigation
         run: |
