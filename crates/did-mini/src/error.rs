@@ -92,6 +92,10 @@ pub enum IdentityError {
     /// pinned for the same SCID — the interim freshness rule
     /// ([`crate::FreshnessPins`]) rejecting a stale replay.
     StaleKel { pinned: u64, got: u64 },
+    /// A historical lookup ([`crate::Kel::key_state_at`],
+    /// [`crate::Kel::event_digest_at`]) named a sequence this log does not
+    /// reach.
+    UnknownSequence { sn: u64, head: u64 },
     /// A [`crate::WitnessPolicy`] had no witnesses, or a
     /// [`crate::WitnessedEventCertificate`] had no receipts.
     EmptyWitnessSet,
@@ -229,6 +233,10 @@ impl fmt::Display for IdentityError {
             IdentityError::StaleKel { pinned, got } => write!(
                 f,
                 "stale kel: previously pinned sn {pinned}, this kel only reaches sn {got}"
+            ),
+            IdentityError::UnknownSequence { sn, head } => write!(
+                f,
+                "no event at sn {sn}: this kel's head is sn {head}"
             ),
             IdentityError::EmptyWitnessSet => write!(f, "empty witness set"),
             IdentityError::InvalidWitnessThreshold {

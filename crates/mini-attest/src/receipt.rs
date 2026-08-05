@@ -21,7 +21,10 @@ const REVIEW_SUBJECT_DOMAIN: &[u8] = b"mininet/mini-attest/review-subject/v1";
 
 const MAX_DID_BYTES: usize = 256;
 const MAX_OBJECT_ID_BYTES: usize = 128;
-const MAX_SIGNATURES: usize = 16;
+/// Mirrors `did_mini::MAX_SIGNATURES` rather than restating a smaller
+/// number: a cap below did-mini's own would let a legitimate threshold
+/// identity sign an object it could not then decode.
+const MAX_SIGNATURES: usize = did_mini::MAX_SIGNATURES;
 // ML-DSA signatures are intentionally supported by the crypto-agile KEL API.
 const MAX_SIGNATURE_BYTES: usize = 8 * 1024;
 
@@ -409,6 +412,9 @@ fn decode_signatures(reader: &mut Reader<'_>) -> Result<Vec<IndexedSig>> {
         let signature = Signature::from_suite_bytes(suite, &bytes)?;
         signatures.push(IndexedSig { index, signature });
     }
+    if !did_mini::signatures_are_canonical(&signatures) {
+        return Err(AttestError::NoncanonicalSignatureOrder);
+    }
     Ok(signatures)
 }
 
@@ -443,3 +449,91 @@ pub(crate) fn parse_review_did(bytes: Vec<u8>) -> Result<Did> {
 }
 
 pub(crate) const REVIEW_MAX_DID_BYTES: usize = MAX_DID_BYTES;
+
+#[cfg(test)]
+mod signature_codec_tests {
+    use super::*;
+    use mini_crypto::SigningKey;
+
+    /// A `did-mini` identity may hold up to `did_mini::MAX_KEYS` keys and
+    /// signs with every one of them, so a receipt from a large threshold
+    /// identity carries more than sixteen signatures.
+    ///
+    /// This crate previously capped its decoder at sixteen. That is the
+    /// dangerous direction for a limit to be wrong in: such an identity could
+    /// issue a receipt, verify it in memory, encode it — and then fail to
+    /// decode its own bytes, which reads as corruption and is really a limit
+    /// mismatch between two crates. Regression test for the alignment.
+    #[test]
+    fn a_full_size_threshold_identitys_signatures_survive_a_round_trip() {
+        const _: () = assert!(MAX_SIGNATURES >= did_mini::MAX_KEYS);
+        assert_eq!(MAX_SIGNATURES, did_mini::MAX_SIGNATURES);
+
+        let message = b"receipt signing bytes";
+        let signatures: Vec<IndexedSig> = (0..did_mini::MAX_KEYS)
+            .map(|index| IndexedSig {
+                index: index as u32,
+                signature: SigningKey::from_seed(&[index as u8; 32]).sign(message),
+            })
+            .collect();
+        assert!(
+            signatures.len() > 16,
+            "the old cap must actually be exceeded"
+        );
+
+        let mut writer = Writer::new();
+        encode_signatures(&mut writer, &signatures);
+        let bytes = writer.finish();
+
+        let mut reader = Reader::new(&bytes);
+        let decoded = decode_signatures(&mut reader).unwrap();
+        assert!(reader.finish().is_ok());
+        assert_eq!(decoded, signatures);
+    }
+
+    /// One logical receipt must have exactly one encoding. Receipt ids are
+    /// derived from the receipt's own bytes, so an unsorted or repeated
+    /// signature list would give the same receipt a second identity -- and a
+    /// dedup index keyed on that id would let the duplicate through.
+    #[test]
+    fn an_unsorted_or_repeated_signature_list_is_refused() {
+        let message = b"receipt signing bytes";
+        let sig = |index: u32| IndexedSig {
+            index,
+            signature: SigningKey::from_seed(&[index as u8; 32]).sign(message),
+        };
+
+        for list in [
+            vec![sig(1), sig(0)],
+            vec![sig(0), sig(0)],
+            vec![sig(0), sig(2), sig(1)],
+        ] {
+            let mut writer = Writer::new();
+            encode_signatures(&mut writer, &list);
+            let bytes = writer.finish();
+            assert_eq!(
+                decode_signatures(&mut Reader::new(&bytes)),
+                Err(AttestError::NoncanonicalSignatureOrder)
+            );
+
+            // And the fix is available to any caller assembling signatures from
+            // several devices, rather than left as a trap.
+            let fixed = did_mini::canonicalize_signatures(list);
+            let mut writer = Writer::new();
+            encode_signatures(&mut writer, &fixed);
+            let bytes = writer.finish();
+            assert_eq!(decode_signatures(&mut Reader::new(&bytes)).unwrap(), fixed);
+        }
+    }
+
+    #[test]
+    fn one_past_the_cap_is_still_refused_before_allocating() {
+        let mut writer = Writer::new();
+        writer.u32(MAX_SIGNATURES as u32 + 1);
+        let bytes = writer.finish();
+        assert_eq!(
+            decode_signatures(&mut Reader::new(&bytes)),
+            Err(AttestError::LimitExceeded)
+        );
+    }
+}

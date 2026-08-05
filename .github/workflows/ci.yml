@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Advisories are published continuously; a scan that only runs on change
+  # never sees the ones that land after a merge (D-0441, audit 2026-08-05
+  # SS19.1). 04:17 UTC daily, off the hour so it does not pile onto the
+  # scheduler's busiest minute.
+  schedule:
+    - cron: "17 4 * * *"
 
 env:
   CARGO_TERM_COLOR: always
@@ -41,48 +47,83 @@ jobs:
       - name: Test
         run: cargo test --all --all-features
 
-  # Dependency-vulnerability scanning (roadmap #73). Uses the official
-  # RustSec action rather than `cargo install cargo-audit`, deliberately:
-  # a locally-`cargo install`ed cargo-audit compiles against *this repo's*
-  # pinned toolchain (rust-toolchain.toml; this was written against 1.83.0,
-  # since bumped for Wasmtime -- see that file's own history), and the
-  # newest cargo-audit compatible with the toolchain at the time (0.21.2)
-  # could not parse
-  # the current RustSec advisory database -- it contains CVSS 4.0 entries
-  # newer rustsec-crate releases understand and 0.21.2's does not, so it
-  # fails to even load the database, before checking a single dependency.
-  # Confirmed locally: `cargo install cargo-audit --version 0.21.2 --locked`
-  # then `cargo audit` errors on `error parsing .../RUSTSEC-2026-0041.md:
-  # unsupported CVSS version: 4.0`. This action ships its own prebuilt
-  # cargo-audit binary, decoupled from this repo's toolchain pin, so it
-  # isn't affected. Advisory-only for now: it reports, it doesn't fail the
-  # build, since this workspace has no process yet for triaging an
-  # advisory against an unreleasable pinned dependency version.
+  # Dependency-vulnerability scanning (roadmap #73, D-0441).
   #
-  # Update (D-0341, issue #203): a real PR run of this job (#211) shows the
-  # action's own install step actually failing outright -- `cargo install
-  # cargo-audit` inside the checked-out repo picks up rust-toolchain.toml's
-  # pinned 1.94.1 (via rustup) rather than a decoupled prebuilt binary, and
-  # `cargo-audit`'s own `kstring` dependency now needs rustc 1.96+. The
-  # "ships its own prebuilt binary" premise above no longer holds for the
-  # pinned action SHA -- `continue-on-error: true` has been silently
-  # masking a hard failure, not just an advisory-only report. Left as a
-  # documented gap rather than fixed here: a real fix needs either a
-  # rust-toolchain.toml bump (its own, wider decision) or replacing this
-  # action, neither in scope for issue #203's `cargo-deny` verification.
+  # History, because the shape of this job is a direct response to it: it used
+  # to run `rustsec/audit-check` with `continue-on-error: true`. That action
+  # runs `cargo install cargo-audit` *inside the checked-out repository*, where
+  # `rust-toolchain.toml` pins the channel -- so the install resolved against
+  # this repo's pin rather than a decoupled prebuilt binary, and cargo-audit's
+  # own dependencies need a newer rustc than the pin provides. The step failed
+  # outright, and `continue-on-error` reported that hard failure as a passing
+  # check (D-0341 documented this; it is now fixed rather than documented).
+  #
+  # A green check that means "the scanner never started" is worse than no check
+  # at all, because it manufactures confidence instead of merely lacking it.
+  #
+  # Two outcomes the old configuration could not tell apart, and this one does:
+  #
+  #   * the scanner cannot run           -> hard failure, this job gates
+  #   * the scanner reports advisories   -> loud warning, does not gate yet
+  #
+  # The second stays non-blocking because this workspace still has no triage
+  # process for an advisory against a pinned dependency it cannot yet move off
+  # (D-0341's own reasoning, still true). Making findings fail is the named
+  # follow-up in D-0441, and needs that process first -- not a config flip.
   dependency-audit:
     runs-on: ubuntu-latest
-    # This job alone needs to post a check-run result; every other job in
-    # this workflow stays on the top-level contents:read-only default.
-    permissions:
-      contents: read
-      checks: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
-        continue-on-error: true
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # RUSTUP_TOOLCHAIN overrides rust-toolchain.toml, which is the whole
+      # point: the scanner is a tool *about* this repository, not a build of
+      # it, so it must not be constrained by the toolchain this repository
+      # happens to pin for its own compilation.
+      - name: Install cargo-audit outside this repository's toolchain pin
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal --no-self-update
+          cargo install cargo-audit --locked
+
+      - name: Scan dependencies for advisories
+        run: |
+          set -uo pipefail
+          # Invoked as the binary rather than as `cargo audit`, so the
+          # subcommand lookup cannot drag the pinned toolchain back in.
+          cargo-audit audit --json > audit-report.json
+          status=$?
+          if [ ! -s audit-report.json ]; then
+            echo "::error::cargo-audit produced no report (exit ${status}). This is a"
+            echo "::error::scanner failure, not an advisory finding -- failing the build."
+            exit 1
+          fi
+          if ! python3 -c "import json; json.load(open('audit-report.json'))" 2>/dev/null; then
+            echo "::error::cargo-audit produced an unparseable report (exit ${status})."
+            echo "::error::Treating a scanner malfunction as a hard failure."
+            exit 1
+          fi
+          python3 - <<'REPORT'
+          import json
+          report = json.load(open("audit-report.json"))
+          counts = report.get("vulnerabilities", {})
+          found = counts.get("count", 0)
+          if found:
+              print(f"::warning::cargo-audit reported {found} advisory finding(s).")
+              for entry in counts.get("list", []):
+                  advisory = entry.get("advisory", {})
+                  package = entry.get("package", {})
+                  print(
+                      f"::warning::{advisory.get('id')} in "
+                      f"{package.get('name')} {package.get('version')}: "
+                      f"{advisory.get('title')}"
+                  )
+              print("Advisories do not fail this job yet -- see D-0441.")
+          else:
+              print("No advisories against the current Cargo.lock.")
+          REPORT
+          echo "Scanner ran successfully; that is what this job gates on."
 
   # License/advisory/source policy for the whole resolved dependency
   # graph (D-0069 dependency-governance requirement, first exercised by

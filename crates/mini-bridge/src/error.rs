@@ -15,6 +15,10 @@ pub enum BridgeError {
     Truncated,
     /// Bytes remained after a complete decode.
     TrailingBytes,
+    /// A signature list arrived unsorted or with a repeated key index,
+    /// so one logical object would have had more than one valid wire
+    /// encoding -- and, being content-addressed, more than one identity.
+    NoncanonicalSignatureOrder,
     /// A declared count or length exceeded a hard decode limit.
     LimitExceeded,
     /// An unrecognized [`crate::TransportId`] tag.
@@ -76,6 +80,9 @@ impl core::fmt::Display for BridgeError {
         match self {
             BridgeError::Truncated => write!(f, "bridge descriptor bytes truncated"),
             BridgeError::TrailingBytes => write!(f, "trailing bytes after bridge structure"),
+            BridgeError::NoncanonicalSignatureOrder => {
+                write!(f, "signature indices are unsorted or repeated")
+            }
             BridgeError::LimitExceeded => write!(f, "decode limit exceeded"),
             BridgeError::BadTransportId => write!(f, "unrecognized transport id tag"),
             BridgeError::UnsupportedDescriptorVersion => {

@@ -156,3 +156,19 @@ fn unknown_capability_bits_are_rejected() {
     assert!(Capabilities::from_bits(Capabilities::SIGN.bits()).is_ok());
     assert!(Capabilities::from_bits(1 << 31).is_err());
 }
+
+#[test]
+fn storing_on_a_roots_behalf_is_never_granted_by_a_default() {
+    // A storage commitment exposes the root to durable, publishable conflict
+    // evidence about its own conduct, so STORE has to be granted on purpose
+    // per storage device -- never inherited from "this is my primary phone".
+    assert!(!Capabilities::primary().contains(Capabilities::STORE));
+    assert!(!Capabilities::secondary().contains(Capabilities::STORE));
+    assert!(Capabilities::ALL.contains(Capabilities::STORE));
+    assert!(Capabilities::from_bits(Capabilities::STORE.bits()).is_ok());
+
+    let granted = Capabilities::secondary().with(Capabilities::STORE);
+    assert!(granted.contains(Capabilities::STORE));
+    assert!(!granted.contains(Capabilities::VOTE));
+    assert!(!granted.contains(Capabilities::MANAGE_DEVICES));
+}

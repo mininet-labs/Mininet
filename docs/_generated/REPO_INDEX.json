@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 72,
-    "files": 847,
-    "headings": 2633,
-    "rust_symbols": 7875
+    "files": 857,
+    "headings": 2736,
+    "rust_symbols": 8099
   },
   "crates": {
     "did-mini": {
@@ -962,49 +962,49 @@
       "title": "Android beta slice 9 (issue #205, hub #196): SPEC-11's verified-"
     },
     {
-      "bytes": 5263,
+      "bytes": 6955,
       "group": "ci",
       "headings": [
         {
           "level": 1,
-          "line": 12,
+          "line": 18,
           "text": "Least-privilege default: this workflow only reads and checks the repo, it"
         },
         {
           "level": 1,
-          "line": 13,
+          "line": 19,
           "text": "never needs to write anything (no releases, no PR comments, no pushes)."
         }
       ],
       "keywords": [
-        "cargo",
-        "own",
-        "toml",
         "run",
-        "install",
-        "cargo-audit",
-        "repo",
-        "needs",
+        "json",
         "name",
-        "uses",
-        "rust-toolchain",
-        "real",
-        "its",
-        "action",
-        "dependency",
-        "now",
-        "job",
-        "workflow",
+        "cargo-audit",
+        "install",
+        "cargo",
+        "scanner",
         "check",
-        "rustup",
         "toolchain",
+        "advisory",
+        "report",
+        "get",
+        "never",
+        "needs",
+        "rust-toolchain",
+        "toml",
+        "rustup",
         "target",
-        "against",
-        "pinned"
+        "own",
+        "repository",
+        "pin",
+        "failure",
+        "audit-report",
+        "echo"
       ],
-      "lines": 115,
+      "lines": 156,
       "path": ".github/workflows/ci.yml",
-      "sha256": "234491f4c07545216efd5a96860dff65089b37319b14e6d9cd802b7aead37670",
+      "sha256": "dcc0b78dda6af83f2d99084a4f44d5f4ab64dd112169ee2b27bbcb5b3f8197f9",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
@@ -2596,38 +2596,38 @@
       "title": "use mini_crypto::{SignatureSuite, SigningKey};"
     },
     {
-      "bytes": 6137,
+      "bytes": 6808,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
         "capabilities",
         "self",
         "device",
-        "bits",
         "root",
-        "const",
+        "bits",
         "vote",
+        "const",
         "capability",
-        "seal",
         "other",
         "sign",
         "pay",
         "post",
+        "primary",
         "spec-01",
-        "revoke",
         "never",
         "one",
-        "attest",
-        "primary",
-        "secondary",
         "secure",
-        "delegated",
-        "string",
-        "manage_devices"
+        "attest",
+        "secondary",
+        "default",
+        "storage",
+        "manage_devices",
+        "store",
+        "contains"
       ],
-      "lines": 167,
+      "lines": 178,
       "path": "crates/did-mini/src/delegation.rs",
-      "sha256": "1591485bab8752b73ab8c54b91b02f49802f34e1a1711f59a9cd4ef617e576c9",
+      "sha256": "c12dfad03ae71c847dd78360b114db80de3543a1afe728172768f28e1dbe50f9",
       "symbols": [
         {
           "kind": "struct",
@@ -2670,58 +2670,63 @@
           "name": "MANAGE_DEVICES"
         },
         {
+          "kind": "const",
+          "line": 57,
+          "name": "STORE"
+        },
+        {
           "kind": "fn",
-          "line": 50,
+          "line": 60,
           "name": "empty"
         },
         {
           "kind": "fn",
-          "line": 57,
+          "line": 67,
           "name": "from_bits"
         },
         {
           "kind": "const",
-          "line": 65,
+          "line": 75,
           "name": "ALL"
         },
         {
           "kind": "fn",
-          "line": 75,
+          "line": 86,
           "name": "bits"
         },
         {
           "kind": "fn",
-          "line": 80,
+          "line": 91,
           "name": "with"
         },
         {
           "kind": "fn",
-          "line": 85,
+          "line": 96,
           "name": "contains"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 102,
           "name": "primary"
         },
         {
           "kind": "fn",
-          "line": 101,
+          "line": 112,
           "name": "secondary"
         },
         {
           "kind": "enum",
-          "line": 110,
+          "line": 121,
           "name": "Seal"
         },
         {
           "kind": "const",
-          "line": 125,
+          "line": 136,
           "name": "SEAL_DELEGATE"
         },
         {
           "kind": "const",
-          "line": 126,
+          "line": 137,
           "name": "SEAL_REVOKE"
         }
       ],
@@ -2840,28 +2845,28 @@
       "title": "use std::collections::HashMap;"
     },
     {
-      "bytes": 13714,
+      "bytes": 14077,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
         "event",
         "threshold",
-        "did",
         "u64",
+        "did",
         "usize",
         "key",
-        "decoded",
         "had",
         "got",
         "keys",
         "u32",
         "device",
+        "kel",
         "identity",
         "field",
+        "decoded",
         "match",
         "root",
         "error",
-        "carried",
         "claimed",
         "identifier",
         "pre-rotation",
@@ -2869,9 +2874,9 @@
         "signatures",
         "establishment"
       ],
-      "lines": 295,
+      "lines": 303,
       "path": "crates/did-mini/src/error.rs",
-      "sha256": "0a495c627e5bccbcc5697cd70cec03604e702742b537e042f621c34269ad32e3",
+      "sha256": "7d2853b10f25e2846540e941631d3d8642cba2394caef991e0d048ebd84fdcce",
       "symbols": [
         {
           "kind": "enum",
@@ -2880,39 +2885,39 @@
         },
         {
           "kind": "impl",
-          "line": 154,
+          "line": 158,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 155,
+          "line": 159,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 285,
+          "line": 293,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 287,
+          "line": 295,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 288,
+          "line": 296,
           "name": "from"
         },
         {
           "kind": "type",
-          "line": 294,
+          "line": 302,
           "name": "Result"
         }
       ],
       "title": "use core::fmt;"
     },
     {
-      "bytes": 15786,
+      "bytes": 18397,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -2941,9 +2946,9 @@
         "string",
         "delegator"
       ],
-      "lines": 430,
+      "lines": 500,
       "path": "crates/did-mini/src/event.rs",
-      "sha256": "f9e52880d4d9e9ca7919eef5e9c068931e5d4a7d5be67eddd9504067bfa04339",
+      "sha256": "40674fb6816e267ec12f7e09004126b7deded4644199b0a15a2c06f28af5f013",
       "symbols": [
         {
           "kind": "struct",
@@ -2989,6 +2994,41 @@
           "kind": "fn",
           "line": 359,
           "name": "key_fingerprint"
+        },
+        {
+          "kind": "fn",
+          "line": 446,
+          "name": "signatures_are_canonical"
+        },
+        {
+          "kind": "fn",
+          "line": 458,
+          "name": "canonicalize_signatures"
+        },
+        {
+          "kind": "mod",
+          "line": 465,
+          "name": "canonical_signature_tests"
+        },
+        {
+          "kind": "fn",
+          "line": 469,
+          "name": "sig"
+        },
+        {
+          "kind": "fn",
+          "line": 477,
+          "name": "ascending_distinct_indices_are_canonical"
+        },
+        {
+          "kind": "fn",
+          "line": 484,
+          "name": "repeats_and_descents_are_not"
+        },
+        {
+          "kind": "fn",
+          "line": 491,
+          "name": "canonicalizing_fixes_both"
         }
       ],
       "title": "use mini_crypto::encoding;"
@@ -3158,7 +3198,7 @@
       "title": "pub enum IdentityMode {"
     },
     {
-      "bytes": 13272,
+      "bytes": 16971,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -3187,9 +3227,9 @@
         "u32",
         "string"
       ],
-      "lines": 336,
+      "lines": 412,
       "path": "crates/did-mini/src/kel.rs",
-      "sha256": "d3f85b2f884d60ece75891e84cf1cc78436c6b3485b532f626384e450e5ffa77",
+      "sha256": "1df24c6e1a0cdbf312f77f8cea5b49ebfd614275fda206f4a93d4f6e529de77f",
       "symbols": [
         {
           "kind": "const",
@@ -3268,24 +3308,54 @@
         },
         {
           "kind": "fn",
-          "line": 177,
+          "line": 182,
           "name": "verify_message"
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 206,
+          "name": "verify_message_at"
+        },
+        {
+          "kind": "fn",
+          "line": 211,
+          "name": "check_detached"
+        },
+        {
+          "kind": "fn",
+          "line": 229,
+          "name": "key_state_at"
+        },
+        {
+          "kind": "fn",
+          "line": 243,
+          "name": "event_digest_at"
+        },
+        {
+          "kind": "fn",
+          "line": 253,
+          "name": "head_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 262,
           "name": "verify"
         },
         {
           "kind": "fn",
-          "line": 311,
+          "line": 268,
+          "name": "verify_through"
+        },
+        {
+          "kind": "fn",
+          "line": 387,
           "name": "verify_delegation"
         }
       ],
       "title": "use mini_crypto::VerifyingKey;"
     },
     {
-      "bytes": 5180,
+      "bytes": 5318,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -3300,10 +3370,10 @@
         "method",
         "fmt",
         "delegation",
-        "identifier",
         "result",
         "core",
         "validate_scid",
+        "identifier",
         "one",
         "device",
         "string",
@@ -3314,9 +3384,9 @@
         "error",
         "freshness"
       ],
-      "lines": 145,
+      "lines": 148,
       "path": "crates/did-mini/src/lib.rs",
-      "sha256": "c2d9e04bf1e69054e973c7b85ade634e41c0cffa9983d2d61e702a5e94b1aa12",
+      "sha256": "83bb9dee492bdc204048e7d8e7b9e8eb16c646e3201f896e1137a370bed98d63",
       "symbols": [
         {
           "kind": "mod",
@@ -3390,91 +3460,112 @@
         },
         {
           "kind": "const",
-          "line": 87,
+          "line": 90,
           "name": "METHOD"
         },
         {
           "kind": "struct",
-          "line": 94,
+          "line": 97,
           "name": "Did"
         },
         {
           "kind": "impl",
-          "line": 96,
+          "line": 99,
           "name": "Did"
         },
         {
           "kind": "fn",
-          "line": 99,
+          "line": 102,
           "name": "from_scid"
         },
         {
           "kind": "fn",
-          "line": 109,
+          "line": 112,
           "name": "parse"
         },
         {
           "kind": "fn",
-          "line": 120,
+          "line": 123,
           "name": "scid"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 128,
           "name": "as_str"
         },
         {
           "kind": "impl",
-          "line": 130,
+          "line": 133,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 131,
+          "line": 134,
           "name": "fmt"
         },
         {
           "kind": "fn",
-          "line": 136,
+          "line": 139,
           "name": "validate_scid"
         }
       ],
       "title": "mod assurance;"
     },
     {
-      "bytes": 713,
+      "bytes": 2008,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
         "const",
         "usize",
-        "limits",
+        "max_keys",
+        "identity",
+        "signature",
+        "one",
+        "largest",
+        "max_signatures",
+        "every",
+        "key",
+        "cap",
+        "decoder",
+        "most",
         "did-mini",
-        "wire-size",
+        "limits",
+        "max_did_bytes",
+        "max_signature_bytes",
         "did",
         "decoders",
         "these",
-        "constants",
-        "centralized",
-        "every",
-        "parser",
-        "enforces",
-        "same",
-        "allocation",
-        "caps",
-        "trusting",
-        "peer-supplied",
-        "bytes",
-        "max_scid_bytes",
-        "max_did_bytes",
-        "max_prior_bytes",
-        "max_multihash_bytes",
-        "max_key_bytes"
+        "them",
+        "set",
+        "list",
+        "carries"
       ],
-      "lines": 18,
+      "lines": 48,
       "path": "crates/did-mini/src/limits.rs",
-      "sha256": "92c564fe0f9001fb0536693569db3539aac7e4063751dda857b9fee60ac8e77e",
-      "symbols": [],
+      "sha256": "f60349336636ece1b40886df8ba8296667417b982b884f95530b236a5291c45d",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 21,
+          "name": "MAX_DID_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 29,
+          "name": "MAX_SIGNATURE_BYTES"
+        },
+        {
+          "kind": "const",
+          "line": 33,
+          "name": "MAX_KEYS"
+        },
+        {
+          "kind": "const",
+          "line": 44,
+          "name": "MAX_SIGNATURES"
+        }
+      ],
       "title": "pub(crate) const MAX_SCID_BYTES: usize = 128;"
     },
     {
@@ -4157,7 +4248,7 @@
       "title": "use std::collections::HashMap;"
     },
     {
-      "bytes": 5826,
+      "bytes": 6647,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -4186,9 +4277,9 @@
         "vote",
         "root_c"
       ],
-      "lines": 159,
+      "lines": 175,
       "path": "crates/did-mini/tests/delegation.rs",
-      "sha256": "f7c54cee4055b9b0dc70204a2d5208ce8c0817aa30292ce78a4b828f13a5d091",
+      "sha256": "93370556fae82a360f44072cf6333e1a68e60cc844d55d8a4cf9d4b0e3c90f84",
       "symbols": [
         {
           "kind": "const",
@@ -4284,9 +4375,86 @@
           "kind": "fn",
           "line": 155,
           "name": "unknown_capability_bits_are_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 161,
+          "name": "storing_on_a_roots_behalf_is_never_granted_by_a_default"
         }
       ],
       "title": "use did_mini::{verify_delegation, Capabilities, Controller, Did};"
+    },
+    {
+      "bytes": 5180,
+      "group": "crate:did-mini",
+      "headings": [],
+      "keywords": [
+        "kel",
+        "signer",
+        "unwrap",
+        "message",
+        "signature",
+        "rotating_signer",
+        "assert_eq",
+        "signed",
+        "assert",
+        "historical",
+        "identityerror",
+        "rotate",
+        "keys",
+        "digest",
+        "rotation",
+        "err",
+        "verification",
+        "broken",
+        "verify_message_at",
+        "key_state_at",
+        "head",
+        "event_digest_at",
+        "current",
+        "link"
+      ],
+      "lines": 140,
+      "path": "crates/did-mini/tests/historical_verification.rs",
+      "sha256": "22a6678d7050348296ab71d05522f51dcd2188ac21d2cd96657689fd53f119ad",
+      "symbols": [
+        {
+          "kind": "fn",
+          "line": 13,
+          "name": "rotating_signer"
+        },
+        {
+          "kind": "fn",
+          "line": 18,
+          "name": "a_message_signed_before_a_rotation_still_verifies_at_its_own_sequence"
+        },
+        {
+          "kind": "fn",
+          "line": 45,
+          "name": "historical_verification_does_not_accept_the_wrong_era"
+        },
+        {
+          "kind": "fn",
+          "line": 63,
+          "name": "a_sequence_beyond_the_head_is_rejected_rather_than_clamped"
+        },
+        {
+          "kind": "fn",
+          "line": 77,
+          "name": "key_state_at_returns_the_state_that_event_established"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
+          "name": "a_tampered_tail_invalidates_historical_lookups_too"
+        },
+        {
+          "kind": "fn",
+          "line": 125,
+          "name": "event_digests_pin_a_specific_point_of_history"
+        }
+      ],
+      "title": "use did_mini::{Controller, IdentityError, Kel};"
     },
     {
       "bytes": 5341,
@@ -6042,25 +6210,24 @@
       "title": "use crate::{AttestError, Result};"
     },
     {
-      "bytes": 5649,
+      "bytes": 5998,
       "group": "crate:mini-attest",
       "headings": [],
       "keywords": [
         "attesterror",
-        "error",
-        "match",
         "receipt",
+        "match",
         "does",
         "engagement",
+        "error",
         "provider",
         "fmt",
         "result",
         "core",
         "object",
         "failed",
-        "some",
+        "signature",
         "identity",
-        "self",
         "attestation",
         "completion",
         "std",
@@ -6069,11 +6236,12 @@
         "identityerror",
         "cryptoerror",
         "objecterror",
-        "truncated"
+        "truncated",
+        "one"
       ],
-      "lines": 144,
+      "lines": 149,
       "path": "crates/mini-attest/src/error.rs",
-      "sha256": "389ffa89e99db6fbd543284d752a83ad6c27857f53e402f98e6a77255978a280",
+      "sha256": "fa9d23cf4b4f7ecd62afe9a6746aae77b3fd21e149577acada72a9260006991c",
       "symbols": [
         {
           "kind": "type",
@@ -6087,72 +6255,72 @@
         },
         {
           "kind": "impl",
-          "line": 49,
+          "line": 53,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 50,
+          "line": 54,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 102,
+          "line": 107,
           "name": "std::error::Error"
         },
         {
           "kind": "fn",
-          "line": 103,
+          "line": 108,
           "name": "source"
         },
         {
           "kind": "impl",
-          "line": 115,
+          "line": 120,
           "name": "From<EngagementError>"
         },
         {
           "kind": "fn",
-          "line": 116,
+          "line": 121,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 121,
+          "line": 126,
           "name": "From<ProviderError>"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 127,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 127,
+          "line": 132,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 128,
+          "line": 133,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 133,
+          "line": 138,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 134,
+          "line": 139,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 139,
+          "line": 144,
           "name": "From<ObjectError>"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 145,
           "name": "from"
         }
       ],
@@ -6338,7 +6506,7 @@
       "title": "mod codec;"
     },
     {
-      "bytes": 15985,
+      "bytes": 19790,
       "group": "crate:mini-attest",
       "headings": [],
       "keywords": [
@@ -6347,18 +6515,18 @@
         "settlementreference",
         "const",
         "derive",
-        "raw",
         "bytes",
-        "as_bytes",
         "objectid",
+        "as_bytes",
         "as_str",
+        "raw",
         "digest",
         "mini-attest",
         "reviewsubjectcommitment",
         "reader",
         "attesterror",
         "result",
-        "encode",
+        "max_signatures",
         "receiptid",
         "parse",
         "engagementcompletionreceiptv1",
@@ -6367,9 +6535,9 @@
         "debug",
         "clone"
       ],
-      "lines": 446,
+      "lines": 540,
       "path": "crates/mini-attest/src/receipt.rs",
-      "sha256": "7778a18d29ec35d1938c76f9f48e25f05f5fca5f9fe4dc78691c8c060fce2edf",
+      "sha256": "8aa0d928bb0ad87e7ae0dd1bb0daecbf7b32488f244ea0e20f607e9b802a619f",
       "symbols": [
         {
           "kind": "const",
@@ -6408,198 +6576,223 @@
         },
         {
           "kind": "const",
-          "line": 24,
+          "line": 27,
           "name": "MAX_SIGNATURES"
         },
         {
           "kind": "const",
-          "line": 26,
+          "line": 29,
           "name": "MAX_SIGNATURE_BYTES"
         },
         {
           "kind": "struct",
-          "line": 29,
+          "line": 32,
           "name": "ReviewSubjectCommitment"
         },
         {
           "kind": "impl",
-          "line": 31,
+          "line": 34,
           "name": "ReviewSubjectCommitment"
         },
         {
           "kind": "fn",
-          "line": 32,
+          "line": 35,
           "name": "derive"
         },
         {
           "kind": "fn",
-          "line": 42,
+          "line": 45,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 49,
           "name": "as_bytes"
         },
         {
           "kind": "enum",
-          "line": 53,
+          "line": 56,
           "name": "SettlementReference"
         },
         {
           "kind": "impl",
-          "line": 58,
+          "line": 61,
           "name": "SettlementReference"
         },
         {
           "kind": "fn",
-          "line": 59,
+          "line": 62,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 72,
+          "line": 75,
           "name": "decode"
         },
         {
           "kind": "struct",
-          "line": 84,
+          "line": 87,
           "name": "ReceiptId"
         },
         {
           "kind": "impl",
-          "line": 86,
+          "line": 89,
           "name": "ReceiptId"
         },
         {
           "kind": "fn",
-          "line": 87,
+          "line": 90,
           "name": "as_object_id"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 94,
           "name": "as_str"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 98,
           "name": "derive"
         },
         {
           "kind": "fn",
-          "line": 101,
+          "line": 104,
           "name": "parse"
         },
         {
           "kind": "struct",
-          "line": 113,
+          "line": 116,
           "name": "EngagementCompletionReceiptV1"
         },
         {
           "kind": "impl",
-          "line": 127,
+          "line": 130,
           "name": "EngagementCompletionReceiptV1"
         },
         {
           "kind": "fn",
-          "line": 128,
+          "line": 131,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 138,
           "name": "encode_fields"
         },
         {
           "kind": "fn",
-          "line": 149,
+          "line": 152,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 156,
+          "line": 159,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 191,
+          "line": 194,
           "name": "id"
         },
         {
           "kind": "fn",
-          "line": 195,
+          "line": 198,
           "name": "verify_provider_signature"
         },
         {
           "kind": "struct",
-          "line": 208,
+          "line": 211,
           "name": "Tier0ReceiptContext"
         },
         {
           "kind": "fn",
-          "line": 218,
+          "line": 221,
           "name": "issue_tier0_receipt"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 255,
           "name": "verify_tier0_receipt"
         },
         {
           "kind": "fn",
-          "line": 302,
+          "line": 305,
           "name": "engagement_id"
         },
         {
           "kind": "fn",
-          "line": 313,
+          "line": 316,
           "name": "completion_state_hash"
         },
         {
           "kind": "fn",
-          "line": 327,
+          "line": 330,
           "name": "completed_at_ms"
         },
         {
           "kind": "fn",
-          "line": 334,
+          "line": 337,
           "name": "validate_provider_relationship"
         },
         {
           "kind": "fn",
-          "line": 347,
+          "line": 350,
           "name": "ensure_grant_active_at_completion"
         },
         {
           "kind": "fn",
-          "line": 355,
+          "line": 358,
           "name": "validate_epoch_window"
         },
         {
           "kind": "fn",
-          "line": 377,
+          "line": 380,
           "name": "ensure_canonical_completion"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 393,
           "name": "encode_signatures"
         },
         {
           "kind": "fn",
-          "line": 399,
+          "line": 402,
           "name": "decode_signatures"
         },
         {
           "kind": "fn",
-          "line": 415,
+          "line": 421,
           "name": "parse_did"
         },
         {
           "kind": "fn",
-          "line": 420,
+          "line": 426,
           "name": "parse_object_id"
+        },
+        {
+          "kind": "mod",
+          "line": 454,
+          "name": "signature_codec_tests"
+        },
+        {
+          "kind": "fn",
+          "line": 468,
+          "name": "a_full_size_threshold_identitys_signatures_survive_a_round_trip"
+        },
+        {
+          "kind": "const",
+          "line": 469,
+          "name": "_"
+        },
+        {
+          "kind": "fn",
+          "line": 499,
+          "name": "an_unsorted_or_repeated_signature_list_is_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 530,
+          "name": "one_past_the_cap_is_still_refused_before_allocating"
         }
       ],
       "title": "use did_mini::{Controller, Did, IndexedSig, Kel};"
@@ -9624,15 +9817,15 @@
       "title": "use crate::error::{BridgeError, Result};"
     },
     {
-      "bytes": 15161,
+      "bytes": 15517,
       "group": "crate:mini-bridge",
       "headings": [],
       "keywords": [
         "bytes",
         "self",
-        "bridge",
         "descriptor",
         "transportparameters",
+        "bridge",
         "const",
         "vec",
         "opaqueendpoint",
@@ -9640,22 +9833,22 @@
         "distributorscope",
         "bridgeerror",
         "as_bytes",
-        "bridgedescriptor",
         "u64",
         "usize",
         "opaque",
+        "bridgedescriptor",
         "result",
+        "max_signatures",
+        "own",
         "expires_at_ms",
         "transportid",
         "transport-specific",
         "never",
-        "derive",
-        "debug",
-        "clone"
+        "derive"
       ],
-      "lines": 438,
+      "lines": 445,
       "path": "crates/mini-bridge/src/descriptor.rs",
-      "sha256": "505c0d86b3dbcd8bf0dced62982c573a95ebdf0e5a51fa9d37b3333f16bdf356",
+      "sha256": "68110752175a60eab010f1ead1e2cd3f788be13adce5d984561bce215afe6781",
       "symbols": [
         {
           "kind": "const",
@@ -9674,202 +9867,202 @@
         },
         {
           "kind": "const",
-          "line": 30,
+          "line": 33,
           "name": "MAX_SIGNATURES"
         },
         {
           "kind": "const",
-          "line": 31,
+          "line": 34,
           "name": "MAX_SIG_BYTES"
         },
         {
           "kind": "const",
-          "line": 37,
+          "line": 40,
           "name": "MAX_ENDPOINT_BYTES"
         },
         {
           "kind": "const",
-          "line": 41,
+          "line": 44,
           "name": "MAX_TRANSPORT_PARAMETERS_BYTES"
         },
         {
           "kind": "const",
-          "line": 47,
+          "line": 50,
           "name": "MAX_DISTRIBUTOR_SCOPE_BYTES"
         },
         {
           "kind": "struct",
-          "line": 51,
+          "line": 54,
           "name": "OpaqueEndpoint"
         },
         {
           "kind": "impl",
-          "line": 53,
+          "line": 56,
           "name": "OpaqueEndpoint"
         },
         {
           "kind": "fn",
-          "line": 54,
+          "line": 57,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 61,
+          "line": 64,
           "name": "as_bytes"
         },
         {
           "kind": "struct",
-          "line": 68,
+          "line": 71,
           "name": "TransportParameters"
         },
         {
           "kind": "impl",
-          "line": 70,
+          "line": 73,
           "name": "TransportParameters"
         },
         {
           "kind": "fn",
-          "line": 71,
+          "line": 74,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 78,
+          "line": 81,
           "name": "empty"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 85,
           "name": "as_bytes"
         },
         {
           "kind": "struct",
-          "line": 90,
+          "line": 93,
           "name": "DistributorScope"
         },
         {
           "kind": "impl",
-          "line": 92,
+          "line": 95,
           "name": "DistributorScope"
         },
         {
           "kind": "fn",
-          "line": 93,
+          "line": 96,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 100,
+          "line": 103,
           "name": "as_bytes"
         },
         {
           "kind": "struct",
-          "line": 107,
+          "line": 110,
           "name": "BridgeDescriptor"
         },
         {
           "kind": "impl",
-          "line": 119,
+          "line": 122,
           "name": "BridgeDescriptor"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 128,
           "name": "issue"
         },
         {
           "kind": "fn",
-          "line": 153,
+          "line": 156,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 176,
+          "line": 179,
           "name": "verify"
         },
         {
           "kind": "fn",
-          "line": 193,
+          "line": 196,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 226,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 280,
+          "line": 287,
           "name": "parse_did"
         },
         {
           "kind": "mod",
-          "line": 286,
+          "line": 293,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 289,
+          "line": 296,
           "name": "sample_descriptor"
         },
         {
           "kind": "fn",
-          "line": 303,
+          "line": 310,
           "name": "a_descriptor_verifies_against_its_own_issuer_kel_within_its_window"
         },
         {
           "kind": "fn",
-          "line": 310,
+          "line": 317,
           "name": "a_descriptor_is_rejected_before_its_valid_from_time"
         },
         {
           "kind": "fn",
-          "line": 320,
+          "line": 327,
           "name": "a_descriptor_is_rejected_at_or_after_its_expiry"
         },
         {
           "kind": "fn",
-          "line": 334,
+          "line": 341,
           "name": "a_descriptor_signed_by_one_bridge_does_not_verify_under_another_bridges_kel"
         },
         {
           "kind": "fn",
-          "line": 345,
+          "line": 352,
           "name": "tampering_with_the_endpoint_after_signing_breaks_verification"
         },
         {
           "kind": "fn",
-          "line": 356,
+          "line": 363,
           "name": "tampering_with_the_expiry_after_signing_breaks_verification"
         },
         {
           "kind": "fn",
-          "line": 367,
+          "line": 374,
           "name": "a_descriptor_round_trips_through_bytes"
         },
         {
           "kind": "fn",
-          "line": 377,
+          "line": 384,
           "name": "an_unsupported_version_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 389,
+          "line": 396,
           "name": "trailing_bytes_after_a_complete_decode_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 401,
+          "line": 408,
           "name": "an_oversized_endpoint_is_rejected_before_signing"
         },
         {
           "kind": "fn",
-          "line": 410,
+          "line": 417,
           "name": "an_oversized_transport_parameters_field_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 419,
+          "line": 426,
           "name": "a_distributor_scope_round_trips_when_present"
         }
       ],
@@ -9983,7 +10176,7 @@
       "title": "use std::net::{SocketAddr, TcpStream};"
     },
     {
-      "bytes": 6113,
+      "bytes": 6504,
       "group": "crate:mini-bridge",
       "headings": [],
       "keywords": [
@@ -9992,29 +10185,29 @@
         "descriptor",
         "bridge",
         "transport",
-        "managed",
-        "subprocess",
         "result",
         "fmt",
         "bytes",
         "core",
         "declared",
+        "signature",
         "does",
         "could",
+        "managed",
+        "subprocess",
         "caller",
-        "pinned",
-        "did",
         "error",
         "identityerror",
         "cryptoerror",
         "bearererror",
         "truncated",
         "decode",
-        "unrecognized"
+        "one",
+        "identity"
       ],
-      "lines": 146,
+      "lines": 153,
       "path": "crates/mini-bridge/src/error.rs",
-      "sha256": "df97d7f095e3988f625c0a6a3884593163005feda66dab1ab598cd8268a68a4e",
+      "sha256": "360824b39a6d699e16ea7f0e31ee1600fe369cf6a5f6fcead7a812ff0847df5c",
       "symbols": [
         {
           "kind": "type",
@@ -10028,47 +10221,47 @@
         },
         {
           "kind": "impl",
-          "line": 74,
+          "line": 78,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 75,
+          "line": 79,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 129,
+          "line": 136,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 131,
+          "line": 138,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 132,
+          "line": 139,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 136,
+          "line": 143,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 144,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 141,
+          "line": 148,
           "name": "From<BearerError>"
         },
         {
           "kind": "fn",
-          "line": 142,
+          "line": 149,
           "name": "from"
         }
       ],
@@ -37146,38 +37339,38 @@
       "title": "mini-objects"
     },
     {
-      "bytes": 27264,
+      "bytes": 27620,
       "group": "crate:mini-objects",
       "headings": [],
       "keywords": [
         "capabilityright",
         "self",
-        "capabilitytoken",
         "capabilityscope",
         "scope",
         "never",
         "const",
-        "fmt",
+        "capabilitytoken",
         "right",
         "tag",
         "objecterror",
-        "result",
+        "object",
         "match",
         "mini-objects",
         "capability",
-        "core",
-        "debug",
+        "max_signatures",
         "capabilitygrant",
         "grants",
         "token",
-        "object",
+        "result",
         "administer",
         "read",
-        "moderate"
+        "moderate",
+        "append",
+        "bytes"
       ],
-      "lines": 821,
+      "lines": 828,
       "path": "crates/mini-objects/src/capability.rs",
-      "sha256": "cf89b44cb4445cbc654ceff2c0bb2b53f70d37cb65edec8c3d7db26b18f719c1",
+      "sha256": "9049091dce162613355563773e75251b43775982926e9c7729ba158c02b157ad",
       "symbols": [
         {
           "kind": "const",
@@ -37206,272 +37399,272 @@
         },
         {
           "kind": "const",
-          "line": 23,
+          "line": 26,
           "name": "MAX_SIGNATURES"
         },
         {
           "kind": "const",
-          "line": 24,
+          "line": 27,
           "name": "MAX_SIG_BYTES"
         },
         {
           "kind": "enum",
-          "line": 32,
+          "line": 35,
           "name": "CapabilityRight"
         },
         {
           "kind": "impl",
-          "line": 40,
+          "line": 43,
           "name": "CapabilityRight"
         },
         {
           "kind": "fn",
-          "line": 41,
+          "line": 44,
           "name": "tag"
         },
         {
           "kind": "fn",
-          "line": 51,
+          "line": 54,
           "name": "from_tag"
         },
         {
           "kind": "enum",
-          "line": 71,
+          "line": 74,
           "name": "CapabilityScope"
         },
         {
           "kind": "impl",
-          "line": 75,
+          "line": 78,
           "name": "CapabilityScope"
         },
         {
           "kind": "fn",
-          "line": 76,
+          "line": 79,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 85,
+          "line": 88,
           "name": "decode"
         },
         {
           "kind": "struct",
-          "line": 102,
+          "line": 105,
           "name": "CapabilityToken"
         },
         {
           "kind": "impl",
-          "line": 104,
+          "line": 107,
           "name": "CapabilityToken"
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 109,
           "name": "generate"
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 117,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 125,
           "name": "commit"
         },
         {
           "kind": "impl",
-          "line": 136,
+          "line": 139,
           "name": "core::fmt::Debug"
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 140,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 142,
+          "line": 145,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 143,
+          "line": 146,
           "name": "drop"
         },
         {
           "kind": "struct",
-          "line": 152,
+          "line": 155,
           "name": "CapabilityTokenCommitment"
         },
         {
           "kind": "struct",
-          "line": 159,
+          "line": 162,
           "name": "CapabilityGrant"
         },
         {
           "kind": "impl",
-          "line": 171,
+          "line": 174,
           "name": "CapabilityGrant"
         },
         {
           "kind": "fn",
-          "line": 175,
+          "line": 178,
           "name": "issue"
         },
         {
           "kind": "fn",
-          "line": 204,
+          "line": 207,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 226,
+          "line": 229,
           "name": "holder_proof_message"
         },
         {
           "kind": "fn",
-          "line": 238,
+          "line": 241,
           "name": "prove_holder"
         },
         {
           "kind": "fn",
-          "line": 246,
+          "line": 249,
           "name": "validate"
         },
         {
           "kind": "fn",
-          "line": 291,
+          "line": 294,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 317,
+          "line": 320,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 381,
+          "line": 388,
           "name": "parse_did"
         },
         {
           "kind": "mod",
-          "line": 387,
+          "line": 394,
           "name": "tests"
         },
         {
           "kind": "struct",
-          "line": 390,
+          "line": 397,
           "name": "Fixture"
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 404,
           "name": "fixture"
         },
         {
           "kind": "fn",
-          "line": 406,
+          "line": 413,
           "name": "issue_and_prove"
         },
         {
           "kind": "fn",
-          "line": 422,
+          "line": 429,
           "name": "every_right_round_trips_through_its_tag"
         },
         {
           "kind": "fn",
-          "line": 435,
+          "line": 442,
           "name": "an_unknown_right_tag_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 440,
+          "line": 447,
           "name": "a_valid_grant_and_proof_validate_successfully"
         },
         {
           "kind": "fn",
-          "line": 457,
+          "line": 464,
           "name": "a_read_grant_does_not_validate_as_append"
         },
         {
           "kind": "fn",
-          "line": 475,
+          "line": 482,
           "name": "an_administer_grant_does_not_implicitly_validate_as_another_right"
         },
         {
           "kind": "fn",
-          "line": 493,
+          "line": 500,
           "name": "a_grant_for_scope_a_fails_against_scope_b"
         },
         {
           "kind": "fn",
-          "line": 512,
+          "line": 519,
           "name": "an_incorrect_token_fails"
         },
         {
           "kind": "fn",
-          "line": 531,
+          "line": 538,
           "name": "a_token_commitment_copied_into_a_different_scope_grant_does_not_validate"
         },
         {
           "kind": "fn",
-          "line": 563,
+          "line": 570,
           "name": "a_valid_token_without_grantee_proof_fails"
         },
         {
           "kind": "fn",
-          "line": 582,
+          "line": 589,
           "name": "proof_from_another_pseudonym_fails"
         },
         {
           "kind": "fn",
-          "line": 610,
+          "line": 617,
           "name": "an_expired_grant_fails"
         },
         {
           "kind": "fn",
-          "line": 638,
+          "line": 645,
           "name": "a_not_yet_valid_grant_fails"
         },
         {
           "kind": "fn",
-          "line": 666,
+          "line": 673,
           "name": "a_grant_signed_by_one_issuer_does_not_validate_against_another"
         },
         {
           "kind": "fn",
-          "line": 685,
+          "line": 692,
           "name": "a_grant_round_trips_through_wire_bytes"
         },
         {
           "kind": "fn",
-          "line": 693,
+          "line": 700,
           "name": "a_grant_with_a_validity_window_round_trips_and_still_enforces_it"
         },
         {
           "kind": "fn",
-          "line": 751,
+          "line": 758,
           "name": "a_decoded_grant_still_validates"
         },
         {
           "kind": "fn",
-          "line": 769,
+          "line": 776,
           "name": "an_unknown_capability_version_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 779,
+          "line": 786,
           "name": "a_truncated_grant_is_rejected_at_every_length"
         },
         {
           "kind": "fn",
-          "line": 792,
+          "line": 799,
           "name": "trailing_bytes_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 804,
+          "line": 811,
           "name": "an_empty_or_default_token_is_still_a_valid_32_byte_secret"
         }
       ],
@@ -37782,38 +37975,38 @@
       "title": "use mini_crypto::{AeadKey, AeadNonce, AeadSuite};"
     },
     {
-      "bytes": 4143,
+      "bytes": 4534,
       "group": "crate:mini-objects",
       "headings": [],
       "keywords": [
         "objecterror",
         "write",
         "grant",
-        "capability",
         "object",
+        "capability",
         "does",
         "error",
         "match",
         "result",
         "fmt",
         "bytes",
+        "identity",
         "core",
         "identityerror",
         "cryptoerror",
-        "identity",
         "decode",
+        "one",
         "device",
         "version",
         "crypto",
         "self",
         "type",
         "truncated",
-        "named",
-        "made"
+        "signature"
       ],
-      "lines": 102,
+      "lines": 109,
       "path": "crates/mini-objects/src/error.rs",
-      "sha256": "9828604598e399d2494393d339e35d729b203a265180b78477856c127c50832d",
+      "sha256": "e53a035e4b2f02f6638ae34c98499abc8b5738f0891c87e8ded6b400ef2b8560",
       "symbols": [
         {
           "kind": "type",
@@ -37827,37 +38020,37 @@
         },
         {
           "kind": "impl",
-          "line": 50,
+          "line": 54,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 51,
+          "line": 55,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 90,
+          "line": 97,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 92,
+          "line": 99,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 93,
+          "line": 100,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 97,
+          "line": 104,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 98,
+          "line": 105,
           "name": "from"
         }
       ],
@@ -37936,7 +38129,7 @@
       "title": "mod capability;"
     },
     {
-      "bytes": 15754,
+      "bytes": 16111,
       "group": "crate:mini-objects",
       "headings": [],
       "keywords": [
@@ -37944,8 +38137,8 @@
         "const",
         "wellknown",
         "object",
-        "objectid",
         "usize",
+        "objectid",
         "encoding",
         "bytes",
         "multihash",
@@ -37954,20 +38147,20 @@
         "payload",
         "did",
         "derive",
+        "max_signatures",
         "profile",
         "link",
         "objecterror",
-        "content",
+        "decode",
         "debug",
         "clone",
         "partialeq",
-        "string",
-        "root",
-        "parse"
+        "parse",
+        "post"
       ],
-      "lines": 434,
+      "lines": 441,
       "path": "crates/mini-objects/src/object.rs",
-      "sha256": "7f22d049865136462265565c634dd09241af42b0a003303cc0164665d7668a3f",
+      "sha256": "6c003a5edd82c063926865ede15ca650f96356afd43d9740e157f34472dc901b",
       "symbols": [
         {
           "kind": "const",
@@ -38001,270 +38194,270 @@
         },
         {
           "kind": "const",
-          "line": 18,
+          "line": 21,
           "name": "MAX_SIGNATURES"
         },
         {
           "kind": "const",
-          "line": 19,
+          "line": 22,
           "name": "MAX_SIG_BYTES"
         },
         {
           "kind": "struct",
-          "line": 24,
+          "line": 27,
           "name": "ObjectId"
         },
         {
           "kind": "impl",
-          "line": 26,
+          "line": 29,
           "name": "ObjectId"
         },
         {
           "kind": "fn",
-          "line": 29,
+          "line": 32,
           "name": "parse"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 42,
           "name": "as_str"
         },
         {
           "kind": "enum",
-          "line": 57,
+          "line": 60,
           "name": "ObjectType"
         },
         {
           "kind": "impl",
-          "line": 64,
+          "line": 67,
           "name": "ObjectType"
         },
         {
           "kind": "const",
-          "line": 66,
+          "line": 69,
           "name": "POST"
         },
         {
           "kind": "const",
-          "line": 68,
+          "line": 71,
           "name": "COMMENT"
         },
         {
           "kind": "const",
-          "line": 70,
+          "line": 73,
           "name": "PROFILE"
         },
         {
           "kind": "const",
-          "line": 72,
+          "line": 75,
           "name": "FOLLOW"
         },
         {
           "kind": "const",
-          "line": 74,
+          "line": 77,
           "name": "REACTION"
         },
         {
           "kind": "const",
-          "line": 76,
+          "line": 79,
           "name": "MEDIA_MANIFEST"
         },
         {
           "kind": "const",
-          "line": 78,
+          "line": 81,
           "name": "COMMUNITY"
         },
         {
           "kind": "const",
-          "line": 80,
+          "line": 83,
           "name": "CRDT_OP"
         },
         {
           "kind": "const",
-          "line": 82,
+          "line": 85,
           "name": "FILTER_LABEL"
         },
         {
           "kind": "const",
-          "line": 84,
+          "line": 87,
           "name": "COMMIT"
         },
         {
           "kind": "const",
-          "line": 86,
+          "line": 89,
           "name": "RELEASE"
         },
         {
           "kind": "const",
-          "line": 89,
+          "line": 92,
           "name": "HEAD"
         },
         {
           "kind": "const",
-          "line": 94,
+          "line": 97,
           "name": "WALL"
         },
         {
           "kind": "const",
-          "line": 98,
+          "line": 101,
           "name": "WALL_LINKAGE"
         },
         {
           "kind": "enum",
-          "line": 104,
+          "line": 107,
           "name": "Payload"
         },
         {
           "kind": "struct",
-          "line": 113,
+          "line": 116,
           "name": "Link"
         },
         {
           "kind": "struct",
-          "line": 123,
+          "line": 126,
           "name": "Object"
         },
         {
           "kind": "impl",
-          "line": 146,
+          "line": 149,
           "name": "Object"
         },
         {
           "kind": "fn",
-          "line": 148,
+          "line": 151,
           "name": "id"
         },
         {
           "kind": "fn",
-          "line": 153,
+          "line": 156,
           "name": "signatures"
         },
         {
           "kind": "fn",
-          "line": 158,
+          "line": 161,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 166,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 167,
+          "line": 170,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 213,
+          "line": 216,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 295,
+          "line": 302,
           "name": "verify_integrity"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 312,
           "name": "verify_signature"
         },
         {
           "kind": "enum",
-          "line": 316,
+          "line": 323,
           "name": "EncodeMode"
         },
         {
           "kind": "fn",
-          "line": 321,
+          "line": 328,
           "name": "parse_did"
         },
         {
           "kind": "fn",
-          "line": 330,
+          "line": 337,
           "name": "verify_provenance"
         },
         {
           "kind": "fn",
-          "line": 344,
+          "line": 351,
           "name": "required_capability"
         },
         {
           "kind": "struct",
-          "line": 357,
+          "line": 364,
           "name": "ObjectBuilder"
         },
         {
           "kind": "impl",
-          "line": 365,
+          "line": 372,
           "name": "ObjectBuilder"
         },
         {
           "kind": "fn",
-          "line": 367,
+          "line": 374,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 378,
+          "line": 385,
           "name": "timestamp_ms"
         },
         {
           "kind": "fn",
-          "line": 384,
+          "line": 391,
           "name": "sequence"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 397,
           "name": "link"
         },
         {
           "kind": "fn",
-          "line": 399,
+          "line": 406,
           "name": "payload"
         },
         {
           "kind": "fn",
-          "line": 407,
+          "line": 414,
           "name": "sign"
         }
       ],
       "title": "use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};"
     },
     {
-      "bytes": 12012,
+      "bytes": 12369,
       "group": "crate:mini-objects",
       "headings": [],
       "keywords": [
         "self",
-        "bytes",
         "signatures",
+        "bytes",
         "const",
         "vec",
         "usize",
         "privateobject",
-        "links",
         "new",
-        "u64",
-        "sequence",
+        "links",
         "own",
+        "u64",
+        "object",
+        "sequence",
         "its",
         "did",
         "objecttype",
-        "payload",
         "u32",
-        "as_bytes",
         "mini-objects",
+        "max_signatures",
         "signing_bytes",
         "encode_fields",
-        "object",
         "never",
-        "writer"
+        "writer",
+        "envelope"
       ],
-      "lines": 341,
+      "lines": 348,
       "path": "crates/mini-objects/src/private_object.rs",
-      "sha256": "adb86bce7c4364bebf6bd3a411539d9a706d24220266c72c74a97f12f1b76e49",
+      "sha256": "74c64fd4ca1d21d3fcdda8a260ed75a80e26613076f630b245da45b0ed3ee83a",
       "symbols": [
         {
           "kind": "const",
@@ -38303,127 +38496,127 @@
         },
         {
           "kind": "const",
-          "line": 22,
+          "line": 25,
           "name": "MAX_SIGNATURES"
         },
         {
           "kind": "const",
-          "line": 23,
+          "line": 26,
           "name": "MAX_SIG_BYTES"
         },
         {
           "kind": "const",
-          "line": 30,
+          "line": 33,
           "name": "SIGNING_DOMAIN"
         },
         {
           "kind": "struct",
-          "line": 36,
+          "line": 39,
           "name": "PrivateObject"
         },
         {
           "kind": "impl",
-          "line": 52,
+          "line": 55,
           "name": "PrivateObject"
         },
         {
           "kind": "fn",
-          "line": 56,
+          "line": 59,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 80,
+          "line": 83,
           "name": "signatures"
         },
         {
           "kind": "fn",
-          "line": 88,
+          "line": 91,
           "name": "sign_with"
         },
         {
           "kind": "fn",
-          "line": 94,
+          "line": 97,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 103,
+          "line": 106,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 115,
+          "line": 118,
           "name": "encode_fields"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 143,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 213,
+          "line": 220,
           "name": "verify_signature"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 230,
           "name": "parse_did"
         },
         {
           "kind": "mod",
-          "line": 229,
+          "line": 236,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 233,
+          "line": 240,
           "name": "sample"
         },
         {
           "kind": "fn",
-          "line": 252,
+          "line": 259,
           "name": "a_signed_private_object_round_trips_through_bytes"
         },
         {
           "kind": "fn",
-          "line": 260,
+          "line": 267,
           "name": "a_valid_signature_verifies_against_the_devices_kel"
         },
         {
           "kind": "fn",
-          "line": 267,
+          "line": 274,
           "name": "a_tampered_field_after_signing_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 282,
           "name": "verification_fails_against_the_wrong_devices_kel"
         },
         {
           "kind": "fn",
-          "line": 283,
+          "line": 290,
           "name": "a_truncated_encoding_is_rejected_at_every_length"
         },
         {
           "kind": "fn",
-          "line": 295,
+          "line": 302,
           "name": "trailing_bytes_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 306,
+          "line": 313,
           "name": "an_over_cap_link_count_is_rejected_before_allocating"
         },
         {
           "kind": "fn",
-          "line": 324,
+          "line": 331,
           "name": "an_unsigned_private_object_has_no_signatures"
         },
         {
           "kind": "fn",
-          "line": 330,
+          "line": 337,
           "name": "custom_object_types_round_trip"
         }
       ],
@@ -40092,38 +40285,38 @@
       "title": "mini-porep"
     },
     {
-      "bytes": 17491,
+      "bytes": 21343,
       "group": "crate:mini-porep",
       "headings": [],
       "keywords": [
         "layer",
+        "count",
+        "audit",
         "node",
-        "replica",
-        "auditchallenge",
-        "hasher",
-        "challenge",
+        "challenges",
         "node_size",
         "merkleproof",
-        "commitment",
-        "audit",
-        "label",
-        "poreperror",
-        "num_layers",
-        "u64",
-        "labeling",
-        "against",
-        "prove",
         "usize",
-        "seed",
-        "update",
-        "node_count",
-        "auditresponse",
-        "sealing",
-        "proof"
+        "commitment",
+        "num_layers",
+        "prover",
+        "against",
+        "root",
+        "challenge",
+        "one",
+        "hasher",
+        "auditchallenge",
+        "encoding_challenge_budget",
+        "labeling",
+        "label",
+        "data",
+        "every",
+        "sealcommitment",
+        "seed"
       ],
-      "lines": 466,
+      "lines": 549,
       "path": "crates/mini-porep/src/audit.rs",
-      "sha256": "f053ac2ce2a80635d2baf4d835649f70db893ab5a725145dd002aa92f0f188d4",
+      "sha256": "f8fc143aa4a7e97f5124760ab069b3cec0e39eb405857702dffa75b52ebf3d49",
       "symbols": [
         {
           "kind": "struct",
@@ -40137,82 +40330,97 @@
         },
         {
           "kind": "fn",
-          "line": 58,
+          "line": 72,
+          "name": "encoding_challenge_budget"
+        },
+        {
+          "kind": "fn",
+          "line": 88,
           "name": "sample_challenges"
         },
         {
           "kind": "fn",
-          "line": 83,
+          "line": 119,
           "name": "answer_challenge"
         },
         {
           "kind": "fn",
-          "line": 166,
+          "line": 202,
           "name": "verify_audit_response"
         },
         {
           "kind": "mod",
-          "line": 262,
+          "line": 298,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 266,
+          "line": 302,
           "name": "sealed"
         },
         {
           "kind": "fn",
-          "line": 270,
+          "line": 306,
           "name": "sealed_with_id"
         },
         {
           "kind": "fn",
-          "line": 279,
+          "line": 315,
           "name": "every_layer_and_node_answers_and_verifies"
         },
         {
           "kind": "fn",
-          "line": 295,
+          "line": 331,
           "name": "sampled_challenges_are_deterministic_and_verify"
         },
         {
           "kind": "fn",
-          "line": 308,
+          "line": 344,
           "name": "a_tampered_label_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 318,
+          "line": 354,
           "name": "a_tampered_parent_label_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 328,
+          "line": 364,
           "name": "a_tampered_data_node_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 338,
+          "line": 374,
           "name": "a_response_from_a_different_replica_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 352,
+          "line": 388,
           "name": "claiming_a_replica_leaf_below_the_top_layer_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 364,
+          "line": 400,
           "name": "a_lazy_prover_who_fabricates_labels_without_doing_the_sequential_work_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 431,
+          "line": 467,
           "name": "changing_an_early_data_node_changes_downstream_labels"
         },
         {
           "kind": "fn",
-          "line": 454,
+          "line": 490,
+          "name": "every_sample_covers_the_encoding_step_that_binds_the_replica_root"
+        },
+        {
+          "kind": "fn",
+          "line": 512,
+          "name": "a_forged_replica_root_never_survives_an_audit"
+        },
+        {
+          "kind": "fn",
+          "line": 537,
           "name": "out_of_range_challenges_are_rejected_up_front"
         }
       ],
@@ -40495,7 +40703,7 @@
       "title": "use core::fmt;"
     },
     {
-      "bytes": 4221,
+      "bytes": 4252,
       "group": "crate:mini-porep",
       "headings": [],
       "keywords": [
@@ -40524,9 +40732,9 @@
         "proof",
         "graph"
       ],
-      "lines": 81,
+      "lines": 82,
       "path": "crates/mini-porep/src/lib.rs",
-      "sha256": "fe2e6b5ba5d462a988d2234629e46934751dd7f62bcd026c5411c0f2d4c63c52",
+      "sha256": "dfc01bb16046226f33add781f5edeb2c803d0da5792061b305010f99b0ff6db2",
       "symbols": [
         {
           "kind": "mod",
@@ -42725,7 +42933,7 @@
       "title": "use crate::error::{IndexError, Result};"
     },
     {
-      "bytes": 3665,
+      "bytes": 4055,
       "group": "crate:mini-private-index",
       "headings": [],
       "keywords": [
@@ -42735,11 +42943,12 @@
         "error",
         "result",
         "fmt",
+        "identity",
         "core",
         "identityerror",
         "cryptoerror",
+        "signature",
         "unrecognized",
-        "identity",
         "private-index",
         "bytes",
         "declared",
@@ -42750,13 +42959,12 @@
         "self",
         "truncated",
         "decode",
-        "exceeded",
-        "writer",
-        "signature"
+        "one",
+        "exceeded"
       ],
-      "lines": 95,
+      "lines": 102,
       "path": "crates/mini-private-index/src/error.rs",
-      "sha256": "bcd8fd32a2cb148197a02046851e20181980bb7ea11bdc5a91d5135b4e06dccf",
+      "sha256": "10f46b9c35a7796459f3f7f571789d6e38f42611f2ef208c0bc7628798dc37de",
       "symbols": [
         {
           "kind": "type",
@@ -42770,37 +42978,37 @@
         },
         {
           "kind": "impl",
-          "line": 48,
+          "line": 52,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 49,
+          "line": 53,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 83,
+          "line": 90,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 85,
+          "line": 92,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 86,
+          "line": 93,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 90,
+          "line": 97,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 91,
+          "line": 98,
           "name": "from"
         }
       ],
@@ -43235,7 +43443,7 @@
       "title": "pub enum LookupPrivacyClass {"
     },
     {
-      "bytes": 11436,
+      "bytes": 11791,
       "group": "crate:mini-private-index",
       "headings": [],
       "keywords": [
@@ -43246,27 +43454,27 @@
         "encrypted_descriptor",
         "u64",
         "const",
-        "size_class",
-        "tag",
         "privateindexrecord",
-        "bytes",
         "indexerror",
+        "size_class",
         "vec",
+        "signature",
+        "tag",
+        "lookuplabel",
+        "bytes",
+        "epoch",
         "expires_at_ms",
         "sequence",
-        "signature",
-        "lookuplabel",
-        "epoch",
-        "lookup_label",
         "record_version",
+        "max_signatures",
         "signing_bytes",
-        "to_bytes",
         "did",
-        "result"
+        "result",
+        "usize"
       ],
-      "lines": 347,
+      "lines": 354,
       "path": "crates/mini-private-index/src/record.rs",
-      "sha256": "8ac20fb335d98a7dcfa1a555b76c39f4b1c7fe83ce1fe59ef15e5d8c013b97e1",
+      "sha256": "15b99ee64a68af49c7ac9fdc4b0cec6475e95dfcc0a8ad933aad5185433aa5b4",
       "symbols": [
         {
           "kind": "const",
@@ -43285,147 +43493,147 @@
         },
         {
           "kind": "const",
-          "line": 20,
+          "line": 23,
           "name": "MAX_SIGNATURES"
         },
         {
           "kind": "const",
-          "line": 21,
+          "line": 24,
           "name": "MAX_SIG_BYTES"
         },
         {
           "kind": "enum",
-          "line": 29,
+          "line": 32,
           "name": "RecordSizeClass"
         },
         {
           "kind": "impl",
-          "line": 35,
+          "line": 38,
           "name": "RecordSizeClass"
         },
         {
           "kind": "fn",
-          "line": 36,
+          "line": 39,
           "name": "max_bytes"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 47,
           "name": "tag"
         },
         {
           "kind": "fn",
-          "line": 52,
+          "line": 55,
           "name": "from_tag"
         },
         {
           "kind": "struct",
-          "line": 64,
+          "line": 67,
           "name": "PrivateIndexRecord"
         },
         {
           "kind": "impl",
-          "line": 75,
+          "line": 78,
           "name": "PrivateIndexRecord"
         },
         {
           "kind": "fn",
-          "line": 78,
+          "line": 81,
           "name": "issue"
         },
         {
           "kind": "fn",
-          "line": 104,
+          "line": 107,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 119,
+          "line": 122,
           "name": "encrypted_descriptor"
         },
         {
           "kind": "fn",
-          "line": 127,
+          "line": 130,
           "name": "verify"
         },
         {
           "kind": "fn",
-          "line": 141,
+          "line": 144,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 165,
+          "line": 168,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 214,
+          "line": 221,
           "name": "parse_did"
         },
         {
           "kind": "mod",
-          "line": 220,
+          "line": 227,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 230,
           "name": "sample_label"
         },
         {
           "kind": "fn",
-          "line": 227,
+          "line": 234,
           "name": "sample_record"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 248,
           "name": "a_record_verifies_against_its_own_writer_kel_before_expiry"
         },
         {
           "kind": "fn",
-          "line": 248,
+          "line": 255,
           "name": "a_record_is_rejected_at_or_after_its_expiry"
         },
         {
           "kind": "fn",
-          "line": 258,
+          "line": 265,
           "name": "a_record_signed_by_one_writer_does_not_verify_under_another_writers_kel"
         },
         {
           "kind": "fn",
-          "line": 269,
+          "line": 276,
           "name": "tampering_with_the_sequence_after_signing_breaks_verification"
         },
         {
           "kind": "fn",
-          "line": 280,
+          "line": 287,
           "name": "issuing_a_descriptor_larger_than_its_size_class_is_rejected_before_signing"
         },
         {
           "kind": "fn",
-          "line": 298,
+          "line": 305,
           "name": "a_record_round_trips_through_bytes"
         },
         {
           "kind": "fn",
-          "line": 307,
+          "line": 314,
           "name": "an_unsupported_version_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 319,
+          "line": 326,
           "name": "trailing_bytes_after_a_complete_decode_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 331,
+          "line": 338,
           "name": "size_class_byte_budgets_are_distinct_and_increasing"
         },
         {
           "kind": "fn",
-          "line": 337,
+          "line": 344,
           "name": "every_size_class_round_trips_through_its_tag"
         }
       ],
@@ -46734,38 +46942,38 @@
       "title": "use mini_bearer::Channel;"
     },
     {
-      "bytes": 7529,
+      "bytes": 7919,
       "group": "crate:mini-relay",
       "headings": [],
       "keywords": [
         "relayerror",
-        "write",
         "relay",
+        "write",
         "grant",
-        "onion",
         "unrecognized",
         "result",
         "fmt",
         "role",
-        "version",
-        "packet",
         "core",
         "mailbox",
+        "one",
+        "version",
         "delivery",
         "does",
         "relayrole",
         "bytes",
+        "more",
+        "identity",
         "tag",
         "envelope",
+        "onion",
         "plan",
         "failure",
-        "error",
-        "identityerror",
-        "cryptoerror"
+        "error"
       ],
-      "lines": 172,
+      "lines": 179,
       "path": "crates/mini-relay/src/error.rs",
-      "sha256": "2ce8d56a6743607038e3e66a4a7f1361433a7933482ed4890db4d3b8cd94cb9b",
+      "sha256": "1ca51c5c8655b0dfd0c27e6a0dfaa128d27d218b5f4a6204963e002fc51a3914",
       "symbols": [
         {
           "kind": "type",
@@ -46779,47 +46987,47 @@
         },
         {
           "kind": "impl",
-          "line": 89,
+          "line": 93,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 90,
+          "line": 94,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 155,
+          "line": 162,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 157,
+          "line": 164,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 158,
+          "line": 165,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 162,
+          "line": 169,
           "name": "From<CryptoError>"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 170,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 167,
+          "line": 174,
           "name": "From<BearerError>"
         },
         {
           "kind": "fn",
-          "line": 168,
+          "line": 175,
           "name": "from"
         }
       ],
@@ -46908,14 +47116,14 @@
       "title": "mod codec;"
     },
     {
-      "bytes": 23197,
+      "bytes": 23552,
       "group": "crate:mini-relay",
       "headings": [],
       "keywords": [
         "mailbox",
         "self",
-        "mailboxtoken",
         "mailboxid",
+        "mailboxtoken",
         "mailboxgrant",
         "token",
         "grant",
@@ -46926,20 +47134,20 @@
         "mailboxtokencommitment",
         "never",
         "did",
-        "result",
         "bytes",
         "grantee",
         "mini-relay",
+        "max_signatures",
         "generate",
         "to_bytes",
         "core",
         "drop",
         "capability",
-        "new"
+        "object"
       ],
-      "lines": 719,
+      "lines": 726,
       "path": "crates/mini-relay/src/mailbox.rs",
-      "sha256": "bdabfaad968a9d9eb65de168a5cd10e282db0813a67a5f6fe3e82b8f56dee2dc",
+      "sha256": "46d39de66b23614e0a335205366dd61fb7e490c8acfc821ba8e66842d3a08c6b",
       "symbols": [
         {
           "kind": "const",
@@ -46968,237 +47176,237 @@
         },
         {
           "kind": "const",
-          "line": 29,
+          "line": 32,
           "name": "MAX_SIGNATURES"
         },
         {
           "kind": "const",
-          "line": 30,
+          "line": 33,
           "name": "MAX_SIG_BYTES"
         },
         {
           "kind": "struct",
-          "line": 36,
+          "line": 39,
           "name": "MailboxId"
         },
         {
           "kind": "impl",
-          "line": 38,
+          "line": 41,
           "name": "MailboxId"
         },
         {
           "kind": "fn",
-          "line": 40,
+          "line": 43,
           "name": "generate"
         },
         {
           "kind": "fn",
-          "line": 46,
+          "line": 49,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 50,
+          "line": 53,
           "name": "from_bytes"
         },
         {
           "kind": "struct",
-          "line": 61,
+          "line": 64,
           "name": "MailboxToken"
         },
         {
           "kind": "impl",
-          "line": 63,
+          "line": 66,
           "name": "MailboxToken"
         },
         {
           "kind": "fn",
-          "line": 65,
+          "line": 68,
           "name": "generate"
         },
         {
           "kind": "fn",
-          "line": 73,
+          "line": 76,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 80,
+          "line": 83,
           "name": "commit"
         },
         {
           "kind": "impl",
-          "line": 89,
+          "line": 92,
           "name": "core::fmt::Debug"
         },
         {
           "kind": "fn",
-          "line": 90,
+          "line": 93,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 95,
+          "line": 98,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 99,
           "name": "drop"
         },
         {
           "kind": "struct",
-          "line": 105,
+          "line": 108,
           "name": "MailboxTokenCommitment"
         },
         {
           "kind": "struct",
-          "line": 112,
+          "line": 115,
           "name": "MailboxGrant"
         },
         {
           "kind": "impl",
-          "line": 123,
+          "line": 126,
           "name": "MailboxGrant"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 129,
           "name": "issue"
         },
         {
           "kind": "fn",
-          "line": 153,
+          "line": 156,
           "name": "signing_bytes"
         },
         {
           "kind": "fn",
-          "line": 174,
+          "line": 177,
           "name": "holder_proof_message"
         },
         {
           "kind": "fn",
-          "line": 186,
+          "line": 189,
           "name": "prove_holder"
         },
         {
           "kind": "fn",
-          "line": 194,
+          "line": 197,
           "name": "validate"
         },
         {
           "kind": "fn",
-          "line": 235,
+          "line": 238,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 260,
+          "line": 263,
           "name": "from_bytes"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 333,
           "name": "parse_did"
         },
         {
           "kind": "mod",
-          "line": 332,
+          "line": 339,
           "name": "tests"
         },
         {
           "kind": "struct",
-          "line": 335,
+          "line": 342,
           "name": "Fixture"
         },
         {
           "kind": "fn",
-          "line": 342,
+          "line": 349,
           "name": "fixture"
         },
         {
           "kind": "fn",
-          "line": 351,
+          "line": 358,
           "name": "issue_and_prove"
         },
         {
           "kind": "fn",
-          "line": 360,
+          "line": 367,
           "name": "a_valid_grant_and_proof_validate_successfully"
         },
         {
           "kind": "fn",
-          "line": 376,
+          "line": 383,
           "name": "a_grant_for_mailbox_a_fails_against_mailbox_b"
         },
         {
           "kind": "fn",
-          "line": 394,
+          "line": 401,
           "name": "an_incorrect_token_fails"
         },
         {
           "kind": "fn",
-          "line": 412,
+          "line": 419,
           "name": "a_token_commitment_copied_into_a_different_mailbox_grant_does_not_validate"
         },
         {
           "kind": "fn",
-          "line": 440,
+          "line": 447,
           "name": "a_valid_token_without_grantee_proof_fails"
         },
         {
           "kind": "fn",
-          "line": 458,
+          "line": 465,
           "name": "proof_from_another_pseudonym_fails"
         },
         {
           "kind": "fn",
-          "line": 480,
+          "line": 487,
           "name": "an_expired_grant_fails"
         },
         {
           "kind": "fn",
-          "line": 506,
+          "line": 513,
           "name": "a_not_yet_valid_grant_fails"
         },
         {
           "kind": "fn",
-          "line": 532,
+          "line": 539,
           "name": "a_grant_signed_by_one_issuer_does_not_validate_against_another"
         },
         {
           "kind": "fn",
-          "line": 550,
+          "line": 557,
           "name": "a_grant_round_trips_through_wire_bytes"
         },
         {
           "kind": "fn",
-          "line": 558,
+          "line": 565,
           "name": "a_grant_with_a_validity_window_round_trips_and_still_enforces_it"
         },
         {
           "kind": "fn",
-          "line": 612,
+          "line": 619,
           "name": "a_decoded_grant_still_validates"
         },
         {
           "kind": "fn",
-          "line": 629,
+          "line": 636,
           "name": "an_unknown_grant_version_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 639,
+          "line": 646,
           "name": "a_truncated_grant_is_rejected_at_every_length"
         },
         {
           "kind": "fn",
-          "line": 652,
+          "line": 659,
           "name": "trailing_bytes_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 664,
+          "line": 671,
           "name": "rotating_to_a_fresh_mailbox_and_token_invalidates_the_old_pair"
         }
       ],
@@ -54343,38 +54551,38 @@
       "title": "mod error;"
     },
     {
-      "bytes": 7268,
+      "bytes": 12649,
       "group": "crate:mini-spacetime",
       "headings": [],
       "keywords": [
-        "self",
-        "vec",
         "levels",
-        "hasher",
-        "root",
+        "self",
         "leaf_count",
+        "hasher",
         "blocks",
+        "root",
         "tree",
-        "hash",
-        "idx",
+        "vec",
+        "level",
+        "none",
+        "leaves",
         "len",
         "current",
+        "proof",
         "merkletree",
         "merkleproof",
         "leaf",
         "usize",
-        "level",
-        "none",
-        "leaves",
         "index",
-        "node_hash",
         "block",
         "update",
-        "siblings"
+        "idx",
+        "sibling",
+        "merkle"
       ],
-      "lines": 217,
+      "lines": 357,
       "path": "crates/mini-spacetime/src/merkle.rs",
-      "sha256": "71dae23bbd9071f5779b90da15f4897a170d7d4841a4bab845431bff23bbb325",
+      "sha256": "e0a1a48c254f9367bd1b2af3021a13214b9cf4a2674607dc65cc1771f436dad7",
       "symbols": [
         {
           "kind": "const",
@@ -54437,64 +54645,114 @@
           "name": "MerkleProof"
         },
         {
+          "kind": "fn",
+          "line": 113,
+          "name": "proof_depth"
+        },
+        {
           "kind": "impl",
-          "line": 110,
+          "line": 123,
           "name": "MerkleProof"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 136,
           "name": "verify"
         },
         {
           "kind": "mod",
-          "line": 137,
+          "line": 163,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 166,
           "name": "blocks"
         },
         {
           "kind": "fn",
-          "line": 145,
+          "line": 171,
           "name": "empty_blocks_has_no_tree"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 176,
           "name": "single_block_root_is_its_own_leaf_hash"
         },
         {
           "kind": "fn",
-          "line": 158,
+          "line": 184,
           "name": "every_leaf_proves_for_various_sizes"
         },
         {
           "kind": "fn",
-          "line": 173,
+          "line": 199,
           "name": "tree_root_is_deterministic"
         },
         {
           "kind": "fn",
-          "line": 181,
+          "line": 207,
           "name": "tampered_block_data_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 189,
+          "line": 215,
           "name": "proof_for_out_of_range_index_is_none"
         },
         {
           "kind": "fn",
-          "line": 197,
+          "line": 223,
           "name": "verify_against_wrong_leaf_count_fails"
         },
         {
           "kind": "fn",
-          "line": 208,
+          "line": 234,
           "name": "a_proof_from_a_different_tree_does_not_verify"
+        },
+        {
+          "kind": "mod",
+          "line": 245,
+          "name": "proof_shape_tests"
+        },
+        {
+          "kind": "fn",
+          "line": 248,
+          "name": "blocks"
+        },
+        {
+          "kind": "fn",
+          "line": 253,
+          "name": "the_expected_depth_matches_the_tree_the_builder_actually_produces"
+        },
+        {
+          "kind": "fn",
+          "line": 266,
+          "name": "every_honest_proof_still_verifies"
+        },
+        {
+          "kind": "fn",
+          "line": 281,
+          "name": "a_proof_padded_with_extra_siblings_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 302,
+          "name": "a_truncated_proof_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 311,
+          "name": "a_proof_is_refused_under_a_tree_size_of_a_different_depth"
+        },
+        {
+          "kind": "fn",
+          "line": 326,
+          "name": "shape_does_not_distinguish_tree_sizes_that_share_a_depth"
+        },
+        {
+          "kind": "fn",
+          "line": 345,
+          "name": "a_single_leaf_tree_has_a_zero_length_proof"
         }
       ],
       "title": "const LEAF_PREFIX: u8 = 0x00;"
@@ -54861,7 +55119,7 @@
       "title": "use crate::isqrt::isqrt;"
     },
     {
-      "bytes": 819,
+      "bytes": 802,
       "group": "crate:mini-storage-fraud",
       "headings": [],
       "keywords": [
@@ -54879,467 +55137,1626 @@
         "name",
         "version",
         "description",
-        "cross-identity",
-        "storage-fraud",
-        "detection",
-        "signed",
-        "storagecommitmentclaim",
-        "collisionevidence",
-        "proving",
-        "two",
-        "distinct",
-        "identity"
-      ],
-      "lines": 17,
-      "path": "crates/mini-storage-fraud/Cargo.toml",
-      "sha256": "ccd0c8ad2b770f9077cad830cd59b743ca20fab89f4b1b365837f5bbe547a46c",
-      "symbols": [],
-      "title": "[package]"
-    },
-    {
-      "bytes": 2793,
-      "group": "crate:mini-storage-fraud",
-      "headings": [],
-      "keywords": [
-        "self",
-        "bytes",
-        "value",
-        "take",
-        "u32",
-        "result",
-        "offset",
-        "frauderror",
-        "u64",
-        "usize",
-        "length",
-        "vec",
-        "end",
-        "codec",
-        "writer",
-        "reader",
-        "new",
-        "extend_from_slice",
-        "len",
-        "err",
-        "try_into",
-        "expect",
-        "returns",
-        "derive"
-      ],
-      "lines": 110,
-      "path": "crates/mini-storage-fraud/src/codec.rs",
-      "sha256": "8aa32d43380ac7a0203fe75c9e9f9c62757c12185a905925a1ed86c8b4cdf0f5",
-      "symbols": [
-        {
-          "kind": "impl",
-          "line": 12,
-          "name": "Writer"
-        },
-        {
-          "kind": "impl",
-          "line": 49,
-          "name": "Reader<'a>"
-        },
-        {
-          "kind": "fn",
-          "line": 54,
-          "name": "take"
-        }
-      ],
-      "title": "use crate::error::{FraudError, Result};"
-    },
-    {
-      "bytes": 6951,
-      "group": "crate:mini-storage-fraud",
-      "headings": [],
-      "keywords": [
-        "evidence",
-        "provider",
-        "storagecommitmentclaim",
-        "kel",
-        "first",
-        "collisionevidence",
-        "merkle_root",
-        "second",
-        "shared_commitment",
-        "storagecommitment",
-        "commitment",
-        "verify_collision",
-        "frauderror",
-        "issue",
-        "claims",
-        "err",
-        "notacollision",
-        "two",
-        "each",
-        "mini_spacetime",
-        "derive_replica_id",
-        "does",
-        "block_count",
-        "collision"
-      ],
-      "lines": 177,
-      "path": "crates/mini-storage-fraud/src/collision.rs",
-      "sha256": "cbf7b827bf10fecadb4d835dabf237736e2249d6e4a7cec065da6221184187fb",
-      "symbols": [
-        {
-          "kind": "struct",
-          "line": 28,
-          "name": "CollisionEvidence"
-        },
-        {
-          "kind": "impl",
-          "line": 33,
-          "name": "CollisionEvidence"
-        },
-        {
-          "kind": "fn",
-          "line": 35,
-          "name": "merkle_root"
-        },
-        {
-          "kind": "fn",
-          "line": 50,
-          "name": "verify_collision"
-        },
-        {
-          "kind": "mod",
-          "line": 75,
-          "name": "tests"
-        },
-        {
-          "kind": "fn",
-          "line": 81,
-          "name": "provider"
-        },
-        {
-          "kind": "fn",
-          "line": 85,
-          "name": "shared_commitment"
-        },
-        {
-          "kind": "fn",
-          "line": 93,
-          "name": "two_distinct_providers_naming_the_same_commitment_is_genuine_collision"
-        },
-        {
-          "kind": "fn",
-          "line": 104,
-          "name": "the_same_provider_naming_the_same_commitment_twice_is_not_collision"
-        },
-        {
-          "kind": "fn",
-          "line": 116,
-          "name": "two_providers_naming_different_commitments_is_not_collision"
-        },
-        {
-          "kind": "fn",
-          "line": 133,
-          "name": "a_forged_second_claim_is_not_accepted_as_evidence"
-        },
-        {
-          "kind": "fn",
-          "line": 154,
-          "name": "a_genuine_independent_seal_under_each_derived_replica_id_never_collides"
-        }
-      ],
-      "title": "use did_mini::Kel;"
-    },
-    {
-      "bytes": 9316,
-      "group": "crate:mini-storage-fraud",
-      "headings": [],
-      "keywords": [
-        "self",
-        "writer",
-        "provider",
-        "context",
-        "commitment",
-        "signature",
-        "raw",
-        "claim",
-        "u64",
-        "did",
-        "reader",
-        "replica",
-        "derive_replica_id",
-        "frauderror",
-        "const",
-        "new",
-        "bytes",
-        "issued_at_ms",
-        "storage_commitment_claim_version",
-        "storagecommitmentclaim",
-        "signing_bytes",
-        "verify",
-        "storagecommitment",
-        "vec"
-      ],
-      "lines": 263,
-      "path": "crates/mini-storage-fraud/src/commitment_claim.rs",
-      "sha256": "5366e2cc189644cb187b29057fba4fe6b6b7e68ab94f359a7663bd25988cf121",
-      "symbols": [
-        {
-          "kind": "const",
-          "line": 14,
-          "name": "STORAGE_COMMITMENT_CLAIM_VERSION"
-        },
-        {
-          "kind": "const",
-          "line": 16,
-          "name": "REPLICA_ID_DOMAIN"
-        },
-        {
-          "kind": "const",
-          "line": 17,
-          "name": "CLAIM_SIGNING_DOMAIN"
-        },
-        {
-          "kind": "const",
-          "line": 19,
-          "name": "MAX_DID_BYTES"
-        },
-        {
-          "kind": "const",
-          "line": 20,
-          "name": "MAX_SIGNATURE_BYTES"
-        },
-        {
-          "kind": "fn",
-          "line": 30,
-          "name": "derive_replica_id"
-        },
-        {
-          "kind": "struct",
-          "line": 43,
-          "name": "StorageCommitmentClaim"
-        },
-        {
-          "kind": "impl",
-          "line": 51,
-          "name": "StorageCommitmentClaim"
-        },
-        {
-          "kind": "fn",
-          "line": 52,
-          "name": "signing_bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 68,
-          "name": "issue"
-        },
-        {
-          "kind": "fn",
-          "line": 87,
-          "name": "verify"
-        },
-        {
-          "kind": "fn",
-          "line": 101,
-          "name": "expected_replica_id"
-        },
-        {
-          "kind": "fn",
-          "line": 105,
-          "name": "to_bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 117,
-          "name": "from_bytes"
-        },
-        {
-          "kind": "const",
-          "line": 145,
-          "name": "MAX_SIGNATURES"
-        },
-        {
-          "kind": "fn",
-          "line": 147,
-          "name": "encode_signatures"
-        },
-        {
-          "kind": "fn",
-          "line": 156,
-          "name": "decode_signatures"
-        },
-        {
-          "kind": "fn",
-          "line": 173,
-          "name": "parse_did"
-        },
-        {
-          "kind": "mod",
-          "line": 179,
-          "name": "tests"
-        },
-        {
-          "kind": "fn",
-          "line": 184,
-          "name": "provider"
-        },
-        {
-          "kind": "fn",
-          "line": 188,
-          "name": "commitment"
-        },
-        {
-          "kind": "fn",
-          "line": 196,
-          "name": "derive_replica_id_differs_across_providers_for_the_same_context"
-        },
-        {
-          "kind": "fn",
-          "line": 207,
-          "name": "derive_replica_id_differs_across_contexts_for_the_same_provider"
-        },
-        {
-          "kind": "fn",
-          "line": 216,
-          "name": "derive_replica_id_is_deterministic"
-        },
-        {
-          "kind": "fn",
-          "line": 226,
-          "name": "a_genuine_claim_verifies_against_its_own_kel"
-        },
-        {
-          "kind": "fn",
-          "line": 233,
-          "name": "a_claim_does_not_verify_against_a_different_providers_kel"
-        },
-        {
-          "kind": "fn",
-          "line": 244,
-          "name": "a_tampered_commitment_fails_verification"
-        },
-        {
-          "kind": "fn",
-          "line": 255,
-          "name": "a_claim_round_trips_through_its_wire_encoding"
-        }
-      ],
-      "title": "use did_mini::{Controller, Did, IndexedSig, Kel};"
-    },
-    {
-      "bytes": 1814,
-      "group": "crate:mini-storage-fraud",
-      "headings": [],
-      "keywords": [
-        "frauderror",
-        "write",
-        "fmt",
-        "error",
-        "core",
-        "result",
-        "bytes",
-        "wire",
-        "value",
-        "did",
-        "does",
-        "provider",
-        "root",
-        "display",
-        "std",
-        "exceeded",
-        "bound",
-        "limitexceeded",
-        "ended",
-        "fully",
-        "truncated",
-        "trailingbytes",
-        "invaliddid",
-        "kel"
-      ],
-      "lines": 44,
-      "path": "crates/mini-storage-fraud/src/error.rs",
-      "sha256": "190f211abc7ee4102eb3e71d208d028037317e560402ebb3edb44adbebe41560",
-      "symbols": [
-        {
-          "kind": "enum",
-          "line": 3,
-          "name": "FraudError"
-        },
-        {
-          "kind": "impl",
-          "line": 24,
-          "name": "core::fmt::Display"
-        },
-        {
-          "kind": "fn",
-          "line": 25,
-          "name": "fmt"
-        },
-        {
-          "kind": "impl",
-          "line": 41,
-          "name": "std::error::Error"
-        },
-        {
-          "kind": "type",
-          "line": 43,
-          "name": "Result"
-        }
-      ],
-      "title": "pub enum FraudError {"
-    },
-    {
-      "bytes": 1831,
-      "group": "crate:mini-storage-fraud",
-      "headings": [],
-      "keywords": [
-        "collision",
-        "commitment_claim",
-        "error",
-        "storagecommitmentclaim",
-        "evidence",
-        "mini-storage-fraud",
-        "codec",
-        "issue",
-        "collisionevidence",
-        "two",
-        "distinct",
-        "mini_porep",
-        "own",
-        "bytes",
-        "lib",
+        "experimental",
         "cross-identity",
         "storage-fraud",
         "detection",
         "roadmap",
-        "https",
-        "github",
-        "com",
-        "mininet-labs",
-        "issues"
+        "identity-bound",
+        "replica",
+        "ids",
+        "independently-audited",
+        "registration"
       ],
-      "lines": 38,
+      "lines": 17,
+      "path": "crates/mini-storage-fraud/Cargo.toml",
+      "sha256": "a75c9f64693d03f2b7eda7b17eaa0b63059877caec5b306b8b359f46df9bafb6",
+      "symbols": [],
+      "title": "[package]"
+    },
+    {
+      "bytes": 12818,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "claim",
+        "seal",
+        "context",
+        "provider_device",
+        "provider",
+        "did",
+        "registeredreplicaclaim",
+        "provider_root",
+        "registration",
+        "identity",
+        "signing_kel_sn",
+        "issued_at_ms",
+        "verifiedreplicaclaim",
+        "replica",
+        "kel",
+        "frauderror",
+        "verify",
+        "signed",
+        "one",
+        "means",
+        "nothing",
+        "device",
+        "root",
+        "its"
+      ],
+      "lines": 358,
+      "path": "crates/mini-storage-fraud/src/claim.rs",
+      "sha256": "e00a139b6f078dadf40589c72453ee85fae41f1eaefaf99085e23705bde9beeb",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 57,
+          "name": "REPLICA_CLAIM_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 60,
+          "name": "REPLICA_CLAIM_VERSION"
+        },
+        {
+          "kind": "struct",
+          "line": 70,
+          "name": "RegisteredReplicaClaim"
+        },
+        {
+          "kind": "impl",
+          "line": 82,
+          "name": "RegisteredReplicaClaim"
+        },
+        {
+          "kind": "fn",
+          "line": 92,
+          "name": "issue"
+        },
+        {
+          "kind": "fn",
+          "line": 134,
+          "name": "provider_root"
+        },
+        {
+          "kind": "fn",
+          "line": 138,
+          "name": "provider_device"
+        },
+        {
+          "kind": "fn",
+          "line": 142,
+          "name": "context"
+        },
+        {
+          "kind": "fn",
+          "line": 146,
+          "name": "seal"
+        },
+        {
+          "kind": "fn",
+          "line": 150,
+          "name": "registration"
+        },
+        {
+          "kind": "fn",
+          "line": 156,
+          "name": "signing_kel_sn"
+        },
+        {
+          "kind": "fn",
+          "line": 161,
+          "name": "issued_at_ms"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "required_replica_id"
+        },
+        {
+          "kind": "fn",
+          "line": 171,
+          "name": "claim_id"
+        },
+        {
+          "kind": "fn",
+          "line": 175,
+          "name": "signing_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "verify"
+        },
+        {
+          "kind": "fn",
+          "line": 229,
+          "name": "to_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 236,
+          "name": "from_bytes"
+        },
+        {
+          "kind": "struct",
+          "line": 291,
+          "name": "VerifiedReplicaClaim"
+        },
+        {
+          "kind": "impl",
+          "line": 297,
+          "name": "VerifiedReplicaClaim"
+        },
+        {
+          "kind": "fn",
+          "line": 298,
+          "name": "provider_root"
+        },
+        {
+          "kind": "fn",
+          "line": 302,
+          "name": "provider_device"
+        },
+        {
+          "kind": "fn",
+          "line": 306,
+          "name": "context"
+        },
+        {
+          "kind": "fn",
+          "line": 310,
+          "name": "seal"
+        },
+        {
+          "kind": "fn",
+          "line": 314,
+          "name": "seal_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 320,
+          "name": "replica_root"
+        },
+        {
+          "kind": "fn",
+          "line": 326,
+          "name": "storage_commitment"
+        },
+        {
+          "kind": "fn",
+          "line": 331,
+          "name": "distinct_auditor_roots"
+        },
+        {
+          "kind": "fn",
+          "line": 335,
+          "name": "claim_id"
+        },
+        {
+          "kind": "fn",
+          "line": 340,
+          "name": "into_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 344,
+          "name": "claim"
+        },
+        {
+          "kind": "fn",
+          "line": 352,
+          "name": "seal_registration_digest"
+        }
+      ],
+      "title": "use did_mini::{Capabilities, Controller, Did, IndexedSig};"
+    },
+    {
+      "bytes": 10159,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "self",
+        "bytes",
+        "value",
+        "usize",
+        "take",
+        "u64",
+        "u32",
+        "result",
+        "decodefailure",
+        "codec",
+        "did-mini",
+        "own",
+        "const",
+        "count",
+        "offset",
+        "length",
+        "writer",
+        "every",
+        "one",
+        "same",
+        "matches",
+        "vec",
+        "raw",
+        "end"
+      ],
+      "lines": 299,
+      "path": "crates/mini-storage-fraud/src/codec.rs",
+      "sha256": "ec96bdeb4754d55c61d50fedef32228fcf9f64ff3f2e271330de993ab0dd4918",
+      "symbols": [
+        {
+          "kind": "impl",
+          "line": 43,
+          "name": "Writer"
+        },
+        {
+          "kind": "impl",
+          "line": 86,
+          "name": "Reader<'a>"
+        },
+        {
+          "kind": "fn",
+          "line": 91,
+          "name": "take"
+        },
+        {
+          "kind": "mod",
+          "line": 209,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 214,
+          "name": "signatures"
+        },
+        {
+          "kind": "fn",
+          "line": 221,
+          "name": "a_signature_list_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 232,
+          "name": "repeated_signature_indices_are_rejected_as_noncanonical"
+        },
+        {
+          "kind": "fn",
+          "line": 246,
+          "name": "an_invalid_suite_tag_is_not_reported_as_truncation"
+        },
+        {
+          "kind": "fn",
+          "line": 260,
+          "name": "a_malformed_signature_body_is_not_reported_as_truncation"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
+          "name": "a_count_past_the_limit_is_rejected_before_allocating"
+        },
+        {
+          "kind": "fn",
+          "line": 286,
+          "name": "a_count_that_cannot_fit_this_platform_is_rejected_not_truncated"
+        }
+      ],
+      "title": "use did_mini::IndexedSig;"
+    },
+    {
+      "bytes": 10113,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "two",
+        "one",
+        "first",
+        "second",
+        "conflict",
+        "replica",
+        "claims",
+        "registeredreplicaclaim",
+        "replicaconflictevidence",
+        "same",
+        "evidence",
+        "self",
+        "roots",
+        "least",
+        "root",
+        "conflictattribution",
+        "cannot",
+        "what",
+        "different",
+        "because",
+        "object",
+        "module",
+        "derive",
+        "debug"
+      ],
+      "lines": 250,
+      "path": "crates/mini-storage-fraud/src/conflict.rs",
+      "sha256": "7c90950ca4f474a83887a2eeb578d6ba77873e60fdaa609e73d85df537f1022b",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 56,
+          "name": "REPLICA_CONFLICT_VERSION"
+        },
+        {
+          "kind": "enum",
+          "line": 61,
+          "name": "ConflictKind"
+        },
+        {
+          "kind": "enum",
+          "line": 81,
+          "name": "ConflictAttribution"
+        },
+        {
+          "kind": "struct",
+          "line": 89,
+          "name": "ReplicaConflictEvidence"
+        },
+        {
+          "kind": "impl",
+          "line": 94,
+          "name": "ReplicaConflictEvidence"
+        },
+        {
+          "kind": "fn",
+          "line": 97,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
+          "name": "first"
+        },
+        {
+          "kind": "fn",
+          "line": 112,
+          "name": "second"
+        },
+        {
+          "kind": "fn",
+          "line": 118,
+          "name": "evidence_id"
+        },
+        {
+          "kind": "fn",
+          "line": 126,
+          "name": "to_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 134,
+          "name": "from_bytes"
+        },
+        {
+          "kind": "struct",
+          "line": 151,
+          "name": "VerifiedReplicaConflict"
+        },
+        {
+          "kind": "impl",
+          "line": 159,
+          "name": "VerifiedReplicaConflict"
+        },
+        {
+          "kind": "fn",
+          "line": 160,
+          "name": "kind"
+        },
+        {
+          "kind": "fn",
+          "line": 167,
+          "name": "attribution"
+        },
+        {
+          "kind": "fn",
+          "line": 172,
+          "name": "replica_root"
+        },
+        {
+          "kind": "fn",
+          "line": 176,
+          "name": "first"
+        },
+        {
+          "kind": "fn",
+          "line": 180,
+          "name": "second"
+        },
+        {
+          "kind": "fn",
+          "line": 188,
+          "name": "involved_roots"
+        },
+        {
+          "kind": "fn",
+          "line": 196,
+          "name": "required_follow_up"
+        },
+        {
+          "kind": "fn",
+          "line": 208,
+          "name": "verify_conflict"
+        }
+      ],
+      "title": "use did_mini::Did;"
+    },
+    {
+      "bytes": 10893,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "replica",
+        "writer",
+        "self",
+        "reader",
+        "context",
+        "two",
+        "one",
+        "bytes",
+        "u32",
+        "replica_context_version",
+        "replicacontextv1",
+        "what",
+        "network",
+        "network_id",
+        "assignment_id",
+        "shard_index",
+        "shard",
+        "assignment",
+        "provider",
+        "derive",
+        "replica_ordinal",
+        "sealing_policy_version",
+        "root",
+        "derive_replica_id"
+      ],
+      "lines": 288,
+      "path": "crates/mini-storage-fraud/src/context.rs",
+      "sha256": "15dbfac3186b93ed108ec6db613acd3cffcac1844f0ef165063ffaec554daa71",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 54,
+          "name": "REPLICA_ID_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 57,
+          "name": "REPLICA_CONTEXT_VERSION"
+        },
+        {
+          "kind": "struct",
+          "line": 61,
+          "name": "ReplicaContextV1"
+        },
+        {
+          "kind": "impl",
+          "line": 74,
+          "name": "ReplicaContextV1"
+        },
+        {
+          "kind": "fn",
+          "line": 88,
+          "name": "to_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 103,
+          "name": "from_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 144,
+          "name": "derive_replica_id"
+        },
+        {
+          "kind": "fn",
+          "line": 167,
+          "name": "seal_params_for"
+        },
+        {
+          "kind": "mod",
+          "line": 190,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 195,
+          "name": "did"
+        },
+        {
+          "kind": "fn",
+          "line": 201,
+          "name": "context"
+        },
+        {
+          "kind": "fn",
+          "line": 212,
+          "name": "the_derivation_is_deterministic"
+        },
+        {
+          "kind": "fn",
+          "line": 221,
+          "name": "every_component_of_the_binding_changes_the_id"
+        },
+        {
+          "kind": "fn",
+          "line": 242,
+          "name": "the_root_and_device_fields_cannot_be_slid_into_each_other"
+        },
+        {
+          "kind": "fn",
+          "line": 254,
+          "name": "a_context_round_trips_and_rejects_a_foreign_version"
+        },
+        {
+          "kind": "fn",
+          "line": 278,
+          "name": "seal_params_carry_the_derived_id"
+        }
+      ],
+      "title": "use did_mini::Did;"
+    },
+    {
+      "bytes": 9752,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "fmt",
+        "u32",
+        "decodefailure",
+        "cannot",
+        "wire",
+        "did",
+        "usize",
+        "more",
+        "one",
+        "seal",
+        "challenge",
+        "sealdefect",
+        "replica",
+        "claim",
+        "receipt",
+        "conflict",
+        "bytes",
+        "signature",
+        "quorum",
+        "value",
+        "derive",
+        "valid",
+        "two",
+        "commitment"
+      ],
+      "lines": 213,
+      "path": "crates/mini-storage-fraud/src/error.rs",
+      "sha256": "af916412f75ea0633add695d7c889fe2c34d70cbaee6d3f251d50310944c5235",
+      "symbols": [
+        {
+          "kind": "enum",
+          "line": 13,
+          "name": "DecodeFailure"
+        },
+        {
+          "kind": "enum",
+          "line": 43,
+          "name": "SealDefect"
+        },
+        {
+          "kind": "enum",
+          "line": 59,
+          "name": "FraudError"
+        },
+        {
+          "kind": "impl",
+          "line": 109,
+          "name": "From<DecodeFailure>"
+        },
+        {
+          "kind": "fn",
+          "line": 110,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 115,
+          "name": "From<SealDefect>"
+        },
+        {
+          "kind": "fn",
+          "line": 116,
+          "name": "from"
+        },
+        {
+          "kind": "impl",
+          "line": 121,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 122,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 144,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 145,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 163,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 164,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 210,
+          "name": "std::error::Error"
+        },
+        {
+          "kind": "type",
+          "line": 212,
+          "name": "Result"
+        }
+      ],
+      "title": "pub enum DecodeFailure {"
+    },
+    {
+      "bytes": 4982,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "claim",
+        "seal",
+        "registration",
+        "one",
+        "provider",
+        "conflict",
+        "mini-porep",
+        "context",
+        "error",
+        "registry",
+        "issue",
+        "nothing",
+        "replica",
+        "its",
+        "full",
+        "distinct",
+        "edge",
+        "codec",
+        "detection",
+        "roadmap",
+        "audited",
+        "fraud",
+        "penalty",
+        "exclusion"
+      ],
+      "lines": 102,
       "path": "crates/mini-storage-fraud/src/lib.rs",
-      "sha256": "3d12b9970af0952603d1111836b5d8d6bb1e9835891369fe46d8f3e2ac50f9c6",
+      "sha256": "551b208dc4371d5d5e5464b7a59ab36ccd15d3449f5cf8c22d16879bf25a1003",
       "symbols": [
         {
           "kind": "mod",
-          "line": 28,
+          "line": 71,
+          "name": "claim"
+        },
+        {
+          "kind": "mod",
+          "line": 72,
           "name": "codec"
         },
         {
           "kind": "mod",
-          "line": 29,
-          "name": "collision"
+          "line": 73,
+          "name": "conflict"
         },
         {
           "kind": "mod",
-          "line": 30,
-          "name": "commitment_claim"
+          "line": 74,
+          "name": "context"
         },
         {
           "kind": "mod",
-          "line": 31,
+          "line": 75,
           "name": "error"
+        },
+        {
+          "kind": "mod",
+          "line": 76,
+          "name": "registration"
+        },
+        {
+          "kind": "mod",
+          "line": 77,
+          "name": "registry"
+        },
+        {
+          "kind": "mod",
+          "line": 78,
+          "name": "seal"
         }
       ],
-      "title": "mod codec;"
+      "title": "mod claim;"
+    },
+    {
+      "bytes": 21656,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "kel",
+        "min_challenges_per_audit",
+        "challenges",
+        "min_distinct_auditors",
+        "one",
+        "auditor",
+        "quorum",
+        "provider",
+        "roots",
+        "const",
+        "u32",
+        "registrationpolicy",
+        "auditattestation",
+        "registrationreceipt",
+        "seal",
+        "root",
+        "what",
+        "audit",
+        "distinct",
+        "real",
+        "registration",
+        "max_audit_challenges",
+        "new",
+        "them"
+      ],
+      "lines": 569,
+      "path": "crates/mini-storage-fraud/src/registration.rs",
+      "sha256": "d5f71f8140711d67ad133e8081cfc1739ba6e0d782ec40b9d7bfcef9d4a63dd1",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 50,
+          "name": "AUDIT_ATTESTATION_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 53,
+          "name": "AUDIT_ATTESTATION_VERSION"
+        },
+        {
+          "kind": "const",
+          "line": 56,
+          "name": "REGISTRATION_RECEIPT_VERSION"
+        },
+        {
+          "kind": "const",
+          "line": 59,
+          "name": "MAX_ATTESTATIONS"
+        },
+        {
+          "kind": "const",
+          "line": 64,
+          "name": "MAX_AUDIT_CHALLENGES"
+        },
+        {
+          "kind": "trait",
+          "line": 73,
+          "name": "StorageRegistrationOracle"
+        },
+        {
+          "kind": "fn",
+          "line": 75,
+          "name": "kel"
+        },
+        {
+          "kind": "struct",
+          "line": 81,
+          "name": "RegistrationPolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 86,
+          "name": "RegistrationPolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 92,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 112,
+          "name": "baseline"
+        },
+        {
+          "kind": "fn",
+          "line": 119,
+          "name": "min_distinct_auditors"
+        },
+        {
+          "kind": "fn",
+          "line": 123,
+          "name": "min_challenges_per_audit"
+        },
+        {
+          "kind": "struct",
+          "line": 132,
+          "name": "AuditAttestation"
+        },
+        {
+          "kind": "impl",
+          "line": 144,
+          "name": "AuditAttestation"
+        },
+        {
+          "kind": "fn",
+          "line": 145,
+          "name": "auditor_root"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "auditor_device"
+        },
+        {
+          "kind": "fn",
+          "line": 153,
+          "name": "seal_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "challenge_seed"
+        },
+        {
+          "kind": "fn",
+          "line": 161,
+          "name": "challenge_count"
+        },
+        {
+          "kind": "fn",
+          "line": 167,
+          "name": "observed_at_ms"
+        },
+        {
+          "kind": "fn",
+          "line": 173,
+          "name": "attestation_id"
+        },
+        {
+          "kind": "fn",
+          "line": 177,
+          "name": "signing_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 198,
+          "name": "verify"
+        },
+        {
+          "kind": "fn",
+          "line": 229,
+          "name": "issue"
+        },
+        {
+          "kind": "fn",
+          "line": 271,
+          "name": "to_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 278,
+          "name": "from_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 288,
+          "name": "write_into"
+        },
+        {
+          "kind": "fn",
+          "line": 300,
+          "name": "read_from"
+        },
+        {
+          "kind": "fn",
+          "line": 345,
+          "name": "audit_and_attest"
+        },
+        {
+          "kind": "struct",
+          "line": 382,
+          "name": "RegistrationReceipt"
+        },
+        {
+          "kind": "impl",
+          "line": 386,
+          "name": "RegistrationReceipt"
+        },
+        {
+          "kind": "fn",
+          "line": 389,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 402,
+          "name": "attestations"
+        },
+        {
+          "kind": "fn",
+          "line": 409,
+          "name": "distinct_auditor_roots"
+        },
+        {
+          "kind": "fn",
+          "line": 424,
+          "name": "verify"
+        },
+        {
+          "kind": "fn",
+          "line": 462,
+          "name": "to_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 469,
+          "name": "from_bytes"
+        }
+      ],
+      "title": "use did_mini::{Capabilities, Controller, Did, IndexedSig, Kel};"
+    },
+    {
+      "bytes": 3956,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "claim",
+        "self",
+        "replica",
+        "root",
+        "conflict",
+        "accepted",
+        "registry",
+        "admission",
+        "by_replica_root",
+        "replica_root",
+        "new",
+        "registered",
+        "evidence",
+        "existing",
+        "replicaregistry",
+        "already",
+        "registeredreplicaclaim",
+        "box",
+        "len",
+        "is_empty",
+        "admit",
+        "verify_conflict",
+        "clone",
+        "alreadyregistered"
+      ],
+      "lines": 96,
+      "path": "crates/mini-storage-fraud/src/registry.rs",
+      "sha256": "49993dc381eb17d7336d5f912327e03b9d8ab33e1e92d3f8cbe7c37dce58eee9",
+      "symbols": [
+        {
+          "kind": "enum",
+          "line": 24,
+          "name": "Admission"
+        },
+        {
+          "kind": "struct",
+          "line": 38,
+          "name": "ReplicaRegistry"
+        },
+        {
+          "kind": "impl",
+          "line": 42,
+          "name": "ReplicaRegistry"
+        },
+        {
+          "kind": "fn",
+          "line": 43,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 48,
+          "name": "len"
+        },
+        {
+          "kind": "fn",
+          "line": 52,
+          "name": "is_empty"
+        },
+        {
+          "kind": "fn",
+          "line": 57,
+          "name": "registered"
+        },
+        {
+          "kind": "fn",
+          "line": 67,
+          "name": "admit"
+        }
+      ],
+      "title": "use std::collections::BTreeMap;"
+    },
+    {
+      "bytes": 8931,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "seal",
+        "reader",
+        "writer",
+        "count",
+        "node_count",
+        "num_layers",
+        "commitment",
+        "root",
+        "replica",
+        "layer_roots",
+        "sealcommitment",
+        "sealdefect",
+        "return",
+        "err",
+        "seal_commitment_version",
+        "max_node_count",
+        "max_layers",
+        "storagecommitment",
+        "mini_porep",
+        "one",
+        "const",
+        "len",
+        "replica_root",
+        "raw"
+      ],
+      "lines": 253,
+      "path": "crates/mini-storage-fraud/src/seal.rs",
+      "sha256": "0c257d91df83aa3592bdc0c9fb312ab0976dd6544715293972fba4f932236f69",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 25,
+          "name": "SEAL_COMMITMENT_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 28,
+          "name": "SEAL_COMMITMENT_VERSION"
+        },
+        {
+          "kind": "const",
+          "line": 34,
+          "name": "MAX_NODE_COUNT"
+        },
+        {
+          "kind": "const",
+          "line": 38,
+          "name": "MAX_LAYERS"
+        },
+        {
+          "kind": "fn",
+          "line": 45,
+          "name": "validate_seal_commitment"
+        },
+        {
+          "kind": "fn",
+          "line": 84,
+          "name": "storage_commitment_of"
+        },
+        {
+          "kind": "fn",
+          "line": 147,
+          "name": "seal_commitment_digest"
+        },
+        {
+          "kind": "mod",
+          "line": 155,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "commitment"
+        },
+        {
+          "kind": "fn",
+          "line": 169,
+          "name": "a_real_commitment_is_well_formed_and_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 182,
+          "name": "the_storage_commitment_is_the_replicas_own_root_and_size"
+        },
+        {
+          "kind": "fn",
+          "line": 190,
+          "name": "structurally_impossible_commitments_are_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 228,
+          "name": "the_digest_covers_every_field"
+        }
+      ],
+      "title": "use mini_porep::SealCommitment;"
+    },
+    {
+      "bytes": 36803,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "attacker",
+        "replica",
+        "party",
+        "provider",
+        "auditor",
+        "victim",
+        "commitment",
+        "context",
+        "data",
+        "first_auditor",
+        "second_auditor",
+        "assert_eq",
+        "own",
+        "honest",
+        "verified",
+        "root",
+        "attacker_replica",
+        "seal_for",
+        "replica_root",
+        "seal",
+        "forged",
+        "support",
+        "what",
+        "cannot"
+      ],
+      "lines": 1083,
+      "path": "crates/mini-storage-fraud/tests/adversarial.rs",
+      "sha256": "929ef6c061279b17c040e442e26d60bf0d6d45619adef29d37aad47017e0d078",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 7,
+          "name": "support"
+        },
+        {
+          "kind": "fn",
+          "line": 25,
+          "name": "an_audited_registered_claim_verifies_end_to_end"
+        },
+        {
+          "kind": "fn",
+          "line": 57,
+          "name": "copying_an_honest_providers_replica_root_does_not_survive_an_audit"
+        },
+        {
+          "kind": "fn",
+          "line": 101,
+          "name": "a_stolen_registration_receipt_does_not_transfer_to_another_identity"
+        },
+        {
+          "kind": "fn",
+          "line": 140,
+          "name": "a_replica_id_that_is_not_identity_derived_is_refused_at_issue_and_at_verify"
+        },
+        {
+          "kind": "fn",
+          "line": 188,
+          "name": "a_claim_for_a_different_context_does_not_verify"
+        },
+        {
+          "kind": "fn",
+          "line": 220,
+          "name": "a_provider_cannot_audit_its_own_registration"
+        },
+        {
+          "kind": "fn",
+          "line": 249,
+          "name": "two_devices_of_one_auditor_root_are_one_auditor"
+        },
+        {
+          "kind": "fn",
+          "line": 302,
+          "name": "a_quorum_that_reused_one_challenge_seed_did_not_sample_independently"
+        },
+        {
+          "kind": "fn",
+          "line": 329,
+          "name": "an_audit_that_sampled_too_few_challenges_is_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 356,
+          "name": "an_unanswered_challenge_fails_the_audit_rather_than_being_skipped"
+        },
+        {
+          "kind": "fn",
+          "line": 377,
+          "name": "a_policy_that_would_accept_self_assertion_cannot_be_constructed"
+        },
+        {
+          "kind": "fn",
+          "line": 398,
+          "name": "a_claim_survives_the_providers_ordinary_key_rotation"
+        },
+        {
+          "kind": "fn",
+          "line": 422,
+          "name": "an_auditors_attestation_also_survives_that_auditors_rotation"
+        },
+        {
+          "kind": "fn",
+          "line": 439,
+          "name": "a_device_without_the_store_capability_cannot_commit_its_root_to_a_replica"
+        },
+        {
+          "kind": "fn",
+          "line": 457,
+          "name": "a_device_the_root_never_delegated_cannot_speak_for_it"
+        },
+        {
+          "kind": "fn",
+          "line": 508,
+          "name": "a_revoked_storage_device_stops_verifying_once_the_root_kel_is_current"
+        },
+        {
+          "kind": "fn",
+          "line": 536,
+          "name": "a_registry_accepts_a_replica_root_once_and_recognises_a_replay"
+        },
+        {
+          "kind": "fn",
+          "line": 564,
+          "name": "a_registry_never_stores_a_claim_it_could_not_verify"
+        },
+        {
+          "kind": "fn",
+          "line": 591,
+          "name": "conflicting_claim_via_corrupt_quorum"
+        },
+        {
+          "kind": "fn",
+          "line": 632,
+          "name": "a_duplicate_replica_root_is_reported_as_an_unattributed_conflict"
+        },
+        {
+          "kind": "fn",
+          "line": 672,
+          "name": "a_duplicate_root_over_a_differently_shaped_replica_is_reported_separately"
+        },
+        {
+          "kind": "fn",
+          "line": 713,
+          "name": "a_registry_that_meets_the_second_claim_reports_a_conflict_and_keeps_the_first"
+        },
+        {
+          "kind": "fn",
+          "line": 764,
+          "name": "evidence_is_the_same_object_whichever_order_it_is_assembled_in"
+        },
+        {
+          "kind": "fn",
+          "line": 790,
+          "name": "unrelated_claims_are_not_a_conflict"
+        },
+        {
+          "kind": "fn",
+          "line": 829,
+          "name": "one_root_cannot_manufacture_a_conflict_against_itself"
+        },
+        {
+          "kind": "fn",
+          "line": 852,
+          "name": "a_conflict_between_claims_that_do_not_individually_verify_is_not_evidence"
+        },
+        {
+          "kind": "fn",
+          "line": 888,
+          "name": "every_object_round_trips_and_rejects_trailing_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 937,
+          "name": "a_threshold_identity_with_more_keys_than_the_old_codec_allowed_round_trips"
+        },
+        {
+          "kind": "fn",
+          "line": 1023,
+          "name": "a_receipt_whose_attestations_are_out_of_canonical_order_is_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 1055,
+          "name": "an_empty_quorum_cannot_be_built_or_decoded"
+        },
+        {
+          "kind": "fn",
+          "line": 1072,
+          "name": "a_seal_digest_is_what_ties_a_quorum_to_one_replica"
+        }
+      ],
+      "title": "mod support;"
+    },
+    {
+      "bytes": 5864,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "self",
+        "did",
+        "seed",
+        "kel",
+        "directory",
+        "provider",
+        "auditor",
+        "capabilities",
+        "controller",
+        "unwrap",
+        "root",
+        "device",
+        "party",
+        "real",
+        "new",
+        "seal",
+        "replica",
+        "root_did",
+        "context",
+        "insert",
+        "refresh",
+        "device_did",
+        "attest",
+        "sealedreplica"
+      ],
+      "lines": 194,
+      "path": "crates/mini-storage-fraud/tests/support/mod.rs",
+      "sha256": "cc961f1a4e34484d5e0bf1b549b03d53bea00e64fc602c26a78d1fbb8cc6b48d",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 21,
+          "name": "NODES"
+        },
+        {
+          "kind": "const",
+          "line": 22,
+          "name": "LAYERS"
+        },
+        {
+          "kind": "fn",
+          "line": 26,
+          "name": "policy"
+        },
+        {
+          "kind": "struct",
+          "line": 31,
+          "name": "Directory"
+        },
+        {
+          "kind": "impl",
+          "line": 33,
+          "name": "Directory"
+        },
+        {
+          "kind": "fn",
+          "line": 34,
+          "name": "insert"
+        },
+        {
+          "kind": "fn",
+          "line": 38,
+          "name": "refresh"
+        },
+        {
+          "kind": "fn",
+          "line": 42,
+          "name": "forget"
+        },
+        {
+          "kind": "impl",
+          "line": 47,
+          "name": "StorageRegistrationOracle"
+        },
+        {
+          "kind": "fn",
+          "line": 48,
+          "name": "kel"
+        },
+        {
+          "kind": "struct",
+          "line": 54,
+          "name": "Party"
+        },
+        {
+          "kind": "impl",
+          "line": 59,
+          "name": "Party"
+        },
+        {
+          "kind": "fn",
+          "line": 60,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 74,
+          "name": "provider"
+        },
+        {
+          "kind": "fn",
+          "line": 79,
+          "name": "auditor"
+        },
+        {
+          "kind": "fn",
+          "line": 83,
+          "name": "root_did"
+        },
+        {
+          "kind": "fn",
+          "line": 87,
+          "name": "device_did"
+        },
+        {
+          "kind": "fn",
+          "line": 91,
+          "name": "register"
+        },
+        {
+          "kind": "fn",
+          "line": 97,
+          "name": "context"
+        },
+        {
+          "kind": "fn",
+          "line": 107,
+          "name": "data"
+        },
+        {
+          "kind": "fn",
+          "line": 114,
+          "name": "seal_for"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "attest"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "receipt"
+        },
+        {
+          "kind": "fn",
+          "line": 165,
+          "name": "registered_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 187,
+          "name": "directory_of"
+        }
+      ],
+      "title": "use did_mini::{Capabilities, Controller, Did, Kel};"
+    },
+    {
+      "bytes": 6335,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "assert_eq",
+        "root",
+        "device",
+        "bytes",
+        "preimage",
+        "did",
+        "commitment",
+        "fixed_context",
+        "hex",
+        "extend_from_slice",
+        "fixed_identities",
+        "unwrap",
+        "len",
+        "vectors",
+        "these",
+        "fixed",
+        "replicacontextv1",
+        "replica_id_domain",
+        "derived",
+        "const",
+        "scid",
+        "root_current_seed",
+        "root_next_seed",
+        "device_current_seed"
+      ],
+      "lines": 179,
+      "path": "crates/mini-storage-fraud/tests/vectors.rs",
+      "sha256": "c158e7ac6c0923f7ef6a14d7fe7ad9e4695492d56b9eb9bbbaa6069b055ad6c8",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 12,
+          "name": "support"
+        },
+        {
+          "kind": "fn",
+          "line": 20,
+          "name": "hex"
+        },
+        {
+          "kind": "const",
+          "line": 26,
+          "name": "ROOT_CURRENT_SEED"
+        },
+        {
+          "kind": "const",
+          "line": 27,
+          "name": "ROOT_NEXT_SEED"
+        },
+        {
+          "kind": "const",
+          "line": 28,
+          "name": "DEVICE_CURRENT_SEED"
+        },
+        {
+          "kind": "const",
+          "line": 29,
+          "name": "DEVICE_NEXT_SEED"
+        },
+        {
+          "kind": "fn",
+          "line": 31,
+          "name": "fixed_identities"
+        },
+        {
+          "kind": "fn",
+          "line": 42,
+          "name": "fixed_context"
+        },
+        {
+          "kind": "fn",
+          "line": 53,
+          "name": "identity_vectors"
+        },
+        {
+          "kind": "fn",
+          "line": 69,
+          "name": "replica_context_encoding_vector"
+        },
+        {
+          "kind": "fn",
+          "line": 91,
+          "name": "replica_id_derivation_vector"
+        },
+        {
+          "kind": "fn",
+          "line": 119,
+          "name": "seal_commitment_encoding_and_digest_vector"
+        },
+        {
+          "kind": "fn",
+          "line": 144,
+          "name": "a_claim_encodes_to_stable_bytes"
+        }
+      ],
+      "title": "mod support;"
     },
     {
       "bytes": 520,
@@ -66512,7 +67929,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 933713,
+      "bytes": 947396,
       "group": "docs",
       "headings": [
         {
@@ -66920,8 +68337,8 @@
         "accepted",
         "track",
         "issue",
-        "real",
         "proposed",
+        "real",
         "android",
         "founder",
         "beta",
@@ -66934,17 +68351,17 @@
         "log",
         "batch",
         "local",
-        "phase",
         "signed",
+        "phase",
         "roadmap",
         "release",
         "first",
         "status",
         "deterministic"
       ],
-      "lines": 15534,
+      "lines": 15756,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "77a3fac081ad7fb0d71d597c46ecf3e8dffbf209ed6b70889212485ce60ebb70",
+      "sha256": "ac415f4faae79491f2566e0ed9f221d171d4f13b84199c1456ebb4e09d0aae48",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68093,7 +69510,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 126567,
+      "bytes": 128483,
       "group": "docs",
       "headings": [
         {
@@ -68143,47 +69560,47 @@
         },
         {
           "level": 2,
-          "line": 771,
+          "line": 801,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 832,
+          "line": 862,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 862,
+          "line": 892,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1158,
+          "line": 1188,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1638,
+          "line": 1668,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1729,
+          "line": 1759,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1809,
+          "line": 1839,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1875,
+          "line": 1905,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 1892,
+          "line": 1922,
           "text": "Privacy and transport security \u2014 D-0377 proposal"
         }
       ],
@@ -68213,9 +69630,9 @@
         "design",
         "claude"
       ],
-      "lines": 1924,
+      "lines": 1954,
       "path": "docs/STATUS.md",
-      "sha256": "60eac01976cfc9911dfb62d2303581a17afbe091c7532030afdbb66a23b46e8d",
+      "sha256": "560fda606810224d0e8120fe79fea2f7af014babeea3e28b6244daeb52c1b6d5",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -68618,44 +70035,49 @@
       "title": "Windows client security boundary"
     },
     {
-      "bytes": 2380,
+      "bytes": 4086,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
           "text": "Audits"
+        },
+        {
+          "level": 2,
+          "line": 22,
+          "text": "Required scope header (D-0441)"
         }
       ],
       "keywords": [
         "issues",
+        "what",
+        "scope",
+        "verdict",
         "open",
         "audits",
-        "file",
-        "pass",
         "fixed",
+        "audit",
+        "written",
+        "file",
+        "closes",
+        "pass",
+        "built",
+        "commit",
+        "versions",
+        "one",
+        "required",
+        "header",
+        "d-0441",
+        "review",
+        "each",
         "github",
         "issue",
-        "closes",
-        "what",
-        "verdict",
-        "issue-8-constitutional-audit",
-        "built",
-        "issue-10-frozen-invariants-review",
-        "current",
-        "issue-29-cid-integrity-review",
-        "issue-71-memory-safety-audit",
-        "issue-12-did-mini-security-audit",
-        "sound",
-        "issue-13-identity-recovery-audit",
-        "recovery",
-        "issue-17-presence-attack-review",
-        "issue-18-sybil-social-graph-review",
-        "new"
+        "issue-8-constitutional-audit"
       ],
-      "lines": 26,
+      "lines": 58,
       "path": "docs/audits/README.md",
-      "sha256": "f1c02f82b284734feda7ce21fd524a98976d96cdf148cdb695eef406d4e0d96b",
+      "sha256": "244a21cd15828ab14d9cd4304351299dd8968922e68651e52b071ca71430e48d",
       "symbols": [],
       "title": "Audits"
     },
@@ -68911,6 +70333,545 @@
       "sha256": "8d2eab6b81d4d1b4eed08397f3cb7264caa6363a10a52cf3cbe94cbb806e9fa5",
       "symbols": [],
       "title": "Transparent balance ledger adversarial review"
+    },
+    {
+      "bytes": 8408,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Response to the full-codebase improvement audit of 2026-08-05"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "1. Review identity and exact state"
+        },
+        {
+          "level": 2,
+          "line": 19,
+          "text": "2. Reviewer competence and independence"
+        },
+        {
+          "level": 2,
+          "line": 28,
+          "text": "3. Scope and exclusions"
+        },
+        {
+          "level": 3,
+          "line": 30,
+          "text": "Included"
+        },
+        {
+          "level": 3,
+          "line": 36,
+          "text": "Excluded"
+        },
+        {
+          "level": 3,
+          "line": 44,
+          "text": "Claims examined"
+        },
+        {
+          "level": 2,
+          "line": 51,
+          "text": "4. Review questions"
+        },
+        {
+          "level": 2,
+          "line": 62,
+          "text": "5. Findings"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "6. Response and disposition"
+        },
+        {
+          "level": 2,
+          "line": 127,
+          "text": "7. Closure recommendation"
+        },
+        {
+          "level": 2,
+          "line": 135,
+          "text": "8. Attestation"
+        },
+        {
+          "level": 2,
+          "line": 143,
+          "text": "9. What this response does not prove"
+        }
+      ],
+      "keywords": [
+        "audit",
+        "review",
+        "state",
+        "response",
+        "findings",
+        "against",
+        "does",
+        "confirmed",
+        "own",
+        "identity",
+        "scope",
+        "what",
+        "batch",
+        "gate",
+        "reproduced",
+        "repository",
+        "proof",
+        "exact",
+        "reviewer",
+        "competence",
+        "claims",
+        "disposition",
+        "evidence",
+        "code"
+      ],
+      "lines": 152,
+      "path": "docs/audits/external-full-codebase-audit-2026-08-05-response.md",
+      "sha256": "df883b11909f4e52bafe60493e0292b01312f69d0f50f2ffc7969cc42251e576",
+      "symbols": [],
+      "title": "Response to the full-codebase improvement audit of 2026-08-05"
+    },
+    {
+      "bytes": 43411,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 20,
+          "text": "Mininet Full-Codebase Improvement Audit"
+        },
+        {
+          "level": 2,
+          "line": 30,
+          "text": "1. Executive assessment"
+        },
+        {
+          "level": 3,
+          "line": 36,
+          "text": "Overall verdict"
+        },
+        {
+          "level": 3,
+          "line": 44,
+          "text": "Top ten priorities"
+        },
+        {
+          "level": 2,
+          "line": 59,
+          "text": "2. Audit scope and limitations"
+        },
+        {
+          "level": 2,
+          "line": 81,
+          "text": "3. Cross-cutting architectural findings"
+        },
+        {
+          "level": 3,
+          "line": 83,
+          "text": "3.1 Breadth has exceeded the project\u2019s current integration capacity"
+        },
+        {
+          "level": 3,
+          "line": 106,
+          "text": "3.2 Too many security properties remain caller responsibilities"
+        },
+        {
+          "level": 3,
+          "line": 120,
+          "text": "3.3 Separate libraries are often ahead of a canonical state model"
+        },
+        {
+          "level": 3,
+          "line": 145,
+          "text": "3.4 The repository needs an explicit complexity budget"
+        },
+        {
+          "level": 2,
+          "line": 161,
+          "text": "4. Identity, KEL, delegation, and recovery"
+        },
+        {
+          "level": 3,
+          "line": 163,
+          "text": "4.1 Historical detached signatures are not first-class"
+        },
+        {
+          "level": 3,
+          "line": 174,
+          "text": "4.2 Freshness remains a critical unresolved boundary"
+        },
+        {
+          "level": 3,
+          "line": 186,
+          "text": "4.3 Device authority is not consistently modeled across domains"
+        },
+        {
+          "level": 3,
+          "line": 200,
+          "text": "4.4 Root keys risk being pulled into online workflows"
+        },
+        {
+          "level": 3,
+          "line": 206,
+          "text": "4.5 Pairwise identity recovery and rotation require deeper lifecycle tests"
+        },
+        {
+          "level": 3,
+          "line": 218,
+          "text": "4.6 Identity data structures need cross-language vectors"
+        },
+        {
+          "level": 2,
+          "line": 235,
+          "text": "5. Cryptography and cryptographic protocol boundaries"
+        },
+        {
+          "level": 3,
+          "line": 237,
+          "text": "5.1 \u201cComposed from reviewed primitives\u201d is not equivalent to reviewed protocol"
+        },
+        {
+          "level": 3,
+          "line": 251,
+          "text": "5.2 Eliminate absolute cryptographic wording"
+        },
+        {
+          "level": 3,
+          "line": 257,
+          "text": "5.3 Protocol transcripts need one canonical framework"
+        },
+        {
+          "level": 3,
+          "line": 282,
+          "text": "5.4 Add cryptographic misuse tests"
+        },
+        {
+          "level": 3,
+          "line": 296,
+          "text": "5.5 Post-quantum migration must include stored historical signatures"
+        },
+        {
+          "level": 2,
+          "line": 311,
+          "text": "6. Wire formats, codecs, serialization, and compatibility"
+        },
+        {
+          "level": 3,
+          "line": 313,
+          "text": "6.1 Codec duplication is now a systemic risk"
+        },
+        {
+          "level": 3,
+          "line": 324,
+          "text": "6.2 Use checked conversions everywhere"
+        },
+        {
+          "level": 3,
+          "line": 336,
+          "text": "6.3 Encoders should not produce undecodable values"
+        },
+        {
+          "level": 3,
+          "line": 340,
+          "text": "6.4 Canonical ordering must be explicit"
+        },
+        {
+          "level": 3,
+          "line": 344,
+          "text": "6.5 Versioning needs migration policy, not only version tags"
+        },
+        {
+          "level": 3,
+          "line": 355,
+          "text": "6.6 Add fuzzing for every public decoder"
+        },
+        {
+          "level": 2,
+          "line": 371,
+          "text": "7. Storage, PoRep, spacetime, erasure, and fraud evidence"
+        },
+        {
+          "level": 3,
+          "line": 373,
+          "text": "7.1 PR #297 has blocking soundness issues"
+        },
+        {
+          "level": 3,
+          "line": 389,
+          "text": "7.2 Storage identity binding needs a founder-level decision"
+        },
+        {
+          "level": 3,
+          "line": 402,
+          "text": "7.3 Registration and ongoing possession must be one authenticated lifecycle"
+        },
+        {
+          "level": 3,
+          "line": 420,
+          "text": "7.4 Probabilistic audit parameters need security calculations"
+        },
+        {
+          "level": 3,
+          "line": 434,
+          "text": "7.5 Merkle proof verification should validate proof shape"
+        },
+        {
+          "level": 3,
+          "line": 438,
+          "text": "7.6 Erasure coding needs end-to-end corruption and repair tests"
+        },
+        {
+          "level": 3,
+          "line": 451,
+          "text": "7.7 Capacity accounting must bind bytes, pieces, and proofs"
+        },
+        {
+          "level": 2,
+          "line": 457,
+          "text": "8. Networking, transport, relay, bridge, and sync"
+        },
+        {
+          "level": 3,
+          "line": 459,
+          "text": "8.1 Networking remains more demo-like than service-like"
+        },
+        {
+          "level": 3,
+          "line": 465,
+          "text": "8.2 Unify transport security and application authentication"
+        },
+        {
+          "level": 3,
+          "line": 477,
+          "text": "8.3 Add a deterministic network simulator"
+        },
+        {
+          "level": 3,
+          "line": 494,
+          "text": "8.4 Peer scoring must remain behavior-scoped"
+        },
+        {
+          "level": 3,
+          "line": 498,
+          "text": "8.5 Metadata privacy needs traffic-level testing"
+        },
+        {
+          "level": 2,
+          "line": 504,
+          "text": "9. Messaging and private communication"
+        },
+        {
+          "level": 3,
+          "line": 506,
+          "text": "9.1 Current private messaging is not yet a secure-chat protocol"
+        },
+        {
+          "level": 3,
+          "line": 512,
+          "text": "9.2 Ratchet implementation should reuse reviewed prior art"
+        },
+        {
+          "level": 3,
+          "line": 516,
+          "text": "9.3 Multi-device semantics need an explicit model"
+        },
+        {
+          "level": 3,
+          "line": 528,
+          "text": "9.4 Mailbox abuse and privacy are inseparable"
+        },
+        {
+          "level": 2,
+          "line": 542,
+          "text": "10. Consensus, chain, settlement, execution, and value"
+        },
+        {
+          "level": 3,
+          "line": 544,
+          "text": "10.1 Verification libraries are ahead of a real networked consensus deployment"
+        },
+        {
+          "level": 3,
+          "line": 559,
+          "text": "10.2 Add formal state-machine tests"
+        },
+        {
+          "level": 3,
+          "line": 571,
+          "text": "10.3 Time and finality must not rely on local wall clocks"
+        },
+        {
+          "level": 3,
+          "line": 575,
+          "text": "10.4 Economic parameters need simulation tied to executable code"
+        },
+        {
+          "level": 3,
+          "line": 579,
+          "text": "10.5 Separate evidence from automatic penalties"
+        },
+        {
+          "level": 3,
+          "line": 589,
+          "text": "10.6 Value code requires a stronger audit and release gate"
+        },
+        {
+          "level": 2,
+          "line": 595,
+          "text": "11. Treasury, DKG, threshold signing, and custody"
+        },
+        {
+          "level": 3,
+          "line": 597,
+          "text": "11.1 Threshold custody needs operational ceremonies, not only algorithms"
+        },
+        {
+          "level": 3,
+          "line": 612,
+          "text": "11.2 Secret material lifecycle needs hardware-backed integration"
+        },
+        {
+          "level": 3,
+          "line": 623,
+          "text": "11.3 DKG and FROST need interoperable vectors"
+        },
+        {
+          "level": 2,
+          "line": 629,
+          "text": "12. Personhood, uniqueness, presence, and human evidence"
+        },
+        {
+          "level": 3,
+          "line": 631,
+          "text": "12.1 Identity-root counting must never be presented as human uniqueness"
+        },
+        {
+          "level": 3,
+          "line": 644,
+          "text": "12.2 Presence is not distance bounding"
+        },
+        {
+          "level": 3,
+          "line": 648,
+          "text": "12.3 Signal fusion needs adversarial calibration"
+        },
+        {
+          "level": 3,
+          "line": 661,
+          "text": "12.4 Avoid irreversible global reputation"
+        },
+        {
+          "level": 3,
+          "line": 665,
+          "text": "12.5 Government or institutional attestations must remain optional"
+        },
+        {
+          "level": 2,
+          "line": 671,
+          "text": "13. Forge, provenance, builds, releases, updates, and installer"
+        },
+        {
+          "level": 3,
+          "line": 673,
+          "text": "13.1 The forge spine is one of the strongest areas"
+        },
+        {
+          "level": 3,
+          "line": 677,
+          "text": "13.2 Reproducibility must include environment capture"
+        },
+        {
+          "level": 3,
+          "line": 691,
+          "text": "13.3 Native tool execution remains a major sandbox gap"
+        },
+        {
+          "level": 3,
+          "line": 695,
+          "text": "13.4 Installer rollback needs power-loss testing"
+        },
+        {
+          "level": 3,
+          "line": 709,
+          "text": "13.5 Release transparency should be independently replicated"
+        },
+        {
+          "level": 3,
+          "line": 713,
+          "text": "13.6 Git import/export needs ambiguity rules"
+        },
+        {
+          "level": 2,
+          "line": 729,
+          "text": "14. Search, crawling, extraction, ranking, and federation"
+        },
+        {
+          "level": 3,
+          "line": 731,
+          "text": "14.1 Search components need an end-to-end service"
+        },
+        {
+          "level": 3,
+          "line": 735,
+          "text": "14.2 Extraction must remain out of process"
+        },
+        {
+          "level": 3,
+          "line": 739,
+          "text": "14.3 Robots and politeness are production blockers"
+        },
+        {
+          "level": 3,
+          "line": 743,
+          "text": "14.4 Federated query privacy is not PIR"
+        },
+        {
+          "level": 3,
+          "line": 747,
+          "text": "14.5 Ranking needs provenance and manipulation resistance"
+        },
+        {
+          "level": 3,
+          "line": 760,
+          "text": "14.6 Index exchange needs poisoning defenses"
+        }
+      ],
+      "keywords": [
+        "need",
+        "repository",
+        "needs",
+        "audit",
+        "add",
+        "identity",
+        "integration",
+        "protocol",
+        "boundaries",
+        "testing",
+        "phase",
+        "vertical",
+        "current",
+        "state",
+        "freshness",
+        "cryptographic",
+        "reviewed",
+        "storage",
+        "evidence",
+        "verification",
+        "value",
+        "replay",
+        "review",
+        "scope"
+      ],
+      "lines": 1227,
+      "path": "docs/audits/external-full-codebase-audit-2026-08-05.md",
+      "sha256": "e44db26fa5ef8187a4a84913e498d6e9e0535babc8d7013f7dff23f920af2c9a",
+      "symbols": [],
+      "title": "Mininet Full-Codebase Improvement Audit"
     },
     {
       "bytes": 10470,
@@ -69574,7 +71535,7 @@
       "title": "Issue #44 \u2014 consensus edge-case attack review"
     },
     {
-      "bytes": 6706,
+      "bytes": 7511,
       "group": "docs",
       "headings": [
         {
@@ -69584,59 +71545,59 @@
         },
         {
           "level": 2,
-          "line": 9,
+          "line": 21,
           "text": "1. Workspace `#![forbid(unsafe_code)]` coverage"
         },
         {
           "level": 2,
-          "line": 25,
+          "line": 37,
           "text": "2. Dependency tree: does `unsafe` appear, and is it expected?"
         },
         {
           "level": 2,
-          "line": 59,
+          "line": 71,
           "text": "3. Dependency-vulnerability scanning: a real finding from setting this up"
         },
         {
           "level": 2,
-          "line": 94,
+          "line": 106,
           "text": "4. What this audit does *not* claim"
         },
         {
           "level": 2,
-          "line": 109,
+          "line": 121,
           "text": "Verdict"
         }
       ],
       "keywords": [
         "audit",
         "workspace",
-        "unsafe",
         "forbid",
+        "unsafe",
         "unsafe_code",
-        "cargo",
-        "simd",
-        "cargo-audit",
-        "real",
         "every",
-        "each",
-        "error",
-        "dependency",
-        "attribute",
-        "intrinsics",
-        "version",
-        "across",
-        "coverage",
+        "simd",
         "tree",
+        "real",
+        "attribute",
+        "each",
+        "coverage",
+        "dependency",
+        "scope",
+        "intrinsics",
+        "across",
         "does",
         "expected",
+        "finding",
         "issue",
         "guarantee",
-        "actually"
+        "actually",
+        "lib",
+        "way"
       ],
-      "lines": 116,
+      "lines": 128,
       "path": "docs/audits/issue-71-memory-safety-audit.md",
-      "sha256": "bc6e90799bc750b54ae8cfdada45999672015fd848f82283e352602e7e993aa9",
+      "sha256": "d1421c8cca0e17f6850c135b207b2a2fe4a6213765e189792cbd99529732d9e7",
       "symbols": [],
       "title": "Memory-safety audit across all crates"
     },
@@ -73193,81 +75154,126 @@
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
     {
-      "bytes": 9340,
+      "bytes": 15127,
       "group": "docs",
       "headings": [
         {
           "level": 1,
           "line": 1,
-          "text": "Storage-fraud detection: replica-commitment collision evidence"
+          "text": "Storage-fraud detection: identity-bound replicas, audited registration, and replica-conflict evidence"
         },
         {
           "level": 2,
-          "line": 7,
-          "text": "The gap this closes"
+          "line": 9,
+          "text": "1. The gap, stated precisely"
         },
         {
           "level": 2,
           "line": 15,
-          "text": "What this is (Phase 1: `mini-storage-fraud`)"
+          "text": "2. What the previous iteration got wrong"
         },
         {
           "level": 2,
-          "line": 21,
-          "text": "What this is not"
+          "line": 25,
+          "text": "3. The design"
         },
         {
-          "level": 2,
+          "level": 3,
           "line": 27,
-          "text": "Constitutional and authority impact"
+          "text": "3.1 A typed context, not opaque bytes"
+        },
+        {
+          "level": 3,
+          "line": 42,
+          "text": "3.2 The identity-bound replica id"
+        },
+        {
+          "level": 3,
+          "line": 57,
+          "text": "3.3 Registration: somebody other than the provider has to look"
+        },
+        {
+          "level": 3,
+          "line": 69,
+          "text": "3.4 Durable signatures across key rotation"
+        },
+        {
+          "level": 3,
+          "line": 78,
+          "text": "3.5 A capability for storing"
+        },
+        {
+          "level": 3,
+          "line": 82,
+          "text": "3.6 The registry is the enforcement point"
+        },
+        {
+          "level": 3,
+          "line": 88,
+          "text": "3.7 Conflict evidence, and what it refuses to say"
         },
         {
           "level": 2,
-          "line": 31,
-          "text": "Tests"
+          "line": 94,
+          "text": "4. A soundness gap this work found in `mini-porep`"
         },
         {
           "level": 2,
-          "line": 41,
-          "text": "Required follow-up"
+          "line": 104,
+          "text": "5. What this deliberately does not attempt"
         },
         {
           "level": 2,
-          "line": 47,
-          "text": "Supersedes / superseded by"
+          "line": 111,
+          "text": "6. Why this is not consensus equivocation"
+        },
+        {
+          "level": 2,
+          "line": 115,
+          "text": "7. Open questions for founder/governance review"
+        },
+        {
+          "level": 2,
+          "line": 122,
+          "text": "8. Required follow-up"
+        },
+        {
+          "level": 2,
+          "line": 130,
+          "text": "9. Supersedes / superseded by"
         }
       ],
       "keywords": [
-        "evidence",
-        "same",
-        "two",
         "what",
         "one",
-        "identity",
+        "bytes",
         "root",
-        "own",
-        "replica_id",
-        "phase",
-        "its",
-        "sealed",
-        "sealing",
-        "provider",
-        "collision",
+        "replica",
         "mini-porep",
-        "module",
+        "evidence",
+        "issues",
+        "two",
+        "claim",
+        "u32be",
+        "design",
+        "identity-bound",
+        "registration",
+        "provider",
+        "work",
+        "nothing",
         "proves",
-        "itself",
-        "issue",
-        "already",
-        "different",
-        "roots",
-        "signed"
+        "binding",
+        "storage-fraud",
+        "detection",
+        "audited",
+        "gap",
+        "context"
       ],
-      "lines": 50,
+      "lines": 133,
       "path": "docs/design/storage-fraud-detection.md",
-      "sha256": "0066e9ded4011b702c75692517c4a5e8b5c3dfac304d18854ad1610043aeed22",
+      "sha256": "ff026ba391047a97815db00691128b995735424bf5942922a3aadbc54332cbb6",
       "symbols": [],
-      "title": "Storage-fraud detection: replica-commitment collision evidence"
+      "title": "Storage-fraud detection: identity-bound replicas, audited registration, and replica-conflict evidence"
     },
     {
       "bytes": 12770,
@@ -83054,7 +85060,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 33684,
+      "bytes": 35104,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -83083,9 +85089,9 @@
         "independently",
         "both"
       ],
-      "lines": 645,
+      "lines": 659,
       "path": "governance/work-claims.json",
-      "sha256": "3f336713097478d0dabbf00d7dcdeed850ff03e898f03ea57fe2ed18013f6828",
+      "sha256": "42c7124bf91bf6c18891ac36a088d00db5970db68252e0b88e364ef93afa3856",
       "symbols": [],
       "title": "{"
     },

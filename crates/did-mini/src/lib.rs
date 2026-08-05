@@ -70,10 +70,13 @@ pub use controller::Controller;
 pub use delegation::{Capabilities, Seal};
 pub use duplicity::DuplicityRegistry;
 pub use error::{IdentityError, Result};
-pub use event::{Establishment, Event, EventKind, IndexedSig};
+pub use event::{
+    canonicalize_signatures, signatures_are_canonical, Establishment, Event, EventKind, IndexedSig,
+};
 pub use freshness::FreshnessPins;
 pub use identity_mode::IdentityMode;
 pub use kel::{verify_delegation, Kel, KeyState};
+pub use limits::{MAX_DID_BYTES, MAX_KEYS, MAX_SIGNATURES, MAX_SIGNATURE_BYTES};
 pub use witness::{
     sign_witness_receipt, KeyEventKind, WitnessCertificateVersion, WitnessId, WitnessPolicy,
     WitnessReceipt, WitnessReceiptStatement, WitnessReceiptVersion, WitnessedEventCertificate,

@@ -15531,3 +15531,225 @@ D-0064) or `mini-spacetime`'s `StorageCommitment`/PDP machinery. A
 sibling to, not an extension of, `mini_consensus::evidence::
 EquivocationEvidence` (D-0204) — `mini-storage-fraud` does not depend on
 `mini-consensus`.
+
+### D-0439 — Superseding D-0437: identity-bound replica registration and unattributed replica-conflict evidence  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** supersedes D-0437 (merged via PR #297);
+roadmap #42 (Phase 5.7 — still only partly discharged); #31 (`mini-porep`,
+D-0063/D-0064); #18/#21 (personhood/Sybil, unsolved); #72/D-0047 (external
+crypto audit gate); external review of PR #297 and the full-codebase audit of
+2026-08-05 §7.1; `docs/design/storage-fraud-detection.md`.
+
+**Decision:** replace D-0437's `StorageCommitmentClaim`/`CollisionEvidence`
+with registered replica claims. D-0437's entry above stands unedited as
+history; this supersedes it.
+
+1. `ReplicaContextV1` — a typed, fixed-width canonical context (network id,
+   assignment id, shard index, replica ordinal, sealing-policy version), not an
+   opaque caller-chosen 32 bytes.
+2. `derive_replica_id(root, device, context)` — the one replica id a provider
+   may seal under, with a byte-level normative preimage and fixed vectors.
+3. `AuditAttestation`/`audit_and_attest` — an independent auditor actually
+   running `mini_porep`'s registration audit against the full `SealCommitment`
+   under a seed the auditor chose, signing only if every sampled challenge
+   verifies. `RegistrationReceipt` is a quorum, checked against a
+   `RegistrationPolicy` (distinct auditor roots, challenges per audit, no
+   self-attestation, pairwise-distinct seeds).
+4. `RegisteredReplicaClaim` — carries the full seal commitment and its
+   registration receipt; `verify` enforces delegation under a new
+   `Capabilities::STORE`, historical-KEL signature verification at a pinned
+   sequence and event digest, and the identity-bound replica id. The
+   `mini_spacetime::StorageCommitment` is *derived* from the audited seal,
+   never supplied alongside it.
+5. `ReplicaRegistry` — refuses a second claim over an already-accepted replica
+   root. This is the primary enforcement point.
+6. `verify_conflict` — the cross-registry backstop, returning
+   `VerifiedReplicaConflict { attribution: Unattributed }`.
+
+**Reason:** D-0437 bound nothing to `mini-porep`. It signed a bare
+caller-supplied `StorageCommitment`, so an attacker could copy an honest
+provider's published Merkle root, sign it under their own valid DID, and
+produce evidence that verified — framing an honest provider with no replica,
+no challenge, and no forged signature. The general lesson, recorded because it
+is easy to repeat: **a signature over a value proves someone signed the value,
+never that the value describes reality.** Where the protocol wants the second
+thing, something other than the signer must have checked.
+
+Attribution is withheld deliberately. Even with the binding fixed, a duplicate
+replica root shows at least one registration is unsound, not which one, and is
+consistent with two honest providers plus one corrupt auditor quorum. An enum
+offering `First`/`Second` would invite consumers to guess; `Unattributed` is
+the whole truth the object carries.
+
+**Constitutional impact:** none. No frozen invariant touched. No voice/value
+wall edge (P1, Directive 16): `mini-storage-fraud` depends only on `did-mini`,
+`mini-crypto`, `mini-porep`, `mini-spacetime`, and nothing depends on it. No
+generic `sign(bytes)` surface. No penalty, exclusion, reward clawback, or
+consensus authority. Counting is by identity root, never by device or
+attestation count, and the decision states plainly that distinct roots are not
+distinct humans. `Capabilities::STORE` is additive and in neither secure
+default, so it narrows rather than inflates any device.
+
+**Implementation status:** `context.rs`, `seal.rs`, `registration.rs`,
+`claim.rs`, `conflict.rs`, `registry.rs`, `codec.rs`, `error.rs`, replacing
+D-0437's `commitment_claim.rs`/`collision.rs`. 30 adversarial tests and 5
+golden-vector tests over real identities, real seals and real audits.
+
+**Failure point:** the residual attack is a corrupt auditor quorum — one that
+signs without auditing. Nothing cryptographic prevents it, and
+`AuditAttestation::issue` is exposed precisely so that attack can be written
+down and tested rather than assumed away. Bounding it would need Sybil
+resistance, which does not exist (#18). Every timestamp here is self-reported;
+historical KEL verification pins *where* in a signer's history a claim sits,
+never *when*. The registry is local and in-memory with no consensus behind it.
+`mini-porep` remains unaudited prototype cryptography.
+
+**Required follow-up:** external cryptographic audit (#72, D-0047) before this
+gates value; a consequence layer consuming conflict evidence; a networked,
+replicated registration surface; timing/latency detection once a live
+deployment exists to calibrate against; and founder resolution of the four
+open questions in the design doc §7 — above all whether replica uniqueness
+binds to the root, the device, or root + device + ordinal — before this leaves
+*Proposed*. Entirely AI-drafted; AI review carries zero approval weight.
+
+**Supersedes / superseded by:** supersedes D-0437 in full. Modifies
+`mini-porep` (D-0064) only via D-0440's sampling fix. Extends `did-mini`
+additively. Sibling to, not an extension of,
+`mini_consensus::evidence::EquivocationEvidence` (D-0204).
+
+### D-0440 — Shared correctness floor for signed objects, PoRep audits, and Merkle proofs  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** D-0439 (the remediation that surfaced the
+first three); full-codebase audit of 2026-08-05 §6.1/§6.4/§7.4/§7.5; SPEC-01
+§4/§6; D-0064 (`mini-porep`); #72/D-0047.
+
+**Decision:** four corrections to already-merged code, each a rule that was
+restated per crate instead of owned by the crate that owns the type.
+
+1. **One signature limit.** `did-mini` permits 32 keys and 64 signatures;
+   seven crates capped their decoders at 16 (`mini-attest`, `mini-bridge`,
+   `mini-objects` ×3, `mini-private-index`, `mini-relay`). A threshold identity
+   above that could sign an object, verify it in memory, encode it, and then
+   fail to decode its own bytes. `did-mini` now exports `MAX_SIGNATURES`,
+   `MAX_KEYS`, `MAX_SIGNATURE_BYTES`, `MAX_DID_BYTES`, and every decoder
+   references them.
+2. **One canonical order.** Those same decoders accepted unsorted or repeated
+   signature lists. Every object involved is content-addressed by its own
+   bytes, so one logical object could carry several identities, and a dedup
+   index or replay check keyed on that id would admit a duplicate as new.
+   `did_mini::signatures_are_canonical`/`canonicalize_signatures` are the
+   shared rule; each decoder rejects violations with a dedicated
+   `NoncanonicalSignatureOrder` error rather than folding them into
+   `LimitExceeded`.
+3. **A final-layer reservation in `mini-porep`'s audit.**
+   `verify_audit_response` binds `SealCommitment::replica_root` only at
+   final-layer challenges — the one place the XOR-encoding step is checked.
+   `sample_challenges` drew layers uniformly, so an audit could draw no
+   final-layer challenge and succeed having never constrained `replica_root`;
+   a prover could publish another provider's replica root, or arbitrary bytes,
+   and pass. For a 2-layer seal with 8 challenges that is `(2/3)^8`, about one
+   audit in twenty-six. It now reserves `max(1, count / (num_layers + 1))`
+   challenges for that layer (`encoding_challenge_budget`).
+4. **Merkle proof shape validation.** `MerkleProof::verify` walked whatever
+   sibling list it was handed without checking that list against the declared
+   `leaf_count`. A `None` sibling is a no-op in the fold, so a proof padded
+   with extra `None`s verified identically to the honest one — the same
+   logical proof with unlimited valid encodings, and an unbounded sibling
+   vector for any future decoder to allocate from. `verify` now requires the
+   sibling count to equal the depth `leaf_count` implies.
+
+**Reason:** (1) and (2) are one mistake with two faces — a wire rule restated
+per crate — and both directions hurt: a valid object one crate cannot read, or
+one object with two identities. (3) and (4) are latent soundness gaps in
+merged prototype cryptography. Notably, (3) survived review of the
+construction and appeared only when an adversarial test built the attack, and
+(4) was found by an external full-codebase audit rather than by any test here.
+Both argue for adversarial tests and outside review over more documentation.
+
+**Constitutional impact:** none. No frozen invariant, no voice/value wall
+edge, no authority surface. `did-mini`'s new public constants and helpers are
+additive. (2) and (4) narrow what verifiers accept; no honest producer is
+affected, because `Controller::sign_message` already emits ascending distinct
+indices and `MerkleTree::prove` already emits exactly the implied depth —
+which is why the existing suite passes unchanged. (3) changes the challenge
+set a given seed yields, so audits are not byte-reproducible against the prior
+version; acceptable because no persisted artefact carries a sampled challenge
+set and the prior distribution was unsound.
+
+**Implementation status:** shipped with regression tests — a 32-key identity
+round-tripping and rejection of non-canonical lists in `mini-attest`;
+final-layer coverage across 64 seeds and a forged `replica_root` failing under
+every seed in `mini-porep`; padded, truncated, and wrong-depth proofs rejected
+in `mini-spacetime`; the canonical-order predicate in `did-mini`.
+
+**Failure point:** (1) and (2) are enforced by convention, not by the type
+system — a new crate can still hand-roll a decoder with its own cap and no
+ordering rule, and nothing fails until an unusual identity appears. A shared
+`did-mini` signature codec, rather than a shared constant plus a shared
+predicate, is the durable fix and is not built here. (4) makes proof shape
+canonical; it does not make the surrounding PDP/PoRep constructions audited.
+
+**Required follow-up:** a shared signature codec; a sweep for the same
+restated-limit pattern in the other wire limits; a wire codec for
+`MerkleProof` that enforces the depth bound *before* allocating, since today
+proofs only travel in-process; and the standing external audit (#72, D-0047).
+
+**Supersedes / superseded by:** does not supersede D-0064, which stands; this
+corrects one defect in its audit sampling. New ground otherwise.
+
+### D-0441 — Dependency scanning must gate, and audit documents must state their own scope  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** full-codebase audit of 2026-08-05 §19.1 and
+§20.1; D-0341/#203 (which documented the gap this closes); roadmap #73
+(dependency-vulnerability scanning).
+
+**Decision:** two process corrections.
+
+1. **The dependency-audit job now gates.** `rustsec/audit-check` installs
+   `cargo-audit` inside the checked-out repository, where `rust-toolchain.toml`
+   pins a toolchain older than `cargo-audit`'s own dependencies require, so the
+   step failed outright — and `continue-on-error: true` reported that hard
+   failure as a pass. The job now installs `cargo-audit` under an explicitly
+   separate stable toolchain (`RUSTUP_TOOLCHAIN`, which overrides the file
+   pin), runs it directly, and **distinguishes the two outcomes the previous
+   configuration conflated**: a scanner that cannot run fails the build, while
+   advisory findings are surfaced loudly without failing, because this
+   workspace still has no triage process for an advisory against an
+   unreleasable pinned dependency. A scheduled run on `main` is added so
+   advisories published after a merge are still seen.
+2. **Audit documents state their own scope.** `docs/audits/` gains a required
+   header — commit SHA, crate and dependency counts at that commit, tool
+   versions, and a revalidation trigger — and the memory-safety audit records
+   that it covered 22 crates against a workspace that now has 72, so it is
+   historically useful and not current whole-workspace coverage.
+
+**Reason:** a green check that means "the scanner failed to start" is worse
+than no check, because it manufactures confidence rather than merely lacking
+it. The same applies to an audit document read as current when it covered
+under a third of today's workspace. Both were already known and written down;
+what was missing was making the tooling say so. Distinguishing scanner failure
+from advisory findings is the specific fix — the previous configuration could
+not express the difference, so it expressed neither.
+
+**Constitutional impact:** none. CI and documentation only. No protocol
+surface, no authority, no frozen invariant. Making the job gate can block a
+merge on a scanner outage; that is the intended direction, and the failure
+mode is loud rather than silent.
+
+**Implementation status:** `.github/workflows/ci.yml`'s `dependency-audit` job
+rewritten; scheduled trigger added; `docs/audits/README.md` scope header
+defined and applied to the memory-safety audit.
+
+**Failure point:** advisory findings still do not fail the build, so a known
+vulnerable dependency can still merge — the gate is on the scanner working,
+not yet on the workspace being clean. Closing that needs the triage process
+D-0341 named and nobody has built. The scheduled scan depends on repository
+Actions settings remaining enabled.
+
+**Required follow-up:** an advisory triage process with named owners and
+expiry, after which findings should fail; SBOM/provenance generation per
+release (audit §19.3); and generated-file freshness enforcement in CI (audit
+§19.5), which this batch does not implement.
+
+**Supersedes / superseded by:** supersedes D-0341's decision to leave the
+dependency-audit gap documented rather than fixed. D-0341 otherwise stands.

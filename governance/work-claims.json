@@ -625,20 +625,34 @@
       "issue": 42,
       "status": "in_review",
       "contributor": "Claude",
-      "branch": "claude/sandbox-d7xndc",
+      "branch": "claude/pr-297-security-review-a2m1tl",
       "pull_request": null,
       "lease_expires": "2026-08-11",
       "paths": [
         "crates/mini-storage-fraud/",
-        "Cargo.toml",
+        "crates/mini-porep/src/",
+        "crates/mini-spacetime/src/merkle.rs",
+        "crates/did-mini/",
+        "crates/mini-attest/src/",
+        "crates/mini-bridge/src/",
+        "crates/mini-objects/src/",
+        "crates/mini-private-index/src/",
+        "crates/mini-relay/src/",
+        ".github/workflows/ci.yml",
+        "docs/audits/README.md",
+        "docs/audits/issue-71-memory-safety-audit.md",
+        "docs/audits/external-full-codebase-audit-2026-08-05.md",
+        "docs/audits/external-full-codebase-audit-2026-08-05-response.md",
         "docs/design/storage-fraud-detection.md",
         "docs/DECISION_LOG.md",
         "docs/STATUS.md"
       ],
       "decision_ids": [
-        "D-0437"
+        "D-0439",
+        "D-0440",
+        "D-0441"
       ],
-      "notes": "Phase 5.7, roadmap #42: cross-identity storage-fraud collision evidence. New mini-storage-fraud crate: StorageCommitmentClaim binds one identity root to one mini_spacetime::StorageCommitment over a replica_id the crate itself derives from the signer's DID; CollisionEvidence/verify_collision prove two distinct identity roots naming the identical commitment cannot both have sealed independently, composing mini-porep's existing DRG sealing/Merkle-root guarantee rather than inventing new cryptography. Mirrors mini_consensus::evidence::EquivocationEvidence's own detect-and-prove-only scope -- no penalty, no exclusion, no consensus authority. Explicitly not a network-timing/latency fraud detector (issue #42's other named scenario); named as required follow-up, not attempted. Coordination evidence only; no approval or release claim. Orthogonal to the in-flight Day-0 payment-admission work (issue #61, mini-settlement/mini-execution) -- no shared paths."
+      "notes": "Roadmap #42 (PARTIAL -- issue stays open) plus remediation of the external full-codebase audit of 2026-08-05. D-0439 supersedes D-0437 (merged via PR #297), which external review found unsound: it signed a caller-supplied mini_spacetime::StorageCommitment with no binding to any mini-porep seal, so an attacker could copy an honest provider's published Merkle root, sign it under their own valid DID, and produce evidence that verified -- framing an honest provider. D-0437's entry is left unedited as history. The rebuild uses identity-bound replica ids over a typed ReplicaContextV1, AuditAttestation/RegistrationReceipt quorums that actually run mini-porep's registration audit, delegation under a new did-mini Capabilities::STORE, historical-KEL verification at a pinned sequence and event digest, a derived (never supplied) StorageCommitment, a ReplicaRegistry refusing duplicate replica roots, and verify_conflict returning an explicitly UNATTRIBUTED conflict. D-0440 fixes four defects in merged code: seven crates capped signature decoders at 16 while did-mini permits 64; those decoders accepted non-canonical signature ordering for content-addressed objects; mini-porep's sample_challenges could draw no final-layer challenge, leaving SealCommitment::replica_root unconstrained; and MerkleProof::verify never checked proof shape against the declared leaf count, so a proof padded with None siblings verified identically. D-0441 makes the dependency-audit CI job gate on the scanner actually running (continue-on-error was reporting a hard failure as a pass) and requires audit documents to state their own scope. Coordination evidence only; no approval or release claim. All three decisions stay Proposed. D-0438 is NOT used here -- PR #296 claimed it first; renumbered after review."
     }
   ]
 }

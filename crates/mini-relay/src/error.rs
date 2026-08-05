@@ -17,6 +17,10 @@ pub enum RelayError {
     Truncated,
     /// Bytes remained after a complete decode.
     TrailingBytes,
+    /// A signature list arrived unsorted or with a repeated key index,
+    /// so one logical object would have had more than one valid wire
+    /// encoding -- and, being content-addressed, more than one identity.
+    NoncanonicalSignatureOrder,
     /// A declared count or length exceeded a hard decode limit.
     LimitExceeded,
     /// An unrecognized [`RelayRole`] tag.
@@ -91,6 +95,9 @@ impl core::fmt::Display for RelayError {
         match self {
             RelayError::Truncated => write!(f, "relay bytes truncated"),
             RelayError::TrailingBytes => write!(f, "trailing bytes after relay structure"),
+            RelayError::NoncanonicalSignatureOrder => {
+                write!(f, "signature indices are unsorted or repeated")
+            }
             RelayError::LimitExceeded => write!(f, "decode limit exceeded"),
             RelayError::BadRelayRole => write!(f, "unrecognized relay role tag"),
             RelayError::BadSizeClass => write!(f, "unrecognized payload size class tag"),
