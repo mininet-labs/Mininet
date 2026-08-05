@@ -78,10 +78,15 @@ impl std::error::Error for AdmissionError {}
 
 /// One deterministic, bounded node-local set of claims awaiting proposal.
 #[derive(Debug, Clone)]
+struct AdmittedClaim {
+    claim: PaymentClaim,
+    wire_bytes: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentAdmissionPool {
     policy: AdmissionPolicy,
-    claims: BTreeMap<[u8; 32], PaymentClaim>,
-    claim_sizes: BTreeMap<[u8; 32], usize>,
+    claims: BTreeMap<[u8; 32], AdmittedClaim>,
     payer_slots: BTreeMap<Vec<u8>, BTreeMap<u64, [u8; 32]>>,
     payer_reserved_micro: BTreeMap<Vec<u8>, u128>,
     encoded_bytes: usize,
@@ -100,7 +105,6 @@ impl PaymentAdmissionPool {
         Ok(Self {
             policy,
             claims: BTreeMap::new(),
-            claim_sizes: BTreeMap::new(),
             payer_slots: BTreeMap::new(),
             payer_reserved_micro: BTreeMap::new(),
             encoded_bytes: 0,
@@ -187,8 +191,13 @@ impl PaymentAdmissionPool {
             .entry(claim.payer.clone())
             .or_default()
             .insert(claim.sequence, digest);
-        self.claim_sizes.insert(digest, bytes);
-        self.claims.insert(digest, claim);
+        self.claims.insert(
+            digest,
+            AdmittedClaim {
+                claim,
+                wire_bytes: bytes,
+            },
+        );
         Ok(digest)
     }
 
@@ -197,7 +206,14 @@ impl PaymentAdmissionPool {
         let mut ordered: Vec<_> = self
             .claims
             .iter()
-            .map(|(digest, claim)| (claim.payer.as_slice(), claim.sequence, *digest, claim))
+            .map(|(digest, admitted)| {
+                (
+                    admitted.claim.payer.as_slice(),
+                    admitted.claim.sequence,
+                    *digest,
+                    &admitted.claim,
+                )
+            })
             .collect();
         ordered.sort_by(|a, b| (a.0, a.1, a.2).cmp(&(b.0, b.1, b.2)));
         ordered
@@ -245,12 +261,12 @@ impl PaymentAdmissionPool {
     }
 
     pub fn remove(&mut self, digest: &[u8; 32]) -> Option<PaymentClaim> {
-        let claim = self.claims.remove(digest)?;
+        let admitted = self.claims.remove(digest)?;
+        let claim = admitted.claim;
         // Retain the size accepted at admission rather than re-encoding in a
-        // cleanup path. This stays panic-free and exact even if a future wire
-        // codec changes while claims are pending.
-        let bytes = self.claim_sizes.remove(digest).unwrap_or(0);
-        self.encoded_bytes = self.encoded_bytes.saturating_sub(bytes);
+        // cleanup path. Keeping both in one entry makes the accounting
+        // invariant structural rather than relying on parallel maps.
+        self.encoded_bytes = self.encoded_bytes.saturating_sub(admitted.wire_bytes);
         if let Some(slots) = self.payer_slots.get_mut(&claim.payer) {
             slots.remove(&claim.sequence);
             if slots.is_empty() {

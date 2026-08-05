@@ -1951,3 +1951,28 @@ dishonest `treasury_balance_micro` input.
 remain valid; there is no CA, canonical relay/bootstrap registry, hosted
 identity directory, trusted first peer, majority-by-download rule, admin or
 unmasking key, or value-to-routing/voice path.
+
+## Day-0 release code hardening — D-0442 proposal
+
+- **implemented on the proposal branch** — consensus proposal transcript v2
+  binds the exact settlement body as well as the header; proposal admission is
+  capped at 4,096 claims to match the operational admission bound.
+- **implemented on the proposal branch** — monetary epoch progression fails
+  at `u64::MAX`; payment admission preserves only the canonical
+  `InsufficientFunds` retry; unsupported signing suites return an error instead
+  of reaching an Ed25519-only panic path; pending-claim cleanup retains exact
+  admitted wire sizes.
+- **implemented on the proposal branch** — owner-only sealing reserves its
+  full 60-byte framing/tag overhead; encrypted objects cannot enter advertising
+  cache tiers; cache metadata is canonical.
+- **implemented on the proposal branch** — crawler address admission rejects
+  omitted special/transition ranges and validates the embedded IPv4 target in
+  the globally reachable RFC 6052 NAT64 prefix.
+- **still gated** — this is internal engineering evidence, not production
+  approval. External cryptography/consensus/storage review (A1), personhood and
+  validator formation, PR #296's authenticated transport convergence,
+  historical body commitment migration, chunked state transfer, bounded
+  rejection history, a public payment service, owner-key recovery/rotation,
+  storage-fraud consequences, the complete crawler/index pipeline, and private
+  settlement integration remain open. The exact findings and validation record
+  are in `docs/audits/day0-release-code-hardening-20260805.md`.

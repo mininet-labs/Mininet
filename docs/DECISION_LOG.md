@@ -15753,3 +15753,81 @@ release (audit §19.3); and generated-file freshness enforcement in CI (audit
 
 **Supersedes / superseded by:** supersedes D-0341's decision to leave the
 dependency-audit gap documented rather than fixed. D-0341 otherwise stands.
+### D-0442 — Day-0 release hardening across consensus, value, storage, and crawler boundaries  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** merged PRs #271–#275, #283–#294, and
+#297 and #299; active draft PR #296 (explicitly excluded overlapping transport/query
+ownership); `docs/audits/day0-release-code-hardening-20260805.md`; A1; M1–M3;
+V1; P5–P6; S1; X2–X3.
+
+**Decision:** harden existing release-sensitive boundaries without expanding
+their authority or inventing replacement protocols. Consensus proposal
+signature transcript v2 binds both the header and exact settlement-body hash,
+and one proposal is capped at the admission boundary of 4,096 claims. Monetary
+epoch progression fails closed at `u64::MAX`; payment admission retains only
+the canonical `InsufficientFunds` retry; unsupported payment signing suites are
+rejected as typed errors; and admission cleanup uses retained wire sizes.
+Owner-only sealing reserves all framing/tag overhead, encrypted payloads cannot
+enter advertising cache tiers, and cache metadata is canonical. Crawler address
+admission closes omitted special/transition ranges and validates embedded IPv4
+destinations in the globally reachable RFC 6052 NAT64 prefix. PR #299's
+D-0439–D-0441 storage-fraud rebuild and correctness floor remain authoritative;
+this decision drops its superseded pre-registration claim changes.
+
+**Reason:** the audited code was individually bounded and tested, but its
+composition exposed nine fail-open, panic, portability, resource-amplification,
+or transcript-integrity defects at release-critical seams. These are local,
+falsifiable corrections to already-decided behavior. Leaving them for a later
+redesign would allow a body-mutated proposal signature, repeated terminal
+issuance, incorrectly terminal payment retry, suite-triggered panic,
+privacy-policy bypass, or SSRF policy evasion while giving no compensating
+protocol benefit.
+
+**Constitutional impact:** reinforces Directive 5 (canonical truth), Directive
+6 (failure-first design), Directive 9 (structural privacy), Directive 11 (the
+weakest device), Directive 13 (long-horizon portability), and Directive 15
+(malicious-minority defense). It does not change issuance policy, balances,
+canonical ordering, governance weight, validator membership, cache ownership,
+storage rewards, or crawler authority. M1–M3 and the voice/value wall remain
+unchanged. Proposal-signing domain v2 is deliberately incompatible with v1
+in-flight proposal signatures, so every validator in a prelaunch network must
+upgrade together; no production canonical state or owner adoption is asserted.
+A1 remains an external-review gate and is not discharged by this audit.
+
+**Implementation status:** implemented on
+`codex/release-security-audit`, with adversarial regressions across
+`mini-consensus`, `mini-economy`, `mini-execution`, `mini-settlement`,
+`mini-store`, and `mini-crawler-fetch`. Focused tests,
+workspace all-feature Clippy, governance runtime/baseline checks, and the Python
+governance suite pass. The complete workspace test matrix remains required in
+Linux CI because Windows Application Control blocked a newly compiled
+dependency build script after the local build volume was recovered; host policy
+was not weakened. The generated navigation index is intentionally untouched
+under D-0376.
+
+**Failure point:** a live proposal now authenticates its body, but finalized
+headers and quorum certificates still do not prove the exact historical body;
+that requires a versioned header/block migration. Canonical rejection history
+and single-frame snapshots remain bounded only by eventual failure, not by a
+scalable authenticated-history/chunk protocol. Admission is still node-local,
+not an authenticated and rate-limited internet service. Owner sealing has no
+KEL-bound rotation/recovery. Collision evidence has no consequence path. The
+crawler is not a complete crawl/extract/index system. Transparent settlement
+does not integrate `mini-value` privacy primitives. Sybil-resistant personhood,
+validator formation, and all A1 external reviews remain open.
+
+**Required follow-up:** require exact-head Linux CI and independent review;
+merge or supersede PR #296 without duplicating its transport/query ownership;
+design a versioned exact-body finality migration, chunked authenticated state
+transfer and bounded rejection proofs; expose admission only behind
+authenticated/rate-limited transport; bind owner sealing to KEL rotation and
+recovery; define a governed storage-fraud consequence/appeal path; finish the
+crawler provenance-to-index pipeline; and keep real-value/consensus/storage
+activation blocked until A1's external audits sign off on the exact release
+commit.
+
+**Supersedes / superseded by:** hardens implementations governed by their
+existing decisions; it does not supersede their doctrine. Coordinates with,
+but does not modify or supersede, PR #296 / D-0438's transport and authenticated
+query work. PR #299 / D-0439–D-0441 supersedes the storage-fraud implementation
+reviewed on the original audit base and is preserved unchanged.

@@ -56,8 +56,10 @@ fn ipv6_is_public(ip: Ipv6Addr) -> bool {
         || (segments[0] == 0x2001 && (segments[1] & 0xfe00) == 0)
         || (segments[0] == 0x2001 && segments[1] == 0x0db8)
         || segments[0] == 0x2002
-        // 3fff::/20 is documentation space.
-        || (segments[0] & 0xfff0) == 0x3ff0
+        // 3fff::/20 is documentation space. The /20 includes the first four
+        // bits of the second segment; matching only segment zero would
+        // accidentally deny the much larger 3ff0::/12 range.
+        || (segments[0] == 0x3fff && (segments[1] & 0xf000) == 0)
     {
         return false;
     }
@@ -121,6 +123,7 @@ mod tests {
         }
         assert!(address_is_public("2606:4700:4700::1111".parse().unwrap()));
         assert!(address_is_public("64:ff9b::101:101".parse().unwrap()));
+        assert!(address_is_public("3fff:1000::1".parse().unwrap()));
     }
 
     #[test]
