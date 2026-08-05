@@ -1,7 +1,7 @@
 # Track F6: private query transport — Phase 0 doctrine, Phase 1 and Phase 2 slices
 
-**Decisions:** D-0435 (Phase 1), D-0436 (Phase 2) (see `docs/DECISION_LOG.md`)
-**Status:** Phase 1 and Phase 2 implemented and tested. Not a private-information-retrieval scheme — see "What Phase 1 is not" below.
+**Decisions:** D-0435 (Phase 1), D-0436 (Phase 2), D-0438 (optional authenticated provider provenance) (see `docs/DECISION_LOG.md`)
+**Status:** Phases 1 and 2 are merged. Phase 3 is implemented and tested in PR #296, pending independent human review and merge. None is a private-information-retrieval scheme — see "What Phase 1 is not" below.
 **Refs:** roadmap [#175](../../issues/175) (Track F, distributed/federated search); `docs/design/federated-search-exchange-f1-f2.md` (F1-F5/F7, which this document builds on and does not modify); `mini-search-federation-net`'s own crate doc, which named this exact gap ("Sending a caller's search query to a remote peer for server-side evaluation is Track F6 (private query transport), explicitly undesigned and out of scope"); issue #72 (external crypto audit gate).
 
 ## The gap this closes
@@ -17,8 +17,8 @@ Doing this at all means a query's actual terms cross the wire to the queried pro
 **Is not:**
 
 - **Not private information retrieval.** The queried provider sees the caller's exact query terms in full — `parse_query`/`search` need real terms to run, and this document does not invent a PIR/oblivious-keyword-search scheme to hide them. A real PIR construction (single- or multi-server, FHE-based or otherwise) is itself a nontrivial, actively-researched cryptographic primitive; composing one here without independent review would violate CLAUDE.md's no-new-cryptography rule as surely as hand-rolling Sphinx would have for `mini-relay`'s mix tier. **The queried provider learning your query is the correct, honestly-stated Phase 1 floor**, not a bug to paper over. Closing it is future work gated the same way the Sphinx/Loopix mix executor is gated behind issue #72's external crypto review — not attempted here.
-- **Not requester-identity-hiding beyond what already exists for free.** `mini_bearer::Channel`/CH1 is identity-agnostic by construction — a query round trip needs no `did:mini` proof from the *client* at all, so the requester is exactly as anonymous as any other CH1 session, with zero new code. This document does not add caller authentication because none is needed for this direction; a future decision may add it if a provider wants to rate-limit or bill a specific caller, which is explicitly out of scope here.
-- **Not a truth or trust upgrade.** The response is the queried provider's own computed ranking over its own held data — exactly as authoritative (and exactly as unverified against independent corroboration) as any other Track F source. `mini-transport-security`'s optional endpoint authentication (a separate, concurrently-developed crate) can bind *which* peer answered if a caller wants that; this document does not duplicate it.
+- **Not requester-identity-hiding beyond what already exists for free.** The Phase 1 anonymous `remote_query` path uses identity-agnostic CH1 and needs no client `did:mini` proof. Phase 3 deliberately adds a separate mutual-authentication path for callers choosing peer-bound provider provenance; that named path discloses the requester’s selected root or pairwise identity. There is still no server-only provider-authentication mode for an entirely unnamed requester.
+- **Not a truth or trust upgrade.** The response is the queried provider's own computed ranking over its own held data — exactly as authoritative (and exactly as unverified against independent corroboration) as any other Track F source. Phase 3 can prove *which transport endpoint* answered on one exact channel; it does not prove that endpoint is honest, human, independent of other endpoints, or correct.
 - **Not integrated into F3's typed merge path in Phase 1.** `federate_query`'s `FederatedResult` machinery expects a real `mini_ranker::Corpus`/`DocumentContextTable`-backed `FederationSource`, not a flat list of remote-computed results. Wiring a remote query's results into that merge (deduplication, tie-breaking, provider tagging) was deliberately deferred rather than rushed into the Phase 1 slice; Phase 2 (below) closes this specific gap.
 - **Not a scheduler, cache, rate limiter, or anti-abuse mechanism.** A server that wants to bound how many queries one peer may run, or cache repeated results, builds that on top of `serve_query`; nothing here does it automatically.
 - **Not multi-provider fan-out.** One `remote_query` call talks to exactly one already-dialed peer, the same scope discipline `pull_source` (not `pull_from_sources`) uses for a single source.
@@ -38,7 +38,7 @@ No `Object`/signature wrapping: unlike F1/F2/F2b, a query response is not meant 
 
 ## Constitutional and authority impact
 
-No frozen invariant is touched. No voice/value wall edge (P1, Directive 16): this module adds no new crate dependency to `mini-search-federation-net` beyond what it already has (`mini-query` for `parse_query`/`search`, already a dependency; `mini-bearer` for the channel, already a dependency). No generic `sign(bytes)`/authority surface — there is no signing here at all, deliberately, per "no `Object`/signature wrapping" above. No payment, ranking-authority, or truth-oracle claim: the response is one provider's own computed opinion, exactly as every other Track F source already is.
+No frozen invariant is touched and no voice/value wall edge is introduced (P1, Directive 16). Phases 1 and 2 added no dependency beyond the existing query/channel/search stack. Phase 3 adds the existing local path dependency on `mini-transport-security` solely for optional typed channel authentication; that crate exposes identity binding, not ranking, personhood, payment, discovery, or governance authority. The fresh F6 response remains unsigned and non-durable. The named transport exchange does use `did:mini` signatures inside `mini-transport-security`, but it adds no generic `sign(bytes)` surface and no response-signing or re-verifiability claim. No payment, ranking-authority, or truth-oracle claim exists: the response remains one provider's own computed opinion.
 
 ## Tests
 
@@ -48,7 +48,10 @@ Adversarial coverage in `crates/mini-search-federation-net/src/query.rs` (unit t
 - an oversized query string is rejected before encoding;
 - `max_results` of zero or above `MAX_QUERY_RESULTS` is rejected;
 - a compliant server never returns more results than the request's own `max_results`;
-- every current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason` variant round-trips through the `WireResult` codec, with a future-variant-safe fallback for both `#[non_exhaustive]` enums, mirroring F2b's own coverage discipline;
+- the same field, score, count, canonical-URL, ranking-profile-version, jurisdiction, and multihash validation runs before encoding and after decoding, so a provider cannot emit a message its own peer rejects because local public fields were oversized, mutated, or semantically invalid;
+- a response is rejected if any result names a ranking profile other than the one requested, preserving F3's same-profile score-comparability premise;
+- a ranked response rejects `Restricted` and `Unavailable` results, so a malicious provider cannot reinsert a document that the ranker structurally excludes before scoring;
+- every current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason` variant round-trips through the internal codec, while any future unknown `#[non_exhaustive]` scheme, personalization, availability, or reason variant fails protocol validation instead of being silently reinterpreted;
 - a tampered ciphertext fails closed (the channel's own AEAD authentication, exercised the same way `session.rs`'s tests already prove it for the advertise exchange).
 
 ## Phase 2: wiring into F3's merge path (D-0436)
@@ -59,20 +62,68 @@ Phase 1 left one of its own named non-goals open: a `remote_query` response coul
 
 - `mini-search-federation::federate::federate_query`'s dedup/sort/truncate merge step is extracted into a standalone public function, `merge_federated_results(results: Vec<FederatedResult>, max_results: usize) -> Vec<FederatedResult>`. `federate_query` itself now just gathers each source's `search` results and calls this function — its own external behavior and signature are unchanged.
 - `mini-search-federation-net` gains a `remote_merge` module:
-  - `federated_result_from_wire(wire: WireResult, provider: ProviderPseudonym) -> Result<FederatedResult>` converts one F6 wire result into a typed `mini_query::ResultProvenance`. It rejects (`NetError::Protocol`) any `relevance_score_bps` or `explanation` component above `WeightBps::MAX` — a value a compliant `serve_query` can never produce (`mini_query::search` only ever emits validated `WeightBps`), but which `WireResult`'s own wire codec does not itself bound on decode, so this is the real fail-closed check against a peer that sends an out-of-range score.
+  - `federated_result_from_wire(wire: WireResult, provider: ProviderPseudonym) -> Result<FederatedResult>` converts one F6 wire result into a typed `mini_query::ResultProvenance`. It rejects (`NetError::Protocol`) any `relevance_score_bps` or `explanation` component above `WeightBps::MAX` — a value a compliant `serve_query` can never produce (`mini_query::search` only ever emits validated `WeightBps`). The conversion now invokes the same shared canonical-field, score, multihash, URL, and displayability validator as the F6 decoder because public `WireResult` values may also be constructed locally or arrive through legacy code without traversing that decoder; typed score conversion then repeats the range check as defense in depth.
   - `merge_remote_results(local: Vec<FederatedResult>, remote: Vec<WireResult>, remote_provider: ProviderPseudonym, max_results: usize) -> Result<Vec<FederatedResult>>` converts and folds a whole `remote_query` response into a caller's own local/pulled results via `merge_federated_results`, failing closed on the first invalid wire result rather than silently dropping it and returning a partial merge.
 
-**The `remote_provider` tag is caller-asserted, not cryptographically verified** — unchanged from Phase 1's own stated floor. A query response carries no `Object`/signature wrapping, and F6 provides no caller/provider authentication beyond the channel itself. A caller names `remote_provider` from whatever it already knows out-of-band about who it dialed (an advertisement it resolved, its own session setup) — exactly as honest, and exactly as unverified, as every other Track F provider label already is once results leave a single signed object's custody. Binding this to `mini-transport-security`'s authenticated peer identity, once that crate lands review, remains real follow-up (see below), not attempted here.
+**The legacy `merge_remote_results` API keeps a caller-asserted `remote_provider` tag.** That remains intentional for anonymous CH1 and callers managing their own out-of-band provenance. Phase 3 adds a separate named path rather than silently changing anonymous semantics: `remote_query_authenticated` returns an `AuthenticatedQueryResults` whose provider is derived from the endpoint proved on the response channel, and `merge_authenticated_remote_results` accepts that sealed result object instead of a caller-selected provider label.
 
 Tests (`crates/mini-search-federation-net/src/remote_merge.rs`): a valid wire result converts and round-trips every field; an out-of-range `relevance_score_bps` is rejected; an out-of-range `explanation` component is rejected; a URL present in both local and remote results deduplicates by score exactly as `federate_query`'s own documented policy promises; `max_results` is respected across the combined set; a single invalid remote result fails the whole merge rather than returning a partial one.
+
+
+## Phase 3: optional authenticated provider provenance (D-0438, PR #296)
+
+Phase 3 composes F6 with `mini-transport-security` instead of creating a second
+identity or connection system:
+
+- `TransportPurpose::SearchQuery` is a distinct signed session purpose. A proof
+  disclosed for `PeerExchange`, messaging, relay, state sync, or consensus cannot
+  be reused as search-provider provenance.
+- `remote_query_authenticated` and `serve_query_authenticated` require an
+  `AuthenticatedConnection<B>` that owns the bearer, exact CH1 channel, and peer
+  verified on that channel. The response remains ordinary bounded F6 wire data;
+  no durable signature or false re-verifiability claim is added.
+- The named query constructor privately domain-separates and hashes the sealed
+  connection's verified `TransportEndpointId`. The label is stable across
+  channels to the same advertised endpoint, preserving F3's deterministic
+  equal-score provider tie-break and preventing responder handshake grinding.
+  This creates no additional cross-session identifier beyond the endpoint id the
+  caller already selected; routing-key, device, or pairwise-identity rotation
+  rotates the label.
+- The provider-derivation helper is private, and `AuthenticatedQueryResults`
+  has private fields. External callers can inspect
+  its provider and results but cannot construct one with an arbitrary provider
+  label. `merge_authenticated_remote_results` consumes this sealed value through
+  a crate-private split, closing Phase 2's silent caller-mislabel path for the
+  named API.
+- The anonymous `remote_query`/`serve_query` and legacy
+  `merge_remote_results` APIs remain available. Identity disclosure is optional
+  for search as a whole, but the authenticated provider-provenance path uses the
+  mutual `AuthenticatedConnection` exchange. There is no mode that proves only
+  the provider while leaving the requester entirely unnamed.
+
+A real TCP integration test proves signed advertisement verification, CH1,
+`SearchQuery`-purpose mutual authentication, bounded remote search, peer-derived
+provider labeling, and typed merge in one path. A second test proves a valid
+`PeerExchange`-purpose connection is rejected by the authenticated search API.
+
+**Exact remaining failure:** endpoint-bound provenance proves who controlled
+one advertised transport endpoint, not that the provider's index is honest or
+independently operated. The label is stable only while that endpoint id remains
+stable; routing-key, device, or pairwise-identity rotation breaks continuity, so
+durable reputation still requires a separate privacy-conscious design. The
+anonymous legacy path can still be
+caller-mislabeled because that is its explicit contract. The named path also
+requires requester authentication: pairwise identity limits linkage, but true
+server-only provider authentication is not implemented.
 
 ## Required follow-up
 
 - True query-content privacy against the queried provider itself (PIR/oblivious keyword search) — a distinct, harder cryptographic problem, gated behind issue #72's external review, not attempted here.
-- Bind `remote_provider` to `mini-transport-security`'s authenticated peer identity once that crate lands review, closing the caller-assertion gap Phase 2 explicitly leaves open.
+- Design a server-only authenticated connection for callers that need peer-bound provider provenance without disclosing a requester identity; it must preserve anonymous CH1 and avoid a CA or global service identity requirement.
+- Decide whether a future privacy-preserving continuity proof should link authenticated provider labels across endpoint rotation without turning one global provider identity into a tracking or ranking authority.
 - Rate limiting, caching, and query logging policy — all left to the caller, as stated above.
 - Multi-provider fan-out (`remote_query_many`, mirroring `pull_from_sources`) feeding the same Phase 2 merge in one call, once a real deployment shape motivates it.
 
 ## Supersedes / superseded by
 
-New ground — no prior decision addressed sending live query terms to a remote peer. Phase 2 (D-0436) builds directly on Phase 1 (D-0435), completing its named follow-up; it does not modify F1-F5/F7's own object formats or `federate_query`'s external behavior/signature (only its internal implementation, now delegating to the newly extracted `merge_federated_results`). Builds on and does not modify `mini_query::parse_query`/`search` (unmodified, reused exactly as-is), or `mini-search-federation-net`'s existing advertise/pull/assemble exchange (`message.rs`/`session.rs`/`multi.rs`/`assemble.rs`, all untouched).
+New ground — no prior decision addressed sending live query terms to a remote peer. Phase 2 (D-0436) builds directly on Phase 1 (D-0435), completing its merge follow-up. Phase 3 (D-0438) closes Phase 2's named caller-asserted-provider gap for an optional named path while preserving anonymous querying unchanged. None modifies F1-F5/F7's object formats or `federate_query`'s external behavior/signature. All build on and do not modify `mini_query::parse_query`/`search`, or the existing advertise/pull/assemble exchange.

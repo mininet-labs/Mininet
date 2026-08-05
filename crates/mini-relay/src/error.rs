@@ -40,7 +40,10 @@ pub enum RelayError {
     WrongOnionHop,
     /// The onion packet's signed/encrypted validity window ended.
     OnionExpired,
-    /// A per-hop replay token was already processed.
+    /// The onion packet asks a relay or destination to retain replay state for
+    /// longer than the protocol's hard maximum.
+    OnionLifetimeTooLong,
+    /// A per-hop or destination replay token was already processed.
     OnionReplay,
     /// The application payload does not fit the selected fixed-size class.
     OnionPayloadTooLarge,
@@ -113,7 +116,10 @@ impl core::fmt::Display for RelayError {
             RelayError::InvalidOnionRoute => write!(f, "invalid or non-canonical onion route"),
             RelayError::WrongOnionHop => write!(f, "onion packet belongs to another hop"),
             RelayError::OnionExpired => write!(f, "onion packet has expired"),
-            RelayError::OnionReplay => write!(f, "onion hop replay detected"),
+            RelayError::OnionLifetimeTooLong => {
+                write!(f, "onion validity window exceeds the hard maximum")
+            }
+            RelayError::OnionReplay => write!(f, "onion relay/destination replay detected"),
             RelayError::OnionPayloadTooLarge => {
                 write!(f, "payload exceeds the selected fixed-size onion class")
             }

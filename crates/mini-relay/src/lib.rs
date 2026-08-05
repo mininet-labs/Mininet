@@ -59,8 +59,9 @@ pub use mailbox::{
 };
 pub use onion::{
     build_onion, open_onion_destination, OnionForward, OnionHop, OnionPacket, OnionReplayCache,
-    PeeledOnion, LARGE_ONION_PAYLOAD_BYTES, MAX_ONION_NEXT_HOP_BYTES, MAX_ONION_REPLAY_ENTRIES,
-    MEDIUM_ONION_PAYLOAD_BYTES, ONION_HOP_COUNT, ONION_VERSION, SMALL_ONION_PAYLOAD_BYTES,
+    PeeledOnion, LARGE_ONION_PAYLOAD_BYTES, MAX_ONION_CLOCK_SKEW_MS, MAX_ONION_LIFETIME_MS,
+    MAX_ONION_NEXT_HOP_BYTES, MAX_ONION_REPLAY_ENTRIES, MEDIUM_ONION_PAYLOAD_BYTES,
+    ONION_HOP_COUNT, ONION_VERSION, SMALL_ONION_PAYLOAD_BYTES,
 };
 pub use plan::roles_for_route_decision;
 pub use role::RelayRole;

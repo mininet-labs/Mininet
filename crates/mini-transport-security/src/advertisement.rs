@@ -282,6 +282,13 @@ impl SecurePexResponse {
         if self.advertisements.len() > MAX_SECURE_PEX_RECORDS {
             return Err(TransportSecurityError::LimitExceeded);
         }
+        if self
+            .advertisements
+            .iter()
+            .any(|advertisement| advertisement.network_id != self.network_id)
+        {
+            return Err(TransportSecurityError::WrongNetwork);
+        }
         let mut writer = Writer::new();
         writer.raw(SECURE_PEX_DOMAIN);
         writer.raw(&self.network_id);
@@ -585,6 +592,14 @@ mod tests {
         };
         let bytes = response.to_bytes().unwrap();
         assert_eq!(SecurePexResponse::from_bytes(&bytes).unwrap(), response);
+        let mismatched = SecurePexResponse {
+            network_id: [8; 32],
+            advertisements: response.advertisements.clone(),
+        };
+        assert_eq!(
+            mismatched.to_bytes(),
+            Err(TransportSecurityError::WrongNetwork)
+        );
         let mut trailing = bytes;
         trailing.push(0);
         assert!(SecurePexResponse::from_bytes(&trailing).is_err());

@@ -33,20 +33,27 @@ use mini_web_types::{
 };
 
 use crate::error::{NetError, Result};
-use crate::query::WireResult;
+use crate::query::{validate_wire_result, AuthenticatedQueryResults, WireResult};
 
 /// Convert one [`WireResult`] into a typed [`FederatedResult`] tagged with
 /// `provider`. Rejects (`NetError::Protocol`) any `relevance_score_bps` or
 /// `explanation` component above [`WeightBps::MAX`] -- values a compliant
 /// [`crate::serve_query`] can never produce, since [`mini_query::search`]
-/// only ever emits validated [`WeightBps`]. `WireResult`'s wire codec does
-/// not itself bound these fields (unlike e.g. `RankingProfile`'s decoded
-/// weights), so this is the real fail-closed check for a wire peer that
-/// sends an out-of-range score.
+/// only ever emits validated [`WeightBps`]. This conversion invokes the
+/// same shared validator as the F6 wire codec because [`WireResult`] is public
+/// and can be constructed locally without passing through the decoder. Invalid,
+/// noncanonical, oversized, or non-displayable local/legacy inputs therefore
+/// fail closed before entering the typed federated merge; the typed `WeightBps`
+/// conversion below repeats the score check as defense in depth.
 pub fn federated_result_from_wire(
     wire: WireResult,
     provider: ProviderPseudonym,
 ) -> Result<FederatedResult> {
+    // `WireResult` is public and can be constructed locally or supplied by a
+    // legacy caller without traversing the F6 decoder. Reuse the exact same
+    // canonical URL, field, multihash, score, and displayability validator here
+    // before the value enters the typed federated merge.
+    validate_wire_result(&wire)?;
     let bps = |v: u16| WeightBps::new(v).map_err(|_| NetError::Protocol);
     let relevance_score_bps = bps(wire.relevance_score_bps)?;
     let explanation = RankingExplanation {
@@ -96,6 +103,19 @@ pub fn merge_remote_results(
         combined.push(federated_result_from_wire(wire, remote_provider.clone())?);
     }
     Ok(merge_federated_results(combined, max_results))
+}
+
+/// Merge authenticated remote results without accepting a caller-selected
+/// provider label. The label is carried by [`AuthenticatedQueryResults`], which
+/// can only be produced by the named-peer query path on an authenticated
+/// transport connection.
+pub fn merge_authenticated_remote_results(
+    local: Vec<FederatedResult>,
+    remote: AuthenticatedQueryResults,
+    max_results: usize,
+) -> Result<Vec<FederatedResult>> {
+    let (provider, results) = remote.into_parts();
+    merge_remote_results(local, results, provider, max_results)
 }
 
 #[cfg(test)]
@@ -151,6 +171,17 @@ mod tests {
         );
         assert_eq!(result.result.source_observation.0, wire.source_observation);
         assert_eq!(result.provider, provider(b"p1"));
+    }
+
+    #[test]
+    fn a_locally_constructed_filtered_result_cannot_bypass_f6_validation() {
+        let mut wire = wire_result("/a", 100);
+        wire.availability =
+            AvailabilityState::Restricted(mini_web_types::RestrictionReason::UserFilter);
+        assert_eq!(
+            federated_result_from_wire(wire, provider(b"p1")),
+            Err(NetError::Protocol)
+        );
     }
 
     #[test]

@@ -15079,13 +15079,15 @@ payment, storage, bandwidth, provider revenue, or service metric enters route,
 identity, personhood, validator, review, or governance authority. No admin,
 law-enforcement, recovery, traffic-master, or escrowed unmasking key exists.
 
-**Implementation status:** complete in draft PR #292. Permanent code covers
+**Implementation status:** merged through PR #292. Permanent code covers
 bounded canonical claims/advertisements/PEX, KEL rollback pins, delegated
 capability checks, replay/expiry, structurally bound dial+session verification,
 local prefix-diverse selection, the Direct/Relayed execution gate, and three-hop
 destination-encrypted onion forwarding. Focused formatting, 64 unit tests, three
-real-socket tests plus one discovery/session integration test, and strict Clippy passed before truth sync; exact-head
-workspace/governance/reproducibility/Android workflows remain the merge floor.
+real-socket tests plus one discovery/session integration test, and strict
+Clippy passed at merge. PR #296 subsequently adds the executable runtime seam,
+rechecks advertisement liveness at use time, and upgrades onion replay handling;
+see D-0438.
 
 **Failure point:** a first-contact verifier cannot know about a later unseen KEL
 revocation without witness/gossip freshness; IP-prefix diversity does not prove
@@ -15290,8 +15292,9 @@ sending; zero/oversized `max_results` rejected; a compliant server never
 exceeds the requested `max_results`; every current
 `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/`Scheme`/
 `PersonalizationPolicy` variant round-trips with a future-variant-safe
-fallback for each `#[non_exhaustive]` enum; a tampered ciphertext fails
-closed) plus one new real-socket integration test
+fallback for each `#[non_exhaustive]` enum; outbound and inbound field/score
+bounds are symmetric; profile substitution is rejected; a tampered ciphertext
+fails closed) plus one new real-socket integration test
 (`tests/query_over_tcp.rs`) proving `remote_query`/`serve_query` over an
 actual `TcpBearer` pair, mirroring `live_over_tcp.rs`'s own handshake
 pattern. Full workspace ritual green: `cargo fmt --all -- --check`,
@@ -15348,8 +15351,11 @@ function applied to results freshly computed from local
 `mini_query::ResultProvenance`, rejecting any `relevance_score_bps` or
 `explanation` component above `WeightBps::MAX` — a value a compliant
 `serve_query` can never produce, since `mini_query::search` only ever
-emits validated `WeightBps`, but `WireResult`'s own wire codec does not
-itself bound these fields on decode) and `merge_remote_results(local:
+emits validated `WeightBps`; the F6 wire decoder now rejects the same
+values, while this conversion repeats the check for public `WireResult`
+values constructed locally or received through legacy code; the conversion
+now invokes the complete shared validator before its typed score conversion) and
+`merge_remote_results(local:
 Vec<FederatedResult>, remote: Vec<WireResult>, remote_provider:
 ProviderPseudonym, max_results: usize) -> Result<Vec<FederatedResult>>`,
 which folds a `remote_query` response into a caller's own local/pulled
@@ -15417,9 +15423,10 @@ fully fresh data every time, at whatever latency/bandwidth cost that
 implies; no problem for this slice's scope, a real concern for any
 production scheduler built on top.
 
-**Required follow-up:** bind `remote_provider` to `mini-transport-security`'s
-authenticated peer identity once that crate lands review, closing the
-caller-assertion gap named above. `remote_query_many`-style multi-provider
+**Required follow-up:** D-0438/PR #296 closes the named `remote_provider`
+caller-assertion gap with an optional channel-authenticated, sealed result path;
+the anonymous legacy API intentionally retains caller-owned labeling.
+`remote_query_many`-style multi-provider
 fan-out feeding this same merge in one call, once a real deployment shape
 motivates it (still not attempted — F6 Phase 1's own deferred item).
 True query-content privacy against the queried provider (PIR/oblivious
@@ -15523,6 +15530,124 @@ based fraud detection, once a live network deployment exists to calibrate
 against. Wiring `StorageCommitmentClaim` into a real storage-provider
 registration flow once `mini-net`/`mini-store`'s network shard
 distribution exists.
+
+**Supersedes / superseded by:** new ground — no prior decision addressed
+cross-identity storage-collusion detection. Builds on and does not modify
+`mini-porep`'s sealing/audit/challenge-response construction (D-0063/
+D-0064) or `mini-spacetime`'s `StorageCommitment`/PDP machinery. A
+sibling to, not an extension of, `mini_consensus::evidence::
+EquivocationEvidence` (D-0204) — `mini-storage-fraud` does not depend on
+`mini-consensus`.
+
+### D-0438 — Authenticated transport runtime convergence and peer-bound F6 provenance  ·  *Proposed*
+
+**Date:** 2026-08-04 · **Refs:** D-0377, D-0435, D-0436; PR #296;
+issues #291/#24/#27/#72/#175; merged PRs #292/#294; Directives
+2/5/6/9/14/16/18.
+
+**Decision:** add one executable runtime seam in `mini-transport-security` rather
+than leaving signed discovery, CH1, endpoint proof, retry, bridge entry, and
+onion route construction as caller conventions. `AuthenticatedConnection<B>`
+owns the bearer, exact CH1 channel, and `AuthenticatedPeer` verified on that
+channel. The TCP initiator verifies a responder-first claim against the selected
+`PeerAdvertisement` before disclosing its own identity. Freshness/replay state is
+transactional: cloned before verification and committed only after the complete
+exchange succeeds. Bounded retry uses the existing locally seeded prefix-diverse
+plan and returns no partial accepted state. Already-established
+`mini-bridge::PluggableTransport` channels enter this same proof seam; no second
+adapter process manager or bridge identity authority is created.
+
+Add `build_verified_onion_route`, which accepts three verified endpoint records,
+rejects visible endpoint-id/routing-key/root/device reuse across roles, and then
+delegates cryptography to `mini-relay::build_onion` rather than adding a
+second onion construction; this PR also hardens that implementation's replay,
+size, and relay/destination-key boundaries.
+
+Close D-0436's named F6 provenance gap with a distinct signed
+`TransportPurpose::SearchQuery`. The optional named query path operates on an
+`AuthenticatedConnection`, privately derives a `ProviderPseudonym` from the
+verified `TransportEndpointId`, returns an `AuthenticatedQueryResults` with
+private fields, and merges it without accepting a caller-selected provider
+label. Preserve anonymous CH1 querying and the legacy caller-labeled merge API;
+identity disclosure remains optional.
+
+**Reason:** every individual primitive in D-0377 could be sound while an
+application still forgot one composition check, advanced security state during a
+failed attempt, detached identity from the channel that proved it, or mislabeled
+which F6 provider answered. Security-critical sequencing and provenance belong
+in types and executable code, not documentation telling every future caller to
+remember the same multi-step ritual.
+
+**Constitutional impact:** strengthens Directive 2 by adding no mandatory
+operator; Directive 5 by retaining caller-held KEL authority; Directive 6 by
+making failed attempts atomic and explicit; Directive 9 by keeping named
+identity optional and pairwise-compatible; Directive 14 by reusing CH1,
+`mini-bridge`, and `mini-relay` rather than inventing duplicate transport or
+cryptography; Directive 16 by keeping payment/value absent from route, provider,
+ranking, identity, and governance authority; and Directive 18 by keeping external
+adapters at the edge behind the existing bridge boundary.
+
+No CA, DNS authority, TOFU database, canonical bootstrap/relay registry, hosted
+identity directory, mandatory bridge distributor, administrator, recovery,
+legal-unmasking, or traffic-master key exists. No balance, payment, stake,
+storage, bandwidth, provider revenue, or service metric enters identity,
+routing, ranking, personhood, validator, review, or governance authority.
+
+**Implementation status:** complete and focused-test green in PR #296, pending
+independent human review and merge. Permanent code adds the
+runtime module, typed search purpose, peer-bound authenticated F6 query/merge,
+and verified onion-route builder. Permanent real-socket tests prove signed
+advertisement -> CH1 -> exact peer binding -> application data; signed discovery
+and local selection -> verified three-role onion -> three relay sockets ->
+destination-only plaintext; redirect
+rejection before initiator disclosure; atomic freshness/replay state on failure;
+bounded retry past an unreachable first hint; reuse of a `mini-bridge` channel;
+onion-v2 domain separation, clock-skew-bounded validity, fail-closed relay and
+ destination replay state; advertisement
+expiry/network rechecks; same-network and visible-identity-diverse selection;
+secure-PEX outer/inner network consistency; destination/relay key separation;
+exact inbound/outbound onion sizing; bounded selection input; permanent connection
+poisoning on ambiguous bearer/channel failure; authenticated CH1 on every socket in a full
+onion chain; sealed endpoint-stable search-provider provenance that preserves
+F3 deterministic tie-breaks and removes channel-handshake grinding; symmetric F6 wire bounds, profile attribution,
+ranker-filter preservation; and wrong-purpose rejection. Focused
+strict Clippy and all tests for `mini-transport-security`,
+`mini-search-federation-net`, and `mini-relay` pass. Exact-head full workspace,
+dependency, governance, reproducibility, Android, and human-review checks
+remain the merge floor. No CodeQL workflow exists in the repository, so no
+CodeQL result is claimed.
+
+**Anti-eclipse prefix bucketing (added 2026-08-05, pre-merge review).** `NetworkPrefix::from_ip` bucketed an address as presented, so one operator holding a single IPv4 /24 occupied three separate buckets by advertising the same host as itself, as an IPv4-mapped IPv6 address, and through the well-known RFC 6052 NAT64 prefix — taking three times its share of a bounded dial plan while an honest operator took one. Bucketing now canonicalizes to the embedded IPv4 address first. Rejecting the translated forms, as `mini-crawler-fetch::address` does for crawl targets, is not available here: an IPv6-only host reaches IPv4 peers precisely through them.
+
+**Failure point:** a verified endpoint proves control of one key-bound endpoint
+on one channel, not personhood, honesty, independent operation, ASN/jurisdiction
+diversity, or result truth. An authenticated F6 label is stable for one advertised
+endpoint but rotates with its routing key, device, or pairwise identity;
+privacy-preserving continuity across endpoint rotation is intentionally undesigned.
+First-contact KEL freshness still cannot reveal an unseen later revocation.
+Known TCP endpoints remain blockable/fingerprintable; NAT traversal, reconnect,
+private bridge distribution, multipath migration, and real camouflage adapters
+are absent. The named F6 path is mutual authentication—there is no server-only
+provider proof for an unnamed requester. Relay selection verifies relay records,
+not the caller-supplied destination key's identity. Replay caches are in-memory
+concrete types with no persistence/import API. The three-hop onion remains
+correlatable by a global timing/volume observer; Mixed/Burst stay closed.
+
+**Required follow-up:** add witness/gossip KEL freshness; independently evidenced
+operator/ASN/jurisdiction diversity; issue #24 NAT/reconnect/relay fallback;
+private bridge distribution and reviewed adapters under the existing
+`mini-bridge` boundary; a server-only authenticated connection for anonymous F6
+requesters; a persistent replay-cache design; an optional typed destination-
+identity wrapper; privacy-conscious provider continuity if a real product needs
+cross-rotation reputation; and the externally reviewed D-0305 mix executor
+under #72. None may introduce a mandatory checkpoint, canonical directory,
+cloud front, unmasking key, or value-derived authority.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0377's wire
+formats or lower-level optional primitives. Closes D-0436's named caller-asserted
+provider-label gap for the new named API while preserving D-0435/D-0436's
+anonymous APIs unchanged. Does not supersede D-0305 or lift any external-review
+gate.
 
 **Supersedes / superseded by:** new ground — no prior decision addressed
 cross-identity storage-collusion detection. Builds on and does not modify

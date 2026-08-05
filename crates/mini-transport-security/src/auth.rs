@@ -58,6 +58,10 @@ pub enum TransportPurpose {
     Messaging,
     StateSync,
     Consensus,
+    /// One live remote-search request/response exchange. This purpose is
+    /// distinct so a proof disclosed for generic peer exchange cannot be
+    /// replayed as authenticated search-provider provenance.
+    SearchQuery,
 }
 
 impl TransportPurpose {
@@ -68,6 +72,7 @@ impl TransportPurpose {
             Self::Messaging => 3,
             Self::StateSync => 4,
             Self::Consensus => 5,
+            Self::SearchQuery => 6,
         }
     }
 
@@ -78,15 +83,18 @@ impl TransportPurpose {
             3 => Ok(Self::Messaging),
             4 => Ok(Self::StateSync),
             5 => Ok(Self::Consensus),
+            6 => Ok(Self::SearchQuery),
             _ => Err(TransportSecurityError::Malformed),
         }
     }
 
     pub const fn required_capability(self) -> Capabilities {
         match self {
-            Self::PeerExchange | Self::Relay | Self::Messaging | Self::StateSync => {
-                Capabilities::SIGN
-            }
+            Self::PeerExchange
+            | Self::Relay
+            | Self::Messaging
+            | Self::StateSync
+            | Self::SearchQuery => Capabilities::SIGN,
             Self::Consensus => Capabilities::VOTE,
         }
     }

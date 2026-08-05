@@ -1454,15 +1454,15 @@ the top development priority.
   **Not** a private-information-retrieval scheme: the queried peer sees
   the query text in full; true query-content privacy is separate future
   work gated behind issue #72's external crypto review, the same gate
-  Sphinx/Loopix sits behind. Requester anonymity needed no new code —
-  `mini_bearer::Channel`/CH1 already discloses no client identity. Not
-  wrapped in a signed `Object` (a live answer, not a durable one). Real,
-  tested: 6 unit tests (round trip matches local `search`; oversized
-  query/`max_results` bounds; a compliant server never over-returns; every
-  current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/
-  `Scheme`/`PersonalizationPolicy` variant round-trips with a future-safe
-  fallback; tampered ciphertext fails closed) plus one real `TcpBearer`
-  socket test. See `docs/design/f6-private-query-transport.md`.
+  Sphinx/Loopix sits behind. The anonymous Phase 1 path uses identity-free
+  CH1; PR #296's optional named path is mutual authentication and therefore
+  discloses a requester root or pairwise identity. Responses are not wrapped
+  in signed `Object`s (live answers, not durable ones). Real, tested: local/
+  remote equivalence; request/result/field bounds before encoding and after
+  decoding; canonical URL/profile validation; requested-profile attribution;
+  displayability preservation; unknown future wire tags failing closed;
+  tamper rejection; and real `TcpBearer` socket coverage. See
+  `docs/design/f6-private-query-transport.md`.
 - **shipped** — Track F6 Phase 2: wire remote query results into F3's
   federated merge (D-0436, roadmap #175). `mini-search-federation`'s
   `federate_query` merge step (dedup by URL, higher score wins, ties break
@@ -1471,20 +1471,18 @@ the top development priority.
   behavior. `mini-search-federation-net`'s new `remote_merge` module
   bridges a `remote_query` response into that same policy:
   `federated_result_from_wire` converts one `WireResult` into a typed
-  `mini_query::ResultProvenance` (rejecting any `relevance_score_bps` or
-  `explanation` component above `WeightBps::MAX`, since `WireResult`'s
-  wire codec does not itself bound those fields on decode), and
-  `merge_remote_results` folds a whole response into a caller's own
-  local/pulled results, failing closed on the first invalid entry rather
-  than dropping it silently. The merged result's provider tag is
-  caller-asserted, not cryptographically verified — F6 provides no
-  caller/provider authentication beyond the channel itself; binding it to
-  `mini-transport-security`'s authenticated peer identity is named
-  follow-up, not attempted here. Real, tested: 8 new unit tests (valid
-  round trip; out-of-range score and explanation component each rejected;
-  URL-collision dedup by score; `max_results` respected across the
-  combined set; an invalid remote result fails the whole merge). See
-  `docs/design/f6-private-query-transport.md`.
+  `mini_query::ResultProvenance` and invokes the same canonical-field,
+  multihash, URL, score, and displayability validator as the wire decoder,
+  repeating typed score conversion as defense in depth. `merge_remote_results`
+  folds a whole response into a caller's local/pulled results and fails closed
+  on the first invalid entry. Its legacy provider tag remains caller-asserted
+  for anonymous/out-of-band use. PR #296 adds a separate named path:
+  `SearchQuery`-purpose `AuthenticatedConnection`, private
+  `AuthenticatedQueryResults`, an endpoint-derived provider label stable across
+  channels to preserve F3 determinism and prevent handshake grinding, and a
+  sealed merge that accepts no caller-selected replacement label. Endpoint
+  rotation intentionally rotates the label; provider honesty and cross-rotation
+  continuity remain unsolved. See `docs/design/f6-private-query-transport.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
@@ -1925,33 +1923,36 @@ dishonest `treasury_balance_micro` input.
   only says what's true today, not why.
 
 
-## Privacy and transport security — D-0377 proposal
+## Privacy transport runtime convergence — D-0377 and proposed D-0438
 
-- **implemented in PR #292** — optional channel-bound endpoint authentication:
-  `SessionAuthClaim` proves one delegated `did:mini` device, typed purpose,
-  endpoint role, and X25519 routing key on one exact anonymous CH1 transcript.
-  Caller-held KELs, `FreshnessPins`, expiry, and bounded replay state verify the
-  proof; `verify_advertised` also requires it to match the signed endpoint that
-  was selected and dialed.
-- **implemented in PR #292** — signed secure discovery: network-bound,
-  expiring `PeerAdvertisement` records and bounded `SecurePexResponse` framing;
-  locally seeded input-order-independent dial planning rejects duplicate
-  endpoint/routing keys and caps IPv4 `/24` or IPv6 `/48` concentration.
-  Records are availability hints, never truth or governance authority.
-- **implemented in PR #292** — real Tier-1 onion execution: independent
-  Entry/Rendezvous/Delivery X25519+AEAD layers, independent public hop ids,
-  padded opaque routing tokens, per-hop expiry/replay checks, fixed-size
-  destination-encrypted payloads, and a real three-socket convergence test.
-  No relay receives application plaintext or both endpoint identities.
-- **fail-closed** — `PrivacyTier::Mixed` and `Burst` have no operational
+- **shipped in PR #292** — optional channel-bound endpoint authentication,
+  signed network-bound discovery, validity-window replay retention, local
+  prefix-diverse dial planning, real three-hop destination-encrypted onion
+  forwarding, and a runtime-fail-closed Mixed/Burst gate.
+- **implemented in draft PR #296** — `AuthenticatedConnection<B>` fuses one
+  bearer, exact CH1 channel, and peer verified on that channel. The TCP path
+  performs signed-advertisement dial, responder-first proof, exact
+  advertisement/session binding, and transactional freshness/replay commit.
+- **implemented in draft PR #296** — bounded local retry discards every failed
+  attempt whole; bridge-created channels enter the same authentication seam
+  through the existing `mini-bridge` boundary; verified onion route assembly
+  rejects visible endpoint/routing-key/root/device reuse across roles.
+- **implemented in draft PR #296** — optional named F6 search uses the distinct
+  `SearchQuery` purpose, derives a provider pseudonym from the verified advertised
+  endpoint, keeps it stable across channels so F3 tie-breaks remain deterministic,
+  and seals the authenticated merge input behind private fields. Anonymous search
+  and caller-labeled legacy merge remain
+  available as explicitly weaker contracts.
+- **fail-closed** — `PrivacyTier::Mixed` and `Burst` still have no operational
   executor. `mini_transport_security::executable_transport` refuses them until
   the exact D-0305 Sphinx/Loopix implementation receives #72's independent
-  review. Policy vocabulary is not treated as implementation evidence.
-- **open exact limits** — first-contact KEL freshness/witness gossip; independent
-  ASN/operator/jurisdiction evidence; NAT traversal and reconnect; private
-  bridge operations; pluggable/camouflaged bearers; ISP-throttling resistance;
-  and global timing/volume/intersection protection. See
-  `docs/audits/issue-27-censorship-resistance-review.md`.
+  review.
+- **open exact limits** — first-contact KEL witness freshness; independent
+  operator/ASN/jurisdiction evidence; NAT traversal and reconnect; private
+  bridge operations; real camouflage adapters; ISP-throttling resistance;
+  crash-persistent relay/destination replay state and flood controls; global
+  timing/volume/intersection protection; and privacy-preserving
+  continuity for rotating authenticated search providers.
 
 **Authority boundary:** anonymous CH1 remains available; pairwise identities
 remain valid; there is no CA, canonical relay/bootstrap registry, hosted
@@ -1987,3 +1988,9 @@ unmasking key, or value-to-routing/voice path.
   storage-fraud consequences, the complete crawler/index pipeline, and private
   settlement integration remain open. The exact findings and validation record
   are in `docs/audits/day0-release-code-hardening-20260805.md`.
+**Authority boundary:** anonymous CH1 and pairwise identities remain valid;
+there is no CA, canonical relay/bootstrap registry, hosted identity directory,
+trusted first peer, majority-by-download rule, admin/unmasking key, or
+value-to-routing/ranking/voice path. An authenticated endpoint proves control of
+one key-bound endpoint on one channel, not personhood, operator independence,
+result truth, or governance standing.
