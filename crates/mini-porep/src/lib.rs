@@ -72,7 +72,8 @@ mod error;
 mod seal;
 
 pub use audit::{
-    answer_challenge, sample_challenges, verify_audit_response, AuditChallenge, AuditResponse,
+    answer_challenge, encoding_challenge_budget, sample_challenges, verify_audit_response,
+    AuditChallenge, AuditResponse,
 };
 pub use challenge::{replica_commitment, respond, PorepStorageProof};
 pub use drg::{parents, DRG_DEGREE};

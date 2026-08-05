@@ -52,14 +52,45 @@ pub struct AuditResponse {
     pub replica_leaf: Option<([u8; NODE_SIZE], MerkleProof)>,
 }
 
+/// How many of `count` challenges are reserved for the final layer.
+///
+/// The final layer is not just one layer among many: it is the *only* place the
+/// audit touches `SealCommitment::replica_root`. Every other challenge verifies
+/// labels against `layer_roots` and data against `data_root` and never looks at
+/// the replica root at all. So an audit that samples uniformly and happens to
+/// draw no final-layer challenge has verified a commitment whose `replica_root`
+/// field was never constrained by anything — a prover could publish someone
+/// else's replica root, or noise, and pass.
+///
+/// Under uniform sampling over `num_layers + 1` layers that happens with
+/// probability `(L / (L+1))^count`, which for a 2-layer seal and 8 challenges is
+/// about one audit in twenty-six. Not a corner case: a routine occurrence.
+///
+/// So the final layer gets a guaranteed share rather than an expected one. The
+/// share is `max(1, count / (num_layers + 1))` — the same number uniform
+/// sampling would give on average, made certain instead of likely.
+pub fn encoding_challenge_budget(count: usize, num_layers: u32) -> usize {
+    if count == 0 {
+        return 0;
+    }
+    core::cmp::max(1, count / (num_layers as usize + 1))
+}
+
 /// Deterministically derive `count` audit challenges from `commitment` and
 /// a verifier-supplied `seed` (e.g. a fresh nonce or a recent block hash) --
 /// no local randomness source needed, and reproducible for tests.
+///
+/// The first [`encoding_challenge_budget`] challenges are pinned to the final
+/// layer so the XOR-encoding step, and with it the replica root, is always
+/// covered; the rest range over every layer uniformly. Node indices are drawn
+/// from the same digest either way, so the seed still decides everything and a
+/// prover still cannot predict which nodes it will be asked about.
 pub fn sample_challenges(
     commitment: &SealCommitment,
     seed: &[u8],
     count: usize,
 ) -> Vec<AuditChallenge> {
+    let reserved = encoding_challenge_budget(count, commitment.num_layers);
     (0..count)
         .map(|i| {
             let mut hasher = blake3::Hasher::new();
@@ -71,8 +102,13 @@ pub fn sample_challenges(
             let bytes = digest.as_bytes();
             let layer_raw = u64::from_le_bytes(bytes[0..8].try_into().unwrap());
             let node_raw = u64::from_le_bytes(bytes[8..16].try_into().unwrap());
+            let layer = if i < reserved {
+                commitment.num_layers
+            } else {
+                (layer_raw % (commitment.num_layers as u64 + 1)) as u32
+            };
             AuditChallenge {
-                layer: (layer_raw % (commitment.num_layers as u64 + 1)) as u32,
+                layer,
                 node: (node_raw % commitment.node_count as u64) as usize,
             }
         })
@@ -448,6 +484,53 @@ mod tests {
             sealed_b.layer_label(top, 11),
             "changing data node 0 must ripple through to the last node's top-layer label"
         );
+    }
+
+    #[test]
+    fn every_sample_covers_the_encoding_step_that_binds_the_replica_root() {
+        // Regression test for a real gap: with uniform layer sampling, an audit
+        // could draw no final-layer challenge at all, and then nothing it
+        // checked constrained `replica_root`. A prover could publish any 32
+        // bytes there and pass.
+        let replica = sealed(8, 2);
+        let commitment = replica.commitment();
+        for seed in 0u8..64 {
+            let challenges = sample_challenges(&commitment, &[seed; 32], 8);
+            assert!(
+                challenges
+                    .iter()
+                    .any(|challenge| challenge.layer == commitment.num_layers),
+                "seed {seed} drew no final-layer challenge"
+            );
+        }
+        assert_eq!(encoding_challenge_budget(0, 4), 0);
+        assert_eq!(encoding_challenge_budget(1, 10), 1);
+        assert_eq!(encoding_challenge_budget(30, 2), 10);
+    }
+
+    #[test]
+    fn a_forged_replica_root_never_survives_an_audit() {
+        // The attack the reserved final-layer challenge exists to stop: take a
+        // genuine sealing run, swap in someone else's replica root, and try to
+        // get the result audited. Every seed must catch it.
+        let honest = sealed_with_id([21u8; 32], 8, 2);
+        let stolen = sealed_with_id([22u8; 32], 8, 2);
+        let forged = SealCommitment {
+            replica_root: stolen.replica_root(),
+            ..honest.commitment()
+        };
+
+        for seed in 0u8..32 {
+            let challenges = sample_challenges(&forged, &[seed; 32], 8);
+            let caught =
+                challenges
+                    .iter()
+                    .any(|challenge| match answer_challenge(&honest, challenge) {
+                        Ok(response) => !verify_audit_response(&forged, challenge, &response),
+                        Err(_) => true,
+                    });
+            assert!(caught, "seed {seed} let a forged replica root through");
+        }
     }
 
     #[test]

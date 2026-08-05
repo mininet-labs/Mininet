@@ -13,6 +13,10 @@ pub type Result<T> = core::result::Result<T, AttestError>;
 pub enum AttestError {
     Truncated,
     TrailingBytes,
+    /// A signature list arrived unsorted or with a repeated key index,
+    /// so one logical object would have had more than one valid wire
+    /// encoding -- and, being content-addressed, more than one identity.
+    NoncanonicalSignatureOrder,
     LimitExceeded,
     UnsupportedReceiptVersion,
     UnsupportedReviewVersion,
@@ -51,6 +55,7 @@ impl core::fmt::Display for AttestError {
         let message = match self {
             AttestError::Truncated => "attestation bytes are truncated",
             AttestError::TrailingBytes => "trailing bytes after attestation structure",
+            AttestError::NoncanonicalSignatureOrder => "signature indices are unsorted or repeated",
             AttestError::LimitExceeded => "attestation decode limit exceeded",
             AttestError::UnsupportedReceiptVersion => "unsupported completion receipt version",
             AttestError::UnsupportedReviewVersion => "unsupported signed review version",

@@ -427,3 +427,73 @@ pub(crate) fn count_valid_signers(msg: &[u8], keys: &[VerifyingKey], sigs: &[Ind
     }
     count
 }
+
+/// Whether a detached signature list is in this protocol's one canonical
+/// order: strictly ascending key index, no repeats.
+///
+/// # Why an encoding rule is a correctness rule
+///
+/// Objects in this protocol are routinely content-addressed by their own
+/// bytes. If one logical object has several valid encodings, it has several
+/// identifiers, and "have I already seen this?" stops being answerable by
+/// comparing bytes — a duplicate arrives looking new, and a cache, a replay
+/// check, or a dedup index quietly stops working.
+///
+/// [`crate::Controller::sign_message`] already emits one signature per current
+/// key in index order, so no honest producer is affected by this rule. It
+/// exists so a decoder rejects the encodings only an adversary would bother to
+/// construct, rather than admitting them and letting them multiply downstream.
+pub fn signatures_are_canonical(signatures: &[IndexedSig]) -> bool {
+    signatures
+        .windows(2)
+        .all(|pair| pair[0].index < pair[1].index)
+}
+
+/// Put a freshly assembled signature list into canonical order, dropping any
+/// repeated key index.
+///
+/// A caller collecting signatures from several devices should pass them through
+/// this before encoding, so it cannot build an object that its own decoder
+/// would refuse.
+pub fn canonicalize_signatures(mut signatures: Vec<IndexedSig>) -> Vec<IndexedSig> {
+    signatures.sort_by_key(|signature| signature.index);
+    signatures.dedup_by_key(|signature| signature.index);
+    signatures
+}
+
+#[cfg(test)]
+mod canonical_signature_tests {
+    use super::*;
+    use mini_crypto::SigningKey;
+
+    fn sig(index: u32) -> IndexedSig {
+        IndexedSig {
+            index,
+            signature: SigningKey::from_seed(&[index as u8; 32]).sign(b"canonical order"),
+        }
+    }
+
+    #[test]
+    fn ascending_distinct_indices_are_canonical() {
+        assert!(signatures_are_canonical(&[]));
+        assert!(signatures_are_canonical(&[sig(0)]));
+        assert!(signatures_are_canonical(&[sig(0), sig(1), sig(5)]));
+    }
+
+    #[test]
+    fn repeats_and_descents_are_not() {
+        assert!(!signatures_are_canonical(&[sig(1), sig(0)]));
+        assert!(!signatures_are_canonical(&[sig(0), sig(0)]));
+        assert!(!signatures_are_canonical(&[sig(0), sig(2), sig(1)]));
+    }
+
+    #[test]
+    fn canonicalizing_fixes_both() {
+        let fixed = canonicalize_signatures(vec![sig(2), sig(0), sig(2), sig(1)]);
+        assert!(signatures_are_canonical(&fixed));
+        assert_eq!(
+            fixed.iter().map(|s| s.index).collect::<Vec<_>>(),
+            vec![0, 1, 2]
+        );
+    }
+}
