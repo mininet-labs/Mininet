@@ -2510,6 +2510,7 @@ dependencies = [
  "mini-bearer",
  "mini-chain",
  "mini-crypto",
+ "mini-economy",
  "mini-execution",
  "mini-settlement",
 ]

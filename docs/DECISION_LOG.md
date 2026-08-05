@@ -15831,3 +15831,82 @@ existing decisions; it does not supersede their doctrine. Coordinates with,
 but does not modify or supersede, PR #296 / D-0438's transport and authenticated
 query work. PR #299 / D-0439–D-0441 supersedes the storage-fraud implementation
 reviewed on the original audit base and is preserved unchanged.
+
+### D-0443 — Exact-body finality v2 and lossless monetary consensus wire migration  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** D-0207, D-0414–D-0416, D-0442;
+roadmap #45; `docs/design/exact-body-finality-v2-migration.md`; M1–M3; V1;
+A1; Directive 4, Directive 5, Directive 6, Directive 11, Directive 13, and
+Directive 15.
+
+**Decision:** make the exact ordered application body part of the finalized
+value. `BlockHeader` version 2 gains `body_root`; its versioned header hash
+commits to both `state_root` and `body_root`, so every existing vote and QC over
+that hash proves the exact body as well as the resulting state. Execution,
+proposal validation, voting, catch-up, and persisted finalized-block decoding
+all reject a body mismatch. Settlement-body hash v2 commits the canonical bytes
+of each scalable monetary epoch. Consensus message/proposal v3 serializes those
+epochs losslessly under explicit count and byte limits. Finalized-block,
+catch-up, snapshot, state-sync, and archive-install formats move to v2 and fail
+closed on their old domains.
+
+**Reason:** state equality is not historical-byte equality. Execution
+intentionally ignores an invalidly signed claim, so an empty body and a body
+containing that invalid claim can have the same `state_root`. D-0442 made a live
+proposal signature body-aware, but its QC and durable history still targeted a
+header that lacked that commitment. The same end-to-end review found that the
+consensus body codec omitted `monetary_epochs` entirely and the scalable epoch
+commitment omitted nested Human Share epoch and vesting fields. A late node
+could therefore lose an issuance transition in transport, and a commitment did
+not represent every authority-bearing field. One incompatible prelaunch
+migration closes all three ambiguity classes without inventing a compatibility
+value for information the old header never committed.
+
+**Constitutional impact:** reinforces canonical truth, deterministic failure,
+weakest-device bounds, long-horizon versioning, and malicious-minority defense.
+It changes neither issuance formula nor allocation, balances, account ordering,
+governance weight, validator membership, personhood, or owner authority. The
+voice/value wall remains intact. The new monetary codec conveys an epoch plan;
+it grants no issuance authority because execution re-derives the D-0074 policy
+transition from finalized supply.
+
+**Implementation status:** implemented on `codex/release-security-audit` in
+PR #300. Adversarial tests prove a QC for an empty body cannot be reused for a
+different invalid-claim body with the same post-state, exact monetary plans
+survive proposal wire round-trip, nested Human Share fields affect the
+commitment, header hashes change with `body_root`, persisted/catch-up objects
+reject mismatched bodies, every prior outer protocol version is rejected, and
+malformed/truncated/oversized epoch encodings fail closed. Targeted tests across
+`mini-chain`, `mini-consensus`, `mini-economy`, `mini-execution`, and
+`mini-contribution` pass on the proposal branch. Exact-head Linux workspace CI,
+human review, and A1 external review remain required.
+
+**Migration:** coordinated prelaunch hard fork only. Stop all validators,
+preserve the old archive as read-only evidence, move it out of the live path,
+install one reviewed binary, and restart from an explicitly agreed v2 genesis.
+No automatic v1 archive or balance conversion exists because v1 headers cannot
+prove their historical bodies. Preserving beta balances requires a separately
+governed and audited explicit genesis allocation. After a v2 block finalizes,
+v1 rollback under the same network id is forbidden. The complete abort,
+quarantine, verification, and recovery sequence is normative in the design
+document.
+
+**Failure point:** this proves exact bodies only from v2 genesis onward. The
+validator set is still static; historical set transitions, long-range defense,
+and weak subjectivity remain open. Snapshot state is still capped at 8 MiB and
+one bearer frame; no resumable chunked Merkle state protocol exists. Canonical
+rejection history still lacks deterministic pruning/compact proofs. External
+consensus, issuance, and cryptographic review has not occurred.
+
+**Required follow-up:** run exact-head Linux workspace CI and the documented
+mixed-version/fresh-node deployment drills; obtain D-0033 and A1 reviews;
+implement chunked authenticated state transfer, bounded rejection proofs,
+dynamic validator-set history, and an explicit weak-subjectivity rule before
+claiming internet-scale consensus recovery.
+
+**Supersedes / superseded by:** supersedes D-0442's proposal-v2 transcript and
+its statement that exact historical body commitment remains unimplemented.
+D-0442's other hardening findings and authority boundaries stand. This proposal
+does not supersede D-0207's snapshot/archive design or D-0414–D-0416's issuance,
+ledger, and admission rules; it migrates their consensus commitment and wire
+representation.

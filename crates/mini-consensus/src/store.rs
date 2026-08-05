@@ -22,7 +22,7 @@ const SNAPSHOT_FILE: &str = "snapshot.bin";
 const BLOCKS_DIR: &str = "blocks";
 const LOCK_FILE: &str = "archive.lock";
 const INSTALL_PENDING_FILE: &str = "install.pending";
-const INSTALL_PENDING_DOMAIN: &[u8] = b"mini-consensus/archive-install/v1";
+const INSTALL_PENDING_DOMAIN: &[u8] = b"mini-consensus/archive-install/v2";
 const TEMP_SUFFIX: &str = "tmp-write";
 /// A stable suffix must fit one encrypted state-sync response by itself.
 const MAX_ARCHIVE_SUFFIX_BYTES: usize = mini_bearer::MAX_CHANNEL_PLAINTEXT_BYTES;
@@ -1023,10 +1023,12 @@ mod tests {
         let proposer = Controller::incept_single_from_seeds(&[4; 32], &[5; 32])
             .unwrap()
             .did();
+        let body = mini_execution::SettlementBlockBody::new(Vec::new());
         let header = BlockHeader {
             height,
             prev_hash: previous,
             state_root: state.commitment(),
+            body_root: body.hash(),
             timestamp_ms: height,
             proposer,
         };
@@ -1038,8 +1040,22 @@ mod tests {
                 votes: Vec::new(),
             },
             header,
-            body: mini_execution::SettlementBlockBody::new(Vec::new()),
+            body,
         }
+    }
+
+    #[test]
+    fn pre_body_commitment_install_journal_version_is_rejected() {
+        let state = LedgerState::new();
+        let response = StateSyncResponse::blocks(state.network_id(), Vec::new());
+        let mut bytes = encode_pending_install(&response, &state).unwrap();
+        let version = INSTALL_PENDING_DOMAIN.len() - 1;
+        assert_eq!(bytes[version], b'2');
+        bytes[version] = b'1';
+        assert_eq!(
+            decode_pending_install(&bytes).unwrap_err(),
+            ConsensusError::Malformed
+        );
     }
 
     #[test]

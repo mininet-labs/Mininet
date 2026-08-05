@@ -550,7 +550,7 @@
     },
     {
       "issue": 61,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "codex/day0-payment-admission",
       "pull_request": 274,
@@ -570,7 +570,7 @@
       "decision_ids": [
         "D-0416"
       ],
-      "notes": "Next large Day-0 payment portion of roadmap #61 after merged PR #273: standalone bounded PaymentClaim wire codec and deterministic node-local admission pool with signature/network/payee/expiry preflight, conflict and aggregate-overspend refusal, global/byte/per-payer limits, candidate ordering, and canonical revalidation. No authenticated network submission, re-gossip, fees, inclusion guarantee, persistence, privacy, or activation."
+      "notes": "Next large Day-0 payment portion of roadmap #61 after merged PR #273: standalone bounded PaymentClaim wire codec and deterministic node-local admission pool with signature/network/payee/expiry preflight, conflict and aggregate-overspend refusal, global/byte/per-payer limits, candidate ordering, and canonical revalidation. No authenticated network submission, re-gossip, fees, inclusion guarantee, persistence, privacy, or activation. PR #274 merged 2026-07-30; closed by PR #300 as the next registry-touching proposal overlapping these paths, following the standing merged-but-unclosed claim precedent."
     },
     {
       "issue": 34,
@@ -597,7 +597,7 @@
     },
     {
       "issue": 175,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/sandbox-d7xndc",
       "pull_request": 294,
@@ -619,14 +619,14 @@
         "D-0435",
         "D-0436"
       ],
-      "notes": "Track F6 Phase 1+2 (roadmap #175, distributed/federated search): bounded, confidential-in-transit remote query transport in mini-search-federation-net's new query module (remote_query/serve_query), plus Phase 2 (D-0436) wiring those results into F3's typed merge -- mini-search-federation::merge_federated_results extracted from federate_query, and a new remote_merge module bridging WireResult into FederatedResult. Explicitly not a private-information-retrieval scheme -- the queried peer sees the exact query text; the merged remote result's provider tag is caller-asserted, not cryptographically verified. Both gated behind future work (issue #72 external crypto review; mini-transport-security authentication once reviewed). Coordination evidence only; no approval or release claim. Closes Track F's last remaining pieces (F1/F2/F2b/F3/F4/F7 already shipped). PR #294 merged 2026-08-04; closed here (issue #42 branch) since this next registry-touching proposal is the following PR to touch this file, per the standing precedent of closing merged-but-unclosed claims on the next PR that touches this file."
+      "notes": "Track F6 Phase 1+2 (roadmap #175, distributed/federated search): bounded, confidential-in-transit remote query transport in mini-search-federation-net's new query module (remote_query/serve_query), plus Phase 2 (D-0436) wiring those results into F3's typed merge -- mini-search-federation::merge_federated_results extracted from federate_query, and a new remote_merge module bridging WireResult into FederatedResult. Explicitly not a private-information-retrieval scheme -- the queried peer sees the exact query text; the merged remote result's provider tag is caller-asserted, not cryptographically verified. Both gated behind future work (issue #72 external crypto review; mini-transport-security authentication once reviewed). Coordination evidence only; no approval or release claim. Closes Track F's last remaining pieces (F1/F2/F2b/F3/F4/F7 already shipped). PR #294 merged 2026-08-04; closed by PR #300 as the next registry-touching proposal, following the standing merged-but-unclosed claim precedent."
     },
     {
       "issue": 42,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/pr-297-security-review-a2m1tl",
-      "pull_request": null,
+      "pull_request": 299,
       "lease_expires": "2026-08-11",
       "paths": [
         "crates/mini-storage-fraud/",
@@ -652,7 +652,34 @@
         "D-0440",
         "D-0441"
       ],
-      "notes": "Roadmap #42 (PARTIAL -- issue stays open) plus remediation of the external full-codebase audit of 2026-08-05. D-0439 supersedes D-0437 (merged via PR #297), which external review found unsound: it signed a caller-supplied mini_spacetime::StorageCommitment with no binding to any mini-porep seal, so an attacker could copy an honest provider's published Merkle root, sign it under their own valid DID, and produce evidence that verified -- framing an honest provider. D-0437's entry is left unedited as history. The rebuild uses identity-bound replica ids over a typed ReplicaContextV1, AuditAttestation/RegistrationReceipt quorums that actually run mini-porep's registration audit, delegation under a new did-mini Capabilities::STORE, historical-KEL verification at a pinned sequence and event digest, a derived (never supplied) StorageCommitment, a ReplicaRegistry refusing duplicate replica roots, and verify_conflict returning an explicitly UNATTRIBUTED conflict. D-0440 fixes four defects in merged code: seven crates capped signature decoders at 16 while did-mini permits 64; those decoders accepted non-canonical signature ordering for content-addressed objects; mini-porep's sample_challenges could draw no final-layer challenge, leaving SealCommitment::replica_root unconstrained; and MerkleProof::verify never checked proof shape against the declared leaf count, so a proof padded with None siblings verified identically. D-0441 makes the dependency-audit CI job gate on the scanner actually running (continue-on-error was reporting a hard failure as a pass) and requires audit documents to state their own scope. Coordination evidence only; no approval or release claim. All three decisions stay Proposed. D-0438 is NOT used here -- PR #296 claimed it first; renumbered after review."
+      "notes": "Roadmap #42 (PARTIAL -- issue stays open) plus remediation of the external full-codebase audit of 2026-08-05. D-0439 supersedes D-0437 (merged via PR #297), which external review found unsound: it signed a caller-supplied mini_spacetime::StorageCommitment with no binding to any mini-porep seal, so an attacker could copy an honest provider's published Merkle root, sign it under their own valid DID, and produce evidence that verified -- framing an honest provider. D-0437's entry is left unedited as history. The rebuild uses identity-bound replica ids over a typed ReplicaContextV1, AuditAttestation/RegistrationReceipt quorums that actually run mini-porep's registration audit, delegation under a new did-mini Capabilities::STORE, historical-KEL verification at a pinned sequence and event digest, a derived (never supplied) StorageCommitment, a ReplicaRegistry refusing duplicate replica roots, and verify_conflict returning an explicitly UNATTRIBUTED conflict. D-0440 fixes four defects in merged code: seven crates capped signature decoders at 16 while did-mini permits 64; those decoders accepted non-canonical signature ordering for content-addressed objects; mini-porep's sample_challenges could draw no final-layer challenge, leaving SealCommitment::replica_root unconstrained; and MerkleProof::verify never checked proof shape against the declared leaf count, so a proof padded with None siblings verified identically. D-0441 makes the dependency-audit CI job gate on the scanner actually running (continue-on-error was reporting a hard failure as a pass) and requires audit documents to state their own scope. Coordination evidence only; no approval or release claim. All three decisions stay Proposed. D-0438 is NOT used here -- PR #296 claimed it first; renumbered after review. PR #299 merged 2026-08-05; closed by PR #300 as the next registry-touching proposal."
+    },
+    {
+      "issue": 45,
+      "status": "in_review",
+      "contributor": "Codex",
+      "branch": "codex/release-security-audit",
+      "pull_request": 300,
+      "lease_expires": "2026-08-14",
+      "paths": [
+        "Cargo.lock",
+        "crates/mini-chain/",
+        "crates/mini-consensus/",
+        "crates/mini-contribution/tests/alice_bob_carol.rs",
+        "crates/mini-economy/",
+        "crates/mini-execution/",
+        "docs/audits/day0-release-code-hardening-20260805.md",
+        "docs/design/exact-body-finality-v2-migration.md",
+        "docs/design/networked-consensus.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md",
+        "governance/work-claims.json"
+      ],
+      "decision_ids": [
+        "D-0442",
+        "D-0443"
+      ],
+      "notes": "PR #300 extends the D-0442 audit with D-0443: exact-body finality through block-header v2/body_root, lossless bounded monetary epoch consensus serialization, complete scalable epoch commitments, versioned catch-up/snapshot/state-sync/archive migration, and adversarial same-state/different-body and old-version rejection tests. Coordinated prelaunch hard fork only; no production state migration, activation, merge, canonicalization, or release authority. Roadmap #45 remains open for chunked authenticated state transfer, dynamic validator-set history, weak subjectivity, discovery/retry, and weakest-device evidence."
     }
   ]
 }

@@ -141,6 +141,23 @@ impl LedgerChain {
         validators: &ValidatorSet,
         oracle: &dyn ValidatorOracle,
     ) -> Result<[u8; 32]> {
+        // Reject attacker-controlled oversized or substituted bodies before
+        // spending work on quorum-signature verification.
+        if body.claims.len() > crate::MAX_CLAIMS_PER_BLOCK {
+            return Err(ExecutionError::TooManyClaims);
+        }
+        if body.monetary_epochs.len() > crate::MAX_MONETARY_EPOCHS_PER_BLOCK {
+            return Err(ExecutionError::TooManyMonetaryEpochs);
+        }
+        for epoch in &body.monetary_epochs {
+            epoch
+                .to_wire_bytes()
+                .map_err(ExecutionError::InvalidMonetaryEpoch)?;
+        }
+        if header.body_root != body.hash() {
+            return Err(ExecutionError::BodyRootMismatch);
+        }
+
         verify_finality(qc, validators, oracle)?;
 
         let expected_height = self.height + 1;

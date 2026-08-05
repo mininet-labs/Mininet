@@ -117,6 +117,7 @@ fn finalized_monetary_epoch_updates_supply_and_replay_fails() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state.commitment(),
+        body_root: body.hash(),
         timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
@@ -161,6 +162,7 @@ fn a_single_claim_finalizes_end_to_end_and_reconcile_reports_it() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state.commitment(),
+        body_root: body.hash(),
         timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
@@ -201,6 +203,7 @@ fn a_finalized_overspend_returns_a_canonical_wallet_rejection() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state.commitment(),
+        body_root: body.hash(),
         timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
@@ -247,6 +250,7 @@ fn a_double_spend_across_two_competing_proposals_resolves_to_exactly_one_winner(
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state_a.commitment(),
+        body_root: body_a.hash(),
         timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
@@ -302,6 +306,7 @@ fn two_independent_chains_fed_the_same_finalized_blocks_converge_to_identical_st
             height,
             prev_hash,
             state_root: next_state.commitment(),
+            body_root: body.hash(),
             timestamp_ms: height,
             proposer: fx.signers[0].0.did(),
         };
@@ -349,6 +354,7 @@ fn an_unfinalized_block_is_never_applied() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state.commitment(),
+        body_root: body.hash(),
         timestamp_ms: 1_000,
         proposer: fx.signers[0].0.did(),
     };
@@ -389,6 +395,7 @@ fn a_dishonest_state_root_is_rejected() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: [0xFFu8; 32], // does not match what `body` actually produces
+        body_root: body.hash(),
         timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
@@ -412,6 +419,68 @@ fn a_dishonest_state_root_is_rejected() {
 }
 
 #[test]
+fn a_qc_cannot_be_reused_for_different_body_bytes_with_the_same_state_root() {
+    let fx = fixture();
+    let mut chain = LedgerChain::genesis();
+    let original_tip = chain.tip_hash();
+    let original_state = chain.state().commitment();
+
+    let committed_body = SettlementBlockBody::new(vec![]);
+    let mut invalid_claim = sign_claim(
+        &SigningKey::from_seed(&[0xA1; 32]),
+        &recipient(0xA2),
+        1,
+        0,
+        10_000,
+        b"chain-1",
+        0,
+    )
+    .unwrap();
+    invalid_claim.amount_micro += 1; // invalidate the signature; execution drops it
+    let substituted_body = SettlementBlockBody::new(vec![invalid_claim]);
+
+    assert_ne!(committed_body.hash(), substituted_body.hash());
+    assert_eq!(
+        mini_execution::apply_block(chain.state(), &committed_body)
+            .unwrap()
+            .commitment(),
+        mini_execution::apply_block(chain.state(), &substituted_body)
+            .unwrap()
+            .commitment(),
+        "this is the historical ambiguity that state_root alone cannot prevent"
+    );
+
+    let header = BlockHeader {
+        height: 1,
+        prev_hash: chain.tip_hash(),
+        state_root: original_state,
+        body_root: committed_body.hash(),
+        timestamp_ms: 1,
+        proposer: fx.signers[0].0.did(),
+    };
+    let hash = header.hash();
+    let qc = QuorumCertificate {
+        height: 1,
+        round: 0,
+        block_hash: hash,
+        votes: fx.signers[..3]
+            .iter()
+            .map(|(root, device)| sign_vote(VoteKind::Precommit, 1, 0, hash, &root.did(), device))
+            .collect(),
+    };
+
+    assert_eq!(
+        chain
+            .apply_finalized_block(&header, &substituted_body, &qc, &fx.validators, &fx.oracle,)
+            .unwrap_err(),
+        ExecutionError::BodyRootMismatch
+    );
+    assert_eq!(chain.height(), 0);
+    assert_eq!(chain.tip_hash(), original_tip);
+    assert_eq!(chain.state().commitment(), original_state);
+}
+
+#[test]
 fn wrong_height_and_wrong_parent_are_both_rejected() {
     let fx = fixture();
     let chain = LedgerChain::genesis();
@@ -423,6 +492,7 @@ fn wrong_height_and_wrong_parent_are_both_rejected() {
         height: 2, // should be 1
         prev_hash: chain.tip_hash(),
         state_root: next_state.commitment(),
+        body_root: body.hash(),
         timestamp_ms: 1_000,
         proposer: fx.signers[0].0.did(),
     };
@@ -453,6 +523,7 @@ fn wrong_height_and_wrong_parent_are_both_rejected() {
         height: 1,
         prev_hash: [0xAAu8; 32], // not the real genesis tip hash
         state_root: next_state.commitment(),
+        body_root: body.hash(),
         timestamp_ms: 1_000,
         proposer: fx.signers[0].0.did(),
     };
@@ -499,6 +570,7 @@ fn a_timestamp_that_does_not_equal_the_block_height_is_rejected() {
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state_1.commitment(),
+        body_root: body_1.hash(),
         timestamp_ms: 1,
         proposer: fx.signers[0].0.did(),
     };
@@ -529,6 +601,7 @@ fn a_timestamp_that_does_not_equal_the_block_height_is_rejected() {
         height: 2,
         prev_hash: chain.tip_hash(),
         state_root: next_state_2.commitment(),
+        body_root: body_2.hash(),
         timestamp_ms: u64::MAX, // increasing, but not the required value
         proposer: fx.signers[0].0.did(),
     };

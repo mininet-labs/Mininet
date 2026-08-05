@@ -114,6 +114,12 @@ given time.
   connect`/`listen` already use). **State-sync/catch-up now has two layers.** D-0093's
   bounded block-only `CatchupRequest`/`CatchupResponse` remains a compatibility
   path and still re-verifies every block through `apply_finalized_block`.
+  **Implemented on the D-0443 proposal branch:** block-header v2 adds an exact
+  `body_root`, so votes/QCs, persisted finalized blocks, catch-up, snapshots,
+  and execution prove the exact body independently of its resulting
+  `state_root`. Consensus message/proposal v3 also carries bounded monetary
+  epoch plans losslessly; all prior outer formats fail closed and require the
+  documented coordinated prelaunch migration.
   **Implemented in this PR (D-0207):** canonical complete
   `LedgerState` snapshots bind settlement-network id, exact monetary/payment
   state, finalized header, state commitment, and QC; receivers verify the QC
@@ -1952,11 +1958,16 @@ remain valid; there is no CA, canonical relay/bootstrap registry, hosted
 identity directory, trusted first peer, majority-by-download rule, admin or
 unmasking key, or value-to-routing/voice path.
 
-## Day-0 release code hardening — D-0442 proposal
+## Day-0 release code hardening — D-0442/D-0443 proposal
 
-- **implemented on the proposal branch** — consensus proposal transcript v2
-  binds the exact settlement body as well as the header; proposal admission is
-  capped at 4,096 claims to match the operational admission bound.
+- **implemented on the proposal branch (D-0443 superseding D-0442's transcript
+  version)** — block-header v2 commits `body_root`, making the exact body part
+  of every vote/QC and durable archive proof; consensus message/proposal v3
+  carries bounded monetary epoch plans losslessly; scalable epoch commitment
+  v2 includes every nested Human Share field. Old messages, snapshots,
+  state-sync responses, archive blocks, and install journals fail closed under
+  the coordinated prelaunch migration. Proposal admission remains capped at
+  4,096 claims.
 - **implemented on the proposal branch** — monetary epoch progression fails
   at `u64::MAX`; payment admission preserves only the canonical
   `InsufficientFunds` retry; unsupported signing suites return an error instead
@@ -1971,8 +1982,8 @@ unmasking key, or value-to-routing/voice path.
 - **still gated** — this is internal engineering evidence, not production
   approval. External cryptography/consensus/storage review (A1), personhood and
   validator formation, PR #296's authenticated transport convergence,
-  historical body commitment migration, chunked state transfer, bounded
-  rejection history, a public payment service, owner-key recovery/rotation,
+  chunked state transfer, bounded rejection history, a public payment service,
+  owner-key recovery/rotation,
   storage-fraud consequences, the complete crawler/index pipeline, and private
   settlement integration remain open. The exact findings and validation record
   are in `docs/audits/day0-release-code-hardening-20260805.md`.

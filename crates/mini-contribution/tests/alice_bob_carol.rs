@@ -270,6 +270,7 @@ fn alice_publishes_bob_seeds_carol_requests_and_both_are_paid_from_carols_balanc
         height: 1,
         prev_hash: chain.tip_hash(),
         state_root: next_state.commitment(),
+        body_root: body.hash(),
         timestamp_ms: 1,
         proposer: validators[0].0.did(),
     };

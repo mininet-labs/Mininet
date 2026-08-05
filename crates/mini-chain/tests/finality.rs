@@ -60,6 +60,7 @@ fn genesis_header(proposer: &Did) -> BlockHeader {
         height: 1,
         prev_hash: [0u8; 32],
         state_root: [1u8; 32],
+        body_root: [2u8; 32],
         timestamp_ms: 1_000,
         proposer: proposer.clone(),
     }
@@ -75,6 +76,10 @@ fn block_hash_is_deterministic_and_field_sensitive() {
     let mut h3 = h1.clone();
     h3.timestamp_ms += 1;
     assert_ne!(h1.hash(), h3.hash());
+
+    let mut different_body = h1.clone();
+    different_body.body_root[0] ^= 1;
+    assert_ne!(h1.hash(), different_body.hash());
 }
 
 #[test]

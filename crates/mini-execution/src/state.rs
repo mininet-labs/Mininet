@@ -238,7 +238,7 @@ pub fn apply_block(prev: &LedgerState, body: &SettlementBlockBody) -> Result<Led
     if body.claims.len() > crate::body::MAX_CLAIMS_PER_BLOCK {
         return Err(ExecutionError::TooManyClaims);
     }
-    if body.monetary_epochs.len() > 1 {
+    if body.monetary_epochs.len() > crate::body::MAX_MONETARY_EPOCHS_PER_BLOCK {
         return Err(ExecutionError::TooManyMonetaryEpochs);
     }
     let mut next = prev.clone();
@@ -246,6 +246,9 @@ pub fn apply_block(prev: &LedgerState, body: &SettlementBlockBody) -> Result<Led
         apply_one_claim(&mut next, claim)?;
     }
     if let Some(epoch) = body.monetary_epochs.first() {
+        epoch
+            .to_wire_bytes()
+            .map_err(ExecutionError::InvalidMonetaryEpoch)?;
         let before = next
             .monetary
             .circulating_supply()

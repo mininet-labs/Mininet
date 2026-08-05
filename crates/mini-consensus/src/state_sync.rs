@@ -13,7 +13,7 @@ use crate::wire::Reader;
 /// Maximum finalized blocks in one state-sync response.
 pub const MAX_STATE_SYNC_BLOCKS: usize = 256;
 
-const DOMAIN: &[u8] = b"mini-consensus/state-sync/v1";
+const DOMAIN: &[u8] = b"mini-consensus/state-sync/v2";
 const TAG_WRONG_NETWORK: u8 = 0;
 const TAG_UNAVAILABLE: u8 = 1;
 const TAG_BLOCKS: u8 = 2;
@@ -334,6 +334,7 @@ mod tests {
             height,
             prev_hash: [0; 32],
             state_root: [0; 32],
+            body_root: SettlementBlockBody::new(Vec::new()).hash(),
             timestamp_ms: height,
             proposer,
         };
@@ -368,6 +369,22 @@ mod tests {
         let mut trailing = bytes;
         trailing.push(0);
         assert!(StateSyncRequest::from_wire_bytes(&trailing).is_err());
+    }
+
+    #[test]
+    fn pre_body_commitment_state_sync_version_is_rejected() {
+        let mut bytes = StateSyncRequest {
+            network_id: [4; 32],
+            from_height: 99,
+        }
+        .to_wire_bytes();
+        let version = DOMAIN.len() - 1;
+        assert_eq!(bytes[version], b'2');
+        bytes[version] = b'1';
+        assert_eq!(
+            StateSyncRequest::from_wire_bytes(&bytes).unwrap_err(),
+            ConsensusError::Malformed
+        );
     }
 
     #[test]

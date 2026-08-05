@@ -9,6 +9,16 @@
 
 **Decision:** proposed D-0442
 
+**Audit scope**
+
+| Field | Value |
+|---|---|
+| Reviewed at | `main` @ `af45860914edfe16e0fbc483b927bb2b274666d8`, reconciled and extended at `a9f9c96d3bb3dd9419ffce54b9b9abcbe05c3a11` |
+| Workspace size | 72 crates at the reviewed base |
+| Method | Manual cross-module review of the listed release-sensitive PRs; regression test for every fixed finding; targeted all-feature tests and workspace Clippy |
+| Tool versions | Repository-pinned Rust toolchain; Python version recorded by governance CI |
+| Revalidation trigger | Any change to block/header/body hashing, consensus wire/archive formats, issuance plans, payment admission, owner sealing/cache policy, or crawler address admission |
+
 ## Scope
 
 This pass reviewed release-sensitive code introduced or materially changed by
@@ -93,11 +103,38 @@ onto the reconciled branch.
     against the current [IANA IPv4 special-purpose registry](https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml)
     and [IANA IPv6 special-purpose registry](https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xhtml).
 
+## Follow-on blocker resolved in D-0443
+
+The audit originally left exact historical body finality as P1. Implementing
+that migration exposed two more end-to-end consensus defects and closes all
+three together:
+
+1. **Finalized headers/QCs did not commit the exact body.** Block-header v2
+   adds `body_root`; votes, QCs, execution, archive rows, snapshots, and
+   catch-up now bind and verify it. An adversarial regression proves that a QC
+   for an empty body cannot authorize a different invalid-claim body even when
+   both produce the same `state_root`.
+2. **Consensus serialization omitted monetary epoch plans.** Proposal and
+   catch-up body codecs now carry the exact bounded `ScalableEpochPlan`; a
+   round-trip regression proves no issuance field disappears in transit.
+3. **The scalable epoch commitment omitted nested authority-bearing fields.**
+   Its v2 commitment and new canonical codec include the Human Share epoch and
+   vesting duration as well as every other plan field. Truncation, trailing
+   bytes, count/length abuse, and oversized plans fail closed.
+
+This is an intentionally incompatible prelaunch hard fork. The version map,
+archive quarantine, fresh-genesis procedure, abort rule, and prohibition on
+same-network rollback after v2 finality are specified in
+`docs/design/exact-body-finality-v2-migration.md`.
+
 ## Validation evidence
 
 - focused tests passed for `mini-consensus`, `mini-crawler-fetch`,
   `mini-economy`, `mini-execution`, `mini-settlement`, `mini-store`, and
   the original-base `mini-storage-fraud` review (since superseded by PR #299);
+- after D-0443, 160 targeted tests pass across `mini-chain`, `mini-consensus`,
+  `mini-contribution`, `mini-economy`, and `mini-execution`, including real TCP
+  consensus and state-sync/reopen tests;
 - workspace-wide Clippy with all targets/features and `-D warnings` passed,
   followed by an exact-head focused Clippy rerun for the two crates changed
   during final self-review;
@@ -120,7 +157,6 @@ onto the reconciled branch.
 | P0 | External review of `mini-value` range/ring constructions, PoRep/PDP assumptions, consensus, issuance, and key lifecycle | Internal tests cannot establish cryptographic security or economic soundness. |
 | P0 | Authenticated public transport/runtime convergence | Active draft PR #296 owns the overlapping implementation. It must pass adversarial internet tests and independent review. |
 | P0 | Sybil-resistant personhood and validator-set formation | Identity roots are not verified humans; code cannot manufacture the missing trust primitive. |
-| P1 | Finalized headers/QCs do not commit the exact block-body hash | Live proposals are now body-authenticated, and value state is state-root-bound, but archive/catch-up proof of the exact historical body needs a versioned header/block migration. |
 | P1 | Canonical rejection history grows without deterministic pruning | An unbounded sequence of valid rejections can eventually prevent single-frame snapshots. Pruning changes wallet proof semantics and needs an authenticated-history design. |
 | P1 | Snapshot transfer is one bounded frame (8 MiB state ceiling) | Internet-scale state needs chunked Merkle transfer with independently verified chunks, resumability, and anti-equivocation tests. |
 | P1 | Payment submission lacks an authenticated, rate-limited public service | The bounded admission pool is node-local. Exposing it directly would create spam and metadata risks. |

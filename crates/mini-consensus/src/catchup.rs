@@ -44,10 +44,10 @@ use crate::wire::{decode_body, decode_header, encode_body, encode_header, put_by
 /// single block is verified.
 pub const MAX_CATCHUP_BLOCKS: usize = 1024;
 
-const DOMAIN: &[u8] = b"mini-consensus/catchup/v1";
+const DOMAIN: &[u8] = b"mini-consensus/catchup/v2";
 const TAG_REQUEST: u8 = 0;
 const TAG_RESPONSE: u8 = 1;
-const FINALIZED_BLOCK_DOMAIN: &[u8] = b"mini-consensus/finalized-block/v1";
+const FINALIZED_BLOCK_DOMAIN: &[u8] = b"mini-consensus/finalized-block/v2";
 
 /// One already-finalized block: everything
 /// [`mini_execution::LedgerChain::apply_finalized_block`] needs to
@@ -58,7 +58,7 @@ const FINALIZED_BLOCK_DOMAIN: &[u8] = b"mini-consensus/finalized-block/v1";
 pub struct FinalizedBlock {
     /// The finalized block's header.
     pub header: BlockHeader,
-    /// The ordered claim body the header's `state_root` commits to.
+    /// The ordered application body the header's `body_root` commits to.
     pub body: SettlementBlockBody,
     /// The quorum certificate proving this block finalized.
     pub qc: QuorumCertificate,
@@ -67,6 +67,9 @@ pub struct FinalizedBlock {
 impl FinalizedBlock {
     /// Canonical standalone bytes used by persistent history and state sync.
     pub fn to_wire_bytes(&self) -> Result<Vec<u8>> {
+        if self.header.body_root != self.body.hash() {
+            return Err(ConsensusError::Malformed);
+        }
         let mut out = Vec::new();
         out.extend_from_slice(FINALIZED_BLOCK_DOMAIN);
         encode_header(&mut out, &self.header);
@@ -91,7 +94,10 @@ impl FinalizedBlock {
             body: decode_body(&mut reader)?,
             qc: decode_qc(&mut reader)?,
         };
-        if !reader.finished() || block.to_wire_bytes()?.as_slice() != bytes {
+        if !reader.finished()
+            || block.header.body_root != block.body.hash()
+            || block.to_wire_bytes()?.as_slice() != bytes
+        {
             return Err(ConsensusError::Malformed);
         }
         Ok(block)
@@ -177,6 +183,9 @@ impl CatchupResponse {
             let header = decode_header(&mut r)?;
             let body = decode_body(&mut r)?;
             let qc = decode_qc(&mut r)?;
+            if header.body_root != body.hash() {
+                return Err(ConsensusError::Malformed);
+            }
             blocks.push(FinalizedBlock { header, body, qc });
         }
         if !r.finished() {
@@ -232,6 +241,7 @@ mod tests {
             height,
             prev_hash: [3u8; 32],
             state_root: [4u8; 32],
+            body_root: body().hash(),
             timestamp_ms: height,
             proposer: root.did(),
         }
@@ -325,6 +335,58 @@ mod tests {
         bytes.push(0xff);
         assert_eq!(
             CatchupResponse::from_wire_bytes(&bytes).unwrap_err(),
+            ConsensusError::Malformed
+        );
+    }
+
+    #[test]
+    fn pre_body_commitment_catchup_and_archive_versions_are_rejected() {
+        let mut request = CatchupRequest { from_height: 42 }.to_wire_bytes();
+        let version = DOMAIN.len() - 1;
+        assert_eq!(request[version], b'2');
+        request[version] = b'1';
+        assert_eq!(
+            CatchupRequest::from_wire_bytes(&request).unwrap_err(),
+            ConsensusError::Malformed
+        );
+
+        let finalized = FinalizedBlock {
+            header: header(1),
+            body: body(),
+            qc: qc(1),
+        };
+        let mut archive_bytes = finalized.to_wire_bytes().unwrap();
+        let archive_version = FINALIZED_BLOCK_DOMAIN.len() - 1;
+        assert_eq!(archive_bytes[archive_version], b'2');
+        archive_bytes[archive_version] = b'1';
+        assert_eq!(
+            FinalizedBlock::from_wire_bytes(&archive_bytes).unwrap_err(),
+            ConsensusError::Malformed
+        );
+    }
+
+    #[test]
+    fn archive_and_catchup_reject_a_header_body_mismatch() {
+        let mut mismatched_header = header(1);
+        mismatched_header.body_root[0] ^= 1;
+        let block = FinalizedBlock {
+            header: mismatched_header,
+            body: body(),
+            qc: qc(1),
+        };
+        assert_eq!(
+            block.to_wire_bytes().unwrap_err(),
+            ConsensusError::Malformed
+        );
+
+        // The compatibility response encoder is intentionally infallible;
+        // its untrusted decoder still refuses to materialize the mismatch.
+        let encoded = CatchupResponse {
+            blocks: vec![block],
+        }
+        .to_wire_bytes();
+        assert_eq!(
+            CatchupResponse::from_wire_bytes(&encoded).unwrap_err(),
             ConsensusError::Malformed
         );
     }

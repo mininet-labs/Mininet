@@ -36,7 +36,7 @@ mod finality;
 mod validator;
 mod vote;
 
-pub use block::BlockHeader;
+pub use block::{BlockHeader, BLOCK_HEADER_VERSION};
 pub use error::{ChainError, Result};
 pub use finality::{
     verify_finality, QuorumCertificate, ValidatorOracle, MAX_VOTES_PER_CERTIFICATE,
