@@ -14,3 +14,8 @@ did-mini = { path = "../did-mini" }
 mini-bearer = { path = "../mini-bearer" }
 mini-crypto = { path = "../mini-crypto" }
 mini-privacy-policy = { path = "../mini-privacy-policy" }
+mini-relay = { path = "../mini-relay" }
+mini-transport-policy = { path = "../mini-transport-policy" }
+
+[dev-dependencies]
+mini-bridge = { path = "../mini-bridge" }

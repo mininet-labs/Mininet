@@ -1,16 +1,20 @@
-//! Locally seeded, bounded, prefix-diverse peer selection.
+//! Locally seeded, bounded, visible-identity- and prefix-diverse peer selection.
 //!
 //! This raises the cost of an eclipse without pretending IP diversity proves
 //! independent ownership. Selection is independent of advertisement input order
 //! and uses a caller-local seed, so no discovery peer controls first position.
 
 use std::collections::{HashMap, HashSet};
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use mini_crypto::HashAlgorithm;
 
 use crate::{Result, TransportEndpointId, TransportSecurityError, VerifiedPeerAdvertisement};
 
+/// Maximum verified records accepted by one selection call before any
+/// allocation/sort. Larger local pools must be sampled or processed in bounded
+/// batches by the caller.
+pub const MAX_SELECTION_CANDIDATES: usize = 1_024;
 pub const MAX_SELECTED_PEERS: usize = 64;
 pub const MIN_DIAL_TIMEOUT_MS: u64 = 100;
 pub const MAX_DIAL_TIMEOUT_MS: u64 = 60_000;
@@ -56,14 +60,28 @@ pub struct DialAttempt {
 }
 
 /// Build a bounded dial order. Records must already have passed signature and
-/// KEL verification. Duplicate endpoint ids and concentrated network prefixes
-/// are skipped; no majority or peer vote is consulted.
+/// KEL verification. Duplicate endpoint ids, routing keys, visible roots, visible
+/// devices, and concentrated network prefixes are skipped; no majority or peer
+/// vote is consulted. Visible identity diversity raises eclipse cost but does not
+/// prove independent operators: one adversary can still control many pairwise
+/// roots or apparently unrelated network prefixes.
 pub fn diverse_dial_plan(
     records: &[VerifiedPeerAdvertisement],
     local_seed: [u8; 32],
     policy: PeerSelectionPolicy,
 ) -> Result<Vec<DialAttempt>> {
     let policy = policy.validate()?;
+    if records.len() > MAX_SELECTION_CANDIDATES {
+        return Err(TransportSecurityError::LimitExceeded);
+    }
+    if let Some(expected_network) = records.first().map(VerifiedPeerAdvertisement::network_id) {
+        if records
+            .iter()
+            .any(|record| record.network_id() != expected_network)
+        {
+            return Err(TransportSecurityError::WrongNetwork);
+        }
+    }
     let mut candidates: Vec<_> = records
         .iter()
         .map(|record| (selection_score(record, local_seed), record))
@@ -78,12 +96,18 @@ pub fn diverse_dial_plan(
     let mut selected = Vec::with_capacity(policy.max_peers);
     let mut endpoints = HashSet::new();
     let mut routing_keys = HashSet::new();
+    let mut roots = HashSet::new();
+    let mut devices = HashSet::new();
     let mut prefix_counts: HashMap<NetworkPrefix, usize> = HashMap::new();
     for (_, record) in candidates {
         if selected.len() >= policy.max_peers {
             break;
         }
-        if !endpoints.insert(record.endpoint_id()) || !routing_keys.insert(record.routing_key()) {
+        if endpoints.contains(&record.endpoint_id())
+            || routing_keys.contains(&record.routing_key())
+            || roots.contains(record.root())
+            || devices.contains(record.device())
+        {
             continue;
         }
         let prefix = NetworkPrefix::from_ip(record.address().ip());
@@ -92,6 +116,10 @@ pub fn diverse_dial_plan(
             continue;
         }
         *count += 1;
+        endpoints.insert(record.endpoint_id());
+        routing_keys.insert(record.routing_key());
+        roots.insert(record.root().clone());
+        devices.insert(record.device().clone());
         selected.push(DialAttempt {
             endpoint_id: record.endpoint_id(),
             address: record.address(),
@@ -108,9 +136,39 @@ enum NetworkPrefix {
     V6([u8; 6]),
 }
 
+/// The well-known RFC 6052 NAT64 prefix, `64:ff9b::/96`.
+const NAT64_WELL_KNOWN_PREFIX: [u8; 12] = [
+    0x00, 0x64, 0xff, 0x9b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+];
+
+/// Reduce an address to the form its prefix bucket should be computed from.
+///
+/// An IPv4 host can be advertised as itself, as an IPv4-mapped IPv6 address, or
+/// through the well-known NAT64 prefix. Bucketing those three forms separately
+/// would let one operator holding a single /24 occupy three prefix buckets and
+/// so take three times its share of a bounded dial plan, while an honest
+/// operator takes one. Rejecting the translated forms is not an option here --
+/// an IPv6-only host reaches IPv4 peers precisely through them -- so the
+/// embedded IPv4 address decides the bucket instead.
+fn canonical_prefix_ip(ip: IpAddr) -> IpAddr {
+    let IpAddr::V6(value) = ip else {
+        return ip;
+    };
+    if let Some(mapped) = value.to_ipv4_mapped() {
+        return IpAddr::V4(mapped);
+    }
+    let octets = value.octets();
+    if octets[..12] == NAT64_WELL_KNOWN_PREFIX {
+        return IpAddr::V4(Ipv4Addr::new(
+            octets[12], octets[13], octets[14], octets[15],
+        ));
+    }
+    ip
+}
+
 impl NetworkPrefix {
     fn from_ip(ip: IpAddr) -> Self {
-        match ip {
+        match canonical_prefix_ip(ip) {
             IpAddr::V4(value) => {
                 let octets = value.octets();
                 Self::V4([octets[0], octets[1], octets[2]])
@@ -188,6 +246,38 @@ mod tests {
     }
 
     #[test]
+    fn one_operator_cannot_hold_three_prefix_buckets_for_one_slash_24() {
+        // Anti-eclipse regression. The same IPv4 host advertised as itself, as
+        // an IPv4-mapped IPv6 address, and through the well-known NAT64 prefix
+        // used to occupy three separate buckets, so a single /24 took three
+        // times its share of a bounded dial plan.
+        let direct: IpAddr = "1.2.3.4".parse().unwrap();
+        let mapped: IpAddr = "::ffff:1.2.3.4".parse().unwrap();
+        let nat64: IpAddr = "64:ff9b::1.2.3.4".parse().unwrap();
+        let neighbour: IpAddr = "1.2.3.99".parse().unwrap();
+
+        let bucket = NetworkPrefix::from_ip(direct);
+        assert_eq!(NetworkPrefix::from_ip(mapped), bucket);
+        assert_eq!(NetworkPrefix::from_ip(nat64), bucket);
+        // Same /24, so also the same bucket -- that part was already correct.
+        assert_eq!(NetworkPrefix::from_ip(neighbour), bucket);
+
+        // A genuinely different /24 and a genuinely native IPv6 address still
+        // get their own buckets; canonicalizing must not collapse everything.
+        assert_ne!(NetworkPrefix::from_ip("9.9.9.9".parse().unwrap()), bucket);
+        assert_ne!(
+            NetworkPrefix::from_ip("2001:db8::1".parse().unwrap()),
+            bucket
+        );
+        // A NAT64-looking address that is not the well-known prefix is native
+        // IPv6 and must not be reinterpreted as the IPv4 it appears to embed.
+        assert_ne!(
+            NetworkPrefix::from_ip("64:ff9b:1::1.2.3.4".parse().unwrap()),
+            bucket
+        );
+    }
+
+    #[test]
     fn selection_is_input_order_independent_and_prefix_bounded() {
         let a = verified(10, "10.0.0.1:9000");
         let b = verified(20, "10.0.0.2:9000");
@@ -215,6 +305,120 @@ mod tests {
             })
             .count();
         assert!(same_prefix <= 1);
+    }
+
+    #[test]
+    fn one_visible_identity_cannot_fill_multiple_selection_slots() {
+        let mut root = Controller::incept_single_from_seeds(&[60; 32], &[61; 32]).unwrap();
+        let device =
+            Controller::incept_device_single_from_seeds(&root.did(), &[62; 32], &[63; 32]).unwrap();
+        root.delegate_device(&device.did(), Capabilities::primary())
+            .unwrap();
+
+        let make_record = |routing_seed: u8, address: &str| {
+            let routing = AgreementSecretKey::from_seed(&[routing_seed; 32]).public_key();
+            let advertisement = PeerAdvertisement::issue(
+                [7; 32],
+                &root.did(),
+                &device,
+                routing,
+                address.parse().unwrap(),
+                1_000,
+                2_000,
+            )
+            .unwrap();
+            let mut freshness = FreshnessPins::new();
+            let mut replay = ReplayCache::new(8).unwrap();
+            advertisement
+                .verify(
+                    [7; 32],
+                    1_500,
+                    &root.kel(),
+                    &device.kel(),
+                    &mut freshness,
+                    &mut replay,
+                )
+                .unwrap()
+        };
+
+        let same_identity_a = make_record(64, "10.0.0.1:9000");
+        let same_identity_b = make_record(65, "10.0.1.1:9000");
+        let independent = verified(80, "10.0.2.1:9000");
+        let policy = PeerSelectionPolicy {
+            max_peers: 3,
+            max_per_network_prefix: 3,
+            dial_timeout_ms: 1_000,
+        };
+        let plan = diverse_dial_plan(
+            &[
+                same_identity_a.clone(),
+                same_identity_b.clone(),
+                independent,
+            ],
+            [9; 32],
+            policy,
+        )
+        .unwrap();
+
+        assert_eq!(plan.len(), 2);
+        let same_identity_slots = plan
+            .iter()
+            .filter(|attempt| {
+                attempt.endpoint_id == same_identity_a.endpoint_id()
+                    || attempt.endpoint_id == same_identity_b.endpoint_id()
+            })
+            .count();
+        assert_eq!(same_identity_slots, 1);
+    }
+
+    #[test]
+    fn selection_rejects_mixed_network_records() {
+        let local = verified(10, "10.0.0.1:9000");
+        let mut foreign_root = Controller::incept_single_from_seeds(&[90; 32], &[91; 32]).unwrap();
+        let foreign_device =
+            Controller::incept_device_single_from_seeds(&foreign_root.did(), &[92; 32], &[93; 32])
+                .unwrap();
+        foreign_root
+            .delegate_device(&foreign_device.did(), Capabilities::primary())
+            .unwrap();
+        let foreign_routing = AgreementSecretKey::from_seed(&[94; 32]).public_key();
+        let foreign = PeerAdvertisement::issue(
+            [8; 32],
+            &foreign_root.did(),
+            &foreign_device,
+            foreign_routing,
+            "10.0.1.1:9000".parse().unwrap(),
+            1_000,
+            2_000,
+        )
+        .unwrap();
+        let mut freshness = FreshnessPins::new();
+        let mut replay = ReplayCache::new(8).unwrap();
+        let foreign = foreign
+            .verify(
+                [8; 32],
+                1_500,
+                &foreign_root.kel(),
+                &foreign_device.kel(),
+                &mut freshness,
+                &mut replay,
+            )
+            .unwrap();
+
+        assert_eq!(
+            diverse_dial_plan(&[local, foreign], [1; 32], PeerSelectionPolicy::default(),),
+            Err(TransportSecurityError::WrongNetwork)
+        );
+    }
+
+    #[test]
+    fn candidate_input_is_bounded_before_sorting() {
+        let record = verified(10, "10.0.0.1:9000");
+        let oversized = vec![record; MAX_SELECTION_CANDIDATES + 1];
+        assert_eq!(
+            diverse_dial_plan(&oversized, [1; 32], PeerSelectionPolicy::default()),
+            Err(TransportSecurityError::LimitExceeded)
+        );
     }
 
     #[test]

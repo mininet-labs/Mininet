@@ -3,9 +3,12 @@
 //! `docs/design/f6-private-query-transport.md` for the full doctrine --
 //! most importantly, this is **not** a private-information-retrieval
 //! scheme: the queried peer sees the caller's exact query text. What it
-//! does provide is that the query never crosses the wire in cleartext (the
-//! channel's own AEAD covers it) and that the requester discloses no
-//! identity of its own to run a query (CH1 needs none).
+//! does provide for the anonymous `remote_query` path is that the query
+//! never crosses the wire in cleartext (the channel's own AEAD covers it)
+//! and that the requester discloses no identity of its own (CH1 needs none).
+//! The optional `remote_query_authenticated` path is mutual authentication:
+//! it binds provider provenance but also discloses the requester's chosen
+//! root or pairwise identity, as documented in the Phase 3 limits.
 //!
 //! Unlike F1/F2/F2b, a query response is not wrapped in a signed `Object`:
 //! it is answered fresh for exactly this request and is not meant to be
@@ -15,18 +18,22 @@
 //! encryption already gives.
 
 use mini_bearer::{Bearer, Channel};
-use mini_crypto::Multihash;
+use mini_crypto::{HashAlgorithm, Multihash};
 use mini_lexical_index::IndexSegment;
 use mini_query::{parse_query, search, DocumentContextTable};
 use mini_ranker::Corpus;
+use mini_transport_security::{AuthenticatedConnection, TransportPurpose, TransportSecurityError};
 use mini_web_types::{
     AvailabilityState, CanonicalUrl, IndexSegmentId, NormalizedHost, PersonalizationPolicy,
-    RankingProfile, RankingProfileId, RestrictionReason, Scheme, UnavailabilityReason, WeightBps,
+    ProviderPseudonym, RankingProfile, RankingProfileId, RestrictionReason, Scheme,
+    UnavailabilityReason, WeightBps,
 };
 
 use crate::error::{NetError, Result};
 
 const QUERY_AAD: &[u8] = b"MINI/SEARCHFED-QUERY1";
+const AUTHENTICATED_PROVIDER_DOMAIN: &[u8] =
+    b"mini-search-federation-net/authenticated-provider/v1";
 
 /// Hard ceiling on a raw query string's byte length.
 pub const MAX_QUERY_TEXT_BYTES: usize = 512;
@@ -162,9 +169,9 @@ fn encode_scheme(w: &mut Writer, s: Scheme) {
     match s {
         Scheme::Http => w.u8(0),
         Scheme::Https => w.u8(1),
-        // `Scheme` is `#[non_exhaustive]` upstream; any future variant this
-        // crate does not know about yet still round-trips as Https rather
-        // than failing to encode at all.
+        // Protocol-level validation rejects unknown future variants before
+        // this private encoder is reached. Keep a deterministic defensive
+        // fallback for direct internal test construction only.
         _ => w.u8(1),
     }
 }
@@ -213,10 +220,8 @@ fn encode_availability(w: &mut Writer, a: &AvailabilityState) {
                 UnavailabilityReason::FetchFailed => w.u8(1),
                 UnavailabilityReason::Gone => w.u8(2),
                 UnavailabilityReason::UnsupportedContent => w.u8(3),
-                // `UnavailabilityReason` is `#[non_exhaustive]` upstream; a
-                // future variant this crate does not know about yet still
-                // round-trips as a generic "unavailable, unspecified" state
-                // rather than failing to encode at all.
+                // Protocol-level validation rejects unknown future variants;
+                // this private fallback exists only for defensive internal use.
                 _ => w.u8(255),
             }
         }
@@ -235,9 +240,8 @@ fn encode_availability(w: &mut Writer, a: &AvailabilityState) {
                 _ => w.u8(255),
             }
         }
-        // `AvailabilityState` is `#[non_exhaustive]` upstream; a future
-        // top-level variant still round-trips as a generic restriction
-        // rather than failing to encode.
+        // Protocol-level validation rejects unknown future variants;
+        // this private fallback exists only for defensive internal use.
         _ => {
             w.u8(2);
             w.u8(255);
@@ -252,7 +256,7 @@ fn decode_availability(r: &mut Reader) -> Result<AvailabilityState> {
             1 => UnavailabilityReason::FetchFailed,
             2 => UnavailabilityReason::Gone,
             3 => UnavailabilityReason::UnsupportedContent,
-            255 => UnavailabilityReason::FetchFailed,
+            255 => return Err(NetError::Protocol),
             _ => return Err(NetError::Protocol),
         }),
         2 => AvailabilityState::Restricted(match r.u8()? {
@@ -264,7 +268,7 @@ fn decode_availability(r: &mut Reader) -> Result<AvailabilityState> {
             3 => RestrictionReason::Spam,
             4 => RestrictionReason::UserFilter,
             5 => RestrictionReason::SafetyWarning,
-            255 => RestrictionReason::UserFilter,
+            255 => return Err(NetError::Protocol),
             _ => return Err(NetError::Protocol),
         }),
         _ => return Err(NetError::Protocol),
@@ -275,8 +279,8 @@ fn encode_personalization(w: &mut Writer, p: &PersonalizationPolicy) {
     match p {
         PersonalizationPolicy::None => w.u8(0),
         PersonalizationPolicy::LocalUserControlled => w.u8(1),
-        // `PersonalizationPolicy` is `#[non_exhaustive]` upstream; a future
-        // variant still round-trips as `None` rather than failing to encode.
+        // Protocol-level validation rejects unknown future variants;
+        // this private fallback exists only for defensive internal use.
         _ => w.u8(0),
     }
 }
@@ -328,6 +332,120 @@ fn decode_profile(r: &mut Reader) -> Result<RankingProfile> {
     })
 }
 
+fn validate_multihash(value: &Multihash) -> Result<()> {
+    if value.to_bytes().len() > MAX_MULTIHASH_BYTES {
+        return Err(NetError::LimitExceeded);
+    }
+    Ok(())
+}
+
+fn validate_profile(profile: &RankingProfile) -> Result<()> {
+    validate_multihash(&profile.id.0)?;
+    profile.validate().map_err(|_| NetError::Protocol)?;
+    match profile.personalization {
+        PersonalizationPolicy::None | PersonalizationPolicy::LocalUserControlled => Ok(()),
+        _ => Err(NetError::Protocol),
+    }
+}
+
+fn validate_url(url: &CanonicalUrl) -> Result<()> {
+    match url.scheme {
+        Scheme::Http | Scheme::Https => {}
+        _ => return Err(NetError::Protocol),
+    }
+    if url.host.as_str().len() > MAX_HOST_BYTES
+        || url.path.len() > MAX_PATH_BYTES
+        || url
+            .query
+            .as_ref()
+            .is_some_and(|query| query.len() > MAX_URL_QUERY_BYTES)
+    {
+        return Err(NetError::LimitExceeded);
+    }
+    let reconstructed = CanonicalUrl::new(
+        url.scheme,
+        url.host.clone(),
+        url.port,
+        url.path.clone(),
+        url.query.clone(),
+    )
+    .map_err(|_| NetError::Protocol)?;
+    if reconstructed != *url {
+        return Err(NetError::Protocol);
+    }
+    Ok(())
+}
+
+fn validate_availability(availability: &AvailabilityState) -> Result<()> {
+    match availability {
+        AvailabilityState::Available
+        | AvailabilityState::Unavailable(
+            UnavailabilityReason::NotFetched
+            | UnavailabilityReason::FetchFailed
+            | UnavailabilityReason::Gone
+            | UnavailabilityReason::UnsupportedContent,
+        )
+        | AvailabilityState::Restricted(
+            RestrictionReason::RobotsExcluded
+            | RestrictionReason::Malware
+            | RestrictionReason::Spam
+            | RestrictionReason::UserFilter
+            | RestrictionReason::SafetyWarning,
+        ) => Ok(()),
+        AvailabilityState::Restricted(RestrictionReason::LegalRestriction { jurisdiction }) => {
+            if jurisdiction.len() > MAX_JURISDICTION_BYTES {
+                Err(NetError::LimitExceeded)
+            } else {
+                Ok(())
+            }
+        }
+        AvailabilityState::Unavailable(_) | AvailabilityState::Restricted(_) => {
+            Err(NetError::Protocol)
+        }
+        _ => Err(NetError::Protocol),
+    }
+}
+
+pub(crate) fn validate_wire_result(result: &WireResult) -> Result<()> {
+    validate_url(&result.url)?;
+    validate_availability(&result.availability)?;
+    if !result.availability.is_displayable() {
+        return Err(NetError::Protocol);
+    }
+    validate_multihash(&result.ranking_profile.0)?;
+    validate_multihash(&result.source_observation)?;
+    validate_multihash(&result.index_segment.0)?;
+    if result.title.len() > MAX_TITLE_BYTES || result.snippet.len() > MAX_SNIPPET_BYTES {
+        return Err(NetError::LimitExceeded);
+    }
+    if result.relevance_score_bps > WeightBps::MAX.value()
+        || result
+            .explanation
+            .iter()
+            .any(|weight| *weight > WeightBps::MAX.value())
+    {
+        return Err(NetError::Protocol);
+    }
+    Ok(())
+}
+
+fn validate_query_response(
+    results: &[WireResult],
+    requested_profile: &RankingProfile,
+    max_results: u32,
+) -> Result<()> {
+    if max_results == 0 || max_results > MAX_QUERY_RESULTS || results.len() > max_results as usize {
+        return Err(NetError::LimitExceeded);
+    }
+    for result in results {
+        validate_wire_result(result)?;
+        if result.ranking_profile != requested_profile.id {
+            return Err(NetError::Protocol);
+        }
+    }
+    Ok(())
+}
+
 fn encode_result(w: &mut Writer, r: &WireResult) {
     encode_url(w, &r.url);
     w.str(&r.title);
@@ -375,7 +493,35 @@ fn decode_result(r: &mut Reader) -> Result<WireResult> {
 }
 
 impl Msg {
-    fn encode(&self) -> Vec<u8> {
+    fn validate(&self) -> Result<()> {
+        match self {
+            Msg::QueryRequest {
+                query,
+                profile,
+                max_results,
+            } => {
+                if query.len() > MAX_QUERY_TEXT_BYTES
+                    || *max_results == 0
+                    || *max_results > MAX_QUERY_RESULTS
+                {
+                    return Err(NetError::LimitExceeded);
+                }
+                validate_profile(profile)
+            }
+            Msg::QueryResponse { results } => {
+                if results.len() > MAX_QUERY_RESULTS as usize {
+                    return Err(NetError::LimitExceeded);
+                }
+                for result in results {
+                    validate_wire_result(result)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn encode(&self) -> Result<Vec<u8>> {
+        self.validate()?;
         let mut w = Writer::new();
         match self {
             Msg::QueryRequest {
@@ -396,7 +542,7 @@ impl Msg {
                 }
             }
         }
-        w.finish()
+        Ok(w.finish())
     }
 
     fn decode(bytes: &[u8]) -> Result<Msg> {
@@ -429,12 +575,13 @@ impl Msg {
         if !r.finished() {
             return Err(NetError::Protocol);
         }
+        msg.validate()?;
         Ok(msg)
     }
 }
 
 fn send(bearer: &mut dyn Bearer, chan: &mut Channel, msg: &Msg) -> Result<()> {
-    let ct = chan.seal(&msg.encode(), QUERY_AAD)?;
+    let ct = chan.seal(&msg.encode()?, QUERY_AAD)?;
     bearer.send(&ct)?;
     Ok(())
 }
@@ -474,13 +621,165 @@ pub fn remote_query(
     )?;
     match recv(bearer, chan)? {
         Msg::QueryResponse { results } => {
-            if results.len() > max_results as usize {
-                return Err(NetError::LimitExceeded);
-            }
+            validate_query_response(&results, profile, max_results)?;
             Ok(results)
         }
         _ => Err(NetError::Protocol),
     }
+}
+
+/// Remote results whose provider label came from the peer identity proved on
+/// the exact channel carrying the response. Unlike `merge_remote_results`'s
+/// legacy caller-supplied label, this value has no public constructor that takes
+/// an arbitrary provider pseudonym.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthenticatedQueryResults {
+    provider: ProviderPseudonym,
+    results: Vec<WireResult>,
+}
+
+impl AuthenticatedQueryResults {
+    /// Provider label derived from the endpoint authenticated on the response
+    /// channel. No public constructor accepts an arbitrary replacement label.
+    pub fn provider(&self) -> &ProviderPseudonym {
+        &self.provider
+    }
+
+    pub fn results(&self) -> &[WireResult] {
+        &self.results
+    }
+
+    pub(crate) fn into_parts(self) -> (ProviderPseudonym, Vec<WireResult>) {
+        (self.provider, self.results)
+    }
+}
+
+/// Derive a provider pseudonym from the endpoint proved on a sealed
+/// authenticated connection. The helper is private, so callers cannot attach an
+/// arbitrary peer label. The label deliberately excludes the CH1 binding:
+/// `ProviderPseudonym` participates in F3's equal-score deduplication tie-break,
+/// and channel randomness there would make identical source sets merge
+/// differently on every connection and let a responder grind handshakes for a
+/// favorable tie-break. `TransportEndpointId` already commits to the delegated
+/// device/pairwise identity and current routing key and is disclosed by the
+/// selected advertisement, so this adds no linkability beyond that endpoint.
+/// Rotating the routing key, device, or pairwise identity rotates the label.
+fn authenticated_provider_pseudonym<B: Bearer>(
+    connection: &AuthenticatedConnection<B>,
+) -> ProviderPseudonym {
+    let mut transcript = Vec::with_capacity(AUTHENTICATED_PROVIDER_DOMAIN.len() + 32);
+    transcript.extend_from_slice(AUTHENTICATED_PROVIDER_DOMAIN);
+    transcript.extend_from_slice(&connection.peer().endpoint_id.to_bytes());
+    ProviderPseudonym(Multihash::of(HashAlgorithm::Blake3, &transcript))
+}
+
+/// Named-provider form of [`remote_query`]. The same bounded request and response
+/// codec is used, but the connection must have been authenticated specifically
+/// for [`TransportPurpose::SearchQuery`], and the returned provider label is
+/// derived from that verified peer rather than accepted from the caller.
+pub fn remote_query_authenticated<B: Bearer>(
+    connection: &mut AuthenticatedConnection<B>,
+    query_text: &str,
+    profile: &RankingProfile,
+    max_results: u32,
+) -> Result<AuthenticatedQueryResults> {
+    if connection.peer().purpose != TransportPurpose::SearchQuery {
+        return Err(NetError::TransportSecurity(
+            TransportSecurityError::WrongPurpose,
+        ));
+    }
+    if query_text.len() > MAX_QUERY_TEXT_BYTES {
+        return Err(NetError::LimitExceeded);
+    }
+    if max_results == 0 || max_results > MAX_QUERY_RESULTS {
+        return Err(NetError::LimitExceeded);
+    }
+    let request = Msg::QueryRequest {
+        query: query_text.to_string(),
+        profile: profile.clone(),
+        max_results,
+    };
+    connection.send(&request.encode()?, QUERY_AAD)?;
+    let response = Msg::decode(&connection.recv(QUERY_AAD)?)?;
+    let results = match response {
+        Msg::QueryResponse { results } => {
+            validate_query_response(&results, profile, max_results)?;
+            results
+        }
+        _ => return Err(NetError::Protocol),
+    };
+    Ok(AuthenticatedQueryResults {
+        provider: authenticated_provider_pseudonym(connection),
+        results,
+    })
+}
+
+/// Named-peer form of [`serve_query`]. The requester must have proved a
+/// channel-bound identity for the typed search purpose before any query bytes
+/// are accepted. This is optional; providers may continue to serve anonymous
+/// CH1 callers through [`serve_query`].
+#[allow(clippy::too_many_arguments)]
+pub fn serve_query_authenticated<B: Bearer>(
+    connection: &mut AuthenticatedConnection<B>,
+    index: &IndexSegment,
+    corpus: &Corpus,
+    contexts: &DocumentContextTable,
+    index_segment: IndexSegmentId,
+    now_ms: u64,
+) -> Result<()> {
+    if connection.peer().purpose != TransportPurpose::SearchQuery {
+        return Err(NetError::TransportSecurity(
+            TransportSecurityError::WrongPurpose,
+        ));
+    }
+    let request = Msg::decode(&connection.recv(QUERY_AAD)?)?;
+    let (query, profile, max_results) = match request {
+        Msg::QueryRequest {
+            query,
+            profile,
+            max_results,
+        } => (query, profile, max_results),
+        _ => return Err(NetError::Protocol),
+    };
+    if max_results == 0 || max_results > MAX_QUERY_RESULTS {
+        return Err(NetError::LimitExceeded);
+    }
+
+    let parsed = parse_query(&query);
+    let ranked = search(
+        index,
+        corpus,
+        contexts,
+        &profile,
+        &parsed,
+        index_segment,
+        now_ms,
+        max_results as usize,
+    )?;
+    let results: Vec<WireResult> = ranked
+        .into_iter()
+        .map(|rp| WireResult {
+            url: rp.result.url,
+            title: rp.result.title,
+            snippet: rp.result.snippet,
+            relevance_score_bps: rp.result.relevance_score_bps.value(),
+            availability: rp.result.availability,
+            ranking_profile: rp.result.ranking_profile,
+            explanation: [
+                rp.result.explanation.lexical_bps.value(),
+                rp.result.explanation.phrase_bps.value(),
+                rp.result.explanation.link_bps.value(),
+                rp.result.explanation.freshness_bps.value(),
+                rp.result.explanation.originality_bps.value(),
+                rp.result.explanation.diversity_bps.value(),
+            ],
+            source_observation: rp.source_observation.0,
+            index_segment: rp.index_segment,
+        })
+        .collect();
+    let response = Msg::QueryResponse { results };
+    connection.send(&response.encode()?, QUERY_AAD)?;
+    Ok(())
 }
 
 /// Server side: answer one peer's query against this provider's own
@@ -702,6 +1001,157 @@ mod tests {
                 MAX_QUERY_RESULTS + 1
             ),
             Err(NetError::LimitExceeded)
+        );
+    }
+
+    #[test]
+    fn unknown_wire_enum_tags_fail_closed() {
+        let mut unavailable = Reader::new(&[1, 255]);
+        assert!(matches!(
+            decode_availability(&mut unavailable),
+            Err(NetError::Protocol)
+        ));
+
+        let mut restricted = Reader::new(&[2, 255]);
+        assert!(matches!(
+            decode_availability(&mut restricted),
+            Err(NetError::Protocol)
+        ));
+
+        let (_, _, _, _, profile) = fixture();
+        let mut profile_writer = Writer::new();
+        encode_profile(&mut profile_writer, &profile);
+        let mut profile_bytes = profile_writer.finish();
+        *profile_bytes.last_mut().unwrap() = 255;
+        assert!(matches!(
+            decode_profile(&mut Reader::new(&profile_bytes)),
+            Err(NetError::Protocol)
+        ));
+
+        let mut url_writer = Writer::new();
+        encode_url(&mut url_writer, &url("example.org", "/"));
+        let mut url_bytes = url_writer.finish();
+        url_bytes[0] = 255;
+        assert!(matches!(
+            decode_url(&mut Reader::new(&url_bytes)),
+            Err(NetError::Protocol)
+        ));
+    }
+
+    #[test]
+    fn outbound_and_inbound_codecs_enforce_the_same_field_bounds() {
+        let (_, _, _, segment_id, profile) = fixture();
+        let base = WireResult {
+            url: url("example.org", "/"),
+            title: "title".to_string(),
+            snippet: "snippet".to_string(),
+            relevance_score_bps: 100,
+            availability: AvailabilityState::Available,
+            ranking_profile: profile.id.clone(),
+            explanation: [100, 0, 0, 0, 0, 0],
+            source_observation: digest(b"obs"),
+            index_segment: segment_id,
+        };
+
+        let mut oversized_title = base.clone();
+        oversized_title.title = "x".repeat(MAX_TITLE_BYTES + 1);
+        assert_eq!(
+            Msg::QueryResponse {
+                results: vec![oversized_title]
+            }
+            .encode(),
+            Err(NetError::LimitExceeded)
+        );
+
+        let mut invalid_url = base.clone();
+        invalid_url.url.path = "relative".to_string();
+        assert_eq!(
+            Msg::QueryResponse {
+                results: vec![invalid_url]
+            }
+            .encode(),
+            Err(NetError::Protocol)
+        );
+
+        let mut invalid_profile = profile.clone();
+        invalid_profile.version = 0;
+        assert_eq!(
+            Msg::QueryRequest {
+                query: "hello".to_string(),
+                profile: invalid_profile,
+                max_results: 8,
+            }
+            .encode(),
+            Err(NetError::Protocol)
+        );
+
+        let mut invalid_score = base;
+        invalid_score.relevance_score_bps = WeightBps::MAX.value() + 1;
+        assert_eq!(
+            Msg::QueryResponse {
+                results: vec![invalid_score.clone()]
+            }
+            .encode(),
+            Err(NetError::Protocol)
+        );
+
+        // Bypass the outbound validator to emulate a malicious peer and prove
+        // the decoder applies the same semantic score bound.
+        let mut writer = Writer::new();
+        writer.u8(T_RESPONSE);
+        writer.u32(1);
+        encode_result(&mut writer, &invalid_score);
+        assert_eq!(Msg::decode(&writer.finish()), Err(NetError::Protocol));
+    }
+
+    #[test]
+    fn a_ranked_response_cannot_reintroduce_a_filtered_document() {
+        let (_, _, _, segment_id, profile) = fixture();
+        let restricted = WireResult {
+            url: url("example.org", "/"),
+            title: "title".to_string(),
+            snippet: "snippet".to_string(),
+            relevance_score_bps: 100,
+            availability: AvailabilityState::Restricted(RestrictionReason::UserFilter),
+            ranking_profile: profile.id.clone(),
+            explanation: [100, 0, 0, 0, 0, 0],
+            source_observation: digest(b"obs"),
+            index_segment: segment_id,
+        };
+        assert_eq!(
+            Msg::QueryResponse {
+                results: vec![restricted.clone()]
+            }
+            .encode(),
+            Err(NetError::Protocol)
+        );
+
+        // Emulate a malicious peer that bypassed the encoder and prove the
+        // decoder independently preserves the displayability invariant.
+        let mut writer = Writer::new();
+        writer.u8(T_RESPONSE);
+        writer.u32(1);
+        encode_result(&mut writer, &restricted);
+        assert_eq!(Msg::decode(&writer.finish()), Err(NetError::Protocol));
+    }
+
+    #[test]
+    fn a_response_for_another_ranking_profile_is_rejected() {
+        let (_, _, _, segment_id, profile) = fixture();
+        let result = WireResult {
+            url: url("example.org", "/"),
+            title: "title".to_string(),
+            snippet: "snippet".to_string(),
+            relevance_score_bps: 100,
+            availability: AvailabilityState::Available,
+            ranking_profile: RankingProfileId(digest(b"wrong-profile")),
+            explanation: [100, 0, 0, 0, 0, 0],
+            source_observation: digest(b"obs"),
+            index_segment: segment_id,
+        };
+        assert_eq!(
+            validate_query_response(&[result], &profile, 8),
+            Err(NetError::Protocol)
         );
     }
 

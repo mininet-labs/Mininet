@@ -18,11 +18,13 @@
 //!    wire in this exchange — a peer states which object ids it holds,
 //!    nothing more.
 //! 2. [`remote_query`]/[`serve_query`] (Track F6 Phase 1, [`query`]) are
-//!    the deliberate, separately-scoped exception: a bounded query string
-//!    *does* cross the wire here, confidential-in-transit only — the
-//!    queried peer sees it in full. This is not a private-information-
-//!    retrieval scheme; see `docs/design/f6-private-query-transport.md`
-//!    for the full doctrine on what this is and is not.
+//!    the deliberate, separately-scoped anonymous exception: a bounded query
+//!    string *does* cross the wire, confidential-in-transit only, and the
+//!    queried peer sees it in full. The optional named path,
+//!    [`remote_query_authenticated`]/[`serve_query_authenticated`], requires an
+//!    exact `SearchQuery`-purpose [`mini_transport_security::AuthenticatedConnection`]
+//!    and derives merged provider provenance from that live peer rather than a
+//!    caller-selected label. Neither path is private information retrieval.
 //! 3. A federation-specific post-check ([`pull_source`]) on top of
 //!    `mini-sync`'s already-verified ingest: every returned object must
 //!    decode as F1/F2/F2b, and, when the caller names an expected provider,
@@ -45,9 +47,10 @@
 //!
 //! ## What this deliberately does NOT do
 //!
-//! - No peer discovery, connection setup, or bootstrap. Callers dial and
-//!   handshake exactly as any other `mini_bearer`/`mini_sync` caller does;
-//!   this crate only ever takes an already-established `Bearer`/`Channel`.
+//! - No peer discovery, bootstrap authority, or scheduler. Anonymous APIs take
+//!   an already-established `Bearer`/`Channel`; named APIs take an already-
+//!   authenticated connection produced by `mini-transport-security`. This crate
+//!   never chooses which peer is legitimate or turns discovery into truth.
 //! - No scheduling, refresh policy, or persistence of which peers to pull
 //!   from next.
 //! - No fault isolation across peers in one session — see [`multi`]'s doc
@@ -72,6 +75,11 @@ mod session;
 pub use assemble::{assemble_federation_source, OwnedFederationSource};
 pub use error::{NetError, Result};
 pub use multi::{pull_from_sources, FederationPullReport, PeerSource};
-pub use query::{remote_query, serve_query, WireResult, MAX_QUERY_RESULTS, MAX_QUERY_TEXT_BYTES};
-pub use remote_merge::{federated_result_from_wire, merge_remote_results};
+pub use query::{
+    remote_query, remote_query_authenticated, serve_query, serve_query_authenticated,
+    AuthenticatedQueryResults, WireResult, MAX_QUERY_RESULTS, MAX_QUERY_TEXT_BYTES,
+};
+pub use remote_merge::{
+    federated_result_from_wire, merge_authenticated_remote_results, merge_remote_results,
+};
 pub use session::{pull_source, serve_source, SourcePullReport};

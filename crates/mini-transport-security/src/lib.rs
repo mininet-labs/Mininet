@@ -27,6 +27,7 @@ mod codec;
 mod error;
 mod gate;
 mod replay;
+mod runtime;
 mod selection;
 
 pub use advertisement::{
@@ -41,7 +42,13 @@ pub use auth::{
 pub use error::{Result, TransportSecurityError};
 pub use gate::{executable_transport, ExecutableTransport};
 pub use replay::{ReplayCache, MAX_REPLAY_CACHE_ENTRIES};
+pub use runtime::{
+    authenticate_established_initiator, authenticate_established_responder,
+    build_verified_onion_route, connect_authenticated_tcp, connect_first_authenticated_tcp,
+    AuthenticatedConnection, AuthenticatedDialTarget, LocalSessionIdentity, PeerExpectation,
+    VerifiedRelay, SESSION_AUTH_FRAME_AAD,
+};
 pub use selection::{
     diverse_dial_plan, DialAttempt, PeerSelectionPolicy, MAX_DIAL_TIMEOUT_MS, MAX_SELECTED_PEERS,
-    MIN_DIAL_TIMEOUT_MS,
+    MAX_SELECTION_CANDIDATES, MIN_DIAL_TIMEOUT_MS,
 };
