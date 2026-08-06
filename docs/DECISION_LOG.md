@@ -16035,3 +16035,88 @@ D-0442's other hardening findings and authority boundaries stand. This proposal
 does not supersede D-0207's snapshot/archive design or D-0414–D-0416's issuance,
 ledger, and admission rules; it migrates their consensus commitment and wire
 representation.
+
+### D-0444 — Registry integrity checks: decision-number collisions, deleted history, and restated wire limits  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** the D-0437/D-0438/D-0439 collisions across
+PRs #296/#298/#299/#300; PR #296's near-deletion of D-0437; D-0440's
+seven-crate signature-limit defect; `tools/check_decisions.py`,
+`tools/check_wire_limits.py`, `tools/test_registry_checks.py`.
+
+**Decision:** add two mechanical checks to the governance workflow.
+
+`check_decisions.py` compares the decision log against a canonical baseline
+and fails on: a decision entry present upstream but absent here; a duplicate
+`### D-xxxx` heading newly introduced; a decision number claimed by two open
+work claims; and a number claimed as open that already exists upstream. It
+warns, without failing, on an entry whose body changed in place, and on an
+open claim reserving a number the log does not define.
+
+`check_wire_limits.py` fails when any crate outside `did-mini` declares
+`MAX_SIGNATURES`, `MAX_KEYS`, `MAX_SIGNATURE_BYTES`, or `MAX_DID_BYTES` as a
+literal below `did-mini`'s own value.
+
+**Reason:** every rule here is a transcript of something that actually cost a
+review round, not a guess at what might go wrong.
+
+Three branches raced on decision numbers in one afternoon. Each checked the
+open PRs before claiming; each was correct at the moment it looked; each
+collided anyway, because numbers are claimed at PR-open with no reservation
+and "free when I checked" is a different statement from "free when I merge".
+Every collision surfaced at review, after the work was done, and each cost a
+renumber across the log, STATUS, an audit document, and the registry.
+
+PR #296 would have deleted D-0437 outright — the branch predated the entry, so
+merging it silently removed permanent history. The merge was clean, the tests
+passed, and the entry was simply gone. A helper existed to prevent exactly
+that and had itself gone stale, locating the block by a string a later
+decision replaced. A human noticing was the only thing standing between that
+and a lost decision.
+
+The seven-crate signature cap was the same shape in code: `did-mini` permits
+64 signatures, seven crates independently wrote 16, and a large threshold
+identity could sign an object, verify it in memory, and then fail to decode
+its own bytes. Nothing failed at compile time, and the runtime symptom reads
+as corruption rather than as two crates disagreeing.
+
+The common thread is that all three are invisible to every existing gate.
+`cargo test` cannot see a missing paragraph in a Markdown file. Path-overlap
+detection in the work-claims registry does not look at decision numbers. Type
+checking does not compare a constant in one crate against a constant in
+another. They were caught by reading, which does not scale and did not catch
+them the first time.
+
+**Constitutional impact:** none. Tooling and CI only. Neither script grants,
+withholds, or interprets authority; both report structural facts about files.
+They gate a workflow, not a governance decision, and cannot approve, merge,
+canonicalize, or adopt anything. Failing closed on a *deleted* decision is the
+one place they are deliberately strict, because that failure is unambiguous
+and silent.
+
+**Implementation status:** shipped with 14 tests that reconstruct the real
+incidents rather than invented ones — the D-0437 deletion, the two-claim
+number race, a stale claim on a merged number, and a sub-`did-mini` cap.
+Verified by replay: run against PR #296's original head, the checker reports
+the D-0437 deletion; run against `e60191c`, it reports all seven capped
+crates.
+
+**Failure point:** in-place decision edits only warn, so a genuine rewrite
+dressed as a status sync still passes. That is a deliberate trade — the tree
+carries legitimate truth-sync edits ("complete in draft PR #292" becoming
+"merged through PR #292"), and failing on those would make the check something
+people route around, at which point it protects nothing. The duplicate-heading
+rule likewise inherits `D-0372`'s pre-existing duplicate as a warning so
+unrelated branches do not carry a permanent red build; `--report-existing`
+escalates it for a cleanup pass. On `push` events the canonical checkout is
+the pushed commit itself, so the append-only comparison is a no-op there and
+the meaningful check runs on pull requests. `check_wire_limits.py` only reads
+integer literals; a limit computed from an expression is left to a human.
+
+**Required follow-up:** clean up `D-0372`'s duplicate under
+`--report-existing`; consider extending the wire-limit rule to the other
+shared caps as they are centralized; and, if decision-number races persist,
+reserve numbers at claim time rather than detecting collisions after the fact.
+
+**Supersedes / superseded by:** supersedes nothing. Complements the
+decision-number banding policy at the top of this log, which coordinates
+tracks by convention; this makes the convention checkable.
