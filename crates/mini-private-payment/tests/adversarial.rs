@@ -110,9 +110,15 @@ fn the_claim_carries_no_payer_field_and_no_sequence() {
     let to = recipient();
     let (claim, _, _) = payment_to(&to, 1, b"z");
     let encoded = claim.encode();
+    // The failure message deliberately names the field rather than dumping
+    // the claim: a test about not exposing payment detail should not print
+    // a payment to prove it.
     let rendered = format!("{claim:?}");
-    assert!(!rendered.contains("payer"), "{rendered}");
-    assert!(!rendered.contains("sequence"), "{rendered}");
+    assert!(!rendered.contains("payer"), "a payer field reappeared");
+    assert!(
+        !rendered.contains("sequence"),
+        "a sequence field reappeared"
+    );
     // And nothing in the wire bytes equals any ring member repeated in a
     // "payer" position -- the ring is the only place keys appear.
     assert!(encoded.len() > 32);

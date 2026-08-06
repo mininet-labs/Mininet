@@ -319,7 +319,10 @@ fn paying_for_a_post_grants_the_payer_no_capability_over_it() {
     // entire public surface is a key image, two digests, and the claim.
     let rendered = format!("{verified:?}");
     for forbidden in ["Capabilit", "VOTE", "weight", "quorum"] {
-        assert!(!rendered.contains(forbidden), "{rendered}");
+        assert!(
+            !rendered.contains(forbidden),
+            "a verified payment exposed something capability-shaped: {forbidden}"
+        );
     }
 }
 

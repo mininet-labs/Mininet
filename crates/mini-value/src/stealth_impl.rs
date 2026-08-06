@@ -453,9 +453,14 @@ mod tests {
             o.tx_public_key
         })
         .unwrap();
-        let rendered = format!("{secret:?}");
-        assert!(rendered.contains("redacted"), "{rendered}");
-        assert!(!rendered.contains(&hex(secret.as_key_material())));
+        // Pin the exact rendering rather than searching it for the secret.
+        // Searching would mean building a cleartext copy of real key
+        // material (`hex(secret.as_key_material())`) inside the one test
+        // whose whole subject is not doing that, and leaving it in a
+        // String that is never zeroized. Equality against a constant is
+        // both stronger -- it fixes the exact form, not merely that the
+        // word "redacted" appears somewhere -- and leaks nothing.
+        assert_eq!(format!("{secret:?}"), "StealthSharedSecret(<redacted>)");
     }
 
     #[test]

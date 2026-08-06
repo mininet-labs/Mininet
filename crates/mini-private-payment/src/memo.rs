@@ -319,9 +319,13 @@ mod tests {
 
     #[test]
     fn a_purpose_never_prints_its_contents() {
+        // Exact equality rather than a substring search, and no rendering
+        // in the failure message: a test proving a purpose is never printed
+        // must not print one to fail.
         let purpose = PaymentPurpose::new(b"who-paid-for-what".to_vec());
-        let rendered = format!("{purpose:?}");
-        assert!(!rendered.contains("who-paid-for-what"), "{rendered}");
-        assert!(rendered.contains("redacted"), "{rendered}");
+        assert_eq!(
+            format!("{purpose:?}"),
+            "PaymentPurpose(<17 bytes, redacted>)"
+        );
     }
 }
