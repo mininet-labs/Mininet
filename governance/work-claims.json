@@ -698,6 +698,25 @@
         "D-0443"
       ],
       "notes": "PR #300 extends the D-0442 audit with D-0443: exact-body finality through block-header v2/body_root, lossless bounded monetary epoch consensus serialization, complete scalable epoch commitments, versioned catch-up/snapshot/state-sync/archive migration, and adversarial same-state/different-body and old-version rejection tests. Coordinated prelaunch hard fork only; no production state migration, activation, merge, canonicalization, or release authority. Roadmap #45 remains open for chunked authenticated state transfer, dynamic validator-set history, weak subjectivity, discovery/retry, and weakest-device evidence."
+    },
+    {
+      "issue": 92,
+      "status": "in_review",
+      "contributor": "Claude",
+      "branch": "claude/decision-registry-checks",
+      "pull_request": null,
+      "lease_expires": "2026-08-12",
+      "paths": [
+        "tools/check_decisions.py",
+        "tools/check_wire_limits.py",
+        "tools/test_registry_checks.py",
+        ".github/workflows/governance-policy.yml",
+        "docs/DECISION_LOG.md"
+      ],
+      "decision_ids": [
+        "D-0444"
+      ],
+      "notes": "Registry integrity checks (D-0444): decision-log append-only enforcement, decision-number collision detection against the canonical baseline and other open claims, duplicate-heading detection, and a shared-wire-limit check that fails when a crate restates a did-mini limit below did-mini's own. Each rule replays a real incident from 2026-08-05. Tooling and CI only; no protocol surface, no authority. D-0444 stays Proposed."
     }
   ]
 }
