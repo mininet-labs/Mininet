@@ -53,6 +53,17 @@ jobs:
           persist-credentials: false
       - name: Test governance validator
         run: python3 -m unittest discover -s tools -p 'test_*.py'
+
+      # Registry integrity (D-0444). Both of these encode incidents that cost a
+      # review round each: a merged decision entry silently deleted by a branch
+      # that predated it, three branches racing on one decision number, and
+      # seven crates restating a wire limit below did-mini's own.
+      - name: Check decision registry
+        run: >-
+          python3 tools/check_decisions.py
+          --canonical .canonical-checkpoint
+      - name: Check shared wire limits
+        run: python3 tools/check_wire_limits.py
       - name: Validate governance policy baseline for proposal
         if: github.event_name == 'pull_request'
         run: >-

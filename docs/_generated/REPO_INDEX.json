@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 72,
-    "files": 868,
-    "headings": 2774,
+    "files": 871,
+    "headings": 2779,
     "rust_symbols": 8362
   },
   "crates": {
@@ -1066,7 +1066,7 @@
       "title": "This workflow is evaluated from the canonical base branch. It never executes"
     },
     {
-      "bytes": 2784,
+      "bytes": 3315,
       "group": "ci",
       "headings": [
         {
@@ -1172,28 +1172,28 @@
         "baseline",
         "template",
         "canonical",
+        "name",
         "policy",
         "job",
-        "name",
+        "check",
         "proposal",
+        "decision",
+        "canonical-checkpoint",
+        "run",
+        "python3",
+        "tools",
         "governance-policy",
         "validate",
         "codeowners",
         "required",
-        "check",
         "against",
         "proposal-metadata",
         "staged",
-        "until",
-        "expanded",
-        "adopted",
-        "pack",
-        "pull_request",
-        "push"
+        "until"
       ],
-      "lines": 69,
+      "lines": 80,
       "path": ".github/workflows/governance-policy.yml",
-      "sha256": "4dfcc5a4d2fa7bfb9eb5b969dd6d6bf05b4178e7a1e8d2563318bf3e557c3402",
+      "sha256": "d4079f33cc2e2c7e142202230d8b5621c2ec13613ee61655d97b99c16f8d2939",
       "symbols": [],
       "title": "Blocking bootstrap baseline: validate that the"
     },
@@ -69555,7 +69555,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 971964,
+      "bytes": 976910,
       "group": "docs",
       "headings": [
         {
@@ -69985,9 +69985,9 @@
         "transport",
         "status"
       ],
-      "lines": 16123,
+      "lines": 16207,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "edbda8a95d28a0149d609ea48da5987569cff6fe138975d267893fe4a55c2042",
+      "sha256": "f8452a5b2c2a862d93488b17166e630045f5c7d906c8c172623b61bbe8afe3d8",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -86972,7 +86972,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 38595,
+      "bytes": 39642,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -87001,9 +87001,9 @@
         "independently",
         "both"
       ],
-      "lines": 722,
+      "lines": 741,
       "path": "governance/work-claims.json",
-      "sha256": "8d1914fc0f0c691939783fc995bc01d6e7da0dc78638f3725c71e5450205c466",
+      "sha256": "1790e6dcf2a8bbf3d55915b9a4a421969f507bf6ea82a47320ec8a4870b675f0",
       "symbols": [],
       "title": "{"
     },
@@ -87371,6 +87371,53 @@
       "title": "Pinning the toolchain is part of moving toward reproducible builds (SPEC-11)."
     },
     {
+      "bytes": 12014,
+      "group": "tools",
+      "headings": [
+        {
+          "level": 1,
+          "line": 27,
+          "text": "`### D-0123 \u2014 Title  \u00b7  *Status*`"
+        },
+        {
+          "level": 1,
+          "line": 30,
+          "text": "Statuses that mean a claim is still holding its ground."
+        }
+      ],
+      "keywords": [
+        "str",
+        "path",
+        "text",
+        "decision",
+        "one",
+        "canonical",
+        "import",
+        "return",
+        "log",
+        "none",
+        "nothing",
+        "decision_log",
+        "def",
+        "entry",
+        "list",
+        "match",
+        "identifier",
+        "every",
+        "subprocess",
+        "heading",
+        "entries",
+        "matches",
+        "root",
+        "errors"
+      ],
+      "lines": 292,
+      "path": "tools/check_decisions.py",
+      "sha256": "b9d3392c8d567b8b98f58fae239554f637d8daa9f144ab4c5586806c6c957334",
+      "symbols": [],
+      "title": "`### D-0123 \u2014 Title  \u00b7  *Status*`"
+    },
+    {
       "bytes": 54513,
       "group": "tools",
       "headings": [],
@@ -87405,6 +87452,58 @@
       "sha256": "30007aa2842966154a018e31e3b323cc691386e1ef69670c913d72a95e21b200",
       "symbols": [],
       "title": "\"\"\"Reference Mininet bootstrap governance validator."
+    },
+    {
+      "bytes": 3420,
+      "group": "tools",
+      "headings": [
+        {
+          "level": 1,
+          "line": 27,
+          "text": "`const MAX_SIGNATURES: usize = 16;` / `= did_mini::MAX_SIGNATURES;`"
+        },
+        {
+          "level": 1,
+          "line": 33,
+          "text": "The floors did-mini itself enforces. Kept here rather than parsed so this"
+        },
+        {
+          "level": 1,
+          "line": 34,
+          "text": "check still reports something useful if did-mini's own file is malformed."
+        }
+      ],
+      "keywords": [
+        "did-mini",
+        "path",
+        "root",
+        "name",
+        "max_signatures",
+        "const",
+        "did_mini",
+        "import",
+        "value",
+        "errors",
+        "usize",
+        "floors",
+        "rather",
+        "check",
+        "identity",
+        "may",
+        "continue",
+        "floor",
+        "error",
+        "reports",
+        "own",
+        "file",
+        "text",
+        "int"
+      ],
+      "lines": 97,
+      "path": "tools/check_wire_limits.py",
+      "sha256": "73d91ec8027c67ab31592bc03e4bc5eac569b7f22d2c54129c710ecf0df4a971",
+      "symbols": [],
+      "title": "`const MAX_SIGNATURES: usize = 16;` / `= did_mini::MAX_SIGNATURES;`"
     },
     {
       "bytes": 8461,
@@ -87902,6 +88001,42 @@
       "sha256": "cae0c2eb9d4265c4e49450a7505fce6ebd162fa4f08233ea49f067fc0449aa29",
       "symbols": [],
       "title": "from __future__ import annotations"
+    },
+    {
+      "bytes": 7298,
+      "group": "tools",
+      "headings": [],
+      "keywords": [
+        "self",
+        "entry",
+        "repo",
+        "def",
+        "commit",
+        "d-0001",
+        "str",
+        "base",
+        "claims",
+        "run",
+        "git",
+        "none",
+        "body",
+        "canonical",
+        "import",
+        "status",
+        "d-0002",
+        "assertequal",
+        "path",
+        "root",
+        "subprocess",
+        "stack",
+        "branch",
+        "check"
+      ],
+      "lines": 174,
+      "path": "tools/test_registry_checks.py",
+      "sha256": "d1c42b47fb16beb86994b1d90064d00b96c93d07914dfca322ba474aec696d00",
+      "symbols": [],
+      "title": "\"\"\"Tests for the decision-registry and wire-limit checks."
     },
     {
       "bytes": 4694,
