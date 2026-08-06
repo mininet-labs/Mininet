@@ -466,7 +466,8 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
 
     /// Validate a proposal's *value* against this node's own chain state:
     /// right height, right parent, deterministic logical timestamp, and a
-    /// `state_root` this node can reproduce by applying the body. Returns
+    /// exact `body_root` and a `state_root` this node can reproduce by applying
+    /// that body. Returns
     /// the value's block hash and whether it is valid. An authentic
     /// proposal whose value is invalid is still reported (with
     /// `valid = false`) so the round can prevote `nil` for it.
@@ -485,6 +486,9 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
         // enforces the identical rule unconditionally, so this is a cheap
         // early filter, not the authoritative check.
         if header.timestamp_ms != header.height {
+            return (hash, false);
+        }
+        if header.body_root != p.body.hash() {
             return (hash, false);
         }
         match apply_block(self.chain.state(), &p.body) {
@@ -584,6 +588,7 @@ impl<O: ValidatorOracle> ConsensusNode<O> {
                 height,
                 prev_hash: self.chain.tip_hash(),
                 state_root: next.commitment(),
+                body_root: body.hash(),
                 timestamp_ms: height, // deterministic logical time, enforced below
                 proposer: self.root.clone(),
             };
@@ -749,6 +754,7 @@ mod tests {
             height: 1,
             prev_hash: genesis.tip_hash(),
             state_root: next.commitment(),
+            body_root: b.hash(),
             timestamp_ms: 1,
             proposer: fx.signers[by_idx].0.did(),
         };
@@ -772,6 +778,7 @@ mod tests {
                 height,
                 prev_hash: [0; 32],
                 state_root: [0; 32],
+                body_root: SettlementBlockBody::new(Vec::new()).hash(),
                 timestamp_ms: height,
                 proposer: fx.signers[0].0.did(),
             };
@@ -840,6 +847,7 @@ mod tests {
             height: 1,
             prev_hash: genesis.tip_hash(),
             state_root: next.commitment(),
+            body_root: b.hash(),
             timestamp_ms: 1,
             proposer: fx.signers[p_idx].0.did(),
         };
@@ -881,6 +889,7 @@ mod tests {
             height: 1,
             prev_hash: genesis.tip_hash(),
             state_root: next.commitment(),
+            body_root: b.hash(),
             timestamp_ms: 0, // does not equal the required height, 1
             proposer: fx.signers[p_idx].0.did(),
         };
@@ -925,6 +934,7 @@ mod tests {
             height: 1,
             prev_hash: genesis.tip_hash(),
             state_root: next.commitment(),
+            body_root: b.hash(),
             timestamp_ms: u64::MAX, // increasing, but not the required value
             proposer: fx.signers[p_idx].0.did(),
         };

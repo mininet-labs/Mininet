@@ -13,6 +13,8 @@ pub enum EconomyError {
     UnexpectedEpoch,
     OpeningSupplyMismatch,
     InvalidEpochPlan,
+    MalformedEncoding,
+    LimitExceeded,
 }
 
 impl core::fmt::Display for EconomyError {

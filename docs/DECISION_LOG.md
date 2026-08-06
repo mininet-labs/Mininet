@@ -15878,3 +15878,160 @@ release (audit §19.3); and generated-file freshness enforcement in CI (audit
 
 **Supersedes / superseded by:** supersedes D-0341's decision to leave the
 dependency-audit gap documented rather than fixed. D-0341 otherwise stands.
+### D-0442 — Day-0 release hardening across consensus, value, storage, and crawler boundaries  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** merged PRs #271–#275, #283–#294, and
+#297 and #299; active draft PR #296 (explicitly excluded overlapping transport/query
+ownership); `docs/audits/day0-release-code-hardening-20260805.md`; A1; M1–M3;
+V1; P5–P6; S1; X2–X3.
+
+**Decision:** harden existing release-sensitive boundaries without expanding
+their authority or inventing replacement protocols. Consensus proposal
+signature transcript v2 binds both the header and exact settlement-body hash,
+and one proposal is capped at the admission boundary of 4,096 claims. Monetary
+epoch progression fails closed at `u64::MAX`; payment admission retains only
+the canonical `InsufficientFunds` retry; unsupported payment signing suites are
+rejected as typed errors; and admission cleanup uses retained wire sizes.
+Owner-only sealing reserves all framing/tag overhead, encrypted payloads cannot
+enter advertising cache tiers, and cache metadata is canonical. Crawler address
+admission closes omitted special/transition ranges and validates embedded IPv4
+destinations in the globally reachable RFC 6052 NAT64 prefix. PR #299's
+D-0439–D-0441 storage-fraud rebuild and correctness floor remain authoritative;
+this decision drops its superseded pre-registration claim changes.
+
+**Reason:** the audited code was individually bounded and tested, but its
+composition exposed nine fail-open, panic, portability, resource-amplification,
+or transcript-integrity defects at release-critical seams. These are local,
+falsifiable corrections to already-decided behavior. Leaving them for a later
+redesign would allow a body-mutated proposal signature, repeated terminal
+issuance, incorrectly terminal payment retry, suite-triggered panic,
+privacy-policy bypass, or SSRF policy evasion while giving no compensating
+protocol benefit.
+
+**Constitutional impact:** reinforces Directive 5 (canonical truth), Directive
+6 (failure-first design), Directive 9 (structural privacy), Directive 11 (the
+weakest device), Directive 13 (long-horizon portability), and Directive 15
+(malicious-minority defense). It does not change issuance policy, balances,
+canonical ordering, governance weight, validator membership, cache ownership,
+storage rewards, or crawler authority. M1–M3 and the voice/value wall remain
+unchanged. Proposal-signing domain v2 is deliberately incompatible with v1
+in-flight proposal signatures, so every validator in a prelaunch network must
+upgrade together; no production canonical state or owner adoption is asserted.
+A1 remains an external-review gate and is not discharged by this audit.
+
+**Implementation status:** implemented on
+`codex/release-security-audit`, with adversarial regressions across
+`mini-consensus`, `mini-economy`, `mini-execution`, `mini-settlement`,
+`mini-store`, and `mini-crawler-fetch`. Focused tests,
+workspace all-feature Clippy, governance runtime/baseline checks, and the Python
+governance suite pass. The complete workspace test matrix remains required in
+Linux CI because Windows Application Control blocked a newly compiled
+dependency build script after the local build volume was recovered; host policy
+was not weakened. The generated navigation index is intentionally untouched
+under D-0376.
+
+**Failure point:** a live proposal now authenticates its body, but finalized
+headers and quorum certificates still do not prove the exact historical body;
+that requires a versioned header/block migration. Canonical rejection history
+and single-frame snapshots remain bounded only by eventual failure, not by a
+scalable authenticated-history/chunk protocol. Admission is still node-local,
+not an authenticated and rate-limited internet service. Owner sealing has no
+KEL-bound rotation/recovery. Collision evidence has no consequence path. The
+crawler is not a complete crawl/extract/index system. Transparent settlement
+does not integrate `mini-value` privacy primitives. Sybil-resistant personhood,
+validator formation, and all A1 external reviews remain open.
+
+**Required follow-up:** require exact-head Linux CI and independent review;
+merge or supersede PR #296 without duplicating its transport/query ownership;
+design a versioned exact-body finality migration, chunked authenticated state
+transfer and bounded rejection proofs; expose admission only behind
+authenticated/rate-limited transport; bind owner sealing to KEL rotation and
+recovery; define a governed storage-fraud consequence/appeal path; finish the
+crawler provenance-to-index pipeline; and keep real-value/consensus/storage
+activation blocked until A1's external audits sign off on the exact release
+commit.
+
+**Supersedes / superseded by:** hardens implementations governed by their
+existing decisions; it does not supersede their doctrine. Coordinates with,
+but does not modify or supersede, PR #296 / D-0438's transport and authenticated
+query work. PR #299 / D-0439–D-0441 supersedes the storage-fraud implementation
+reviewed on the original audit base and is preserved unchanged.
+
+### D-0443 — Exact-body finality v2 and lossless monetary consensus wire migration  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** D-0207, D-0414–D-0416, D-0442;
+roadmap #45; `docs/design/exact-body-finality-v2-migration.md`; M1–M3; V1;
+A1; Directive 4, Directive 5, Directive 6, Directive 11, Directive 13, and
+Directive 15.
+
+**Decision:** make the exact ordered application body part of the finalized
+value. `BlockHeader` version 2 gains `body_root`; its versioned header hash
+commits to both `state_root` and `body_root`, so every existing vote and QC over
+that hash proves the exact body as well as the resulting state. Execution,
+proposal validation, voting, catch-up, and persisted finalized-block decoding
+all reject a body mismatch. Settlement-body hash v2 commits the canonical bytes
+of each scalable monetary epoch. Consensus message/proposal v3 serializes those
+epochs losslessly under explicit count and byte limits. Finalized-block,
+catch-up, snapshot, state-sync, and archive-install formats move to v2 and fail
+closed on their old domains.
+
+**Reason:** state equality is not historical-byte equality. Execution
+intentionally ignores an invalidly signed claim, so an empty body and a body
+containing that invalid claim can have the same `state_root`. D-0442 made a live
+proposal signature body-aware, but its QC and durable history still targeted a
+header that lacked that commitment. The same end-to-end review found that the
+consensus body codec omitted `monetary_epochs` entirely and the scalable epoch
+commitment omitted nested Human Share epoch and vesting fields. A late node
+could therefore lose an issuance transition in transport, and a commitment did
+not represent every authority-bearing field. One incompatible prelaunch
+migration closes all three ambiguity classes without inventing a compatibility
+value for information the old header never committed.
+
+**Constitutional impact:** reinforces canonical truth, deterministic failure,
+weakest-device bounds, long-horizon versioning, and malicious-minority defense.
+It changes neither issuance formula nor allocation, balances, account ordering,
+governance weight, validator membership, personhood, or owner authority. The
+voice/value wall remains intact. The new monetary codec conveys an epoch plan;
+it grants no issuance authority because execution re-derives the D-0074 policy
+transition from finalized supply.
+
+**Implementation status:** implemented on `codex/release-security-audit` in
+PR #300. Adversarial tests prove a QC for an empty body cannot be reused for a
+different invalid-claim body with the same post-state, exact monetary plans
+survive proposal wire round-trip, nested Human Share fields affect the
+commitment, header hashes change with `body_root`, persisted/catch-up objects
+reject mismatched bodies, every prior outer protocol version is rejected, and
+malformed/truncated/oversized epoch encodings fail closed. Targeted tests across
+`mini-chain`, `mini-consensus`, `mini-economy`, `mini-execution`, and
+`mini-contribution` pass on the proposal branch. Exact-head Linux workspace CI,
+human review, and A1 external review remain required.
+
+**Migration:** coordinated prelaunch hard fork only. Stop all validators,
+preserve the old archive as read-only evidence, move it out of the live path,
+install one reviewed binary, and restart from an explicitly agreed v2 genesis.
+No automatic v1 archive or balance conversion exists because v1 headers cannot
+prove their historical bodies. Preserving beta balances requires a separately
+governed and audited explicit genesis allocation. After a v2 block finalizes,
+v1 rollback under the same network id is forbidden. The complete abort,
+quarantine, verification, and recovery sequence is normative in the design
+document.
+
+**Failure point:** this proves exact bodies only from v2 genesis onward. The
+validator set is still static; historical set transitions, long-range defense,
+and weak subjectivity remain open. Snapshot state is still capped at 8 MiB and
+one bearer frame; no resumable chunked Merkle state protocol exists. Canonical
+rejection history still lacks deterministic pruning/compact proofs. External
+consensus, issuance, and cryptographic review has not occurred.
+
+**Required follow-up:** run exact-head Linux workspace CI and the documented
+mixed-version/fresh-node deployment drills; obtain D-0033 and A1 reviews;
+implement chunked authenticated state transfer, bounded rejection proofs,
+dynamic validator-set history, and an explicit weak-subjectivity rule before
+claiming internet-scale consensus recovery.
+
+**Supersedes / superseded by:** supersedes D-0442's proposal-v2 transcript and
+its statement that exact historical body commitment remains unimplemented.
+D-0442's other hardening findings and authority boundaries stand. This proposal
+does not supersede D-0207's snapshot/archive design or D-0414–D-0416's issuance,
+ledger, and admission rules; it migrates their consensus commitment and wire
+representation.

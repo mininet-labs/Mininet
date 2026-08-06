@@ -4,6 +4,13 @@
 use did_mini::Did;
 use mini_crypto::HashAlgorithm;
 
+/// Coordinated prelaunch hard-fork version of the canonical block header.
+/// Version 2 adds [`BlockHeader::body_root`], so votes and quorum certificates
+/// commit to the exact proposed body rather than only its resulting state.
+pub const BLOCK_HEADER_VERSION: u8 = 2;
+
+const BLOCK_HEADER_HASH_DOMAIN: &[u8] = b"mini-chain/block-header/v2";
+
 /// A block header. Deliberately minimal for this batch: enough to hash,
 /// chain, and finalize. Real transaction/state-machine content is `pending`
 /// (this crate is the finality-verification core, not the state machine).
@@ -16,6 +23,10 @@ pub struct BlockHeader {
     /// Commitment to the post-block application state (content-addressed,
     /// meaning left to the state machine that eventually anchors here).
     pub state_root: [u8; 32],
+    /// Commitment to the exact ordered application body. This is distinct
+    /// from `state_root`: invalid/rejected operations can leave state unchanged
+    /// while still being part of the historical block bytes.
+    pub body_root: [u8; 32],
     /// Protocol timestamp. `mini-consensus` fixes this to the block height
     /// as deterministic logical time — a signature only proves who proposed
     /// a value, never that it reflects real time, so no consumer of this
@@ -28,10 +39,23 @@ pub struct BlockHeader {
 impl BlockHeader {
     /// Canonical bytes this header's hash is derived from.
     pub fn canonical_bytes(&self) -> Vec<u8> {
-        let mut w = Vec::with_capacity(8 + 32 + 32 + 8 + 4 + self.proposer.as_str().len());
+        let mut w = Vec::with_capacity(
+            BLOCK_HEADER_HASH_DOMAIN.len()
+                + 1
+                + 8
+                + 32
+                + 32
+                + 32
+                + 8
+                + 4
+                + self.proposer.as_str().len(),
+        );
+        w.extend_from_slice(BLOCK_HEADER_HASH_DOMAIN);
+        w.push(BLOCK_HEADER_VERSION);
         w.extend_from_slice(&self.height.to_be_bytes());
         w.extend_from_slice(&self.prev_hash);
         w.extend_from_slice(&self.state_root);
+        w.extend_from_slice(&self.body_root);
         w.extend_from_slice(&self.timestamp_ms.to_be_bytes());
         let p = self.proposer.as_str().as_bytes();
         w.extend_from_slice(&(p.len() as u32).to_be_bytes());

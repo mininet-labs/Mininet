@@ -10,6 +10,8 @@ pub enum SettlementError {
     BadSignature,
     /// A payer/payee key was not a well-formed key for its suite.
     BadKey,
+    /// This payment format does not support the supplied signing-key suite.
+    UnsupportedSignatureSuite,
     /// An amount of zero was rejected — a claim must move real value.
     ZeroAmount,
     /// `valid_until_ms` was not strictly after the claim's construction
@@ -29,6 +31,9 @@ impl fmt::Display for SettlementError {
         match self {
             SettlementError::BadSignature => write!(f, "claim signature does not verify"),
             SettlementError::BadKey => write!(f, "malformed payer or payee key"),
+            SettlementError::UnsupportedSignatureSuite => {
+                write!(f, "unsupported payment signing-key suite")
+            }
             SettlementError::ZeroAmount => write!(f, "claim amount must be nonzero"),
             SettlementError::BadValidityWindow => {
                 write!(

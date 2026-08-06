@@ -276,6 +276,9 @@ pub fn sign_claim_for_network(
     last_known_chain: &[u8],
     now_ms: u64,
 ) -> Result<PaymentClaim> {
+    if payer.suite() != SignatureSuite::DEFAULT {
+        return Err(SettlementError::UnsupportedSignatureSuite);
+    }
     if amount_micro == 0 {
         return Err(SettlementError::ZeroAmount);
     }
@@ -373,6 +376,15 @@ mod tests {
         assert_eq!(
             sign_claim(&payer_key(), b"payee-a", 0, 0, 10_000, b"chain-head-1", 0).unwrap_err(),
             SettlementError::ZeroAmount
+        );
+    }
+
+    #[test]
+    fn unsupported_signing_suite_returns_an_error_instead_of_panicking() {
+        let payer = SigningKey::generate_ml_dsa_65().unwrap();
+        assert_eq!(
+            sign_claim(&payer, b"payee-a", 1, 0, 10_000, b"chain-head-1", 0),
+            Err(SettlementError::UnsupportedSignatureSuite)
         );
     }
 

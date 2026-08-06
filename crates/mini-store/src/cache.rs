@@ -104,8 +104,10 @@ impl<B: Backend> Store<B> {
     pub fn cache_tier(&self, id: &ObjectId) -> Result<CacheTier> {
         match self.backend.get_meta(&tier_key(id))? {
             Some(bytes) => {
-                let b = *bytes.first().ok_or(StoreError::Corrupt)?;
-                CacheTier::from_byte(b).ok_or(StoreError::Corrupt)
+                let [b] = bytes.as_slice() else {
+                    return Err(StoreError::Corrupt);
+                };
+                CacheTier::from_byte(*b).ok_or(StoreError::Corrupt)
             }
             None => Ok(CacheTier::EphemeralCache),
         }
@@ -115,6 +117,12 @@ impl<B: Backend> Store<B> {
     /// owner committing storage for it). Does not require the object to be
     /// present, so a tier can be pre-declared before content arrives.
     pub fn set_cache_tier(&mut self, id: &ObjectId, tier: CacheTier) -> Result<()> {
+        if tier.advertises() && self.contains(id)? {
+            let object = self.get(id)?;
+            if matches!(object.payload, Payload::Encrypted(_)) {
+                return Err(StoreError::PrivateContentAdvertising);
+            }
+        }
         self.backend.put_meta(&tier_key(id), &[tier.to_byte()])
     }
 

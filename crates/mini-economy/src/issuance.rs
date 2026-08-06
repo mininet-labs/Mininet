@@ -169,28 +169,8 @@ pub struct ScalableEpochPlan {
 impl ScalableEpochPlan {
     pub fn commitment(&self) -> Multihash {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"mini-economy/scalable-epoch-plan/v1");
-        bytes.extend_from_slice(&self.epoch.to_be_bytes());
-        bytes.extend_from_slice(&self.duration_ms.to_be_bytes());
-        bytes.extend_from_slice(&self.opening_circulating.as_micro().to_be_bytes());
-        bytes.extend_from_slice(&self.human.snapshot.root);
-        bytes.extend_from_slice(&self.human.snapshot.eligible_count.to_be_bytes());
-        for amount in [
-            self.human.cap,
-            self.human.per_human,
-            self.human.issued,
-            self.human.unissued_remainder,
-            self.service_cap,
-            self.treasury_cap,
-            self.total_cap,
-            self.service_issued,
-            self.treasury_issued,
-            self.total_issued,
-        ] {
-            bytes.extend_from_slice(&amount.as_micro().to_be_bytes());
-        }
-        bytes.extend_from_slice(&(self.optional_grants.len() as u64).to_be_bytes());
-        put_grants(&mut bytes, &self.optional_grants);
+        bytes.extend_from_slice(b"mini-economy/scalable-epoch-plan/v2");
+        bytes.extend_from_slice(&self.canonical_bytes());
         Multihash::of(HashAlgorithm::Blake3, &bytes)
     }
 }

@@ -52,7 +52,8 @@ Admission rejects:
 - unsupported payee account;
 - locally expired claim;
 - exact duplicate or same-payer/same-sequence conflict;
-- already finalized or canonically rejected claim;
+- already finalized or terminally rejected claim (`InsufficientFunds` alone
+  may be retried after the payer receives funds, matching canonical execution);
 - aggregate locally pending spend above finalized balance; and
 - any global, per-payer, or byte limit breach.
 

@@ -65,7 +65,7 @@ mod snapshot;
 mod state;
 
 pub use admission::{AdmissionError, AdmissionPolicy, PaymentAdmissionPool};
-pub use body::{SettlementBlockBody, MAX_CLAIMS_PER_BLOCK};
+pub use body::{SettlementBlockBody, MAX_CLAIMS_PER_BLOCK, MAX_MONETARY_EPOCHS_PER_BLOCK};
 pub use chain::LedgerChain;
 pub use error::{ExecutionError, Result};
 pub use snapshot::{MAX_LEDGER_SNAPSHOT_BYTES, MAX_LEDGER_SNAPSHOT_ENTRIES};

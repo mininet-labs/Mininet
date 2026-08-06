@@ -124,7 +124,14 @@ full via Tendermint locking, and **proposals are now signed** (D-0202): a node
 accepts a proposal for `(height, round)` only if it is signed by a `VOTE`-
 capable device of exactly `proposer_for(height, round)`, so a Byzantine node
 can no longer front-run the designated proposer to waste a round. The
-remaining gaps are liveness/DoS, endpoint authentication/discovery, and
+exact proposed value is now durable too (proposed D-0443): header v2 commits a
+separate `body_root`, making every vote/QC prove the ordered body even where a
+different body would produce the same `state_root`. Message/proposal v3 carries
+monetary epoch plans losslessly, and archive/catch-up/snapshot/state-sync v2
+rejects the former formats. This is a coordinated prelaunch hard fork; see
+`exact-body-finality-v2-migration.md` for the quarantine and genesis procedure.
+
+The remaining gaps are liveness/DoS, endpoint authentication/discovery, and
 deployment, not finality correctness:
 
 - **State sync is static-set and one-frame, not a universal checkpoint

@@ -18,6 +18,7 @@ or substantially addresses, so the mapping between "what was asked" and
 | [`issue-18-sybil-social-graph-review.md`](issue-18-sybil-social-graph-review.md) | [#18](../../issues/18) | Propagation sound; farm-saturation bypass fixed (F1); "no longer cheap" claim UNPROVEN at production params — threat still open |
 | [`external-full-codebase-audit-2026-08-05.md`](external-full-codebase-audit-2026-08-05.md) | — | Received external review; unverified reviewer, no tooling run. 7 findings confirmed and fixed, the rest tracked |
 | [`external-full-codebase-audit-2026-08-05-response.md`](external-full-codebase-audit-2026-08-05-response.md) | — | Disposition record for the above. Closes no gate |
+| [`day0-release-code-hardening-20260805.md`](day0-release-code-hardening-20260805.md) | — | Internal release-hardening evidence: 9 original defects fixed under D-0442; exact-body finality and monetary wire follow-on under D-0443. Not an external audit |
 
 ## Required scope header (D-0441)
 
