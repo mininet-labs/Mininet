@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-08-06T07:30:35Z",
+  "updated_at": "2026-08-06T16:58:08Z",
   "claims": [
     {
       "issue": 122,
@@ -704,7 +704,7 @@
       "status": "active",
       "contributor": "claude-agent",
       "branch": "claude/storage-lifecycle",
-      "pull_request": null,
+      "pull_request": 302,
       "lease_expires": "2026-08-13",
       "paths": [
         "crates/mini-storage-fraud",
@@ -715,7 +715,7 @@
       "decision_ids": [
         "D-0445"
       ],
-      "notes": "Ongoing-possession windows, derived-not-declared capacity, and the mini-spacetime challenge-binding fix."
+      "notes": "PR #302: ongoing-possession proof windows, derived-not-declared capacity, and the mini-spacetime challenge-binding fix. Roadmap #42 stays open: no consequence layer, no networked registration surface, no timing/latency detection."
     }
   ]
 }
