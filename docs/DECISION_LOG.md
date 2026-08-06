@@ -15531,3 +15531,136 @@ D-0064) or `mini-spacetime`'s `StorageCommitment`/PDP machinery. A
 sibling to, not an extension of, `mini_consensus::evidence::
 EquivocationEvidence` (D-0204) — `mini-storage-fraud` does not depend on
 `mini-consensus`.
+
+---
+
+### D-0439 — Mininet Node Appliance: Debian deployment profile, not an OS (`deploy/`)  ·  *Accepted (founder directive)*
+
+**Date:** 2026-08-06 · **Refs:** `docs/design/mininet-node-appliance.md`
+(full doctrine); D-0020 (sovereignty-first distribution FREEZE); D-0066/
+`docs/design/self-hosted-forge-spine.md` (the forge spine this sits
+underneath); D-0070/D-0071 (`mini-forge::release` + `mini-installer`, the
+release-activation layer this hands off to); D-0011/P3 (no forced update,
+no remote kill). Note: D-0438 is claimed by an in-flight, unmerged PR
+(#296) at the time this entry was written; this decision uses D-0439 to
+avoid a third main-track collision rather than repeating the D-0437/
+D-0438 renumbering already done once this session.
+
+**Decision:** adopt a staged, Debian-Stable-based "appliance" deployment
+profile as the answer to "what does a real Mininet node run on," and
+explicitly reject building a from-scratch operating system at this stage.
+Mininet owns the package manifest, filesystem layout, systemd units,
+security defaults, users/permissions, networking configuration, update
+policy, installation state machine, recovery procedure, and (later) VM/
+bare-metal images; Debian continues to own the kernel, bootloader,
+hardware support, security patches, package infrastructure, and base
+userspace. Four stages, each gated on the previous one actually working:
+Day 0 (this decision's shipped scope) — a `deploy/` tree
+(`packages.lock`, `systemd/`, `sysctl.d/`, `nftables/`, `users/`,
+`installer/`, `verification/`) plus an idempotent installer script that
+turns a supported Debian Stable machine into a known Mininet node; Phase
+2 — signed, reproducibly-built QCOW2/raw/cloud images, still Debian
+underneath; Phase 3 — immutable/A-B-updating root, only after upgrade/
+recovery/rollback are proven reliable; Phase 4 — a genuine from-scratch
+Mininet OS, gated on Debian materially blocking a real, encountered
+requirement (deterministic whole-system builds, unusually strong offline
+operation, transactional updates, specialized networking, a tighter
+trusted-computing boundary, hardware-appliance certification), never
+speculatively. The product name is **Mininet Node Appliance** / **Mininet
+Appliance**; "Mininet OS" is reserved for a Phase 4 decision that has not
+been made.
+
+**Reason:** a real distribution creates permanent, unbounded operational
+work (package-repository signing, security-update coordination, kernel
+maintenance, installer maintenance, hardware-compatibility testing, image
+publishing, upgrade/rollback guarantees, vulnerability response, release
+engineering) that scales with calendar time regardless of usage and does
+not advance the actual open question: whether Mininet can host, build,
+verify, and recover itself end to end. Every hour spent reproducing
+Debian's job is an hour not spent proving the forge spine (already
+shipped through Batch 5) works as a day-to-day operational substrate. The
+appliance profile reaches "known, reproducible, recoverable node" while
+leaving every one of those permanent burdens with Debian, which already
+carries them for the entire world. Gating a real OS behind a named,
+concrete decision point (Phase 4) rather than open-ended ambition
+prevents exactly the kind of premature scope expansion the founder
+direction identifies as a risk to the forge-spine priority.
+
+**Constitutional impact:** ties directly to D-0020's [FREEZE]: *"No
+canonical distribution point may ever be required: a fresh device must be
+able to obtain, verify, and run the client from a nearby peer alone."*
+Any Phase 2 signed image must be obtainable and verifiable as a
+content-addressed object synced peer-to-peer (the same `mini-sync`/
+`mini-net` path D-0080 proved carries the entire spine over plain TCP),
+with any Mininet-operated mirror treated as one optional convenience
+among many, never the only path — recorded here as a binding constraint
+on Phase 2, not yet implemented since Phase 2 has not started. No forced
+update or remote-kill mechanism (D-0011/P3) may be introduced by any
+appliance update-policy work; `deploy/`'s own update story is bounded by
+`mini-update`'s existing freshness/staleness/provenance-quorum gates, not
+a new authority. No frozen invariant weakened. No voice/value wall edge:
+`deploy/` contains no code, only OS-level manifests/scripts, and its
+installer's only interaction with the Rust workspace is building and
+invoking the existing `mini-cli` binary as an external process — no new
+crate, no new dependency edge. No generic `sign(bytes)`/authority
+surface introduced.
+
+**Implementation status:** doctrine document
+(`docs/design/mininet-node-appliance.md`) plus real, individually
+verified Day 0 artifacts under `deploy/`: `packages.lock` (every package
+name confirmed to resolve against a live apt cache); `sysctl.d/99-
+mininet-hardening.conf` (generic, well-known network/kernel hardening,
+not a Mininet-specific security boundary); `nftables/mininet.nft`
+(default-deny inbound, one Mininet sync port open, syntax-verified via
+`nft --check`); `users/mininet.conf` (systemd-sysusers format,
+dry-run-verified to create exactly the intended unprivileged service
+account); `systemd/mininet.target` + `systemd/mininet-sync-listen.
+service` (the latter uses systemd's own `Restart=always` supervision to
+turn `mini sync listen`'s existing one-shot, exit-on-completion semantics
+into an always-listening OS service without adding a daemon to
+`mini-cli` itself; both units pass `systemd-analyze verify` with the only
+reported issue being the expected pre-install absence of the
+not-yet-built `/usr/local/bin/mini` binary); `installer/install.sh`
+(idempotent, root-required, checks Debian identity before proceeding
+unless explicitly overridden for testing, builds `mini-cli` from the
+workspace via `cargo build --release` as a one-time bootstrap since a
+fresh node has no prior `mini` binary to verify a release against);
+`verification/verify.sh` (lints all of the above and reports live
+install state, all lint checks passing in this session with only
+expected pre-install SKIPs). Not run end-to-end on a real Debian Stable
+machine or VM in this session — verified by manifest lint
+(`systemd-analyze verify`, `nft --check`, `systemd-sysusers --dry-run`,
+live apt-cache package-name resolution) rather than a full live install,
+consistent with `deploy/README.md`'s own instruction that this is meant
+to be run by a human on a disposable VM before being treated as more than
+a checked-in manifest.
+
+**Failure point:** the installer's Debian-identity check
+(`grep -q '^ID=debian$' /etc/os-release`) is the only thing standing
+between "supported appliance" and "untested configuration on whatever OS
+happens to be running" — `--allow-non-debian` exists solely for testing
+this script's own logic and is documented as producing an unsupported
+result. `nftables/mininet.nft`'s `flush ruleset` makes reapplication
+idempotent but means this ruleset cannot coexist with any other,
+independently managed nftables policy on the same host — acceptable for
+a "known node" but a real failure mode if someone layers this onto a
+machine already running unrelated nftables rules without reading the
+warning in the file. No image signing, no CVE response process, no
+hardware-compatibility testing beyond what apt/systemd/nft report in this
+sandbox — all named explicitly as not built in the doctrine document's
+"Honest non-claims" section, not silently assumed.
+
+**Required follow-up:** an actual end-to-end run of `install.sh` on a
+real (or QEMU/KVM) Debian Stable machine, which this session's sandbox
+(Ubuntu 24.04, not Debian, and too disk-constrained for a release
+`cargo build` at the time of writing) could not itself provide beyond the
+`--allow-non-debian` package-name/unit-syntax checks already performed.
+Phase 2 image building and signing. Wiring `deploy/`'s update policy to
+`mini-update`'s freshness/provenance gates explicitly, once Phase 3 is
+reached. A GitHub tracking issue for the staged plan (opened alongside
+this decision).
+
+**Supersedes / superseded by:** new ground — no prior decision addressed
+OS-level node deployment; extends, and does not modify, the forge spine
+(D-0066) or the release/installer layer (D-0070/D-0071) it sits
+underneath.

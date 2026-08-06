@@ -1,0 +1,37 @@
+# Mininet Node Appliance — required package set (Day 0)
+#
+# Format: one package name per line, grouped by category. A trailing
+# `=<version>` pins an exact Debian Stable version once resolved against a
+# real mirror by `deploy/verification/lock-packages.sh`; an unpinned name
+# takes whatever Debian Stable's own dependency resolver picks. This file
+# as checked in is the DECLARED REQUIREMENT SET, not a hash-locked
+# manifest — see docs/design/mininet-node-appliance.md's "Honest
+# non-claims" section. Do not hand-author version/hash pins here; run the
+# lock script against an actual Debian Stable box or mirror snapshot.
+#
+# Target base: Debian Stable, x86-64.
+
+# --- base system / init ---
+systemd
+systemd-sysv
+systemd-timesyncd
+
+# --- security boundary ---
+nftables
+ca-certificates
+sudo
+
+# --- filesystem / recovery ---
+e2fsprogs
+util-linux
+rsync
+
+# --- build toolchain for the mini-cli binary (reproducible build path) ---
+build-essential
+pkg-config
+libssl-dev
+
+# --- operational tooling the installer/verification scripts depend on ---
+curl
+gnupg
+jq

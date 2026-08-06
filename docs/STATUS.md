@@ -1921,3 +1921,39 @@ dishonest `treasury_balance_micro` input.
 remain valid; there is no CA, canonical relay/bootstrap registry, hosted
 identity directory, trusted first peer, majority-by-download rule, admin or
 unmasking key, or value-to-routing/voice path.
+
+## Node deployment — Mininet Node Appliance (D-0439)
+
+Doctrine: `docs/design/mininet-node-appliance.md`. A staged, Debian-Stable-
+based deployment profile, explicitly not a from-scratch operating system —
+Mininet owns the manifest/units/policy/installer, Debian keeps the kernel,
+bootloader, hardware support, security patches, and package infrastructure.
+
+- **shipped, prototype (Day 0)** — `deploy/`: a pinned package manifest
+  (`packages.lock`, package names confirmed to resolve against a live apt
+  cache — not yet hash-locked, see the file's own header), a minimal
+  kernel-hardening sysctl baseline, a default-deny `nftables` ruleset
+  (syntax-verified via `nft --check`), a declarative system user
+  (`systemd-sysusers` format, dry-run-verified), two systemd units
+  (`mininet.target`, `mininet-sync-listen.service` — the latter uses
+  `Restart=always` supervision to turn `mini sync listen`'s existing
+  one-shot semantics into an always-listening OS service without adding a
+  daemon to `mini-cli`; both pass `systemd-analyze verify`), an idempotent
+  installer script (`deploy/installer/install.sh`) that provisions a bare
+  Debian Stable machine and builds/installs `mini-cli` as a one-time
+  bootstrap, and a verification script (`deploy/verification/verify.sh`).
+- **not run end-to-end** — no real Debian Stable machine or VM ran the
+  installer in this session; verification was manifest lint (unit syntax,
+  firewall syntax, sysusers dry-run, live package-name resolution) plus
+  reasoning about the script's own logic, not a full live install.
+- **not started** — Phase 2 (signed, reproducibly-built QCOW2/raw/cloud
+  images), Phase 3 (immutable/A-B-updating root), and Phase 4 (a genuine
+  Mininet OS, gated on Debian materially blocking a real requirement, not
+  decided speculatively).
+
+**Authority boundary:** the appliance installer never verifies or activates
+a Mininet release itself — that stays exactly where D-0070/D-0071 already
+put it (`mini-forge::release` + `mini-installer`). Any future signed image
+must remain obtainable and verifiable as a content-addressed object synced
+peer-to-peer per D-0020's [FREEZE]; no appliance work may introduce a
+forced-update or remote-kill mechanism (D-0011/P3).

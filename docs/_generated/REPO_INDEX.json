@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 72,
-    "files": 847,
-    "headings": 2633,
+    "files": 853,
+    "headings": 2713,
     "rust_symbols": 7875
   },
   "crates": {
@@ -1691,7 +1691,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 20797,
+      "bytes": 21019,
       "group": "root",
       "headings": [
         {
@@ -1726,7 +1726,7 @@
         },
         {
           "level": 2,
-          "line": 336,
+          "line": 339,
           "text": "License"
         }
       ],
@@ -1756,9 +1756,9 @@
         "path",
         "switch"
       ],
-      "lines": 340,
+      "lines": 343,
       "path": "README.md",
-      "sha256": "e2e624563be0ec69dd69ce31613a6e1e8030e997adc610e2c5a2c1887cc33dbe",
+      "sha256": "6f9cab42e104767da3307399beb5d2b2e95d08b561e5d1c9e79360f50fabbf2c",
       "symbols": [],
       "title": "Mininet"
     },
@@ -65994,6 +65994,521 @@
       "title": "cargo-deny configuration (D-0069 dependency-governance requirement for"
     },
     {
+      "bytes": 1859,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "`deploy/` \u2014 Mininet Node Appliance (Day 0)"
+        },
+        {
+          "level": 2,
+          "line": 25,
+          "text": "Quick start (disposable VM only \u2014 do not run on a machine you care about)"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "What this does not do"
+        }
+      ],
+      "keywords": [
+        "deploy",
+        "installer",
+        "phase",
+        "node",
+        "run",
+        "does",
+        "debian",
+        "system",
+        "package",
+        "verify",
+        "release",
+        "appliance",
+        "day",
+        "quick",
+        "start",
+        "disposable",
+        "machine",
+        "you",
+        "care",
+        "about",
+        "what",
+        "design",
+        "mininet-node-appliance",
+        "stable"
+      ],
+      "lines": 41,
+      "path": "deploy/README.md",
+      "sha256": "34a1228a70a0c7c1326b90f3beca9ab846fb10455d2149ce4522b9d7bace8cbe",
+      "symbols": [],
+      "title": "`deploy/` \u2014 Mininet Node Appliance (Day 0)"
+    },
+    {
+      "bytes": 912,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Appliance images \u2014 Phase 2 (not built yet)"
+        }
+      ],
+      "keywords": [
+        "phase",
+        "deploy",
+        "images",
+        "built",
+        "yet",
+        "installer",
+        "image",
+        "appliance",
+        "design",
+        "mininet-node-appliance",
+        "debian",
+        "stable",
+        "day",
+        "profile",
+        "directory",
+        "placeholder",
+        "signed",
+        "qcow2",
+        "raw",
+        "disk",
+        "cloud",
+        "installation",
+        "iso",
+        "still"
+      ],
+      "lines": 17,
+      "path": "deploy/image/README.md",
+      "sha256": "4f91276952583486dc35115e7d044dbd7a6763f46b9f7fb9a2df37fc54af3c21",
+      "symbols": [],
+      "title": "Appliance images \u2014 Phase 2 (not built yet)"
+    },
+    {
+      "bytes": 5735,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 Day 0 installer."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Transforms a supported Debian Stable installation into a known Mininet"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "node: installs the pinned package set, applies the sysctl/nftables/user"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "manifests, builds and installs the `mini` binary from this checkout, and"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "installs (but does not start) the systemd units. Designed to be run more"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "than once: every step checks current state before changing anything, so"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "reapplying this script on an already-provisioned node is a no-op except"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "where the manifest itself changed."
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "This script provisions the MACHINE. It never verifies or activates a"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "Mininet release \u2014 that is `mini-installer`'s job (D-0070/D-0071), invoked"
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "afterward via the `mini` binary this script installs. See"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "docs/design/mininet-node-appliance.md."
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "Usage:"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "sudo deploy/installer/install.sh [--allow-non-debian] [--start]"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "--allow-non-debian  Skip the Debian Stable check. For testing this"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "script's logic on a non-Debian box only \u2014 the"
+        },
+        {
+          "level": 1,
+          "line": 22,
+          "text": "resulting node is NOT a supported appliance."
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "--start             Start (not just enable) the sync-listen service"
+        },
+        {
+          "level": 1,
+          "line": 24,
+          "text": "immediately after install, instead of leaving it"
+        },
+        {
+          "level": 1,
+          "line": 25,
+          "text": "for next boot / manual `systemctl start`."
+        },
+        {
+          "level": 1,
+          "line": 53,
+          "text": "--- 1. Platform check ---"
+        },
+        {
+          "level": 1,
+          "line": 60,
+          "text": "--- 2. Package installation ---"
+        },
+        {
+          "level": 1,
+          "line": 70,
+          "text": "--- 3. System user/group ---"
+        },
+        {
+          "level": 1,
+          "line": 81,
+          "text": "--- 4. Kernel hardening baseline ---"
+        },
+        {
+          "level": 1,
+          "line": 88,
+          "text": "--- 5. Firewall ---"
+        },
+        {
+          "level": 1,
+          "line": 98,
+          "text": "--- 6. Application config ---"
+        },
+        {
+          "level": 1,
+          "line": 105,
+          "text": "--- 7. Build and install the mini binary ---"
+        },
+        {
+          "level": 1,
+          "line": 106,
+          "text": "Bootstrap only: the FIRST `mini` binary on a fresh node has nothing to"
+        },
+        {
+          "level": 1,
+          "line": 107,
+          "text": "verify it against, so it is built directly from this checkout via cargo"
+        },
+        {
+          "level": 1,
+          "line": 108,
+          "text": "rather than through mini-installer's release pipeline. Every subsequent"
+        },
+        {
+          "level": 1,
+          "line": 109,
+          "text": "update should go through `mini build`/`mini release`/`mini installer`"
+        },
+        {
+          "level": 1,
+          "line": 110,
+          "text": "instead of rerunning this step, so it stays inside the governed release"
+        },
+        {
+          "level": 1,
+          "line": 111,
+          "text": "path this appliance sits underneath."
+        },
+        {
+          "level": 1,
+          "line": 120,
+          "text": "--- 8. systemd units ---"
+        }
+      ],
+      "keywords": [
+        "install",
+        "etc",
+        "conf",
+        "appliance",
+        "nftables",
+        "start",
+        "release",
+        "node",
+        "log",
+        "installs",
+        "binary",
+        "script",
+        "installer",
+        "sysctl",
+        "allow-non-debian",
+        "dev",
+        "null",
+        "nft",
+        "debian",
+        "package",
+        "user",
+        "build",
+        "cargo",
+        "deploy_root"
+      ],
+      "lines": 135,
+      "path": "deploy/installer/install.sh",
+      "sha256": "7405a4c452d17bf71f579d9e3befec82c9be1fa733cb1c6ba3a0d7954d31d9cc",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 Day 0 installer."
+    },
+    {
+      "bytes": 1063,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Mininet Node Appliance \u2014 required package set (Day 0)"
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Format: one package name per line, grouped by category. A trailing"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "`=<version>` pins an exact Debian Stable version once resolved against a"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "real mirror by `deploy/verification/lock-packages.sh`; an unpinned name"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "takes whatever Debian Stable's own dependency resolver picks. This file"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "as checked in is the DECLARED REQUIREMENT SET, not a hash-locked"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "manifest \u2014 see docs/design/mininet-node-appliance.md's \"Honest"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "non-claims\" section. Do not hand-author version/hash pins here; run the"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "lock script against an actual Debian Stable box or mirror snapshot."
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "Target base: Debian Stable, x86-64."
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "--- base system / init ---"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "--- security boundary ---"
+        },
+        {
+          "level": 1,
+          "line": 24,
+          "text": "--- filesystem / recovery ---"
+        },
+        {
+          "level": 1,
+          "line": 29,
+          "text": "--- build toolchain for the mini-cli binary (reproducible build path) ---"
+        },
+        {
+          "level": 1,
+          "line": 34,
+          "text": "--- operational tooling the installer/verification scripts depend on ---"
+        }
+      ],
+      "keywords": [
+        "debian",
+        "stable",
+        "version",
+        "package",
+        "set",
+        "name",
+        "pins",
+        "against",
+        "mirror",
+        "verification",
+        "base",
+        "build",
+        "deploy",
+        "lock",
+        "node",
+        "appliance",
+        "required",
+        "day",
+        "format",
+        "one",
+        "per",
+        "line",
+        "grouped",
+        "category"
+      ],
+      "lines": 38,
+      "path": "deploy/packages.lock",
+      "sha256": "cc1d2b11c7123a9b2d47bbb315513a70f98ea46d796735f5293dab16b80ed747",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 required package set (Day 0)"
+    },
+    {
+      "bytes": 4605,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 verification script."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Two things, always both attempted, failures reported at the end:"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "1. Manifest lint (works anywhere, no root needed, no prior install):"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "- systemd-analyze verify on the checked-in unit files"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "- nft --check syntax validation on the checked-in ruleset"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "- packages.lock has no blank/malformed lines"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "2. Live state check (best-effort; skipped with a note if this host was"
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "never provisioned by install.sh): confirms the units are actually"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "installed/enabled, the nftables table is loaded, and the mininet"
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "system user exists."
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "Exit code is nonzero if any check fails. This does not verify a Mininet"
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "release (mini-forge/mini-installer's job) \u2014 only that the appliance"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "layer itself is internally consistent."
+        }
+      ],
+      "keywords": [
+        "verify",
+        "nft",
+        "else",
+        "dev",
+        "null",
+        "unit",
+        "check",
+        "skip",
+        "pass",
+        "systemd-analyze",
+        "service",
+        "tmp",
+        "log",
+        "mininet-sync-listen",
+        "failures",
+        "packages",
+        "lock",
+        "note",
+        "nftables",
+        "install",
+        "deploy_root",
+        "fail",
+        "host",
+        "installed"
+      ],
+      "lines": 114,
+      "path": "deploy/verification/verify.sh",
+      "sha256": "41d104547ccc1cf1455c150ceec49dbc014250522335cc865ce43a567bd97912",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 verification script."
+    },
+    {
       "bytes": 8363,
       "group": "docs",
       "headings": [
@@ -66512,7 +67027,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 933713,
+      "bytes": 941989,
       "group": "docs",
       "headings": [
         {
@@ -66922,8 +67437,8 @@
         "issue",
         "real",
         "proposed",
-        "android",
         "founder",
+        "android",
         "beta",
         "slice",
         "review",
@@ -66942,9 +67457,9 @@
         "status",
         "deterministic"
       ],
-      "lines": 15534,
+      "lines": 15667,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "77a3fac081ad7fb0d71d597c46ecf3e8dffbf209ed6b70889212485ce60ebb70",
+      "sha256": "46a6a883be8c3dd8c8c24831c8631c28fc8130f51d44d724f21665cb28c23e4e",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -68093,7 +68608,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 126567,
+      "bytes": 128814,
       "group": "docs",
       "headings": [
         {
@@ -68185,6 +68700,11 @@
           "level": 2,
           "line": 1892,
           "text": "Privacy and transport security \u2014 D-0377 proposal"
+        },
+        {
+          "level": 2,
+          "line": 1925,
+          "text": "Node deployment \u2014 Mininet Node Appliance (D-0439)"
         }
       ],
       "keywords": [
@@ -68213,9 +68733,9 @@
         "design",
         "claude"
       ],
-      "lines": 1924,
+      "lines": 1960,
       "path": "docs/STATUS.md",
-      "sha256": "60eac01976cfc9911dfb62d2303581a17afbe091c7532030afdbb66a23b46e8d",
+      "sha256": "84b30fd7c9ef36971f3f407c8988c449ed57d7cde69a17e19fe4a35a934face8",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -72478,6 +72998,108 @@
       "sha256": "a5d3665309372c131c167b5e9ec994fbb53dd87c459e0a0590c6c8a206594c55",
       "symbols": [],
       "title": "Forge-native contributor coordination"
+    },
+    {
+      "bytes": 10114,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "The Mininet Node Appliance \u2014 an OS-shaped deployment profile, not an OS (D-0439)"
+        },
+        {
+          "level": 2,
+          "line": 24,
+          "text": "The ownership split"
+        },
+        {
+          "level": 2,
+          "line": 49,
+          "text": "Relationship to the existing forge spine"
+        },
+        {
+          "level": 2,
+          "line": 74,
+          "text": "Constitutional constraint carried over from D-0020"
+        },
+        {
+          "level": 2,
+          "line": 94,
+          "text": "Why a full OS is premature"
+        },
+        {
+          "level": 2,
+          "line": 110,
+          "text": "Staged plan"
+        },
+        {
+          "level": 3,
+          "line": 112,
+          "text": "Day 0 \u2014 Debian deployment profile (this decision's scope)"
+        },
+        {
+          "level": 3,
+          "line": 139,
+          "text": "Phase 2 \u2014 Reproducible appliance image"
+        },
+        {
+          "level": 3,
+          "line": 149,
+          "text": "Phase 3 \u2014 Managed immutable system"
+        },
+        {
+          "level": 3,
+          "line": 158,
+          "text": "Phase 4 \u2014 Distribution decision gate"
+        },
+        {
+          "level": 2,
+          "line": 174,
+          "text": "Reference platform (initial, narrow, on purpose)"
+        },
+        {
+          "level": 2,
+          "line": 183,
+          "text": "Honest non-claims"
+        },
+        {
+          "level": 2,
+          "line": 192,
+          "text": "Refs"
+        }
+      ],
+      "keywords": [
+        "appliance",
+        "installer",
+        "release",
+        "deploy",
+        "debian",
+        "already",
+        "node",
+        "phase",
+        "image",
+        "distribution",
+        "build",
+        "machine",
+        "deployment",
+        "profile",
+        "existing",
+        "spine",
+        "decision",
+        "package",
+        "security",
+        "policy",
+        "stable",
+        "same",
+        "mini-installer",
+        "os-shaped"
+      ],
+      "lines": 200,
+      "path": "docs/design/mininet-node-appliance.md",
+      "sha256": "cdc5559541d08e6bc09bcf45b89a21cbe0793da8147ee3a04f9dd5f9eef76b60",
+      "symbols": [],
+      "title": "The Mininet Node Appliance \u2014 an OS-shaped deployment profile, not an OS (D-0439)"
     },
     {
       "bytes": 14572,
@@ -84037,6 +84659,11 @@
     "app/android/gradle/libs.versions.toml",
     "app/android/scripts/build-rust.sh",
     "deny.toml",
+    "deploy/README.md",
+    "deploy/image/README.md",
+    "deploy/installer/install.sh",
+    "deploy/packages.lock",
+    "deploy/verification/verify.sh",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
     "forge-native/examples/working-group-charter.example.json",
