@@ -58,14 +58,24 @@ pub struct StorageChallengeResponse {
     pub proof: MerkleProof,
 }
 
-/// Verify a challenge response against a commitment: the response's
-/// claimed index must match its proof's index, and the proof must verify
-/// the block's actual bytes against the committed root.
+/// Verify a challenge response against the commitment **and the challenge it
+/// answers**.
+///
+/// The challenge argument is load-bearing, and its absence was a real defect.
+/// Without it this function could only ask "is this a genuine leaf of the
+/// committed tree", which any leaf satisfies. A prover asked for leaf 7 could
+/// answer leaf 3 and pass — so proving possession required keeping exactly one
+/// leaf and its Merkle path, a few hundred bytes, rather than the data. The
+/// whole point of a spot check is that the prover cannot know in advance which
+/// index it must hold, and that only bites if the answer is checked against
+/// the question.
 pub fn verify_storage_challenge(
     commitment: &StorageCommitment,
+    challenge: &StorageChallenge,
     response: &StorageChallengeResponse,
 ) -> bool {
-    response.leaf_index == response.proof.leaf_index
+    challenge.leaf_index == response.leaf_index
+        && response.leaf_index == response.proof.leaf_index
         && response.proof.verify(
             &response.block_bytes,
             commitment.merkle_root,
@@ -187,10 +197,20 @@ impl MerkleStorageProof {
         &self.commitment
     }
 
-    /// Verify `response` and, if valid, record a successful proof at
-    /// `now_ms`. Returns whether the response was valid.
-    pub fn submit_response(&mut self, response: &StorageChallengeResponse, now_ms: u64) -> bool {
-        if verify_storage_challenge(&self.commitment, response) {
+    /// Verify `response` against the `challenge` it answers and, if valid,
+    /// record a successful proof at `now_ms`. Returns whether the response
+    /// was valid.
+    ///
+    /// The caller must pass the challenge it actually issued. Passing the
+    /// response's own index back would restore the defect this signature
+    /// exists to prevent.
+    pub fn submit_response(
+        &mut self,
+        challenge: &StorageChallenge,
+        response: &StorageChallengeResponse,
+        now_ms: u64,
+    ) -> bool {
+        if verify_storage_challenge(&self.commitment, challenge, response) {
             self.history.record_success(now_ms);
             true
         } else {
@@ -239,24 +259,69 @@ mod tests {
     #[test]
     fn a_valid_response_verifies() {
         let (commitment, tree, data) = commitment_and_tree(5);
+        let challenge = StorageChallenge { leaf_index: 2 };
         let response = respond(&tree, &data, 2);
-        assert!(verify_storage_challenge(&commitment, &response));
+        assert!(verify_storage_challenge(&commitment, &challenge, &response));
     }
 
     #[test]
     fn tampered_block_bytes_fail_verification() {
         let (commitment, tree, data) = commitment_and_tree(5);
+        let challenge = StorageChallenge { leaf_index: 2 };
         let mut response = respond(&tree, &data, 2);
         response.block_bytes = b"fabricated".to_vec();
-        assert!(!verify_storage_challenge(&commitment, &response));
+        assert!(!verify_storage_challenge(
+            &commitment,
+            &challenge,
+            &response
+        ));
     }
 
     #[test]
     fn mismatched_index_fails_verification() {
         let (commitment, tree, data) = commitment_and_tree(5);
+        let challenge = StorageChallenge { leaf_index: 2 };
         let mut response = respond(&tree, &data, 2);
         response.leaf_index = 3;
-        assert!(!verify_storage_challenge(&commitment, &response));
+        assert!(!verify_storage_challenge(
+            &commitment,
+            &challenge,
+            &response
+        ));
+    }
+
+    #[test]
+    fn answering_a_different_leaf_than_asked_is_refused() {
+        // The defect this signature exists to prevent: before the challenge
+        // was bound, a prover asked for leaf 2 could answer leaf 4 with a
+        // perfectly genuine proof and pass, so holding one leaf and its Merkle
+        // path was enough to "prove" possession of the whole tree.
+        let (commitment, tree, data) = commitment_and_tree(5);
+        let asked = StorageChallenge { leaf_index: 2 };
+        let answered_elsewhere = respond(&tree, &data, 4);
+
+        // The response is internally genuine ...
+        assert!(answered_elsewhere.proof.verify(
+            &answered_elsewhere.block_bytes,
+            commitment.merkle_root,
+            commitment.block_count,
+        ));
+        // ... and still refused, because it answers the wrong question.
+        assert!(!verify_storage_challenge(
+            &commitment,
+            &asked,
+            &answered_elsewhere
+        ));
+    }
+
+    #[test]
+    fn a_tracker_does_not_credit_a_wrong_leaf_response() {
+        let (commitment, tree, data) = commitment_and_tree(5);
+        let policy = StorageWindowPolicy::month_scale_default();
+        let mut tracker = MerkleStorageProof::new(commitment, 100, policy);
+        let asked = StorageChallenge { leaf_index: 1 };
+        let elsewhere = respond(&tree, &data, 3);
+        assert!(!tracker.submit_response(&asked, &elsewhere, 0));
     }
 
     #[test]
@@ -314,8 +379,10 @@ mod tests {
 
         let mut t = 0u64;
         while t <= policy.min_window_ms {
-            let response = respond(&tree, &data, (t % 4) as usize);
-            assert!(proof.submit_response(&response, t));
+            let index = (t % 4) as usize;
+            let challenge = StorageChallenge { leaf_index: index };
+            let response = respond(&tree, &data, index);
+            assert!(proof.submit_response(&challenge, &response, t));
             t += policy.max_interval_ms / 2;
         }
         assert_eq!(proof.proven_capacity(t), Some(1_000));
@@ -327,9 +394,10 @@ mod tests {
         let policy = StorageWindowPolicy::month_scale_default();
         let mut proof = MerkleStorageProof::new(commitment, 1_000, policy);
 
+        let challenge = StorageChallenge { leaf_index: 0 };
         let mut bad_response = respond(&tree, &data, 0);
         bad_response.block_bytes = b"wrong".to_vec();
-        assert!(!proof.submit_response(&bad_response, 0));
+        assert!(!proof.submit_response(&challenge, &bad_response, 0));
         assert_eq!(proof.proven_capacity(0), None);
     }
 }

@@ -16035,3 +16035,88 @@ D-0442's other hardening findings and authority boundaries stand. This proposal
 does not supersede D-0207's snapshot/archive design or D-0414–D-0416's issuance,
 ledger, and admission rules; it migrates their consensus commitment and wire
 representation.
+
+### D-0445 — Proven-not-declared storage capacity, ongoing possession windows, and a challenge-binding fix in `mini-spacetime`  ·  *Proposed*
+
+**Date:** 2026-08-06 · **Refs:** D-0063, D-0064, D-0065, D-0439, D-0440;
+roadmap #42, #31, #33; `docs/design/storage-fraud-detection.md` §3.8, §4b;
+P1, X1; Directive 2, Directive 8, Directive 13, Directive 14, Directive 16.
+
+**Decision:** carry a registered replica forward in time, and make claimable
+storage capacity a function of what an audit actually covered. `ReplicaLifecycle`
+in `mini-storage-fraud` adds proof windows whose challenges derive from the seal
+commitment digest, the window index, and a **verifier-supplied beacon**, so the
+provider contributes nothing to the derivation and cannot pre-compute which nodes
+it will be asked for. A registered replica starts `Degraded { missed_windows: 0 }`,
+becomes `Active` on an answered window, degrades and stops counting capacity on a
+missed one, and `Suspended` past `grace_windows` without self-recovery; `Retired`
+is the voluntary terminal exit. `capacity_units_of` derives capacity from the
+audited seal's byte count, and `ProvenCapacity` deliberately has no constructor
+taking a number. Separately, `mini_spacetime::verify_storage_challenge` now takes
+the challenge it is verifying and requires
+`challenge.leaf_index == response.leaf_index == response.proof.leaf_index`; both
+`MerkleStorageProof::submit_response` and `PorepStorageProof::submit_response`
+thread it through, and the function is re-exported from `mini_spacetime`'s root.
+
+**Reason:** two holes, one found while closing the other. First, capacity could be
+declared. `mini_spacetime::MerkleStorageProof::new` takes `capacity_units` from its
+caller with nothing tying that figure to the commitment beside it, and
+`proposer_weight` documents that it "trusts its input completely" — so a provider
+could seal one 32-byte node, register it honestly, and claim a million units. That
+inverts the thesis the storage design rests on: "a thousand cheap, scattered
+machines outcompete one warehouse" holds only while capacity must be proven, since
+a warehouse and a Raspberry Pi type a large number equally cheaply. Second, and
+worse, `verify_storage_challenge` never took the challenge. It checked that a
+response's Merkle proof was internally consistent and correctly rooted, and never
+that the leaf proved was the leaf asked for — so a prover challenged on leaf 7
+could answer leaf 3 every time and be credited. Satisfying unbounded challenges
+across unbounded windows therefore required keeping one leaf and its Merkle path,
+a few hundred bytes standing in for the whole replica, collapsing proof-of-
+spacetime to "can produce one authenticated path". Both defects had passing tests
+and no failing one; both were found by building the attack.
+
+**Constitutional impact:** serves Directive 2 (a network ordinary people can
+actually contribute to) by removing the advantage an operator gets from asserting
+capacity it does not hold, and Directive 8 by keeping storage weight tied to
+demonstrated work. Directive 14: the lifecycle is a four-state machine over
+existing primitives, and no new cryptography is introduced — the challenge
+derivation is a domain-separated BLAKE3 transcript over already-committed values.
+The voice/value wall is intact (P1, Directive 16): `mini-storage-fraud` depends on
+`did-mini`, `mini-crypto`, `mini-porep`, and `mini-spacetime` only, with no
+`mini-value`/`mini-bounty`/`mini-treasury` edge and no governance-crate edge in
+either direction. Every authority-bearing entry point takes a typed request. This
+changes no issuance, no balance, no governance weight, and no personhood rule, and
+`ProvenCapacity` confers no entitlement — nothing consumes it.
+
+**Implementation status:** implemented in `crates/mini-storage-fraud/src/lifecycle.rs`
+with 17 integration tests in `tests/lifecycle.rs`, every possession proof running
+through the real primitives (`mini_porep::respond` producing responses,
+`mini_spacetime::verify_storage_challenge` checking them against the audited
+claim's replica root — nothing simulated). Regression tests in both `mini-porep`
+and `mini-spacetime` answer a leaf other than the one challenged and require
+refusal. `cargo fmt`, `clippy --all-targets --all-features --workspace -D warnings`,
+and the full workspace test suite pass. Exact-head Linux CI, human review, and the
+D-0047/#72 external cryptographic audit all remain required; `mini-porep` is
+unaudited prototype cryptography and everything here inherits that gate.
+
+**Failure point:** windows are computed from caller-supplied milliseconds, so a
+dishonest clock yields dishonest windows — a real time anchor needs the witnessed
+KEL checkpoints (M3) or chain height this crate is still waiting on. Beacon
+unpredictability and non-reuse are assumptions on the caller that this crate cannot
+check. A missed window is indistinguishable from a partition, which is why lapse
+degrades reversibly rather than punishing; grace, window length, and challenge
+count are legible placeholders, not figures derived from storage economics or
+measured partition rates. Most importantly, the derived-capacity path is available
+but not mandatory: `proposer_weight` still accepts a caller-supplied figure, so
+this closes the hole only for callers that choose to use it.
+
+**Required follow-up:** make the derived path the only path into any weighting
+layer, as a separate change with its own migration; anchor window indices in
+witnessed or chain evidence; obtain founder resolution of the beacon-source and
+window-parameter questions in `docs/design/storage-fraud-detection.md` §7.5–§7.6;
+obtain the D-0047/#72 external audit before any of this gates value.
+
+**Supersedes / superseded by:** supersedes nothing. Extends D-0439's registered
+replica claims with what happens after registration, and corrects the
+`mini-spacetime` challenge-verification behaviour assumed by D-0063/D-0064 without
+changing their sealing construction.

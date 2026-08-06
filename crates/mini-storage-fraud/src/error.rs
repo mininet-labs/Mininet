@@ -104,6 +104,12 @@ pub enum FraudError {
     NotAConflict,
     /// A registry was asked to admit a claim it already holds verbatim.
     AlreadyRegistered,
+    /// A replica that is suspended or retired cannot be credited with a
+    /// proof; re-entry means registering again.
+    ReplicaNotProving,
+    /// A window already credited was submitted again. Replaying one must
+    /// not extend a proving streak or reverse a lapse.
+    WindowAlreadyProven,
 }
 
 impl From<DecodeFailure> for FraudError {
@@ -203,6 +209,12 @@ impl core::fmt::Display for FraudError {
             FraudError::InvalidPolicy => write!(f, "unusable registration policy"),
             FraudError::NotAConflict => write!(f, "the two claims do not actually conflict"),
             FraudError::AlreadyRegistered => write!(f, "this exact claim is already registered"),
+            FraudError::ReplicaNotProving => {
+                write!(f, "replica is suspended or retired and cannot be credited")
+            }
+            FraudError::WindowAlreadyProven => {
+                write!(f, "this proof window was already credited")
+            }
         }
     }
 }
