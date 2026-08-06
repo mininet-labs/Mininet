@@ -17,6 +17,10 @@ pub enum RelayError {
     Truncated,
     /// Bytes remained after a complete decode.
     TrailingBytes,
+    /// A signature list arrived unsorted or with a repeated key index,
+    /// so one logical object would have had more than one valid wire
+    /// encoding -- and, being content-addressed, more than one identity.
+    NoncanonicalSignatureOrder,
     /// A declared count or length exceeded a hard decode limit.
     LimitExceeded,
     /// An unrecognized [`RelayRole`] tag.
@@ -36,7 +40,10 @@ pub enum RelayError {
     WrongOnionHop,
     /// The onion packet's signed/encrypted validity window ended.
     OnionExpired,
-    /// A per-hop replay token was already processed.
+    /// The onion packet asks a relay or destination to retain replay state for
+    /// longer than the protocol's hard maximum.
+    OnionLifetimeTooLong,
+    /// A per-hop or destination replay token was already processed.
     OnionReplay,
     /// The application payload does not fit the selected fixed-size class.
     OnionPayloadTooLarge,
@@ -91,6 +98,9 @@ impl core::fmt::Display for RelayError {
         match self {
             RelayError::Truncated => write!(f, "relay bytes truncated"),
             RelayError::TrailingBytes => write!(f, "trailing bytes after relay structure"),
+            RelayError::NoncanonicalSignatureOrder => {
+                write!(f, "signature indices are unsorted or repeated")
+            }
             RelayError::LimitExceeded => write!(f, "decode limit exceeded"),
             RelayError::BadRelayRole => write!(f, "unrecognized relay role tag"),
             RelayError::BadSizeClass => write!(f, "unrecognized payload size class tag"),
@@ -106,7 +116,10 @@ impl core::fmt::Display for RelayError {
             RelayError::InvalidOnionRoute => write!(f, "invalid or non-canonical onion route"),
             RelayError::WrongOnionHop => write!(f, "onion packet belongs to another hop"),
             RelayError::OnionExpired => write!(f, "onion packet has expired"),
-            RelayError::OnionReplay => write!(f, "onion hop replay detected"),
+            RelayError::OnionLifetimeTooLong => {
+                write!(f, "onion validity window exceeds the hard maximum")
+            }
+            RelayError::OnionReplay => write!(f, "onion relay/destination replay detected"),
             RelayError::OnionPayloadTooLarge => {
                 write!(f, "payload exceeds the selected fixed-size onion class")
             }

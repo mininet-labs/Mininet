@@ -1,7 +1,8 @@
 //! Adversarial coverage for the `owner_seal` sealed-box primitive (D-0434).
 //! See `docs/design/cold-storage-and-owner-only-encryption.md`.
 
-use mini_store::{open_as_owner, seal_for_owner, OwnerSealingKey};
+use mini_objects::MAX_PAYLOAD_BYTES;
+use mini_store::{open_as_owner, seal_for_owner, OwnerSealingKey, MAX_OWNER_SEAL_PLAINTEXT_BYTES};
 
 #[test]
 fn round_trip_recovers_the_exact_plaintext() {
@@ -75,9 +76,18 @@ fn oversized_input_is_rejected_before_any_allocation() {
 #[test]
 fn oversized_plaintext_is_rejected_before_sealing() {
     let owner = OwnerSealingKey::generate().unwrap();
-    let huge = vec![0u8; 9 * 1024 * 1024]; // past MAX_PAYLOAD_BYTES (8 MiB)
+    let huge = vec![0u8; MAX_OWNER_SEAL_PLAINTEXT_BYTES + 1];
 
     assert!(seal_for_owner(&owner.public_key(), &huge, b"aad").is_err());
+}
+
+#[test]
+fn largest_accepted_plaintext_still_fits_the_object_payload_ceiling() {
+    let owner = OwnerSealingKey::generate().unwrap();
+    let plaintext = vec![0u8; MAX_OWNER_SEAL_PLAINTEXT_BYTES];
+
+    let sealed = seal_for_owner(&owner.public_key(), &plaintext, b"aad").unwrap();
+    assert_eq!(sealed.len(), MAX_PAYLOAD_BYTES);
 }
 
 #[test]

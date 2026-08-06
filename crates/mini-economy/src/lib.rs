@@ -12,6 +12,7 @@ mod error;
 mod genesis;
 mod issuance;
 mod ledger;
+mod scalable_epoch_wire;
 mod snapshot;
 
 pub use amount::Amount;
@@ -23,4 +24,7 @@ pub use issuance::{
     ScalableEpochRequest, VestingGrant, MILLION, YEAR_MS,
 };
 pub use ledger::{MonetaryLedger, VestingPosition, VestingSubject};
+pub use scalable_epoch_wire::{
+    MAX_EPOCH_BENEFICIARY_BYTES, MAX_SCALABLE_EPOCH_GRANTS, MAX_SCALABLE_EPOCH_PLAN_BYTES,
+};
 pub use snapshot::{MonetaryLedgerSnapshot, MAX_SNAPSHOT_BENEFICIARY_BYTES, MAX_VESTING_POSITIONS};

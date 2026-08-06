@@ -69,7 +69,12 @@ No frozen invariant is touched. The voice/value wall (P1, Directive 16) is untou
 - **Not a network protocol.** No wire message, peer exchange, or transport carries a sealed object anywhere in this change; `mini-sync`'s ingest pipeline already rejects `Payload::Encrypted` objects outright (unrelated existing behavior, unchanged here) — a sealed object stored locally does not yet propagate anywhere, by design, since who is even allowed to *hold* someone else's sealed bytes (without being able to read them) is a distinct question this decision does not answer.
 - **Not forward-secret against a compromised owner sealing key.** Every sealed object under one `OwnerSealingKey` becomes readable if that key is later compromised — there is no per-object key rotation, no key ratchet, no re-sealing mechanism. Ephemeral per-seal keys protect against a compromised *ephemeral* secret revealing anything beyond that one seal; they do not protect against the long-term recipient key itself being compromised, which is inherent to any recipient-decryptable sealing scheme, not specific to this one.
 - **Not integrity-bound to any device/identity claim.** `seal_for_owner` does not sign anything — it is confidentiality only. A caller wanting "this content came from a specific signed source" still wraps the *result* in an ordinary signed `mini_objects::Object` (`Payload::Encrypted(sealed_bytes)`, signed by the caller's usual `ObjectBuilder`), exactly the same two-layer pattern (content confidentiality separate from signature authenticity) every other payload type in this workspace already follows.
-- **No huge-file story.** Sealing operates on one bounded plaintext (`mini_objects::MAX_PAYLOAD_BYTES`, 8 MiB, the same ceiling every other payload type already respects); large sealed content composes with `mini-media`'s existing superblock/manifest chunking (D-0419) exactly the way any other payload type already would, not a new mechanism.
+- **No huge-file story.** Sealing operates on one bounded plaintext
+  (`mini_store::MAX_OWNER_SEAL_PLAINTEXT_BYTES`: the 8 MiB object-payload
+  ceiling minus the ephemeral-key, nonce, and AEAD-tag overhead); large sealed
+  content composes with `mini-media`'s existing superblock/manifest chunking
+  (D-0419) exactly the way any other payload type already would, not a new
+  mechanism.
 - **Not an economic-incentive or cold-storage-provider design.** Roadmap #33 (storage economic incentive review) is untouched; this decision is about the *capability* to hold encrypted-at-rest content locally, not about paying anyone to hold it for you.
 
 ## Tests

@@ -12,7 +12,7 @@ use crate::catchup::{decode_qc, encode_qc};
 use crate::error::{ConsensusError, Result};
 use crate::wire::{decode_header, encode_header, put_bytes, Reader};
 
-const DOMAIN: &[u8] = b"mini-consensus/state-snapshot/v1";
+const DOMAIN: &[u8] = b"mini-consensus/state-snapshot/v2";
 
 /// A complete execution state at one quorum-finalized height.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -130,6 +130,7 @@ mod tests {
             height: 1,
             prev_hash: [0; 32],
             state_root: state.commitment(),
+            body_root: mini_execution::SettlementBlockBody::new(Vec::new()).hash(),
             timestamp_ms: 1,
             proposer: Controller::incept_single_from_seeds(&[90; 32], &[91; 32])
                 .unwrap()
@@ -215,5 +216,18 @@ mod tests {
         let last = bytes.len() - 1;
         bytes[last] ^= 1;
         assert!(ConsensusSnapshot::from_wire_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn pre_body_commitment_snapshot_version_is_rejected() {
+        let (snapshot, _, _) = proof();
+        let mut bytes = snapshot.to_wire_bytes().unwrap();
+        let version = DOMAIN.len() - 1;
+        assert_eq!(bytes[version], b'2');
+        bytes[version] = b'1';
+        assert_eq!(
+            ConsensusSnapshot::from_wire_bytes(&bytes).unwrap_err(),
+            ConsensusError::Malformed
+        );
     }
 }

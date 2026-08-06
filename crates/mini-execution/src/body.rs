@@ -11,7 +11,15 @@ use mini_settlement::PaymentClaim;
 /// Hard cap on claims per block — an allocation/CPU bound applied before
 /// any signature verification, the same discipline
 /// `mini_chain::MAX_VOTES_PER_CERTIFICATE` applies to untrusted vote lists.
-pub const MAX_CLAIMS_PER_BLOCK: usize = 100_000;
+/// This matches the default admission-pool ceiling. Keeping the consensus
+/// ceiling at the same operational bound prevents a Byzantine proposer from
+/// turning one otherwise-valid proposal into tens of thousands of signature
+/// verifications that honest validators must complete before voting.
+pub const MAX_CLAIMS_PER_BLOCK: usize = 4_096;
+
+/// One monetary transition per block keeps issuance progression explicit and
+/// bounds decoding before execution.
+pub const MAX_MONETARY_EPOCHS_PER_BLOCK: usize = 1;
 
 /// An ordered list of claims proposed for inclusion at one height.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -38,15 +46,12 @@ impl SettlementBlockBody {
         self
     }
 
-    /// Content hash of this body's claims, in order — what a header would
-    /// reference if it wanted to commit to *which claims were proposed*,
-    /// separately from [`crate::state::LedgerState::commitment`]'s
-    /// commitment to *what they resolved to*. Domain-tagged and length-
-    /// prefixed like every other content hash in this tree
-    /// (`mini_settlement::claim_digest`'s own discipline).
+    /// Content hash of the exact ordered body — what v2 block headers commit
+    /// to separately from [`crate::state::LedgerState::commitment`]'s
+    /// commitment to what the body resolved to.
     pub fn hash(&self) -> [u8; 32] {
         let mut w = Vec::new();
-        w.extend_from_slice(b"mini-execution/settlement-block-body/v1");
+        w.extend_from_slice(b"mini-execution/settlement-block-body/v2");
         w.extend_from_slice(&(self.claims.len() as u64).to_be_bytes());
         for claim in &self.claims {
             let digest = mini_settlement::claim_digest(claim);
@@ -54,7 +59,9 @@ impl SettlementBlockBody {
         }
         w.extend_from_slice(&(self.monetary_epochs.len() as u64).to_be_bytes());
         for epoch in &self.monetary_epochs {
-            w.extend_from_slice(&epoch.commitment().to_bytes());
+            let bytes = epoch.canonical_bytes();
+            w.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
+            w.extend_from_slice(&bytes);
         }
         HashAlgorithm::Blake3.digest(&w)
     }

@@ -9,7 +9,7 @@
 //! identities. Timing/volume/intersection resistance remains the externally
 //! reviewed Mixed-tier Sphinx/Loopix executor's job.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 use mini_crypto::{
     random_32, AeadKey, AeadNonce, AeadSuite, AgreementPublicKey, AgreementSecretKey, KdfSuite,
@@ -22,18 +22,25 @@ use crate::connection::ConnectionId;
 use crate::error::{RelayError, Result};
 use crate::role::RelayRole;
 
-pub const ONION_VERSION: u8 = 1;
+pub const ONION_VERSION: u8 = 2;
 pub const ONION_HOP_COUNT: usize = 3;
 pub const MAX_ONION_NEXT_HOP_BYTES: usize = 256;
 pub const MAX_ONION_REPLAY_ENTRIES: usize = 65_536;
+/// Maximum remaining validity accepted when a relay or destination processes a
+/// packet. This bounds replay-state retention even for adversarial senders.
+pub const MAX_ONION_LIFETIME_MS: u64 = 30 * 60 * 1000;
+/// Clock disagreement tolerated when a relay compares the encrypted absolute
+/// expiry against its local time. Retention remains bounded to lifetime + skew.
+pub const MAX_ONION_CLOCK_SKEW_MS: u64 = 30 * 1000;
 pub const SMALL_ONION_PAYLOAD_BYTES: usize = 4 * 1024;
 pub const MEDIUM_ONION_PAYLOAD_BYTES: usize = 64 * 1024;
 pub const LARGE_ONION_PAYLOAD_BYTES: usize = 1024 * 1024;
 
-const HOP_KEY_DOMAIN: &[u8] = b"mini-relay/onion-hop-key/v1";
-const DESTINATION_KEY_DOMAIN: &[u8] = b"mini-relay/onion-destination-key/v1";
+const HOP_KEY_DOMAIN: &[u8] = b"mini-relay/onion-hop-key/v2";
+const DESTINATION_KEY_DOMAIN: &[u8] = b"mini-relay/onion-destination-key/v2";
 const NEXT_HOP_PAD_BYTES: usize = MAX_ONION_NEXT_HOP_BYTES;
 const AEAD_TAG_BYTES: usize = 16;
+const DESTINATION_FRAME_OVERHEAD_BYTES: usize = 8 + 32 + 4;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OnionHop {
@@ -69,11 +76,20 @@ pub struct PeeledOnion {
     pub forward: OnionForward,
 }
 
+/// Bounded replay state shared by relay hops and destination delivery.
+///
+/// Entries remain until the encrypted validity window ends. Capacity exhaustion
+/// fails closed rather than evicting a still-valid token and silently accepting
+/// its replay. A production relay/destination must persist equivalent state if
+/// replay defense must survive process restart.
 #[derive(Debug, Clone)]
 pub struct OnionReplayCache {
     capacity: usize,
-    seen: HashSet<[u8; 32]>,
-    order: VecDeque<[u8; 32]>,
+    seen: HashMap<[u8; 32], u64>,
+    // Security time is monotonic within this cache even when the host wall clock
+    // moves backwards. Once a validity window has expired locally, a later clock
+    // rollback must not make its replay token admissible again.
+    highest_now_ms: u64,
 }
 
 impl OnionReplayCache {
@@ -83,21 +99,47 @@ impl OnionReplayCache {
         }
         Ok(Self {
             capacity,
-            seen: HashSet::with_capacity(capacity.min(1024)),
-            order: VecDeque::with_capacity(capacity.min(1024)),
+            seen: HashMap::with_capacity(capacity.min(1024)),
+            highest_now_ms: 0,
         })
     }
 
-    pub fn check_and_record(&mut self, token: [u8; 32]) -> Result<()> {
-        if !self.seen.insert(token) {
+    pub fn len(&self) -> usize {
+        self.seen.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.seen.is_empty()
+    }
+
+    fn advance_time(&mut self, now_ms: u64) -> u64 {
+        self.highest_now_ms = self.highest_now_ms.max(now_ms);
+        self.highest_now_ms
+    }
+
+    pub fn prune_expired(&mut self, now_ms: u64) {
+        let effective_now_ms = self.advance_time(now_ms);
+        self.seen
+            .retain(|_, expires_at_ms| *expires_at_ms > effective_now_ms);
+    }
+
+    pub fn check_and_record(
+        &mut self,
+        token: [u8; 32],
+        expires_at_ms: u64,
+        now_ms: u64,
+    ) -> Result<()> {
+        let effective_now_ms = self.advance_time(now_ms);
+        validate_onion_window(effective_now_ms, expires_at_ms)?;
+        self.seen
+            .retain(|_, stored_expires_at_ms| *stored_expires_at_ms > effective_now_ms);
+        if self.seen.contains_key(&token) {
             return Err(RelayError::OnionReplay);
         }
-        self.order.push_back(token);
-        while self.order.len() > self.capacity {
-            if let Some(oldest) = self.order.pop_front() {
-                self.seen.remove(&oldest);
-            }
+        if self.seen.len() >= self.capacity {
+            return Err(RelayError::LimitExceeded);
         }
+        self.seen.insert(token, expires_at_ms);
         Ok(())
     }
 }
@@ -114,18 +156,21 @@ pub fn build_onion(
     hops: &[OnionHop],
     destination_key: AgreementPublicKey,
     plaintext: &[u8],
+    now_ms: u64,
     expires_at_ms: u64,
 ) -> Result<OnionPacket> {
     validate_route(hops)?;
-    if expires_at_ms == 0 {
-        return Err(RelayError::OnionExpired);
+    if hops.iter().any(|hop| hop.routing_key == destination_key) {
+        return Err(RelayError::InvalidOnionRoute);
     }
+    validate_onion_window(now_ms, expires_at_ms)?;
 
     let destination = DestinationEnvelope::seal(
         destination_connection_id,
         size_class,
         destination_key,
         plaintext,
+        expires_at_ms,
     )?;
     let mut inner = destination.to_bytes()?;
     let mut public_connection_ids = HashSet::with_capacity(ONION_HOP_COUNT + 1);
@@ -185,10 +230,7 @@ impl OnionPacket {
         if decoded.role != expected_role {
             return Err(RelayError::WrongOnionHop);
         }
-        if now_ms > decoded.expires_at_ms {
-            return Err(RelayError::OnionExpired);
-        }
-        replay.check_and_record(decoded.replay_token)?;
+        validate_onion_window(now_ms, decoded.expires_at_ms)?;
 
         let forward = if self.hop_index as usize + 1 < ONION_HOP_COUNT {
             let next = OnionPacket::from_bytes(&decoded.inner)?;
@@ -211,6 +253,10 @@ impl OnionPacket {
             OnionForward::Destination(decoded.inner)
         };
 
+        // Record only after the whole local layer and its next structure are
+        // valid. Malformed inner packets must not consume replay capacity.
+        replay.check_and_record(decoded.replay_token, decoded.expires_at_ms, now_ms)?;
+
         Ok(PeeledOnion {
             role: decoded.role,
             connection_id: self.connection_id,
@@ -221,6 +267,11 @@ impl OnionPacket {
     }
 
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        if self.hop_index as usize >= ONION_HOP_COUNT
+            || self.ciphertext.len() != onion_ciphertext_bytes(self.size_class, self.hop_index)?
+        {
+            return Err(RelayError::InvalidOnionRoute);
+        }
         let mut writer = Writer::new();
         writer.u8(ONION_VERSION);
         writer.raw(&self.connection_id.to_bytes());
@@ -263,8 +314,11 @@ impl OnionPacket {
             reader.raw(agreement_suite.public_key_len())?,
         )?;
         let nonce = AeadNonce::from_bytes(reader.raw(AeadSuite::DEFAULT.nonce_len())?)?;
-        let ciphertext =
-            reader.bytes_limited(max_onion_ciphertext_bytes(size_class, hop_index)?)?;
+        let expected_ciphertext_bytes = onion_ciphertext_bytes(size_class, hop_index)?;
+        let ciphertext = reader.bytes_limited(expected_ciphertext_bytes)?;
+        if ciphertext.len() != expected_ciphertext_bytes {
+            return Err(RelayError::InvalidOnionRoute);
+        }
         if !reader.finished() {
             return Err(RelayError::TrailingBytes);
         }
@@ -284,11 +338,19 @@ impl OnionPacket {
 }
 
 /// Open the destination-only envelope after the delivery relay forwards it.
+/// Destination replay and expiry checks are mandatory: bypassing them would let
+/// an observer replay a captured post-delivery envelope directly to the endpoint.
 pub fn open_onion_destination(
     opaque_destination_envelope: &[u8],
     destination_secret: &AgreementSecretKey,
+    now_ms: u64,
+    replay: &mut OnionReplayCache,
 ) -> Result<Vec<u8>> {
-    DestinationEnvelope::from_bytes(opaque_destination_envelope)?.open(destination_secret)
+    DestinationEnvelope::from_bytes(opaque_destination_envelope)?.open(
+        destination_secret,
+        now_ms,
+        replay,
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -306,8 +368,10 @@ impl DestinationEnvelope {
         size_class: PayloadSizeClass,
         destination_key: AgreementPublicKey,
         plaintext: &[u8],
+        expires_at_ms: u64,
     ) -> Result<Self> {
-        let frame = encode_fixed_payload(size_class, plaintext)?;
+        let replay_token = random_32()?;
+        let frame = encode_fixed_payload(size_class, expires_at_ms, replay_token, plaintext)?;
         let ephemeral_secret = AgreementSecretKey::generate()?;
         let ephemeral_key = ephemeral_secret.public_key();
         let shared = ephemeral_secret.agree(&destination_key)?;
@@ -324,7 +388,12 @@ impl DestinationEnvelope {
         })
     }
 
-    fn open(&self, destination_secret: &AgreementSecretKey) -> Result<Vec<u8>> {
+    fn open(
+        &self,
+        destination_secret: &AgreementSecretKey,
+        now_ms: u64,
+        replay: &mut OnionReplayCache,
+    ) -> Result<Vec<u8>> {
         let shared = destination_secret.agree(&self.ephemeral_key)?;
         let aad = destination_aad(
             self.connection_id,
@@ -334,7 +403,10 @@ impl DestinationEnvelope {
         );
         let key = derive_key(DESTINATION_KEY_DOMAIN, &shared.to_bytes(), &aad)?;
         let frame = key.decrypt(&self.nonce, &self.ciphertext, &aad)?;
-        decode_fixed_payload(self.size_class, &frame)
+        let decoded = decode_fixed_payload(self.size_class, &frame)?;
+        validate_onion_window(now_ms, decoded.expires_at_ms)?;
+        replay.check_and_record(decoded.replay_token, decoded.expires_at_ms, now_ms)?;
+        Ok(decoded.plaintext)
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>> {
@@ -519,35 +591,86 @@ fn destination_aad(
     writer.into_bytes()
 }
 
-fn encode_fixed_payload(size_class: PayloadSizeClass, plaintext: &[u8]) -> Result<Vec<u8>> {
+fn validate_onion_window(now_ms: u64, expires_at_ms: u64) -> Result<()> {
+    let remaining = expires_at_ms
+        .checked_sub(now_ms)
+        .ok_or(RelayError::OnionExpired)?;
+    if remaining == 0 {
+        return Err(RelayError::OnionExpired);
+    }
+    let maximum = MAX_ONION_LIFETIME_MS
+        .checked_add(MAX_ONION_CLOCK_SKEW_MS)
+        .ok_or(RelayError::LimitExceeded)?;
+    if remaining > maximum {
+        return Err(RelayError::OnionLifetimeTooLong);
+    }
+    Ok(())
+}
+
+fn encode_fixed_payload(
+    size_class: PayloadSizeClass,
+    expires_at_ms: u64,
+    replay_token: [u8; 32],
+    plaintext: &[u8],
+) -> Result<Vec<u8>> {
     let frame_size = fixed_payload_bytes(size_class);
-    let capacity = frame_size.checked_sub(4).ok_or(RelayError::LimitExceeded)?;
+    let capacity = frame_size
+        .checked_sub(DESTINATION_FRAME_OVERHEAD_BYTES)
+        .ok_or(RelayError::LimitExceeded)?;
     if plaintext.len() > capacity {
         return Err(RelayError::OnionPayloadTooLarge);
     }
     let mut frame = vec![0u8; frame_size];
-    frame[..4].copy_from_slice(
+    frame[..8].copy_from_slice(&expires_at_ms.to_be_bytes());
+    frame[8..40].copy_from_slice(&replay_token);
+    frame[40..44].copy_from_slice(
         &u32::try_from(plaintext.len())
             .map_err(|_| RelayError::OnionPayloadTooLarge)?
             .to_be_bytes(),
     );
-    frame[4..4 + plaintext.len()].copy_from_slice(plaintext);
+    frame[44..44 + plaintext.len()].copy_from_slice(plaintext);
     Ok(frame)
 }
 
-fn decode_fixed_payload(size_class: PayloadSizeClass, frame: &[u8]) -> Result<Vec<u8>> {
-    if frame.len() != fixed_payload_bytes(size_class) || frame.len() < 4 {
+#[derive(Debug)]
+struct DestinationPlaintext {
+    expires_at_ms: u64,
+    replay_token: [u8; 32],
+    plaintext: Vec<u8>,
+}
+
+fn decode_fixed_payload(
+    size_class: PayloadSizeClass,
+    frame: &[u8],
+) -> Result<DestinationPlaintext> {
+    if frame.len() != fixed_payload_bytes(size_class)
+        || frame.len() < DESTINATION_FRAME_OVERHEAD_BYTES
+    {
         return Err(RelayError::InvalidOnionRoute);
     }
+    let expires_at_ms = u64::from_be_bytes(
+        frame[..8]
+            .try_into()
+            .map_err(|_| RelayError::InvalidOnionRoute)?,
+    );
+    let replay_token = frame[8..40]
+        .try_into()
+        .map_err(|_| RelayError::InvalidOnionRoute)?;
     let length = u32::from_be_bytes(
-        frame[..4]
+        frame[40..44]
             .try_into()
             .map_err(|_| RelayError::InvalidOnionRoute)?,
     ) as usize;
-    if length > frame.len() - 4 || frame[4 + length..].iter().any(|byte| *byte != 0) {
+    if length > frame.len() - DESTINATION_FRAME_OVERHEAD_BYTES
+        || frame[44 + length..].iter().any(|byte| *byte != 0)
+    {
         return Err(RelayError::InvalidOnionRoute);
     }
-    Ok(frame[4..4 + length].to_vec())
+    Ok(DestinationPlaintext {
+        expires_at_ms,
+        replay_token,
+        plaintext: frame[44..44 + length].to_vec(),
+    })
 }
 
 fn fixed_payload_bytes(size_class: PayloadSizeClass) -> usize {
@@ -558,7 +681,15 @@ fn fixed_payload_bytes(size_class: PayloadSizeClass) -> usize {
     }
 }
 
-fn max_onion_ciphertext_bytes(size_class: PayloadSizeClass, hop_index: u8) -> Result<usize> {
+/// Exact encrypted-body length for one hop and payload class.
+///
+/// Size classes are a traffic-shape and allocation boundary, not a suggestion.
+/// The previous decoder used the total packet length as a ciphertext maximum,
+/// leaving one public-header worth of attacker-controlled slack per packet. A
+/// malicious sender could therefore create canonical, oversized packets for a
+/// declared class. Computing the exact body length and requiring equality keeps
+/// every accepted packet on the same fixed-size profile as `build_onion`.
+fn onion_ciphertext_bytes(size_class: PayloadSizeClass, hop_index: u8) -> Result<usize> {
     let destination = 1usize
         .checked_add(16 + 1 + 1 + 32 + 12 + 4)
         .and_then(|value| value.checked_add(fixed_payload_bytes(size_class) + AEAD_TAG_BYTES))
@@ -568,15 +699,17 @@ fn max_onion_ciphertext_bytes(size_class: PayloadSizeClass, hop_index: u8) -> Re
     let remaining_layers = ONION_HOP_COUNT
         .checked_sub(hop_index as usize)
         .ok_or(RelayError::InvalidOnionRoute)?;
-    let mut length = destination;
+    let mut packet_bytes = destination;
     for _ in 0..remaining_layers {
-        length = public_header
+        packet_bytes = public_header
             .checked_add(hop_plaintext_overhead)
-            .and_then(|value| value.checked_add(length))
+            .and_then(|value| value.checked_add(packet_bytes))
             .and_then(|value| value.checked_add(AEAD_TAG_BYTES))
             .ok_or(RelayError::LimitExceeded)?;
     }
-    Ok(length)
+    packet_bytes
+        .checked_sub(public_header)
+        .ok_or(RelayError::InvalidOnionRoute)
 }
 
 fn size_class_tag(size_class: PayloadSizeClass) -> u8 {
@@ -599,6 +732,10 @@ fn size_class_from_tag(tag: u8) -> Result<PayloadSizeClass> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const BUILD_NOW_MS: u64 = 1_000;
+    const PROCESS_NOW_MS: u64 = 5_000;
+    const EXPIRES_AT_MS: u64 = 10_000;
 
     fn route() -> (Vec<OnionHop>, Vec<AgreementSecretKey>) {
         let secrets: Vec<_> = [1u8, 2, 3]
@@ -626,7 +763,7 @@ mod tests {
     }
 
     #[test]
-    fn three_relays_peel_only_their_layer_and_destination_opens_plaintext() {
+    fn three_relays_and_destination_each_reject_replay() {
         let (hops, secrets) = route();
         let destination = AgreementSecretKey::from_seed(&[9; 32]);
         let connection_id = ConnectionId::from_bytes([7; 16]);
@@ -636,7 +773,8 @@ mod tests {
             &hops,
             destination.public_key(),
             b"private application payload",
-            10_000,
+            BUILD_NOW_MS,
+            EXPIRES_AT_MS,
         )
         .unwrap();
 
@@ -644,18 +782,40 @@ mod tests {
         let mut public_connection_ids = HashSet::new();
         for (index, secret) in secrets.iter().enumerate() {
             assert!(public_connection_ids.insert(packet.connection_id));
+            let original = packet.clone();
             let mut replay = OnionReplayCache::new(8).unwrap();
-            let peeled = packet.peel(secret, 5_000, &mut replay).unwrap();
+            let peeled = packet.peel(secret, PROCESS_NOW_MS, &mut replay).unwrap();
             assert_eq!(peeled.role, hops[index].role);
             assert_eq!(peeled.next_hop, hops[index].next_hop);
+            assert_eq!(
+                original.peel(secret, PROCESS_NOW_MS, &mut replay),
+                Err(RelayError::OnionReplay)
+            );
             match peeled.forward {
                 OnionForward::Next(next) => packet = next,
                 OnionForward::Destination(bytes) => destination_envelope = Some(bytes),
             }
         }
         assert_eq!(public_connection_ids.len(), ONION_HOP_COUNT);
-        let opened = open_onion_destination(&destination_envelope.unwrap(), &destination).unwrap();
+        let destination_envelope = destination_envelope.unwrap();
+        let mut destination_replay = OnionReplayCache::new(8).unwrap();
+        let opened = open_onion_destination(
+            &destination_envelope,
+            &destination,
+            PROCESS_NOW_MS,
+            &mut destination_replay,
+        )
+        .unwrap();
         assert_eq!(opened, b"private application payload");
+        assert_eq!(
+            open_onion_destination(
+                &destination_envelope,
+                &destination,
+                PROCESS_NOW_MS,
+                &mut destination_replay,
+            ),
+            Err(RelayError::OnionReplay)
+        );
     }
 
     #[test]
@@ -668,19 +828,22 @@ mod tests {
             &hops,
             destination.public_key(),
             b"payload",
-            10_000,
+            BUILD_NOW_MS,
+            EXPIRES_AT_MS,
         )
         .unwrap();
         let wrong = AgreementSecretKey::from_seed(&[44; 32]);
         let mut cache = OnionReplayCache::new(8).unwrap();
-        assert!(packet.peel(&wrong, 5_000, &mut cache).is_err());
+        assert!(packet.peel(&wrong, PROCESS_NOW_MS, &mut cache).is_err());
         assert_eq!(
-            packet.peel(&secrets[0], 10_001, &mut cache),
+            packet.peel(&secrets[0], EXPIRES_AT_MS, &mut cache),
             Err(RelayError::OnionExpired)
         );
-        let peeled = packet.peel(&secrets[0], 5_000, &mut cache).unwrap();
+        let peeled = packet
+            .peel(&secrets[0], PROCESS_NOW_MS, &mut cache)
+            .unwrap();
         assert_eq!(
-            packet.peel(&secrets[0], 5_000, &mut cache),
+            packet.peel(&secrets[0], PROCESS_NOW_MS, &mut cache),
             Err(RelayError::OnionReplay)
         );
         let mut tampered = match peeled.forward {
@@ -689,7 +852,110 @@ mod tests {
         };
         tampered.connection_id = ConnectionId::from_bytes([8; 16]);
         let mut next_cache = OnionReplayCache::new(8).unwrap();
-        assert!(tampered.peel(&secrets[1], 5_000, &mut next_cache).is_err());
+        assert!(tampered
+            .peel(&secrets[1], PROCESS_NOW_MS, &mut next_cache)
+            .is_err());
+        assert!(next_cache.is_empty());
+    }
+
+    #[test]
+    fn authenticated_but_malformed_inner_packet_does_not_consume_replay_state() {
+        let relay_secret = AgreementSecretKey::from_seed(&[1; 32]);
+        let ephemeral_secret = AgreementSecretKey::from_seed(&[2; 32]);
+        let ephemeral_key = ephemeral_secret.public_key();
+        let shared = ephemeral_secret.agree(&relay_secret.public_key()).unwrap();
+        let nonce = AeadNonce::from_bytes(&[3; 12]).unwrap();
+        let connection_id = ConnectionId::from_bytes([4; 16]);
+        let aad = hop_aad(
+            connection_id,
+            PayloadSizeClass::Small,
+            0,
+            ephemeral_key,
+            nonce,
+        );
+        let key = derive_key(HOP_KEY_DOMAIN, &shared.to_bytes(), &aad).unwrap();
+        let plaintext = encode_hop_plaintext(
+            RelayRole::Entry,
+            EXPIRES_AT_MS,
+            [5; 32],
+            b"next-hop",
+            b"not-a-canonical-inner-onion",
+        )
+        .unwrap();
+        let packet = OnionPacket {
+            connection_id,
+            size_class: PayloadSizeClass::Small,
+            hop_index: 0,
+            ephemeral_key,
+            nonce,
+            ciphertext: key.encrypt(&nonce, &plaintext, &aad).unwrap(),
+        };
+        let mut replay = OnionReplayCache::new(1).unwrap();
+        assert!(packet
+            .peel(&relay_secret, PROCESS_NOW_MS, &mut replay)
+            .is_err());
+        assert!(replay.is_empty());
+        replay
+            .check_and_record([6; 32], EXPIRES_AT_MS, PROCESS_NOW_MS)
+            .unwrap();
+    }
+
+    #[test]
+    fn replay_capacity_fails_closed_until_entries_expire() {
+        let mut cache = OnionReplayCache::new(2).unwrap();
+        cache.check_and_record([1; 32], 2_000, 1_000).unwrap();
+        cache.check_and_record([2; 32], 2_000, 1_000).unwrap();
+        assert_eq!(
+            cache.check_and_record([3; 32], 2_000, 1_000),
+            Err(RelayError::LimitExceeded)
+        );
+        assert_eq!(cache.len(), 2);
+        cache.check_and_record([3; 32], 3_000, 2_001).unwrap();
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn wall_clock_rollback_cannot_resurrect_an_expired_onion_token() {
+        let mut cache = OnionReplayCache::new(2).unwrap();
+        cache.check_and_record([1; 32], 2_000, 1_000).unwrap();
+        cache.prune_expired(2_500);
+        assert!(cache.is_empty());
+
+        assert_eq!(
+            cache.check_and_record([1; 32], 2_000, 1_500),
+            Err(RelayError::OnionExpired)
+        );
+        cache.check_and_record([2; 32], 3_000, 1_500).unwrap();
+    }
+
+    #[test]
+    fn zero_or_excessive_remaining_lifetime_is_rejected() {
+        let (hops, _) = route();
+        let destination = AgreementSecretKey::from_seed(&[9; 32]);
+        assert_eq!(
+            build_onion(
+                ConnectionId::from_bytes([7; 16]),
+                PayloadSizeClass::Small,
+                &hops,
+                destination.public_key(),
+                b"payload",
+                BUILD_NOW_MS,
+                BUILD_NOW_MS,
+            ),
+            Err(RelayError::OnionExpired)
+        );
+        assert_eq!(
+            build_onion(
+                ConnectionId::from_bytes([7; 16]),
+                PayloadSizeClass::Small,
+                &hops,
+                destination.public_key(),
+                b"payload",
+                BUILD_NOW_MS,
+                BUILD_NOW_MS + MAX_ONION_LIFETIME_MS + MAX_ONION_CLOCK_SKEW_MS + 1,
+            ),
+            Err(RelayError::OnionLifetimeTooLong)
+        );
     }
 
     #[test]
@@ -704,7 +970,8 @@ mod tests {
                 &hops,
                 destination.public_key(),
                 b"payload",
-                10_000,
+                BUILD_NOW_MS,
+                EXPIRES_AT_MS,
             ),
             Err(RelayError::InvalidOnionRoute)
         );
@@ -717,11 +984,24 @@ mod tests {
                 &hops,
                 destination.public_key(),
                 b"payload",
-                10_000,
+                BUILD_NOW_MS,
+                EXPIRES_AT_MS,
             ),
             Err(RelayError::InvalidOnionRoute)
         );
         let (hops, _) = route();
+        assert_eq!(
+            build_onion(
+                ConnectionId::from_bytes([7; 16]),
+                PayloadSizeClass::Small,
+                &hops,
+                hops[2].routing_key,
+                b"payload",
+                BUILD_NOW_MS,
+                EXPIRES_AT_MS,
+            ),
+            Err(RelayError::InvalidOnionRoute)
+        );
         let oversized = vec![0u8; SMALL_ONION_PAYLOAD_BYTES];
         assert_eq!(
             build_onion(
@@ -730,7 +1010,8 @@ mod tests {
                 &hops,
                 destination.public_key(),
                 &oversized,
-                10_000,
+                BUILD_NOW_MS,
+                EXPIRES_AT_MS,
             ),
             Err(RelayError::OnionPayloadTooLarge)
         );
@@ -746,7 +1027,8 @@ mod tests {
             &hops,
             destination.public_key(),
             b"payload",
-            10_000,
+            BUILD_NOW_MS,
+            EXPIRES_AT_MS,
         )
         .unwrap();
         let bytes = packet.to_bytes().unwrap();
@@ -754,5 +1036,33 @@ mod tests {
         for cut in 0..bytes.len() {
             assert!(OnionPacket::from_bytes(&bytes[..cut]).is_err());
         }
+    }
+
+    #[test]
+    fn declared_size_class_rejects_shorter_or_longer_ciphertext() {
+        let (hops, _) = route();
+        let destination = AgreementSecretKey::from_seed(&[9; 32]);
+        let packet = build_onion(
+            ConnectionId::from_bytes([7; 16]),
+            PayloadSizeClass::Small,
+            &hops,
+            destination.public_key(),
+            b"payload",
+            BUILD_NOW_MS,
+            EXPIRES_AT_MS,
+        )
+        .unwrap();
+
+        let mut shorter = packet.clone();
+        shorter.ciphertext.pop().unwrap();
+        assert_eq!(shorter.to_bytes(), Err(RelayError::InvalidOnionRoute));
+
+        let mut longer = packet.clone();
+        longer.ciphertext.push(0);
+        assert_eq!(longer.to_bytes(), Err(RelayError::InvalidOnionRoute));
+
+        let mut wrong_hop = packet;
+        wrong_hop.hop_index = ONION_HOP_COUNT as u8;
+        assert_eq!(wrong_hop.to_bytes(), Err(RelayError::InvalidOnionRoute));
     }
 }

@@ -92,6 +92,7 @@ fn finalized_block(chain: &LedgerChain, height: u64, fixture: &Fixture) -> Final
         height,
         prev_hash: chain.tip_hash(),
         state_root: next.commitment(),
+        body_root: body.hash(),
         timestamp_ms: height,
         proposer: fixture.signers[0].0.did(),
     };

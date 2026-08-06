@@ -23,6 +23,10 @@ pub enum ExecutionError {
     /// lied about the result or the body/state disagree for some other
     /// reason. Never silently accepted.
     StateRootMismatch,
+    /// A block's header did not commit to the exact supplied body. This check
+    /// is independent of `state_root` because rejected operations may leave
+    /// the same post-state while changing historical block bytes.
+    BodyRootMismatch,
     /// A block body contained more claims than [`crate::MAX_CLAIMS_PER_BLOCK`]
     /// — an allocation/CPU bound applied before processing, the same
     /// discipline `mini-chain::MAX_VOTES_PER_CERTIFICATE` applies.
@@ -71,6 +75,9 @@ impl fmt::Display for ExecutionError {
                     f,
                     "header's state_root does not match the state its body produces"
                 )
+            }
+            ExecutionError::BodyRootMismatch => {
+                write!(f, "header's body_root does not match the exact block body")
             }
             ExecutionError::TooManyClaims => write!(f, "block body exceeds the claim-count cap"),
             ExecutionError::TooManyMonetaryEpochs => {

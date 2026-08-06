@@ -45,6 +45,16 @@ impl Capabilities {
     /// Add or revoke *other* devices. A root-level power; off in both secure
     /// defaults, so a delegated device cannot expand the device set on its own.
     pub const MANAGE_DEVICES: Capabilities = Capabilities(1 << 5);
+    /// Publish storage commitments and answer possession/replication proofs on
+    /// the root's behalf.
+    ///
+    /// Off in **both** secure defaults, deliberately. Unlike signing or posting,
+    /// a storage commitment exposes the root to durable, publishable conflict
+    /// evidence about its own storage conduct (see `mini-storage-fraud`): a
+    /// device with this capability can bind the root to a replica claim that
+    /// outlives the device. That liability has to be granted on purpose, per
+    /// storage device, not inherited from a "primary device" default.
+    pub const STORE: Capabilities = Capabilities(1 << 6);
 
     /// No capabilities.
     pub const fn empty() -> Self {
@@ -68,7 +78,8 @@ impl Capabilities {
             | Self::POST.bits()
             | Self::ATTEST.bits()
             | Self::VOTE.bits()
-            | Self::MANAGE_DEVICES.bits(),
+            | Self::MANAGE_DEVICES.bits()
+            | Self::STORE.bits(),
     );
 
     /// The raw bit pattern.

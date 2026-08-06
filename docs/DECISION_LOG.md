@@ -15079,13 +15079,15 @@ payment, storage, bandwidth, provider revenue, or service metric enters route,
 identity, personhood, validator, review, or governance authority. No admin,
 law-enforcement, recovery, traffic-master, or escrowed unmasking key exists.
 
-**Implementation status:** complete in draft PR #292. Permanent code covers
+**Implementation status:** merged through PR #292. Permanent code covers
 bounded canonical claims/advertisements/PEX, KEL rollback pins, delegated
 capability checks, replay/expiry, structurally bound dial+session verification,
 local prefix-diverse selection, the Direct/Relayed execution gate, and three-hop
 destination-encrypted onion forwarding. Focused formatting, 64 unit tests, three
-real-socket tests plus one discovery/session integration test, and strict Clippy passed before truth sync; exact-head
-workspace/governance/reproducibility/Android workflows remain the merge floor.
+real-socket tests plus one discovery/session integration test, and strict
+Clippy passed at merge. PR #296 subsequently adds the executable runtime seam,
+rechecks advertisement liveness at use time, and upgrades onion replay handling;
+see D-0438.
 
 **Failure point:** a first-contact verifier cannot know about a later unseen KEL
 revocation without witness/gossip freshness; IP-prefix diversity does not prove
@@ -15290,8 +15292,9 @@ sending; zero/oversized `max_results` rejected; a compliant server never
 exceeds the requested `max_results`; every current
 `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/`Scheme`/
 `PersonalizationPolicy` variant round-trips with a future-variant-safe
-fallback for each `#[non_exhaustive]` enum; a tampered ciphertext fails
-closed) plus one new real-socket integration test
+fallback for each `#[non_exhaustive]` enum; outbound and inbound field/score
+bounds are symmetric; profile substitution is rejected; a tampered ciphertext
+fails closed) plus one new real-socket integration test
 (`tests/query_over_tcp.rs`) proving `remote_query`/`serve_query` over an
 actual `TcpBearer` pair, mirroring `live_over_tcp.rs`'s own handshake
 pattern. Full workspace ritual green: `cargo fmt --all -- --check`,
@@ -15348,8 +15351,11 @@ function applied to results freshly computed from local
 `mini_query::ResultProvenance`, rejecting any `relevance_score_bps` or
 `explanation` component above `WeightBps::MAX` — a value a compliant
 `serve_query` can never produce, since `mini_query::search` only ever
-emits validated `WeightBps`, but `WireResult`'s own wire codec does not
-itself bound these fields on decode) and `merge_remote_results(local:
+emits validated `WeightBps`; the F6 wire decoder now rejects the same
+values, while this conversion repeats the check for public `WireResult`
+values constructed locally or received through legacy code; the conversion
+now invokes the complete shared validator before its typed score conversion) and
+`merge_remote_results(local:
 Vec<FederatedResult>, remote: Vec<WireResult>, remote_provider:
 ProviderPseudonym, max_results: usize) -> Result<Vec<FederatedResult>>`,
 which folds a `remote_query` response into a caller's own local/pulled
@@ -15417,9 +15423,10 @@ fully fresh data every time, at whatever latency/bandwidth cost that
 implies; no problem for this slice's scope, a real concern for any
 production scheduler built on top.
 
-**Required follow-up:** bind `remote_provider` to `mini-transport-security`'s
-authenticated peer identity once that crate lands review, closing the
-caller-assertion gap named above. `remote_query_many`-style multi-provider
+**Required follow-up:** D-0438/PR #296 closes the named `remote_provider`
+caller-assertion gap with an optional channel-authenticated, sealed result path;
+the anonymous legacy API intentionally retains caller-owned labeling.
+`remote_query_many`-style multi-provider
 fan-out feeding this same merge in one call, once a real deployment shape
 motivates it (still not attempted — F6 Phase 1's own deferred item).
 True query-content privacy against the queried provider (PIR/oblivious
@@ -15532,19 +15539,602 @@ sibling to, not an extension of, `mini_consensus::evidence::
 EquivocationEvidence` (D-0204) — `mini-storage-fraud` does not depend on
 `mini-consensus`.
 
----
+### D-0438 — Authenticated transport runtime convergence and peer-bound F6 provenance  ·  *Proposed*
 
-### D-0439 — Mininet Node Appliance: Debian deployment profile, not an OS (`deploy/`)  ·  *Accepted (founder directive)*
+**Date:** 2026-08-04 · **Refs:** D-0377, D-0435, D-0436; PR #296;
+issues #291/#24/#27/#72/#175; merged PRs #292/#294; Directives
+2/5/6/9/14/16/18.
+
+**Decision:** add one executable runtime seam in `mini-transport-security` rather
+than leaving signed discovery, CH1, endpoint proof, retry, bridge entry, and
+onion route construction as caller conventions. `AuthenticatedConnection<B>`
+owns the bearer, exact CH1 channel, and `AuthenticatedPeer` verified on that
+channel. The TCP initiator verifies a responder-first claim against the selected
+`PeerAdvertisement` before disclosing its own identity. Freshness/replay state is
+transactional: cloned before verification and committed only after the complete
+exchange succeeds. Bounded retry uses the existing locally seeded prefix-diverse
+plan and returns no partial accepted state. Already-established
+`mini-bridge::PluggableTransport` channels enter this same proof seam; no second
+adapter process manager or bridge identity authority is created.
+
+Add `build_verified_onion_route`, which accepts three verified endpoint records,
+rejects visible endpoint-id/routing-key/root/device reuse across roles, and then
+delegates cryptography to `mini-relay::build_onion` rather than adding a
+second onion construction; this PR also hardens that implementation's replay,
+size, and relay/destination-key boundaries.
+
+Close D-0436's named F6 provenance gap with a distinct signed
+`TransportPurpose::SearchQuery`. The optional named query path operates on an
+`AuthenticatedConnection`, privately derives a `ProviderPseudonym` from the
+verified `TransportEndpointId`, returns an `AuthenticatedQueryResults` with
+private fields, and merges it without accepting a caller-selected provider
+label. Preserve anonymous CH1 querying and the legacy caller-labeled merge API;
+identity disclosure remains optional.
+
+**Reason:** every individual primitive in D-0377 could be sound while an
+application still forgot one composition check, advanced security state during a
+failed attempt, detached identity from the channel that proved it, or mislabeled
+which F6 provider answered. Security-critical sequencing and provenance belong
+in types and executable code, not documentation telling every future caller to
+remember the same multi-step ritual.
+
+**Constitutional impact:** strengthens Directive 2 by adding no mandatory
+operator; Directive 5 by retaining caller-held KEL authority; Directive 6 by
+making failed attempts atomic and explicit; Directive 9 by keeping named
+identity optional and pairwise-compatible; Directive 14 by reusing CH1,
+`mini-bridge`, and `mini-relay` rather than inventing duplicate transport or
+cryptography; Directive 16 by keeping payment/value absent from route, provider,
+ranking, identity, and governance authority; and Directive 18 by keeping external
+adapters at the edge behind the existing bridge boundary.
+
+No CA, DNS authority, TOFU database, canonical bootstrap/relay registry, hosted
+identity directory, mandatory bridge distributor, administrator, recovery,
+legal-unmasking, or traffic-master key exists. No balance, payment, stake,
+storage, bandwidth, provider revenue, or service metric enters identity,
+routing, ranking, personhood, validator, review, or governance authority.
+
+**Implementation status:** complete and focused-test green in PR #296, pending
+independent human review and merge. Permanent code adds the
+runtime module, typed search purpose, peer-bound authenticated F6 query/merge,
+and verified onion-route builder. Permanent real-socket tests prove signed
+advertisement -> CH1 -> exact peer binding -> application data; signed discovery
+and local selection -> verified three-role onion -> three relay sockets ->
+destination-only plaintext; redirect
+rejection before initiator disclosure; atomic freshness/replay state on failure;
+bounded retry past an unreachable first hint; reuse of a `mini-bridge` channel;
+onion-v2 domain separation, clock-skew-bounded validity, fail-closed relay and
+ destination replay state; advertisement
+expiry/network rechecks; same-network and visible-identity-diverse selection;
+secure-PEX outer/inner network consistency; destination/relay key separation;
+exact inbound/outbound onion sizing; bounded selection input; permanent connection
+poisoning on ambiguous bearer/channel failure; authenticated CH1 on every socket in a full
+onion chain; sealed endpoint-stable search-provider provenance that preserves
+F3 deterministic tie-breaks and removes channel-handshake grinding; symmetric F6 wire bounds, profile attribution,
+ranker-filter preservation; and wrong-purpose rejection. Focused
+strict Clippy and all tests for `mini-transport-security`,
+`mini-search-federation-net`, and `mini-relay` pass. Exact-head full workspace,
+dependency, governance, reproducibility, Android, and human-review checks
+remain the merge floor. No CodeQL workflow exists in the repository, so no
+CodeQL result is claimed.
+
+**Anti-eclipse prefix bucketing (added 2026-08-05, pre-merge review).** `NetworkPrefix::from_ip` bucketed an address as presented, so one operator holding a single IPv4 /24 occupied three separate buckets by advertising the same host as itself, as an IPv4-mapped IPv6 address, and through the well-known RFC 6052 NAT64 prefix — taking three times its share of a bounded dial plan while an honest operator took one. Bucketing now canonicalizes to the embedded IPv4 address first. Rejecting the translated forms, as `mini-crawler-fetch::address` does for crawl targets, is not available here: an IPv6-only host reaches IPv4 peers precisely through them.
+
+**Failure point:** a verified endpoint proves control of one key-bound endpoint
+on one channel, not personhood, honesty, independent operation, ASN/jurisdiction
+diversity, or result truth. An authenticated F6 label is stable for one advertised
+endpoint but rotates with its routing key, device, or pairwise identity;
+privacy-preserving continuity across endpoint rotation is intentionally undesigned.
+First-contact KEL freshness still cannot reveal an unseen later revocation.
+Known TCP endpoints remain blockable/fingerprintable; NAT traversal, reconnect,
+private bridge distribution, multipath migration, and real camouflage adapters
+are absent. The named F6 path is mutual authentication—there is no server-only
+provider proof for an unnamed requester. Relay selection verifies relay records,
+not the caller-supplied destination key's identity. Replay caches are in-memory
+concrete types with no persistence/import API. The three-hop onion remains
+correlatable by a global timing/volume observer; Mixed/Burst stay closed.
+
+**Required follow-up:** add witness/gossip KEL freshness; independently evidenced
+operator/ASN/jurisdiction diversity; issue #24 NAT/reconnect/relay fallback;
+private bridge distribution and reviewed adapters under the existing
+`mini-bridge` boundary; a server-only authenticated connection for anonymous F6
+requesters; a persistent replay-cache design; an optional typed destination-
+identity wrapper; privacy-conscious provider continuity if a real product needs
+cross-rotation reputation; and the externally reviewed D-0305 mix executor
+under #72. None may introduce a mandatory checkpoint, canonical directory,
+cloud front, unmasking key, or value-derived authority.
+
+**Supersedes / superseded by:** builds on and does not supersede D-0377's wire
+formats or lower-level optional primitives. Closes D-0436's named caller-asserted
+provider-label gap for the new named API while preserving D-0435/D-0436's
+anonymous APIs unchanged. Does not supersede D-0305 or lift any external-review
+gate.
+
+**Supersedes / superseded by:** new ground — no prior decision addressed
+cross-identity storage-collusion detection. Builds on and does not modify
+`mini-porep`'s sealing/audit/challenge-response construction (D-0063/
+D-0064) or `mini-spacetime`'s `StorageCommitment`/PDP machinery. A
+sibling to, not an extension of, `mini_consensus::evidence::
+EquivocationEvidence` (D-0204) — `mini-storage-fraud` does not depend on
+`mini-consensus`.
+
+### D-0439 — Superseding D-0437: identity-bound replica registration and unattributed replica-conflict evidence  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** supersedes D-0437 (merged via PR #297);
+roadmap #42 (Phase 5.7 — still only partly discharged); #31 (`mini-porep`,
+D-0063/D-0064); #18/#21 (personhood/Sybil, unsolved); #72/D-0047 (external
+crypto audit gate); external review of PR #297 and the full-codebase audit of
+2026-08-05 §7.1; `docs/design/storage-fraud-detection.md`.
+
+**Decision:** replace D-0437's `StorageCommitmentClaim`/`CollisionEvidence`
+with registered replica claims. D-0437's entry above stands unedited as
+history; this supersedes it.
+
+1. `ReplicaContextV1` — a typed, fixed-width canonical context (network id,
+   assignment id, shard index, replica ordinal, sealing-policy version), not an
+   opaque caller-chosen 32 bytes.
+2. `derive_replica_id(root, device, context)` — the one replica id a provider
+   may seal under, with a byte-level normative preimage and fixed vectors.
+3. `AuditAttestation`/`audit_and_attest` — an independent auditor actually
+   running `mini_porep`'s registration audit against the full `SealCommitment`
+   under a seed the auditor chose, signing only if every sampled challenge
+   verifies. `RegistrationReceipt` is a quorum, checked against a
+   `RegistrationPolicy` (distinct auditor roots, challenges per audit, no
+   self-attestation, pairwise-distinct seeds).
+4. `RegisteredReplicaClaim` — carries the full seal commitment and its
+   registration receipt; `verify` enforces delegation under a new
+   `Capabilities::STORE`, historical-KEL signature verification at a pinned
+   sequence and event digest, and the identity-bound replica id. The
+   `mini_spacetime::StorageCommitment` is *derived* from the audited seal,
+   never supplied alongside it.
+5. `ReplicaRegistry` — refuses a second claim over an already-accepted replica
+   root. This is the primary enforcement point.
+6. `verify_conflict` — the cross-registry backstop, returning
+   `VerifiedReplicaConflict { attribution: Unattributed }`.
+
+**Reason:** D-0437 bound nothing to `mini-porep`. It signed a bare
+caller-supplied `StorageCommitment`, so an attacker could copy an honest
+provider's published Merkle root, sign it under their own valid DID, and
+produce evidence that verified — framing an honest provider with no replica,
+no challenge, and no forged signature. The general lesson, recorded because it
+is easy to repeat: **a signature over a value proves someone signed the value,
+never that the value describes reality.** Where the protocol wants the second
+thing, something other than the signer must have checked.
+
+Attribution is withheld deliberately. Even with the binding fixed, a duplicate
+replica root shows at least one registration is unsound, not which one, and is
+consistent with two honest providers plus one corrupt auditor quorum. An enum
+offering `First`/`Second` would invite consumers to guess; `Unattributed` is
+the whole truth the object carries.
+
+**Constitutional impact:** none. No frozen invariant touched. No voice/value
+wall edge (P1, Directive 16): `mini-storage-fraud` depends only on `did-mini`,
+`mini-crypto`, `mini-porep`, `mini-spacetime`, and nothing depends on it. No
+generic `sign(bytes)` surface. No penalty, exclusion, reward clawback, or
+consensus authority. Counting is by identity root, never by device or
+attestation count, and the decision states plainly that distinct roots are not
+distinct humans. `Capabilities::STORE` is additive and in neither secure
+default, so it narrows rather than inflates any device.
+
+**Implementation status:** `context.rs`, `seal.rs`, `registration.rs`,
+`claim.rs`, `conflict.rs`, `registry.rs`, `codec.rs`, `error.rs`, replacing
+D-0437's `commitment_claim.rs`/`collision.rs`. 30 adversarial tests and 5
+golden-vector tests over real identities, real seals and real audits.
+
+**Failure point:** the residual attack is a corrupt auditor quorum — one that
+signs without auditing. Nothing cryptographic prevents it, and
+`AuditAttestation::issue` is exposed precisely so that attack can be written
+down and tested rather than assumed away. Bounding it would need Sybil
+resistance, which does not exist (#18). Every timestamp here is self-reported;
+historical KEL verification pins *where* in a signer's history a claim sits,
+never *when*. The registry is local and in-memory with no consensus behind it.
+`mini-porep` remains unaudited prototype cryptography.
+
+**Required follow-up:** external cryptographic audit (#72, D-0047) before this
+gates value; a consequence layer consuming conflict evidence; a networked,
+replicated registration surface; timing/latency detection once a live
+deployment exists to calibrate against; and founder resolution of the four
+open questions in the design doc §7 — above all whether replica uniqueness
+binds to the root, the device, or root + device + ordinal — before this leaves
+*Proposed*. Entirely AI-drafted; AI review carries zero approval weight.
+
+**Supersedes / superseded by:** supersedes D-0437 in full. Modifies
+`mini-porep` (D-0064) only via D-0440's sampling fix. Extends `did-mini`
+additively. Sibling to, not an extension of,
+`mini_consensus::evidence::EquivocationEvidence` (D-0204).
+
+### D-0440 — Shared correctness floor for signed objects, PoRep audits, and Merkle proofs  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** D-0439 (the remediation that surfaced the
+first three); full-codebase audit of 2026-08-05 §6.1/§6.4/§7.4/§7.5; SPEC-01
+§4/§6; D-0064 (`mini-porep`); #72/D-0047.
+
+**Decision:** four corrections to already-merged code, each a rule that was
+restated per crate instead of owned by the crate that owns the type.
+
+1. **One signature limit.** `did-mini` permits 32 keys and 64 signatures;
+   seven crates capped their decoders at 16 (`mini-attest`, `mini-bridge`,
+   `mini-objects` ×3, `mini-private-index`, `mini-relay`). A threshold identity
+   above that could sign an object, verify it in memory, encode it, and then
+   fail to decode its own bytes. `did-mini` now exports `MAX_SIGNATURES`,
+   `MAX_KEYS`, `MAX_SIGNATURE_BYTES`, `MAX_DID_BYTES`, and every decoder
+   references them.
+2. **One canonical order.** Those same decoders accepted unsorted or repeated
+   signature lists. Every object involved is content-addressed by its own
+   bytes, so one logical object could carry several identities, and a dedup
+   index or replay check keyed on that id would admit a duplicate as new.
+   `did_mini::signatures_are_canonical`/`canonicalize_signatures` are the
+   shared rule; each decoder rejects violations with a dedicated
+   `NoncanonicalSignatureOrder` error rather than folding them into
+   `LimitExceeded`.
+3. **A final-layer reservation in `mini-porep`'s audit.**
+   `verify_audit_response` binds `SealCommitment::replica_root` only at
+   final-layer challenges — the one place the XOR-encoding step is checked.
+   `sample_challenges` drew layers uniformly, so an audit could draw no
+   final-layer challenge and succeed having never constrained `replica_root`;
+   a prover could publish another provider's replica root, or arbitrary bytes,
+   and pass. For a 2-layer seal with 8 challenges that is `(2/3)^8`, about one
+   audit in twenty-six. It now reserves `max(1, count / (num_layers + 1))`
+   challenges for that layer (`encoding_challenge_budget`).
+4. **Merkle proof shape validation.** `MerkleProof::verify` walked whatever
+   sibling list it was handed without checking that list against the declared
+   `leaf_count`. A `None` sibling is a no-op in the fold, so a proof padded
+   with extra `None`s verified identically to the honest one — the same
+   logical proof with unlimited valid encodings, and an unbounded sibling
+   vector for any future decoder to allocate from. `verify` now requires the
+   sibling count to equal the depth `leaf_count` implies.
+
+**Reason:** (1) and (2) are one mistake with two faces — a wire rule restated
+per crate — and both directions hurt: a valid object one crate cannot read, or
+one object with two identities. (3) and (4) are latent soundness gaps in
+merged prototype cryptography. Notably, (3) survived review of the
+construction and appeared only when an adversarial test built the attack, and
+(4) was found by an external full-codebase audit rather than by any test here.
+Both argue for adversarial tests and outside review over more documentation.
+
+**Constitutional impact:** none. No frozen invariant, no voice/value wall
+edge, no authority surface. `did-mini`'s new public constants and helpers are
+additive. (2) and (4) narrow what verifiers accept; no honest producer is
+affected, because `Controller::sign_message` already emits ascending distinct
+indices and `MerkleTree::prove` already emits exactly the implied depth —
+which is why the existing suite passes unchanged. (3) changes the challenge
+set a given seed yields, so audits are not byte-reproducible against the prior
+version; acceptable because no persisted artefact carries a sampled challenge
+set and the prior distribution was unsound.
+
+**Implementation status:** shipped with regression tests — a 32-key identity
+round-tripping and rejection of non-canonical lists in `mini-attest`;
+final-layer coverage across 64 seeds and a forged `replica_root` failing under
+every seed in `mini-porep`; padded, truncated, and wrong-depth proofs rejected
+in `mini-spacetime`; the canonical-order predicate in `did-mini`.
+
+**Failure point:** (1) and (2) are enforced by convention, not by the type
+system — a new crate can still hand-roll a decoder with its own cap and no
+ordering rule, and nothing fails until an unusual identity appears. A shared
+`did-mini` signature codec, rather than a shared constant plus a shared
+predicate, is the durable fix and is not built here. (4) makes proof shape
+canonical; it does not make the surrounding PDP/PoRep constructions audited.
+
+**Required follow-up:** a shared signature codec; a sweep for the same
+restated-limit pattern in the other wire limits; a wire codec for
+`MerkleProof` that enforces the depth bound *before* allocating, since today
+proofs only travel in-process; and the standing external audit (#72, D-0047).
+
+**Supersedes / superseded by:** does not supersede D-0064, which stands; this
+corrects one defect in its audit sampling. New ground otherwise.
+
+### D-0441 — Dependency scanning must gate, and audit documents must state their own scope  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** full-codebase audit of 2026-08-05 §19.1 and
+§20.1; D-0341/#203 (which documented the gap this closes); roadmap #73
+(dependency-vulnerability scanning).
+
+**Decision:** two process corrections.
+
+1. **The dependency-audit job now gates.** `rustsec/audit-check` installs
+   `cargo-audit` inside the checked-out repository, where `rust-toolchain.toml`
+   pins a toolchain older than `cargo-audit`'s own dependencies require, so the
+   step failed outright — and `continue-on-error: true` reported that hard
+   failure as a pass. The job now installs `cargo-audit` under an explicitly
+   separate stable toolchain (`RUSTUP_TOOLCHAIN`, which overrides the file
+   pin), runs it directly, and **distinguishes the two outcomes the previous
+   configuration conflated**: a scanner that cannot run fails the build, while
+   advisory findings are surfaced loudly without failing, because this
+   workspace still has no triage process for an advisory against an
+   unreleasable pinned dependency. A scheduled run on `main` is added so
+   advisories published after a merge are still seen.
+2. **Audit documents state their own scope.** `docs/audits/` gains a required
+   header — commit SHA, crate and dependency counts at that commit, tool
+   versions, and a revalidation trigger — and the memory-safety audit records
+   that it covered 22 crates against a workspace that now has 72, so it is
+   historically useful and not current whole-workspace coverage.
+
+**Reason:** a green check that means "the scanner failed to start" is worse
+than no check, because it manufactures confidence rather than merely lacking
+it. The same applies to an audit document read as current when it covered
+under a third of today's workspace. Both were already known and written down;
+what was missing was making the tooling say so. Distinguishing scanner failure
+from advisory findings is the specific fix — the previous configuration could
+not express the difference, so it expressed neither.
+
+**Constitutional impact:** none. CI and documentation only. No protocol
+surface, no authority, no frozen invariant. Making the job gate can block a
+merge on a scanner outage; that is the intended direction, and the failure
+mode is loud rather than silent.
+
+**Implementation status:** `.github/workflows/ci.yml`'s `dependency-audit` job
+rewritten; scheduled trigger added; `docs/audits/README.md` scope header
+defined and applied to the memory-safety audit.
+
+**Failure point:** advisory findings still do not fail the build, so a known
+vulnerable dependency can still merge — the gate is on the scanner working,
+not yet on the workspace being clean. Closing that needs the triage process
+D-0341 named and nobody has built. The scheduled scan depends on repository
+Actions settings remaining enabled.
+
+**Required follow-up:** an advisory triage process with named owners and
+expiry, after which findings should fail; SBOM/provenance generation per
+release (audit §19.3); and generated-file freshness enforcement in CI (audit
+§19.5), which this batch does not implement.
+
+**Supersedes / superseded by:** supersedes D-0341's decision to leave the
+dependency-audit gap documented rather than fixed. D-0341 otherwise stands.
+### D-0442 — Day-0 release hardening across consensus, value, storage, and crawler boundaries  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** merged PRs #271–#275, #283–#294, and
+#297 and #299; active draft PR #296 (explicitly excluded overlapping transport/query
+ownership); `docs/audits/day0-release-code-hardening-20260805.md`; A1; M1–M3;
+V1; P5–P6; S1; X2–X3.
+
+**Decision:** harden existing release-sensitive boundaries without expanding
+their authority or inventing replacement protocols. Consensus proposal
+signature transcript v2 binds both the header and exact settlement-body hash,
+and one proposal is capped at the admission boundary of 4,096 claims. Monetary
+epoch progression fails closed at `u64::MAX`; payment admission retains only
+the canonical `InsufficientFunds` retry; unsupported payment signing suites are
+rejected as typed errors; and admission cleanup uses retained wire sizes.
+Owner-only sealing reserves all framing/tag overhead, encrypted payloads cannot
+enter advertising cache tiers, and cache metadata is canonical. Crawler address
+admission closes omitted special/transition ranges and validates embedded IPv4
+destinations in the globally reachable RFC 6052 NAT64 prefix. PR #299's
+D-0439–D-0441 storage-fraud rebuild and correctness floor remain authoritative;
+this decision drops its superseded pre-registration claim changes.
+
+**Reason:** the audited code was individually bounded and tested, but its
+composition exposed nine fail-open, panic, portability, resource-amplification,
+or transcript-integrity defects at release-critical seams. These are local,
+falsifiable corrections to already-decided behavior. Leaving them for a later
+redesign would allow a body-mutated proposal signature, repeated terminal
+issuance, incorrectly terminal payment retry, suite-triggered panic,
+privacy-policy bypass, or SSRF policy evasion while giving no compensating
+protocol benefit.
+
+**Constitutional impact:** reinforces Directive 5 (canonical truth), Directive
+6 (failure-first design), Directive 9 (structural privacy), Directive 11 (the
+weakest device), Directive 13 (long-horizon portability), and Directive 15
+(malicious-minority defense). It does not change issuance policy, balances,
+canonical ordering, governance weight, validator membership, cache ownership,
+storage rewards, or crawler authority. M1–M3 and the voice/value wall remain
+unchanged. Proposal-signing domain v2 is deliberately incompatible with v1
+in-flight proposal signatures, so every validator in a prelaunch network must
+upgrade together; no production canonical state or owner adoption is asserted.
+A1 remains an external-review gate and is not discharged by this audit.
+
+**Implementation status:** implemented on
+`codex/release-security-audit`, with adversarial regressions across
+`mini-consensus`, `mini-economy`, `mini-execution`, `mini-settlement`,
+`mini-store`, and `mini-crawler-fetch`. Focused tests,
+workspace all-feature Clippy, governance runtime/baseline checks, and the Python
+governance suite pass. The complete workspace test matrix remains required in
+Linux CI because Windows Application Control blocked a newly compiled
+dependency build script after the local build volume was recovered; host policy
+was not weakened. The generated navigation index is intentionally untouched
+under D-0376.
+
+**Failure point:** a live proposal now authenticates its body, but finalized
+headers and quorum certificates still do not prove the exact historical body;
+that requires a versioned header/block migration. Canonical rejection history
+and single-frame snapshots remain bounded only by eventual failure, not by a
+scalable authenticated-history/chunk protocol. Admission is still node-local,
+not an authenticated and rate-limited internet service. Owner sealing has no
+KEL-bound rotation/recovery. Collision evidence has no consequence path. The
+crawler is not a complete crawl/extract/index system. Transparent settlement
+does not integrate `mini-value` privacy primitives. Sybil-resistant personhood,
+validator formation, and all A1 external reviews remain open.
+
+**Required follow-up:** require exact-head Linux CI and independent review;
+merge or supersede PR #296 without duplicating its transport/query ownership;
+design a versioned exact-body finality migration, chunked authenticated state
+transfer and bounded rejection proofs; expose admission only behind
+authenticated/rate-limited transport; bind owner sealing to KEL rotation and
+recovery; define a governed storage-fraud consequence/appeal path; finish the
+crawler provenance-to-index pipeline; and keep real-value/consensus/storage
+activation blocked until A1's external audits sign off on the exact release
+commit.
+
+**Supersedes / superseded by:** hardens implementations governed by their
+existing decisions; it does not supersede their doctrine. Coordinates with,
+but does not modify or supersede, PR #296 / D-0438's transport and authenticated
+query work. PR #299 / D-0439–D-0441 supersedes the storage-fraud implementation
+reviewed on the original audit base and is preserved unchanged.
+
+### D-0443 — Exact-body finality v2 and lossless monetary consensus wire migration  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** D-0207, D-0414–D-0416, D-0442;
+roadmap #45; `docs/design/exact-body-finality-v2-migration.md`; M1–M3; V1;
+A1; Directive 4, Directive 5, Directive 6, Directive 11, Directive 13, and
+Directive 15.
+
+**Decision:** make the exact ordered application body part of the finalized
+value. `BlockHeader` version 2 gains `body_root`; its versioned header hash
+commits to both `state_root` and `body_root`, so every existing vote and QC over
+that hash proves the exact body as well as the resulting state. Execution,
+proposal validation, voting, catch-up, and persisted finalized-block decoding
+all reject a body mismatch. Settlement-body hash v2 commits the canonical bytes
+of each scalable monetary epoch. Consensus message/proposal v3 serializes those
+epochs losslessly under explicit count and byte limits. Finalized-block,
+catch-up, snapshot, state-sync, and archive-install formats move to v2 and fail
+closed on their old domains.
+
+**Reason:** state equality is not historical-byte equality. Execution
+intentionally ignores an invalidly signed claim, so an empty body and a body
+containing that invalid claim can have the same `state_root`. D-0442 made a live
+proposal signature body-aware, but its QC and durable history still targeted a
+header that lacked that commitment. The same end-to-end review found that the
+consensus body codec omitted `monetary_epochs` entirely and the scalable epoch
+commitment omitted nested Human Share epoch and vesting fields. A late node
+could therefore lose an issuance transition in transport, and a commitment did
+not represent every authority-bearing field. One incompatible prelaunch
+migration closes all three ambiguity classes without inventing a compatibility
+value for information the old header never committed.
+
+**Constitutional impact:** reinforces canonical truth, deterministic failure,
+weakest-device bounds, long-horizon versioning, and malicious-minority defense.
+It changes neither issuance formula nor allocation, balances, account ordering,
+governance weight, validator membership, personhood, or owner authority. The
+voice/value wall remains intact. The new monetary codec conveys an epoch plan;
+it grants no issuance authority because execution re-derives the D-0074 policy
+transition from finalized supply.
+
+**Implementation status:** implemented on `codex/release-security-audit` in
+PR #300. Adversarial tests prove a QC for an empty body cannot be reused for a
+different invalid-claim body with the same post-state, exact monetary plans
+survive proposal wire round-trip, nested Human Share fields affect the
+commitment, header hashes change with `body_root`, persisted/catch-up objects
+reject mismatched bodies, every prior outer protocol version is rejected, and
+malformed/truncated/oversized epoch encodings fail closed. Targeted tests across
+`mini-chain`, `mini-consensus`, `mini-economy`, `mini-execution`, and
+`mini-contribution` pass on the proposal branch. Exact-head Linux workspace CI,
+human review, and A1 external review remain required.
+
+**Migration:** coordinated prelaunch hard fork only. Stop all validators,
+preserve the old archive as read-only evidence, move it out of the live path,
+install one reviewed binary, and restart from an explicitly agreed v2 genesis.
+No automatic v1 archive or balance conversion exists because v1 headers cannot
+prove their historical bodies. Preserving beta balances requires a separately
+governed and audited explicit genesis allocation. After a v2 block finalizes,
+v1 rollback under the same network id is forbidden. The complete abort,
+quarantine, verification, and recovery sequence is normative in the design
+document.
+
+**Failure point:** this proves exact bodies only from v2 genesis onward. The
+validator set is still static; historical set transitions, long-range defense,
+and weak subjectivity remain open. Snapshot state is still capped at 8 MiB and
+one bearer frame; no resumable chunked Merkle state protocol exists. Canonical
+rejection history still lacks deterministic pruning/compact proofs. External
+consensus, issuance, and cryptographic review has not occurred.
+
+**Required follow-up:** run exact-head Linux workspace CI and the documented
+mixed-version/fresh-node deployment drills; obtain D-0033 and A1 reviews;
+implement chunked authenticated state transfer, bounded rejection proofs,
+dynamic validator-set history, and an explicit weak-subjectivity rule before
+claiming internet-scale consensus recovery.
+
+**Supersedes / superseded by:** supersedes D-0442's proposal-v2 transcript and
+its statement that exact historical body commitment remains unimplemented.
+D-0442's other hardening findings and authority boundaries stand. This proposal
+does not supersede D-0207's snapshot/archive design or D-0414–D-0416's issuance,
+ledger, and admission rules; it migrates their consensus commitment and wire
+representation.
+
+### D-0444 — Registry integrity checks: decision-number collisions, deleted history, and restated wire limits  ·  *Proposed*
+
+**Date:** 2026-08-05 · **Refs:** the D-0437/D-0438/D-0439 collisions across
+PRs #296/#298/#299/#300; PR #296's near-deletion of D-0437; D-0440's
+seven-crate signature-limit defect; `tools/check_decisions.py`,
+`tools/check_wire_limits.py`, `tools/test_registry_checks.py`.
+
+**Decision:** add two mechanical checks to the governance workflow.
+
+`check_decisions.py` compares the decision log against a canonical baseline
+and fails on: a decision entry present upstream but absent here; a duplicate
+`### D-xxxx` heading newly introduced; a decision number claimed by two open
+work claims; and a number claimed as open that already exists upstream. It
+warns, without failing, on an entry whose body changed in place, and on an
+open claim reserving a number the log does not define.
+
+`check_wire_limits.py` fails when any crate outside `did-mini` declares
+`MAX_SIGNATURES`, `MAX_KEYS`, `MAX_SIGNATURE_BYTES`, or `MAX_DID_BYTES` as a
+literal below `did-mini`'s own value.
+
+**Reason:** every rule here is a transcript of something that actually cost a
+review round, not a guess at what might go wrong.
+
+Three branches raced on decision numbers in one afternoon. Each checked the
+open PRs before claiming; each was correct at the moment it looked; each
+collided anyway, because numbers are claimed at PR-open with no reservation
+and "free when I checked" is a different statement from "free when I merge".
+Every collision surfaced at review, after the work was done, and each cost a
+renumber across the log, STATUS, an audit document, and the registry.
+
+PR #296 would have deleted D-0437 outright — the branch predated the entry, so
+merging it silently removed permanent history. The merge was clean, the tests
+passed, and the entry was simply gone. A helper existed to prevent exactly
+that and had itself gone stale, locating the block by a string a later
+decision replaced. A human noticing was the only thing standing between that
+and a lost decision.
+
+The seven-crate signature cap was the same shape in code: `did-mini` permits
+64 signatures, seven crates independently wrote 16, and a large threshold
+identity could sign an object, verify it in memory, and then fail to decode
+its own bytes. Nothing failed at compile time, and the runtime symptom reads
+as corruption rather than as two crates disagreeing.
+
+The common thread is that all three are invisible to every existing gate.
+`cargo test` cannot see a missing paragraph in a Markdown file. Path-overlap
+detection in the work-claims registry does not look at decision numbers. Type
+checking does not compare a constant in one crate against a constant in
+another. They were caught by reading, which does not scale and did not catch
+them the first time.
+
+**Constitutional impact:** none. Tooling and CI only. Neither script grants,
+withholds, or interprets authority; both report structural facts about files.
+They gate a workflow, not a governance decision, and cannot approve, merge,
+canonicalize, or adopt anything. Failing closed on a *deleted* decision is the
+one place they are deliberately strict, because that failure is unambiguous
+and silent.
+
+**Implementation status:** shipped with 14 tests that reconstruct the real
+incidents rather than invented ones — the D-0437 deletion, the two-claim
+number race, a stale claim on a merged number, and a sub-`did-mini` cap.
+Verified by replay: run against PR #296's original head, the checker reports
+the D-0437 deletion; run against `e60191c`, it reports all seven capped
+crates.
+
+**Failure point:** in-place decision edits only warn, so a genuine rewrite
+dressed as a status sync still passes. That is a deliberate trade — the tree
+carries legitimate truth-sync edits ("complete in draft PR #292" becoming
+"merged through PR #292"), and failing on those would make the check something
+people route around, at which point it protects nothing. The duplicate-heading
+rule likewise inherits `D-0372`'s pre-existing duplicate as a warning so
+unrelated branches do not carry a permanent red build; `--report-existing`
+escalates it for a cleanup pass. On `push` events the canonical checkout is
+the pushed commit itself, so the append-only comparison is a no-op there and
+the meaningful check runs on pull requests. `check_wire_limits.py` only reads
+integer literals; a limit computed from an expression is left to a human.
+
+**Required follow-up:** clean up `D-0372`'s duplicate under
+`--report-existing`; consider extending the wire-limit rule to the other
+shared caps as they are centralized; and, if decision-number races persist,
+reserve numbers at claim time rather than detecting collisions after the fact.
+
+**Supersedes / superseded by:** supersedes nothing. Complements the
+decision-number banding policy at the top of this log, which coordinates
+tracks by convention; this makes the convention checkable.
+
+### D-0446 — Mininet Node Appliance: Debian deployment profile, not an OS (`deploy/`)  ·  *Accepted (founder directive)*
 
 **Date:** 2026-08-06 · **Refs:** `docs/design/mininet-node-appliance.md`
 (full doctrine); D-0020 (sovereignty-first distribution FREEZE); D-0066/
 `docs/design/self-hosted-forge-spine.md` (the forge spine this sits
 underneath); D-0070/D-0071 (`mini-forge::release` + `mini-installer`, the
 release-activation layer this hands off to); D-0011/P3 (no forced update,
-no remote kill). Note: D-0438 is claimed by an in-flight, unmerged PR
-(#296) at the time this entry was written; this decision uses D-0439 to
-avoid a third main-track collision rather than repeating the D-0437/
-D-0438 renumbering already done once this session.
+no remote kill). Note on numbering: this entry was first drafted as
+D-0439 while PR #296 held D-0438 unmerged. Both of those, plus D-0440
+through D-0444, have since merged, and the merged D-0439 is the
+storage-fraud rebuild — so the original number was a collision, exactly
+the failure `tools/check_decisions.py` (D-0444) now catches
+mechanically. Renumbered to D-0446 before merge; D-0445 belongs to the
+in-flight PR #302.
 
 **Decision:** adopt a staged, Debian-Stable-based "appliance" deployment
 profile as the answer to "what does a real Mininet node run on," and

@@ -19,7 +19,10 @@ const MAX_TYPE_BYTES: usize = 64;
 const MAX_DID_BYTES: usize = 256;
 const MAX_REL_BYTES: usize = 32;
 const MAX_ID_BYTES: usize = 128;
-const MAX_SIGNATURES: usize = 16;
+/// Mirrors `did_mini::MAX_SIGNATURES` rather than restating a smaller
+/// number: a cap below did-mini's own would let a legitimate threshold
+/// identity sign an object it could not then decode.
+const MAX_SIGNATURES: usize = did_mini::MAX_SIGNATURES;
 const MAX_SIG_BYTES: usize = 256;
 
 /// The typed-domain prefix bound into [`PrivateObject::signing_bytes`] —
@@ -189,6 +192,10 @@ impl PrivateObject {
             let signature =
                 Signature::from_suite_bytes(sig_suite, &sig_bytes).map_err(ObjectError::Crypto)?;
             signatures.push(IndexedSig { index, signature });
+        }
+
+        if !did_mini::signatures_are_canonical(&signatures) {
+            return Err(ObjectError::NoncanonicalSignatureOrder);
         }
         if !r.finished() {
             return Err(ObjectError::TrailingBytes);

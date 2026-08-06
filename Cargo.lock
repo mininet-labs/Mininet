@@ -2510,6 +2510,7 @@ dependencies = [
  "mini-bearer",
  "mini-chain",
  "mini-crypto",
+ "mini-economy",
  "mini-execution",
  "mini-settlement",
 ]
@@ -2938,6 +2939,7 @@ dependencies = [
  "mini-search-federation",
  "mini-store",
  "mini-sync",
+ "mini-transport-security",
  "mini-web-types",
 ]
 
@@ -3017,8 +3019,11 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "mini-bearer",
+ "mini-bridge",
  "mini-crypto",
  "mini-privacy-policy",
+ "mini-relay",
+ "mini-transport-policy",
 ]
 
 [[package]]

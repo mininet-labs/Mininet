@@ -174,8 +174,41 @@ impl Kel {
     /// state, to its threshold. Used for signed payloads such as presence
     /// attestations, where the signer proves control with the same keys the KEL
     /// authorizes — counting distinct public keys, not just distinct indices.
+    ///
+    /// A message signed before a rotation stops verifying here the moment the
+    /// identity rotates — which is correct for live payloads ("is this signer
+    /// authorized *now*") and wrong for durable, long-lived evidence. For that,
+    /// see [`Kel::verify_message_at`].
     pub fn verify_message(&self, msg: &[u8], sigs: &[IndexedSig]) -> Result<()> {
         let state = self.verify()?;
+        self.check_detached(msg, sigs, &state)
+    }
+
+    /// Verify detached signatures over `msg` against the key state that was
+    /// authoritative **at sequence `sn`**, after checking that the whole log
+    /// verifies to its head.
+    ///
+    /// This is what durable signed evidence needs. A storage claim, an
+    /// attestation, or a receipt signed years ago was signed by whatever keys
+    /// were authoritative then; ordinary key rotation must not silently
+    /// invalidate it, or every long-lived object in the protocol would decay
+    /// into unverifiable bytes on the signer's next routine rotation.
+    ///
+    /// **This is not a timestamp and proves nothing about *when* anything
+    /// happened.** A holder of a compromised historical key can sign a new
+    /// message and present it as `sn`-era. Historical verification answers
+    /// only "were these keys authoritative at `sn` in this log's own history";
+    /// establishing *when* a message existed needs an independent anchor —
+    /// a witness receipt (SPEC-01 §7), a chain height, or countersignatures
+    /// from other identity roots that recorded the head they saw. Callers
+    /// relying on this for evidence must carry such an anchor separately and
+    /// say so.
+    pub fn verify_message_at(&self, sn: u64, msg: &[u8], sigs: &[IndexedSig]) -> Result<()> {
+        let state = self.key_state_at(sn)?;
+        self.check_detached(msg, sigs, &state)
+    }
+
+    fn check_detached(&self, msg: &[u8], sigs: &[IndexedSig], state: &KeyState) -> Result<()> {
         let count = event::count_valid_signers(msg, &state.keys, sigs);
         if count >= state.threshold {
             Ok(())
@@ -187,9 +220,52 @@ impl Kel {
         }
     }
 
+    /// The authoritative key state as of sequence `sn`.
+    ///
+    /// The *entire* log is verified first, then replayed to `sn`: a historical
+    /// state is only meaningful if it comes from a log that is internally
+    /// consistent all the way to its head, so a truncated or tampered tail
+    /// cannot be used to resurrect a superseded key state.
+    pub fn key_state_at(&self, sn: u64) -> Result<KeyState> {
+        let head = self.verify()?.sn;
+        if sn > head {
+            return Err(IdentityError::UnknownSequence { sn, head });
+        }
+        self.verify_through(
+            usize::try_from(sn).map_err(|_| IdentityError::UnknownSequence { sn, head })?,
+        )
+    }
+
+    /// The content digest (multihash bytes) of the event at sequence `sn` —
+    /// what a durable signed object cites to pin *which* point of this log's
+    /// history it was signed under. Does not verify the log; pair it with
+    /// [`Kel::key_state_at`].
+    pub fn event_digest_at(&self, sn: u64) -> Result<Vec<u8>> {
+        let head = (self.events.len() as u64).saturating_sub(1);
+        let index = usize::try_from(sn).map_err(|_| IdentityError::UnknownSequence { sn, head })?;
+        self.events
+            .get(index)
+            .map(|event| event.digest())
+            .ok_or(IdentityError::UnknownSequence { sn, head })
+    }
+
+    /// The content digest of this log's head event.
+    pub fn head_digest(&self) -> Result<Vec<u8>> {
+        self.events
+            .last()
+            .map(|event| event.digest())
+            .ok_or(IdentityError::EmptyKel)
+    }
+
     /// Walk the log from inception and return the current authoritative key
     /// state, or an error identifying the first inconsistency. Fully offline.
     pub fn verify(&self) -> Result<KeyState> {
+        self.verify_through(self.events.len().saturating_sub(1))
+    }
+
+    /// Walk the log from inception through event index `upto` (inclusive),
+    /// returning the key state authoritative immediately after that event.
+    fn verify_through(&self, upto: usize) -> Result<KeyState> {
         let first = self.events.first().ok_or(IdentityError::EmptyKel)?;
 
         // Inception may be a plain or a delegated inception.
@@ -225,7 +301,7 @@ impl Kel {
         let mut next_threshold = icp.next_threshold;
         let mut prev_digest = first.digest();
 
-        for (i, ev) in self.events.iter().enumerate().skip(1) {
+        for (i, ev) in self.events.iter().enumerate().take(upto + 1).skip(1) {
             let sn = i as u64;
             if ev.scid != self.scid {
                 return Err(IdentityError::ScidMismatch);
@@ -279,7 +355,7 @@ impl Kel {
         Ok(KeyState {
             keys: cur_keys,
             threshold: cur_threshold,
-            sn: (self.events.len() as u64) - 1,
+            sn: upto as u64,
             next_commitments: next,
             next_threshold,
         })

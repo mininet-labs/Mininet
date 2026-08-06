@@ -76,6 +76,14 @@ impl<B: Backend> Store<B> {
     /// (an [`Object`]'s id is always derived from its bytes); signature and
     /// provenance verification are the ingest pipeline's job (crate docs).
     pub fn insert(&mut self, object: &Object) -> Result<()> {
+        // A tier may be declared before content arrives. Re-check it at the
+        // point the payload becomes known so predeclaration cannot bypass the
+        // encrypted-content non-advertising invariant.
+        if matches!(object.payload, Payload::Encrypted(_))
+            && self.cache_tier(object.id())?.advertises()
+        {
+            return Err(StoreError::PrivateContentAdvertising);
+        }
         let id = object.id().as_str();
         self.backend.put_blob(id, &object.to_bytes())?;
         self.backend.put_meta(&format!("idx/id/{id}"), b"")?;

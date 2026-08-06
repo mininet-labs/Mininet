@@ -114,6 +114,12 @@ given time.
   connect`/`listen` already use). **State-sync/catch-up now has two layers.** D-0093's
   bounded block-only `CatchupRequest`/`CatchupResponse` remains a compatibility
   path and still re-verifies every block through `apply_finalized_block`.
+  **Implemented on the D-0443 proposal branch:** block-header v2 adds an exact
+  `body_root`, so votes/QCs, persisted finalized blocks, catch-up, snapshots,
+  and execution prove the exact body independently of its resulting
+  `state_root`. Consensus message/proposal v3 also carries bounded monetary
+  epoch plans losslessly; all prior outer formats fail closed and require the
+  documented coordinated prelaunch migration.
   **Implemented in this PR (D-0207):** canonical complete
   `LedgerState` snapshots bind settlement-network id, exact monetary/payment
   state, finalized header, state commitment, and QC; receivers verify the QC
@@ -744,29 +750,59 @@ given time.
   unchanged), and no pruning/retention policy yet reads the `ColdArchive`
   signal — it exists as a marker with no consumer. See
   `docs/design/cold-storage-and-owner-only-encryption.md`.
-- **shipped (D-0437, roadmap #42)** — `mini-storage-fraud`: cross-identity
-  storage-fraud collision evidence. `StorageCommitmentClaim` binds one
-  identity root to one `mini_spacetime::StorageCommitment` over a
-  `replica_id` the crate itself derives from the signer's DID (not a
-  free-form caller value); `CollisionEvidence`/`verify_collision` prove
-  two *different* identity roots naming the *identical* commitment
-  cannot both have sealed independently, since `mini-porep::seal`'s DRG
-  construction guarantees distinct identity-bound replica ids always
-  produce distinct Merkle roots. Mirrors
-  `mini_consensus::evidence::EquivocationEvidence`'s own restraint
-  exactly: detects and proves, assigns no penalty, excludes nobody,
-  creates no consensus authority. **Not** a network-timing/latency fraud
-  detector — issue #42's other named scenario ("answering challenges via
-  a fast network fetch") needs a live network deployment to calibrate
-  against and is explicitly out of scope, named as required follow-up
-  rather than attempted with an unreviewed heuristic. Real, tested: 12
-  unit tests including an end-to-end proof that two providers genuinely,
-  independently sealing the same source data under their own derived
-  replica ids over the real `mini_porep::seal` path produce two different
-  roots. No live registration point yet — `mini-net`/`mini-store`'s
-  network shard distribution remains unstarted, so nothing observes real
-  claims from real storage providers today. See
+- **experimental, not integrated (D-0439, superseding D-0437; roadmap #42 — partial)** —
+  `mini-storage-fraud`: identity-bound replica registration and
+  replica-conflict evidence. `derive_replica_id(root, device, context)`
+  fixes the replica id a provider must seal under, over a typed
+  `ReplicaContextV1` (network, assignment, shard, ordinal, policy
+  version) rather than opaque caller bytes. `audit_and_attest` runs
+  `mini_porep`'s real registration audit under an auditor-chosen seed and
+  signs only if every sampled challenge verifies;
+  `RegistrationReceipt`/`RegistrationPolicy` count distinct auditor
+  *roots*, forbid self-attestation, and require pairwise-distinct seeds.
+  `RegisteredReplicaClaim` carries the full `SealCommitment` plus that
+  quorum, verifies delegation under the new `Capabilities::STORE`,
+  verifies signatures against the KEL state at a pinned sequence and
+  event digest (so claims survive ordinary key rotation), and *derives*
+  the `mini_spacetime::StorageCommitment` from the audited seal instead
+  of accepting one alongside it. `ReplicaRegistry` refuses a duplicate
+  replica root — the primary enforcement point; `verify_conflict` is the
+  cross-registry backstop and returns an explicitly **unattributed**
+  conflict.
+  **What it does not do:** attribute fault to either party, detect
+  timing/latency fraud, assign any penalty, or resist Sybil (a quorum of
+  `n` roots may be one operator, #18). Every timestamp in these objects
+  is self-reported. The residual attack is a corrupt auditor quorum, and
+  `AuditAttestation::issue` is exposed so that attack is testable rather
+  than assumed away. No live registration surface exists —
+  `mini-net`/`mini-store` shard distribution is still unstarted.
+  Unaudited prototype cryptography under the D-0047/#72 gate; the
+  decision stays *Proposed* pending founder review of four open protocol
+  questions. 30 adversarial tests and 5 golden-vector tests. This
+  supersedes PR #297's `StorageCommitmentClaim`/`CollisionEvidence`,
+  which external review found unsound (it authenticated duplicate bytes
+  without binding them to any seal, and admitted a trivial
+  frame-an-honest-provider attack). See
   `docs/design/storage-fraud-detection.md`.
+- **shipped (D-0440)** — shared correctness floor. `did-mini` now owns
+  the shared wire limits (`MAX_SIGNATURES`, `MAX_KEYS`,
+  `MAX_SIGNATURE_BYTES`, `MAX_DID_BYTES`) and the canonical
+  signature-order rule (`signatures_are_canonical`,
+  `canonicalize_signatures`), plus historical key-state verification
+  (`Kel::key_state_at`, `verify_message_at`, `event_digest_at`,
+  `head_digest`) so durable signed evidence survives its signer's key
+  rotation. Seven already-merged decoders (`mini-attest`, `mini-bridge`,
+  `mini-objects` ×3, `mini-private-index`, `mini-relay`) capped
+  signatures at 16 while `did-mini` permits 64 — a >16-key identity could
+  sign an object it could not then decode — and accepted unsorted or
+  repeated lists, giving one content-addressed object more than one
+  identity. Both are corrected against the shared rule.
+  `mini_porep::sample_challenges` now reserves
+  `max(1, count / (num_layers + 1))` challenges for the final layer: it
+  previously sampled uniformly, so an audit could draw no final-layer
+  challenge and never constrain `SealCommitment::replica_root` at all
+  (about one audit in twenty-six for a 2-layer seal with 8 challenges),
+  letting a forged replica root pass.
 
 ## 8. Networking
 
@@ -1418,15 +1454,15 @@ the top development priority.
   **Not** a private-information-retrieval scheme: the queried peer sees
   the query text in full; true query-content privacy is separate future
   work gated behind issue #72's external crypto review, the same gate
-  Sphinx/Loopix sits behind. Requester anonymity needed no new code —
-  `mini_bearer::Channel`/CH1 already discloses no client identity. Not
-  wrapped in a signed `Object` (a live answer, not a durable one). Real,
-  tested: 6 unit tests (round trip matches local `search`; oversized
-  query/`max_results` bounds; a compliant server never over-returns; every
-  current `AvailabilityState`/`RestrictionReason`/`UnavailabilityReason`/
-  `Scheme`/`PersonalizationPolicy` variant round-trips with a future-safe
-  fallback; tampered ciphertext fails closed) plus one real `TcpBearer`
-  socket test. See `docs/design/f6-private-query-transport.md`.
+  Sphinx/Loopix sits behind. The anonymous Phase 1 path uses identity-free
+  CH1; PR #296's optional named path is mutual authentication and therefore
+  discloses a requester root or pairwise identity. Responses are not wrapped
+  in signed `Object`s (live answers, not durable ones). Real, tested: local/
+  remote equivalence; request/result/field bounds before encoding and after
+  decoding; canonical URL/profile validation; requested-profile attribution;
+  displayability preservation; unknown future wire tags failing closed;
+  tamper rejection; and real `TcpBearer` socket coverage. See
+  `docs/design/f6-private-query-transport.md`.
 - **shipped** — Track F6 Phase 2: wire remote query results into F3's
   federated merge (D-0436, roadmap #175). `mini-search-federation`'s
   `federate_query` merge step (dedup by URL, higher score wins, ties break
@@ -1435,20 +1471,18 @@ the top development priority.
   behavior. `mini-search-federation-net`'s new `remote_merge` module
   bridges a `remote_query` response into that same policy:
   `federated_result_from_wire` converts one `WireResult` into a typed
-  `mini_query::ResultProvenance` (rejecting any `relevance_score_bps` or
-  `explanation` component above `WeightBps::MAX`, since `WireResult`'s
-  wire codec does not itself bound those fields on decode), and
-  `merge_remote_results` folds a whole response into a caller's own
-  local/pulled results, failing closed on the first invalid entry rather
-  than dropping it silently. The merged result's provider tag is
-  caller-asserted, not cryptographically verified — F6 provides no
-  caller/provider authentication beyond the channel itself; binding it to
-  `mini-transport-security`'s authenticated peer identity is named
-  follow-up, not attempted here. Real, tested: 8 new unit tests (valid
-  round trip; out-of-range score and explanation component each rejected;
-  URL-collision dedup by score; `max_results` respected across the
-  combined set; an invalid remote result fails the whole merge). See
-  `docs/design/f6-private-query-transport.md`.
+  `mini_query::ResultProvenance` and invokes the same canonical-field,
+  multihash, URL, score, and displayability validator as the wire decoder,
+  repeating typed score conversion as defense in depth. `merge_remote_results`
+  folds a whole response into a caller's local/pulled results and fails closed
+  on the first invalid entry. Its legacy provider tag remains caller-asserted
+  for anonymous/out-of-band use. PR #296 adds a separate named path:
+  `SearchQuery`-purpose `AuthenticatedConnection`, private
+  `AuthenticatedQueryResults`, an endpoint-derived provider label stable across
+  channels to preserve F3 determinism and prevent handshake grinding, and a
+  sealed merge that accepts no caller-selected replacement label. Endpoint
+  rotation intentionally rotates the label; provider honesty and cross-rotation
+  continuity remain unsolved. See `docs/design/f6-private-query-transport.md`.
 - **shipped** — `mini-intake-types` (D-0313, Track B1): pure Mininet
   Intake vocabulary — `IntakeEnvelope`, `SourceRecord`,
   `DerivedRepresentation`, `AuthorityClass`, `ReviewState`, `IntakeLink`,
@@ -1889,40 +1923,43 @@ dishonest `treasury_balance_micro` input.
   only says what's true today, not why.
 
 
-## Privacy and transport security — D-0377 proposal
+## Privacy transport runtime convergence — D-0377 and proposed D-0438
 
-- **implemented in PR #292** — optional channel-bound endpoint authentication:
-  `SessionAuthClaim` proves one delegated `did:mini` device, typed purpose,
-  endpoint role, and X25519 routing key on one exact anonymous CH1 transcript.
-  Caller-held KELs, `FreshnessPins`, expiry, and bounded replay state verify the
-  proof; `verify_advertised` also requires it to match the signed endpoint that
-  was selected and dialed.
-- **implemented in PR #292** — signed secure discovery: network-bound,
-  expiring `PeerAdvertisement` records and bounded `SecurePexResponse` framing;
-  locally seeded input-order-independent dial planning rejects duplicate
-  endpoint/routing keys and caps IPv4 `/24` or IPv6 `/48` concentration.
-  Records are availability hints, never truth or governance authority.
-- **implemented in PR #292** — real Tier-1 onion execution: independent
-  Entry/Rendezvous/Delivery X25519+AEAD layers, independent public hop ids,
-  padded opaque routing tokens, per-hop expiry/replay checks, fixed-size
-  destination-encrypted payloads, and a real three-socket convergence test.
-  No relay receives application plaintext or both endpoint identities.
-- **fail-closed** — `PrivacyTier::Mixed` and `Burst` have no operational
+- **shipped in PR #292** — optional channel-bound endpoint authentication,
+  signed network-bound discovery, validity-window replay retention, local
+  prefix-diverse dial planning, real three-hop destination-encrypted onion
+  forwarding, and a runtime-fail-closed Mixed/Burst gate.
+- **implemented in draft PR #296** — `AuthenticatedConnection<B>` fuses one
+  bearer, exact CH1 channel, and peer verified on that channel. The TCP path
+  performs signed-advertisement dial, responder-first proof, exact
+  advertisement/session binding, and transactional freshness/replay commit.
+- **implemented in draft PR #296** — bounded local retry discards every failed
+  attempt whole; bridge-created channels enter the same authentication seam
+  through the existing `mini-bridge` boundary; verified onion route assembly
+  rejects visible endpoint/routing-key/root/device reuse across roles.
+- **implemented in draft PR #296** — optional named F6 search uses the distinct
+  `SearchQuery` purpose, derives a provider pseudonym from the verified advertised
+  endpoint, keeps it stable across channels so F3 tie-breaks remain deterministic,
+  and seals the authenticated merge input behind private fields. Anonymous search
+  and caller-labeled legacy merge remain
+  available as explicitly weaker contracts.
+- **fail-closed** — `PrivacyTier::Mixed` and `Burst` still have no operational
   executor. `mini_transport_security::executable_transport` refuses them until
   the exact D-0305 Sphinx/Loopix implementation receives #72's independent
-  review. Policy vocabulary is not treated as implementation evidence.
-- **open exact limits** — first-contact KEL freshness/witness gossip; independent
-  ASN/operator/jurisdiction evidence; NAT traversal and reconnect; private
-  bridge operations; pluggable/camouflaged bearers; ISP-throttling resistance;
-  and global timing/volume/intersection protection. See
-  `docs/audits/issue-27-censorship-resistance-review.md`.
+  review.
+- **open exact limits** — first-contact KEL witness freshness; independent
+  operator/ASN/jurisdiction evidence; NAT traversal and reconnect; private
+  bridge operations; real camouflage adapters; ISP-throttling resistance;
+  crash-persistent relay/destination replay state and flood controls; global
+  timing/volume/intersection protection; and privacy-preserving
+  continuity for rotating authenticated search providers.
 
 **Authority boundary:** anonymous CH1 remains available; pairwise identities
 remain valid; there is no CA, canonical relay/bootstrap registry, hosted
 identity directory, trusted first peer, majority-by-download rule, admin or
 unmasking key, or value-to-routing/voice path.
 
-## Node deployment — Mininet Node Appliance (D-0439)
+## Node deployment — Mininet Node Appliance (D-0446)
 
 Doctrine: `docs/design/mininet-node-appliance.md`. A staged, Debian-Stable-
 based deployment profile, explicitly not a from-scratch operating system —
@@ -1957,3 +1994,38 @@ put it (`mini-forge::release` + `mini-installer`). Any future signed image
 must remain obtainable and verifiable as a content-addressed object synced
 peer-to-peer per D-0020's [FREEZE]; no appliance work may introduce a
 forced-update or remote-kill mechanism (D-0011/P3).
+## Day-0 release code hardening — D-0442/D-0443 proposal
+
+- **implemented on the proposal branch (D-0443 superseding D-0442's transcript
+  version)** — block-header v2 commits `body_root`, making the exact body part
+  of every vote/QC and durable archive proof; consensus message/proposal v3
+  carries bounded monetary epoch plans losslessly; scalable epoch commitment
+  v2 includes every nested Human Share field. Old messages, snapshots,
+  state-sync responses, archive blocks, and install journals fail closed under
+  the coordinated prelaunch migration. Proposal admission remains capped at
+  4,096 claims.
+- **implemented on the proposal branch** — monetary epoch progression fails
+  at `u64::MAX`; payment admission preserves only the canonical
+  `InsufficientFunds` retry; unsupported signing suites return an error instead
+  of reaching an Ed25519-only panic path; pending-claim cleanup retains exact
+  admitted wire sizes.
+- **implemented on the proposal branch** — owner-only sealing reserves its
+  full 60-byte framing/tag overhead; encrypted objects cannot enter advertising
+  cache tiers; cache metadata is canonical.
+- **implemented on the proposal branch** — crawler address admission rejects
+  omitted special/transition ranges and validates the embedded IPv4 target in
+  the globally reachable RFC 6052 NAT64 prefix.
+- **still gated** — this is internal engineering evidence, not production
+  approval. External cryptography/consensus/storage review (A1), personhood and
+  validator formation, PR #296's authenticated transport convergence,
+  chunked state transfer, bounded rejection history, a public payment service,
+  owner-key recovery/rotation,
+  storage-fraud consequences, the complete crawler/index pipeline, and private
+  settlement integration remain open. The exact findings and validation record
+  are in `docs/audits/day0-release-code-hardening-20260805.md`.
+**Authority boundary:** anonymous CH1 and pairwise identities remain valid;
+there is no CA, canonical relay/bootstrap registry, hosted identity directory,
+trusted first peer, majority-by-download rule, admin/unmasking key, or
+value-to-routing/ranking/voice path. An authenticated endpoint proves control of
+one key-bound endpoint on one channel, not personhood, operator independence,
+result truth, or governance standing.

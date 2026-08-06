@@ -1,7 +1,9 @@
 //! Errors for authenticated transport and secure peer discovery.
 
 use did_mini::IdentityError;
+use mini_bearer::BearerError;
 use mini_crypto::CryptoError;
+use mini_relay::RelayError;
 
 /// Result alias for this crate.
 pub type Result<T> = core::result::Result<T, TransportSecurityError>;
@@ -29,6 +31,18 @@ pub enum TransportSecurityError {
     Replay,
     InvalidSelectionPolicy,
     MixedTransportNotReviewed,
+    /// Every bounded dial candidate failed before a fully authenticated
+    /// connection existed. No partially verified state is returned.
+    DialExhausted {
+        attempted: usize,
+    },
+    /// Two onion roles reused a visible endpoint, routing key, root, or device.
+    RouteEndpointReuse,
+    /// A bearer send/receive or channel-open failure made the ordered CH1 state
+    /// ambiguous. The connection is permanently unusable and must be replaced.
+    ConnectionPoisoned,
+    Bearer(BearerError),
+    Relay(RelayError),
     Identity(IdentityError),
     Crypto(CryptoError),
 }
@@ -58,6 +72,20 @@ impl core::fmt::Display for TransportSecurityError {
                 f,
                 "mixed/burst transport is unavailable until the exact executor receives independent review"
             ),
+            Self::DialExhausted { attempted } => write!(
+                f,
+                "all {attempted} bounded transport candidates failed authentication or connection"
+            ),
+            Self::RouteEndpointReuse => write!(
+                f,
+                "one visible transport endpoint, routing key, root, or device was assigned multiple onion roles"
+            ),
+            Self::ConnectionPoisoned => write!(
+                f,
+                "authenticated connection is unusable after an ambiguous bearer/channel failure"
+            ),
+            Self::Bearer(error) => write!(f, "bearer/channel operation failed: {error}"),
+            Self::Relay(error) => write!(f, "relay/onion operation failed: {error}"),
             Self::Identity(error) => write!(f, "identity verification failed: {error}"),
             Self::Crypto(error) => write!(f, "cryptographic operation failed: {error}"),
         }
@@ -65,6 +93,18 @@ impl core::fmt::Display for TransportSecurityError {
 }
 
 impl std::error::Error for TransportSecurityError {}
+
+impl From<BearerError> for TransportSecurityError {
+    fn from(error: BearerError) -> Self {
+        Self::Bearer(error)
+    }
+}
+
+impl From<RelayError> for TransportSecurityError {
+    fn from(error: RelayError) -> Self {
+        Self::Relay(error)
+    }
+}
 
 impl From<IdentityError> for TransportSecurityError {
     fn from(error: IdentityError) -> Self {

@@ -17,19 +17,20 @@
 use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};
 use mini_chain::{BlockHeader, Vote};
 use mini_crypto::{Signature, SignatureSuite};
-use mini_execution::{SettlementBlockBody, MAX_CLAIMS_PER_BLOCK};
+use mini_economy::ScalableEpochPlan;
+use mini_execution::{SettlementBlockBody, MAX_CLAIMS_PER_BLOCK, MAX_MONETARY_EPOCHS_PER_BLOCK};
 use mini_settlement::PaymentClaim;
 
 use crate::error::{ConsensusError, Result};
 
 /// Domain tag: bump the version to evolve the format without ever letting a
 /// v1 message be mistaken for a later one.
-const DOMAIN: &[u8] = b"mini-consensus/msg/v2";
+const DOMAIN: &[u8] = b"mini-consensus/msg/v3";
 
 /// Domain tag for the bytes a proposer signs — distinct from the message
 /// framing tag so a proposal signature can never be confused with any other
 /// signed object in this tree.
-const PROPOSAL_SIGN_DOMAIN: &[u8] = b"mini-consensus/proposal/v1";
+const PROPOSAL_SIGN_DOMAIN: &[u8] = b"mini-consensus/proposal/v3";
 
 /// Hard cap on device signatures in one proposal (a well-formed proposal
 /// carries one device's signature; the bound stops a malformed frame forcing
@@ -78,7 +79,8 @@ pub struct Proposal {
     pub proposer_device: Did,
     /// The proposed block header.
     pub header: BlockHeader,
-    /// The ordered claim body the header's `state_root` commits to.
+    /// The exact ordered body committed by `header.body_root`; `state_root`
+    /// separately commits to the deterministic result of applying it.
     pub body: SettlementBlockBody,
     signature: Vec<IndexedSig>,
 }
@@ -94,6 +96,7 @@ impl Proposal {
         round: u32,
         valid_round: i64,
         block_hash: &[u8; 32],
+        body_hash: &[u8; 32],
         proposer_root: &Did,
     ) -> Vec<u8> {
         let mut w = Vec::new();
@@ -102,6 +105,7 @@ impl Proposal {
         w.extend_from_slice(&round.to_be_bytes());
         w.extend_from_slice(&valid_round.to_be_bytes());
         w.extend_from_slice(block_hash);
+        w.extend_from_slice(body_hash);
         let r = proposer_root.as_str().as_bytes();
         w.extend_from_slice(&(r.len() as u32).to_be_bytes());
         w.extend_from_slice(r);
@@ -132,6 +136,7 @@ pub fn sign_proposal(
         round,
         valid_round,
         &header.hash(),
+        &body.hash(),
         proposer_root,
     );
     let signature = device.sign_message(&transcript);
@@ -155,6 +160,9 @@ pub fn sign_proposal(
 /// validator set), the same way [`mini_chain::verify_vote`] leaves validator-
 /// set membership to its caller.
 pub fn verify_proposal(proposal: &Proposal, root_kel: &Kel, device_kel: &Kel) -> Result<()> {
+    if proposal.header.body_root != proposal.body.hash() {
+        return Err(ConsensusError::Malformed);
+    }
     if device_kel.did().as_str() != proposal.proposer_device.as_str()
         || root_kel.did().as_str() != proposal.proposer_root.as_str()
     {
@@ -169,6 +177,7 @@ pub fn verify_proposal(proposal: &Proposal, root_kel: &Kel, device_kel: &Kel) ->
         proposal.round,
         proposal.valid_round,
         &proposal.header.hash(),
+        &proposal.body.hash(),
         &proposal.proposer_root,
     );
     device_kel
@@ -262,6 +271,7 @@ pub(crate) fn encode_header(w: &mut Vec<u8>, h: &BlockHeader) {
     w.extend_from_slice(&h.height.to_be_bytes());
     w.extend_from_slice(&h.prev_hash);
     w.extend_from_slice(&h.state_root);
+    w.extend_from_slice(&h.body_root);
     w.extend_from_slice(&h.timestamp_ms.to_be_bytes());
     put_bytes(w, h.proposer.as_str().as_bytes());
 }
@@ -272,12 +282,15 @@ pub(crate) fn decode_header(r: &mut Reader<'_>) -> Result<BlockHeader> {
     prev_hash.copy_from_slice(r.take(32)?);
     let mut state_root = [0u8; 32];
     state_root.copy_from_slice(r.take(32)?);
+    let mut body_root = [0u8; 32];
+    body_root.copy_from_slice(r.take(32)?);
     let timestamp_ms = r.u64()?;
     let proposer = decode_did(r)?;
     Ok(BlockHeader {
         height,
         prev_hash,
         state_root,
+        body_root,
         timestamp_ms,
         proposer,
     })
@@ -295,6 +308,10 @@ pub(crate) fn encode_body(w: &mut Vec<u8>, b: &SettlementBlockBody) {
         put_bytes(w, &c.last_known_chain);
         w.push(c.signature.suite().tag());
         w.extend_from_slice(&c.signature.to_bytes());
+    }
+    w.extend_from_slice(&(b.monetary_epochs.len() as u32).to_be_bytes());
+    for epoch in &b.monetary_epochs {
+        put_bytes(w, &epoch.canonical_bytes());
     }
 }
 
@@ -332,7 +349,18 @@ pub(crate) fn decode_body(r: &mut Reader<'_>) -> Result<SettlementBlockBody> {
             signature,
         });
     }
-    Ok(SettlementBlockBody::new(claims))
+    let epoch_count = r.u32()? as usize;
+    if epoch_count > MAX_MONETARY_EPOCHS_PER_BLOCK {
+        return Err(ConsensusError::TooLarge);
+    }
+    let mut monetary_epochs = Vec::with_capacity(epoch_count);
+    for _ in 0..epoch_count {
+        let bytes = r.bytes(mini_economy::MAX_SCALABLE_EPOCH_PLAN_BYTES)?;
+        monetary_epochs.push(
+            ScalableEpochPlan::from_wire_bytes(bytes).map_err(|_| ConsensusError::Malformed)?,
+        );
+    }
+    Ok(SettlementBlockBody::new(claims).with_monetary_epochs(monetary_epochs))
 }
 
 pub(crate) fn decode_did(r: &mut Reader<'_>) -> Result<Did> {
@@ -439,12 +467,34 @@ mod tests {
     use mini_crypto::SigningKey;
     use mini_settlement::sign_claim;
 
+    fn monetary_plan() -> ScalableEpochPlan {
+        mini_economy::plan_scalable_epoch(
+            &mini_economy::ScalableEpochRequest {
+                epoch: 0,
+                duration_ms: mini_economy::YEAR_MS,
+                opening_circulating: mini_economy::Amount::from_micro(1_000_000),
+                human_snapshot: mini_economy::HumanSnapshot {
+                    root: [0x44; 32],
+                    eligible_count: 10,
+                },
+                service: vec![mini_economy::Allocation {
+                    beneficiary: "did:mini:relay".into(),
+                    amount: mini_economy::Amount::from_micro(7_500),
+                }],
+                treasury: vec![],
+            },
+            &mini_economy::IssuancePolicy::d0074(),
+        )
+        .unwrap()
+    }
+
     fn header() -> BlockHeader {
         let root = Controller::incept_single_from_seeds(&[1u8; 32], &[2u8; 32]).unwrap();
         BlockHeader {
             height: 7,
             prev_hash: [3u8; 32],
             state_root: [4u8; 32],
+            body_root: body().hash(),
             timestamp_ms: 12_345,
             proposer: root.did(),
         }
@@ -509,6 +559,23 @@ mod tests {
     }
 
     #[test]
+    fn a_monetary_epoch_round_trips_without_losing_any_issuance_field() {
+        let body = SettlementBlockBody::new(vec![]).with_monetary_epochs(vec![monetary_plan()]);
+        let mut header = header();
+        header.body_root = body.hash();
+        let original = signed(0, -1, header, body);
+        let bytes = ConsensusMessage::Proposal(original.clone()).to_wire_bytes();
+        let ConsensusMessage::Proposal(decoded) =
+            ConsensusMessage::from_wire_bytes(&bytes).unwrap()
+        else {
+            panic!("expected a proposal");
+        };
+        assert_eq!(decoded, original);
+        assert_eq!(decoded.header.body_root, decoded.body.hash());
+        assert_eq!(decoded.body.monetary_epochs.len(), 1);
+    }
+
+    #[test]
     fn a_signed_proposal_verifies_and_a_tampered_one_does_not() {
         let (root, device) = proposer();
         let p = sign_proposal(2, -1, header(), body(), &root.did(), &device);
@@ -519,6 +586,14 @@ mod tests {
         let mut tampered = p.clone();
         tampered.round = 3;
         assert!(verify_proposal(&tampered, &root.kel(), &device.kel()).is_err());
+
+        // The state root alone does not bind claims that execution drops (for
+        // example an invalid signature). The proposal transcript must bind
+        // the exact body so an intermediary cannot add/remove such claims
+        // while preserving the signed header.
+        let mut tampered_body = p.clone();
+        tampered_body.body.claims[0].amount_micro += 1;
+        assert!(verify_proposal(&tampered_body, &root.kel(), &device.kel()).is_err());
 
         // A different validator's KELs must not verify this proposal.
         let (other_root, other_device) = {
@@ -563,6 +638,18 @@ mod tests {
             ConsensusMessage::Proposal(signed(0, -1, header(), SettlementBlockBody::new(vec![])))
                 .to_wire_bytes();
         bytes.push(0xFF);
+        assert_eq!(
+            ConsensusMessage::from_wire_bytes(&bytes).unwrap_err(),
+            ConsensusError::Malformed
+        );
+    }
+
+    #[test]
+    fn pre_body_commitment_message_version_is_rejected() {
+        let mut bytes = ConsensusMessage::Proposal(signed(0, -1, header(), body())).to_wire_bytes();
+        let version = DOMAIN.len() - 1;
+        assert_eq!(bytes[version], b'3');
+        bytes[version] = b'2';
         assert_eq!(
             ConsensusMessage::from_wire_bytes(&bytes).unwrap_err(),
             ConsensusError::Malformed

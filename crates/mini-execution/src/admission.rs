@@ -78,9 +78,15 @@ impl std::error::Error for AdmissionError {}
 
 /// One deterministic, bounded node-local set of claims awaiting proposal.
 #[derive(Debug, Clone)]
+struct AdmittedClaim {
+    claim: PaymentClaim,
+    wire_bytes: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentAdmissionPool {
     policy: AdmissionPolicy,
-    claims: BTreeMap<[u8; 32], PaymentClaim>,
+    claims: BTreeMap<[u8; 32], AdmittedClaim>,
     payer_slots: BTreeMap<Vec<u8>, BTreeMap<u64, [u8; 32]>>,
     payer_reserved_micro: BTreeMap<Vec<u8>, u128>,
     encoded_bytes: usize,
@@ -185,7 +191,13 @@ impl PaymentAdmissionPool {
             .entry(claim.payer.clone())
             .or_default()
             .insert(claim.sequence, digest);
-        self.claims.insert(digest, claim);
+        self.claims.insert(
+            digest,
+            AdmittedClaim {
+                claim,
+                wire_bytes: bytes,
+            },
+        );
         Ok(digest)
     }
 
@@ -194,7 +206,14 @@ impl PaymentAdmissionPool {
         let mut ordered: Vec<_> = self
             .claims
             .iter()
-            .map(|(digest, claim)| (claim.payer.as_slice(), claim.sequence, *digest, claim))
+            .map(|(digest, admitted)| {
+                (
+                    admitted.claim.payer.as_slice(),
+                    admitted.claim.sequence,
+                    *digest,
+                    &admitted.claim,
+                )
+            })
             .collect();
         ordered.sort_by(|a, b| (a.0, a.1, a.2).cmp(&(b.0, b.1, b.2)));
         ordered
@@ -242,12 +261,12 @@ impl PaymentAdmissionPool {
     }
 
     pub fn remove(&mut self, digest: &[u8; 32]) -> Option<PaymentClaim> {
-        let claim = self.claims.remove(digest)?;
-        let bytes = claim
-            .to_wire_bytes()
-            .expect("admitted claims were wire-bounded")
-            .len();
-        self.encoded_bytes -= bytes;
+        let admitted = self.claims.remove(digest)?;
+        let claim = admitted.claim;
+        // Retain the size accepted at admission rather than re-encoding in a
+        // cleanup path. Keeping both in one entry makes the accounting
+        // invariant structural rather than relying on parallel maps.
+        self.encoded_bytes = self.encoded_bytes.saturating_sub(admitted.wire_bytes);
         if let Some(slots) = self.payer_slots.get_mut(&claim.payer) {
             slots.remove(&claim.sequence);
             if slots.is_empty() {
@@ -286,7 +305,9 @@ fn validate_claim(
         return Err(AdmissionError::Expired);
     }
     let digest = claim_digest(claim);
-    if state.rejected_claim(&digest).is_some()
+    if state
+        .rejected_claim(&digest)
+        .is_some_and(|reason| reason != mini_settlement::CanonicalRejection::InsufficientFunds)
         || state
             .finalized_sequence(&claim.payer)
             .is_some_and(|sequence| sequence >= claim.sequence)
@@ -553,5 +574,41 @@ mod tests {
             .any(|(_, reason)| *reason == AdmissionError::Expired));
         assert!(pool.is_empty());
         assert_eq!(pool.encoded_bytes(), 0);
+    }
+
+    #[test]
+    fn an_insufficient_funds_rejection_can_be_readmitted_after_funding() {
+        let key = payer(0x38);
+        let funder = payer(0x39);
+        let initial = LedgerState::with_genesis_balances(
+            Amount::from(300),
+            vec![
+                (account(&key), Amount::from(100)),
+                (account(&funder), Amount::from(200)),
+            ],
+        )
+        .unwrap();
+        let retried = claim(&key, 0x41, 200, 0);
+        let rejected = crate::apply_block(
+            &initial,
+            &crate::SettlementBlockBody::new(vec![retried.clone()]),
+        )
+        .unwrap();
+        assert_eq!(
+            rejected.rejected_claim(&claim_digest(&retried)),
+            Some(mini_settlement::CanonicalRejection::InsufficientFunds)
+        );
+
+        let funding =
+            mini_settlement::sign_claim(&funder, &account(&key), 100, 0, 10_000, b"head", 0)
+                .unwrap();
+        let funded =
+            crate::apply_block(&rejected, &crate::SettlementBlockBody::new(vec![funding])).unwrap();
+
+        let mut pool = PaymentAdmissionPool::new(AdmissionPolicy::default()).unwrap();
+        assert_eq!(
+            pool.admit(retried.clone(), &funded, 1).unwrap(),
+            claim_digest(&retried)
+        );
     }
 }

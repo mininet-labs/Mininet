@@ -1,7 +1,7 @@
 use mini_economy::{
     build_genesis, plan_epoch, plan_human_share, plan_scalable_epoch, Allocation, Amount, Channel,
     EconomyError, EpochRequest, GenesisPolicy, HumanSnapshot, IssuancePolicy, MonetaryLedger,
-    ScalableEpochRequest, VestingSubject, YEAR_MS,
+    MonetaryLedgerSnapshot, ScalableEpochRequest, VestingSubject, YEAR_MS,
 };
 
 fn amount(value: u128) -> Amount {
@@ -122,6 +122,25 @@ fn monetary_ledger_enforces_supply_binding_epoch_order_and_vesting() {
                 .checked_add(second.service_issued)
                 .unwrap(),
         "the first epoch's human and treasury positions vested as deterministic policy time advanced"
+    );
+}
+
+#[test]
+fn terminal_epoch_cannot_be_reapplied_after_u64_rollover() {
+    let genesis = amount(1_000_000_000);
+    let terminal = MonetaryLedger::import_snapshot(MonetaryLedgerSnapshot {
+        genesis_circulating: genesis,
+        total_issued: Amount::ZERO,
+        policy_time_ms: 0,
+        last_epoch: Some(u64::MAX),
+        positions: Vec::new(),
+    })
+    .unwrap();
+    let repeated = one_year_plan(u64::MAX, genesis);
+
+    assert_eq!(
+        terminal.apply_epoch(&repeated, &IssuancePolicy::d0074()),
+        Err(EconomyError::UnexpectedEpoch)
     );
 }
 
