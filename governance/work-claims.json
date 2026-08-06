@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-08-03T00:00:00Z",
+  "updated_at": "2026-08-06T23:26:15Z",
   "claims": [
     {
       "issue": 122,
@@ -717,6 +717,23 @@
         "D-0444"
       ],
       "notes": "Registry integrity checks (D-0444): decision-log append-only enforcement, decision-number collision detection against the canonical baseline and other open claims, duplicate-heading detection, and a shared-wire-limit check that fails when a crate restates a did-mini limit below did-mini's own. Each rule replays a real incident from 2026-08-05. Tooling and CI only; no protocol surface, no authority. D-0444 stays Proposed."
+    },
+    {
+      "issue": 8,
+      "status": "active",
+      "contributor": "claude-agent",
+      "branch": "claude/private-payment-unity",
+      "pull_request": null,
+      "lease_expires": "2026-08-13",
+      "paths": [
+        "crates/mini-private-payment",
+        "crates/mini-value",
+        "docs/design/private-payment-path.md"
+      ],
+      "decision_ids": [
+        "D-0447"
+      ],
+      "notes": "D-0447: mini-private-payment, the shielded settlement path composing mini-value's stealth addresses, ring signatures and Bulletproofs into an actual payment object, plus the three mini-value gaps that blocked it (RangeProof serialization, stealth shared-secret accessors, a fail-closed ring verifier). Prototype cryptography under the D-0047/#72 gate; not wired into mini-contribution or mini-engagement, and no chain-backed PrivateLedgerView exists. Coordination evidence only, not approval or authority."
     }
   ]
 }

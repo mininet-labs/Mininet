@@ -89,6 +89,22 @@ impl MininetRingSignature {
             secret_key,
         })
     }
+
+    /// A verify-only instance, for the overwhelmingly common case of
+    /// checking someone else's signature.
+    ///
+    /// [`RingSignatureScheme::verify`] takes `&self` but reads no signer
+    /// state, so a verifier previously had to invent a secret key to call
+    /// it — which meant every verifying call site had a fake key lying
+    /// around. This is fail-closed rather than merely convenient: the
+    /// index is out of range for any ring, so `sign` on a verifier returns
+    /// `None` instead of producing a signature under a zero key.
+    pub fn verifier() -> Self {
+        MininetRingSignature {
+            secret_index: usize::MAX,
+            secret_key: Scalar::ZERO,
+        }
+    }
 }
 
 impl RingSignatureScheme for MininetRingSignature {
@@ -320,7 +336,24 @@ mod tests {
 
         let mut bad_ring = ring;
         bad_ring[1] = vec![0u8; 4]; // not a valid compressed point
-        let verifier = MininetRingSignature::new(0, &[0u8; 32]).unwrap();
+        let verifier = MininetRingSignature::verifier();
         assert!(!verifier.verify(&bad_ring, b"message", &sig));
+    }
+
+    #[test]
+    fn a_verifier_instance_verifies_without_holding_any_secret() {
+        let (ring, secret) = ring_with_real_key_at(8, 5);
+        let mut signer = MininetRingSignature::new(5, &secret.to_bytes()).unwrap();
+        let sig = signer.sign(&ring, b"message").unwrap();
+        assert!(MininetRingSignature::verifier().verify(&ring, b"message", &sig));
+    }
+
+    #[test]
+    fn a_verifier_instance_cannot_sign() {
+        // Fail-closed: its index is out of range for every ring, so it can
+        // never emit a signature under the zero key it carries.
+        let (ring, _) = ring_with_real_key_at(8, 0);
+        let mut verifier = MininetRingSignature::verifier();
+        assert_eq!(verifier.sign(&ring, b"message"), None);
     }
 }
