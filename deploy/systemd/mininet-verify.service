@@ -1,0 +1,40 @@
+# Mininet Node Appliance — periodic self-verification.
+#
+# Runs deploy/verification/verify.sh and records the result in the journal.
+# A node whose firewall rules were flushed by an unrelated package, or whose
+# units were disabled by a botched upgrade, otherwise keeps looking healthy
+# from the outside while doing nothing.
+#
+# It verifies the APPLIANCE layer only — units enabled, ruleset loaded, user
+# present. It does not verify a Mininet release; that is `mini installer
+# verify` / `mini release verify` (D-0070/D-0071), which are operator-run
+# governance actions and are deliberately not on a timer.
+#
+# Read-only: it reports, and never repairs. Self-healing infrastructure that
+# silently reapplies configuration is infrastructure that overrides the
+# operator's deliberate changes, which is the wrong default on a machine
+# somebody owns (Directive 1).
+
+[Unit]
+Description=Mininet appliance self-verification
+Documentation=https://github.com/mininet-labs/Mininet/blob/main/docs/design/mininet-node-appliance.md
+PartOf=mininet.target
+
+[Service]
+Type=oneshot
+# Root, because the live-state checks read nftables and systemd unit state.
+# The script writes nothing.
+ExecStart=/usr/local/lib/mininet/verify.sh
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
+[Install]
+WantedBy=mininet.target

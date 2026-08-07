@@ -1,0 +1,23 @@
+# Mininet Node Appliance — self-verification schedule.
+#
+# Daily, with a randomized delay. The delay is not cosmetic: a fleet of
+# appliances all verifying at exactly 03:00 would produce a
+# fleet-wide activity spike observable from outside, and correlated timing
+# across nodes is a linkability signal in a network whose whole point is
+# that observers learn as little as possible.
+
+[Unit]
+Description=Daily Mininet appliance self-verification
+Documentation=https://github.com/mininet-labs/Mininet/blob/main/docs/design/mininet-node-appliance.md
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=4h
+# Run after boot if the machine was off at the scheduled time — a node that
+# is only on intermittently is exactly the cheap, owner-operated hardware
+# this profile is for.
+Persistent=true
+AccuracySec=1h
+
+[Install]
+WantedBy=timers.target

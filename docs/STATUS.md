@@ -784,6 +784,47 @@ given time.
   without binding them to any seal, and admitted a trivial
   frame-an-honest-provider attack). See
   `docs/design/storage-fraud-detection.md`.
+- **experimental, not integrated (D-0445; roadmap #42/#33 — partial)** —
+  `mini-storage-fraud::lifecycle`: what happens to a replica *after* it
+  registers. `ReplicaLifecycle` runs proof windows whose challenges derive
+  from the seal digest, the window index, and a **verifier-supplied
+  beacon**, so the provider cannot pre-compute which nodes it will be
+  asked for. A registered replica starts `Degraded { missed_windows: 0 }`
+  (registration is not possession), goes `Active` on an answered window,
+  stops counting capacity the moment one is missed, and `Suspended` past
+  grace with no self-recovery; `Retired` is the voluntary exit.
+  `capacity_units_of` derives capacity from the audited seal's byte count
+  and `ProvenCapacity` has **no constructor taking a number**, closing a
+  hole where a provider could seal one 32-byte node and declare a million
+  units into `mini_spacetime::proposer_weight`, which documents that it
+  "trusts its input completely".
+  **What it does not do:** it is not a clock (windows come from
+  caller-supplied milliseconds), not a liveness signal (a missed window
+  and a partition are the same observation, which is why lapse is
+  gradual and reversible), and not a reward — nothing consumes
+  `ProvenCapacity`, and `proposer_weight` still *accepts* a
+  caller-supplied figure, so the derived path is available rather than
+  mandatory. Window length, challenge count, grace allowance, and the
+  beacon source are all open protocol questions, not derived figures.
+  17 integration tests, every possession proof running through the real
+  `mini_porep::respond` / `mini_spacetime::verify_storage_challenge`
+  primitives rather than simulated. Unaudited prototype cryptography
+  under the D-0047/#72 gate.
+- **fixed (D-0445)** — `mini_spacetime::verify_storage_challenge` did not
+  take the challenge it was verifying: it checked that a response's
+  Merkle proof was internally consistent and correctly rooted, but never
+  that the leaf proved was the leaf asked for. A prover challenged on
+  leaf 7 could answer leaf 3 every time and be credited, so satisfying
+  unbounded challenges across unbounded windows required keeping one leaf
+  and its Merkle path — a few hundred bytes standing in for the whole
+  replica, collapsing proof-of-spacetime to "can produce one
+  authenticated path". It now takes the challenge and requires
+  `challenge.leaf_index == response.leaf_index == response.proof.leaf_index`;
+  `MerkleStorageProof::submit_response` and
+  `PorepStorageProof::submit_response` thread it through, and the function
+  is re-exported from `mini_spacetime`'s root (it was `pub` in its module
+  but reachable by no external caller, which is part of why nothing
+  outside the crate had exercised it). Regression tests in both crates.
 - **shipped (D-0440)** — shared correctness floor. `did-mini` now owns
   the shared wire limits (`MAX_SIGNATURES`, `MAX_KEYS`,
   `MAX_SIGNATURE_BYTES`, `MAX_DID_BYTES`) and the canonical
@@ -1979,6 +2020,36 @@ bootloader, hardware support, security patches, and package infrastructure.
   installer script (`deploy/installer/install.sh`) that provisions a bare
   Debian Stable machine and builds/installs `mini-cli` as a one-time
   bootstrap, and a verification script (`deploy/verification/verify.sh`).
+- **shipped, prototype (Day 0, second pass)** — the rest of the local
+  lifecycle, because a tree that can only *install* is a demo rather than
+  a deployment profile. `installer/preflight.sh` (read-only, non-root:
+  architecture, init, disk, RAM, clock sync, port, existing state —
+  `install.sh` now refuses to start on a hard failure, so a machine is
+  never left half-provisioned); `installer/uninstall.sh` (clean removal
+  that **keeps the identity by default**; deleting state is a separate,
+  irreversible decision behind `--purge-state` and a typed confirmation —
+  "no off switch" is about the network, never a claim that a person
+  cannot remove software from their own machine);
+  `backup/backup.sh`+`restore.sh` (passphrase-encrypted local archive of
+  `/var/lib/mininet`, uploaded nowhere, restore refusing to overwrite live
+  state without confirmation); `journald/mininet-privacy.conf` (bounded
+  retention — a connection log is a record of who talked to this node and
+  when); `systemd/mininet-verify.{service,timer}` (daily self-check that
+  reports and never repairs, randomized so a fleet produces no correlated
+  spike); and `verification/lock-packages.sh`, the script `packages.lock`
+  referenced and which did not exist, resolving per-architecture pins
+  against a live archive. **arm64 is now supported alongside amd64** — the
+  cheap machine most people can buy is a single-board ARM computer, and an
+  x86-64-only profile would have served exactly the operators the design
+  exists not to privilege (Directive 11). Every script passes
+  `shellcheck`, and `verify.sh` enforces that so the checks cannot rot.
+  `docs/guides/node-operator-guide.md` is the operator-facing guide.
+- **the backup gap this closed** — `/var/lib/mininet` holds the node's
+  `did:mini` identity, and ID1 means there is no custodial recovery
+  anywhere in Mininet. That is the right property with a consequence
+  people meet too late: a dead disk without a backup is a permanently lost
+  identity, and cheap hardware is exactly the hardware whose storage
+  fails. Before this there was no backup path at all.
 - **not run end-to-end** — no real Debian Stable machine or VM ran the
   installer in this session; verification was manifest lint (unit syntax,
   firewall syntax, sysusers dry-run, live package-name resolution) plus

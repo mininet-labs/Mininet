@@ -116,15 +116,52 @@ into a known Mininet node:
 
 ```
 deploy/
-├── packages.lock       — pinned apt package manifest (hashes, not just names)
-├── systemd/            — unit files for the Mininet node's OS-level services
+├── packages.lock       — apt requirement set (names; lock-packages.sh resolves pins)
+├── systemd/            — units for the node's OS-level services, plus the verify timer
 ├── sysctl.d/           — minimal kernel-hardening baseline
 ├── nftables/           — default-deny firewall ruleset
+├── journald/           — log retention, bounded for privacy
 ├── users/              — dedicated non-root system user/group spec
-├── installer/          — idempotent script: bare Debian -> Mininet node
+├── installer/          — preflight.sh -> install.sh -> uninstall.sh
+├── backup/             — backup.sh / restore.sh for the node's identity
 ├── image/              — Phase 2 placeholder (not built yet; see below)
-└── verification/       — checks the manifest was actually applied correctly
+└── verification/       — verify.sh (lint + live state), lock-packages.sh (resolve pins)
 ```
+
+Four of these exist because a provisioning tree that can only *install* is
+not a deployment profile, it is a demo:
+
+- **`installer/preflight.sh`** checks everything `install.sh` needs before
+  anything is modified, and changes nothing itself. An installer that
+  fails halfway leaves a machine in a state nobody designed, which is
+  worse than either outcome.
+- **`installer/uninstall.sh`** removes the software cleanly and **keeps the
+  identity by default**. "No off switch" (P3/U1) is a statement about the
+  *network* — nobody can disable your node remotely — never a claim that a
+  person cannot remove software from their own machine. Directive 1 puts
+  sovereignty above convenience, and software you cannot uninstall owns
+  the machine rather than serving it. Deleting node state is a separate,
+  irreversible decision behind `--purge-state` and a typed confirmation.
+- **`backup/`** exists because `/var/lib/mininet` holds the node's
+  `did:mini` identity and ID1 means there is **no custodial recovery
+  anywhere in Mininet**. That is the right property and it has a
+  consequence people meet too late: a dead disk without a backup is a
+  permanently lost identity, and cheap hardware — the hardware this whole
+  thesis depends on — is exactly the hardware whose storage fails. The
+  archive is passphrase-encrypted and uploaded nowhere; Directive 2 says
+  assume every service disappears, so a backup tool that needed a server
+  would have moved the failure rather than removed it. `restore.sh`
+  refuses to overwrite live state without an explicit confirmation,
+  because restoring onto a second machine while the first still runs
+  gives two machines one identity — equivocation, indistinguishable from
+  an attack.
+- **`journald/`** bounds log retention. A connection log is a record of
+  who talked to this node and when; retained indefinitely on a cheap
+  machine, it is a deanonymization corpus waiting for whoever eventually
+  gets the disk. Two weeks, 200 MB, no debug records, no syslog
+  forwarding. An operator debugging can raise it deliberately — the point
+  is that the default does not quietly accumulate a peer-contact history
+  nobody asked for.
 
 **Honest scope for Day 0:** this provisions the *machine*. It does not
 attempt kernel hardening beyond a minimal sysctl baseline, does not
@@ -173,12 +210,23 @@ this gate stays closed and the appliance stays Debian-based.
 
 ## Reference platform (initial, narrow, on purpose)
 
-Debian Stable · x86-64 first · UEFI · systemd · ext4 · QEMU/KVM as the
-reference test environment · bare-metal support only after VM validation.
-Every one of these is a scope-narrowing choice, not a permanent
-commitment — widening (other architectures, other init systems, other
-filesystems) is exactly the kind of decision that gets its own D-number
-when a real need appears, not decided speculatively here.
+Debian Stable · **amd64 and arm64** · UEFI · systemd · ext4 · QEMU/KVM as
+the reference test environment · bare-metal support only after VM
+validation. Every one of these is a scope-narrowing choice, not a
+permanent commitment — widening (other init systems, other filesystems)
+is exactly the kind of decision that gets its own D-number when a real
+need appears, not decided speculatively here.
+
+**arm64 is in from the start rather than deferred**, and that is a
+deliberate correction to this document's first draft, which said x86-64
+first. The whitepaper's thesis is that a thousand cheap, scattered
+machines outcompete one warehouse. The cheap machine most people can
+actually buy is a single-board ARM computer. A profile that ran only on
+x86-64 servers would have served precisely the operators the design
+exists not to privilege, and Directive 11 says to engineer for the
+difficult case first. `preflight.sh` enforces the supported set, and
+`lock-packages.sh` resolves pins per architecture because a resolved lock
+from an amd64 box does not describe an arm64 node.
 
 ## Honest non-claims
 
@@ -188,6 +236,20 @@ beyond QEMU/KVM, an installer that has run on real hardware, or any
 persistent Mininet system service. All of Day 0's artifacts are meant to
 be read, audited, and run by a human on a disposable VM before anyone
 treats them as anything more than a checked-in manifest.
+
+Specifically on verification: every artifact here is **lint-verified**, not
+field-verified. `systemd-analyze verify` on the units, `nft --check` on the
+ruleset, `systemd-sysusers --dry-run` on the user spec, `shellcheck` on
+every script, and live `apt-cache` resolution for `lock-packages.sh` all
+pass — and none of that is the same as a machine that booted, joined, and
+served. `packages.lock` remains a requirement set rather than a
+hash-locked manifest; `lock-packages.sh` produces the pinned half, but the
+resolved file is architecture- and suite-specific and must be generated on
+the target, so none is checked in.
+
+The self-verification timer reports and never repairs. Infrastructure that
+silently reapplies its own configuration overrides deliberate operator
+changes, which is the wrong default on a machine somebody owns.
 
 ## Refs
 

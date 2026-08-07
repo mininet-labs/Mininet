@@ -7,6 +7,8 @@
 #     - systemd-analyze verify on the checked-in unit files
 #     - nft --check syntax validation on the checked-in ruleset
 #     - packages.lock has no blank/malformed lines
+#     - shellcheck on every script here, when it is available
+#     - every script is executable (a mode 0644 installer is a broken one)
 #
 #  2. Live state check (best-effort; skipped with a note if this host was
 #     never provisioned by install.sh): confirms the units are actually
@@ -31,7 +33,7 @@ skip() { printf '[verify]   SKIP: %s\n' "$*"; }
 note "--- manifest lint ---"
 
 if command -v systemd-analyze >/dev/null 2>&1; then
-    for unit in "${DEPLOY_ROOT}"/systemd/*.service "${DEPLOY_ROOT}"/systemd/*.target; do
+    for unit in "${DEPLOY_ROOT}"/systemd/*.service "${DEPLOY_ROOT}"/systemd/*.target "${DEPLOY_ROOT}"/systemd/*.timer; do
         [[ -f "${unit}" ]] || continue
         if systemd-analyze verify "${unit}" 2>/tmp/mininet-verify-$$.log; then
             pass "systemd-analyze verify $(basename "${unit}")"
@@ -65,6 +67,51 @@ if command -v nft >/dev/null 2>&1; then
     rm -f /tmp/mininet-nft-$$.log
 else
     skip "nft not found"
+fi
+
+# Scripts: executable bit, then shellcheck. A script committed without +x
+# fails at the least convenient moment -- halfway through a provision.
+SCRIPTS=(
+    "${DEPLOY_ROOT}/installer/install.sh"
+    "${DEPLOY_ROOT}/installer/preflight.sh"
+    "${DEPLOY_ROOT}/installer/uninstall.sh"
+    "${DEPLOY_ROOT}/verification/verify.sh"
+    "${DEPLOY_ROOT}/verification/lock-packages.sh"
+    "${DEPLOY_ROOT}/backup/backup.sh"
+    "${DEPLOY_ROOT}/backup/restore.sh"
+)
+for script in "${SCRIPTS[@]}"; do
+    if [[ ! -f "${script}" ]]; then
+        fail "missing script: ${script#"${DEPLOY_ROOT}"/}"
+    elif [[ ! -x "${script}" ]]; then
+        fail "not executable: ${script#"${DEPLOY_ROOT}"/}"
+    else
+        pass "present and executable: ${script#"${DEPLOY_ROOT}"/}"
+    fi
+done
+
+if command -v shellcheck >/dev/null 2>&1; then
+    for script in "${SCRIPTS[@]}"; do
+        [[ -f "${script}" ]] || continue
+        if shellcheck "${script}" >/tmp/mininet-sc-$$.log 2>&1; then
+            pass "shellcheck $(basename "${script}")"
+        else
+            fail "shellcheck $(basename "${script}"): $(head -5 /tmp/mininet-sc-$$.log)"
+        fi
+        rm -f /tmp/mininet-sc-$$.log
+    done
+else
+    skip "shellcheck not found"
+fi
+
+if [[ -f "${DEPLOY_ROOT}/journald/mininet-privacy.conf" ]]; then
+    if grep -q '^MaxRetentionSec=' "${DEPLOY_ROOT}/journald/mininet-privacy.conf"; then
+        pass "journald retention policy declares MaxRetentionSec"
+    else
+        fail "journald policy has no MaxRetentionSec -- logs would be kept indefinitely"
+    fi
+else
+    fail "deploy/journald/mininet-privacy.conf missing"
 fi
 
 if [[ -f "${DEPLOY_ROOT}/packages.lock" ]]; then
@@ -101,6 +148,31 @@ if command -v nft >/dev/null 2>&1 && nft list table inet mininet_filter >/dev/nu
     pass "nftables table inet mininet_filter is loaded"
 else
     skip "nftables table inet mininet_filter not loaded on this host"
+fi
+
+if command -v systemctl >/dev/null 2>&1 \
+    && systemctl list-unit-files mininet-verify.timer 2>/dev/null | grep -q mininet-verify; then
+    if systemctl is-enabled --quiet mininet-verify.timer 2>/dev/null; then
+        pass "mininet-verify.timer is enabled"
+    else
+        skip "mininet-verify.timer is installed but not enabled"
+    fi
+else
+    skip "mininet-verify.timer not installed on this host"
+fi
+
+if [[ -f /etc/systemd/journald.conf.d/mininet-privacy.conf ]]; then
+    pass "journald retention policy is installed"
+else
+    skip "journald retention policy not installed on this host"
+fi
+
+# Backups are the one thing whose absence is unrecoverable, so an
+# unprovisioned-looking node with real state gets told about it every run.
+if [[ -d /var/lib/mininet ]] && [[ -n "$(ls -A /var/lib/mininet 2>/dev/null)" ]]; then
+    note "  NOTE: /var/lib/mininet holds this node's identity. There is no"
+    note "        custodial recovery (ID1) -- if this disk dies without a"
+    note "        backup, the identity is gone. deploy/backup/backup.sh"
 fi
 
 echo

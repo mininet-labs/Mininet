@@ -16036,6 +16036,90 @@ does not supersede D-0207's snapshot/archive design or D-0414–D-0416's issuanc
 ledger, and admission rules; it migrates their consensus commitment and wire
 representation.
 
+### D-0445 — Proven-not-declared storage capacity, ongoing possession windows, and a challenge-binding fix in `mini-spacetime`  ·  *Proposed*
+
+**Date:** 2026-08-06 · **Refs:** D-0063, D-0064, D-0065, D-0439, D-0440;
+roadmap #42, #31, #33; `docs/design/storage-fraud-detection.md` §3.8, §4b;
+P1, X1; Directive 2, Directive 8, Directive 13, Directive 14, Directive 16.
+
+**Decision:** carry a registered replica forward in time, and make claimable
+storage capacity a function of what an audit actually covered. `ReplicaLifecycle`
+in `mini-storage-fraud` adds proof windows whose challenges derive from the seal
+commitment digest, the window index, and a **verifier-supplied beacon**, so the
+provider contributes nothing to the derivation and cannot pre-compute which nodes
+it will be asked for. A registered replica starts `Degraded { missed_windows: 0 }`,
+becomes `Active` on an answered window, degrades and stops counting capacity on a
+missed one, and `Suspended` past `grace_windows` without self-recovery; `Retired`
+is the voluntary terminal exit. `capacity_units_of` derives capacity from the
+audited seal's byte count, and `ProvenCapacity` deliberately has no constructor
+taking a number. Separately, `mini_spacetime::verify_storage_challenge` now takes
+the challenge it is verifying and requires
+`challenge.leaf_index == response.leaf_index == response.proof.leaf_index`; both
+`MerkleStorageProof::submit_response` and `PorepStorageProof::submit_response`
+thread it through, and the function is re-exported from `mini_spacetime`'s root.
+
+**Reason:** two holes, one found while closing the other. First, capacity could be
+declared. `mini_spacetime::MerkleStorageProof::new` takes `capacity_units` from its
+caller with nothing tying that figure to the commitment beside it, and
+`proposer_weight` documents that it "trusts its input completely" — so a provider
+could seal one 32-byte node, register it honestly, and claim a million units. That
+inverts the thesis the storage design rests on: "a thousand cheap, scattered
+machines outcompete one warehouse" holds only while capacity must be proven, since
+a warehouse and a Raspberry Pi type a large number equally cheaply. Second, and
+worse, `verify_storage_challenge` never took the challenge. It checked that a
+response's Merkle proof was internally consistent and correctly rooted, and never
+that the leaf proved was the leaf asked for — so a prover challenged on leaf 7
+could answer leaf 3 every time and be credited. Satisfying unbounded challenges
+across unbounded windows therefore required keeping one leaf and its Merkle path,
+a few hundred bytes standing in for the whole replica, collapsing proof-of-
+spacetime to "can produce one authenticated path". Both defects had passing tests
+and no failing one; both were found by building the attack.
+
+**Constitutional impact:** serves Directive 2 (a network ordinary people can
+actually contribute to) by removing the advantage an operator gets from asserting
+capacity it does not hold, and Directive 8 by keeping storage weight tied to
+demonstrated work. Directive 14: the lifecycle is a four-state machine over
+existing primitives, and no new cryptography is introduced — the challenge
+derivation is a domain-separated BLAKE3 transcript over already-committed values.
+The voice/value wall is intact (P1, Directive 16): `mini-storage-fraud` depends on
+`did-mini`, `mini-crypto`, `mini-porep`, and `mini-spacetime` only, with no
+`mini-value`/`mini-bounty`/`mini-treasury` edge and no governance-crate edge in
+either direction. Every authority-bearing entry point takes a typed request. This
+changes no issuance, no balance, no governance weight, and no personhood rule, and
+`ProvenCapacity` confers no entitlement — nothing consumes it.
+
+**Implementation status:** implemented in `crates/mini-storage-fraud/src/lifecycle.rs`
+with 17 integration tests in `tests/lifecycle.rs`, every possession proof running
+through the real primitives (`mini_porep::respond` producing responses,
+`mini_spacetime::verify_storage_challenge` checking them against the audited
+claim's replica root — nothing simulated). Regression tests in both `mini-porep`
+and `mini-spacetime` answer a leaf other than the one challenged and require
+refusal. `cargo fmt`, `clippy --all-targets --all-features --workspace -D warnings`,
+and the full workspace test suite pass. Exact-head Linux CI, human review, and the
+D-0047/#72 external cryptographic audit all remain required; `mini-porep` is
+unaudited prototype cryptography and everything here inherits that gate.
+
+**Failure point:** windows are computed from caller-supplied milliseconds, so a
+dishonest clock yields dishonest windows — a real time anchor needs the witnessed
+KEL checkpoints (M3) or chain height this crate is still waiting on. Beacon
+unpredictability and non-reuse are assumptions on the caller that this crate cannot
+check. A missed window is indistinguishable from a partition, which is why lapse
+degrades reversibly rather than punishing; grace, window length, and challenge
+count are legible placeholders, not figures derived from storage economics or
+measured partition rates. Most importantly, the derived-capacity path is available
+but not mandatory: `proposer_weight` still accepts a caller-supplied figure, so
+this closes the hole only for callers that choose to use it.
+
+**Required follow-up:** make the derived path the only path into any weighting
+layer, as a separate change with its own migration; anchor window indices in
+witnessed or chain evidence; obtain founder resolution of the beacon-source and
+window-parameter questions in `docs/design/storage-fraud-detection.md` §7.5–§7.6;
+obtain the D-0047/#72 external audit before any of this gates value.
+
+**Supersedes / superseded by:** supersedes nothing. Extends D-0439's registered
+replica claims with what happens after registration, and corrects the
+`mini-spacetime` challenge-verification behaviour assumed by D-0063/D-0064 without
+changing their sealing construction.
 ### D-0444 — Registry integrity checks: decision-number collisions, deleted history, and restated wire limits  ·  *Proposed*
 
 **Date:** 2026-08-05 · **Refs:** the D-0437/D-0438/D-0439 collisions across
@@ -16146,9 +16230,13 @@ bare-metal images; Debian continues to own the kernel, bootloader,
 hardware support, security patches, package infrastructure, and base
 userspace. Four stages, each gated on the previous one actually working:
 Day 0 (this decision's shipped scope) — a `deploy/` tree
-(`packages.lock`, `systemd/`, `sysctl.d/`, `nftables/`, `users/`,
-`installer/`, `verification/`) plus an idempotent installer script that
-turns a supported Debian Stable machine into a known Mininet node; Phase
+(`packages.lock`, `systemd/`, `sysctl.d/`, `nftables/`, `journald/`,
+`users/`, `installer/`, `backup/`, `verification/`) covering the whole
+local lifecycle rather than installation alone: preflight, install,
+verify, back up, restore, uninstall. Supported on amd64 **and arm64** —
+the cheap machine most people can buy is a single-board ARM computer, and
+an x86-64-only profile would serve exactly the operators the design
+exists not to privilege (Directive 11); Phase
 2 — signed, reproducibly-built QCOW2/raw/cloud images, still Debian
 underneath; Phase 3 — immutable/A-B-updating root, only after upgrade/
 recovery/rollback are proven reliable; Phase 4 — a genuine from-scratch
@@ -16217,10 +16305,39 @@ workspace via `cargo build --release` as a one-time bootstrap since a
 fresh node has no prior `mini` binary to verify a release against);
 `verification/verify.sh` (lints all of the above and reports live
 install state, all lint checks passing in this session with only
-expected pre-install SKIPs). Not run end-to-end on a real Debian Stable
-machine or VM in this session — verified by manifest lint
-(`systemd-analyze verify`, `nft --check`, `systemd-sysusers --dry-run`,
-live apt-cache package-name resolution) rather than a full live install,
+expected pre-install SKIPs).
+
+Extended before merge, because a provisioning tree that can only install
+is a demo rather than a deployment profile:
+`installer/preflight.sh` (read-only, non-root, checks architecture, init,
+disk, RAM, clock synchronization, port availability and existing state
+before anything is modified; `install.sh` now refuses to start on a hard
+failure, so a machine is never left half-provisioned; `--json` for
+automation); `installer/uninstall.sh` (clean removal that **keeps the
+identity by default** — deleting node state is a separate, irreversible
+decision behind `--purge-state` and a typed confirmation);
+`backup/backup.sh` + `backup/restore.sh` (passphrase-encrypted local
+archive of `/var/lib/mininet`, uploaded nowhere, with restore refusing to
+overwrite live state without explicit confirmation);
+`journald/mininet-privacy.conf` (bounded log retention);
+`systemd/mininet-verify.{service,timer}` (daily self-verification that
+reports and never repairs, with a randomized delay so a fleet does not
+produce a correlated activity spike); `verification/lock-packages.sh`
+(the script `packages.lock`'s own header referenced and which did not
+exist — resolves architecture- and suite-specific pins against a live
+archive, verified emitting real versions in this session).
+
+Every script passes `shellcheck`, and `verify.sh` now enforces that
+(plus timer linting, executable bits, and that the journald policy
+actually declares a retention bound) so the checks cannot silently rot.
+`docs/guides/node-operator-guide.md` is the operator-facing guide:
+hardware floor, what the installer touches, day-to-day operation,
+backup, updating, removal, and troubleshooting.
+
+Not run end-to-end on a real Debian Stable machine or VM in this session
+— verified by manifest lint (`systemd-analyze verify`, `nft --check`,
+`systemd-sysusers --dry-run`, `shellcheck`, live apt-cache resolution)
+rather than a full live install,
 consistent with `deploy/README.md`'s own instruction that this is meant
 to be run by a human on a disposable VM before being treated as more than
 a checked-in manifest.

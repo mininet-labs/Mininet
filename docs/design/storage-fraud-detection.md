@@ -91,6 +91,18 @@ The registry is local and in-memory with no consensus behind it. Two registries 
 
 `ConflictAttribution` has exactly one value, `Unattributed`, and it is not a placeholder. A verified conflict says **at least one of these two registrations is unsound**. It does not say which, and it is consistent with two honest providers plus one corrupt auditor quorum. `VerifiedReplicaConflict::required_follow_up()` states the next step in the object itself: re-audit both replicas independently under fresh verifier-chosen seeds, and review both quorums. **No provider may be penalised on this object alone**, and in particular not because another identity copied a public value.
 
+### 3.8 Ongoing possession, and capacity that has to be proven
+
+Registration proves a replica was genuinely sealed once. It says nothing about whether the provider still holds it next month, and nothing about how much storage that provider may claim to be contributing. `ReplicaLifecycle` carries a verified claim forward through both.
+
+**Windows.** `WindowPolicy` divides time into fixed windows and says how many challenges each demands. `challenges_for(window, beacon, policy)` derives leaf indices from the seal commitment digest, the window index, and a beacon the **verifier** supplies. The provider contributes nothing to the derivation, so it cannot pre-compute which nodes it will be asked for and keep only those. The beacon must come from somewhere the provider does not control and must not be reused across windows — a recent block hash or a fresh verifier nonce both work, and this crate cannot check that it is either. That is a real assumption on the caller, stated here rather than hidden.
+
+**Lapse is reversible; suspension is not.** A replica starts `Degraded { missed_windows: 0 }`, not `Active` — registration is not possession. An answered window makes it `Active`; a missed one degrades it and stops counting its capacity immediately, because capacity follows proof rather than history. Missing beyond `grace_windows` suspends it, and suspension does not self-recover: re-entry means registering again. The grace allowance is not leniency about fraud. From a verifier's position a missed window and an unreachable peer are the same observation, so the response is to stop counting, not to punish. `Retired` is the voluntary terminal exit.
+
+**Capacity is derived, never supplied.** `capacity_units_of(claim, policy)` computes units from the sealed byte count in the audited seal commitment. `ProvenCapacity` has no constructor that accepts a number, so a provider's claimable capacity cannot drift from what a registration quorum actually checked. This closes a real hole one layer down: `mini_spacetime::MerkleStorageProof::new(commitment, capacity_units, policy)` takes `capacity_units` from its caller with nothing tying that figure to the commitment beside it, and `mini_spacetime::proposer_weight` documents that it "trusts its input completely". A provider could seal a single 32-byte node, register it honestly, and then declare a million units. That inverts the thesis the whole storage design rests on — "a thousand cheap, scattered machines outcompete one warehouse" holds only while capacity must be proven, since a warehouse and a Raspberry Pi can type the same number equally cheaply. Division is truncating: a replica smaller than one unit counts as zero rather than rounding up into capacity nobody sealed.
+
+Windows are computed from caller-supplied milliseconds. A caller feeding a dishonest clock gets dishonest windows; anchoring needs the same witnessed-KEL or chain-height evidence §7.3 is still waiting on. Nothing here pays anyone, and no crate consumes `ProvenCapacity`. It is a measurement, not an entitlement.
+
 ## 4. A soundness gap this work found in `mini-porep`
 
 Building the adversarial tests surfaced a real defect in `mini_porep::audit`, now fixed.
@@ -100,6 +112,16 @@ Building the adversarial tests surfaced a real defect in `mini_porep::audit`, no
 The fix reserves `max(1, count / (num_layers + 1))` challenges for the final layer — the same number uniform sampling gives on average, made certain instead of likely — exported as `mini_porep::encoding_challenge_budget`. Two regression tests cover it: every seed now draws a final-layer challenge, and a commitment carrying a forged `replica_root` fails under every seed tried.
 
 This is the kind of defect that only appears when someone builds the attack rather than reasoning about the construction, which is an argument for adversarial tests over more documentation.
+
+## 4b. A second gap this work found, in `mini-spacetime`
+
+Building §3.8's proof windows surfaced a worse one. `verify_storage_challenge(commitment, response)` did not take the challenge. It checked that the response's Merkle proof was internally consistent and rooted correctly — and never that the leaf it proved was the leaf that had been asked for. `MerkleStorageProof::submit_response` then credited the window.
+
+The consequence is that per-window possession proved nothing about possession. A prover challenged on leaf 7 could answer leaf 3, every time, and be credited, so satisfying an unbounded number of challenges over an unbounded number of windows required keeping exactly one leaf and its Merkle path — a few hundred bytes standing in for the whole replica. The entire proof-of-spacetime property collapsed to "can produce one authenticated path", which is the failure the layer exists to prevent.
+
+The function now takes the challenge and requires `challenge.leaf_index == response.leaf_index == response.proof.leaf_index`, checking both the response's claim and the proof's own bound index so neither alone can be steered. `MerkleStorageProof::submit_response` and `PorepStorageProof::submit_response` thread the challenge through, and `verify_storage_challenge` is now actually re-exported from `mini_spacetime`'s root — it was `pub` in its module but reachable by no external caller, which is part of why nothing outside the crate had exercised it. Regression tests in both crates answer a leaf other than the one challenged and require refusal.
+
+Both §4 and §4b were found by writing the attack, not by reading the code. Neither had a failing test before this work; both had passing ones.
 
 ## 5. What this deliberately does not attempt
 
@@ -118,10 +140,14 @@ This is the kind of defect that only appears when someone builds the attack rath
 2. **What is a defensible registration quorum** for a deployment carrying real value, given that auditors are self-selected and Sybil is unsolved? `baseline()`'s 2 roots is a floor borrowed from code review, not an analysis of storage economics.
 3. **What anchors registration in time?** Until witnessed KEL checkpoints (M3) or a chain height are available, every timestamp in these objects is self-reported.
 4. **What is the privacy cost?** A claim publicly links an identity root, a storage device, and an assignment. `did-mini`'s pairwise pseudonyms could unlink them across contexts, but doing so would also break cross-context conflict detection. That trade-off is unexamined and deliberately not resolved here.
+5. **Where does the window beacon come from?** §3.8's unpredictability rests entirely on a beacon the provider does not control and that is never reused. A finalized block hash is the obvious source and would bind possession proofs to consensus; a verifier nonce is simpler but makes two verifiers disagree about whether a window was answered. This is a protocol rule, and the crate deliberately cannot enforce either choice.
+6. **What is a defensible window length, challenge count, and grace allowance?** `daily()`'s figures are placeholders chosen to be legible, not derived from storage economics or from any measurement of real partition rates. Setting grace too high pays for storage nobody holds; too low, and every partition looks like fraud.
 
 ## 8. Required follow-up
 
 - A consequence layer (governance review, reward exclusion, or future consensus accounting) that consumes conflict evidence. Deliberately not built.
+- A consumer for `ProvenCapacity`. `mini_spacetime::proposer_weight` still takes a caller-supplied figure; nothing yet forces a weighting layer to source its number from an audited seal, so §3.8 closes the hole only for callers that choose to use it. Making the derived path the *only* path is a separate change with its own migration.
+- A time anchor for proof windows, so window indices are not self-reported (§7.3).
 - A networked, replicated registration surface, so uniqueness is enforced across operators rather than per-registry.
 - Timing/latency detection, once a live deployment exists to calibrate against.
 - **External cryptographic audit (#72, D-0047)** before anything here gates value. `mini-porep` is unaudited prototype cryptography and everything above inherits that.
