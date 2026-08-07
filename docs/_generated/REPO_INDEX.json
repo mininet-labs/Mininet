@@ -3,7 +3,7 @@
     "crates": 72,
     "files": 871,
     "headings": 2779,
-    "rust_symbols": 8362
+    "rust_symbols": 8376
   },
   "crates": {
     "did-mini": {
@@ -40664,38 +40664,38 @@
       "title": "use crate::drg::parents;"
     },
     {
-      "bytes": 6821,
+      "bytes": 7859,
       "group": "crate:mini-porep",
       "headings": [],
       "keywords": [
         "replica",
         "challenge",
-        "commitment",
+        "mini_spacetime",
         "sealed",
-        "leaf_index",
         "self",
         "porepstorageproof",
         "possession",
-        "proof",
-        "response",
-        "replica_commitment",
-        "sealed_replica",
-        "mini_spacetime",
+        "new",
+        "commitment",
+        "units",
         "against",
         "sealedreplica",
-        "storagechallenge",
-        "data",
+        "leaf_index",
+        "proof",
         "now_ms",
-        "respond",
-        "new",
+        "replica_commitment",
         "proofofspacetimesource",
-        "seal",
+        "rather",
         "merklestorageproof",
-        "storagechallengeresponse"
+        "storagechallengeresponse",
+        "storagecommitment",
+        "data",
+        "node_size",
+        "policy"
       ],
-      "lines": 173,
+      "lines": 195,
       "path": "crates/mini-porep/src/challenge.rs",
-      "sha256": "9e0b608d7d30851c652bde5ede537c3504b80cff52280a40d5ecbe9458a35364",
+      "sha256": "05a1c1efdb5ce1a1f28ea54092efe710a3632961e56f4beda733a090fa4edd1f",
       "symbols": [
         {
           "kind": "fn",
@@ -40704,77 +40704,82 @@
         },
         {
           "kind": "fn",
-          "line": 31,
+          "line": 36,
           "name": "respond"
         },
         {
           "kind": "struct",
-          "line": 53,
+          "line": 58,
           "name": "PorepStorageProof"
         },
         {
           "kind": "impl",
-          "line": 55,
+          "line": 60,
           "name": "PorepStorageProof"
         },
         {
           "kind": "fn",
-          "line": 58,
+          "line": 68,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 67,
+          "line": 81,
           "name": "commitment"
         },
         {
           "kind": "fn",
-          "line": 77,
+          "line": 91,
           "name": "submit_response"
         },
         {
           "kind": "impl",
-          "line": 87,
+          "line": 101,
           "name": "ProofOfSpaceTimeSource"
         },
         {
           "kind": "fn",
-          "line": 88,
+          "line": 102,
           "name": "proven_capacity"
         },
         {
           "kind": "mod",
-          "line": 94,
+          "line": 108,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 98,
+          "line": 111,
+          "name": "units"
+        },
+        {
+          "kind": "fn",
+          "line": 117,
           "name": "sealed_replica"
         },
         {
           "kind": "fn",
-          "line": 105,
+          "line": 124,
           "name": "a_valid_response_verifies_against_the_replica_root"
         },
         {
           "kind": "fn",
-          "line": 119,
+          "line": 138,
           "name": "an_out_of_range_challenge_returns_none"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 144,
           "name": "proven_capacity_tracks_a_sustained_challenge_streak"
         },
         {
           "kind": "fn",
-          "line": 147,
+          "line": 169,
           "name": "an_invalid_response_does_not_advance_proven_capacity"
         },
         {
           "kind": "fn",
-          "line": 160,
+          "line": 182,
           "name": "answering_a_leaf_other_than_the_one_challenged_is_refused"
         }
       ],
@@ -55043,7 +55048,7 @@
       "title": "pub fn isqrt(n: u64) -> u64 {"
     },
     {
-      "bytes": 3068,
+      "bytes": 3103,
       "group": "crate:mini-spacetime",
       "headings": [],
       "keywords": [
@@ -55074,7 +55079,7 @@
       ],
       "lines": 63,
       "path": "crates/mini-spacetime/src/lib.rs",
-      "sha256": "c257afce96e188780575e2aae2cb6c11e8cff45821908bdd585a02302d7397d6",
+      "sha256": "d65320408630c6488012d2f015c1f15ce540bf45ebc4e41973a4a3c77ccdf0b6",
       "symbols": [
         {
           "kind": "mod",
@@ -55317,110 +55322,110 @@
       "title": "const LEAF_PREFIX: u8 = 0x00;"
     },
     {
-      "bytes": 2000,
+      "bytes": 2203,
       "group": "crate:mini-spacetime",
       "headings": [],
       "keywords": [
         "proofofspacetimesource",
         "proven_capacity",
         "noproof",
-        "u64",
+        "provencapacity",
         "proof",
-        "protocol",
         "one",
+        "storage_proof",
         "source",
         "now_ms",
         "none",
+        "u64",
         "no_proof_always_returns_none",
         "proof-of-space-time",
+        "protocol",
         "challenge-response",
         "evidence",
         "node",
-        "across",
-        "storage_proof",
         "merklestorageproof",
+        "implementation",
+        "see",
+        "own",
         "interim",
         "scheme",
-        "does",
-        "reference",
-        "anyone",
-        "opting"
+        "does"
       ],
-      "lines": 49,
+      "lines": 54,
       "path": "crates/mini-spacetime/src/proof.rs",
-      "sha256": "da26f5ece8f7f52a34a8c228455c78f7cc506947115e0293c756b052d2ae2ad5",
+      "sha256": "e9cc08c8e291f7732aea84879e37d3c61ba104e10a9e362e308f5cbd41ff0ec5",
       "symbols": [
         {
           "kind": "trait",
-          "line": 17,
+          "line": 19,
           "name": "ProofOfSpaceTimeSource"
         },
         {
           "kind": "fn",
-          "line": 24,
+          "line": 29,
           "name": "proven_capacity"
         },
         {
           "kind": "struct",
-          "line": 31,
+          "line": 36,
           "name": "NoProof"
         },
         {
           "kind": "impl",
-          "line": 33,
+          "line": 38,
           "name": "ProofOfSpaceTimeSource"
         },
         {
           "kind": "fn",
-          "line": 34,
+          "line": 39,
           "name": "proven_capacity"
         },
         {
           "kind": "mod",
-          "line": 40,
+          "line": 45,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 49,
           "name": "no_proof_always_returns_none"
         }
       ],
-      "title": "pub trait ProofOfSpaceTimeSource {"
+      "title": "use crate::storage_proof::ProvenCapacity;"
     },
     {
-      "bytes": 15009,
+      "bytes": 23398,
       "group": "crate:mini-spacetime",
       "headings": [],
       "keywords": [
-        "merkle",
-        "proof",
-        "response",
-        "challenge",
-        "commitment",
-        "leaf_index",
-        "storagewindowpolicy",
         "blocks",
+        "bytes_per_unit",
+        "self",
+        "storagecommitment",
+        "commitment",
         "block",
-        "index",
-        "proofhistory",
-        "real",
+        "every",
+        "u64",
+        "merkle",
+        "one",
+        "bytes",
+        "capacity",
+        "committed_bytes",
+        "storageunitpolicy",
+        "new",
+        "provencapacity",
+        "units",
+        "what",
+        "root",
+        "its",
         "time",
         "copy",
-        "derive",
-        "debug",
-        "clone",
-        "struct",
-        "leaf",
-        "storagecommitment",
-        "storagechallenge",
-        "possession",
-        "node",
-        "root"
+        "challenge",
+        "how"
       ],
-      "lines": 404,
+      "lines": 614,
       "path": "crates/mini-spacetime/src/storage_proof.rs",
-      "sha256": "063054b831bd22bba8de35e7dd1a6cd5f1a266225b10e5347ff1a2e11d68c841",
+      "sha256": "f0097399c6fb69d20fa011bab029ae51ac08823b890f9f141e8a8973b73b4e0c",
       "symbols": [
         {
           "kind": "struct",
@@ -55428,261 +55433,376 @@
           "name": "StorageCommitment"
         },
         {
-          "kind": "struct",
-          "line": 44,
-          "name": "StorageChallenge"
-        },
-        {
-          "kind": "struct",
-          "line": 52,
-          "name": "StorageChallengeResponse"
+          "kind": "impl",
+          "line": 56,
+          "name": "StorageCommitment"
         },
         {
           "kind": "fn",
-          "line": 72,
-          "name": "verify_storage_challenge"
+          "line": 62,
+          "name": "committed_bytes"
         },
         {
           "kind": "struct",
-          "line": 91,
-          "name": "StorageWindowPolicy"
+          "line": 70,
+          "name": "StorageUnitPolicy"
         },
         {
           "kind": "impl",
-          "line": 100,
-          "name": "StorageWindowPolicy"
+          "line": 74,
+          "name": "StorageUnitPolicy"
         },
         {
           "kind": "fn",
-          "line": 103,
-          "name": "month_scale_default"
+          "line": 77,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "gibibytes"
+        },
+        {
+          "kind": "fn",
+          "line": 91,
+          "name": "bytes_per_unit"
         },
         {
           "kind": "struct",
           "line": 114,
-          "name": "ProofHistory"
+          "name": "ProvenCapacity"
         },
         {
           "kind": "impl",
           "line": 119,
+          "name": "ProvenCapacity"
+        },
+        {
+          "kind": "fn",
+          "line": 123,
+          "name": "from_commitment"
+        },
+        {
+          "kind": "fn",
+          "line": 133,
+          "name": "none"
+        },
+        {
+          "kind": "fn",
+          "line": 141,
+          "name": "units"
+        },
+        {
+          "kind": "fn",
+          "line": 146,
+          "name": "committed_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 164,
+          "name": "saturating_add"
+        },
+        {
+          "kind": "struct",
+          "line": 174,
+          "name": "StorageChallenge"
+        },
+        {
+          "kind": "struct",
+          "line": 182,
+          "name": "StorageChallengeResponse"
+        },
+        {
+          "kind": "fn",
+          "line": 202,
+          "name": "verify_storage_challenge"
+        },
+        {
+          "kind": "struct",
+          "line": 227,
+          "name": "StorageWindowPolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 236,
+          "name": "StorageWindowPolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 239,
+          "name": "month_scale_default"
+        },
+        {
+          "kind": "struct",
+          "line": 250,
+          "name": "ProofHistory"
+        },
+        {
+          "kind": "impl",
+          "line": 255,
           "name": "ProofHistory"
         },
         {
           "kind": "fn",
-          "line": 121,
+          "line": 257,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 126,
+          "line": 262,
           "name": "record_success"
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 273,
           "name": "covered_window_ms"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 299,
           "name": "proven_space_time"
         },
         {
           "kind": "struct",
-          "line": 172,
+          "line": 308,
           "name": "MerkleStorageProof"
         },
         {
           "kind": "impl",
-          "line": 179,
+          "line": 315,
           "name": "MerkleStorageProof"
         },
         {
           "kind": "fn",
-          "line": 182,
+          "line": 323,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 337,
           "name": "commitment"
         },
         {
           "kind": "fn",
-          "line": 207,
+          "line": 348,
           "name": "submit_response"
         },
         {
           "kind": "impl",
-          "line": 222,
+          "line": 363,
           "name": "ProofOfSpaceTimeSource"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 364,
           "name": "proven_capacity"
         },
         {
           "kind": "mod",
-          "line": 233,
+          "line": 377,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 381,
           "name": "blocks"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 387,
+          "name": "units"
+        },
+        {
+          "kind": "fn",
+          "line": 391,
           "name": "commitment_and_tree"
         },
         {
           "kind": "fn",
-          "line": 251,
+          "line": 404,
           "name": "respond"
         },
         {
           "kind": "fn",
-          "line": 260,
+          "line": 413,
           "name": "a_valid_response_verifies"
         },
         {
           "kind": "fn",
-          "line": 268,
+          "line": 421,
           "name": "tampered_block_bytes_fail_verification"
         },
         {
           "kind": "fn",
-          "line": 281,
+          "line": 434,
           "name": "mismatched_index_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 294,
+          "line": 447,
           "name": "answering_a_different_leaf_than_asked_is_refused"
         },
         {
           "kind": "fn",
-          "line": 318,
+          "line": 471,
           "name": "a_tracker_does_not_credit_a_wrong_leaf_response"
         },
         {
           "kind": "fn",
-          "line": 328,
+          "line": 481,
           "name": "a_single_success_does_not_establish_a_time_window"
         },
         {
           "kind": "fn",
-          "line": 336,
+          "line": 489,
           "name": "sustained_close_successes_establish_the_window"
         },
         {
           "kind": "fn",
-          "line": 348,
+          "line": 501,
           "name": "a_gap_larger_than_max_interval_breaks_the_streak"
         },
         {
           "kind": "fn",
-          "line": 359,
+          "line": 512,
           "name": "a_stale_last_success_counts_as_no_current_proof"
         },
         {
           "kind": "fn",
-          "line": 373,
+          "line": 526,
           "name": "merkle_storage_proof_reports_capacity_only_once_the_window_is_proven"
         },
         {
           "kind": "fn",
-          "line": 392,
+          "line": 548,
           "name": "an_invalid_response_is_rejected_and_not_recorded"
+        },
+        {
+          "kind": "fn",
+          "line": 560,
+          "name": "a_block_of_the_wrong_size_fails_its_challenge"
+        },
+        {
+          "kind": "fn",
+          "line": 577,
+          "name": "committed_bytes_is_the_product_and_saturates"
+        },
+        {
+          "kind": "fn",
+          "line": 594,
+          "name": "a_commitment_smaller_than_one_unit_proves_zero_capacity"
+        },
+        {
+          "kind": "fn",
+          "line": 610,
+          "name": "a_zero_byte_unit_policy_is_refused"
         }
       ],
       "title": "use crate::merkle::MerkleProof;"
     },
     {
-      "bytes": 5646,
+      "bytes": 9249,
       "group": "crate:mini-spacetime",
       "headings": [],
       "keywords": [
-        "params",
         "capacity",
         "proposerparams",
-        "proposer_weight",
+        "params",
         "weight",
-        "default_params",
-        "concave",
+        "provencapacity",
+        "units",
         "diversity",
-        "cap",
-        "capacity_cap_units",
-        "bonus",
-        "regions",
+        "u64",
         "u32",
-        "capped",
+        "concave",
         "curve",
         "identity",
-        "u64",
+        "bonus",
         "base",
+        "block",
+        "capped",
         "distinct_regions",
-        "assert",
+        "default_params",
+        "proposer_weight",
         "diversity_bonus_percent",
+        "deliberately",
         "per",
         "network",
-        "doubling"
+        "one"
       ],
-      "lines": 131,
+      "lines": 212,
       "path": "crates/mini-spacetime/src/weight.rs",
-      "sha256": "7b33355282e6f954a306015ec1c3266bb56fca46635b3773b1bf97993d257ecb",
+      "sha256": "884f7f79cf30fda1ec854e25edacd18bbf93b0a3c5bcdd3b8619fd3690e06250",
       "symbols": [
         {
           "kind": "struct",
-          "line": 19,
+          "line": 20,
           "name": "ProposerParams"
         },
         {
           "kind": "impl",
-          "line": 34,
+          "line": 35,
           "name": "ProposerParams"
         },
         {
           "kind": "fn",
-          "line": 39,
+          "line": 40,
           "name": "default_params"
         },
         {
           "kind": "fn",
-          "line": 59,
+          "line": 69,
           "name": "proposer_weight"
         },
         {
           "kind": "fn",
-          "line": 70,
+          "line": 80,
           "name": "diversity_bonus_percent"
         },
         {
           "kind": "mod",
-          "line": 78,
+          "line": 88,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 98,
+          "name": "capacity"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
           "name": "doubling_capacity_yields_less_than_double_weight"
         },
         {
           "kind": "fn",
-          "line": 94,
+          "line": 120,
           "name": "capacity_beyond_the_cap_contributes_nothing_further"
         },
         {
           "kind": "fn",
-          "line": 102,
+          "line": 128,
           "name": "diversity_bonus_increases_weight_but_is_capped"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 151,
           "name": "zero_capacity_weighs_zero_regardless_of_diversity"
+        },
+        {
+          "kind": "fn",
+          "line": 158,
+          "name": "a_tiny_commitment_cannot_weigh_like_a_large_one"
+        },
+        {
+          "kind": "fn",
+          "line": 186,
+          "name": "summed_capacity_weighs_more_but_still_concavely"
+        },
+        {
+          "kind": "fn",
+          "line": 199,
+          "name": "no_sequence_of_additions_mints_capacity_from_nothing"
         }
       ],
       "title": "use crate::isqrt::isqrt;"
@@ -56466,267 +56586,217 @@
       "title": "mod claim;"
     },
     {
-      "bytes": 15227,
+      "bytes": 14551,
       "group": "crate:mini-storage-fraud",
       "headings": [],
       "keywords": [
-        "capacity",
-        "self",
-        "bytes_per_unit",
-        "units",
-        "u64",
-        "sealed_bytes",
+        "mini_spacetime",
         "provencapacity",
-        "replica",
-        "sealed",
+        "challenges_per_window",
         "claim",
+        "window_ms",
+        "nothing",
+        "seal",
         "one",
-        "storageunitpolicy",
+        "same",
+        "u32",
+        "windowpolicy",
         "new",
+        "grace_windows",
         "what",
+        "replica",
+        "about",
         "provider",
         "how",
         "number",
-        "seal",
-        "capacity_units_of",
-        "nothing",
+        "rather",
         "proven",
-        "policy",
-        "derive",
-        "windowpolicy"
+        "caller",
+        "windows",
+        "max_challenges_per_window"
       ],
-      "lines": 426,
+      "lines": 380,
       "path": "crates/mini-storage-fraud/src/lifecycle.rs",
-      "sha256": "c13e94d30c2f969671616ef6b21175628c73055c181f7a1d070ec18bee87e8a0",
+      "sha256": "53a3f58e2b54fac432ae00cfcdc8c56914307d2489e576ca525f9842fdec0976",
       "symbols": [
         {
           "kind": "const",
-          "line": 51,
+          "line": 55,
           "name": "WINDOW_CHALLENGE_DOMAIN"
         },
         {
           "kind": "const",
-          "line": 55,
+          "line": 59,
           "name": "MAX_CHALLENGES_PER_WINDOW"
         },
         {
-          "kind": "struct",
-          "line": 59,
-          "name": "StorageUnitPolicy"
-        },
-        {
-          "kind": "impl",
-          "line": 63,
-          "name": "StorageUnitPolicy"
-        },
-        {
           "kind": "fn",
-          "line": 66,
-          "name": "new"
-        },
-        {
-          "kind": "fn",
-          "line": 74,
-          "name": "gibibytes"
-        },
-        {
-          "kind": "fn",
-          "line": 80,
-          "name": "bytes_per_unit"
-        },
-        {
-          "kind": "struct",
-          "line": 92,
-          "name": "ProvenCapacity"
-        },
-        {
-          "kind": "impl",
-          "line": 97,
-          "name": "ProvenCapacity"
-        },
-        {
-          "kind": "fn",
-          "line": 99,
-          "name": "units"
-        },
-        {
-          "kind": "fn",
-          "line": 104,
-          "name": "sealed_bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 109,
-          "name": "none"
-        },
-        {
-          "kind": "fn",
-          "line": 120,
+          "line": 79,
           "name": "capacity_units_of"
         },
         {
           "kind": "struct",
-          "line": 133,
+          "line": 88,
           "name": "WindowPolicy"
         },
         {
           "kind": "impl",
-          "line": 139,
+          "line": 94,
           "name": "WindowPolicy"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 95,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 158,
+          "line": 113,
           "name": "daily"
         },
         {
           "kind": "fn",
-          "line": 166,
+          "line": 121,
           "name": "window_ms"
         },
         {
           "kind": "fn",
-          "line": 170,
+          "line": 125,
           "name": "challenges_per_window"
         },
         {
           "kind": "fn",
-          "line": 174,
+          "line": 129,
           "name": "grace_windows"
         },
         {
           "kind": "fn",
-          "line": 179,
+          "line": 134,
           "name": "window_at"
         },
         {
           "kind": "enum",
-          "line": 187,
+          "line": 142,
           "name": "ReplicaState"
         },
         {
           "kind": "impl",
-          "line": 202,
+          "line": 157,
           "name": "ReplicaState"
         },
         {
           "kind": "fn",
-          "line": 204,
+          "line": 159,
           "name": "counts_capacity"
         },
         {
           "kind": "struct",
-          "line": 211,
+          "line": 166,
           "name": "ReplicaLifecycle"
         },
         {
           "kind": "impl",
-          "line": 222,
+          "line": 177,
           "name": "ReplicaLifecycle"
         },
         {
           "kind": "fn",
-          "line": 228,
+          "line": 183,
           "name": "begin"
         },
         {
           "kind": "fn",
-          "line": 245,
+          "line": 200,
           "name": "claim"
         },
         {
           "kind": "fn",
-          "line": 249,
+          "line": 204,
           "name": "state"
         },
         {
           "kind": "fn",
-          "line": 253,
+          "line": 208,
           "name": "last_proven_window"
         },
         {
           "kind": "fn",
-          "line": 266,
+          "line": 221,
           "name": "challenges_for"
         },
         {
           "kind": "fn",
-          "line": 298,
+          "line": 253,
           "name": "record_proven_window"
         },
         {
           "kind": "fn",
-          "line": 322,
+          "line": 277,
           "name": "advance_to"
         },
         {
           "kind": "fn",
-          "line": 353,
+          "line": 308,
           "name": "retire"
         },
         {
           "kind": "fn",
-          "line": 359,
+          "line": 314,
           "name": "proven_capacity"
         },
         {
           "kind": "fn",
-          "line": 367,
+          "line": 322,
           "name": "genesis_ms"
         },
         {
           "kind": "struct",
-          "line": 374,
+          "line": 329,
           "name": "ProviderStanding"
         },
         {
           "kind": "impl",
-          "line": 378,
+          "line": 333,
           "name": "ProviderStanding"
         },
         {
           "kind": "fn",
-          "line": 379,
+          "line": 334,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 384,
+          "line": 339,
           "name": "track"
         },
         {
           "kind": "fn",
-          "line": 389,
+          "line": 344,
           "name": "get_mut"
         },
         {
           "kind": "fn",
-          "line": 393,
+          "line": 348,
           "name": "get"
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 352,
           "name": "len"
         },
         {
           "kind": "fn",
-          "line": 401,
+          "line": 356,
           "name": "is_empty"
         },
         {
           "kind": "fn",
-          "line": 406,
+          "line": 361,
           "name": "advance_to"
         },
         {
           "kind": "fn",
-          "line": 416,
+          "line": 373,
           "name": "proven_capacity"
         }
       ],
@@ -57037,38 +57107,38 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 8931,
+      "bytes": 9177,
       "group": "crate:mini-storage-fraud",
       "headings": [],
       "keywords": [
         "seal",
-        "reader",
         "writer",
-        "count",
+        "reader",
         "node_count",
         "num_layers",
         "commitment",
         "root",
+        "count",
         "replica",
-        "layer_roots",
         "sealcommitment",
         "sealdefect",
         "return",
         "err",
         "seal_commitment_version",
         "max_node_count",
-        "max_layers",
-        "storagecommitment",
         "mini_porep",
+        "storagecommitment",
+        "layer_roots",
+        "max_layers",
         "one",
         "const",
-        "len",
-        "replica_root",
-        "raw"
+        "byte",
+        "u32",
+        "len"
       ],
-      "lines": 253,
+      "lines": 257,
       "path": "crates/mini-storage-fraud/src/seal.rs",
-      "sha256": "0c257d91df83aa3592bdc0c9fb312ab0976dd6544715293972fba4f932236f69",
+      "sha256": "eb2daac5e0cef91013d5a0b1f89d34a1cbfba5a0bb60edbfa7233bcd30455b6a",
       "symbols": [
         {
           "kind": "const",
@@ -57102,37 +57172,37 @@
         },
         {
           "kind": "fn",
-          "line": 147,
+          "line": 151,
           "name": "seal_commitment_digest"
         },
         {
           "kind": "mod",
-          "line": 155,
+          "line": 159,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 159,
+          "line": 163,
           "name": "commitment"
         },
         {
           "kind": "fn",
-          "line": 169,
+          "line": 173,
           "name": "a_real_commitment_is_well_formed_and_round_trips"
         },
         {
           "kind": "fn",
-          "line": 182,
+          "line": 186,
           "name": "the_storage_commitment_is_the_replicas_own_root_and_size"
         },
         {
           "kind": "fn",
-          "line": 190,
+          "line": 194,
           "name": "structurally_impossible_commitments_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 228,
+          "line": 232,
           "name": "the_digest_covers_every_field"
         }
       ],
@@ -57336,7 +57406,7 @@
       "title": "mod support;"
     },
     {
-      "bytes": 14008,
+      "bytes": 14012,
       "group": "crate:mini-storage-fraud",
       "headings": [],
       "keywords": [
@@ -57367,7 +57437,7 @@
       ],
       "lines": 384,
       "path": "crates/mini-storage-fraud/tests/lifecycle.rs",
-      "sha256": "a362b649e38a949e024584efe9a7f6058c802d10cea640bc3da9e11a32fac95c",
+      "sha256": "8f02cb08cfb83eac095eead06c0d5cb2d88fdf51a90809b17610d7bca170daba",
       "symbols": [
         {
           "kind": "mod",
@@ -69555,7 +69625,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 976910,
+      "bytes": 983245,
       "group": "docs",
       "headings": [
         {
@@ -69985,9 +70055,9 @@
         "transport",
         "status"
       ],
-      "lines": 16207,
+      "lines": 16303,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "f8452a5b2c2a862d93488b17166e630045f5c7d906c8c172623b61bbe8afe3d8",
+      "sha256": "f05970ddb839dfefcb9c26afcea8211ffc97a0a8638dc69893620fb43c1fcfd7",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -71136,7 +71206,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 134139,
+      "bytes": 136066,
       "group": "docs",
       "headings": [
         {
@@ -71186,52 +71256,52 @@
         },
         {
           "level": 2,
-          "line": 848,
+          "line": 876,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 909,
+          "line": 937,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 939,
+          "line": 967,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1235,
+          "line": 1263,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1713,
+          "line": 1741,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1804,
+          "line": 1832,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1884,
+          "line": 1912,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1950,
+          "line": 1978,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 1967,
+          "line": 1995,
           "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0438"
         },
         {
           "level": 2,
-          "line": 2003,
+          "line": 2031,
           "text": "Day-0 release code hardening \u2014 D-0442/D-0443 proposal"
         }
       ],
@@ -71261,9 +71331,9 @@
         "claude",
         "social"
       ],
-      "lines": 2038,
+      "lines": 2066,
       "path": "docs/STATUS.md",
-      "sha256": "5cbebb72fce0f30f8521c3f34e0421489cdf5e1b574d38b0315c64c807220c78",
+      "sha256": "6d29d11369f7e60e48dcc8869e2da50b915ae2bee2c19c28392dd5cbf912efc6",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -76954,7 +77024,7 @@
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
     {
-      "bytes": 21082,
+      "bytes": 21235,
       "group": "docs",
       "headings": [
         {
@@ -77081,7 +77151,7 @@
       ],
       "lines": 159,
       "path": "docs/design/storage-fraud-detection.md",
-      "sha256": "595aae919257b349b9ac26f2d3a64990f758951950809ecfc8cb39095fad09e0",
+      "sha256": "a94f9de2f6d335b38cd818e29fa883b7565f57d58a2164e05934e2bbc26f3d4f",
       "symbols": [],
       "title": "Storage-fraud detection: identity-bound replicas, audited registration, and replica-conflict evidence"
     },
