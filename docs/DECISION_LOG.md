@@ -16204,3 +16204,99 @@ reserve numbers at claim time rather than detecting collisions after the fact.
 **Supersedes / superseded by:** supersedes nothing. Complements the
 decision-number banding policy at the top of this log, which coordinates
 tracks by convention; this makes the convention checkable.
+
+### D-0448 — Proven capacity is the only capacity: `proposer_weight` takes a typed `ProvenCapacity`, and a commitment's block size is enforced on every challenge  ·  *Proposed*
+
+**Date:** 2026-08-07 · **Refs:** D-0039 (`mini-spacetime` storage proofs),
+D-0063/D-0064 (`mini-porep`), D-0445 (derived-not-declared capacity in
+`mini-storage-fraud`, which this completes); roadmap #31, #33, #42;
+S1, P1, X1; Directives 2, 8, 11, 14, 16. Founder direction 2026-08-07
+answering `docs/design/storage-fraud-detection.md`'s open question on
+whether the derived path should be mandatory: yes.
+
+**Decision:** make derived capacity the only capacity a weighting layer can
+see. `mini_spacetime::proposer_weight` now takes a typed `ProvenCapacity`
+instead of `raw_capacity_units: u64`; `ProvenCapacity` has **no numeric
+constructor**, and the only ways to obtain one are
+`ProvenCapacity::from_commitment` and `ProvenCapacity::none`.
+`MerkleStorageProof::new` and `PorepStorageProof::new` take a
+`StorageUnitPolicy` conversion rather than a capacity figure.
+`ProofOfSpaceTimeSource::proven_capacity` returns `Option<ProvenCapacity>`.
+`StorageCommitment` gains `block_size_bytes`, and **`verify_storage_challenge`
+requires every answered block to be exactly that long** — so the byte total a
+commitment implies is re-checked on every challenge rather than asserted once.
+`ProvenCapacity::saturating_add` is the type's only arithmetic, so a provider
+holding several replicas can be totalled without anyone unwrapping to `u64`.
+`mini-storage-fraud`'s duplicate `ProvenCapacity`/`StorageUnitPolicy` are
+deleted and re-exported from `mini-spacetime` instead.
+
+**Reason:** D-0445 derived capacity from an audited seal, but only for callers
+who chose to use it — `proposer_weight` still accepted a bare `u64` and its own
+documentation said it "trusts its input completely". For a function that
+weights block production that is the same as leaving the hole open: a provider
+could commit a single 32-byte node, prove it honestly, and declare a million
+units. The project's own convention is that a function exercising real
+authority must take a specific named request type rather than whatever a caller
+assembles, and weighting block production is real authority. `block_size_bytes`
+exists because `block_count` alone says nothing about volume — eight one-byte
+blocks and eight one-mebibyte blocks are the same count — so deriving bytes
+without it would have replaced a caller's asserted number with a prover's
+asserted number. Enforcing it at challenge time is what makes the derivation
+mean something: claim large blocks and you must serve large blocks, forever, or
+fail. Two types named `ProvenCapacity` were removed for the same reason
+`mini-private-payment` reuses `mini_settlement::SettlementState` — parallel
+types with one name is how a caller ends up holding one kind of "proven" and
+passing it where the other is meant.
+
+**Constitutional impact:** serves Directive 8 (weight tracks demonstrated work,
+never assertion), Directive 2 (a warehouse and a Raspberry Pi can type the same
+number equally cheaply; only one of them can answer the challenges), and
+Directive 11 — the egalitarian thesis is precisely that a thousand cheap
+machines outcompete one warehouse, which holds only while capacity must be
+proven. Directive 14: no new cryptography, one new struct field and a length
+check. The voice/value wall is untouched (P1, Directive 16): `mini-spacetime`
+depends on nothing value- or governance-shaped, and `ProvenCapacity` confers no
+entitlement — nothing pays on it. S1's "partial" status is unchanged: this
+makes capacity honest, and does **not** make possession proofs into replication
+uniqueness. No issuance, balance, governance weight, personhood rule, or owner
+path changes.
+
+**Implementation status:** implemented across `mini-spacetime`,
+`mini-porep`, and `mini-storage-fraud`. New tests: a tiny commitment cannot
+weigh like a large one; a block of the wrong size fails its challenge; summed
+capacity stays on the concave curve; no sequence of additions mints capacity
+from nothing; `committed_bytes` saturates rather than wrapping; a commitment
+smaller than one unit proves zero. The weight tests build capacity through the
+real derivation rather than a `#[cfg(test)]` numeric constructor, because a
+test-only backdoor in the same crate is not a boundary. `cargo fmt`, `clippy
+--all-targets --all-features --workspace -D warnings`, and the full workspace
+suite pass. Exact-head Linux CI, human review, and the D-0047/#72 external
+audit remain required.
+
+**Migration:** a breaking API change, taken deliberately prelaunch when it is
+cheap. Callers of `proposer_weight` pass a `ProvenCapacity`; callers of
+`MerkleStorageProof::new`/`PorepStorageProof::new` pass a `StorageUnitPolicy`;
+constructors of `StorageCommitment` supply `block_size_bytes`. Only
+`mini-porep` and `mini-storage-fraud` construct commitments, and both derive
+the field from `mini_porep::NODE_SIZE`, a constant of the sealing format. There
+is no wire-compatibility story because no networked storage surface exists yet
+— which is exactly why now is the time.
+
+**Failure point:** this makes the *number* honest; it does nothing about
+replication uniqueness, which remains `mini-porep`'s open problem and the
+INVARIANTS hard limitation. `block_size_bytes` forces uniform block sizes,
+which is a real constraint on any future variable-size storage format — a
+format wanting variable blocks needs a different commitment shape and its own
+decision. Nothing yet consumes `ProvenCapacity` in a live weighting path
+because networked consensus does not exist (#36–#45). The clock, beacon, and
+window-parameter questions D-0445 raised are untouched here.
+
+**Required follow-up:** the remaining D-0445 open questions — beacon source,
+window parameters as Tier T with frozen floors — and the founder-answered
+storage-claim privacy question (pairwise pseudonyms per assignment context,
+privacy taking precedence over cross-context conflict detection), each as its
+own change. External audit (#72, D-0047) before any of this gates value.
+
+**Supersedes / superseded by:** completes D-0445, which derived capacity but
+left the derived path optional. Supersedes nothing; D-0445's entry stands as
+written and its own follow-up list named this exact change.

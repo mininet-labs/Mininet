@@ -85,6 +85,10 @@ pub fn storage_commitment_of(seal: &SealCommitment) -> StorageCommitment {
     StorageCommitment {
         merkle_root: seal.replica_root,
         block_count: seal.node_count,
+        // Fixed by mini-porep's sealing format, and re-checked against the
+        // served bytes on every challenge -- so the byte total this implies
+        // is derived, not asserted.
+        block_size_bytes: mini_porep::NODE_SIZE as u32,
     }
 }
 

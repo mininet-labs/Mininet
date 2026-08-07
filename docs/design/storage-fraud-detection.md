@@ -146,7 +146,7 @@ Both §4 and §4b were found by writing the attack, not by reading the code. Nei
 ## 8. Required follow-up
 
 - A consequence layer (governance review, reward exclusion, or future consensus accounting) that consumes conflict evidence. Deliberately not built.
-- A consumer for `ProvenCapacity`. `mini_spacetime::proposer_weight` still takes a caller-supplied figure; nothing yet forces a weighting layer to source its number from an audited seal, so §3.8 closes the hole only for callers that choose to use it. Making the derived path the *only* path is a separate change with its own migration.
+- ~~A consumer for `ProvenCapacity`.~~ **Resolved by founder direction 2026-08-07 and implemented in D-0448.** `mini_spacetime::proposer_weight` now takes a typed `ProvenCapacity` and nothing else; the type has no numeric constructor, and `StorageCommitment::block_size_bytes` is re-checked against the served bytes on every challenge, so the derived path is the only path. `mini-storage-fraud`'s duplicate `ProvenCapacity`/`StorageUnitPolicy` were deleted in favour of `mini-spacetime`'s.
 - A time anchor for proof windows, so window indices are not self-reported (§7.3).
 - A networked, replicated registration surface, so uniqueness is enforced across operators rather than per-registry.
 - Timing/latency detection, once a live deployment exists to calibrate against.
