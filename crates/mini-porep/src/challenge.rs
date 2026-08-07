@@ -68,10 +68,19 @@ impl PorepStorageProof {
         self.0.commitment()
     }
 
-    /// Verify `response` and, if valid, record a successful proof at
-    /// `now_ms`. Returns whether the response was valid.
-    pub fn submit_response(&mut self, response: &StorageChallengeResponse, now_ms: u64) -> bool {
-        self.0.submit_response(response, now_ms)
+    /// Verify `response` against the `challenge` it answers and, if valid,
+    /// record a successful proof at `now_ms`.
+    ///
+    /// The challenge is forwarded rather than inferred: a possession proof
+    /// that does not bind the question lets a prover answer whichever leaf
+    /// it kept, which is not possession of anything.
+    pub fn submit_response(
+        &mut self,
+        challenge: &StorageChallenge,
+        response: &StorageChallengeResponse,
+        now_ms: u64,
+    ) -> bool {
+        self.0.submit_response(challenge, response, now_ms)
     }
 }
 
@@ -123,14 +132,11 @@ mod tests {
         let mut t = 0u64;
         let mut leaf = 0usize;
         while t <= policy.min_window_ms {
-            let response = respond(
-                &replica,
-                &StorageChallenge {
-                    leaf_index: leaf % 16,
-                },
-            )
-            .unwrap();
-            assert!(tracker.submit_response(&response, t));
+            let challenge = StorageChallenge {
+                leaf_index: leaf % 16,
+            };
+            let response = respond(&replica, &challenge).unwrap();
+            assert!(tracker.submit_response(&challenge, &response, t));
             t += policy.max_interval_ms / 2;
             leaf += 1;
         }
@@ -143,9 +149,24 @@ mod tests {
         let policy = StorageWindowPolicy::month_scale_default();
         let mut tracker = PorepStorageProof::new(&replica, 500, policy);
 
-        let mut bad = respond(&replica, &StorageChallenge { leaf_index: 0 }).unwrap();
+        let challenge = StorageChallenge { leaf_index: 0 };
+        let mut bad = respond(&replica, &challenge).unwrap();
         bad.block_bytes = b"fabricated".to_vec();
-        assert!(!tracker.submit_response(&bad, 0));
+        assert!(!tracker.submit_response(&challenge, &bad, 0));
+        assert_eq!(tracker.proven_capacity(0), None);
+    }
+
+    #[test]
+    fn answering_a_leaf_other_than_the_one_challenged_is_refused() {
+        // Keeping one leaf plus its Merkle path used to be enough to hold a
+        // proven-capacity streak open indefinitely.
+        let replica = sealed_replica();
+        let policy = StorageWindowPolicy::month_scale_default();
+        let mut tracker = PorepStorageProof::new(&replica, 500, policy);
+
+        let asked = StorageChallenge { leaf_index: 9 };
+        let kept = respond(&replica, &StorageChallenge { leaf_index: 0 }).unwrap();
+        assert!(!tracker.submit_response(&asked, &kept, 0));
         assert_eq!(tracker.proven_capacity(0), None);
     }
 }

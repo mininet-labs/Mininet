@@ -34,8 +34,25 @@
 //!    registries that never met, and it reports an **unattributed** conflict:
 //!    at least one registration is unsound, and this evidence does not say
 //!    which.
+//! 6. [`ReplicaLifecycle`] carries the registered replica forward in time.
+//!    Registration proves a replica was sealed once; it says nothing about next
+//!    month. Each proof window draws challenges from the seal digest, the window
+//!    index, and a **verifier-supplied beacon**, so a provider cannot pre-compute
+//!    which nodes it will be asked for. Answered windows keep a replica
+//!    `Active`; missed ones degrade it, and missing past grace suspends it.
+//!    [`capacity_units_of`] then derives claimable capacity *from the audited
+//!    seal* — there is no constructor that accepts a capacity number, because
+//!    "a thousand cheap machines outcompete one warehouse" only holds while
+//!    capacity must be proven rather than declared.
 //!
 //! # What this deliberately does not do
+//!
+//! - **No clock.** Windows are computed from caller-supplied milliseconds. A
+//!   caller feeding a dishonest clock gets dishonest windows; anchoring needs
+//!   the witnessed or chain-height evidence this crate is still waiting on.
+//! - **No liveness distinction.** A missed window means "this verifier saw no
+//!   proof", which is indistinguishable from a partition, which is why lapse
+//!   degrades gradually and reversibly instead of punishing on first miss.
 //!
 //! - **No timing or latency detection.** Issue #42's other scenario —
 //!   answering challenges by fetching from a fast peer rather than holding
@@ -73,6 +90,7 @@ mod codec;
 mod conflict;
 mod context;
 mod error;
+mod lifecycle;
 mod registration;
 mod registry;
 mod seal;
@@ -89,6 +107,10 @@ pub use context::{
     REPLICA_ID_DOMAIN,
 };
 pub use error::{DecodeFailure, FraudError, Result, SealDefect};
+pub use lifecycle::{
+    capacity_units_of, ProvenCapacity, ProviderStanding, ReplicaLifecycle, ReplicaState,
+    StorageUnitPolicy, WindowPolicy, MAX_CHALLENGES_PER_WINDOW, WINDOW_CHALLENGE_DOMAIN,
+};
 pub use registration::{
     audit_and_attest, AuditAttestation, RegistrationPolicy, RegistrationReceipt,
     StorageRegistrationOracle, AUDIT_ATTESTATION_DOMAIN, AUDIT_ATTESTATION_VERSION,
