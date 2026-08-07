@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 73,
-    "files": 883,
-    "headings": 2805,
-    "rust_symbols": 8503
+    "files": 885,
+    "headings": 2807,
+    "rust_symbols": 8576
   },
   "crates": {
     "did-mini": {
@@ -40668,7 +40668,7 @@
       "title": "use crate::drg::parents;"
     },
     {
-      "bytes": 5850,
+      "bytes": 6821,
       "group": "crate:mini-porep",
       "headings": [],
       "keywords": [
@@ -40676,30 +40676,30 @@
         "challenge",
         "commitment",
         "sealed",
-        "response",
-        "porepstorageproof",
         "leaf_index",
         "self",
-        "policy",
+        "porepstorageproof",
+        "possession",
+        "proof",
+        "response",
         "replica_commitment",
-        "respond",
-        "new",
         "sealed_replica",
         "mini_spacetime",
-        "sealedreplica",
-        "data",
-        "proof",
-        "tracker",
-        "u64",
-        "now_ms",
-        "proofofspacetimesource",
-        "proven_capacity",
         "against",
-        "possession"
+        "sealedreplica",
+        "storagechallenge",
+        "data",
+        "now_ms",
+        "respond",
+        "new",
+        "proofofspacetimesource",
+        "seal",
+        "merklestorageproof",
+        "storagechallengeresponse"
       ],
-      "lines": 152,
+      "lines": 173,
       "path": "crates/mini-porep/src/challenge.rs",
-      "sha256": "a53d23aae4762ee482a097b8ffb298d2ab294ef05b16aba3770e8d12671f46d7",
+      "sha256": "9e0b608d7d30851c652bde5ede537c3504b80cff52280a40d5ecbe9458a35364",
       "symbols": [
         {
           "kind": "fn",
@@ -40733,48 +40733,53 @@
         },
         {
           "kind": "fn",
-          "line": 73,
+          "line": 77,
           "name": "submit_response"
         },
         {
           "kind": "impl",
-          "line": 78,
+          "line": 87,
           "name": "ProofOfSpaceTimeSource"
         },
         {
           "kind": "fn",
-          "line": 79,
+          "line": 88,
           "name": "proven_capacity"
         },
         {
           "kind": "mod",
-          "line": 85,
+          "line": 94,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 98,
           "name": "sealed_replica"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 105,
           "name": "a_valid_response_verifies_against_the_replica_root"
         },
         {
           "kind": "fn",
-          "line": 110,
+          "line": 119,
           "name": "an_out_of_range_challenge_returns_none"
         },
         {
           "kind": "fn",
-          "line": 116,
+          "line": 125,
           "name": "proven_capacity_tracks_a_sustained_challenge_streak"
         },
         {
           "kind": "fn",
-          "line": 141,
+          "line": 147,
           "name": "an_invalid_response_does_not_advance_proven_capacity"
+        },
+        {
+          "kind": "fn",
+          "line": 160,
+          "name": "answering_a_leaf_other_than_the_one_challenged_is_refused"
         }
       ],
       "title": "use crate::seal::SealedReplica;"
@@ -44466,7 +44471,7 @@
       "title": "mod claim;"
     },
     {
-      "bytes": 12566,
+      "bytes": 12694,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -44495,9 +44500,9 @@
         "byte",
         "reader"
       ],
-      "lines": 328,
+      "lines": 332,
       "path": "crates/mini-private-payment/src/memo.rs",
-      "sha256": "897d2ad69609093443bd25de0abf0e40373f7c29c78083a78a8d53ccf42f4ad5",
+      "sha256": "1ba3f42ca542e2557ce6a4acd0f47db8180c8c06ffd96253867876633832a56a",
       "symbols": [
         {
           "kind": "const",
@@ -44879,7 +44884,7 @@
       "title": "use mini_value::{MininetStealthAddress, StealthAddressScheme};"
     },
     {
-      "bytes": 23847,
+      "bytes": 24082,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -44887,30 +44892,30 @@
         "payment_to",
         "recipient",
         "assert",
-        "post",
         "verified",
+        "post",
         "first",
         "second",
-        "amount",
         "mini_private_payment",
         "verify",
         "network",
         "unwrap",
         "stranger",
-        "encoded",
-        "rendered",
+        "amount",
+        "payment",
         "view_secret_bytes",
         "spend_public_bytes",
         "output",
+        "payer",
+        "encoded",
         "support",
-        "purpose",
         "recognizes",
         "assert_ne",
-        "payer"
+        "field"
       ],
-      "lines": 668,
+      "lines": 674,
       "path": "crates/mini-private-payment/tests/adversarial.rs",
-      "sha256": "247836381de1b9c2ffbff1cbd9c295be7e7d98a2cc19a87063b100be35ef7436",
+      "sha256": "e50ab6770dfb9b7b972a2f7d0bdc7d2d0e7393cf7733b45e30daf6b5edfcee59",
       "symbols": [
         {
           "kind": "mod",
@@ -44949,162 +44954,162 @@
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 128,
           "name": "the_amount_never_appears_in_the_wire_bytes"
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 141,
           "name": "the_purpose_never_appears_in_the_wire_bytes"
         },
         {
           "kind": "fn",
-          "line": 146,
+          "line": 152,
           "name": "payments_with_and_without_a_purpose_are_the_same_size"
         },
         {
           "kind": "fn",
-          "line": 160,
+          "line": 166,
           "name": "a_ring_that_hides_nobody_is_refused_at_build_time"
         },
         {
           "kind": "fn",
-          "line": 187,
+          "line": 193,
           "name": "a_too_small_ring_is_refused_at_verify_time_too"
         },
         {
           "kind": "fn",
-          "line": 200,
+          "line": 206,
           "name": "a_ring_padded_with_duplicates_is_refused"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 221,
           "name": "an_oversized_ring_is_refused_rather_than_verified_slowly"
         },
         {
           "kind": "fn",
-          "line": 230,
+          "line": 236,
           "name": "reordering_the_ring_invalidates_the_signature"
         },
         {
           "kind": "fn",
-          "line": 251,
+          "line": 257,
           "name": "a_response_count_that_disagrees_with_the_ring_is_refused"
         },
         {
           "kind": "fn",
-          "line": 266,
+          "line": 272,
           "name": "a_tampered_amount_commitment_fails_its_range_proof"
         },
         {
           "kind": "fn",
-          "line": 277,
+          "line": 283,
           "name": "a_range_proof_from_another_payment_does_not_transfer"
         },
         {
           "kind": "fn",
-          "line": 292,
+          "line": 298,
           "name": "a_zero_amount_is_a_valid_payment"
         },
         {
           "kind": "fn",
-          "line": 305,
+          "line": 311,
           "name": "every_mutable_field_is_covered_by_the_signature"
         },
         {
           "kind": "fn",
-          "line": 341,
+          "line": 347,
           "name": "redirecting_the_payment_to_another_address_invalidates_it"
         },
         {
           "kind": "fn",
-          "line": 360,
+          "line": 366,
           "name": "a_claim_for_another_network_is_refused"
         },
         {
           "kind": "fn",
-          "line": 374,
+          "line": 380,
           "name": "a_memo_cannot_be_lifted_onto_another_payment"
         },
         {
           "kind": "fn",
-          "line": 392,
+          "line": 398,
           "name": "spending_the_same_output_twice_is_refused_never_merged"
         },
         {
           "kind": "fn",
-          "line": 441,
+          "line": 447,
           "name": "rebroadcasting_the_same_claim_is_idempotent_not_a_conflict"
         },
         {
           "kind": "fn",
-          "line": 454,
+          "line": 460,
           "name": "different_outputs_produce_different_key_images"
         },
         {
           "kind": "fn",
-          "line": 475,
+          "line": 481,
           "name": "an_unfinalized_payment_is_pending_and_never_final"
         },
         {
           "kind": "fn",
-          "line": 486,
+          "line": 492,
           "name": "only_canonical_inclusion_makes_a_payment_final"
         },
         {
           "kind": "fn",
-          "line": 498,
+          "line": 504,
           "name": "canonical_ordering_alone_resolves_a_conflict"
         },
         {
           "kind": "fn",
-          "line": 539,
+          "line": 545,
           "name": "an_expired_claim_that_never_finalized_is_expired"
         },
         {
           "kind": "fn",
-          "line": 551,
+          "line": 557,
           "name": "a_finalized_claim_stays_final_after_its_deadline_passes"
         },
         {
           "kind": "fn",
-          "line": 565,
+          "line": 571,
           "name": "a_canonically_rejected_claim_reports_the_reason"
         },
         {
           "kind": "fn",
-          "line": 585,
+          "line": 591,
           "name": "a_claim_survives_a_wire_round_trip"
         },
         {
           "kind": "fn",
-          "line": 595,
+          "line": 601,
           "name": "a_truncated_claim_is_refused_without_panicking"
         },
         {
           "kind": "fn",
-          "line": 605,
+          "line": 611,
           "name": "trailing_bytes_after_a_claim_are_refused"
         },
         {
           "kind": "fn",
-          "line": 619,
+          "line": 625,
           "name": "a_claim_with_a_foreign_domain_tag_is_refused"
         },
         {
           "kind": "fn",
-          "line": 633,
+          "line": 639,
           "name": "a_noncanonically_ordered_ring_is_refused_on_decode"
         },
         {
           "kind": "fn",
-          "line": 648,
+          "line": 654,
           "name": "random_bytes_never_decode_into_a_claim"
         },
         {
           "kind": "fn",
-          "line": 660,
+          "line": 666,
           "name": "payments_verify_across_the_whole_permitted_ring_range"
         }
       ],
@@ -45178,7 +45183,7 @@
       "title": "use mini_private_payment::{"
     },
     {
-      "bytes": 17639,
+      "bytes": 17730,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -45207,9 +45212,9 @@
         "identity",
         "network"
       ],
-      "lines": 459,
+      "lines": 462,
       "path": "crates/mini-private-payment/tests/unity.rs",
-      "sha256": "237a4a90d09da004de3c2cc11a4b5cee0a716daa4583c2c3e91d5db61d3dbc20",
+      "sha256": "2cf7813d03805f42c893b9367fd0506f334cc7b1b5cf6a55a85595c35b7ca17e",
       "symbols": [
         {
           "kind": "mod",
@@ -45258,17 +45263,17 @@
         },
         {
           "kind": "fn",
-          "line": 327,
+          "line": 330,
           "name": "a_reader_cannot_pay_the_same_funds_to_two_creators"
         },
         {
           "kind": "fn",
-          "line": 385,
+          "line": 388,
           "name": "the_post_and_the_payment_share_no_identifier_on_the_wire"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 426,
           "name": "the_creators_identity_root_never_appears_in_a_payment"
         }
       ],
@@ -56513,7 +56518,7 @@
       "title": "pub fn isqrt(n: u64) -> u64 {"
     },
     {
-      "bytes": 3042,
+      "bytes": 3068,
       "group": "crate:mini-spacetime",
       "headings": [],
       "keywords": [
@@ -56544,7 +56549,7 @@
       ],
       "lines": 63,
       "path": "crates/mini-spacetime/src/lib.rs",
-      "sha256": "9f265f35c2f4f7a7e3efa2d436894de414840c38b43b00f4d0eba0d8a02e064f",
+      "sha256": "c257afce96e188780575e2aae2cb6c11e8cff45821908bdd585a02302d7397d6",
       "symbols": [
         {
           "kind": "mod",
@@ -56859,38 +56864,38 @@
       "title": "pub trait ProofOfSpaceTimeSource {"
     },
     {
-      "bytes": 12213,
+      "bytes": 15009,
       "group": "crate:mini-spacetime",
       "headings": [],
       "keywords": [
+        "merkle",
         "proof",
         "response",
+        "challenge",
         "commitment",
-        "merkle",
-        "block",
-        "index",
+        "leaf_index",
         "storagewindowpolicy",
         "blocks",
-        "challenge",
-        "self",
+        "block",
+        "index",
         "proofhistory",
-        "root",
+        "real",
         "time",
         "copy",
         "derive",
         "debug",
         "clone",
         "struct",
-        "leaf_index",
+        "leaf",
         "storagecommitment",
-        "new",
-        "real",
+        "storagechallenge",
+        "possession",
         "node",
-        "actual"
+        "root"
       ],
-      "lines": 336,
+      "lines": 404,
       "path": "crates/mini-spacetime/src/storage_proof.rs",
-      "sha256": "c9ca433eb8a96707e5f43c12227f9b1bde1894f363206b0d2ff27b267428184e",
+      "sha256": "063054b831bd22bba8de35e7dd1a6cd5f1a266225b10e5347ff1a2e11d68c841",
       "symbols": [
         {
           "kind": "struct",
@@ -56909,152 +56914,162 @@
         },
         {
           "kind": "fn",
-          "line": 64,
+          "line": 72,
           "name": "verify_storage_challenge"
         },
         {
           "kind": "struct",
-          "line": 81,
+          "line": 91,
           "name": "StorageWindowPolicy"
         },
         {
           "kind": "impl",
-          "line": 90,
+          "line": 100,
           "name": "StorageWindowPolicy"
         },
         {
           "kind": "fn",
-          "line": 93,
+          "line": 103,
           "name": "month_scale_default"
         },
         {
           "kind": "struct",
-          "line": 104,
+          "line": 114,
           "name": "ProofHistory"
         },
         {
           "kind": "impl",
-          "line": 109,
+          "line": 119,
           "name": "ProofHistory"
         },
         {
           "kind": "fn",
-          "line": 111,
+          "line": 121,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 116,
+          "line": 126,
           "name": "record_success"
         },
         {
           "kind": "fn",
-          "line": 127,
+          "line": 137,
           "name": "covered_window_ms"
         },
         {
           "kind": "fn",
-          "line": 153,
+          "line": 163,
           "name": "proven_space_time"
         },
         {
           "kind": "struct",
-          "line": 162,
+          "line": 172,
           "name": "MerkleStorageProof"
         },
         {
           "kind": "impl",
-          "line": 169,
+          "line": 179,
           "name": "MerkleStorageProof"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 182,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 186,
+          "line": 196,
           "name": "commitment"
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 207,
           "name": "submit_response"
         },
         {
           "kind": "impl",
-          "line": 202,
+          "line": 222,
           "name": "ProofOfSpaceTimeSource"
         },
         {
           "kind": "fn",
-          "line": 203,
+          "line": 223,
           "name": "proven_capacity"
         },
         {
           "kind": "mod",
-          "line": 213,
+          "line": 233,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 217,
+          "line": 237,
           "name": "blocks"
         },
         {
           "kind": "fn",
-          "line": 221,
+          "line": 241,
           "name": "commitment_and_tree"
         },
         {
           "kind": "fn",
-          "line": 231,
+          "line": 251,
           "name": "respond"
         },
         {
           "kind": "fn",
-          "line": 240,
+          "line": 260,
           "name": "a_valid_response_verifies"
         },
         {
           "kind": "fn",
-          "line": 247,
+          "line": 268,
           "name": "tampered_block_bytes_fail_verification"
         },
         {
           "kind": "fn",
-          "line": 255,
+          "line": 281,
           "name": "mismatched_index_fails_verification"
         },
         {
           "kind": "fn",
-          "line": 263,
+          "line": 294,
+          "name": "answering_a_different_leaf_than_asked_is_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 318,
+          "name": "a_tracker_does_not_credit_a_wrong_leaf_response"
+        },
+        {
+          "kind": "fn",
+          "line": 328,
           "name": "a_single_success_does_not_establish_a_time_window"
         },
         {
           "kind": "fn",
-          "line": 271,
+          "line": 336,
           "name": "sustained_close_successes_establish_the_window"
         },
         {
           "kind": "fn",
-          "line": 283,
+          "line": 348,
           "name": "a_gap_larger_than_max_interval_breaks_the_streak"
         },
         {
           "kind": "fn",
-          "line": 294,
+          "line": 359,
           "name": "a_stale_last_success_counts_as_no_current_proof"
         },
         {
           "kind": "fn",
-          "line": 308,
+          "line": 373,
           "name": "merkle_storage_proof_reports_capacity_only_once_the_window_is_proven"
         },
         {
           "kind": "fn",
-          "line": 325,
+          "line": 392,
           "name": "an_invalid_response_is_rejected_and_not_recorded"
         }
       ],
@@ -57732,14 +57747,14 @@
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 9752,
+      "bytes": 10328,
       "group": "crate:mini-storage-fraud",
       "headings": [],
       "keywords": [
         "fmt",
-        "u32",
-        "decodefailure",
         "cannot",
+        "u32",
+        "replica",
         "wire",
         "did",
         "usize",
@@ -57747,8 +57762,8 @@
         "one",
         "seal",
         "challenge",
+        "decodefailure",
         "sealdefect",
-        "replica",
         "claim",
         "receipt",
         "conflict",
@@ -57761,9 +57776,9 @@
         "two",
         "commitment"
       ],
-      "lines": 213,
+      "lines": 225,
       "path": "crates/mini-storage-fraud/src/error.rs",
-      "sha256": "af916412f75ea0633add695d7c889fe2c34d70cbaee6d3f251d50310944c5235",
+      "sha256": "d947f6573d86d2d3923effa15c3de75aff3814dd9f2b7d79bca2671e79c7ea25",
       "symbols": [
         {
           "kind": "enum",
@@ -57782,18 +57797,8 @@
         },
         {
           "kind": "impl",
-          "line": 109,
-          "name": "From<DecodeFailure>"
-        },
-        {
-          "kind": "fn",
-          "line": 110,
-          "name": "from"
-        },
-        {
-          "kind": "impl",
           "line": 115,
-          "name": "From<SealDefect>"
+          "name": "From<DecodeFailure>"
         },
         {
           "kind": "fn",
@@ -57803,122 +57808,404 @@
         {
           "kind": "impl",
           "line": 121,
-          "name": "core::fmt::Display"
+          "name": "From<SealDefect>"
         },
         {
           "kind": "fn",
           "line": 122,
-          "name": "fmt"
+          "name": "from"
         },
         {
           "kind": "impl",
-          "line": 144,
+          "line": 127,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 145,
+          "line": 128,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 163,
+          "line": 150,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 164,
+          "line": 151,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 210,
+          "line": 169,
+          "name": "core::fmt::Display"
+        },
+        {
+          "kind": "fn",
+          "line": 170,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 222,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 212,
+          "line": 224,
           "name": "Result"
         }
       ],
       "title": "pub enum DecodeFailure {"
     },
     {
-      "bytes": 4982,
+      "bytes": 6432,
       "group": "crate:mini-storage-fraud",
       "headings": [],
       "keywords": [
-        "claim",
         "seal",
-        "registration",
         "one",
         "provider",
-        "conflict",
-        "mini-porep",
-        "context",
-        "error",
-        "registry",
-        "issue",
-        "nothing",
         "replica",
+        "claim",
+        "registration",
+        "nothing",
+        "mini-porep",
+        "issue",
+        "audited",
+        "proves",
+        "sealed",
         "its",
         "full",
+        "challenges",
+        "evidence",
+        "window",
+        "windows",
+        "capacity",
         "distinct",
         "edge",
-        "codec",
+        "conflict",
         "detection",
-        "roadmap",
-        "audited",
-        "fraud",
-        "penalty",
-        "exclusion"
+        "roadmap"
       ],
-      "lines": 102,
+      "lines": 124,
       "path": "crates/mini-storage-fraud/src/lib.rs",
-      "sha256": "551b208dc4371d5d5e5464b7a59ab36ccd15d3449f5cf8c22d16879bf25a1003",
+      "sha256": "3485832f416d5375e2d0b52e1d4ff523a540848d8509980640edb77b9a0a3106",
       "symbols": [
         {
           "kind": "mod",
-          "line": 71,
+          "line": 88,
           "name": "claim"
         },
         {
           "kind": "mod",
-          "line": 72,
+          "line": 89,
           "name": "codec"
         },
         {
           "kind": "mod",
-          "line": 73,
+          "line": 90,
           "name": "conflict"
         },
         {
           "kind": "mod",
-          "line": 74,
+          "line": 91,
           "name": "context"
         },
         {
           "kind": "mod",
-          "line": 75,
+          "line": 92,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 76,
+          "line": 93,
+          "name": "lifecycle"
+        },
+        {
+          "kind": "mod",
+          "line": 94,
           "name": "registration"
         },
         {
           "kind": "mod",
-          "line": 77,
+          "line": 95,
           "name": "registry"
         },
         {
           "kind": "mod",
-          "line": 78,
+          "line": 96,
           "name": "seal"
         }
       ],
       "title": "mod claim;"
+    },
+    {
+      "bytes": 15227,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "capacity",
+        "self",
+        "bytes_per_unit",
+        "units",
+        "u64",
+        "sealed_bytes",
+        "provencapacity",
+        "replica",
+        "sealed",
+        "claim",
+        "one",
+        "storageunitpolicy",
+        "new",
+        "what",
+        "provider",
+        "how",
+        "number",
+        "seal",
+        "capacity_units_of",
+        "nothing",
+        "proven",
+        "policy",
+        "derive",
+        "windowpolicy"
+      ],
+      "lines": 426,
+      "path": "crates/mini-storage-fraud/src/lifecycle.rs",
+      "sha256": "c13e94d30c2f969671616ef6b21175628c73055c181f7a1d070ec18bee87e8a0",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 51,
+          "name": "WINDOW_CHALLENGE_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 55,
+          "name": "MAX_CHALLENGES_PER_WINDOW"
+        },
+        {
+          "kind": "struct",
+          "line": 59,
+          "name": "StorageUnitPolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 63,
+          "name": "StorageUnitPolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 66,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 74,
+          "name": "gibibytes"
+        },
+        {
+          "kind": "fn",
+          "line": 80,
+          "name": "bytes_per_unit"
+        },
+        {
+          "kind": "struct",
+          "line": 92,
+          "name": "ProvenCapacity"
+        },
+        {
+          "kind": "impl",
+          "line": 97,
+          "name": "ProvenCapacity"
+        },
+        {
+          "kind": "fn",
+          "line": 99,
+          "name": "units"
+        },
+        {
+          "kind": "fn",
+          "line": 104,
+          "name": "sealed_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 109,
+          "name": "none"
+        },
+        {
+          "kind": "fn",
+          "line": 120,
+          "name": "capacity_units_of"
+        },
+        {
+          "kind": "struct",
+          "line": 133,
+          "name": "WindowPolicy"
+        },
+        {
+          "kind": "impl",
+          "line": 139,
+          "name": "WindowPolicy"
+        },
+        {
+          "kind": "fn",
+          "line": 140,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 158,
+          "name": "daily"
+        },
+        {
+          "kind": "fn",
+          "line": 166,
+          "name": "window_ms"
+        },
+        {
+          "kind": "fn",
+          "line": 170,
+          "name": "challenges_per_window"
+        },
+        {
+          "kind": "fn",
+          "line": 174,
+          "name": "grace_windows"
+        },
+        {
+          "kind": "fn",
+          "line": 179,
+          "name": "window_at"
+        },
+        {
+          "kind": "enum",
+          "line": 187,
+          "name": "ReplicaState"
+        },
+        {
+          "kind": "impl",
+          "line": 202,
+          "name": "ReplicaState"
+        },
+        {
+          "kind": "fn",
+          "line": 204,
+          "name": "counts_capacity"
+        },
+        {
+          "kind": "struct",
+          "line": 211,
+          "name": "ReplicaLifecycle"
+        },
+        {
+          "kind": "impl",
+          "line": 222,
+          "name": "ReplicaLifecycle"
+        },
+        {
+          "kind": "fn",
+          "line": 228,
+          "name": "begin"
+        },
+        {
+          "kind": "fn",
+          "line": 245,
+          "name": "claim"
+        },
+        {
+          "kind": "fn",
+          "line": 249,
+          "name": "state"
+        },
+        {
+          "kind": "fn",
+          "line": 253,
+          "name": "last_proven_window"
+        },
+        {
+          "kind": "fn",
+          "line": 266,
+          "name": "challenges_for"
+        },
+        {
+          "kind": "fn",
+          "line": 298,
+          "name": "record_proven_window"
+        },
+        {
+          "kind": "fn",
+          "line": 322,
+          "name": "advance_to"
+        },
+        {
+          "kind": "fn",
+          "line": 353,
+          "name": "retire"
+        },
+        {
+          "kind": "fn",
+          "line": 359,
+          "name": "proven_capacity"
+        },
+        {
+          "kind": "fn",
+          "line": 367,
+          "name": "genesis_ms"
+        },
+        {
+          "kind": "struct",
+          "line": 374,
+          "name": "ProviderStanding"
+        },
+        {
+          "kind": "impl",
+          "line": 378,
+          "name": "ProviderStanding"
+        },
+        {
+          "kind": "fn",
+          "line": 379,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 384,
+          "name": "track"
+        },
+        {
+          "kind": "fn",
+          "line": 389,
+          "name": "get_mut"
+        },
+        {
+          "kind": "fn",
+          "line": 393,
+          "name": "get"
+        },
+        {
+          "kind": "fn",
+          "line": 397,
+          "name": "len"
+        },
+        {
+          "kind": "fn",
+          "line": 401,
+          "name": "is_empty"
+        },
+        {
+          "kind": "fn",
+          "line": 406,
+          "name": "advance_to"
+        },
+        {
+          "kind": "fn",
+          "line": 416,
+          "name": "proven_capacity"
+        }
+      ],
+      "title": "use std::collections::BTreeMap;"
     },
     {
       "bytes": 21656,
@@ -58519,6 +58806,158 @@
           "kind": "fn",
           "line": 1072,
           "name": "a_seal_digest_is_what_ties_a_quorum_to_one_replica"
+        }
+      ],
+      "title": "mod support;"
+    },
+    {
+      "bytes": 14008,
+      "group": "crate:mini-storage-fraud",
+      "headings": [],
+      "keywords": [
+        "lifecycle",
+        "replica",
+        "units",
+        "assert_eq",
+        "tracked",
+        "capacity",
+        "mini_porep",
+        "provider",
+        "windows",
+        "response",
+        "claim",
+        "storageunitpolicy",
+        "policy",
+        "challenge",
+        "window",
+        "support",
+        "genesis",
+        "proof",
+        "replicalifecycle",
+        "windowpolicy",
+        "party",
+        "u64",
+        "new",
+        "unwrap"
+      ],
+      "lines": 384,
+      "path": "crates/mini-storage-fraud/tests/lifecycle.rs",
+      "sha256": "a362b649e38a949e024584efe9a7f6058c802d10cea640bc3da9e11a32fac95c",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 10,
+          "name": "support"
+        },
+        {
+          "kind": "const",
+          "line": 19,
+          "name": "GENESIS"
+        },
+        {
+          "kind": "fn",
+          "line": 23,
+          "name": "units"
+        },
+        {
+          "kind": "fn",
+          "line": 27,
+          "name": "windows"
+        },
+        {
+          "kind": "fn",
+          "line": 33,
+          "name": "prove_window"
+        },
+        {
+          "kind": "fn",
+          "line": 55,
+          "name": "tracked"
+        },
+        {
+          "kind": "fn",
+          "line": 70,
+          "name": "capacity_is_derived_from_the_audited_seal_not_supplied"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "a_replica_smaller_than_one_unit_counts_as_zero_not_one"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
+          "name": "a_zero_byte_unit_policy_is_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 103,
+          "name": "registration_alone_does_not_count_as_capacity"
+        },
+        {
+          "kind": "fn",
+          "line": 116,
+          "name": "answering_a_window_activates_and_counts_capacity"
+        },
+        {
+          "kind": "fn",
+          "line": 131,
+          "name": "continuous_proving_stays_active_across_many_windows"
+        },
+        {
+          "kind": "fn",
+          "line": 151,
+          "name": "a_missed_window_degrades_and_stops_counting_but_recovers"
+        },
+        {
+          "kind": "fn",
+          "line": 171,
+          "name": "missing_beyond_grace_suspends_and_does_not_self_recover"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "a_window_cannot_be_credited_twice"
+        },
+        {
+          "kind": "fn",
+          "line": 215,
+          "name": "advancing_repeatedly_inside_one_window_accrues_no_phantom_misses"
+        },
+        {
+          "kind": "fn",
+          "line": 225,
+          "name": "retiring_is_voluntary_and_terminal"
+        },
+        {
+          "kind": "fn",
+          "line": 245,
+          "name": "challenges_depend_on_the_verifiers_beacon_and_the_window"
+        },
+        {
+          "kind": "fn",
+          "line": 267,
+          "name": "every_drawn_challenge_is_in_range_and_answerable"
+        },
+        {
+          "kind": "fn",
+          "line": 277,
+          "name": "a_response_from_a_different_replica_does_not_verify"
+        },
+        {
+          "kind": "fn",
+          "line": 296,
+          "name": "an_unusable_window_policy_is_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 309,
+          "name": "provider_capacity_is_the_sum_of_actively_proving_replicas"
+        },
+        {
+          "kind": "fn",
+          "line": 366,
+          "name": "three_ordinals_under_one_provider_are_three_distinct_replicas"
         }
       ],
       "title": "mod support;"
@@ -68666,7 +69105,7 @@
       "title": "pub struct StealthOutput {"
     },
     {
-      "bytes": 17315,
+      "bytes": 17719,
       "group": "crate:mini-value",
       "headings": [],
       "keywords": [
@@ -68695,9 +69134,9 @@
         "ristrettopoint",
         "keypair"
       ],
-      "lines": 467,
+      "lines": 472,
       "path": "crates/mini-value/src/stealth_impl.rs",
-      "sha256": "9c96c94a8c3d554098e86d2051baaf04feff592bf0e845a6f071b6b5768a8d6b",
+      "sha256": "ca0d3428c94c90e09d6b9369fbd2c00e89a22b721aa4ff8b289558cddd4887ec",
       "symbols": [
         {
           "kind": "struct",
@@ -68886,7 +69325,7 @@
         },
         {
           "kind": "fn",
-          "line": 462,
+          "line": 467,
           "name": "malformed_inputs_to_the_shared_secret_helpers_are_rejected"
         }
       ],
@@ -70741,7 +71180,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 978703,
+      "bytes": 984706,
       "group": "docs",
       "headings": [
         {
@@ -71171,9 +71610,9 @@
         "transport",
         "status"
       ],
-      "lines": 16240,
+      "lines": 16324,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "f73c66f7dc5a2788fe97d06beaf6136b4666b6f140879a4e243db8b2c92a6299",
+      "sha256": "d38e356439bbdbdb8a07c28a262cc7cc94ae1f20360c73e59a9a3742af3e7ee6",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -72322,7 +72761,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 134370,
+      "bytes": 137158,
       "group": "docs",
       "headings": [
         {
@@ -72372,52 +72811,52 @@
         },
         {
           "level": 2,
-          "line": 849,
+          "line": 890,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 910,
+          "line": 951,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 940,
+          "line": 981,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1236,
+          "line": 1277,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1714,
+          "line": 1755,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1805,
+          "line": 1846,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 1885,
+          "line": 1926,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 1951,
+          "line": 1992,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 1968,
+          "line": 2009,
           "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0438"
         },
         {
           "level": 2,
-          "line": 2004,
+          "line": 2045,
           "text": "Day-0 release code hardening \u2014 D-0442/D-0443 proposal"
         }
       ],
@@ -72447,9 +72886,9 @@
         "claude",
         "social"
       ],
-      "lines": 2039,
+      "lines": 2080,
       "path": "docs/STATUS.md",
-      "sha256": "e50473eabcbdea08cf6e62f279b5acb65e766f9ee5653fad0aab680082a9d29b",
+      "sha256": "985caaa6dfdcd28ea70c1312eee3e00294f7208b7aeb29595f8e494c5d43106d",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -78247,7 +78686,7 @@
       "title": "The self-hosted forge spine \u2014 adapted from the founder-adopted external audit (D-0066)"
     },
     {
-      "bytes": 15127,
+      "bytes": 21082,
       "group": "docs",
       "headings": [
         {
@@ -78306,33 +78745,43 @@
           "text": "3.7 Conflict evidence, and what it refuses to say"
         },
         {
-          "level": 2,
+          "level": 3,
           "line": 94,
+          "text": "3.8 Ongoing possession, and capacity that has to be proven"
+        },
+        {
+          "level": 2,
+          "line": 106,
           "text": "4. A soundness gap this work found in `mini-porep`"
         },
         {
           "level": 2,
-          "line": 104,
+          "line": 116,
+          "text": "4b. A second gap this work found, in `mini-spacetime`"
+        },
+        {
+          "level": 2,
+          "line": 126,
           "text": "5. What this deliberately does not attempt"
         },
         {
           "level": 2,
-          "line": 111,
+          "line": 133,
           "text": "6. Why this is not consensus equivocation"
         },
         {
           "level": 2,
-          "line": 115,
+          "line": 137,
           "text": "7. Open questions for founder/governance review"
         },
         {
           "level": 2,
-          "line": 122,
+          "line": 146,
           "text": "8. Required follow-up"
         },
         {
           "level": 2,
-          "line": 130,
+          "line": 156,
           "text": "9. Supersedes / superseded by"
         }
       ],
@@ -78344,6 +78793,7 @@
         "replica",
         "mini-porep",
         "evidence",
+        "work",
         "issues",
         "two",
         "claim",
@@ -78351,20 +78801,19 @@
         "design",
         "identity-bound",
         "registration",
+        "gap",
         "provider",
-        "work",
         "nothing",
         "proves",
         "binding",
         "storage-fraud",
         "detection",
         "audited",
-        "gap",
         "context"
       ],
-      "lines": 133,
+      "lines": 159,
       "path": "docs/design/storage-fraud-detection.md",
-      "sha256": "ff026ba391047a97815db00691128b995735424bf5942922a3aadbc54332cbb6",
+      "sha256": "595aae919257b349b9ac26f2d3a64990f758951950809ecfc8cb39095fad09e0",
       "symbols": [],
       "title": "Storage-fraud detection: identity-bound replicas, audited registration, and replica-conflict evidence"
     },
@@ -88255,7 +88704,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 39888,
+      "bytes": 40596,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -88284,9 +88733,9 @@
         "independently",
         "both"
       ],
-      "lines": 740,
+      "lines": 758,
       "path": "governance/work-claims.json",
-      "sha256": "16820b6ad74c4b5e688d8bbc4dfb8fb8c7a655fa501cbae3a91cf0238196f38a",
+      "sha256": "713f86939367db357371baacc015f9dc5eaa4a665ddcb9374a3ea1b8b227fe95",
       "symbols": [],
       "title": "{"
     },

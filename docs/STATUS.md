@@ -826,6 +826,47 @@ given time.
   without binding them to any seal, and admitted a trivial
   frame-an-honest-provider attack). See
   `docs/design/storage-fraud-detection.md`.
+- **experimental, not integrated (D-0445; roadmap #42/#33 — partial)** —
+  `mini-storage-fraud::lifecycle`: what happens to a replica *after* it
+  registers. `ReplicaLifecycle` runs proof windows whose challenges derive
+  from the seal digest, the window index, and a **verifier-supplied
+  beacon**, so the provider cannot pre-compute which nodes it will be
+  asked for. A registered replica starts `Degraded { missed_windows: 0 }`
+  (registration is not possession), goes `Active` on an answered window,
+  stops counting capacity the moment one is missed, and `Suspended` past
+  grace with no self-recovery; `Retired` is the voluntary exit.
+  `capacity_units_of` derives capacity from the audited seal's byte count
+  and `ProvenCapacity` has **no constructor taking a number**, closing a
+  hole where a provider could seal one 32-byte node and declare a million
+  units into `mini_spacetime::proposer_weight`, which documents that it
+  "trusts its input completely".
+  **What it does not do:** it is not a clock (windows come from
+  caller-supplied milliseconds), not a liveness signal (a missed window
+  and a partition are the same observation, which is why lapse is
+  gradual and reversible), and not a reward — nothing consumes
+  `ProvenCapacity`, and `proposer_weight` still *accepts* a
+  caller-supplied figure, so the derived path is available rather than
+  mandatory. Window length, challenge count, grace allowance, and the
+  beacon source are all open protocol questions, not derived figures.
+  17 integration tests, every possession proof running through the real
+  `mini_porep::respond` / `mini_spacetime::verify_storage_challenge`
+  primitives rather than simulated. Unaudited prototype cryptography
+  under the D-0047/#72 gate.
+- **fixed (D-0445)** — `mini_spacetime::verify_storage_challenge` did not
+  take the challenge it was verifying: it checked that a response's
+  Merkle proof was internally consistent and correctly rooted, but never
+  that the leaf proved was the leaf asked for. A prover challenged on
+  leaf 7 could answer leaf 3 every time and be credited, so satisfying
+  unbounded challenges across unbounded windows required keeping one leaf
+  and its Merkle path — a few hundred bytes standing in for the whole
+  replica, collapsing proof-of-spacetime to "can produce one
+  authenticated path". It now takes the challenge and requires
+  `challenge.leaf_index == response.leaf_index == response.proof.leaf_index`;
+  `MerkleStorageProof::submit_response` and
+  `PorepStorageProof::submit_response` thread it through, and the function
+  is re-exported from `mini_spacetime`'s root (it was `pub` in its module
+  but reachable by no external caller, which is part of why nothing
+  outside the crate had exercised it). Regression tests in both crates.
 - **shipped (D-0440)** — shared correctness floor. `did-mini` now owns
   the shared wire limits (`MAX_SIGNATURES`, `MAX_KEYS`,
   `MAX_SIGNATURE_BYTES`, `MAX_DID_BYTES`) and the canonical
