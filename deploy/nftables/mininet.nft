@@ -1,0 +1,65 @@
+#!/usr/sbin/nft -f
+# Mininet Node Appliance — default-deny firewall ruleset (Day 0).
+#
+# Policy: drop everything inbound except what this node actually needs.
+# The Mininet sync port below is the ONLY inbound service this appliance
+# profile opens; `mini`'s governance commands (build/release/provenance/
+# installer) are operator-invoked over a local shell or SSH, never a
+# separate network service of their own.
+#
+# The port is an appliance-layer operational choice, not a protocol
+# constant — `mini_bearer`/`mini_net` take the bind address as a caller
+# argument and define no default. Change MININET_SYNC_PORT here and in
+# /etc/mininet/appliance.conf together if you renumber it.
+#
+# Applied via: nft -f /etc/nftables.d/mininet.nft (or copied into
+# /etc/nftables.conf's include chain by the installer).
+
+define MININET_SYNC_PORT = 41777
+
+# This ruleset is meant to be the appliance's ENTIRE nftables policy — a
+# known node owns its own firewall state outright rather than layering on
+# top of whatever happened to be configured before. `flush ruleset` is
+# what makes reapplying this file idempotent (rerunning it always reaches
+# the same end state); it is not safe to include this file alongside
+# other, independently managed nftables rules.
+flush ruleset
+
+table inet mininet_filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Loopback is always trusted.
+        iif "lo" accept
+
+        # Already-established/related connections (outbound sync/connect
+        # calls this node itself initiates).
+        ct state established,related accept
+        ct state invalid drop
+
+        # Minimal ICMP needed for path MTU discovery and diagnostics.
+        ip protocol icmp icmp type { echo-request, destination-unreachable, time-exceeded } accept
+        ip6 nexthdr icmpv6 icmpv6 type { echo-request, destination-unreachable, packet-too-big, time-exceeded, nd-neighbor-solicit, nd-neighbor-advert, nd-router-solicit, nd-router-advert } accept
+
+        # The one inbound Mininet service this appliance profile opens.
+        tcp dport $MININET_SYNC_PORT accept
+
+        # SSH is NOT opened by default. An operator who needs it enables
+        # it explicitly (a separate, reviewed rule) rather than this
+        # profile assuming remote administration is wanted.
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+        # This appliance is a peer node, never a router, by default.
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+        # Outbound is unrestricted at the appliance layer today: Mininet's
+        # own protocol layers (mini-bridge, mini-relay, onion transport)
+        # are where traffic-shape/pattern policy belongs, not a blanket
+        # OS-level egress allowlist that would fight with them. Revisit if
+        # a future phase wants a stricter default.
+    }
+}

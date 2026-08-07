@@ -1,0 +1,9 @@
+# Mininet Node Appliance — /etc/mininet/appliance.conf
+#
+# Sourced by deploy/systemd/*.service via `EnvironmentFile=`. The installer
+# copies this file to /etc/mininet/appliance.conf if that path does not
+# already exist (existing operator edits are never overwritten).
+
+# Must match deploy/nftables/mininet.nft's $MININET_SYNC_PORT if you
+# renumber it — the two are not coupled automatically at install time.
+MININET_SYNC_LISTEN_ADDR=0.0.0.0:41777

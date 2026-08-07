@@ -305,13 +305,16 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0101`
-   (`D-0101` is proposed in this batch),
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0439`
+   (`D-0439`, the Mininet Node Appliance deployment profile, is the newest at
+   the time of this edit),
    plus the networking/consensus track's reserved `D-0200`–`D-0206`, the
    privacy/cost-doctrine track's `D-0300`–, and the edge/provider-layer
-   track's `D-0400`– (the current contributor-coordination proposal is
-   D-0407) — see the log's "Decision-number allocation across parallel
-   tracks").
+   track's `D-0400`– — see the log's "Decision-number allocation across
+   parallel tracks" (note: in practice several recent main-sequence entries
+   have been numbered past `D-0199` into the nominally reserved bands; the
+   log itself, not this summary, is authoritative on any given number's
+   actual track).
 4. [`docs/FAILURE_BOOK.md`](docs/FAILURE_BOOK.md) — *what was tried and
    rejected, and why* — read before re-proposing something.
 5. [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — *what could kill the
