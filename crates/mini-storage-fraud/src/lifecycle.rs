@@ -8,21 +8,26 @@
 //!
 //! # The gap this closes
 //!
-//! `mini_spacetime::MerkleStorageProof::new(commitment, capacity_units,
-//! policy)` takes `capacity_units` from its caller. Nothing ties that number
-//! to the commitment beside it. A provider can seal a single 32-byte node,
-//! register it honestly, and then declare a million units of capacity — and
-//! `mini_spacetime::proposer_weight`, which documents that it "trusts its
-//! input completely", will weight block production accordingly.
+//! `mini_spacetime::MerkleStorageProof::new` used to take `capacity_units`
+//! from its caller, with nothing tying that number to the commitment beside
+//! it, and `mini_spacetime::proposer_weight` took a bare `u64` while
+//! documenting that it "trusts its input completely". A provider could seal a
+//! single 32-byte node, register it honestly, and declare a million units.
 //!
 //! That inverts the thesis the whole storage design rests on. "A thousand
 //! cheap, scattered machines outcompete one warehouse" only holds if capacity
 //! has to be *proven*; if it can be declared, the cheapest possible node wins
 //! by typing a larger number.
 //!
-//! So [`capacity_units_of`] derives capacity from the audited seal and takes
-//! no caller figure at all. A provider's claimable capacity is a function of
-//! what a registration quorum actually checked.
+//! [`capacity_units_of`] derives capacity from the audited seal and takes no
+//! caller figure. **The derived path is now the only path** (D-0448):
+//! `proposer_weight` accepts nothing but a
+//! [`mini_spacetime::ProvenCapacity`], which has no numeric constructor, and
+//! `StorageCommitment::block_size_bytes` is re-checked against the served
+//! bytes on every challenge — so the byte total behind those units is a
+//! consequence of what a provider actually answered. Previously this crate
+//! closed the hole only for callers who opted in, which for an
+//! authority-bearing function is the same as leaving it open.
 //!
 //! # What is still not proven here
 //!
@@ -39,7 +44,6 @@
 use std::collections::BTreeMap;
 
 use mini_crypto::HashAlgorithm;
-use mini_porep::NODE_SIZE;
 use mini_spacetime::StorageChallenge;
 
 use crate::claim::VerifiedReplicaClaim;
@@ -54,78 +58,29 @@ pub const WINDOW_CHALLENGE_DOMAIN: &[u8] = b"mininet/mini-storage-fraud/window-c
 /// prover's work and the verifier's.
 pub const MAX_CHALLENGES_PER_WINDOW: u32 = 1024;
 
-/// How sealed bytes convert into the capacity units a weighting layer counts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StorageUnitPolicy {
-    bytes_per_unit: u64,
-}
-
-impl StorageUnitPolicy {
-    /// A policy counting one unit per `bytes_per_unit` sealed bytes. Zero is
-    /// refused: it would make every replica worth infinite capacity.
-    pub fn new(bytes_per_unit: u64) -> Result<Self> {
-        if bytes_per_unit == 0 {
-            return Err(FraudError::InvalidPolicy);
-        }
-        Ok(Self { bytes_per_unit })
-    }
-
-    /// One unit per gibibyte of sealed replica.
-    pub fn gibibytes() -> Self {
-        Self {
-            bytes_per_unit: 1024 * 1024 * 1024,
-        }
-    }
-
-    pub fn bytes_per_unit(&self) -> u64 {
-        self.bytes_per_unit
-    }
-}
-
-/// Capacity that a registration quorum's audit actually covers.
+/// Re-exported from `mini-spacetime` rather than redefined here.
 ///
-/// There is deliberately no constructor taking a number. The only way to
-/// obtain one is [`capacity_units_of`], from a claim that already verified —
-/// so "how much capacity does this provider have" cannot drift from "how much
-/// did somebody check".
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ProvenCapacity {
-    units: u64,
-    sealed_bytes: u64,
-}
+/// This crate had its own `StorageUnitPolicy`/`ProvenCapacity` pair with the
+/// same names and the same meaning. Two types called `ProvenCapacity` is how
+/// a caller ends up holding one kind of "proven" and passing it somewhere
+/// that means the other — the same reason `mini-private-payment` reuses
+/// `mini_settlement::SettlementState` instead of defining a parallel
+/// finality enum. The canonical definitions now live one layer down, beside
+/// [`mini_spacetime::proposer_weight`], which is the only thing that
+/// consumes them.
+pub use mini_spacetime::{ProvenCapacity, StorageUnitPolicy};
 
-impl ProvenCapacity {
-    /// Capacity units, for a weighting layer to consume.
-    pub fn units(&self) -> u64 {
-        self.units
-    }
-
-    /// The sealed bytes those units were derived from.
-    pub fn sealed_bytes(&self) -> u64 {
-        self.sealed_bytes
-    }
-
-    /// No proven capacity — what a lapsed or suspended replica contributes.
-    pub fn none() -> Self {
-        Self {
-            units: 0,
-            sealed_bytes: 0,
-        }
-    }
-}
-
-/// Derive capacity from the audited seal. Truncating division: a replica
-/// smaller than one unit counts as zero rather than rounding up into capacity
-/// nobody sealed.
+/// Derive capacity from the audited seal.
+///
+/// Goes through the claim's own [`mini_spacetime::StorageCommitment`], which
+/// is itself derived from the audited seal rather than supplied alongside it
+/// — so there is exactly one statement anywhere about how much this replica
+/// covers, and it is inside the object a quorum checked.
 pub fn capacity_units_of(
     claim: &VerifiedReplicaClaim,
     policy: &StorageUnitPolicy,
 ) -> ProvenCapacity {
-    let sealed_bytes = (claim.seal().node_count as u64).saturating_mul(NODE_SIZE as u64);
-    ProvenCapacity {
-        units: sealed_bytes / policy.bytes_per_unit,
-        sealed_bytes,
-    }
+    ProvenCapacity::from_commitment(&claim.storage_commitment(), policy)
 }
 
 /// How often a registered replica must prove it still holds what it sealed.
@@ -413,13 +368,12 @@ impl ProviderStanding {
     ///
     /// Saturating: a provider tracking absurdly many replicas cannot wrap this
     /// into a small number.
+    /// Keyed by replica root, so no replica is counted twice — the one
+    /// caveat [`ProvenCapacity::saturating_add`] cannot enforce itself.
     pub fn proven_capacity(&self, units: &StorageUnitPolicy) -> ProvenCapacity {
-        let mut total = ProvenCapacity::none();
-        for lifecycle in self.replicas.values() {
-            let capacity = lifecycle.proven_capacity(units);
-            total.units = total.units.saturating_add(capacity.units);
-            total.sealed_bytes = total.sealed_bytes.saturating_add(capacity.sealed_bytes);
-        }
-        total
+        self.replicas
+            .values()
+            .map(|lifecycle| lifecycle.proven_capacity(units))
+            .fold(ProvenCapacity::none(), ProvenCapacity::saturating_add)
     }
 }

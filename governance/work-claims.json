@@ -787,6 +787,23 @@
         "D-0449"
       ],
       "notes": "D-0449 (founder direction 2026-08-07): decoy selection becomes a protocol rule rather than a wallet setting -- recency-weighted, integer-only sampling from a local OutputSet, no mixer and no fetching decoys from a peer. MIN_RING_SIZE 8 -> 16 over a new frozen ABSOLUTE_MIN_RING_SIZE of 8. Golden vectors decoupled from the tunable. Coordination evidence only, not approval or authority."
+    },
+    {
+      "issue": 33,
+      "status": "active",
+      "contributor": "claude-agent",
+      "branch": "claude/proven-capacity-only",
+      "pull_request": 306,
+      "lease_expires": "2026-08-14",
+      "paths": [
+        "crates/mini-spacetime",
+        "crates/mini-porep",
+        "crates/mini-storage-fraud"
+      ],
+      "decision_ids": [
+        "D-0448"
+      ],
+      "notes": "D-0448 (founder direction 2026-08-07): proposer_weight takes a typed ProvenCapacity with no numeric constructor, StorageCommitment gains block_size_bytes enforced on every challenge, and mini-storage-fraud's duplicate capacity types are re-exported from mini-spacetime. Completes D-0445 by making the derived path the only path. Coordination evidence only, not approval or authority."
     }
   ]
 }

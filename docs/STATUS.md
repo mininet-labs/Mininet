@@ -760,6 +760,34 @@ given time.
 - **prototype** — `mini-spacetime::storage_proof` (D-0039): Merkle/PDP
   challenge-response. Real, tested. **Proves possession, not replication
   uniqueness — see `docs/INVARIANTS.md`'s hard-limitation section.**
+- **shipped (D-0448)** — capacity can no longer be declared. D-0445 derived
+  capacity from an audited seal but left the derived path optional, and for
+  an authority-bearing function optional is the same as absent:
+  `proposer_weight` still took a bare `u64` while documenting that it
+  "trusts its input completely", so a provider could commit a single
+  32-byte node, prove it honestly, and declare a million units into the
+  function that weights block production. It now takes a typed
+  `ProvenCapacity` with **no numeric constructor** — obtainable only from
+  `ProvenCapacity::from_commitment` or `::none`. `MerkleStorageProof::new`
+  and `PorepStorageProof::new` take a `StorageUnitPolicy` conversion
+  instead of a capacity figure, and `ProofOfSpaceTimeSource` returns the
+  typed value. `StorageCommitment` gained `block_size_bytes`, and
+  `verify_storage_challenge` **enforces it on every answered block** —
+  without that, `block_count` alone says nothing about volume (eight
+  one-byte blocks and eight one-mebibyte blocks are the same count), so
+  deriving bytes would have swapped a caller's asserted number for a
+  prover's. Claim large blocks and you must serve large blocks, forever.
+  `mini-storage-fraud`'s duplicate `ProvenCapacity`/`StorageUnitPolicy`
+  were deleted and re-exported from `mini-spacetime`, since two types with
+  one name is how a caller ends up passing one kind of "proven" where the
+  other is meant.
+  **What it does not do:** it makes the number honest, not the replication
+  unique — that remains `mini-porep`'s problem and the INVARIANTS hard
+  limitation. It forces uniform block sizes, a real constraint on any
+  future variable-size storage format. And nothing consumes it in a live
+  weighting path yet, because networked consensus does not exist
+  ([#36](../../issues/36)–[#45](../../issues/45)). A breaking API change
+  taken deliberately prelaunch, when it is cheap.
 - **prototype** — `mini-porep` (D-0064, closes [#31](../../issues/31)):
   real Filecoin-style Stacked Depth-Robust Graph (SDR) proof-of-
   replication, coded in-house from the published construction (D-0063).

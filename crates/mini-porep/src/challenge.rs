@@ -23,6 +23,11 @@ pub fn replica_commitment(replica: &SealedReplica) -> StorageCommitment {
     StorageCommitment {
         merkle_root: replica.replica_root(),
         block_count: replica.node_count(),
+        // Every replica node is exactly NODE_SIZE bytes by construction, so
+        // this is a fact about the sealing format rather than a claim the
+        // provider makes -- and `verify_storage_challenge` re-checks it on
+        // every answered challenge regardless.
+        block_size_bytes: crate::NODE_SIZE as u32,
     }
 }
 
@@ -53,12 +58,21 @@ pub fn respond(
 pub struct PorepStorageProof(MerkleStorageProof);
 
 impl PorepStorageProof {
-    /// A fresh proof tracker for `replica`, declaring `capacity_units` of
-    /// proven-replicated storage under `policy`.
-    pub fn new(replica: &SealedReplica, capacity_units: u64, policy: StorageWindowPolicy) -> Self {
+    /// A fresh proof tracker for `replica` under `policy`, counting
+    /// capacity at `units`.
+    ///
+    /// Takes a conversion policy rather than a capacity figure: the figure
+    /// is derived from the replica's own node count and node size, both of
+    /// which are enforced when challenges are answered. This previously
+    /// accepted `capacity_units: u64` straight from the caller.
+    pub fn new(
+        replica: &SealedReplica,
+        units: mini_spacetime::StorageUnitPolicy,
+        policy: StorageWindowPolicy,
+    ) -> Self {
         PorepStorageProof(MerkleStorageProof::new(
             replica_commitment(replica),
-            capacity_units,
+            units,
             policy,
         ))
     }
@@ -85,13 +99,18 @@ impl PorepStorageProof {
 }
 
 impl ProofOfSpaceTimeSource for PorepStorageProof {
-    fn proven_capacity(&mut self, now_ms: u64) -> Option<u64> {
+    fn proven_capacity(&mut self, now_ms: u64) -> Option<mini_spacetime::ProvenCapacity> {
         self.0.proven_capacity(now_ms)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    /// One capacity unit per committed byte, so a replica's unit count
+    /// equals its byte count and the arithmetic stays hand-checkable.
+    fn units() -> mini_spacetime::StorageUnitPolicy {
+        mini_spacetime::StorageUnitPolicy::new(1).unwrap()
+    }
     use super::*;
     use crate::seal::{seal, SealParams, NODE_SIZE};
 
@@ -125,7 +144,7 @@ mod tests {
     fn proven_capacity_tracks_a_sustained_challenge_streak() {
         let replica = sealed_replica();
         let policy = StorageWindowPolicy::month_scale_default();
-        let mut tracker = PorepStorageProof::new(&replica, 500, policy);
+        let mut tracker = PorepStorageProof::new(&replica, units(), policy);
 
         assert_eq!(tracker.proven_capacity(0), None);
 
@@ -140,14 +159,17 @@ mod tests {
             t += policy.max_interval_ms / 2;
             leaf += 1;
         }
-        assert_eq!(tracker.proven_capacity(t), Some(500));
+        assert_eq!(
+            tracker.proven_capacity(t).map(|c| c.units()),
+            Some(replica_commitment(&replica).committed_bytes())
+        );
     }
 
     #[test]
     fn an_invalid_response_does_not_advance_proven_capacity() {
         let replica = sealed_replica();
         let policy = StorageWindowPolicy::month_scale_default();
-        let mut tracker = PorepStorageProof::new(&replica, 500, policy);
+        let mut tracker = PorepStorageProof::new(&replica, units(), policy);
 
         let challenge = StorageChallenge { leaf_index: 0 };
         let mut bad = respond(&replica, &challenge).unwrap();
@@ -162,7 +184,7 @@ mod tests {
         // proven-capacity streak open indefinitely.
         let replica = sealed_replica();
         let policy = StorageWindowPolicy::month_scale_default();
-        let mut tracker = PorepStorageProof::new(&replica, 500, policy);
+        let mut tracker = PorepStorageProof::new(&replica, units(), policy);
 
         let asked = StorageChallenge { leaf_index: 9 };
         let kept = respond(&replica, &StorageChallenge { leaf_index: 0 }).unwrap();
