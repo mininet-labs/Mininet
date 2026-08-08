@@ -1,0 +1,60 @@
+# Mininet Node Appliance — required package set (Day 0)
+#
+# Format: one package name per line, grouped by category. A trailing
+# `=<version>` pins an exact Debian Stable version once resolved against a
+# real mirror by `deploy/verification/lock-packages.sh`; an unpinned name
+# takes whatever Debian Stable's own dependency resolver picks. This file
+# as checked in is the DECLARED REQUIREMENT SET, not a hash-locked
+# manifest — see docs/design/mininet-node-appliance.md's "Honest
+# non-claims" section. Do not hand-author version/hash pins here; run the
+# lock script against an actual Debian Stable box or mirror snapshot.
+#
+# Target base: Debian Stable on amd64 or arm64.
+#
+# arm64 is not an afterthought here. The whitepaper's thesis is that a
+# thousand cheap, scattered machines outcompete one warehouse, and the
+# cheap machine most people can actually buy is a single-board ARM
+# computer. A profile that only ran on x86-64 servers would serve exactly
+# the operators the design is meant not to privilege (Directive 11).
+# Every package below is present on both architectures in Debian Stable;
+# deploy/verification/lock-packages.sh resolves per-architecture pins,
+# because a pin from an amd64 box does not describe an arm64 node.
+
+# --- base system / init ---
+systemd
+systemd-sysv
+systemd-timesyncd
+
+# --- security boundary ---
+nftables
+ca-certificates
+sudo
+
+# --- filesystem / recovery ---
+e2fsprogs
+util-linux
+rsync
+
+# --- build toolchain for the mini-cli binary (reproducible build path) ---
+build-essential
+pkg-config
+libssl-dev
+
+# --- operational tooling the installer/verification scripts depend on ---
+curl
+gnupg
+jq
+# `ss`, for preflight's port-availability check.
+iproute2
+# Backup archives are gpg-encrypted tarballs; tar is essential-priority on
+# Debian but named here so the dependency is declared rather than assumed.
+tar
+
+# --- clock ---
+# Nearly every timestamp in this tree is self-reported, and proof windows,
+# claim expiry, and update-freshness policies all read the device clock. A
+# node with a wrong clock produces evidence nobody else agrees with, so
+# time synchronization is a requirement rather than a nicety.
+# systemd-timesyncd is listed under init above; this is the fallback
+# tooling for diagnosing it.
+tzdata

@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 73,
-    "files": 885,
-    "headings": 2807,
+    "files": 897,
+    "headings": 3090,
     "rust_symbols": 8576
   },
   "crates": {
@@ -1695,7 +1695,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 21496,
+      "bytes": 21718,
       "group": "root",
       "headings": [
         {
@@ -1730,7 +1730,7 @@
         },
         {
           "level": 2,
-          "line": 346,
+          "line": 349,
           "text": "License"
         }
       ],
@@ -1760,9 +1760,9 @@
         "path",
         "switch"
       ],
-      "lines": 350,
+      "lines": 353,
       "path": "README.md",
-      "sha256": "b6727e9c475d53f1ae4f4fa69914f64f6eb69cd385503aae937ce77e89c6c624",
+      "sha256": "a36b29323ad01038f710b26b6a9a3bf5f10844fd625119a5ac40b14d87b86bc8",
       "symbols": [],
       "title": "Mininet"
     },
@@ -70662,6 +70662,1616 @@
       "title": "cargo-deny configuration (D-0069 dependency-governance requirement for"
     },
     {
+      "bytes": 4696,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "`deploy/` \u2014 Mininet Node Appliance (Day 0)"
+        },
+        {
+          "level": 2,
+          "line": 33,
+          "text": "Quick start (disposable VM only \u2014 do not run on a machine you care about)"
+        },
+        {
+          "level": 2,
+          "line": 46,
+          "text": "Back up before you have anything to lose"
+        },
+        {
+          "level": 2,
+          "line": 62,
+          "text": "What this does not do"
+        },
+        {
+          "level": 2,
+          "line": 86,
+          "text": "Verifying this directory without installing anything"
+        }
+      ],
+      "keywords": [
+        "deploy",
+        "installer",
+        "verify",
+        "backup",
+        "machine",
+        "system",
+        "release",
+        "you",
+        "anything",
+        "does",
+        "debian",
+        "operator",
+        "node",
+        "identity",
+        "phase",
+        "verification",
+        "run",
+        "back",
+        "what",
+        "directory",
+        "design",
+        "operating",
+        "owns",
+        "hardware"
+      ],
+      "lines": 97,
+      "path": "deploy/README.md",
+      "sha256": "4981fe37d3c574124cfc6e31f37e541e4c02e602486b72bc5b08f17149f31e78",
+      "symbols": [],
+      "title": "`deploy/` \u2014 Mininet Node Appliance (Day 0)"
+    },
+    {
+      "bytes": 4819,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 node state backup."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "# Why this exists"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "/var/lib/mininet holds this node's identity: its `did:mini` keys and its"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "key event log. ID1 is explicit that keys never leave the device and there"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "is no custodial recovery \u2014 which is the right property, and it has a"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "consequence people discover too late. **If this directory is lost, the"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "identity is gone permanently.** No operator, no founder, and no quorum can"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "restore it. There is nobody to ask."
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "So an appliance that can be installed but not backed up is an appliance"
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "that loses identities to dead disks. That is not a hypothetical for a"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "network whose thesis is a thousand cheap machines: cheap machines are"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "exactly the ones whose storage fails."
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "# What this is, and is not"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "It is a local archive of node state, encrypted with a passphrase the"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "operator supplies and this script never stores. It is deliberately NOT:"
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "- an upload to anywhere. Directive 2 says assume every service"
+        },
+        {
+          "level": 1,
+          "line": 24,
+          "text": "disappears; a backup tool that needs a server has moved the failure,"
+        },
+        {
+          "level": 1,
+          "line": 25,
+          "text": "not removed it. Where the archive goes afterward is the operator's"
+        },
+        {
+          "level": 1,
+          "line": 26,
+          "text": "decision, and it is a real one \u2014 an unencrypted copy on a cloud drive"
+        },
+        {
+          "level": 1,
+          "line": 27,
+          "text": "is a key handed to that provider."
+        },
+        {
+          "level": 1,
+          "line": 28,
+          "text": "- a recovery service. There is no key escrow here and there must never"
+        },
+        {
+          "level": 1,
+          "line": 29,
+          "text": "be one, because escrow is custodial recovery wearing a different word."
+        },
+        {
+          "level": 1,
+          "line": 30,
+          "text": "- a substitute for did-mini's own pre-rotation and delegation. Those"
+        },
+        {
+          "level": 1,
+          "line": 31,
+          "text": "handle *compromise*; this handles *loss*. Different failures."
+        },
+        {
+          "level": 1,
+          "line": 33,
+          "text": "Usage:"
+        },
+        {
+          "level": 1,
+          "line": 34,
+          "text": "deploy/backup/backup.sh /path/to/output-dir"
+        },
+        {
+          "level": 1,
+          "line": 35,
+          "text": "MININET_BACKUP_PASSPHRASE=... deploy/backup/backup.sh /path --batch"
+        },
+        {
+          "level": 1,
+          "line": 37,
+          "text": "Restore with deploy/backup/restore.sh."
+        },
+        {
+          "level": 1,
+          "line": 64,
+          "text": "The archive contains key material. Anyone who can read the directory can"
+        },
+        {
+          "level": 1,
+          "line": 65,
+          "text": "attempt an offline passphrase attack against it, so the directory itself"
+        },
+        {
+          "level": 1,
+          "line": 66,
+          "text": "is restricted even though the file is encrypted."
+        },
+        {
+          "level": 1,
+          "line": 80,
+          "text": "--numeric-owner so a restore onto a machine where 'mininet' has a"
+        },
+        {
+          "level": 1,
+          "line": 81,
+          "text": "different uid still lands correctly; restore.sh fixes ownership by name."
+        },
+        {
+          "level": 1,
+          "line": 100,
+          "text": "A digest of the *encrypted* archive, so a later restore can tell a"
+        },
+        {
+          "level": 1,
+          "line": 101,
+          "text": "corrupted file from a wrong passphrase. It is not a signature and proves"
+        },
+        {
+          "level": 1,
+          "line": 102,
+          "text": "nothing about origin."
+        }
+      ],
+      "keywords": [
+        "backup",
+        "log",
+        "archive",
+        "restore",
+        "node",
+        "passphrase",
+        "batch",
+        "appliance",
+        "there",
+        "key",
+        "deploy",
+        "directory",
+        "out_dir",
+        "identity",
+        "never",
+        "recovery",
+        "operator",
+        "encrypted",
+        "one",
+        "different",
+        "state_dir",
+        "fail",
+        "state",
+        "mininet_backup_passphrase"
+      ],
+      "lines": 118,
+      "path": "deploy/backup/backup.sh",
+      "sha256": "d67c3b930b4cfd11b4968fb219dd209b0cecf1ed1386f09ddad455eb249ea4ff",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 node state backup."
+    },
+    {
+      "bytes": 5488,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 node state restore."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "# The thing to understand before running this"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "Restoring node state is not like restoring a database. The archive"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "contains a `did:mini` identity, and an identity is meant to exist in one"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "place. Restoring it onto a second machine while the original still runs"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "does not give you a replica \u2014 it gives you two machines signing as one"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "identity, which is **equivocation**: the same failure `mini-consensus`"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "treats as attributable misbehavior, and the same shape as the"
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "warehouse-with-many-identities problem `mini-storage-fraud` exists to"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "detect, only inverted."
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "So this script refuses to run over an existing state directory unless you"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "say so explicitly, and it says out loud what you are doing when you do."
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "It cannot check whether the original node is still running \u2014 nothing"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "local can \u2014 which is exactly why the confirmation is manual."
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "Usage:"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "deploy/backup/restore.sh /path/to/mininet-node-<stamp>.tar.gz.gpg"
+        },
+        {
+          "level": 1,
+          "line": 22,
+          "text": "deploy/backup/restore.sh <archive> --force        # overwrite existing state"
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "MININET_BACKUP_PASSPHRASE=... deploy/backup/restore.sh <archive> --batch"
+        },
+        {
+          "level": 1,
+          "line": 50,
+          "text": "Integrity first, so a truncated download is distinguishable from a wrong"
+        },
+        {
+          "level": 1,
+          "line": 51,
+          "text": "passphrase. Without this the operator sees \"decryption failed\" for both."
+        },
+        {
+          "level": 1,
+          "line": 87,
+          "text": "shellcheck disable=SC2064 # expand workdir now, not at trap time"
+        },
+        {
+          "level": 1,
+          "line": 113,
+          "text": "Ownership by NAME, not by the archived numeric uid: the mininet system"
+        },
+        {
+          "level": 1,
+          "line": 114,
+          "text": "user may well have a different uid on this machine."
+        }
+      ],
+      "keywords": [
+        "archive",
+        "state",
+        "state_dir",
+        "log",
+        "restore",
+        "workdir",
+        "fail",
+        "you",
+        "node",
+        "identity",
+        "batch",
+        "force",
+        "backup",
+        "restoring",
+        "tar",
+        "gpg",
+        "deploy",
+        "does",
+        "manifest",
+        "machine",
+        "running",
+        "one",
+        "still",
+        "existing"
+      ],
+      "lines": 135,
+      "path": "deploy/backup/restore.sh",
+      "sha256": "9c84f44dc40d2c8df60232bb4fd4679583de9095986b4242f74126afd13cfbcf",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 node state restore."
+    },
+    {
+      "bytes": 912,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Appliance images \u2014 Phase 2 (not built yet)"
+        }
+      ],
+      "keywords": [
+        "phase",
+        "deploy",
+        "images",
+        "built",
+        "yet",
+        "installer",
+        "image",
+        "appliance",
+        "design",
+        "mininet-node-appliance",
+        "debian",
+        "stable",
+        "day",
+        "profile",
+        "directory",
+        "placeholder",
+        "signed",
+        "qcow2",
+        "raw",
+        "disk",
+        "cloud",
+        "installation",
+        "iso",
+        "still"
+      ],
+      "lines": 17,
+      "path": "deploy/image/README.md",
+      "sha256": "4f91276952583486dc35115e7d044dbd7a6763f46b9f7fb9a2df37fc54af3c21",
+      "symbols": [],
+      "title": "Appliance images \u2014 Phase 2 (not built yet)"
+    },
+    {
+      "bytes": 8030,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 Day 0 installer."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Transforms a supported Debian Stable installation into a known Mininet"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "node: installs the pinned package set, applies the sysctl/nftables/user"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "manifests, builds and installs the `mini` binary from this checkout, and"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "installs (but does not start) the systemd units. Designed to be run more"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "than once: every step checks current state before changing anything, so"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "reapplying this script on an already-provisioned node is a no-op except"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "where the manifest itself changed."
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "This script provisions the MACHINE. It never verifies or activates a"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "Mininet release \u2014 that is `mini-installer`'s job (D-0070/D-0071), invoked"
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "afterward via the `mini` binary this script installs. See"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "docs/design/mininet-node-appliance.md."
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "Usage:"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "sudo deploy/installer/install.sh [--allow-non-debian] [--start]"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "--allow-non-debian  Skip the Debian Stable check. For testing this"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "script's logic on a non-Debian box only \u2014 the"
+        },
+        {
+          "level": 1,
+          "line": 22,
+          "text": "resulting node is NOT a supported appliance."
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "--start             Start (not just enable) the sync-listen service"
+        },
+        {
+          "level": 1,
+          "line": 24,
+          "text": "immediately after install, instead of leaving it"
+        },
+        {
+          "level": 1,
+          "line": 25,
+          "text": "for next boot / manual `systemctl start`."
+        },
+        {
+          "level": 1,
+          "line": 26,
+          "text": "--skip-preflight    Do not run deploy/installer/preflight.sh first."
+        },
+        {
+          "level": 1,
+          "line": 27,
+          "text": "Preflight changes nothing and catches the failures"
+        },
+        {
+          "level": 1,
+          "line": 28,
+          "text": "that would otherwise strand this script halfway,"
+        },
+        {
+          "level": 1,
+          "line": 29,
+          "text": "so skipping it is for automation that already ran"
+        },
+        {
+          "level": 1,
+          "line": 30,
+          "text": "it separately."
+        },
+        {
+          "level": 1,
+          "line": 61,
+          "text": "--- 0. Preflight ---"
+        },
+        {
+          "level": 1,
+          "line": 62,
+          "text": "Everything this script needs, checked before anything is modified. An"
+        },
+        {
+          "level": 1,
+          "line": 63,
+          "text": "installer that fails halfway leaves a machine in a state nobody designed."
+        },
+        {
+          "level": 1,
+          "line": 74,
+          "text": "--- 1. Platform check ---"
+        },
+        {
+          "level": 1,
+          "line": 81,
+          "text": "--- 2. Package installation ---"
+        },
+        {
+          "level": 1,
+          "line": 91,
+          "text": "--- 3. System user/group ---"
+        },
+        {
+          "level": 1,
+          "line": 102,
+          "text": "--- 4. Kernel hardening baseline ---"
+        },
+        {
+          "level": 1,
+          "line": 109,
+          "text": "--- 5. Firewall ---"
+        },
+        {
+          "level": 1,
+          "line": 119,
+          "text": "--- 6. Application config ---"
+        },
+        {
+          "level": 1,
+          "line": 126,
+          "text": "--- 7. Build and install the mini binary ---"
+        },
+        {
+          "level": 1,
+          "line": 127,
+          "text": "Bootstrap only: the FIRST `mini` binary on a fresh node has nothing to"
+        },
+        {
+          "level": 1,
+          "line": 128,
+          "text": "verify it against, so it is built directly from this checkout via cargo"
+        },
+        {
+          "level": 1,
+          "line": 129,
+          "text": "rather than through mini-installer's release pipeline. Every subsequent"
+        },
+        {
+          "level": 1,
+          "line": 130,
+          "text": "update should go through `mini build`/`mini release`/`mini installer`"
+        },
+        {
+          "level": 1,
+          "line": 131,
+          "text": "instead of rerunning this step, so it stays inside the governed release"
+        },
+        {
+          "level": 1,
+          "line": 132,
+          "text": "path this appliance sits underneath."
+        },
+        {
+          "level": 1,
+          "line": 141,
+          "text": "--- 8. Journal retention (privacy-first defaults) ---"
+        },
+        {
+          "level": 1,
+          "line": 142,
+          "text": "A connection log is a record of who talked to this node and when. See"
+        },
+        {
+          "level": 1,
+          "line": 143,
+          "text": "deploy/journald/mininet-privacy.conf for why the defaults are short."
+        },
+        {
+          "level": 1,
+          "line": 148,
+          "text": "--- 9. Self-verification script ---"
+        },
+        {
+          "level": 1,
+          "line": 149,
+          "text": "Copied to a stable path so the timer unit does not depend on the repo"
+        },
+        {
+          "level": 1,
+          "line": 150,
+          "text": "checkout still existing where it was at install time."
+        },
+        {
+          "level": 1,
+          "line": 154,
+          "text": "--- 10. systemd units ---"
+        }
+      ],
+      "keywords": [
+        "install",
+        "script",
+        "etc",
+        "nftables",
+        "start",
+        "conf",
+        "installer",
+        "node",
+        "log",
+        "preflight",
+        "installs",
+        "deploy",
+        "appliance",
+        "sysctl",
+        "allow-non-debian",
+        "nft",
+        "debian",
+        "package",
+        "user",
+        "binary",
+        "dev",
+        "null",
+        "deploy_root",
+        "packages"
+      ],
+      "lines": 178,
+      "path": "deploy/installer/install.sh",
+      "sha256": "4a612bb6abf4d2e1080c9fbe03b4b89af4cdf4c0582c1d14d760be019a47826d",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 Day 0 installer."
+    },
+    {
+      "bytes": 7623,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 pre-install checks."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Everything install.sh needs to be true, checked BEFORE anything is"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "modified. An installer that gets halfway and then discovers the disk is"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "full leaves a machine in a state nobody designed, which is worse than"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "either outcome."
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "Read-only and non-root by design: it changes nothing and needs no"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "privileges beyond reading /proc and /etc. Run it on a candidate machine"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "before committing to it."
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "Exit codes:"
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "0  ready to install"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "1  a hard requirement is unmet"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "2  only advisories (installable, but read them)"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "Usage: deploy/installer/preflight.sh [--json]"
+        },
+        {
+          "level": 1,
+          "line": 33,
+          "text": "Minimums. These are the appliance profile's operational floor, not a"
+        },
+        {
+          "level": 1,
+          "line": 34,
+          "text": "protocol constant, and they are deliberately low: Directive 11 says the"
+        },
+        {
+          "level": 1,
+          "line": 35,
+          "text": "weakest honest device is the one that matters, so a machine a person"
+        },
+        {
+          "level": 1,
+          "line": 36,
+          "text": "already owns should qualify. A Raspberry Pi 4 with a 32 GB card passes."
+        },
+        {
+          "level": 1,
+          "line": 53,
+          "text": "--- platform -------------------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 77,
+          "text": "--- init system ----------------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 84,
+          "text": "--- resources ------------------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 105,
+          "text": "--- clock ----------------------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 106,
+          "text": "Nearly every timestamp in this tree is self-reported, and proof windows,"
+        },
+        {
+          "level": 1,
+          "line": 107,
+          "text": "claim expiry, and freshness policies all read the device clock. A node"
+        },
+        {
+          "level": 1,
+          "line": 108,
+          "text": "with a wrong clock is not merely inconvenient: it produces evidence"
+        },
+        {
+          "level": 1,
+          "line": 109,
+          "text": "nobody else agrees with."
+        },
+        {
+          "level": 1,
+          "line": 120,
+          "text": "--- required commands ----------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 141,
+          "text": "--- port availability ----------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 158,
+          "text": "--- existing install -----------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 165,
+          "text": "--- output ---------------------------------------------------------------"
+        }
+      ],
+      "keywords": [
+        "record",
+        "clock",
+        "cmd",
+        "else",
+        "install",
+        "dev",
+        "null",
+        "warn",
+        "pass",
+        "machine",
+        "system",
+        "fail",
+        "arch",
+        "avail_mb",
+        "installer",
+        "appliance",
+        "needs",
+        "disk",
+        "etc",
+        "advisories",
+        "read",
+        "json",
+        "init",
+        "deploy"
+      ],
+      "lines": 203,
+      "path": "deploy/installer/preflight.sh",
+      "sha256": "7f50e7fe0887016dd2a3f68166b68f76f95a2fff3b3b2d1ffdc953b361fe98b2",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 pre-install checks."
+    },
+    {
+      "bytes": 5786,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 clean removal."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "# Why an appliance needs this"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "\"No off switch\" (P3/U1) is about the *network*: nobody can remotely"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "disable your node, and no update can be forced on you. It is not a claim"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "that a person cannot remove software from their own machine. The opposite,"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "in fact \u2014 Directive 1 puts sovereignty above convenience, and software you"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "cannot uninstall is software that owns the machine rather than serving it."
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "So removal is a first-class operation, and it is entirely local: this"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "script tells nobody, revokes nothing, and asks no permission."
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "# What it will not do without being told twice"
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "Node state (/var/lib/mininet) is **kept by default**. It holds the"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "identity, and ID1 means a deleted identity is gone permanently \u2014 no"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "custodial recovery exists, by design. Removing the software is reversible;"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "deleting the keys is not, so the two are separate decisions and the"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "irreversible one requires --purge-state and a typed confirmation."
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "Usage:"
+        },
+        {
+          "level": 1,
+          "line": 24,
+          "text": "sudo deploy/installer/uninstall.sh                  # software only, state kept"
+        },
+        {
+          "level": 1,
+          "line": 25,
+          "text": "sudo deploy/installer/uninstall.sh --purge-state    # also delete the identity"
+        },
+        {
+          "level": 1,
+          "line": 26,
+          "text": "sudo deploy/installer/uninstall.sh --keep-packages  # leave apt packages installed"
+        },
+        {
+          "level": 1,
+          "line": 47,
+          "text": "--- 1. Stop and disable units -------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 55,
+          "text": "--- 2. Remove unit files -------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 63,
+          "text": "--- 3. Remove appliance-owned system configuration ----------------------"
+        },
+        {
+          "level": 1,
+          "line": 64,
+          "text": "Only files this appliance installed. /etc/nftables.conf and"
+        },
+        {
+          "level": 1,
+          "line": 65,
+          "text": "/etc/sysctl.conf belong to the operator and are left alone apart from"
+        },
+        {
+          "level": 1,
+          "line": 66,
+          "text": "removing the include line we added."
+        },
+        {
+          "level": 1,
+          "line": 89,
+          "text": "--- 4. Remove the binary -------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 95,
+          "text": "--- 5. Packages ----------------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 100,
+          "text": "--- 6. State \u2014 the irreversible part ------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 125,
+          "text": "--- 7. System user -------------------------------------------------------"
+        },
+        {
+          "level": 1,
+          "line": 126,
+          "text": "Kept whenever state is kept: removing the user while its files remain"
+        },
+        {
+          "level": 1,
+          "line": 127,
+          "text": "leaves them owned by a bare uid, which is how a later reinstall ends up"
+        },
+        {
+          "level": 1,
+          "line": 128,
+          "text": "unable to read its own state."
+        }
+      ],
+      "keywords": [
+        "log",
+        "etc",
+        "nftables",
+        "software",
+        "conf",
+        "state",
+        "uninstall",
+        "remove",
+        "identity",
+        "removing",
+        "installer",
+        "node",
+        "unit",
+        "deploy",
+        "appliance",
+        "packages",
+        "you",
+        "kept",
+        "sudo",
+        "files",
+        "system",
+        "dev",
+        "null",
+        "disable"
+      ],
+      "lines": 137,
+      "path": "deploy/installer/uninstall.sh",
+      "sha256": "58dc03a44ad084c17aaf480c47adae797acfa6cab5cdbb19b9309e2c6a54f1de",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 clean removal."
+    },
+    {
+      "bytes": 2256,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Mininet Node Appliance \u2014 required package set (Day 0)"
+        },
+        {
+          "level": 1,
+          "line": 3,
+          "text": "Format: one package name per line, grouped by category. A trailing"
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "`=<version>` pins an exact Debian Stable version once resolved against a"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "real mirror by `deploy/verification/lock-packages.sh`; an unpinned name"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "takes whatever Debian Stable's own dependency resolver picks. This file"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "as checked in is the DECLARED REQUIREMENT SET, not a hash-locked"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "manifest \u2014 see docs/design/mininet-node-appliance.md's \"Honest"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "non-claims\" section. Do not hand-author version/hash pins here; run the"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "lock script against an actual Debian Stable box or mirror snapshot."
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "Target base: Debian Stable on amd64 or arm64."
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "arm64 is not an afterthought here. The whitepaper's thesis is that a"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "thousand cheap, scattered machines outcompete one warehouse, and the"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "cheap machine most people can actually buy is a single-board ARM"
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "computer. A profile that only ran on x86-64 servers would serve exactly"
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "the operators the design is meant not to privilege (Directive 11)."
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "Every package below is present on both architectures in Debian Stable;"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "deploy/verification/lock-packages.sh resolves per-architecture pins,"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "because a pin from an amd64 box does not describe an arm64 node."
+        },
+        {
+          "level": 1,
+          "line": 23,
+          "text": "--- base system / init ---"
+        },
+        {
+          "level": 1,
+          "line": 28,
+          "text": "--- security boundary ---"
+        },
+        {
+          "level": 1,
+          "line": 33,
+          "text": "--- filesystem / recovery ---"
+        },
+        {
+          "level": 1,
+          "line": 38,
+          "text": "--- build toolchain for the mini-cli binary (reproducible build path) ---"
+        },
+        {
+          "level": 1,
+          "line": 43,
+          "text": "--- operational tooling the installer/verification scripts depend on ---"
+        },
+        {
+          "level": 1,
+          "line": 47,
+          "text": "`ss`, for preflight's port-availability check."
+        },
+        {
+          "level": 1,
+          "line": 49,
+          "text": "Backup archives are gpg-encrypted tarballs; tar is essential-priority on"
+        },
+        {
+          "level": 1,
+          "line": 50,
+          "text": "Debian but named here so the dependency is declared rather than assumed."
+        },
+        {
+          "level": 1,
+          "line": 53,
+          "text": "--- clock ---"
+        },
+        {
+          "level": 1,
+          "line": 54,
+          "text": "Nearly every timestamp in this tree is self-reported, and proof windows,"
+        },
+        {
+          "level": 1,
+          "line": 55,
+          "text": "claim expiry, and update-freshness policies all read the device clock. A"
+        },
+        {
+          "level": 1,
+          "line": 56,
+          "text": "node with a wrong clock produces evidence nobody else agrees with, so"
+        },
+        {
+          "level": 1,
+          "line": 57,
+          "text": "time synchronization is a requirement rather than a nicety."
+        },
+        {
+          "level": 1,
+          "line": 58,
+          "text": "systemd-timesyncd is listed under init above; this is the fallback"
+        },
+        {
+          "level": 1,
+          "line": 59,
+          "text": "tooling for diagnosing it."
+        }
+      ],
+      "keywords": [
+        "debian",
+        "stable",
+        "node",
+        "package",
+        "version",
+        "pins",
+        "verification",
+        "here",
+        "arm64",
+        "clock",
+        "deploy",
+        "set",
+        "one",
+        "name",
+        "against",
+        "mirror",
+        "lock-packages",
+        "dependency",
+        "declared",
+        "requirement",
+        "design",
+        "box",
+        "base",
+        "amd64"
+      ],
+      "lines": 61,
+      "path": "deploy/packages.lock",
+      "sha256": "222c24c21fb1bc476b2405ec01ea017a18f3b0f0fca02c0e43c39136bb5acef4",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 required package set (Day 0)"
+    },
+    {
+      "bytes": 4829,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 resolve packages.lock against a real mirror."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "`deploy/packages.lock` as checked in is a DECLARED REQUIREMENT SET: names,"
+        },
+        {
+          "level": 1,
+          "line": 5,
+          "text": "no versions. That is honest but weak \u2014 two machines provisioned a month"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "apart get different package versions, so \"a known Mininet node\" is only"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "known up to whatever Debian Stable shipped that day."
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "This script is the other half: run it on a real Debian Stable machine (or"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "against a mirror snapshot) and it emits a version-pinned lock. It never"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "hand-authors a pin, because a pin nobody resolved against an actual"
+        },
+        {
+          "level": 1,
+          "line": 12,
+          "text": "archive is worse than no pin \u2014 it looks precise and is fiction."
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "Usage:"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "deploy/verification/lock-packages.sh                 # print to stdout"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "deploy/verification/lock-packages.sh --write         # rewrite packages.lock.resolved"
+        },
+        {
+          "level": 1,
+          "line": 17,
+          "text": "deploy/verification/lock-packages.sh --check         # fail if resolved file is stale"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "The output goes to `packages.lock.resolved`, NOT to `packages.lock`. The"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "requirement set is human-authored and reviewed; the resolved pins are"
+        },
+        {
+          "level": 1,
+          "line": 21,
+          "text": "machine-generated and architecture-specific. Conflating them would mean a"
+        },
+        {
+          "level": 1,
+          "line": 22,
+          "text": "reviewer could no longer see which packages were deliberately chosen."
+        },
+        {
+          "level": 1,
+          "line": 24,
+          "text": "What this does not do: verify signatures or hashes of the packages"
+        },
+        {
+          "level": 1,
+          "line": 25,
+          "text": "themselves. Debian's own apt does that with its archive keyring, and"
+        },
+        {
+          "level": 1,
+          "line": 26,
+          "text": "reimplementing it here would be inventing a second, worse trust path"
+        },
+        {
+          "level": 1,
+          "line": 27,
+          "text": "(see docs/design/mininet-node-appliance.md's honest non-claims)."
+        },
+        {
+          "level": 1,
+          "line": 56,
+          "text": "shellcheck disable=SC1091 # runtime file, not resolvable at lint time"
+        }
+      ],
+      "keywords": [
+        "printf",
+        "resolved",
+        "lock",
+        "packages",
+        "lock-packages",
+        "package",
+        "deploy",
+        "verification",
+        "debian",
+        "node",
+        "against",
+        "pin",
+        "mirror",
+        "set",
+        "write",
+        "file",
+        "does",
+        "dev",
+        "null",
+        "exit",
+        "arch",
+        "codename",
+        "unresolved",
+        "version"
+      ],
+      "lines": 118,
+      "path": "deploy/verification/lock-packages.sh",
+      "sha256": "d14ded8fbcb722c4417268fb0a2844a3f39178f8827ead4d049b9df3606564ca",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 resolve packages.lock against a real mirror."
+    },
+    {
+      "bytes": 7444,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 2,
+          "text": "Mininet Node Appliance \u2014 verification script."
+        },
+        {
+          "level": 1,
+          "line": 4,
+          "text": "Two things, always both attempted, failures reported at the end:"
+        },
+        {
+          "level": 1,
+          "line": 6,
+          "text": "1. Manifest lint (works anywhere, no root needed, no prior install):"
+        },
+        {
+          "level": 1,
+          "line": 7,
+          "text": "- systemd-analyze verify on the checked-in unit files"
+        },
+        {
+          "level": 1,
+          "line": 8,
+          "text": "- nft --check syntax validation on the checked-in ruleset"
+        },
+        {
+          "level": 1,
+          "line": 9,
+          "text": "- packages.lock has no blank/malformed lines"
+        },
+        {
+          "level": 1,
+          "line": 10,
+          "text": "- shellcheck on every script here, when it is available"
+        },
+        {
+          "level": 1,
+          "line": 11,
+          "text": "- every script is executable (a mode 0644 installer is a broken one)"
+        },
+        {
+          "level": 1,
+          "line": 13,
+          "text": "2. Live state check (best-effort; skipped with a note if this host was"
+        },
+        {
+          "level": 1,
+          "line": 14,
+          "text": "never provisioned by install.sh): confirms the units are actually"
+        },
+        {
+          "level": 1,
+          "line": 15,
+          "text": "installed/enabled, the nftables table is loaded, and the mininet"
+        },
+        {
+          "level": 1,
+          "line": 16,
+          "text": "system user exists."
+        },
+        {
+          "level": 1,
+          "line": 18,
+          "text": "Exit code is nonzero if any check fails. This does not verify a Mininet"
+        },
+        {
+          "level": 1,
+          "line": 19,
+          "text": "release (mini-forge/mini-installer's job) \u2014 only that the appliance"
+        },
+        {
+          "level": 1,
+          "line": 20,
+          "text": "layer itself is internally consistent."
+        },
+        {
+          "level": 1,
+          "line": 72,
+          "text": "Scripts: executable bit, then shellcheck. A script committed without +x"
+        },
+        {
+          "level": 1,
+          "line": 73,
+          "text": "fails at the least convenient moment -- halfway through a provision."
+        },
+        {
+          "level": 1,
+          "line": 170,
+          "text": "Backups are the one thing whose absence is unrecoverable, so an"
+        },
+        {
+          "level": 1,
+          "line": 171,
+          "text": "unprovisioned-looking node with real state gets told about it every run."
+        }
+      ],
+      "keywords": [
+        "script",
+        "deploy_root",
+        "verify",
+        "tmp",
+        "log",
+        "unit",
+        "nft",
+        "else",
+        "check",
+        "shellcheck",
+        "fail",
+        "systemd-analyze",
+        "pass",
+        "executable",
+        "install",
+        "installer",
+        "skip",
+        "verification",
+        "failures",
+        "packages",
+        "every",
+        "nftables",
+        "scripts",
+        "dev"
+      ],
+      "lines": 186,
+      "path": "deploy/verification/verify.sh",
+      "sha256": "6d1b2025526924d19d8ed39b004e5be865fea4810eaab0f9fd52d76bb1f70cf8",
+      "symbols": [],
+      "title": "Mininet Node Appliance \u2014 verification script."
+    },
+    {
       "bytes": 8363,
       "group": "docs",
       "headings": [
@@ -71180,7 +72790,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 984706,
+      "bytes": 995062,
       "group": "docs",
       "headings": [
         {
@@ -71590,8 +73200,8 @@
         "proposed",
         "issue",
         "real",
-        "android",
         "founder",
+        "android",
         "beta",
         "slice",
         "review",
@@ -71610,9 +73220,9 @@
         "transport",
         "status"
       ],
-      "lines": 16324,
+      "lines": 16490,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d38e356439bbdbdb8a07c28a262cc7cc94ae1f20360c73e59a9a3742af3e7ee6",
+      "sha256": "b74d312987a70c66ba0111612fe082f44e4918f6f43ebc2fa8b8dcfc74463a99",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -72761,7 +74371,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 137158,
+      "bytes": 141523,
       "group": "docs",
       "headings": [
         {
@@ -72857,6 +74467,11 @@
         {
           "level": 2,
           "line": 2045,
+          "text": "Node deployment \u2014 Mininet Node Appliance (D-0446)"
+        },
+        {
+          "level": 2,
+          "line": 2110,
           "text": "Day-0 release code hardening \u2014 D-0442/D-0443 proposal"
         }
       ],
@@ -72886,9 +74501,9 @@
         "claude",
         "social"
       ],
-      "lines": 2080,
+      "lines": 2145,
       "path": "docs/STATUS.md",
-      "sha256": "985caaa6dfdcd28ea70c1312eee3e00294f7208b7aeb29595f8e494c5d43106d",
+      "sha256": "296b2092c1ae1ae7fa73cff2c0f43096a72043fc91e0837c9486067dd01f9552",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -77864,6 +79479,108 @@
       "sha256": "a5d3665309372c131c167b5e9ec994fbb53dd87c459e0a0590c6c8a206594c55",
       "symbols": [],
       "title": "Forge-native contributor coordination"
+    },
+    {
+      "bytes": 13973,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "The Mininet Node Appliance \u2014 an OS-shaped deployment profile, not an OS (D-0446)"
+        },
+        {
+          "level": 2,
+          "line": 24,
+          "text": "The ownership split"
+        },
+        {
+          "level": 2,
+          "line": 49,
+          "text": "Relationship to the existing forge spine"
+        },
+        {
+          "level": 2,
+          "line": 74,
+          "text": "Constitutional constraint carried over from D-0020"
+        },
+        {
+          "level": 2,
+          "line": 94,
+          "text": "Why a full OS is premature"
+        },
+        {
+          "level": 2,
+          "line": 110,
+          "text": "Staged plan"
+        },
+        {
+          "level": 3,
+          "line": 112,
+          "text": "Day 0 \u2014 Debian deployment profile (this decision's scope)"
+        },
+        {
+          "level": 3,
+          "line": 176,
+          "text": "Phase 2 \u2014 Reproducible appliance image"
+        },
+        {
+          "level": 3,
+          "line": 186,
+          "text": "Phase 3 \u2014 Managed immutable system"
+        },
+        {
+          "level": 3,
+          "line": 195,
+          "text": "Phase 4 \u2014 Distribution decision gate"
+        },
+        {
+          "level": 2,
+          "line": 211,
+          "text": "Reference platform (initial, narrow, on purpose)"
+        },
+        {
+          "level": 2,
+          "line": 231,
+          "text": "Honest non-claims"
+        },
+        {
+          "level": 2,
+          "line": 254,
+          "text": "Refs"
+        }
+      ],
+      "keywords": [
+        "appliance",
+        "installer",
+        "release",
+        "deploy",
+        "debian",
+        "already",
+        "node",
+        "phase",
+        "image",
+        "distribution",
+        "build",
+        "machine",
+        "deployment",
+        "profile",
+        "existing",
+        "spine",
+        "decision",
+        "package",
+        "security",
+        "policy",
+        "stable",
+        "same",
+        "mini-installer",
+        "os-shaped"
+      ],
+      "lines": 262,
+      "path": "docs/design/mininet-node-appliance.md",
+      "sha256": "369d3ca44b5edf1c819c5598a3ac7128a09c9e9c037a25b6c59531f770d8546f",
+      "symbols": [],
+      "title": "The Mininet Node Appliance \u2014 an OS-shaped deployment profile, not an OS (D-0446)"
     },
     {
       "bytes": 14572,
@@ -85666,6 +87383,148 @@
       "title": "RFC-0005: Forge Cutover and Platform Exit"
     },
     {
+      "bytes": 10947,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Running a Mininet node \u2014 the operator's guide"
+        },
+        {
+          "level": 2,
+          "line": 9,
+          "text": "What a node is, and what running one means"
+        },
+        {
+          "level": 2,
+          "line": 25,
+          "text": "Before you start: the one thing people get wrong"
+        },
+        {
+          "level": 2,
+          "line": 31,
+          "text": "Hardware"
+        },
+        {
+          "level": 2,
+          "line": 44,
+          "text": "Install"
+        },
+        {
+          "level": 1,
+          "line": 50,
+          "text": "Changes nothing. Tells you whether this machine will work."
+        },
+        {
+          "level": 1,
+          "line": 53,
+          "text": "If preflight is happy:"
+        },
+        {
+          "level": 3,
+          "line": 61,
+          "text": "What it changes on your machine"
+        },
+        {
+          "level": 3,
+          "line": 79,
+          "text": "Start it"
+        },
+        {
+          "level": 2,
+          "line": 88,
+          "text": "Day-to-day"
+        },
+        {
+          "level": 1,
+          "line": 91,
+          "text": "Is the appliance layer intact?"
+        },
+        {
+          "level": 1,
+          "line": 94,
+          "text": "What has the node been doing?"
+        },
+        {
+          "level": 1,
+          "line": 97,
+          "text": "Stop / start"
+        },
+        {
+          "level": 3,
+          "line": 104,
+          "text": "Configuration"
+        },
+        {
+          "level": 3,
+          "line": 112,
+          "text": "Logs and what they contain"
+        },
+        {
+          "level": 2,
+          "line": 118,
+          "text": "Backup \u2014 do this now"
+        },
+        {
+          "level": 2,
+          "line": 140,
+          "text": "Updating"
+        },
+        {
+          "level": 2,
+          "line": 161,
+          "text": "Removing it"
+        },
+        {
+          "level": 2,
+          "line": 177,
+          "text": "Troubleshooting"
+        },
+        {
+          "level": 2,
+          "line": 189,
+          "text": "What this profile does not do yet"
+        },
+        {
+          "level": 2,
+          "line": 201,
+          "text": "Where to ask"
+        }
+      ],
+      "keywords": [
+        "you",
+        "what",
+        "node",
+        "start",
+        "machine",
+        "one",
+        "running",
+        "install",
+        "nothing",
+        "your",
+        "etc",
+        "wrong",
+        "changes",
+        "does",
+        "sudo",
+        "conf",
+        "guide",
+        "hardware",
+        "preflight",
+        "appliance",
+        "backup",
+        "identity",
+        "system",
+        "deploy"
+      ],
+      "lines": 206,
+      "path": "docs/guides/node-operator-guide.md",
+      "sha256": "dc544c1ae3f86fea9efbe8a9c0bcb78ca4b5e045e2268de30527c0e24b9eaf87",
+      "symbols": [],
+      "title": "Running a Mininet node \u2014 the operator's guide"
+    },
+    {
       "bytes": 14247,
       "group": "docs",
       "headings": [
@@ -88704,7 +90563,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 40596,
+      "bytes": 41397,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -88733,9 +90592,9 @@
         "independently",
         "both"
       ],
-      "lines": 758,
+      "lines": 777,
       "path": "governance/work-claims.json",
-      "sha256": "713f86939367db357371baacc015f9dc5eaa4a665ddcb9374a3ea1b8b227fe95",
+      "sha256": "9413cedbd8952a440907f93c052b7685e29c56f9af3a4a504760fee3a89b2f0d",
       "symbols": [],
       "title": "{"
     },
@@ -89822,6 +91681,16 @@
     "app/android/gradle/libs.versions.toml",
     "app/android/scripts/build-rust.sh",
     "deny.toml",
+    "deploy/README.md",
+    "deploy/backup/backup.sh",
+    "deploy/backup/restore.sh",
+    "deploy/image/README.md",
+    "deploy/installer/install.sh",
+    "deploy/installer/preflight.sh",
+    "deploy/installer/uninstall.sh",
+    "deploy/packages.lock",
+    "deploy/verification/lock-packages.sh",
+    "deploy/verification/verify.sh",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
     "forge-native/examples/working-group-charter.example.json",

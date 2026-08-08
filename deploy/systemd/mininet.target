@@ -1,0 +1,12 @@
+# Mininet Node Appliance — grouping target for all Mininet OS-level units.
+#
+# `systemctl enable mininet.target` pulls in every unit that `WantedBy=`s
+# it. This target carries no behavior of its own; it exists so an operator
+# (or the installer) has one name to enable/disable/status the whole node
+# with, without hand-listing individual unit files.
+
+[Unit]
+Description=Mininet Node Appliance
+Documentation=https://github.com/mininet-labs/Mininet/blob/main/docs/design/mininet-node-appliance.md
+After=network-online.target
+Wants=network-online.target
