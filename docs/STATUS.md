@@ -2076,6 +2076,71 @@ remain valid; there is no CA, canonical relay/bootstrap registry, hosted
 identity directory, trusted first peer, majority-by-download rule, admin or
 unmasking key, or value-to-routing/voice path.
 
+## Node deployment — Mininet Node Appliance (D-0446)
+
+Doctrine: `docs/design/mininet-node-appliance.md`. A staged, Debian-Stable-
+based deployment profile, explicitly not a from-scratch operating system —
+Mininet owns the manifest/units/policy/installer, Debian keeps the kernel,
+bootloader, hardware support, security patches, and package infrastructure.
+
+- **shipped, prototype (Day 0)** — `deploy/`: a pinned package manifest
+  (`packages.lock`, package names confirmed to resolve against a live apt
+  cache — not yet hash-locked, see the file's own header), a minimal
+  kernel-hardening sysctl baseline, a default-deny `nftables` ruleset
+  (syntax-verified via `nft --check`), a declarative system user
+  (`systemd-sysusers` format, dry-run-verified), two systemd units
+  (`mininet.target`, `mininet-sync-listen.service` — the latter uses
+  `Restart=always` supervision to turn `mini sync listen`'s existing
+  one-shot semantics into an always-listening OS service without adding a
+  daemon to `mini-cli`; both pass `systemd-analyze verify`), an idempotent
+  installer script (`deploy/installer/install.sh`) that provisions a bare
+  Debian Stable machine and builds/installs `mini-cli` as a one-time
+  bootstrap, and a verification script (`deploy/verification/verify.sh`).
+- **shipped, prototype (Day 0, second pass)** — the rest of the local
+  lifecycle, because a tree that can only *install* is a demo rather than
+  a deployment profile. `installer/preflight.sh` (read-only, non-root:
+  architecture, init, disk, RAM, clock sync, port, existing state —
+  `install.sh` now refuses to start on a hard failure, so a machine is
+  never left half-provisioned); `installer/uninstall.sh` (clean removal
+  that **keeps the identity by default**; deleting state is a separate,
+  irreversible decision behind `--purge-state` and a typed confirmation —
+  "no off switch" is about the network, never a claim that a person
+  cannot remove software from their own machine);
+  `backup/backup.sh`+`restore.sh` (passphrase-encrypted local archive of
+  `/var/lib/mininet`, uploaded nowhere, restore refusing to overwrite live
+  state without confirmation); `journald/mininet-privacy.conf` (bounded
+  retention — a connection log is a record of who talked to this node and
+  when); `systemd/mininet-verify.{service,timer}` (daily self-check that
+  reports and never repairs, randomized so a fleet produces no correlated
+  spike); and `verification/lock-packages.sh`, the script `packages.lock`
+  referenced and which did not exist, resolving per-architecture pins
+  against a live archive. **arm64 is now supported alongside amd64** — the
+  cheap machine most people can buy is a single-board ARM computer, and an
+  x86-64-only profile would have served exactly the operators the design
+  exists not to privilege (Directive 11). Every script passes
+  `shellcheck`, and `verify.sh` enforces that so the checks cannot rot.
+  `docs/guides/node-operator-guide.md` is the operator-facing guide.
+- **the backup gap this closed** — `/var/lib/mininet` holds the node's
+  `did:mini` identity, and ID1 means there is no custodial recovery
+  anywhere in Mininet. That is the right property with a consequence
+  people meet too late: a dead disk without a backup is a permanently lost
+  identity, and cheap hardware is exactly the hardware whose storage
+  fails. Before this there was no backup path at all.
+- **not run end-to-end** — no real Debian Stable machine or VM ran the
+  installer in this session; verification was manifest lint (unit syntax,
+  firewall syntax, sysusers dry-run, live package-name resolution) plus
+  reasoning about the script's own logic, not a full live install.
+- **not started** — Phase 2 (signed, reproducibly-built QCOW2/raw/cloud
+  images), Phase 3 (immutable/A-B-updating root), and Phase 4 (a genuine
+  Mininet OS, gated on Debian materially blocking a real requirement, not
+  decided speculatively).
+
+**Authority boundary:** the appliance installer never verifies or activates
+a Mininet release itself — that stays exactly where D-0070/D-0071 already
+put it (`mini-forge::release` + `mini-installer`). Any future signed image
+must remain obtainable and verifiable as a content-addressed object synced
+peer-to-peer per D-0020's [FREEZE]; no appliance work may introduce a
+forced-update or remote-kill mechanism (D-0011/P3).
 ## Day-0 release code hardening — D-0442/D-0443 proposal
 
 - **implemented on the proposal branch (D-0443 superseding D-0442's transcript

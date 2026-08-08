@@ -1,0 +1,55 @@
+# Mininet Node Appliance — sync listener supervisor.
+#
+# `mini sync listen` accepts exactly one peer connection (or `--repeat <n>`
+# peers, sequentially, never concurrently) and then the process exits —
+# there is no daemon mode in mini-cli today (see crates/mini-cli/src/
+# sync.rs's own module docs). This unit does NOT add a daemon to mini-cli;
+# it uses systemd's own restart supervision to turn that one-shot,
+# exit-on-completion command into an always-listening service at the OS
+# layer, which is exactly the kind of gap an OS-shaped deployment profile
+# exists to fill without changing the application. `Restart=always` means
+# a fresh `mini sync listen` re-binds and accepts the next peer the moment
+# the previous invocation exits — one connection served, then a very
+# short pause, then listening again.
+#
+# `mini`'s own governance-layer commands (`build`, `release`, `provenance`,
+# `installer`) are never daemonized here or anywhere else: those are
+# human-reviewed governance actions invoked interactively via `mini`,
+# not background services.
+
+[Unit]
+Description=Mininet sync listener (supervised one-shot, not a real daemon)
+Documentation=https://github.com/mininet-labs/Mininet/blob/main/docs/design/mininet-node-appliance.md
+PartOf=mininet.target
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mininet
+Group=mininet
+EnvironmentFile=-/etc/mininet/appliance.conf
+Environment=MININET_HOME=/var/lib/mininet
+WorkingDirectory=/var/lib/mininet
+ExecStart=/usr/local/bin/mini sync listen --addr ${MININET_SYNC_LISTEN_ADDR} --repeat 1
+Restart=always
+RestartSec=2
+
+# Sandboxing — narrow, not decorative: this process only ever needs its
+# own state directory and the network.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+ReadWritePaths=/var/lib/mininet
+
+[Install]
+WantedBy=mininet.target
