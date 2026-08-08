@@ -810,7 +810,7 @@
       "status": "active",
       "contributor": "claude-agent",
       "branch": "claude/view-key-disclosure",
-      "pull_request": null,
+      "pull_request": 308,
       "lease_expires": "2026-08-15",
       "paths": [
         "crates/mini-private-payment",
