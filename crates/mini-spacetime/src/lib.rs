@@ -56,7 +56,7 @@ pub use isqrt::isqrt;
 pub use merkle::{MerkleProof, MerkleTree};
 pub use proof::{NoProof, ProofOfSpaceTimeSource};
 pub use storage_proof::{
-    verify_storage_challenge, MerkleStorageProof, ProofHistory, StorageChallenge,
-    StorageChallengeResponse, StorageCommitment, StorageWindowPolicy,
+    verify_storage_challenge, MerkleStorageProof, ProofHistory, ProvenCapacity, StorageChallenge,
+    StorageChallengeResponse, StorageCommitment, StorageUnitPolicy, StorageWindowPolicy,
 };
 pub use weight::{proposer_weight, ProposerParams};

@@ -76,7 +76,7 @@ fn capacity_is_derived_from_the_audited_seal_not_supplied() {
     let capacity = capacity_units_of(lifecycle.claim(), &units());
 
     let sealed_bytes = replica.node_count() as u64 * mini_porep::NODE_SIZE as u64;
-    assert_eq!(capacity.sealed_bytes(), sealed_bytes);
+    assert_eq!(capacity.committed_bytes(), sealed_bytes);
     assert_eq!(capacity.units(), sealed_bytes / 128);
     assert_eq!(capacity.units(), 2);
 }
@@ -92,7 +92,7 @@ fn a_replica_smaller_than_one_unit_counts_as_zero_not_one() {
 
 #[test]
 fn a_zero_byte_unit_policy_is_refused() {
-    assert!(StorageUnitPolicy::new(0).is_err());
+    assert!(StorageUnitPolicy::new(0).is_none());
 }
 
 // ---------------------------------------------------------------------------
