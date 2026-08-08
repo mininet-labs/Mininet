@@ -754,6 +754,25 @@
       "notes": "D-0447: mini-private-payment, the shielded settlement path composing mini-value's stealth addresses, ring signatures and Bulletproofs into an actual payment object, plus the three mini-value gaps that blocked it (RangeProof serialization, stealth shared-secret accessors, a fail-closed ring verifier). Prototype cryptography under the D-0047/#72 gate; not wired into mini-contribution or mini-engagement, and no chain-backed PrivateLedgerView exists. Coordination evidence only, not approval or authority. Closed: PR #305 merged."
     },
     {
+      "issue": 303,
+      "status": "closed",
+      "contributor": "Claude",
+      "branch": "claude/sandbox-d7xndc",
+      "pull_request": 304,
+      "lease_expires": "2026-08-20",
+      "paths": [
+        "deploy/",
+        "docs/design/mininet-node-appliance.md",
+        "docs/guides/node-operator-guide.md",
+        "docs/DECISION_LOG.md",
+        "docs/STATUS.md"
+      ],
+      "decision_ids": [
+        "D-0446"
+      ],
+      "notes": "Mininet Node Appliance Day 0: full local lifecycle (preflight/install/verify/backup/restore/uninstall), arm64, privacy-bounded journal retention, self-verification timer, and the operator guide. Renumbered from D-0439, which was already merged on main (PR #299). Coordination evidence only, not approval or authority. Closed: PR #304 merged."
+    },
+    {
       "issue": 33,
       "status": "active",
       "contributor": "claude-agent",
@@ -768,7 +787,7 @@
       "decision_ids": [
         "D-0448"
       ],
-      "notes": "D-0448 (founder direction 2026-08-07): proposer_weight takes a typed ProvenCapacity with no numeric constructor, StorageCommitment gains block_size_bytes enforced on every challenge, and mini-storage-fraud's duplicate capacity types are re-exported from mini-spacetime. Completes D-0445 by making the derived path the only path. Breaking API change taken prelaunch. Coordination evidence only, not approval or authority."
+      "notes": "D-0448 (founder direction 2026-08-07): proposer_weight takes a typed ProvenCapacity with no numeric constructor, StorageCommitment gains block_size_bytes enforced on every challenge, and mini-storage-fraud's duplicate capacity types are re-exported from mini-spacetime. Completes D-0445 by making the derived path the only path. Coordination evidence only, not approval or authority."
     }
   ]
 }
