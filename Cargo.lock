@@ -2827,6 +2827,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-private-payment"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-crypto",
+ "mini-objects",
+ "mini-settlement",
+ "mini-social",
+ "mini-store",
+ "mini-value",
+]
+
+[[package]]
 name = "mini-provenance"
 version = "0.0.1"
 dependencies = [
@@ -3065,6 +3078,7 @@ dependencies = [
  "blake3",
  "curve25519-dalek",
  "mini-crypto",
+ "zeroize",
 ]
 
 [[package]]

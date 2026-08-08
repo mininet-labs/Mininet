@@ -61,7 +61,7 @@ mod ring_impl;
 mod stealth;
 mod stealth_impl;
 
-pub use bp_range::RangeProof;
+pub use bp_range::{RangeProof, IPA_ROUNDS, RANGE_PROOF_BYTES};
 pub use confidential::{ConfidentialAmountScheme, NoConfidentialAmount};
 pub use confidential_impl::MininetConfidentialAmount;
 pub use error::{Result, ValueError};
@@ -69,4 +69,7 @@ pub use fee::{fee_in_micro_mini, PriceEntry, PriceHistory, PRICE_SCALE};
 pub use ring::{NoRingSignature, RingSignature, RingSignatureScheme};
 pub use ring_impl::MininetRingSignature;
 pub use stealth::{NoStealthAddress, StealthAddressScheme, StealthOutput};
-pub use stealth_impl::{derive_spend_scalar, MininetStealthAddress, StealthKeypair};
+pub use stealth_impl::{
+    derive_output_with_secret, derive_spend_scalar, recover_shared_secret, MininetStealthAddress,
+    StealthKeypair, StealthSharedSecret,
+};

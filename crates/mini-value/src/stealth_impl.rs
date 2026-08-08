@@ -27,6 +27,8 @@
 //! the [`crate::stealth::StealthAddressScheme`] trait since recognition
 //! and spending are deliberately different privilege levels.
 
+use zeroize::Zeroize;
+
 use crate::curve::{hash_to_scalar, random_scalar, CompressedRistretto, RistrettoPoint, Scalar};
 use crate::error::Result;
 use crate::stealth::{StealthAddressScheme, StealthOutput};
@@ -159,6 +161,87 @@ impl StealthAddressScheme for MininetStealthAddress {
     }
 }
 
+/// A stealth payment's Diffie-Hellman shared point, in compressed form.
+///
+/// The sender computes `r*B` and the recipient computes `b*R`; these are
+/// the same point. It is already computed on both sides to derive the
+/// one-time address — it was simply discarded, which meant a sender had
+/// no way to attach anything only the recipient could read. Returning it
+/// introduces no new cryptography; it exposes a value the existing
+/// CryptoNote-style derivation already produces.
+///
+/// **Never use these bytes directly as a key.** They are a curve point,
+/// not uniform key material. Run them through a KDF with a domain
+/// separator — `mini_crypto::KdfSuite::derive_aead_key` is what
+/// `mini-private-payment` uses.
+#[derive(Clone, PartialEq, Eq)]
+pub struct StealthSharedSecret([u8; 32]);
+
+impl StealthSharedSecret {
+    /// The compressed shared point. Named to make the "this is not a key"
+    /// point unmissable at every call site.
+    pub fn as_key_material(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl core::fmt::Debug for StealthSharedSecret {
+    /// Redacted: a shared secret in a log is a decryptable payment memo.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("StealthSharedSecret(<redacted>)")
+    }
+}
+
+impl Drop for StealthSharedSecret {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+/// Derive a stealth output **and** return the shared secret used to build
+/// it, so the sender can seal a memo only this recipient can open.
+///
+/// Identical derivation to
+/// [`StealthAddressScheme::derive_output`](crate::StealthAddressScheme::derive_output)
+/// — same fresh `r` per call, same unlinkability — differing only in what
+/// it hands back.
+pub fn derive_output_with_secret(
+    recipient_spend_public: &[u8],
+    recipient_view_public: &[u8],
+) -> Option<(StealthOutput, StealthSharedSecret)> {
+    let a = decompress_point(recipient_spend_public)?;
+    let b = decompress_point(recipient_view_public)?;
+    let r = random_scalar().ok()?;
+    let tx_public_key = r * crate::curve::basepoint();
+    let shared_point = r * b;
+    let shared_bytes = shared_point.compress().to_bytes();
+    let s = hash_to_scalar(&[&shared_bytes]);
+    let one_time_address = s * crate::curve::basepoint() + a;
+    Some((
+        StealthOutput {
+            tx_public_key: tx_public_key.compress().to_bytes().to_vec(),
+            one_time_address: one_time_address.compress().to_bytes().to_vec(),
+        },
+        StealthSharedSecret(shared_bytes),
+    ))
+}
+
+/// Recover the same shared secret on the recipient's side, from their view
+/// secret and the sender's published `tx_public_key`.
+///
+/// The **view** secret alone suffices, matching
+/// [`StealthAddressScheme::recognizes`](crate::StealthAddressScheme::recognizes):
+/// reading a payment's memo is a view-key privilege, spending it is not,
+/// so the spend key stays offline.
+pub fn recover_shared_secret(
+    own_view_secret: &[u8],
+    tx_public_key: &[u8],
+) -> Option<StealthSharedSecret> {
+    let b = decompress_scalar(own_view_secret)?;
+    let r_pub = decompress_point(tx_public_key)?;
+    Some(StealthSharedSecret((b * r_pub).compress().to_bytes()))
+}
+
 /// Derive the one-time private scalar `x = s + a` needed to spend
 /// `output`, given the recipient's own view and spend secrets. Kept
 /// separate from [`StealthAddressScheme`]: recognizing a payment (view
@@ -284,5 +367,105 @@ mod tests {
             one_time_address: vec![0u8; 32],
         };
         assert!(!scheme.recognizes(b"view", b"spend", &fake_output));
+    }
+
+    #[test]
+    fn sender_and_recipient_derive_the_same_shared_secret() {
+        let recipient = StealthKeypair::generate().unwrap();
+        let (output, sender_secret) = derive_output_with_secret(
+            &recipient.spend_public_bytes(),
+            &recipient.view_public_bytes(),
+        )
+        .unwrap();
+
+        let recipient_secret =
+            recover_shared_secret(&recipient.view_secret_bytes(), &output.tx_public_key).unwrap();
+        assert_eq!(
+            sender_secret.as_key_material(),
+            recipient_secret.as_key_material()
+        );
+    }
+
+    #[test]
+    fn derive_output_with_secret_produces_a_recognizable_output() {
+        // The secret-returning variant must derive *the same way* as the
+        // trait method, or a memo would be readable by someone who cannot
+        // recognize the payment it is attached to.
+        let recipient = StealthKeypair::generate().unwrap();
+        let (output, _) = derive_output_with_secret(
+            &recipient.spend_public_bytes(),
+            &recipient.view_public_bytes(),
+        )
+        .unwrap();
+
+        let scheme = MininetStealthAddress;
+        assert!(scheme.recognizes(
+            &recipient.view_secret_bytes(),
+            &recipient.spend_public_bytes(),
+            &output,
+        ));
+    }
+
+    #[test]
+    fn a_stranger_derives_a_different_shared_secret() {
+        let recipient = StealthKeypair::generate().unwrap();
+        let stranger = StealthKeypair::generate().unwrap();
+        let (output, sender_secret) = derive_output_with_secret(
+            &recipient.spend_public_bytes(),
+            &recipient.view_public_bytes(),
+        )
+        .unwrap();
+
+        let wrong =
+            recover_shared_secret(&stranger.view_secret_bytes(), &output.tx_public_key).unwrap();
+        assert_ne!(sender_secret.as_key_material(), wrong.as_key_material());
+    }
+
+    #[test]
+    fn two_payments_to_one_recipient_share_no_secret() {
+        // Fresh randomness per call is what makes outputs unlinkable; if
+        // two payments derived the same secret they would also derive the
+        // same one-time address, defeating the entire scheme.
+        let recipient = StealthKeypair::generate().unwrap();
+        let (first_out, first) = derive_output_with_secret(
+            &recipient.spend_public_bytes(),
+            &recipient.view_public_bytes(),
+        )
+        .unwrap();
+        let (second_out, second) = derive_output_with_secret(
+            &recipient.spend_public_bytes(),
+            &recipient.view_public_bytes(),
+        )
+        .unwrap();
+        assert_ne!(first.as_key_material(), second.as_key_material());
+        assert_ne!(first_out.one_time_address, second_out.one_time_address);
+    }
+
+    #[test]
+    fn a_shared_secret_never_prints_its_bytes() {
+        let recipient = StealthKeypair::generate().unwrap();
+        let secret = recover_shared_secret(&recipient.view_secret_bytes(), &{
+            let (o, _) = derive_output_with_secret(
+                &recipient.spend_public_bytes(),
+                &recipient.view_public_bytes(),
+            )
+            .unwrap();
+            o.tx_public_key
+        })
+        .unwrap();
+        // Pin the exact rendering rather than searching it for the secret.
+        // Searching would mean building a cleartext copy of real key
+        // material (`hex(secret.as_key_material())`) inside the one test
+        // whose whole subject is not doing that, and leaving it in a
+        // String that is never zeroized. Equality against a constant is
+        // both stronger -- it fixes the exact form, not merely that the
+        // word "redacted" appears somewhere -- and leaks nothing.
+        assert_eq!(format!("{secret:?}"), "StealthSharedSecret(<redacted>)");
+    }
+
+    #[test]
+    fn malformed_inputs_to_the_shared_secret_helpers_are_rejected() {
+        assert!(derive_output_with_secret(b"short", b"short").is_none());
+        assert!(recover_shared_secret(b"short", b"short").is_none());
     }
 }

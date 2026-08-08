@@ -16300,3 +16300,119 @@ own change. External audit (#72, D-0047) before any of this gates value.
 **Supersedes / superseded by:** completes D-0445, which derived capacity but
 left the derived path optional. Supersedes nothing; D-0445's entry stands as
 written and its own follow-up list named this exact change.
+### D-0447 — The private payment path: shielded settlement composing stealth addresses, ring signatures, and Bulletproofs  ·  *Proposed*
+
+**Date:** 2026-08-06 · **Refs:** D-0036, D-0040 (`mini-value`'s three privacy
+primitives); D-0045, D-0055 (M1/M2/M3, `mini-settlement`); D-0061
+(`mini-execution::LedgerChain`); D-0417 (`mini-contribution`); D-0402
+(`mini-engagement`); D-0033 (`Store::note_view`, PR2); D-0047/#72;
+roadmap #18; `docs/design/private-payment-path.md`; P1, P5, PR2, V2, V3,
+M1, M2, M3, X2; Directives 1, 9, 11, 13, 14, 16, 17.
+
+**Decision:** add `mini-private-payment`, the shielded counterpart of
+`mini_settlement::PaymentClaim`. A `PrivatePaymentClaim` carries a fresh
+`mini_value::StealthOutput` instead of a stable payee address, a Pedersen
+commitment plus a Bulletproof range proof instead of a cleartext
+`amount_micro`, a ring signature over a canonical anonymity set instead of a
+named payer, an AEAD-`SealedMemo` carrying the payment's purpose readable
+only by the recipient, and **no `sequence` field at all**. The ring
+signature's key image replaces `(payer, sequence)` as the double-spend
+conflict key. Reconciliation returns `mini-settlement`'s own
+`SettlementState` over a key-image-keyed `PrivateLedgerView`, so M1/M2/M3
+hold unchanged and a wallet has one vocabulary for finality rather than a
+private-payment dialect of it. Three enabling additions land in `mini-value`:
+`RangeProof::to_bytes`/`from_bytes` (fixed 672-byte width),
+`derive_output_with_secret`/`recover_shared_secret` returning the stealth
+shared point the derivation already computes, and a fail-closed
+`MininetRingSignature::verifier()`.
+
+**Reason:** `mini-value` has had real stealth addresses, ring signatures, and
+Bulletproofs since D-0036/D-0040, and **nothing composed them into a
+payment**. Every payment this tree can make goes through `PaymentClaim`,
+which publishes a stable payer key, a stable payee address, a cleartext
+amount, and a per-payer `sequence` counter — so `mini-contribution`'s creator
+and seeder payouts, `mini-engagement`'s escrowed work, and `mini-bounty`'s
+development bounties all write a complete public transaction graph. The
+`sequence` field alone hands an observer each payer's ordered payment
+history with no cryptanalysis, which is weaker than Bitcoin, whose outputs at
+least use fresh addresses. Directive 9 says privacy is architecture rather
+than a promise; P5 forbids protocol-level personal data. Sharper still:
+`Store::note_view` was built to take no viewer identity and PR2 freezes that,
+so the storage layer refuses to record who read what while the payment layer
+published who paid whom for what. Protecting the view and leaking the payment
+protects nothing. Two blocking gaps in `mini-value` surfaced while closing
+this and are fixed here: a `RangeProof` had no serialization, so a
+confidential amount could never cross a wire and the whole
+`ConfidentialAmountScheme` was single-process; and the stealth shared secret
+was computed then discarded, so a sender could attach nothing only the
+recipient could read.
+
+**Constitutional impact:** serves Directive 9 and P5 by making payment
+privacy structural rather than promised, Directive 1 (sovereignty over
+convenience) and Directive 17 by removing a permanent public record of every
+person's payments. Directive 14: no new cryptography — three already-governed
+primitives composed, with the transcript, codec, nullifier, and reconciliation
+discipline around them. Directive 11: ring size is bounded at both ends
+because ring verification is linear, so an unbounded ring is a
+denial-of-service against the weakest honest device. The voice/value wall
+holds (P1, Directive 16): this is a value crate depending on `mini-value`,
+`mini-crypto`, and `mini-settlement` only, with no `mini-forge` or
+`mini-chain` voting edge in either direction, and no field or method that
+converts a payment into weight. Directive 16 explicitly permits money to buy
+attention; this is a mechanism for that and nothing more — a paid post is
+byte-identical to an unpaid one and a finalized payment grants the payer no
+capability, which is asserted rather than asserted-about. M1/M2/M3 are
+preserved exactly: no function combines two claims, `is_final()` is true only
+for `Finalized`, and conflicts resolve by canonical ordering rather than
+arrival order, local preference, or amount. It changes no issuance, no
+balance, no governance weight, no personhood rule, and creates no new owner
+or admin path.
+
+**Implementation status:** implemented in `crates/mini-private-payment`
+(claim, codec, memo, nullifier, reconcile, scan) with 51 tests: 38
+adversarial, 7 end-to-end vertical, 6 golden wire vectors. Every payment in
+every test runs through the real primitives — real stealth derivation, a real
+ring signature, a real Bulletproof — because a privacy test against a stub
+proves nothing about privacy. `tests/unity.rs` runs publish → view → pay →
+reconcile with a real `mini-social` post in a real `mini-store`, asserting
+that the amount appears nowhere in the wire bytes in either endianness, that
+no eight-byte run of the post id appears anywhere in the claim, that the
+creator's `did:mini` root and its bare SCID appear nowhere, that five readers
+paying one creator produce five distinct addresses and five distinct
+commitments, and that a finalized billion-micro-MINI payment leaves the post
+byte-identical. `cargo fmt`, `clippy --all-targets --all-features --workspace
+-D warnings`, and the full workspace suite pass. Exact-head Linux CI, human
+review, and the D-0047/#72 external cryptographic audit all remain required.
+
+**Failure point:** three prototype constructions compose into one object, and
+the composition needs external review as much as the pieces do — a privacy
+failure does not announce itself, it looks exactly like success until somebody
+is deanonymized. The key image is linkable by design: two spends of the same
+output are linkable to each other, which is what makes double-spend detection
+possible without a public payer, and the crate never says "unlinkable"
+unqualified. Decoy quality is entirely the caller's problem; a ring of eight
+whose other seven members are visibly long-spent hides nobody and every
+signature check still passes. `MIN_RING_SIZE = 8` is a legible floor, not a
+figure from a deanonymization analysis of real traffic. Network-level privacy
+is out of scope and genuinely load-bearing: a cryptographically private
+payment broadcast from a fixed IP right after viewing one post is not private.
+One claim carries one output, so change and fees do not yet exist. No
+chain-backed `PrivateLedgerView` exists, so nothing can reach `Finalized` in
+production. Sybil remains unsolved and nothing here bears on it.
+
+**Required follow-up:** multi-output claims using `mini-value`'s existing
+`verify_balance`, so change and fees exist without leaking; a chain-backed
+`PrivateLedgerView` (the private analogue of D-0061); a decoy-selection policy
+and the traffic analysis behind it; wiring `mini-contribution` and
+`mini-engagement` to offer the private path — deliberately **not** done here,
+because changing them before the fee and change model exist would ship a
+half-private path that looks finished; founder resolution of the five open
+questions in `docs/design/private-payment-path.md` §7; and the D-0047/#72
+external audit before any of this gates value.
+
+**Supersedes / superseded by:** supersedes nothing. Extends D-0036/D-0040's
+primitives with the serialization and shared-secret accessors they lacked, and
+reuses D-0045/D-0055's settlement vocabulary rather than restating it. It does
+not deprecate `mini_settlement::PaymentClaim`; whether the transparent path
+should remain available at all is an open question for founder review, not a
+decision taken here.

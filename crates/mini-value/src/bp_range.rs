@@ -64,6 +64,94 @@ pub struct RangeProof {
     ipa: InnerProductProof,
 }
 
+/// Rounds in the inner-product argument for [`BIT_LENGTH`] bits: one per
+/// halving, so `log2(64) = 6`.
+pub const IPA_ROUNDS: usize = BIT_LENGTH.trailing_zeros() as usize;
+
+/// Exact wire size of a [`RangeProof`]: seven 32-byte field elements, then
+/// `IPA_ROUNDS` L points, `IPA_ROUNDS` R points, and the two folded
+/// scalars. Fixed-width throughout — a range proof for a 64-bit value has
+/// exactly one length, so the encoding carries no length prefixes and a
+/// decoder needs no bound beyond this constant.
+pub const RANGE_PROOF_BYTES: usize = 32 * (7 + 2 * IPA_ROUNDS + 2);
+
+impl RangeProof {
+    /// Canonical fixed-width encoding, exactly [`RANGE_PROOF_BYTES`] long.
+    ///
+    /// A proof that cannot cross a wire cannot hide an amount from anyone
+    /// but its author, so this is load-bearing rather than a convenience:
+    /// without it `ConfidentialAmountScheme` can only be used inside one
+    /// process.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(RANGE_PROOF_BYTES);
+        for field in [
+            &self.a,
+            &self.s,
+            &self.t1,
+            &self.t2,
+            &self.tau_x,
+            &self.mu,
+            &self.t_hat,
+        ] {
+            out.extend_from_slice(field);
+        }
+        // Round counts are fixed by BIT_LENGTH, so they are not encoded;
+        // a decoder that disagrees about the round count would disagree
+        // about the whole proof system, not about this one message.
+        for point in &self.ipa.l_points {
+            out.extend_from_slice(point);
+        }
+        for point in &self.ipa.r_points {
+            out.extend_from_slice(point);
+        }
+        out.extend_from_slice(&self.ipa.a);
+        out.extend_from_slice(&self.ipa.b);
+        debug_assert_eq!(out.len(), RANGE_PROOF_BYTES);
+        out
+    }
+
+    /// Decode a [`RangeProof`] from exactly [`RANGE_PROOF_BYTES`] bytes.
+    ///
+    /// Rejects any other length outright rather than accepting a prefix:
+    /// a short read here would silently verify a different proof than the
+    /// one the sender wrote. Decoding validates length and nothing else —
+    /// a well-formed proof is not a *valid* one, and
+    /// [`verify_range`] remains the only thing that decides that.
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() != RANGE_PROOF_BYTES {
+            return None;
+        }
+        let mut cursor = 0usize;
+        let mut take = || {
+            let field: [u8; 32] = bytes[cursor..cursor + 32]
+                .try_into()
+                .expect("checked length");
+            cursor += 32;
+            field
+        };
+        let (a, s, t1, t2) = (take(), take(), take(), take());
+        let (tau_x, mu, t_hat) = (take(), take(), take());
+        let l_points = (0..IPA_ROUNDS).map(|_| take()).collect();
+        let r_points = (0..IPA_ROUNDS).map(|_| take()).collect();
+        let (ipa_a, ipa_b) = (take(), take());
+        Some(Self {
+            a,
+            s,
+            t1,
+            t2,
+            tau_x,
+            mu,
+            t_hat,
+            ipa: InnerProductProof {
+                l_points,
+                r_points,
+                a: ipa_a,
+                b: ipa_b,
+            },
+        })
+    }
+}
+
 /// Commit to `value` with `blinding`, and prove `value ∈ [0, 2^64)`.
 /// Returns the compressed commitment and the proof. `None` only on a
 /// local CSPRNG failure.
@@ -344,5 +432,53 @@ mod tests {
         let h_val = value_generator();
         let expected_sum = (b1 + b2) * g_blind + Scalar::from(42u64) * h_val;
         assert_eq!((p1 + p2).compress(), expected_sum.compress());
+    }
+
+    #[test]
+    fn a_range_proof_survives_a_wire_round_trip_and_still_verifies() {
+        // A proof that cannot be encoded cannot hide an amount from anyone
+        // but its author -- the whole confidential-amount scheme is
+        // single-process until this holds.
+        let blinding = crate::curve::random_scalar().unwrap();
+        let (commitment, proof) = prove_range(7_777, blinding).unwrap();
+        let bytes = proof.to_bytes();
+        assert_eq!(bytes.len(), RANGE_PROOF_BYTES);
+        let decoded = RangeProof::from_bytes(&bytes).expect("well-formed");
+        assert_eq!(decoded, proof);
+        assert!(verify_range(commitment, &decoded));
+    }
+
+    #[test]
+    fn a_range_proof_of_the_wrong_length_is_refused_rather_than_truncated() {
+        let blinding = crate::curve::random_scalar().unwrap();
+        let (_, proof) = prove_range(1, blinding).unwrap();
+        let bytes = proof.to_bytes();
+        assert!(RangeProof::from_bytes(&bytes[..bytes.len() - 1]).is_none());
+        assert!(RangeProof::from_bytes(&[bytes.clone(), vec![0]].concat()).is_none());
+        assert!(RangeProof::from_bytes(&[]).is_none());
+    }
+
+    #[test]
+    fn a_decodable_proof_is_not_necessarily_a_valid_one() {
+        // from_bytes checks length and nothing else, on purpose: a decoder
+        // that also verified would make "well-formed" and "true" the same
+        // word, and every caller would stop checking the second one.
+        let blinding = crate::curve::random_scalar().unwrap();
+        let (commitment, proof) = prove_range(9, blinding).unwrap();
+        let mut bytes = proof.to_bytes();
+        bytes[0] ^= 0x01;
+        let tampered = RangeProof::from_bytes(&bytes).expect("still well-formed");
+        assert!(!verify_range(commitment, &tampered));
+    }
+
+    #[test]
+    fn the_encoding_is_fixed_width_for_every_value() {
+        // No length prefixes anywhere: a 64-bit range proof has exactly one
+        // size, so nothing in the encoding is attacker-steerable.
+        for value in [0u64, 1, 4_294_967_296, u64::MAX] {
+            let blinding = crate::curve::random_scalar().unwrap();
+            let (_, proof) = prove_range(value, blinding).unwrap();
+            assert_eq!(proof.to_bytes().len(), RANGE_PROOF_BYTES);
+        }
     }
 }
