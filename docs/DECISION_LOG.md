@@ -16321,3 +16321,114 @@ reuses D-0045/D-0055's settlement vocabulary rather than restating it. It does
 not deprecate `mini_settlement::PaymentClaim`; whether the transparent path
 should remain available at all is an open question for founder review, not a
 decision taken here.
+
+### D-0449 — Decoy selection is a protocol rule, not a wallet setting; ring size 16 over a frozen floor of 8  ·  *Proposed*
+
+**Date:** 2026-08-08 · **Refs:** D-0036/D-0040 (`mini-value`'s ring
+signatures), D-0447 (`mini-private-payment`); `docs/design/private-payment-path.md`
+§7.1–§7.2 and §10, whose first two open questions this answers; roadmap #18,
+#72; P5, X1, X2; Directives 2, 9, 11, 14, 16. Founder direction 2026-08-07:
+"maybe we can make anonymity set enforced by default for everyone by protocol
+so no de anonymity by asking", and "privacy always in front".
+
+**Decision:** ring membership stops being a caller parameter.
+`PaymentRequest` drops `ring`/`secret_index` and gains `ring_size`,
+`real_output_index` into a local `OutputSet`, and per-payment
+`decoy_entropy`; `build` now takes the output set and calls `select_ring`,
+which samples decoys under one protocol rule. That rule is recency-weighted
+over `AGE_WEIGHTS` — a frozen table across logarithmic age buckets — computed
+in **integer arithmetic only**, with rejection sampling rather than modulo.
+`MIN_RING_SIZE` rises from 8 to **16** and becomes explicitly Tier T, over a
+new frozen `ABSOLUTE_MIN_RING_SIZE = 8` enforced by a compile-time assertion.
+No mixer, no coordinator, and no way to obtain decoys by asking a peer.
+
+**Reason:** the crate previously said decoy quality was the caller's problem,
+which is two failures wearing one coat. The obvious one is that bad decoys
+break the payment using them — a ring of sixteen whose other fifteen members
+are visibly long-spent hides nobody, and every signature check still passes,
+so the failure is silent. The subtler and worse one is that *different*
+decoys break payments that are themselves fine: if two wallets sample
+differently, an observer can tell which wallet made a payment from the shape
+of its ring, which harms users who did nothing wrong — including users of the
+better wallet, since "unusual" is what stands out and the smaller population
+is the more identifiable. That second failure is why this cannot be an
+implementation choice even in principle.
+
+A mixer was considered and rejected. A mixer is a service, and a service is a
+coordinator, a pool, an operator, and something seizable or simply gone
+tomorrow — precisely what Directive 2 says to assume. It also asks users to
+trust a logging policy, which is a promise rather than mathematics
+(Directive 9). The decisive point is that **the ring signature already is the
+mixing**: every spend mixes with N decoys, locally, with no pool and nothing
+to shut down. Nothing needed adding; only the rule was missing.
+
+Decoys cannot be fetched, either. A peer that serves decoy keys learns the
+ring, and the ring contains the real output; there is no phrasing of that
+request that does not hand over the answer. Hence a local `OutputSet`.
+
+Uniform sampling was rejected as known-broken: real spends skew recent, so a
+ring with one member far newer than the rest identifies its real member with
+high probability. Floating point was rejected because a protocol rule
+computed in `f64` is one two platforms can disagree about, and a wallet
+sampling differently from its peers is a wallet whose users are identifiable
+— the same harm arriving through a numerical back door.
+
+Ring size 16 costs sixteen scalar multiplications to verify instead of eight,
+negligible even on the weakest device this project targets, and ring size is
+the cheapest anonymity lever available. The frozen floor exists because a
+future change arguing for smaller rings on performance grounds is exactly how
+this protection dies quietly elsewhere; the floor makes that a constitutional
+conversation rather than a patch.
+
+**Constitutional impact:** serves Directive 9 (privacy structural rather than
+promised) and P5. Directive 2: no service, no coordinator, nothing to
+disappear. Directive 11: the cost is bounded and small, and the honest limit
+for a device that cannot hold an output set is stated rather than papered
+over with a weaker mode. Directive 14: no new cryptography — a sampling
+distribution is statistics, and the recency-weighted approach is published
+and deployed elsewhere; what is written here is integer table lookup.
+Directive 16 and P1 untouched: `mini-private-payment` remains a value crate
+with no governance edge in either direction. Nothing here bears on Sybil
+(#18) and nothing may be read as if it did.
+
+**Implementation status:** implemented in
+`crates/mini-private-payment/src/decoy.rs` with `OutputSet`,
+`InMemoryOutputSet`, `select_ring`, and the frozen `AGE_WEIGHTS`. 75 tests
+pass: the real output is always present at the reported index; the same
+entropy reproduces the same ring exactly; selection skews recent while still
+reaching old outputs; rings are canonical and duplicate-free; the draw is
+uniform below its bound; an output set smaller than the ring is refused
+rather than padded; two wallets with the same inputs produce the same ring;
+and a `PaymentRequest` carrying a ring field no longer compiles. `cargo fmt`,
+`clippy --all-targets --all-features --workspace -D warnings`, and the full
+workspace suite pass.
+
+The golden vectors were **decoupled from `MIN_RING_SIZE`** in the same
+change. They had been building their fixture from the constant, so raising it
+moved the digests and reported "the wire format changed" when nothing about
+the format had. A vector that tracks a tunable cries wolf, and a vector
+nobody trusts is worse than none; the fixture now uses a literal and the
+digests returned to their prior values, which is itself the evidence that the
+encoding never changed.
+
+**Failure point:** age-weighted selection **reduces** the statistical attacks
+on ring anonymity; it does not eliminate them, and this decision must never
+be cited as if it had. `AGE_WEIGHTS` is a legible starting shape, not a
+distribution fitted to measured traffic — no traffic exists to fit, and until
+it does the table is judgement. A wallet that deliberately constructs a poor
+ring still can; that harms only its own user, which is the right place for
+the remaining freedom, but it means "enforced" describes the default path
+rather than an unforgeable constraint. The output-set requirement is a real
+burden on weak devices and is stated as such rather than softened. Nothing
+here addresses network-level privacy, which remains `mini-relay`'s.
+
+**Required follow-up:** fit `AGE_WEIGHTS` to real spend-age data once any
+exists, and revisit `MIN_RING_SIZE` on the same evidence rather than on
+judgement; the weak-device output-set question (design doc §7.5); and the
+D-0047/#72 external audit, which now has a sampling rule to review as well as
+the constructions.
+
+**Supersedes / superseded by:** supersedes D-0447's statement that decoy
+quality is the caller's problem, and closes the first two open questions in
+`docs/design/private-payment-path.md` §7. D-0447's other limits stand
+unchanged.

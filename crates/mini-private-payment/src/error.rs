@@ -75,6 +75,12 @@ pub enum PrivatePaymentError {
     /// This key image was already spent. M1 in action: the second claim is
     /// refused outright, never merged with or netted against the first.
     AlreadySpent,
+    /// The named real-output index is not in the caller's output set.
+    RealOutputNotInSet,
+    /// The output set is smaller than the requested ring, so a full-size
+    /// ring is impossible without repeating members — which would look like
+    /// anonymity and provide none.
+    OutputSetTooSmall { got: usize, need: usize },
     /// A local cryptographic operation failed (CSPRNG, AEAD, KDF). Never
     /// caused by peer input.
     CryptoUnavailable,
@@ -136,6 +142,13 @@ impl core::fmt::Display for PrivatePaymentError {
             PrivatePaymentError::AlreadySpent => {
                 write!(f, "this key image was already spent")
             }
+            PrivatePaymentError::RealOutputNotInSet => {
+                write!(f, "the real output index is not in the output set")
+            }
+            PrivatePaymentError::OutputSetTooSmall { got, need } => write!(
+                f,
+                "output set holds {got}, need at least {need} for a full ring"
+            ),
             PrivatePaymentError::CryptoUnavailable => {
                 write!(f, "a local cryptographic operation failed")
             }

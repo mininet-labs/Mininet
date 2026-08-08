@@ -12,7 +12,9 @@ use mini_private_payment::{
     MAX_RING_SIZE, MIN_RING_SIZE,
 };
 use mini_settlement::{CanonicalRejection, SettlementState};
-use support::{one_time_key, payment_to, payment_with_ring, recipient, ring_containing, NETWORK};
+use support::{
+    one_time_key, output_set_with_own, payment_to, payment_with_ring, recipient, NETWORK,
+};
 
 // ---------------------------------------------------------------------------
 // The payment works at all
@@ -165,8 +167,7 @@ fn payments_with_and_without_a_purpose_are_the_same_size() {
 #[test]
 fn a_ring_that_hides_nobody_is_refused_at_build_time() {
     let to = recipient();
-    let (real_public, real_secret) = one_time_key();
-    let (ring, secret_index) = ring_containing(&real_public, 2);
+    let (outputs, real_output_index, secret) = output_set_with_own(64);
     let request = PaymentRequest {
         network_id: NETWORK,
         recipient_spend_public: to.spend_public_bytes().to_vec(),
@@ -175,13 +176,14 @@ fn a_ring_that_hides_nobody_is_refused_at_build_time() {
         purpose: PaymentPurpose::none(),
         valid_until_ms: 1,
         last_known_chain: Vec::new(),
-        ring,
-        secret_index,
-        secret_key: real_secret.to_vec(),
+        ring_size: 2,
+        real_output_index,
+        secret_key: secret.to_vec(),
+        decoy_entropy: mini_crypto::random_32().unwrap(),
         blinding: mini_crypto::random_32().unwrap(),
     };
     assert!(matches!(
-        build(&request),
+        build(&request, &outputs),
         Err(PrivatePaymentError::RingTooSmall {
             min: MIN_RING_SIZE,
             ..
@@ -399,8 +401,7 @@ fn spending_the_same_output_twice_is_refused_never_merged() {
     // M1: money does not merge. The second claim is refused outright --
     // not netted, not summed, not "the larger wins".
     let to = recipient();
-    let (real_public, real_secret) = one_time_key();
-    let (ring, secret_index) = ring_containing(&real_public, MIN_RING_SIZE);
+    let (outputs, real_output_index, real_secret) = output_set_with_own(64);
 
     let make = |amount: u64, purpose: &[u8]| {
         let request = PaymentRequest {
@@ -411,12 +412,16 @@ fn spending_the_same_output_twice_is_refused_never_merged() {
             purpose: PaymentPurpose::new(purpose.to_vec()),
             valid_until_ms: 10_000,
             last_known_chain: b"h".to_vec(),
-            ring: ring.clone(),
-            secret_index,
+            ring_size: MIN_RING_SIZE,
+            real_output_index,
             secret_key: real_secret.to_vec(),
+            // Fixed entropy: the two claims must spend the same output with
+            // the same ring, so the key image collides and the double-spend
+            // is what is under test rather than the sampling.
+            decoy_entropy: [0x5c; 32],
             blinding: mini_crypto::random_32().unwrap(),
         };
-        verify(&build(&request).unwrap().0, &NETWORK).unwrap()
+        verify(&build(&request, &outputs).unwrap().0, &NETWORK).unwrap()
     };
 
     let first = make(10, b"first");
@@ -505,8 +510,7 @@ fn canonical_ordering_alone_resolves_a_conflict() {
     // M3: exactly one of two conflicting claims resolves, and the loser is
     // rejected rather than merged or retried.
     let to = recipient();
-    let (real_public, real_secret) = one_time_key();
-    let (ring, secret_index) = ring_containing(&real_public, MIN_RING_SIZE);
+    let (outputs, real_output_index, real_secret) = output_set_with_own(64);
     let make = |amount: u64| {
         let request = PaymentRequest {
             network_id: NETWORK,
@@ -516,12 +520,16 @@ fn canonical_ordering_alone_resolves_a_conflict() {
             purpose: PaymentPurpose::none(),
             valid_until_ms: 10_000,
             last_known_chain: b"h".to_vec(),
-            ring: ring.clone(),
-            secret_index,
+            ring_size: MIN_RING_SIZE,
+            real_output_index,
             secret_key: real_secret.to_vec(),
+            // Fixed entropy: the two claims must spend the same output with
+            // the same ring, so the key image collides and the double-spend
+            // is what is under test rather than the sampling.
+            decoy_entropy: [0x5c; 32],
             blinding: mini_crypto::random_32().unwrap(),
         };
-        verify(&build(&request).unwrap().0, &NETWORK).unwrap()
+        verify(&build(&request, &outputs).unwrap().0, &NETWORK).unwrap()
     };
     let winner = make(10);
     let loser = make(20);
@@ -670,4 +678,114 @@ fn payments_verify_across_the_whole_permitted_ring_range() {
         assert!(verify(&claim, &NETWORK).is_ok(), "ring size {size} failed");
         assert_eq!(claim.ring.len(), size);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Decoys are the protocol's choice, not the wallet's (D-0449)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn the_caller_cannot_supply_its_own_ring() {
+    // A structural assertion kept as a test. The whole point of D-0449 is
+    // that ring membership is not a caller parameter -- a wallet that
+    // samples differently from its peers marks its own users. If someone
+    // ever adds the field back for convenience, this stops compiling, which
+    // is the intended alarm.
+    let to = recipient();
+    let (outputs, real_output_index, secret) = output_set_with_own(64);
+    let request = PaymentRequest {
+        network_id: NETWORK,
+        recipient_spend_public: to.spend_public_bytes().to_vec(),
+        recipient_view_public: to.view_public_bytes().to_vec(),
+        amount_micro: 1,
+        purpose: PaymentPurpose::none(),
+        valid_until_ms: 1,
+        last_known_chain: Vec::new(),
+        ring_size: MIN_RING_SIZE,
+        real_output_index,
+        secret_key: secret.to_vec(),
+        decoy_entropy: mini_crypto::random_32().unwrap(),
+        blinding: mini_crypto::random_32().unwrap(),
+    };
+    let rendered = format!("{request:?}");
+    assert!(!rendered.contains("ring:"), "a ring field reappeared");
+    assert!(build(&request, &outputs).is_ok());
+}
+
+#[test]
+fn two_wallets_with_the_same_inputs_produce_the_same_ring() {
+    // Determinism is the anti-fingerprinting property: if two
+    // implementations disagreed about the sampling, an observer could tell
+    // which one made a payment from the shape of its ring, and the smaller
+    // population would be the more identifiable.
+    let to = recipient();
+    let (outputs, real_output_index, secret) = output_set_with_own(200);
+    let entropy = [0x4d; 32];
+
+    let make = || {
+        let request = PaymentRequest {
+            network_id: NETWORK,
+            recipient_spend_public: to.spend_public_bytes().to_vec(),
+            recipient_view_public: to.view_public_bytes().to_vec(),
+            amount_micro: 1,
+            purpose: PaymentPurpose::none(),
+            valid_until_ms: 1,
+            last_known_chain: Vec::new(),
+            ring_size: MIN_RING_SIZE,
+            real_output_index,
+            secret_key: secret.to_vec(),
+            decoy_entropy: entropy,
+            blinding: [0x11; 32],
+        };
+        build(&request, &outputs).unwrap().0.ring
+    };
+    assert_eq!(make(), make());
+}
+
+#[test]
+fn the_default_ring_is_sixteen_and_never_below_the_frozen_floor() {
+    let to = recipient();
+    let (claim, _, _) = payment_to(&to, 1, b"size");
+    assert_eq!(claim.ring.len(), 16);
+    assert_eq!(mini_private_payment::ABSOLUTE_MIN_RING_SIZE, 8);
+}
+
+#[test]
+fn a_payment_built_from_a_real_output_set_verifies_end_to_end() {
+    // The sampler feeds the signer: if selection returned the real output's
+    // position wrongly, the ring signature would be over a member whose
+    // secret the signer does not hold, and verification would fail.
+    let to = recipient();
+    for size in [MIN_RING_SIZE, 32, 64] {
+        let (claim, _, _) = payment_with_ring(&to, 1, b"e2e", size);
+        assert_eq!(claim.ring.len(), size);
+        assert!(verify(&claim, &NETWORK).is_ok(), "ring size {size}");
+    }
+}
+
+#[test]
+fn an_output_set_too_small_for_the_ring_is_refused_rather_than_padded() {
+    // Padding to reach the requested size would repeat members, which looks
+    // like anonymity and provides none -- the same failure the duplicate
+    // check above catches on the wire, caught here at construction.
+    let to = recipient();
+    let (outputs, real_output_index, secret) = output_set_with_own(4);
+    let request = PaymentRequest {
+        network_id: NETWORK,
+        recipient_spend_public: to.spend_public_bytes().to_vec(),
+        recipient_view_public: to.view_public_bytes().to_vec(),
+        amount_micro: 1,
+        purpose: PaymentPurpose::none(),
+        valid_until_ms: 1,
+        last_known_chain: Vec::new(),
+        ring_size: MIN_RING_SIZE,
+        real_output_index,
+        secret_key: secret.to_vec(),
+        decoy_entropy: mini_crypto::random_32().unwrap(),
+        blinding: mini_crypto::random_32().unwrap(),
+    };
+    assert!(matches!(
+        build(&request, &outputs),
+        Err(PrivatePaymentError::OutputSetTooSmall { .. })
+    ));
 }

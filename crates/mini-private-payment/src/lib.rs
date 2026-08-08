@@ -46,12 +46,20 @@
 //!   exactly what makes double-spend detection possible without a public
 //!   payer. This crate therefore never says "unlinkable" without
 //!   qualification.
-//! - **Decoy quality is the caller's problem.** [`MIN_RING_SIZE`] bounds
-//!   the ring's *size*; nothing here can judge whether the decoys are
-//!   plausible. A ring of eight whose other seven members are visibly
-//!   long-spent outputs hides nobody, and every signature check will still
-//!   pass. Choosing decoys well is an open protocol question, recorded as
-//!   such in the design document.
+//! - **Decoys are chosen by the protocol, not by the wallet** (D-0449).
+//!   [`select_ring`] samples them under one rule, recency-weighted to match
+//!   how real spends are distributed, in integer arithmetic so every machine
+//!   computes the same ring. That closes two things: uniform decoys made the
+//!   newest ring member the real one with high probability, and per-wallet
+//!   sampling let an observer identify *which wallet* made a payment from
+//!   the shape of its ring. What it does not close: the weights are a
+//!   legible starting shape, not a distribution fitted to measured traffic,
+//!   because no such traffic exists yet. Known statistical attacks on
+//!   ring-based anonymity are reduced here, not eliminated.
+//! - **The output set must be local.** A peer that serves you decoy keys
+//!   learns your ring, and your ring contains your real output — there is no
+//!   way to ask that does not hand over the answer. So a device that cannot
+//!   hold an [`OutputSet`] does not make private payments from that device.
 //! - **Network-level privacy is elsewhere.** Timing, IP, and traffic
 //!   analysis are `mini-relay`'s and `mini-transport-security`'s job. A
 //!   payment that is cryptographically private and broadcast from a fixed
@@ -99,6 +107,7 @@
 
 mod claim;
 mod codec;
+mod decoy;
 mod error;
 mod memo;
 mod nullifier;
@@ -107,9 +116,11 @@ mod scan;
 
 pub use claim::{
     build, canonicalize_ring, ring_is_canonical, verify, PaymentRequest, PrivatePaymentClaim,
-    VerifiedPrivateClaim, CLAIM_TRANSCRIPT_DOMAIN, CLAIM_VERSION, MAX_RING_SIZE, MIN_RING_SIZE,
+    VerifiedPrivateClaim, ABSOLUTE_MIN_RING_SIZE, CLAIM_TRANSCRIPT_DOMAIN, CLAIM_VERSION,
+    MAX_RING_SIZE, MIN_RING_SIZE,
 };
 pub use codec::MAX_FIELD_BYTES;
+pub use decoy::{select_ring, InMemoryOutputSet, OutputSet, AGE_WEIGHTS, DECOY_DOMAIN};
 pub use error::{DecodeFailure, PrivatePaymentError, Result};
 pub use memo::{PaymentPurpose, SealedMemo, MAX_MEMO_BYTES, MEMO_KDF_INFO, MEMO_PADDED_BYTES};
 pub use nullifier::{KeyImageSet, SpendOutcome};

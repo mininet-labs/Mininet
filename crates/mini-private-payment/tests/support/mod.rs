@@ -4,11 +4,11 @@
 
 //! Shared fixtures. Every payment built here goes through the real
 //! primitives — real stealth derivation, a real ring signature, a real
-//! Bulletproof. Nothing is stubbed, because a privacy test against a stub
-//! proves nothing about privacy.
+//! Bulletproof, and the protocol's real decoy sampling. Nothing is stubbed,
+//! because a privacy test against a stub proves nothing about privacy.
 
 use mini_private_payment::{
-    build, canonicalize_ring, PaymentPurpose, PaymentRequest, PrivatePaymentClaim, MIN_RING_SIZE,
+    build, InMemoryOutputSet, PaymentPurpose, PaymentRequest, PrivatePaymentClaim, MIN_RING_SIZE,
 };
 use mini_value::{StealthKeypair, StealthSharedSecret};
 
@@ -19,23 +19,27 @@ pub fn recipient() -> StealthKeypair {
     StealthKeypair::generate().unwrap()
 }
 
-/// A one-time keypair usable as a ring member: returns (public, secret).
+/// A one-time keypair usable as an output: returns (public, secret).
 pub fn one_time_key() -> (Vec<u8>, [u8; 32]) {
     let key = StealthKeypair::generate().unwrap();
     (key.spend_public_bytes().to_vec(), key.spend_secret_bytes())
 }
 
-/// A canonical ring of `size` members containing `real_public`, and the
-/// index the real key ends up at after sorting.
-pub fn ring_containing(real_public: &[u8], size: usize) -> (Vec<Vec<u8>>, usize) {
-    let mut ring: Vec<Vec<u8>> = (0..size - 1).map(|_| one_time_key().0).collect();
-    ring.push(real_public.to_vec());
-    canonicalize_ring(&mut ring);
-    let index = ring
-        .iter()
-        .position(|member| member.as_slice() == real_public)
-        .expect("real key is in its own ring");
-    (ring, index)
+/// An output set of `size` real one-time keys, with the caller's own output
+/// appended last (newest). Returns the set, the real index, and its secret.
+pub fn output_set_with_own(size: usize) -> (InMemoryOutputSet, usize, [u8; 32]) {
+    let mut outputs = InMemoryOutputSet::new();
+    for _ in 0..size {
+        outputs.push(one_time_key().0);
+    }
+    let (own_public, own_secret) = one_time_key();
+    outputs.push(own_public);
+    (outputs, size, own_secret)
+}
+
+/// A default output set comfortably larger than the ring.
+pub fn outputs() -> (InMemoryOutputSet, usize, [u8; 32]) {
+    output_set_with_own(64)
 }
 
 /// A complete, valid private payment to `to`, for `amount` micro-MINI,
@@ -55,10 +59,23 @@ pub fn payment_with_ring(
     purpose: &[u8],
     ring_size: usize,
 ) -> (PrivatePaymentClaim, StealthSharedSecret, [u8; 32]) {
-    let (real_public, real_secret) = one_time_key();
-    let (ring, secret_index) = ring_containing(&real_public, ring_size);
-    let blinding = mini_crypto::random_32().unwrap();
-    let request = PaymentRequest {
+    let (set, real_index, secret) = output_set_with_own(ring_size * 4);
+    let request = request_for(to, amount, purpose, ring_size, real_index, &secret);
+    let (claim, shared) = build(&request, &set).unwrap();
+    (claim, shared, secret)
+}
+
+/// A `PaymentRequest` with fresh entropy, for tests that need to drive
+/// `build` themselves.
+pub fn request_for(
+    to: &StealthKeypair,
+    amount: u64,
+    purpose: &[u8],
+    ring_size: usize,
+    real_output_index: usize,
+    secret: &[u8; 32],
+) -> PaymentRequest {
+    PaymentRequest {
         network_id: NETWORK,
         recipient_spend_public: to.spend_public_bytes().to_vec(),
         recipient_view_public: to.view_public_bytes().to_vec(),
@@ -66,11 +83,10 @@ pub fn payment_with_ring(
         purpose: PaymentPurpose::new(purpose.to_vec()),
         valid_until_ms: 10_000,
         last_known_chain: b"height:1".to_vec(),
-        ring,
-        secret_index,
-        secret_key: real_secret.to_vec(),
-        blinding,
-    };
-    let (claim, shared) = build(&request).unwrap();
-    (claim, shared, real_secret)
+        ring_size,
+        real_output_index,
+        secret_key: secret.to_vec(),
+        decoy_entropy: mini_crypto::random_32().unwrap(),
+        blinding: mini_crypto::random_32().unwrap(),
+    }
 }

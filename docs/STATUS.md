@@ -338,9 +338,8 @@ given time.
   by canonical ordering rather than arrival order or amount.
   **What it does not do:** the key image is linkable by design (two spends
   of one output are linkable to each other — the standard CryptoNote
-  trade-off, and why the crate never says "unlinkable" unqualified); decoy
-  quality is entirely the caller's problem and no signature check can
-  notice a bad ring; network-level privacy belongs to `mini-relay`; one
+  trade-off, and why the crate never says "unlinkable" unqualified);
+  network-level privacy belongs to `mini-relay`; one
   claim carries one output, so change and fees do not exist yet; and no
   chain-backed `PrivateLedgerView` exists, so nothing reaches `Finalized`
   in production. `MIN_RING_SIZE = 8` is a legible floor, not a figure from
@@ -353,6 +352,41 @@ given time.
   wired into `mini-contribution` or `mini-engagement` yet: doing so before
   the fee and change model exist would ship a half-private path that looks
   finished. See `docs/design/private-payment-path.md`.
+- **shipped (D-0449)** — decoy selection is a protocol rule, not a wallet
+  setting. `PaymentRequest` no longer carries a `ring`: it carries a
+  `ring_size`, an index into the caller's **local** `OutputSet`, and fresh
+  per-payment entropy, and `build` picks the members itself via
+  `select_ring`. Two failures made this non-optional. The obvious one is
+  that bad decoys silently break the payment using them — fifteen visibly
+  long-spent members hide nobody and every signature check still passes.
+  The worse one is that *different* decoys break payments that are fine:
+  wallets sampling differently let an observer identify **which wallet**
+  made a payment from its ring's shape, which harms users of the better
+  wallet too, since the smaller population is the more identifiable.
+  Sampling is recency-weighted over a frozen `AGE_WEIGHTS` table (uniform
+  selection is known-broken — real spends skew recent, so the newest ring
+  member is the real one with high probability) and is **integer-only**,
+  because a rule computed in `f64` is a rule two platforms can disagree
+  about, which is the same fingerprinting harm through a numerical back
+  door. `MIN_RING_SIZE` is now **16**, explicitly Tier T, over a frozen
+  `ABSOLUTE_MIN_RING_SIZE = 8` enforced at compile time — a future
+  performance argument for smaller rings should be a constitutional
+  conversation, not a patch.
+  **No mixer, and no asking anyone.** A mixer is a service, so a
+  coordinator, a pool, and something seizable (Directive 2) — and
+  unnecessary, because the ring signature already *is* the mixing, done
+  locally with nothing to shut down. Decoys cannot be fetched either: a
+  peer that serves them learns your ring, and your ring contains your real
+  output.
+  **What it does not do:** this *reduces* the statistical attacks on ring
+  anonymity, it does not eliminate them. `AGE_WEIGHTS` is a legible shape,
+  not a distribution fitted to measured traffic, because none exists yet.
+  A wallet can still deliberately build a poor ring — that harms only its
+  own user, but it means "enforced" describes the default path rather than
+  an unforgeable constraint. Holding a local output set is a real burden on
+  weak devices. The golden vectors were decoupled from `MIN_RING_SIZE` in
+  the same change: they had been built from the constant, so raising it
+  moved the digests and cried "wire format changed" when nothing had.
 - **prototype** — `mini-treasury`: FROST threshold signing (D-0041), live
   multi-process demo, real distributed key generation and committee
   resharing (D-0060, closes D-0048's DKG gap — Pedersen DKG with a
