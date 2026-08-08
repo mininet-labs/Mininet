@@ -811,6 +811,42 @@ class WorkClaimRegistryTests(unittest.TestCase):
         ])
         self.assertEqual([], errors)
 
+    def test_a_declared_stack_may_overlap_its_base(self) -> None:
+        # Stacking is exactly "two branches touching the same files on
+        # purpose", so refusing it would push a contributor into either
+        # under-declaring paths or not stacking. Declaring the base is the
+        # coordination fact the registry exists to record.
+        base = self.claim(issue=1, decision="D-9991", path="crates/mini-chain/")
+        stacked = self.claim(issue=2, decision="D-9992", path="crates/mini-chain/")
+        stacked["stacked_on"] = base["branch"]
+        errors, _ = self.validate_claims([base, stacked])
+        self.assertEqual([], errors)
+
+    def test_a_stack_declaration_does_not_exempt_unrelated_branches(self) -> None:
+        # The exemption is between the two named branches and nowhere else,
+        # or "stacked_on" would become a way to opt out of collision
+        # detection entirely.
+        base = self.claim(issue=1, decision="D-9991", path="crates/mini-chain/")
+        stacked = self.claim(issue=2, decision="D-9992", path="crates/mini-chain/")
+        stacked["stacked_on"] = base["branch"]
+        stranger = self.claim(issue=3, decision="D-9993", path="crates/mini-chain/src/")
+        errors, _ = self.validate_claims([base, stacked, stranger])
+        self.assertTrue(any("overlap paths" in error for error in errors), errors)
+
+    def test_stacking_on_a_branch_with_no_active_claim_fails(self) -> None:
+        stacked = self.claim(issue=2, decision="D-9992", path="crates/mini-chain/")
+        stacked["stacked_on"] = "agent/never-claimed"
+        errors, _ = self.validate_claims([stacked])
+        self.assertTrue(
+            any("no active work claim" in error for error in errors), errors
+        )
+
+    def test_a_claim_cannot_be_stacked_on_itself(self) -> None:
+        stacked = self.claim(issue=2, decision="D-9992", path="crates/mini-chain/")
+        stacked["stacked_on"] = stacked["branch"]
+        errors, _ = self.validate_claims([stacked])
+        self.assertTrue(any("stacked on itself" in error for error in errors), errors)
+
 
 if __name__ == "__main__":
     unittest.main()

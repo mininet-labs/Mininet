@@ -242,6 +242,49 @@ pub fn recover_shared_secret(
     Some(StealthSharedSecret((b * r_pub).compress().to_bytes()))
 }
 
+/// Derive the public view key `B = b*G` that a view secret `b` belongs to.
+///
+/// Exists so that a *published* view key can be checked against the account
+/// it claims to describe (`mini_private_payment::verify_disclosure`).
+/// Without it, a disclosure naming somebody else's account alongside an
+/// unrelated secret would produce an audit that finds nothing and is
+/// indistinguishable from an account that simply received nothing.
+///
+/// Stricter than the scanning path on purpose: [`decompress_scalar`] reduces
+/// whatever 32 bytes it is handed mod the group order, so many byte strings
+/// denote the same scalar. That is harmless when scanning your own income,
+/// and not harmless for a value that gets published, hashed, and referred to
+/// afterwards — it would give one disclosure many equally valid encodings
+/// and many digests. So this rejects any non-canonical encoding, and rejects
+/// zero, which is a scalar but not a key.
+pub fn view_public_from_secret(view_secret: &[u8]) -> Option<[u8; 32]> {
+    let arr: [u8; 32] = view_secret.try_into().ok()?;
+    let b: Scalar = Option::from(Scalar::from_canonical_bytes(arr))?;
+    if b == Scalar::ZERO {
+        return None;
+    }
+    Some((b * crate::curve::basepoint()).compress().to_bytes())
+}
+
+/// Whether a published `(spend_public, view_public)` pair is a well-formed
+/// stealth address: both canonical Ristretto encodings, and distinct.
+///
+/// Every function here that takes published keys already returns `None` or
+/// `false` on garbage, so nothing *breaks* without this — it fails quietly
+/// instead, which is the problem. A caller that wants to refuse a malformed
+/// address up front, rather than discover it as an empty result later, asks
+/// here.
+///
+/// The distinctness check is not decoration: reusing one key as both spend
+/// and view key means publishing the view secret also publishes the spend
+/// secret, so an account shaped that way cannot disclose its income without
+/// handing over the ability to spend it.
+pub fn stealth_address_is_well_formed(spend_public: &[u8], view_public: &[u8]) -> bool {
+    decompress_point(spend_public).is_some()
+        && decompress_point(view_public).is_some()
+        && spend_public != view_public
+}
+
 /// Derive the one-time private scalar `x = s + a` needed to spend
 /// `output`, given the recipient's own view and spend secrets. Kept
 /// separate from [`StealthAddressScheme`]: recognizing a payment (view
@@ -467,5 +510,59 @@ mod tests {
     fn malformed_inputs_to_the_shared_secret_helpers_are_rejected() {
         assert!(derive_output_with_secret(b"short", b"short").is_none());
         assert!(recover_shared_secret(b"short", b"short").is_none());
+    }
+
+    #[test]
+    fn view_public_from_secret_matches_the_generated_keypair() {
+        let recipient = StealthKeypair::generate().unwrap();
+        assert_eq!(
+            view_public_from_secret(&recipient.view_secret_bytes()).unwrap(),
+            recipient.view_public_bytes()
+        );
+    }
+
+    #[test]
+    fn view_public_from_secret_does_not_match_a_stranger() {
+        let recipient = StealthKeypair::generate().unwrap();
+        let stranger = StealthKeypair::generate().unwrap();
+        assert_ne!(
+            view_public_from_secret(&recipient.view_secret_bytes()).unwrap(),
+            stranger.view_public_bytes()
+        );
+    }
+
+    #[test]
+    fn view_public_from_secret_rejects_non_canonical_and_degenerate_scalars() {
+        // All-ones is above the group order, so `from_bytes_mod_order` would
+        // silently reduce it into a perfectly usable scalar and hand back a
+        // key. A published disclosure must have exactly one encoding, so
+        // this path refuses instead of reducing.
+        assert_eq!(view_public_from_secret(&[0xffu8; 32]), None);
+        // Zero is canonical and still not a key: b*G would be the identity.
+        assert_eq!(view_public_from_secret(&[0u8; 32]), None);
+        assert_eq!(view_public_from_secret(b"short"), None);
+    }
+
+    #[test]
+    fn well_formed_stealth_addresses_are_accepted_and_broken_ones_are_not() {
+        let recipient = StealthKeypair::generate().unwrap();
+        assert!(stealth_address_is_well_formed(
+            &recipient.spend_public_bytes(),
+            &recipient.view_public_bytes()
+        ));
+        assert!(!stealth_address_is_well_formed(
+            b"short",
+            &recipient.view_public_bytes()
+        ));
+        assert!(!stealth_address_is_well_formed(
+            &recipient.spend_public_bytes(),
+            b"short"
+        ));
+        // One key doing both jobs: disclosing the view secret would disclose
+        // the spend secret, so this is not a shape an account may have.
+        assert!(!stealth_address_is_well_formed(
+            &recipient.view_public_bytes(),
+            &recipient.view_public_bytes()
+        ));
     }
 }

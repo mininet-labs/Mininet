@@ -927,6 +927,40 @@ def validate_work_claims(
     active_decisions: dict[str, int] = {}
     active_paths: list[tuple[int, str, str]] = []
 
+    # Pre-pass: which active branches are stacked on which. A stacked branch
+    # shares files with its base on purpose -- that is what stacking is -- so
+    # the overlap check below must not read it as two contributors colliding.
+    # Declaring it is not a way around the check: the base must exist, must be
+    # active, and must be named, which is exactly the coordination fact the
+    # registry is for.
+    active_branches = {
+        str(entry.get("branch"))
+        for entry in claims
+        if isinstance(entry, dict) and entry.get("status") in WORK_CLAIM_ACTIVE_STATUSES
+    }
+    stacked_pairs: set[frozenset[str]] = set()
+    for entry in claims:
+        if not isinstance(entry, dict) or entry.get("status") not in WORK_CLAIM_ACTIVE_STATUSES:
+            continue
+        base = entry.get("stacked_on")
+        if base is None:
+            continue
+        branch_name = str(entry.get("branch"))
+        if not isinstance(base, str) or not base.strip():
+            fail(errors, f"work claim on branch {branch_name} has an empty stacked_on")
+            continue
+        if base == branch_name:
+            fail(errors, f"work claim on branch {branch_name} is stacked on itself")
+            continue
+        if base not in active_branches:
+            fail(
+                errors,
+                f"work claim on branch {branch_name} is stacked on {base}, "
+                "which has no active work claim",
+            )
+            continue
+        stacked_pairs.add(frozenset({branch_name, base}))
+
     for index, claim in enumerate(claims):
         label = f"work claim #{index + 1}"
         if not isinstance(claim, dict):
@@ -986,6 +1020,7 @@ def validate_work_claims(
                         if (
                             other_issue != issue
                             and other_branch != current_branch
+                            and frozenset({current_branch, other_branch}) not in stacked_pairs
                             and claim_path_overlaps(normalized, other_path)
                         ):
                             fail(

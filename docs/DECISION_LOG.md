@@ -16693,3 +16693,145 @@ the constructions.
 quality is the caller's problem, and closes the first two open questions in
 `docs/design/private-payment-path.md` §7. D-0447's other limits stand
 unchanged.
+
+### D-0450 — Auditability is a disclosure a party makes about itself, never a property of the payment format  ·  *Proposed*
+
+**Date:** 2026-08-08 · **Refs:** D-0447 (`mini-private-payment`), D-0449
+(protocol decoy selection), D-0036/D-0040 (`mini-value` prototypes), D-0073
+(treasury accountability), D-0045/D-0055 (settlement vocabulary);
+`docs/design/private-payment-path.md` §11; roadmap #72; P1, P5, X1;
+Directives 2, 9, 11, 14, 16. Founder direction 2026-08-07, verbatim:
+"invert or no transparency at all is good no real need for anything to be
+public", and "privacy always in front".
+
+**Decision:** `mini-private-payment` gains a view-key disclosure path
+(`ViewKeyDisclosure`, `verify_disclosure`, `audit`), and the project commits
+to **not** keeping a transparent payment format alongside the private one as
+the way to make some payments checkable.
+
+The reasoning is the part that matters, because the tempting alternative
+looks harmless: keep `mini_settlement::PaymentClaim` for payments that should
+be public — treasury disbursements above all — and use the private path for
+everything else. That is the wrong shape. **If both formats exist, choosing
+the private one is itself a signal.** Every private payment then carries an
+implicit "why did this person need privacy?", and privacy that must be opted
+into is privacy for nobody: the people who most need it are exactly the ones
+whose opting-in is most conspicuous. The same argument D-0449 made about
+decoy selection — a per-wallet choice becomes a per-wallet fingerprint —
+applies to format choice with more force, because the format is visible to
+everyone rather than merely inferable.
+
+So auditability moves off the format and onto the party. Nothing is public by
+default. An account that wants to be auditable publishes its view key; anyone
+can then enumerate that account's income. The treasury can be fully
+accountable to everyone without exposing a single counterparty who did not
+choose it.
+
+Three supporting choices, each of which could have gone the lazy way:
+
+1. **The acknowledgement is a type, not a flag, and it cannot be routed
+   around.** `ViewKeyDisclosure::create` takes an
+   `AcknowledgedIrreversibleDisclosure`, constructible only by writing out a
+   long phrase verbatim — the same discipline as
+   `mini_installer::OwnerApproval` and `mini-treasury`'s
+   `AcknowledgedUnauditedDkg`, and the typed-domains rule applied to an
+   authority that destroys privacy rather than moves money. The phrase names
+   the third-party exposure explicitly, and a test pins that it keeps naming
+   it. `ViewKeyDisclosure`'s **fields are private**: public fields would have
+   made the acknowledgement decorative, since a struct literal would
+   construct a disclosure without the type ever appearing — precisely the
+   "authority assembled from raw parts" shape the typed-domains rule refuses.
+   The only other way to obtain one is `decode`, which reads somebody else's
+   *already-published* disclosure and needs no acknowledgement because the
+   irreversible act already happened.
+
+2. **`audit` returns exactly what `scan` returns.** Not a richer audit type.
+   The identity of the two is the design saying out loud that disclosure
+   grants the public the holder's *reading* ability and not one capability
+   more. A separate audit result would have been the beginning of "audited"
+   quietly meaning "more exposed than the owner is".
+
+3. **`mini_value::view_public_from_secret` rejects non-canonical scalars**
+   where the scanning path reduces them. Reduction is harmless for a secret
+   you keep; it is not harmless for one that gets published, hashed, and
+   referred to afterwards, because it would give a single disclosure many
+   valid encodings and many digests.
+
+**Constitutional impact:** serves Directive 9 (privacy structural, not
+promised) and P5 — this is the decision that keeps the private path from
+becoming the *suspicious* path. Directive 2: a disclosure is a self-contained
+object; there is no registry, no authority that grants or revokes
+auditability, nothing to seize or shut down. Directive 14: no new
+cryptography whatsoever — publishing a key already derived by the existing
+CryptoNote-style scheme. Directive 16 and P1 untouched: `mini-private-payment`
+remains a value crate, and disclosure creates no governance edge in either
+direction — an audited account gains no voice and loses none. ID1 is not
+engaged: a view key is not an identity key, and nothing here creates a
+recovery or custody path over one. Nothing here bears on Sybil (#18).
+
+**Implementation status:** implemented in
+`crates/mini-private-payment/src/disclosure.rs`, with
+`mini_value::view_public_from_secret` and
+`mini_value::stealth_address_is_well_formed` added to support it. Tests cover
+the acknowledgement's near-misses, retroactivity, the income-only limit, the
+amounts-stay-hidden limit, non-contagion to bystanders, key-binding refusal,
+malformed and degenerate keys, encoding round-trip and domain separation, and
+per-claim accounting over a mixed ledger.
+
+**A tooling change shipped alongside:** the work-claim registry gains an
+optional `stacked_on` field naming the active claim a branch is stacked on,
+and `check_governance.py` stops reading path overlap between those two
+branches as a collision. Stacking *is* two branches touching the same files
+on purpose; refusing it pushed a contributor toward either under-declaring
+paths or not stacking, both worse than recording the coordination fact. It
+is not a loophole: the named base must exist and be active, self-reference is
+refused, and the exemption applies only between the two named branches —
+tests cover each. **This proposal does not use the field**, deliberately:
+`governance-canonical` evaluates a proposal with the *base* branch's checker,
+which cannot understand a field the proposal is introducing. It is available
+to the next stack; this one closes its base claim instead.
+
+**A defect this change found and fixed in already-merged code (D-0447):**
+`scan` returned `Result<Vec<RecognizedPayment>>` and propagated a single
+claim's memo failure. Because an account's spend and view *public* keys are
+published, **any** stranger could derive a valid stealth output paying it and
+seal the memo under a key the recipient cannot derive; the claim verifies and
+is recognized, and its memo does not open. One such payment made the entire
+scan return `Err`, so every payment the wallet had ever received disappeared
+from view — total blindness for the cost of one payment, and the same attack
+would have blanked any audit. `scan` is now total, returning `ScanOutcome`
+with readable payments and unreadable-but-recognized claims kept separate so
+nothing is silently dropped. A crate-internal, test-only fabricator
+constructs the adversarial claim, which `build` cannot produce and `verify`
+correctly rejects when it is merely edited afterwards.
+
+**Failure point:** disclosure reveals **income only** — a view key cannot
+show what an account spent, so an audited account's outflows remain invisible
+and "audited" means less than a reader may assume. It proves **nothing about
+completeness**: no cryptography can show a disclosed account is the only one
+its holder controls, so a treasury disclosure means "what this account
+received is checkable", never "this is everything". **Amounts stay hidden** —
+a Pedersen commitment is not opened by a view key, so an audit sees which
+payments arrived and what they were for, not how much they were worth; that
+is a real gap between this and what most readers hear in the word "audit".
+Disclosure is **retroactive and irrevocable**, and it exposes memos written
+by senders who never agreed, which no amount of interface design makes
+consensual. A published address can be paid by anyone, so an
+`unreadable` entry is not evidence the discloser hid something. And the
+transparent path in `mini-contribution`, `mini-engagement`, `mini-bounty`,
+`mini-execution` and `mini-chain` has **not** been removed by this decision —
+only the prerequisite for removing it now exists.
+
+**Required follow-up:** migrate those five crates off
+`mini_settlement::PaymentClaim`'s cleartext fields and retire the transparent
+path, which is the decision this one was the prerequisite for; an
+amount-disclosure mechanism (opening a commitment to a named auditor) if
+"auditable" is ever to include sums; binding a disclosure to a `did:mini`
+root, deliberately left to callers here to avoid an identity dependency in a
+value crate; and the D-0047/#72 external audit, which now has a disclosure
+path to review as well.
+
+**Supersedes / superseded by:** supersedes D-0447's statement that whether
+the transparent path should remain available was an open question for founder
+review — it is answered here and the answer is no. D-0447's and D-0449's
+other limits stand unchanged.

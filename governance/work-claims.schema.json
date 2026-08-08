@@ -50,6 +50,11 @@
             "type": "string",
             "minLength": 1
           },
+          "stacked_on": {
+            "description": "Branch of another active claim this one is stacked on. Path overlap between the two is then expected coordination rather than a collision. Must name a different branch that has an active claim.",
+            "type": "string",
+            "minLength": 1
+          },
           "pull_request": {
             "type": ["integer", "null"],
             "minimum": 1
