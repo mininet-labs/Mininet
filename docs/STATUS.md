@@ -310,7 +310,49 @@ given time.
 - **prototype** — `mini-value`: stealth addresses, linkable ring
   signatures, Bulletproofs confidential amounts (D-0036/D-0040). Real,
   tested, founder-reviewed, **pending external audit** — see `docs/
-  audits/issue-8-constitutional-audit.md`'s A1 row.
+  audits/issue-8-constitutional-audit.md`'s A1 row. D-0447 added three
+  things it lacked: `RangeProof::to_bytes`/`from_bytes` (a range proof
+  previously had no serialization at all, so a confidential amount could
+  never cross a wire and the whole `ConfidentialAmountScheme` was
+  single-process), `derive_output_with_secret`/`recover_shared_secret`
+  returning the stealth shared point the derivation already computes and
+  discarded, and a fail-closed `MininetRingSignature::verifier()` so
+  verifying no longer requires inventing a secret key.
+- **prototype, not integrated (D-0447)** — `mini-private-payment`: the
+  shielded settlement path, and the composition that was missing.
+  `mini-value` had all three privacy primitives; **nothing composed them
+  into a payment**, so every payment this tree can make went through
+  `mini_settlement::PaymentClaim` with a stable payer key, a stable payee
+  address, a cleartext amount, and a per-payer `sequence` counter — a
+  complete public transaction graph, with `sequence` alone handing over
+  each payer's ordered history. `PrivatePaymentClaim` replaces the payee
+  with a fresh stealth output, the amount with a Pedersen commitment plus
+  range proof, the payer with a ring signature over a canonical anonymity
+  set, and drops `sequence` entirely; the ring signature's key image
+  becomes the double-spend conflict key. A `SealedMemo` carries the
+  payment's purpose AEAD-sealed to the recipient, so paying for a specific
+  post does not publish the engagement graph `Store::note_view` already
+  refuses to record (PR2). Reconciliation returns `mini-settlement`'s own
+  `SettlementState`, so M1/M2/M3 hold unchanged: no function combines two
+  claims, `is_final()` is true only for `Finalized`, and conflicts resolve
+  by canonical ordering rather than arrival order or amount.
+  **What it does not do:** the key image is linkable by design (two spends
+  of one output are linkable to each other — the standard CryptoNote
+  trade-off, and why the crate never says "unlinkable" unqualified); decoy
+  quality is entirely the caller's problem and no signature check can
+  notice a bad ring; network-level privacy belongs to `mini-relay`; one
+  claim carries one output, so change and fees do not exist yet; and no
+  chain-backed `PrivateLedgerView` exists, so nothing reaches `Finalized`
+  in production. `MIN_RING_SIZE = 8` is a legible floor, not a figure from
+  any traffic analysis. Three prototype constructions compose into one
+  object and the composition needs external review as much as the pieces —
+  D-0047/#72 gates all of it. 51 tests (38 adversarial, 7 end-to-end
+  vertical, 6 golden wire vectors), every payment running through the real
+  primitives. `tests/unity.rs` runs publish → view → pay → reconcile with a
+  real `mini-social` post in a real `mini-store`. Deliberately **not**
+  wired into `mini-contribution` or `mini-engagement` yet: doing so before
+  the fee and change model exist would ship a half-private path that looks
+  finished. See `docs/design/private-payment-path.md`.
 - **prototype** — `mini-treasury`: FROST threshold signing (D-0041), live
   multi-process demo, real distributed key generation and committee
   resharing (D-0060, closes D-0048's DKG gap — Pedersen DKG with a

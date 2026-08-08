@@ -17,3 +17,7 @@ publish = false
 curve25519-dalek = "4"
 blake3 = "1"
 mini-crypto = { path = "../mini-crypto" }
+# Same best-effort scrubbing discipline mini-crypto already applies to its
+# own secret buffers: a stealth shared secret left in freed memory is a
+# decryptable payment memo.
+zeroize = "1"

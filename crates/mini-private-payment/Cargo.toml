@@ -1,0 +1,29 @@
+[package]
+name = "mini-private-payment"
+version = "0.0.1"
+edition = "2021"
+license = "CC0-1.0"
+publish = false
+description = "The shielded settlement path: payments that hide payer, payee, amount, and purpose."
+
+[dependencies]
+# The three privacy primitives this crate composes -- stealth addresses,
+# ring signatures, Bulletproofs -- all already live in mini-value (D-0036/
+# D-0040). Nothing cryptographic is invented here; this crate is the
+# composition that was missing.
+mini-value = { path = "../mini-value" }
+# AEAD + KDF for the sealed memo, and hashing for the claim transcript.
+mini-crypto = { path = "../mini-crypto" }
+# The M1/M2/M3 settlement vocabulary, reused rather than re-stated: this
+# crate's reconcile returns mini-settlement's own SettlementState, so a
+# wallet cannot end up with two incompatible notions of "final".
+mini-settlement = { path = "../mini-settlement" }
+
+[dev-dependencies]
+# The end-to-end vertical: a post published through mini-social into a
+# mini-store, viewed, then privately paid for. Dev-only on purpose -- see
+# the crate docs on why no permanent edge to the social layer exists.
+mini-social = { path = "../mini-social" }
+mini-store = { path = "../mini-store" }
+mini-objects = { path = "../mini-objects" }
+did-mini = { path = "../did-mini" }

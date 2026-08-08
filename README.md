@@ -207,6 +207,16 @@ so, everywhere, on purpose.
   holders (`mini-replication-policy`, D-0372)
 - anonymous developer-bounty claims (`mini-bounty`); offline settlement
   protocol (`mini-settlement`)
+- the shielded settlement path (`mini-private-payment`, D-0447): the
+  composition that was missing, since `mini-value`'s three privacy
+  primitives existed but nothing assembled them into a payment. A
+  `PrivatePaymentClaim` hides payer (ring signature), payee (fresh stealth
+  output), amount (Pedersen commitment + range proof), and purpose (a memo
+  sealed to the recipient), and drops the transparent claim's per-payer
+  `sequence` counter entirely. M1/M2/M3 unchanged — the key image is the
+  double-spend conflict key. The key image is linkable by design, decoy
+  quality is the caller's problem, and network-level privacy is
+  `mini-relay`'s job; see `docs/design/private-payment-path.md`
 - deterministic D-0074 issuance envelopes and equal-allocation genesis
   manifests (`mini-economy`, D-0413), plus a cohort-based 200-year
   calibration harness (`mini-econ-sim`) — proposal code only; no mint,
