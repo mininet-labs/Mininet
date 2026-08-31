@@ -26,7 +26,54 @@ def copy_fixture(destination: Path) -> Path:
         destination,
         ignore=shutil.ignore_patterns(".git", "target", ".canonical-checkpoint", "_generated"),
     )
-    return destination / "repository-template" if PACKAGE_LAYOUT else destination
+    root = destination / "repository-template" if PACKAGE_LAYOUT else destination
+    neutralize_work_claim_leases(root)
+    return root
+
+
+def neutralize_work_claim_leases(root: Path) -> None:
+    """Stop the live registry's lease dates from making these tests a time bomb.
+
+    Several baseline tests copy the *real* repository and assert that
+    `validate_baseline` reports zero errors. Work-claim leases expire on a
+    calendar, so the day any open claim's lease passed, four of those tests
+    began failing -- and `governance-canonical` runs this suite from the base
+    branch against the base branch's own data, so every pull request went red
+    for a reason that had nothing to do with any pull request. That happened
+    on 2026-08-31, and no proposal could have fixed it, because no proposal
+    changes the code or data that job runs.
+
+    An expired lease is a real signal and is deliberately *not* suppressed
+    generally: `check_governance.py` on the live tree still reports it, which
+    is where an operational fact belongs. What these tests are for is whether
+    the committed artifacts are structurally valid, which is not a question
+    about today's date. So only the lease dates are pushed out, and every
+    other calendar check (charter windows, activation effective dates) still
+    runs against the real clock.
+
+    `WorkClaimRegistryTests` overwrites the registry wholesale with its own
+    fixtures, so expiry itself stays under test there.
+    """
+    registry_path = root / CHECKER.WORK_CLAIMS_PATH
+    if not registry_path.is_file():
+        return
+    try:
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    claims = registry.get("claims")
+    if not isinstance(claims, list):
+        return
+    horizon = (dt.date.today() + dt.timedelta(days=3650)).isoformat()
+    changed = False
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        if claim.get("status") in CHECKER.WORK_CLAIM_ACTIVE_STATUSES:
+            claim["lease_expires"] = horizon
+            changed = True
+    if changed:
+        registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
 
 
 CLASSES = (
