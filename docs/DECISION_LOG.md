@@ -16737,6 +16737,22 @@ GHSA-x84v-gj2h-g759. Found by the scheduled `ci` run on `main`, 2026-08-31.
    as `advisory-not-detected`. Also `chacha20` 0.10.1 → 0.10.2, off a yanked
    release.
 
+4. **The validator test suite stopped being a time bomb.** Four baseline tests
+   copy the *live repository* as a fixture and assert `validate_baseline`
+   reports zero errors. Work-claim leases expire on a calendar, so the day an
+   open claim's lease passed, those four began failing — and
+   `governance-canonical` runs this suite **from the base branch, against the
+   base branch's own data**, so every pull request went red for a reason
+   belonging to no pull request, and **no proposal could fix it**, because no
+   proposal changes the code or data that job runs. `copy_fixture` now pushes
+   active leases out in the copy. The signal is not suppressed, only moved to
+   where it means something: `check_governance.py` on the live tree still
+   reports an expired lease, `WorkClaimRegistryTests` still tests expiry
+   directly with its own fixtures, and every other calendar check still runs
+   against the real clock. Verified by applying this one file to an otherwise
+   untouched checkout of `main`: 4 failures → 90 tests OK, with no data
+   changes.
+
 **Reason for (2) beyond the bug itself:** a CI job whose behaviour contradicts
 its own decision entry is worse than an absent one, because the decision entry
 is what a reader trusts. D-0441 exists precisely because "a green check that
@@ -16753,8 +16769,9 @@ untrusted build steps run under a real capability boundary). No protocol
 surface, no authority, no frozen invariant, no voice/value edge.
 
 **Implementation status:** `crates/mini-build-runner-wasmtime/Cargo.toml` pin
-and its bump-history comment, `Cargo.lock`, `.github/workflows/ci.yml`, and
-`deny.toml`. The Batch 2b.3 adversarial suite passes against 46.0.3.
+and its bump-history comment, `Cargo.lock`, `.github/workflows/ci.yml`,
+`deny.toml`, and `tools/test_check_governance.py`. The Batch 2b.3 adversarial
+suite passes against 46.0.3.
 
 **Failure point:** D-0441's original gap stands unchanged and this decision
 must not be read as closing it — **advisory findings still do not fail

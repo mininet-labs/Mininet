@@ -1159,6 +1159,16 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   unchanged**: advisory findings still do not fail `dependency-audit` —
   `dependency-deny` is the job that blocks a vulnerable dependency, and
   it is the one that caught this.
+  The same run also exposed a **time bomb in the validator test suite**:
+  four baseline tests copy the live repository and assert zero errors,
+  and work-claim leases expire on a calendar, so once an open claim's
+  lease passed, those four failed — and `governance-canonical` runs that
+  suite *from the base branch against the base branch's own data*, so
+  every PR went red for a reason belonging to no PR, and no proposal
+  could fix it. `copy_fixture` now pushes active leases out in the copy;
+  the signal moves to where it means something (`check_governance.py` on
+  the live tree still reports an expired lease, and expiry is still
+  tested directly with purpose-built fixtures).
 - **shipped** — `mini build`/`release`/`provenance`/`installer` CLI
   subcommands (D-0077), closing PR #109's own named gap ("no CLI
   subcommand yet"). `mini build run` spawns the real

@@ -73177,7 +73177,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1013115,
+      "bytes": 1014217,
       "group": "docs",
       "headings": [
         {
@@ -73607,9 +73607,9 @@
         "transport",
         "status"
       ],
-      "lines": 16773,
+      "lines": 16790,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "739f23d2885a1813de474009e3ff21c7f1185479daa7fd314775cf84a2ce6a71",
+      "sha256": "376cfb0f01bddd482b26306f392f74c1003a5a6c5392cfd90eb2cda6997fea25",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -74758,7 +74758,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 147175,
+      "bytes": 147865,
       "group": "docs",
       "headings": [
         {
@@ -74823,42 +74823,42 @@
         },
         {
           "level": 2,
-          "line": 1360,
+          "line": 1370,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1838,
+          "line": 1848,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1929,
+          "line": 1939,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 2009,
+          "line": 2019,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 2075,
+          "line": 2085,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 2092,
+          "line": 2102,
           "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0438"
         },
         {
           "level": 2,
-          "line": 2128,
+          "line": 2138,
           "text": "Node deployment \u2014 Mininet Node Appliance (D-0446)"
         },
         {
           "level": 2,
-          "line": 2193,
+          "line": 2203,
           "text": "Day-0 release code hardening \u2014 D-0442/D-0443 proposal"
         }
       ],
@@ -74888,9 +74888,9 @@
         "claude",
         "social"
       ],
-      "lines": 2228,
+      "lines": 2238,
       "path": "docs/STATUS.md",
-      "sha256": "b7e5772746dbddfd9c6a10247046a95cb8e21aacfdfbaff25c894895db8256a5",
+      "sha256": "81e70b69f69248f55f052224b9cbf30d6c15f27bdc0ec2802e50bb6d8c71e87a",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -91897,44 +91897,44 @@
       "title": "\"\"\""
     },
     {
-      "bytes": 33694,
+      "bytes": 35849,
       "group": "tools",
       "headings": [
         {
           "level": 2,
-          "line": 292,
+          "line": 339,
           "text": "The five canonical documents \u2014 read order for any non-trivial task"
         }
       ],
       "keywords": [
-        "decision",
-        "import",
-        "str",
-        "charter",
         "path",
-        "none",
-        "adapter_text",
+        "str",
+        "import",
         "checker",
-        "operational",
-        "activation",
-        "adapter",
-        "summary_data",
-        "spec",
+        "root",
+        "return",
         "list",
-        "candidate",
-        "encoding",
-        "utf-8",
-        "status",
-        "replace",
-        "loader",
+        "spec",
         "def",
+        "none",
+        "registry",
+        "claim",
+        "charter",
+        "changed",
+        "json",
         "destination",
-        "summary",
-        "body"
+        "lease",
+        "errors",
+        "proposal",
+        "registry_path",
+        "claims",
+        "body",
+        "importlib",
+        "util"
       ],
-      "lines": 817,
+      "lines": 864,
       "path": "tools/test_check_governance.py",
-      "sha256": "26df395131acc5e1865cf09c32a403e716069b49570286f893f0669ea6a4f1f0",
+      "sha256": "8c3078ed7811ae3457a90fe9880298914bc0c50602080a1ee78888d92a1f636a",
       "symbols": [],
       "title": "The five canonical documents \u2014 read order for any non-trivial task"
     },
