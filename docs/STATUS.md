@@ -387,7 +387,7 @@ given time.
   weak devices. The golden vectors were decoupled from `MIN_RING_SIZE` in
   the same change: they had been built from the constant, so raising it
   moved the digests and cried "wire format changed" when nothing had.
-- **shipped (D-0450)** — auditability is a disclosure a party makes about
+- **shipped (D-0451)** — auditability is a disclosure a party makes about
   itself, never a property of the payment format. The tempting alternative
   was to keep the transparent `mini_settlement::PaymentClaim` alongside the
   private path for payments that must be checkable — treasury disbursements
@@ -1179,6 +1179,27 @@ horizontal roadmap breadth — is a founder priority call, not decided here.
   package-manager/OS integration — see §5 for the full detail; 25 tests
   (17 pipeline/event-log tests plus 8 covering the cross-process
   reconstruction methods D-0077 added).
+- **shipped (D-0450)** — Wasmtime pinned 46.0.2 → **46.0.3** for
+  RUSTSEC-2026-0269, *"filesystem sandbox escape when paths or symlinks
+  contain trailing slashes"*, plus GHSA-x84v-gj2h-g759. Not a routine
+  transitive advisory: it defeats the exact boundary
+  `mini-build-runner-wasmtime` exists to enforce, so a `wasm-component`
+  build step could have reached outside the directories the
+  deny-by-default capability model granted it. Bumped in a reviewed
+  commit with the Batch 2b.3 adversarial suite re-run, as D-0069's
+  exact-pin rule requires. Found by the **scheduled** `ci` run on `main`
+  three weeks after the last merge, not by anyone reading the code —
+  which is the argument for that schedule existing.
+  The same run exposed that `dependency-audit` had been doing the
+  opposite of what D-0441 specified: the job is meant to gate on the
+  *scanner running* and report advisories as warnings, but GitHub runs
+  `run:` blocks under `bash -e`, which the step's `set -uo pipefail` does
+  not clear, so any finding aborted it before the tolerance logic ran.
+  Invisible for as long as the workspace was advisory-free. Fixed, with
+  the reason written at the call site. **D-0441's actual gap is
+  unchanged**: advisory findings still do not fail `dependency-audit` —
+  `dependency-deny` is the job that blocks a vulnerable dependency, and
+  it is the one that caught this.
 - **shipped** — `mini build`/`release`/`provenance`/`installer` CLI
   subcommands (D-0077), closing PR #109's own named gap ("no CLI
   subcommand yet"). `mini build run` spawns the real

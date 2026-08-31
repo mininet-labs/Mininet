@@ -218,7 +218,7 @@ so, everywhere, on purpose.
   than a wallet setting (D-0449): recency-weighted, integer-only sampling
   from a local output set, because wallets that sample differently make
   their own users identifiable. Auditability is a **self-disclosure**, not a
-  format (D-0450): nothing is public by default, and an account that wants
+  format (D-0451): nothing is public by default, and an account that wants
   to be checkable publishes its view key — keeping a transparent format
   alongside would have made the choice to be private a signal in itself.
   The key image is linkable by design, an audit reveals income but never
@@ -322,8 +322,8 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0450`
-   (`D-0450`, auditability as a self-disclosure rather than a transparent
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0451`
+   (`D-0451`, auditability as a self-disclosure rather than a transparent
    payment format, is the newest at the time of this edit; the Mininet Node
    Appliance deployment profile this line previously credited to `D-0439` is
    `D-0446` — `D-0439` is the identity-bound replica-registration decision),

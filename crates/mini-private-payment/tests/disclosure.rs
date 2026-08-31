@@ -1,4 +1,4 @@
-//! Voluntary auditability (D-0450), and its limits.
+//! Voluntary auditability (D-0451), and its limits.
 //!
 //! The property under test is not "an audit works" — that is easy and
 //! uninteresting. It is that disclosure grants *exactly* the account

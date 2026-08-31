@@ -129,7 +129,7 @@ Considered and rejected. The transparent claim is depended on by `mini-contribut
 
 1. ~~**How are decoys chosen?**~~ **Answered by founder direction 2026-08-07; implemented in D-0449 — see §10.** Enforced by protocol for everyone, via the ring signature that already exists, not via a mixer service.
 2. ~~**Is `MIN_RING_SIZE = 8` defensible?**~~ **Answered: raised to 16, with 8 frozen as an absolute floor (D-0449).** The remaining question — what the *right* number is, from measured traffic rather than judgement — stays open and cannot close until traffic exists.
-3. ~~**Should the transparent path remain available at all?**~~ **Answered by founder direction 2026-08-07 — "invert or no transparency at all is good no real need for anything to be public". Implemented as D-0450; see §11.** No. Auditability becomes a disclosure a party makes about itself, not a property of the format. The five-crate migration off the transparent path is required follow-up, not done here.
+3. ~~**Should the transparent path remain available at all?**~~ **Answered by founder direction 2026-08-07 — "invert or no transparency at all is good no real need for anything to be public". Implemented as D-0451; see §11.** No. Auditability becomes a disclosure a party makes about itself, not a property of the format. The five-crate migration off the transparent path is required follow-up, not done here.
 4. **What is the fee model?** A private payment with no fee output cannot pay for its own inclusion, and a transparent fee attached to a shielded payment reintroduces a linkable value.
 5. **Where does the anonymity set come from on a weak device?** Directive 11: a phone that must hold the whole output set to pick decoys is a phone that cannot make private payments at all. D-0449 settles the *policy* — the set is local, because asking a peer for decoys hands that peer your ring — but not the engineering. A one-time key is 32 bytes, so a million outputs is 32 MB and prunable, which is more tractable than it first sounds; below that threshold the honest answer is that the device does not make private payments, not that it makes weaker ones.
 
@@ -166,7 +166,7 @@ Real spends skew recent. Uniform decoy selection therefore fails immediately: wh
 
 Age-weighted selection **reduces** the statistical attacks on ring anonymity; it does not eliminate them. The weights are a legible starting shape, not a distribution fitted to measured traffic, because no traffic exists to fit. A wallet that deliberately constructs a poor ring still can — but that only harms its own user, which is the correct place for the remaining freedom to sit.
 
-## 11. Auditability without a transparent format (D-0450)
+## 11. Auditability without a transparent format (D-0451)
 
 ### The trap
 
@@ -207,7 +207,7 @@ Working out what an audit does when a memo will not open exposed a live availabi
 
 - **Retiring the transparent path** in `mini-contribution`, `mini-engagement`, `mini-bounty`, `mini-execution` and `mini-chain`, which §11 is the prerequisite for and does not itself do.
 - An **amount-disclosure** mechanism — opening a commitment to a named auditor — if "auditable" is ever to include sums rather than only the set of payments.
-- Binding a disclosure to a `did:mini` root, left to callers in D-0450 to keep an identity dependency out of a value crate.
+- Binding a disclosure to a `did:mini` root, left to callers in D-0451 to keep an identity dependency out of a value crate.
 - Multi-output claims with `verify_balance`, so change and fees can exist without leaking.
 - Fitting `AGE_WEIGHTS` to real spend-age data once any exists, and revisiting `MIN_RING_SIZE` on the same evidence.
 - A chain-backed `PrivateLedgerView`, the private analogue of D-0061.

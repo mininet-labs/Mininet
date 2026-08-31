@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-08-08",
+  "updated_at": "2026-08-06T16:58:08Z",
   "claims": [
     {
       "issue": 122,
@@ -656,7 +656,7 @@
     },
     {
       "issue": 291,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "codex/privacy-transport-runtime-convergence",
       "pull_request": 296,
@@ -670,11 +670,11 @@
       "decision_ids": [
         "D-0438"
       ],
-      "notes": "Privacy transport runtime convergence (PR #296, D-0438): optional channel-bound did:mini peer authentication over anonymous CH1, signed expiring advertisements with bounded anti-eclipse selection, replay/freshness retention, three-hop destination-encrypted onion routing over real sockets, and an AuthenticatedConnection seam that reuses mini-bridge::PluggableTransport rather than creating a second bridge authority. Mixed/Burst remain runtime-fail-closed pending #72. Not Sphinx, not global-observer anonymity, no CA/TOFU/bootstrap registry, no unmasking key. Coordination evidence only; no approval or release claim. D-0438 stays Proposed."
+      "notes": "Privacy transport runtime convergence (PR #296, D-0438): optional channel-bound did:mini peer authentication over anonymous CH1, signed expiring advertisements with bounded anti-eclipse selection, replay/freshness retention, three-hop destination-encrypted onion routing over real sockets, and an AuthenticatedConnection seam that reuses mini-bridge::PluggableTransport rather than creating a second bridge authority. Mixed/Burst remain runtime-fail-closed pending #72. Not Sphinx, not global-observer anonymity, no CA/TOFU/bootstrap registry, no unmasking key. Coordination evidence only; no approval or release claim. D-0438 stays Proposed. Closed 2026-08-31: PR #296 merged 2026-08-05. The lease had lapsed and the claim was left active, which is what the validator was reporting."
     },
     {
       "issue": 45,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Codex",
       "branch": "codex/release-security-audit",
       "pull_request": 300,
@@ -697,11 +697,11 @@
         "D-0442",
         "D-0443"
       ],
-      "notes": "PR #300 extends the D-0442 audit with D-0443: exact-body finality through block-header v2/body_root, lossless bounded monetary epoch consensus serialization, complete scalable epoch commitments, versioned catch-up/snapshot/state-sync/archive migration, and adversarial same-state/different-body and old-version rejection tests. Coordinated prelaunch hard fork only; no production state migration, activation, merge, canonicalization, or release authority. Roadmap #45 remains open for chunked authenticated state transfer, dynamic validator-set history, weak subjectivity, discovery/retry, and weakest-device evidence."
+      "notes": "PR #300 extends the D-0442 audit with D-0443: exact-body finality through block-header v2/body_root, lossless bounded monetary epoch consensus serialization, complete scalable epoch commitments, versioned catch-up/snapshot/state-sync/archive migration, and adversarial same-state/different-body and old-version rejection tests. Coordinated prelaunch hard fork only; no production state migration, activation, merge, canonicalization, or release authority. Roadmap #45 remains open for chunked authenticated state transfer, dynamic validator-set history, weak subjectivity, discovery/retry, and weakest-device evidence. Closed 2026-08-31: PR #300 merged 2026-08-06. Lease lapsed, claim never closed."
     },
     {
       "issue": 92,
-      "status": "in_review",
+      "status": "closed",
       "contributor": "Claude",
       "branch": "claude/decision-registry-checks",
       "pull_request": null,
@@ -716,7 +716,7 @@
       "decision_ids": [
         "D-0444"
       ],
-      "notes": "Registry integrity checks (D-0444): decision-log append-only enforcement, decision-number collision detection against the canonical baseline and other open claims, duplicate-heading detection, and a shared-wire-limit check that fails when a crate restates a did-mini limit below did-mini's own. Each rule replays a real incident from 2026-08-05. Tooling and CI only; no protocol surface, no authority. D-0444 stays Proposed."
+      "notes": "Registry integrity checks (D-0444): decision-log append-only enforcement, decision-number collision detection against the canonical baseline and other open claims, duplicate-heading detection, and a shared-wire-limit check that fails when a crate restates a did-mini limit below did-mini's own. Each rule replays a real incident from 2026-08-05. Tooling and CI only; no protocol surface, no authority. D-0444 stays Proposed. Closed 2026-08-31: discharged by merged work -- tools/check_decisions.py, tools/check_wire_limits.py and tools/test_registry_checks.py are all present on main. Lease lapsed, claim never closed."
     },
     {
       "issue": 42,
@@ -778,15 +778,20 @@
       "contributor": "claude-agent",
       "branch": "claude/decoy-selection",
       "pull_request": 307,
-      "lease_expires": "2026-08-15",
+      "lease_expires": "2026-09-07",
       "paths": [
         "crates/mini-private-payment",
-        "docs/design/private-payment-path.md"
+        "docs/design/private-payment-path.md",
+        "crates/mini-build-runner-wasmtime",
+        "deny.toml",
+        ".github/workflows/ci.yml",
+        "Cargo.lock"
       ],
       "decision_ids": [
-        "D-0449"
+        "D-0449",
+        "D-0450"
       ],
-      "notes": "D-0449 (founder direction 2026-08-07): decoy selection becomes a protocol rule rather than a wallet setting -- recency-weighted, integer-only sampling from a local OutputSet, no mixer and no fetching decoys from a peer. MIN_RING_SIZE 8 -> 16 over a new frozen ABSOLUTE_MIN_RING_SIZE of 8. Golden vectors decoupled from the tunable. Coordination evidence only, not approval or authority. Closed here rather than left active: claude/view-key-disclosure is stacked on this branch and carries its commits, so within that tree the work is complete and a second active claim on the same paths would be a phantom collision. PR #307 is the first half of that stack and merges first."
+      "notes": "D-0449 (founder direction 2026-08-07): decoy selection becomes a protocol rule rather than a wallet setting -- recency-weighted, integer-only sampling from a local OutputSet, no mixer and no fetching decoys from a peer. MIN_RING_SIZE 8 -> 16 over a new frozen ABSOLUTE_MIN_RING_SIZE of 8. Golden vectors decoupled from the tunable. Coordination evidence only, not approval or authority. Extended 2026-08-31 with D-0450: the scheduled ci run on main went red on RUSTSEC-2026-0269, a Wasmtime filesystem sandbox escape that defeats the exact boundary mini-build-runner-wasmtime enforces. Bumps the D-0069 exact pin 46.0.2 -> 46.0.3 with the Batch 2b.3 adversarial suite re-run, restores the dependency-audit job to the behaviour D-0441 specified (bash -e was inverting it), and drops two now-stale deny.toml ignores. Landed here rather than on the stacked branch so both open PRs inherit the fix. Closed here rather than left active: claude/view-key-disclosure is stacked on this branch and carries its commits, so within that tree the work is complete and a second active claim on the same paths would be a phantom collision. PR #307 is the first half of that stack and merges first. (The stacked_on field this branch adds to the registry would express this directly, but governance-canonical evaluates a proposal with the base branch's checker, which cannot know a field the proposal introduces.)"
     },
     {
       "issue": 33,
@@ -803,7 +808,7 @@
       "decision_ids": [
         "D-0448"
       ],
-      "notes": "D-0448 (founder direction 2026-08-07): proposer_weight takes a typed ProvenCapacity with no numeric constructor, StorageCommitment gains block_size_bytes enforced on every challenge, and mini-storage-fraud's duplicate capacity types are re-exported from mini-spacetime. Completes D-0445 by making the derived path the only path. Coordination evidence only, not approval or authority. Merged 2026-08-08 as PR #306."
+      "notes": "D-0448 (founder direction 2026-08-07): proposer_weight takes a typed ProvenCapacity with no numeric constructor, StorageCommitment gains block_size_bytes enforced on every challenge, and mini-storage-fraud's duplicate capacity types are re-exported from mini-spacetime. Completes D-0445 by making the derived path the only path. Coordination evidence only, not approval or authority. Closed 2026-08-31: PR #306 merged."
     },
     {
       "issue": 61,
@@ -811,16 +816,16 @@
       "contributor": "claude-agent",
       "branch": "claude/view-key-disclosure",
       "pull_request": 308,
-      "lease_expires": "2026-08-15",
+      "lease_expires": "2026-09-07",
       "paths": [
         "crates/mini-private-payment",
         "crates/mini-value",
         "docs/design/private-payment-path.md"
       ],
       "decision_ids": [
-        "D-0450"
+        "D-0451"
       ],
-      "notes": "D-0450 (founder direction 2026-08-07, \"invert or no transparency at all is good no real need for anything to be public\"): auditability becomes a view-key disclosure a party makes about itself rather than a transparent payment format, because if both formats exist the choice of the private one is itself a signal. Adds the ViewKeyDisclosure payment-domain object (canonical encoding, digest identity), verify_disclosure, audit, a typed AcknowledgedIrreversibleDisclosure, plus mini_value::view_public_from_secret and stealth_address_is_well_formed. Also fixes a D-0447 availability defect: scan returned Result, so one stranger-sent unopenable memo blanked a wallet entire visible income; scan is now total. Files under #61 as a payments-domain object type; does NOT discharge #61, whose marketplace half is untouched. Stacked on claude/decoy-selection (PR #307), hence the mini-private-payment path overlap with that claim. Coordination evidence only, not approval or authority. The stacked_on field this change adds to the registry is deliberately NOT used here: governance-canonical evaluates a proposal with the *base* branch's checker, which cannot know a field the proposal introduces. It is available to the next stack."
+      "notes": "D-0451 (founder direction 2026-08-07, \"invert or no transparency at all is good no real need for anything to be public\"): auditability becomes a view-key disclosure a party makes about itself rather than a transparent payment format, because if both formats exist the choice of the private one is itself a signal. Adds the ViewKeyDisclosure payment-domain object (canonical encoding, digest identity, private fields so the typed acknowledgement cannot be bypassed by a struct literal), verify_disclosure, audit, plus mini_value::view_public_from_secret and stealth_address_is_well_formed. Also fixes a D-0447 availability defect: scan returned Result, so one stranger-sent unopenable memo blanked a wallet entire visible income; scan is now total. Renumbered from D-0450 on 2026-08-31 so the log stays append-only across the stack -- claude/decoy-selection took D-0450 for the Wasmtime sandbox-escape fix, which merges first. Files under #61 as a payments-domain object type; does NOT discharge #61, whose marketplace half is untouched. Stacked on claude/decoy-selection (PR #307). Coordination evidence only, not approval or authority."
     }
   ]
 }

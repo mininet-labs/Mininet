@@ -89,6 +89,15 @@ jobs:
 
       - name: Scan dependencies for advisories
         run: |
+          # `shell:` runs this with `bash -e`, and `set -uo pipefail` does
+          # not clear that. Without `+e` the next line aborts the job the
+          # instant cargo-audit reports a finding -- which is the opposite
+          # of what this job is for. It gates on the *scanner running*, and
+          # advisories are reported as warnings (D-0441); a hard failure on
+          # a finding is what `dependency-deny` deliberately owns. This
+          # silently inverted the job's stated contract until an advisory
+          # against wasmtime 46.0.2 made it fire on 2026-08-31.
+          set +e
           set -uo pipefail
           # Invoked as the binary rather than as `cargo audit`, so the
           # subcommand lookup cannot drag the pinned toolchain back in.

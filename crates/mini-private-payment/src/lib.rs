@@ -74,7 +74,7 @@
 //!   payment can reach [`mini_settlement::SettlementState::Finalized`] in
 //!   production.
 //!
-//! # Auditability without a transparent format (D-0450)
+//! # Auditability without a transparent format (D-0451)
 //!
 //! Some payments should be checkable by anyone — a treasury disbursement
 //! most obviously. The tempting answer is to keep the transparent

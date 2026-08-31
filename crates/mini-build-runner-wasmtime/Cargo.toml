@@ -42,8 +42,19 @@ mini-pipeline-protocol = { path = "../mini-pipeline-protocol" }
 # internal VM state) were disclosed against 46.0.1; both advisories'
 # stated solution range (>=46.0.2, <47.0.0) is satisfied by this patch
 # bump alone -- no WASI Preview 2 API surface change.
-wasmtime = { version = "=46.0.2", default-features = false, features = ["cranelift", "runtime", "std"] }
-wasmtime-wasi = { version = "=46.0.2", default-features = false }
+#
+# Bumped 46.0.2 -> 46.0.3 (2026-08-31, reviewed commit, re-ran the Batch
+# 2b.3 adversarial suite): RUSTSEC-2026-0269 (GHSA-vqjp-4c8c-hfgg,
+# "filesystem sandbox escape when paths or symlinks contain trailing
+# slashes") and GHSA-x84v-gj2h-g759 were disclosed against 46.0.2. The
+# first is not a generic dependency advisory -- it defeats *the exact
+# boundary this crate exists to enforce*, letting a `wasm-component`
+# build step reach outside the directories the capability model granted
+# it, which is the whole deny-by-default filesystem premise of D-0069.
+# Both advisories' stated solution range (>=46.0.3, <47.0.0) is satisfied
+# by this patch bump alone -- no WASI Preview 2 API surface change.
+wasmtime = { version = "=46.0.3", default-features = false, features = ["cranelift", "runtime", "std"] }
+wasmtime-wasi = { version = "=46.0.3", default-features = false }
 # `random.rs`'s `DeterministicRng` (for `random:deterministic` steps)
 # implements `rand_core::TryRng<Error = Infallible>`, which blanket-
 # implements the `Rng` trait `WasiCtxBuilder::secure_random`/

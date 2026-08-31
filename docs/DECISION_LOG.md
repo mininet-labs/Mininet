@@ -16694,7 +16694,84 @@ quality is the caller's problem, and closes the first two open questions in
 `docs/design/private-payment-path.md` §7. D-0447's other limits stand
 unchanged.
 
-### D-0450 — Auditability is a disclosure a party makes about itself, never a property of the payment format  ·  *Proposed*
+### D-0450 — Wasmtime 46.0.3 for a sandbox-escape advisory, and the dependency-audit job restored to the behaviour D-0441 specified  ·  *Proposed*
+
+**Date:** 2026-08-31 · **Refs:** D-0069 (`mini-build-runner-wasmtime` and its
+exact-pin dependency-governance rule), D-0441 (dependency scanning must gate),
+D-0341/#203, roadmap #73; RUSTSEC-2026-0269 / GHSA-vqjp-4c8c-hfgg,
+GHSA-x84v-gj2h-g759. Found by the scheduled `ci` run on `main`, 2026-08-31.
+
+**Decision:** three corrections, one of them a real security fix.
+
+1. **`wasmtime`/`wasmtime-wasi` pinned 46.0.2 → 46.0.3.** RUSTSEC-2026-0269 is
+   *"filesystem sandbox escape when paths or symlinks contain trailing
+   slashes"*. This is not a routine transitive advisory. It defeats **the exact
+   boundary `mini-build-runner-wasmtime` exists to enforce**: a
+   `wasm-component` build step could reach outside the directories the
+   deny-by-default capability model granted it, which is the entire premise of
+   D-0069's isolation claim and of every "untrusted build steps are sandboxed"
+   statement in this tree. Both advisories' stated fix range (`>=46.0.3,
+   <47.0.0`) is satisfied by the patch bump alone, so no WASI Preview 2 API
+   surface changed. Bumped in a reviewed commit with the Batch 2b.3 adversarial
+   suite re-run, as D-0069's pinning rule requires — deliberately not a jump to
+   47.x, which would be an API-surface change reviewed on its own merits rather
+   than under advisory pressure.
+
+2. **The `dependency-audit` job stopped doing the opposite of what D-0441 said
+   it does.** D-0441 specified that the job "distinguishes the two outcomes the
+   previous configuration conflated": a scanner that cannot run fails the
+   build, while advisory findings are surfaced loudly *without* failing. The
+   step's own script says exactly that, and it was wrong the whole time —
+   GitHub runs `run:` blocks under `bash -e`, and the step's `set -uo pipefail`
+   does not clear `-e`, so `cargo-audit` exiting non-zero on a finding aborted
+   the job before a single line of the tolerance logic ran. The inversion was
+   invisible for as long as the workspace happened to be advisory-free, and
+   surfaced the first time an advisory landed. `set +e` restores the specified
+   behaviour, and the reason is written at the call site so it is not
+   "simplified" back out.
+
+3. **Two stale `deny.toml` ignores removed.** RUSTSEC-2026-0194/0195 were
+   ignored with a "revisit when mini-desktop's GUI stack is next upgraded"
+   note; that upgrade has since happened on its own (`wayland-scanner` 0.31.11
+   resolves `quick-xml` to the fixed 0.41.0), and cargo-deny was reporting both
+   as `advisory-not-detected`. Also `chacha20` 0.10.1 → 0.10.2, off a yanked
+   release.
+
+**Reason for (2) beyond the bug itself:** a CI job whose behaviour contradicts
+its own decision entry is worse than an absent one, because the decision entry
+is what a reader trusts. D-0441 exists precisely because "a green check that
+means *the scanner failed to start* is worse than no check"; this is the same
+failure with the polarity flipped — a red check that means *the scanner worked
+and found something the job was never meant to gate on*. Both teach a reviewer
+to stop believing the signal, which is the durable damage.
+
+**Constitutional impact:** none directly — a dependency patch bump and CI
+configuration. It does, however, restore a factual basis for D-0069's
+sandboxing claims, which several honesty statements elsewhere in the tree
+depend on (`README`, `docs/STATUS.md`, and this crate's own README all say
+untrusted build steps run under a real capability boundary). No protocol
+surface, no authority, no frozen invariant, no voice/value edge.
+
+**Implementation status:** `crates/mini-build-runner-wasmtime/Cargo.toml` pin
+and its bump-history comment, `Cargo.lock`, `.github/workflows/ci.yml`, and
+`deny.toml`. The Batch 2b.3 adversarial suite passes against 46.0.3.
+
+**Failure point:** D-0441's original gap stands unchanged and this decision
+must not be read as closing it — **advisory findings still do not fail
+`dependency-audit`**; `dependency-deny` is what actually blocks a vulnerable
+dependency, and it is the job that caught this one. Restoring the intended
+tolerance in `dependency-audit` narrows the signal it gives rather than
+widening it. Pinning `=46.0.3` means the next Wasmtime advisory needs another
+reviewed commit; that is the intended cost of D-0069's exact pin, not an
+oversight. Nothing here was found by anyone reading the code — it took a
+scheduled run three weeks after the last merge, which is itself the argument
+for keeping that schedule.
+
+**Supersedes / superseded by:** supersedes nothing. Corrects the
+implementation of D-0441 §1 without changing its decision, and continues
+D-0069's pinned-bump history.
+
+### D-0451 — Auditability is a disclosure a party makes about itself, never a property of the payment format  ·  *Proposed*
 
 **Date:** 2026-08-08 · **Refs:** D-0447 (`mini-private-payment`), D-0449
 (protocol decoy selection), D-0036/D-0040 (`mini-value` prototypes), D-0073

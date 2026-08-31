@@ -180,7 +180,7 @@ fn the_encoded_length_is_the_same_for_every_payment() {
     );
 }
 
-/// A fully deterministic disclosure (D-0450). The keys are not a real
+/// A fully deterministic disclosure (D-0451). The keys are not a real
 /// keypair — `verify_disclosure` would reject them, and correctly — because
 /// what is pinned here is the *encoding*, and a vector built from a
 /// generated keypair would be a vector built from randomness.
