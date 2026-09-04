@@ -16959,6 +16959,14 @@ check and its test coverage.
    committed file directly rather than the neutralized fixture — no real
    exception has outlived its sunset.
 
+4. **The example carries a placeholder date.** Belt and braces with (1): the
+   template block already used `RUSTSEC-YYYY-NNNN` and `D-00XX` as
+   placeholders, and the expiry was the one field holding a real date. It is
+   now `YYYY-MM-DD`, so no scanner can mistake the block for a live exception
+   whether or not it strips comments. This is also what lets the *candidate*
+   side of `canonical-governance` pass under the base branch's still-unfixed
+   checker, which reads the candidate's exceptions file.
+
 **Reason:** the first two are ordinary bugs; the third is the one worth
 stating. An exception that quietly outlives its sunset is among the most
 consequential things this validator can catch, because GOV-EX-0001 is what

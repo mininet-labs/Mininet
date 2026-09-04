@@ -2,7 +2,7 @@
   "counts": {
     "crates": 73,
     "files": 900,
-    "headings": 3113,
+    "headings": 3115,
     "rust_symbols": 8695
   },
   "crates": {
@@ -73546,7 +73546,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1027584,
+      "bytes": 1028095,
       "group": "docs",
       "headings": [
         {
@@ -73976,9 +73976,9 @@
         "transport",
         "status"
       ],
-      "lines": 17008,
+      "lines": 17016,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "712b443e9e54d31d174725812a03b3b676ff8591d179929543b629290fd5db7a",
+      "sha256": "48dc614b8a030e8d026c918f4b69509caf140f9abe95d4e911aca00cb7f760fb",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -91271,52 +91271,63 @@
       "title": "{"
     },
     {
-      "bytes": 1121,
+      "bytes": 1326,
       "group": "root",
       "headings": [
         {
           "level": 1,
           "line": 21,
-          "text": "Example:"
+          "text": "Example (illustrative only -- every value here is a placeholder, and the"
         },
         {
           "level": 1,
           "line": 22,
-          "text": "- id: DEP-EX-0001"
+          "text": "date is deliberately not a real one so no scanner can mistake this block"
         },
         {
           "level": 1,
           "line": 23,
-          "text": "scope: RUSTSEC-YYYY-NNNN"
+          "text": "for a live exception, whether or not it strips comments first):"
         },
         {
           "level": 1,
           "line": 24,
-          "text": "owner: did:mini:example-pseudonym"
+          "text": "- id: DEP-EX-0001"
         },
         {
           "level": 1,
           "line": 25,
-          "text": "reason: No patched compatible version; affected code path is unreachable."
+          "text": "scope: RUSTSEC-YYYY-NNNN"
         },
         {
           "level": 1,
           "line": 26,
-          "text": "mitigation: Disable the affected feature and add a regression test."
+          "text": "owner: did:mini:example-pseudonym"
         },
         {
           "level": 1,
           "line": 27,
-          "text": "expires: 2026-09-01"
+          "text": "reason: No patched compatible version; affected code path is unreachable."
         },
         {
           "level": 1,
           "line": 28,
+          "text": "mitigation: Disable the affected feature and add a regression test."
+        },
+        {
+          "level": 1,
+          "line": 29,
+          "text": "expires: YYYY-MM-DD"
+        },
+        {
+          "level": 1,
+          "line": 30,
           "text": "decision: D-00XX"
         }
       ],
       "keywords": [
         "affected",
+        "one",
         "scope",
         "owner",
         "reason",
@@ -91328,24 +91339,23 @@
         "governance",
         "exceptions",
         "example",
-        "dep-ex-0001",
-        "rustsec-yyyy-nnnn",
-        "did",
-        "example-pseudonym",
-        "patched",
-        "compatible",
-        "code",
-        "unreachable",
-        "disable",
-        "feature",
-        "add",
-        "regression"
+        "illustrative",
+        "every",
+        "value",
+        "here",
+        "placeholder",
+        "date",
+        "deliberately",
+        "real",
+        "scanner",
+        "mistake",
+        "block"
       ],
-      "lines": 29,
+      "lines": 31,
       "path": "governance/exceptions.yml",
-      "sha256": "23e0a1badb47260ec984e1ee4074b8383173653fca98342272565d7165bf958d",
+      "sha256": "88972387c2267d1861b5453619c83d94d8d5d8548b2b7171520edc62257be4d5",
       "symbols": [],
-      "title": "Example:"
+      "title": "Example (illustrative only -- every value here is a placeholder, and the"
     },
     {
       "bytes": 5229,
