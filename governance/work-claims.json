@@ -867,7 +867,7 @@
       "status": "active",
       "contributor": "claude-agent",
       "branch": "claude/roadmap-r1-done",
-      "pull_request": null,
+      "pull_request": 311,
       "lease_expires": "2026-09-11",
       "paths": [
         "docs/ROADMAP_TO_RELEASE.md",
