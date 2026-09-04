@@ -272,6 +272,48 @@ real-hardware testing, and open research decisions — is named explicitly, so
 a finished-looking GitHub repo is never mistaken for a launch-ready network:
 [`docs/gates/`](docs/gates/) and tracking issue [#99](../../issues/99).
 
+## The road to release
+
+**No release date is set, and none should be inferred.** Most of what remains
+is not code — it is external audit, legal review, real hardware, and one open
+research question nobody has solved. Those close when an outside party does
+the work, not when engineering finishes preparing for them. A roadmap that
+promised a date would be the first dishonest thing in this repository.
+
+The full account, with what would actually close each item, is
+[`docs/ROADMAP_TO_RELEASE.md`](docs/ROADMAP_TO_RELEASE.md). The summary:
+
+<!-- ROADMAP-SUMMARY-BEGIN -->
+| Phase | Critical path | Status |
+|---|---|---|
+| **1. Trustworthy tree** | Governance validator reads data not commentary (R1); green CI baseline (R2) | 1 active, 1 blocked |
+| **2. Money layer, auditable as one thing** | Retire the transparent payment path (R3); fees, change and multi-output (R4); chain-backed private ledger view (R5); amount disclosure (R6); decoy weights fitted to real traffic (R7) | 4 ready, 1 blocked |
+| **3. A network, not a protocol** | Consensus production gaps (R8); KEL freshness and witnesses (R9); BLE transport on real hardware (R10); a usable client (R11) | 3 ready, 1 outside |
+| **4. Gates code cannot close** | External cryptography audit (R12); FROST DKG audit (R13); legal counsel (R14); Sybil resistance and personhood (R15); tokenomics validation (R16) | 5 outside |
+| **5. Release engineering** | Adversarial testing at scale (R17); genesis and validator set (R18); install and rollback on real targets (R19); the honest launch statement (R20) | 1 ready, 3 blocked |
+
+**20 items: 1 active, 8 ready, 5 blocked, 6 outside.**
+<!-- ROADMAP-SUMMARY-END -->
+
+`outside` means **this repository cannot close it** — it needs an auditor,
+counsel, a researcher, real hardware, or a founder decision. Six of the
+twenty are `outside`, and they include the largest gate of all: the external
+cryptography audit that stands before any real value moves.
+
+The two hardest are worth naming here rather than burying:
+
+- **Sybil resistance is unsolved** (R15). Everything today counts identity
+  roots, and an identity root is not a verified human. Nothing in this project
+  may be described as "one human, one vote" until that changes.
+- **No cryptography here has been externally audited** (R12). Three
+  founder-overridden, AI-authored prototype constructions compose into the
+  payment path. A privacy failure does not announce itself — it produces
+  payments that look private and are not.
+
+A pull request that advances a roadmap item updates its row in the same pull
+request. `tools/check_roadmap.py` keeps this table and the detail document
+consistent and fails CI if they drift.
+
 ## Start here
 
 Pick the door that fits you:

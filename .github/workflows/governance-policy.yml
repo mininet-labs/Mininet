@@ -64,6 +64,12 @@ jobs:
           --canonical .canonical-checkpoint
       - name: Check shared wire limits
         run: python3 tools/check_wire_limits.py
+      # The release roadmap is published on the front page, so it is the first
+      # thing a reader trusts and the easiest thing to leave stale. This fails
+      # when README and docs/ROADMAP_TO_RELEASE.md disagree, or when an item
+      # claims "done" without a decision that actually exists.
+      - name: Check release roadmap
+        run: python3 tools/check_roadmap.py
       - name: Validate governance policy baseline for proposal
         if: github.event_name == 'pull_request'
         run: >-

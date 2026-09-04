@@ -829,7 +829,7 @@
     },
     {
       "issue": 73,
-      "status": "active",
+      "status": "closed",
       "contributor": "claude-agent",
       "branch": "claude/governance-exception-parsing",
       "pull_request": 309,
@@ -841,7 +841,26 @@
       "decision_ids": [
         "D-0452"
       ],
-      "notes": "D-0452: the governance-exception expiry scan ran over the raw exceptions.yml, so the commented-out template example at the bottom counted as a live exception and its placeholder date failed the build on 2026-09-02, red-lighting canonical-governance on every open PR. Strips comments before scanning, measures expiry against the threaded now instead of dt.date.today(), and adds the five tests this check never had. Completes D-0450 section 4, which identified the dated-live-data pattern and fixed only the work-claim-lease instance of it. Coordination evidence only, not approval or authority."
+      "notes": "D-0452: the governance-exception expiry scan ran over the raw exceptions.yml, so the commented-out template example at the bottom counted as a live exception and its placeholder date failed the build on 2026-09-02, red-lighting canonical-governance on every open PR. Strips comments before scanning, measures expiry against the threaded now instead of dt.date.today(), and adds the five tests this check never had. Completes D-0450 section 4, which identified the dated-live-data pattern and fixed only the work-claim-lease instance of it. Coordination evidence only, not approval or authority. Closed here rather than left active: claude/release-roadmap is stacked on this branch and carries its commits. PR #309 is the first half of that stack and merges first."
+    },
+    {
+      "issue": 92,
+      "status": "active",
+      "contributor": "claude-agent",
+      "branch": "claude/release-roadmap",
+      "pull_request": 310,
+      "lease_expires": "2026-09-11",
+      "paths": [
+        "docs/ROADMAP_TO_RELEASE.md",
+        "tools/check_roadmap.py",
+        "tools/test_check_roadmap.py",
+        "README.md",
+        ".github/workflows/governance-policy.yml"
+      ],
+      "decision_ids": [
+        "D-0453"
+      ],
+      "notes": "D-0453: a published critical path to release. docs/ROADMAP_TO_RELEASE.md is the single ordered account of what stands between today and public release -- 20 items in 5 phases, each naming what would close it and who can close it -- with a summary table on the README front page. Six items are marked outside: they need an auditor, counsel, a researcher, real hardware, or a founder decision, and no engineering closes them. No date is set and the absence is stated rather than implied. tools/check_roadmap.py runs in CI and fails when the README and the detail document disagree or when a done row cites a D-number that does not exist. Points at #99 for the external gates rather than restating its checkboxes, so a gate is closed in one place only. Coordination evidence only, not approval or authority. The update ritual is stated in the roadmap document itself and enforced by check_roadmap.py rather than added to CLAUDE.md: instruction surfaces must be byte-identical to canonical, and an agent editing its own instructions inside an unrelated proposal is exactly what that guard exists to catch."
     }
   ]
 }
