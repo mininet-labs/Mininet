@@ -18,6 +18,9 @@ mini-crypto = { path = "../mini-crypto" }
 # crate's reconcile returns mini-settlement's own SettlementState, so a
 # wallet cannot end up with two incompatible notions of "final".
 mini-settlement = { path = "../mini-settlement" }
+# The opened note carries a blinding factor, which is spending material;
+# it is wiped on drop like every other secret in this tree.
+zeroize = "1"
 
 [dev-dependencies]
 # The end-to-end vertical: a post published through mini-social into a

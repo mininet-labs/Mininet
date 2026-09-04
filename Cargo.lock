@@ -2837,6 +2837,7 @@ dependencies = [
  "mini-social",
  "mini-store",
  "mini-value",
+ "zeroize",
 ]
 
 [[package]]

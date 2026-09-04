@@ -352,11 +352,11 @@ given time.
   **What it does not do:** the key image is linkable by design (two spends
   of one output are linkable to each other — the standard CryptoNote
   trade-off, and why the crate never says "unlinkable" unqualified);
-  network-level privacy belongs to `mini-relay`; one
-  claim carries one output, so change and fees do not exist yet; and no
+  network-level privacy belongs to `mini-relay`; and no
   chain-backed `PrivateLedgerView` exists, so nothing reaches `Finalized`
   in production. `MIN_RING_SIZE = 8` is a legible floor, not a figure from
-  any traffic analysis. Three prototype constructions compose into one
+  any traffic analysis. (D-0449 raised it to 16; D-0455 added fees, change
+  and value conservation — see the entries below.) Three prototype constructions compose into one
   object and the composition needs external review as much as the pieces —
   D-0047/#72 gates all of it. 51 tests (38 adversarial, 7 end-to-end
   vertical, 6 golden wire vectors), every payment running through the real
@@ -365,6 +365,49 @@ given time.
   wired into `mini-contribution` or `mini-engagement` yet: doing so before
   the fee and change model exist would ship a half-private path that looks
   finished. See `docs/design/private-payment-path.md`.
+- **shipped (D-0455)** — the shielded path proves **value conservation**,
+  and closes roadmap R4. D-0447 hid amounts and never checked them: a
+  range proof says only "this is a number in `[0, 2^64)`", and with one
+  input, one output and no equation relating them, a payer could commit to
+  any amount at all, prove it in range, and no verifier had anything to
+  fail. Hiding a number nobody checks is not privacy — it is minting, with
+  the privacy as the thing that stops anyone noticing, and every value
+  invariant here, M1 above all, was resting on it. A claim now spends up to
+  `MAX_INPUTS = 16` outputs and creates up to `MAX_OUTPUTS = 16`, and
+  proves `Σ inputs = Σ outputs + fee` without opening a single amount, via
+  the standard RingCT construction (Noether/Mackenzie — published,
+  peer-reviewed, deployed for years; implemented in-house per D-0063, not
+  invented). New `mini_value::mlsag` is a **two-column** MLSAG: column 0
+  proves the signer holds a ring member's one-time key and carries the key
+  image; column 1 proves a re-blinded **pseudo-output commitment** hides
+  that same member's value. Pseudo-outputs exist because putting a spent
+  output's own commitment in the balance sum would publish which ring
+  member was real — the check meant to make amounts safe would have
+  destroyed the anonymity. Column 1 deliberately carries **no** key image:
+  one would be deterministic in the blinding difference, linking two spends
+  that happened to share one, for nothing. Range proofs are checked before
+  the sum, since a "negative" output would otherwise balance the equation
+  while minting value. **Change is not a field** — it is an output paying
+  yourself, built by the same code path, so nothing on the wire says which
+  output was the payment. The commitment opening (amount + blinding factor)
+  travels in the sealed memo, so receiving a payment and being able to
+  spend it are the same event. Claim format is **v2**; v1 claims do not
+  decode, because a v1 claim proved no balance.
+  **What it does not do:** the fee is **public** (a verifier must be able
+  to check the fee charged is the fee declared), and so are a claim's input
+  and output counts — each is a fingerprint, and an unusual shape narrows
+  which claims could be yours. Spending several outputs in one claim says
+  they share an owner, without saying who. What a fee *should be*, and who
+  collects it, is an economics decision this makes possible and does not
+  make; no output-selection or consolidation policy exists either.
+  `MAX_MEMO_BYTES` drops from 252 to 212 because the note now carries the
+  opening (the padded memo size is unchanged, so no anonymity set splits).
+  The construction is standard; **this implementation of it is unaudited**
+  and stays gated behind D-0047/#72 — a conservation bug does not fail
+  loudly, it produces payments that balance to a verifier and mint value in
+  fact. 112 tests in the crate, including `tests/conservation.rs` (13) with
+  `a_recipient_can_spend_what_they_received`, which receives a payment,
+  opens its note, and spends it onward with no side channel.
 - **shipped (D-0449)** — decoy selection is a protocol rule, not a wallet
   setting. `PaymentRequest` no longer carries a `ring`: it carries a
   `ring_size`, an index into the caller's **local** `OutputSet`, and fresh

@@ -33,19 +33,57 @@
 //!
 //! | | transparent claim | here |
 //! |---|---|---|
-//! | payer | a stable public key | nothing — a ring signature over an anonymity set |
+//! | payer | a stable public key | nothing — an MLSAG over an anonymity set |
 //! | payee | a stable address | a fresh one-time [`mini_value::StealthOutput`] |
 //! | amount | `u64`, in the clear | a Pedersen commitment with a range proof |
 //! | ordering | `sequence`, per payer | nothing |
 //! | purpose | (absent, or it would leak) | [`SealedMemo`], readable only by the recipient |
+//! | change | (implicit: the payer's balance) | an output like any other, indistinguishable |
+//!
+//! # Value conservation, which is what makes hidden amounts safe
+//!
+//! Hiding an amount is worth nothing on its own. If a claim can commit to
+//! any number it likes, "private money" is money anybody can mint, and the
+//! privacy is the thing that stops you noticing.
+//!
+//! So every claim proves `Σ inputs = Σ outputs + fee` *without opening a
+//! single one of those amounts*, exactly as RingCT does. Pedersen
+//! commitments are additively homomorphic, so a verifier sums the input
+//! commitments, sums the output commitments plus a commitment to the public
+//! fee, and checks the difference is a commitment to zero. Two things make
+//! that sound:
+//!
+//! - **Range proofs.** Without them a "negative" output balances the
+//!   equation while minting value, so [`verify`] checks every output's
+//!   Bulletproof before it checks the sum.
+//! - **Pseudo-output commitments.** A spent output's own commitment cannot
+//!   appear in the sum — publishing it would say which ring member was
+//!   real, and the ring would stop hiding anyone. Each input instead carries
+//!   a *re-blinded* commitment to the same value, and its
+//!   [`mini_value::MlsagSignature`] proves, in one ring, both that the
+//!   signer controls some member and that the pseudo-commitment hides that
+//!   member's value. The blinding factors are chosen so the differences
+//!   cancel across the claim.
+//!
+//! A claim may spend up to [`MAX_INPUTS`] outputs and create up to
+//! [`MAX_OUTPUTS`], which is what makes real payments possible: you rarely
+//! hold an output worth exactly what you owe. Change is **not** a field or a
+//! flag — it is an output paying yourself, built the same way as any other,
+//! so nothing on the wire says which output was the payment and which was
+//! the change.
 //!
 //! # What it does **not** hide, stated plainly
 //!
 //! - **The key image is linkable, by design.** Two spends of the same
-//!   output produce the same [`VerifiedPrivateClaim::key_image`], which is
-//!   exactly what makes double-spend detection possible without a public
-//!   payer. This crate therefore never says "unlinkable" without
-//!   qualification.
+//!   output produce the same key image — see
+//!   [`VerifiedPrivateClaim::key_images`] — which is exactly what makes
+//!   double-spend detection possible without a public payer. This crate
+//!   therefore never says "unlinkable" without qualification.
+//! - **A claim's inputs are linked to each other.** Spending several
+//!   outputs in one claim tells an observer those outputs share an owner,
+//!   without telling them who. That is inherent to the construction, not an
+//!   oversight: the alternative is a separate claim per input, which leaks
+//!   through timing instead.
 //! - **Decoys are chosen by the protocol, not by the wallet** (D-0449).
 //!   [`select_ring`] samples them under one rule, recency-weighted to match
 //!   how real spends are distributed, in integer arithmetic so every machine
@@ -66,6 +104,15 @@
 //!   IP immediately after viewing one post is not private in practice.
 //! - **Counts and timing remain visible.** How many payments exist, and
 //!   when, is public. Amounts and parties are not.
+//! - **The fee is public, and so is the shape of a claim.** A verifier must
+//!   be able to check that the fee charged is the fee declared, and a hidden
+//!   fee would need its own range proof and still leave the network unable
+//!   to prioritize — so `fee_micro` is in the clear. An observer therefore
+//!   learns each claim's fee, its number of inputs, and its number of
+//!   outputs. That is a real fingerprint: an unusual fee, or an unusual
+//!   input count, narrows which claims could be yours. It is stated here
+//!   rather than papered over, and it is why a wallet should prefer the
+//!   ordinary shapes.
 //! - **Sybil is still unsolved.** Nothing here counts humans, and nothing
 //!   here should ever be cited as if it did (roadmap #18).
 //! - **No consensus.** Reconciliation asks a [`PrivateLedgerView`]; no such
@@ -119,7 +166,8 @@
 //! ```text
 //! mini-social      publish a post           -> ObjectId
 //! mini-store       a reader views it        -> local cache tier, no viewer identity
-//! mini-private-payment  the reader pays     -> stealth output + ring sig + range proof
+//! mini-private-payment  the reader pays     -> stealth outputs + MLSAG per input
+//!                                              + range proofs + a balance that sums
 //!                                              + the ObjectId sealed in the memo
 //! mini-settlement  the shared vocabulary    -> Pending / AcceptedLocal / Finalized
 //! (pending)        canonical consensus      -> the only thing that makes it final
@@ -139,18 +187,24 @@ mod reconcile;
 mod scan;
 
 pub use claim::{
-    build, canonicalize_ring, ring_is_canonical, verify, PaymentRequest, PrivatePaymentClaim,
-    VerifiedPrivateClaim, ABSOLUTE_MIN_RING_SIZE, CLAIM_TRANSCRIPT_DOMAIN, CLAIM_VERSION,
+    build, canonicalize_ring, ring_is_canonical, verify, BuiltOutput, ClaimInput, ClaimOutput,
+    PaymentRequest, PrivatePaymentClaim, Recipient, SpendableOutput, VerifiedPrivateClaim,
+    ABSOLUTE_MIN_RING_SIZE, CLAIM_TRANSCRIPT_DOMAIN, CLAIM_VERSION, MAX_INPUTS, MAX_OUTPUTS,
     MAX_RING_SIZE, MIN_RING_SIZE,
 };
 pub use codec::MAX_FIELD_BYTES;
-pub use decoy::{select_ring, InMemoryOutputSet, OutputSet, AGE_WEIGHTS, DECOY_DOMAIN};
+pub use decoy::{
+    select_ring, select_ring_indices, InMemoryOutputSet, OutputSet, AGE_WEIGHTS, DECOY_DOMAIN,
+};
 pub use disclosure::{
     audit, verify_disclosure, AcknowledgedIrreversibleDisclosure, VerifiedDisclosure,
     ViewKeyDisclosure, DISCLOSURE_DOMAIN, DISCLOSURE_VERSION,
 };
 pub use error::{DecodeFailure, PrivatePaymentError, Result};
-pub use memo::{PaymentPurpose, SealedMemo, MAX_MEMO_BYTES, MEMO_KDF_INFO, MEMO_PADDED_BYTES};
+pub use memo::{
+    PaymentNote, PaymentPurpose, SealedMemo, MAX_MEMO_BYTES, MEMO_KDF_INFO, MEMO_PADDED_BYTES,
+    NOTE_OVERHEAD_BYTES,
+};
 pub use nullifier::{KeyImageSet, SpendOutcome};
 pub use reconcile::{reconcile, InMemoryPrivateLedger, PrivateLedgerView};
 pub use scan::{recognizes, scan, scan_one, RecognizedPayment, ScanOutcome};

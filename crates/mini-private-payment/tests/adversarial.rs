@@ -8,13 +8,12 @@ mod support;
 
 use mini_private_payment::{
     build, canonicalize_ring, reconcile, verify, InMemoryPrivateLedger, KeyImageSet,
-    PaymentPurpose, PaymentRequest, PrivatePaymentError, SpendOutcome, MAX_MEMO_BYTES,
-    MAX_RING_SIZE, MIN_RING_SIZE,
+    PaymentPurpose, PrivatePaymentError, SpendOutcome, MAX_MEMO_BYTES, MAX_RING_SIZE,
+    MIN_RING_SIZE,
 };
 use mini_settlement::{CanonicalRejection, SettlementState};
-use support::{
-    one_time_key, output_set_with_own, payment_to, payment_with_ring, recipient, NETWORK,
-};
+use mini_value::StealthKeypair;
+use support::{pay, payment_to, payment_with_ring, recipient, request_for, Ledger, NETWORK};
 
 // ---------------------------------------------------------------------------
 // The payment works at all
@@ -23,14 +22,14 @@ use support::{
 #[test]
 fn a_well_formed_private_payment_verifies() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1_000, b"post:abc");
+    let (claim, _) = payment_to(&to, 1_000, b"post:abc");
     assert!(verify(&claim, &NETWORK).is_ok());
 }
 
 #[test]
 fn the_recipient_recognizes_and_reads_their_own_payment() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 2_500, b"post:xyz");
+    let (claim, _) = payment_to(&to, 2_500, b"post:xyz");
     let verified = verify(&claim, &NETWORK).unwrap();
 
     let found = mini_private_payment::scan_one(
@@ -39,15 +38,20 @@ fn the_recipient_recognizes_and_reads_their_own_payment() {
         &verified,
     )
     .unwrap()
+    .pop()
     .expect("payment is addressed here");
-    assert_eq!(found.purpose, PaymentPurpose::new(b"post:xyz".to_vec()));
+    assert_eq!(
+        found.note.purpose,
+        PaymentPurpose::new(b"post:xyz".to_vec())
+    );
+    assert_eq!(found.note.amount_micro, 2_500);
 }
 
 #[test]
 fn a_stranger_neither_recognizes_the_payment_nor_reads_its_purpose() {
     let to = recipient();
     let stranger = recipient();
-    let (claim, _, _) = payment_to(&to, 500, b"post:private");
+    let (claim, _) = payment_to(&to, 500, b"post:private");
     let verified = verify(&claim, &NETWORK).unwrap();
 
     assert!(!mini_private_payment::recognizes(
@@ -61,7 +65,7 @@ fn a_stranger_neither_recognizes_the_payment_nor_reads_its_purpose() {
         &verified
     )
     .unwrap()
-    .is_none());
+    .is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -74,14 +78,17 @@ fn two_payments_to_the_same_recipient_are_not_linkable_by_their_outputs() {
     // shared an address, "private payments" would be a public creator
     // ledger with extra steps.
     let to = recipient();
-    let (first, _, _) = payment_to(&to, 100, b"post:a");
-    let (second, _, _) = payment_to(&to, 100, b"post:b");
+    let (first, _) = payment_to(&to, 100, b"post:a");
+    let (second, _) = payment_to(&to, 100, b"post:b");
 
     assert_ne!(
-        first.output.one_time_address,
-        second.output.one_time_address
+        first.outputs[0].output.one_time_address,
+        second.outputs[0].output.one_time_address
     );
-    assert_ne!(first.output.tx_public_key, second.output.tx_public_key);
+    assert_ne!(
+        first.outputs[0].output.tx_public_key,
+        second.outputs[0].output.tx_public_key
+    );
 
     // ...and the recipient still recognizes both.
     for claim in [&first, &second] {
@@ -99,9 +106,12 @@ fn two_payments_of_the_same_amount_do_not_share_a_commitment() {
     // Equal amounts must not produce equal commitments, or the amount
     // becomes a fingerprint and hiding it accomplishes nothing.
     let to = recipient();
-    let (first, _, _) = payment_to(&to, 42_000, b"x");
-    let (second, _, _) = payment_to(&to, 42_000, b"y");
-    assert_ne!(first.amount_commitment, second.amount_commitment);
+    let (first, _) = payment_to(&to, 42_000, b"x");
+    let (second, _) = payment_to(&to, 42_000, b"y");
+    assert_ne!(
+        first.outputs[0].amount_commitment,
+        second.outputs[0].amount_commitment
+    );
 }
 
 #[test]
@@ -110,7 +120,7 @@ fn the_claim_carries_no_payer_field_and_no_sequence() {
     // leaked the payer's entire ordered history through exactly these two
     // fields. If someone ever adds them back for convenience, this fails.
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"z");
+    let (claim, _) = payment_to(&to, 1, b"z");
     let encoded = claim.encode();
     // The failure message deliberately names the field rather than dumping
     // the claim: a test about not exposing payment detail should not print
@@ -132,7 +142,7 @@ fn the_amount_never_appears_in_the_wire_bytes() {
     // encoder might have used.
     let to = recipient();
     let amount: u64 = 0x0102_0304_0506_0708;
-    let (claim, _, _) = payment_to(&to, amount, b"m");
+    let (claim, _) = payment_to(&to, amount, b"m");
     let encoded = claim.encode();
     assert!(!encoded
         .windows(8)
@@ -143,7 +153,7 @@ fn the_amount_never_appears_in_the_wire_bytes() {
 fn the_purpose_never_appears_in_the_wire_bytes() {
     let to = recipient();
     let purpose = b"post:this-exact-string-must-not-leak";
-    let (claim, _, _) = payment_to(&to, 7, purpose);
+    let (claim, _) = payment_to(&to, 7, purpose);
     let encoded = claim.encode();
     assert!(!encoded
         .windows(purpose.len())
@@ -155,8 +165,8 @@ fn payments_with_and_without_a_purpose_are_the_same_size() {
     // Otherwise "this payment has a memo" is itself a signal, and a
     // creator paid with notes is distinguishable from one paid without.
     let to = recipient();
-    let (empty, _, _) = payment_to(&to, 1, b"");
-    let (full, _, _) = payment_to(&to, 1, &[0xcd; MAX_MEMO_BYTES]);
+    let (empty, _) = payment_to(&to, 1, b"");
+    let (full, _) = payment_to(&to, 1, &[0xcd; MAX_MEMO_BYTES]);
     assert_eq!(empty.encode().len(), full.encode().len());
 }
 
@@ -167,23 +177,11 @@ fn payments_with_and_without_a_purpose_are_the_same_size() {
 #[test]
 fn a_ring_that_hides_nobody_is_refused_at_build_time() {
     let to = recipient();
-    let (outputs, real_output_index, secret) = output_set_with_own(64);
-    let request = PaymentRequest {
-        network_id: NETWORK,
-        recipient_spend_public: to.spend_public_bytes().to_vec(),
-        recipient_view_public: to.view_public_bytes().to_vec(),
-        amount_micro: 1,
-        purpose: PaymentPurpose::none(),
-        valid_until_ms: 1,
-        last_known_chain: Vec::new(),
-        ring_size: 2,
-        real_output_index,
-        secret_key: secret.to_vec(),
-        decoy_entropy: mini_crypto::random_32().unwrap(),
-        blinding: mini_crypto::random_32().unwrap(),
-    };
+    let (ledger, spend) = Ledger::with_funds(1);
+    let mut request = request_for(vec![spend], vec![pay(&to, 1, b"tiny")], 0);
+    request.ring_size = 2;
     assert!(matches!(
-        build(&request, &outputs),
+        build(&request, &ledger),
         Err(PrivatePaymentError::RingTooSmall {
             min: MIN_RING_SIZE,
             ..
@@ -196,8 +194,8 @@ fn a_too_small_ring_is_refused_at_verify_time_too() {
     // Build-time refusal is not enough: claims arrive over a wire from
     // parties who never ran our builder.
     let to = recipient();
-    let (mut claim, _, _) = payment_to(&to, 1, b"q");
-    claim.ring.truncate(MIN_RING_SIZE - 1);
+    let (mut claim, _) = payment_to(&to, 1, b"q");
+    claim.inputs[0].ring.truncate(MIN_RING_SIZE - 1);
     assert!(matches!(
         verify(&claim, &NETWORK),
         Err(PrivatePaymentError::RingTooSmall { .. })
@@ -210,9 +208,9 @@ fn a_ring_padded_with_duplicates_is_refused() {
     // nothing and buys no anonymity -- it can only be an attempt to look
     // better hidden than you are.
     let to = recipient();
-    let (mut claim, _, _) = payment_to(&to, 1, b"dup");
-    let member = claim.ring[0].clone();
-    claim.ring = vec![member; MIN_RING_SIZE];
+    let (mut claim, _) = payment_to(&to, 1, b"dup");
+    let member = claim.inputs[0].ring[0].clone();
+    claim.inputs[0].ring = vec![member; MIN_RING_SIZE];
     assert!(matches!(
         verify(&claim, &NETWORK),
         Err(PrivatePaymentError::DuplicateRingMember)
@@ -224,10 +222,21 @@ fn an_oversized_ring_is_refused_rather_than_verified_slowly() {
     // Ring verification is linear in ring size; an unbounded ring is a
     // denial-of-service against the weakest honest device (Directive 11).
     let to = recipient();
-    let (mut claim, _, _) = payment_to(&to, 1, b"big");
-    let mut ring: Vec<Vec<u8>> = (0..MAX_RING_SIZE + 1).map(|_| one_time_key().0).collect();
-    canonicalize_ring(&mut ring);
-    claim.ring = ring;
+    let (mut claim, _) = payment_to(&to, 1, b"big");
+    let mut ring: Vec<Vec<u8>> = (0..MAX_RING_SIZE + 1)
+        .map(|_| {
+            StealthKeypair::generate()
+                .unwrap()
+                .spend_public_bytes()
+                .to_vec()
+        })
+        .collect();
+    let mut commitments: Vec<Vec<u8>> = (0..MAX_RING_SIZE + 1)
+        .map(|_| mini_crypto::random_32().unwrap().to_vec())
+        .collect();
+    assert!(canonicalize_ring(&mut ring, &mut commitments));
+    claim.inputs[0].ring = ring;
+    claim.inputs[0].ring_commitments = commitments;
     assert!(matches!(
         verify(&claim, &NETWORK),
         Err(PrivatePaymentError::RingTooLarge { .. })
@@ -240,29 +249,36 @@ fn reordering_the_ring_invalidates_the_signature() {
     // a different anonymity set -- which would change who the payment
     // appears to hide among.
     let to = recipient();
-    let (mut claim, _, _) = payment_to(&to, 1, b"order");
-    claim.ring.swap(0, 1);
+    let (mut claim, _) = payment_to(&to, 1, b"order");
+    claim.inputs[0].ring.swap(0, 1);
     // Swapping breaks canonical order first; verify reports that, and even
     // re-sorting into a *different* set still fails the signature.
     assert!(verify(&claim, &NETWORK).is_err());
 
-    let (mut swapped, _, _) = payment_to(&to, 1, b"order");
-    swapped.ring[0] = one_time_key().0;
-    canonicalize_ring(&mut swapped.ring);
+    let (mut swapped, _) = payment_to(&to, 1, b"order");
+    let input = &mut swapped.inputs[0];
+    input.ring[0] = StealthKeypair::generate()
+        .unwrap()
+        .spend_public_bytes()
+        .to_vec();
+    assert!(canonicalize_ring(
+        &mut input.ring,
+        &mut input.ring_commitments
+    ));
     assert!(matches!(
         verify(&swapped, &NETWORK),
-        Err(PrivatePaymentError::BadRingSignature)
+        Err(PrivatePaymentError::BadSpendProof)
     ));
 }
 
 #[test]
 fn a_response_count_that_disagrees_with_the_ring_is_refused() {
     let to = recipient();
-    let (mut claim, _, _) = payment_to(&to, 1, b"count");
-    claim.signature.responses.pop();
+    let (mut claim, _) = payment_to(&to, 1, b"count");
+    claim.inputs[0].signature.key_responses.pop();
     assert!(matches!(
         verify(&claim, &NETWORK),
-        Err(PrivatePaymentError::BadRingSignature)
+        Err(PrivatePaymentError::BadSpendProof)
     ));
 }
 
@@ -273,8 +289,8 @@ fn a_response_count_that_disagrees_with_the_ring_is_refused() {
 #[test]
 fn a_tampered_amount_commitment_fails_its_range_proof() {
     let to = recipient();
-    let (mut claim, _, _) = payment_to(&to, 1_000, b"amt");
-    claim.amount_commitment[0] ^= 0x01;
+    let (mut claim, _) = payment_to(&to, 1_000, b"amt");
+    claim.outputs[0].amount_commitment[0] ^= 0x01;
     assert!(matches!(
         verify(&claim, &NETWORK),
         Err(PrivatePaymentError::BadRangeProof)
@@ -287,9 +303,9 @@ fn a_range_proof_from_another_payment_does_not_transfer() {
     // obvious way to hide an out-of-range amount behind honest-looking
     // evidence.
     let to = recipient();
-    let (first, _, _) = payment_to(&to, 10, b"a");
-    let (mut second, _, _) = payment_to(&to, 20, b"b");
-    second.range_proof = first.range_proof.clone();
+    let (first, _) = payment_to(&to, 10, b"a");
+    let (mut second, _) = payment_to(&to, 20, b"b");
+    second.outputs[0].range_proof = first.outputs[0].range_proof.clone();
     assert!(matches!(
         verify(&second, &NETWORK),
         Err(PrivatePaymentError::BadRangeProof)
@@ -301,7 +317,7 @@ fn a_zero_amount_is_a_valid_payment() {
     // Zero is in range and must verify: refusing it here would push
     // callers toward encoding "no payment" some other, less examined way.
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 0, b"zero");
+    let (claim, _) = payment_to(&to, 0, b"zero");
     assert!(verify(&claim, &NETWORK).is_ok());
 }
 
@@ -320,28 +336,31 @@ fn every_mutable_field_is_covered_by_the_signature() {
     tampered_deadline.valid_until_ms += 1;
     assert!(matches!(
         verify(&tampered_deadline, &NETWORK),
-        Err(PrivatePaymentError::BadRingSignature)
+        Err(PrivatePaymentError::BadSpendProof)
     ));
 
     let mut tampered_chain = base.clone();
     tampered_chain.last_known_chain = b"height:99999".to_vec();
     assert!(matches!(
         verify(&tampered_chain, &NETWORK),
-        Err(PrivatePaymentError::BadRingSignature)
+        Err(PrivatePaymentError::BadSpendProof)
     ));
 
     let mut tampered_output = base.clone();
-    tampered_output.output.one_time_address = one_time_key().0;
+    tampered_output.outputs[0].output.one_time_address = StealthKeypair::generate()
+        .unwrap()
+        .spend_public_bytes()
+        .to_vec();
     assert!(matches!(
         verify(&tampered_output, &NETWORK),
-        Err(PrivatePaymentError::BadRingSignature)
+        Err(PrivatePaymentError::BadSpendProof)
     ));
 
     let mut tampered_memo = base.clone();
-    tampered_memo.memo.ciphertext[0] ^= 0x01;
+    tampered_memo.outputs[0].memo.ciphertext[0] ^= 0x01;
     assert!(matches!(
         verify(&tampered_memo, &NETWORK),
-        Err(PrivatePaymentError::BadRingSignature)
+        Err(PrivatePaymentError::BadSpendProof)
     ));
 }
 
@@ -351,23 +370,23 @@ fn redirecting_the_payment_to_another_address_invalidates_it() {
     // address for your own.
     let to = recipient();
     let thief = recipient();
-    let (mut claim, _, _) = payment_to(&to, 5_000, b"steal");
+    let (mut claim, _) = payment_to(&to, 5_000, b"steal");
     let (stolen_output, _) = mini_value::derive_output_with_secret(
         &thief.spend_public_bytes(),
         &thief.view_public_bytes(),
     )
     .unwrap();
-    claim.output = stolen_output;
+    claim.outputs[0].output = stolen_output;
     assert!(matches!(
         verify(&claim, &NETWORK),
-        Err(PrivatePaymentError::BadRingSignature)
+        Err(PrivatePaymentError::BadSpendProof)
     ));
 }
 
 #[test]
 fn a_claim_for_another_network_is_refused() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"net");
+    let (claim, _) = payment_to(&to, 1, b"net");
     assert!(matches!(
         verify(&claim, &[0xff; 32]),
         Err(PrivatePaymentError::NetworkMismatch)
@@ -384,9 +403,9 @@ fn a_memo_cannot_be_lifted_onto_another_payment() {
     // off a large payment and staple it to a tiny one, so the creator
     // credits the wrong payment to the wrong post.
     let to = recipient();
-    let (generous, _, _) = payment_to(&to, 100_000, b"post:valuable");
-    let (mut stingy, _, _) = payment_to(&to, 1, b"post:cheap");
-    stingy.memo = generous.memo.clone();
+    let (generous, _) = payment_to(&to, 100_000, b"post:valuable");
+    let (mut stingy, _) = payment_to(&to, 1, b"post:cheap");
+    stingy.outputs[0].memo = generous.outputs[0].memo.clone();
     // The signature catches it first; even ignoring that, the memo's AAD
     // is the transcript digest, which the swap changes.
     assert!(verify(&stingy, &NETWORK).is_err());
@@ -401,35 +420,31 @@ fn spending_the_same_output_twice_is_refused_never_merged() {
     // M1: money does not merge. The second claim is refused outright --
     // not netted, not summed, not "the larger wins".
     let to = recipient();
-    let (outputs, real_output_index, real_secret) = output_set_with_own(64);
+    let (ledger, spend) = Ledger::with_funds(500);
 
-    let make = |amount: u64, purpose: &[u8]| {
-        let request = PaymentRequest {
-            network_id: NETWORK,
-            recipient_spend_public: to.spend_public_bytes().to_vec(),
-            recipient_view_public: to.view_public_bytes().to_vec(),
-            amount_micro: amount,
-            purpose: PaymentPurpose::new(purpose.to_vec()),
-            valid_until_ms: 10_000,
-            last_known_chain: b"h".to_vec(),
-            ring_size: MIN_RING_SIZE,
-            real_output_index,
-            secret_key: real_secret.to_vec(),
-            // Fixed entropy: the two claims must spend the same output with
-            // the same ring, so the key image collides and the double-spend
-            // is what is under test rather than the sampling.
-            decoy_entropy: [0x5c; 32],
-            blinding: mini_crypto::random_32().unwrap(),
-        };
-        verify(&build(&request, &outputs).unwrap().0, &NETWORK).unwrap()
+    // Both claims spend the same output, so both must pay out the same
+    // total -- conservation is checked before the key image ever is. What
+    // differs is who gets paid and why, which is enough to make them two
+    // distinct claims.
+    let make = |purpose: &[u8]| {
+        let mut request = request_for(vec![spend.clone()], vec![pay(&to, 500, purpose)], 0);
+        // Fixed entropy: the two claims must draw the same ring, so the
+        // only thing that differs is what is under test rather than the
+        // sampling. (The key image would collide either way -- it is
+        // determined by the one-time secret, not the ring.)
+        request.decoy_entropy = [0x5c; 32];
+        verify(&build(&request, &ledger).unwrap().0, &NETWORK).unwrap()
     };
 
-    let first = make(10, b"first");
-    let second = make(999, b"second");
+    let first = make(b"first");
+    let second = make(b"second");
 
     // Same output spent twice -> same key image, which is exactly how this
     // is detectable without a public payer.
-    assert_eq!(first.key_image(), second.key_image());
+    assert_eq!(
+        first.key_images().next().unwrap(),
+        second.key_images().next().unwrap()
+    );
     assert_ne!(first.transcript_digest(), second.transcript_digest());
 
     let mut spent = KeyImageSet::new();
@@ -453,7 +468,7 @@ fn rebroadcasting_the_same_claim_is_idempotent_not_a_conflict() {
     // Networks re-deliver. Treating a duplicate as a double-spend would
     // make ordinary gossip look like fraud.
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"rebroadcast");
+    let (claim, _) = payment_to(&to, 1, b"rebroadcast");
     let verified = verify(&claim, &NETWORK).unwrap();
     let mut spent = KeyImageSet::new();
     assert_eq!(spent.observe(&verified), SpendOutcome::Accepted);
@@ -464,13 +479,16 @@ fn rebroadcasting_the_same_claim_is_idempotent_not_a_conflict() {
 #[test]
 fn different_outputs_produce_different_key_images() {
     let to = recipient();
-    let (first, _, _) = payment_to(&to, 1, b"a");
-    let (second, _, _) = payment_to(&to, 1, b"b");
+    let (first, _) = payment_to(&to, 1, b"a");
+    let (second, _) = payment_to(&to, 1, b"b");
     let (first, second) = (
         verify(&first, &NETWORK).unwrap(),
         verify(&second, &NETWORK).unwrap(),
     );
-    assert_ne!(first.key_image(), second.key_image());
+    assert_ne!(
+        first.key_images().next().unwrap(),
+        second.key_images().next().unwrap()
+    );
 
     let mut spent = KeyImageSet::new();
     assert_eq!(spent.observe(&first), SpendOutcome::Accepted);
@@ -485,7 +503,7 @@ fn different_outputs_produce_different_key_images() {
 #[test]
 fn an_unfinalized_payment_is_pending_and_never_final() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"pending");
+    let (claim, _) = payment_to(&to, 1, b"pending");
     let verified = verify(&claim, &NETWORK).unwrap();
     let ledger = InMemoryPrivateLedger::new();
     let state = reconcile(&verified, &ledger, 0).unwrap();
@@ -496,7 +514,7 @@ fn an_unfinalized_payment_is_pending_and_never_final() {
 #[test]
 fn only_canonical_inclusion_makes_a_payment_final() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"final");
+    let (claim, _) = payment_to(&to, 1, b"final");
     let verified = verify(&claim, &NETWORK).unwrap();
     let mut ledger = InMemoryPrivateLedger::new();
     ledger.finalize(&verified);
@@ -510,29 +528,16 @@ fn canonical_ordering_alone_resolves_a_conflict() {
     // M3: exactly one of two conflicting claims resolves, and the loser is
     // rejected rather than merged or retried.
     let to = recipient();
-    let (outputs, real_output_index, real_secret) = output_set_with_own(64);
-    let make = |amount: u64| {
-        let request = PaymentRequest {
-            network_id: NETWORK,
-            recipient_spend_public: to.spend_public_bytes().to_vec(),
-            recipient_view_public: to.view_public_bytes().to_vec(),
-            amount_micro: amount,
-            purpose: PaymentPurpose::none(),
-            valid_until_ms: 10_000,
-            last_known_chain: b"h".to_vec(),
-            ring_size: MIN_RING_SIZE,
-            real_output_index,
-            secret_key: real_secret.to_vec(),
-            // Fixed entropy: the two claims must spend the same output with
-            // the same ring, so the key image collides and the double-spend
-            // is what is under test rather than the sampling.
-            decoy_entropy: [0x5c; 32],
-            blinding: mini_crypto::random_32().unwrap(),
-        };
-        verify(&build(&request, &outputs).unwrap().0, &NETWORK).unwrap()
+    let (ledger, spend) = Ledger::with_funds(30);
+    let make = |purpose: &[u8]| {
+        let mut request = request_for(vec![spend.clone()], vec![pay(&to, 30, purpose)], 0);
+        // Fixed entropy: the two claims must draw the same ring, so the
+        // only thing that differs is what is under test.
+        request.decoy_entropy = [0x5c; 32];
+        verify(&build(&request, &ledger).unwrap().0, &NETWORK).unwrap()
     };
-    let winner = make(10);
-    let loser = make(20);
+    let winner = make(b"winner");
+    let loser = make(b"loser");
 
     let mut ledger = InMemoryPrivateLedger::new();
     ledger.finalize(&winner);
@@ -545,14 +550,14 @@ fn canonical_ordering_alone_resolves_a_conflict() {
         reconcile(&loser, &ledger, 0).unwrap(),
         SettlementState::RejectedConflict
     );
-    // The larger amount did not win, and nothing was combined.
+    // Arrival order did not win, and nothing was combined.
     assert!(!reconcile(&loser, &ledger, 0).unwrap().is_final());
 }
 
 #[test]
 fn an_expired_claim_that_never_finalized_is_expired() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"expiry");
+    let (claim, _) = payment_to(&to, 1, b"expiry");
     let verified = verify(&claim, &NETWORK).unwrap();
     let ledger = InMemoryPrivateLedger::new();
     assert_eq!(
@@ -565,7 +570,7 @@ fn an_expired_claim_that_never_finalized_is_expired() {
 fn a_finalized_claim_stays_final_after_its_deadline_passes() {
     // Value that moved cannot un-move because a device clock advanced.
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"clock");
+    let (claim, _) = payment_to(&to, 1, b"clock");
     let verified = verify(&claim, &NETWORK).unwrap();
     let mut ledger = InMemoryPrivateLedger::new();
     ledger.finalize(&verified);
@@ -578,7 +583,7 @@ fn a_finalized_claim_stays_final_after_its_deadline_passes() {
 #[test]
 fn a_canonically_rejected_claim_reports_the_reason() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"reject");
+    let (claim, _) = payment_to(&to, 1, b"reject");
     let verified = verify(&claim, &NETWORK).unwrap();
     let mut ledger = InMemoryPrivateLedger::new();
     ledger.reject(
@@ -598,7 +603,7 @@ fn a_canonically_rejected_claim_reports_the_reason() {
 #[test]
 fn a_claim_survives_a_wire_round_trip() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 8_888, b"wire");
+    let (claim, _) = payment_to(&to, 8_888, b"wire");
     let encoded = claim.encode();
     let decoded = mini_private_payment::PrivatePaymentClaim::decode(&encoded).unwrap();
     assert_eq!(decoded, claim);
@@ -608,7 +613,7 @@ fn a_claim_survives_a_wire_round_trip() {
 #[test]
 fn a_truncated_claim_is_refused_without_panicking() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"trunc");
+    let (claim, _) = payment_to(&to, 1, b"trunc");
     let encoded = claim.encode();
     for cut in [1usize, 40, encoded.len() / 2, encoded.len() - 1] {
         assert!(mini_private_payment::PrivatePaymentClaim::decode(&encoded[..cut]).is_err());
@@ -618,7 +623,7 @@ fn a_truncated_claim_is_refused_without_panicking() {
 #[test]
 fn trailing_bytes_after_a_claim_are_refused() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"trail");
+    let (claim, _) = payment_to(&to, 1, b"trail");
     let mut encoded = claim.encode();
     encoded.push(0);
     assert!(matches!(
@@ -632,7 +637,7 @@ fn trailing_bytes_after_a_claim_are_refused() {
 #[test]
 fn a_claim_with_a_foreign_domain_tag_is_refused() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"domain");
+    let (claim, _) = payment_to(&to, 1, b"domain");
     let mut encoded = claim.encode();
     encoded[0] ^= 0xff;
     assert!(matches!(
@@ -648,8 +653,8 @@ fn a_noncanonically_ordered_ring_is_refused_on_decode() {
     // One payment, one encoding. Two encodings of the same payment would
     // be two claims to any registry keyed on bytes.
     let to = recipient();
-    let (mut claim, _, _) = payment_to(&to, 1, b"canon");
-    claim.ring.swap(0, 1);
+    let (mut claim, _) = payment_to(&to, 1, b"canon");
+    claim.inputs[0].ring.swap(0, 1);
     assert!(matches!(
         mini_private_payment::PrivatePaymentClaim::decode(&claim.encode()),
         Err(PrivatePaymentError::Decode(
@@ -674,9 +679,9 @@ fn random_bytes_never_decode_into_a_claim() {
 fn payments_verify_across_the_whole_permitted_ring_range() {
     let to = recipient();
     for size in [MIN_RING_SIZE, MIN_RING_SIZE + 1, 16, 32] {
-        let (claim, _, _) = payment_with_ring(&to, 1, b"sizes", size);
+        let (claim, _) = payment_with_ring(&to, 1, b"sizes", size);
         assert!(verify(&claim, &NETWORK).is_ok(), "ring size {size} failed");
-        assert_eq!(claim.ring.len(), size);
+        assert_eq!(claim.inputs[0].ring.len(), size);
     }
 }
 
@@ -692,24 +697,11 @@ fn the_caller_cannot_supply_its_own_ring() {
     // ever adds the field back for convenience, this stops compiling, which
     // is the intended alarm.
     let to = recipient();
-    let (outputs, real_output_index, secret) = output_set_with_own(64);
-    let request = PaymentRequest {
-        network_id: NETWORK,
-        recipient_spend_public: to.spend_public_bytes().to_vec(),
-        recipient_view_public: to.view_public_bytes().to_vec(),
-        amount_micro: 1,
-        purpose: PaymentPurpose::none(),
-        valid_until_ms: 1,
-        last_known_chain: Vec::new(),
-        ring_size: MIN_RING_SIZE,
-        real_output_index,
-        secret_key: secret.to_vec(),
-        decoy_entropy: mini_crypto::random_32().unwrap(),
-        blinding: mini_crypto::random_32().unwrap(),
-    };
+    let (ledger, spend) = Ledger::with_funds(1);
+    let request = request_for(vec![spend], vec![pay(&to, 1, b"no-ring")], 0);
     let rendered = format!("{request:?}");
     assert!(!rendered.contains("ring:"), "a ring field reappeared");
-    assert!(build(&request, &outputs).is_ok());
+    assert!(build(&request, &ledger).is_ok());
 }
 
 #[test]
@@ -719,25 +711,14 @@ fn two_wallets_with_the_same_inputs_produce_the_same_ring() {
     // which one made a payment from the shape of its ring, and the smaller
     // population would be the more identifiable.
     let to = recipient();
-    let (outputs, real_output_index, secret) = output_set_with_own(200);
-    let entropy = [0x4d; 32];
+    let mut ledger = Ledger::new();
+    ledger.fill(200);
+    let spend = ledger.mint(1);
 
     let make = || {
-        let request = PaymentRequest {
-            network_id: NETWORK,
-            recipient_spend_public: to.spend_public_bytes().to_vec(),
-            recipient_view_public: to.view_public_bytes().to_vec(),
-            amount_micro: 1,
-            purpose: PaymentPurpose::none(),
-            valid_until_ms: 1,
-            last_known_chain: Vec::new(),
-            ring_size: MIN_RING_SIZE,
-            real_output_index,
-            secret_key: secret.to_vec(),
-            decoy_entropy: entropy,
-            blinding: [0x11; 32],
-        };
-        build(&request, &outputs).unwrap().0.ring
+        let mut request = request_for(vec![spend.clone()], vec![pay(&to, 1, b"same")], 0);
+        request.decoy_entropy = [0x4d; 32];
+        build(&request, &ledger).unwrap().0.inputs[0].ring.clone()
     };
     assert_eq!(make(), make());
 }
@@ -745,8 +726,8 @@ fn two_wallets_with_the_same_inputs_produce_the_same_ring() {
 #[test]
 fn the_default_ring_is_sixteen_and_never_below_the_frozen_floor() {
     let to = recipient();
-    let (claim, _, _) = payment_to(&to, 1, b"size");
-    assert_eq!(claim.ring.len(), 16);
+    let (claim, _) = payment_to(&to, 1, b"size");
+    assert_eq!(claim.inputs[0].ring.len(), 16);
     assert_eq!(mini_private_payment::ABSOLUTE_MIN_RING_SIZE, 8);
 }
 
@@ -757,8 +738,8 @@ fn a_payment_built_from_a_real_output_set_verifies_end_to_end() {
     // secret the signer does not hold, and verification would fail.
     let to = recipient();
     for size in [MIN_RING_SIZE, 32, 64] {
-        let (claim, _, _) = payment_with_ring(&to, 1, b"e2e", size);
-        assert_eq!(claim.ring.len(), size);
+        let (claim, _) = payment_with_ring(&to, 1, b"e2e", size);
+        assert_eq!(claim.inputs[0].ring.len(), size);
         assert!(verify(&claim, &NETWORK).is_ok(), "ring size {size}");
     }
 }
@@ -769,23 +750,12 @@ fn an_output_set_too_small_for_the_ring_is_refused_rather_than_padded() {
     // like anonymity and provides none -- the same failure the duplicate
     // check above catches on the wire, caught here at construction.
     let to = recipient();
-    let (outputs, real_output_index, secret) = output_set_with_own(4);
-    let request = PaymentRequest {
-        network_id: NETWORK,
-        recipient_spend_public: to.spend_public_bytes().to_vec(),
-        recipient_view_public: to.view_public_bytes().to_vec(),
-        amount_micro: 1,
-        purpose: PaymentPurpose::none(),
-        valid_until_ms: 1,
-        last_known_chain: Vec::new(),
-        ring_size: MIN_RING_SIZE,
-        real_output_index,
-        secret_key: secret.to_vec(),
-        decoy_entropy: mini_crypto::random_32().unwrap(),
-        blinding: mini_crypto::random_32().unwrap(),
-    };
+    let mut ledger = Ledger::new();
+    ledger.fill(3);
+    let spend = ledger.mint(1);
+    let request = request_for(vec![spend], vec![pay(&to, 1, b"thin")], 0);
     assert!(matches!(
-        build(&request, &outputs),
+        build(&request, &ledger),
         Err(PrivatePaymentError::OutputSetTooSmall { .. })
     ));
 }

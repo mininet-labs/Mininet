@@ -864,7 +864,7 @@
     },
     {
       "issue": 92,
-      "status": "active",
+      "status": "closed",
       "contributor": "claude-agent",
       "branch": "claude/roadmap-r1-done",
       "pull_request": 311,
@@ -878,7 +878,28 @@
       "decision_ids": [
         "D-0454"
       ],
-      "notes": "D-0454: R1 closed when D-0452/PR #309 merged, producing the roadmap first done item, and the gap showed immediately -- the README summary counted only the five open statuses, so finishing an item made the front page quietly less accurate while the checker still passed. Twenty items summed to nineteen and nothing complained. The summary line now counts done and the checker requires it to match. R1 -> done, R2 -> active (its exit criterion is a scheduled main run, which has not happened since the fix). Discharges D-0453 second required follow-up. Coordination evidence only, not approval or authority."
+      "notes": "D-0454: R1 closed when D-0452/PR #309 merged, producing the roadmap first done item, and the gap showed immediately -- the README summary counted only the five open statuses, so finishing an item made the front page quietly less accurate while the checker still passed. Twenty items summed to nineteen and nothing complained. The summary line now counts done and the checker requires it to match. R1 -> done, R2 -> active (its exit criterion is a scheduled main run, which has not happened since the fix). Discharges D-0453 second required follow-up. Coordination evidence only, not approval or authority. Closed 2026-09-04: PR #311 merged."
+    },
+    {
+      "issue": 92,
+      "status": "active",
+      "contributor": "claude-agent",
+      "branch": "claude/ringct-balance",
+      "lease_expires": "2026-09-11",
+      "paths": [
+        "crates/mini-value/src/mlsag.rs",
+        "crates/mini-value/src/lib.rs",
+        "crates/mini-value/src/confidential_impl.rs",
+        "crates/mini-private-payment/",
+        "docs/design/private-payment-path.md",
+        "docs/ROADMAP_TO_RELEASE.md",
+        "docs/STATUS.md",
+        "README.md"
+      ],
+      "decision_ids": [
+        "D-0455"
+      ],
+      "notes": "D-0455: the shielded payment path proves value conservation. D-0447 shipped a claim that hid amounts and never checked them -- one input, one output, a range proof saying only that a number is in [0, 2^64), and no equation relating what was spent to what was created. A payer could commit to any amount, prove it in range, and no verifier had anything to fail. Closed with the standard RingCT construction (Noether/Mackenzie, published and deployed, implemented in-house per D-0063): a new two-column MLSAG in mini-value proving in one ring both that the signer holds a member's one-time key and that a re-blinded pseudo-output commitment hides that same member's value; up to 16 inputs and 16 outputs per claim; a public fee entering the balance as a commitment under a zero blinding factor; and the commitment opening carried in the sealed memo so a received payment is immediately spendable. Change is an output paying yourself, not a field. Claim format v2 -- v1 claims do not decode, because a v1 claim proved no balance. Closes roadmap R4. Still unaudited and still gated behind D-0047/#72. Coordination evidence only, not approval or authority."
     }
   ]
 }

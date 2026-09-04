@@ -19,15 +19,23 @@ use mini_value::{MininetStealthAddress, StealthAddressScheme};
 
 use crate::claim::VerifiedPrivateClaim;
 use crate::error::Result;
-use crate::memo::PaymentPurpose;
+use crate::memo::PaymentNote;
 
-/// A payment recognized as belonging to the scanning wallet.
+/// One output recognized as belonging to the scanning wallet.
+///
+/// A claim can pay several parties at once, and can pay the same party
+/// twice, so recognition is per *output* rather than per claim — a wallet
+/// that recorded one hit per claim would lose value the moment a payer
+/// batched.
 #[derive(Debug, Clone)]
 pub struct RecognizedPayment {
     /// The claim, still verified.
     pub claim: VerifiedPrivateClaim,
-    /// The purpose the sender sealed, once opened.
-    pub purpose: PaymentPurpose,
+    /// Which output of that claim pays this wallet.
+    pub output_index: usize,
+    /// The sender's note: purpose, amount, and the blinding factor that
+    /// makes this output spendable.
+    pub note: PaymentNote,
 }
 
 /// Whether `claim` pays the holder of these keys.
@@ -36,7 +44,11 @@ pub struct RecognizedPayment {
 /// scanning is the only way a recipient learns of income, so a wallet on a
 /// weak device runs this constantly (Directive 11).
 pub fn recognizes(view_secret: &[u8], spend_public: &[u8], claim: &VerifiedPrivateClaim) -> bool {
-    MininetStealthAddress.recognizes(view_secret, spend_public, &claim.claim().output)
+    claim
+        .claim()
+        .outputs
+        .iter()
+        .any(|output| MininetStealthAddress.recognizes(view_secret, spend_public, &output.output))
 }
 
 /// Recognize a payment and open its memo in one step.
@@ -49,20 +61,24 @@ pub fn scan_one(
     view_secret: &[u8],
     spend_public: &[u8],
     claim: &VerifiedPrivateClaim,
-) -> Result<Option<RecognizedPayment>> {
-    if !recognizes(view_secret, spend_public, claim) {
-        return Ok(None);
-    }
-    let shared =
-        match mini_value::recover_shared_secret(view_secret, &claim.claim().output.tx_public_key) {
-            Some(shared) => shared,
-            None => return Ok(None),
+) -> Result<Vec<RecognizedPayment>> {
+    let mut found = Vec::new();
+    for (index, output) in claim.claim().outputs.iter().enumerate() {
+        if !MininetStealthAddress.recognizes(view_secret, spend_public, &output.output) {
+            continue;
+        }
+        let Some(shared) =
+            mini_value::recover_shared_secret(view_secret, &output.output.tx_public_key)
+        else {
+            continue;
         };
-    let purpose = claim.open_memo(&shared)?;
-    Ok(Some(RecognizedPayment {
-        claim: claim.clone(),
-        purpose,
-    }))
+        found.push(RecognizedPayment {
+            claim: claim.clone(),
+            output_index: index,
+            note: claim.open_memo(index, &shared)?,
+        });
+    }
+    Ok(found)
 }
 
 /// What a scan of a batch of claims found.
@@ -114,8 +130,7 @@ pub fn scan<'a>(
     let mut outcome = ScanOutcome::default();
     for claim in claims {
         match scan_one(view_secret, spend_public, claim) {
-            Ok(Some(payment)) => outcome.payments.push(payment),
-            Ok(None) => {}
+            Ok(payments) => outcome.payments.extend(payments),
             Err(_) => outcome.unreadable.push(claim.clone()),
         }
     }
@@ -126,38 +141,48 @@ pub fn scan<'a>(
 mod tests {
     use super::*;
     use crate::claim::{build, verify, PaymentRequest};
-    use crate::decoy::InMemoryOutputSet;
+    use crate::decoy::{InMemoryOutputSet, OutputSet};
     use crate::memo::PaymentPurpose;
     use mini_value::StealthKeypair;
 
     const NETWORK: [u8; 32] = [0x11; 32];
 
     fn payment_to(recipient: &StealthKeypair, purpose: &[u8]) -> VerifiedPrivateClaim {
+        use mini_value::{ConfidentialAmountScheme, MininetConfidentialAmount};
         let mut outputs = InMemoryOutputSet::new();
-        for _ in 0..64 {
-            outputs.push(
-                StealthKeypair::generate()
-                    .unwrap()
-                    .spend_public_bytes()
-                    .to_vec(),
-            );
+        let mint = |set: &mut InMemoryOutputSet, value: u64| {
+            let key = StealthKeypair::generate().unwrap();
+            let blinding = mini_crypto::random_32().unwrap();
+            let mut scheme = MininetConfidentialAmount;
+            let (commitment, _) = scheme.commit_with_proof(value, &blinding).unwrap();
+            set.push(key.spend_public_bytes().to_vec(), commitment);
+            (key, blinding)
+        };
+        for _ in 0..crate::MIN_RING_SIZE * 4 {
+            mint(&mut outputs, 1_000);
         }
-        let own = StealthKeypair::generate().unwrap();
-        outputs.push(own.spend_public_bytes().to_vec());
+        let (own, blinding) = mint(&mut outputs, 1_000);
+        let set_index = outputs.len() - 1;
 
         let request = PaymentRequest {
             network_id: NETWORK,
-            recipient_spend_public: recipient.spend_public_bytes().to_vec(),
-            recipient_view_public: recipient.view_public_bytes().to_vec(),
-            amount_micro: 1_000,
-            purpose: PaymentPurpose::new(purpose.to_vec()),
+            spends: vec![crate::SpendableOutput {
+                set_index,
+                one_time_secret: own.spend_secret_bytes(),
+                value_micro: 1_000,
+                blinding,
+            }],
+            recipients: vec![crate::Recipient {
+                spend_public: recipient.spend_public_bytes().to_vec(),
+                view_public: recipient.view_public_bytes().to_vec(),
+                amount_micro: 1_000,
+                purpose: PaymentPurpose::new(purpose.to_vec()),
+            }],
+            fee_micro: 0,
+            ring_size: crate::MIN_RING_SIZE,
             valid_until_ms: 10_000,
             last_known_chain: b"height:1".to_vec(),
-            ring_size: crate::MIN_RING_SIZE,
-            real_output_index: 64,
-            secret_key: own.spend_secret_bytes().to_vec(),
             decoy_entropy: mini_crypto::random_32().unwrap(),
-            blinding: mini_crypto::random_32().unwrap(),
         };
         let (claim, _) = build(&request, &outputs).unwrap();
         verify(&claim, &NETWORK).unwrap()
@@ -192,7 +217,7 @@ mod tests {
         let mut references: Vec<_> = found
             .payments
             .iter()
-            .map(|payment| payment.purpose.reference.clone())
+            .map(|payment| payment.note.purpose.reference.clone())
             .collect();
         references.sort();
         assert_eq!(references, vec![b"refund".to_vec(), b"salary".to_vec()]);
@@ -218,6 +243,6 @@ mod tests {
         );
         assert_eq!(found.payments.len(), 1);
         assert!(found.unreadable.is_empty());
-        assert_eq!(found.payments[0].purpose.reference, b"yours".to_vec());
+        assert_eq!(found.payments[0].note.purpose.reference, b"yours".to_vec());
     }
 }

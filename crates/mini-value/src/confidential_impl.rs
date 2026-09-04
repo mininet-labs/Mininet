@@ -55,6 +55,22 @@ impl ConfidentialAmountScheme for MininetConfidentialAmount {
     }
 }
 
+/// A commitment to a **publicly known** amount: `amount · H_val`, with a
+/// zero blinding factor.
+///
+/// Hiding is the point of every other commitment in this module; this one
+/// deliberately hides nothing, because it commits to a value everyone can
+/// already read off the wire. Its use is the transaction fee: a fee must
+/// enter the balance equation as a commitment so the sums line up, and it
+/// must be publicly checkable so a verifier can confirm the fee actually
+/// charged is the fee declared. A blinded fee would be a fee nobody could
+/// audit.
+pub fn public_amount_commitment(amount: u64) -> [u8; 32] {
+    (Scalar::from(amount) * crate::bp_generators::value_generator())
+        .compress()
+        .to_bytes()
+}
+
 /// Sum a list of compressed commitment points, `None` if any is malformed.
 /// An empty list sums to the identity, so `verify_balance(&[], &[])` is
 /// `true` — vacuously balanced.

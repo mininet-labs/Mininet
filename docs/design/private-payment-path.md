@@ -49,6 +49,11 @@ Nothing cryptographic is invented. All three primitives already existed and are 
 
 ### 2.1 The split transcript, and why
 
+> The layout below is the **v1** claim: one input, one output, no fee. §12
+> replaces it with the v2 conservation format. The split-transcript
+> *argument* is unchanged and is why v2 keeps the same two-transcript shape,
+> so it is left standing here rather than rewritten.
+
 The memo is sealed with the claim as AEAD additional data, so it cannot be lifted off one payment and stapled onto another. But the ring signature must also cover the memo, or the memo could be swapped or stripped.
 
 Doing both naively is circular: the memo is bound to a transcript that contains the memo. The resolution is two transcripts:
@@ -203,15 +208,149 @@ The third is why a `bool` was not acceptable. A flag gets set by someone skimmin
 
 Working out what an audit does when a memo will not open exposed a live availability bug in D-0447's already-merged `scan`, which returned `Result` and propagated a single claim's failure. Since an account's public keys are published, **any** stranger could derive a valid stealth output paying it and seal the memo under a key the recipient cannot derive — a claim that verifies, is recognized, and does not open. One of those made the whole scan return `Err`, erasing every payment the wallet had ever received. Cost to the attacker: one payment. `scan` is now total, and unreadable-but-recognized claims are reported separately rather than dropped or fatal.
 
+## 12. Value conservation, fees, and change (D-0455)
+
+### The hole §2 left
+
+Everything §2 describes hides amounts. **Nothing checked them.** A v1 claim
+carried exactly one input, exactly one output, and a range proof over the
+output's commitment — and a range proof says only "this is a number in
+`[0, 2^64)`". It says nothing about the number the payer actually spent. A
+payer could commit to any amount at all, prove it was in range, and the
+verifier had no equation to fail.
+
+Hiding a number nobody checks is not privacy. It is minting, with the
+privacy as the thing that stops you noticing. Every value invariant in this
+tree — M1 above all — was resting on a claim shape that could create money
+from nothing.
+
+It also made the path unusable for real payments in a second, more ordinary
+way: with one input and one output, you can only pay someone an amount you
+happen to hold *exactly*. No change. No fee. That is why D-0451's follow-up
+list said wiring `mini-contribution` and `mini-engagement` to this path
+would ship "a half-private path that looks finished".
+
+### What closes it
+
+The standard construction, and deliberately nothing more inventive:
+Noether and Mackenzie's *Ring Confidential Transactions* — published,
+peer-reviewed, and running in production for years. Composition of vetted
+prior art, implemented in-house (D-0063), not a new design.
+
+**The balance equation.** Pedersen commitments are additively homomorphic,
+so a verifier can sum commitments it cannot open:
+
+```text
+Σ pseudo_commitments  −  ( Σ output_commitments  +  Commit(fee, 0) )  ==  Commit(0, 0)
+```
+
+The fee enters as a commitment to a publicly known amount under a **zero**
+blinding factor, which is exactly what makes it checkable: a verifier
+recomputes it from the cleartext `fee_micro` and would reject any other
+value.
+
+**Pseudo-output commitments, and why the real one cannot appear.** The
+naive version puts each spent output's own commitment in the sum. That
+publishes which ring member was real, and the ring stops hiding anyone —
+the anonymity would be destroyed by the very check meant to make the
+amounts safe. So each input carries a *re-blinded* commitment to the same
+value under a fresh blinding factor, and the builder chooses those
+factors so the differences cancel across the whole claim.
+
+**The MLSAG.** A one-column ring signature proves only "I control some
+member". It does not tie the pseudo-commitment to the member the signer
+actually controls, so a signer could re-blind to a *different* value and
+balance the claim against money that was never there. `mini_value::mlsag`
+is therefore two-column, per ring member `j`:
+
+| column | statement | generator |
+|---|---|---|
+| 0 | I hold the one-time secret for `ring_keys[j]` | `basepoint()` |
+| 1 | I know the discrete log of `ring_commitments[j] − pseudo_commitment` | `blinding_generator()` |
+
+Column 1 verifies as zero **only** for the member whose commitment hides
+the same value as the pseudo-commitment — a commitment-to-zero proof.
+Both columns share one challenge chain, so one signature proves both
+statements about the *same* index without revealing it.
+
+**Column 1 carries no key image, on purpose.** Column 0's key image is the
+double-spend nullifier and must exist. A key image on column 1 would be
+deterministic in the *blinding difference*, so two spends that happened to
+share a blinding difference would link — a linkage that buys nothing, since
+double-spend detection already has what it needs from column 0.
+
+**Range proofs run first.** Without them a "negative" output balances the
+equation while minting value, so `verify` checks every Bulletproof before
+it checks the sum. The order is the security property, not an optimization.
+
+### Change is not a field
+
+A claim may spend up to `MAX_INPUTS` outputs and create up to
+`MAX_OUTPUTS`. Change is an output paying yourself, built by the same code
+path as any other output, sealed the same way, with the same padded memo
+and the same range proof. Nothing on the wire says which output was the
+payment.
+
+The alternative — a `change` field, or a distinguishable change output —
+would have let an observer read the payment out of every claim by
+discarding the change, which is most of what hiding the amount was for.
+`a_reader_pays_a_creator_keeps_the_change_and_the_network_takes_a_fee` in
+`tests/unity.rs` asserts the two outputs are structurally identical and
+that each party reads only their own.
+
+### The commitment opening travels in the memo
+
+To spend an output you need its value *and* its blinding factor. Neither
+is on the wire, and there is nobody to ask. So `PaymentNote` — the memo's
+plaintext — carries the purpose, the amount, and the blinding factor, all
+sealed to the recipient. Receiving a payment and being able to spend it
+are then the same event, which is the property that makes the path
+transitive: `a_recipient_can_spend_what_they_received` in
+`tests/conservation.rs` receives a payment, opens the note, and spends it
+onward with no side channel.
+
+The cost is stated rather than hidden: `MAX_MEMO_BYTES` drops from 252 to
+212, because the note overhead is real and the padded memo size must not
+change (a memo whose length varied would split the anonymity set).
+
+### What this costs in privacy, stated plainly
+
+- **The fee is public.** A verifier must be able to check the fee charged
+  is the fee declared, and a hidden fee would need its own range proof and
+  still leave the network unable to prioritize. An unusual fee narrows
+  which claims could be yours.
+- **A claim's shape is public** — how many inputs, how many outputs. Also a
+  fingerprint. Both are why a wallet should prefer ordinary shapes.
+- **A claim's inputs are linked to each other.** Spending several outputs
+  together says they share an owner, without saying who. The alternative,
+  one claim per input, leaks through timing instead.
+
+### The format moved, and old claims do not decode
+
+`CLAIM_VERSION` is 2 and the domain is `…/claim/v2`. A v1 claim proved no
+balance, so accepting one would accept a payment that could mint value —
+there is no compatibility to preserve and none is offered. The golden
+vectors moved with it, deliberately to a two-input, two-output fixture: a
+one-of-each vector would pin the format for exactly the shape that existed
+before conservation did.
+
+### What is still not proven
+
+The MLSAG, the Bulletproofs, and the stealth derivation remain unaudited
+prototypes gated behind D-0047/#72. Conservation now *holds* under the
+construction; whether the construction is implemented correctly is what an
+external audit is for, and nothing here changes that gate.
+
 ## 8. Required follow-up
 
 - **Retiring the transparent path** in `mini-contribution`, `mini-engagement`, `mini-bounty`, `mini-execution` and `mini-chain`, which §11 is the prerequisite for and does not itself do.
 - An **amount-disclosure** mechanism — opening a commitment to a named auditor — if "auditable" is ever to include sums rather than only the set of payments.
 - Binding a disclosure to a `did:mini` root, left to callers in D-0451 to keep an identity dependency out of a value crate.
-- Multi-output claims with `verify_balance`, so change and fees can exist without leaking.
 - Fitting `AGE_WEIGHTS` to real spend-age data once any exists, and revisiting `MIN_RING_SIZE` on the same evidence.
 - A chain-backed `PrivateLedgerView`, the private analogue of D-0061.
-- Wiring `mini-contribution` and `mini-engagement` to offer the private path, once the above exist. **Deliberately not done here** — those crates' payouts are one of the strongest arguments for this work, and changing them before the fee and change model exist would ship a half-private path that looks finished.
+- Wiring `mini-contribution` and `mini-engagement` to offer the private path. The fee and change model that blocked this now exists (§12); what remains is a chain-backed `PrivateLedgerView`, without which no private payout could reach `Finalized`. **Still deliberately not done here.**
+- A **fee policy**: §12 makes fees possible and checkable, and says nothing about what a fee should be or who collects it. That is an economics decision, not a cryptographic one.
+- **Output selection and consolidation** — which of a wallet's outputs to spend, and when to consolidate. §12 makes multi-input claims possible; choosing badly is its own fingerprint, and no policy exists yet.
 - **External cryptographic audit ([#72](../../issues/72), D-0047)** before anything here gates value. Three prototype constructions compose into one object; the composition needs review as much as the pieces, and a privacy failure does not announce itself.
 
 ## 9. Supersedes / superseded by

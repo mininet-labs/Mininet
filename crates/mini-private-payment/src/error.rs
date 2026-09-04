@@ -81,6 +81,23 @@ pub enum PrivatePaymentError {
     /// ring is impossible without repeating members — which would look like
     /// anonymity and provide none.
     OutputSetTooSmall { got: usize, need: usize },
+    /// The claim spends nothing, or more inputs than `MAX_INPUTS`.
+    InputCountOutOfRange { got: usize, max: usize },
+    /// The claim creates nothing, or more outputs than `MAX_OUTPUTS`.
+    OutputCountOutOfRange { got: usize, max: usize },
+    /// Value was not conserved: the committed inputs do not equal the
+    /// committed outputs plus the declared fee. Refused outright — a claim
+    /// that fails this is a claim that creates money from nothing.
+    UnbalancedAmounts,
+    /// An input's spend proof does not verify: either no ring member
+    /// authorized this exact claim, or the pseudo-commitment does not hide
+    /// the same value as the member that did.
+    BadSpendProof,
+    /// One claim carries the same key image twice, spending a single output
+    /// twice inside itself. Every individual proof can be valid and the
+    /// balance can still sum, which is exactly why this is checked
+    /// separately.
+    RepeatedKeyImage,
     /// A published disclosure key is not a well-formed stealth key: not 32
     /// bytes, not a canonical encoding, zero, or the spend and view keys are
     /// the same key.
@@ -159,6 +176,21 @@ impl core::fmt::Display for PrivatePaymentError {
                 f,
                 "output set holds {got}, need at least {need} for a full ring"
             ),
+            PrivatePaymentError::InputCountOutOfRange { got, max } => {
+                write!(f, "claim spends {got} inputs, allowed 1..={max}")
+            }
+            PrivatePaymentError::OutputCountOutOfRange { got, max } => {
+                write!(f, "claim creates {got} outputs, allowed 1..={max}")
+            }
+            PrivatePaymentError::UnbalancedAmounts => {
+                write!(f, "inputs do not equal outputs plus fee")
+            }
+            PrivatePaymentError::BadSpendProof => {
+                write!(f, "no ring member authorized this claim at this value")
+            }
+            PrivatePaymentError::RepeatedKeyImage => {
+                write!(f, "the same output is spent twice within one claim")
+            }
             PrivatePaymentError::MalformedDisclosureKey => {
                 write!(f, "a disclosed key is not a well-formed stealth key")
             }

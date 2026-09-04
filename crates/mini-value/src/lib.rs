@@ -56,6 +56,7 @@ mod confidential_impl;
 mod curve;
 mod error;
 mod fee;
+mod mlsag;
 mod ring;
 mod ring_impl;
 mod stealth;
@@ -63,9 +64,13 @@ mod stealth_impl;
 
 pub use bp_range::{RangeProof, IPA_ROUNDS, RANGE_PROOF_BYTES};
 pub use confidential::{ConfidentialAmountScheme, NoConfidentialAmount};
-pub use confidential_impl::MininetConfidentialAmount;
+pub use confidential_impl::{public_amount_commitment, MininetConfidentialAmount};
 pub use error::{Result, ValueError};
 pub use fee::{fee_in_micro_mini, PriceEntry, PriceHistory, PRICE_SCALE};
+pub use mlsag::{
+    balancing_blinding, reblind, sign_spend, verify_spend, MlsagSignature, SpendWitness,
+    MLSAG_DOMAIN,
+};
 pub use ring::{NoRingSignature, RingSignature, RingSignatureScheme};
 pub use ring_impl::MininetRingSignature;
 pub use stealth::{NoStealthAddress, StealthAddressScheme, StealthOutput};
