@@ -320,6 +320,35 @@ given time.
 
 ## 4. Money & finality
 
+- **shipped (D-0460)** — `mini-chain` gains **validator accountability**,
+  closing one of roadmap R8's four named gaps. `verify_finality` answered
+  "is this block final?" and nothing else, so a validator signing two
+  conflicting precommits at one slot — the exact thing BFT safety assumes
+  nobody does — could equivocate on every height forever at no cost and
+  leave no record. `EquivocationProof` carries the two conflicting votes;
+  anyone checks it (same root, same phase/height/round, different blocks,
+  both signatures valid) with no trusted reporter and no adjudication, and
+  a third party who was offline throughout can verify the fault years
+  later. `EquivocationRegistry` accumulates proofs locally and
+  `ValidatorSet::excluding` computes the set without the offender.
+  **The sanction is exclusion, never an economic penalty.** Most chains
+  slash a stake; Mininet has none, by construction — validator power is
+  equal per identity root, never balance-weighted (P1/P2). Inventing a
+  deposit would make validator behaviour a function of wealth in exactly
+  the direction Directive 16 forbids: rich validators could afford to
+  equivocate, poor ones could not afford to validate. There is no amount,
+  balance or economic type anywhere in the module, and a test asserts that
+  structurally rather than leaving it to review.
+  **What it does not do:** nothing *detects* equivocation without vote
+  gossip (R8's remaining work — there is no network here); nothing ejects
+  automatically, because a protocol that dropped validators the moment
+  somebody presented bytes would be one where fabricating a removal is the
+  attack, so adopting an exclusion stays a governance action; only
+  double-voting is covered, since silence, censorship and invalid proposals
+  are not self-proving in the same way; the registry is local, so consensus
+  on who has been proven faulty is a governance question; and re-admission
+  is undecided. 13 tests, most of them about accusations that must fail.
+
 - **prototype** — `mini-value`: stealth addresses, linkable ring
   signatures, Bulletproofs confidential amounts (D-0036/D-0040). Real,
   tested, founder-reviewed, **pending external audit** — see `docs/

@@ -17525,3 +17525,94 @@ which this decision deliberately does not invent.
 
 **Supersedes / superseded by:** discharges D-0451's "amount-disclosure
 mechanism" follow-up. D-0451 stands as written. Closes roadmap R6.
+
+### D-0460 — Validator accountability is exclusion on a self-proving fault, because there is no stake to slash  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0008 (BFT finality), P1/P2, Directive 16,
+roadmap R8, [#92](../../issues/92).
+
+**Decision:** `mini-chain` gains `EquivocationProof` — two validly-signed
+votes by one validator at the same `(kind, height, round)` for different
+blocks — plus `EquivocationRegistry` and `ValidatorSet::excluding`. The
+sanction for a proven fault is **removal from the counted set**, and there
+is no economic penalty anywhere in it.
+
+**Reason:** `verify_finality` answered "is this block final?" and nothing
+else. A validator signing two conflicting precommits at one slot is doing
+the exact thing BFT safety assumes nobody does, and the protocol had no way
+to say so, let alone act — a Byzantine validator could equivocate on every
+height forever at no cost and leave no record. That is the accountability
+hole roadmap R8 names.
+
+**On why this is not slashing, which is the constitutional part:** in most
+chains the penalty is burning a validator's stake. **Mininet has no stake**,
+by construction and on purpose — validator power is equal per identity root,
+never balance-weighted (P1, P2). There is no deposit, so there is no deposit
+to take.
+
+Inventing one would have been the worst available answer, not merely an
+out-of-scope one. A penalty denominated in value makes validator behaviour a
+function of wealth in precisely the direction the voice/value wall exists to
+prevent: rich validators can afford to equivocate, poor ones cannot afford
+to validate. So this module has no amount, no balance and no economic type
+anywhere in it, and `mini-chain` has no dependency that could supply one.
+`nothing_in_the_accountability_path_is_denominated_in_value` asserts that
+structurally rather than leaving it to review.
+
+The penalty is exclusion, which is the only sanction a one-root-one-vote
+system can impose and is exactly proportionate: the fault is about voting,
+so the consequence is about voting.
+
+**On the proof being self-proving:** an `EquivocationProof` carries the two
+conflicting votes. Anyone checks it — same root, same slot, same phase,
+different blocks, both signatures valid. No trusted reporter, no committee,
+no adjudication; the validator's own two signatures convict it, and a third
+party who was offline throughout can verify the fault years later. This is
+the shape the tree already uses twice for self-proving faults
+(`did_mini::ControllerDuplicityProof`, and a key image for two spends of one
+output). A fault worth punishing should be a fault anyone can demonstrate.
+
+Proofs are canonically ordered by block hash so two observers who saw the
+votes in opposite orders produce the same proof and the same digest —
+otherwise one fault would have two identities and a registry would hold it
+twice.
+
+**Constitutional impact:** P1/P2 and Directive 16 upheld and now
+mechanically tested. V1 (equal validator weight per verified identity root)
+is unchanged — exclusion removes a root from the set, it does not weight
+anyone. No frozen invariant touched. No new cryptography: this composes
+`verify_vote`'s existing signature checking.
+
+**Implementation status:** shipped —
+`crates/mini-chain/src/equivocation.rs` (new), `error.rs`, `lib.rs`; 11
+tests in `tests/equivocation.rs` plus 2 unit tests.
+
+**Failure point — several, and they matter:**
+
+- **Nothing detects equivocation on its own.** Something must observe both
+  votes and call `assemble`. Vote gossip is R8's remaining work and there is
+  no network here.
+- **Nothing ejects automatically.** `excluding` computes what a set would
+  be; adopting it is a governance action. A protocol that dropped validators
+  the moment somebody presented bytes would be one where fabricating a
+  removal is the attack — so the proof convicts and people decide. Which
+  body adopts an exclusion, and by what process, is not decided here.
+- **Only double-voting is covered.** A validator that goes silent, censors
+  transactions, or proposes invalid blocks is not caught, and those faults
+  are not self-proving in the way this one is.
+- **The registry is local**, like `KeyImageSet` and `DuplicityRegistry`. Two
+  nodes that never meet hold different evidence; consensus on who has been
+  proven faulty is a governance question this does not answer.
+- **Re-admission is undecided.** Whether a proven equivocator may ever
+  validate again is a governance question with no opinion here.
+
+**Required follow-up:** vote gossip so faults are actually observed (R8).
+The governance process that adopts an exclusion — a founder/governance
+decision, not an engineering one. R8's three remaining named gaps: state
+sync for a node that missed a height, peer discovery rather than
+peer-supplying, and a validator-authenticated `mini_bearer::Channel`
+handshake (today it is anonymous, so it proves nothing about which validator
+is on the other end).
+
+**Supersedes / superseded by:** extends D-0008's finality core; supersedes
+nothing. Closes one of R8's four named gaps.

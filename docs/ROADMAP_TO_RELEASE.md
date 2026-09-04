@@ -167,7 +167,7 @@ should be revisited on the same evidence.
 
 # Phase 3 — Make the network a network
 
-### R8 — Consensus production gaps · `ready`
+### R8 — Consensus production gaps · `active`
 The consensus slices are tested protocol work, not a production network. Four
 named gaps: no state sync for a node that missed a whole height; no slashing
 layer; peers are supplied rather than discovered; and `mini_bearer::Channel`'s
@@ -175,8 +175,23 @@ handshake is anonymous, so it proves nothing about *which* validator is on the
 other end.
 **Why it blocks:** each is a liveness or accountability hole that only appears
 under real adversarial load.
-**Closed by:** the four gaps closed with tests that fail without the fix, and
-the honest limits restated for whatever remains.
+**Progress:** the accountability gap is closed by **D-0460**. A validator that
+signs two conflicting votes at one `(phase, height, round)` now convicts
+itself: `EquivocationProof` carries both votes, anyone can check it, and
+`ValidatorSet::excluding` computes the set without the offender. The sanction
+is exclusion, never an economic penalty — Mininet has no stake, and a penalty
+denominated in value would make validator behaviour a function of wealth in
+exactly the direction P1 and Directive 16 forbid.
+**What that did not close:** nothing *detects* equivocation without vote
+gossip, nothing ejects automatically (adopting an exclusion is a governance
+action, or fabricating a removal becomes the attack), and only double-voting
+is covered — silence, censorship and invalid proposals are not self-proving
+in the same way.
+**Closed by:** the three remaining gaps — state sync, peer discovery, and a
+validator-authenticated bearer handshake — with tests that fail without the
+fix, plus the honest limits restated for whatever remains. The shielded-spend
+validity rule named in D-0457 also lands here: today the chain finalizes a
+key image on a proposer's say-so.
 
 ### R9 — KEL freshness and witnesses (M3) · `ready`
 The stale-KEL revocation gap, audit #12 finding F4. A device whose delegation
