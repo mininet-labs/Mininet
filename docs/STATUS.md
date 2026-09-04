@@ -16,6 +16,19 @@ for part of the claim, gap documented) · **prototype** (real code, but
 explicitly founder-reviewed only, pending external audit) · **design-only**
 (written design exists, no code yet) · **not started**.
 
+## The road to release (D-0453)
+
+What stands between today and a public release is now written down in one
+ordered place: [`ROADMAP_TO_RELEASE.md`](ROADMAP_TO_RELEASE.md), twenty items
+in five phases, summarised on the README front page. **No date is set**, and
+six of the twenty cannot be closed by this repository at all — they need an
+auditor, counsel, a researcher, real hardware, or a founder decision.
+
+This document stays the living account of *what is built*. The roadmap is the
+account of *what is left*. `tools/check_roadmap.py` fails CI when the roadmap
+and the README disagree, or when an item claims `done` without citing a
+decision that exists.
+
 ## Top development priority (2026-07-18 founder direction)
 
 *Recorded here rather than in `CLAUDE.md` because `CLAUDE.md` is an

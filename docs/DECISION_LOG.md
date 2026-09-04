@@ -17013,3 +17013,102 @@ failure.
 
 **Supersedes / superseded by:** completes D-0450 §4, which identified this
 pattern and fixed one of its two instances.
+
+### D-0453 — A published critical path to release, on the front page, kept honest by a checker rather than by intention  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** #99 (external legitimacy gates index), #92
+(master roadmap hub), #262 (beta closure matrix), #18/#21 (Sybil/personhood),
+#72/#93/#96 (day-0 external gates), D-0441/D-0444 (the "a check that means
+nothing is worse than no check" line this follows), D-0447/D-0449/D-0451
+(whose required follow-ups become roadmap rows), D-0446, D-0066; Directives 1,
+13, 15.
+
+**Decision:** `docs/ROADMAP_TO_RELEASE.md` becomes the single ordered account
+of what stands between today and public release — twenty items in five phases,
+each stating what it is, why it blocks release, what would actually close it,
+and **who can close it**. The README carries a summary table, so the front page
+answers "how far is this from real?" without a reader having to reconstruct it
+from a decision log with 236 entries. `tools/check_roadmap.py` runs in CI and
+fails when the two disagree.
+
+Three choices worth defending:
+
+1. **No date, and the absence is stated rather than left implied.** Six of the
+   twenty items are marked `outside` — they close when an auditor, counsel, a
+   researcher, real hardware, or a founder decision does the work, and no
+   amount of engineering moves them. A schedule over dependencies nobody in
+   this repository controls would be a forecast presented as a plan. The
+   document says so in its first line.
+
+2. **`done` cannot be self-asserted.** The checker requires every `done` row to
+   cite a D-number that actually exists in `docs/DECISION_LOG.md`. A roadmap
+   whose progress markers are unverifiable is a progress bar, and a progress
+   bar is exactly the artifact that makes a project look closer to ready than
+   it is. This is D-0444's rule applied to the roadmap: encode the incident in
+   a check rather than trusting future diligence.
+
+3. **The checker refuses to check the thing it cannot.** It validates
+   statuses, citations, blocker references, and README/detail agreement. It
+   does **not** try to decide whether `ready` is truly unblocked or whether
+   `done` really finished the work — no tool can, and a check that appeared to
+   would recreate precisely the false confidence D-0441 exists to prevent.
+   That boundary is written into the tool's own docstring so it is not
+   quietly widened later.
+
+The roadmap does not invent a parallel structure: the outside gates are #99's,
+restated with their scope packages, and the engineering rows are the required
+follow-ups already recorded in D-0447/D-0449/D-0451 plus the launch blockers
+already named in `README.md` and `docs/STATUS.md`. What was missing was not the
+information — it was one ordered place to read it, and any mechanism at all for
+noticing when it goes stale.
+
+**Constitutional impact:** none. Documentation, plus a validator and a CI step.
+No protocol surface, no authority, no frozen invariant, no voice/value edge.
+It serves Directive 1 (honesty about what is not built) and Directive 15 by
+making the distance to release legible to an outsider rather than only to
+someone who has read the whole tree. It creates no schedule pressure on a
+frozen invariant: the roadmap's closing section states explicitly that there
+is no row for weakening an invariant to ship sooner, and that a gate which
+cannot be closed honestly means the network is not ready.
+
+**A guard that fired correctly during this work:** the first draft also added
+the update ritual to `CLAUDE.md`. `check_governance.py`'s runtime mode
+requires every AI instruction surface to be byte-identical to canonical, and
+refused it. That rule is right and was left alone: an agent editing its own
+instruction surface inside an otherwise unrelated proposal is precisely what
+the guard exists to catch, and routing around it would have been the wrong
+lesson. The ritual lives in the roadmap document, in this entry, and in the
+checker instead.
+
+**Implementation status:** `docs/ROADMAP_TO_RELEASE.md` (20 items, R1–R20),
+a README front-page summary between `ROADMAP-SUMMARY` markers,
+`tools/check_roadmap.py`, `tools/test_check_roadmap.py` (12 tests), and a
+`Check release roadmap` step in `governance-policy`. 111 validator tests pass,
+and main's checker accepts this tree.
+The checker found a real defect in the roadmap's own first draft: R20 was
+`blocked` by "every row above", which names nothing actionable, and now names
+its seven gates explicitly.
+
+**Failure point:** the update rule — *a pull request that advances an item
+updates its row in the same pull request* — is a **convention, not an
+enforced constraint**. Nothing mechanically detects an item that has quietly
+become `blocked`, or a `ready` item nobody can actually start; the checker
+verifies internal consistency, not correspondence with reality. A roadmap can
+therefore be perfectly consistent and perfectly wrong, and this decision must
+not be cited as if it prevented that. Item ordering encodes engineering
+judgement about dependencies that could be wrong. And publishing a critical
+path creates its own pressure toward declaring items closed — which is the
+specific reason `done` requires a citation and why six items are marked as
+outside this repository's power to close at all.
+
+**Required follow-up:** revisit the phase ordering once R12's audit scope is
+actually agreed with a reviewer, since that engagement may reorder Phase 2;
+and add completed items to the README summary line, which currently counts
+only the five open statuses (the checker warns about this rather than failing,
+because dropping finished work off the front page is a presentation choice,
+not an inconsistency).
+
+**Supersedes / superseded by:** supersedes nothing. #99 remains the
+authoritative index for the external gates themselves; this roadmap points at
+it rather than restating its checkboxes, so a gate is closed in one place
+only.
