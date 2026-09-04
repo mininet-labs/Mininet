@@ -4,15 +4,21 @@
 
 //! Shared fixtures. Every payment built here goes through the real
 //! primitives — real stealth derivation, a real MLSAG spend proof, real
-//! Bulletproofs, and the protocol's real decoy sampling. Nothing is
-//! stubbed, because a privacy or conservation test against a stub proves
-//! nothing about either.
+//! Bulletproofs on every output it creates, and the protocol's real decoy
+//! sampling. Nothing is stubbed, because a privacy or conservation test
+//! against a stub proves nothing about either.
+//!
+//! The one thing not re-done is proving outputs that *already exist* on the
+//! fixture ledger: those carry a real commitment (byte-identical to the
+//! proving path's, asserted in `mini_value`) without a fresh range proof,
+//! because nothing in spending an output re-proves its range and no test
+//! here reads one.
 
 use mini_private_payment::{
     build, BuiltOutput, InMemoryOutputSet, OutputSet, PaymentPurpose, PaymentRequest,
     PrivatePaymentClaim, Recipient, SpendableOutput, MIN_RING_SIZE,
 };
-use mini_value::{ConfidentialAmountScheme, MininetConfidentialAmount, StealthKeypair};
+use mini_value::StealthKeypair;
 
 pub const NETWORK: [u8; 32] = [0x5a; 32];
 
@@ -46,12 +52,17 @@ impl Ledger {
 
     /// Append `count` outputs nobody in these tests can spend — the decoy
     /// population every ring draws from.
+    ///
+    /// Commitments only, deliberately without range proofs. An output
+    /// already on the ledger was range-proven when it was *created*; a ring
+    /// re-proves nothing about its decoys, and `verify` never asks. Proving
+    /// them here would be dozens of Bulletproofs per fixture that nothing
+    /// reads — pure cost, paid on every test in the crate.
     pub fn fill(&mut self, count: usize) {
         for _ in 0..count {
             let key = StealthKeypair::generate().unwrap();
             let blinding = mini_crypto::random_32().unwrap();
-            let mut scheme = MininetConfidentialAmount;
-            let (commitment, _) = scheme.commit_with_proof(1_000, &blinding).unwrap();
+            let commitment = mini_value::pedersen_commitment(1_000, &blinding).unwrap();
             self.outputs
                 .push(key.spend_public_bytes().to_vec(), commitment);
         }
@@ -59,11 +70,15 @@ impl Ledger {
 
     /// Mint one output this wallet can actually spend, and return the
     /// handle needed to spend it.
+    ///
+    /// Commitment only, for the same reason as [`Ledger::fill`]: what makes
+    /// this output spendable is that the value and blinding open its
+    /// commitment, which the MLSAG checks. Its range proof lived on the
+    /// claim that created it and is not part of spending it.
     pub fn mint(&mut self, value_micro: u64) -> SpendableOutput {
         let key = StealthKeypair::generate().unwrap();
         let blinding = mini_crypto::random_32().unwrap();
-        let mut scheme = MininetConfidentialAmount;
-        let (commitment, _) = scheme.commit_with_proof(value_micro, &blinding).unwrap();
+        let commitment = mini_value::pedersen_commitment(value_micro, &blinding).unwrap();
         self.outputs
             .push(key.spend_public_bytes().to_vec(), commitment);
         SpendableOutput {

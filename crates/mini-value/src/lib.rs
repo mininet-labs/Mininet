@@ -64,7 +64,9 @@ mod stealth_impl;
 
 pub use bp_range::{RangeProof, IPA_ROUNDS, RANGE_PROOF_BYTES};
 pub use confidential::{ConfidentialAmountScheme, NoConfidentialAmount};
-pub use confidential_impl::{public_amount_commitment, MininetConfidentialAmount};
+pub use confidential_impl::{
+    pedersen_commitment, public_amount_commitment, MininetConfidentialAmount,
+};
 pub use error::{Result, ValueError};
 pub use fee::{fee_in_micro_mini, PriceEntry, PriceHistory, PRICE_SCALE};
 pub use mlsag::{

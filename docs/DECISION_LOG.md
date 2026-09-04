@@ -17286,3 +17286,80 @@ v1 claim format from D-0447 and discharges D-0451's "multi-output claims with
 `verify_balance`" follow-up. D-0447, D-0449 and D-0451 otherwise stand as
 written; the split-transcript argument, the decoy sampler, and the disclosure
 model are all carried forward unchanged.
+
+### D-0456 — Optimize the curve arithmetic in debug builds: D-0455's tests made `cargo test` most of CI's wall clock  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0455 (which caused this), D-0036/D-0040
+(the Bulletproofs), Directive 11 (the weakest honest device), roadmap R2.
+
+**Decision:** three package-scoped `opt-level = 3` overrides in the workspace
+`Cargo.toml`'s dev profile — `curve25519-dalek`, `mini-crypto`, `mini-value` —
+and the shielded-payment test fixtures build ledger outputs with a commitment
+only (new `mini_value::pedersen_commitment`) instead of a full range proof.
+
+**Reason:** D-0455's tests turned a 13–20 minute CI workflow into one whose
+test step alone had run 80 minutes without finishing. Two causes, and the
+second is the interesting one:
+
+1. **The fixtures proved what nothing read.** `Ledger::fill` generated a
+   Bulletproof for every decoy — around 68 per fixture, on every test in the
+   crate — and threw all of them away. An output already on a ledger was
+   range-proven when it was *created*; spending it re-proves nothing and
+   `verify` never asks. This was pure waste, and removing it is not a
+   weakening: what makes a fixture output spendable is that its value and
+   blinding open its commitment, which the MLSAG checks for real.
+2. **`cargo test` runs unoptimized, and this code is nothing but curve
+   arithmetic.** CI's `check` job runs `cargo test --all --all-features` with
+   no `--release`. Unoptimized `curve25519-dalek` is roughly thirty times
+   slower, and a shielded payment is a Bulletproof plus a 16-member
+   two-column MLSAG, several hundred times over.
+
+Measured on one crate, `mini-private-payment`: **796s → 16s**, same 113
+tests, same results. The fixture fix alone took it from "did not finish in
+20 minutes" to 796s; the profile override took it the rest of the way.
+
+**On the alternative that was rejected:** running CI's tests with
+`--release`. It would have been one line and it is wrong — `--release` turns
+off `debug-assertions` and `overflow-checks`, so every `debug_assert!` in the
+tree stops running, including the one in `mini_private_payment::build` that
+proves the memos are not part of their own binding digest. Buying CI time by
+switching off the assertions that catch exactly this class of bug is a trade
+nobody would take deliberately, and it would not have been visible in a green
+check.
+
+**Verified, not assumed:** a temporary probe under the new profile confirmed
+`cfg!(debug_assertions)` is still true and `255u8 + 1` still panics. The
+override changes speed only.
+
+**Constitutional impact:** none. A build profile and a test fixture. No
+protocol surface, no wire format, no authority, no frozen invariant, no
+voice/value edge. `pedersen_commitment` is a public *value*-crate function
+that computes a point anyone holding `(v, b)` can compute; its doc comment
+states plainly that a commitment alone proves nothing and that a claim
+*output* still needs `commit_with_proof`, because a bare commitment there
+would let a "negative" amount balance the equation while minting value.
+
+**Implementation status:** `Cargo.toml` (three dev-profile overrides),
+`crates/mini-value/src/confidential_impl.rs` (`pedersen_commitment` plus
+three tests, including one asserting it is byte-identical to the proving
+path's commitment across `0`, `1`, `1_000` and `u64::MAX`),
+`crates/mini-value/src/lib.rs`, `crates/mini-private-payment/tests/support/
+mod.rs`, `crates/mini-private-payment/src/scan.rs`.
+
+**Failure point:** the equivalence between `pedersen_commitment` and
+`commit_with_proof`'s commitment is now load-bearing for every conservation
+test — if they ever diverged, the fixtures would stop resembling real
+outputs and the tests would pass against a world that does not exist. That
+is why the equivalence is asserted rather than assumed. Second, and more
+general: nothing in CI *measures* its own wall clock, so the next change that
+multiplies it will be found the same way this one was — by someone noticing a
+job had been running for an hour. A timing budget is a real gap this does not
+close.
+
+**Required follow-up:** none blocking. A CI duration budget, so a
+wall-clock regression fails a check rather than waiting to be noticed, is
+worth considering the next time CI is touched.
+
+**Supersedes / superseded by:** supersedes nothing. Corrects a performance
+regression introduced by D-0455 in the same session; D-0455 stands as
+written.

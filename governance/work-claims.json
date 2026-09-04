@@ -894,12 +894,15 @@
         "docs/design/private-payment-path.md",
         "docs/ROADMAP_TO_RELEASE.md",
         "docs/STATUS.md",
-        "README.md"
+        "README.md",
+        "Cargo.toml"
       ],
       "decision_ids": [
-        "D-0455"
+        "D-0455",
+        "D-0456"
       ],
-      "notes": "D-0455: the shielded payment path proves value conservation. D-0447 shipped a claim that hid amounts and never checked them -- one input, one output, a range proof saying only that a number is in [0, 2^64), and no equation relating what was spent to what was created. A payer could commit to any amount, prove it in range, and no verifier had anything to fail. Closed with the standard RingCT construction (Noether/Mackenzie, published and deployed, implemented in-house per D-0063): a new two-column MLSAG in mini-value proving in one ring both that the signer holds a member's one-time key and that a re-blinded pseudo-output commitment hides that same member's value; up to 16 inputs and 16 outputs per claim; a public fee entering the balance as a commitment under a zero blinding factor; and the commitment opening carried in the sealed memo so a received payment is immediately spendable. Change is an output paying yourself, not a field. Claim format v2 -- v1 claims do not decode, because a v1 claim proved no balance. Closes roadmap R4. Still unaudited and still gated behind D-0047/#72. Coordination evidence only, not approval or authority."
+      "notes": "D-0455: the shielded payment path proves value conservation. D-0447 shipped a claim that hid amounts and never checked them -- one input, one output, a range proof saying only that a number is in [0, 2^64), and no equation relating what was spent to what was created. A payer could commit to any amount, prove it in range, and no verifier had anything to fail. Closed with the standard RingCT construction (Noether/Mackenzie, published and deployed, implemented in-house per D-0063): a new two-column MLSAG in mini-value proving in one ring both that the signer holds a member's one-time key and that a re-blinded pseudo-output commitment hides that same member's value; up to 16 inputs and 16 outputs per claim; a public fee entering the balance as a commitment under a zero blinding factor; and the commitment opening carried in the sealed memo so a received payment is immediately spendable. Change is an output paying yourself, not a field. Claim format v2 -- v1 claims do not decode, because a v1 claim proved no balance. Closes roadmap R4. Still unaudited and still gated behind D-0047/#72. Coordination evidence only, not approval or authority. D-0456 (same branch): D-0455's tests made cargo test most of CI's wall clock -- the fixtures generated a Bulletproof for every decoy that nothing ever read, and CI runs cargo test unoptimized, where curve25519-dalek is ~30x slower. Fixed with commitment-only fixture outputs (new mini_value::pedersen_commitment, asserted byte-identical to the proving path) and three package-scoped dev-profile opt-level overrides. 796s -> 16s on mini-private-payment, same 113 tests. Running CI with --release was rejected: it would switch off the debug assertions that catch this class of bug.",
+      "pull_request": 312
     }
   ]
 }

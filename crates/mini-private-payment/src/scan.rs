@@ -148,13 +148,15 @@ mod tests {
     const NETWORK: [u8; 32] = [0x11; 32];
 
     fn payment_to(recipient: &StealthKeypair, purpose: &[u8]) -> VerifiedPrivateClaim {
-        use mini_value::{ConfidentialAmountScheme, MininetConfidentialAmount};
         let mut outputs = InMemoryOutputSet::new();
+        // Commitments without range proofs: an output already on the ledger
+        // was proven when it was created, and nothing in spending it
+        // re-proves that. Proving each decoy would be dozens of unread
+        // Bulletproofs per test.
         let mint = |set: &mut InMemoryOutputSet, value: u64| {
             let key = StealthKeypair::generate().unwrap();
             let blinding = mini_crypto::random_32().unwrap();
-            let mut scheme = MininetConfidentialAmount;
-            let (commitment, _) = scheme.commit_with_proof(value, &blinding).unwrap();
+            let commitment = mini_value::pedersen_commitment(value, &blinding).unwrap();
             set.push(key.spend_public_bytes().to_vec(), commitment);
             (key, blinding)
         };
