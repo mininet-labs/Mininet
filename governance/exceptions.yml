@@ -18,11 +18,13 @@ exceptions:
       - two_independent_human_maintainers_appointed
       - production_release_candidate
       - forge_becomes_canonical
-# Example:
+# Example (illustrative only -- every value here is a placeholder, and the
+# date is deliberately not a real one so no scanner can mistake this block
+# for a live exception, whether or not it strips comments first):
 # - id: DEP-EX-0001
 #   scope: RUSTSEC-YYYY-NNNN
 #   owner: did:mini:example-pseudonym
 #   reason: No patched compatible version; affected code path is unreachable.
 #   mitigation: Disable the affected feature and add a regression test.
-#   expires: 2026-09-01
+#   expires: YYYY-MM-DD
 #   decision: D-00XX
