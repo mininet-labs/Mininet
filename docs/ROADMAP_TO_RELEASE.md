@@ -92,10 +92,13 @@ complete public transaction graph.
 format exist, *choosing* the private one is itself a signal. Until the
 transparent path is gone, privacy is opt-in, and opt-in privacy is privacy for
 nobody.
-**Blocked in practice by:** R5 — R4 shipped the change and fee model these
-crates needed, but without a chain-backed `PrivateLedgerView` no private
-payout can reach `Finalized`, so moving them now would replace a working
-transparent path with one that never settles.
+**No longer blocked.** R4 shipped the change and fee model these crates
+needed and R5 shipped the finality they settle against, so the shielded path
+can now do everything the transparent one does. What remains is a migration
+decision rather than a missing capability: whether the transparent path is
+deleted outright or deprecated first, and what happens to claims already
+settled under it. That is a founder call with a D-number, not something to
+pick unilaterally while touching five crates' public APIs.
 **Closed by:** the five crates settling only through `mini-private-payment`,
 with a decision recording what each lost or kept.
 
@@ -120,21 +123,39 @@ decision this makes possible and does not make. The construction is standard
 RingCT; this implementation of it is still unaudited and still gated behind
 R12.
 
-### R5 — Chain-backed private ledger view · `ready`
-Nothing implements `PrivateLedgerView` against a real chain, so no private
-payment can reach `Finalized` in production — the private analogue of the gap
-D-0061 closed for the transparent path.
-**Closed by:** a chain-backed implementation plus the M1/M2/M3 conformance the
-transparent path already has.
+### R5 — Chain-backed private ledger view · `done`
+`PrivateLedgerView` had one implementation — a test double that finalized
+whatever it was told to — so no private payment could reach `Finalized` on
+anything but its say-so. The chain now finalizes shielded spends and
+`reconcile` reads real canonical state.
+**Closed by:** D-0457. `mini-execution` finalizes opaque
+`(key_image, claim_digest)` records with the transparent path's own
+first-wins/M3 discipline, all-or-nothing per claim; `mini-private-payment`'s
+`ChainBackedPrivateLedger` adapts any key-image lookup into a
+`PrivateLedgerView`. The two crates deliberately do **not** depend on each
+other: that edge would have been the first path in this tree from a value
+crate to the crate that counts votes (P1, Directive 16).
+**What it did not close:** the chain finalizes a key image on a proposer's
+say-so. It cannot check that a valid claim produced one — that is the
+cryptography it deliberately cannot see — so a Byzantine proposer can burn
+an output that is not theirs. The *ordering* is real; the ledger's
+*contents* are not yet trustworthy. That validity rule is R8's.
 
-### R6 — Amount disclosure for accounts that choose it · `ready`
-A view key does not open a Pedersen commitment, so an audited account's
-income is checkable as a *set of payments* but never as sums. For treasury
-accountability under D-0073 that is a real gap between what "audited" says and
-what it delivers.
-**Closed by:** a mechanism to open a commitment to a named auditor, or an
-explicit decision that sums stay private and treasury accountability is
-defined without them.
+### R6 — Amount disclosure for accounts that choose it · `done`
+A view key made income enumerable and left it un-addable. An account can now
+publish `(amount, blinding)` openings for chosen outputs, and anyone
+recomputes the commitment to check them.
+**Closed by:** D-0458. `AmountDisclosure` plus `audit_amounts`, which returns
+`AuditedIncome` — the opened total **beside** the count of recognized
+payments left unopened — rather than a bare number. Openings are chosen and
+no cryptography can force the choice, so a sum reported without that count
+would quietly mean "the part they decided to show". Recognition comes from
+the view key, so the auditor learns the payment count from cryptography
+rather than from the discloser's cooperation, which is what makes a withheld
+opening visible.
+**What it did not close:** completeness in the direction that matters. A
+disclosure covers one account and nothing proves it is the only one its
+holder controls. An audit still sees income only — never a balance.
 
 ### R7 — Decoy weights fitted to real traffic · `blocked`
 `AGE_WEIGHTS` (D-0449) is a legible starting shape, not a distribution fitted

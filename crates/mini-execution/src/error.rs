@@ -31,6 +31,9 @@ pub enum ExecutionError {
     /// — an allocation/CPU bound applied before processing, the same
     /// discipline `mini-chain::MAX_VOTES_PER_CERTIFICATE` applies.
     TooManyClaims,
+    /// The body carries more shielded-spend records than
+    /// [`crate::MAX_NULLIFIERS_PER_BLOCK`], bounded before any allocation.
+    TooManyNullifiers,
     TooManyMonetaryEpochs,
     InvalidMonetaryEpoch(mini_economy::EconomyError),
     InvalidGenesisAllocation,
@@ -80,6 +83,9 @@ impl fmt::Display for ExecutionError {
                 write!(f, "header's body_root does not match the exact block body")
             }
             ExecutionError::TooManyClaims => write!(f, "block body exceeds the claim-count cap"),
+            ExecutionError::TooManyNullifiers => {
+                write!(f, "block body exceeds the shielded-spend record cap")
+            }
             ExecutionError::TooManyMonetaryEpochs => {
                 write!(f, "block body contains more than one monetary epoch")
             }

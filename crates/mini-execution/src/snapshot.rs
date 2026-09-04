@@ -26,7 +26,11 @@ pub const MAX_LEDGER_SNAPSHOT_BYTES: usize = 8 * 1024 * 1024;
 /// Maximum rows in each map encoded by one snapshot.
 pub const MAX_LEDGER_SNAPSHOT_ENTRIES: usize = 65_536;
 
-const DOMAIN: &[u8] = b"mini-execution/ledger-snapshot/v1";
+// v2 adds the shielded-spend map. A v1 snapshot must not decode under it:
+// a state restored without its nullifiers would treat every shielded output
+// it had already finalized as unspent, which is a replay of every private
+// payment the chain had ever seen.
+const DOMAIN: &[u8] = b"mini-execution/ledger-snapshot/v2";
 
 impl LedgerState {
     /// Encode the entire deterministic state in one canonical byte sequence.
@@ -34,6 +38,7 @@ impl LedgerState {
         for count in [
             self.finalized.len(),
             self.rejected.len(),
+            self.nullifiers.len(),
             self.balances.len(),
         ] {
             if count > MAX_LEDGER_SNAPSHOT_ENTRIES {
@@ -62,6 +67,12 @@ impl LedgerState {
         for (digest, reason) in &self.rejected {
             out.extend_from_slice(digest);
             out.push(rejection_tag(*reason));
+        }
+
+        put_count(&mut out, self.nullifiers.len())?;
+        for (key_image, claim_digest) in &self.nullifiers {
+            put_bytes(&mut out, key_image)?;
+            out.extend_from_slice(claim_digest);
         }
 
         encode_monetary(&mut out, &monetary)?;
@@ -117,6 +128,22 @@ impl LedgerState {
             rejected.insert(digest, decode_rejection(reader.u8()?)?);
         }
 
+        let nullifier_count = reader.count(MAX_LEDGER_SNAPSHOT_ENTRIES)?;
+        let mut nullifiers = BTreeMap::new();
+        let mut previous_key_image: Option<Vec<u8>> = None;
+        for _ in 0..nullifier_count {
+            let key_image = reader.bytes(crate::MAX_KEY_IMAGE_BYTES)?.to_vec();
+            // Same bounds the state machine enforces on the way in, applied
+            // again on the way back: a snapshot is untrusted input, and a
+            // restored state that could hold a record `apply_block` would
+            // have refused is a state two nodes could disagree about.
+            if key_image.is_empty() || !strictly_after(&previous_key_image, &key_image) {
+                return Err(ExecutionError::SnapshotMalformed);
+            }
+            previous_key_image = Some(key_image.clone());
+            nullifiers.insert(key_image, reader.array_32()?);
+        }
+
         let monetary_snapshot = decode_monetary(&mut reader)?;
         let monetary = MonetaryLedger::import_snapshot(monetary_snapshot)
             .map_err(ExecutionError::InvalidMonetaryEpoch)?;
@@ -146,6 +173,7 @@ impl LedgerState {
             network_id,
             finalized,
             rejected,
+            nullifiers,
             monetary,
             balances,
             allocated_circulating,
@@ -182,6 +210,12 @@ fn snapshot_encoded_len(state: &LedgerState, monetary: &MonetaryLedgerSnapshot) 
             .checked_mul(33)
             .ok_or(ExecutionError::SnapshotTooLarge)?,
     )?;
+
+    add_snapshot_len(&mut length, 4)?;
+    for key_image in state.nullifiers.keys() {
+        let _ = u32::try_from(key_image.len()).map_err(|_| ExecutionError::SnapshotTooLarge)?;
+        add_snapshot_len(&mut length, 4 + key_image.len() + 32)?;
+    }
 
     add_snapshot_len(&mut length, 16 + 16 + 16 + 1)?;
     if monetary.last_epoch.is_some() {

@@ -408,6 +408,62 @@ given time.
   fact. 112 tests in the crate, including `tests/conservation.rs` (13) with
   `a_recipient_can_spend_what_they_received`, which receives a payment,
   opens its note, and spends it onward with no side channel.
+- **shipped (D-0457)** — the shielded path **settles against a real
+  chain**, closing roadmap R5. Before this, `PrivateLedgerView` had exactly
+  one implementation — a test double that finalized whatever it was told to
+  — so no private payment could reach `Finalized` on anything but its
+  say-so, the gap D-0061 closed for the transparent path and left open here.
+  `mini-execution` now finalizes shielded spends as **opaque**
+  `NullifierRecord { key_image, claim_digest }` facts, under the transparent
+  path's own first-wins/M3 discipline, and `mini-private-payment`'s
+  `ChainBackedPrivateLedger` adapts any key-image lookup into a
+  `PrivateLedgerView`. **The two crates deliberately do not depend on each
+  other.** `mini-private-payment` reaches `mini-value` and `mini-execution`
+  reaches `mini-chain`; that edge would have been the first path in this tree
+  from a value crate to the crate that counts votes (P1, Directive 16), so
+  the halves meet through `(Vec<u8>, [u8; 32])` and nothing else. The wall
+  forced the better design: validators never verify a Bulletproof or an MLSAG
+  to make progress, and a chain that cannot read a payment's contents cannot
+  be made to treat some payments differently. Records are grouped by claim
+  and applied **all-or-nothing** — a claim spending `{X, Y}` where `Y` is
+  taken gets neither, because recording `X` alone would finalize half a
+  double-spend and burn `X` under a claim no verifier accepts. Snapshot
+  format v2, state commitment v4, body hash v3; a v1 snapshot deliberately
+  does not decode, since a state restored without its nullifiers would
+  replay every private payment the chain had ever seen.
+  **What it does not do:** the chain finalizes a key image **on a proposer's
+  say-so**. It cannot check that a valid claim produced one — that is the
+  cryptography it deliberately cannot see — so a Byzantine proposer can burn
+  an output that is not theirs. The *ordering* is real; the ledger's
+  *contents* are not yet trustworthy, and that validity rule is roadmap R8's.
+  Nothing builds a block body's nullifier list from live traffic either,
+  because nothing has live traffic. 21 tests across both sides, including a
+  pair that assert the same finalized map from opposite sides of the wall —
+  no compiler can check that agreement, so two tests do.
+- **shipped (D-0458)** — **amount disclosure**, closing roadmap R6. D-0451
+  made an account's income enumerable and left it un-addable: a view key
+  recognizes a stealth output, it does not open a Pedersen commitment, so an
+  auditor could list treasury disbursements and not total them. An account
+  can now publish `AmountDisclosure` openings — `(amount, blinding)` for
+  chosen outputs — and anyone recomputes the commitment to check them.
+  Commitments are binding, so an opening that verifies **is** the amount; no
+  new cryptography. `audit_amounts` returns `AuditedIncome`, **not a
+  number**: the opened total sits beside the count of recognized payments
+  left unopened, and `is_complete()` is the only thing that licenses reading
+  the first as a total. That is the whole point — a discloser chooses what to
+  open and no cryptography can force the choice, so a bare sum would quietly
+  mean "the part they decided to show". Recognition comes from the view key,
+  so the auditor learns the payment count from cryptography rather than the
+  discloser's cooperation, which is what makes a withheld opening a hole with
+  a number on it. A published-but-invalid opening counts as unopened, because
+  "withheld" and "does not verify" are the same fact to an auditor.
+  **What it does not do:** prove completeness in the direction that matters —
+  a disclosure covers one account and nothing shows it is the only one its
+  holder controls. It exposes what a specific **sender** paid, and they were
+  never asked; the typed `AcknowledgedAmountDisclosure` names that rather
+  than burying it, but a phrase is friction, not consent. And it is still
+  income only: a view key shows nothing an account spent, so no disclosure
+  here produces a balance.
 - **shipped (D-0449)** — decoy selection is a protocol rule, not a wallet
   setting. `PaymentRequest` no longer carries a `ring`: it carries a
   `ring_size`, an index into the caller's **local** `OutputSet`, and fresh

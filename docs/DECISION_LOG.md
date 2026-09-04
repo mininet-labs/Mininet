@@ -17454,3 +17454,164 @@ every call — Directive 11). Witness rotation policy generations beyond the
 **Supersedes / superseded by:** discharges the "`WitnessPolicy` read from a
 real `Establishment` event" item left open in Phase 3 by D-0328/D-0332.
 Those stand as written.
+### D-0457 — The chain finalizes shielded spends as opaque facts, because the voice/value wall forbids it knowing more  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0061 (the transparent analogue this
+mirrors), D-0455 (the conservation work this makes settleable), D-0447,
+P1/Directive 16, roadmap R5, [#92](../../issues/92).
+
+**Decision:** `mini-execution` gains a shielded-spend registry over
+**opaque** `(key_image, claim_digest)` records — `NullifierRecord`, a
+`nullifiers` list on `SettlementBlockBody`, a `nullifiers` map in
+`LedgerState`, and finalization in `apply_block` under the transparent
+path's own first-wins/M3 discipline. `mini-private-payment` gains
+`ChainBackedPrivateLedger`, which adapts any key-image lookup into a
+`PrivateLedgerView`. The two crates do **not** depend on each other, and
+must not.
+
+**Reason:** `PrivateLedgerView` had exactly one implementation —
+`InMemoryPrivateLedger`, which finalizes whatever it is told to — so no
+private payment could reach `Finalized` on the strength of anything but a
+test double's say-so. That is precisely the gap D-0061 closed for the
+transparent path, left open on the shielded one.
+
+**On the shape, which the constitution chose rather than taste:** the
+obvious implementation is for `mini-execution` to depend on
+`mini-private-payment` and finalize real claims. That crate reaches
+`mini-value`; `mini-execution` reaches `mini-chain`. **There is no
+dependency path in this tree today from a value crate to the crate that
+counts votes**, and that edge would have created the first one — the exact
+thing P1 and Directive 16 forbid, and CLAUDE.md names as the only real
+failure mode. Checking before building rather than after is why this is a
+design note and not an incident report.
+
+So the halves meet through `(Vec<u8>, [u8; 32])`: standard-library types, no
+shared crate, no format either side can drift from. The wall turned out to
+force the better design on three counts. **Liveness:** a validator that had
+to verify a Bulletproof and a 16-member MLSAG per shielded spend before
+voting would have its block time set by the most expensive cryptography in
+the protocol. **Neutrality:** a chain that could read a payment's contents
+is a chain that could be made to treat some payments differently — the same
+argument `mini-private-payment` already makes for not depending on
+`mini-social`. **Reviewability:** consensus and privacy stay independently
+auditable, which matters for R12.
+
+**On atomicity, which is a real bug this avoided:** records carrying one
+claim's digest are one spend, applied all-or-nothing. Claim A spending
+`{X, Y}` where `Y` is already taken must get neither — recording `X` and
+dropping `Y` would finalize half a double-spend as a success and burn `X`
+under a claim no verifier accepts. That is the merge M1 forbids, arriving
+through partial application. It is the same shape as the defect D-0455
+fixed in `KeyImageSet::observe` and in `reconcile`, now closed on the
+consensus side too.
+
+**Constitutional impact:** M2/M3 for the shielded path — `Finalized` now
+means a chain said so. P1/Directive 16 upheld **by construction**: no crate
+in this tree can see both `mini-value` and `mini-chain`, and this change was
+shaped to keep it that way. No frozen invariant weakened. The ledger
+snapshot format moves to v2 and a v1 snapshot deliberately does not decode:
+a state restored without its nullifiers would treat every shielded output it
+had already finalized as unspent, replaying every private payment the chain
+had ever seen. The state commitment (v4) and block body hash (v3) both cover
+the new content, so a header's `state_root` commits to shielded spends and a
+node cannot serve state that quietly forgot one.
+
+**Implementation status:** shipped — `crates/mini-execution/src/nullifier.rs`
+(new), with `body.rs`, `state.rs`, `snapshot.rs`, `error.rs` following;
+`ChainBackedPrivateLedger` in `mini-private-payment`. 12 tests in
+`mini-execution/tests/shielded_ordering.rs`, 9 in
+`mini-private-payment/tests/chain_backed.rs`.
+
+**Failure point — the honest one, stated plainly:** the chain finalizes a
+key image **on a proposer's say-so**. It does not check that a valid claim
+produced it, because it cannot: that is the cryptography it deliberately
+cannot see. A Byzantine proposer can therefore burn an output that is not
+theirs by naming its key image, and honest nodes will finalize it. Closing
+that needs a validity rule the chain *can* check — a succinct proof, or a
+validator set that verifies claims and is accountable for it — and that is
+roadmap R8's territory. This decision makes the *ordering* real, which is
+what M3 requires and what nothing implemented before it; it does not make
+the ledger's contents trustworthy. Both module docs say so from their own
+side.
+
+Second: the two crates cannot be linked, so no compiler checks that they
+agree about what "finalized" means. A pair of tests does —
+`the_finalized_map_is_the_one_the_shielded_side_expects` and
+`a_chain_shaped_ledger_resolves_a_shielded_conflict` assert the same map
+from opposite sides. That is weaker than a type, and it is the strongest
+thing available under the wall.
+
+**Required follow-up:** the validity rule above (R8). Wiring a real proposer
+to collect key images from verified claims — nothing today builds a
+`SettlementBlockBody`'s nullifier list from live traffic, because nothing
+today has live traffic.
+
+**Supersedes / superseded by:** extends D-0061's pattern to the shielded
+path; supersedes nothing. Closes roadmap R5 and unblocks R3.
+
+### D-0458 — Amount disclosure reports what it could not see, or it is not an audit  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0451 (view-key disclosure, whose named
+limit this addresses), D-0073 (treasury accountability), D-0455, roadmap R6,
+[#92](../../issues/92).
+
+**Decision:** `mini-private-payment` gains `AmountDisclosure` — a published
+`(amount, blinding)` opening of one chosen output, verified by recomputing
+the Pedersen commitment — plus `audit_amounts`, which returns
+`AuditedIncome` rather than a number.
+
+**Reason:** D-0451 made an account's income *enumerable* and left it
+un-addable: a view key recognizes a stealth output, it does not open a
+commitment. For treasury accountability under D-0073 that is a real gap
+between what "audited" sounds like and what it delivers. An auditor who can
+list disbursements but not total them cannot answer the only question
+anybody asks.
+
+**On why the return type is not a `u64`:** a discloser chooses which outputs
+to open, and no cryptography can force that choice. A sum of openings is
+therefore not an account's income — it is the income *as far as the account
+chose to show* — and those two are indistinguishable once the structure
+around them is discarded. `AuditedIncome` carries the opened total beside
+the count of recognized payments left unopened, and `is_complete()` is the
+only thing that licenses reading the total as a total.
+
+What makes that more than bookkeeping: recognition comes from the **view
+key**, so the auditor learns the payment *count* from cryptography rather
+than from the discloser's cooperation. A withheld opening is then a hole
+with a number on it rather than a payment nobody knew to ask about. A
+published-but-invalid opening counts as unopened for the same reason —
+"withheld" and "published something that does not verify" are the same fact
+to an auditor, and splitting them would invite reading the first as
+innocent.
+
+**Constitutional impact:** Directive 9 and D-0073. No frozen invariant
+touched. No new cryptography — a Pedersen opening checked with
+`mini_value::pedersen_commitment` (D-0456), which is the commitment's own
+definition. Disclosure remains something a party asserts about **itself**:
+nothing is public by default, and D-0451's argument that a chooseable
+transparent format would make privacy a signal is untouched, because an
+amount disclosure is published *beside* a claim rather than changing it.
+
+**Implementation status:** shipped — `crates/mini-private-payment/src/amount.rs`
+(new), 12 tests in `tests/amounts.rs` plus 4 unit tests. The crate and
+`disclosure` module docs, which previously said an audit could never see
+sums, are corrected rather than left to age.
+
+**Failure point:** completeness is still unprovable in the direction that
+matters — a disclosure covers one account, and nothing shows it is the only
+one its holder controls. `is_complete()` means "every payment *to this
+account* was opened", never "this is everything they received". Second:
+opening an amount exposes what a specific **sender** paid, and they were
+never asked; `AcknowledgedAmountDisclosure`'s phrase names that explicitly
+rather than burying it, but a typed acknowledgement is friction, not
+consent. Third: an audit still sees income only — a view key shows nothing
+an account spent, so no disclosure here produces a balance, and
+`opened_total_micro` must never be rendered as one.
+
+**Required follow-up:** binding a disclosure to a `did:mini` root, still
+left to callers to keep an identity dependency out of a value crate
+(inherited from D-0451). A convention for *where* disclosures are published,
+which this decision deliberately does not invent.
+
+**Supersedes / superseded by:** discharges D-0451's "amount-disclosure
+mechanism" follow-up. D-0451 stands as written. Closes roadmap R6.

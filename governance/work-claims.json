@@ -906,6 +906,27 @@
     },
     {
       "issue": 92,
+      "status": "closed",
+      "contributor": "claude-agent",
+      "branch": "claude/phase2-money-layer",
+      "lease_expires": "2026-09-11",
+      "paths": [
+        "crates/mini-execution/",
+        "crates/mini-private-payment/",
+        "docs/design/private-payment-path.md",
+        "docs/ROADMAP_TO_RELEASE.md",
+        "docs/STATUS.md",
+        "README.md"
+      ],
+      "decision_ids": [
+        "D-0457",
+        "D-0458"
+      ],
+      "notes": "D-0457 and D-0458 finish roadmap Phase 2's engineering rows, so the external cryptography audit (R12) reviews a complete money layer rather than promising pieces. D-0457 closes R5: PrivateLedgerView had one implementation, a test double that finalized whatever it was told, so no private payment could reach Finalized on anything else. mini-execution now finalizes shielded spends as opaque (key_image, claim_digest) records under the transparent path's first-wins/M3 discipline, all-or-nothing per claim; mini-private-payment's ChainBackedPrivateLedger adapts any key-image lookup into a PrivateLedgerView. The two crates deliberately do not depend on each other -- mini-private-payment reaches mini-value and mini-execution reaches mini-chain, and that edge would have been the first value-to-voice path in the tree (P1, Directive 16). The wall forced the better design: validators never verify a Bulletproof to make progress, and a chain that cannot read a payment cannot be made to treat some payments differently. Honest limit recorded in both module docs: the chain finalizes a key image on a proposer's say-so and cannot check a valid claim produced it, so ordering is real and contents are not yet trustworthy -- that validity rule is R8's. D-0458 closes R6: AmountDisclosure opens chosen commitments, and audit_amounts returns AuditedIncome rather than a number, carrying the opened total beside the count left unopened, because a discloser chooses what to open and a bare sum would quietly mean 'the part they decided to show'. R3 is unblocked and left open: it is now a migration decision for the founder, not a missing capability. Coordination evidence only, not approval or authority. Closed 2026-09-04: PR #313 merged.",
+      "pull_request": 313
+    },
+    {
+      "issue": 92,
       "status": "active",
       "contributor": "claude-agent",
       "branch": "claude/kel-freshness",
