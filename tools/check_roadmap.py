@@ -38,7 +38,8 @@ SUMMARY_BLOCK = re.compile(
 DECISION_REF = re.compile(r"\bD-\d{4}\b")
 BLOCKED_BY = re.compile(r"^\*\*Blocked by:\*\*\s*(.+?)\s*$", re.M)
 TOTALS = re.compile(
-    r"\*\*(\d+) items: (\d+) active, (\d+) ready, (\d+) blocked, (\d+) outside\.\*\*"
+    r"\*\*(\d+) items: (\d+) done, (\d+) active, (\d+) ready, "
+    r"(\d+) blocked, (\d+) outside\.\*\*"
 )
 
 
@@ -153,13 +154,16 @@ def check(root: Path, errors: list[str], warnings: list[str]) -> None:
         fail(
             errors,
             "README roadmap summary has no totals line — expected "
-            "'**N items: A active, B ready, C blocked, D outside.**'",
+            "'**N items: A done, B active, C ready, D blocked, E outside.**'",
         )
         return
 
-    declared_total, active, ready, blocked, outside = (int(g) for g in totals.groups())
+    declared_total, done, active, ready, blocked, outside = (
+        int(group) for group in totals.groups()
+    )
     expected = {
         "total": len(items),
+        "done": counts["done"],
         "active": counts["active"],
         "ready": counts["ready"],
         "blocked": counts["blocked"],
@@ -167,6 +171,7 @@ def check(root: Path, errors: list[str], warnings: list[str]) -> None:
     }
     actual = {
         "total": declared_total,
+        "done": done,
         "active": active,
         "ready": ready,
         "blocked": blocked,
@@ -179,15 +184,6 @@ def check(root: Path, errors: list[str], warnings: list[str]) -> None:
                 f"README says {actual[key]} {key}, roadmap has {value} — "
                 "update the README summary in the same change",
             )
-
-    if counts["done"]:
-        # Not an error: done items legitimately leave the five summary
-        # categories. Worth saying out loud so the front page can be updated
-        # to celebrate them rather than silently dropping them.
-        warnings.append(
-            f"{counts['done']} roadmap item(s) are done and are not counted in "
-            "the README summary line; consider surfacing completed work there"
-        )
 
     for item_id in sorted(seen, key=lambda value: int(value[1:])):
         if item_id not in readme and item_id not in block.group(1):

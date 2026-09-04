@@ -17112,3 +17112,59 @@ not an inconsistency).
 authoritative index for the external gates themselves; this roadmap points at
 it rather than restating its checkboxes, so a gate is closed in one place
 only.
+
+### D-0454 — Completed roadmap items are counted on the front page, because finishing one was quietly making it less accurate  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0453 (whose second required follow-up this
+discharges), D-0452/PR #309 (which produced the first `done` item), D-0444.
+
+**Decision:** the README roadmap summary line gains a `done` count —
+`N items: A done, B active, C ready, D blocked, E outside` — and
+`tools/check_roadmap.py` requires it to match the detail document like every
+other count. R1 moves to `done`, R2 from `blocked` to `active`.
+
+**Reason:** D-0453 shipped the summary counting only the five *open* statuses,
+and recorded surfacing completed work as required follow-up, judging it a
+presentation choice rather than an inconsistency. That judgement was wrong,
+and closing the first item showed why within hours: with `done` outside the
+counted set, **finishing an item made the front page quietly less accurate
+while the checker still passed**. Twenty items summed to nineteen and nothing
+complained. A consistency check that stops covering a value the moment that
+value becomes non-zero is worse than one that never covered it, because the
+green result now means less than a reader thinks — the D-0441 failure shape,
+arriving through arithmetic.
+
+**On editing D-0453 instead:** the first attempt at this appended an "Update"
+block to D-0453's merged entry. That is exactly what
+`docs/DECISION_LOG.md`'s append-only rule forbids — old entries are
+superseded, never rewritten — and it was reverted before commit. The rule
+holds even when the edit is factually true and even when the editor is the
+same author, because "a correction I was sure about" is precisely how an
+append-only log stops being one.
+
+**Constitutional impact:** none. A documentation counter and its validator.
+No protocol surface, no authority, no frozen invariant, no voice/value edge.
+
+**Implementation status:** `tools/check_roadmap.py` (totals contract and the
+now-removed warning), `tools/test_check_roadmap.py` (a regression test that a
+`done` count disagreeing with the README fails), `README.md`,
+`docs/ROADMAP_TO_RELEASE.md`. 112 validator tests pass.
+
+**R1 and R2, stated exactly:** R1 is `done` — D-0452/PR #309 merged 2026-09-04,
+`governance-policy` on `main` is green on both merge commits since, and the
+validator suite passes there (111 tests). R2 is `active` rather than `done`:
+its own exit criterion is a **scheduled** `main` run passing end to end, and no
+scheduled run has happened since the fix. The push-triggered runs going green
+is encouraging, not the thing R2 names — the scheduled run is what caught both
+of the last two failures, days after a merge, which is the whole reason R2
+names it.
+
+**Failure point:** this fixes the counting of one status, not the general
+problem that a summary can only ever count what the schema anticipated. Adding
+a sixth status later would reopen the same gap. The deeper limit from D-0453
+stands unchanged: the checker verifies internal consistency, never whether a
+row is true.
+
+**Supersedes / superseded by:** discharges D-0453's second required follow-up.
+Supersedes nothing; D-0453 stands as written, including the judgement this
+entry corrects.
