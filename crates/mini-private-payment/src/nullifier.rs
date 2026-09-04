@@ -63,19 +63,35 @@ impl KeyImageSet {
     /// another party's output by broadcasting a garbage claim carrying its
     /// key image.
     pub fn observe(&mut self, claim: &VerifiedPrivateClaim) -> SpendOutcome {
-        let image = claim.key_image().to_vec();
         let digest = *claim.transcript_digest();
-        match self.spent.get(&image) {
-            None => {
-                self.spent.insert(image, digest);
-                SpendOutcome::Accepted
+        let images: Vec<Vec<u8>> = claim.key_images().map(|image| image.to_vec()).collect();
+
+        // A multi-input claim is all-or-nothing. Recording the inputs that
+        // happen to be unspent and ignoring the rest would admit a claim
+        // that spends a mix of fresh and already-spent outputs -- half a
+        // double-spend, recorded as a success.
+        for image in &images {
+            match self.spent.get(image) {
+                Some(held) if *held != digest => {
+                    return SpendOutcome::Conflict {
+                        held: *held,
+                        offered: digest,
+                    };
+                }
+                _ => {}
             }
-            Some(held) if *held == digest => SpendOutcome::AlreadyRecorded,
-            Some(held) => SpendOutcome::Conflict {
-                held: *held,
-                offered: digest,
-            },
         }
+
+        // Idempotent re-broadcast: every input already recorded, under this
+        // same claim. Normal network behaviour, not a double-spend.
+        if !images.is_empty() && images.iter().all(|image| self.spent.contains_key(image)) {
+            return SpendOutcome::AlreadyRecorded;
+        }
+
+        for image in images {
+            self.spent.insert(image, digest);
+        }
+        SpendOutcome::Accepted
     }
 
     /// Offer a claim, returning an error rather than an outcome when it

@@ -17168,3 +17168,198 @@ row is true.
 **Supersedes / superseded by:** discharges D-0453's second required follow-up.
 Supersedes nothing; D-0453 stands as written, including the judgement this
 entry corrects.
+
+### D-0455 — The shielded payment path proves value conservation: RingCT balance, fees, and change  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0447 (the path this completes), D-0449
+(decoy selection), D-0451 (disclosure, whose follow-up list named this),
+D-0036/D-0040 (the prototype primitives), D-0063 (implementing published
+constructions in-house), D-0047/[#72](../../issues/72) (the audit gate),
+roadmap R4.
+
+**Decision:** every `PrivatePaymentClaim` now proves `Σ inputs = Σ outputs +
+fee` without opening a single amount, using the standard RingCT
+construction. Concretely:
+
+- a new `mini_value::mlsag` module — a **two-column** MLSAG proving, in one
+  ring and under one challenge chain, both that the signer holds a ring
+  member's one-time key (column 0, on `basepoint()`, carrying the key image)
+  and that a re-blinded **pseudo-output commitment** hides that same
+  member's value (column 1, on `blinding_generator()`, a commitment-to-zero
+  proof, deliberately carrying **no** key image);
+- a claim shape of up to `MAX_INPUTS = 16` inputs and `MAX_OUTPUTS = 16`
+  outputs, each input with its own ring and MLSAG, each output with its own
+  stealth address, commitment, Bulletproof, and sealed memo;
+- a **public** `fee_micro`, entering the balance as a commitment to a known
+  amount under a zero blinding factor, so a verifier recomputes it from the
+  cleartext and would reject any other value;
+- `PaymentNote` — the memo plaintext now carries the purpose, the amount,
+  **and the blinding factor**, so receiving a payment and being able to
+  spend it are the same event;
+- `CLAIM_VERSION` 2 and domain `mininet/mini-private-payment/claim/v2`. v1
+  claims do not decode and no compatibility is offered.
+
+Change is **not** a field, a flag, or a distinguishable output: it is an
+output paying yourself, built by the same code path as any other.
+
+**Reason:** D-0447 shipped a path that hid amounts and **never checked
+them**. A range proof says only "this is a number in `[0, 2^64)`"; it says
+nothing about the number the payer actually spent. With one input, one
+output, and no equation relating them, a payer could commit to any amount at
+all, prove it in range, and no verifier had anything to fail. Hiding a number
+nobody checks is not privacy — it is minting, with the privacy as the thing
+that stops anyone noticing. Every value invariant in this tree, M1 above all,
+was resting on a claim shape that could create money from nothing.
+
+The same hole made the path unusable for ordinary payments: one input and one
+output means you can only pay an amount you hold *exactly* — no change, no
+fee. That is why D-0451's follow-up said wiring `mini-contribution` and
+`mini-engagement` to this path would ship "a half-private path that looks
+finished".
+
+**On not inventing anything:** this is Noether and Mackenzie's *Ring
+Confidential Transactions* — published, peer-reviewed, deployed in production
+for years — implemented in-house per D-0063 rather than vendored. The one
+place a naive implementation goes wrong is worth naming: putting each spent
+output's *own* commitment into the balance sum would publish which ring
+member was real, and the ring would stop hiding anyone. The check meant to
+make amounts safe would have destroyed the anonymity. Pseudo-output
+commitments exist for exactly that reason, and the second MLSAG column is
+what stops a signer re-blinding to a different value and balancing the claim
+against money that was never there.
+
+**On column 1 carrying no key image:** column 0's key image is the
+double-spend nullifier and must exist. A key image on column 1 would be
+deterministic in the blinding *difference*, so two spends that happened to
+share one would link — a linkage that buys nothing, since detection already
+has what it needs from column 0. Adding it would have been the easy
+symmetric choice and a silent privacy regression.
+
+**Constitutional impact:** Directive 9 (privacy as architecture) and
+Directive 4 (money that cannot be conjured) — M1, M2, M3 are unchanged in
+statement and are now resting on a claim that actually proves conservation
+rather than one that assumed it. P1/Directive 16: `mini-private-payment` and
+`mini-value` remain value crates with no dependency edge to `mini-forge` or
+`mini-chain` voting in either direction; nothing here converts a payment into
+weight of any kind. No frozen invariant is weakened. No Tier-F row is
+touched. `ABSOLUTE_MIN_RING_SIZE` is unchanged at 8, `MIN_RING_SIZE` at 16.
+
+**Implementation status:** `crates/mini-value/src/mlsag.rs` (new, 16 tests),
+`mini_value::public_amount_commitment`, and a rewritten
+`crates/mini-private-payment/src/claim.rs`, with `memo.rs`, `decoy.rs`,
+`nullifier.rs`, `scan.rs`, `error.rs` and the crate docs following it.
+`tests/conservation.rs` is new (13 tests) and includes
+`a_recipient_can_spend_what_they_received`, which receives a payment, opens
+its note, and spends it onward with no side channel. 112 tests pass in the
+crate; the workspace suite, `cargo fmt`, and
+`clippy --all-targets --all-features -D warnings` are clean.
+
+Two API changes fell out and were taken rather than worked around:
+`canonicalize_ring` now takes the ring **and** its parallel commitments
+together and returns `bool`, because sorting the keys alone would silently
+pair every member with a stranger's commitment — a claim that still decodes,
+still looks canonical, and can never be verified. `KeyImageSet::observe` is
+all-or-nothing across a claim's inputs, since recording the unspent ones and
+ignoring the rest would admit half a double-spend as a success.
+
+**Failure point:** the construction is standard; this implementation of it is
+not audited, and a conservation bug does not fail loudly — it produces
+payments that balance to a verifier and mint value in fact. It stays gated
+behind D-0047/[#72](../../issues/72) like the rest of the path. Second: the
+fee, the input count, and the output count are all **public**, and each is a
+fingerprint — an unusual claim shape narrows which claims could be yours.
+That is a real cost of a checkable fee, stated in the crate docs rather than
+papered over. Third: `MAX_MEMO_BYTES` drops from 252 to 212 because the note
+now carries the commitment opening; the padded memo size is unchanged, so no
+anonymity set splits, but callers with long purposes will notice.
+
+**Required follow-up:** a **fee policy** — what a fee should be and who
+collects it — which is an economics decision this makes possible and does not
+make. **Output selection and consolidation policy**: multi-input claims are
+now possible, and choosing badly is its own fingerprint. A chain-backed
+`PrivateLedgerView`, still the last thing standing between this path and a
+private payout that can reach `Finalized`. And the external cryptographic
+audit, unchanged.
+
+**Supersedes / superseded by:** supersedes the single-input, single-output
+v1 claim format from D-0447 and discharges D-0451's "multi-output claims with
+`verify_balance`" follow-up. D-0447, D-0449 and D-0451 otherwise stand as
+written; the split-transcript argument, the decoy sampler, and the disclosure
+model are all carried forward unchanged.
+
+### D-0456 — Optimize the curve arithmetic in debug builds: D-0455's tests made `cargo test` most of CI's wall clock  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0455 (which caused this), D-0036/D-0040
+(the Bulletproofs), Directive 11 (the weakest honest device), roadmap R2.
+
+**Decision:** three package-scoped `opt-level = 3` overrides in the workspace
+`Cargo.toml`'s dev profile — `curve25519-dalek`, `mini-crypto`, `mini-value` —
+and the shielded-payment test fixtures build ledger outputs with a commitment
+only (new `mini_value::pedersen_commitment`) instead of a full range proof.
+
+**Reason:** D-0455's tests turned a 13–20 minute CI workflow into one whose
+test step alone had run 80 minutes without finishing. Two causes, and the
+second is the interesting one:
+
+1. **The fixtures proved what nothing read.** `Ledger::fill` generated a
+   Bulletproof for every decoy — around 68 per fixture, on every test in the
+   crate — and threw all of them away. An output already on a ledger was
+   range-proven when it was *created*; spending it re-proves nothing and
+   `verify` never asks. This was pure waste, and removing it is not a
+   weakening: what makes a fixture output spendable is that its value and
+   blinding open its commitment, which the MLSAG checks for real.
+2. **`cargo test` runs unoptimized, and this code is nothing but curve
+   arithmetic.** CI's `check` job runs `cargo test --all --all-features` with
+   no `--release`. Unoptimized `curve25519-dalek` is roughly thirty times
+   slower, and a shielded payment is a Bulletproof plus a 16-member
+   two-column MLSAG, several hundred times over.
+
+Measured on one crate, `mini-private-payment`: **796s → 16s**, same 113
+tests, same results. The fixture fix alone took it from "did not finish in
+20 minutes" to 796s; the profile override took it the rest of the way.
+
+**On the alternative that was rejected:** running CI's tests with
+`--release`. It would have been one line and it is wrong — `--release` turns
+off `debug-assertions` and `overflow-checks`, so every `debug_assert!` in the
+tree stops running, including the one in `mini_private_payment::build` that
+proves the memos are not part of their own binding digest. Buying CI time by
+switching off the assertions that catch exactly this class of bug is a trade
+nobody would take deliberately, and it would not have been visible in a green
+check.
+
+**Verified, not assumed:** a temporary probe under the new profile confirmed
+`cfg!(debug_assertions)` is still true and `255u8 + 1` still panics. The
+override changes speed only.
+
+**Constitutional impact:** none. A build profile and a test fixture. No
+protocol surface, no wire format, no authority, no frozen invariant, no
+voice/value edge. `pedersen_commitment` is a public *value*-crate function
+that computes a point anyone holding `(v, b)` can compute; its doc comment
+states plainly that a commitment alone proves nothing and that a claim
+*output* still needs `commit_with_proof`, because a bare commitment there
+would let a "negative" amount balance the equation while minting value.
+
+**Implementation status:** `Cargo.toml` (three dev-profile overrides),
+`crates/mini-value/src/confidential_impl.rs` (`pedersen_commitment` plus
+three tests, including one asserting it is byte-identical to the proving
+path's commitment across `0`, `1`, `1_000` and `u64::MAX`),
+`crates/mini-value/src/lib.rs`, `crates/mini-private-payment/tests/support/
+mod.rs`, `crates/mini-private-payment/src/scan.rs`.
+
+**Failure point:** the equivalence between `pedersen_commitment` and
+`commit_with_proof`'s commitment is now load-bearing for every conservation
+test — if they ever diverged, the fixtures would stop resembling real
+outputs and the tests would pass against a world that does not exist. That
+is why the equivalence is asserted rather than assumed. Second, and more
+general: nothing in CI *measures* its own wall clock, so the next change that
+multiplies it will be found the same way this one was — by someone noticing a
+job had been running for an hour. A timing budget is a real gap this does not
+close.
+
+**Required follow-up:** none blocking. A CI duration budget, so a
+wall-clock regression fails a check rather than waiting to be noticed, is
+worth considering the next time CI is touched.
+
+**Supersedes / superseded by:** supersedes nothing. Corrects a performance
+regression introduced by D-0455 in the same session; D-0455 stands as
+written.

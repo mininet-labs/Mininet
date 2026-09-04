@@ -88,8 +88,8 @@ fn the_acknowledgement_names_the_third_party_exposure() {
 #[test]
 fn a_disclosed_account_can_be_audited() {
     let treasury = recipient();
-    let (claim_a, _, _) = payment_to(&treasury, 4_000, b"grant:mini-forge");
-    let (claim_b, _, _) = payment_to(&treasury, 9_000, b"grant:mini-net");
+    let (claim_a, _) = payment_to(&treasury, 4_000, b"grant:mini-forge");
+    let (claim_b, _) = payment_to(&treasury, 9_000, b"grant:mini-net");
     let verified = [
         verify(&claim_a, &NETWORK).unwrap(),
         verify(&claim_b, &NETWORK).unwrap(),
@@ -103,7 +103,7 @@ fn a_disclosed_account_can_be_audited() {
     let mut references: Vec<_> = found
         .payments
         .iter()
-        .map(|payment| payment.purpose.reference.clone())
+        .map(|payment| payment.note.purpose.reference.clone())
         .collect();
     references.sort();
     assert_eq!(
@@ -118,8 +118,8 @@ fn an_audit_sees_only_the_disclosed_account() {
     // cannot drag the people it transacts alongside into visibility.
     let treasury = recipient();
     let bystander = recipient();
-    let (to_treasury, _, _) = payment_to(&treasury, 1_000, b"disbursement");
-    let (to_bystander, _, _) = payment_to(&bystander, 1_000, b"nobody-else-s-business");
+    let (to_treasury, _) = payment_to(&treasury, 1_000, b"disbursement");
+    let (to_bystander, _) = payment_to(&bystander, 1_000, b"nobody-else-s-business");
     let verified = [
         verify(&to_treasury, &NETWORK).unwrap(),
         verify(&to_bystander, &NETWORK).unwrap(),
@@ -130,7 +130,7 @@ fn an_audit_sees_only_the_disclosed_account() {
 
     assert_eq!(found.payments.len(), 1);
     assert_eq!(
-        found.payments[0].purpose.reference,
+        found.payments[0].note.purpose.reference,
         b"disbursement".to_vec()
     );
     assert!(found.unreadable.is_empty());
@@ -142,7 +142,7 @@ fn an_audit_cannot_read_amounts() {
     // does not open a Pedersen commitment, so "auditable" here means the set
     // of incoming payments is checkable -- never the sums.
     let treasury = recipient();
-    let (claim, _, _) = payment_to(&treasury, 7_777, b"disbursement");
+    let (claim, _) = payment_to(&treasury, 7_777, b"disbursement");
     let verified = [verify(&claim, &NETWORK).unwrap()];
 
     let disclosure = verify_disclosure(&disclose(&treasury)).unwrap();
@@ -151,7 +151,7 @@ fn an_audit_cannot_read_amounts() {
 
     // The commitment is present and reveals nothing: it is not the amount,
     // and it is not equal to any encoding of the amount.
-    let commitment = &found.payments[0].claim.claim().amount_commitment;
+    let commitment = &found.payments[0].claim.claim().outputs[0].amount_commitment;
     assert_eq!(commitment.len(), 32);
     assert_ne!(commitment.as_slice(), &7_777u64.to_le_bytes()[..]);
     assert_ne!(commitment.as_slice(), &[0u8; 32][..]);
@@ -163,7 +163,7 @@ fn disclosure_is_retroactive() {
     // reads payments received before it was published, so "I will disclose
     // from now on" is not something anyone can actually offer.
     let treasury = recipient();
-    let (earlier, _, _) = payment_to(&treasury, 500, b"before-the-disclosure");
+    let (earlier, _) = payment_to(&treasury, 500, b"before-the-disclosure");
     let verified = [verify(&earlier, &NETWORK).unwrap()];
 
     // Disclosed "after" everything, and it still reads what came before.
@@ -178,7 +178,7 @@ fn disclosure_is_retroactive() {
     let found = audit(&disclosure, verified.iter());
     assert_eq!(found.payments.len(), 1);
     assert_eq!(
-        found.payments[0].purpose.reference,
+        found.payments[0].note.purpose.reference,
         b"before-the-disclosure".to_vec()
     );
 }
@@ -204,7 +204,7 @@ fn swapping_in_a_strangers_spend_key_verifies_but_audits_to_nothing() {
     );
     let verified = verify_disclosure(&mismatched).expect("a well-formed pair is not itself a lie");
 
-    let (claim, _, _) = payment_to(&treasury, 100, b"disbursement");
+    let (claim, _) = payment_to(&treasury, 100, b"disbursement");
     let claims = [verify(&claim, &NETWORK).unwrap()];
     let found = audit(&verified, claims.iter());
     assert!(found.payments.is_empty());
@@ -342,8 +342,8 @@ fn an_audit_does_not_reveal_what_the_account_spent() {
     // and this disclosure cannot read those.
     let treasury = recipient();
     let vendor = recipient();
-    let (income, _, _) = payment_to(&treasury, 1_000, b"funding");
-    let (outgoing, _, _) = payment_to(&vendor, 1_000, b"treasury pays a vendor");
+    let (income, _) = payment_to(&treasury, 1_000, b"funding");
+    let (outgoing, _) = payment_to(&vendor, 1_000, b"treasury pays a vendor");
     let ledger = [
         verify(&income, &NETWORK).unwrap(),
         verify(&outgoing, &NETWORK).unwrap(),
@@ -353,7 +353,10 @@ fn an_audit_does_not_reveal_what_the_account_spent() {
     let found = audit(&disclosure, ledger.iter());
 
     assert_eq!(found.payments.len(), 1, "income only");
-    assert_eq!(found.payments[0].purpose.reference, b"funding".to_vec());
+    assert_eq!(
+        found.payments[0].note.purpose.reference,
+        b"funding".to_vec()
+    );
 }
 
 #[test]
@@ -369,9 +372,9 @@ fn an_audit_of_a_large_ledger_accounts_for_every_claim_exactly_once() {
     let bystander = recipient();
     let mut ledger = Vec::new();
     for i in 0..4u64 {
-        let (mine, _, _) = payment_to(&treasury, 1_000 + i, b"disbursement");
+        let (mine, _) = payment_to(&treasury, 1_000 + i, b"disbursement");
         ledger.push(verify(&mine, &NETWORK).unwrap());
-        let (theirs, _, _) = payment_to(&bystander, 1_000 + i, b"unrelated");
+        let (theirs, _) = payment_to(&bystander, 1_000 + i, b"unrelated");
         ledger.push(verify(&theirs, &NETWORK).unwrap());
     }
 

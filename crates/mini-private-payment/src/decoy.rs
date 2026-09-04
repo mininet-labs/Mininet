@@ -106,12 +106,23 @@ pub trait OutputSet {
 
     /// The one-time public key at `index`, or `None` if out of range.
     fn key_at(&self, index: usize) -> Option<Vec<u8>>;
+
+    /// The amount commitment of the output at `index`.
+    ///
+    /// Required alongside the key because a spend proof rings over
+    /// `(key, commitment)` pairs, not keys alone: the commitment column is
+    /// what lets value conservation be checked without revealing which
+    /// member was spent (`mini_value::sign_spend`). A set that could serve
+    /// keys but not commitments could build a ring that hides a payer and
+    /// proves nothing about the amount.
+    fn commitment_at(&self, index: usize) -> Option<Vec<u8>>;
 }
 
 /// An in-memory [`OutputSet`], for tests and small wallets.
 #[derive(Debug, Clone, Default)]
 pub struct InMemoryOutputSet {
     keys: Vec<Vec<u8>>,
+    commitments: Vec<Vec<u8>>,
 }
 
 impl InMemoryOutputSet {
@@ -122,12 +133,31 @@ impl InMemoryOutputSet {
     /// Append an output. Callers must append in the order outputs appeared,
     /// oldest first — the sampler reads index order as age order and cannot
     /// detect a caller that shuffles.
-    pub fn push(&mut self, key: impl Into<Vec<u8>>) {
+    pub fn push(&mut self, key: impl Into<Vec<u8>>, commitment: impl Into<Vec<u8>>) {
         self.keys.push(key.into());
+        self.commitments.push(commitment.into());
     }
 
-    pub fn from_keys(keys: Vec<Vec<u8>>) -> Self {
-        Self { keys }
+    /// Build a set from keys alone, giving every output a distinct
+    /// placeholder commitment.
+    ///
+    /// Selection is about *keys*: which members a ring draws and in what
+    /// order. Tests of that behaviour have no business inventing real
+    /// commitments, and real callers must not use this — a placeholder
+    /// commitment cannot be opened, so nothing built from this set can be
+    /// spent. Kept crate-internal for exactly that reason.
+    #[cfg(test)]
+    pub(crate) fn from_keys(keys: Vec<Vec<u8>>) -> Self {
+        let commitments = keys
+            .iter()
+            .enumerate()
+            .map(|(index, _)| {
+                let mut placeholder = vec![0u8; 32];
+                placeholder[0..8].copy_from_slice(&(index as u64).to_be_bytes());
+                placeholder
+            })
+            .collect();
+        Self { keys, commitments }
     }
 }
 
@@ -138,6 +168,10 @@ impl OutputSet for InMemoryOutputSet {
 
     fn key_at(&self, index: usize) -> Option<Vec<u8>> {
         self.keys.get(index).cloned()
+    }
+
+    fn commitment_at(&self, index: usize) -> Option<Vec<u8>> {
+        self.commitments.get(index).cloned()
     }
 }
 
@@ -232,6 +266,33 @@ pub fn select_ring(
     ring_size: usize,
     entropy: &[u8; 32],
 ) -> Result<(Vec<Vec<u8>>, usize)> {
+    let (indices, position) = select_ring_indices(outputs, real_index, ring_size, entropy)?;
+    let keys = indices
+        .iter()
+        .map(|index| outputs.key_at(*index))
+        .collect::<Option<Vec<_>>>()
+        .ok_or(PrivatePaymentError::RealOutputNotInSet)?;
+    Ok((keys, position))
+}
+
+/// The same selection, returning **indices** into the output set rather
+/// than keys.
+///
+/// A spend proof rings over `(key, commitment)` pairs, so a caller needs
+/// both halves of every chosen member. Returning indices is what keeps the
+/// two columns in step: re-deriving the ring twice, once for keys and once
+/// for commitments, would risk a mismatched pair, and a mismatched pair is
+/// a ring that proves nothing.
+///
+/// Indices come back ordered by their key bytes — the same canonical order
+/// [`select_ring`] produces — with `position` naming where the real output
+/// landed.
+pub fn select_ring_indices(
+    outputs: &impl OutputSet,
+    real_index: usize,
+    ring_size: usize,
+    entropy: &[u8; 32],
+) -> Result<(Vec<usize>, usize)> {
     if ring_size < crate::MIN_RING_SIZE {
         return Err(PrivatePaymentError::RingTooSmall {
             got: ring_size,
@@ -256,51 +317,61 @@ pub fn select_ring(
 
     let newest = outputs.len() - 1;
     let mut draw = Draw::new(entropy);
-    let mut ring: Vec<Vec<u8>> = vec![real_key.clone()];
+    let mut chosen: Vec<usize> = vec![real_index];
+    let mut keys: Vec<Vec<u8>> = vec![real_key.clone()];
 
     // Bounded attempts: with a set barely larger than the ring, the age
     // distribution can keep proposing indices already taken. Falling back to
     // uniform fill is honest degradation -- a slightly worse distribution is
     // better than a wallet that cannot pay at all -- and it only happens on
     // sets small enough that the distribution was never protecting much.
+    //
+    // Membership is tested by *key*, not by index: two indices holding the
+    // same key would look like two ring members and hide nobody extra.
     let mut attempts = 0usize;
     let max_attempts = ring_size * 64;
-    while ring.len() < ring_size && attempts < max_attempts {
+    while chosen.len() < ring_size && attempts < max_attempts {
         attempts += 1;
         let offset = draw_age_offset(&mut draw, outputs.len());
         let index = newest - offset;
         let Some(key) = outputs.key_at(index) else {
             continue;
         };
-        if !ring.contains(&key) {
-            ring.push(key);
+        if !keys.contains(&key) {
+            keys.push(key);
+            chosen.push(index);
         }
     }
-    while ring.len() < ring_size {
+    while chosen.len() < ring_size {
         let index = draw.below(outputs.len() as u64) as usize;
         if let Some(key) = outputs.key_at(index) {
-            if !ring.contains(&key) {
-                ring.push(key);
+            if !keys.contains(&key) {
+                keys.push(key);
+                chosen.push(index);
             }
         }
     }
 
-    crate::canonicalize_ring(&mut ring);
-    if ring.len() != ring_size {
+    if chosen.len() != ring_size {
         // Duplicate keys in the output set itself collapsed the ring below
         // its declared size. Refuse rather than silently sign a smaller
         // anonymity set than the caller asked for.
         return Err(PrivatePaymentError::OutputSetTooSmall {
-            got: ring.len(),
+            got: chosen.len(),
             need: ring_size,
         });
     }
 
-    let position = ring
+    // Canonical order is by key bytes, so the wire encoding of a ring is a
+    // function of its membership and nothing else -- not of the order the
+    // sampler happened to draw them in, which would leak the real member's
+    // draw position.
+    chosen.sort_by_key(|index| outputs.key_at(*index).unwrap_or_default());
+    let position = chosen
         .iter()
-        .position(|member| *member == real_key)
-        .expect("the real key was inserted first and canonicalization only reorders");
-    Ok((ring, position))
+        .position(|index| outputs.key_at(*index).as_ref() == Some(&real_key))
+        .expect("the real index was inserted first and sorting only reorders");
+    Ok((chosen, position))
 }
 
 #[cfg(test)]

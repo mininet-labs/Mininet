@@ -22,14 +22,13 @@ mod support;
 
 use did_mini::{BaseDeviceRole, Capabilities, Controller, Did};
 use mini_private_payment::{
-    build, reconcile, verify, InMemoryPrivateLedger, KeyImageSet, PaymentPurpose, PaymentRequest,
-    SpendOutcome, MIN_RING_SIZE,
+    build, reconcile, verify, InMemoryPrivateLedger, KeyImageSet, PaymentPurpose, SpendOutcome,
 };
 use mini_settlement::{SettlementState, WalletLabel};
 use mini_social::publish_post;
 use mini_store::{CacheTier, MemoryBackend, Store, ViewConditions};
 use mini_value::StealthKeypair;
-use support::{output_set_with_own, NETWORK};
+use support::{pay, request_for, Ledger, NETWORK};
 
 /// A human root plus one delegated device.
 fn human(seed: u8) -> (Controller, Controller) {
@@ -64,10 +63,11 @@ fn viewing_conditions() -> ViewConditions {
     }
 }
 
-/// A reader's own spendable output, inside a local output set large enough
-/// for the protocol's decoy sampler to draw a full ring from.
-fn reader_funds() -> (mini_private_payment::InMemoryOutputSet, usize, [u8; 32]) {
-    output_set_with_own(MIN_RING_SIZE * 4)
+/// A reader's wallet: one spendable output worth `amount_micro`, inside a
+/// local output set large enough for the protocol's decoy sampler to draw a
+/// full ring from.
+fn reader_funds(amount_micro: u64) -> (Ledger, mini_private_payment::SpendableOutput) {
+    Ledger::with_funds(amount_micro)
 }
 
 #[test]
@@ -107,25 +107,16 @@ fn a_reader_privately_pays_a_creator_for_a_specific_post() {
     // not reintroduce what this refuses to record.
 
     // ---- 3. The reader pays, privately ------------------------------
-    let (outputs, real_output_index, secret_key) = reader_funds();
-    let (claim, shared) = build(
-        &PaymentRequest {
-            network_id: NETWORK,
-            recipient_spend_public: creator_wallet.spend_public_bytes().to_vec(),
-            recipient_view_public: creator_wallet.view_public_bytes().to_vec(),
-            amount_micro: 25_000,
-            // The post id travels sealed. Putting it in a cleartext field would
-            // publish exactly the engagement graph note_view refuses to record.
-            purpose: PaymentPurpose::new(post.id().as_str().as_bytes().to_vec()),
-            valid_until_ms: 100_000,
-            last_known_chain: b"height:7".to_vec(),
-            ring_size: MIN_RING_SIZE,
-            real_output_index,
-            secret_key: secret_key.to_vec(),
-            decoy_entropy: mini_crypto::random_32().unwrap(),
-            blinding: mini_crypto::random_32().unwrap(),
-        },
-        &outputs,
+    let (funds, spend) = reader_funds(25_000);
+    // The post id travels sealed. Putting it in a cleartext field would
+    // publish exactly the engagement graph note_view refuses to record.
+    let (claim, built) = build(
+        &request_for(
+            vec![spend],
+            vec![pay(&creator_wallet, 25_000, post.id().as_str().as_bytes())],
+            0,
+        ),
+        &funds,
     )
     .unwrap();
 
@@ -151,14 +142,22 @@ fn a_reader_privately_pays_a_creator_for_a_specific_post() {
         &verified,
     )
     .unwrap()
+    .pop()
     .expect("the creator recognizes their own payment");
     assert_eq!(
-        found.purpose,
+        found.note.purpose,
         PaymentPurpose::new(post.id().as_str().as_bytes().to_vec()),
         "the creator learns which post was paid for"
     );
+    assert_eq!(
+        found.note.amount_micro, 25_000,
+        "and how much, which only they can read"
+    );
     // The shared secret both sides derived is the same one.
-    assert_eq!(verified.open_memo(&shared).unwrap(), found.purpose);
+    assert_eq!(
+        verified.open_memo(0, &built[0].shared).unwrap().purpose,
+        found.note.purpose
+    );
 
     // ---- 5. Settlement discipline is unchanged ----------------------
     let mut ledger = InMemoryPrivateLedger::new();
@@ -191,24 +190,15 @@ fn nobody_else_learns_which_post_was_paid_for() {
 
     let creator_wallet = StealthKeypair::generate().unwrap();
     let nosy = StealthKeypair::generate().unwrap();
-    let (outputs, real_output_index, secret_key) = reader_funds();
+    let (funds, spend) = reader_funds(1);
 
     let (claim, _) = build(
-        &PaymentRequest {
-            network_id: NETWORK,
-            recipient_spend_public: creator_wallet.spend_public_bytes().to_vec(),
-            recipient_view_public: creator_wallet.view_public_bytes().to_vec(),
-            amount_micro: 1,
-            purpose: PaymentPurpose::new(post.id().as_str().as_bytes().to_vec()),
-            valid_until_ms: 10,
-            last_known_chain: Vec::new(),
-            ring_size: MIN_RING_SIZE,
-            real_output_index,
-            secret_key: secret_key.to_vec(),
-            decoy_entropy: mini_crypto::random_32().unwrap(),
-            blinding: mini_crypto::random_32().unwrap(),
-        },
-        &outputs,
+        &request_for(
+            vec![spend],
+            vec![pay(&creator_wallet, 1, post.id().as_str().as_bytes())],
+            0,
+        ),
+        &funds,
     )
     .unwrap();
     let verified = verify(&claim, &NETWORK).unwrap();
@@ -220,7 +210,7 @@ fn nobody_else_learns_which_post_was_paid_for() {
         &verified
     )
     .unwrap()
-    .is_none());
+    .is_empty());
 }
 
 #[test]
@@ -231,23 +221,15 @@ fn one_creator_paid_by_many_readers_has_no_public_income_ledger() {
     let creator = StealthKeypair::generate().unwrap();
     let mut claims = Vec::new();
     for reader in 0..5u64 {
-        let (outputs, real_output_index, secret_key) = reader_funds();
+        let amount = 1_000 * (reader + 1);
+        let (funds, spend) = reader_funds(amount);
         let (claim, _) = build(
-            &PaymentRequest {
-                network_id: NETWORK,
-                recipient_spend_public: creator.spend_public_bytes().to_vec(),
-                recipient_view_public: creator.view_public_bytes().to_vec(),
-                amount_micro: 1_000 * (reader + 1),
-                purpose: PaymentPurpose::new(format!("post:{reader}").into_bytes()),
-                valid_until_ms: 10_000,
-                last_known_chain: Vec::new(),
-                ring_size: MIN_RING_SIZE,
-                real_output_index,
-                secret_key: secret_key.to_vec(),
-                decoy_entropy: mini_crypto::random_32().unwrap(),
-                blinding: mini_crypto::random_32().unwrap(),
-            },
-            &outputs,
+            &request_for(
+                vec![spend],
+                vec![pay(&creator, amount, format!("post:{reader}").as_bytes())],
+                0,
+            ),
+            &funds,
         )
         .unwrap();
         claims.push(verify(&claim, &NETWORK).unwrap());
@@ -256,7 +238,7 @@ fn one_creator_paid_by_many_readers_has_no_public_income_ledger() {
     // No two payments share an address, so nothing groups them by creator.
     let mut addresses: Vec<_> = claims
         .iter()
-        .map(|c| c.claim().output.one_time_address.clone())
+        .map(|c| c.claim().outputs[0].output.one_time_address.clone())
         .collect();
     addresses.sort();
     addresses.dedup();
@@ -266,7 +248,7 @@ fn one_creator_paid_by_many_readers_has_no_public_income_ledger() {
     // them either.
     let mut commitments: Vec<_> = claims
         .iter()
-        .map(|c| c.claim().amount_commitment.clone())
+        .map(|c| c.claim().outputs[0].amount_commitment.clone())
         .collect();
     commitments.sort();
     commitments.dedup();
@@ -302,23 +284,18 @@ fn paying_for_a_post_grants_the_payer_no_capability_over_it() {
     let before = store.get(post.id()).unwrap();
 
     let creator_wallet = StealthKeypair::generate().unwrap();
-    let (outputs, real_output_index, secret_key) = reader_funds();
+    let (funds, spend) = reader_funds(1_000_000_000);
     let (claim, _) = build(
-        &PaymentRequest {
-            network_id: NETWORK,
-            recipient_spend_public: creator_wallet.spend_public_bytes().to_vec(),
-            recipient_view_public: creator_wallet.view_public_bytes().to_vec(),
-            amount_micro: 1_000_000_000,
-            purpose: PaymentPurpose::new(post.id().as_str().as_bytes().to_vec()),
-            valid_until_ms: 10_000,
-            last_known_chain: Vec::new(),
-            ring_size: MIN_RING_SIZE,
-            real_output_index,
-            secret_key: secret_key.to_vec(),
-            decoy_entropy: mini_crypto::random_32().unwrap(),
-            blinding: mini_crypto::random_32().unwrap(),
-        },
-        &outputs,
+        &request_for(
+            vec![spend],
+            vec![pay(
+                &creator_wallet,
+                1_000_000_000,
+                post.id().as_str().as_bytes(),
+            )],
+            0,
+        ),
+        &funds,
     )
     .unwrap();
     let verified = verify(&claim, &NETWORK).unwrap();
@@ -348,29 +325,14 @@ fn a_reader_cannot_pay_the_same_funds_to_two_creators() {
     // merged, netted, or split between them.
     let first_creator = StealthKeypair::generate().unwrap();
     let second_creator = StealthKeypair::generate().unwrap();
-    let (outputs, real_output_index, secret_key) = reader_funds();
+    let (funds, spend) = reader_funds(500);
 
     let pay_to = |to: &StealthKeypair| {
-        let (claim, _) = build(
-            &PaymentRequest {
-                network_id: NETWORK,
-                recipient_spend_public: to.spend_public_bytes().to_vec(),
-                recipient_view_public: to.view_public_bytes().to_vec(),
-                amount_micro: 500,
-                purpose: PaymentPurpose::none(),
-                valid_until_ms: 10_000,
-                last_known_chain: Vec::new(),
-                ring_size: MIN_RING_SIZE,
-                real_output_index,
-                secret_key: secret_key.to_vec(),
-                // Same entropy AND same real output: this is the double-spend
-                // test, so both payments must genuinely spend the one output.
-                decoy_entropy: [0x2b; 32],
-                blinding: mini_crypto::random_32().unwrap(),
-            },
-            &outputs,
-        )
-        .unwrap();
+        let mut request = request_for(vec![spend.clone()], vec![pay(to, 500, b"")], 0);
+        // Same entropy AND the same real output: this is the double-spend
+        // test, so both payments must genuinely spend the one output.
+        request.decoy_entropy = [0x2b; 32];
+        let (claim, _) = build(&request, &funds).unwrap();
         verify(&claim, &NETWORK).unwrap()
     };
 
@@ -414,24 +376,15 @@ fn the_post_and_the_payment_share_no_identifier_on_the_wire() {
     let mut store = Store::new(MemoryBackend::new());
     let post = publish_post(&mut store, &root.did(), &device, "linkage", 1, 1).unwrap();
     let creator = StealthKeypair::generate().unwrap();
-    let (outputs, real_output_index, secret_key) = reader_funds();
+    let (funds, spend) = reader_funds(1);
 
     let (claim, _) = build(
-        &PaymentRequest {
-            network_id: NETWORK,
-            recipient_spend_public: creator.spend_public_bytes().to_vec(),
-            recipient_view_public: creator.view_public_bytes().to_vec(),
-            amount_micro: 1,
-            purpose: PaymentPurpose::new(post.id().as_str().as_bytes().to_vec()),
-            valid_until_ms: 1,
-            last_known_chain: Vec::new(),
-            ring_size: MIN_RING_SIZE,
-            real_output_index,
-            secret_key: secret_key.to_vec(),
-            decoy_entropy: mini_crypto::random_32().unwrap(),
-            blinding: mini_crypto::random_32().unwrap(),
-        },
-        &outputs,
+        &request_for(
+            vec![spend],
+            vec![pay(&creator, 1, post.id().as_str().as_bytes())],
+            0,
+        ),
+        &funds,
     )
     .unwrap();
 
@@ -456,24 +409,15 @@ fn the_creators_identity_root_never_appears_in_a_payment() {
     let mut store = Store::new(MemoryBackend::new());
     let post = publish_post(&mut store, &root.did(), &device, "identity", 1, 1).unwrap();
     let creator = StealthKeypair::generate().unwrap();
-    let (outputs, real_output_index, secret_key) = reader_funds();
+    let (funds, spend) = reader_funds(1);
 
     let (claim, _) = build(
-        &PaymentRequest {
-            network_id: NETWORK,
-            recipient_spend_public: creator.spend_public_bytes().to_vec(),
-            recipient_view_public: creator.view_public_bytes().to_vec(),
-            amount_micro: 1,
-            purpose: PaymentPurpose::new(post.id().as_str().as_bytes().to_vec()),
-            valid_until_ms: 1,
-            last_known_chain: Vec::new(),
-            ring_size: MIN_RING_SIZE,
-            real_output_index,
-            secret_key: secret_key.to_vec(),
-            decoy_entropy: mini_crypto::random_32().unwrap(),
-            blinding: mini_crypto::random_32().unwrap(),
-        },
-        &outputs,
+        &request_for(
+            vec![spend],
+            vec![pay(&creator, 1, post.id().as_str().as_bytes())],
+            0,
+        ),
+        &funds,
     )
     .unwrap();
 
@@ -487,4 +431,111 @@ fn the_creators_identity_root_never_appears_in_a_payment() {
         .next()
         .expect("a did has a scid");
     assert!(!wire.windows(scid.len()).any(|w| w == scid));
+}
+
+#[test]
+fn a_reader_pays_a_creator_keeps_the_change_and_the_network_takes_a_fee() {
+    // The shape of a real payment, which every exact-value test above
+    // deliberately does not exercise: nobody holds an output worth exactly
+    // what they owe. The reader spends one output of 10_000, pays the
+    // creator 2_500, pays a 100 fee, and pays the remaining 7_400 back to
+    // themselves.
+    //
+    // What matters is that the change is built the same way as the
+    // payment. If change were a field, or an output shaped differently,
+    // an observer could read the payment out of every claim by discarding
+    // the change -- and "which output was the payment" is most of what
+    // hiding the amount was for.
+    let (creator_root, creator_device) = human_without_vote(110);
+    let mut store = Store::new(MemoryBackend::new());
+    let post = publish_post(
+        &mut store,
+        &creator_root.did(),
+        &creator_device,
+        "worth two and a half thousand",
+        1_000,
+        1,
+    )
+    .unwrap();
+
+    let creator_wallet = StealthKeypair::generate().unwrap();
+    let reader_wallet = StealthKeypair::generate().unwrap();
+    let (funds, spend) = reader_funds(10_000);
+
+    let mut request = request_for(
+        vec![spend],
+        vec![
+            pay(&creator_wallet, 2_500, post.id().as_str().as_bytes()),
+            pay(&reader_wallet, 7_400, b"change"),
+        ],
+        100,
+    );
+    // The fixture's default deadline is 10_000ms, which happens to be the
+    // amount spent here -- and the deadline *is* public. Moved out of the
+    // way so the leak assertion below tests the amount rather than
+    // rediscovering the fixture.
+    request.valid_until_ms = 1_700_000_000_000;
+    let (claim, _) = build(&request, &funds).unwrap();
+    let verified = verify(&claim, &NETWORK).unwrap();
+
+    // The fee is the one public number, because a verifier has to be able
+    // to check that the fee charged is the fee declared.
+    assert_eq!(claim.fee_micro, 100);
+
+    // Two outputs, structurally identical. Nothing distinguishes the
+    // creator's from the reader's own change.
+    assert_eq!(claim.outputs.len(), 2);
+    let (first, second) = (&claim.outputs[0], &claim.outputs[1]);
+    assert_eq!(first.memo.ciphertext.len(), second.memo.ciphertext.len());
+    assert_eq!(
+        first.range_proof.to_bytes().len(),
+        second.range_proof.to_bytes().len()
+    );
+    assert_eq!(first.amount_commitment.len(), 32);
+    assert_ne!(first.amount_commitment, second.amount_commitment);
+    assert_ne!(
+        first.output.one_time_address,
+        second.output.one_time_address
+    );
+
+    // Each party reads their own output and nothing else. The creator
+    // cannot see that change was made, let alone how much.
+    let to_creator = mini_private_payment::scan_one(
+        &creator_wallet.view_secret_bytes(),
+        &creator_wallet.spend_public_bytes(),
+        &verified,
+    )
+    .unwrap();
+    assert_eq!(to_creator.len(), 1);
+    assert_eq!(to_creator[0].note.amount_micro, 2_500);
+    assert_eq!(
+        to_creator[0].note.purpose,
+        PaymentPurpose::new(post.id().as_str().as_bytes().to_vec())
+    );
+
+    let to_reader = mini_private_payment::scan_one(
+        &reader_wallet.view_secret_bytes(),
+        &reader_wallet.spend_public_bytes(),
+        &verified,
+    )
+    .unwrap();
+    assert_eq!(to_reader.len(), 1);
+    assert_eq!(to_reader[0].note.amount_micro, 7_400);
+    assert_ne!(
+        to_reader[0].output_index, to_creator[0].output_index,
+        "the two parties were paid by different outputs"
+    );
+
+    // 2_500 + 7_400 + 100 = 10_000, and the proof of that is what `verify`
+    // just checked without anyone opening a commitment. Neither the amount
+    // paid nor the change is anywhere on the wire.
+    let wire = claim.encode();
+    for amount in [2_500u64, 7_400, 10_000] {
+        assert!(
+            !wire
+                .windows(8)
+                .any(|w| w == amount.to_be_bytes() || w == amount.to_le_bytes()),
+            "{amount} leaked onto the wire"
+        );
+    }
 }

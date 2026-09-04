@@ -36,6 +36,7 @@
 
 use mini_crypto::{AeadKey, AeadNonce, AeadSuite, HashAlgorithm, KdfSuite};
 use mini_value::StealthSharedSecret;
+use zeroize::Zeroize;
 
 use crate::codec::{Reader, Writer};
 use crate::error::{PrivatePaymentError, Result};
@@ -51,7 +52,12 @@ pub const MEMO_PADDED_BYTES: usize = 256;
 
 /// Longest purpose payload a caller may seal, leaving room for the length
 /// prefix inside the padded block.
-pub const MAX_MEMO_BYTES: usize = MEMO_PADDED_BYTES - 4;
+pub const MAX_MEMO_BYTES: usize = MEMO_PADDED_BYTES - NOTE_OVERHEAD_BYTES;
+
+/// Bytes the sealed note spends on everything that is not the reference:
+/// a 4-byte length prefix, the 8-byte amount, and the 32-byte blinding
+/// factor that opens the output's commitment.
+pub const NOTE_OVERHEAD_BYTES: usize = 4 + 8 + 32;
 
 /// What a payment is for, in the clear — only ever held by the sender
 /// before sealing or the recipient after opening.
@@ -81,37 +87,101 @@ impl PaymentPurpose {
             reference: Vec::new(),
         }
     }
+}
 
-    fn encode_padded(&self) -> Result<Vec<u8>> {
-        if self.reference.len() > MAX_MEMO_BYTES {
+/// Everything a recipient needs from a payment: what it was for, **and
+/// what it is worth**.
+///
+/// The second half is not a convenience. An output's value lives in a
+/// Pedersen commitment `b·G + v·H`, and spending it later requires both
+/// `v` and `b` — without them the recipient can see that a payment arrived
+/// and can never move it again. A payment path that delivers value nobody
+/// can subsequently spend is a write-only ledger, so the opening travels
+/// with the purpose, sealed to the same recipient by the same key.
+///
+/// This is why the memo is not optional in practice even though it looks
+/// like metadata: it is the only channel through which the amount reaches
+/// the person who was paid.
+#[derive(Clone, PartialEq, Eq)]
+pub struct PaymentNote {
+    /// What the payment was for.
+    pub purpose: PaymentPurpose,
+    /// The committed amount, in micro-MINI.
+    pub amount_micro: u64,
+    /// The blinding factor that, with `amount_micro`, opens this output's
+    /// commitment.
+    pub blinding: [u8; 32],
+}
+
+impl PaymentNote {
+    pub fn new(purpose: PaymentPurpose, amount_micro: u64, blinding: [u8; 32]) -> Self {
+        Self {
+            purpose,
+            amount_micro,
+            blinding,
+        }
+    }
+
+    pub(crate) fn encode_padded(&self) -> Result<Vec<u8>> {
+        if self.purpose.reference.len() > MAX_MEMO_BYTES {
             return Err(PrivatePaymentError::MemoTooLarge {
-                got: self.reference.len(),
+                got: self.purpose.reference.len(),
                 max: MAX_MEMO_BYTES,
             });
         }
         let mut writer = Writer::new();
-        writer.bytes(&self.reference);
+        writer.u64(self.amount_micro);
+        writer.raw(&self.blinding);
+        writer.bytes(&self.purpose.reference);
         let mut block = writer.finish();
         block.resize(MEMO_PADDED_BYTES, 0);
         Ok(block)
     }
 
-    fn decode_padded(block: &[u8]) -> Result<Self> {
+    pub(crate) fn decode_padded(block: &[u8]) -> Result<Self> {
         if block.len() != MEMO_PADDED_BYTES {
             return Err(PrivatePaymentError::MalformedMemo);
         }
         let mut reader = Reader::new(block);
+        let amount_micro = reader
+            .u64()
+            .map_err(|_| PrivatePaymentError::MalformedMemo)?;
+        let blinding = reader
+            .array::<32>()
+            .map_err(|_| PrivatePaymentError::MalformedMemo)?;
         let reference = reader
             .bytes()
             .map_err(|_| PrivatePaymentError::MalformedMemo)?;
         // The remainder must be zero padding and nothing else: a memo with
         // a second message hidden in its tail would be a covert channel
         // that survives every check above.
-        let consumed = 4 + reference.len();
+        let consumed = 8 + 32 + 4 + reference.len();
         if block[consumed..].iter().any(|byte| *byte != 0) {
             return Err(PrivatePaymentError::MalformedMemo);
         }
-        Ok(Self { reference })
+        Ok(Self {
+            purpose: PaymentPurpose { reference },
+            amount_micro,
+            blinding,
+        })
+    }
+}
+
+impl core::fmt::Debug for PaymentNote {
+    /// Redacted for the same reason as [`PaymentPurpose`], and more so:
+    /// this one carries the blinding factor, which is spending material.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("PaymentNote(<redacted>)")
+    }
+}
+
+impl Drop for PaymentNote {
+    /// The blinding factor is half of what spends this output, so it is
+    /// wiped rather than left in whatever memory the note occupied — the
+    /// same discipline `mini_value::SpendWitness` and
+    /// [`crate::SpendableOutput`] follow.
+    fn drop(&mut self) {
+        self.blinding.zeroize();
     }
 }
 
@@ -135,14 +205,15 @@ pub struct SealedMemo {
 }
 
 impl SealedMemo {
-    /// Seal `purpose` to the recipient who can recover `shared`, bound to
-    /// `transcript_digest` so it cannot be moved onto another claim.
+    /// Seal `note` to the recipient who can recover `shared`, bound to
+    /// `transcript_digest` so it cannot be moved onto another claim or
+    /// another output of the same claim.
     pub fn seal(
-        purpose: &PaymentPurpose,
+        note: &PaymentNote,
         shared: &StealthSharedSecret,
         transcript_digest: &[u8; 32],
     ) -> Result<Self> {
-        let block = purpose.encode_padded()?;
+        let block = note.encode_padded()?;
         let key = memo_key(shared)?;
         // A fixed all-zero nonce is correct here and nowhere else: the key
         // is derived from a shared secret that is fresh per payment (the
@@ -157,10 +228,21 @@ impl SealedMemo {
         Ok(Self { ciphertext })
     }
 
-    /// A sealed empty purpose, so a claim carrying no message is
-    /// byte-indistinguishable from one that does.
-    pub fn empty_for(shared: &StealthSharedSecret, transcript_digest: &[u8; 32]) -> Result<Self> {
-        Self::seal(&PaymentPurpose::none(), shared, transcript_digest)
+    /// A sealed note with no purpose attached, so a claim carrying no
+    /// message is byte-indistinguishable from one that does. The amount and
+    /// blinding still travel — they always must, or the output is
+    /// unspendable by whoever received it.
+    pub fn empty_for(
+        amount_micro: u64,
+        blinding: [u8; 32],
+        shared: &StealthSharedSecret,
+        transcript_digest: &[u8; 32],
+    ) -> Result<Self> {
+        Self::seal(
+            &PaymentNote::new(PaymentPurpose::none(), amount_micro, blinding),
+            shared,
+            transcript_digest,
+        )
     }
 
     /// Open this memo with a recovered shared secret.
@@ -172,14 +254,14 @@ impl SealedMemo {
         &self,
         shared: &StealthSharedSecret,
         transcript_digest: &[u8; 32],
-    ) -> Result<PaymentPurpose> {
+    ) -> Result<PaymentNote> {
         let key = memo_key(shared)?;
         let nonce = AeadNonce::from_bytes(&[0u8; 12])
             .map_err(|_| PrivatePaymentError::CryptoUnavailable)?;
         let block = key
             .decrypt(&nonce, &self.ciphertext, transcript_digest)
             .map_err(|_| PrivatePaymentError::MemoNotForYou)?;
-        PaymentPurpose::decode_padded(&block)
+        PaymentNote::decode_padded(&block)
     }
 
     pub(crate) fn write_into(&self, writer: &mut Writer) {
@@ -232,8 +314,9 @@ mod tests {
         let (sender, received) = secrets();
         let digest = [9u8; 32];
         let purpose = PaymentPurpose::new(b"post:abc123".to_vec());
-        let memo = SealedMemo::seal(&purpose, &sender, &digest).unwrap();
-        assert_eq!(memo.open(&received, &digest).unwrap(), purpose);
+        let note = PaymentNote::new(purpose.clone(), 1_000, [7u8; 32]);
+        let memo = SealedMemo::seal(&note, &sender, &digest).unwrap();
+        assert_eq!(memo.open(&received, &digest).unwrap(), note);
     }
 
     #[test]
@@ -241,8 +324,12 @@ mod tests {
         let (sender, _) = secrets();
         let (_, unrelated) = secrets();
         let digest = [1u8; 32];
-        let memo =
-            SealedMemo::seal(&PaymentPurpose::new(b"secret".to_vec()), &sender, &digest).unwrap();
+        let memo = SealedMemo::seal(
+            &PaymentNote::new(PaymentPurpose::new(b"secret".to_vec()), 1, [0u8; 32]),
+            &sender,
+            &digest,
+        )
+        .unwrap();
         assert!(matches!(
             memo.open(&unrelated, &digest),
             Err(PrivatePaymentError::MemoNotForYou)
@@ -255,7 +342,7 @@ mod tests {
         // post X" off a large payment and staple it to a tiny one.
         let (sender, received) = secrets();
         let memo = SealedMemo::seal(
-            &PaymentPurpose::new(b"post:x".to_vec()),
+            &PaymentNote::new(PaymentPurpose::new(b"post:x".to_vec()), 5, [1u8; 32]),
             &sender,
             &[7u8; 32],
         )
@@ -270,11 +357,19 @@ mod tests {
     fn every_memo_is_the_same_size_regardless_of_purpose() {
         let (sender, _) = secrets();
         let digest = [3u8; 32];
-        let empty = SealedMemo::empty_for(&sender, &digest).unwrap();
-        let short =
-            SealedMemo::seal(&PaymentPurpose::new(b"a".to_vec()), &sender, &digest).unwrap();
+        let empty = SealedMemo::empty_for(0, [0u8; 32], &sender, &digest).unwrap();
+        let short = SealedMemo::seal(
+            &PaymentNote::new(PaymentPurpose::new(b"a".to_vec()), 1, [0u8; 32]),
+            &sender,
+            &digest,
+        )
+        .unwrap();
         let long = SealedMemo::seal(
-            &PaymentPurpose::new(vec![0xab; MAX_MEMO_BYTES]),
+            &PaymentNote::new(
+                PaymentPurpose::new(vec![0xab; MAX_MEMO_BYTES]),
+                1,
+                [0u8; 32],
+            ),
             &sender,
             &digest,
         )
@@ -288,7 +383,11 @@ mod tests {
         let (sender, _) = secrets();
         let too_big = PaymentPurpose::new(vec![0u8; MAX_MEMO_BYTES + 1]);
         assert!(matches!(
-            SealedMemo::seal(&too_big, &sender, &[0u8; 32]),
+            SealedMemo::seal(
+                &PaymentNote::new(too_big.clone(), 1, [0u8; 32]),
+                &sender,
+                &[0u8; 32]
+            ),
             Err(PrivatePaymentError::MemoTooLarge { .. })
         ));
     }
@@ -297,8 +396,12 @@ mod tests {
     fn a_tampered_ciphertext_does_not_open() {
         let (sender, received) = secrets();
         let digest = [4u8; 32];
-        let mut memo =
-            SealedMemo::seal(&PaymentPurpose::new(b"hi".to_vec()), &sender, &digest).unwrap();
+        let mut memo = SealedMemo::seal(
+            &PaymentNote::new(PaymentPurpose::new(b"hi".to_vec()), 1, [0u8; 32]),
+            &sender,
+            &digest,
+        )
+        .unwrap();
         memo.ciphertext[0] ^= 0x01;
         assert!(matches!(
             memo.open(&received, &digest),
@@ -308,11 +411,13 @@ mod tests {
 
     #[test]
     fn nonzero_padding_is_refused_so_the_tail_is_not_a_covert_channel() {
-        let mut block = PaymentPurpose::new(b"ok".to_vec()).encode_padded().unwrap();
-        assert!(PaymentPurpose::decode_padded(&block).is_ok());
+        let mut block = PaymentNote::new(PaymentPurpose::new(b"ok".to_vec()), 3, [2u8; 32])
+            .encode_padded()
+            .unwrap();
+        assert!(PaymentNote::decode_padded(&block).is_ok());
         *block.last_mut().unwrap() = 0x01;
         assert!(matches!(
-            PaymentPurpose::decode_padded(&block),
+            PaymentNote::decode_padded(&block),
             Err(PrivatePaymentError::MalformedMemo)
         ));
     }

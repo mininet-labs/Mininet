@@ -92,19 +92,33 @@ complete public transaction graph.
 format exist, *choosing* the private one is itself a signal. Until the
 transparent path is gone, privacy is opt-in, and opt-in privacy is privacy for
 nobody.
-**Blocked in practice by:** R4 — those crates need change and fees before they
-can move.
+**Blocked in practice by:** R5 — R4 shipped the change and fee model these
+crates needed, but without a chain-backed `PrivateLedgerView` no private
+payout can reach `Finalized`, so moving them now would replace a working
+transparent path with one that never settles.
 **Closed by:** the five crates settling only through `mini-private-payment`,
 with a decision recording what each lost or kept.
 
-### R4 — Fees, change, and multi-output claims · `ready`
-One private claim carries one output. A payment cannot pay its own inclusion
-fee, and cannot return change, so it cannot express most real payments.
-**Why it blocks:** R3 cannot happen without it, and a transparent fee attached
+### R4 — Fees, change, and multi-output claims · `done`
+A private claim now spends up to 16 inputs and creates up to 16 outputs, and
+proves `Σ inputs = Σ outputs + fee` without opening a single amount. Change is
+an output paying yourself, built by the same code path as any other, so
+nothing on the wire says which output was the payment.
+**Why it blocked:** R3 cannot happen without it, and a transparent fee attached
 to a shielded payment reintroduces exactly the linkable value the shielded
 path removes.
-**Closed by:** multi-output claims with `verify_balance`, and a fee model that
-does not leak.
+**Closed by:** D-0455 — a two-column MLSAG in `mini-value` binding each
+pseudo-output commitment to the ring member the signer actually controls, the
+balance check in `mini_private_payment::verify`, and the commitment opening
+carried in the sealed memo so a received payment is immediately spendable.
+Claim format v2; v1 claims do not decode, because a v1 claim proved no
+balance.
+**What it did not close:** the fee is public, and so are a claim's input and
+output counts — each is a fingerprint, stated in the crate docs rather than
+papered over. What a fee *should be*, and who collects it, is an economics
+decision this makes possible and does not make. The construction is standard
+RingCT; this implementation of it is still unaudited and still gated behind
+R12.
 
 ### R5 — Chain-backed private ledger view · `ready`
 Nothing implements `PrivateLedgerView` against a real chain, so no private

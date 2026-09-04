@@ -96,3 +96,27 @@ authors = ["The Mininet contributors"]
 # `cargo test --release` keeps working.
 codegen-units = 1
 lto = "thin"
+
+# Optimize the curve arithmetic even in debug builds.
+#
+# `cargo test` (CI's `check` job runs it unoptimized) spends nearly all of its
+# time in Ristretto scalar multiplication: a Bulletproof range proof and a
+# 16-member two-column MLSAG per shielded payment, times a few hundred
+# payments across the test suites. Unoptimized, curve25519-dalek is roughly
+# thirty times slower than optimized, which turned one crate's tests into
+# most of CI's wall clock.
+#
+# This changes speed only. `debug-assertions` and `overflow-checks` stay on,
+# so every `debug_assert!` in this tree -- including the one in
+# `mini_private_payment::build` proving the memos are not part of their own
+# binding digest -- still runs, and an integer overflow still panics rather
+# than wrapping. The cost is that stepping through these three crates in a
+# debugger is less pleasant; the crates they are called *from* are untouched.
+[profile.dev.package.curve25519-dalek]
+opt-level = 3
+
+[profile.dev.package.mini-crypto]
+opt-level = 3
+
+[profile.dev.package.mini-value]
+opt-level = 3

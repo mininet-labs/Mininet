@@ -55,6 +55,45 @@ impl ConfidentialAmountScheme for MininetConfidentialAmount {
     }
 }
 
+/// The Pedersen commitment `b·G_blind + v·H_val`, with **no range proof**.
+///
+/// The commitment is a public value: anyone holding `(v, b)` computes the
+/// same point, which is what lets a recipient check that the opening sealed
+/// in their memo really opens the output they were paid. Producing one is a
+/// pair of scalar multiplications; producing the accompanying Bulletproof is
+/// several orders of magnitude more work, and there are callers that need
+/// only the point.
+///
+/// **A commitment on its own proves nothing.** It does not show the
+/// committed value is in range, so anything entering a claim as an *output*
+/// still needs [`ConfidentialAmountScheme::commit_with_proof`] — a bare
+/// commitment there would let a "negative" amount balance the equation while
+/// minting value. Use this only where the proof is genuinely not part of
+/// what is being checked.
+pub fn pedersen_commitment(amount: u64, blinding_factor: &[u8]) -> Option<[u8; 32]> {
+    let arr: [u8; 32] = blinding_factor.try_into().ok()?;
+    let blinding = Scalar::from_bytes_mod_order(arr);
+    let point = blinding * crate::bp_generators::blinding_generator()
+        + Scalar::from(amount) * crate::bp_generators::value_generator();
+    Some(point.compress().to_bytes())
+}
+
+/// A commitment to a **publicly known** amount: `amount · H_val`, with a
+/// zero blinding factor.
+///
+/// Hiding is the point of every other commitment in this module; this one
+/// deliberately hides nothing, because it commits to a value everyone can
+/// already read off the wire. Its use is the transaction fee: a fee must
+/// enter the balance equation as a commitment so the sums line up, and it
+/// must be publicly checkable so a verifier can confirm the fee actually
+/// charged is the fee declared. A blinded fee would be a fee nobody could
+/// audit.
+pub fn public_amount_commitment(amount: u64) -> [u8; 32] {
+    (Scalar::from(amount) * crate::bp_generators::value_generator())
+        .compress()
+        .to_bytes()
+}
+
 /// Sum a list of compressed commitment points, `None` if any is malformed.
 /// An empty list sums to the identity, so `verify_balance(&[], &[])` is
 /// `true` — vacuously balanced.
@@ -78,6 +117,40 @@ mod tests {
         let blinding = crate::curve::random_scalar().unwrap().to_bytes();
         let (commitment, proof) = scheme.commit_with_proof(1_000, &blinding).unwrap();
         assert!(scheme.verify_range_proof(&commitment, &proof));
+    }
+
+    #[test]
+    fn a_bare_commitment_is_the_same_point_the_proving_path_produces() {
+        // The property that makes `pedersen_commitment` safe to use in place
+        // of the proving path wherever the proof is not what is being
+        // checked. If these ever diverged, every caller that mixes the two
+        // -- a ledger holding bare commitments, a claim proving new ones --
+        // would compute a balance that does not cancel, and the failure
+        // would look like unbalanced amounts rather than like this.
+        let mut scheme = MininetConfidentialAmount;
+        for amount in [0u64, 1, 1_000, u64::MAX] {
+            let blinding = crate::curve::random_scalar().unwrap().to_bytes();
+            let (proven, _) = scheme.commit_with_proof(amount, &blinding).unwrap();
+            let bare = pedersen_commitment(amount, &blinding).unwrap();
+            assert_eq!(proven.as_slice(), &bare[..], "amount {amount}");
+        }
+    }
+
+    #[test]
+    fn a_bare_commitment_rejects_a_malformed_blinding_factor() {
+        assert_eq!(pedersen_commitment(1, b"too-short"), None);
+    }
+
+    #[test]
+    fn bare_commitments_balance_exactly_as_proven_ones_do() {
+        let scheme = MininetConfidentialAmount;
+        let b_in1 = crate::curve::random_scalar().unwrap();
+        let b_in2 = crate::curve::random_scalar().unwrap();
+        let b_out = b_in1 + b_in2;
+        let in1 = pedersen_commitment(30, &b_in1.to_bytes()).unwrap();
+        let in2 = pedersen_commitment(12, &b_in2.to_bytes()).unwrap();
+        let out = pedersen_commitment(42, &b_out.to_bytes()).unwrap();
+        assert!(scheme.verify_balance(&[in1.to_vec(), in2.to_vec()], &[out.to_vec()]));
     }
 
     #[test]
