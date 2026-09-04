@@ -832,7 +832,7 @@
       "status": "active",
       "contributor": "claude-agent",
       "branch": "claude/governance-exception-parsing",
-      "pull_request": null,
+      "pull_request": 309,
       "lease_expires": "2026-09-11",
       "paths": [
         "tools/check_governance.py",
