@@ -1695,7 +1695,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 25117,
+      "bytes": 25122,
       "group": "root",
       "headings": [
         {
@@ -1767,7 +1767,7 @@
       ],
       "lines": 404,
       "path": "README.md",
-      "sha256": "83b8d0e958863fd4507f1ebe6aea1634b75d7aa721a0b89b535289944a487874",
+      "sha256": "1d79fd768d2d5e70b8696be4fdba4beee5687664f549c2e8ba4738d044a4788e",
       "symbols": [],
       "title": "Mininet"
     },
@@ -73551,7 +73551,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1034021,
+      "bytes": 1037260,
       "group": "docs",
       "headings": [
         {
@@ -73975,15 +73975,15 @@
         "local",
         "release",
         "signed",
-        "phase",
         "roadmap",
+        "phase",
         "first",
         "transport",
         "status"
       ],
-      "lines": 17115,
+      "lines": 17171,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "93361311ad56927ebeb39d7ceeda006edf6341c8259df7d89f7a32eb8d072406",
+      "sha256": "d01a446964864f1d209fbf5d4ab1d2cf022773b4850b0e33a5585179ef027273",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -74998,7 +74998,7 @@
       "title": "Mininet roadmap: from two-phone proof to self-governed network"
     },
     {
-      "bytes": 12923,
+      "bytes": 13114,
       "group": "docs",
       "headings": [
         {
@@ -75024,158 +75024,158 @@
         {
           "level": 3,
           "line": 56,
-          "text": "R1 \u2014 Governance validator reads data, not commentary \u00b7 `active`"
+          "text": "R1 \u2014 Governance validator reads data, not commentary \u00b7 `done`"
         },
         {
           "level": 3,
-          "line": 66,
-          "text": "R2 \u2014 A green, meaningful CI baseline on `main` \u00b7 `blocked`"
+          "line": 65,
+          "text": "R2 \u2014 A green, meaningful CI baseline on `main` \u00b7 `active`"
         },
         {
           "level": 1,
-          "line": 77,
+          "line": 79,
           "text": "Phase 2 \u2014 Finish the money layer so it can be audited as one thing"
         },
         {
           "level": 3,
-          "line": 84,
+          "line": 86,
           "text": "R3 \u2014 Retire the transparent payment path \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 98,
+          "line": 100,
           "text": "R4 \u2014 Fees, change, and multi-output claims \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 107,
+          "line": 109,
           "text": "R5 \u2014 Chain-backed private ledger view \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 114,
+          "line": 116,
           "text": "R6 \u2014 Amount disclosure for accounts that choose it \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 123,
+          "line": 125,
           "text": "R7 \u2014 Decoy weights fitted to real traffic \u00b7 `blocked`"
         },
         {
           "level": 1,
-          "line": 131,
+          "line": 133,
           "text": "Phase 3 \u2014 Make the network a network"
         },
         {
           "level": 3,
-          "line": 133,
+          "line": 135,
           "text": "R8 \u2014 Consensus production gaps \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 144,
+          "line": 146,
           "text": "R9 \u2014 KEL freshness and witnesses (M3) \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 151,
+          "line": 153,
           "text": "R10 \u2014 BLE and local-radio transport \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 158,
+          "line": 160,
           "text": "R11 \u2014 A client application people can actually use \u00b7 `ready`"
         },
         {
           "level": 1,
-          "line": 167,
+          "line": 169,
           "text": "Phase 4 \u2014 The gates code cannot close"
         },
         {
           "level": 3,
-          "line": 174,
+          "line": 176,
           "text": "R12 \u2014 External cryptography audit \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 185,
+          "line": 187,
           "text": "R13 \u2014 FROST DKG audit \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 191,
+          "line": 193,
           "text": "R14 \u2014 Legal counsel review \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 195,
+          "line": 197,
           "text": "R15 \u2014 Sybil resistance and personhood \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 207,
+          "line": 209,
           "text": "R16 \u2014 Tokenomics validation \u00b7 `outside`"
         },
         {
           "level": 1,
-          "line": 215,
+          "line": 217,
           "text": "Phase 5 \u2014 Release engineering"
         },
         {
           "level": 3,
-          "line": 217,
+          "line": 219,
           "text": "R17 \u2014 Adversarial testing at real-world scale \u00b7 `blocked`"
         },
         {
           "level": 3,
-          "line": 224,
+          "line": 226,
           "text": "R18 \u2014 Genesis, validator set, and activation \u00b7 `blocked`"
         },
         {
           "level": 3,
-          "line": 231,
+          "line": 233,
           "text": "R19 \u2014 Release, install, and rollback on real targets \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 239,
+          "line": 241,
           "text": "R20 \u2014 The honest launch statement \u00b7 `blocked`"
         },
         {
           "level": 2,
-          "line": 252,
+          "line": 254,
           "text": "What is deliberately *not* on this list"
         }
       ],
       "keywords": [
-        "blocked",
         "ready",
+        "what",
         "real",
         "outside",
-        "what",
+        "blocked",
+        "one",
         "closed",
         "release",
         "phase",
-        "one",
-        "cannot",
-        "row",
-        "path",
-        "every",
         "main",
-        "transparent",
+        "row",
+        "cannot",
+        "done",
+        "green",
         "change",
+        "actually",
         "audit",
-        "blocks",
-        "red",
+        "every",
         "status",
         "governance",
-        "payment",
-        "private",
-        "actually"
+        "validator",
+        "transparent",
+        "path",
+        "private"
       ],
-      "lines": 264,
+      "lines": 266,
       "path": "docs/ROADMAP_TO_RELEASE.md",
-      "sha256": "139e1261bb1bc669cd2cf406fdc9a9e6a601feafc3a76dd4bac48a6c73aa28dc",
+      "sha256": "5fb0a3c400cbc47309c10411283c20af2f36613f1a88a5e380fbe65dd25542f3",
       "symbols": [],
       "title": "The road to release"
     },
@@ -91586,7 +91586,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 48864,
+      "bytes": 49930,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -91615,9 +91615,9 @@
         "independently",
         "both"
       ],
-      "lines": 867,
+      "lines": 885,
       "path": "governance/work-claims.json",
-      "sha256": "d7ea9bd0474b1a87c84fdf75656a8980900405c33df85c880edfb3cbc3396e19",
+      "sha256": "f865f613f7a0e9e1abd840453c4cb7008f0b9ef6343292c07aab19ffe1e4fac1",
       "symbols": [],
       "title": "{"
     },
@@ -92068,7 +92068,7 @@
       "title": "\"\"\"Reference Mininet bootstrap governance validator."
     },
     {
-      "bytes": 7748,
+      "bytes": 7427,
       "group": "tools",
       "headings": [],
       "keywords": [
@@ -92076,9 +92076,9 @@
         "errors",
         "str",
         "item_id",
+        "done",
         "blocked",
         "fail",
-        "done",
         "item",
         "items",
         "decision",
@@ -92095,11 +92095,11 @@
         "compile",
         "list",
         "title",
-        "blocker"
+        "statuses"
       ],
-      "lines": 219,
+      "lines": 215,
       "path": "tools/check_roadmap.py",
-      "sha256": "3a26f6bf6c3e04d699628f791ab08f1af5f542fdf5c89da22f6abdebdca2ea0d",
+      "sha256": "d16d75bc0603472fc5ad85058c08da6f8ebfa1c2ce69cda5526ab296d33a089c",
       "symbols": [],
       "title": "\"\"\"Keep the release roadmap consistent with itself and with the README."
     },
@@ -92581,7 +92581,7 @@
       "title": "The five canonical documents \u2014 read order for any non-trivial task"
     },
     {
-      "bytes": 6246,
+      "bytes": 6916,
       "group": "tools",
       "headings": [
         {
@@ -92597,33 +92597,33 @@
       ],
       "keywords": [
         "self",
-        "roadmap",
         "errors",
+        "roadmap",
         "active",
         "ready",
         "blocked",
         "thing",
         "replace",
-        "check",
         "error",
+        "done",
+        "check",
         "summary",
         "def",
         "second",
         "none",
         "items",
         "outside",
-        "asserttrue",
         "first",
         "root",
-        "warnings",
+        "asserttrue",
         "import",
         "spec",
         "str",
-        "done"
+        "path"
       ],
-      "lines": 148,
+      "lines": 161,
       "path": "tools/test_check_roadmap.py",
-      "sha256": "abbcff64541badc9905a5afb40e048cb826e3af492f905daa8cc191860f17014",
+      "sha256": "f2f8ae3642ac7de37de20771a16516b2cd056be0ab1f24e965684a4eadaec7ad",
       "symbols": [],
       "title": "R1 \u2014 First thing \u00b7 `active`"
     },

@@ -286,13 +286,13 @@ The full account, with what would actually close each item, is
 <!-- ROADMAP-SUMMARY-BEGIN -->
 | Phase | Critical path | Status |
 |---|---|---|
-| **1. Trustworthy tree** | Governance validator reads data not commentary (R1); green CI baseline (R2) | 1 active, 1 blocked |
+| **1. Trustworthy tree** | Governance validator reads data not commentary (R1); green CI baseline (R2) | 1 done, 1 active |
 | **2. Money layer, auditable as one thing** | Retire the transparent payment path (R3); fees, change and multi-output (R4); chain-backed private ledger view (R5); amount disclosure (R6); decoy weights fitted to real traffic (R7) | 4 ready, 1 blocked |
 | **3. A network, not a protocol** | Consensus production gaps (R8); KEL freshness and witnesses (R9); BLE transport on real hardware (R10); a usable client (R11) | 3 ready, 1 outside |
 | **4. Gates code cannot close** | External cryptography audit (R12); FROST DKG audit (R13); legal counsel (R14); Sybil resistance and personhood (R15); tokenomics validation (R16) | 5 outside |
 | **5. Release engineering** | Adversarial testing at scale (R17); genesis and validator set (R18); install and rollback on real targets (R19); the honest launch statement (R20) | 1 ready, 3 blocked |
 
-**20 items: 1 active, 8 ready, 5 blocked, 6 outside.**
+**20 items: 1 done, 1 active, 8 ready, 4 blocked, 6 outside.**
 <!-- ROADMAP-SUMMARY-END -->
 
 `outside` means **this repository cannot close it** — it needs an auditor,

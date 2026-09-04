@@ -16,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 SUMMARY = """<!-- ROADMAP-SUMMARY-BEGIN -->
 R1 R2
-**2 items: 1 active, 1 ready, 0 blocked, 0 outside.**
+**2 items: 0 done, 1 active, 1 ready, 0 blocked, 0 outside.**
 <!-- ROADMAP-SUMMARY-END -->
 """
 
@@ -59,8 +59,8 @@ class RoadmapCheckerTests(unittest.TestCase):
         # own word.
         roadmap = ROADMAP.replace("· `active`", "· `done`")
         readme = SUMMARY.replace(
-            "**2 items: 1 active, 1 ready, 0 blocked, 0 outside.**",
-            "**2 items: 0 active, 1 ready, 0 blocked, 0 outside.**",
+            "**2 items: 0 done, 1 active, 1 ready, 0 blocked, 0 outside.**",
+            "**2 items: 1 done, 0 active, 1 ready, 0 blocked, 0 outside.**",
         )
         errors, _ = self.check(roadmap, readme)
         self.assertTrue(any("cites no D-number" in error for error in errors), errors)
@@ -73,8 +73,8 @@ class RoadmapCheckerTests(unittest.TestCase):
             "### R1 — First thing · `done`\n**Closed by:** D-9999.",
         )
         readme = SUMMARY.replace(
-            "**2 items: 1 active, 1 ready, 0 blocked, 0 outside.**",
-            "**2 items: 0 active, 1 ready, 0 blocked, 0 outside.**",
+            "**2 items: 0 done, 1 active, 1 ready, 0 blocked, 0 outside.**",
+            "**2 items: 1 done, 0 active, 1 ready, 0 blocked, 0 outside.**",
         )
         errors, _ = self.check(roadmap, readme, decisions="### D-0001 — real\n")
         self.assertTrue(any("D-9999" in error for error in errors), errors)
@@ -85,14 +85,13 @@ class RoadmapCheckerTests(unittest.TestCase):
             "### R1 — First thing · `done`\n**Closed by:** D-0001.",
         )
         readme = SUMMARY.replace(
-            "**2 items: 1 active, 1 ready, 0 blocked, 0 outside.**",
-            "**2 items: 0 active, 1 ready, 0 blocked, 0 outside.**",
+            "**2 items: 0 done, 1 active, 1 ready, 0 blocked, 0 outside.**",
+            "**2 items: 1 done, 0 active, 1 ready, 0 blocked, 0 outside.**",
         )
-        errors, warnings = self.check(
+        errors, _ = self.check(
             roadmap, readme, decisions="### D-0001 — a real entry\n"
         )
         self.assertEqual([], errors)
-        self.assertTrue(any("are done" in warning for warning in warnings), warnings)
 
     def test_blocked_without_a_named_blocker_fails(self) -> None:
         roadmap = ROADMAP.replace("### R2 — Second thing · `ready`", "### R2 — Second thing · `blocked`")
@@ -133,6 +132,20 @@ class RoadmapCheckerTests(unittest.TestCase):
         self.assertTrue(
             any("ROADMAP-SUMMARY block" in error for error in errors), errors
         )
+
+    def test_a_done_count_that_disagrees_with_the_readme_fails(self) -> None:
+        # Completed work is counted on the front page now (D-0453's named
+        # follow-up). Before this, `done` items silently left the summary and
+        # the totals still validated -- so finishing an item made the front
+        # page quietly less accurate.
+        roadmap = ROADMAP.replace(
+            "### R1 — First thing · `active`\nBody.",
+            "### R1 — First thing · `done`\n**Closed by:** D-0001.",
+        )
+        errors, _ = self.check(
+            roadmap, SUMMARY, decisions="### D-0001 — a real entry\n"
+        )
+        self.assertTrue(any("done" in error for error in errors), errors)
 
     def test_the_real_repository_roadmap_is_consistent(self) -> None:
         # The check that actually matters day to day: this repository's own

@@ -53,19 +53,21 @@ Small, unglamorous, and first, because everything downstream is measured by
 CI and by the governance validators. While these are red, no other claim in
 this repository can be checked cheaply.
 
-### R1 — Governance validator reads data, not commentary · `active`
+### R1 — Governance validator reads data, not commentary · `done`
 The exceptions scan counted a commented-out template example as a live
 governance exception, turning `governance-policy` on `main` red and
-`canonical-governance` red on every open pull request. Also gives that check
+`canonical-governance` red on every open pull request. Also gave that check
 its first tests in either direction.
-**Closed by:** D-0452 / PR #309.
-**Why it blocks:** a red baseline makes every later gate harder to evidence,
-and the check that guards D-0083's founder-only integration path had no test
-at all.
+**Closed by:** D-0452 / PR #309, merged 2026-09-04. `governance-policy` on
+`main` is green again on the two merge commits since, and the validator suite
+passes there (111 tests).
 
-### R2 — A green, meaningful CI baseline on `main` · `blocked`
-**Blocked by:** R1.
-After R1, `main` should be green across `ci`, `governance-policy`,
+### R2 — A green, meaningful CI baseline on `main` · `active`
+R1 is done, so this is no longer blocked. `governance-policy` is green on
+`main`; what R2 actually names has not happened yet — a **scheduled** run
+passing end to end, which is the one that caught the last two failures days
+after a merge.
+`main` should be green across `ci`, `governance-policy`,
 `governance-canonical`, `reproducibility` and the Android workflows. Any
 remaining red is either a real defect or a check that needs to be honest about
 what it measures.

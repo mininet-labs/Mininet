@@ -845,7 +845,7 @@
     },
     {
       "issue": 92,
-      "status": "active",
+      "status": "closed",
       "contributor": "claude-agent",
       "branch": "claude/release-roadmap",
       "pull_request": 310,
@@ -860,7 +860,25 @@
       "decision_ids": [
         "D-0453"
       ],
-      "notes": "D-0453: a published critical path to release. docs/ROADMAP_TO_RELEASE.md is the single ordered account of what stands between today and public release -- 20 items in 5 phases, each naming what would close it and who can close it -- with a summary table on the README front page. Six items are marked outside: they need an auditor, counsel, a researcher, real hardware, or a founder decision, and no engineering closes them. No date is set and the absence is stated rather than implied. tools/check_roadmap.py runs in CI and fails when the README and the detail document disagree or when a done row cites a D-number that does not exist. Points at #99 for the external gates rather than restating its checkboxes, so a gate is closed in one place only. Coordination evidence only, not approval or authority. The update ritual is stated in the roadmap document itself and enforced by check_roadmap.py rather than added to CLAUDE.md: instruction surfaces must be byte-identical to canonical, and an agent editing its own instructions inside an unrelated proposal is exactly what that guard exists to catch."
+      "notes": "D-0453: a published critical path to release. docs/ROADMAP_TO_RELEASE.md is the single ordered account of what stands between today and public release -- 20 items in 5 phases, each naming what would close it and who can close it -- with a summary table on the README front page. Six items are marked outside: they need an auditor, counsel, a researcher, real hardware, or a founder decision, and no engineering closes them. No date is set and the absence is stated rather than implied. tools/check_roadmap.py runs in CI and fails when the README and the detail document disagree or when a done row cites a D-number that does not exist. Points at #99 for the external gates rather than restating its checkboxes, so a gate is closed in one place only. Coordination evidence only, not approval or authority. The update ritual is stated in the roadmap document itself and enforced by check_roadmap.py rather than added to CLAUDE.md: instruction surfaces must be byte-identical to canonical, and an agent editing its own instructions inside an unrelated proposal is exactly what that guard exists to catch. Closed 2026-09-04: PR #310 merged."
+    },
+    {
+      "issue": 92,
+      "status": "active",
+      "contributor": "claude-agent",
+      "branch": "claude/roadmap-r1-done",
+      "pull_request": 311,
+      "lease_expires": "2026-09-11",
+      "paths": [
+        "docs/ROADMAP_TO_RELEASE.md",
+        "tools/check_roadmap.py",
+        "tools/test_check_roadmap.py",
+        "README.md"
+      ],
+      "decision_ids": [
+        "D-0454"
+      ],
+      "notes": "D-0454: R1 closed when D-0452/PR #309 merged, producing the roadmap first done item, and the gap showed immediately -- the README summary counted only the five open statuses, so finishing an item made the front page quietly less accurate while the checker still passed. Twenty items summed to nineteen and nothing complained. The summary line now counts done and the checker requires it to match. R1 -> done, R2 -> active (its exit criterion is a scheduled main run, which has not happened since the fix). Discharges D-0453 second required follow-up. Coordination evidence only, not approval or authority."
     }
   ]
 }
