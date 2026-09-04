@@ -277,9 +277,9 @@ fn one_creator_paid_by_many_readers_has_no_public_income_ledger() {
         &creator.view_secret_bytes(),
         &creator.spend_public_bytes(),
         claims.iter(),
-    )
-    .unwrap();
-    assert_eq!(mine.len(), 5);
+    );
+    assert_eq!(mine.payments.len(), 5);
+    assert!(mine.unreadable.is_empty());
 }
 
 #[test]

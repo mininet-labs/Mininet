@@ -214,9 +214,16 @@ so, everywhere, on purpose.
   output), amount (Pedersen commitment + range proof), and purpose (a memo
   sealed to the recipient), and drops the transparent claim's per-payer
   `sequence` counter entirely. M1/M2/M3 unchanged — the key image is the
-  double-spend conflict key. The key image is linkable by design, decoy
-  quality is the caller's problem, and network-level privacy is
-  `mini-relay`'s job; see `docs/design/private-payment-path.md`
+  double-spend conflict key. Decoy selection is a **protocol rule** rather
+  than a wallet setting (D-0449): recency-weighted, integer-only sampling
+  from a local output set, because wallets that sample differently make
+  their own users identifiable. Auditability is a **self-disclosure**, not a
+  format (D-0451): nothing is public by default, and an account that wants
+  to be checkable publishes its view key — keeping a transparent format
+  alongside would have made the choice to be private a signal in itself.
+  The key image is linkable by design, an audit reveals income but never
+  amounts or spending, and network-level privacy is `mini-relay`'s job; see
+  `docs/design/private-payment-path.md`
 - deterministic D-0074 issuance envelopes and equal-allocation genesis
   manifests (`mini-economy`, D-0413), plus a cohort-based 200-year
   calibration harness (`mini-econ-sim`) — proposal code only; no mint,
@@ -315,9 +322,11 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0439`
-   (`D-0439`, the Mininet Node Appliance deployment profile, is the newest at
-   the time of this edit),
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0451`
+   (`D-0451`, auditability as a self-disclosure rather than a transparent
+   payment format, is the newest at the time of this edit; the Mininet Node
+   Appliance deployment profile this line previously credited to `D-0439` is
+   `D-0446` — `D-0439` is the identity-bound replica-registration decision),
    plus the networking/consensus track's reserved `D-0200`–`D-0206`, the
    privacy/cost-doctrine track's `D-0300`–, and the edge/provider-layer
    track's `D-0400`– — see the log's "Decision-number allocation across

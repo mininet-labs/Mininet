@@ -387,6 +387,47 @@ given time.
   weak devices. The golden vectors were decoupled from `MIN_RING_SIZE` in
   the same change: they had been built from the constant, so raising it
   moved the digests and cried "wire format changed" when nothing had.
+- **shipped (D-0451)** — auditability is a disclosure a party makes about
+  itself, never a property of the payment format. The tempting alternative
+  was to keep the transparent `mini_settlement::PaymentClaim` alongside the
+  private path for payments that must be checkable — treasury disbursements
+  above all. That is a trap: **if both formats exist, choosing the private
+  one is itself a signal**, so every private payment carries an implicit
+  "why did this person need privacy?" and privacy that must be opted into is
+  privacy for nobody. It is D-0449's argument with the volume up — there a
+  per-wallet decoy policy had to be *inferred* from ring shape; a format
+  choice is on the wire for everyone. So nothing is public by default and an
+  account that wants to be auditable publishes its view key
+  (`ViewKeyDisclosure`); anyone can then `audit` its income, and the
+  treasury is answerable without a single counterparty being exposed who did
+  not choose it. `audit` is literally `scan` returning literally
+  `ScanOutcome`, because disclosure grants the public the holder's *reading*
+  ability and not one capability more; a richer audit-only result type would
+  have been the first step toward "audited" meaning "more exposed than the
+  owner". Creating a disclosure takes a typed
+  `AcknowledgedIrreversibleDisclosure` — a phrase written out verbatim, the
+  `OwnerApproval` discipline applied to an authority that destroys privacy
+  rather than moves money — because publishing a view key is retroactive
+  (it decrypts payments received *before* it), irrevocable, and exposes
+  memos written by senders who were never asked.
+  **What it does not do:** an audit sees **income only** — a view key
+  cannot show what an account spent. **Amounts stay hidden**: a Pedersen
+  commitment is not opened by a view key, so an audit sees which payments
+  arrived and what they were for, never how much they were worth, which is
+  a real gap between this and what most people hear in "audit". It proves
+  **nothing about completeness** — no cryptography can show a disclosed
+  account is the only one its holder controls. Anyone can pay a published
+  address, so a non-empty `ScanOutcome::unreadable` is not evidence the
+  discloser hid anything. And the transparent path in `mini-contribution`,
+  `mini-engagement`, `mini-bounty`, `mini-execution` and `mini-chain` is
+  **not removed** — only the prerequisite for removing it now exists.
+  Along the way this fixed a live availability defect in D-0447's merged
+  `scan`, which returned `Result` and propagated one claim's memo failure:
+  since an account's public keys are published, **any** stranger could pay
+  it with a memo sealed under a key it cannot derive — a claim that
+  verifies, is recognized, and does not open — and one of those blanked
+  every payment the wallet had ever received. `scan` is now total.
+  14 disclosure tests plus 2 scan-resilience tests.
 - **prototype** — `mini-treasury`: FROST threshold signing (D-0041), live
   multi-process demo, real distributed key generation and committee
   resharing (D-0060, closes D-0048's DKG gap — Pedersen DKG with a

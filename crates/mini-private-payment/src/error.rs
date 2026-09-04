@@ -81,6 +81,16 @@ pub enum PrivatePaymentError {
     /// ring is impossible without repeating members — which would look like
     /// anonymity and provide none.
     OutputSetTooSmall { got: usize, need: usize },
+    /// A published disclosure key is not a well-formed stealth key: not 32
+    /// bytes, not a canonical encoding, zero, or the spend and view keys are
+    /// the same key.
+    MalformedDisclosureKey,
+    /// A disclosure's view secret is not the discrete log of the view public
+    /// key it was published beside — so it names an account it cannot
+    /// actually read. Refused rather than accepted, because an audit run
+    /// against it would find nothing and be indistinguishable from an
+    /// audit of an account that received nothing.
+    DisclosureKeyMismatch,
     /// A local cryptographic operation failed (CSPRNG, AEAD, KDF). Never
     /// caused by peer input.
     CryptoUnavailable,
@@ -149,6 +159,12 @@ impl core::fmt::Display for PrivatePaymentError {
                 f,
                 "output set holds {got}, need at least {need} for a full ring"
             ),
+            PrivatePaymentError::MalformedDisclosureKey => {
+                write!(f, "a disclosed key is not a well-formed stealth key")
+            }
+            PrivatePaymentError::DisclosureKeyMismatch => {
+                write!(f, "the disclosed secret does not open the named account")
+            }
             PrivatePaymentError::CryptoUnavailable => {
                 write!(f, "a local cryptographic operation failed")
             }

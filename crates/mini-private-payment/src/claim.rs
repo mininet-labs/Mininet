@@ -153,6 +153,29 @@ impl VerifiedPrivateClaim {
     pub fn open_memo(&self, shared: &StealthSharedSecret) -> Result<PaymentPurpose> {
         self.claim.memo.open(shared, &self.binding_digest)
     }
+
+    /// Fabricate the one claim shape [`build`] cannot produce: a payment
+    /// that really is addressed to a recipient, whose memo that recipient
+    /// cannot open.
+    ///
+    /// Reachable in the wild, unreachable through this crate. [`build`]
+    /// seals every memo with the same shared secret it derived the output
+    /// from, and [`verify`] rejects a memo edited afterwards because the
+    /// signature covers it. But a hostile *encoder* is bound by neither: it
+    /// can derive a correct stealth output, seal the memo under a key the
+    /// recipient will never derive, and sign that transcript honestly. The
+    /// result verifies, is recognized, and will not open.
+    ///
+    /// Crate-internal and test-only, because it exists solely so
+    /// [`crate::scan`] can be tested against a claim a stranger could
+    /// actually send. Exposing it would be handing out a memo-corrupting
+    /// constructor for no legitimate purpose.
+    #[cfg(test)]
+    pub(crate) fn fabricate_unopenable_memo(mut self) -> Self {
+        let tail = self.claim.memo.ciphertext.len() - 1;
+        self.claim.memo.ciphertext[tail] ^= 0xff;
+        self
+    }
 }
 
 impl PrivatePaymentClaim {

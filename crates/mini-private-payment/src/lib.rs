@@ -74,6 +74,29 @@
 //!   payment can reach [`mini_settlement::SettlementState::Finalized`] in
 //!   production.
 //!
+//! # Auditability without a transparent format (D-0451)
+//!
+//! Some payments should be checkable by anyone — a treasury disbursement
+//! most obviously. The tempting answer is to keep the transparent
+//! `mini_settlement::PaymentClaim` path alongside this one and use it for
+//! those. That is the wrong shape: **if both formats exist, choosing the
+//! private one is itself a signal.** Privacy that must be opted into is
+//! privacy for nobody, because the people who most need it are exactly the
+//! ones whose opting-in stands out.
+//!
+//! So auditability is a property a party asserts *about itself*, not a
+//! property of the format. Nothing is public by default; an account that
+//! wants to be auditable publishes its view key ([`ViewKeyDisclosure`]) and
+//! anyone can then [`audit`] its income. The treasury can be fully
+//! accountable without exposing anyone else.
+//!
+//! Disclosure is retroactive, irrevocable, and exposes the memos of senders
+//! who never agreed to it, so [`ViewKeyDisclosure::create`] takes a typed
+//! [`AcknowledgedIrreversibleDisclosure`] rather than a flag. It reveals
+//! *income only* — a view key cannot show what an account spent — and it
+//! proves nothing about completeness, since no cryptography can show a
+//! disclosed account is the only one its holder controls.
+//!
 //! # The voice/value wall
 //!
 //! This is a **value** crate (P1, Directive 16). It depends on
@@ -108,6 +131,7 @@
 mod claim;
 mod codec;
 mod decoy;
+mod disclosure;
 mod error;
 mod memo;
 mod nullifier;
@@ -121,8 +145,12 @@ pub use claim::{
 };
 pub use codec::MAX_FIELD_BYTES;
 pub use decoy::{select_ring, InMemoryOutputSet, OutputSet, AGE_WEIGHTS, DECOY_DOMAIN};
+pub use disclosure::{
+    audit, verify_disclosure, AcknowledgedIrreversibleDisclosure, VerifiedDisclosure,
+    ViewKeyDisclosure, DISCLOSURE_DOMAIN, DISCLOSURE_VERSION,
+};
 pub use error::{DecodeFailure, PrivatePaymentError, Result};
 pub use memo::{PaymentPurpose, SealedMemo, MAX_MEMO_BYTES, MEMO_KDF_INFO, MEMO_PADDED_BYTES};
 pub use nullifier::{KeyImageSet, SpendOutcome};
 pub use reconcile::{reconcile, InMemoryPrivateLedger, PrivateLedgerView};
-pub use scan::{recognizes, scan, scan_one, RecognizedPayment};
+pub use scan::{recognizes, scan, scan_one, RecognizedPayment, ScanOutcome};

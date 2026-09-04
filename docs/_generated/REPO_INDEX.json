@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 73,
-    "files": 898,
-    "headings": 3106,
-    "rust_symbols": 8636
+    "files": 900,
+    "headings": 3113,
+    "rust_symbols": 8695
   },
   "crates": {
     "did-mini": {
@@ -1695,7 +1695,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 21718,
+      "bytes": 22428,
       "group": "root",
       "headings": [
         {
@@ -1715,22 +1715,22 @@
         },
         {
           "level": 2,
-          "line": 268,
+          "line": 275,
           "text": "Start here"
         },
         {
           "level": 2,
-          "line": 280,
+          "line": 287,
           "text": "Beta testing and contributing"
         },
         {
           "level": 2,
-          "line": 304,
+          "line": 311,
           "text": "The canonical documents"
         },
         {
           "level": 2,
-          "line": 349,
+          "line": 358,
           "text": "License"
         }
       ],
@@ -1760,9 +1760,9 @@
         "path",
         "switch"
       ],
-      "lines": 353,
+      "lines": 362,
       "path": "README.md",
-      "sha256": "a36b29323ad01038f710b26b6a9a3bf5f10844fd625119a5ac40b14d87b86bc8",
+      "sha256": "184cca70d414b71478e1da8c9e7abf7d239f589dfb3bcd6c9dd4f4c6c19c5eda",
       "symbols": [],
       "title": "Mininet"
     },
@@ -44033,7 +44033,7 @@
       "title": "The three privacy primitives this crate composes -- stealth addresses,"
     },
     {
-      "bytes": 20246,
+      "bytes": 21407,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -44062,9 +44062,9 @@
         "image",
         "purpose"
       ],
-      "lines": 492,
+      "lines": 515,
       "path": "crates/mini-private-payment/src/claim.rs",
-      "sha256": "d01e72fd0452c1b5508729b22e318a3525df85ae878aaba99b92e564e3994463",
+      "sha256": "c8dd31bf4df0316fc475eb662aeb2bc1954f46bc64ffd6378d78040ff7ee8028",
       "symbols": [
         {
           "kind": "const",
@@ -44138,62 +44138,62 @@
         },
         {
           "kind": "impl",
-          "line": 158,
+          "line": 181,
           "name": "PrivatePaymentClaim"
         },
         {
           "kind": "fn",
-          "line": 175,
+          "line": 198,
           "name": "binding_transcript"
         },
         {
           "kind": "fn",
-          "line": 194,
+          "line": 217,
           "name": "binding_digest"
         },
         {
           "kind": "fn",
-          "line": 205,
+          "line": 228,
           "name": "transcript"
         },
         {
           "kind": "fn",
-          "line": 214,
+          "line": 237,
           "name": "transcript_digest"
         },
         {
           "kind": "fn",
-          "line": 219,
+          "line": 242,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 233,
+          "line": 256,
           "name": "decode"
         },
         {
           "kind": "fn",
-          "line": 309,
+          "line": 332,
           "name": "ring_is_canonical"
         },
         {
           "kind": "fn",
-          "line": 314,
+          "line": 337,
           "name": "canonicalize_ring"
         },
         {
           "kind": "struct",
-          "line": 321,
+          "line": 344,
           "name": "PaymentRequest"
         },
         {
           "kind": "fn",
-          "line": 361,
+          "line": 384,
           "name": "build"
         },
         {
           "kind": "fn",
-          "line": 437,
+          "line": 460,
           "name": "verify"
         }
       ],
@@ -44584,38 +44584,190 @@
       "title": "use mini_crypto::HashAlgorithm;"
     },
     {
-      "bytes": 7709,
+      "bytes": 13962,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
-        "decodefailure",
+        "account",
+        "key",
+        "view",
+        "disclosure",
+        "one",
+        "does",
+        "what",
+        "acknowledgedirreversibledisclosure",
+        "every",
+        "payments",
+        "anyone",
+        "treasury",
+        "payment",
+        "private",
+        "did",
+        "its",
+        "publishing",
+        "there",
+        "caller",
+        "viewkeydisclosure",
+        "itself",
+        "format",
+        "privacy",
+        "people"
+      ],
+      "lines": 330,
+      "path": "crates/mini-private-payment/src/disclosure.rs",
+      "sha256": "0e3a9cb359368191fb7a6662f77cfbd7e566a2c79b3fcf116d588afb09d6b0f8",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 73,
+          "name": "DISCLOSURE_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 76,
+          "name": "DISCLOSURE_VERSION"
+        },
+        {
+          "kind": "struct",
+          "line": 89,
+          "name": "AcknowledgedIrreversibleDisclosure"
+        },
+        {
+          "kind": "impl",
+          "line": 93,
+          "name": "AcknowledgedIrreversibleDisclosure"
+        },
+        {
+          "kind": "const",
+          "line": 95,
+          "name": "REQUIRED_ACKNOWLEDGEMENT"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "new"
+        },
+        {
+          "kind": "struct",
+          "line": 127,
+          "name": "ViewKeyDisclosure"
+        },
+        {
+          "kind": "struct",
+          "line": 139,
+          "name": "VerifiedDisclosure"
+        },
+        {
+          "kind": "impl",
+          "line": 144,
+          "name": "VerifiedDisclosure"
+        },
+        {
+          "kind": "fn",
+          "line": 145,
+          "name": "disclosure"
+        },
+        {
+          "kind": "fn",
+          "line": 150,
+          "name": "digest"
+        },
+        {
+          "kind": "impl",
+          "line": 155,
+          "name": "ViewKeyDisclosure"
+        },
+        {
+          "kind": "fn",
+          "line": 162,
+          "name": "create"
+        },
+        {
+          "kind": "fn",
+          "line": 181,
+          "name": "spend_public"
+        },
+        {
+          "kind": "fn",
+          "line": 186,
+          "name": "view_public"
+        },
+        {
+          "kind": "fn",
+          "line": 192,
+          "name": "view_secret"
+        },
+        {
+          "kind": "fn",
+          "line": 199,
+          "name": "reason"
+        },
+        {
+          "kind": "fn",
+          "line": 207,
+          "name": "disclosed_at_ms"
+        },
+        {
+          "kind": "fn",
+          "line": 212,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 224,
+          "name": "decode"
+        },
+        {
+          "kind": "fn",
+          "line": 249,
+          "name": "digest"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
+          "name": "verify_disclosure"
+        },
+        {
+          "kind": "fn",
+          "line": 320,
+          "name": "audit"
+        }
+      ],
+      "title": "use mini_crypto::HashAlgorithm;"
+    },
+    {
+      "bytes": 8596,
+      "group": "crate:mini-private-payment",
+      "headings": [],
+      "keywords": [
         "ring",
         "usize",
-        "fmt",
         "payment",
-        "bytes",
+        "key",
         "claim",
-        "core",
-        "decode",
-        "value",
-        "wire",
-        "one",
-        "its",
-        "does",
-        "write",
-        "error",
-        "privatepaymenterror",
+        "decodefailure",
+        "bytes",
         "cannot",
         "refused",
         "would",
+        "one",
+        "its",
+        "error",
+        "fmt",
+        "value",
+        "wire",
+        "same",
+        "nothing",
         "got",
-        "key",
-        "display",
-        "failures"
+        "does",
+        "view",
+        "privatepaymenterror",
+        "private",
+        "decode"
       ],
-      "lines": 162,
+      "lines": 178,
       "path": "crates/mini-private-payment/src/error.rs",
-      "sha256": "f5cedcba0e6c92fb142ae1a417e5d0fef5a4491f4ec1a01df3b233d7c59db04f",
+      "sha256": "26a252c8f845736ce12966b36a6257bded57d576a4bd14a465bc8661bf0021b6",
       "symbols": [
         {
           "kind": "enum",
@@ -44629,119 +44781,124 @@
         },
         {
           "kind": "impl",
-          "line": 89,
+          "line": 99,
           "name": "From<DecodeFailure>"
         },
         {
           "kind": "fn",
-          "line": 90,
+          "line": 100,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 95,
+          "line": 105,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 96,
+          "line": 106,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 112,
+          "line": 122,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 123,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 159,
+          "line": 175,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 161,
+          "line": 177,
           "name": "Result"
         }
       ],
       "title": "pub enum DecodeFailure {"
     },
     {
-      "bytes": 6754,
+      "bytes": 8279,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
         "ring",
-        "payment",
-        "nothing",
         "private",
-        "does",
+        "payment",
         "one",
+        "nothing",
+        "privacy",
         "here",
         "real",
+        "does",
         "payer",
         "what",
-        "privacy",
+        "payments",
         "stable",
         "public",
-        "mini-value",
-        "value",
         "says",
-        "payments",
         "every",
+        "mini_settlement",
         "key",
         "sequence",
         "how",
-        "directive",
+        "whose",
+        "transparent",
         "same",
         "output"
       ],
-      "lines": 129,
+      "lines": 157,
       "path": "crates/mini-private-payment/src/lib.rs",
-      "sha256": "a8d2814a04a439e3c775428289231cddc0b3adbf1c236341c9213fee1b380dc3",
+      "sha256": "00228939f3a6207a7815ab9e76f99c10cb9e6676e1a4ca959eb28be983e0f4fd",
       "symbols": [
         {
           "kind": "mod",
-          "line": 108,
+          "line": 131,
           "name": "claim"
         },
         {
           "kind": "mod",
-          "line": 109,
+          "line": 132,
           "name": "codec"
         },
         {
           "kind": "mod",
-          "line": 110,
+          "line": 133,
           "name": "decoy"
         },
         {
           "kind": "mod",
-          "line": 111,
+          "line": 134,
+          "name": "disclosure"
+        },
+        {
+          "kind": "mod",
+          "line": 135,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 112,
+          "line": 136,
           "name": "memo"
         },
         {
           "kind": "mod",
-          "line": 113,
+          "line": 137,
           "name": "nullifier"
         },
         {
           "kind": "mod",
-          "line": 114,
+          "line": 138,
           "name": "reconcile"
         },
         {
           "kind": "mod",
-          "line": 115,
+          "line": 139,
           "name": "scan"
         }
       ],
@@ -45104,38 +45261,38 @@
       "title": "use mini_settlement::{CanonicalRejection, SettlementState};"
     },
     {
-      "bytes": 3027,
+      "bytes": 8811,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
         "claim",
         "payment",
-        "view_secret",
-        "spend_public",
-        "recognizedpayment",
-        "recognizes",
-        "shared",
-        "verifiedprivateclaim",
         "scan",
-        "claims",
-        "secret",
-        "scanning",
-        "spend",
+        "scanoutcome",
+        "payments",
+        "verifiedprivateclaim",
+        "view_secret",
+        "recognizedpayment",
+        "wallet",
+        "memo",
         "purpose",
+        "keys",
+        "spend_public",
+        "recognizes",
+        "claims",
+        "shared",
+        "spend",
+        "these",
         "none",
+        "unreadable",
         "scan_one",
         "own",
-        "mini_value",
-        "wallet",
-        "its",
-        "result",
-        "memo",
-        "some",
-        "found"
+        "secret",
+        "scanning"
       ],
-      "lines": 82,
+      "lines": 224,
       "path": "crates/mini-private-payment/src/scan.rs",
-      "sha256": "38c9217d1902ee5be4cb2f62b88431d29bb2b902374b815adf22f15bf736d7eb",
+      "sha256": "c31bf4b0b85b9e8905cfbdfe116a36a8ee1d994d2491e5867d0c6f0b61a792a2",
       "symbols": [
         {
           "kind": "struct",
@@ -45153,9 +45310,49 @@
           "name": "scan_one"
         },
         {
+          "kind": "struct",
+          "line": 73,
+          "name": "ScanOutcome"
+        },
+        {
+          "kind": "impl",
+          "line": 82,
+          "name": "ScanOutcome"
+        },
+        {
           "kind": "fn",
-          "line": 69,
+          "line": 85,
+          "name": "all_claims"
+        },
+        {
+          "kind": "fn",
+          "line": 109,
           "name": "scan"
+        },
+        {
+          "kind": "mod",
+          "line": 126,
+          "name": "tests"
+        },
+        {
+          "kind": "const",
+          "line": 133,
+          "name": "NETWORK"
+        },
+        {
+          "kind": "fn",
+          "line": 135,
+          "name": "payment_to"
+        },
+        {
+          "kind": "fn",
+          "line": 167,
+          "name": "one_unopenable_memo_does_not_hide_the_rest_of_a_wallets_income"
+        },
+        {
+          "kind": "fn",
+          "line": 202,
+          "name": "a_strangers_payments_are_neither_readable_nor_counted_as_unreadable"
         }
       ],
       "title": "use mini_value::{MininetStealthAddress, StealthAddressScheme};"
@@ -45418,6 +45615,133 @@
       "title": "mod support;"
     },
     {
+      "bytes": 14664,
+      "group": "crate:mini-private-payment",
+      "headings": [],
+      "keywords": [
+        "acknowledgedirreversibledisclosure",
+        "assert",
+        "treasury",
+        "found",
+        "disclosure",
+        "to_vec",
+        "new",
+        "phrase",
+        "unwrap",
+        "account",
+        "payments",
+        "would",
+        "verify",
+        "viewkeydisclosure",
+        "payment_to",
+        "network",
+        "vec",
+        "disclose",
+        "audit",
+        "cannot",
+        "payment",
+        "recipient",
+        "required_acknowledgement",
+        "is_none"
+      ],
+      "lines": 394,
+      "path": "crates/mini-private-payment/tests/disclosure.rs",
+      "sha256": "e841f25814079b6a0bc19867f61ae68fba9eec8c130030203e453aadd8d785dd",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 10,
+          "name": "support"
+        },
+        {
+          "kind": "fn",
+          "line": 19,
+          "name": "acknowledged"
+        },
+        {
+          "kind": "fn",
+          "line": 26,
+          "name": "disclose"
+        },
+        {
+          "kind": "fn",
+          "line": 38,
+          "name": "disclose_parts"
+        },
+        {
+          "kind": "fn",
+          "line": 55,
+          "name": "the_acknowledgement_cannot_be_given_by_accident"
+        },
+        {
+          "kind": "fn",
+          "line": 77,
+          "name": "the_acknowledgement_names_the_third_party_exposure"
+        },
+        {
+          "kind": "fn",
+          "line": 89,
+          "name": "a_disclosed_account_can_be_audited"
+        },
+        {
+          "kind": "fn",
+          "line": 116,
+          "name": "an_audit_sees_only_the_disclosed_account"
+        },
+        {
+          "kind": "fn",
+          "line": 140,
+          "name": "an_audit_cannot_read_amounts"
+        },
+        {
+          "kind": "fn",
+          "line": 161,
+          "name": "disclosure_is_retroactive"
+        },
+        {
+          "kind": "fn",
+          "line": 187,
+          "name": "swapping_in_a_strangers_spend_key_verifies_but_audits_to_nothing"
+        },
+        {
+          "kind": "fn",
+          "line": 215,
+          "name": "a_disclosure_whose_secret_does_not_open_its_account_is_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 232,
+          "name": "malformed_disclosure_keys_are_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
+          "name": "a_disclosure_round_trips_and_is_domain_separated"
+        },
+        {
+          "kind": "fn",
+          "line": 296,
+          "name": "a_truncated_or_extended_disclosure_is_refused"
+        },
+        {
+          "kind": "fn",
+          "line": 315,
+          "name": "the_reason_is_a_label_and_not_a_claim_the_protocol_checks"
+        },
+        {
+          "kind": "fn",
+          "line": 337,
+          "name": "an_audit_does_not_reveal_what_the_account_spent"
+        },
+        {
+          "kind": "fn",
+          "line": 360,
+          "name": "an_audit_of_a_large_ledger_accounts_for_every_claim_exactly_once"
+        }
+      ],
+      "title": "mod support;"
+    },
+    {
       "bytes": 3261,
       "group": "crate:mini-private-payment",
       "headings": [],
@@ -45495,7 +45819,7 @@
       "title": "use mini_private_payment::{"
     },
     {
-      "bytes": 19120,
+      "bytes": 19156,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -45526,7 +45850,7 @@
       ],
       "lines": 491,
       "path": "crates/mini-private-payment/tests/unity.rs",
-      "sha256": "024ae99af7c494a36565f196e87e64f67e705bc7b2174e5788716c53d2c6375a",
+      "sha256": "f1d10abaf57df4da0d25b6fb9dc0838af6ea5d7b2e04f95fdd8ba24437db75a7",
       "symbols": [
         {
           "kind": "mod",
@@ -45592,7 +45916,7 @@
       "title": "mod support;"
     },
     {
-      "bytes": 6860,
+      "bytes": 8867,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -45608,7 +45932,6 @@
         "vectors",
         "vector_ring_size",
         "format",
-        "memo",
         "absolute_min_ring_size",
         "rather",
         "map",
@@ -45619,61 +45942,77 @@
         "wire",
         "changed",
         "about",
-        "every"
+        "every",
+        "fresh"
       ],
-      "lines": 181,
+      "lines": 227,
       "path": "crates/mini-private-payment/tests/vectors.rs",
-      "sha256": "16a47e4c1f234074b245ef97fa2425e4b94e7d4683a37fb5af22d3ab9c954b60",
+      "sha256": "ae9ba9eee1924b0192da76d07b7710bd12b7cfc111f276c3681822ce202b0210",
       "symbols": [
         {
           "kind": "const",
-          "line": 22,
+          "line": 23,
           "name": "_"
         },
         {
           "kind": "fn",
-          "line": 24,
+          "line": 25,
           "name": "hex"
         },
         {
           "kind": "const",
-          "line": 37,
+          "line": 38,
           "name": "VECTOR_RING_SIZE"
         },
         {
           "kind": "fn",
-          "line": 41,
+          "line": 42,
           "name": "fixed_claim"
         },
         {
           "kind": "fn",
-          "line": 79,
+          "line": 80,
           "name": "the_domain_separator_and_version_are_frozen"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 90,
           "name": "the_size_constants_are_frozen"
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 107,
           "name": "the_binding_transcript_is_a_stable_byte_string"
         },
         {
           "kind": "fn",
-          "line": 139,
+          "line": 140,
           "name": "the_full_transcript_is_the_binding_transcript_plus_the_memo"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 151,
           "name": "a_claim_encodes_to_stable_bytes"
         },
         {
           "kind": "fn",
-          "line": 162,
+          "line": 163,
           "name": "the_encoded_length_is_the_same_for_every_payment"
+        },
+        {
+          "kind": "fn",
+          "line": 187,
+          "name": "fixed_disclosure"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "a_disclosure_encodes_to_stable_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 220,
+          "name": "the_disclosure_domain_cannot_collide_with_the_claim_domain"
         }
       ],
       "title": "use mini_crypto::HashAlgorithm;"
@@ -69044,7 +69383,7 @@
       "title": "use crate::error::{Result, ValueError};"
     },
     {
-      "bytes": 3469,
+      "bytes": 3530,
       "group": "crate:mini-value",
       "headings": [],
       "keywords": [
@@ -69073,9 +69412,9 @@
         "d-0035",
         "point"
       ],
-      "lines": 76,
+      "lines": 77,
       "path": "crates/mini-value/src/lib.rs",
-      "sha256": "73773da4d03492dd126f78aab8ce5f86b55a4110ba9f6900003d160e36b9141a",
+      "sha256": "c7448f5c96d15279ba786432d9ebe98bfd0641bf278d19f5e97cfc609d9b510c",
       "symbols": [
         {
           "kind": "mod",
@@ -69492,7 +69831,7 @@
       "title": "pub struct StealthOutput {"
     },
     {
-      "bytes": 17719,
+      "bytes": 22107,
       "group": "crate:mini-value",
       "headings": [],
       "keywords": [
@@ -69521,9 +69860,9 @@
         "ristrettopoint",
         "keypair"
       ],
-      "lines": 472,
+      "lines": 569,
       "path": "crates/mini-value/src/stealth_impl.rs",
-      "sha256": "ca0d3428c94c90e09d6b9369fbd2c00e89a22b721aa4ff8b289558cddd4887ec",
+      "sha256": "a6b51fc180d3b27b8c5b6e968dc14e6d935748eb68b8dfa374996e5b92368eef",
       "symbols": [
         {
           "kind": "struct",
@@ -69652,68 +69991,98 @@
         },
         {
           "kind": "fn",
-          "line": 251,
+          "line": 260,
+          "name": "view_public_from_secret"
+        },
+        {
+          "kind": "fn",
+          "line": 282,
+          "name": "stealth_address_is_well_formed"
+        },
+        {
+          "kind": "fn",
+          "line": 294,
           "name": "derive_spend_scalar"
         },
         {
           "kind": "mod",
-          "line": 265,
+          "line": 308,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 269,
+          "line": 312,
           "name": "recipient_recognizes_their_own_output"
         },
         {
           "kind": "fn",
-          "line": 287,
+          "line": 330,
           "name": "a_different_recipient_does_not_recognize_the_output"
         },
         {
           "kind": "fn",
-          "line": 306,
+          "line": 349,
           "name": "two_outputs_to_the_same_recipient_are_unlinkable"
         },
         {
           "kind": "fn",
-          "line": 339,
+          "line": 382,
           "name": "derived_spend_scalar_actually_opens_the_one_time_address"
         },
         {
           "kind": "fn",
-          "line": 361,
+          "line": 404,
           "name": "malformed_keys_are_rejected_without_panicking"
         },
         {
           "kind": "fn",
-          "line": 373,
+          "line": 416,
           "name": "sender_and_recipient_derive_the_same_shared_secret"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 433,
           "name": "derive_output_with_secret_produces_a_recognizable_output"
         },
         {
           "kind": "fn",
-          "line": 410,
+          "line": 453,
           "name": "a_stranger_derives_a_different_shared_secret"
         },
         {
           "kind": "fn",
-          "line": 425,
+          "line": 468,
           "name": "two_payments_to_one_recipient_share_no_secret"
         },
         {
           "kind": "fn",
-          "line": 445,
+          "line": 488,
           "name": "a_shared_secret_never_prints_its_bytes"
         },
         {
           "kind": "fn",
-          "line": 467,
+          "line": 510,
           "name": "malformed_inputs_to_the_shared_secret_helpers_are_rejected"
+        },
+        {
+          "kind": "fn",
+          "line": 516,
+          "name": "view_public_from_secret_matches_the_generated_keypair"
+        },
+        {
+          "kind": "fn",
+          "line": 525,
+          "name": "view_public_from_secret_does_not_match_a_stranger"
+        },
+        {
+          "kind": "fn",
+          "line": 535,
+          "name": "view_public_from_secret_rejects_non_canonical_and_degenerate_scalars"
+        },
+        {
+          "kind": "fn",
+          "line": 547,
+          "name": "well_formed_stealth_addresses_are_accepted_and_broken_ones_are_not"
         }
       ],
       "title": "use zeroize::Zeroize;"
@@ -73177,7 +73546,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1014217,
+      "bytes": 1023077,
       "group": "docs",
       "headings": [
         {
@@ -73607,9 +73976,9 @@
         "transport",
         "status"
       ],
-      "lines": 16790,
+      "lines": 16932,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "376cfb0f01bddd482b26306f392f74c1003a5a6c5392cfd90eb2cda6997fea25",
+      "sha256": "755efab3b2d9184c22db015da8e57fba3dff918dff2e2ba5287709e64dd9406c",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -74758,7 +75127,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 147865,
+      "bytes": 150811,
       "group": "docs",
       "headings": [
         {
@@ -74793,72 +75162,72 @@
         },
         {
           "level": 2,
-          "line": 489,
+          "line": 530,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 536,
+          "line": 577,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 758,
+          "line": 799,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 952,
+          "line": 993,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 1013,
+          "line": 1054,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 1043,
+          "line": 1084,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1370,
+          "line": 1411,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1848,
+          "line": 1889,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 1939,
+          "line": 1980,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 2019,
+          "line": 2060,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 2085,
+          "line": 2126,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 2102,
+          "line": 2143,
           "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0438"
         },
         {
           "level": 2,
-          "line": 2138,
+          "line": 2179,
           "text": "Node deployment \u2014 Mininet Node Appliance (D-0446)"
         },
         {
           "level": 2,
-          "line": 2203,
+          "line": 2244,
           "text": "Day-0 release code hardening \u2014 D-0442/D-0443 proposal"
         }
       ],
@@ -74888,9 +75257,9 @@
         "claude",
         "social"
       ],
-      "lines": 2238,
+      "lines": 2279,
       "path": "docs/STATUS.md",
-      "sha256": "81e70b69f69248f55f052224b9cbf30d6c15f27bdc0ec2802e50bb6d8c71e87a",
+      "sha256": "c092c707f64acdda76a01f3208bff9006893fb15dfa274d7999b662e1ecce9e5",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -80591,7 +80960,7 @@
       "title": "Private lookup and the public-DHT boundary (MN-208, D-0310)"
     },
     {
-      "bytes": 18058,
+      "bytes": 22337,
       "group": "docs",
       "headings": [
         {
@@ -80687,19 +81056,54 @@
         {
           "level": 2,
           "line": 169,
+          "text": "11. Auditability without a transparent format (D-0451)"
+        },
+        {
+          "level": 3,
+          "line": 171,
+          "text": "The trap"
+        },
+        {
+          "level": 3,
+          "line": 177,
+          "text": "The inversion"
+        },
+        {
+          "level": 3,
+          "line": 181,
+          "text": "`audit` is `scan`"
+        },
+        {
+          "level": 3,
+          "line": 185,
+          "text": "The acknowledgement is a type"
+        },
+        {
+          "level": 3,
+          "line": 195,
+          "text": "What an audit still cannot see"
+        },
+        {
+          "level": 3,
+          "line": 202,
+          "text": "A defect this found in `scan`"
+        },
+        {
+          "level": 2,
+          "line": 206,
           "text": "8. Required follow-up"
         },
         {
           "level": 2,
-          "line": 178,
+          "line": 217,
           "text": "9. Supersedes / superseded by"
         }
       ],
       "keywords": [
         "payment",
+        "what",
         "key",
         "memo",
-        "what",
         "payer",
         "transcript",
         "why",
@@ -80710,6 +81114,7 @@
         "signature",
         "image",
         "paymentclaim",
+        "cannot",
         "real",
         "stable",
         "address",
@@ -80718,12 +81123,11 @@
         "private",
         "shielded",
         "social",
-        "vertical",
-        "gap"
+        "vertical"
       ],
-      "lines": 181,
+      "lines": 220,
       "path": "docs/design/private-payment-path.md",
-      "sha256": "6a1ccd64d2a9ef8ec06c8d1d80ed356a2fdf3c51d11cb6f9ad13347f76e14c45",
+      "sha256": "934debbb38948f71b43f33a99e058d7ebfd2dcf825c15df63a12e677ff74b422",
       "symbols": [],
       "title": "The private payment path: shielded settlement, and the social vertical it serves"
     },
@@ -90980,7 +91384,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 44058,
+      "bytes": 46111,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -91009,26 +91413,28 @@
         "independently",
         "both"
       ],
-      "lines": 815,
+      "lines": 832,
       "path": "governance/work-claims.json",
-      "sha256": "f59a5233b4b4099a19c6aa0ba31ee0bfb95b51c02bce07fb326b97c823dcbdd0",
+      "sha256": "e1f8277563f825eadbe57a04169c00fcb99c7a0b18c686bf79582a3de49212b3",
       "symbols": [],
       "title": "{"
     },
     {
-      "bytes": 2037,
+      "bytes": 2357,
       "group": "root",
       "headings": [],
       "keywords": [
         "type",
-        "schema",
         "string",
+        "schema",
+        "branch",
+        "minlength",
         "work-claims",
         "json",
         "const",
         "array",
         "items",
-        "minlength",
+        "active",
         "governance",
         "https",
         "object",
@@ -91041,13 +91447,11 @@
         "claims",
         "properties",
         "format",
-        "issue",
-        "status",
-        "contributor"
+        "issue"
       ],
-      "lines": 84,
+      "lines": 89,
       "path": "governance/work-claims.schema.json",
-      "sha256": "71bc5e53231afe46ad8c337f0c509859ebc1cf7ffa9fc4a99218f8c1739e8b2a",
+      "sha256": "e1b234c2084be73fa676165b7392168fd59f9b197b25b6c94b9b5082fcf70a36",
       "symbols": [],
       "title": "{"
     },
@@ -91426,7 +91830,7 @@
       "title": "`### D-0123 \u2014 Title  \u00b7  *Status*`"
     },
     {
-      "bytes": 54513,
+      "bytes": 56129,
       "group": "tools",
       "headings": [],
       "keywords": [
@@ -91455,9 +91859,9 @@
         "checkpoint",
         "independently"
       ],
-      "lines": 1173,
+      "lines": 1208,
       "path": "tools/check_governance.py",
-      "sha256": "30007aa2842966154a018e31e3b323cc691386e1ef69670c913d72a95e21b200",
+      "sha256": "25891ffefe042cd4a5b3d84e9c1b0b85c9418a8a584ed7aeb548577158baf763",
       "symbols": [],
       "title": "\"\"\"Reference Mininet bootstrap governance validator."
     },
@@ -91897,7 +92301,7 @@
       "title": "\"\"\""
     },
     {
-      "bytes": 35849,
+      "bytes": 37928,
       "group": "tools",
       "headings": [
         {
@@ -91932,9 +92336,9 @@
         "importlib",
         "util"
       ],
-      "lines": 864,
+      "lines": 900,
       "path": "tools/test_check_governance.py",
-      "sha256": "8c3078ed7811ae3457a90fe9880298914bc0c50602080a1ee78888d92a1f636a",
+      "sha256": "c3d1a769970160bb744b4a90928c21b1fd3dc53343b4b68936b9a8388a15bab9",
       "symbols": [],
       "title": "The five canonical documents \u2014 read order for any non-trivial task"
     },

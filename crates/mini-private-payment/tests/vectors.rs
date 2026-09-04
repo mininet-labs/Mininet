@@ -11,8 +11,9 @@
 
 use mini_crypto::HashAlgorithm;
 use mini_private_payment::{
-    PrivatePaymentClaim, SealedMemo, ABSOLUTE_MIN_RING_SIZE, CLAIM_TRANSCRIPT_DOMAIN,
-    CLAIM_VERSION, MAX_MEMO_BYTES, MEMO_KDF_INFO, MEMO_PADDED_BYTES, MIN_RING_SIZE,
+    AcknowledgedIrreversibleDisclosure, PrivatePaymentClaim, SealedMemo, ViewKeyDisclosure,
+    ABSOLUTE_MIN_RING_SIZE, CLAIM_TRANSCRIPT_DOMAIN, CLAIM_VERSION, DISCLOSURE_DOMAIN,
+    DISCLOSURE_VERSION, MAX_MEMO_BYTES, MEMO_KDF_INFO, MEMO_PADDED_BYTES, MIN_RING_SIZE,
 };
 use mini_value::{RangeProof, RingSignature, StealthOutput, RANGE_PROOF_BYTES};
 
@@ -177,4 +178,49 @@ fn the_encoded_length_is_the_same_for_every_payment() {
         a.encode().len(),
         "only the chain reference varies in length"
     );
+}
+
+/// A fully deterministic disclosure (D-0451). The keys are not a real
+/// keypair — `verify_disclosure` would reject them, and correctly — because
+/// what is pinned here is the *encoding*, and a vector built from a
+/// generated keypair would be a vector built from randomness.
+fn fixed_disclosure() -> ViewKeyDisclosure {
+    let acknowledged = AcknowledgedIrreversibleDisclosure::new(
+        AcknowledgedIrreversibleDisclosure::REQUIRED_ACKNOWLEDGEMENT,
+    )
+    .expect("the exact phrase");
+    ViewKeyDisclosure::create(
+        vec![0x44; 32],
+        vec![0x55; 32],
+        vec![0x66; 32],
+        b"treasury disbursements".to_vec(),
+        1_700_000_000_000,
+        &acknowledged,
+    )
+}
+
+#[test]
+fn a_disclosure_encodes_to_stable_bytes() {
+    // A published view key is quoted, archived, and referred to by digest
+    // long after it is published, and a disclosure whose bytes shifted under
+    // it would break every reference. Pinned like any other wire object.
+    let disclosure = fixed_disclosure();
+    let encoded = disclosure.encode();
+    assert!(encoded.starts_with(DISCLOSURE_DOMAIN));
+    assert_eq!(encoded[DISCLOSURE_DOMAIN.len()], DISCLOSURE_VERSION);
+    assert_eq!(
+        hex(&HashAlgorithm::Blake3.digest(&encoded)),
+        "633f8dc9fa1f847c6ec528777e93a02d77a1ca8cafcb21977ac68f7c0fe9120d"
+    );
+    assert_eq!(ViewKeyDisclosure::decode(&encoded).unwrap(), disclosure);
+    assert_eq!(disclosure.digest(), HashAlgorithm::Blake3.digest(&encoded));
+}
+
+#[test]
+fn the_disclosure_domain_cannot_collide_with_the_claim_domain() {
+    // Two domain-separated objects in one crate: neither may ever be a
+    // prefix of the other, or a decoder could be walked from one into the
+    // other by a caller who controls the bytes.
+    assert!(!DISCLOSURE_DOMAIN.starts_with(CLAIM_TRANSCRIPT_DOMAIN));
+    assert!(!CLAIM_TRANSCRIPT_DOMAIN.starts_with(DISCLOSURE_DOMAIN));
 }
