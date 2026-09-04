@@ -31,6 +31,9 @@ pub struct LedgerState {
     pub(crate) network_id: [u8; 32],
     pub(crate) finalized: BTreeMap<Vec<u8>, (u64, [u8; 32])>,
     pub(crate) rejected: BTreeMap<[u8; 32], CanonicalRejection>,
+    /// Shielded spends: key image -> the digest of the claim that first
+    /// spent it. Opaque bytes on both sides; see [`crate::nullifier`].
+    pub(crate) nullifiers: BTreeMap<Vec<u8>, [u8; 32]>,
     pub(crate) monetary: MonetaryLedger,
     pub(crate) balances: BTreeMap<Vec<u8>, Amount>,
     pub(crate) allocated_circulating: Amount,
@@ -56,6 +59,7 @@ impl LedgerState {
             network_id,
             finalized: BTreeMap::new(),
             rejected: BTreeMap::new(),
+            nullifiers: BTreeMap::new(),
             monetary: MonetaryLedger::new(genesis_circulating),
             balances: BTreeMap::new(),
             allocated_circulating: Amount::ZERO,
@@ -101,6 +105,7 @@ impl LedgerState {
             network_id,
             finalized: BTreeMap::new(),
             rejected: BTreeMap::new(),
+            nullifiers: BTreeMap::new(),
             monetary: MonetaryLedger::new(genesis_circulating),
             balances,
             allocated_circulating: allocated,
@@ -114,6 +119,22 @@ impl LedgerState {
 
     pub fn network_id(&self) -> [u8; 32] {
         self.network_id
+    }
+
+    /// The digest of the claim that first spent `key_image`, if the chain
+    /// has finalized one.
+    ///
+    /// This is the whole surface a shielded wallet reads from canonical
+    /// state. Pair it with `mini_private_payment::ChainBackedPrivateLedger`
+    /// — which this crate deliberately cannot name — to reconcile a private
+    /// claim against real finality.
+    pub fn finalized_nullifier(&self, key_image: &[u8]) -> Option<[u8; 32]> {
+        self.nullifiers.get(key_image).copied()
+    }
+
+    /// How many shielded spends this state has finalized.
+    pub fn nullifier_count(&self) -> usize {
+        self.nullifiers.len()
     }
 
     pub fn balance(&self, account: &[u8]) -> Amount {
@@ -141,7 +162,7 @@ impl LedgerState {
     /// (Directive 4) checkable as a plain equality on this one hash.
     pub fn commitment(&self) -> [u8; 32] {
         let mut w = Vec::new();
-        w.extend_from_slice(b"mini-execution/ledger-state/v3");
+        w.extend_from_slice(b"mini-execution/ledger-state/v4");
         w.extend_from_slice(&self.network_id);
         w.extend_from_slice(&(self.finalized.len() as u64).to_be_bytes());
         for (payer, (sequence, digest)) in &self.finalized {
@@ -154,6 +175,12 @@ impl LedgerState {
         for (digest, reason) in &self.rejected {
             w.extend_from_slice(digest);
             w.push(rejection_tag(*reason));
+        }
+        w.extend_from_slice(&(self.nullifiers.len() as u64).to_be_bytes());
+        for (key_image, claim_digest) in &self.nullifiers {
+            w.extend_from_slice(&(key_image.len() as u32).to_be_bytes());
+            w.extend_from_slice(key_image);
+            w.extend_from_slice(claim_digest);
         }
         w.extend_from_slice(&self.monetary.commitment().to_bytes());
         w.extend_from_slice(&(self.balances.len() as u64).to_be_bytes());
@@ -241,10 +268,14 @@ pub fn apply_block(prev: &LedgerState, body: &SettlementBlockBody) -> Result<Led
     if body.monetary_epochs.len() > crate::body::MAX_MONETARY_EPOCHS_PER_BLOCK {
         return Err(ExecutionError::TooManyMonetaryEpochs);
     }
+    if body.nullifiers.len() > crate::nullifier::MAX_NULLIFIERS_PER_BLOCK {
+        return Err(ExecutionError::TooManyNullifiers);
+    }
     let mut next = prev.clone();
     for claim in &body.claims {
         apply_one_claim(&mut next, claim)?;
     }
+    apply_nullifiers(&mut next, &body.nullifiers);
     if let Some(epoch) = body.monetary_epochs.first() {
         epoch
             .to_wire_bytes()
@@ -271,6 +302,62 @@ pub fn apply_block(prev: &LedgerState, body: &SettlementBlockBody) -> Result<Led
     }
     next.verify_supply_conservation()?;
     Ok(next)
+}
+
+/// Finalize shielded spends, one **claim** at a time rather than one record
+/// at a time.
+///
+/// Records carrying the same `claim_digest` are one spend, and a spend is
+/// all-or-nothing. A claim spending outputs `{X, Y}` where `Y` was already
+/// spent by somebody else must take neither — recording `X` and dropping
+/// `Y` would finalize half a double-spend as a success, leaving `X` burned
+/// by a claim that no honest verifier accepts. That is the merge M1
+/// forbids, arriving through partial application.
+///
+/// Within that rule the discipline is the transparent path's: first wins,
+/// permanently, in body order (M3). Re-including a group already finalized
+/// under the same digest is idempotent, because networks re-deliver and a
+/// duplicate is not a double-spend.
+///
+/// Nothing here validates the *cryptography* — see [`crate::nullifier`] for
+/// why it cannot, and what that leaves open.
+fn apply_nullifiers(state: &mut LedgerState, records: &[crate::nullifier::NullifierRecord]) {
+    let mut order: Vec<[u8; 32]> = Vec::new();
+    let mut groups: BTreeMap<[u8; 32], Vec<&[u8]>> = BTreeMap::new();
+    for record in records {
+        if !record.is_well_formed() {
+            // A malformed record poisons its whole group: the claim it
+            // belongs to cannot be finalized from a body that failed to
+            // name one of its inputs storably.
+            groups.remove(&record.claim_digest);
+            order.retain(|digest| *digest != record.claim_digest);
+            continue;
+        }
+        let entry = groups.entry(record.claim_digest).or_insert_with(|| {
+            order.push(record.claim_digest);
+            Vec::new()
+        });
+        entry.push(&record.key_image);
+    }
+
+    for digest in order {
+        let Some(key_images) = groups.get(&digest) else {
+            continue;
+        };
+        let takeable = key_images.iter().all(|key_image| {
+            match state.nullifiers.get(*key_image) {
+                // Free, or already ours: a re-broadcast of the same claim.
+                None => true,
+                Some(held) => *held == digest,
+            }
+        });
+        if !takeable {
+            continue;
+        }
+        for key_image in key_images {
+            state.nullifiers.insert(key_image.to_vec(), digest);
+        }
+    }
 }
 
 fn apply_one_claim(state: &mut LedgerState, claim: &PaymentClaim) -> Result<()> {

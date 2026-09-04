@@ -100,6 +100,109 @@ pub fn reconcile(
     Ok(SettlementState::PendingCanonical)
 }
 
+/// A [`PrivateLedgerView`] backed by whatever the canonical chain actually
+/// finalized, supplied as a plain lookup closure.
+///
+/// # Why a closure and not a trait the chain implements
+///
+/// The chain-side state lives in `mini-execution`, which depends on
+/// `mini-chain`. This crate depends on `mini-value`. A dependency edge
+/// between the two — in either direction, for either crate to name the
+/// other's trait — would be the first path in this tree from a value crate
+/// to the crate that counts votes, and the voice/value wall (P1, Directive
+/// 16) forbids it. Not "discourages": there is no such path today, and this
+/// is exactly the change that would create one.
+///
+/// So the two halves meet through `(Vec<u8>, [u8; 32])` — a key image and a
+/// claim digest, standard-library types, no shared crate and no shared
+/// format either side could drift from. The wiring is one line at the call
+/// site:
+///
+/// ```ignore
+/// // in an application that legitimately sees both layers
+/// let ledger = ChainBackedPrivateLedger::new(|key_image| {
+///     chain.state().finalized_nullifier(key_image)
+/// });
+/// let state = reconcile(&claim, &ledger, now_ms)?;
+/// ```
+///
+/// The wall is doing its job here rather than getting in the way: the chain
+/// finalizes *opaque facts about which output was spent first*, and never
+/// needs to verify a range proof or a ring signature to make progress.
+///
+/// # What this does not check
+///
+/// That some valid claim produced the key image the chain finalized. The
+/// chain cannot check it — the cryptography is on the other side of the
+/// wall — so a Byzantine proposer can finalize a key image nobody proved,
+/// burning an output that is not theirs. Reconciliation reports what the
+/// canonical ledger says; making the ledger's *contents* trustworthy is a
+/// validity-rule question for the consensus layer, and it is open. See
+/// `mini_execution::nullifier`'s own docs, which state the same limit from
+/// the other side.
+pub struct ChainBackedPrivateLedger<F, R = fn(&[u8; 32]) -> Option<CanonicalRejection>> {
+    finalized: F,
+    rejected: Option<R>,
+}
+
+impl<F> ChainBackedPrivateLedger<F>
+where
+    F: Fn(&[u8]) -> Option<[u8; 32]>,
+{
+    /// Read finality from `finalized`, with no canonical-rejection source.
+    ///
+    /// `reconcile` then never returns
+    /// [`SettlementState::RejectedCanonical`], which is honest rather than
+    /// lossy: a chain that records no rejection reasons has none to report,
+    /// and inventing one would be worse than its absence.
+    pub fn new(finalized: F) -> Self {
+        ChainBackedPrivateLedger {
+            finalized,
+            rejected: None,
+        }
+    }
+}
+
+impl<F, R> ChainBackedPrivateLedger<F, R>
+where
+    F: Fn(&[u8]) -> Option<[u8; 32]>,
+    R: Fn(&[u8; 32]) -> Option<CanonicalRejection>,
+{
+    /// Read finality from `finalized` and canonical rejections from
+    /// `rejected`.
+    pub fn with_rejections(finalized: F, rejected: R) -> Self {
+        ChainBackedPrivateLedger {
+            finalized,
+            rejected: Some(rejected),
+        }
+    }
+}
+
+impl<F, R> core::fmt::Debug for ChainBackedPrivateLedger<F, R> {
+    /// The closures are opaque, and what they close over may be an entire
+    /// ledger; printing it here would be a surprising amount of state
+    /// arriving through a `{:?}`.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ChainBackedPrivateLedger")
+            .field("rejections", &self.rejected.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
+impl<F, R> PrivateLedgerView for ChainBackedPrivateLedger<F, R>
+where
+    F: Fn(&[u8]) -> Option<[u8; 32]>,
+    R: Fn(&[u8; 32]) -> Option<CanonicalRejection>,
+{
+    fn finalized_claim(&self, key_image: &[u8]) -> Option<[u8; 32]> {
+        (self.finalized)(key_image)
+    }
+
+    fn rejected_claim(&self, digest: &[u8; 32]) -> Option<CanonicalRejection> {
+        self.rejected.as_ref().and_then(|lookup| lookup(digest))
+    }
+}
+
 /// A trivial in-memory [`PrivateLedgerView`] for tests and local
 /// experiments.
 ///

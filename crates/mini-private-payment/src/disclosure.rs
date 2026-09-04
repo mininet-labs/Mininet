@@ -51,6 +51,12 @@
 //!   payments. It does not identify which outputs the account later spent,
 //!   because that requires the spend key. An audit of a disclosed account
 //!   sees money arriving, not money leaving — a real and asymmetric limit.
+//! - **It does not reveal amounts.** A view key recognizes an output; it
+//!   does not open the Pedersen commitment holding its value. An account
+//!   that wants its sums checkable publishes [`crate::AmountDisclosure`]s
+//!   as well — a separate, per-output, deliberately *chosen* act, which is
+//!   why [`crate::audit_amounts`] reports what was left unopened rather
+//!   than a total that would quietly mean less than it looks like.
 //! - **It does not prove completeness.** A disclosure covers one account.
 //!   Nothing here proves that account is the only one its holder controls,
 //!   and no cryptography can prove that. "The treasury disclosed a view key"
@@ -310,8 +316,10 @@ pub fn verify_disclosure(disclosure: &ViewKeyDisclosure) -> Result<VerifiedDiscl
 ///
 /// - **Amounts stay hidden.** A Pedersen commitment is not opened by a view
 ///   key, so an audit sees *which* payments arrived and what they were for,
-///   never how much they were worth. "Auditable" here means the set of
-///   incoming payments is checkable, not that the sums are.
+///   never how much they were worth — unless the account also publishes
+///   [`crate::AmountDisclosure`]s, which open chosen commitments. A view
+///   key alone means the set of incoming payments is checkable, not the
+///   sums.
 /// - **A stranger can add noise.** Anyone can pay a published address, so
 ///   [`ScanOutcome::unreadable`] may hold payments an unrelated party sent to
 ///   make the audit look untidy. They cost the sender real value and reveal

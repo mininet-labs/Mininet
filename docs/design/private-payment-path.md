@@ -341,14 +341,151 @@ prototypes gated behind D-0047/#72. Conservation now *holds* under the
 construction; whether the construction is implemented correctly is what an
 external audit is for, and nothing here changes that gate.
 
+## 13. Settling against a real chain, without a dependency edge (D-0457)
+
+### The gap
+
+Everything §12 proves is local. `PrivateLedgerView` had exactly one
+implementation — `InMemoryPrivateLedger`, which finalizes whatever it is
+told to — so a private payment could reach `Finalized` on a test double's
+say-so and nothing else. That is the gap D-0061 closed for the transparent
+path, left open on this one.
+
+### The constraint that chose the design
+
+The obvious implementation is for `mini-execution` to depend on
+`mini-private-payment` and finalize real claims. It cannot.
+`mini-private-payment` reaches `mini-value`; `mini-execution` reaches
+`mini-chain`. **No dependency path exists in this tree today from a value
+crate to the crate that counts votes**, and that edge would have created the
+first one — exactly what P1 and Directive 16 forbid.
+
+So the halves meet through `(Vec<u8>, [u8; 32])` — a key image and a claim
+digest. Standard-library types, no shared crate, no format either side can
+drift from:
+
+```text
+mini-value  <--  mini-private-payment        (key images, claim digests)
+                          |
+                     (Vec<u8>, [u8;32])      <-- the entire shared surface
+                          |
+mini-chain  <--  mini-execution              (ordering, finality)
+```
+
+The wall forced the better design on three counts, which is worth recording
+because it is the argument *for* keeping the rule mechanical rather than
+negotiable:
+
+- **Liveness.** A validator that had to verify a Bulletproof and a 16-member
+  MLSAG per shielded spend before voting would have its block time set by the
+  most expensive cryptography in the protocol.
+- **Neutrality.** A chain that could read a payment's contents is a chain
+  that could be made to treat some payments differently — the same argument
+  §4 already makes for not depending on `mini-social`.
+- **Reviewability.** Consensus and privacy stay independently auditable,
+  which matters directly for R12's scope.
+
+### What the chain actually stores
+
+Per shielded spend, one `NullifierRecord { key_image, claim_digest }`.
+`LedgerState` keeps `key_image -> claim_digest`, first writer wins,
+permanently, in body order — the transparent path's own M3 discipline.
+
+**Records are grouped by claim and applied all-or-nothing.** A claim spending
+`{X, Y}` where `Y` is already taken gets neither. Recording `X` and dropping
+`Y` would finalize half a double-spend as a success and burn `X` under a
+claim no verifier accepts — the merge M1 forbids, arriving through partial
+application. It is the same defect shape D-0455 fixed in
+`KeyImageSet::observe` and `reconcile`, now closed on the consensus side.
+
+The snapshot format moves to v2 and v1 snapshots deliberately do not decode:
+a state restored without its nullifiers would treat every shielded output it
+had finalized as unspent — a replay of every private payment the chain had
+ever seen, arriving through state sync.
+
+### The hole this leaves, stated plainly
+
+The chain finalizes a key image **on a proposer's say-so**. It does not check
+that a valid claim produced it, because it cannot — that is the cryptography
+it deliberately cannot see. A Byzantine proposer can burn an output that is
+not theirs by naming its key image, and honest nodes will finalize it.
+
+The *ordering* is now real, which is what M3 requires and what nothing
+implemented before. The ledger's *contents* are not yet trustworthy. Closing
+that needs a validity rule the chain can check — a succinct proof, or a
+validator set that verifies claims and is accountable for it — and that is
+R8's territory. Both module docs say so from their own side rather than
+leaving it to this document.
+
+### What keeps the two halves honest
+
+No compiler, because there is no link. A pair of tests:
+`the_finalized_map_is_the_one_the_shielded_side_expects`
+(`mini-execution`) and `a_chain_shaped_ledger_resolves_a_shielded_conflict`
+(`mini-private-payment`) assert the same map, key image for key image, from
+opposite sides. Weaker than a type, and the strongest thing available under
+the wall.
+
+## 14. Amounts an auditor can actually add up (D-0458)
+
+### The gap §11 left
+
+Disclosure made an account's income *enumerable* and left it un-addable. A
+view key recognizes a stealth output; it does not open a Pedersen
+commitment. For treasury accountability under D-0073 that is a real distance
+between what "audited" sounds like and what it delivers.
+
+### The mechanism
+
+An output's amount is `C = b·G_blind + v·H_val`, and the recipient learns
+`(v, b)` from the sealed note because they need both to spend it. Publishing
+that pair lets anyone recompute `C`. Pedersen commitments are binding, so an
+opening that verifies **is** the amount. No new cryptography — this is the
+commitment's own definition.
+
+### Why the return type is not a number
+
+A discloser chooses which outputs to open, and no cryptography can force the
+choice. A sum of openings is therefore not an account's income; it is the
+income *as far as the account chose to show*, and the two are
+indistinguishable once the structure around them is discarded.
+
+`audit_amounts` returns `AuditedIncome`: the opened total **beside** the
+count of recognized payments left unopened, with `is_complete()` the only
+thing that licenses reading the first as a total. A bare `u64` would have
+been the most useful-looking dishonest number this crate could produce.
+
+What makes that more than bookkeeping is where the count comes from.
+Recognition is the **view key's** job, so the auditor learns how many
+payments exist from cryptography rather than from the discloser's
+cooperation. A withheld opening is then a hole with a number on it rather
+than a payment nobody knew to ask about. A published-but-invalid opening
+counts as unopened for the same reason: "withheld" and "published something
+that does not verify" are the same fact to an auditor, and splitting them
+would invite reading the first as innocent.
+
+### Limits
+
+- **Completeness, in the direction that matters.** A disclosure covers one
+  account; nothing proves it is the only one its holder controls.
+  `is_complete()` means "every payment *to this account* was opened", never
+  "this is everything they received".
+- **It exposes the sender.** Opening an amount tells everyone what a specific
+  sender paid, and they were never asked.
+  `AcknowledgedAmountDisclosure`'s phrase names that rather than burying it —
+  but a typed acknowledgement is friction, not consent.
+- **Still income only.** A view key shows nothing an account spent, so no
+  disclosure here produces a balance and `opened_total_micro` must never be
+  rendered as one.
+
 ## 8. Required follow-up
 
 - **Retiring the transparent path** in `mini-contribution`, `mini-engagement`, `mini-bounty`, `mini-execution` and `mini-chain`, which §11 is the prerequisite for and does not itself do.
-- An **amount-disclosure** mechanism — opening a commitment to a named auditor — if "auditable" is ever to include sums rather than only the set of payments.
 - Binding a disclosure to a `did:mini` root, left to callers in D-0451 to keep an identity dependency out of a value crate.
 - Fitting `AGE_WEIGHTS` to real spend-age data once any exists, and revisiting `MIN_RING_SIZE` on the same evidence.
-- A chain-backed `PrivateLedgerView`, the private analogue of D-0061.
-- Wiring `mini-contribution` and `mini-engagement` to offer the private path. The fee and change model that blocked this now exists (§12); what remains is a chain-backed `PrivateLedgerView`, without which no private payout could reach `Finalized`. **Still deliberately not done here.**
+- Wiring `mini-contribution` and `mini-engagement` to offer the private path. Both things that blocked it now exist — the fee and change model (§12) and chain-backed finality (§13) — so what remains is a migration decision rather than a missing capability: whether the transparent path is deleted or deprecated first, and what becomes of claims already settled under it. A founder call with a D-number (roadmap R3).
+- **A validity rule for shielded spends the chain can check** (§13, roadmap R8). Today a proposer can finalize a key image no valid claim produced. This is the largest gap the money layer has left that is not an external gate.
+- **A proposer that collects key images from live traffic.** Nothing builds a block body's nullifier list today, because nothing has live traffic.
 - A **fee policy**: §12 makes fees possible and checkable, and says nothing about what a fee should be or who collects it. That is an economics decision, not a cryptographic one.
 - **Output selection and consolidation** — which of a wallet's outputs to spend, and when to consolidate. §12 makes multi-input claims possible; choosing badly is its own fingerprint, and no policy exists yet.
 - **External cryptographic audit ([#72](../../issues/72), D-0047)** before anything here gates value. Three prototype constructions compose into one object; the composition needs review as much as the pieces, and a privacy failure does not announce itself.
