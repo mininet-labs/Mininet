@@ -16929,3 +16929,87 @@ path to review as well.
 the transparent path should remain available was an open question for founder
 review — it is answered here and the answer is no. D-0447's and D-0449's
 other limits stand unchanged.
+
+### D-0452 — A governance validator must read data, not commentary: the exceptions scan counted a commented-out example  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0450 (which fixed the first instance of this
+pattern and missed this one), D-0441, D-0083 and `governance/exceptions.yml`'s
+GOV-EX-0001; roadmap #73.
+
+**Decision:** three corrections to `validate_baseline`'s governance-exception
+check and its test coverage.
+
+1. **The scan reads data, not comments.** It ran
+   `re.finditer(r"expires:\s*(\d{4}-\d{2}-\d{2})")` over the **raw file**, so
+   the template example at the bottom of `governance/exceptions.yml` — a block
+   that is entirely commented out, and exists only to show contributors the
+   shape of an exception — was counted as a live governance exception. Its
+   placeholder date was `2026-09-01`. On 2026-09-02 a piece of documentation
+   started failing the build, and with it `canonical-governance` on every open
+   pull request. Comment lines are now stripped before the scan.
+
+2. **Expiry is measured against the supplied instant.** This was the only
+   calendar check in `check_governance.py` reading `dt.date.today()` directly
+   instead of the `now` threaded through every other check — which is also why
+   no test could pin it. It now uses `now`.
+
+3. **The check has tests at all.** It had none in either direction. Five were
+   added: a live exception passes, a lapsed one fails, a commented-out example
+   is not an exception, expiry follows the supplied instant, and — reading the
+   committed file directly rather than the neutralized fixture — no real
+   exception has outlived its sunset.
+
+4. **The example carries a placeholder date.** Belt and braces with (1): the
+   template block already used `RUSTSEC-YYYY-NNNN` and `D-00XX` as
+   placeholders, and the expiry was the one field holding a real date. It is
+   now `YYYY-MM-DD`, so no scanner can mistake the block for a live exception
+   whether or not it strips comments. This is also what lets the *candidate*
+   side of `canonical-governance` pass under the base branch's still-unfixed
+   checker, which reads the candidate's exceptions file.
+
+**Reason:** the first two are ordinary bugs; the third is the one worth
+stating. An exception that quietly outlives its sunset is among the most
+consequential things this validator can catch, because GOV-EX-0001 is what
+permits a founder-only integration path to exist at all under D-0083. That
+check had **no test in either direction**, so it could have been silently
+broken — or silently removed — without anything noticing. The failure that
+exposed it was the opposite and far more benign: it fired when it should not
+have. A check nobody tests is a check nobody can rely on, in whichever
+direction it drifts.
+
+**On D-0450's fix being incomplete:** D-0450 stopped work-claim leases from
+turning the validator suite into a calendar time bomb, and stated the pattern
+plainly — dated live data + tests asserting zero errors against it = every
+pull request goes red for a reason belonging to no pull request. It then fixed
+**only the leases**. `governance/exceptions.yml` is dated live data read by the
+same tests, and it fired three days later. The fixture neutralization now
+covers both, and GOV-EX-0001's real 2026-10-12 expiry — which would otherwise
+have produced a third instance of the identical failure — is covered before
+the fact rather than after.
+
+**Constitutional impact:** none. Validator tooling and its tests; no protocol
+surface, no authority, no frozen invariant, no voice/value edge. It does not
+weaken the exception check: a genuinely lapsed exception still fails
+`check_governance.py` on the live tree, and a new test asserts directly against
+the committed file so the fixture neutralization cannot become a way to stop
+noticing.
+
+**Implementation status:** `tools/check_governance.py` (comment stripping,
+`now`), `tools/test_check_governance.py` (`neutralize_governance_exception_expiry`,
+`GovernanceExceptionTests`). 99 validator tests pass; three of the five new
+ones fail against the pre-fix scan, verified by restoring it.
+
+**Failure point:** stripping `#` lines is a line-oriented approximation, not a
+YAML parser — this repository's validators are standard-library-only by design,
+so a `#` inside a quoted YAML string would still be mistaken for a comment.
+That is a smaller error than the one it replaces and does not occur in this
+file, but it is an approximation and should be named as one. The fixture
+neutralization means the structural tests no longer notice a lapsed exception;
+the live check and the dedicated test are what carry that signal now, and if
+both were removed the loss would be silent. GOV-EX-0001 still expires
+2026-10-12 and this decision does nothing about the underlying condition — it
+only ensures the expiry is reported where it belongs rather than as a mass PR
+failure.
+
+**Supersedes / superseded by:** completes D-0450 §4, which identified this
+pattern and fixed one of its two instances.

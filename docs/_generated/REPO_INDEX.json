@@ -2,7 +2,7 @@
   "counts": {
     "crates": 73,
     "files": 900,
-    "headings": 3113,
+    "headings": 3115,
     "rust_symbols": 8695
   },
   "crates": {
@@ -73546,7 +73546,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1023077,
+      "bytes": 1028095,
       "group": "docs",
       "headings": [
         {
@@ -73976,9 +73976,9 @@
         "transport",
         "status"
       ],
-      "lines": 16932,
+      "lines": 17016,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "755efab3b2d9184c22db015da8e57fba3dff918dff2e2ba5287709e64dd9406c",
+      "sha256": "48dc614b8a030e8d026c918f4b69509caf140f9abe95d4e911aca00cb7f760fb",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -91271,52 +91271,63 @@
       "title": "{"
     },
     {
-      "bytes": 1121,
+      "bytes": 1326,
       "group": "root",
       "headings": [
         {
           "level": 1,
           "line": 21,
-          "text": "Example:"
+          "text": "Example (illustrative only -- every value here is a placeholder, and the"
         },
         {
           "level": 1,
           "line": 22,
-          "text": "- id: DEP-EX-0001"
+          "text": "date is deliberately not a real one so no scanner can mistake this block"
         },
         {
           "level": 1,
           "line": 23,
-          "text": "scope: RUSTSEC-YYYY-NNNN"
+          "text": "for a live exception, whether or not it strips comments first):"
         },
         {
           "level": 1,
           "line": 24,
-          "text": "owner: did:mini:example-pseudonym"
+          "text": "- id: DEP-EX-0001"
         },
         {
           "level": 1,
           "line": 25,
-          "text": "reason: No patched compatible version; affected code path is unreachable."
+          "text": "scope: RUSTSEC-YYYY-NNNN"
         },
         {
           "level": 1,
           "line": 26,
-          "text": "mitigation: Disable the affected feature and add a regression test."
+          "text": "owner: did:mini:example-pseudonym"
         },
         {
           "level": 1,
           "line": 27,
-          "text": "expires: 2026-09-01"
+          "text": "reason: No patched compatible version; affected code path is unreachable."
         },
         {
           "level": 1,
           "line": 28,
+          "text": "mitigation: Disable the affected feature and add a regression test."
+        },
+        {
+          "level": 1,
+          "line": 29,
+          "text": "expires: YYYY-MM-DD"
+        },
+        {
+          "level": 1,
+          "line": 30,
           "text": "decision: D-00XX"
         }
       ],
       "keywords": [
         "affected",
+        "one",
         "scope",
         "owner",
         "reason",
@@ -91328,24 +91339,23 @@
         "governance",
         "exceptions",
         "example",
-        "dep-ex-0001",
-        "rustsec-yyyy-nnnn",
-        "did",
-        "example-pseudonym",
-        "patched",
-        "compatible",
-        "code",
-        "unreachable",
-        "disable",
-        "feature",
-        "add",
-        "regression"
+        "illustrative",
+        "every",
+        "value",
+        "here",
+        "placeholder",
+        "date",
+        "deliberately",
+        "real",
+        "scanner",
+        "mistake",
+        "block"
       ],
-      "lines": 29,
+      "lines": 31,
       "path": "governance/exceptions.yml",
-      "sha256": "23e0a1badb47260ec984e1ee4074b8383173653fca98342272565d7165bf958d",
+      "sha256": "88972387c2267d1861b5453619c83d94d8d5d8548b2b7171520edc62257be4d5",
       "symbols": [],
-      "title": "Example:"
+      "title": "Example (illustrative only -- every value here is a placeholder, and the"
     },
     {
       "bytes": 5229,
@@ -91384,7 +91394,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 46111,
+      "bytes": 47117,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -91413,9 +91423,9 @@
         "independently",
         "both"
       ],
-      "lines": 832,
+      "lines": 848,
       "path": "governance/work-claims.json",
-      "sha256": "e1f8277563f825eadbe57a04169c00fcb99c7a0b18c686bf79582a3de49212b3",
+      "sha256": "519f37954c1158843765b7da971431f26654c41f6a5881383d44d73d637e999d",
       "symbols": [],
       "title": "{"
     },
@@ -91830,7 +91840,7 @@
       "title": "`### D-0123 \u2014 Title  \u00b7  *Status*`"
     },
     {
-      "bytes": 56129,
+      "bytes": 57009,
       "group": "tools",
       "headings": [],
       "keywords": [
@@ -91859,9 +91869,9 @@
         "checkpoint",
         "independently"
       ],
-      "lines": 1208,
+      "lines": 1223,
       "path": "tools/check_governance.py",
-      "sha256": "25891ffefe042cd4a5b3d84e9c1b0b85c9418a8a584ed7aeb548577158baf763",
+      "sha256": "f4ba98ca31b4c550d11267e43937d79aeee43e8736ad4e9f9afb82e36cb41797",
       "symbols": [],
       "title": "\"\"\"Reference Mininet bootstrap governance validator."
     },
@@ -92301,44 +92311,44 @@
       "title": "\"\"\""
     },
     {
-      "bytes": 37928,
+      "bytes": 43469,
       "group": "tools",
       "headings": [
         {
           "level": 2,
-          "line": 339,
+          "line": 373,
           "text": "The five canonical documents \u2014 read order for any non-trivial task"
         }
       ],
       "keywords": [
         "path",
-        "str",
         "import",
-        "checker",
         "root",
-        "return",
-        "list",
+        "dates",
         "spec",
-        "def",
-        "none",
+        "checker",
+        "return",
         "registry",
-        "claim",
-        "charter",
-        "changed",
-        "json",
-        "destination",
         "lease",
-        "errors",
+        "real",
+        "claim",
+        "json",
+        "check_governance",
+        "def",
+        "destination",
+        "live",
         "proposal",
         "registry_path",
+        "encoding",
+        "utf-8",
         "claims",
-        "body",
-        "importlib",
-        "util"
+        "horizon",
+        "line",
+        "importlib"
       ],
-      "lines": 900,
+      "lines": 1026,
       "path": "tools/test_check_governance.py",
-      "sha256": "c3d1a769970160bb744b4a90928c21b1fd3dc53343b4b68936b9a8388a15bab9",
+      "sha256": "6749445e5ce5cb4fde161b107528c8c5ca9765ceb01fa13661d61e9cf9b07d48",
       "symbols": [],
       "title": "The five canonical documents \u2014 read order for any non-trivial task"
     },

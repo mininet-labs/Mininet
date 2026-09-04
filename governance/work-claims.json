@@ -2,7 +2,7 @@
   "$schema": "./work-claims.schema.json",
   "schema_version": 1,
   "registry_id": "mininet-bootstrap-work-claims",
-  "updated_at": "2026-08-06T16:58:08Z",
+  "updated_at": "2026-09-04",
   "claims": [
     {
       "issue": 122,
@@ -812,7 +812,7 @@
     },
     {
       "issue": 61,
-      "status": "active",
+      "status": "closed",
       "contributor": "claude-agent",
       "branch": "claude/view-key-disclosure",
       "pull_request": 308,
@@ -825,7 +825,23 @@
       "decision_ids": [
         "D-0451"
       ],
-      "notes": "D-0451 (founder direction 2026-08-07, \"invert or no transparency at all is good no real need for anything to be public\"): auditability becomes a view-key disclosure a party makes about itself rather than a transparent payment format, because if both formats exist the choice of the private one is itself a signal. Adds the ViewKeyDisclosure payment-domain object (canonical encoding, digest identity, private fields so the typed acknowledgement cannot be bypassed by a struct literal), verify_disclosure, audit, plus mini_value::view_public_from_secret and stealth_address_is_well_formed. Also fixes a D-0447 availability defect: scan returned Result, so one stranger-sent unopenable memo blanked a wallet entire visible income; scan is now total. Renumbered from D-0450 on 2026-08-31 so the log stays append-only across the stack -- claude/decoy-selection took D-0450 for the Wasmtime sandbox-escape fix, which merges first. Files under #61 as a payments-domain object type; does NOT discharge #61, whose marketplace half is untouched. Stacked on claude/decoy-selection (PR #307). Coordination evidence only, not approval or authority."
+      "notes": "D-0451 (founder direction 2026-08-07, \"invert or no transparency at all is good no real need for anything to be public\"): auditability becomes a view-key disclosure a party makes about itself rather than a transparent payment format, because if both formats exist the choice of the private one is itself a signal. Adds the ViewKeyDisclosure payment-domain object (canonical encoding, digest identity, private fields so the typed acknowledgement cannot be bypassed by a struct literal), verify_disclosure, audit, plus mini_value::view_public_from_secret and stealth_address_is_well_formed. Also fixes a D-0447 availability defect: scan returned Result, so one stranger-sent unopenable memo blanked a wallet entire visible income; scan is now total. Renumbered from D-0450 on 2026-08-31 so the log stays append-only across the stack -- claude/decoy-selection took D-0450 for the Wasmtime sandbox-escape fix, which merges first. Files under #61 as a payments-domain object type; does NOT discharge #61, whose marketplace half is untouched. Stacked on claude/decoy-selection (PR #307). Coordination evidence only, not approval or authority. Closed 2026-09-04: PR #308 merged."
+    },
+    {
+      "issue": 73,
+      "status": "active",
+      "contributor": "claude-agent",
+      "branch": "claude/governance-exception-parsing",
+      "pull_request": 309,
+      "lease_expires": "2026-09-11",
+      "paths": [
+        "tools/check_governance.py",
+        "tools/test_check_governance.py"
+      ],
+      "decision_ids": [
+        "D-0452"
+      ],
+      "notes": "D-0452: the governance-exception expiry scan ran over the raw exceptions.yml, so the commented-out template example at the bottom counted as a live exception and its placeholder date failed the build on 2026-09-02, red-lighting canonical-governance on every open PR. Strips comments before scanning, measures expiry against the threaded now instead of dt.date.today(), and adds the five tests this check never had. Completes D-0450 section 4, which identified the dated-live-data pattern and fixed only the work-claim-lease instance of it. Coordination evidence only, not approval or authority."
     }
   ]
 }
