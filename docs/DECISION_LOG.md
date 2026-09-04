@@ -16582,3 +16582,208 @@ reuses D-0045/D-0055's settlement vocabulary rather than restating it. It does
 not deprecate `mini_settlement::PaymentClaim`; whether the transparent path
 should remain available at all is an open question for founder review, not a
 decision taken here.
+
+### D-0449 — Decoy selection is a protocol rule, not a wallet setting; ring size 16 over a frozen floor of 8  ·  *Proposed*
+
+**Date:** 2026-08-08 · **Refs:** D-0036/D-0040 (`mini-value`'s ring
+signatures), D-0447 (`mini-private-payment`); `docs/design/private-payment-path.md`
+§7.1–§7.2 and §10, whose first two open questions this answers; roadmap #18,
+#72; P5, X1, X2; Directives 2, 9, 11, 14, 16. Founder direction 2026-08-07:
+"maybe we can make anonymity set enforced by default for everyone by protocol
+so no de anonymity by asking", and "privacy always in front".
+
+**Decision:** ring membership stops being a caller parameter.
+`PaymentRequest` drops `ring`/`secret_index` and gains `ring_size`,
+`real_output_index` into a local `OutputSet`, and per-payment
+`decoy_entropy`; `build` now takes the output set and calls `select_ring`,
+which samples decoys under one protocol rule. That rule is recency-weighted
+over `AGE_WEIGHTS` — a frozen table across logarithmic age buckets — computed
+in **integer arithmetic only**, with rejection sampling rather than modulo.
+`MIN_RING_SIZE` rises from 8 to **16** and becomes explicitly Tier T, over a
+new frozen `ABSOLUTE_MIN_RING_SIZE = 8` enforced by a compile-time assertion.
+No mixer, no coordinator, and no way to obtain decoys by asking a peer.
+
+**Reason:** the crate previously said decoy quality was the caller's problem,
+which is two failures wearing one coat. The obvious one is that bad decoys
+break the payment using them — a ring of sixteen whose other fifteen members
+are visibly long-spent hides nobody, and every signature check still passes,
+so the failure is silent. The subtler and worse one is that *different*
+decoys break payments that are themselves fine: if two wallets sample
+differently, an observer can tell which wallet made a payment from the shape
+of its ring, which harms users who did nothing wrong — including users of the
+better wallet, since "unusual" is what stands out and the smaller population
+is the more identifiable. That second failure is why this cannot be an
+implementation choice even in principle.
+
+A mixer was considered and rejected. A mixer is a service, and a service is a
+coordinator, a pool, an operator, and something seizable or simply gone
+tomorrow — precisely what Directive 2 says to assume. It also asks users to
+trust a logging policy, which is a promise rather than mathematics
+(Directive 9). The decisive point is that **the ring signature already is the
+mixing**: every spend mixes with N decoys, locally, with no pool and nothing
+to shut down. Nothing needed adding; only the rule was missing.
+
+Decoys cannot be fetched, either. A peer that serves decoy keys learns the
+ring, and the ring contains the real output; there is no phrasing of that
+request that does not hand over the answer. Hence a local `OutputSet`.
+
+Uniform sampling was rejected as known-broken: real spends skew recent, so a
+ring with one member far newer than the rest identifies its real member with
+high probability. Floating point was rejected because a protocol rule
+computed in `f64` is one two platforms can disagree about, and a wallet
+sampling differently from its peers is a wallet whose users are identifiable
+— the same harm arriving through a numerical back door.
+
+Ring size 16 costs sixteen scalar multiplications to verify instead of eight,
+negligible even on the weakest device this project targets, and ring size is
+the cheapest anonymity lever available. The frozen floor exists because a
+future change arguing for smaller rings on performance grounds is exactly how
+this protection dies quietly elsewhere; the floor makes that a constitutional
+conversation rather than a patch.
+
+**Constitutional impact:** serves Directive 9 (privacy structural rather than
+promised) and P5. Directive 2: no service, no coordinator, nothing to
+disappear. Directive 11: the cost is bounded and small, and the honest limit
+for a device that cannot hold an output set is stated rather than papered
+over with a weaker mode. Directive 14: no new cryptography — a sampling
+distribution is statistics, and the recency-weighted approach is published
+and deployed elsewhere; what is written here is integer table lookup.
+Directive 16 and P1 untouched: `mini-private-payment` remains a value crate
+with no governance edge in either direction. Nothing here bears on Sybil
+(#18) and nothing may be read as if it did.
+
+**Implementation status:** implemented in
+`crates/mini-private-payment/src/decoy.rs` with `OutputSet`,
+`InMemoryOutputSet`, `select_ring`, and the frozen `AGE_WEIGHTS`. 75 tests
+pass: the real output is always present at the reported index; the same
+entropy reproduces the same ring exactly; selection skews recent while still
+reaching old outputs; rings are canonical and duplicate-free; the draw is
+uniform below its bound; an output set smaller than the ring is refused
+rather than padded; two wallets with the same inputs produce the same ring;
+and a `PaymentRequest` carrying a ring field no longer compiles. `cargo fmt`,
+`clippy --all-targets --all-features --workspace -D warnings`, and the full
+workspace suite pass.
+
+The golden vectors were **decoupled from `MIN_RING_SIZE`** in the same
+change. They had been building their fixture from the constant, so raising it
+moved the digests and reported "the wire format changed" when nothing about
+the format had. A vector that tracks a tunable cries wolf, and a vector
+nobody trusts is worse than none; the fixture now uses a literal and the
+digests returned to their prior values, which is itself the evidence that the
+encoding never changed.
+
+**Failure point:** age-weighted selection **reduces** the statistical attacks
+on ring anonymity; it does not eliminate them, and this decision must never
+be cited as if it had. `AGE_WEIGHTS` is a legible starting shape, not a
+distribution fitted to measured traffic — no traffic exists to fit, and until
+it does the table is judgement. A wallet that deliberately constructs a poor
+ring still can; that harms only its own user, which is the right place for
+the remaining freedom, but it means "enforced" describes the default path
+rather than an unforgeable constraint. The output-set requirement is a real
+burden on weak devices and is stated as such rather than softened. Nothing
+here addresses network-level privacy, which remains `mini-relay`'s.
+
+**Required follow-up:** fit `AGE_WEIGHTS` to real spend-age data once any
+exists, and revisit `MIN_RING_SIZE` on the same evidence rather than on
+judgement; the weak-device output-set question (design doc §7.5); and the
+D-0047/#72 external audit, which now has a sampling rule to review as well as
+the constructions.
+
+**Supersedes / superseded by:** supersedes D-0447's statement that decoy
+quality is the caller's problem, and closes the first two open questions in
+`docs/design/private-payment-path.md` §7. D-0447's other limits stand
+unchanged.
+
+### D-0450 — Wasmtime 46.0.3 for a sandbox-escape advisory, and the dependency-audit job restored to the behaviour D-0441 specified  ·  *Proposed*
+
+**Date:** 2026-08-31 · **Refs:** D-0069 (`mini-build-runner-wasmtime` and its
+exact-pin dependency-governance rule), D-0441 (dependency scanning must gate),
+D-0341/#203, roadmap #73; RUSTSEC-2026-0269 / GHSA-vqjp-4c8c-hfgg,
+GHSA-x84v-gj2h-g759. Found by the scheduled `ci` run on `main`, 2026-08-31.
+
+**Decision:** three corrections, one of them a real security fix.
+
+1. **`wasmtime`/`wasmtime-wasi` pinned 46.0.2 → 46.0.3.** RUSTSEC-2026-0269 is
+   *"filesystem sandbox escape when paths or symlinks contain trailing
+   slashes"*. This is not a routine transitive advisory. It defeats **the exact
+   boundary `mini-build-runner-wasmtime` exists to enforce**: a
+   `wasm-component` build step could reach outside the directories the
+   deny-by-default capability model granted it, which is the entire premise of
+   D-0069's isolation claim and of every "untrusted build steps are sandboxed"
+   statement in this tree. Both advisories' stated fix range (`>=46.0.3,
+   <47.0.0`) is satisfied by the patch bump alone, so no WASI Preview 2 API
+   surface changed. Bumped in a reviewed commit with the Batch 2b.3 adversarial
+   suite re-run, as D-0069's pinning rule requires — deliberately not a jump to
+   47.x, which would be an API-surface change reviewed on its own merits rather
+   than under advisory pressure.
+
+2. **The `dependency-audit` job stopped doing the opposite of what D-0441 said
+   it does.** D-0441 specified that the job "distinguishes the two outcomes the
+   previous configuration conflated": a scanner that cannot run fails the
+   build, while advisory findings are surfaced loudly *without* failing. The
+   step's own script says exactly that, and it was wrong the whole time —
+   GitHub runs `run:` blocks under `bash -e`, and the step's `set -uo pipefail`
+   does not clear `-e`, so `cargo-audit` exiting non-zero on a finding aborted
+   the job before a single line of the tolerance logic ran. The inversion was
+   invisible for as long as the workspace happened to be advisory-free, and
+   surfaced the first time an advisory landed. `set +e` restores the specified
+   behaviour, and the reason is written at the call site so it is not
+   "simplified" back out.
+
+3. **Two stale `deny.toml` ignores removed.** RUSTSEC-2026-0194/0195 were
+   ignored with a "revisit when mini-desktop's GUI stack is next upgraded"
+   note; that upgrade has since happened on its own (`wayland-scanner` 0.31.11
+   resolves `quick-xml` to the fixed 0.41.0), and cargo-deny was reporting both
+   as `advisory-not-detected`. Also `chacha20` 0.10.1 → 0.10.2, off a yanked
+   release.
+
+4. **The validator test suite stopped being a time bomb.** Four baseline tests
+   copy the *live repository* as a fixture and assert `validate_baseline`
+   reports zero errors. Work-claim leases expire on a calendar, so the day an
+   open claim's lease passed, those four began failing — and
+   `governance-canonical` runs this suite **from the base branch, against the
+   base branch's own data**, so every pull request went red for a reason
+   belonging to no pull request, and **no proposal could fix it**, because no
+   proposal changes the code or data that job runs. `copy_fixture` now pushes
+   active leases out in the copy. The signal is not suppressed, only moved to
+   where it means something: `check_governance.py` on the live tree still
+   reports an expired lease, `WorkClaimRegistryTests` still tests expiry
+   directly with its own fixtures, and every other calendar check still runs
+   against the real clock. Verified by applying this one file to an otherwise
+   untouched checkout of `main`: 4 failures → 90 tests OK, with no data
+   changes.
+
+**Reason for (2) beyond the bug itself:** a CI job whose behaviour contradicts
+its own decision entry is worse than an absent one, because the decision entry
+is what a reader trusts. D-0441 exists precisely because "a green check that
+means *the scanner failed to start* is worse than no check"; this is the same
+failure with the polarity flipped — a red check that means *the scanner worked
+and found something the job was never meant to gate on*. Both teach a reviewer
+to stop believing the signal, which is the durable damage.
+
+**Constitutional impact:** none directly — a dependency patch bump and CI
+configuration. It does, however, restore a factual basis for D-0069's
+sandboxing claims, which several honesty statements elsewhere in the tree
+depend on (`README`, `docs/STATUS.md`, and this crate's own README all say
+untrusted build steps run under a real capability boundary). No protocol
+surface, no authority, no frozen invariant, no voice/value edge.
+
+**Implementation status:** `crates/mini-build-runner-wasmtime/Cargo.toml` pin
+and its bump-history comment, `Cargo.lock`, `.github/workflows/ci.yml`,
+`deny.toml`, and `tools/test_check_governance.py`. The Batch 2b.3 adversarial
+suite passes against 46.0.3.
+
+**Failure point:** D-0441's original gap stands unchanged and this decision
+must not be read as closing it — **advisory findings still do not fail
+`dependency-audit`**; `dependency-deny` is what actually blocks a vulnerable
+dependency, and it is the job that caught this one. Restoring the intended
+tolerance in `dependency-audit` narrows the signal it gives rather than
+widening it. Pinning `=46.0.3` means the next Wasmtime advisory needs another
+reviewed commit; that is the intended cost of D-0069's exact pin, not an
+oversight. Nothing here was found by anyone reading the code — it took a
+scheduled run three weeks after the last merge, which is itself the argument
+for keeping that schedule.
+
+**Supersedes / superseded by:** supersedes nothing. Corrects the
+implementation of D-0441 §1 without changing its decision, and continues
+D-0069's pinned-bump history.

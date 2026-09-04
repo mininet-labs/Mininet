@@ -50,12 +50,31 @@ pub const CLAIM_VERSION: u8 = 1;
 /// Smallest ring this crate will verify.
 ///
 /// A ring of one names its signer outright, and a ring of two gives even
-/// odds. Eight is the smallest size where a single observation is weak
-/// evidence rather than a near-identification. It is a floor chosen for
-/// legibility, **not** a figure derived from a deanonymization analysis of
-/// real traffic — that analysis has not been done, and the design document
-/// records it as an open question.
-pub const MIN_RING_SIZE: usize = 8;
+/// odds. Sixteen costs sixteen scalar multiplications to verify instead of
+/// eight — negligible even on the weakest device this project targets
+/// (Directive 11) — and ring size is the cheapest anonymity lever available,
+/// so spending it is close to free.
+///
+/// **Tier T, with [`ABSOLUTE_MIN_RING_SIZE`] as the frozen floor beneath
+/// it.** This value may be raised by ordinary tunable-parameter process; it
+/// may never be lowered past the floor. That asymmetry is deliberate: a
+/// future change arguing for a smaller ring on performance grounds is
+/// exactly how this protection dies quietly elsewhere, and a floor makes
+/// that a constitutional conversation rather than a patch.
+///
+/// It is a legible figure, **not** one derived from a deanonymization
+/// analysis of real traffic — no such traffic exists yet, and the design
+/// document records that as the open question it is.
+pub const MIN_RING_SIZE: usize = 16;
+
+/// The frozen floor: no ring size below this is admissible, ever, whatever
+/// [`MIN_RING_SIZE`] is tuned to.
+pub const ABSOLUTE_MIN_RING_SIZE: usize = 8;
+
+const _: () = assert!(
+    MIN_RING_SIZE >= ABSOLUTE_MIN_RING_SIZE,
+    "the tunable minimum can never be set below the frozen floor"
+);
 
 /// Largest ring, bounding verification cost. Ring signature verification is
 /// linear in ring size, so an unbounded ring is a denial-of-service vector
@@ -311,19 +330,20 @@ pub struct PaymentRequest {
     pub purpose: PaymentPurpose,
     pub valid_until_ms: u64,
     pub last_known_chain: Vec<u8>,
-    /// The anonymity set the sender chose, including its own one-time key.
+    /// How many members the anonymity set should have. Must be at least
+    /// [`MIN_RING_SIZE`].
     ///
-    /// **The caller owns this choice, and it owns the privacy consequences.**
-    /// This crate can check the ring's size and shape; it cannot check that
-    /// the decoys are plausible. A ring of eight where seven members are
-    /// visibly long-spent outputs provides the anonymity of a ring of one,
-    /// and no signature check will ever notice.
-    pub ring: Vec<Vec<u8>>,
-    /// Index of the sender's real key within `ring` **after**
-    /// canonicalization — use [`canonicalize_ring`] first, then locate it.
-    pub secret_index: usize,
-    /// The sender's one-time secret key for `ring[secret_index]`.
+    /// The *members* are not a caller choice. [`crate::select_ring`] picks
+    /// them under the protocol's one sampling rule, because a per-wallet
+    /// choice fingerprints that wallet's users — see [`crate::decoy`].
+    pub ring_size: usize,
+    /// Index of the sender's real output within `outputs`.
+    pub real_output_index: usize,
+    /// The sender's one-time secret key for that output.
     pub secret_key: Vec<u8>,
+    /// Fresh per payment. Reusing it reproduces the same ring, and two
+    /// payments sharing a ring are visibly related.
+    pub decoy_entropy: [u8; 32],
     /// Blinding factor for the amount commitment. Must be fresh per
     /// payment: a reused blinding makes two equal amounts produce equal
     /// commitments, which is a linkability channel as loud as publishing
@@ -338,22 +358,20 @@ pub struct PaymentRequest {
 /// sealed against a transcript that already contains both — so the memo is
 /// bound to a claim that cannot subsequently change without invalidating
 /// it. Sealing before committing would leave the memo transplantable.
-pub fn build(request: &PaymentRequest) -> Result<(PrivatePaymentClaim, StealthSharedSecret)> {
-    if request.ring.len() < MIN_RING_SIZE {
-        return Err(PrivatePaymentError::RingTooSmall {
-            got: request.ring.len(),
-            min: MIN_RING_SIZE,
-        });
-    }
-    if request.ring.len() > MAX_RING_SIZE {
-        return Err(PrivatePaymentError::RingTooLarge {
-            got: request.ring.len(),
-            max: MAX_RING_SIZE,
-        });
-    }
-    if !ring_is_canonical(&request.ring) {
-        return Err(DecodeFailure::NoncanonicalRingOrder.into());
-    }
+pub fn build(
+    request: &PaymentRequest,
+    outputs: &impl crate::OutputSet,
+) -> Result<(PrivatePaymentClaim, StealthSharedSecret)> {
+    // The ring is chosen here, by the protocol's rule, from the caller's
+    // local output set. It is not a caller parameter: a wallet that samples
+    // differently from its peers marks its own users, so this cannot be an
+    // implementation choice even when the implementation means well.
+    let (ring, secret_index) = crate::select_ring(
+        outputs,
+        request.real_output_index,
+        request.ring_size,
+        &request.decoy_entropy,
+    )?;
 
     let (output, shared) = mini_value::derive_output_with_secret(
         &request.recipient_spend_public,
@@ -379,7 +397,7 @@ pub fn build(request: &PaymentRequest) -> Result<(PrivatePaymentClaim, StealthSh
         },
         valid_until_ms: request.valid_until_ms,
         last_known_chain: request.last_known_chain.clone(),
-        ring: request.ring.clone(),
+        ring,
         signature: RingSignature {
             challenge: Vec::new(),
             responses: Vec::new(),
@@ -397,7 +415,7 @@ pub fn build(request: &PaymentRequest) -> Result<(PrivatePaymentClaim, StealthSh
 
     // Signed last, over the full transcript -- which does include the
     // memo, so a swapped or stripped memo breaks the signature.
-    let mut scheme = MininetRingSignature::new(request.secret_index, &request.secret_key)
+    let mut scheme = MininetRingSignature::new(secret_index, &request.secret_key)
         .ok_or(PrivatePaymentError::CryptoUnavailable)?;
     let signature = scheme
         .sign(&claim.ring, &claim.transcript())

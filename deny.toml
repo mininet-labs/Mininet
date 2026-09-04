@@ -27,18 +27,17 @@ ignore = [
     # replacement for ab_glyph's dependency, or if ttf-parser gains a
     # maintainer.
     { id = "RUSTSEC-2026-0192", reason = "unmaintained, no safe upgrade available; font-rendering-only reachability via mini-desktop's egui stack" },
-    # Both quick-xml DoS advisories are reachable only through
-    # wayland-scanner, a *build-time* proc-macro that parses the small,
-    # fixed Wayland protocol XML files bundled with the wayland-protocols
-    # crate family at compile time -- never attacker-controlled or
-    # runtime-supplied XML. wayland-scanner v0.31.10 pins `quick-xml =
-    # "^0.39"`; the fix (>=0.41.0) requires a major bump of
-    # wayland-scanner, which in turn needs a winit/eframe/smithay upgrade
-    # for mini-desktop -- out of scope for a dependency-verification pass
-    # (issue #203); revisit when mini-desktop's GUI stack is next
-    # upgraded for other reasons.
-    { id = "RUSTSEC-2026-0194", reason = "quadratic-time XML attribute parsing; wayland-scanner's build-time use only ever parses trusted, bundled protocol XML, never attacker-controlled input" },
-    { id = "RUSTSEC-2026-0195", reason = "unbounded namespace-declaration allocation; same build-time-only, trusted-input reachability as RUSTSEC-2026-0194" },
+    # RUSTSEC-2026-0194 and RUSTSEC-2026-0195 (the two quick-xml DoS
+    # advisories, reachable only through wayland-scanner's build-time XML
+    # parsing) were ignored here with a "revisit when mini-desktop's GUI
+    # stack is next upgraded" note. That upgrade has happened on its own:
+    # wayland-scanner 0.31.11 resolves quick-xml to 0.41.0, which is the
+    # fixed version, so cargo-deny now reports both ignores as
+    # `advisory-not-detected`. Removed rather than left in place -- a
+    # stale ignore is a standing claim that this tree knowingly carries a
+    # vulnerability it no longer has, and it would silently absorb the
+    # advisory if a future dependency change reintroduced an old
+    # quick-xml.
 ]
 
 [licenses]

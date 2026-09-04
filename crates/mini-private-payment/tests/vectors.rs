@@ -11,14 +11,30 @@
 
 use mini_crypto::HashAlgorithm;
 use mini_private_payment::{
-    PrivatePaymentClaim, SealedMemo, CLAIM_TRANSCRIPT_DOMAIN, CLAIM_VERSION, MAX_MEMO_BYTES,
-    MEMO_KDF_INFO, MEMO_PADDED_BYTES, MIN_RING_SIZE,
+    PrivatePaymentClaim, SealedMemo, ABSOLUTE_MIN_RING_SIZE, CLAIM_TRANSCRIPT_DOMAIN,
+    CLAIM_VERSION, MAX_MEMO_BYTES, MEMO_KDF_INFO, MEMO_PADDED_BYTES, MIN_RING_SIZE,
 };
 use mini_value::{RangeProof, RingSignature, StealthOutput, RANGE_PROOF_BYTES};
+
+/// Checked by the compiler rather than by a test run: the tunable minimum
+/// can never sit below the frozen floor, and a build that tried would not
+/// link.
+const _: () = assert!(MIN_RING_SIZE >= ABSOLUTE_MIN_RING_SIZE);
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
+
+/// Ring size for the fixture, deliberately a **literal** rather than
+/// `MIN_RING_SIZE`.
+///
+/// These vectors pin the wire *encoding*. `MIN_RING_SIZE` is a Tier-T
+/// tunable, and a golden vector that tracked it would move every time the
+/// parameter was tuned — reporting "the format changed" when nothing about
+/// the format had. That is a vector that cries wolf, and a vector nobody
+/// trusts is worse than none. (It moved exactly once for exactly this
+/// reason, when D-0449 raised the minimum from 8 to 16.)
+const VECTOR_RING_SIZE: usize = 8;
 
 /// A fully deterministic claim — every field fixed, no randomness — so its
 /// transcript is a stable vector.
@@ -29,7 +45,7 @@ fn fixed_claim() -> PrivatePaymentClaim {
     let proof_bytes: Vec<u8> = (0..RANGE_PROOF_BYTES).map(|i| (i % 251) as u8).collect();
     let range_proof = RangeProof::from_bytes(&proof_bytes).expect("well-formed length");
 
-    let ring: Vec<Vec<u8>> = (0..MIN_RING_SIZE as u8)
+    let ring: Vec<Vec<u8>> = (0..VECTOR_RING_SIZE as u8)
         .map(|i| {
             let mut member = vec![0u8; 32];
             member[0] = i;
@@ -53,7 +69,7 @@ fn fixed_claim() -> PrivatePaymentClaim {
         ring,
         signature: RingSignature {
             challenge: vec![0x66; 32],
-            responses: (0..MIN_RING_SIZE).map(|_| vec![0x77; 32]).collect(),
+            responses: (0..VECTOR_RING_SIZE).map(|_| vec![0x77; 32]).collect(),
             key_image: vec![0x88; 32],
         },
     }
@@ -77,7 +93,13 @@ fn the_size_constants_are_frozen() {
     assert_eq!(MAX_MEMO_BYTES, 252);
     // 7 field elements + 6 L + 6 R + 2 folded scalars, all 32 bytes.
     assert_eq!(RANGE_PROOF_BYTES, 672);
-    assert_eq!(MIN_RING_SIZE, 8);
+
+    // ABSOLUTE_MIN_RING_SIZE is frozen and may never fall. MIN_RING_SIZE is
+    // Tier T: it may be raised, never lowered past the floor. Asserting the
+    // relationship rather than the value is what lets the tunable move
+    // without letting it move in the wrong direction.
+    assert_eq!(ABSOLUTE_MIN_RING_SIZE, 8);
+    assert_eq!(MIN_RING_SIZE, 16, "current tuned value (D-0449)");
 }
 
 #[test]

@@ -127,15 +127,49 @@ Considered and rejected. The transparent claim is depended on by `mini-contribut
 
 ## 7. Open questions for founder/governance review
 
-1. **How are decoys chosen?** The anonymity of every payment rests on this, and it is entirely the caller's problem today. The literature is clear that naive decoy selection is breakable; a real answer needs a sampling rule over the output set, and probably a policy the protocol states rather than each wallet inventing.
-2. **Is `MIN_RING_SIZE = 8` defensible?** It is a legible floor, not a figure derived from a deanonymization analysis of real traffic — that analysis has not been done and cannot be until traffic exists.
+1. ~~**How are decoys chosen?**~~ **Answered by founder direction 2026-08-07; implemented in D-0449 — see §10.** Enforced by protocol for everyone, via the ring signature that already exists, not via a mixer service.
+2. ~~**Is `MIN_RING_SIZE = 8` defensible?**~~ **Answered: raised to 16, with 8 frozen as an absolute floor (D-0449).** The remaining question — what the *right* number is, from measured traffic rather than judgement — stays open and cannot close until traffic exists.
 3. **Should the transparent path remain available at all?** If both exist, the choice to use the private one is itself a signal, and a payment that *must* be transparent (an audited treasury disbursement, say) coexists awkwardly with one that must not be. This is a protocol-policy question, not an implementation detail.
 4. **What is the fee model?** A private payment with no fee output cannot pay for its own inclusion, and a transparent fee attached to a shielded payment reintroduces a linkable value.
-5. **Where does the anonymity set come from on a weak device?** Directive 11: a phone that must download the whole output set to pick decoys is a phone that cannot make private payments at all.
+5. **Where does the anonymity set come from on a weak device?** Directive 11: a phone that must hold the whole output set to pick decoys is a phone that cannot make private payments at all. D-0449 settles the *policy* — the set is local, because asking a peer for decoys hands that peer your ring — but not the engineering. A one-time key is 32 bytes, so a million outputs is 32 MB and prunable, which is more tractable than it first sounds; below that threshold the honest answer is that the device does not make private payments, not that it makes weaker ones.
+
+## 10. Decoy selection (D-0449)
+
+`PaymentRequest` no longer carries a `ring`. It carries a `ring_size`, a `real_output_index` into the caller's local [`OutputSet`], and fresh `decoy_entropy`; `build` calls `select_ring` and the protocol picks the members.
+
+### Why this could not be left to wallets
+
+Two distinct failures, and only the first is obvious:
+
+1. **Bad decoys break the payment that uses them.** A ring of sixteen whose other fifteen members are visibly long-spent outputs hides nobody, and every signature check still passes. Silent failure.
+2. **Different decoys break payments that don't.** If two wallets sample differently, an observer can tell *which wallet* made a payment from the shape of its ring. That harms users who did nothing wrong — including users of the *better* wallet, because "unusual" is what stands out, and the smaller population is the more identifiable one.
+
+(2) is the reason this cannot be an implementation choice even in principle. A per-wallet policy makes every wallet's users a smaller anonymity set than the network's.
+
+### Why not a mixer
+
+A mixer is a service — value in, different value out — and that reintroduces a coordinator, a pool, an operator, and something seizable or simply gone tomorrow. Directive 2 says assume exactly that. It also requires trusting the mixer's logging policy, which is a promise rather than mathematics (Directive 9).
+
+**The ring signature already is the mixing.** Every spend mixes with N decoys, locally, with no pool and nothing to shut down. Nothing needed adding; only the rule for choosing who to mix with was missing.
+
+### Why the set must be local
+
+A peer that serves decoy keys learns your ring, and your ring contains your real output. There is no phrasing of that request which does not hand over the answer. So `OutputSet` is a local view, and a device that cannot hold one does not make private payments from that device.
+
+### The rule
+
+Real spends skew recent. Uniform decoy selection therefore fails immediately: where one ring member is far newer than the rest, the newest is the real one with high probability — the attack that forced the wider field off uniform selection. Decoys are drawn with the same recency skew, from `AGE_WEIGHTS`, a frozen table over logarithmic age buckets.
+
+**No floating point anywhere.** A protocol rule computed in `f64` is a rule two platforms can disagree about, and a wallet that samples differently from its peers is a wallet whose users are identifiable — the same harm as (2), arriving through a numerical back door. Every step is integer arithmetic over a fixed table, including rejection sampling rather than modulo, since biased indices are a distribution an observer can fit against.
+
+### What it does not fix
+
+Age-weighted selection **reduces** the statistical attacks on ring anonymity; it does not eliminate them. The weights are a legible starting shape, not a distribution fitted to measured traffic, because no traffic exists to fit. A wallet that deliberately constructs a poor ring still can — but that only harms its own user, which is the correct place for the remaining freedom to sit.
 
 ## 8. Required follow-up
 
 - Multi-output claims with `verify_balance`, so change and fees can exist without leaking.
+- Fitting `AGE_WEIGHTS` to real spend-age data once any exists, and revisiting `MIN_RING_SIZE` on the same evidence.
 - A chain-backed `PrivateLedgerView`, the private analogue of D-0061.
 - A decoy-selection policy answering §7.1, with the analysis §7.2 needs behind it.
 - Wiring `mini-contribution` and `mini-engagement` to offer the private path, once the above exist. **Deliberately not done here** — those crates' payouts are one of the strongest arguments for this work, and changing them before the fee and change model exist would ship a half-private path that looks finished.
