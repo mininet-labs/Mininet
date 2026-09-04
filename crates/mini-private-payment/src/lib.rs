@@ -144,6 +144,16 @@
 //! proves nothing about completeness, since no cryptography can show a
 //! disclosed account is the only one its holder controls.
 //!
+//! A view key enumerates payments; it does not open a Pedersen commitment,
+//! so it cannot add them up. [`AmountDisclosure`] closes that separately:
+//! the recipient publishes an output's `(amount, blinding)` opening and
+//! anyone recomputes the commitment. Because openings are **chosen**,
+//! [`audit_amounts`] never returns a bare total — [`AuditedIncome`] carries
+//! the opened sum beside the number of payments left unopened, and only
+//! [`AuditedIncome::is_complete`] licenses reading the first as an account's
+//! income. A sum that quietly meant "the part they chose to show" would be
+//! the most useful-looking dishonest number this crate could produce.
+//!
 //! # The voice/value wall
 //!
 //! This is a **value** crate (P1, Directive 16). It depends on
@@ -176,6 +186,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod amount;
 mod claim;
 mod codec;
 mod decoy;
@@ -186,6 +197,10 @@ mod nullifier;
 mod reconcile;
 mod scan;
 
+pub use amount::{
+    audit_amounts, AcknowledgedAmountDisclosure, AmountDisclosure, AuditedIncome, OpenedPayment,
+    AMOUNT_DISCLOSURE_DOMAIN, AMOUNT_DISCLOSURE_VERSION,
+};
 pub use claim::{
     build, canonicalize_ring, ring_is_canonical, verify, BuiltOutput, ClaimInput, ClaimOutput,
     PaymentRequest, PrivatePaymentClaim, Recipient, SpendableOutput, VerifiedPrivateClaim,
@@ -206,5 +221,7 @@ pub use memo::{
     NOTE_OVERHEAD_BYTES,
 };
 pub use nullifier::{KeyImageSet, SpendOutcome};
-pub use reconcile::{reconcile, InMemoryPrivateLedger, PrivateLedgerView};
+pub use reconcile::{
+    reconcile, ChainBackedPrivateLedger, InMemoryPrivateLedger, PrivateLedgerView,
+};
 pub use scan::{recognizes, scan, scan_one, RecognizedPayment, ScanOutcome};

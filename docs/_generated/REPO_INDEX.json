@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 73,
-    "files": 905,
-    "headings": 3171,
-    "rust_symbols": 8790
+    "files": 910,
+    "headings": 3182,
+    "rust_symbols": 8895
   },
   "crates": {
     "did-mini": {
@@ -1832,7 +1832,7 @@
       ],
       "lines": 404,
       "path": "README.md",
-      "sha256": "1fa98ad348b87dd04a0d656e1ceb781ace366b90b34ec5771d2d3274abfbfb8b",
+      "sha256": "0c8911d485494bcf5ef0acaa12599508715d3e70d57bbccdb60f8e70d96e4123",
       "symbols": [],
       "title": "Mininet"
     },
@@ -26377,72 +26377,77 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 2986,
+      "bytes": 4329,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
         "self",
         "claims",
-        "block",
-        "one",
         "vec",
         "extend_from_slice",
+        "nullifiers",
         "body",
-        "settlementblockbody",
         "new",
-        "monetary_epochs",
+        "block",
         "paymentclaim",
-        "hash",
+        "one",
+        "settlementblockbody",
+        "nullifierrecord",
+        "monetary_epochs",
         "ordered",
         "list",
-        "claim",
-        "scalableepochplan",
-        "per",
+        "order",
         "same",
-        "epochs",
         "len",
         "u64",
         "to_be_bytes",
-        "digest",
-        "bytes"
+        "hash",
+        "claim",
+        "because",
+        "here"
       ],
-      "lines": 69,
+      "lines": 97,
       "path": "crates/mini-execution/src/body.rs",
-      "sha256": "a61cde535732e9b1d74845a1ac78f97b393f37c773c381ae0dda82e77b47d485",
+      "sha256": "db55fb58c3c9fb388794591396616280d314858212ed5f21adac10537969ac24",
       "symbols": [
         {
           "kind": "const",
-          "line": 18,
+          "line": 26,
           "name": "MAX_CLAIMS_PER_BLOCK"
         },
         {
           "kind": "const",
-          "line": 22,
+          "line": 30,
           "name": "MAX_MONETARY_EPOCHS_PER_BLOCK"
         },
         {
           "kind": "struct",
-          "line": 26,
+          "line": 34,
           "name": "SettlementBlockBody"
         },
         {
           "kind": "impl",
-          "line": 31,
+          "line": 47,
           "name": "SettlementBlockBody"
         },
         {
           "kind": "fn",
-          "line": 35,
+          "line": 51,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 44,
+          "line": 61,
+          "name": "with_nullifiers"
+        },
+        {
+          "kind": "fn",
+          "line": 68,
           "name": "with_monetary_epochs"
         },
         {
           "kind": "fn",
-          "line": 52,
+          "line": 76,
           "name": "hash"
         }
       ],
@@ -26556,7 +26561,7 @@
       "title": "use mini_chain::{verify_finality, BlockHeader, QuorumCertificate, ValidatorOracle, ValidatorSet};"
     },
     {
-      "bytes": 5398,
+      "bytes": 5698,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
@@ -26564,30 +26569,30 @@
         "block",
         "write",
         "body",
-        "snapshot",
         "fmt",
+        "snapshot",
+        "error",
         "match",
         "header",
-        "error",
+        "did",
         "expected",
         "got",
         "its",
-        "did",
-        "does",
-        "ledger",
         "height",
         "u64",
-        "finalized",
         "never",
+        "does",
         "state",
+        "ledger",
+        "cap",
         "mini_chain",
         "chainerror",
         "result",
         "candidate"
       ],
-      "lines": 122,
+      "lines": 128,
       "path": "crates/mini-execution/src/error.rs",
-      "sha256": "e72a024993fc09e116c3322ea605a63453b91117b4bfa36cfb990809556cc1d6",
+      "sha256": "2dfd86e140d97ab35cc852e263f3aa5bb078fcbdbbabcbf654b99e0b01d4c745",
       "symbols": [
         {
           "kind": "enum",
@@ -26596,39 +26601,39 @@
         },
         {
           "kind": "impl",
-          "line": 63,
+          "line": 66,
           "name": "fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 64,
+          "line": 67,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 112,
+          "line": 118,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 114,
+          "line": 120,
           "name": "From<mini_chain::ChainError>"
         },
         {
           "kind": "fn",
-          "line": 115,
+          "line": 121,
           "name": "from"
         },
         {
           "kind": "type",
-          "line": 121,
+          "line": 127,
           "name": "Result"
         }
       ],
       "title": "use core::fmt;"
     },
     {
-      "bytes": 3730,
+      "bytes": 3830,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
@@ -26642,6 +26647,7 @@
         "one",
         "admission",
         "error",
+        "nullifier",
         "snapshot",
         "machine",
         "finality",
@@ -26654,12 +26660,11 @@
         "mini-execution",
         "deterministic",
         "roadmap",
-        "issues",
-        "rules"
+        "issues"
       ],
-      "lines": 73,
+      "lines": 75,
       "path": "crates/mini-execution/src/lib.rs",
-      "sha256": "0332cd3a1389c3505428f7a7088646c28ca0ab0e7248b431ee3499a2b24f1aaf",
+      "sha256": "0bd4406b815e88aedf56bba2bacc17a1209ce2017d390155c43e987d8f34a7b9",
       "symbols": [
         {
           "kind": "mod",
@@ -26684,49 +26689,151 @@
         {
           "kind": "mod",
           "line": 64,
-          "name": "snapshot"
+          "name": "nullifier"
         },
         {
           "kind": "mod",
           "line": 65,
+          "name": "snapshot"
+        },
+        {
+          "kind": "mod",
+          "line": 66,
           "name": "state"
         }
       ],
       "title": "mod admission;"
     },
     {
-      "bytes": 19892,
+      "bytes": 6834,
+      "group": "crate:mini-execution",
+      "headings": [],
+      "keywords": [
+        "self",
+        "key_image",
+        "claim",
+        "what",
+        "key",
+        "chain",
+        "vec",
+        "nullifierrecord",
+        "digest",
+        "image",
+        "does",
+        "max_key_image_bytes",
+        "shielded",
+        "none",
+        "spend",
+        "would",
+        "cannot",
+        "claim_digest",
+        "new",
+        "opaque",
+        "bytes",
+        "set",
+        "here",
+        "one"
+      ],
+      "lines": 152,
+      "path": "crates/mini-execution/src/nullifier.rs",
+      "sha256": "e398aeedc1a1c2733edfd39277ff2752e6aae6ac95cdd9b6b544cde7eca7013f",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 55,
+          "name": "MAX_NULLIFIERS_PER_BLOCK"
+        },
+        {
+          "kind": "const",
+          "line": 60,
+          "name": "MAX_KEY_IMAGE_BYTES"
+        },
+        {
+          "kind": "struct",
+          "line": 68,
+          "name": "NullifierRecord"
+        },
+        {
+          "kind": "impl",
+          "line": 79,
+          "name": "NullifierRecord"
+        },
+        {
+          "kind": "fn",
+          "line": 80,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 92,
+          "name": "is_well_formed"
+        },
+        {
+          "kind": "fn",
+          "line": 97,
+          "name": "canonical_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 105,
+          "name": "digest"
+        },
+        {
+          "kind": "mod",
+          "line": 114,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 118,
+          "name": "a_record_is_well_formed_only_within_its_bounds"
+        },
+        {
+          "kind": "fn",
+          "line": 130,
+          "name": "the_length_prefix_stops_two_different_records_hashing_alike"
+        },
+        {
+          "kind": "fn",
+          "line": 141,
+          "name": "the_record_digest_is_a_stable_vector"
+        }
+      ],
+      "title": "use mini_crypto::HashAlgorithm;"
+    },
+    {
+      "bytes": 21580,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
         "out",
         "self",
-        "reader",
         "len",
-        "digest",
-        "executionerror",
+        "reader",
         "extend_from_slice",
         "bytes",
+        "state",
+        "executionerror",
+        "payer",
+        "finalized",
         "return",
         "err",
-        "payer",
-        "state",
-        "monetary",
+        "digest",
+        "snapshot",
         "max_ledger_snapshot_entries",
         "domain",
+        "put_count",
         "count",
         "sequence",
-        "finalized",
-        "rejected",
-        "snapshot",
+        "monetary",
         "ledgerstate",
-        "put_count",
+        "put_bytes",
         "new",
-        "array_32"
+        "nullifiers"
       ],
-      "lines": 555,
+      "lines": 589,
       "path": "crates/mini-execution/src/snapshot.rs",
-      "sha256": "fb39f9796017af92455d835ace0e8eb9c20345858cf5839847ef710df88029bd",
+      "sha256": "d318b9d820f2c8ebf109401a6a9f247eeb17332a843f58177ae477829e534662",
       "symbols": [
         {
           "kind": "const",
@@ -26740,189 +26847,189 @@
         },
         {
           "kind": "const",
-          "line": 29,
+          "line": 33,
           "name": "DOMAIN"
         },
         {
           "kind": "impl",
-          "line": 31,
+          "line": 35,
           "name": "LedgerState"
         },
         {
           "kind": "fn",
-          "line": 33,
+          "line": 37,
           "name": "to_snapshot_bytes"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 95,
           "name": "from_snapshot_bytes"
         },
         {
           "kind": "fn",
-          "line": 166,
+          "line": 194,
           "name": "snapshot_encoded_len"
         },
         {
           "kind": "fn",
-          "line": 219,
+          "line": 253,
           "name": "add_snapshot_len"
         },
         {
           "kind": "fn",
-          "line": 229,
+          "line": 263,
           "name": "encode_monetary"
         },
         {
           "kind": "fn",
-          "line": 268,
+          "line": 302,
           "name": "decode_monetary"
         },
         {
           "kind": "fn",
-          "line": 317,
+          "line": 351,
           "name": "channel_tag"
         },
         {
           "kind": "fn",
-          "line": 325,
+          "line": 359,
           "name": "decode_channel"
         },
         {
           "kind": "fn",
-          "line": 334,
+          "line": 368,
           "name": "rejection_tag"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 377,
           "name": "decode_rejection"
         },
         {
           "kind": "fn",
-          "line": 353,
+          "line": 387,
           "name": "strictly_after"
         },
         {
           "kind": "fn",
-          "line": 357,
+          "line": 391,
           "name": "put_count"
         },
         {
           "kind": "fn",
-          "line": 363,
+          "line": 397,
           "name": "put_bytes"
         },
         {
           "kind": "struct",
-          "line": 370,
+          "line": 404,
           "name": "Reader"
         },
         {
           "kind": "impl",
-          "line": 375,
+          "line": 409,
           "name": "Reader<'a>"
         },
         {
           "kind": "fn",
-          "line": 376,
+          "line": 410,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 380,
+          "line": 414,
           "name": "take"
         },
         {
           "kind": "fn",
-          "line": 393,
+          "line": 427,
           "name": "u8"
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 431,
           "name": "u32"
         },
         {
           "kind": "fn",
-          "line": 403,
+          "line": 437,
           "name": "u64"
         },
         {
           "kind": "fn",
-          "line": 409,
+          "line": 443,
           "name": "u128"
         },
         {
           "kind": "fn",
-          "line": 415,
+          "line": 449,
           "name": "array_32"
         },
         {
           "kind": "fn",
-          "line": 421,
+          "line": 455,
           "name": "bytes"
         },
         {
           "kind": "fn",
-          "line": 429,
+          "line": 463,
           "name": "count"
         },
         {
           "kind": "fn",
-          "line": 437,
+          "line": 471,
           "name": "finished"
         },
         {
           "kind": "mod",
-          "line": 443,
+          "line": 477,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 450,
+          "line": 484,
           "name": "account"
         },
         {
           "kind": "fn",
-          "line": 457,
+          "line": 491,
           "name": "populated_state"
         },
         {
           "kind": "fn",
-          "line": 470,
+          "line": 504,
           "name": "populated_state_round_trips_byte_identically"
         },
         {
           "kind": "fn",
-          "line": 480,
+          "line": 514,
           "name": "truncation_is_rejected_at_every_boundary"
         },
         {
           "kind": "fn",
-          "line": 488,
+          "line": 522,
           "name": "unbound_network_mutation_changes_the_state_commitment"
         },
         {
           "kind": "fn",
-          "line": 501,
+          "line": 535,
           "name": "supply_tampering_is_rejected"
         },
         {
           "kind": "fn",
-          "line": 511,
+          "line": 545,
           "name": "oversized_state_is_rejected_by_preflight_before_output_allocation"
         },
         {
           "kind": "fn",
-          "line": 547,
+          "line": 581,
           "name": "oversized_input_fails_before_decode"
         }
       ],
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 25835,
+      "bytes": 29587,
       "group": "crate:mini-execution",
       "headings": [],
       "keywords": [
@@ -26931,29 +27038,29 @@
         "btreemap",
         "new",
         "genesis_circulating",
-        "balances",
         "network_id",
-        "account",
         "vec",
         "monetary",
-        "unallocated_circulating",
-        "allocated_circulating",
-        "zero",
-        "state",
+        "balances",
         "finalized",
+        "account",
+        "state",
         "monetaryledger",
+        "zero",
         "allocations",
         "allocated",
         "ledgerstate",
-        "payer",
-        "sequence",
+        "unallocated_circulating",
+        "allocated_circulating",
         "mini_settlement",
         "executionerror",
-        "result"
+        "result",
+        "with_genesis_supply",
+        "with_network_and_genesis_supply"
       ],
-      "lines": 685,
+      "lines": 772,
       "path": "crates/mini-execution/src/state.rs",
-      "sha256": "782ab13cdf657e794ab61a4dfa60e21da410aec43d81f59895fb18c7898ef63b",
+      "sha256": "15f51a791b434c4042ddb3ec7ab0d8f63e7289869272c6989ac314dfead98a8c",
       "symbols": [
         {
           "kind": "const",
@@ -26967,217 +27074,232 @@
         },
         {
           "kind": "impl",
-          "line": 40,
+          "line": 43,
           "name": "LedgerState"
         },
         {
           "kind": "fn",
-          "line": 42,
+          "line": 45,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 47,
+          "line": 50,
           "name": "with_genesis_supply"
         },
         {
           "kind": "fn",
-          "line": 51,
+          "line": 54,
           "name": "with_network_and_genesis_supply"
         },
         {
           "kind": "fn",
-          "line": 68,
+          "line": 72,
           "name": "with_genesis_balances"
         },
         {
           "kind": "fn",
-          "line": 79,
+          "line": 83,
           "name": "with_network_and_genesis_balances"
         },
         {
           "kind": "fn",
-          "line": 111,
+          "line": 116,
           "name": "monetary"
         },
         {
           "kind": "fn",
-          "line": 115,
+          "line": 120,
           "name": "network_id"
         },
         {
           "kind": "fn",
-          "line": 119,
+          "line": 131,
+          "name": "finalized_nullifier"
+        },
+        {
+          "kind": "fn",
+          "line": 136,
+          "name": "nullifier_count"
+        },
+        {
+          "kind": "fn",
+          "line": 140,
           "name": "balance"
         },
         {
           "kind": "fn",
-          "line": 123,
+          "line": 144,
           "name": "unallocated_circulating"
         },
         {
           "kind": "fn",
-          "line": 127,
+          "line": 148,
           "name": "allocated_circulating"
         },
         {
           "kind": "fn",
-          "line": 131,
+          "line": 152,
           "name": "balances"
         },
         {
           "kind": "fn",
-          "line": 142,
+          "line": 163,
           "name": "commitment"
         },
         {
           "kind": "fn",
-          "line": 170,
+          "line": 197,
           "name": "verify_supply_conservation"
         },
         {
           "kind": "fn",
-          "line": 187,
+          "line": 214,
           "name": "verify_balance_map_total"
         },
         {
           "kind": "impl",
-          "line": 201,
+          "line": 228,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 202,
+          "line": 229,
           "name": "default"
         },
         {
           "kind": "impl",
-          "line": 207,
+          "line": 234,
           "name": "CanonicalLedgerView"
         },
         {
           "kind": "fn",
-          "line": 208,
+          "line": 235,
           "name": "finalized_sequence"
         },
         {
           "kind": "fn",
-          "line": 212,
+          "line": 239,
           "name": "finalized_claim_digest"
         },
         {
           "kind": "fn",
-          "line": 219,
+          "line": 246,
           "name": "rejected_claim"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 264,
           "name": "apply_block"
         },
         {
           "kind": "fn",
-          "line": 276,
+          "line": 324,
+          "name": "apply_nullifiers"
+        },
+        {
+          "kind": "fn",
+          "line": 363,
           "name": "apply_one_claim"
         },
         {
           "kind": "fn",
-          "line": 337,
+          "line": 424,
           "name": "rejection_tag"
         },
         {
           "kind": "mod",
-          "line": 353,
+          "line": 440,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 358,
+          "line": 445,
           "name": "payer"
         },
         {
           "kind": "fn",
-          "line": 362,
+          "line": 449,
           "name": "funded_state"
         },
         {
           "kind": "fn",
-          "line": 368,
+          "line": 455,
           "name": "recipient"
         },
         {
           "kind": "fn",
-          "line": 376,
+          "line": 463,
           "name": "an_empty_body_leaves_state_unchanged"
         },
         {
           "kind": "fn",
-          "line": 384,
+          "line": 471,
           "name": "a_single_valid_claim_finalizes"
         },
         {
           "kind": "fn",
-          "line": 397,
+          "line": 484,
           "name": "a_tampered_claim_is_dropped_not_finalized"
         },
         {
           "kind": "fn",
-          "line": 407,
+          "line": 494,
           "name": "two_conflicting_claims_in_one_body_the_first_in_order_wins"
         },
         {
           "kind": "fn",
-          "line": 427,
+          "line": 514,
           "name": "a_higher_sequence_in_a_later_block_supersedes_the_previous_finalized_entry"
         },
         {
           "kind": "fn",
-          "line": 452,
+          "line": 539,
           "name": "a_stale_or_repeated_sequence_in_a_later_block_never_overwrites_the_finalized_entry"
         },
         {
           "kind": "fn",
-          "line": 485,
+          "line": 572,
           "name": "state_commitment_is_deterministic_and_content_sensitive"
         },
         {
           "kind": "fn",
-          "line": 496,
+          "line": 583,
           "name": "too_many_claims_is_rejected_before_processing"
         },
         {
           "kind": "fn",
-          "line": 522,
+          "line": 609,
           "name": "transfer_debits_credits_and_conserves_supply"
         },
         {
           "kind": "fn",
-          "line": 537,
+          "line": 624,
           "name": "overspend_is_not_finalized_and_does_not_consume_sequence"
         },
         {
           "kind": "fn",
-          "line": 567,
+          "line": 654,
           "name": "a_claim_for_another_network_is_rejected_without_moving_value"
         },
         {
           "kind": "fn",
-          "line": 594,
+          "line": 681,
           "name": "an_exact_overspend_retry_can_finalize_after_the_payer_receives_funds"
         },
         {
           "kind": "fn",
-          "line": 625,
+          "line": 712,
           "name": "canonical_body_order_prevents_aggregate_overspend"
         },
         {
           "kind": "fn",
-          "line": 640,
+          "line": 727,
           "name": "self_transfer_changes_sequence_but_never_supply_or_balance"
         },
         {
           "kind": "fn",
-          "line": 655,
+          "line": 742,
           "name": "genesis_allocations_must_be_exact_unique_nonzero_and_bounded"
         }
       ],
@@ -27329,6 +27451,128 @@
         }
       ],
       "title": "use std::collections::BTreeMap;"
+    },
+    {
+      "bytes": 10630,
+      "group": "crate:mini-execution",
+      "headings": [],
+      "keywords": [
+        "image",
+        "new",
+        "nullifierrecord",
+        "claim_a",
+        "state",
+        "vec",
+        "body",
+        "assert_eq",
+        "apply_block",
+        "claim_b",
+        "unwrap",
+        "finalized_nullifier",
+        "first",
+        "ledgerstate",
+        "some",
+        "claim",
+        "one",
+        "key",
+        "claim_c",
+        "what",
+        "cannot",
+        "would",
+        "settlementblockbody",
+        "const"
+      ],
+      "lines": 293,
+      "path": "crates/mini-execution/tests/shielded_ordering.rs",
+      "sha256": "1f0f51e981685b6e83d547b3344528a131b2530b73d3911635f5526931b23730",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 27,
+          "name": "CLAIM_A"
+        },
+        {
+          "kind": "const",
+          "line": 28,
+          "name": "CLAIM_B"
+        },
+        {
+          "kind": "const",
+          "line": 29,
+          "name": "CLAIM_C"
+        },
+        {
+          "kind": "fn",
+          "line": 32,
+          "name": "image"
+        },
+        {
+          "kind": "fn",
+          "line": 36,
+          "name": "body"
+        },
+        {
+          "kind": "fn",
+          "line": 41,
+          "name": "a_shielded_spend_is_finalized_and_readable_by_its_key_image"
+        },
+        {
+          "kind": "fn",
+          "line": 54,
+          "name": "the_first_claim_to_take_a_key_image_keeps_it_permanently"
+        },
+        {
+          "kind": "fn",
+          "line": 75,
+          "name": "re_including_a_claim_already_finalized_changes_nothing"
+        },
+        {
+          "kind": "fn",
+          "line": 99,
+          "name": "a_claim_that_overlaps_on_one_input_takes_none_of_them"
+        },
+        {
+          "kind": "fn",
+          "line": 129,
+          "name": "the_same_holds_when_the_collision_arrives_in_a_later_block"
+        },
+        {
+          "kind": "fn",
+          "line": 149,
+          "name": "a_malformed_record_takes_its_whole_claim_down_with_it"
+        },
+        {
+          "kind": "fn",
+          "line": 167,
+          "name": "a_dropped_group_leaves_its_key_images_free_for_a_later_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 184,
+          "name": "shielded_spends_change_the_state_commitment"
+        },
+        {
+          "kind": "fn",
+          "line": 215,
+          "name": "the_body_hash_covers_the_shielded_records"
+        },
+        {
+          "kind": "fn",
+          "line": 234,
+          "name": "an_oversized_shielded_list_is_refused_before_anything_is_applied"
+        },
+        {
+          "kind": "fn",
+          "line": 242,
+          "name": "a_snapshot_round_trip_preserves_every_shielded_spend"
+        },
+        {
+          "kind": "fn",
+          "line": 266,
+          "name": "the_finalized_map_is_the_one_the_shielded_side_expects"
+        }
+      ],
+      "title": "use mini_execution::{"
     },
     {
       "bytes": 805,
@@ -44113,6 +44357,188 @@
       "title": "The three privacy primitives this crate composes -- stealth addresses,"
     },
     {
+      "bytes": 15554,
+      "group": "crate:mini-private-payment",
+      "headings": [],
+      "keywords": [
+        "opening",
+        "amount",
+        "what",
+        "acknowledgedamountdisclosure",
+        "amountdisclosure",
+        "account",
+        "output",
+        "commitment",
+        "required_acknowledgement",
+        "auditedincome",
+        "same",
+        "auditor",
+        "them",
+        "disclosure",
+        "total",
+        "self",
+        "new",
+        "fmt",
+        "debug",
+        "makes",
+        "income",
+        "every",
+        "memo",
+        "cannot"
+      ],
+      "lines": 393,
+      "path": "crates/mini-private-payment/src/amount.rs",
+      "sha256": "a75e6247b1b05d270b0a153d164517309e8d1e99b9ab3f6ccb8e42aba06620e9",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 64,
+          "name": "AMOUNT_DISCLOSURE_DOMAIN"
+        },
+        {
+          "kind": "const",
+          "line": 67,
+          "name": "AMOUNT_DISCLOSURE_VERSION"
+        },
+        {
+          "kind": "struct",
+          "line": 78,
+          "name": "AcknowledgedAmountDisclosure"
+        },
+        {
+          "kind": "impl",
+          "line": 82,
+          "name": "AcknowledgedAmountDisclosure"
+        },
+        {
+          "kind": "const",
+          "line": 86,
+          "name": "REQUIRED_ACKNOWLEDGEMENT"
+        },
+        {
+          "kind": "fn",
+          "line": 91,
+          "name": "new"
+        },
+        {
+          "kind": "struct",
+          "line": 101,
+          "name": "AmountDisclosure"
+        },
+        {
+          "kind": "impl",
+          "line": 108,
+          "name": "core::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 112,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 122,
+          "name": "AmountDisclosure"
+        },
+        {
+          "kind": "fn",
+          "line": 135,
+          "name": "create"
+        },
+        {
+          "kind": "fn",
+          "line": 153,
+          "name": "claim_digest"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "output_index"
+        },
+        {
+          "kind": "fn",
+          "line": 164,
+          "name": "claimed_amount_micro"
+        },
+        {
+          "kind": "fn",
+          "line": 175,
+          "name": "open_against"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "encode"
+        },
+        {
+          "kind": "fn",
+          "line": 204,
+          "name": "decode"
+        },
+        {
+          "kind": "fn",
+          "line": 229,
+          "name": "digest"
+        },
+        {
+          "kind": "struct",
+          "line": 236,
+          "name": "OpenedPayment"
+        },
+        {
+          "kind": "struct",
+          "line": 254,
+          "name": "AuditedIncome"
+        },
+        {
+          "kind": "impl",
+          "line": 269,
+          "name": "AuditedIncome"
+        },
+        {
+          "kind": "fn",
+          "line": 271,
+          "name": "opened_total_micro"
+        },
+        {
+          "kind": "fn",
+          "line": 284,
+          "name": "is_complete"
+        },
+        {
+          "kind": "fn",
+          "line": 301,
+          "name": "audit_amounts"
+        },
+        {
+          "kind": "mod",
+          "line": 347,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 351,
+          "name": "the_acknowledgement_cannot_be_given_by_accident"
+        },
+        {
+          "kind": "fn",
+          "line": 366,
+          "name": "the_acknowledgement_names_the_third_party_exposure"
+        },
+        {
+          "kind": "fn",
+          "line": 377,
+          "name": "an_empty_audit_is_complete_and_sums_to_nothing"
+        },
+        {
+          "kind": "fn",
+          "line": 384,
+          "name": "one_unopened_payment_makes_the_total_incomplete"
+        }
+      ],
+      "title": "use mini_crypto::HashAlgorithm;"
+    },
+    {
       "bytes": 33806,
       "group": "crate:mini-private-payment",
       "headings": [],
@@ -44744,159 +45170,159 @@
       "title": "use mini_crypto::HashAlgorithm;"
     },
     {
-      "bytes": 13962,
+      "bytes": 14505,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
         "account",
         "key",
+        "does",
         "view",
         "disclosure",
         "one",
-        "does",
         "what",
-        "acknowledgedirreversibledisclosure",
-        "every",
+        "its",
         "payments",
         "anyone",
         "treasury",
+        "every",
+        "there",
+        "acknowledgedirreversibledisclosure",
+        "viewkeydisclosure",
+        "checkable",
+        "value",
+        "itself",
         "payment",
+        "format",
         "private",
         "did",
-        "its",
-        "publishing",
-        "there",
-        "caller",
-        "viewkeydisclosure",
-        "itself",
-        "format",
         "privacy",
-        "people"
+        "nothing"
       ],
-      "lines": 330,
+      "lines": 338,
       "path": "crates/mini-private-payment/src/disclosure.rs",
-      "sha256": "0e3a9cb359368191fb7a6662f77cfbd7e566a2c79b3fcf116d588afb09d6b0f8",
+      "sha256": "5e4333d0142fb0b4ed171cf88125f9633004c919940a25b3b4a8bb259173e6ac",
       "symbols": [
         {
           "kind": "const",
-          "line": 73,
+          "line": 79,
           "name": "DISCLOSURE_DOMAIN"
         },
         {
           "kind": "const",
-          "line": 76,
+          "line": 82,
           "name": "DISCLOSURE_VERSION"
         },
         {
           "kind": "struct",
-          "line": 89,
+          "line": 95,
           "name": "AcknowledgedIrreversibleDisclosure"
         },
         {
           "kind": "impl",
-          "line": 93,
+          "line": 99,
           "name": "AcknowledgedIrreversibleDisclosure"
         },
         {
           "kind": "const",
-          "line": 95,
+          "line": 101,
           "name": "REQUIRED_ACKNOWLEDGEMENT"
         },
         {
           "kind": "fn",
-          "line": 106,
+          "line": 112,
           "name": "new"
         },
         {
           "kind": "struct",
-          "line": 127,
+          "line": 133,
           "name": "ViewKeyDisclosure"
         },
         {
           "kind": "struct",
-          "line": 139,
+          "line": 145,
           "name": "VerifiedDisclosure"
         },
         {
           "kind": "impl",
-          "line": 144,
+          "line": 150,
           "name": "VerifiedDisclosure"
         },
         {
           "kind": "fn",
-          "line": 145,
+          "line": 151,
           "name": "disclosure"
         },
         {
           "kind": "fn",
-          "line": 150,
+          "line": 156,
           "name": "digest"
         },
         {
           "kind": "impl",
-          "line": 155,
+          "line": 161,
           "name": "ViewKeyDisclosure"
         },
         {
           "kind": "fn",
-          "line": 162,
+          "line": 168,
           "name": "create"
         },
         {
           "kind": "fn",
-          "line": 181,
+          "line": 187,
           "name": "spend_public"
         },
         {
           "kind": "fn",
-          "line": 186,
+          "line": 192,
           "name": "view_public"
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 198,
           "name": "view_secret"
         },
         {
           "kind": "fn",
-          "line": 199,
+          "line": 205,
           "name": "reason"
         },
         {
           "kind": "fn",
-          "line": 207,
+          "line": 213,
           "name": "disclosed_at_ms"
         },
         {
           "kind": "fn",
-          "line": 212,
+          "line": 218,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 224,
+          "line": 230,
           "name": "decode"
         },
         {
           "kind": "fn",
-          "line": 249,
+          "line": 255,
           "name": "digest"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 281,
           "name": "verify_disclosure"
         },
         {
           "kind": "fn",
-          "line": 320,
+          "line": 328,
           "name": "audit"
         }
       ],
       "title": "use mini_crypto::HashAlgorithm;"
     },
     {
-      "bytes": 10305,
+      "bytes": 10801,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -44925,9 +45351,9 @@
         "max",
         "image"
       ],
-      "lines": 210,
+      "lines": 219,
       "path": "crates/mini-private-payment/src/error.rs",
-      "sha256": "59b938805bb10c66f33283127ad7051693d3ba76eda8094c5992a0acefed0d53",
+      "sha256": "98482c985cbf553a97fe83981776ac13e5f100e9b504b977f0caf2c9b38d390f",
       "symbols": [
         {
           "kind": "enum",
@@ -44941,49 +45367,49 @@
         },
         {
           "kind": "impl",
-          "line": 116,
+          "line": 122,
           "name": "From<DecodeFailure>"
         },
         {
           "kind": "fn",
-          "line": 117,
+          "line": 123,
           "name": "from"
         },
         {
           "kind": "impl",
-          "line": 122,
+          "line": 128,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 123,
+          "line": 129,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 139,
+          "line": 145,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 146,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 207,
+          "line": 216,
           "name": "std::error::Error"
         },
         {
           "kind": "type",
-          "line": 209,
+          "line": 218,
           "name": "Result"
         }
       ],
       "title": "pub enum DecodeFailure {"
     },
     {
-      "bytes": 11376,
+      "bytes": 12272,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
@@ -45008,61 +45434,66 @@
         "public",
         "outputs",
         "commitments",
+        "amount",
         "construction",
-        "does",
-        "private"
+        "does"
       ],
-      "lines": 211,
+      "lines": 228,
       "path": "crates/mini-private-payment/src/lib.rs",
-      "sha256": "35dd8789440ba9ce8dde4f1f231ed6c201963a49a2e5cc0892600e482cc8a453",
+      "sha256": "22a13362fb860d0689d7ddac4d6a87ed897ff01f102d4afd01a659b72ce09404",
       "symbols": [
         {
           "kind": "mod",
-          "line": 179,
+          "line": 189,
+          "name": "amount"
+        },
+        {
+          "kind": "mod",
+          "line": 190,
           "name": "claim"
         },
         {
           "kind": "mod",
-          "line": 180,
+          "line": 191,
           "name": "codec"
         },
         {
           "kind": "mod",
-          "line": 181,
+          "line": 192,
           "name": "decoy"
         },
         {
           "kind": "mod",
-          "line": 182,
+          "line": 193,
           "name": "disclosure"
         },
         {
           "kind": "mod",
-          "line": 183,
+          "line": 194,
           "name": "error"
         },
         {
           "kind": "mod",
-          "line": 184,
+          "line": 195,
           "name": "memo"
         },
         {
           "kind": "mod",
-          "line": 185,
+          "line": 196,
           "name": "nullifier"
         },
         {
           "kind": "mod",
-          "line": 186,
+          "line": 197,
           "name": "reconcile"
         },
         {
           "kind": "mod",
-          "line": 187,
+          "line": 198,
           "name": "scan"
         }
       ],
-      "title": "mod claim;"
+      "title": "mod amount;"
     },
     {
       "bytes": 16284,
@@ -45354,38 +45785,38 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 6188,
+      "bytes": 10198,
       "group": "crate:mini-private-payment",
       "headings": [],
       "keywords": [
         "claim",
-        "ledger",
         "finalized",
+        "ledger",
         "settlementstate",
         "one",
         "reconcile",
-        "digest",
         "privateledgerview",
+        "digest",
         "canonical",
-        "would",
-        "input",
         "finalized_claim",
         "rejected_claim",
+        "would",
+        "input",
         "private",
         "key",
         "about",
-        "mini_settlement",
+        "two",
         "pending",
+        "state",
         "against",
         "key_image",
         "some",
         "return",
-        "payment",
-        "asked"
+        "chainbackedprivateledger"
       ],
-      "lines": 148,
+      "lines": 251,
       "path": "crates/mini-private-payment/src/reconcile.rs",
-      "sha256": "ffc9a87debc399cef6c05faf6b5080b6e6e4dffa5094c60a49a2aaf69ae2bd3b",
+      "sha256": "608c37b5615d6887c8eb2e098573392c7abee48a985a9876f62ff9bcdd84211b",
       "symbols": [
         {
           "kind": "trait",
@@ -45409,42 +45840,92 @@
         },
         {
           "kind": "struct",
-          "line": 112,
-          "name": "InMemoryPrivateLedger"
+          "line": 143,
+          "name": "ChainBackedPrivateLedger"
         },
         {
           "kind": "impl",
-          "line": 117,
-          "name": "InMemoryPrivateLedger"
+          "line": 148,
+          "name": "ChainBackedPrivateLedger<F>"
         },
         {
           "kind": "fn",
-          "line": 118,
+          "line": 158,
           "name": "new"
         },
         {
-          "kind": "fn",
-          "line": 126,
-          "name": "finalize"
+          "kind": "impl",
+          "line": 166,
+          "name": "ChainBackedPrivateLedger<F,"
         },
         {
           "kind": "fn",
-          "line": 134,
-          "name": "reject"
+          "line": 173,
+          "name": "with_rejections"
         },
         {
           "kind": "impl",
-          "line": 139,
+          "line": 181,
+          "name": "core::fmt::Debug"
+        },
+        {
+          "kind": "fn",
+          "line": 185,
+          "name": "fmt"
+        },
+        {
+          "kind": "impl",
+          "line": 192,
           "name": "PrivateLedgerView"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 197,
           "name": "finalized_claim"
         },
         {
           "kind": "fn",
-          "line": 144,
+          "line": 201,
+          "name": "rejected_claim"
+        },
+        {
+          "kind": "struct",
+          "line": 215,
+          "name": "InMemoryPrivateLedger"
+        },
+        {
+          "kind": "impl",
+          "line": 220,
+          "name": "InMemoryPrivateLedger"
+        },
+        {
+          "kind": "fn",
+          "line": 221,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 229,
+          "name": "finalize"
+        },
+        {
+          "kind": "fn",
+          "line": 237,
+          "name": "reject"
+        },
+        {
+          "kind": "impl",
+          "line": 242,
+          "name": "PrivateLedgerView"
+        },
+        {
+          "kind": "fn",
+          "line": 243,
+          "name": "finalized_claim"
+        },
+        {
+          "kind": "fn",
+          "line": 247,
           "name": "rejected_claim"
         }
       ],
@@ -45800,6 +46281,235 @@
           "kind": "fn",
           "line": 748,
           "name": "an_output_set_too_small_for_the_ring_is_refused_rather_than_padded"
+        }
+      ],
+      "title": "mod support;"
+    },
+    {
+      "bytes": 11205,
+      "group": "crate:mini-private-payment",
+      "headings": [],
+      "keywords": [
+        "opening",
+        "treasury",
+        "claim",
+        "account",
+        "verified",
+        "unwrap",
+        "found",
+        "assert_eq",
+        "received",
+        "amountdisclosure",
+        "recipient",
+        "acknowledged",
+        "privatepaymenterror",
+        "bytes",
+        "amount",
+        "mini_private_payment",
+        "acknowledgedamountdisclosure",
+        "create",
+        "to_vec",
+        "note",
+        "open_against",
+        "err",
+        "disclosedamountmismatch",
+        "support"
+      ],
+      "lines": 294,
+      "path": "crates/mini-private-payment/tests/amounts.rs",
+      "sha256": "ee27e22d620284b352c089674d276c9439612aba8e21aa03d2f42ff412fd3bb7",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 10,
+          "name": "support"
+        },
+        {
+          "kind": "fn",
+          "line": 19,
+          "name": "acknowledged"
+        },
+        {
+          "kind": "fn",
+          "line": 24,
+          "name": "disclose"
+        },
+        {
+          "kind": "fn",
+          "line": 40,
+          "name": "received"
+        },
+        {
+          "kind": "fn",
+          "line": 62,
+          "name": "an_opening_proves_the_amount_against_the_commitment"
+        },
+        {
+          "kind": "fn",
+          "line": 72,
+          "name": "a_tampered_amount_does_not_open_its_commitment"
+        },
+        {
+          "kind": "fn",
+          "line": 94,
+          "name": "an_opening_cannot_be_moved_to_another_claim_or_another_output"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
+          "name": "an_opening_that_would_not_verify_is_refused_at_creation"
+        },
+        {
+          "kind": "fn",
+          "line": 139,
+          "name": "a_fully_opened_account_audits_to_a_real_total"
+        },
+        {
+          "kind": "fn",
+          "line": 156,
+          "name": "withholding_one_opening_is_visible_rather_than_silent"
+        },
+        {
+          "kind": "fn",
+          "line": 179,
+          "name": "a_broken_opening_counts_as_unopened_not_as_absent"
+        },
+        {
+          "kind": "fn",
+          "line": 201,
+          "name": "openings_for_someone_elses_claims_are_counted_apart_and_change_nothing"
+        },
+        {
+          "kind": "fn",
+          "line": 217,
+          "name": "an_audit_of_amounts_still_says_nothing_about_spending"
+        },
+        {
+          "kind": "fn",
+          "line": 240,
+          "name": "opening_an_amount_does_not_let_anyone_spend_the_output"
+        },
+        {
+          "kind": "fn",
+          "line": 263,
+          "name": "a_disclosure_round_trips_and_is_domain_separated"
+        },
+        {
+          "kind": "fn",
+          "line": 286,
+          "name": "the_amount_domain_cannot_collide_with_the_view_key_domain"
+        }
+      ],
+      "title": "mod support;"
+    },
+    {
+      "bytes": 11029,
+      "group": "crate:mini-private-payment",
+      "headings": [],
+      "keywords": [
+        "verified",
+        "claim",
+        "chain",
+        "ledger",
+        "finalizednullifiers",
+        "state",
+        "unwrap",
+        "vec",
+        "lookup",
+        "finalize",
+        "map",
+        "reconcile",
+        "verify",
+        "chainbackedprivateledger",
+        "settlementstate",
+        "payment_to",
+        "recipient",
+        "network",
+        "default",
+        "one",
+        "finalized",
+        "spent",
+        "self",
+        "key_images"
+      ],
+      "lines": 290,
+      "path": "crates/mini-private-payment/tests/chain_backed.rs",
+      "sha256": "1241d6d0090c517caf6e38c7c583fe7fbded9e05cc7f2f751cf8bbffe3fd8248",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 30,
+          "name": "support"
+        },
+        {
+          "kind": "struct",
+          "line": 45,
+          "name": "FinalizedNullifiers"
+        },
+        {
+          "kind": "impl",
+          "line": 49,
+          "name": "FinalizedNullifiers"
+        },
+        {
+          "kind": "fn",
+          "line": 52,
+          "name": "finalize"
+        },
+        {
+          "kind": "fn",
+          "line": 58,
+          "name": "lookup"
+        },
+        {
+          "kind": "fn",
+          "line": 64,
+          "name": "a_payment_the_chain_has_not_seen_is_pending_not_final"
+        },
+        {
+          "kind": "fn",
+          "line": 80,
+          "name": "a_payment_the_chain_finalized_is_final"
+        },
+        {
+          "kind": "fn",
+          "line": 96,
+          "name": "a_finalized_payment_stays_final_after_its_deadline"
+        },
+        {
+          "kind": "fn",
+          "line": 114,
+          "name": "a_payment_the_chain_never_saw_expires"
+        },
+        {
+          "kind": "fn",
+          "line": 128,
+          "name": "a_chain_shaped_ledger_resolves_a_shielded_conflict"
+        },
+        {
+          "kind": "const",
+          "line": 138,
+          "name": "CLAIM_A"
+        },
+        {
+          "kind": "fn",
+          "line": 159,
+          "name": "the_loser_of_a_real_double_spend_is_rejected_by_the_chains_answer"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "a_partial_overlap_still_loses_against_the_chain"
+        },
+        {
+          "kind": "fn",
+          "line": 256,
+          "name": "a_canonical_rejection_is_reported_when_the_chain_records_one"
+        },
+        {
+          "kind": "fn",
+          "line": 275,
+          "name": "a_chain_with_no_rejection_source_reports_none_rather_than_inventing_one"
         }
       ],
       "title": "mod support;"
@@ -74175,7 +74885,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1048876,
+      "bytes": 1058254,
       "group": "docs",
       "headings": [
         {
@@ -74605,9 +75315,9 @@
         "transport",
         "status"
       ],
-      "lines": 17366,
+      "lines": 17528,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "62193d505acedafa1f00ef2502e294c757ae40286d2789beab719f8a05715469",
+      "sha256": "abf8af0fb73d87084ccbc19bd7c8b495cf07ec97aeb8628418a1a5d44902b21f",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -75622,7 +76332,7 @@
       "title": "Mininet roadmap: from two-phone proof to self-governed network"
     },
     {
-      "bytes": 14105,
+      "bytes": 15658,
       "group": "docs",
       "headings": [
         {
@@ -75667,107 +76377,107 @@
         },
         {
           "level": 3,
-          "line": 102,
+          "line": 105,
           "text": "R4 \u2014 Fees, change, and multi-output claims \u00b7 `done`"
         },
         {
           "level": 3,
-          "line": 123,
-          "text": "R5 \u2014 Chain-backed private ledger view \u00b7 `ready`"
+          "line": 126,
+          "text": "R5 \u2014 Chain-backed private ledger view \u00b7 `done`"
         },
         {
           "level": 3,
-          "line": 130,
-          "text": "R6 \u2014 Amount disclosure for accounts that choose it \u00b7 `ready`"
-        },
-        {
-          "level": 3,
-          "line": 139,
-          "text": "R7 \u2014 Decoy weights fitted to real traffic \u00b7 `blocked`"
-        },
-        {
-          "level": 1,
-          "line": 147,
-          "text": "Phase 3 \u2014 Make the network a network"
-        },
-        {
-          "level": 3,
-          "line": 149,
-          "text": "R8 \u2014 Consensus production gaps \u00b7 `ready`"
+          "line": 144,
+          "text": "R6 \u2014 Amount disclosure for accounts that choose it \u00b7 `done`"
         },
         {
           "level": 3,
           "line": 160,
+          "text": "R7 \u2014 Decoy weights fitted to real traffic \u00b7 `blocked`"
+        },
+        {
+          "level": 1,
+          "line": 168,
+          "text": "Phase 3 \u2014 Make the network a network"
+        },
+        {
+          "level": 3,
+          "line": 170,
+          "text": "R8 \u2014 Consensus production gaps \u00b7 `ready`"
+        },
+        {
+          "level": 3,
+          "line": 181,
           "text": "R9 \u2014 KEL freshness and witnesses (M3) \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 167,
+          "line": 188,
           "text": "R10 \u2014 BLE and local-radio transport \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 174,
+          "line": 195,
           "text": "R11 \u2014 A client application people can actually use \u00b7 `ready`"
         },
         {
           "level": 1,
-          "line": 183,
+          "line": 204,
           "text": "Phase 4 \u2014 The gates code cannot close"
         },
         {
           "level": 3,
-          "line": 190,
+          "line": 211,
           "text": "R12 \u2014 External cryptography audit \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 201,
+          "line": 222,
           "text": "R13 \u2014 FROST DKG audit \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 207,
+          "line": 228,
           "text": "R14 \u2014 Legal counsel review \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 211,
+          "line": 232,
           "text": "R15 \u2014 Sybil resistance and personhood \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 223,
+          "line": 244,
           "text": "R16 \u2014 Tokenomics validation \u00b7 `outside`"
         },
         {
           "level": 1,
-          "line": 231,
+          "line": 252,
           "text": "Phase 5 \u2014 Release engineering"
         },
         {
           "level": 3,
-          "line": 233,
+          "line": 254,
           "text": "R17 \u2014 Adversarial testing at real-world scale \u00b7 `blocked`"
         },
         {
           "level": 3,
-          "line": 240,
+          "line": 261,
           "text": "R18 \u2014 Genesis, validator set, and activation \u00b7 `blocked`"
         },
         {
           "level": 3,
-          "line": 247,
+          "line": 268,
           "text": "R19 \u2014 Release, install, and rollback on real targets \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 255,
+          "line": 276,
           "text": "R20 \u2014 The honest launch statement \u00b7 `blocked`"
         },
         {
           "level": 2,
-          "line": 268,
+          "line": 289,
           "text": "What is deliberately *not* on this list"
         }
       ],
@@ -75775,31 +76485,31 @@
         "what",
         "real",
         "outside",
-        "ready",
         "blocked",
-        "closed",
+        "done",
         "release",
         "phase",
         "main",
         "one",
+        "ready",
+        "closed",
         "row",
-        "done",
-        "green",
         "transparent",
         "path",
+        "green",
         "actually",
         "audit",
         "every",
         "status",
         "governance",
         "validator",
-        "private",
         "close",
-        "roadmap"
+        "roadmap",
+        "first"
       ],
-      "lines": 280,
+      "lines": 301,
       "path": "docs/ROADMAP_TO_RELEASE.md",
-      "sha256": "a08731aa1fc0f76a74de59ab5b057061e3889fb06c5fb9e5ea9b98ef6394f846",
+      "sha256": "31466155e0ac588e47a85f7836d5c6196bd5e857ac242eeaafbc917a3bf47c1d",
       "symbols": [],
       "title": "The road to release"
     },
@@ -75938,7 +76648,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 154636,
+      "bytes": 158738,
       "group": "docs",
       "headings": [
         {
@@ -75978,72 +76688,72 @@
         },
         {
           "level": 2,
-          "line": 586,
+          "line": 642,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 633,
+          "line": 689,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 855,
+          "line": 911,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 1049,
+          "line": 1105,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 1110,
+          "line": 1166,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 1140,
+          "line": 1196,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1467,
+          "line": 1523,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 1945,
+          "line": 2001,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 2036,
+          "line": 2092,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 2116,
+          "line": 2172,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 2182,
+          "line": 2238,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 2199,
+          "line": 2255,
           "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0438"
         },
         {
           "level": 2,
-          "line": 2235,
+          "line": 2291,
           "text": "Node deployment \u2014 Mininet Node Appliance (D-0446)"
         },
         {
           "level": 2,
-          "line": 2300,
+          "line": 2356,
           "text": "Day-0 release code hardening \u2014 D-0442/D-0443 proposal"
         }
       ],
@@ -76073,9 +76783,9 @@
         "account",
         "shipped"
       ],
-      "lines": 2335,
+      "lines": 2391,
       "path": "docs/STATUS.md",
-      "sha256": "6ad298a3a444096b5d0d163336f1f1ef3de4f275cebae7f4637b51a8aff367cf",
+      "sha256": "0d7cb1e61c7a5f2fde22e75e51689e08d89b859aa40b85fe6d0f3324b091fa51",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -81776,7 +82486,7 @@
       "title": "Private lookup and the public-DHT boundary (MN-208, D-0310)"
     },
     {
-      "bytes": 29533,
+      "bytes": 36461,
       "group": "docs",
       "headings": [
         {
@@ -81947,11 +82657,66 @@
         {
           "level": 2,
           "line": 344,
+          "text": "13. Settling against a real chain, without a dependency edge (D-0457)"
+        },
+        {
+          "level": 3,
+          "line": 346,
+          "text": "The gap"
+        },
+        {
+          "level": 3,
+          "line": 354,
+          "text": "The constraint that chose the design"
+        },
+        {
+          "level": 3,
+          "line": 388,
+          "text": "What the chain actually stores"
+        },
+        {
+          "level": 3,
+          "line": 406,
+          "text": "The hole this leaves, stated plainly"
+        },
+        {
+          "level": 3,
+          "line": 420,
+          "text": "What keeps the two halves honest"
+        },
+        {
+          "level": 2,
+          "line": 429,
+          "text": "14. Amounts an auditor can actually add up (D-0458)"
+        },
+        {
+          "level": 3,
+          "line": 431,
+          "text": "The gap \u00a711 left"
+        },
+        {
+          "level": 3,
+          "line": 438,
+          "text": "The mechanism"
+        },
+        {
+          "level": 3,
+          "line": 446,
+          "text": "Why the return type is not a number"
+        },
+        {
+          "level": 3,
+          "line": 467,
+          "text": "Limits"
+        },
+        {
+          "level": 2,
+          "line": 481,
           "text": "8. Required follow-up"
         },
         {
           "level": 2,
-          "line": 356,
+          "line": 493,
           "text": "9. Supersedes / superseded by"
         }
       ],
@@ -81962,6 +82727,9 @@
         "why",
         "key",
         "transcript",
+        "gap",
+        "stated",
+        "real",
         "nothing",
         "ring",
         "payer",
@@ -81969,21 +82737,18 @@
         "u64",
         "signature",
         "one",
-        "stated",
+        "two",
         "paymentclaim",
+        "left",
         "format",
         "cannot",
         "privacy",
-        "real",
         "stable",
-        "address",
-        "who",
-        "private",
-        "shielded"
+        "address"
       ],
-      "lines": 359,
+      "lines": 496,
       "path": "docs/design/private-payment-path.md",
-      "sha256": "fe14c835d845337ac9e8bdcd80239e8b8fbca6e2f558f0e36489a35744c5a7b7",
+      "sha256": "5725223b6423c5c5cc96ce93ac22395b7e98dbd0cc96e6f96061a60d427032e3",
       "symbols": [],
       "title": "The private payment path: shielded settlement, and the social vertical it serves"
     },

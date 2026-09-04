@@ -102,6 +102,12 @@ pub enum PrivatePaymentError {
     /// bytes, not a canonical encoding, zero, or the spend and view keys are
     /// the same key.
     MalformedDisclosureKey,
+    /// A published amount opening does not open the commitment it names:
+    /// wrong claim, no such output, or a `(value, blinding)` pair that
+    /// recomputes to a different point. Refused rather than reported as a
+    /// zero or a guess, because an amount an auditor cannot check is not an
+    /// amount.
+    DisclosedAmountMismatch,
     /// A disclosure's view secret is not the discrete log of the view public
     /// key it was published beside — so it names an account it cannot
     /// actually read. Refused rather than accepted, because an audit run
@@ -193,6 +199,9 @@ impl core::fmt::Display for PrivatePaymentError {
             }
             PrivatePaymentError::MalformedDisclosureKey => {
                 write!(f, "a disclosed key is not a well-formed stealth key")
+            }
+            PrivatePaymentError::DisclosedAmountMismatch => {
+                write!(f, "a disclosed amount does not open its commitment")
             }
             PrivatePaymentError::DisclosureKeyMismatch => {
                 write!(f, "the disclosed secret does not open the named account")
