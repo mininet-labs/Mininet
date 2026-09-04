@@ -47,8 +47,18 @@ pub struct Establishment {
     pub next: Vec<Vec<u8>>,
     /// The threshold that will apply to the next key set.
     pub next_threshold: u32,
-    /// Witness identifiers (SPEC-01 §7). Reserved; empty until the witness batch.
+    /// Witness identifiers (SPEC-01 §7), as `did:mini` bytes.
+    ///
+    /// Empty means this identity declares no witnesses, which is the state
+    /// every identity in this tree was in before D-0459.
     pub witnesses: Vec<Vec<u8>>,
+    /// How many of `witnesses` must receipt an event for it to count as
+    /// witnessed (M-of-N).
+    ///
+    /// Meaningless and required to be zero when `witnesses` is empty; see
+    /// [`encode_establishment`] for why that pairing is load-bearing rather
+    /// than merely tidy.
+    pub witness_threshold: u32,
 }
 
 /// The body of a key event.
@@ -189,7 +199,13 @@ impl Event {
 
     /// The content digest of this event (over its full bytes), as multihash bytes.
     /// This is what the next event references in its `prior` field.
-    pub(crate) fn digest(&self) -> Vec<u8> {
+    ///
+    /// Public because a witness has to name the event it is receipting, and
+    /// a witness is not necessarily this crate: every
+    /// [`crate::WitnessReceiptStatement`] already carries this value, so it
+    /// is published rather than secret, and keeping it crate-private meant
+    /// no witness service could be written outside `did-mini` at all.
+    pub fn digest(&self) -> Vec<u8> {
         Multihash::of(HashAlgorithm::Blake3, &self.full_bytes()).to_bytes()
     }
 }
@@ -209,6 +225,22 @@ fn encode_establishment(w: &mut Writer, est: &Establishment) {
     w.u32(est.witnesses.len() as u32);
     for wit in &est.witnesses {
         w.bytes(wit);
+    }
+    // The threshold is written **only** when a witness set exists.
+    //
+    // This is what makes adding it a non-breaking change to a format that
+    // cannot tolerate one. An event's bytes feed its digest, the digest
+    // chains the KEL, and the inception event's digest *is* the SCID — so a
+    // field appended unconditionally would change every identifier this
+    // project has ever issued, including the seeded ones in tests and every
+    // golden vector.
+    //
+    // Every identity predating D-0459 has an empty witness set (the field
+    // was reserved and never populated), so every one of them encodes to
+    // exactly the bytes it did before. An identity that declares witnesses
+    // is new by definition and has no prior bytes to preserve.
+    if !est.witnesses.is_empty() {
+        w.u32(est.witness_threshold);
     }
 }
 
@@ -297,12 +329,15 @@ fn decode_establishment(r: &mut Reader) -> Result<Establishment> {
     for _ in 0..nwit {
         witnesses.push(r.bytes_limited("witness", MAX_DID_BYTES)?);
     }
+    // Mirrors `encode_establishment`: present only when a witness set is.
+    let witness_threshold = if witnesses.is_empty() { 0 } else { r.u32()? };
     let est = Establishment {
         keys,
         threshold,
         next,
         next_threshold,
         witnesses,
+        witness_threshold,
     };
     validate_establishment(&est)?;
     Ok(est)
@@ -311,6 +346,34 @@ fn decode_establishment(r: &mut Reader) -> Result<Establishment> {
 pub(crate) fn validate_establishment(est: &Establishment) -> Result<()> {
     if est.keys.is_empty() {
         return Err(IdentityError::EmptyKeySet);
+    }
+    // A witness set and its threshold are one declaration; neither half is
+    // meaningful alone. A set with a zero or unreachable threshold would be
+    // a policy no certificate could ever satisfy, and a threshold with no
+    // set would be a number about nobody -- both are malformed rather than
+    // permissive, and both are refused here so no such event can be signed
+    // or decoded in the first place.
+    if est.witnesses.is_empty() {
+        if est.witness_threshold != 0 {
+            return Err(IdentityError::InvalidWitnessThreshold {
+                threshold: est.witness_threshold as u16,
+                witness_count: 0,
+            });
+        }
+    } else {
+        if est.witness_threshold == 0 || est.witness_threshold as usize > est.witnesses.len() {
+            return Err(IdentityError::InvalidWitnessThreshold {
+                threshold: est.witness_threshold.min(u16::MAX as u32) as u16,
+                witness_count: est.witnesses.len(),
+            });
+        }
+        let mut seen: Vec<&Vec<u8>> = Vec::new();
+        for witness in &est.witnesses {
+            if seen.contains(&witness) {
+                return Err(IdentityError::DuplicateWitness);
+            }
+            seen.push(witness);
+        }
     }
     if est.threshold == 0 || est.threshold as usize > est.keys.len() {
         return Err(IdentityError::InvalidThreshold {

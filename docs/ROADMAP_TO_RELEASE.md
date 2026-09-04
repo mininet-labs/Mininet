@@ -157,12 +157,24 @@ under real adversarial load.
 **Closed by:** the four gaps closed with tests that fail without the fix, and
 the honest limits restated for whatever remains.
 
-### R9 — KEL freshness and witnesses (M3) · `ready`
+### R9 — KEL freshness and witnesses (M3) · `active`
 The stale-KEL revocation gap, audit #12 finding F4. A device whose delegation
 was revoked can still be accepted by a peer holding an old key event log.
 **Why it blocks:** it is a live identity-security hole, not a design question —
 revocation that does not propagate is revocation in name only.
-**Closed by:** witness/freshness bounds enforced where KELs are accepted.
+**Progress:** `FreshnessPins` (D-0088) closes the replay case for a verifier
+that has seen the identity before. Phases 1-3 of
+[`docs/design/kel-witness-receipts-and-duplicity-gossip.md`](design/kel-witness-receipts-and-duplicity-gossip.md)
+built the receipt types, the witness state machine, duplicity proofs and
+`KelAssurance`. **D-0459** closed the hole that made every level above
+`Pinned` decorative: the `WitnessPolicy` was caller-supplied, so an attacker
+could name witnesses they controlled and earn the strongest assurance level
+for a forged branch. It now comes from the identity's own signed KEL.
+**Closed by:** the remaining phases — receipt collection (4), gossip (5),
+persistence (6), witness rotation (7) — plus a real call site that *gates*
+an authority decision on an assurance level. That last one is a
+founder-facing policy call: which governance action requires which minimum
+level is not an engineering choice.
 
 ### R10 — BLE and local-radio transport · `outside`
 Needs real phone hardware and Kotlin radio wiring. The BLE-first bootstrap
