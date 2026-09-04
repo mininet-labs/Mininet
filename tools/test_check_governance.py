@@ -4,6 +4,7 @@ import datetime as dt
 import hashlib
 import importlib.util
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -28,6 +29,7 @@ def copy_fixture(destination: Path) -> Path:
     )
     root = destination / "repository-template" if PACKAGE_LAYOUT else destination
     neutralize_work_claim_leases(root)
+    neutralize_governance_exception_expiry(root)
     return root
 
 
@@ -74,6 +76,38 @@ def neutralize_work_claim_leases(root: Path) -> None:
             changed = True
     if changed:
         registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+
+
+def neutralize_governance_exception_expiry(root: Path) -> None:
+    """The same time bomb, in the other dated artifact.
+
+    `governance/exceptions.yml` carries live exceptions with expiry dates, and
+    the baseline tests assert zero errors against the real file. Pushing the
+    lease dates out fixed one instance of this pattern and left this one, so
+    the suite went green on 2026-08-31 and would have gone red again the day
+    GOV-EX-0001 lapsed -- red on every pull request, for the same reason and
+    with the same "no proposal can fix it" property.
+
+    Only the dates move, and only in the copy. An exception that has genuinely
+    lapsed is a real governance fact -- D-0083's founder-only integration path
+    is exactly the kind of thing that must not quietly outlive its sunset --
+    and `check_governance.py` on the live tree still reports it. What is
+    removed here is a calendar's ability to fail tests that are about
+    structural validity, and `GovernanceExceptionTests` covers expiry
+    directly with its own fixtures.
+    """
+    path = root / "governance/exceptions.yml"
+    if not path.is_file():
+        return
+    horizon = (dt.date.today() + dt.timedelta(days=3650)).isoformat()
+    lines = path.read_text(encoding="utf-8").splitlines()
+    rewritten = [
+        re.sub(r"(?<=expires:\s)\d{4}-\d{2}-\d{2}", horizon, line)
+        if not line.lstrip().startswith("#")
+        else line
+        for line in lines
+    ]
+    path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
 
 
 CLASSES = (
@@ -893,6 +927,98 @@ class WorkClaimRegistryTests(unittest.TestCase):
         stacked["stacked_on"] = stacked["branch"]
         errors, _ = self.validate_claims([stacked])
         self.assertTrue(any("stacked on itself" in error for error in errors), errors)
+
+
+class GovernanceExceptionTests(unittest.TestCase):
+    """Coverage for `governance/exceptions.yml` expiry, which had none.
+
+    An exception that outlives its sunset is one of the more consequential
+    things this validator can catch -- GOV-EX-0001 is what permits a
+    founder-only integration path at all -- and until now nothing tested it
+    in either direction.
+    """
+
+    def validate(self, exceptions_text: str, now: dt.datetime):
+        with tempfile.TemporaryDirectory() as temp:
+            root = copy_fixture(Path(temp) / "candidate")
+            source_root = CHECKER.resolve_charter_root(root)
+            (source_root / "governance/exceptions.yml").write_text(
+                exceptions_text, encoding="utf-8"
+            )
+            errors: list[str] = []
+            warnings: list[str] = []
+            CHECKER.validate_baseline(root, errors, warnings, now=now)
+            return [e for e in errors if "governance exception" in e]
+
+    LIVE = (
+        "version: 1\n"
+        "exceptions:\n"
+        "  - id: GOV-EX-TEST\n"
+        "    scope: test\n"
+        "    expires: 2026-10-12\n"
+    )
+
+    def test_a_live_exception_passes(self) -> None:
+        self.assertEqual(
+            [], self.validate(self.LIVE, dt.datetime(2026, 9, 4, tzinfo=dt.timezone.utc))
+        )
+
+    def test_a_lapsed_exception_fails(self) -> None:
+        # The signal that matters: an exception may not quietly outlive its
+        # own sunset date.
+        errors = self.validate(
+            self.LIVE, dt.datetime(2026, 10, 13, tzinfo=dt.timezone.utc)
+        )
+        self.assertTrue(any("2026-10-12" in error for error in errors), errors)
+
+    def test_a_commented_out_example_is_not_an_exception(self) -> None:
+        # The regression. This scan ran over the raw file, so the template
+        # example at the bottom of the real exceptions.yml -- entirely
+        # commented out -- counted as a live exception, and a documentation
+        # placeholder failed the build the day its fake date passed.
+        commented = self.LIVE + (
+            "# Example:\n"
+            "# - id: DEP-EX-0001\n"
+            "#   scope: RUSTSEC-YYYY-NNNN\n"
+            "#   expires: 2026-09-01\n"
+        )
+        self.assertEqual(
+            [], self.validate(commented, dt.datetime(2026, 9, 4, tzinfo=dt.timezone.utc))
+        )
+
+    def test_expiry_is_measured_against_the_supplied_instant(self) -> None:
+        # This was the one calendar check in check_governance.py reading the
+        # wall clock directly rather than the instant threaded through every
+        # other check, which is why no test could pin it.
+        before = self.validate(
+            self.LIVE, dt.datetime(2026, 10, 11, tzinfo=dt.timezone.utc)
+        )
+        after = self.validate(
+            self.LIVE, dt.datetime(2026, 10, 13, tzinfo=dt.timezone.utc)
+        )
+        self.assertEqual([], before)
+        self.assertNotEqual([], after)
+
+    def test_the_real_repository_exception_has_not_silently_lapsed(self) -> None:
+        # copy_fixture pushes the dates out so a calendar cannot fail the
+        # structural tests. That must not become a way to stop noticing, so
+        # this reads the committed file directly and fails if a real
+        # exception has outlived its sunset -- the operational signal, kept
+        # where it can still be seen.
+        path = TEMPLATE_ROOT / "governance/exceptions.yml"
+        if not path.is_file():
+            self.skipTest("no exceptions file in this layout")
+        data = "\n".join(
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if not line.lstrip().startswith("#")
+        )
+        lapsed = [
+            match.group(1)
+            for match in re.finditer(r"expires:\s*(\d{4}-\d{2}-\d{2})", data)
+            if dt.date.fromisoformat(match.group(1)) < dt.date.today()
+        ]
+        self.assertEqual([], lapsed, "a governance exception has outlived its sunset")
 
 
 if __name__ == "__main__":

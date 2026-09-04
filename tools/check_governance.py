@@ -1087,9 +1087,24 @@ def validate_baseline(
     exceptions = root / "governance/exceptions.yml"
     if exceptions.is_file():
         text = exceptions.read_text(encoding="utf-8")
-        for match in re.finditer(r"expires:\s*(\d{4}-\d{2}-\d{2})", text):
+        # Scan the *data*, not the commentary. This regex ran over the raw
+        # file, so the commented-out `# expires: 2026-09-01` in the template
+        # example at the bottom counted as a live exception -- and on
+        # 2026-09-02 a documentation placeholder started failing the build,
+        # and with it `canonical-governance` on every open pull request. A
+        # `#`-prefixed line is not a governance exception.
+        #
+        # `now` rather than `dt.date.today()`: this was the only calendar
+        # check in this file reading the wall clock directly instead of the
+        # instant threaded through everything else, which also made it the
+        # only one no test could pin.
+        today = (now or dt.datetime.now(dt.timezone.utc)).date()
+        data = "\n".join(
+            line for line in text.splitlines() if not line.lstrip().startswith("#")
+        )
+        for match in re.finditer(r"expires:\s*(\d{4}-\d{2}-\d{2})", data):
             expiry = dt.date.fromisoformat(match.group(1))
-            if expiry < dt.date.today():
+            if expiry < today:
                 fail(errors, f"expired governance exception: {expiry}")
         if "exceptions:" not in text:
             fail(errors, "exceptions.yml lacks an exceptions list")
