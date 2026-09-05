@@ -17616,3 +17616,70 @@ is on the other end).
 
 **Supersedes / superseded by:** extends D-0008's finality core; supersedes
 nothing. Closes one of R8's four named gaps.
+
+### D-0461 — Roadmap R2 closes: a scheduled `main` run passed end to end, with the one surviving exception named  ·  *Proposed*
+
+**Date:** 2026-09-05 · **Refs:** D-0452 (R1, the fix that made this
+reachable), D-0453/D-0454 (the roadmap and its counter), D-0441/D-0450 (the
+dependency-audit split named below), roadmap R2, [#92](../../issues/92).
+
+**Decision:** roadmap R2 — "a green, meaningful CI baseline on `main`" — is
+`done`.
+
+**Evidence, on head `01ad0ce` (the PR #316 merge):**
+
+| Workflow | Run | Result |
+|---|---|---|
+| `ci` (**scheduled**) | 860, 2026-09-05 08:22 UTC | success |
+| `ci` (push) | 859 | success |
+| `governance-policy` | 734 | success |
+| `reproducibility` | 636 | success |
+| `android-ci` | 505 | success |
+| `android-reproducibility` | 496 | success |
+| CodeQL default setup ("Push on main") | 904 | success |
+
+**Reason:** R2 named a *scheduled* run specifically, and the distinction
+earned its place. Push-triggered runs were green on 2026-09-04 while the
+scheduled runs of 09-01, 09-02 and 09-03 were red — the scheduled run is
+what catches a failure that appears days after a merge, because it re-runs
+the same tree against a moving external world (crates.io advisories, runner
+images, toolchain updates) rather than against the moment of the merge. A
+row that closed on push-green would have closed on 09-04 and been wrong.
+
+**On `governance-canonical`, which has no run on that head:** it triggers on
+`pull_request_target`, so by construction it never runs against a `main`
+push. Its absence from the table is the design, not a gap. It was green on
+#313, #314 and #316. Recording this explicitly because "a workflow with no
+run" and "a workflow that passed" look identical in a summary, and R1 was
+closed after exactly that class of confusion.
+
+**The surviving exception, named rather than tolerated:** `dependency-audit`
+reports advisories without gating. That is the deliberate split D-0441 made
+and D-0450 restored — the scanner failing to *run* is a hard failure, while
+an advisory against a pinned dependency this workspace cannot yet move off
+is a loud warning. R2's own text required any surviving exception to be
+"recorded as a decision rather than tolerated silently", and this entry is
+that record. It stays a warning until there is a triage process for an
+advisory, which is separate work.
+
+**Constitutional impact:** none. A roadmap status change and its evidence.
+No protocol surface, no authority, no frozen invariant, no voice/value edge.
+
+**Implementation status:** `docs/ROADMAP_TO_RELEASE.md` (R2 → `done` with
+the run numbers), `README.md` (summary counts, enforced by
+`tools/check_roadmap.py`).
+
+**Failure point:** this records that CI was green on one head at one moment.
+It is not a claim that CI will stay green, and R2 closing does not mean the
+scheduled run stops mattering — it is still the check most likely to catch
+the next drift. If a future scheduled run goes red, that is a new defect to
+fix, not a reason to reopen this row. Second, and more honestly: green CI
+measures that the checks configured today pass, never that they are the
+right checks. D-0453's deeper limit stands — a validator verifies internal
+consistency, never whether a row is true.
+
+**Required follow-up:** a triage process for a dependency advisory against a
+pinned dependency, which is what would let `dependency-audit` gate rather
+than warn.
+
+**Supersedes / superseded by:** discharges roadmap R2. Supersedes nothing.
