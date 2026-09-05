@@ -37,7 +37,11 @@ fn certify(
 ) -> WitnessedEventCertificate {
     let head = kel.events().last().unwrap();
     let kind = KeyEventKind::from(&head.kind);
-    let prior = (head.sn > 0).then(|| kel.events()[head.sn as usize - 1].digest());
+    // The event before the head, by walking the log rather than by
+    // subtracting from `sn` and indexing. The arithmetic version needed a
+    // guard to avoid underflowing at inception and a cast that assumed `sn`
+    // indexes the slice; this needs neither and says what it means.
+    let prior = kel.events().iter().rev().nth(1).map(|event| event.digest());
     let receipts: Vec<WitnessReceipt> = witnesses
         .iter()
         .map(|(id, sk, _)| {
