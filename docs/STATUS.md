@@ -349,6 +349,27 @@ given time.
   on who has been proven faulty is a governance question; and re-admission
   is undecided. 13 tests, most of them about accusations that must fail.
 
+- **shipped (D-0462)** — `mini-consensus` gains **peer discovery over a real
+  socket**, closing a second of roadmap R8's named gaps. `mini-net::pex`
+  already had the request/response peer-exchange logic (`PexMessage`,
+  `RoutingTable`, `AddressBook`) fully tested without ever touching a
+  socket; `discovery::pex_over_tcp`/`serve_pex_over_tcp` carry it over the
+  same anonymous, forward-secret `mini_bearer::Channel` handshake
+  `catch_up_over_tcp`/`state_sync_over_tcp` already use, so a node can ask
+  one already-known peer for others it knows and grow a real address book
+  with no directory server. **What it does not do:** it is not wired into
+  `TcpMesh::establish` — that constructor's deadlock-free dial/accept
+  convention still needs one consistent, fully-resolved address list every
+  node agrees on up front, so turning a discovered book into a mesh
+  topology stays a host decision; a `PexMessage::Response` remains an
+  unauthenticated hint exactly as `mini-net::pex` already documented, this
+  only adds a real encrypted transport underneath it; and the address
+  recorded for a requester is the connection's observed source address, so
+  a peer dialing from an ephemeral port rather than its own listener is not
+  correctly discovered — `mini-net::pex`'s own already-named limitation,
+  not a new one. 5 tests, including a raw-socket regression proving a
+  request never crosses the wire unencrypted.
+
 - **prototype** — `mini-value`: stealth addresses, linkable ring
   signatures, Bulletproofs confidential amounts (D-0036/D-0040). Real,
   tested, founder-reviewed, **pending external audit** — see `docs/

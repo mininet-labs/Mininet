@@ -87,12 +87,18 @@
 //!   Historical validator-set transitions, long-range/weak-subjectivity rules,
 //!   chunked Merkle state transfer, peer selection/retry, and physical weakest-
 //!   device benchmarks remain separate work.
-//! - **[`net::TcpMesh`] is transport, not discovery.** It assumes every
-//!   peer's address is known and the mesh is fully connected (or connected
-//!   via [`net::TcpMesh::establish_topology`]'s partial-mesh support) before
-//!   consensus starts — `mini-net`'s overlay routing/gossip is the layer
-//!   that replaces that assumption; still separate, later work. Every link
-//!   *is* now confidential and tamper-evident: each one runs a
+//! - **[`net::TcpMesh`] is transport, not discovery.** It still assumes
+//!   every peer's address is known and the mesh is fully connected (or
+//!   connected via [`net::TcpMesh::establish_topology`]'s partial-mesh
+//!   support) before consensus starts. [`discovery::pex_over_tcp`]/
+//!   [`discovery::serve_pex_over_tcp`] give a node a real, encrypted way to
+//!   learn peers it was never handed — `mini-net`'s already-tested
+//!   [`mini_net::pex`] logic carried over a real socket — but they are not
+//!   wired into [`net::TcpMesh::establish`] itself, whose deadlock-free
+//!   dial/accept convention still needs one consistent, fully-resolved
+//!   address list agreed by every node up front; turning a discovered
+//!   [`mini_net::AddressBook`] into that list is still a host decision.
+//!   Every link *is* now confidential and tamper-evident: each one runs a
 //!   [`mini_bearer::Channel`] handshake before any consensus byte crosses
 //!   the wire (D-0206), the same construction `mini-sync`/`mini-cli`'s
 //!   `sync connect`/`listen` already use. `Channel`'s handshake is
@@ -113,6 +119,7 @@
 
 mod catchup;
 mod consequence;
+mod discovery;
 mod error;
 mod evidence;
 mod node;
@@ -129,6 +136,7 @@ pub mod net;
 
 pub use catchup::{CatchupRequest, CatchupResponse, FinalizedBlock, MAX_CATCHUP_BLOCKS};
 pub use consequence::{EquivocatorRegistry, RecordOutcome};
+pub use discovery::{pex_over_tcp, serve_pex_over_tcp};
 pub use error::{ConsensusError, Result};
 pub use evidence::{verify_equivocation, EquivocationEvidence};
 pub use node::{ConsensusNode, Emit, NodeConfig};

@@ -17683,3 +17683,102 @@ pinned dependency, which is what would let `dependency-audit` gate rather
 than warn.
 
 **Supersedes / superseded by:** discharges roadmap R2. Supersedes nothing.
+
+### D-0462 — Peer discovery over a real socket: `mini-net`'s PEX logic, carried by `mini-bearer` — the second of R8's three remaining gaps  ·  *Proposed*
+
+**Date:** 2026-09-05 · **Refs:** D-0460 (named the three remaining R8 gaps:
+state sync, peer discovery, validator-authenticated handshake), D-0207
+(state sync, already substantially closed), D-0206 (the `Channel` handshake
+this reuses), D-0034 point 3 (peer-exchange logic itself, adapted design not
+adapted dependency), D-0042 (`mini-net` stays transport-agnostic), roadmap
+R8, [#92](../../issues/92).
+
+**Decision:** `mini-consensus::discovery::pex_over_tcp`/`serve_pex_over_tcp`
+close the "peers are supplied rather than discovered" half of R8's
+transport gaps. `mini-net::pex` (`PexMessage`, `RoutingTable`, `AddressBook`,
+`build_response`/`absorb_response`) already had the request/response
+peer-exchange logic, fully unit-tested without ever touching a socket —
+that crate's own docs named the real-transport adapter as pending, "the
+same way `mini-sync`'s protocol module does." This is that adapter, for the
+consensus mesh specifically: the identical anonymous, forward-secret
+`mini_bearer::Channel` handshake `catch_up_over_tcp`/`state_sync_over_tcp`
+already use (ephemeral X25519 + HKDF-SHA256 + ChaCha20-Poly1305, no new
+cryptography), carrying `PexMessage` bytes instead of block history. A node
+can now ask one already-known peer for others it knows and grow a real
+`RoutingTable`/`AddressBook`, with no directory server and no address list
+handed out of band — the Kademlia-style "repeat the request against
+different peers" pattern `mini-net`'s own docs describe, now runnable
+end to end.
+
+**Why `mini-net` itself doesn't grow this instead:** D-0042 committed that
+crate to staying transport-agnostic — its `Cargo.toml` deliberately keeps
+`mini-bearer` a dev-dependency, used only by its own demo, not by the
+library. Adding a real socket adapter inside `mini-net` would have reopened
+that decision for no reason: `mini-consensus` already depends on both
+`mini-net`-shaped logic's natural consumer (the validator mesh) and
+`mini-bearer` (the transport), so the adapter belongs at the point of use,
+matching this workspace's existing pattern of landing pure protocol logic
+in one crate and its real-network adapter in the crate that actually needs
+a socket (`mini-presence`'s RTT hook over `mini-bearer`, this crate's own
+`catch_up_over_tcp`/`state_sync_over_tcp`).
+
+**What this does not do, stated plainly:**
+
+- **Not wired into `TcpMesh::establish`.** That constructor's deadlock-free
+  dial/accept convention (node `i` dials every `j > i`, accepts from every
+  `j < i`) requires every node to agree on one consistent, fully-resolved
+  address list before anyone calls it. A partial, per-node discovered view
+  cannot honestly supply that without a separate agreement step this slice
+  does not build. `pex_over_tcp`/`serve_pex_over_tcp` hand a caller a real,
+  useful `AddressBook`; turning it into a mesh topology is still a host
+  decision, named rather than silently assumed away.
+- **A response is still an unauthenticated hint**, exactly as `mini-net::pex`
+  already documented before this PR. This work adds a real transport
+  underneath — an on-path attacker cannot forge or read a response, because
+  `Channel` is authenticated-encrypted end to end — not new trust in the
+  content of a genuine peer's honest answer.
+- **The recorded address is the connection's own observed source address**,
+  per `mini-net::pex`'s existing contract (never a self-declared one, which
+  would invite return-address spoofing). For a requester dialing from an
+  ephemeral port rather than its own listening socket, that observed
+  address is not its dialable one — `mini-net::pex`'s own already-named
+  limitation, not a new one. Deployments where a node's dial and listen
+  addresses coincide (every test here, or any network with a fixed announce
+  port) are unaffected.
+- **One request, one peer, one response per call.** No periodic refresh, no
+  bucket-liveness eviction, no automatic re-query on a stale book.
+
+**Constitutional impact:** none. `mini-net::PeerId` is explicitly not an
+identity (see that type's own docs) and this PR does not change that; no
+`did-mini` involvement, no voice/value edge, no frozen invariant touched.
+Two ordinary crate-to-crate dependency edges added
+(`mini-consensus` → `mini-net`), both transport/logic crates, neither a
+value crate nor a governance/voting crate — `Cargo.toml` diff reviewed
+against P1/Directive 16 and clean.
+
+**Implementation status:** shipped — `crates/mini-consensus/src/discovery.rs`
+(new, `pex_over_tcp`/`serve_pex_over_tcp` plus 5 tests including a raw-socket
+ciphertext-only regression test matching `net.rs`'s own pattern),
+`crates/mini-consensus/src/error.rs` (`ConsensusError::Discovery`),
+`crates/mini-consensus/src/lib.rs` (module wiring, "Honest limits" updated),
+`crates/mini-consensus/Cargo.toml` (`mini-net` dependency).
+
+**Failure point:** the ephemeral-source-port limitation above is real for
+any deployment where nodes dial out without also listening on the address
+they dial from — such a network would need either a fixed announce port
+convention or a follow-up where a requester's own listening address is
+authenticated some other way (out of scope here, and doing so naively by
+trusting a self-declared address would reopen the exact spoofing risk
+`mini-net::pex` was designed to avoid). `PeerId` remains routing-only and
+unauthenticated by design (D-0009/D-0015's Sybil-connection caveat still
+applies at the discovery layer, same as it already did at the mesh layer).
+
+**Required follow-up:** the remaining R8 gap — a validator-authenticated
+`mini_bearer::Channel` handshake — plus, separately, a host-level policy for
+turning a discovered `AddressBook` into a `TcpMesh` topology (peer
+selection, minimum liveness signal, how large a partial mesh must be to
+stay connected).
+
+**Supersedes / superseded by:** extends D-0206/D-0207's real-transport
+adapters with a third; supersedes nothing. Narrows roadmap R8's three
+remaining named gaps to two.
