@@ -31,12 +31,14 @@
 #![warn(missing_debug_implementations)]
 
 mod block;
+mod equivocation;
 mod error;
 mod finality;
 mod validator;
 mod vote;
 
 pub use block::{BlockHeader, BLOCK_HEADER_VERSION};
+pub use equivocation::{EquivocationProof, EquivocationRegistry, EQUIVOCATION_DOMAIN};
 pub use error::{ChainError, Result};
 pub use finality::{
     verify_finality, QuorumCertificate, ValidatorOracle, MAX_VOTES_PER_CERTIFICATE,

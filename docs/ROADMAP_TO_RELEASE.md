@@ -62,17 +62,23 @@ its first tests in either direction.
 `main` is green again on the two merge commits since, and the validator suite
 passes there (111 tests).
 
-### R2 — A green, meaningful CI baseline on `main` · `active`
-R1 is done, so this is no longer blocked. `governance-policy` is green on
-`main`; what R2 actually names has not happened yet — a **scheduled** run
-passing end to end, which is the one that caught the last two failures days
-after a merge.
-`main` should be green across `ci`, `governance-policy`,
-`governance-canonical`, `reproducibility` and the Android workflows. Any
-remaining red is either a real defect or a check that needs to be honest about
-what it measures.
-**Closed by:** a scheduled `main` run passing end to end, with any surviving
-exception recorded as a decision rather than tolerated silently.
+### R2 — A green, meaningful CI baseline on `main` · `done`
+A **scheduled** run has now passed end to end on `main`, which is what this
+row actually named — push-triggered green was never sufficient, because the
+scheduled run is what caught both prior failures days after a merge.
+**Closed by:** D-0461. Scheduled `ci` run 860 (2026-09-05 08:22 UTC) passed on
+head `01ad0ce`, and every other workflow is green on that same head:
+`governance-policy` 734, `reproducibility` 636, `android-ci` 505,
+`android-reproducibility` 496, and CodeQL's default-setup "Push on main" 904.
+`governance-canonical` has no run on that head **by design** — it triggers on
+`pull_request_target`, so it only ever runs against pull requests; it was green
+on #313, #314 and #316.
+**The surviving exception, recorded rather than tolerated:** `dependency-audit`
+reports advisories without gating (D-0441/D-0450). That is a deliberate,
+already-decided split — the scanner failing to *run* is a hard failure, while
+an advisory against a pinned dependency is a loud warning — and it stays a
+warning until this workspace has a triage process for one. R2 is closed with
+that exception named, not with it hidden.
 
 ---
 
@@ -167,7 +173,7 @@ should be revisited on the same evidence.
 
 # Phase 3 — Make the network a network
 
-### R8 — Consensus production gaps · `ready`
+### R8 — Consensus production gaps · `active`
 The consensus slices are tested protocol work, not a production network. Four
 named gaps: no state sync for a node that missed a whole height; no slashing
 layer; peers are supplied rather than discovered; and `mini_bearer::Channel`'s
@@ -175,8 +181,23 @@ handshake is anonymous, so it proves nothing about *which* validator is on the
 other end.
 **Why it blocks:** each is a liveness or accountability hole that only appears
 under real adversarial load.
-**Closed by:** the four gaps closed with tests that fail without the fix, and
-the honest limits restated for whatever remains.
+**Progress:** the accountability gap is closed by **D-0460**. A validator that
+signs two conflicting votes at one `(phase, height, round)` now convicts
+itself: `EquivocationProof` carries both votes, anyone can check it, and
+`ValidatorSet::excluding` computes the set without the offender. The sanction
+is exclusion, never an economic penalty — Mininet has no stake, and a penalty
+denominated in value would make validator behaviour a function of wealth in
+exactly the direction P1 and Directive 16 forbid.
+**What that did not close:** nothing *detects* equivocation without vote
+gossip, nothing ejects automatically (adopting an exclusion is a governance
+action, or fabricating a removal becomes the attack), and only double-voting
+is covered — silence, censorship and invalid proposals are not self-proving
+in the same way.
+**Closed by:** the three remaining gaps — state sync, peer discovery, and a
+validator-authenticated bearer handshake — with tests that fail without the
+fix, plus the honest limits restated for whatever remains. The shielded-spend
+validity rule named in D-0457 also lands here: today the chain finalizes a
+key image on a proposer's say-so.
 
 ### R9 — KEL freshness and witnesses (M3) · `active`
 The stale-KEL revocation gap, audit #12 finding F4. A device whose delegation

@@ -11,6 +11,14 @@ pub type Result<T> = core::result::Result<T, ChainError>;
 pub enum ChainError {
     /// A validator set had no members.
     EmptyValidatorSet,
+    /// Two votes offered as an equivocation proof do not actually conflict:
+    /// different validators, different height/round/phase, or the same
+    /// block hash twice (a re-broadcast, which networks produce constantly
+    /// and which is not misbehaviour).
+    NotAnEquivocation,
+    /// A vote names a validator root or device whose KEL the oracle could
+    /// not supply, so its signature cannot be checked.
+    UnknownValidator,
     /// A validator set named the same identity root more than once.
     DuplicateValidator,
     /// A vote's claimed device/root did not match the KEL supplied for it.
@@ -38,6 +46,12 @@ impl core::fmt::Display for ChainError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             ChainError::EmptyValidatorSet => write!(f, "validator set is empty"),
+            ChainError::NotAnEquivocation => {
+                write!(f, "the two votes do not conflict")
+            }
+            ChainError::UnknownValidator => {
+                write!(f, "no key event log available for this validator")
+            }
             ChainError::DuplicateValidator => {
                 write!(f, "validator set names the same identity root twice")
             }

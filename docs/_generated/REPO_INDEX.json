@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 73,
-    "files": 911,
+    "files": 913,
     "headings": 3182,
-    "rust_symbols": 8913
+    "rust_symbols": 8954
   },
   "crates": {
     "did-mini": {
@@ -1760,7 +1760,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 25140,
+      "bytes": 25130,
       "group": "root",
       "headings": [
         {
@@ -1832,7 +1832,7 @@
       ],
       "lines": 404,
       "path": "README.md",
-      "sha256": "68121b9cf25522d2004a3ffaa4c43d35555b62772f96cc3a69d5b40c3d65ae54",
+      "sha256": "8de3c4b68dfadd1d43db06dd797d1b8f3d4bec045e6ba0871c653263f41aafba",
       "symbols": [],
       "title": "Mininet"
     },
@@ -3011,7 +3011,7 @@
       "title": "use core::fmt;"
     },
     {
-      "bytes": 21479,
+      "bytes": 21831,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -3040,9 +3040,9 @@
         "delegator",
         "device"
       ],
-      "lines": 563,
+      "lines": 568,
       "path": "crates/did-mini/src/event.rs",
-      "sha256": "3b004637feb7b0eaf9f193cf324236f3a12f428277cb1d63bb751162a0a25c23",
+      "sha256": "549b5f51825c5cea83f1d1f4cbcd3407bc416207405c2ed0329587d86ca0b420",
       "symbols": [
         {
           "kind": "struct",
@@ -3086,47 +3086,47 @@
         },
         {
           "kind": "fn",
-          "line": 415,
+          "line": 420,
           "name": "checked_count"
         },
         {
           "kind": "fn",
-          "line": 422,
+          "line": 427,
           "name": "key_fingerprint"
         },
         {
           "kind": "fn",
-          "line": 509,
+          "line": 514,
           "name": "signatures_are_canonical"
         },
         {
           "kind": "fn",
-          "line": 521,
+          "line": 526,
           "name": "canonicalize_signatures"
         },
         {
           "kind": "mod",
-          "line": 528,
+          "line": 533,
           "name": "canonical_signature_tests"
         },
         {
           "kind": "fn",
-          "line": 532,
+          "line": 537,
           "name": "sig"
         },
         {
           "kind": "fn",
-          "line": 540,
+          "line": 545,
           "name": "ascending_distinct_indices_are_canonical"
         },
         {
           "kind": "fn",
-          "line": 547,
+          "line": 552,
           "name": "repeats_and_descents_are_not"
         },
         {
           "kind": "fn",
-          "line": 554,
+          "line": 559,
           "name": "canonicalizing_fixes_both"
         }
       ],
@@ -5066,38 +5066,38 @@
       "title": "use did_mini::{Controller, IdentityError, Kel};"
     },
     {
-      "bytes": 12450,
+      "bytes": 12733,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
         "witnesses",
-        "witness",
         "kel",
+        "witness",
         "head",
         "alice",
         "attacker",
         "certificate",
         "unwrap",
-        "identity",
-        "did",
         "generation",
-        "witnessid",
         "map",
+        "identity",
+        "witnessid",
+        "did",
         "clone",
-        "evidence",
         "a_witness",
         "certify",
         "policy",
+        "event",
         "controller",
-        "never",
+        "iter",
         "digest",
         "vec",
         "collect",
         "resolver"
       ],
-      "lines": 310,
+      "lines": 314,
       "path": "crates/did-mini/tests/witness_policy_binding.rs",
-      "sha256": "5cfba9f8486a91a1d63392a93c8758dce34d3c34cfa40b1eea2f19cefe484e45",
+      "sha256": "3a0b689a5056c9b8fe9181b4b2b1097f733eacb66ff80a5fbdbe2dc3bb3f56ba",
       "symbols": [
         {
           "kind": "type",
@@ -5116,47 +5116,47 @@
         },
         {
           "kind": "fn",
-          "line": 62,
+          "line": 66,
           "name": "resolver"
         },
         {
           "kind": "fn",
-          "line": 72,
+          "line": 76,
           "name": "witnesses_the_controller_never_appointed_cannot_manufacture_assurance"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 117,
           "name": "an_identity_that_appointed_nobody_cannot_be_reported_as_witnessed"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 144,
           "name": "the_appointed_witnesses_still_produce_real_assurance"
         },
         {
           "kind": "fn",
-          "line": 166,
+          "line": 170,
           "name": "a_policy_is_read_from_the_latest_appointment_not_the_first"
         },
         {
           "kind": "fn",
-          "line": 209,
+          "line": 213,
           "name": "retiring_a_witness_set_clears_the_policy_rather_than_leaving_it_standing"
         },
         {
           "kind": "fn",
-          "line": 225,
+          "line": 229,
           "name": "an_unsatisfiable_or_incoherent_policy_cannot_be_signed"
         },
         {
           "kind": "fn",
-          "line": 246,
+          "line": 250,
           "name": "appointing_witnesses_leaves_the_kel_verifiable_and_the_scid_unchanged"
         },
         {
           "kind": "fn",
-          "line": 277,
+          "line": 281,
           "name": "identities_without_witnesses_encode_exactly_as_they_did_before"
         }
       ],
@@ -12241,7 +12241,159 @@
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 2463,
+      "bytes": 11065,
+      "group": "crate:mini-chain",
+      "headings": [],
+      "keywords": [
+        "validator",
+        "two",
+        "same",
+        "vote",
+        "equivocationproof",
+        "votes",
+        "does",
+        "one",
+        "fault",
+        "proof",
+        "assemble",
+        "height",
+        "could",
+        "both",
+        "signatures",
+        "mini-chain",
+        "equivocation",
+        "round",
+        "validatorset",
+        "excluding",
+        "block",
+        "conflicting",
+        "protocol",
+        "way"
+      ],
+      "lines": 279,
+      "path": "crates/mini-chain/src/equivocation.rs",
+      "sha256": "a4fdf5a69cfde80750bb7b706eb0a745c9b48eef5248f478bf0e38e8a404cd61",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 73,
+          "name": "EQUIVOCATION_DOMAIN"
+        },
+        {
+          "kind": "struct",
+          "line": 81,
+          "name": "EquivocationProof"
+        },
+        {
+          "kind": "impl",
+          "line": 86,
+          "name": "EquivocationProof"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "assemble"
+        },
+        {
+          "kind": "fn",
+          "line": 136,
+          "name": "offender"
+        },
+        {
+          "kind": "fn",
+          "line": 140,
+          "name": "height"
+        },
+        {
+          "kind": "fn",
+          "line": 144,
+          "name": "round"
+        },
+        {
+          "kind": "fn",
+          "line": 148,
+          "name": "kind"
+        },
+        {
+          "kind": "fn",
+          "line": 153,
+          "name": "votes"
+        },
+        {
+          "kind": "fn",
+          "line": 162,
+          "name": "digest"
+        },
+        {
+          "kind": "struct",
+          "line": 183,
+          "name": "EquivocationRegistry"
+        },
+        {
+          "kind": "impl",
+          "line": 187,
+          "name": "EquivocationRegistry"
+        },
+        {
+          "kind": "fn",
+          "line": 188,
+          "name": "new"
+        },
+        {
+          "kind": "fn",
+          "line": 194,
+          "name": "record"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "is_proven_faulty"
+        },
+        {
+          "kind": "fn",
+          "line": 211,
+          "name": "offenders"
+        },
+        {
+          "kind": "fn",
+          "line": 222,
+          "name": "len"
+        },
+        {
+          "kind": "fn",
+          "line": 226,
+          "name": "is_empty"
+        },
+        {
+          "kind": "impl",
+          "line": 231,
+          "name": "ValidatorSet"
+        },
+        {
+          "kind": "fn",
+          "line": 246,
+          "name": "excluding"
+        },
+        {
+          "kind": "mod",
+          "line": 261,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 265,
+          "name": "the_domain_separator_is_frozen"
+        },
+        {
+          "kind": "fn",
+          "line": 273,
+          "name": "an_empty_registry_convicts_nobody"
+        }
+      ],
+      "title": "use did_mini::Did;"
+    },
+    {
+      "bytes": 3159,
       "group": "crate:mini-chain",
       "headings": [],
       "keywords": [
@@ -12256,23 +12408,23 @@
         "fmt",
         "core",
         "identityerror",
+        "root",
+        "device",
         "needed",
         "got",
         "malformed",
-        "root",
-        "device",
+        "votes",
+        "same",
+        "kel",
         "match",
         "distinct",
         "self",
         "mini-chain",
-        "display",
-        "std",
-        "emptyvalidatorset",
-        "same"
+        "display"
       ],
-      "lines": 63,
+      "lines": 77,
       "path": "crates/mini-chain/src/error.rs",
-      "sha256": "b621f2976e6ebe406f24993a655a00f4def201dd0df05c73c1f30a9e48cf4586",
+      "sha256": "b29f144b34bb18f6609f77db7cd8eced94ea145d692ac1a7351a427bf2dc0f70",
       "symbols": [
         {
           "kind": "type",
@@ -12286,27 +12438,27 @@
         },
         {
           "kind": "impl",
-          "line": 37,
+          "line": 45,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 38,
+          "line": 46,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 57,
+          "line": 71,
           "name": "std::error::Error"
         },
         {
           "kind": "impl",
-          "line": 58,
+          "line": 72,
           "name": "From<IdentityError>"
         },
         {
           "kind": "fn",
-          "line": 59,
+          "line": 73,
           "name": "from"
         }
       ],
@@ -12375,7 +12527,7 @@
       "title": "use std::collections::HashSet;"
     },
     {
-      "bytes": 2015,
+      "bytes": 2119,
       "group": "crate:mini-chain",
       "headings": [],
       "keywords": [
@@ -12384,6 +12536,7 @@
         "block",
         "finality",
         "chain",
+        "equivocation",
         "error",
         "mini-chain",
         "equal",
@@ -12401,12 +12554,11 @@
         "lib",
         "finality-verification",
         "core",
-        "custom",
-        "rust"
+        "custom"
       ],
-      "lines": 46,
+      "lines": 48,
       "path": "crates/mini-chain/src/lib.rs",
-      "sha256": "1cac4056d07e6736c6bd15642724a7560b24ef17a0bc307c089ddacd1ce86c18",
+      "sha256": "ef803153fc80c8aa7386cc589f4fbe09070245538ce9689b1b0397981aeb4078",
       "symbols": [
         {
           "kind": "mod",
@@ -12416,21 +12568,26 @@
         {
           "kind": "mod",
           "line": 34,
-          "name": "error"
+          "name": "equivocation"
         },
         {
           "kind": "mod",
           "line": 35,
-          "name": "finality"
+          "name": "error"
         },
         {
           "kind": "mod",
           "line": 36,
-          "name": "validator"
+          "name": "finality"
         },
         {
           "kind": "mod",
           "line": 37,
+          "name": "validator"
+        },
+        {
+          "kind": "mod",
+          "line": 38,
           "name": "vote"
         }
       ],
@@ -12519,7 +12676,7 @@
       "title": "use std::collections::HashSet;"
     },
     {
-      "bytes": 16519,
+      "bytes": 16530,
       "group": "crate:mini-chain",
       "headings": [],
       "keywords": [
@@ -12541,16 +12698,16 @@
         "domain",
         "tag",
         "every",
-        "its",
         "kind",
         "block_hash",
         "self",
         "extend_from_slice",
-        "mini-chain"
+        "mini-chain",
+        "u32"
       ],
       "lines": 421,
       "path": "crates/mini-chain/src/vote.rs",
-      "sha256": "a256c16cf7e655f8254824f9a20e8294b2353902205019a403601c43e4a0abf6",
+      "sha256": "3f2387a14fa29f4a02a932893afebe112e503585ab2c7c6c74dce11707b0d0cd",
       "symbols": [
         {
           "kind": "const",
@@ -12576,11 +12733,6 @@
           "kind": "impl",
           "line": 60,
           "name": "VoteKind"
-        },
-        {
-          "kind": "fn",
-          "line": 61,
-          "name": "to_byte"
         },
         {
           "kind": "struct",
@@ -12714,6 +12866,133 @@
         }
       ],
       "title": "use did_mini::{verify_delegation, Capabilities, Controller, Did, IndexedSig, Kel};"
+    },
+    {
+      "bytes": 13276,
+      "group": "crate:mini-chain",
+      "headings": [],
+      "keywords": [
+        "directory",
+        "root",
+        "device",
+        "did",
+        "validators",
+        "one",
+        "kel",
+        "votekind",
+        "assert_eq",
+        "validator",
+        "controller",
+        "sign_vote",
+        "unwrap",
+        "precommit",
+        "a_network",
+        "proof",
+        "insert",
+        "fault",
+        "would",
+        "equivocationproof",
+        "seed",
+        "other",
+        "registry",
+        "votes"
+      ],
+      "lines": 387,
+      "path": "crates/mini-chain/tests/equivocation.rs",
+      "sha256": "272f9e55a2672cfba52bd60723d3683448ed7021e2d4d4c21627314df3be8df4",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 20,
+          "name": "Directory"
+        },
+        {
+          "kind": "impl",
+          "line": 21,
+          "name": "Directory"
+        },
+        {
+          "kind": "fn",
+          "line": 22,
+          "name": "insert"
+        },
+        {
+          "kind": "impl",
+          "line": 26,
+          "name": "ValidatorOracle"
+        },
+        {
+          "kind": "fn",
+          "line": 27,
+          "name": "kel"
+        },
+        {
+          "kind": "fn",
+          "line": 32,
+          "name": "validator"
+        },
+        {
+          "kind": "fn",
+          "line": 43,
+          "name": "a_network"
+        },
+        {
+          "kind": "fn",
+          "line": 55,
+          "name": "a_validator_that_precommits_two_blocks_at_one_slot_convicts_itself"
+        },
+        {
+          "kind": "fn",
+          "line": 74,
+          "name": "the_same_fault_seen_in_either_order_is_one_proof"
+        },
+        {
+          "kind": "fn",
+          "line": 96,
+          "name": "voting_for_the_same_block_twice_is_not_a_fault"
+        },
+        {
+          "kind": "fn",
+          "line": 113,
+          "name": "voting_at_different_slots_is_what_a_validator_is_supposed_to_do"
+        },
+        {
+          "kind": "fn",
+          "line": 146,
+          "name": "two_different_validators_disagreeing_is_consensus_working"
+        },
+        {
+          "kind": "fn",
+          "line": 178,
+          "name": "a_forged_vote_cannot_convict_anyone"
+        },
+        {
+          "kind": "fn",
+          "line": 212,
+          "name": "a_vote_from_an_unresolvable_validator_is_refused_rather_than_assumed"
+        },
+        {
+          "kind": "fn",
+          "line": 227,
+          "name": "a_proven_equivocator_can_be_excluded_and_then_stops_counting"
+        },
+        {
+          "kind": "fn",
+          "line": 316,
+          "name": "excluding_everyone_is_refused_rather_than_producing_a_dead_chain"
+        },
+        {
+          "kind": "fn",
+          "line": 327,
+          "name": "excluding_a_validator_that_is_not_in_the_set_changes_nothing"
+        },
+        {
+          "kind": "fn",
+          "line": 336,
+          "name": "nothing_in_the_accountability_path_is_denominated_in_value"
+        }
+      ],
+      "title": "use std::collections::BTreeMap;"
     },
     {
       "bytes": 14461,
@@ -75012,7 +75291,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1063652,
+      "bytes": 1072212,
       "group": "docs",
       "headings": [
         {
@@ -75428,23 +75707,23 @@
         "slice",
         "review",
         "audit",
-        "signed",
         "closes",
+        "signed",
+        "roadmap",
         "doctrine",
         "decision",
         "log",
         "batch",
         "local",
         "release",
-        "roadmap",
         "phase",
         "first",
         "transport",
         "status"
       ],
-      "lines": 17618,
+      "lines": 17776,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "15450e260d93b4109aefa14e089956fcb831ea138fe7ca3c10abd34c3138e6fc",
+      "sha256": "ee74a7e1b9df3d31c230db5ca74f97fbe42282dc2062dfc7b35f62939e4d57ff",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -76459,7 +76738,7 @@
       "title": "Mininet roadmap: from two-phone proof to self-governed network"
     },
     {
-      "bytes": 16520,
+      "bytes": 18083,
       "group": "docs",
       "headings": [
         {
@@ -76490,153 +76769,153 @@
         {
           "level": 3,
           "line": 65,
-          "text": "R2 \u2014 A green, meaningful CI baseline on `main` \u00b7 `active`"
+          "text": "R2 \u2014 A green, meaningful CI baseline on `main` \u00b7 `done`"
         },
         {
           "level": 1,
-          "line": 79,
+          "line": 85,
           "text": "Phase 2 \u2014 Finish the money layer so it can be audited as one thing"
         },
         {
           "level": 3,
-          "line": 86,
+          "line": 92,
           "text": "R3 \u2014 Retire the transparent payment path \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 105,
+          "line": 111,
           "text": "R4 \u2014 Fees, change, and multi-output claims \u00b7 `done`"
         },
         {
           "level": 3,
-          "line": 126,
+          "line": 132,
           "text": "R5 \u2014 Chain-backed private ledger view \u00b7 `done`"
         },
         {
           "level": 3,
-          "line": 144,
+          "line": 150,
           "text": "R6 \u2014 Amount disclosure for accounts that choose it \u00b7 `done`"
         },
         {
           "level": 3,
-          "line": 160,
+          "line": 166,
           "text": "R7 \u2014 Decoy weights fitted to real traffic \u00b7 `blocked`"
         },
         {
           "level": 1,
-          "line": 168,
+          "line": 174,
           "text": "Phase 3 \u2014 Make the network a network"
         },
         {
           "level": 3,
-          "line": 170,
-          "text": "R8 \u2014 Consensus production gaps \u00b7 `ready`"
+          "line": 176,
+          "text": "R8 \u2014 Consensus production gaps \u00b7 `active`"
         },
         {
           "level": 3,
-          "line": 181,
+          "line": 202,
           "text": "R9 \u2014 KEL freshness and witnesses (M3) \u00b7 `active`"
         },
         {
           "level": 3,
-          "line": 200,
+          "line": 221,
           "text": "R10 \u2014 BLE and local-radio transport \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 207,
+          "line": 228,
           "text": "R11 \u2014 A client application people can actually use \u00b7 `ready`"
         },
         {
           "level": 1,
-          "line": 216,
+          "line": 237,
           "text": "Phase 4 \u2014 The gates code cannot close"
         },
         {
           "level": 3,
-          "line": 223,
+          "line": 244,
           "text": "R12 \u2014 External cryptography audit \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 234,
+          "line": 255,
           "text": "R13 \u2014 FROST DKG audit \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 240,
+          "line": 261,
           "text": "R14 \u2014 Legal counsel review \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 244,
+          "line": 265,
           "text": "R15 \u2014 Sybil resistance and personhood \u00b7 `outside`"
         },
         {
           "level": 3,
-          "line": 256,
+          "line": 277,
           "text": "R16 \u2014 Tokenomics validation \u00b7 `outside`"
         },
         {
           "level": 1,
-          "line": 264,
+          "line": 285,
           "text": "Phase 5 \u2014 Release engineering"
         },
         {
           "level": 3,
-          "line": 266,
+          "line": 287,
           "text": "R17 \u2014 Adversarial testing at real-world scale \u00b7 `blocked`"
         },
         {
           "level": 3,
-          "line": 273,
+          "line": 294,
           "text": "R18 \u2014 Genesis, validator set, and activation \u00b7 `blocked`"
         },
         {
           "level": 3,
-          "line": 280,
+          "line": 301,
           "text": "R19 \u2014 Release, install, and rollback on real targets \u00b7 `ready`"
         },
         {
           "level": 3,
-          "line": 288,
+          "line": 309,
           "text": "R20 \u2014 The honest launch statement \u00b7 `blocked`"
         },
         {
           "level": 2,
-          "line": 301,
+          "line": 322,
           "text": "What is deliberately *not* on this list"
         }
       ],
       "keywords": [
-        "what",
-        "real",
         "outside",
-        "blocked",
+        "what",
         "done",
-        "release",
-        "phase",
-        "main",
-        "one",
+        "real",
         "closed",
         "row",
-        "transparent",
-        "path",
-        "ready",
+        "release",
+        "phase",
+        "blocked",
         "green",
+        "main",
+        "one",
+        "every",
+        "ready",
         "actually",
         "audit",
-        "every",
+        "run",
         "status",
         "governance",
         "validator",
-        "active",
         "close",
-        "roadmap"
+        "roadmap",
+        "pull",
+        "again"
       ],
-      "lines": 313,
+      "lines": 334,
       "path": "docs/ROADMAP_TO_RELEASE.md",
-      "sha256": "c5a94dc3db4389b3f38ffb85bfd311a9962568b9328737abcfd8497556c868d2",
+      "sha256": "7b28abb4521586dcfc3297bd7e5eac417bd0a2cc8bc95893bf310f45878a96e5",
       "symbols": [],
       "title": "The road to release"
     },
@@ -76775,7 +77054,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 158738,
+      "bytes": 160750,
       "group": "docs",
       "headings": [
         {
@@ -76815,72 +77094,72 @@
         },
         {
           "level": 2,
-          "line": 642,
+          "line": 671,
           "text": "5. Updates & forks"
         },
         {
           "level": 2,
-          "line": 689,
+          "line": 718,
           "text": "6. Privacy"
         },
         {
           "level": 2,
-          "line": 911,
+          "line": 940,
           "text": "7. Storage"
         },
         {
           "level": 2,
-          "line": 1105,
+          "line": 1134,
           "text": "8. Networking"
         },
         {
           "level": 2,
-          "line": 1166,
+          "line": 1195,
           "text": "9. AI & audit gates"
         },
         {
           "level": 2,
-          "line": 1196,
+          "line": 1225,
           "text": "10. Self-hosted forge spine (D-0066, tracking issue #102)"
         },
         {
           "level": 2,
-          "line": 1523,
+          "line": 1552,
           "text": "11. Discovery / search"
         },
         {
           "level": 2,
-          "line": 2001,
+          "line": 2030,
           "text": "Client coverage"
         },
         {
           "level": 2,
-          "line": 2092,
+          "line": 2121,
           "text": "12. Edge / provider layer (Founder Directive 18, D-0352)"
         },
         {
           "level": 2,
-          "line": 2172,
+          "line": 2201,
           "text": "13. Airdrop eligibility (D-0354)"
         },
         {
           "level": 2,
-          "line": 2238,
+          "line": 2267,
           "text": "Where to look for more detail"
         },
         {
           "level": 2,
-          "line": 2255,
+          "line": 2284,
           "text": "Privacy transport runtime convergence \u2014 D-0377 and proposed D-0438"
         },
         {
           "level": 2,
-          "line": 2291,
+          "line": 2320,
           "text": "Node deployment \u2014 Mininet Node Appliance (D-0446)"
         },
         {
           "level": 2,
-          "line": 2356,
+          "line": 2385,
           "text": "Day-0 release code hardening \u2014 D-0442/D-0443 proposal"
         }
       ],
@@ -76910,9 +77189,9 @@
         "account",
         "shipped"
       ],
-      "lines": 2391,
+      "lines": 2420,
       "path": "docs/STATUS.md",
-      "sha256": "0d7cb1e61c7a5f2fde22e75e51689e08d89b859aa40b85fe6d0f3324b091fa51",
+      "sha256": "f62f53f6358df215fb4d076f59aa100d1355faf8241e91f6e8cc2bc18da05c51",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -93142,7 +93421,7 @@
       "title": "version: 1"
     },
     {
-      "bytes": 56580,
+      "bytes": 59643,
       "group": "root",
       "headings": [],
       "keywords": [
@@ -93171,9 +93450,9 @@
         "independently",
         "both"
       ],
-      "lines": 947,
+      "lines": 981,
       "path": "governance/work-claims.json",
-      "sha256": "524e234f8d9e9218925e59fdad1bcbfe2ea5c52629a246a9f8a7b0be35ec18be",
+      "sha256": "550faf57dbfcaa4e1068ec07d887e2b4d41c065abbc334efe6599055eb87ca30",
       "symbols": [],
       "title": "{"
     },
