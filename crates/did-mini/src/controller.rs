@@ -195,6 +195,7 @@ impl Controller {
                 .collect(),
             next_threshold,
             witnesses: Vec::new(),
+            witness_threshold: 0,
         };
         event::validate_establishment(&establishment)?;
 
@@ -315,6 +316,7 @@ impl Controller {
                 .collect(),
             next_threshold: new_next_threshold,
             witnesses: Vec::new(),
+            witness_threshold: 0,
         };
         event::validate_establishment(&establishment)?;
 
@@ -324,6 +326,69 @@ impl Controller {
         self.current_threshold = new_current_threshold;
         self.next = new_next;
         self.next_threshold = new_next_threshold;
+        Ok(())
+    }
+
+    /// Rotate, appointing this identity's witness set in the same event
+    /// (D-0459).
+    ///
+    /// A witness policy is authority: it says whose receipts a verifier
+    /// should believe about this identity's history. So it is declared the
+    /// only way authority is ever declared here — inside a controller-signed
+    /// establishment event, covered by the event digest and chained into the
+    /// KEL. A verifier reads it back with [`Kel::declared_witness_policy`]
+    /// and never from whoever handed it a certificate.
+    ///
+    /// Named `appoint_witnesses` rather than taking a `witnesses` parameter
+    /// on the general rotation path, per this tree's typed-domain rule: the
+    /// set of things a rotation can do stays fixed at the call site instead
+    /// of depending on which optional arguments a caller assembled.
+    ///
+    /// `threshold` must be in `1..=witnesses.len()`; a policy no certificate
+    /// could satisfy is refused here rather than signed and discovered later.
+    pub fn appoint_witnesses(&mut self, witnesses: Vec<Did>, threshold: u32) -> Result<()> {
+        self.rotate_appointing(witnesses, threshold)
+    }
+
+    /// Rotate, retiring any witness set this identity previously declared.
+    ///
+    /// Separate from [`Self::appoint_witnesses`] with an empty list, because
+    /// "I appoint nobody" and "I retire my witnesses" are the same act and
+    /// should have one obvious spelling — and because an empty vector
+    /// reaching an appointment call is far more likely to be a bug than an
+    /// intention.
+    pub fn retire_witnesses(&mut self) -> Result<()> {
+        self.rotate_appointing(Vec::new(), 0)
+    }
+
+    fn rotate_appointing(&mut self, witnesses: Vec<Did>, threshold: u32) -> Result<()> {
+        let new_next = generate_like(&self.next)?;
+        let new_current = self.next.clone();
+        let new_current_threshold = self.next_threshold;
+
+        let establishment = Establishment {
+            keys: new_current.iter().map(|k| k.verifying_key()).collect(),
+            threshold: new_current_threshold,
+            next: new_next
+                .iter()
+                .map(|k| event::key_commitment(&k.verifying_key()))
+                .collect(),
+            next_threshold: self.next_threshold,
+            witnesses: witnesses
+                .iter()
+                .map(|did| did.as_str().as_bytes().to_vec())
+                .collect(),
+            witness_threshold: threshold,
+        };
+        // Rejects a zero or unreachable threshold, a threshold with no set,
+        // and a repeated witness -- before anything is signed.
+        event::validate_establishment(&establishment)?;
+
+        self.append(EventKind::Rotation(establishment), &new_current);
+
+        self.current = new_current;
+        self.current_threshold = new_current_threshold;
+        self.next = new_next;
         Ok(())
     }
 
@@ -404,6 +469,7 @@ impl Controller {
                 .collect(),
             next_threshold: ctrl.next_threshold,
             witnesses: Vec::new(),
+            witness_threshold: 0,
         };
         event::validate_establishment(&establishment)?;
 

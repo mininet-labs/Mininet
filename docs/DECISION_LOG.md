@@ -17364,6 +17364,96 @@ worth considering the next time CI is touched.
 regression introduced by D-0455 in the same session; D-0455 stands as
 written.
 
+### D-0459 — A witness policy comes from the identity's own signed KEL, or the witness layer checks an attacker's homework  ·  *Proposed*
+
+**Date:** 2026-09-04 · **Refs:** D-0321/D-0326/D-0328/D-0329/D-0330/D-0332
+(Phases 1-3 of `docs/design/kel-witness-receipts-and-duplicity-gossip.md`),
+audit [#12](../../issues/12) finding F4, invariant M3, roadmap R9,
+[#92](../../issues/92).
+
+**Decision:** `Establishment` gains `witness_threshold`, so an identity's
+witness set and the threshold over it are declared together inside a
+controller-signed establishment event. `Kel::declared_witness_policy` reads
+that back. `assess_kel_assurance` now takes the policy from the KEL it just
+verified, and `WitnessEvidence`'s `policy` field is **removed**.
+`Controller::appoint_witnesses` / `retire_witnesses` are the typed
+operations that declare and clear one.
+
+**Reason:** the witness layer's whole job is to tell a first-contact
+verifier that an identity's presented head is the one its witnesses saw. A
+`WitnessedEventCertificate` proves "these witnesses receipted this event".
+It says nothing about whether *those* witnesses are the ones the identity
+appointed — and until now the `WitnessPolicy` naming them was supplied by
+the **caller**.
+
+That meant whoever handed a verifier a certificate could also hand it the
+standard the certificate was judged against. An attacker stands up two
+witnesses of their own, has them receipt a forged branch perfectly
+correctly, supplies a policy naming those witnesses, and the verifier
+reports `WitnessedRecent` — the strongest level in the enum — for a branch
+the real controller never signed. Every signature checks out. The only
+thing wrong is that nobody asked the identity who its witnesses were.
+
+The design doc listed "`WitnessPolicy` read from a real `Establishment`
+event (caller-supplied today)" as an open Phase 3 item. Working through it
+showed it is not a completeness detail: without it the assurance levels
+above `Pinned` are decorative against an active attacker, which is the only
+attacker they exist for.
+
+**On removing the field rather than cross-checking it:** the alternative was
+to keep `WitnessEvidence::policy` and compare it against the KEL's. That
+leaves the forgery expressible and relies on a check to catch it. Removing
+it makes the forgery unrepresentable — the typed-domain rule applied to an
+input rather than an output, and the same reasoning that made
+`canonicalize_ring` take its parallel commitments in D-0455.
+
+**On the wire format, which is the part that could have gone badly:** an
+event's bytes feed its digest, the digest chains the KEL, and the inception
+event's digest **is** the SCID. A field appended unconditionally would have
+changed every identifier this project has ever issued. So
+`witness_threshold` is encoded **only when the witness set is non-empty**.
+Every identity predating this decision has an empty set — the field was
+reserved and never populated — so every one of them encodes to exactly the
+bytes it did before. Verified rather than argued: the seeded identity
+`incept_single_from_seeds(&[7;32], &[9;32])` produces SCID
+`did:mini:zgVytxcYh2onAGUKKqkSSsuWzsCL8oQz1N7yEjUvxda7TTC` and a 296-byte
+KEL both before and after, captured from an `origin/main` worktree and
+pinned in `tests/witness_policy_binding.rs` so it cannot drift.
+
+**Constitutional impact:** M3 and Directive 8. This strengthens an identity
+guarantee and weakens nothing: an identity that declares no witnesses is
+exactly where it was, and one that declares them can no longer have that
+declaration spoofed. `Event::digest` becomes public — it is already carried
+in every published receipt, and keeping it crate-private meant no witness
+service could be written outside `did-mini` at all, which Phase 4 needs. No
+frozen invariant touched. No new cryptography.
+
+**Implementation status:** shipped —
+`crates/did-mini/src/{event,kel,controller,assurance,error}.rs`, 8 tests in
+`tests/witness_policy_binding.rs` plus the existing assurance suite migrated
+to identities that actually appoint their witnesses.
+
+**Failure point:** this closes the "who are the witnesses" question and not
+the "are they honest" one. A controller that appoints witnesses it also
+controls gets certificates that verify correctly against its own declared
+policy — which is the honest limit of *any* witness scheme and is why
+duplicity proofs (D-0326/D-0330) exist alongside it. Second: nothing yet
+*gates* an authority decision on a `KelAssurance` level. That remains
+deliberately open, because which governance action requires which minimum
+level is a founder-facing policy call and not something to pick
+unilaterally — unchanged from D-0332's reasoning. Third: witness key
+resolution is still a caller-supplied closure; binding a `WitnessId` to a
+key through that witness's own KEL is Phase 4/7 work.
+
+**Required follow-up:** Phase 4's receipt collection protocol, which now has
+an authentic policy to collect against. A bounded/incremental KEL re-verify
+(`assess_kel_assurance` still re-verifies the whole chain from inception on
+every call — Directive 11). Witness rotation policy generations beyond the
+"latest establishment event wins" rule adopted here (Phase 7).
+
+**Supersedes / superseded by:** discharges the "`WitnessPolicy` read from a
+real `Establishment` event" item left open in Phase 3 by D-0328/D-0332.
+Those stand as written.
 ### D-0457 — The chain finalizes shielded spends as opaque facts, because the voice/value wall forbids it knowing more  ·  *Proposed*
 
 **Date:** 2026-09-04 · **Refs:** D-0061 (the transparent analogue this

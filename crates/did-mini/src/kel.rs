@@ -71,6 +71,68 @@ impl Kel {
         &self.events
     }
 
+    /// The witness policy this identity **itself** declares, from the most
+    /// recent establishment event that carries one.
+    ///
+    /// # Why this exists rather than a caller-supplied policy
+    ///
+    /// A witness certificate proves "these witnesses receipted this event".
+    /// It says nothing about whether *those* witnesses are the ones this
+    /// identity actually appointed. Until D-0459 the policy came from the
+    /// caller, which meant an attacker who controlled that channel could
+    /// name witnesses they controlled, produce a certificate that verified
+    /// against their own policy, and earn
+    /// [`crate::KelAssurance::WitnessedRecent`] — the strongest level — for
+    /// a branch the real controller never signed.
+    ///
+    /// The policy has to come from inside the signed history or the whole
+    /// witness layer is checking an attacker's homework. It does now:
+    /// `witnesses` and `witness_threshold` are fields of
+    /// [`crate::Establishment`], covered by the event digest, chained into
+    /// the KEL, and verified by [`Self::verify`] before this is ever read.
+    ///
+    /// `generation` is the `sn` of the establishment event that declared the
+    /// policy, so a later rotation's policy strictly supersedes an earlier
+    /// one and a certificate can name which generation it was issued under.
+    ///
+    /// Returns `None` when the identity declares no witnesses — the state
+    /// every identity in this tree was in before D-0459, and still the
+    /// default. That is not a failure; it means witness evidence is not
+    /// applicable to this identity, and an assurance level above
+    /// [`crate::KelAssurance::Pinned`] is simply unavailable for it.
+    ///
+    /// **Call this on a verified KEL.** It reads declared configuration and
+    /// performs no verification of its own; on an unverified log it reports
+    /// what the log claims, which is exactly the thing not to trust.
+    pub fn declared_witness_policy(&self) -> Option<crate::witness::WitnessPolicy> {
+        for event in self.events.iter().rev() {
+            let establishment = match &event.kind {
+                EventKind::Inception(est) | EventKind::Rotation(est) => est,
+                EventKind::DelegatedInception { establishment, .. } => establishment,
+                _ => continue,
+            };
+            if establishment.witnesses.is_empty() {
+                // An establishment event that declares no witnesses clears
+                // any earlier policy rather than leaving it standing: an
+                // identity must be able to retire its witness set, and
+                // silently inheriting a superseded one would keep witnesses
+                // authoritative after the controller removed them.
+                return None;
+            }
+            let witnesses = establishment
+                .witnesses
+                .iter()
+                .map(|bytes| {
+                    let text = core::str::from_utf8(bytes).ok()?;
+                    Some(crate::witness::WitnessId(Did::parse(text).ok()?))
+                })
+                .collect::<Option<Vec<_>>>()?;
+            let threshold = u16::try_from(establishment.witness_threshold).ok()?;
+            return crate::witness::WitnessPolicy::new(event.sn, witnesses, threshold).ok();
+        }
+        None
+    }
+
     /// Number of events in the log.
     pub fn len(&self) -> usize {
         self.events.len()

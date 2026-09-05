@@ -42,7 +42,7 @@ use mini_crypto::VerifyingKey;
 use crate::error::{IdentityError, Result};
 use crate::freshness::FreshnessPins;
 use crate::kel::Kel;
-use crate::witness::{WitnessId, WitnessPolicy, WitnessedEventCertificate};
+use crate::witness::{WitnessId, WitnessedEventCertificate};
 
 /// How much assurance a verifier has that the presented KEL head is not
 /// silently missing a fresher, possibly conflicting branch (SPEC-01 §7,
@@ -79,9 +79,16 @@ pub enum KelAssurance {
 /// Witness evidence for [`assess_kel_assurance`] to check against the
 /// presented KEL's head event. Grouped into its own typed request rather
 /// than loose parameters, per this crate's typed-domain discipline.
+/// **There is deliberately no `policy` field.** It used to be here, and it
+/// was the hole D-0459 closed: a caller-supplied policy meant an attacker
+/// who controlled that channel could name witnesses they controlled,
+/// produce a certificate satisfying their own policy, and be reported as
+/// [`KelAssurance::WitnessedRecent`] for a branch the real controller never
+/// signed. The policy now comes from the identity's own signed KEL via
+/// [`Kel::declared_witness_policy`], so the forgery is not something a
+/// caller can express rather than something a check has to catch.
 pub struct WitnessEvidence<'a> {
     pub certificate: &'a WitnessedEventCertificate,
-    pub policy: &'a WitnessPolicy,
     pub resolve_witness_key: &'a dyn Fn(&WitnessId) -> Option<VerifyingKey>,
     /// The verifier's own current coarse epoch.
     pub now_epoch: u64,
@@ -94,7 +101,6 @@ impl core::fmt::Debug for WitnessEvidence<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("WitnessEvidence")
             .field("certificate", self.certificate)
-            .field("policy", self.policy)
             .field("resolve_witness_key", &"<fn>")
             .field("now_epoch", &self.now_epoch)
             .field("max_epoch_age", &self.max_epoch_age)
@@ -127,9 +133,19 @@ pub fn assess_kel_assurance(
 
     if let Some(evidence) = witnessing {
         let head = kel.events().last().ok_or(IdentityError::EmptyKel)?;
+        // The policy is read from the KEL this call just verified, never
+        // from the caller. An identity that declares no witnesses cannot be
+        // reported as witnessed at all -- presenting a certificate for one
+        // is an error rather than a silent downgrade, because the caller
+        // asked a question ("does this witness evidence hold?") whose
+        // honest answer is "this identity appointed nobody, so that
+        // evidence is about witnesses it never authorized".
+        let policy = kel
+            .declared_witness_policy()
+            .ok_or(IdentityError::NoWitnessPolicyDeclared)?;
         evidence
             .certificate
-            .verify(evidence.policy, evidence.resolve_witness_key)?;
+            .verify(&policy, evidence.resolve_witness_key)?;
         if evidence.certificate.identity != kel.did()
             || evidence.certificate.sequence != head.sn
             || evidence.certificate.event_digest != head.digest()
@@ -168,6 +184,25 @@ mod tests {
         let key = SigningKey::generate().unwrap();
         let vk = key.verifying_key();
         (WitnessId(did), key, vk)
+    }
+
+    /// An identity that has actually **appointed** its witnesses in its own
+    /// signed KEL, which is the only way a policy is authentic after
+    /// D-0459. The generation is the `sn` of the rotation that appointed
+    /// them, so certificates must be issued under that generation.
+    fn an_identity_with_witnesses(
+        count: usize,
+        threshold: u32,
+    ) -> (Controller, Vec<(WitnessId, SigningKey, VerifyingKey)>) {
+        let mut alice = Controller::incept_single().unwrap();
+        let witnesses: Vec<_> = (0..count).map(|_| a_witness()).collect();
+        alice
+            .appoint_witnesses(
+                witnesses.iter().map(|(id, _, _)| id.0.clone()).collect(),
+                threshold,
+            )
+            .unwrap();
+        (alice, witnesses)
     }
 
     fn certificate_for_head(
@@ -223,14 +258,7 @@ mod tests {
 
     #[test]
     fn a_valid_recent_certificate_yields_witnessed_recent() {
-        let alice = Controller::incept_single().unwrap();
-        let witnesses: Vec<_> = (0..2).map(|_| a_witness()).collect();
-        let policy = WitnessPolicy::new(
-            1,
-            witnesses.iter().map(|(id, _, _)| id.clone()).collect(),
-            2,
-        )
-        .unwrap();
+        let (alice, witnesses) = an_identity_with_witnesses(2, 2);
         let cert = certificate_for_head(&alice.kel(), &witnesses, 1, 100);
         let resolve = |id: &WitnessId| {
             witnesses
@@ -241,7 +269,6 @@ mod tests {
         let mut pins = FreshnessPins::new();
         let evidence = WitnessEvidence {
             certificate: &cert,
-            policy: &policy,
             resolve_witness_key: &resolve,
             now_epoch: 105,
             max_epoch_age: 10,
@@ -253,14 +280,7 @@ mod tests {
 
     #[test]
     fn a_valid_but_stale_certificate_yields_witnessed_not_recent() {
-        let alice = Controller::incept_single().unwrap();
-        let witnesses: Vec<_> = (0..2).map(|_| a_witness()).collect();
-        let policy = WitnessPolicy::new(
-            1,
-            witnesses.iter().map(|(id, _, _)| id.clone()).collect(),
-            2,
-        )
-        .unwrap();
+        let (alice, witnesses) = an_identity_with_witnesses(2, 2);
         let cert = certificate_for_head(&alice.kel(), &witnesses, 1, 100);
         let resolve = |id: &WitnessId| {
             witnesses
@@ -271,7 +291,6 @@ mod tests {
         let mut pins = FreshnessPins::new();
         let evidence = WitnessEvidence {
             certificate: &cert,
-            policy: &policy,
             resolve_witness_key: &resolve,
             now_epoch: 1_000,
             max_epoch_age: 10,
@@ -283,14 +302,7 @@ mod tests {
 
     #[test]
     fn known_duplicity_overrides_a_valid_certificate() {
-        let alice = Controller::incept_single().unwrap();
-        let witnesses: Vec<_> = (0..2).map(|_| a_witness()).collect();
-        let policy = WitnessPolicy::new(
-            1,
-            witnesses.iter().map(|(id, _, _)| id.clone()).collect(),
-            2,
-        )
-        .unwrap();
+        let (alice, witnesses) = an_identity_with_witnesses(2, 2);
         let cert = certificate_for_head(&alice.kel(), &witnesses, 1, 100);
         let resolve = |id: &WitnessId| {
             witnesses
@@ -301,7 +313,6 @@ mod tests {
         let mut pins = FreshnessPins::new();
         let evidence = WitnessEvidence {
             certificate: &cert,
-            policy: &policy,
             resolve_witness_key: &resolve,
             now_epoch: 105,
             max_epoch_age: 10,
@@ -313,15 +324,15 @@ mod tests {
 
     #[test]
     fn a_certificate_for_a_different_identity_is_rejected() {
-        let alice = Controller::incept_single().unwrap();
-        let bob = Controller::incept_single().unwrap();
-        let witnesses: Vec<_> = (0..2).map(|_| a_witness()).collect();
-        let policy = WitnessPolicy::new(
-            1,
-            witnesses.iter().map(|(id, _, _)| id.clone()).collect(),
-            2,
-        )
-        .unwrap();
+        // Alice appoints witnesses, and bob appoints the *same* ones, so the
+        // certificate below verifies against alice's own declared policy and
+        // the only thing wrong with it is which identity it is about. That
+        // isolates the binding under test: without it the call would fail
+        // earlier, on the policy, and prove nothing about identity binding.
+        let (alice, witnesses) = an_identity_with_witnesses(2, 2);
+        let mut bob = Controller::incept_single().unwrap();
+        bob.appoint_witnesses(witnesses.iter().map(|(id, _, _)| id.0.clone()).collect(), 2)
+            .unwrap();
         // Certificate genuinely certifies bob's head, not alice's.
         let cert = certificate_for_head(&bob.kel(), &witnesses, 1, 100);
         let resolve = |id: &WitnessId| {
@@ -333,7 +344,6 @@ mod tests {
         let mut pins = FreshnessPins::new();
         let evidence = WitnessEvidence {
             certificate: &cert,
-            policy: &policy,
             resolve_witness_key: &resolve,
             now_epoch: 105,
             max_epoch_age: 10,
@@ -361,13 +371,10 @@ mod tests {
         let mut alice = Controller::incept_single().unwrap();
         let mut pins = FreshnessPins::new();
         let stale_kel = alice.kel();
+        // Alice appoints nobody here on purpose: the point is that the pin
+        // check fires *before* witness evidence is considered at all, so a
+        // stale KEL is refused whatever certificate accompanies it.
         let witnesses: Vec<_> = (0..2).map(|_| a_witness()).collect();
-        let policy = WitnessPolicy::new(
-            1,
-            witnesses.iter().map(|(id, _, _)| id.clone()).collect(),
-            2,
-        )
-        .unwrap();
         let cert = certificate_for_head(&stale_kel, &witnesses, 1, 100);
 
         // Pin advances past the stale snapshot via a real rotation.
@@ -382,7 +389,6 @@ mod tests {
         };
         let evidence = WitnessEvidence {
             certificate: &cert,
-            policy: &policy,
             resolve_witness_key: &resolve,
             now_epoch: 105,
             max_epoch_age: 10,

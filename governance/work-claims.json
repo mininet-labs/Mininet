@@ -927,6 +927,23 @@
     },
     {
       "issue": 92,
+      "status": "active",
+      "contributor": "claude-agent",
+      "branch": "claude/kel-freshness",
+      "lease_expires": "2026-09-11",
+      "paths": [
+        "crates/did-mini/",
+        "docs/design/kel-witness-receipts-and-duplicity-gossip.md",
+        "docs/ROADMAP_TO_RELEASE.md",
+        "README.md"
+      ],
+      "decision_ids": [
+        "D-0459"
+      ],
+      "notes": "D-0459: a witness policy now comes from the identity's own signed KEL. The witness layer exists to tell a first-contact verifier that a presented head is the one the identity's witnesses saw, but the WitnessPolicy naming those witnesses was supplied by the caller -- so whoever handed a verifier a certificate also handed it the standard the certificate was judged against. An attacker stands up witnesses of their own, has them receipt a forged branch correctly, supplies a policy naming them, and the verifier reports WitnessedRecent for a head the real controller never signed. Every assurance level above Pinned was decorative against the only attacker they exist for. Establishment now carries witness_threshold beside its witness set, Kel::declared_witness_policy reads the policy back from the latest establishment event, assess_kel_assurance takes it from there, and WitnessEvidence::policy is removed so the forgery is unrepresentable rather than merely checked. Controller::appoint_witnesses/retire_witnesses are the typed declaration ops. The threshold is encoded only when the witness set is non-empty, so every identity predating this keeps its exact bytes and SCID -- verified against an origin/main worktree, not assumed, and pinned in tests. Discharges the 'WitnessPolicy read from a real Establishment event' item left open in Phase 3 of the KEL witness design doc. Roadmap R9 ready -> active. Coordination evidence only, not approval or authority."
+    },
+    {
+      "issue": 92,
       "status": "closed",
       "contributor": "claude-agent",
       "branch": "claude/validator-accountability",
@@ -945,7 +962,7 @@
     },
     {
       "issue": 92,
-      "status": "active",
+      "status": "closed",
       "contributor": "claude-agent",
       "branch": "claude/close-r2",
       "lease_expires": "2026-09-12",
@@ -956,7 +973,8 @@
       "decision_ids": [
         "D-0461"
       ],
-      "notes": "D-0461: roadmap R2 closes. R2 named a SCHEDULED main run passing end to end, and that distinction earned its place -- push-triggered runs were green on 2026-09-04 while the scheduled runs of 09-01, 09-02 and 09-03 were red, because the scheduled run re-runs the same tree against a moving external world rather than against the moment of the merge. Scheduled ci run 860 (2026-09-05 08:22 UTC) passed on head 01ad0ce, and governance-policy 734, reproducibility 636, android-ci 505, android-reproducibility 496 and CodeQL's Push-on-main 904 are all green on that same head. governance-canonical has no run there by design (it triggers on pull_request_target) and was green on #313/#314/#316 -- recorded explicitly because 'no run' and 'passed' look identical in a summary. The one surviving exception is named rather than hidden: dependency-audit warns rather than gates on advisories (D-0441/D-0450), and stays a warning until there is a triage process for an advisory against a pinned dependency. Coordination evidence only, not approval or authority."
+      "notes": "D-0461: roadmap R2 closes. R2 named a SCHEDULED main run passing end to end, and that distinction earned its place -- push-triggered runs were green on 2026-09-04 while the scheduled runs of 09-01, 09-02 and 09-03 were red, because the scheduled run re-runs the same tree against a moving external world rather than against the moment of the merge. Scheduled ci run 860 (2026-09-05 08:22 UTC) passed on head 01ad0ce, and governance-policy 734, reproducibility 636, android-ci 505, android-reproducibility 496 and CodeQL's Push-on-main 904 are all green on that same head. governance-canonical has no run there by design (it triggers on pull_request_target) and was green on #313/#314/#316 -- recorded explicitly because 'no run' and 'passed' look identical in a summary. The one surviving exception is named rather than hidden: dependency-audit warns rather than gates on advisories (D-0441/D-0450), and stays a warning until there is a triage process for an advisory against a pinned dependency. Coordination evidence only, not approval or authority. Closed 2026-09-05: PR #317 merged.",
+      "pull_request": 317
     }
   ]
 }

@@ -107,6 +107,11 @@ pub enum IdentityError {
     },
     /// A [`crate::WitnessPolicy`] repeated the same witness identifier.
     DuplicateWitness,
+    /// Witness evidence was presented for an identity whose own KEL
+    /// declares no witness policy. There is nothing authentic to check the
+    /// certificate against, and checking it against a caller-supplied
+    /// policy is exactly the forgery D-0459 closed.
+    NoWitnessPolicyDeclared,
     /// A decoded [`crate::WitnessReceiptStatement`]/[`crate::
     /// WitnessReceipt`] carried an unrecognised version tag.
     UnknownWitnessReceiptVersion(u8),
@@ -247,6 +252,9 @@ impl fmt::Display for IdentityError {
                 "invalid witness threshold {threshold} for witness set of size {witness_count}"
             ),
             IdentityError::DuplicateWitness => write!(f, "witness policy repeats a witness id"),
+            IdentityError::NoWitnessPolicyDeclared => {
+                write!(f, "identity declares no witness policy in its own KEL")
+            }
             IdentityError::UnknownWitnessReceiptVersion(v) => {
                 write!(f, "unknown witness receipt version: {v}")
             }

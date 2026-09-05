@@ -5,9 +5,10 @@
 (`KelAssurance` classification, D-0328), Phase 3's second slice (real
 KEL-chain verification wired in front of `WitnessJournal::observe`,
 D-0329), a local duplicity-proof registry (`DuplicityRegistry`, D-0330),
-and a `mini-forge` bridge (`author_assurance`, D-0332) shipped. Only
-"wiring `WitnessPolicy` into real establishment events" and wiring
-`author_assurance` into a real governance call site remain open in
+a `mini-forge` bridge (`author_assurance`, D-0332), and **witness policies
+bound to the identity's own signed KEL (D-0459)** shipped. Only wiring
+`author_assurance` into a real governance call site — a founder-facing
+policy call — and a bounded/incremental KEL re-verify remain open in
 Phase 3; Phase 4 onward not started.
 
 **Full research:** `docs/research/
@@ -112,8 +113,23 @@ exactly what this PR is.
    gating, which remains purely `author_verified`'s boolean: which
    governance action (if any) should require which minimum assurance
    level is a founder-facing policy call, not something decided
-   unilaterally here. Still missing from this phase: `WitnessPolicy`
-   read from a real `Establishment` event (caller-supplied today),
+   unilaterally here. **Policy binding shipped (D-0459):** `Establishment`
+   now carries `witness_threshold` beside its witness set,
+   `Kel::declared_witness_policy` reads the policy back from the most
+   recent establishment event, and `assess_kel_assurance` takes it from
+   there — `WitnessEvidence::policy` is **gone**. This was not a
+   completeness detail. A caller-supplied policy meant whoever handed a
+   verifier a certificate also handed it the standard the certificate was
+   judged against: an attacker's own witnesses receipt a forged branch, the
+   attacker supplies a policy naming them, and the verifier reports
+   `WitnessedRecent` for a head the real controller never signed. Every
+   assurance level above `Pinned` was decorative against the only attacker
+   they exist for. `Controller::appoint_witnesses`/`retire_witnesses` are
+   the typed declaration operations, and the threshold is encoded only when
+   a witness set is non-empty, so every identity predating D-0459 keeps its
+   exact bytes and its SCID — checked against an `origin/main` worktree,
+   not assumed.
+   Still missing from this phase:
    `WitnessedRecentAndGossiped` (needs Phase 5), a bounded/incremental
    KEL-chain re-verify (today re-verifies the whole chain from inception
    every call), persistence for the duplicity registry (Phase 6), and
