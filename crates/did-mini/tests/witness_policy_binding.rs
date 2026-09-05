@@ -109,7 +109,7 @@ fn witnesses_the_controller_never_appointed_cannot_manufacture_assurance() {
     let outcome = assess_kel_assurance(&alice.kel(), &mut pins, Some(evidence), false);
     assert!(
         outcome.is_err(),
-        "a certificate from unappointed witnesses must not yield assurance, got {outcome:?}"
+        "a certificate from unappointed witnesses must not yield assurance"
     );
 }
 
