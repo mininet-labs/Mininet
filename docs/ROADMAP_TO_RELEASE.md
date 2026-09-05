@@ -62,17 +62,23 @@ its first tests in either direction.
 `main` is green again on the two merge commits since, and the validator suite
 passes there (111 tests).
 
-### R2 — A green, meaningful CI baseline on `main` · `active`
-R1 is done, so this is no longer blocked. `governance-policy` is green on
-`main`; what R2 actually names has not happened yet — a **scheduled** run
-passing end to end, which is the one that caught the last two failures days
-after a merge.
-`main` should be green across `ci`, `governance-policy`,
-`governance-canonical`, `reproducibility` and the Android workflows. Any
-remaining red is either a real defect or a check that needs to be honest about
-what it measures.
-**Closed by:** a scheduled `main` run passing end to end, with any surviving
-exception recorded as a decision rather than tolerated silently.
+### R2 — A green, meaningful CI baseline on `main` · `done`
+A **scheduled** run has now passed end to end on `main`, which is what this
+row actually named — push-triggered green was never sufficient, because the
+scheduled run is what caught both prior failures days after a merge.
+**Closed by:** D-0461. Scheduled `ci` run 860 (2026-09-05 08:22 UTC) passed on
+head `01ad0ce`, and every other workflow is green on that same head:
+`governance-policy` 734, `reproducibility` 636, `android-ci` 505,
+`android-reproducibility` 496, and CodeQL's default-setup "Push on main" 904.
+`governance-canonical` has no run on that head **by design** — it triggers on
+`pull_request_target`, so it only ever runs against pull requests; it was green
+on #313, #314 and #316.
+**The surviving exception, recorded rather than tolerated:** `dependency-audit`
+reports advisories without gating (D-0441/D-0450). That is a deliberate,
+already-decided split — the scanner failing to *run* is a hard failure, while
+an advisory against a pinned dependency is a loud warning — and it stays a
+warning until this workspace has a triage process for one. R2 is closed with
+that exception named, not with it hidden.
 
 ---
 
