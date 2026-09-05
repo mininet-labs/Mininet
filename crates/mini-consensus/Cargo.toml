@@ -17,4 +17,5 @@ mini-settlement = { path = "../mini-settlement" }
 mini-economy = { path = "../mini-economy" }
 mini-execution = { path = "../mini-execution" }
 mini-bearer = { path = "../mini-bearer" }
+mini-net = { path = "../mini-net" }
 libc = "0.2" # O_NOFOLLOW for race-free archive opens on Unix/Android

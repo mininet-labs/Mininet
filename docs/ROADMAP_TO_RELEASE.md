@@ -193,11 +193,22 @@ gossip, nothing ejects automatically (adopting an exclusion is a governance
 action, or fabricating a removal becomes the attack), and only double-voting
 is covered — silence, censorship and invalid proposals are not self-proving
 in the same way.
-**Closed by:** the three remaining gaps — state sync, peer discovery, and a
-validator-authenticated bearer handshake — with tests that fail without the
-fix, plus the honest limits restated for whatever remains. The shielded-spend
-validity rule named in D-0457 also lands here: today the chain finalizes a
-key image on a proposer's say-so.
+**More progress:** **D-0462** closes the peer-discovery gap.
+`mini-consensus::discovery::pex_over_tcp`/`serve_pex_over_tcp` carry
+`mini-net`'s already-tested PEX logic over the same anonymous, encrypted
+`mini_bearer::Channel` handshake `catch_up_over_tcp`/`state_sync_over_tcp`
+already use, so a node can learn peers it was never handed, with no
+directory server. Not wired into `TcpMesh::establish` itself — that
+constructor's deadlock-free convention still needs one address list every
+node agrees on up front, so turning a discovered address book into a mesh
+topology stays a host decision.
+**Closed by:** the two remaining gaps — state sync (also substantially
+closed by D-0207's catch-up/state-sync primitives, though not wired into
+`TcpMesh::establish` either) and a validator-authenticated bearer
+handshake — with tests that fail without the fix, plus the honest limits
+restated for whatever remains. The shielded-spend validity rule named in
+D-0457 also lands here: today the chain finalizes a key image on a
+proposer's say-so.
 
 ### R9 — KEL freshness and witnesses (M3) · `ready`
 The stale-KEL revocation gap, audit #12 finding F4. A device whose delegation

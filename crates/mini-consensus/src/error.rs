@@ -58,6 +58,8 @@ pub enum ConsensusError {
     SnapshotNotNewer { current: u64, got: u64 },
     /// Persistent history already contains different bytes for this height.
     ArchiveConflict { height: u64 },
+    /// A peer-exchange (discovery) message's wire encoding was malformed.
+    Discovery(mini_net::NetError),
 }
 
 impl core::fmt::Display for ConsensusError {
@@ -103,6 +105,7 @@ impl core::fmt::Display for ConsensusError {
                 f,
                 "persistent archive contains conflicting bytes at height {height}"
             ),
+            ConsensusError::Discovery(e) => write!(f, "discovery: {e}"),
         }
     }
 }
@@ -130,5 +133,11 @@ impl From<mini_bearer::BearerError> for ConsensusError {
 impl From<std::io::Error> for ConsensusError {
     fn from(error: std::io::Error) -> Self {
         ConsensusError::Storage(error.to_string())
+    }
+}
+
+impl From<mini_net::NetError> for ConsensusError {
+    fn from(e: mini_net::NetError) -> Self {
+        ConsensusError::Discovery(e)
     }
 }
