@@ -356,7 +356,12 @@ pub(crate) fn validate_establishment(est: &Establishment) -> Result<()> {
     if est.witnesses.is_empty() {
         if est.witness_threshold != 0 {
             return Err(IdentityError::InvalidWitnessThreshold {
-                threshold: est.witness_threshold as u16,
+                // Saturating rather than truncating: a bare `as u16` turns
+                // 65_536 into 0, so the error would report a threshold of
+                // zero for a value that was nothing of the sort, and a
+                // reader debugging a malformed event would be chasing the
+                // wrong number.
+                threshold: est.witness_threshold.min(u16::MAX as u32) as u16,
                 witness_count: 0,
             });
         }
