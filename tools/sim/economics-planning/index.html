@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mininet · economics proposal</title>
+<style>
+:root{color-scheme:light;--ink:#17342d;--muted:#52665d;--line:#d8e0d8;--green:#176b4e;--gold:#aa6420}*{box-sizing:border-box}body{margin:0;background:#f5f6f0;color:var(--ink);font:16px/1.5 system-ui,sans-serif}header{background:#163d31;color:#fff;padding:38px max(24px,calc((100vw - 1200px)/2))}header p{max-width:850px;color:#d7e4db}header small{letter-spacing:.12em}h1{font-size:clamp(30px,4vw,52px);line-height:1.12;margin:12px 0}main{max-width:1250px;margin:auto;padding:24px}.note{border-left:4px solid var(--gold);padding:14px 18px;background:#fff5e3}.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:24px 0}label{display:flex;flex-direction:column;font-size:14px;gap:6px}input,select,button{font:inherit;padding:10px;border:1px solid #91a79c;border-radius:5px;background:white;color:var(--ink)}button{cursor:pointer}button:hover{background:#e8efe7}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #357bd0;outline-offset:3px}.stats,.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.stat{padding:20px;background:#fff;border:1px solid var(--line);border-radius:8px}.stat strong{display:block;font-size:28px}.stat span,small{color:var(--muted)}header small{color:#cee0d3}section{margin:32px 0}h2{font-size:24px}h3{font-size:18px}.chart svg{width:100%;display:block;height:270px}.chart p{font-size:13px;color:var(--muted)}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:14px;background:white}th,td{text-align:right;padding:12px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}th:first-child,td:first-child{text-align:left}th{background:#e7ede3}a{color:#176b4e}.actions{display:flex;flex-wrap:wrap;gap:10px}#error{color:#9b2929;font-weight:600}details{margin:20px 0;padding:18px;background:white;border:1px solid var(--line)}summary{cursor:pointer;font-weight:600}.formula{font-family:ui-monospace,monospace;font-size:18px}footer{border-top:1px solid var(--line);margin-top:40px;padding:20px 0;color:var(--muted)}@media(max-width:650px){main{padding:16px}.stats,.charts{grid-template-columns:1fr}.stat strong{font-size:24px}}
+</style></head><body>
+<header><small>MININET / RESEARCH PROPOSAL / 12 SEPTEMBER 2026</small><h1>A MINI should keep<br>its buying power.</h1><p>Compare the supply path needed for stable purchasing power with the current issuance envelope. Explore population, the wealth premise and finite contributor compensation. This is an offline review tool. Every payment policy and valuation here remains a proposal or scenario.</p></header>
+<main>
+<p class="note">The UN series covers 2026–2100. Beyond 2100, these are stress scenarios with no assigned probability. “100% wealth” is a valuation premise—not ownership, backing, redemption, market demand or promised income.</p>
+<section><h2>Target: the same basket of goods per MINI</h2><p>The target path holds one MINI’s buying-power index at 100 and calculates compatible net issuance. The existing-policy path applies the issuance envelope instead. If the two diverge, stable buying power requires a policy change or greater real demand—not a different label on the price.</p>
+<div class="controls">
+<label>Population path<select id="populationPath"><option value="stable">UN → stable after 2100</option><option value="decline">UN → −0.1%/year after 2100</option><option value="expansion">UN → +0.2%/year after 2100</option><option value="current">Hold current 2026 population fixed</option></select></label>
+<label>Opening supply · whole MINI<input id="supply" value="1000000000" inputmode="numeric"></label>
+<label>Reference wealth · USD trillions<input id="wealth" type="number" min="0" max="1000000" value="500"></label>
+<label>Wealth attributed to MINI · %<input id="capturePct" type="number" min="0" max="100" step="0.1" value="100"></label>
+<label>Active human participation · %<input id="activePct" type="number" min="0.0001" max="100" step="0.1" value="100"></label>
+<label>False extra claims / active humans · %<input id="sybilPct" type="number" min="0" max="100" step="1" value="0"></label>
+<label>Real wealth growth per person · %/year<input id="realPerCapitaGrowthPct" type="number" min="-2" max="2" step="0.1" value="0"></label>
+<label>Years of that growth, then flat<input id="growthYears" type="number" min="0" max="1000" step="1" value="100"></label>
+<label>Service ceiling utilization · %<input id="servicePct" type="number" min="0" max="100" value="100"></label>
+<label>Contribution ceiling utilization · %<input id="treasuryPct" type="number" min="0" max="100" value="100"></label>
+<label>Issuance interpretation<select id="annualGuard"><option value="true">Proposed strict annual 3% guard</option><option value="false">Monthly caps, no annual guard</option></select></label>
+<label>Inspect elapsed year<input id="inspect" type="number" min="0" max="1000" value="100"></label>
+</div><p id="error" role="alert"></p>
+<div id="stats" class="stats" aria-live="polite"></div>
+<p id="timing"></p>
+<div class="charts"><div class="chart" id="powerChart"></div><div class="chart" id="targetChart"></div><div class="chart" id="populationChart"></div><div class="chart" id="supplyChart"></div><div class="chart" id="priceChart"></div><div class="chart" id="humanChart"></div></div>
+<div class="table-wrap"><table><caption>2026 opening state and selected year-end checkpoints</caption><thead><tr><th>Year</th><th>People</th><th>Total MINI</th><th>USD / MINI</th><th>Buying-power index (target 100)</th><th>Supply for stable MINI</th><th>Target-path net issuance that year</th></tr></thead><tbody id="checkpoints"></tbody></table></div>
+<p>Accrued USD marks the trailing year’s grants at the year-end reference price; it is not cash received. Human Share vests over 365 policy days. The spot measure uses the current 2% rate and current eligible population. Nominal USD inflation is excluded.</p>
+<div class="actions"><button id="exportCSV">Export all 1,001 annual rows · CSV</button><button id="exportJSON">Export assumptions and results · JSON</button></div>
+</section>
+<details open><summary>What makes one MINI worth anything?</summary><p class="formula">Reference price = attributed fraction × external wealth ÷ total issued MINI</p><p>The target issuance path is a counterfactual accounting condition, not an automatic price stabilizer. It does not enforce the protected Human Share floor, service or contribution rules. Zero wealth attribution makes the opening price and buying-power target undefined. The denominator includes locked grants because they are already issued economic interests. A circulating-supply quotation is also exported for comparison; applying it to all issued tokens would value MINI above the attributed wealth budget.</p><p>Wealth is a stock of net assets. GDP and wages are annual flows. Calling MINI a unit of account does not transfer assets to it. A wealth-backed claim would require enforceable rights and custody that this proposal does not create. A circulating currency instead needs willing holders, productive exchange and liquidity. Do not add token capitalization to the same underlying assets and call that new wealth.</p><p>Default wealth is an illustrative USD 500 trillion in constant reference purchasing power, not a measured 2026 total or a price target. The price can be zero. Higher population increases aggregate wealth only because this scenario explicitly holds wealth per person constant.</p></details>
+<section><h2>Finite recognition. Comparable pay for comparable work.</h2><p>This is a separately funded voluntary sponsor operating budget in reference EUR. It is independent of the USD wealth premise above. The founder gets no privileged issuance, permanent percentage or bought authority.</p>
+<div class="controls"><label>Contributor full-time base · EUR/year<input id="basePay" type="number" min="1" value="48000"></label><label>Opening voluntary sponsor funds · EUR<input id="openingCash" type="number" min="0" value="1500000"></label><label>Annual operating income · EUR<input id="annualIncome" type="number" min="0" value="1000000"></label><label>Past founder work · full-time years<input id="pastFteYears" type="number" min="0" max="50" step="0.25" value="2.25"></label></div>
+<div id="pay" aria-live="polite"></div><p>Other assumptions: six full-time contributors, six quarter-time councillors, EUR 96,000 audit budget, EUR 120,000 operating costs, 20% wage on-costs, 18-month core reserve, EUR 15,000 unreimbursed expenses. Council proposal: six-month terms, at most two consecutive terms, then one term off. Every figure requires evidence, funding and independent review.</p>
+<div class="table-wrap"><table><caption>Milestones allocate the existing earned-work envelope; they are not extra spending or conditions on already funded historical recognition.</caption><thead><tr><th>Gate</th><th>Share of earned-work budget</th><th>Evidence</th></tr></thead><tbody id="milestones"></tbody></table></div>
+</section>
+<details><summary>Limits, failure cases and source trail</summary><p>Balances use exact integer micro-MINI, with unminted equal-allocation remainders. USD values are approximate floating-point calculations. Monthly epochs approximate policy time, not civil calendar months. No fees, burns, defaults, live exchange prices, demographic cohorts, death/claim succession or service-market equilibrium are simulated.</p><p>Partial participation and Sybil inputs are independent of wealth attribution. A few early participants claiming all human wealth is an extreme stress case, not a fair launch policy. Identity roots are not proven unique humans. Multiplanetary population scenarios do not solve transport delays, local resource supply or global finality.</p><p>Read <a href="../../../../docs/proposals/economics-generations.md">the 1,000-year proposal</a> and <a href="../../../../docs/proposals/economics-compensation.md">the compensation proposal</a>. Reproducible arithmetic evidence is in <a href="results.json">results.json</a>. Data: <a href="https://population.un.org/wpp/">UN WPP 2024</a>, World, medium variant, July population. Extracted 12 September 2026 under CC BY 3.0 IGO; conversion from thousands to persons. No UN endorsement.</p></details>
+<footer>Research prototype · no account, wallet, payment or node control · no network requests required to calculate · proposals require the applicable independent review and approval.</footer>
+</main><script>
+const populationData = {
+  "source": "United Nations DESA Population Division, World Population Prospects 2024, GEN/01/REV1, Medium variant, World, total population as of 1 July; thousands converted to people",
+  "url": "https://population.un.org/wpp/assets/Excel%20Files/1_Indicator%20(Standard)/EXCEL_FILES/1_General/WPP2024_GEN_F01_DEMOGRAPHIC_INDICATORS_COMPACT.xlsx",
+  "retrieved": "2026-09-12",
+  "license": "CC BY 3.0 IGO; extracted and converted, no UN endorsement",
+  "workbookSha256": "98e34d9b65b53858cd08a57a566e45050b08093ad85ba5714fe6fbd78055ae6d",
+  "rows": [
+    {
+      "year": 2026,
+      "population": 8300678395
+    },
+    {
+      "year": 2027,
+      "population": 8369094344
+    },
+    {
+      "year": 2028,
+      "population": 8436618886
+    },
+    {
+      "year": 2029,
+      "population": 8503285323
+    },
+    {
+      "year": 2030,
+      "population": 8569124911
+    },
+    {
+      "year": 2031,
+      "population": 8634119333
+    },
+    {
+      "year": 2032,
+      "population": 8698229812
+    },
+    {
+      "year": 2033,
+      "population": 8761449081
+    },
+    {
+      "year": 2034,
+      "population": 8823784909
+    },
+    {
+      "year": 2035,
+      "population": 8885210181
+    },
+    {
+      "year": 2036,
+      "population": 8945686614
+    },
+    {
+      "year": 2037,
+      "population": 9005152624
+    },
+    {
+      "year": 2038,
+      "population": 9063572926
+    },
+    {
+      "year": 2039,
+      "population": 9120928380
+    },
+    {
+      "year": 2040,
+      "population": 9177190203
+    },
+    {
+      "year": 2041,
+      "population": 9232281575
+    },
+    {
+      "year": 2042,
+      "population": 9286110371
+    },
+    {
+      "year": 2043,
+      "population": 9338661314
+    },
+    {
+      "year": 2044,
+      "population": 9389873693
+    },
+    {
+      "year": 2045,
+      "population": 9439639668
+    },
+    {
+      "year": 2046,
+      "population": 9487889604
+    },
+    {
+      "year": 2047,
+      "population": 9534545977
+    },
+    {
+      "year": 2048,
+      "population": 9579536043
+    },
+    {
+      "year": 2049,
+      "population": 9622824029
+    },
+    {
+      "year": 2050,
+      "population": 9664378587
+    },
+    {
+      "year": 2051,
+      "population": 9704192304
+    },
+    {
+      "year": 2052,
+      "population": 9742264515
+    },
+    {
+      "year": 2053,
+      "population": 9778614614
+    },
+    {
+      "year": 2054,
+      "population": 9813251659
+    },
+    {
+      "year": 2055,
+      "population": 9846237570
+    },
+    {
+      "year": 2056,
+      "population": 9877680392
+    },
+    {
+      "year": 2057,
+      "population": 9907637193
+    },
+    {
+      "year": 2058,
+      "population": 9936164379
+    },
+    {
+      "year": 2059,
+      "population": 9963337082
+    },
+    {
+      "year": 2060,
+      "population": 9989232292
+    },
+    {
+      "year": 2061,
+      "population": 10013916213
+    },
+    {
+      "year": 2062,
+      "population": 10037466600
+    },
+    {
+      "year": 2063,
+      "population": 10059950035
+    },
+    {
+      "year": 2064,
+      "population": 10081402737
+    },
+    {
+      "year": 2065,
+      "population": 10101849561
+    },
+    {
+      "year": 2066,
+      "population": 10121317107
+    },
+    {
+      "year": 2067,
+      "population": 10139808361
+    },
+    {
+      "year": 2068,
+      "population": 10157301941
+    },
+    {
+      "year": 2069,
+      "population": 10173782135
+    },
+    {
+      "year": 2070,
+      "population": 10189241959
+    },
+    {
+      "year": 2071,
+      "population": 10203681568
+    },
+    {
+      "year": 2072,
+      "population": 10217055169
+    },
+    {
+      "year": 2073,
+      "population": 10229327824
+    },
+    {
+      "year": 2074,
+      "population": 10240485056
+    },
+    {
+      "year": 2075,
+      "population": 10250496432
+    },
+    {
+      "year": 2076,
+      "population": 10259351432
+    },
+    {
+      "year": 2077,
+      "population": 10267045023
+    },
+    {
+      "year": 2078,
+      "population": 10273556322
+    },
+    {
+      "year": 2079,
+      "population": 10278887473
+    },
+    {
+      "year": 2080,
+      "population": 10283078029
+    },
+    {
+      "year": 2081,
+      "population": 10286161735
+    },
+    {
+      "year": 2082,
+      "population": 10288205050
+    },
+    {
+      "year": 2083,
+      "population": 10289247323
+    },
+    {
+      "year": 2084,
+      "population": 10289315244
+    },
+    {
+      "year": 2085,
+      "population": 10288456599
+    },
+    {
+      "year": 2086,
+      "population": 10286708360
+    },
+    {
+      "year": 2087,
+      "population": 10284111374
+    },
+    {
+      "year": 2088,
+      "population": 10280704572
+    },
+    {
+      "year": 2089,
+      "population": 10276518280
+    },
+    {
+      "year": 2090,
+      "population": 10271565070
+    },
+    {
+      "year": 2091,
+      "population": 10265861714
+    },
+    {
+      "year": 2092,
+      "population": 10259408375
+    },
+    {
+      "year": 2093,
+      "population": 10252184759
+    },
+    {
+      "year": 2094,
+      "population": 10244185837
+    },
+    {
+      "year": 2095,
+      "population": 10235403601
+    },
+    {
+      "year": 2096,
+      "population": 10225850874
+    },
+    {
+      "year": 2097,
+      "population": 10215549310
+    },
+    {
+      "year": 2098,
+      "population": 10204489862
+    },
+    {
+      "year": 2099,
+      "population": 10192689066
+    },
+    {
+      "year": 2100,
+      "population": 10180160751
+    }
+  ]
+};
+
+/** Planning arithmetic in floating-point real reference euros and MINI; not consensus or payout code. */
+const defaults={basePay:48000,founderYears:3,founderFte:.75,expenses:15000,priorPaid:0,recognitionYears:5,leadFte:1,contributorFte:1,auditBudget:96000,contributors:6,councillors:6,councilFte:.25,onCostPct:20,opex:120000,annualIncome:1000000,openingCash:1500000,reserveMonths:18,futurePct:10,bridgeReserve:1000000,bridgeShock:0,supply:1000000000,price:.1,humans:100000,humanTarget:100000,years:200,serviceUse:100,treasuryUse:100,sybils:0,whalePct:10,whaleServicePct:0,providers:1000,providerCost:120,monthlyHumanTarget:50,valuation:'fixed-value',annualGuard:true,blackoutDays:21,localDailyCost:1000,liquidityHaircutPct:20,settlementDays:14};
+const reference='8d7dbe8512720ef2a61c4d2a94127fb8ddf66623';
+const source=p=>`https://github.com/mininet-labs/Mininet/blob/${reference}/${p}`;
+const milestones=[
+ {id:'M0',name:'Document past work',fraction:.10,evidence:'Independent review of hours, deliverables, receipts and prior payments; conflicts declared. No self-approval.',horizon:'First 30 days of a funded programme',owner:'Independent compensation reviewers',gate:'Approved, funded retrospective offer'},
+ {id:'M1',name:'Reproduce and hand over the forge',fraction:.20,evidence:'Three independent humans operate the forge and reproduce the release path; recovery and handoff recorded.',horizon:'Evidence gate, not a launch date',owner:'Forge maintainers + independent reviewers',gate:'Exact-state acceptance and challenge window'},
+ {id:'M2',name:'Complete external review',fraction:.25,evidence:'Named external reviewers assess cryptography and economics; material findings are remediated and independently accepted.',horizon:'After external reviewers sign off',owner:'External specialists + release reviewers',gate:'Repository gates #47, #50, #72 and #93 remain independently controlled'},
+ {id:'M3',name:'Demonstrate sustained operation',fraction:.25,evidence:'A 12-month pilot records availability, real resource costs, payment failures, reward concentration and privacy incidents.',horizon:'At least 12 months of measured operation',owner:'Operators + independent measurement group',gate:'Predeclared service targets and failure disclosure'},
+ {id:'M4',name:'Complete founder-independent succession',fraction:.20,evidence:'Two exercised role/key rotations; founder unavailable drill; reproducible archives; three independent successors for each critical function.',horizon:'After a demonstrated handoff',owner:'Affected groups + independent constitutional review',gate:'Temporary authority ends; compensation never extends it'}
+];
+const finite=n=>Number.isFinite(n)&&n>=0;
+function validate(p){const errors=[];for(const [k,v] of Object.entries(defaults)){if(typeof v==='number'&&!finite(p[k]))errors.push(`${k} must be a finite non-negative number`);}for(const k of ['basePay','supply','price','humans','providers','recognitionYears'])if(!(p[k]>0))errors.push(`${k} must be greater than zero`);if(p.years<1||p.years>200||!Number.isInteger(p.years))errors.push('years must be an integer from 1 to 200');for(const k of ['serviceUse','treasuryUse','whalePct','whaleServicePct','liquidityHaircutPct','futurePct'])if(p[k]>100)errors.push(`${k} cannot exceed 100`);if(p.futurePct>=100)errors.push('futurePct must be below 100');if(p.liquidityHaircutPct>=100)errors.push('Liquidity haircut must be below 100');if(p.founderFte>1||p.councilFte>1||p.leadFte>1||p.contributorFte>1)errors.push('FTE cannot exceed 1');if(p.humanTarget<1)errors.push('humanTarget must be at least 1');for(const k of ['humans','humanTarget','sybils','contributors','councillors','providers'])if(!Number.isInteger(p[k]))errors.push(`${k} must be an integer`);if(p.whalePct>100)errors.push('whale percentage cannot exceed 100');return errors;}
+function compensation(p){
+ const founder=p.basePay*1.5*p.leadFte,contributor=p.basePay*p.contributorFte,senior=p.basePay*1.5,council=p.basePay*1.2*p.councilFte,audit=p.auditBudget;
+ const wages=founder+p.contributors*contributor+p.councillors*council;
+ const oncost=wages*p.onCostPct/100,earnedPool=wages+audit,essential=earnedPool+oncost+p.opex;
+ const historicLabor=Math.max(0,p.founderYears*p.founderFte*p.basePay*1.5-p.priorPaid);
+ const recognitionLabor=Math.min(historicLabor,p.basePay*4),recognition=recognitionLabor+p.expenses;
+ const recognitionCost=recognition+recognitionLabor*p.onCostPct/100;
+ const costFactor=recognition>0?recognitionCost/recognition:1;
+ const targetAnnual=recognition/p.recognitionYears,annualAwardCost=targetAnnual*costFactor;
+ const reserveFloor=essential*p.reserveMonths/12;
+ const awardFunded=p.openingCash>=reserveFloor+recognitionCost;
+ const openingEscrow=awardFunded?recognitionCost:0;
+ const openingOperating=p.openingCash-openingEscrow;
+ const paidEssential=Math.min(openingOperating+p.annualIncome,essential);
+ const essentialShortfall=essential-paidEssential;
+ const afterEssential=openingOperating+p.annualIncome-paidEssential;
+ const futureTarget=p.annualIncome*p.futurePct/100;
+ const futureTransfer=Math.min(futureTarget,Math.max(0,afterEssential-reserveFloor));
+ const pastPayment=awardFunded?Math.min(targetAnnual,earnedPool*.1):0;
+ const pastCost=pastPayment*costFactor;
+ const escrowRemaining=openingEscrow-pastCost;
+ const closingCash=afterEssential-futureTransfer;
+ const externalSpend=paidEssential+pastCost;
+ const conservation=p.openingCash+p.annualIncome-externalSpend-futureTransfer-closingCash-escrowRemaining;
+ const neededIncome=essential/(1-p.futurePct/100);
+ const recognitionFundingNeeded=Math.max(0,reserveFloor+recognitionCost-p.openingCash);
+ const plannedSurplus=p.annualIncome-essential-futureTarget;
+ const netBurn=Math.max(0,essential-p.annualIncome),runway=netBurn>0?openingOperating/netBurn*12:null;
+ return {founder,contributor,senior,council,audit,wages,oncost,earnedPool,essential,historicLabor,recognitionLabor,recognition,recognitionCost,costFactor,annualAwardCost,targetAnnual,reserveFloor,futureTarget,futureTransfer,pastPayment,pastCost,closingCash,externalSpend,essentialShortfall,neededIncome,plannedSurplus,runway,conservation,recognitionDeferred:targetAnnual-pastPayment,roleRatio:contributor>0?founder/contributor:0,founderWithPast:founder+pastPayment,founderPctOfSpend:externalSpend?(founder+pastPayment)/externalSpend*100:0,awardFunded,openingEscrow,escrowRemaining,recognitionFundingNeeded,openingOperating};
+}
+function cashProjection(p,years=20){const c=compensation(p);let cash=c.openingOperating,future=0,escrow=c.openingEscrow;const rows=[];for(let year=1;year<=years;year++){const paid=Math.min(cash+p.annualIncome,c.essential);const remaining=cash+p.annualIncome-paid;const futureTransfer=Math.min(c.futureTarget,Math.max(0,remaining-c.reserveFloor));const payCost=Math.min(escrow,c.targetAnnual*c.costFactor,c.earnedPool*.1*c.costFactor);cash=remaining-futureTransfer;future+=futureTransfer;escrow-=payCost;rows.push({year,cash,future,escrow,pastRemaining:escrow/c.costFactor,recognitionPaid:payCost/c.costFactor,shortfall:c.essential-paid,reserveFloor:c.reserveFloor});}return rows;}
+function simulate(p){
+ const errs=validate(p);if(errs.length)throw new Error(errs.join('; '));
+ let supply=p.supply,circulating=p.supply,locked=0,issuedAll=0,whale=p.supply*p.whalePct/100,sybilBalance=0;
+ const positions=[];const rows=[];const monthly=[];let prevC=circulating;
+ const originalValue=p.supply*p.price;
+ let maxConservation=0,maximumAnnual=0;
+ for(let year=1;year<=p.years;year++){
+  const opening=circulating;let humanIssued=0,serviceIssued=0,treasuryIssued=0,humanPer=0,humanVested=0;
+  // Population reaches the selected target over 50 years and then stabilizes. This is an explicit scenario.
+  const actualHumans=Math.max(1,Math.round(p.humans*Math.pow(p.humanTarget/p.humans,Math.min(year-1,50)/50)));
+  const eligible=actualHumans+p.sybils;
+  for(let month=0;month<12;month++){
+   const t=(year-1)*12+month;
+   const h=circulating*.02/12;
+   let s=circulating*.0075/12*p.serviceUse/100;
+   let tr=circulating*.0025/12*p.treasuryUse/100;
+   if(p.annualGuard){s=Math.min(s,Math.max(0,opening*.0075-serviceIssued));tr=Math.min(tr,Math.max(0,opening*.0025-treasuryIssued));const room=Math.max(0,opening*.03-humanIssued-serviceIssued-treasuryIssued-h);if(s+tr>room){const f=room/(s+tr);s*=f;tr*=f;}}
+   humanIssued+=h;serviceIssued+=s;treasuryIssued+=tr;humanPer+=h/eligible;
+   sybilBalance+=h*p.sybils/eligible;
+   whale+=s*p.whaleServicePct/100; // Share of service earnings, not a share of voting power.
+   positions.push({amount:h,start:t+1,duration:12,channel:'human'},{amount:tr,start:t+1,duration:90/(365/12),channel:'treasury'});
+   // Service compensation is liquid immediately at this envelope layer; evidence-specific delay omitted.
+   issuedAll+=h+s+tr;supply=p.supply+issuedAll;
+   let newLocked=0;for(const v of positions){const remaining=1-Math.max(0,Math.min(1,(t+1-v.start)/v.duration));newLocked+=v.amount*remaining;}
+   locked=newLocked;prevC=circulating;circulating=supply-locked;
+   // Total Human Share vesting released this month, including grants to previous cohorts.
+   let vh=0;for(const v of positions){if(v.channel!=='human')continue;const before=Math.max(0,Math.min(1,(t-v.start)/v.duration));const after=Math.max(0,Math.min(1,(t+1-v.start)/v.duration));vh+=v.amount*(after-before);}humanVested+=vh;
+   maxConservation=Math.max(maxConservation,Math.abs(supply-circulating-locked));
+   if(year===1)monthly.push({month:month+1,humanAccrued:h/eligible,humanVested:vh/eligible,circulating,locked});
+   // Remove fully vested positions: issuedAll retains their value, balances remain in circulating supply.
+   for(let i=positions.length-1;i>=0;i--)if(t+1-positions[i].start>=positions[i].duration)positions.splice(i,1);
+  }
+  const value=p.valuation==='fixed-price'?circulating*p.price:p.valuation==='per-person'?originalValue*actualHumans/p.humans:originalValue;
+  const price=value/circulating;
+  const inflation=(humanIssued+serviceIssued+treasuryIssued)/opening*100;maximumAnnual=Math.max(maximumAnnual,inflation);
+  rows.push({year,totalSupply:supply,circulating,locked,humans:actualHumans,eligible,humanIssued,serviceIssued,treasuryIssued,humanPer,humanVested,price,quotedValue:value,humanEuro:humanPer*price,whalePct:whale/supply*100,sybilPct:sybilBalance/supply*100,annualGrossPct:inflation,channelTotal:humanIssued+serviceIssued+treasuryIssued});
+ }
+ return {rows,monthly,maxConservation,maximumAnnual};
+}
+function summary(p){const c=compensation(p);const annualHuman=p.supply*.02/(p.humans+p.sybils);const service=p.supply*.0075*p.serviceUse/100;const providerTokens=service*.5/p.providers;const providerGross=providerTokens*p.price,providerNet=providerGross-p.providerCost;const requiredValuation=p.monthlyHumanTarget*12*(p.humans+p.sybils)/.02;
+ const bridgeLoss=p.bridgeReserve*(p.bridgeShock===1?.5*.8:p.bridgeShock===2?.4*.8:p.bridgeShock===3?.9*.8:p.bridgeShock===4?.1:0);
+ return {c,annualHuman,humanMonthEuro:annualHuman*p.price/12,service,providerTokens,providerGross,providerNet,requiredValuation,requiredPrice:requiredValuation/p.supply,bridgeLoss,bridgeAfter:p.bridgeReserve-bridgeLoss,offlineBuffer:p.localDailyCost*(p.blackoutDays+p.settlementDays)/(1-p.liquidityHaircutPct/100),humanSybilLeak:p.supply*.02*p.sybils/(p.humans+p.sybils),quotedValue:p.supply*p.price};}
+const money=n=>new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:Math.abs(n)<1?4:0}).format(n);
+function csv(rows){if(!rows.length)return '';const keys=Object.keys(rows[0]);return keys.join(',')+'\n'+rows.map(r=>keys.map(k=>r[k]).join(',')).join('\n');}
+
+
+// Research prototype, not consensus code. Exact micro-MINI balances; approximate USD valuations.
+const U = 1000000n;
+const U128_MAX = (1n << 128n) - 1n;
+const longDefaults = {supply:'1000000000',years:1000,populationPath:'stable',
+  wealth:500e12,capturePct:100,activePct:100,sybilPct:0,
+  realPerCapitaGrowthPct:0,growthYears:100,servicePct:100,treasuryPct:100,annualGuard:true};
+function validateLong(p){
+  const errors=[];
+  if(!/^\d+$/.test(String(p.supply)) || BigInt(p.supply||0)<1n || BigInt(p.supply||0)*U>U128_MAX) errors.push('Opening supply must be positive whole MINI within u128 micro-MINI capacity.');
+  for(const k of ['wealth','capturePct','activePct','sybilPct','realPerCapitaGrowthPct','growthYears','servicePct','treasuryPct','years']) if(!Number.isFinite(p[k])) errors.push(k+' must be finite.');
+  if(p.wealth<0||p.wealth>1e18)errors.push('Reference wealth must be from 0 to 1e18 USD.');
+  for(const k of ['capturePct','servicePct','treasuryPct'])if(p[k]<0||p[k]>100)errors.push(k+' must be from 0 to 100.');
+  if(p.activePct<=0||p.activePct>100)errors.push('Active participation must be above 0 and at most 100%.');
+  if(p.sybilPct<0||p.sybilPct>100)errors.push('Sybil claims must be from 0 to 100% of honest participants.');
+  if(p.realPerCapitaGrowthPct < -2||p.realPerCapitaGrowthPct>2)errors.push('Real per-capita wealth growth must be from -2 to 2%.');
+  if(!Number.isInteger(p.growthYears)||p.growthYears<0||p.growthYears>1000)errors.push('Growth duration must be an integer from 0 to 1000.');
+  if(!Number.isInteger(p.years)||p.years<1||p.years>1000)errors.push('Horizon must be an integer from 1 to 1000.');
+  if(!['stable','decline','expansion','current'].includes(p.populationPath))errors.push('Unknown population path.');
+  if(typeof p.annualGuard!=='boolean')errors.push('Annual guard must be boolean.');
+  return errors;
+}
+function populationAt(year,path){
+  const initial=populationData.rows[0].population;
+  if(path==='current')return initial;
+  if(year<=2100)return populationData.rows[year-2026].population;
+  const terminal=populationData.rows.at(-1).population;
+  const rate=path==='decline'?-.001:path==='expansion'?.002:0;
+  return Math.max(1,Math.round(terminal*Math.pow(1+rate,year-2100)));
+}
+const min=(a,b)=>a<b?a:b;
+const units=n=>Number(n)/1e6;
+const utilization=n=>BigInt(Math.round(n*10000)); // 0.0001 percentage-point resolution.
+function forecast(input={}){
+  const p={...longDefaults,...input};const errors=validateLong(p);if(errors.length)throw new Error(errors.join(' '));
+  let total=BigInt(p.supply)*U, circulating=total,locked=0n,allIssued=0n;
+  const initial=total,positions=[],rows=[];let maxAnnual=0,conservation=true;
+  const people0=populationData.rows[0].population;
+  function row(elapsed,human=0n,service=0n,treasury=0n,perHuman=0,vested=0n,opening=circulating,unminted=0n){
+    const calendarYear=2026+elapsed,population=populationAt(calendarYear,p.populationPath);
+    const active=Math.max(1,Math.floor(population*p.activePct/100));
+    const sybils=Math.floor(active*p.sybilPct/100),eligible=active+sybils;
+    const wealth=p.wealth*population/people0*Math.pow(1+p.realPerCapitaGrowthPct/100,Math.min(elapsed,p.growthYears));
+    const attributedWealth=wealth*p.capturePct/100;
+    const priceTotal=attributedWealth/units(total),priceCirculating=attributedWealth/units(circulating);
+    return {elapsed,calendarYear,population,active,eligible,wealth,attributedWealth,
+      totalMicro:total.toString(),circulatingMicro:circulating.toString(),lockedMicro:locked.toString(),
+      totalMINI:units(total),circulatingMINI:units(circulating),lockedMINI:units(locked),
+      humanMINI:units(human),serviceMINI:units(service),treasuryMINI:units(treasury),
+      humanMicro:human.toString(),serviceMicro:service.toString(),treasuryMicro:treasury.toString(),
+      openingMicro:opening.toString(),unmintedHumanRemainderMicro:unminted.toString(),
+      priceTotal,priceCirculating,miniPerPerson:units(total)/population,
+      humanAccruedPerEligible:perHuman,humanAccruedUSD:perHuman*priceTotal,
+      // Mature-system annualized spot measure; differs from trailing annual grants and vesting.
+      spotHumanUSD:0.02*units(circulating)/eligible*priceTotal,
+      humanVestedMINI:units(vested),sybilHumanUSD:perHuman*sybils*priceTotal,
+      grossPct:elapsed?Number(human+service+treasury)/Number(opening)*100:0,
+      originalPassiveSharePct:Number(initial)/Number(total)*100,
+      numericalResolutionUSD:priceTotal/1e6};
+  }
+  rows.push(row(0));
+  for(let elapsed=1;elapsed<=p.years;elapsed++){
+    const population=populationAt(2026+elapsed,p.populationPath);
+    const active=Math.max(1,Math.floor(population*p.activePct/100));
+    const eligible=BigInt(active+Math.floor(active*p.sybilPct/100));
+    const opening=circulating;let hYear=0n,sYear=0n,tYear=0n,vestedYear=0n,unminted=0n,per=0;
+    for(let m=0;m<12;m++){
+      const t=(elapsed-1)*12+m;
+      const cap=circulating/600n; // 2% / 12, floor, circulating at epoch opening.
+      const each=cap/eligible,h=each*eligible;unminted+=cap-h;per+=units(each);
+      let s=circulating*utilization(p.servicePct)/(1600n*1000000n);
+      let tr=circulating*utilization(p.treasuryPct)/(4800n*1000000n);
+      if(p.annualGuard){
+        s=min(s,opening*75n/10000n-sYear);tr=min(tr,opening*25n/10000n-tYear);
+        const room=opening*3n/100n-hYear-sYear-tYear-h;
+        if(room<0n)throw new Error('Protected Human Share exceeds proposed total budget.');
+        if(s+tr>room){const combined=s+tr;s=s*room/combined;tr=tr*room/combined;}
+      }
+      hYear+=h;sYear+=s;tYear+=tr;
+      total+=h+s+tr;allIssued+=h+s+tr;
+      if(total>U128_MAX)throw new Error('u128 total supply exceeded at elapsed year '+elapsed);
+      positions.push({amount:h,start:t+1,channel:'human'},{amount:tr,start:t+1,channel:'treasury'});
+      let nextLocked=0n;
+      for(const v of positions){
+        // 365-day policy years and 12 equal epochs; 90-day contribution vesting, start at epoch end.
+        const denominator=v.channel==='human'?12n:1080n;
+        const factor=v.channel==='human'?1n:365n;
+        const age=BigInt(t+1-v.start),beforeAge=age>0n?age-1n:0n;
+        const released=v.amount*min(denominator,age*factor)/denominator;
+        const before=v.amount*min(denominator,beforeAge*factor)/denominator;
+        nextLocked+=v.amount-released;if(v.channel==='human')vestedYear+=released-before;
+      }
+      locked=nextLocked;circulating=total-locked;
+      conservation &&= total===initial+allIssued && total===circulating+locked;
+      for(let i=positions.length-1;i>=0;i--){const v=positions[i];if((t+1-v.start)*(v.channel==='human'?1:365)>=(v.channel==='human'?12:1080))positions.splice(i,1);}
+    }
+    const r=row(elapsed,hYear,sYear,tYear,per,vestedYear,opening,unminted);maxAnnual=Math.max(maxAnnual,r.grossPct);rows.push(r);
+  }
+  // Counterfactual constant-purchasing-power schedule. This is NOT the adopted issuance policy.
+  // Price is indexed to the opening basket-equivalent reference. No market peg is asserted.
+  const initialPrice=rows[0].priceTotal;
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i],previous=rows[Math.max(0,i-1)];
+    r.buyingPowerIndex=initialPrice>0?r.priceTotal/initialPrice*100:null;
+    r.targetBuyingPowerIndex=initialPrice>0?100:null;
+    r.targetTotalMINI=initialPrice>0?r.attributedWealth/initialPrice:null;
+    r.targetNetIssuanceMINI=i&&initialPrice>0?r.targetTotalMINI-previous.targetTotalMINI:0;
+    r.targetNetIssuancePct=i&&initialPrice>0?r.targetNetIssuanceMINI/previous.targetTotalMINI*100:0;
+    r.actualNetIssuanceMINI=i?r.totalMINI-previous.totalMINI:0;
+    r.actualNetIssuancePct=i?r.actualNetIssuanceMINI/previous.totalMINI*100:0;
+    r.realWealthGrowthPct=i&&previous.wealth>0?(r.wealth/previous.wealth-1)*100:0;
+    r.wealthRequiredForStableMINI=p.capturePct>0?initialPrice*r.totalMINI/(p.capturePct/100):null;
+    r.realWealthGapUSD=r.wealthRequiredForStableMINI===null?null:r.wealthRequiredForStableMINI-r.wealth;
+  }
+  return {assumptions:p,rows,maxAnnual,conservation};
+}
+
+const $=id=>document.getElementById(id);
+const fmt=n=>n===null?'Undefined':!Number.isFinite(n)?'Unavailable':n!==0&&(Math.abs(n)<0.001||Math.abs(n)>=1e15)?n.toExponential(4):new Intl.NumberFormat('en-US',{maximumFractionDigits:Math.abs(n)<1?6:2}).format(n);
+let latest;
+function chart(id,title,key,unit,log=false){
+ const host=$(id),w=Math.max(280,host.clientWidth),h=270,L=78,R=20,T=20,B=50;
+ const data=latest.rows.filter(r=>!log||r[key]>0);const f=x=>log?Math.log10(x):x;
+ if(!data.length){host.innerHTML='<h3>'+title+'</h3><p>All values are zero.</p>';return;}
+ let lo=Math.min(...data.map(r=>f(r[key]))),hi=Math.max(...data.map(r=>f(r[key])));const pad=(hi-lo)*.06||Math.max(Math.abs(hi)*.03,1);lo-=pad;hi+=pad;
+ const X=x=>L+x/1000*(w-L-R),Y=v=>T+(hi-f(v))/(hi-lo)*(h-T-B);
+ const path=data.filter((r,i)=>i%5===0||i===data.length-1).map((r,i)=>(i?'L':'M')+X(r.elapsed).toFixed(2)+','+Y(r[key]).toFixed(2)).join(' ');
+ let ticks='';for(let i=0;i<=3;i++){const v=lo+(hi-lo)*i/3,y=T+(3-i)/3*(h-T-B);ticks+='<line x1="'+L+'" x2="'+(w-R)+'" y1="'+y+'" y2="'+y+'" stroke="#d8e0d8"/><text x="'+(L-8)+'" y="'+(y+4)+'" text-anchor="end">'+fmt(log?10**v:v)+'</text>';}
+ for(const x of [0,100,500,1000])ticks+='<text x="'+X(x)+'" y="'+(h-27)+'" text-anchor="'+(x===1000?'end':x===0?'start':'middle')+'">'+(2026+x)+'</text>';
+ host.innerHTML='<h3>'+title+'</h3><svg role="img" aria-label="'+title+'; exact checkpoints in the table and full data available through CSV export" viewBox="0 0 '+w+' '+h+'"><g fill="#17342d" font-family="system-ui" font-size="11">'+ticks+'<path d="'+path+'" fill="none" stroke="#176b4e" stroke-width="2.5"/><text x="'+L+'" y="12">'+unit+(log?' · log scale':'')+'</text><text x="'+(w/2)+'" y="'+(h-4)+'" text-anchor="middle">Calendar year</text></g></svg>';
+}
+function renderPay(){
+ const p={...defaults,basePay:Number($('basePay').value),openingCash:Number($('openingCash').value),annualIncome:Number($('annualIncome').value),founderYears:Number($('pastFteYears').value),founderFte:1};
+ const errs=validate(p);if(errs.length){$('pay').textContent=errs.join('; ');return;}
+ const c=compensation(p);$('pay').innerHTML='<div class="table-wrap"><table><thead><tr><th>Role / budget</th><th>Proposed EUR</th></tr></thead><tbody>'+[['Active founder / comparable lead, per year',c.founder],['Contributor, per year',c.contributor],['Quarter-time councillor, per six-month term',c.council/2],['Finite historical award, before funding decision',c.recognition],['Core annual spending',c.essential],['Recurring income needed, including 10% future transfer',c.neededIncome],['Historical award paid in year one',c.pastPayment]].map(([k,v])=>'<tr><td>'+k+'</td><td>'+fmt(v)+'</td></tr>').join('')+'</tbody></table></div><p>'+ (c.awardFunded?'The entire historical award and associated costs can be reserved upfront after the core reserve floor.':'The historical award is not funded: an additional EUR '+fmt(c.recognitionFundingNeeded)+' is needed before an unconditional award.')+'</p>';
+ $('milestones').innerHTML=milestones.map(m=>'<tr><td>'+m.id+' · '+m.name+'</td><td>'+fmt(m.fraction*100)+'% · EUR '+fmt(m.fraction*c.earnedPool)+'</td><td>'+m.evidence+'</td></tr>').join('');
+}
+function render(){
+ try{const p={...longDefaults};for(const k of ['capturePct','activePct','sybilPct','realPerCapitaGrowthPct','growthYears','servicePct','treasuryPct'])p[k]=Number($(k).value);p.supply=$('supply').value;p.wealth=Number($('wealth').value)*1e12;p.populationPath=$('populationPath').value;p.annualGuard=$('annualGuard').value==='true';
+ latest=forecast(p);const elapsed=Number($('inspect').value);if(!Number.isInteger(elapsed)||elapsed<0||elapsed>1000)throw new Error('Inspect year must be an integer from 0 to 1000.');const r=latest.rows[elapsed];$('error').textContent='';
+ $('stats').innerHTML=[['People in '+r.calendarYear,fmt(r.population),'Active eligible claims: '+fmt(r.eligible)],['Supply for stable buying power',fmt(r.targetTotalMINI),'Existing-envelope supply: '+fmt(r.totalMINI)+' MINI'],['Existing-envelope buying power · target 100',fmt(r.buyingPowerIndex),'100 means the opening basket; below 100 buys less'],['Compatible net issuance on target path',fmt(r.targetNetIssuanceMINI)+' MINI',fmt(r.targetNetIssuancePct)+'% that year; negative means contraction is required']].map(([a,b,c])=>'<div class="stat">'+a+'<strong>'+b+'</strong><span>'+c+'</span></div>').join('');
+ $('timing').textContent='At this reference price, one micro-MINI is USD '+fmt(r.numericalResolutionUSD)+'. The original untouched token stock is '+fmt(r.originalPassiveSharePct)+'% of total supply. Money confers no voting power.';
+ for(const args of [['powerChart','Buying power with the existing issuance envelope','buyingPowerIndex','Index · opening = 100',true],['targetChart','Supply compatible with constant buying power','targetTotalMINI','MINI',true],['populationChart','People','population','People'],['supplyChart','Total issuance','totalMINI','MINI',true],['priceChart','Price under the selected wealth premise','priceTotal','Reference USD / MINI',true],['humanChart','Per-person purchasing-power benchmark','spotHumanUSD','Reference USD / year']])chart(...args);
+ $('checkpoints').innerHTML=[0,1,74,100,200,1000].map(i=>latest.rows[i]).map(r=>'<tr><td>'+r.calendarYear+'</td><td>'+fmt(r.population)+'</td><td>'+fmt(r.totalMINI)+'</td><td>'+fmt(r.priceTotal)+'</td><td>'+fmt(r.buyingPowerIndex)+'</td><td>'+fmt(r.targetTotalMINI)+'</td><td>'+(r.elapsed?fmt(r.targetNetIssuanceMINI):'—')+'</td></tr>').join('');
+ }catch(e){latest=null;$('error').textContent=e.message;$('stats').textContent='';$('timing').textContent='';$('checkpoints').textContent='';for(const id of ['powerChart','targetChart','populationChart','supplyChart','priceChart','humanChart'])$(id).textContent='';}
+ renderPay();
+}
+function download(name,text,type){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('change',render));
+$('exportCSV').onclick=()=>{if(latest)download('mininet-generations.csv',csv(latest.rows),'text/csv');};
+$('exportJSON').onclick=()=>{if(latest)download('mininet-generations.json',JSON.stringify(latest,null,2),'application/json');};
+let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(render,200);});
+render();
+</script></body></html>
