@@ -123,7 +123,9 @@ impl Drop for Fixture {
 fn a_first_install_writes_every_file_activates_it_and_registers_one_shortcut() {
     let fixture = Fixture::new("first");
     let mut shell = RecordingShell::default();
-    let report = fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
 
     assert_eq!(report.files_written, 3);
     assert_eq!(
@@ -155,9 +157,7 @@ fn a_first_install_writes_every_file_activates_it_and_registers_one_shortcut() {
         ShellAction::RegisterUninstall(registration) => {
             assert_eq!(registration.display_version, "0.1.0");
             assert!(registration.uninstall_command.contains("--uninstall"));
-            assert!(registration
-                .uninstall_command
-                .contains("mininet-setup.exe"));
+            assert!(registration.uninstall_command.contains("mininet-setup.exe"));
         }
         other => panic!("expected an uninstall registration, got {other:?}"),
     }
@@ -170,7 +170,9 @@ fn the_installed_client_is_the_package_bytes_and_actually_runs() {
     // artifact can be executed here rather than merely compared.
     let fixture = Fixture::new("runs");
     let mut shell = RecordingShell::default();
-    let report = fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     #[cfg(unix)]
     {
         let output = std::process::Command::new(&report.launch_path)
@@ -211,8 +213,12 @@ fn an_approval_for_one_build_cannot_install_a_different_build() {
 fn an_upgrade_records_the_older_version_as_the_rollback_target() {
     let fixture = Fixture::new("upgrade");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
-    let report = fixture.install("0.2.0", DESKTOP_V2, 2_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let report = fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
 
     assert_eq!(report.active.version_text, "0.2.0");
     assert_eq!(report.previous.unwrap().version_text, "0.1.0");
@@ -232,7 +238,9 @@ fn an_upgrade_records_the_older_version_as_the_rollback_target() {
 fn installing_an_older_version_over_a_newer_one_is_refused_by_default() {
     let fixture = Fixture::new("downgrade");
     let mut shell = RecordingShell::default();
-    fixture.install("0.2.0", DESKTOP_V2, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 1_000, &mut shell)
+        .unwrap();
     let error = fixture
         .install("0.1.0", DESKTOP_V1, 2_000, &mut shell)
         .unwrap_err();
@@ -248,9 +256,13 @@ fn installing_an_older_version_over_a_newer_one_is_refused_by_default() {
 fn a_downgrade_is_possible_when_the_caller_declares_one() {
     let mut fixture = Fixture::new("downgrade-ok");
     let mut shell = RecordingShell::default();
-    fixture.install("0.2.0", DESKTOP_V2, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 1_000, &mut shell)
+        .unwrap();
     fixture.options.allow_downgrade = true;
-    let report = fixture.install("0.1.0", DESKTOP_V1, 2_000, &mut shell).unwrap();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 2_000, &mut shell)
+        .unwrap();
     assert_eq!(report.active.version_text, "0.1.0");
     assert_eq!(std::fs::read(&report.launch_path).unwrap(), DESKTOP_V1);
 }
@@ -264,7 +276,9 @@ fn planning_reports_the_relationship_to_what_is_already_installed() {
         fixture.setup.plan(&first, &fixture.options).unwrap().kind,
         PlanKind::FirstInstall
     );
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     assert_eq!(
         fixture.setup.plan(&first, &fixture.options).unwrap().kind,
         PlanKind::Reinstall
@@ -308,12 +322,24 @@ fn a_plan_lists_every_change_before_anything_is_written() {
 fn a_reinstall_of_the_active_version_keeps_the_existing_rollback_target() {
     let fixture = Fixture::new("reinstall");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
-    fixture.install("0.2.0", DESKTOP_V2, 2_000, &mut shell).unwrap();
-    let report = fixture.install("0.2.0", DESKTOP_V2, 3_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+    let report = fixture
+        .install("0.2.0", DESKTOP_V2, 3_000, &mut shell)
+        .unwrap();
     assert_eq!(report.previous.unwrap().version_text, "0.1.0");
     assert_eq!(
-        fixture.setup.status().unwrap().previous.unwrap().version_text,
+        fixture
+            .setup
+            .status()
+            .unwrap()
+            .previous
+            .unwrap()
+            .version_text,
         "0.1.0"
     );
 }
@@ -322,7 +348,9 @@ fn a_reinstall_of_the_active_version_keeps_the_existing_rollback_target() {
 fn verification_reads_the_installed_files_back_and_finds_them_intact() {
     let fixture = Fixture::new("verify");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     let report = fixture.setup.verify_installed("0.1.0").unwrap();
     assert!(report.is_intact());
     assert_eq!(report.files_checked, 3);
@@ -336,7 +364,9 @@ fn verification_reads_the_installed_files_back_and_finds_them_intact() {
 fn verification_reports_every_problem_rather_than_only_the_first() {
     let fixture = Fixture::new("verify-bad");
     let mut shell = RecordingShell::default();
-    let report = fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     let version_dir = report.launch_path.parent().unwrap().to_path_buf();
 
     // One file tampered with, one truncated, one deleted, one added.
@@ -369,8 +399,12 @@ fn verification_reports_every_problem_rather_than_only_the_first() {
 fn rollback_returns_to_the_previous_version_and_repoints_the_shortcut() {
     let fixture = Fixture::new("rollback");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
-    fixture.install("0.2.0", DESKTOP_V2, 2_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
 
     let mut rollback_shell = RecordingShell::default();
     let restored = fixture
@@ -402,8 +436,12 @@ fn rollback_returns_to_the_previous_version_and_repoints_the_shortcut() {
 fn rollback_refuses_a_previous_version_whose_files_are_damaged() {
     let fixture = Fixture::new("rollback-bad");
     let mut shell = RecordingShell::default();
-    let first = fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
-    fixture.install("0.2.0", DESKTOP_V2, 2_000, &mut shell).unwrap();
+    let first = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
     std::fs::write(&first.launch_path, b"corrupted").unwrap();
 
     let error = fixture
@@ -425,14 +463,15 @@ fn rollback_refuses_a_previous_version_whose_files_are_damaged() {
 fn uninstall_removes_program_files_and_keeps_identities_by_default() {
     let fixture = Fixture::new("uninstall");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     let user_data = fixture.setup.user_data_root().to_path_buf();
     std::fs::create_dir_all(&user_data).unwrap();
     std::fs::write(user_data.join("identity.dpapi"), b"irreplaceable").unwrap();
 
     let mut uninstall_shell = RecordingShell::default();
-    let approval =
-        UninstallApproval::keeping_identities(fixture.setup.layout().root(), 2_000);
+    let approval = UninstallApproval::keeping_identities(fixture.setup.layout().root(), 2_000);
     let report = fixture
         .setup
         .uninstall(&approval, &fixture.options, &mut uninstall_shell, 2_000)
@@ -462,16 +501,15 @@ fn uninstall_removes_program_files_and_keeps_identities_by_default() {
 fn uninstall_destroys_identities_only_when_that_exact_path_was_approved() {
     let fixture = Fixture::new("uninstall-destroy");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     let user_data = fixture.setup.user_data_root().to_path_buf();
     std::fs::create_dir_all(&user_data).unwrap();
     std::fs::write(user_data.join("identity.dpapi"), b"gone").unwrap();
 
-    let approval = UninstallApproval::destroying_identities(
-        fixture.setup.layout().root(),
-        &user_data,
-        2_000,
-    );
+    let approval =
+        UninstallApproval::destroying_identities(fixture.setup.layout().root(), &user_data, 2_000);
     let report = fixture
         .setup
         .uninstall(&approval, &fixture.options, &mut shell, 2_000)
@@ -488,7 +526,9 @@ fn uninstall_destroys_identities_only_when_that_exact_path_was_approved() {
 fn an_uninstall_approval_for_another_install_root_is_refused() {
     let fixture = Fixture::new("uninstall-wrong-root");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     let approval = UninstallApproval::keeping_identities("/somewhere/else", 2_000);
     let error = fixture
         .setup
@@ -502,8 +542,12 @@ fn an_uninstall_approval_for_another_install_root_is_refused() {
 fn the_setup_log_records_each_step_and_outlives_the_uninstall() {
     let fixture = Fixture::new("log");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
-    fixture.install("0.2.0", DESKTOP_V2, 2_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
     fixture
         .setup
         .rollback(&fixture.options, &mut shell, 3_000)
@@ -518,15 +562,16 @@ fn the_setup_log_records_each_step_and_outlives_the_uninstall() {
             .count(),
         2
     );
-    assert!(lines.iter().any(|line| line.contains("rolled-back version=0.1.0")));
+    assert!(lines
+        .iter()
+        .any(|line| line.contains("rolled-back version=0.1.0")));
     // No path from the user's profile leaks into a log people are asked to
     // paste into bug reports.
     for line in &lines {
         assert!(!line.contains("mini-windows-setup-log"));
     }
 
-    let approval =
-        UninstallApproval::keeping_identities(fixture.setup.layout().root(), 4_000);
+    let approval = UninstallApproval::keeping_identities(fixture.setup.layout().root(), 4_000);
     fixture
         .setup
         .uninstall(&approval, &fixture.options, &mut shell, 4_000)
@@ -536,7 +581,9 @@ fn the_setup_log_records_each_step_and_outlives_the_uninstall() {
         .layout()
         .root()
         .with_extension("uninstalled.log.txt");
-    let after = mini_windows_setup::SetupLog::new(&preserved).read().unwrap();
+    let after = mini_windows_setup::SetupLog::new(&preserved)
+        .read()
+        .unwrap();
     assert!(after.len() > lines.len());
     assert!(after.last().unwrap().contains("uninstalled"));
 }
@@ -545,7 +592,9 @@ fn the_setup_log_records_each_step_and_outlives_the_uninstall() {
 fn a_failed_install_leaves_the_running_version_active() {
     let fixture = Fixture::new("failed");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
 
     // A container whose payload was damaged after it was built: the manifest
     // is internally consistent, so this is only caught when the bytes are
@@ -586,7 +635,9 @@ fn status_on_an_empty_root_is_an_answer_not_an_error() {
 fn a_corrupt_pointer_file_is_reported_rather_than_guessed_through() {
     let fixture = Fixture::new("corrupt-pointer");
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     std::fs::write(fixture.setup.layout().current_path(), b"garbage\n").unwrap();
     let error = fixture.setup.status().unwrap_err();
     assert_eq!(error.code(), "corrupt_pointer");
@@ -597,7 +648,9 @@ fn a_desktop_shortcut_is_only_created_when_the_user_asks_for_one() {
     let mut fixture = Fixture::new("desktop");
     fixture.options.desktop_shortcut = true;
     let mut shell = RecordingShell::default();
-    fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     let shortcuts = shell
         .actions
         .iter()
@@ -612,7 +665,9 @@ fn a_portable_install_can_skip_every_shell_change() {
     fixture.options.start_menu_shortcut = false;
     fixture.options.register_uninstall = false;
     let mut shell = RecordingShell::default();
-    let report = fixture.install("0.1.0", DESKTOP_V1, 1_000, &mut shell).unwrap();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
     assert!(shell.actions.is_empty());
     assert!(report.launch_path.is_file());
 }

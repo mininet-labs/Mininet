@@ -361,7 +361,9 @@ mod tests {
         let wizard = Wizard::new(&empty_status(), InstallOptions::default());
         let manifest = sample_manifest();
         let lines = wizard.review_lines(&manifest, "first install");
-        assert!(lines.iter().any(|line| line.contains(&manifest.digest_hex())));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains(&manifest.digest_hex())));
         assert!(lines.iter().any(|line| line.trim() == "mini.exe"));
         assert!(lines
             .iter()

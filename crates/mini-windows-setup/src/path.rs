@@ -55,8 +55,8 @@ pub const MAX_COMPONENTS: usize = 8;
 /// without an extension.
 const RESERVED: &[&str] = &[
     "con", "prn", "aux", "nul", "conin$", "conout$", "com0", "com1", "com2", "com3", "com4",
-    "com5", "com6", "com7", "com8", "com9", "lpt0", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5",
-    "lpt6", "lpt7", "lpt8", "lpt9",
+    "com5", "com6", "com7", "com8", "com9", "lpt0", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6",
+    "lpt7", "lpt8", "lpt9",
 ];
 
 /// Characters Win32 forbids in a file name, plus the separator this format
@@ -207,7 +207,10 @@ mod tests {
     fn length_and_depth_limits_are_enforced() {
         let long_component = "a".repeat(MAX_COMPONENT_BYTES + 1);
         assert!(check(&long_component).is_err());
-        let deep = (0..=MAX_COMPONENTS).map(|_| "d").collect::<Vec<_>>().join("/");
+        let deep = (0..=MAX_COMPONENTS)
+            .map(|_| "d")
+            .collect::<Vec<_>>()
+            .join("/");
         assert!(check(&deep).is_err());
         let long_path = (0..4)
             .map(|_| "a".repeat(MAX_COMPONENT_BYTES))

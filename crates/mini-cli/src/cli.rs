@@ -123,6 +123,7 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "provenance" => dispatch_provenance(home, store_path, args, json),
         "installer" => dispatch_installer(home, store_path, args, json),
         "windows" => dispatch_windows(args, json),
+        "selftest" => dispatch_selftest(args, json),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
 }
@@ -677,6 +678,38 @@ fn dispatch_provenance(
             "unknown `provenance` subcommand: {other:?}"
         ))),
     }
+}
+
+/// `mini selftest [list|<area>]` --- run the diagnostics suite.
+///
+/// The same checks the client's Diagnostics page runs. A failed check makes
+/// `main` exit non-zero, so this works as a post-install smoke test in a
+/// script rather than only as something a person reads.
+fn dispatch_selftest(mut args: Vec<String>, json: bool) -> Result<String> {
+    let scratch = extract_flag(&mut args, "--scratch").map(PathBuf::from);
+    let noun = if args.is_empty() {
+        None
+    } else {
+        Some(next(&mut args, "selftest")?)
+    };
+    let area = match noun.as_deref() {
+        Some("list") => return Ok(crate::selftest::list().render(json, "selftest.list")),
+        Some(area) => Some(area.to_string()),
+        None => None,
+    };
+    let (result, clean) = crate::selftest::run(scratch.as_deref(), area.as_deref())?;
+    let rendered = result.render(json, "selftest.run");
+    if clean {
+        return Ok(rendered);
+    }
+    // Failing checks exit non-zero. Under --json the compact summary goes in
+    // the error envelope's message and `error_code` is `selftest_failed`; a
+    // caller wanting the detail re-runs and reads the ok envelope's fields.
+    Err(CliError::SelfTest(if json {
+        "at least one self-test check failed; re-run without --json for the report".to_string()
+    } else {
+        rendered
+    }))
 }
 
 /// `mini windows ...` --- build and inspect Windows client packages.

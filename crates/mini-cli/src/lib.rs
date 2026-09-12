@@ -54,6 +54,7 @@ mod project;
 mod provenance;
 mod release;
 mod repo;
+mod selftest;
 mod sequence;
 pub mod store;
 mod sync;

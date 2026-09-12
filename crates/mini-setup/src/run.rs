@@ -171,10 +171,7 @@ pub fn plan(args: &Args) -> Result<Outcome> {
     for action in &plan.shell_actions {
         human.push_str(&format!("  {}\n", report::shell_action_name(action)));
     }
-    human.push_str(&format!(
-        "Untouched: {}\n",
-        plan.user_data_root.display()
-    ));
+    human.push_str(&format!("Untouched: {}\n", plan.user_data_root.display()));
     Ok(Outcome {
         kind: "setup.plan",
         human,
@@ -210,10 +207,7 @@ pub fn verify(args: &Args) -> Result<Outcome> {
                 ("files_checked", Field::Number(manifest.files.len() as u64)),
                 ("bytes_checked", Field::Number(manifest.total_bytes())),
                 ("problems", Field::List(Vec::new())),
-                (
-                    "package_digest",
-                    Field::Text(manifest.digest_hex()),
-                ),
+                ("package_digest", Field::Text(manifest.digest_hex())),
             ],
         });
     }
@@ -286,13 +280,7 @@ pub fn install_bytes(
     let now = now_ms();
     let approval = InstallApproval::new(container.manifest(), now);
     let (mut shell, note) = shell();
-    let report_out = setup.install(
-        &container,
-        &approval,
-        &args.options,
-        shell.as_mut(),
-        now,
-    )?;
+    let report_out = setup.install(&container, &approval, &args.options, shell.as_mut(), now)?;
     let mut human = format!(
         "Installed {} {} from {}.\n",
         container.manifest().product,

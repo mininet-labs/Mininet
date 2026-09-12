@@ -145,10 +145,7 @@ impl ShellIntegration for WindowsShell {
             return Ok(());
         }
         let script = powershell_script(actions)?;
-        let dir = self
-            .script_dir
-            .clone()
-            .unwrap_or_else(std::env::temp_dir);
+        let dir = self.script_dir.clone().unwrap_or_else(std::env::temp_dir);
         std::fs::create_dir_all(&dir).map_err(|error| SetupError::io(&dir, error))?;
         let path = dir.join(format!("mininet-setup-{}.ps1", std::process::id()));
         std::fs::write(&path, script.as_bytes()).map_err(|error| SetupError::io(&path, error))?;
@@ -287,9 +284,7 @@ pub fn powershell_script(actions: &[ShellAction]) -> Result<String, SetupError> 
                     "uninstall key",
                     &format!("{uninstall_root}\\{}", registration.key_name),
                 )?;
-                out.push_str(&format!(
-                    "New-Item -Path {key} -Force | Out-Null\n"
-                ));
+                out.push_str(&format!("New-Item -Path {key} -Force | Out-Null\n"));
                 let mut property = |name: &str, value: String, kind: &str| {
                     out.push_str(&format!(
                         "New-ItemProperty -Path {key} -Name '{name}' -Value {value} -PropertyType {kind} -Force | Out-Null\n"
@@ -416,7 +411,8 @@ mod tests {
             estimated_size_kb: 4096,
         })])
         .unwrap();
-        assert!(script.contains("HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Mininet"));
+        assert!(script
+            .contains("HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Mininet"));
         assert!(!script.contains("HKLM"));
         assert!(script.contains("-Name 'NoModify' -Value 1 -PropertyType DWord"));
         assert!(script.contains("-Name 'EstimatedSize' -Value 4096 -PropertyType DWord"));

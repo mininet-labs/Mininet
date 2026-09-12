@@ -120,9 +120,7 @@ fn field(line: &str, key: &str) -> String {
         panic!("no {key} in {line}");
     }) + needle.len();
     let rest = &line[start..];
-    let end = rest
-        .find(|c| c == ',' || c == '}')
-        .unwrap_or(rest.len());
+    let end = rest.find([',', '}']).unwrap_or(rest.len());
     rest[..end].trim_matches('"').to_string()
 }
 
@@ -174,7 +172,12 @@ fn status_on_a_clean_machine_says_nothing_is_installed() {
 fn a_dry_run_reports_the_plan_and_writes_nothing() {
     let env = Env::new("dry-run");
     let package = write_package(&env.base, "0.1.0", DESKTOP_V1);
-    let line = env.json(&["--dry-run", "--json", "--payload", package.to_str().unwrap()]);
+    let line = env.json(&[
+        "--dry-run",
+        "--json",
+        "--payload",
+        package.to_str().unwrap(),
+    ]);
     assert_eq!(field(&line, "kind"), "setup.plan");
     assert_eq!(field(&line, "plan"), "first_install");
     assert_eq!(field(&line, "files"), "2");

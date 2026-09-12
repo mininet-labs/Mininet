@@ -320,7 +320,10 @@ fn json_output_carries_the_same_field_names_the_setup_binary_uses() {
         "shell_actions",
         "user_data_root",
     ] {
-        assert!(line.contains(&format!("\"{key}\":")), "missing {key} in {line}");
+        assert!(
+            line.contains(&format!("\"{key}\":")),
+            "missing {key} in {line}"
+        );
     }
     assert!(!line.contains('\n'));
     let _ = std::fs::remove_dir_all(base);

@@ -557,8 +557,8 @@ impl Setup {
         // claims, and only the second one is worth activating.
         for file in &manifest.files {
             let destination = path::join(&staging, &file.path)?;
-            let stored = std::fs::read(&destination)
-                .map_err(|error| SetupError::io(&destination, error))?;
+            let stored =
+                std::fs::read(&destination).map_err(|error| SetupError::io(&destination, error))?;
             file.verify(&stored)?;
         }
         set_executable_bits(&staging, manifest)?;
@@ -571,8 +571,7 @@ impl Setup {
         if let Some(parent) = final_dir.parent() {
             std::fs::create_dir_all(parent).map_err(|error| SetupError::io(parent, error))?;
         }
-        std::fs::rename(&staging, &final_dir)
-            .map_err(|error| SetupError::io(&final_dir, error))?;
+        std::fs::rename(&staging, &final_dir).map_err(|error| SetupError::io(&final_dir, error))?;
 
         let manifest_path = self.layout.manifest_path(&manifest.version_text);
         layout::write_atomic(&manifest_path, &manifest.to_bytes())?;
@@ -705,7 +704,10 @@ impl Setup {
         shell: &mut dyn ShellIntegration,
         now_ms: u64,
     ) -> Result<InstallRecord, SetupError> {
-        let previous = self.layout.previous()?.ok_or(SetupError::NoPreviousVersion)?;
+        let previous = self
+            .layout
+            .previous()?
+            .ok_or(SetupError::NoPreviousVersion)?;
         let version_dir = self.layout.version_dir(&previous.version_text);
         if !version_dir.is_dir() {
             return Err(SetupError::MissingVersionDirectory {
@@ -869,9 +871,7 @@ impl Setup {
                 manifest
                     .files
                     .iter()
-                    .find(|file| {
-                        path::fold_case(&file.path).ends_with("mininet-setup.exe")
-                    })
+                    .find(|file| path::fold_case(&file.path).ends_with("mininet-setup.exe"))
                     .and_then(|file| path::join(version_dir, &file.path).ok())
                     .unwrap_or_else(|| version_dir.join("mininet-setup.exe"))
             });

@@ -168,7 +168,10 @@ impl core::fmt::Display for SetupError {
                 write!(f, "installed version {version} is missing from disk")
             }
             Self::UnsupportedPlatform => {
-                write!(f, "Windows shell integration is unavailable on this platform")
+                write!(
+                    f,
+                    "Windows shell integration is unavailable on this platform"
+                )
             }
             Self::ShellIntegrationFailed { step, detail } => {
                 write!(f, "shell integration step {step} failed: {detail}")

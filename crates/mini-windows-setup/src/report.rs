@@ -87,7 +87,10 @@ pub fn status_fields(status: &SetupStatus) -> Vec<(&'static str, Field)> {
             "installed_versions",
             Field::List(status.installed_versions.clone()),
         ),
-        ("launch_path", Field::maybe_path(status.launch_path.as_deref())),
+        (
+            "launch_path",
+            Field::maybe_path(status.launch_path.as_deref()),
+        ),
         ("user_data_root", Field::path(&status.user_data_root)),
         ("user_data_present", Field::Flag(status.user_data_present)),
     ]

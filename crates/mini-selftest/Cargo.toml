@@ -1,0 +1,34 @@
+[package]
+name = "mini-selftest"
+version = "0.0.1"
+description = "Runnable diagnostics that exercise the real Mininet protocol stack end to end, including negative checks that prove enforcement rather than only happy paths."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# This crate depends broadly on purpose: its whole job is to run the real
+# stack. It must therefore never be depended upon by a protocol crate -- only
+# by front ends (mini-desktop, mini-cli) -- or its breadth would leak into
+# the dependency graph it is supposed to be observing from outside.
+#
+# P1 / Directive 16, the voice/value wall: this crate has a governance edge
+# (mini-forge), so it must NEVER gain an edge to mini-value, mini-bounty, or
+# mini-treasury. That is why there is no shielded-payment check here, and why
+# adding one would be a wall violation rather than a missing feature.
+did-mini = { path = "../did-mini" }
+mini-bearer = { path = "../mini-bearer" }
+mini-crypto = { path = "../mini-crypto" }
+mini-erasure = { path = "../mini-erasure" }
+mini-forge = { path = "../mini-forge" }
+mini-media = { path = "../mini-media" }
+mini-messaging = { path = "../mini-messaging" }
+mini-objects = { path = "../mini-objects" }
+mini-social = { path = "../mini-social" }
+mini-spacetime = { path = "../mini-spacetime" }
+mini-store = { path = "../mini-store" }
+mini-sync = { path = "../mini-sync" }
+mini-windows-setup = { path = "../mini-windows-setup" }

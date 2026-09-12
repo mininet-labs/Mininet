@@ -48,15 +48,17 @@ struct SetupApp {
 impl SetupApp {
     fn new(args: Args) -> Self {
         let setup = run::setup_for(&args);
-        let status = setup.status().unwrap_or_else(|_| mini_windows_setup::SetupStatus {
-            install_root: setup.layout().root().to_path_buf(),
-            active: None,
-            previous: None,
-            installed_versions: Vec::new(),
-            launch_path: None,
-            user_data_root: setup.user_data_root().to_path_buf(),
-            user_data_present: false,
-        });
+        let status = setup
+            .status()
+            .unwrap_or_else(|_| mini_windows_setup::SetupStatus {
+                install_root: setup.layout().root().to_path_buf(),
+                active: None,
+                previous: None,
+                installed_versions: Vec::new(),
+                launch_path: None,
+                user_data_root: setup.user_data_root().to_path_buf(),
+                user_data_present: false,
+            });
         let wizard = Wizard::new(&status, args.options.clone());
         let (payload_bytes, payload_origin, manifest, payload_error) =
             match payload::locate(args.payload.as_deref()) {
@@ -291,14 +293,8 @@ impl SetupApp {
                 if let Some(previous) = &status.previous {
                     ui.label(format!("Can roll back to {}", previous.version_text));
                 }
-                ui.label(format!(
-                    "Program files: {}",
-                    status.install_root.display()
-                ));
-                ui.label(format!(
-                    "Your data: {}",
-                    status.user_data_root.display()
-                ));
+                ui.label(format!("Program files: {}", status.install_root.display()));
+                ui.label(format!("Your data: {}", status.user_data_root.display()));
             }
             Err(error) => {
                 ui.colored_label(egui::Color32::YELLOW, error.to_string());
@@ -443,8 +439,7 @@ impl SetupApp {
                     }
                     if !can_install {
                         ui.label(
-                            egui::RichText::new("Tick the approval box to enable Install.")
-                                .small(),
+                            egui::RichText::new("Tick the approval box to enable Install.").small(),
                         );
                     }
                 }

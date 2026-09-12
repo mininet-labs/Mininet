@@ -65,6 +65,7 @@ members = [
     "crates/mini-windows-vault",
     "crates/mini-windows-setup",
     "crates/mini-setup",
+    "crates/mini-selftest",
     "crates/mini-extract-protocol",
     "crates/mini-extract-host",
     "crates/mini-provider",

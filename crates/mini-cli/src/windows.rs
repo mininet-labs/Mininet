@@ -111,10 +111,10 @@ pub fn pack(request: &PackRequest) -> Result<CommandResult> {
     let mut files = Vec::with_capacity(relative.len());
     let mut contents: Vec<(String, Vec<u8>)> = Vec::with_capacity(relative.len());
     for path in &relative {
-        let absolute = mini_windows_setup::path::join(&request.source, path).map_err(setup_error)?;
-        let bytes = std::fs::read(&absolute).map_err(|error| {
-            CliError::Io(format!("{}: {error}", absolute.display()))
-        })?;
+        let absolute =
+            mini_windows_setup::path::join(&request.source, path).map_err(setup_error)?;
+        let bytes = std::fs::read(&absolute)
+            .map_err(|error| CliError::Io(format!("{}: {error}", absolute.display())))?;
         files.push(PackageFile::describe(path, &bytes).map_err(setup_error)?);
         contents.push((path.clone(), bytes));
     }
@@ -183,7 +183,10 @@ pub fn pack(request: &PackRequest) -> Result<CommandResult> {
         .field("version", JsonValue::str(&manifest.version_text))
         .field("target", JsonValue::str(&manifest.target))
         .field("package_digest", JsonValue::str(manifest.digest_hex()))
-        .field("container", JsonValue::str(request.out.display().to_string()))
+        .field(
+            "container",
+            JsonValue::str(request.out.display().to_string()),
+        )
         .field(
             "manifest_path",
             JsonValue::str(manifest_path.display().to_string()),
@@ -205,7 +208,10 @@ pub fn inspect(path: &Path) -> Result<CommandResult> {
         container.verify_all().map_err(setup_error)?;
         (container.manifest().clone(), "container")
     } else {
-        (PackageManifest::parse(&bytes).map_err(setup_error)?, "manifest")
+        (
+            PackageManifest::parse(&bytes).map_err(setup_error)?,
+            "manifest",
+        )
     };
     let mut human = format!(
         "{} {} ({} {})\n  target: {}\n  digest: {}\n  built:  {} ms since the epoch\n  launch: {}\n",

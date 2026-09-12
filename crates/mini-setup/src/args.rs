@@ -268,7 +268,10 @@ mod tests {
         .unwrap();
         assert_eq!(args.mode, Mode::Silent);
         assert!(args.json);
-        assert_eq!(args.payload.unwrap().to_str().unwrap(), "C:\\tmp\\client.mnpkg");
+        assert_eq!(
+            args.payload.unwrap().to_str().unwrap(),
+            "C:\\tmp\\client.mnpkg"
+        );
         assert_eq!(args.install_root.unwrap().to_str().unwrap(), "D:\\Mininet");
         assert!(args.options.desktop_shortcut);
         assert!(!args.options.register_uninstall);

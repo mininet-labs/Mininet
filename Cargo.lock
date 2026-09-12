@@ -2700,6 +2700,7 @@ dependencies = [
  "mini-pipeline-protocol",
  "mini-presence",
  "mini-provenance",
+ "mini-selftest",
  "mini-store",
  "mini-sync",
  "mini-windows-setup",
@@ -2821,9 +2822,11 @@ dependencies = [
  "mini-media",
  "mini-messaging",
  "mini-objects",
+ "mini-selftest",
  "mini-social",
  "mini-store",
  "mini-sync",
+ "mini-windows-setup",
  "mini-windows-vault",
 ]
 
@@ -3216,6 +3219,25 @@ dependencies = [
  "mini-sync",
  "mini-transport-security",
  "mini-web-types",
+]
+
+[[package]]
+name = "mini-selftest"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-bearer",
+ "mini-crypto",
+ "mini-erasure",
+ "mini-forge",
+ "mini-media",
+ "mini-messaging",
+ "mini-objects",
+ "mini-social",
+ "mini-spacetime",
+ "mini-store",
+ "mini-sync",
+ "mini-windows-setup",
 ]
 
 [[package]]

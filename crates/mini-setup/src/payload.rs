@@ -75,9 +75,7 @@ pub fn sidecar_candidates() -> Vec<PathBuf> {
                 let mut found: Vec<PathBuf> = entries
                     .flatten()
                     .map(|entry| entry.path())
-                    .filter(|path| {
-                        path.extension().and_then(|ext| ext.to_str()) == Some("mnpkg")
-                    })
+                    .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("mnpkg"))
                     .collect();
                 found.sort();
                 if found.len() == 1 {
@@ -123,9 +121,7 @@ mod tests {
     #[test]
     fn the_sidecar_search_always_includes_the_conventional_name() {
         let candidates = sidecar_candidates();
-        assert!(candidates
-            .iter()
-            .any(|path| path.ends_with(SIDECAR_NAME)));
+        assert!(candidates.iter().any(|path| path.ends_with(SIDECAR_NAME)));
     }
 
     #[test]

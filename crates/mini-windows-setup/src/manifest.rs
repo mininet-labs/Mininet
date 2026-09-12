@@ -350,7 +350,11 @@ impl PackageManifest {
                 reason: "manifest contains a carriage return; lines end with \\n only",
             });
         }
-        let lines: Vec<&str> = text.strip_suffix('\n').unwrap_or(text).split('\n').collect();
+        let lines: Vec<&str> = text
+            .strip_suffix('\n')
+            .unwrap_or(text)
+            .split('\n')
+            .collect();
         // MAGIC + 6 singletons + >=1 file + end
         if lines.len() < 9 {
             return Err(SetupError::MalformedManifest {
@@ -380,10 +384,12 @@ impl PackageManifest {
         let product = field(4, "product")?;
         let launch = field(5, "launch")?;
         let built_text = field(6, "built")?;
-        let built_at_ms: u64 = built_text.parse().map_err(|_| SetupError::MalformedManifest {
-            line: 7,
-            reason: "build timestamp is not a u64 millisecond value",
-        })?;
+        let built_at_ms: u64 = built_text
+            .parse()
+            .map_err(|_| SetupError::MalformedManifest {
+                line: 7,
+                reason: "build timestamp is not a u64 millisecond value",
+            })?;
 
         let mut files = Vec::new();
         let mut shortcuts = Vec::new();
@@ -486,12 +492,10 @@ fn parse_file_line(rest: &str, line: usize) -> Result<PackageFile, SetupError> {
 }
 
 fn parse_shortcut_line(rest: &str, line: usize) -> Result<PackageShortcut, SetupError> {
-    let (target, name) = rest
-        .split_once(' ')
-        .ok_or(SetupError::MalformedManifest {
-            line,
-            reason: "shortcut line has no display name",
-        })?;
+    let (target, name) = rest.split_once(' ').ok_or(SetupError::MalformedManifest {
+        line,
+        reason: "shortcut line has no display name",
+    })?;
     path::check(target)?;
     check_display("shortcut", name)?;
     Ok(PackageShortcut {
@@ -542,7 +546,10 @@ pub(crate) fn check_display(field: &'static str, value: &str) -> Result<(), Setu
                 reason: "only printable ASCII is allowed",
             });
         }
-        if matches!(ch, '\'' | '"' | '`' | '$' | '%' | '&' | '|' | '<' | '>' | '^') {
+        if matches!(
+            ch,
+            '\'' | '"' | '`' | '$' | '%' | '&' | '|' | '<' | '>' | '^'
+        ) {
             return Err(SetupError::UnsafeDisplayText {
                 field,
                 reason: "shell and script metacharacters are not allowed",
@@ -569,7 +576,11 @@ pub fn hex(bytes: &[u8; 32]) -> String {
 
 /// Parse exactly 64 lowercase hex characters into a 32-byte digest.
 pub fn unhex(text: &str) -> Option<[u8; 32]> {
-    if text.len() != 64 || !text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) {
+    if text.len() != 64
+        || !text
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
         return None;
     }
     let mut out = [0u8; 32];
