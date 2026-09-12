@@ -122,6 +122,7 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "release" => dispatch_release(home, store_path, args, json),
         "provenance" => dispatch_provenance(home, store_path, args, json),
         "installer" => dispatch_installer(home, store_path, args, json),
+        "windows" => dispatch_windows(args, json),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
 }
@@ -676,6 +677,107 @@ fn dispatch_provenance(
             "unknown `provenance` subcommand: {other:?}"
         ))),
     }
+}
+
+/// `mini windows ...` --- build and inspect Windows client packages.
+///
+/// Read and build verbs only. Installing stays with `mininet-setup.exe`,
+/// which ships inside the package and is therefore still present when Apps &
+/// features later needs to run its uninstall command (`crate::windows`'s
+/// module docs).
+fn dispatch_windows(mut args: Vec<String>, json: bool) -> Result<String> {
+    let noun = next(&mut args, "windows")?;
+    match noun.as_str() {
+        "pack" => {
+            let source = required_path_flag(&mut args, "--source")?;
+            let out = required_path_flag(&mut args, "--out")?;
+            let version = extract_flag(&mut args, "--version")
+                .ok_or_else(|| CliError::Usage("--version required".to_string()))?;
+            // Required rather than defaulted to the clock: two runs over the
+            // same bytes must produce the same container, or an independent
+            // builder cannot confirm they built the same package.
+            let built_at_ms = required_u64_flag(&mut args, "--built-at-ms")?;
+            let request = crate::windows::PackRequest {
+                source,
+                out,
+                version,
+                package: extract_flag(&mut args, "--package")
+                    .unwrap_or_else(|| crate::windows::DEFAULT_PACKAGE.to_string()),
+                product: extract_flag(&mut args, "--product")
+                    .unwrap_or_else(|| crate::windows::DEFAULT_PRODUCT.to_string()),
+                launch: extract_flag(&mut args, "--launch")
+                    .unwrap_or_else(|| crate::windows::DEFAULT_LAUNCH.to_string()),
+                target: extract_flag(&mut args, "--target")
+                    .unwrap_or_else(|| crate::windows::DEFAULT_TARGET.to_string()),
+                built_at_ms,
+                include: extract_flag_multi(&mut args, "--include"),
+                shortcuts: extract_flag_multi(&mut args, "--shortcut"),
+            };
+            crate::windows::pack(&request).map(|r: CommandResult| r.render(json, "windows.pack"))
+        }
+        "inspect" => {
+            let path = next(&mut args, "windows inspect")?;
+            crate::windows::inspect(Path::new(&path))
+                .map(|r: CommandResult| r.render(json, "windows.inspect"))
+        }
+        "plan" => {
+            let package = next(&mut args, "windows plan")?;
+            let install_root = extract_flag(&mut args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(&mut args, "--user-data-root").map(PathBuf::from);
+            let options = windows_install_options(&mut args);
+            crate::windows::plan(
+                Path::new(&package),
+                install_root.as_deref(),
+                user_data_root.as_deref(),
+                &options,
+            )
+            .map(|r: CommandResult| r.render(json, "windows.plan"))
+        }
+        "verify" => {
+            let install_root = extract_flag(&mut args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(&mut args, "--user-data-root").map(PathBuf::from);
+            let version = extract_flag(&mut args, "--version");
+            crate::windows::verify(
+                install_root.as_deref(),
+                user_data_root.as_deref(),
+                version.as_deref(),
+            )
+            .map(|r: CommandResult| r.render(json, "windows.verify"))
+        }
+        "status" => {
+            let install_root = extract_flag(&mut args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(&mut args, "--user-data-root").map(PathBuf::from);
+            crate::windows::status(install_root.as_deref(), user_data_root.as_deref())
+                .map(|r: CommandResult| r.render(json, "windows.status"))
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `windows` subcommand: {other:?}"
+        ))),
+    }
+}
+
+/// Install choices shared by `windows plan`.
+///
+/// The defaults match `mininet-setup`'s, so a plan printed here describes
+/// what that program would actually do rather than a differently-configured
+/// hypothetical.
+fn windows_install_options(args: &mut Vec<String>) -> mini_windows_setup::InstallOptions {
+    let mut options = mini_windows_setup::InstallOptions::default();
+    if extract_bool_flag(args, "--no-start-menu") {
+        options.start_menu_shortcut = false;
+    }
+    if extract_bool_flag(args, "--desktop-shortcut") {
+        options.desktop_shortcut = true;
+    }
+    if extract_bool_flag(args, "--no-register") {
+        options.register_uninstall = false;
+    }
+    if extract_bool_flag(args, "--allow-downgrade") {
+        options.allow_downgrade = true;
+    }
+    options.start_menu_dir = extract_flag(args, "--start-menu-dir").map(PathBuf::from);
+    options.desktop_dir = extract_flag(args, "--desktop-dir").map(PathBuf::from);
+    options
 }
 
 fn dispatch_installer(

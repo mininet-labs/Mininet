@@ -2702,6 +2702,7 @@ dependencies = [
  "mini-provenance",
  "mini-store",
  "mini-sync",
+ "mini-windows-setup",
  "tempfile",
 ]
 

@@ -57,6 +57,7 @@ mod repo;
 mod sequence;
 pub mod store;
 mod sync;
+mod windows;
 
 pub use cli::run;
 pub use error::{CliError, Result};
