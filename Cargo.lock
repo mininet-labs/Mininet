@@ -3225,6 +3225,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-setup"
+version = "0.0.1"
+dependencies = [
+ "eframe",
+ "mini-windows-setup",
+]
+
+[[package]]
 name = "mini-shielded-verify"
 version = "0.0.1"
 dependencies = [
@@ -3374,6 +3382,14 @@ name = "mini-web-types"
 version = "0.0.1"
 dependencies = [
  "mini-crypto",
+]
+
+[[package]]
+name = "mini-windows-setup"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-forge",
 ]
 
 [[package]]

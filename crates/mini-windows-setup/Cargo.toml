@@ -1,0 +1,24 @@
+[package]
+name = "mini-windows-setup"
+version = "0.0.1"
+description = "Windows package manifest, digest verification, per-user install/activate/rollback/uninstall planning, and Start Menu integration for the Mininet Windows client. No network, no admin rights, no silent update."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+# Hashing only: BLAKE3 for Mininet content addresses, SHA-256 so a Windows
+# user can re-check every file with `Get-FileHash` without running any
+# Mininet binary at all.
+mini-crypto = { path = "../mini-crypto" }
+# `Version` + `check_no_rollback` are reused rather than reimplemented so
+# downgrade semantics live in exactly one place (mini-forge::release).
+#
+# This is a governance-crate edge (mini-forge). Per P1 / Directive 16 this
+# crate must therefore NEVER gain an edge to mini-value, mini-bounty, or
+# mini-treasury, in either direction. It has no value concept at all: it
+# moves files and writes a Start Menu entry.
+mini-forge = { path = "../mini-forge" }
