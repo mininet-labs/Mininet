@@ -460,6 +460,16 @@ impl PackageManifest {
                         reason: "file lines are not sorted by path",
                     });
                 }
+                // Parsing must be canonical, not merely semantically valid.
+                // Otherwise alternate spellings such as zero-padded numbers
+                // could carry a self-consistent digest while re-serializing
+                // to different bytes.
+                if manifest.to_bytes() != bytes {
+                    return Err(SetupError::MalformedManifest {
+                        line: 0,
+                        reason: "manifest is not in canonical encoding",
+                    });
+                }
                 return Ok(manifest);
             } else {
                 return Err(SetupError::MalformedManifest {
@@ -518,6 +528,9 @@ fn parse_shortcut_line(rest: &str, line: usize) -> Result<PackageShortcut, Setup
         .strip_prefix(' ')
         .ok_or(malformed("shortcut target length does not end at a space"))?;
     path::check(target)?;
+    if name == "." || name == ".." || name.contains('/') || name.contains('\\') {
+        return Err(malformed("shortcut name must be one filename component"));
+    }
     check_display("shortcut", name)?;
     Ok(PackageShortcut {
         target: target.to_string(),
