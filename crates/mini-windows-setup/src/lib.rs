@@ -77,7 +77,10 @@ pub mod shell;
 
 pub use container::Container;
 pub use error::SetupError;
-pub use layout::{InstallLayout, InstallRecord, CURRENT_FILE, LOCK_SUFFIX};
+pub use layout::{
+    InstallLayout, InstallRecord, CURRENT_FILE, LOCK_SUFFIX, LOG_FILE, MANIFESTS_DIR,
+    PREVIOUS_FILE, VERSIONS_DIR,
+};
 pub use log::{SetupEvent, SetupLog};
 pub use manifest::{ManifestHeader, PackageFile, PackageManifest, PackageShortcut};
 pub use report::Field;
@@ -689,7 +692,10 @@ impl Setup {
 
         let record = InstallRecord::for_manifest(manifest, now_ms);
         let previous = match plan.active.clone() {
-            Some(active) if compare_version_text(&active.version_text, &manifest.version_text) != Ordering::Equal => {
+            Some(active)
+                if compare_version_text(&active.version_text, &manifest.version_text)
+                    != Ordering::Equal =>
+            {
                 self.layout.set_previous(&active)?;
                 Some(active)
             }

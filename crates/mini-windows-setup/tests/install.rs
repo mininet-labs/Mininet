@@ -784,6 +784,9 @@ fn the_shortcuts_a_manifest_declares_are_the_ones_created() {
     let options = InstallOptions {
         start_menu_dir: Some(base.join("menu")),
         desktop_dir: Some(base.join("desktop")),
+        // This manifest doesn't ship mininet-setup.exe: it's testing that
+        // declared shortcuts are honored, not uninstall registration.
+        register_uninstall: false,
         ..InstallOptions::default()
     };
     let approval = InstallApproval::new(container.manifest(), 1_000);
@@ -855,6 +858,9 @@ fn a_package_for_another_architecture_is_refused() {
     let container = Container::open(&bytes).unwrap();
     let setup = Setup::new(base.join("Programs")).with_user_data_root(base.join("UserData"));
     let mut options = options(&base);
+    // This manifest doesn't ship mininet-setup.exe: it's testing foreign-
+    // architecture refusal, not uninstall registration.
+    options.register_uninstall = false;
     let approval = InstallApproval::new(container.manifest(), 1_000);
     let mut shell = RecordingShell::default();
     let error = setup
