@@ -121,6 +121,10 @@ pub enum SetupError {
     /// Shell integration (Start Menu entry, uninstall registration) is only
     /// available on Windows.
     UnsupportedPlatform,
+    /// A package requested Apps & features registration but does not ship
+    /// an executable that can perform the uninstall.
+    MissingSetupExecutable,
+
     /// Shell integration ran but reported failure.
     ShellIntegrationFailed {
         /// Which step.
@@ -204,6 +208,10 @@ impl core::fmt::Display for SetupError {
                     "Windows shell integration is unavailable on this platform"
                 )
             }
+            Self::MissingSetupExecutable => write!(
+                f,
+                "package does not contain mininet-setup.exe, so Apps & features cannot register a working uninstaller"
+            ),
             Self::ShellIntegrationFailed { step, detail } => {
                 write!(f, "shell integration step {step} failed: {detail}")
             }
@@ -257,6 +265,7 @@ impl SetupError {
             Self::CorruptPointer { .. } => "corrupt_pointer",
             Self::MissingVersionDirectory { .. } => "missing_version_directory",
             Self::UnsupportedPlatform => "unsupported_platform",
+            Self::MissingSetupExecutable => "missing_setup_executable",
             Self::ShellIntegrationFailed { .. } => "shell_integration_failed",
             Self::UnsafeDisplayText { .. } => "unsafe_display_text",
         }
