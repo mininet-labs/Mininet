@@ -10,8 +10,7 @@ use crate::args::Args;
 use crate::payload;
 use mini_windows_setup::container::Container;
 use mini_windows_setup::{
-    report, Field, InstallApproval, NoShell, Setup, ShellIntegration, UninstallApproval,
-    WindowsShell,
+    report, Field, InstallApproval, Setup, ShellIntegration, UninstallApproval,
 };
 
 /// The result of one action.
@@ -76,15 +75,18 @@ pub fn setup_for(args: &Args) -> Setup {
 /// able to run the whole flow on a Linux CI machine is worth more than
 /// refusing to start. Nothing pretends a shortcut was created.
 pub fn shell() -> (Box<dyn ShellIntegration>, Option<&'static str>) {
+    // Each implementation is named by its full path inside its own branch
+    // rather than imported at the top of the file: an import used by only one
+    // `cfg` branch is an unused import on the other platform, which under
+    // `-D warnings` is a build failure that only that platform's CI sees.
     #[cfg(windows)]
     {
-        (Box::new(WindowsShell::default()), None)
+        (Box::new(mini_windows_setup::WindowsShell::default()), None)
     }
     #[cfg(not(windows))]
     {
-        let _ = std::marker::PhantomData::<WindowsShell>;
         (
-            Box::new(NoShell),
+            Box::new(mini_windows_setup::NoShell),
             Some("Shell integration skipped: Start Menu entries and Apps & features registration are Windows-only."),
         )
     }

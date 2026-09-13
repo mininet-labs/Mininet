@@ -239,6 +239,24 @@ jobs:
           # checkout with a synthesized one.
           fetch-depth: 0
 
+      # Catch `cfg(windows)`-only breakage here, in a job that finishes in a
+      # couple of minutes, instead of only on the windows-latest runner.
+      #
+      # This exists because of a real failure: an import used by only the
+      # `#[cfg(not(windows))]` branch of one function is an *unused import* on
+      # Windows, which `-D warnings` turns into a build failure that no Linux
+      # check could see. `cargo clippy --target` needs the target's std but no
+      # linker, so the whole Windows-conditional surface -- the DPAPI vault,
+      # `WindowsShell`, every `cfg` branch -- is type-checked here for the
+      # price of one `rustup target add`.
+      - name: Type-check the Windows-conditional code from Linux
+        run: |
+          set -eu
+          rustup target add x86_64-pc-windows-gnu
+          cargo clippy --target x86_64-pc-windows-gnu --all-targets --all-features \
+            -p mini-windows-vault -p mini-windows-setup -p mini-setup \
+            -p mini-selftest -p mini-desktop -- -D warnings
+
       - name: Build a package and a self-contained installer
         run: packaging/windows/build-release.sh --host --out dist/ci
 
