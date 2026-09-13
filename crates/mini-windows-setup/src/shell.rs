@@ -347,9 +347,16 @@ pub fn powershell_script(actions: &[ShellAction]) -> Result<String, SetupError> 
                 location,
                 link_name,
             } => {
+                // Assigned to a variable first, never inlined as a command
+                // argument. PowerShell parses command arguments in *argument
+                // mode*, where `[Environment]::GetFolderPath('Programs')` is
+                // a literal string rather than a call --- so inlining it made
+                // `Join-Path` fail, and with `$ErrorActionPreference = 'Stop'`
+                // that failed the whole uninstall. Assignment is expression
+                // mode, where the call is evaluated.
+                out.push_str(&format!("$dir = {}\n", location.expression()?));
                 out.push_str(&format!(
-                    "Remove-Item -LiteralPath (Join-Path {} {}) -Force -ErrorAction SilentlyContinue\n",
-                    location.expression()?,
+                    "Remove-Item -LiteralPath (Join-Path $dir {}) -Force -ErrorAction SilentlyContinue\n",
                     ps_literal("shortcut name", link_name)?
                 ));
             }
@@ -468,13 +475,13 @@ mod tests {
         // The apostrophes are doubled, so the hostile text is one string
         // argument and no second statement exists. Exactly one line of the
         // script is a command; the injected text is inside its quotes.
-        assert!(script.contains("'C:\\a''; Remove-Item C:\\Windows -Recurse; '''"));
+        assert!(script.contains("$dir = 'C:\\a''; Remove-Item C:\\Windows -Recurse; '''"));
         let commands: Vec<&str> = script
             .lines()
             .filter(|line| line.starts_with("Remove-Item"))
             .collect();
         assert_eq!(commands.len(), 1);
-        assert!(commands[0].starts_with("Remove-Item -LiteralPath (Join-Path 'C:\\a''"));
+        assert!(commands[0].starts_with("Remove-Item -LiteralPath (Join-Path $dir 'Mininet.lnk')"));
     }
 
     #[test]
@@ -508,6 +515,40 @@ mod tests {
     }
 
     #[test]
+    fn a_known_folder_call_is_never_inlined_as_a_command_argument() {
+        // PowerShell parses command arguments in argument mode, where a
+        // method call is a literal string, not a call. Every generated script
+        // must therefore assign the folder to a variable first. This is a
+        // structural property because there is no PowerShell here to run:
+        // the substring assertions below cannot tell a working script from a
+        // syntactically valid one that does the wrong thing.
+        for action in [
+            ShellAction::CreateShortcut(ShortcutRequest {
+                location: ShortcutLocation::StartMenu,
+                link_name: "Mininet.lnk".to_string(),
+                target: PathBuf::from("C:\\App\\mininet-desktop.exe"),
+                working_dir: PathBuf::from("C:\\App"),
+                description: "Mininet client".to_string(),
+            }),
+            ShellAction::RemoveShortcut {
+                location: ShortcutLocation::Desktop,
+                link_name: "Mininet.lnk".to_string(),
+            },
+        ] {
+            let script = powershell_script(&[action]).unwrap();
+            for line in script.lines() {
+                if !line.contains("[Environment]::GetFolderPath") {
+                    continue;
+                }
+                assert!(
+                    line.starts_with("$dir = [Environment]::GetFolderPath"),
+                    "a known-folder call must be assigned, not inlined: {line}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn known_folders_are_resolved_on_the_machine_not_guessed_here() {
         // A redirected Desktop (OneDrive, enterprise folder redirection) is
         // not %USERPROFILE%\\Desktop, so the script must ask Windows.
@@ -527,7 +568,8 @@ mod tests {
             link_name: "Mininet.lnk".to_string(),
         }])
         .unwrap();
-        assert!(menu.contains("[Environment]::GetFolderPath('Programs')"));
+        assert!(menu.contains("$dir = [Environment]::GetFolderPath('Programs')"));
+        assert!(menu.contains("Remove-Item -LiteralPath (Join-Path $dir 'Mininet.lnk')"));
     }
 
     #[cfg(not(windows))]
