@@ -58,6 +58,18 @@ ignore = [
     # upgrades its `heapless` dependency, or if `frost-core` gains a way to
     # serialize without `postcard`.
     { id = "RUSTSEC-2023-0089", reason = "unmaintained, no safe upgrade available; reachable only through frost-ristretto255's postcard/heapless serialization feature (mini-custody, D-0507)" },
+    # clear_on_drop 0.2.5 <- bulletproofs 5.0.0 <- mini-value (D-0036/D-0040
+    # Bulletproofs range proofs; also reached via mini-bounty,
+    # mini-private-payment, mini-shielded-verify). No safe upgrade exists
+    # (the advisory's own "Solution" field): bulletproofs 5.0.0 is the
+    # version this workspace vendors and pins, and it has not moved off
+    # clear_on_drop for its own internal zeroing. The advisory's suggested
+    # replacement (the `zeroize` crate) is exactly what mini-crypto already
+    # uses at every boundary this workspace controls; clear_on_drop here is
+    # internal to bulletproofs' own implementation, not a call site this
+    # tree makes directly. Revisit when bulletproofs releases a version off
+    # clear_on_drop, or if mini-value's Bulletproofs dependency is replaced.
+    { id = "RUSTSEC-2026-0283", reason = "unmaintained, no safe upgrade available; internal to vendored bulletproofs 5.0.0's own zeroing, not a direct call site (mini-value)" },
 ]
 
 [licenses]
