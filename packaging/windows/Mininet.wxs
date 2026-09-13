@@ -90,6 +90,19 @@
                   Impersonate="yes"
                   Return="check" />
 
+    <!-- If MSI performs a repair/reinstall, re-run the external installer
+         after restoring the two wrapper files. This is deliberately the same
+         setup entry point rather than an MSI-only file copy. -->
+    <CustomAction Id="SetRollbackCommand"
+                  Property="RunMininetRollback"
+                  Value="&quot;[#MininetSetupExe]&quot; --rollback --no-register" />
+    <CustomAction Id="RollbackMininetSetup"
+                  BinaryRef="Wix4UtilCA_X86"
+                  DllEntry="WixQuietExec"
+                  Execute="rollback"
+                  Impersonate="yes"
+                  Return="ignore" />
+
     <!--
       Removal keeps identities. There is deliberately no property for
       destroying them: a deployment tool removing an application must not be
@@ -108,8 +121,10 @@
                   Return="ignore" />
 
     <InstallExecuteSequence>
-      <Custom Action="SetInstallCommand" Before="RunMininetSetup" Condition="NOT Installed" />
-      <Custom Action="RunMininetSetup" After="InstallFiles" Condition="NOT Installed" />
+      <Custom Action="SetInstallCommand" Before="RunMininetSetup" Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="RunMininetSetup" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="SetRollbackCommand" Before="RollbackMininetSetup" Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="RollbackMininetSetup" Before="InstallFinalize" Condition="NOT Installed OR REINSTALL" />
       <!--
         Sequenced before RemoveFiles, so setup.exe still exists when it is
         called. Return="ignore" on the removal action: a client already
