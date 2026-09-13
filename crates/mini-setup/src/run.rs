@@ -399,6 +399,13 @@ pub fn handed_off_uninstall(args: &Args) -> Result<bool> {
 
 /// Remove the installation.
 pub fn uninstall(args: &Args) -> Result<Outcome> {
+    if handed_off_uninstall(args)? {
+        return Ok(Outcome {
+            kind: "setup.uninstall",
+            human: "Removing Mininet from a temporary copy of this program, because the installed copy is inside the folder being deleted.\n".to_string(),
+            fields: vec![("handed_off", mini_windows_setup::Field::Flag(true))],
+        });
+    }
     let setup = setup_for(args);
     let root = setup.layout().root().to_path_buf();
     let approval = if args.destroy_identities {
