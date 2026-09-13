@@ -1,8 +1,8 @@
 {
   "counts": {
     "crates": 83,
-    "files": 1048,
-    "headings": 3734,
+    "files": 1042,
+    "headings": 3716,
     "rust_symbols": 10959
   },
   "crates": {
@@ -84918,16 +84918,16 @@
       "title": "use crate::error::SetupError;"
     },
     {
-      "bytes": 53382,
+      "bytes": 53379,
       "group": "crate:mini-windows-setup",
       "headings": [],
       "keywords": [
         "install",
         "manifest",
         "path",
-        "layout",
         "digest",
         "container",
+        "layout",
         "windows",
         "what",
         "nothing",
@@ -84947,9 +84947,9 @@
         "engine",
         "client"
       ],
-      "lines": 1342,
+      "lines": 1344,
       "path": "crates/mini-windows-setup/src/lib.rs",
-      "sha256": "e938f4e45dcefe3fe6f030f1390448fb83087f5fafc28ad0a2f760e34f2d7da3",
+      "sha256": "11bcdf3429b06c14825a32847f5162b2e2064b7616ecc86e95734c8ab8d46e9c",
       "symbols": [
         {
           "kind": "mod",
@@ -84993,302 +84993,302 @@
         },
         {
           "kind": "const",
-          "line": 95,
+          "line": 97,
           "name": "PRODUCT_KEY"
         },
         {
           "kind": "const",
-          "line": 98,
+          "line": 100,
           "name": "PUBLISHER"
         },
         {
           "kind": "struct",
-          "line": 107,
+          "line": 109,
           "name": "InstallApproval"
         },
         {
           "kind": "impl",
-          "line": 112,
+          "line": 114,
           "name": "InstallApproval"
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 116,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 124,
           "name": "package_digest"
         },
         {
           "kind": "fn",
-          "line": 127,
+          "line": 129,
           "name": "approved_at_ms"
         },
         {
           "kind": "struct",
-          "line": 138,
+          "line": 140,
           "name": "UninstallApproval"
         },
         {
           "kind": "impl",
-          "line": 144,
+          "line": 146,
           "name": "UninstallApproval"
         },
         {
           "kind": "fn",
-          "line": 149,
+          "line": 151,
           "name": "keeping_identities"
         },
         {
           "kind": "fn",
-          "line": 164,
+          "line": 166,
           "name": "destroying_identities"
         },
         {
           "kind": "fn",
-          "line": 177,
+          "line": 179,
           "name": "install_root"
         },
         {
           "kind": "fn",
-          "line": 182,
+          "line": 184,
           "name": "destroy_user_data"
         },
         {
           "kind": "fn",
-          "line": 187,
+          "line": 189,
           "name": "approved_at_ms"
         },
         {
           "kind": "enum",
-          "line": 194,
+          "line": 196,
           "name": "PlanKind"
         },
         {
           "kind": "impl",
-          "line": 206,
+          "line": 208,
           "name": "PlanKind"
         },
         {
           "kind": "fn",
-          "line": 208,
+          "line": 210,
           "name": "as_str"
         },
         {
           "kind": "struct",
-          "line": 220,
+          "line": 222,
           "name": "PlannedFile"
         },
         {
           "kind": "struct",
-          "line": 231,
+          "line": 233,
           "name": "InstallOptions"
         },
         {
           "kind": "impl",
-          "line": 259,
+          "line": 261,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 260,
+          "line": 262,
           "name": "default"
         },
         {
           "kind": "struct",
-          "line": 276,
+          "line": 278,
           "name": "InstallPlan"
         },
         {
           "kind": "struct",
-          "line": 307,
+          "line": 309,
           "name": "InstallReport"
         },
         {
           "kind": "enum",
-          "line": 324,
+          "line": 326,
           "name": "VerifyProblem"
         },
         {
           "kind": "struct",
-          "line": 364,
+          "line": 366,
           "name": "VerifyReport"
         },
         {
           "kind": "impl",
-          "line": 375,
+          "line": 377,
           "name": "VerifyReport"
         },
         {
           "kind": "fn",
-          "line": 377,
+          "line": 379,
           "name": "is_intact"
         },
         {
           "kind": "struct",
-          "line": 384,
+          "line": 386,
           "name": "SetupStatus"
         },
         {
           "kind": "struct",
-          "line": 404,
+          "line": 406,
           "name": "UninstallReport"
         },
         {
           "kind": "struct",
-          "line": 419,
+          "line": 421,
           "name": "Setup"
         },
         {
           "kind": "impl",
-          "line": 424,
+          "line": 426,
           "name": "Setup"
         },
         {
           "kind": "fn",
-          "line": 426,
+          "line": 428,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 434,
+          "line": 436,
           "name": "for_current_user"
         },
         {
           "kind": "fn",
-          "line": 446,
+          "line": 448,
           "name": "containing"
         },
         {
           "kind": "fn",
-          "line": 461,
+          "line": 463,
           "name": "with_user_data_root"
         },
         {
           "kind": "fn",
-          "line": 467,
+          "line": 469,
           "name": "layout"
         },
         {
           "kind": "fn",
-          "line": 472,
+          "line": 474,
           "name": "user_data_root"
         },
         {
           "kind": "fn",
-          "line": 488,
+          "line": 490,
           "name": "check_roots_are_disjoint"
         },
         {
           "kind": "fn",
-          "line": 515,
+          "line": 517,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 529,
+          "line": 531,
           "name": "plan"
         },
         {
           "kind": "fn",
-          "line": 595,
+          "line": 597,
           "name": "install"
         },
         {
           "kind": "fn",
-          "line": 733,
+          "line": 735,
           "name": "stage_files"
         },
         {
           "kind": "fn",
-          "line": 769,
+          "line": 771,
           "name": "verify_installed"
         },
         {
           "kind": "fn",
-          "line": 842,
+          "line": 844,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 871,
+          "line": 873,
           "name": "rollback"
         },
         {
           "kind": "fn",
-          "line": 936,
+          "line": 938,
           "name": "uninstall"
         },
         {
           "kind": "fn",
-          "line": 1046,
+          "line": 1048,
           "name": "start_menu_location"
         },
         {
           "kind": "fn",
-          "line": 1054,
+          "line": 1056,
           "name": "desktop_location"
         },
         {
           "kind": "fn",
-          "line": 1069,
+          "line": 1071,
           "name": "requested_shortcuts"
         },
         {
           "kind": "fn",
-          "line": 1090,
+          "line": 1092,
           "name": "shell_plan"
         },
         {
           "kind": "fn",
-          "line": 1168,
+          "line": 1170,
           "name": "set_executable_bits"
         },
         {
           "kind": "fn",
-          "line": 1186,
+          "line": 1188,
           "name": "set_executable_bits"
         },
         {
           "kind": "fn",
-          "line": 1197,
+          "line": 1199,
           "name": "check_target_is_runnable"
         },
         {
           "kind": "fn",
-          "line": 1222,
+          "line": 1224,
           "name": "uninstall_command"
         },
         {
           "kind": "fn",
-          "line": 1250,
+          "line": 1252,
           "name": "absolute_normalized"
         },
         {
           "kind": "fn",
-          "line": 1265,
+          "line": 1267,
           "name": "compare_version_text"
         },
         {
           "kind": "fn",
-          "line": 1266,
+          "line": 1268,
           "name": "key"
         },
         {
           "kind": "fn",
-          "line": 1279,
+          "line": 1281,
           "name": "remove_managed_root_contents"
         },
         {
           "kind": "fn",
-          "line": 1304,
+          "line": 1306,
           "name": "absolute"
         },
         {
           "kind": "fn",
-          "line": 1315,
+          "line": 1317,
           "name": "walk_relative"
         }
       ],
@@ -86941,7 +86941,7 @@
       "title": "use std::collections::HashMap;"
     },
     {
-      "bytes": 5864,
+      "bytes": 6852,
       "group": "root",
       "headings": [
         {
@@ -87011,72 +87011,72 @@
         },
         {
           "level": 1,
-          "line": 65,
+          "line": 77,
           "text": "Every license actually in use across this workspace's dependency graph"
         },
         {
           "level": 1,
-          "line": 66,
+          "line": 78,
           "text": "at the time of writing (mini-crypto/did-mini's curve25519-dalek stack,"
         },
         {
           "level": 1,
-          "line": 67,
+          "line": 79,
           "text": "mini-value's Bulletproofs machinery, and now Wasmtime's own tree via"
         },
         {
           "level": 1,
-          "line": 68,
+          "line": 80,
           "text": "mini-build-runner-wasmtime). CC0-1.0 is this workspace's own license"
         },
         {
           "level": 1,
-          "line": 69,
+          "line": 81,
           "text": "(see root Cargo.toml `[workspace.package]`)."
         },
         {
           "level": 1,
-          "line": 99,
+          "line": 111,
           "text": "`deny` would also flag every intra-workspace `path = \"../other-crate\"`"
         },
         {
           "level": 1,
-          "line": 100,
+          "line": 112,
           "text": "dependency in this repo, because a path dependency with no `version`"
         },
         {
           "level": 1,
-          "line": 101,
+          "line": 113,
           "text": "requirement is indistinguishable from a real `*` wildcard to cargo-deny"
         },
         {
           "level": 1,
-          "line": 102,
+          "line": 114,
           "text": "-- and every one of this workspace's ~45 crates depends on several"
         },
         {
           "level": 1,
-          "line": 103,
+          "line": 115,
           "text": "others that way. That is not the risk `wildcards` exists to catch (an"
         },
         {
           "level": 1,
-          "line": 104,
+          "line": 116,
           "text": "external crate resolvable to any past-or-future registry version); a"
         },
         {
           "level": 1,
-          "line": 105,
+          "line": 117,
           "text": "path dependency always resolves to the exact source at this exact git"
         },
         {
           "level": 1,
-          "line": 106,
+          "line": 118,
           "text": "commit. Genuine external wildcard requirements (a real supply-chain"
         },
         {
           "level": 1,
-          "line": 107,
+          "line": 119,
           "text": "risk) still surface here as warnings and should be caught in review."
         }
       ],
@@ -87084,31 +87084,31 @@
         "workspace",
         "dependency",
         "own",
-        "cargo-deny",
-        "graph",
-        "license",
-        "cargo",
-        "tree",
         "advisory",
-        "real",
-        "every",
+        "bulletproofs",
+        "cargo-deny",
+        "tree",
+        "graph",
         "version",
+        "cargo",
+        "every",
+        "upgrade",
+        "its",
+        "real",
+        "safe",
         "heapless",
         "postcard",
-        "font",
-        "its",
+        "license",
+        "available",
         "now",
         "stack",
+        "mini-value",
         "path",
-        "upgrade",
-        "mini-desktop",
-        "deny",
-        "mini-build-runner-wasmtime",
-        "wasmtime"
+        "deny"
       ],
-      "lines": 115,
+      "lines": 127,
       "path": "deny.toml",
-      "sha256": "e621576d9ca8b440537c3c10b9399a5bc542ca57124d6527371d641e0f0ccec0",
+      "sha256": "506411a63426119aacc57cd61f30d764fb2927a7eb3e0d2724bc3b43432f0b63",
       "symbols": [],
       "title": "cargo-deny configuration (D-0069 dependency-governance requirement for"
     },
@@ -88985,300 +88985,6 @@
       "sha256": "6d1b2025526924d19d8ed39b004e5be865fea4810eaab0f9fd52d76bb1f70cf8",
       "symbols": [],
       "title": "Mininet Node Appliance \u2014 verification script."
-    },
-    {
-      "bytes": 348,
-      "group": "root",
-      "headings": [],
-      "keywords": [
-        "x86_64-pc-windows-msvc",
-        "txt",
-        "mininet-client-0",
-        "dist",
-        "verify",
-        "sha256sums",
-        "manifest",
-        "mnpkg",
-        "mininet-setup-0"
-      ],
-      "lines": 4,
-      "path": "dist/verify/SHA256SUMS.txt",
-      "sha256": "086177c2a7d131a5a7a5477d710e37920a8011fa9caec80821df4d8ef75e4824",
-      "symbols": [],
-      "title": "dd82bc0f378f9dd4163b5edcf303cf14afb96fa0807896178c1d4cf7004a1a01  mininet-client-0.0.1-x86_64-pc-windows-msvc.manifest.t"
-    },
-    {
-      "bytes": 1532,
-      "group": "root",
-      "headings": [],
-      "keywords": [
-        "file",
-        "exe",
-        "txt",
-        "mininet-desktop",
-        "x86_64-pc-windows-msvc",
-        "dist",
-        "verify",
-        "mininet-client-0",
-        "manifest",
-        "mnwinpkg1",
-        "package",
-        "mininet-windows-client",
-        "version",
-        "target",
-        "product",
-        "launch",
-        "built",
-        "client",
-        "install",
-        "license",
-        "security",
-        "mininet-setup",
-        "mininet-value-selftest",
-        "shortcut"
-      ],
-      "lines": 18,
-      "path": "dist/verify/mininet-client-0.0.1-x86_64-pc-windows-msvc.manifest.txt",
-      "sha256": "dd82bc0f378f9dd4163b5edcf303cf14afb96fa0807896178c1d4cf7004a1a01",
-      "symbols": [],
-      "title": "MNWINPKG1"
-    },
-    {
-      "bytes": 9804,
-      "group": "root",
-      "headings": [
-        {
-          "level": 1,
-          "line": 1,
-          "text": "mini-desktop"
-        }
-      ],
-      "keywords": [
-        "signed",
-        "bob",
-        "profile",
-        "alice",
-        "nearby",
-        "public",
-        "local",
-        "window",
-        "identity",
-        "did",
-        "objects",
-        "client",
-        "localappdata",
-        "profiles",
-        "people",
-        "same",
-        "sync",
-        "follow",
-        "mini-desktop",
-        "run",
-        "each",
-        "its",
-        "vault",
-        "friend"
-      ],
-      "lines": 171,
-      "path": "dist/verify/stage/docs/CLIENT.txt",
-      "sha256": "93e4e0d0ced1a388d7ef7e409d708b97c6682c59a42167b8cf573ac2c88f1b10",
-      "symbols": [],
-      "title": "mini-desktop"
-    },
-    {
-      "bytes": 5733,
-      "group": "root",
-      "headings": [
-        {
-          "level": 1,
-          "line": 1,
-          "text": "Installing the Mininet Windows client"
-        },
-        {
-          "level": 2,
-          "line": 6,
-          "text": "What you get"
-        },
-        {
-          "level": 2,
-          "line": 18,
-          "text": "What it does, and what it will not do"
-        },
-        {
-          "level": 2,
-          "line": 35,
-          "text": "Windows will warn you, and it is right to"
-        },
-        {
-          "level": 2,
-          "line": 59,
-          "text": "Your data is not in the install directory"
-        },
-        {
-          "level": 2,
-          "line": 72,
-          "text": "Updating"
-        },
-        {
-          "level": 2,
-          "line": 87,
-          "text": "If something looks wrong"
-        },
-        {
-          "level": 2,
-          "line": 106,
-          "text": "Deploying it to many machines"
-        },
-        {
-          "level": 2,
-          "line": 123,
-          "text": "Removing it"
-        },
-        {
-          "level": 2,
-          "line": 132,
-          "text": "Known limits"
-        }
-      ],
-      "keywords": [
-        "you",
-        "what",
-        "file",
-        "install",
-        "windows",
-        "client",
-        "exe",
-        "mininet-setup",
-        "every",
-        "manifest",
-        "does",
-        "your",
-        "version",
-        "localappdata",
-        "installing",
-        "powershell",
-        "programs",
-        "setup",
-        "program",
-        "bytes",
-        "package",
-        "back",
-        "cannot",
-        "msi"
-      ],
-      "lines": 140,
-      "path": "dist/verify/stage/docs/INSTALL.txt",
-      "sha256": "43bfc1cc7627774c69583663a4655ac270e54b3e0d50fb70b86a5a9b762611a8",
-      "symbols": [],
-      "title": "Installing the Mininet Windows client"
-    },
-    {
-      "bytes": 7067,
-      "group": "root",
-      "headings": [],
-      "keywords": [
-        "rights",
-        "work",
-        "copyright",
-        "related",
-        "affirmer",
-        "commons",
-        "waiver",
-        "creative",
-        "legal",
-        "cc0",
-        "law",
-        "works",
-        "purpose",
-        "including",
-        "each",
-        "public",
-        "other",
-        "purposes",
-        "extent",
-        "applicable",
-        "license",
-        "document",
-        "information",
-        "provided"
-      ],
-      "lines": 123,
-      "path": "dist/verify/stage/docs/LICENSE.txt",
-      "sha256": "6dffdee67108c86c96cb2b4aa6bdc45c0b1c8d4807385c8490d7cc0496f71cba",
-      "symbols": [],
-      "title": "Creative Commons Legal Code"
-    },
-    {
-      "bytes": 7430,
-      "group": "root",
-      "headings": [
-        {
-          "level": 1,
-          "line": 1,
-          "text": "Windows client security boundary"
-        },
-        {
-          "level": 2,
-          "line": 7,
-          "text": "Defaults enforced by the shell"
-        },
-        {
-          "level": 2,
-          "line": 24,
-          "text": "Censorship and blocking resilience"
-        },
-        {
-          "level": 2,
-          "line": 55,
-          "text": "Keylogger and endpoint boundary"
-        },
-        {
-          "level": 2,
-          "line": 69,
-          "text": "Release and supply-chain requirements"
-        },
-        {
-          "level": 3,
-          "line": 77,
-          "text": "What packaging now provides (D-0520)"
-        },
-        {
-          "level": 3,
-          "line": 101,
-          "text": "What it does not provide yet"
-        }
-      ],
-      "keywords": [
-        "windows",
-        "client",
-        "local",
-        "security",
-        "boundary",
-        "keylogger",
-        "endpoint",
-        "release",
-        "what",
-        "user",
-        "each",
-        "explicit",
-        "identity",
-        "signing",
-        "encrypted",
-        "shell",
-        "censorship",
-        "packaging",
-        "make",
-        "network",
-        "update",
-        "cannot",
-        "window",
-        "sync"
-      ],
-      "lines": 133,
-      "path": "dist/verify/stage/docs/SECURITY.txt",
-      "sha256": "a23a889bb130ab0819c043132a8d6c480c41764827aef6871d26a9e6840844e9",
-      "symbols": [],
-      "title": "Windows client security boundary"
     },
     {
       "bytes": 8363,
@@ -112421,12 +112127,6 @@
     "deploy/packages.lock",
     "deploy/verification/lock-packages.sh",
     "deploy/verification/verify.sh",
-    "dist/verify/SHA256SUMS.txt",
-    "dist/verify/mininet-client-0.0.1-x86_64-pc-windows-msvc.manifest.txt",
-    "dist/verify/stage/docs/CLIENT.txt",
-    "dist/verify/stage/docs/INSTALL.txt",
-    "dist/verify/stage/docs/LICENSE.txt",
-    "dist/verify/stage/docs/SECURITY.txt",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
     "forge-native/examples/working-group-charter.example.json",

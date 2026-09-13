@@ -77,7 +77,10 @@ pub mod shell;
 
 pub use container::Container;
 pub use error::SetupError;
-pub use layout::{InstallLayout, InstallRecord, CURRENT_FILE, LOCK_SUFFIX};
+pub use layout::{
+    InstallLayout, InstallRecord, CURRENT_FILE, LOCK_SUFFIX, LOG_FILE, MANIFESTS_DIR,
+    PREVIOUS_FILE, VERSIONS_DIR,
+};
 pub use log::{SetupEvent, SetupLog};
 pub use manifest::{ManifestHeader, PackageFile, PackageManifest, PackageShortcut};
 pub use report::Field;
@@ -86,7 +89,6 @@ pub use shell::{
     WindowsShell,
 };
 
-use layout::{LOG_FILE, MANIFESTS_DIR, PREVIOUS_FILE, VERSIONS_DIR};
 use mini_forge::check_no_rollback;
 use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
