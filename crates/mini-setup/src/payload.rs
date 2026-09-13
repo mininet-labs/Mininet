@@ -89,6 +89,16 @@ pub fn sidecar_candidates() -> Vec<PathBuf> {
 }
 
 fn read(path: &Path) -> Result<Payload, String> {
+    let length = std::fs::metadata(path)
+        .map_err(|error| error.to_string())?
+        .len();
+    if length > mini_windows_setup::container::MAX_CONTAINER_BYTES {
+        return Err(format!(
+            "payload is {} bytes, larger than the {}-byte container limit",
+            length,
+            mini_windows_setup::container::MAX_CONTAINER_BYTES
+        ));
+    }
     let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
     Ok(Payload {
         bytes: Cow::Owned(bytes),
