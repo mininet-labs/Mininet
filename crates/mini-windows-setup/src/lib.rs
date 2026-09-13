@@ -87,7 +87,8 @@ pub use shell::{
 };
 
 use mini_forge::check_no_rollback;
-use std::path::{Path, PathBuf};
+use std::cmp::Ordering;
+use std::path::{Component, Path, PathBuf};
 
 /// Registry key leaf and shortcut base name for the client.
 pub const PRODUCT_KEY: &str = "Mininet";
@@ -484,8 +485,8 @@ impl Setup {
     /// component-wise, so it does not mistake `.../Mininet2` for a child of
     /// `.../Mininet` the way a string prefix test would.
     fn check_roots_are_disjoint(&self) -> Result<(), SetupError> {
-        let install = absolute(self.layout.root());
-        let data = absolute(&self.user_data_root);
+        let install = absolute_normalized(self.layout.root());
+        let data = absolute_normalized(&self.user_data_root);
         if install == data || data.starts_with(&install) {
             return Err(SetupError::OverlappingRoots {
                 install_root: install.display().to_string(),
@@ -532,8 +533,18 @@ impl Setup {
         let active = self.layout.current()?;
         let kind = match &active {
             None => PlanKind::FirstInstall,
-            Some(record) if record.version == manifest.version => PlanKind::Reinstall,
-            Some(record) if manifest.version > record.version => PlanKind::Upgrade,
+            Some(record)
+                if compare_version_text(&record.version_text, &manifest.version_text)
+                    == Ordering::Equal =>
+            {
+                PlanKind::Reinstall
+            }
+            Some(record)
+                if compare_version_text(&manifest.version_text, &record.version_text)
+                    == Ordering::Greater =>
+            {
+                PlanKind::Upgrade
+            }
             Some(_) => PlanKind::Downgrade,
         };
         let version_dir = self.layout.version_dir(&manifest.version_text);
@@ -673,16 +684,12 @@ impl Setup {
             let _ = std::fs::remove_dir_all(&staging);
             return Err(SetupError::io(&final_dir, error));
         }
-        if let Some(aside) = displaced {
-            let _ = std::fs::remove_dir_all(aside);
-        }
-
         let manifest_path = self.layout.manifest_path(&manifest.version_text);
         layout::write_atomic(&manifest_path, &manifest.to_bytes())?;
 
         let record = InstallRecord::for_manifest(manifest, now_ms);
         let previous = match plan.active.clone() {
-            Some(active) if active.version != manifest.version => {
+            Some(active) if compare_version_text(&active.version_text, &manifest.version_text) != Ordering::Equal => {
                 self.layout.set_previous(&active)?;
                 Some(active)
             }
@@ -700,6 +707,9 @@ impl Setup {
             package_digest: offered,
             at_ms: now_ms,
         })?;
+        if let Some(aside) = displaced {
+            std::fs::remove_dir_all(&aside).map_err(|error| SetupError::io(&aside, error))?;
+        }
 
         Ok(InstallReport {
             active: record,
@@ -873,6 +883,12 @@ impl Setup {
             });
         }
         let report = self.verify_installed(&previous.version_text)?;
+        let previous_manifest = self.layout.stored_manifest(&previous.version_text)?;
+        if previous_manifest.digest_hex() != previous.package_digest {
+            return Err(SetupError::DigestMismatch {
+                path: previous.version_text.clone(),
+            });
+        }
         if !report.is_intact() {
             return Err(SetupError::DigestMismatch {
                 path: match report.problems.first() {
@@ -979,9 +995,7 @@ impl Setup {
 
         let log_bytes = std::fs::read(self.layout.log_path()).ok();
         let root = self.layout.root();
-        if root.exists() {
-            std::fs::remove_dir_all(root).map_err(|error| SetupError::io(root, error))?;
-        }
+        remove_managed_root_contents(root)?;
 
         let mut user_data_kept = None;
         let mut user_data_destroyed = None;
@@ -1105,14 +1119,15 @@ impl Setup {
             // Prefer a setup executable the package itself ships, so
             // "Uninstall" in Apps & features runs the same code that
             // installed, at the same version.
-            let setup_exe = options.setup_exe.clone().unwrap_or_else(|| {
-                manifest
+            let setup_exe = match options.setup_exe.clone() {
+                Some(path) => path,
+                None => manifest
                     .files
                     .iter()
-                    .find(|file| path::fold_case(&file.path).ends_with("mininet-setup.exe"))
+                    .find(|file| path::fold_case(&file.path) == "mininet-setup.exe")
                     .and_then(|file| path::join(version_dir, &file.path).ok())
-                    .unwrap_or_else(|| version_dir.join("mininet-setup.exe"))
-            });
+                    .ok_or(SetupError::MissingSetupExecutable)?,
+            };
             actions.push(ShellAction::RegisterUninstall(UninstallRegistration {
                 key_name: PRODUCT_KEY.to_string(),
                 display_name: manifest.product.clone(),
@@ -1228,6 +1243,60 @@ fn uninstall_command(
 ///
 /// `std::fs::canonicalize` is deliberately not used: it requires the path to
 /// exist, and these roots are routinely compared before either is created.
+fn absolute_normalized(path: &Path) -> PathBuf {
+    let absolute = absolute(path);
+    let mut normalized = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            other => normalized.push(other.as_os_str()),
+        }
+    }
+    normalized
+}
+
+fn compare_version_text(a: &str, b: &str) -> Ordering {
+    fn key(text: &str) -> Vec<u64> {
+        let mut parts: Vec<u64> = text
+            .split('.')
+            .map(|part| part.parse::<u64>().unwrap_or(0))
+            .collect();
+        while parts.last() == Some(&0) {
+            parts.pop();
+        }
+        parts
+    }
+    key(a).cmp(&key(b))
+}
+
+fn remove_managed_root_contents(root: &Path) -> Result<(), SetupError> {
+    if !root.exists() {
+        return Ok(());
+    }
+    for name in [
+        VERSIONS_DIR,
+        MANIFESTS_DIR,
+        CURRENT_FILE,
+        PREVIOUS_FILE,
+        LOG_FILE,
+    ] {
+        let path = root.join(name);
+        if path.is_dir() {
+            std::fs::remove_dir_all(&path).map_err(|error| SetupError::io(&path, error))?;
+        } else if path.exists() {
+            std::fs::remove_file(&path).map_err(|error| SetupError::io(&path, error))?;
+        }
+    }
+    let mut entries = std::fs::read_dir(root).map_err(|error| SetupError::io(root, error))?;
+    if entries.next().is_none() {
+        std::fs::remove_dir(root).map_err(|error| SetupError::io(root, error))?;
+    }
+    Ok(())
+}
+
 fn absolute(path: &Path) -> PathBuf {
     if path.is_absolute() {
         return path.to_path_buf();
