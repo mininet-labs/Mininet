@@ -189,7 +189,9 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
     ),
     (
         "mini-update",
-        Coverage::Transitive { via: "install: the release-verification gates it wraps are what the install checks act on" },
+        Coverage::Gap {
+            reason: "this crate has no dependency edge on mini-update at all, transitive or otherwise; sharing mini-forge's rollback logic with the install checks does not exercise mini-update's own AdoptionState/FreshnessPolicy/ProvenancePolicy code",
+        },
     ),
     (
         "mini-chain",
@@ -393,7 +395,9 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
     ),
     (
         "mini-windows-vault",
-        Coverage::Exercised { area: "identity" },
+        Coverage::Gap {
+            reason: "this crate has no dependency on mini-windows-vault at all; no diagnostic protects or reads back a seed envelope through its DPAPI boundary",
+        },
     ),
     (
         "mini-extract-protocol",

@@ -798,6 +798,7 @@ fn dispatch_windows_noun(noun: &str, args: &mut Vec<String>, json: bool) -> Resu
                 install_root.as_deref(),
                 user_data_root.as_deref(),
                 version.as_deref(),
+                json,
             )
             .map(|r: CommandResult| r.render(json, "windows.verify"))
         }

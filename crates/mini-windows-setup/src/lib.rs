@@ -1021,7 +1021,7 @@ impl Setup {
 
         let log_bytes = std::fs::read(self.layout.log_path()).ok();
         let root = self.layout.root();
-        remove_managed_root_contents(root)?;
+        remove_managed_root_contents(&self.layout)?;
 
         let mut user_data_kept = None;
         let mut user_data_destroyed = None;
@@ -1255,6 +1255,17 @@ fn set_executable_bits(_dir: &Path, _manifest: &PackageManifest) -> Result<(), S
 /// Linux. What matters at install time is whether the binaries can execute
 /// here at all.
 fn check_target_is_runnable(target: &str, options: &InstallOptions) -> Result<(), SetupError> {
+    // Whether *this* process can only ever execute real Windows binaries is
+    // `cfg!(windows)`, pulled out to a plain argument so the check below is
+    // exercised by a test on any host, not only a real Windows machine.
+    check_target_is_runnable_for_host(target, options, cfg!(windows))
+}
+
+fn check_target_is_runnable_for_host(
+    target: &str,
+    options: &InstallOptions,
+    host_only_runs_windows_binaries: bool,
+) -> Result<(), SetupError> {
     if options.allow_foreign_target {
         return Ok(());
     }
@@ -1265,13 +1276,27 @@ fn check_target_is_runnable(target: &str, options: &InstallOptions) -> Result<()
     let runnable = package_arch == host_arch
         || (host_arch == "x86_64" && package_arch == "i686")
         || (host_arch == "aarch64" && matches!(package_arch, "x86_64" | "i686"));
-    if runnable {
-        return Ok(());
+    if !runnable {
+        return Err(SetupError::ForeignTarget {
+            package_target: target.to_string(),
+            host_arch: host_arch.to_string(),
+        });
     }
-    Err(SetupError::ForeignTarget {
-        package_target: target.to_string(),
-        host_arch: host_arch.to_string(),
-    })
+    // Architecture alone does not prove the binaries can run here: a
+    // manifest declaring `x86_64-unknown-linux-gnu` matches an x86_64
+    // Windows host on architecture, but names ELF binaries Windows cannot
+    // execute at all. Checked only when this process can only run real
+    // Windows binaries -- the packaging scripts legitimately exercise a
+    // `-pc-windows-*` target's install logic from a non-Windows host (this
+    // crate's own test suite, `allow_foreign_target` aside), and that
+    // cross-platform testability must not regress.
+    if host_only_runs_windows_binaries && !target.contains("windows") {
+        return Err(SetupError::ForeignTarget {
+            package_target: target.to_string(),
+            host_arch: host_arch.to_string(),
+        });
+    }
+    Ok(())
 }
 
 /// The command Apps & features runs to remove this installation.
@@ -1344,21 +1369,49 @@ fn compare_version_text(a: &str, b: &str) -> Ordering {
     key(a).cmp(&key(b))
 }
 
-fn remove_managed_root_contents(root: &Path) -> Result<(), SetupError> {
+fn remove_managed_root_contents(layout: &InstallLayout) -> Result<(), SetupError> {
+    let root = layout.root();
     if !root.exists() {
         return Ok(());
     }
-    for name in [
-        VERSIONS_DIR,
-        MANIFESTS_DIR,
-        CURRENT_FILE,
-        PREVIOUS_FILE,
-        LOG_FILE,
-    ] {
+    // Only the exact per-version entries this installer itself recorded are
+    // removed -- `versions/<version>` and `manifests/<version>.txt` for each
+    // `version` in `installed_versions()`, never the `versions`/`manifests`
+    // directories wholesale. A custom or shared install root can already
+    // contain an unrelated directory that happens to be named `versions` or
+    // `manifests`; nothing about that name proves this installer owns it,
+    // only the specific version entries recorded inside it are provably
+    // this installer's to remove.
+    for version in layout.installed_versions()? {
+        let version_dir = layout.version_dir(&version);
+        if version_dir.is_dir() {
+            std::fs::remove_dir_all(&version_dir)
+                .map_err(|error| SetupError::io(&version_dir, error))?;
+        }
+        let manifest_path = layout.manifest_path(&version);
+        if manifest_path.is_file() {
+            std::fs::remove_file(&manifest_path)
+                .map_err(|error| SetupError::io(&manifest_path, error))?;
+        }
+    }
+    // The two directories themselves are removed only if that left them
+    // empty: a file or directory the loop above did not recognize as one of
+    // this installer's own versions means this installer does not own the
+    // whole directory, so it is left in place rather than swept away with
+    // it.
+    for name in [VERSIONS_DIR, MANIFESTS_DIR] {
         let path = root.join(name);
         if path.is_dir() {
-            std::fs::remove_dir_all(&path).map_err(|error| SetupError::io(&path, error))?;
-        } else if path.exists() {
+            let mut entries =
+                std::fs::read_dir(&path).map_err(|error| SetupError::io(&path, error))?;
+            if entries.next().is_none() {
+                std::fs::remove_dir(&path).map_err(|error| SetupError::io(&path, error))?;
+            }
+        }
+    }
+    for name in [CURRENT_FILE, PREVIOUS_FILE, LOG_FILE] {
+        let path = root.join(name);
+        if path.is_file() {
             std::fs::remove_file(&path).map_err(|error| SetupError::io(&path, error))?;
         }
     }
@@ -1474,5 +1527,55 @@ mod tests {
         assert!(install_root.is_absolute());
         assert!(command.contains(install_root.to_str().unwrap()));
         assert!(command.contains(user_data_root.to_str().unwrap()));
+    }
+
+    #[test]
+    fn a_host_that_only_runs_windows_binaries_refuses_a_package_targeting_another_os() {
+        // Regression: architecture alone does not describe an operating
+        // system. `x86_64-unknown-linux-gnu` matches an x86_64 Windows
+        // host's architecture, but names ELF binaries that host cannot
+        // execute at all -- a manifest that passed this check would then be
+        // reported as a successful install of binaries that cannot run.
+        let error = check_target_is_runnable_for_host(
+            "x86_64-unknown-linux-gnu",
+            &InstallOptions::default(),
+            true,
+        )
+        .unwrap_err();
+        assert_eq!(error.code(), "foreign_target");
+    }
+
+    #[test]
+    fn a_windows_targeted_package_is_still_runnable_on_a_windows_only_host() {
+        check_target_is_runnable_for_host(
+            "x86_64-pc-windows-msvc",
+            &InstallOptions::default(),
+            true,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn the_os_check_does_not_apply_on_a_host_that_can_run_more_than_windows_binaries() {
+        // The packaging scripts legitimately exercise a `-pc-windows-*`
+        // target's install logic from a non-Windows host, and this crate's
+        // own test suite depends on exactly that: a foreign OS is refused
+        // only when this process itself can run nothing but real Windows
+        // binaries.
+        check_target_is_runnable_for_host(
+            "x86_64-unknown-linux-gnu",
+            &InstallOptions::default(),
+            false,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn allow_foreign_target_still_overrides_the_os_check() {
+        let options = InstallOptions {
+            allow_foreign_target: true,
+            ..InstallOptions::default()
+        };
+        check_target_is_runnable_for_host("x86_64-unknown-linux-gnu", &options, true).unwrap();
     }
 }

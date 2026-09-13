@@ -243,23 +243,20 @@ impl PackageManifest {
         for shortcut in &shortcuts {
             path::check(&shortcut.target)?;
             check_display("shortcut", &shortcut.name)?;
-            // The same "one filename component" rule `parse_shortcut_line`
-            // enforces on the way back in, checked here on the way out too:
-            // without it, `mini windows pack` could write a manifest naming
-            // "../Startup/x" or containing a path separator, which its own
-            // digest and length-prefix framing round-trip perfectly fine but
-            // which the reader (this same rule, on the parse side) then
-            // refuses -- a pack command reporting success for a package
-            // nothing can install.
-            if shortcut.name == "."
-                || shortcut.name == ".."
-                || shortcut.name.contains('/')
-                || shortcut.name.contains('\\')
+            // The same Windows-filename rule `parse_shortcut_line` enforces
+            // on the way back in, checked here on the way out too: without
+            // it, `mini windows pack` could write a manifest naming
+            // "../Startup/x", a reserved DOS device name like "CON", or a
+            // name containing a character Windows forbids in a file name
+            // (":", "*", ...) -- all of which round-trip through this
+            // format's own digest and length-prefix framing perfectly fine,
+            // but which the reader (this same rule, on the parse side) then
+            // refuses, or which PowerShell fails to turn into a real `.lnk`
+            // only after the install has already activated.
+            if let Err(SetupError::UnsafePath { reason, .. }) =
+                path::check_component(&shortcut.name)
             {
-                return Err(SetupError::MalformedManifest {
-                    line: 0,
-                    reason: "shortcut name must be one filename component",
-                });
+                return Err(SetupError::MalformedManifest { line: 0, reason });
             }
             if !seen.contains(&path::fold_case(&shortcut.target)) {
                 return Err(SetupError::MalformedManifest {
@@ -564,8 +561,8 @@ fn parse_shortcut_line(rest: &str, line: usize) -> Result<PackageShortcut, Setup
         .strip_prefix(' ')
         .ok_or(malformed("shortcut target length does not end at a space"))?;
     path::check(target)?;
-    if name == "." || name == ".." || name.contains('/') || name.contains('\\') {
-        return Err(malformed("shortcut name must be one filename component"));
+    if let Err(SetupError::UnsafePath { reason, .. }) = path::check_component(name) {
+        return Err(malformed(reason));
     }
     check_display("shortcut", name)?;
     Ok(PackageShortcut {

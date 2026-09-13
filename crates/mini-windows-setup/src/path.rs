@@ -101,29 +101,62 @@ pub fn check(path: &str) -> Result<&str, SetupError> {
         return reject("more path components than the package limit");
     }
     for component in components {
-        if component.is_empty() {
-            return reject("empty path component");
-        }
-        if component.len() > MAX_COMPONENT_BYTES {
-            return reject("path component longer than the package limit");
-        }
-        if component == "." || component == ".." {
-            return reject("relative path component");
-        }
-        if component.ends_with('.') || component.ends_with(' ') {
-            return reject("component ending in a dot or space, which Win32 strips");
-        }
-        if component.starts_with(' ') {
-            return reject("component starting with a space");
-        }
-        let stem = component
-            .split_once('.')
-            .map_or(component, |(before, _)| before);
-        if RESERVED.contains(&stem.to_ascii_lowercase().as_str()) {
-            return reject("reserved DOS device name");
+        if let Err(SetupError::UnsafePath { reason, .. }) = check_component(component) {
+            return reject(reason);
         }
     }
     Ok(path)
+}
+
+/// Check `name` as a single Windows-safe filename component: no `/`, and
+/// nothing that identifies it as a piece of a larger path.
+///
+/// The same per-component rules [`check`] applies to each `/`-separated
+/// piece of a package path, factored out so a value that is a filename on
+/// its own -- a shortcut name, say, which becomes `<name>.lnk` and is never
+/// itself a multi-component path -- is checked by exactly those rules
+/// without being asked to look like a whole relative path first.
+pub(crate) fn check_component(name: &str) -> Result<(), SetupError> {
+    let reject = |reason: &'static str| {
+        Err(SetupError::UnsafePath {
+            path: name.to_string(),
+            reason,
+        })
+    };
+    if name.is_empty() {
+        return reject("empty path component");
+    }
+    if name.len() > MAX_COMPONENT_BYTES {
+        return reject("path component longer than the package limit");
+    }
+    if name.contains('/') {
+        return reject("path separator in a single filename component");
+    }
+    for ch in name.chars() {
+        if FORBIDDEN.contains(&ch) {
+            return reject("character Windows forbids in a file name");
+        }
+        if !ch.is_ascii() {
+            return reject("non-ASCII byte");
+        }
+        if ch.is_ascii_control() || ch == '\u{7f}' {
+            return reject("control character");
+        }
+    }
+    if name == "." || name == ".." {
+        return reject("relative path component");
+    }
+    if name.ends_with('.') || name.ends_with(' ') {
+        return reject("component ending in a dot or space, which Win32 strips");
+    }
+    if name.starts_with(' ') {
+        return reject("component starting with a space");
+    }
+    let stem = name.split_once('.').map_or(name, |(before, _)| before);
+    if RESERVED.contains(&stem.to_ascii_lowercase().as_str()) {
+        return reject("reserved DOS device name");
+    }
+    Ok(())
 }
 
 /// Fold a checked path for Windows' case-insensitive comparison.
@@ -233,5 +266,51 @@ mod tests {
     fn case_folding_detects_windows_filename_collisions() {
         assert_eq!(fold_case("Mininet.exe"), fold_case("mininet.exe"));
         assert_ne!(fold_case("mini.exe"), fold_case("mini2.exe"));
+    }
+
+    #[test]
+    fn a_single_component_rejects_everything_a_split_path_component_would() {
+        // The same rules `check` applies to each `/`-separated piece of a
+        // path, for a value that is a filename on its own -- a shortcut
+        // name, which becomes `<name>.lnk` and is never itself a path with
+        // separators.
+        for name in [
+            "CON",
+            "con.txt",
+            "NUL",
+            "COM1",
+            "LPT9",
+            "CONOUT$",
+            "bad:name",
+            "bad*name",
+            "bad?name",
+            "bad\"name",
+            "bad<name",
+            "bad>name",
+            "bad|name",
+            "trailing.",
+            "trailing ",
+            " leading",
+            ".",
+            "..",
+        ] {
+            assert!(
+                check_component(name).is_err(),
+                "{name:?} should be rejected"
+            );
+        }
+        for name in ["Mininet", "My App 2", "a.b.c"] {
+            assert!(check_component(name).is_ok(), "{name:?} should be accepted");
+        }
+    }
+
+    #[test]
+    fn a_single_component_rejects_a_path_separator_even_though_a_split_component_never_has_one() {
+        // Reached only when a value is checked as a standalone name rather
+        // than as one piece of an already-`/`-split path: `check` never
+        // hands `check_component` a component containing `/`, since it
+        // split on exactly that character first.
+        assert!(check_component("evil/../../outside").is_err());
+        assert!(check_component("a/b").is_err());
     }
 }

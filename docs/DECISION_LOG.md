@@ -24454,3 +24454,135 @@ follow-ups, unchanged.
 per the voice/value wall" and "no WiX/MSI" choices specifically. Everything
 else in D-0520 — the package format, the install engine, the setup program,
 the CI jobs — stands as written.
+
+### D-0522 — Ninth PR #345 remediation batch: rollback/uninstall integrity fixes, Windows-target and filename validation, `--json` field preservation, custom-root diagnostics, coverage-table corrections  ·  *Shipped*
+
+**Date:** 2026-09-13 · **Refs:** PR #345; `crates/mini-windows-setup/`;
+`crates/mini-setup/`; `crates/mini-desktop/src/main.rs`;
+`crates/mini-cli/src/{windows,selftest}.rs`; `crates/mini-selftest/src/
+{checks,coverage}.rs`; D-0520; D-0521 (corrects one of its numbers).
+
+**Decision:** ship nine independent Codex-review fixes on the Windows
+install engine and its diagnostics, and correct two stale numbers D-0521
+introduced, rather than defer them to a later batch.
+
+1. **`InstallRecord` persists the shortcut/registration choices an install
+   actually applied** (backward compatible with pointer files lacking the
+   new fields), and the desktop client's "Roll back one version" button
+   reads them back instead of reconstructing `InstallOptions::default()` —
+   which silently dropped a Desktop shortcut or added an unwanted Start
+   Menu entry on rollback.
+2. **`mininet-setup --undo-install`**: on a first-ever install there is no
+   previous version to roll back to, so the MSI wrapper's rollback custom
+   action calling plain `--rollback` reported `NoPreviousVersion` and
+   (`Return="ignore"`) did nothing, leaving an unmanaged client behind with
+   no MSI entry to remove it. The new mode checks what was actually
+   installed before the transaction and reverses exactly that: falls back
+   to a previous version when one is recorded, otherwise uninstalls.
+3. **Uninstall removes only the exact version/manifest entries it
+   recorded**, never a `versions`/`manifests` directory wholesale — a
+   custom or shared install root can already contain an unrelated
+   directory that happens to share that name, and owning the name is not
+   owning everything filed under it.
+4. **`check_target_is_runnable` now checks the target triple names Windows
+   too**, not just the architecture, on a host that can only run Windows
+   binaries: architecture alone let a manifest declaring
+   `x86_64-unknown-linux-gnu` "install successfully" on an x86_64 Windows
+   machine. Gated on a host flag rather than a bare `cfg!(windows)` so the
+   logic is unit-tested on any host; the packaging scripts' cross-platform
+   testability (building/testing a Windows-targeted package from Linux) is
+   unaffected.
+5. **Shortcut names are validated against real Windows filename rules**
+   (reserved DOS device names, forbidden characters), not just safe
+   *display* text — `CON`, `bad:name`, `bad*name` previously passed
+   construction and parsing, so `mini windows pack` could report success
+   for a manifest whose shortcut PowerShell then failed to create only
+   after the install had already activated. `path::check_component` factors
+   the same per-component rules `path::check` already applied to each
+   `/`-separated piece of a package path.
+6. **`mini --json windows verify` preserves `report::verify_fields` on a
+   damaged install** instead of collapsing to a bare `not_intact` error
+   with no structured detail — the same fields `mininet-setup --verify
+   --json` already returns, carried as the new `CliError::
+   WindowsVerifyFailed` error's payload the same way `CliError::SelfTest`
+   already preserves a failing suite run's full report.
+7. **The installed-integrity diagnostic follows a custom install root**
+   (`Setup::containing(current_exe)`), instead of always inspecting the
+   default per-user root and reporting a custom installation as "nothing
+   to check" while the diagnostics run still came back clean.
+8. **Two false coverage-table claims corrected to gaps.** `mini-update` was
+   marked `Transitive` and `mini-windows-vault` was marked `Exercised`;
+   neither crate is anywhere in `mini-selftest`'s dependency graph, direct
+   or transitive (`cargo tree` confirms zero edge), so neither claim was
+   true. A manual audit of the remaining 29 `Exercised`/`Transitive`/
+   `SeparateBinary` entries found no further instance of this mistake.
+9. **README/STATUS's diagnostics totals corrected** from D-0520's stale "24
+   diagnostics, nine refusals" to the real current numbers (`mini selftest
+   list --json` reports 50 checks, 22 refusals) and now mention D-0521's
+   value-layer and coverage-auditability additions, which D-0520's original
+   wording predates.
+
+Correction to D-0521 itself: fixing (8) above changes the true runnable
+count. D-0521 states "Coverage is 31 of 83 crates runnable"; with
+`mini-update` and `mini-windows-vault` no longer miscounted as covered, the
+real number is **29 of 83**. D-0521's own text is not edited (append-only
+history) — this entry is the correction of record. `mini selftest coverage
+--json` reports the live number going forward, so no other document need
+repeat it.
+
+**Not fixed in this batch, deliberately:** a Codex P2 finding that
+`mininet-setup --payload`'s sideloaded-package flow constructs an
+`InstallApproval` from an untrusted manifest with no governed-release
+check (no `mini_forge::verify_release_artifact_only`/
+`verify_governed_release`, no `VerifiedRelease`, no attestation quorum).
+This is real, but properly requiring it means the setup binary consulting
+a `mini_forge::Store` + `IdentityOracle` for an already-attested release
+object — not a fact a standalone `.mnpkg` carries by itself — which raises
+design questions (does the offline, no-network install path gain a
+network dependency or a bundled offline attestation artifact; is the gate
+mandatory or an explicit override for air-gapped installs) that should not
+be decided unilaterally inside a review-response pass. It maps onto
+already-scoped, not-yet-started follow-up work (a `ReleaseEvidence`-shaped
+type binding install to a governed release, install state carrying its
+own provenance, that provenance recorded in the install pointer). Replied
+on the review thread explaining this rather than resolving it or shipping
+a partial mechanism that looks like a security gate but is not fully
+thought through.
+
+**Constitutional impact:** none of the frozen invariants change. U1 (no
+forced update, no kill path) is unaffected: `--undo-install` only ever
+reverses what this same transaction just did, on this same machine, on
+explicit invocation. The typed-domain rule is followed throughout —
+`check_target_is_runnable_for_host` and `check_installed_integrity_for`
+take an explicit parameter rather than reaching for ambient
+`cfg!(windows)`/`std::env::current_exe()` state directly, the same
+reasoning that keeps authority-exercising functions from taking generic
+inputs.
+
+**Implementation status:** shipped. Every fix has a regression test that
+was confirmed to fail against the pre-fix behavior (reverted locally,
+re-ran, saw it fail as described, restored the fix) before being counted
+done. Workspace `cargo fmt --all`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` are clean.
+
+**Failure point:** (8)'s manual audit is a point-in-time check, not a
+standing one — nothing yet stops a future coverage-table edit from making
+the same false claim again for some other crate. (9)'s numbers will drift
+again the next time checks are added without a doc pass; `mini selftest
+coverage`/`list --json` are the numbers to trust over any document's prose
+restating them.
+
+**Required follow-up:** the deferred governed-verification finding above
+needs its own design pass and founder decision on scope before
+implementation, tracked alongside the existing paused `ReleaseEvidence`
+work. A standing test that cross-checks every `Exercised`/`Transitive`/
+`SeparateBinary` coverage-table claim against the real dependency graph
+(via `Cargo.lock` or `cargo metadata`) would close (8)'s failure point, but
+was judged out of scope for this batch — a real dependency-graph parser is
+new verification infrastructure, not the two-line correction the finding
+asked for.
+
+**Supersedes / superseded by:** corrects D-0521's "31 of 83 crates
+runnable" figure (see above); does not supersede any of D-0521's
+decisions. Supersedes nothing else.

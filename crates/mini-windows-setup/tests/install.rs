@@ -606,6 +606,46 @@ fn uninstall_removes_program_files_and_keeps_identities_by_default() {
 }
 
 #[test]
+fn an_unrelated_entry_that_happens_to_share_a_managed_directory_name_survives_uninstall() {
+    // A custom or shared install root can already contain something this
+    // installer never created, that merely happens to sit inside a
+    // directory named "versions" or share that name outright. Owning that
+    // *name* is not owning everything filed under it: uninstall may remove
+    // only the exact version and manifest entries it itself recorded, never
+    // sweep the whole directory away because of what it is called.
+    let fixture = Fixture::new("uninstall-unowned-entry");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    let root = fixture.setup.layout().root().to_path_buf();
+    let unrelated_dir = root
+        .join("versions")
+        .join("not-a-version-this-installer-made");
+    std::fs::create_dir_all(&unrelated_dir).unwrap();
+    let sentinel = unrelated_dir.join("keep-me.txt");
+    std::fs::write(&sentinel, b"not mine to delete").unwrap();
+
+    let mut uninstall_shell = RecordingShell::default();
+    let approval = UninstallApproval::keeping_identities(fixture.setup.layout().root(), 2_000);
+    let report = fixture
+        .setup
+        .uninstall(&approval, &fixture.options, &mut uninstall_shell, 2_000)
+        .unwrap();
+
+    // The version this installer actually made is gone...
+    assert_eq!(report.versions_removed, vec!["0.1.0".to_string()]);
+    assert!(!fixture.setup.layout().version_dir("0.1.0").exists());
+    // ...but the unrelated content, and the "versions" directory holding it,
+    // are untouched -- and because something still lives under it, the
+    // install root itself is not swept away either.
+    assert_eq!(std::fs::read(&sentinel).unwrap(), b"not mine to delete");
+    assert!(root.join("versions").is_dir());
+    assert!(root.is_dir());
+}
+
+#[test]
 fn uninstall_destroys_identities_only_when_that_exact_path_was_approved() {
     let fixture = Fixture::new("uninstall-destroy");
     let mut shell = RecordingShell::default();

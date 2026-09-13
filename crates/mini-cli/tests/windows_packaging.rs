@@ -464,3 +464,72 @@ fn verify_fails_the_command_when_the_installation_is_damaged() {
     assert_eq!(error.error_code(), "not_intact");
     let _ = std::fs::remove_dir_all(base);
 }
+
+#[test]
+fn verify_preserves_structured_fields_in_json_when_the_installation_is_damaged() {
+    // Regression: `--json windows verify` on a damaged install used to
+    // collapse to a bare `{"ok":false,"error_code":"not_intact",...}` with
+    // no structured detail, losing exactly what a deployment script needs
+    // to diagnose the failure -- `intact`, file counts, and the problem
+    // list `mininet-setup --verify --json` already returns for the same
+    // situation.
+    let base = tempdir("verify-json-fields");
+    let source = source_tree(&base, b"desktop-0.1.0\n");
+    let container = pack(&base, &source, "0.1.0", "1757635200000");
+    let install_root = base.join("Programs");
+    let data_root = base.join("UserData");
+    let setup = std::process::Command::new(env!("CARGO_BIN_EXE_mini"))
+        .args([
+            "windows",
+            "plan",
+            container.to_str().unwrap(),
+            "--install-root",
+            install_root.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(setup.status.success());
+
+    let bytes = std::fs::read(&container).unwrap();
+    let opened = mini_windows_setup::Container::open(&bytes).unwrap();
+    let engine = mini_windows_setup::Setup::new(&install_root).with_user_data_root(&data_root);
+    let approval = mini_windows_setup::InstallApproval::new(opened.manifest(), 1);
+    let options = mini_windows_setup::InstallOptions {
+        start_menu_dir: Some(base.join("menu")),
+        desktop_dir: Some(base.join("desktop")),
+        ..Default::default()
+    };
+    let mut shell = mini_windows_setup::RecordingShell::default();
+    let report = engine
+        .install(&opened, &approval, &options, &mut shell, 1)
+        .unwrap();
+    std::fs::write(&report.launch_path, b"tampered-but-same-len").unwrap();
+
+    let error = run(&[
+        "--home",
+        base.join("home").to_str().unwrap(),
+        "--json",
+        "windows",
+        "verify",
+        "--install-root",
+        install_root.to_str().unwrap(),
+        "--user-data-root",
+        data_root.to_str().unwrap(),
+    ])
+    .unwrap_err();
+    assert_eq!(error.error_code(), "not_intact");
+    let rendered = error.to_string();
+    assert!(
+        rendered.starts_with("{\"ok\":true,\"kind\":\"windows.verify\""),
+        "{rendered}"
+    );
+    for key in ["intact", "files_checked", "bytes_checked", "problems"] {
+        assert!(
+            rendered.contains(&format!("\"{key}\":")),
+            "missing {key} in {rendered}"
+        );
+    }
+    assert!(rendered.contains("\"intact\":false"), "{rendered}");
+    assert!(!rendered.contains('\n'));
+    let _ = std::fs::remove_dir_all(base);
+}

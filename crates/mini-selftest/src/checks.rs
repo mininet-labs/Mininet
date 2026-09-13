@@ -1332,7 +1332,22 @@ fn check_install_tamper_refused(scratch: &Path) -> Result<String, String> {
 }
 
 fn check_installed_integrity(_scratch: &Path) -> Result<String, String> {
-    let setup = mini_windows_setup::Setup::for_current_user();
+    check_installed_integrity_for(std::env::current_exe().ok().as_deref())
+}
+
+/// [`check_installed_integrity`], parameterized on the running executable's
+/// path so a test can prove the custom-root case without needing a real
+/// `mini` or `mininet-desktop` binary actually running from inside one.
+fn check_installed_integrity_for(current_exe: Option<&Path>) -> Result<String, String> {
+    // A client installed to a custom root would otherwise always be
+    // inspected against the *default* per-user root, find nothing there,
+    // and report the check skipped while the actual custom installation
+    // goes unchecked -- the same reasoning the Version & install view
+    // already applies when it constructs its own `Setup`.
+    let setup = match current_exe {
+        Some(exe) => mini_windows_setup::Setup::containing(exe),
+        None => mini_windows_setup::Setup::for_current_user(),
+    };
     let status = setup.status().map_err(|error| error.to_string())?;
     let Some(active) = status.active else {
         return skip(format!(
@@ -1381,7 +1396,18 @@ fn short_id(id: &ObjectId) -> String {
 
 /// Where to put throwaway state for a run.
 pub fn default_scratch() -> PathBuf {
-    std::env::temp_dir().join(format!(
+    unique_scratch_under(&std::env::temp_dir())
+}
+
+/// A uniquely named directory beneath `parent`, for a run's throwaway state.
+///
+/// A caller that names its own scratch location (`mini selftest --scratch
+/// <DIR>`) owns that directory: it may already hold files that predate this
+/// run, or belong to another process. This run must only ever remove what it
+/// itself creates, so it gets a uniquely named child of `parent` to run in
+/// and to delete afterward, never `parent` itself.
+pub fn unique_scratch_under(parent: &Path) -> PathBuf {
+    parent.join(format!(
         "mininet-selftest-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
@@ -1950,4 +1976,57 @@ fn check_private_lookup_labels_do_not_repeat_across_epochs(
         );
     }
     Ok("a lookup label is stable within an epoch and unlinkable across epochs".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_installed_integrity_check_follows_a_custom_install_root() {
+        // Regression: this check always inspected `Setup::for_current_user`
+        // (the default per-user root), so a client installed to a custom
+        // root was reported "nothing installed to check" while the actual
+        // custom installation went unverified -- even though the overall
+        // diagnostics run still came back clean. Fed the path of the
+        // executable a custom install actually wrote, it must find and
+        // verify that install instead of skipping.
+        let scratch = std::env::temp_dir().join(format!(
+            "mini-selftest-custom-root-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&scratch).unwrap();
+
+        let (manifest, bytes) = sample_package(&scratch).unwrap();
+        let container = mini_windows_setup::Container::open(&bytes).unwrap();
+        let install_root = scratch.join("Custom").join("Location");
+        let setup = mini_windows_setup::Setup::new(&install_root)
+            .with_user_data_root(scratch.join("UserData"));
+        let options = mini_windows_setup::InstallOptions {
+            start_menu_dir: Some(scratch.join("menu")),
+            desktop_dir: Some(scratch.join("desktop")),
+            ..Default::default()
+        };
+        let approval = mini_windows_setup::InstallApproval::new(&manifest, 1_000);
+        let mut shell = mini_windows_setup::RecordingShell::default();
+        setup
+            .install(&container, &approval, &options, &mut shell, 1_000)
+            .unwrap();
+
+        // Nothing is installed at the default per-user root, only here, so
+        // the fix must actually be exercised for this to find anything.
+        let running_exe = install_root.join("versions").join("0.1.0").join("mini.exe");
+        let result = check_installed_integrity_for(Some(&running_exe)).unwrap();
+        assert!(result.contains("0.1.0"), "{result}");
+        assert!(
+            !result.to_ascii_lowercase().contains("nothing"),
+            "the custom install was skipped instead of checked: {result}"
+        );
+
+        let _ = std::fs::remove_dir_all(&scratch);
+    }
 }

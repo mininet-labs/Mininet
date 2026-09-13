@@ -55,6 +55,18 @@ pub enum CliError {
         /// The engine's human-readable message.
         message: String,
     },
+    /// `mini windows verify` found the installation damaged.
+    ///
+    /// Carried as an error, not an ordinary result, so the process exits
+    /// non-zero the same way `not_intact` from `mininet-setup --verify`
+    /// does. The payload is the *full* rendered report --- human text or,
+    /// under `--json`, the complete `report::verify_fields` envelope
+    /// (`intact`, file counts, the structured problem list) --- not a
+    /// generic sentence: a deployment script reading `--json` output needs
+    /// `error_code` to know the check failed *and* the report's own fields
+    /// to know which files did, without a second invocation in a different
+    /// mode to find out.
+    WindowsVerifyFailed(String),
     /// Spawning or speaking `mini-pipeline-protocol` to the real
     /// `mini-build-runner-wasmtime` binary failed.
     Build(String),
@@ -97,6 +109,7 @@ impl fmt::Display for CliError {
             CliError::Installer(e) => write!(f, "installer error: {e}"),
             CliError::SelfTest(report) => write!(f, "{report}"),
             CliError::WindowsSetup { message, .. } => write!(f, "windows setup error: {message}"),
+            CliError::WindowsVerifyFailed(report) => write!(f, "{report}"),
             CliError::Build(e) => write!(f, "build error: {e}"),
             CliError::Keystone(e) => write!(f, "keystone demo error: {e}"),
             CliError::Intake(e) => write!(f, "intake error: {e}"),
@@ -127,6 +140,7 @@ impl CliError {
             CliError::Installer(_) => "installer",
             CliError::SelfTest(_) => "selftest_failed",
             CliError::WindowsSetup { code, .. } => code,
+            CliError::WindowsVerifyFailed(_) => "not_intact",
             CliError::Build(_) => "build",
             CliError::Keystone(_) => "keystone",
             CliError::Intake(_) => "intake",

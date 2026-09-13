@@ -2605,15 +2605,20 @@ the top development priority.
   when the exact verified DID still has a nearby endpoint. A Windows-only real
   TCP test proves two independent roots complete profile verification and
   signed-follow delivery through one visible window.
-  Diagnostics (D-0520) runs the real protocol code on the user's own machine
-  and shows the result: 24 checks over `mini-selftest` covering identity,
-  storage, social objects, chunked media, encrypted messaging, two stores
-  converging over a real loopback socket, a governed two-approval merge,
-  erasure-coding recovery and storage proofs. Nine of them establish a
-  *refusal* (one approval does not reach the two-approval floor, an approval
-  bound to one commit does not carry to a substituted one, a second
-  conversation's key reads none of the first one's messages). The same suite
-  is `mini selftest`, and CI runs it.
+  Diagnostics (D-0520, coverage/value/MSI corrected by D-0521) runs the real
+  protocol code on the user's own machine and shows the result: 50 checks
+  over `mini-selftest` covering identity, storage, social objects, chunked
+  media, encrypted messaging, two stores converging over a real loopback
+  socket, a governed two-approval merge, erasure-coding recovery, storage
+  proofs, and (via a spawned separate binary, so the voice/value wall stays
+  a dependency-graph property rather than a missing feature) the value
+  layer. 22 of them establish a *refusal* (one approval does not reach the
+  two-approval floor, an approval bound to one commit does not carry to a
+  substituted one, a second conversation's key reads none of the first
+  one's messages). Coverage is auditable: every workspace crate is
+  classified exercised, transitive, covered by the spawned binary, or a gap
+  with a stated reason, and a test fails if a crate is left unclassified.
+  The same suite is `mini selftest`, and CI runs it.
   Version & install (D-0520) reads the same `mini-windows-setup` state
   `mininet-setup.exe` writes: installed version and package digest, rollback
   target, and where program files and user data each live. It can re-hash

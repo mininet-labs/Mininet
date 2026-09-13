@@ -134,12 +134,17 @@ so, everywhere, on purpose.
   installs the bytes it is handed and never fetches its own payload.
   `packaging/windows/` builds the container, the readable manifest, the
   self-contained installer, and SHA256SUMS
-- `mini-selftest` (D-0520): 24 diagnostics that run the real stack —
-  identity, storage, social, media, messaging, sync over a real loopback
-  socket, governed review, erasure coding, storage proofs, install. Nine
-  establish a *refusal* (one approval does not reach the two-approval
-  floor; an approval bound to one commit does not carry to a substituted
-  one). Surfaced as `mini selftest` and the client's Diagnostics view
+- `mini-selftest` (D-0520, coverage/value/MSI corrected by D-0521): 50
+  diagnostics that run the real stack — identity, storage, social, media,
+  messaging, sync over a real loopback socket, governed review, erasure
+  coding, storage proofs, install, and (via a spawned separate binary,
+  keeping the voice/value wall a dependency-graph property) the value
+  layer. 22 establish a *refusal* (one approval does not reach the
+  two-approval floor; an approval bound to one commit does not carry to a
+  substituted one). Coverage is auditable: every workspace crate is
+  classified exercised, transitive, covered by the spawned binary, or a
+  gap with a stated reason. Surfaced as `mini selftest` and the client's
+  Diagnostics view
 - `mini-privacy-policy` (D-0094): typed cost-doctrine vocabulary
   (protection properties, mechanisms, the five un-removable residual
   floors) and a Tier 0-3 privacy request/achieved-result policy object —
@@ -435,22 +440,18 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0518`
-   (`D-0513`–`D-0516`: adopting external Gate #28 DTN/satellite and Gate #98
-   Wi-Fi bearer design-report architectures on engineering merit (new
-   `mini-dtn` crate scaffold, `mini-settlement::PaymentClaimV2`
-   height-anchored settlement, `mini-bearer::LocalServiceRecord`/
-   `LocalRouteHint` closed types, zero Wi-Fi network-context personhood
-   weight) while explicitly leaving issues #28/#98 open; a governance-doc
-   numbering/registry fix (`D-0515`); and a third Codex remediation batch
-   (`D-0516`) making `mini-custody`'s DKG Round-1 barrier a structural type
-   requirement, requiring real two-device corroboration for Gate #97
-   "two-sided" ranging evidence, and giving `mini-mesh` genuine per-link
-   locking so one slow peer's send can no longer stall every other link's
-   receive path — are the newest at the time of this edit; the Mininet Node
-   Appliance deployment profile this line previously credited to `D-0439`
-   is `D-0446` — `D-0439` is the identity-bound replica-registration
-   decision),
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0522`
+   (`D-0520`: the Windows client packaging/install engine and its
+   diagnostics; `D-0521`: correcting `D-0520` that the voice/value wall is a
+   dependency-graph property, not a missing user-facing feature, and that
+   the MSI should exist; `D-0522`: a ninth PR #345 remediation batch fixing
+   rollback/uninstall integrity, Windows-target and filename validation,
+   `--json` field preservation, custom-root diagnostics, and two false
+   coverage-table claims, plus the correction to `D-0521`'s runnable-crate
+   count that fixing them implies — are the newest at the time of this
+   edit; the Mininet Node Appliance deployment profile this line previously
+   credited to `D-0439` is `D-0446` — `D-0439` is the identity-bound
+   replica-registration decision),
    plus the networking/consensus track's reserved `D-0200`–`D-0206`, the
    privacy/cost-doctrine track's `D-0300`–, and the edge/provider-layer
    track's `D-0400`– — see the log's "Decision-number allocation across

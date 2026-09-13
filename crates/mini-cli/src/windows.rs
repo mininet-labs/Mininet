@@ -298,6 +298,7 @@ pub fn verify(
     install_root: Option<&Path>,
     user_data_root: Option<&Path>,
     version: Option<&str>,
+    json: bool,
 ) -> Result<CommandResult> {
     let setup = engine(install_root, user_data_root);
     let status = setup.status().map_err(setup_error)?;
@@ -329,20 +330,25 @@ pub fn verify(
     for problem in &verify.problems {
         human.push_str(&format!("  {}\n", report::describe_problem(problem)));
     }
+    let result = fields_into(CommandResult::new(human), report::verify_fields(&verify));
     if !verify.is_intact() {
         // A damaged installation must make the process exit non-zero. A
         // deployment script using this as an integrity gate would otherwise
         // read "ok" and carry on past exactly the situation it was checking
-        // for.
-        return Err(CliError::WindowsSetup {
-            code: "not_intact",
-            message: human.trim_end().to_string(),
-        });
+        // for. The full report --- human text or, under `--json`, the
+        // complete envelope with `intact`, file counts, and the structured
+        // problem list --- is carried as the error's payload rather than
+        // replaced with a generic sentence, the same way `mini selftest`
+        // preserves its report on a failing run: a script reading `--json`
+        // output needs `error_code` to know the check failed *and* the
+        // report's own fields to know which files did, without a second
+        // invocation in a different mode (`mininet-setup --verify --json`
+        // already returns this same full envelope on a damaged install).
+        return Err(CliError::WindowsVerifyFailed(
+            result.render(json, "windows.verify"),
+        ));
     }
-    Ok(fields_into(
-        CommandResult::new(human),
-        report::verify_fields(&verify),
-    ))
+    Ok(result)
 }
 
 /// Report what is installed.

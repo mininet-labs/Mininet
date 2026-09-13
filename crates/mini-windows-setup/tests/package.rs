@@ -368,6 +368,53 @@ fn a_shortcut_name_with_a_path_separator_is_refused_at_construction() {
 }
 
 #[test]
+fn a_shortcut_name_that_is_not_a_valid_windows_filename_is_refused_at_construction() {
+    // A shortcut name becomes `<name>.lnk`. A reserved DOS device name or a
+    // character Windows forbids in a file name was previously accepted here
+    // (only checked as safe *display text*, which none of these violate),
+    // so `mini windows pack` could report success for a manifest whose
+    // shortcut PowerShell then fails to create -- after the install already
+    // wrote its manifest and activated.
+    for hostile_name in ["CON", "bad:name", "bad*name", "NUL.txt", "con.lnk"] {
+        let error = PackageManifest::new(
+            ManifestHeader {
+                package: "mininet-windows-client",
+                version: "0.1.0",
+                target: "x86_64-pc-windows-msvc",
+                product: "Mininet",
+                launch: "mininet-desktop.exe",
+                built_at_ms: 1,
+            },
+            vec![PackageFile::describe("mininet-desktop.exe", DESKTOP).unwrap()],
+            vec![PackageShortcut {
+                target: "mininet-desktop.exe".to_string(),
+                name: hostile_name.to_string(),
+            }],
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.code(),
+            "malformed_manifest",
+            "{hostile_name} should have been refused"
+        );
+    }
+}
+
+#[test]
+fn a_shortcut_name_that_is_not_a_valid_windows_filename_is_refused_when_parsed() {
+    // The reader's half of the same rule: a manifest crafted directly as
+    // bytes (not through this crate's own writer) naming a reserved DOS
+    // device name must be refused the same way.
+    let text = String::from_utf8(manifest().to_bytes()).unwrap();
+    let hostile = text.replace(
+        "shortcut 19 mininet-desktop.exe Mininet",
+        "shortcut 19 mininet-desktop.exe CON",
+    );
+    let error = PackageManifest::parse(hostile.as_bytes()).unwrap_err();
+    assert_eq!(error.code(), "malformed_manifest");
+}
+
+#[test]
 fn a_shortcut_length_that_overflows_is_refused_not_panicked() {
     // `shortcut <target-byte-length> ...`: the length is an untrusted decimal
     // an attacker controls directly. `usize::MAX` makes `length + 1` overflow

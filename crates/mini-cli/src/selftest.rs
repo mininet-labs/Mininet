@@ -30,8 +30,13 @@ pub fn run(scratch: Option<&Path>, area: Option<&str>) -> Result<(CommandResult,
             )));
         }
     }
+    // A caller-supplied --scratch directory is the caller's, not this run's
+    // to remove: it may already hold files that predate this invocation, or
+    // belong to another process. This run only ever owns a uniquely named
+    // child beneath it, mirroring how `default_scratch` owns its own
+    // uniquely named path under the OS temp directory.
     let owned = match scratch {
-        Some(path) => path.to_path_buf(),
+        Some(path) => mini_selftest::unique_scratch_under(path),
         None => mini_selftest::default_scratch(),
     };
     std::fs::create_dir_all(&owned)
@@ -40,8 +45,8 @@ pub fn run(scratch: Option<&Path>, area: Option<&str>) -> Result<(CommandResult,
         Some(area) => run_area(&owned, area),
         None => run_all(&owned),
     };
-    // The scratch root itself is this command's to clean up; each check
-    // already removes its own subdirectory.
+    // Only the directory this invocation created is removed; each check
+    // already removes its own subdirectory beneath it.
     let _ = std::fs::remove_dir_all(&owned);
     let clean = report.is_clean();
     Ok((render(&report), clean))
@@ -179,4 +184,47 @@ fn render(report: &Report) -> CommandResult {
                     .map(|check| format!("{}: {}", check.area, check.name)),
             ),
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_caller_supplied_scratch_directory_and_its_prior_contents_survive_the_run() {
+        // Regression: `run` used to treat a caller-supplied --scratch
+        // directory as its own to remove afterward, deleting it (and
+        // anything that predated the run) wholesale. It must instead own
+        // only a uniquely named child beneath it.
+        let base = std::env::temp_dir().join(format!(
+            "mini-cli-selftest-scratch-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&base).unwrap();
+        let sentinel = base.join("a-file-that-predates-this-run.txt");
+        std::fs::write(&sentinel, b"do not delete me").unwrap();
+
+        run(Some(&base), Some("crypto")).unwrap();
+
+        assert!(base.is_dir(), "the caller-supplied directory was removed");
+        assert_eq!(
+            std::fs::read(&sentinel).unwrap(),
+            b"do not delete me",
+            "a file that predated this run did not survive it"
+        );
+        // Nothing this run created is left behind either: the directory
+        // holds exactly what it held before the call.
+        let leftovers: Vec<_> = std::fs::read_dir(&base)
+            .unwrap()
+            .flatten()
+            .map(|entry| entry.file_name())
+            .collect();
+        assert_eq!(leftovers, vec![sentinel.file_name().unwrap().to_owned()]);
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }
