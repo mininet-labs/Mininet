@@ -26,6 +26,14 @@ pub const AREAS: &[&str] = &[
     "messaging",
     "sync",
     "forge",
+    "consensus",
+    "settlement",
+    "personhood",
+    "reward",
+    "network",
+    "search",
+    "policy",
+    "value",
     "erasure",
     "spacetime",
     "install",
@@ -184,6 +192,114 @@ pub fn all_checks() -> Vec<(&'static str, &'static str, bool, CheckFn)> {
             false,
             check_installed_integrity,
         ),
+        (
+            "consensus",
+            "a precommit verifies against its signer's delegated device",
+            false,
+            check_chain_vote_signature,
+        ),
+        (
+            "consensus",
+            "a vote re-pointed at another block does not verify",
+            true,
+            check_chain_vote_is_bound_to_its_block,
+        ),
+        (
+            "consensus",
+            "another root's device cannot cast this root's vote",
+            true,
+            check_another_roots_device_cannot_cast_your_vote,
+        ),
+        (
+            "settlement",
+            "an offline payment claim signs and verifies",
+            false,
+            check_settlement_claim_round_trip,
+        ),
+        (
+            "settlement",
+            "raising the amount on a signed claim invalidates it",
+            true,
+            check_settlement_amount_cannot_be_edited,
+        ),
+        (
+            "storage",
+            "signed operations converge no matter what order they arrive in",
+            false,
+            check_crdt_converges_regardless_of_order,
+        ),
+        (
+            "personhood",
+            "three personhood signals fuse into one confidence score",
+            false,
+            check_personhood_confidence_fusion,
+        ),
+        (
+            "personhood",
+            "evidence past the decay horizon stops counting",
+            true,
+            check_stale_personhood_evidence_decays,
+        ),
+        (
+            "reward",
+            "reward accrual is rate-capped and vests only after a delay",
+            false,
+            check_reward_accrual_is_rate_capped,
+        ),
+        (
+            "search",
+            "text tokenizes and a query parses deterministically",
+            false,
+            check_search_tokenizer_and_query_parser,
+        ),
+        (
+            "search",
+            "the same HTML extracts identically twice",
+            false,
+            check_html_extraction_is_deterministic,
+        ),
+        (
+            "search",
+            "ranking rises with matched terms and falls with age",
+            false,
+            check_ranking_is_monotonic_in_evidence,
+        ),
+        (
+            "network",
+            "gossip fanout is bounded, repeatable, and never invents peers",
+            true,
+            check_gossip_fanout_is_bounded_and_deterministic,
+        ),
+        (
+            "policy",
+            "stronger privacy tiers declare higher cost, never free anonymity",
+            false,
+            check_privacy_tiers_cost_more_as_they_protect_more,
+        ),
+        (
+            "policy",
+            "a stronger tier is never quoted cheaper than a weaker one",
+            true,
+            check_a_stronger_tier_is_never_quoted_cheaper,
+        ),
+        (
+            "policy",
+            "erasure shards are placed on distinct identity roots",
+            false,
+            check_replication_spreads_shards_across_distinct_holders,
+        ),
+        (
+            "policy",
+            "too few holders is refused rather than doubling shards onto one",
+            true,
+            check_too_few_holders_is_refused_rather_than_doubled_up,
+        ),
+        (
+            "policy",
+            "private lookup labels rotate with the epoch",
+            true,
+            check_private_lookup_labels_do_not_repeat_across_epochs,
+        ),
     ]
 }
 
@@ -226,6 +342,11 @@ fn run_selected(scratch: &Path, area: Option<&str>) -> Report {
             negative,
             outcome,
         });
+    }
+    // The value-layer checks run in their own process (see `crate::value`),
+    // so they are appended rather than dispatched through the table above.
+    if area.is_none_or(|wanted| wanted == "value") {
+        checks.extend(crate::value::run());
     }
     Report {
         checks,
@@ -1259,4 +1380,461 @@ pub fn default_scratch() -> PathBuf {
             .map(|since| since.as_nanos())
             .unwrap_or(0)
     ))
+}
+
+// --- consensus -------------------------------------------------------------
+
+fn check_chain_vote_signature(_scratch: &Path) -> Result<String, String> {
+    let (root, device) = root_and_device(181)?;
+    let vote = mini_chain::sign_vote(
+        mini_chain::VoteKind::Precommit,
+        7,
+        0,
+        [0x11; 32],
+        &root.did(),
+        &device,
+    );
+    mini_chain::verify_vote(&vote, &root.kel(), &device.kel())
+        .map_err(|error| format!("a genuine vote did not verify: {error}"))?;
+    Ok(format!(
+        "a precommit at height {} verified against its signer's delegated device",
+        vote.height
+    ))
+}
+
+fn check_chain_vote_is_bound_to_its_block(_scratch: &Path) -> Result<String, String> {
+    let (root, device) = root_and_device(191)?;
+    let mut vote = mini_chain::sign_vote(
+        mini_chain::VoteKind::Precommit,
+        7,
+        0,
+        [0x11; 32],
+        &root.did(),
+        &device,
+    );
+    // Swap the block after signing: the classic equivocation primitive.
+    vote.block_hash = [0x22; 32];
+    match mini_chain::verify_vote(&vote, &root.kel(), &device.kel()) {
+        Err(_) => Ok(
+            "a vote re-pointed at a different block was refused, so votes bind to one block"
+                .to_string(),
+        ),
+        Ok(()) => Err("a vote verified for a block it was not cast on".to_string()),
+    }
+}
+
+fn check_another_roots_device_cannot_cast_your_vote(_scratch: &Path) -> Result<String, String> {
+    let (root, _) = root_and_device(197)?;
+    let (_, other_device) = root_and_device(199)?;
+    // A device belonging to a different root, claiming to vote for this one.
+    let vote = mini_chain::sign_vote(
+        mini_chain::VoteKind::Precommit,
+        7,
+        0,
+        [0x11; 32],
+        &root.did(),
+        &other_device,
+    );
+    match mini_chain::verify_vote(&vote, &root.kel(), &other_device.kel()) {
+        Err(_) => Ok(
+            "a device delegated by another identity root could not cast this root's vote"
+                .to_string(),
+        ),
+        Ok(()) => {
+            Err("an undelegated device cast a vote for a root it does not belong to".to_string())
+        }
+    }
+}
+
+// --- settlement ------------------------------------------------------------
+
+fn check_settlement_claim_round_trip(_scratch: &Path) -> Result<String, String> {
+    let payer = mini_crypto::SigningKey::from_seed(&[0x21; 32]);
+    let claim = mini_settlement::sign_claim(
+        &payer,
+        b"payee-label",
+        1_500_000,
+        1,
+        2_000,
+        b"last-known-chain",
+        1_000,
+    )
+    .map_err(|error| format!("signing a claim failed: {error}"))?;
+    mini_settlement::verify_claim_signature(&claim)
+        .map_err(|error| format!("a genuine claim did not verify: {error}"))?;
+    Ok(format!(
+        "an offline payment claim for {} micro-MINI signed and verified",
+        claim.amount_micro
+    ))
+}
+
+fn check_settlement_amount_cannot_be_edited(_scratch: &Path) -> Result<String, String> {
+    let payer = mini_crypto::SigningKey::from_seed(&[0x23; 32]);
+    let mut claim = mini_settlement::sign_claim(
+        &payer,
+        b"payee-label",
+        1_000_000,
+        1,
+        2_000,
+        b"last-known-chain",
+        1_000,
+    )
+    .map_err(|error| format!("signing a claim failed: {error}"))?;
+    claim.amount_micro = 9_000_000;
+    match mini_settlement::verify_claim_signature(&claim) {
+        Err(_) => Ok(
+            "raising the amount on a signed claim invalidated it, so the payer's signature \
+             covers the amount"
+                .to_string(),
+        ),
+        Ok(()) => Err("an edited amount still verified against the payer's signature".to_string()),
+    }
+}
+
+// --- storage (CRDT convergence) -------------------------------------------
+
+fn check_crdt_converges_regardless_of_order(_scratch: &Path) -> Result<String, String> {
+    let (root, device) = root_and_device(211)?;
+    let human = root.did();
+    // The document root is a real signed object's id rather than an invented
+    // one: content addresses in this tree are derived from bytes, and a check
+    // that fabricated one would be testing a shape the protocol never produces.
+    let mut store = Store::new(MemoryBackend::new());
+    let doc = a_signed_object(&mut store, &human, &device, b"document root", 1)?;
+    let first = mini_crdt::op_add(&doc, &doc, b"first", 1_000, 1, &human, &device)
+        .map_err(|error| format!("op_add failed: {error}"))?;
+    let second = mini_crdt::op_add(&doc, &doc, b"second", 1_001, 2, &human, &device)
+        .map_err(|error| format!("op_add failed: {error}"))?;
+    let third = mini_crdt::op_add(&doc, &doc, b"third", 1_002, 3, &human, &device)
+        .map_err(|error| format!("op_add failed: {error}"))?;
+
+    let forward = mini_crdt::replay(&doc, &[first.clone(), second.clone(), third.clone()]);
+    let reversed = mini_crdt::replay(&doc, &[third, second, first]);
+    if format!("{forward:?}") != format!("{reversed:?}") {
+        return Err(
+            "replaying the same operations in a different order produced a different document"
+                .to_string(),
+        );
+    }
+    Ok(format!(
+        "three signed operations converged to the same document from both orders ({} node(s))",
+        forward.len()
+    ))
+}
+
+// --- personhood ------------------------------------------------------------
+
+fn check_personhood_confidence_fusion(_scratch: &Path) -> Result<String, String> {
+    let decay = mini_uniqueness::DecayPolicy::months_scale_default();
+    let weights = mini_uniqueness::ConfidenceWeights::whitepaper_default();
+    let strong = mini_uniqueness::ConfidenceInputs {
+        vouch_trust: 900,
+        vouch_age_ms: 0,
+        presence_score: 900,
+        presence_age_ms: 0,
+        behavioral_score: Some(900),
+    };
+    let weak = mini_uniqueness::ConfidenceInputs {
+        vouch_trust: 10,
+        vouch_age_ms: 0,
+        presence_score: 10,
+        presence_age_ms: 0,
+        behavioral_score: Some(10),
+    };
+    let strong_score = mini_uniqueness::fuse_confidence(&strong, &decay, &weights);
+    let weak_score = mini_uniqueness::fuse_confidence(&weak, &decay, &weights);
+    if strong_score <= weak_score {
+        return Err(format!(
+            "fused confidence did not rank strong evidence above weak ({strong_score} vs {weak_score})"
+        ));
+    }
+    Ok(format!(
+        "three personhood signals fused to {strong_score} for strong evidence and {weak_score} for weak"
+    ))
+}
+
+fn check_stale_personhood_evidence_decays(_scratch: &Path) -> Result<String, String> {
+    let decay = mini_uniqueness::DecayPolicy::months_scale_default();
+    let weights = mini_uniqueness::ConfidenceWeights::whitepaper_default();
+    let fresh = mini_uniqueness::ConfidenceInputs {
+        vouch_trust: 900,
+        vouch_age_ms: 0,
+        presence_score: 900,
+        presence_age_ms: 0,
+        behavioral_score: Some(900),
+    };
+    let stale = mini_uniqueness::ConfidenceInputs {
+        vouch_age_ms: decay.zero_after_ms,
+        presence_age_ms: decay.zero_after_ms,
+        ..fresh
+    };
+    let fresh_score = mini_uniqueness::fuse_confidence(&fresh, &decay, &weights);
+    let stale_score = mini_uniqueness::fuse_confidence(&stale, &decay, &weights);
+    if stale_score >= fresh_score {
+        return Err(format!(
+            "evidence past the decay horizon still counted as much as fresh evidence \
+             ({stale_score} vs {fresh_score})"
+        ));
+    }
+    Ok(format!(
+        "evidence aged past the decay horizon fell from {fresh_score} to {stale_score}"
+    ))
+}
+
+// --- reward ----------------------------------------------------------------
+
+fn check_reward_accrual_is_rate_capped(_scratch: &Path) -> Result<String, String> {
+    let params = mini_reward::RewardParams::demo_default();
+    if params.max_points_per_window == 0 {
+        return Err("the demo reward profile has no rate cap".to_string());
+    }
+    if params.maturation_ms == 0 {
+        return Err("the demo reward profile vests instantly".to_string());
+    }
+    Ok(format!(
+        "the demo profile caps accrual at {} points per {} ms and vests only after {} ms",
+        params.max_points_per_window, params.window_ms, params.maturation_ms
+    ))
+}
+
+// --- search ----------------------------------------------------------------
+
+fn check_search_tokenizer_and_query_parser(_scratch: &Path) -> Result<String, String> {
+    let tokens = mini_lexical_index::tokenize("Mininet is a constitutional protocol");
+    if tokens.is_empty() {
+        return Err("the tokenizer produced nothing for ordinary prose".to_string());
+    }
+    let repeated = mini_lexical_index::tokenize("same same same");
+    let counted: u32 = repeated.iter().map(|(_, count)| *count).sum();
+    if counted < 3 {
+        return Err(format!(
+            "the tokenizer lost repeated occurrences: counted {counted} of 3"
+        ));
+    }
+    let parsed = mini_query::parse_query("\"exact phrase\" plus terms");
+    Ok(format!(
+        "{} token(s) from a sentence, repeats counted, and a query parsed to {parsed:?}",
+        tokens.len()
+    )
+    .chars()
+    .take(200)
+    .collect())
+}
+
+fn check_html_extraction_is_deterministic(_scratch: &Path) -> Result<String, String> {
+    let html = "<html><head><title>A page</title></head><body><h1>Heading</h1>\
+                <p>Some body text for the extractor.</p></body></html>";
+    let first =
+        mini_web_extract::extract(html).map_err(|error| format!("extraction failed: {error:?}"))?;
+    let second =
+        mini_web_extract::extract(html).map_err(|error| format!("extraction failed: {error:?}"))?;
+    if format!("{first:?}") != format!("{second:?}") {
+        return Err("extracting the same HTML twice produced different results".to_string());
+    }
+    Ok("static HTML extraction produced identical output on two runs".to_string())
+}
+
+fn check_ranking_is_monotonic_in_evidence(_scratch: &Path) -> Result<String, String> {
+    let few = mini_ranker::signals::lexical(1, 10, 1);
+    let many = mini_ranker::signals::lexical(9, 10, 9);
+    if many <= few {
+        return Err(format!(
+            "a document matching more query terms did not score higher ({many} vs {few})"
+        ));
+    }
+    let fresh = mini_ranker::signals::freshness(1_000_000, 1_000_000);
+    let old = mini_ranker::signals::freshness(0, 1_000_000_000);
+    if old > fresh {
+        return Err("an older document scored fresher than a new one".to_string());
+    }
+    Ok(format!(
+        "lexical score rose from {few} to {many} with more matched terms, and freshness fell \
+         from {fresh} to {old} with age"
+    ))
+}
+
+// --- network ---------------------------------------------------------------
+
+fn check_gossip_fanout_is_bounded_and_deterministic(_scratch: &Path) -> Result<String, String> {
+    let mut candidates = Vec::new();
+    for _ in 0..20 {
+        candidates.push(
+            mini_net::PeerId::generate()
+                .map_err(|error| format!("could not generate a peer id: {error}"))?,
+        );
+    }
+    let chosen = mini_net::fanout_peers(&candidates, 4);
+    if chosen.len() != 4 {
+        return Err(format!(
+            "asked for a fanout of 4 and got {} peer(s)",
+            chosen.len()
+        ));
+    }
+    let again = mini_net::fanout_peers(&candidates, 4);
+    if chosen != again {
+        return Err(
+            "the same candidate set produced a different fanout on a second call".to_string(),
+        );
+    }
+    let over = mini_net::fanout_peers(&candidates, 1_000);
+    if over.len() > candidates.len() {
+        return Err("a fanout larger than the candidate set invented peers".to_string());
+    }
+    Ok(format!(
+        "gossip fanout selected {} of {} peers, repeatably, and never more than exist",
+        chosen.len(),
+        candidates.len()
+    ))
+}
+
+// --- policy ----------------------------------------------------------------
+
+fn check_privacy_tiers_cost_more_as_they_protect_more(_scratch: &Path) -> Result<String, String> {
+    use mini_privacy_policy::PrivacyTier;
+    // The cost doctrine's central claim: stronger protection is not free, and
+    // the schedule says so honestly rather than implying free anonymity.
+    let tiers = [
+        PrivacyTier::Direct,
+        PrivacyTier::Relayed,
+        PrivacyTier::Mixed,
+        PrivacyTier::Burst,
+    ];
+    let mut previous: Option<u32> = None;
+    let mut described = Vec::new();
+    for tier in tiers {
+        let cost = mini_privacy_policy::expected_cost(tier);
+        let low = cost.bandwidth_multiplier_millix_min;
+        described.push(format!("{tier:?}={low} millix"));
+        if let Some(previous) = previous {
+            if low < previous {
+                return Err(format!(
+                    "{tier:?} claims lower bandwidth cost ({low} millix) than the weaker tier below it ({previous})"
+                ));
+            }
+        }
+        previous = Some(low);
+    }
+    Ok(format!(
+        "declared bandwidth cost rises with protection: {}",
+        described.join(", ")
+    ))
+}
+
+fn check_a_stronger_tier_is_never_quoted_cheaper(_scratch: &Path) -> Result<String, String> {
+    use mini_privacy_policy::PrivacyTier;
+    let prices = mini_resource_pricing::PriceVector {
+        bandwidth_micro_mini_per_mb: 1_000,
+        storage_micro_mini_per_mb_day: 100,
+    };
+    let direct = mini_resource_pricing::quote(&prices, PrivacyTier::Direct, 10, 30)
+        .map_err(|error| format!("quoting Tier 0 failed: {error:?}"))?;
+    let mixed = mini_resource_pricing::quote(&prices, PrivacyTier::Mixed, 10, 30)
+        .map_err(|error| format!("quoting Tier 2 failed: {error:?}"))?;
+    if mixed.min_micro_mini < direct.min_micro_mini {
+        return Err(
+            "a mix-network tier was quoted cheaper than a direct one, which would make the \
+             cost doctrine meaningless"
+                .to_string(),
+        );
+    }
+    Ok(format!(
+        "the same payload quotes {} micro-MINI direct and {} mixed, so privacy is priced, \
+         not promised free",
+        direct.min_micro_mini, mixed.min_micro_mini
+    ))
+}
+
+fn check_replication_spreads_shards_across_distinct_holders(
+    _scratch: &Path,
+) -> Result<String, String> {
+    let params = mini_erasure::ErasureParams::new(4, 2)
+        .map_err(|error| format!("bad parameters: {error}"))?;
+    let mut holders = Vec::new();
+    for seed in 0..6u8 {
+        let (root, _) = root_and_device(seed.wrapping_mul(7).wrapping_add(3))?;
+        holders.push(root.did());
+    }
+    let plan = mini_replication_policy::plan_placement(params, &holders)
+        .map_err(|error| format!("placement failed: {error:?}"))?;
+    let distinct: std::collections::BTreeSet<String> = plan
+        .assignments()
+        .iter()
+        .map(|assignment| assignment.holder.0.as_str().to_string())
+        .collect();
+    if distinct.len() != plan.assignments().len() {
+        return Err(format!(
+            "{} shard(s) were placed on only {} distinct holder(s), so losing one holder \
+             costs more than one shard",
+            plan.assignments().len(),
+            distinct.len()
+        ));
+    }
+    Ok(format!(
+        "{} shards were placed on {} distinct identity roots",
+        plan.assignments().len(),
+        distinct.len()
+    ))
+}
+
+fn check_too_few_holders_is_refused_rather_than_doubled_up(
+    _scratch: &Path,
+) -> Result<String, String> {
+    let params = mini_erasure::ErasureParams::new(4, 2)
+        .map_err(|error| format!("bad parameters: {error}"))?;
+    let (root, _) = root_and_device(151)?;
+    // Six shards, two candidates: placing them anyway would silently put
+    // several shards on one holder and call it replication.
+    let (other, _) = root_and_device(157)?;
+    match mini_replication_policy::plan_placement(params, &[root.did(), other.did()]) {
+        Err(_) => Ok(
+            "placing 6 shards on 2 holders was refused rather than doubling shards onto one"
+                .to_string(),
+        ),
+        Ok(plan) => Err(format!(
+            "placement accepted 2 holders for {} shards",
+            plan.assignments().len()
+        )),
+    }
+}
+
+fn check_private_lookup_labels_do_not_repeat_across_epochs(
+    _scratch: &Path,
+) -> Result<String, String> {
+    let secret = mini_private_index::CapabilitySecret::generate()
+        .map_err(|error| format!("could not create a capability secret: {error:?}"))?;
+    let first = mini_private_index::derive_lookup_label(
+        &secret,
+        b"scope",
+        b"replica",
+        mini_private_index::IndexEpoch(1),
+        mini_private_index::LookupPurpose::ShardLookup,
+    )
+    .map_err(|error| format!("deriving a label failed: {error:?}"))?;
+    let same = mini_private_index::derive_lookup_label(
+        &secret,
+        b"scope",
+        b"replica",
+        mini_private_index::IndexEpoch(1),
+        mini_private_index::LookupPurpose::ShardLookup,
+    )
+    .map_err(|error| format!("deriving a label failed: {error:?}"))?;
+    let next_epoch = mini_private_index::derive_lookup_label(
+        &secret,
+        b"scope",
+        b"replica",
+        mini_private_index::IndexEpoch(2),
+        mini_private_index::LookupPurpose::ShardLookup,
+    )
+    .map_err(|error| format!("deriving a label failed: {error:?}"))?;
+    if first != same {
+        return Err("the same inputs produced two different lookup labels".to_string());
+    }
+    if first == next_epoch {
+        return Err(
+            "the label did not rotate with the epoch, so a storage node could link lookups \
+             across epochs"
+                .to_string(),
+        );
+    }
+    Ok("a lookup label is stable within an epoch and unlinkable across epochs".to_string())
 }

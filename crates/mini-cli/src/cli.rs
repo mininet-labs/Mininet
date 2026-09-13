@@ -694,6 +694,9 @@ fn dispatch_selftest(mut args: Vec<String>, json: bool) -> Result<String> {
     };
     let area = match noun.as_deref() {
         Some("list") => return Ok(crate::selftest::list().render(json, "selftest.list")),
+        Some("coverage") => {
+            return Ok(crate::selftest::coverage().render(json, "selftest.coverage"))
+        }
         Some(area) => Some(area.to_string()),
         None => None,
     };

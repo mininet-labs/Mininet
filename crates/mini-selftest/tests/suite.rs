@@ -25,11 +25,22 @@ fn every_check_in_the_suite_passes_or_explains_why_it_cannot_run() {
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
     assert!(report.is_clean());
-    assert_eq!(
-        report.checks.len(),
-        mini_selftest::all_checks().len(),
-        "the suite skipped constructing a check entirely"
+    // Every in-process check is present, plus whatever the spawned
+    // value-layer binary reported (or one skip saying it was not found).
+    for (area, name, _, _) in mini_selftest::all_checks() {
+        assert!(
+            report
+                .checks
+                .iter()
+                .any(|check| check.area == area && check.name == name),
+            "{area}/{name} was constructed but never ran"
+        );
+    }
+    assert!(
+        report.checks.iter().any(|check| check.area == "value"),
+        "the value area reported nothing at all, not even that its binary is missing"
     );
+    assert!(report.checks.len() > mini_selftest::all_checks().len());
     let _ = std::fs::remove_dir_all(root);
 }
 

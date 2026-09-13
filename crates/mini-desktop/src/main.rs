@@ -3332,6 +3332,49 @@ impl MininetApp {
             });
         }
         ui.add_space(12.0);
+        // What a green result does *not* cover, shown next to the button that
+        // produces it. A suite that passes says nothing about code it never
+        // touched, and leaving that out is how a partial check gets read as a
+        // whole-system guarantee.
+        egui::CollapsingHeader::new("What these checks do and do not cover")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.label(mini_selftest::coverage::summary());
+                ui.add_space(6.0);
+                egui::ScrollArea::vertical()
+                    .id_salt("coverage")
+                    .max_height(220.0)
+                    .show(ui, |ui| {
+                        for (name, coverage) in mini_selftest::COVERAGE {
+                            let (mark, colour, detail) = match coverage {
+                                mini_selftest::Coverage::Exercised { area } => (
+                                    "run",
+                                    egui::Color32::from_rgb(90, 170, 110),
+                                    (*area).to_string(),
+                                ),
+                                mini_selftest::Coverage::SeparateBinary { binary, .. } => (
+                                    "run",
+                                    egui::Color32::from_rgb(90, 170, 110),
+                                    format!("via {binary}"),
+                                ),
+                                mini_selftest::Coverage::Transitive { via } => {
+                                    ("dep", egui::Color32::GRAY, (*via).to_string())
+                                }
+                                mini_selftest::Coverage::Gap { reason } => (
+                                    "not run",
+                                    egui::Color32::from_rgb(200, 150, 70),
+                                    (*reason).to_string(),
+                                ),
+                            };
+                            ui.horizontal_wrapped(|ui| {
+                                ui.colored_label(colour, mark);
+                                ui.label(egui::RichText::new(*name).strong());
+                                ui.label(egui::RichText::new(detail).small());
+                            });
+                        }
+                    });
+            });
+        ui.add_space(10.0);
         let Some(report) = self.selftest_report.clone() else {
             ui.label(
                 egui::RichText::new("No run yet. Nothing is claimed until you press a button.")

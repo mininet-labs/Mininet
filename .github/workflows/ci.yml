@@ -187,8 +187,22 @@ jobs:
       # The diagnostics suite a user can press a button to run, run here too:
       # a self-test nobody checks will one day report a confident green on a
       # broken build.
-      - name: Run the diagnostics suite
-        run: cargo run --release -p mini-cli -- selftest
+      # The value-layer checks run in a separate process on purpose, so the
+      # spawn path is exercised here rather than assumed: without the binary
+      # present, the suite would report a skip and still pass.
+      - name: Run the diagnostics suite, value layer included
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo build --release -p mini-value-selftest
+          $env:MININET_VALUE_SELFTEST = "$PWD/target/release/mininet-value-selftest.exe"
+          $out = cargo run --release -p mini-cli -- selftest
+          if ($LASTEXITCODE -ne 0) { $out; throw 'a self-test check failed' }
+          $out
+          if ($out -notmatch 'inflating an output breaks the balance check') {
+            throw 'the value-layer checks did not run; the spawn path is broken'
+          }
+          cargo run --release -p mini-cli -- selftest coverage
 
       - name: Build a real Windows release
         shell: pwsh
@@ -256,6 +270,44 @@ jobs:
           cargo clippy --target x86_64-pc-windows-gnu --all-targets --all-features \
             -p mini-windows-vault -p mini-windows-setup -p mini-setup \
             -p mini-selftest -p mini-desktop -- -D warnings
+
+      # Same spawn path on Linux, where most contributors will see it first.
+      - name: Run the diagnostics suite, value layer included
+        run: |
+          set -eu
+          cargo build --release -p mini-value-selftest
+          export MININET_VALUE_SELFTEST="$PWD/target/release/mininet-value-selftest"
+          out=$(cargo run --release -p mini-cli -- selftest)
+          echo "$out"
+          echo "$out" | grep -q 'inflating an output breaks the balance check' \
+            || { echo 'the value-layer checks did not run; the spawn path is broken' >&2; exit 1; }
+          cargo run --release -p mini-cli -- selftest coverage
+
+      # The wall, checked mechanically rather than by review habit: no crate
+      # may sit on a dependency path that reaches both the value layer and the
+      # governance layer. P1 is about vote weight, and this is how that is kept
+      # true in code -- which is exactly why it does not need to be enforced by
+      # withholding features from the user.
+      - name: No crate links both the value layer and the governance layer
+        run: |
+          set -eu
+          cargo tree --version >/dev/null
+          for crate in mini-selftest mini-desktop mini-cli mini-windows-setup mini-setup; do
+            deps=$(cargo tree -p "$crate" --prefix none --no-dedupe 2>/dev/null | awk '{print $1}' | sort -u)
+            value=$(echo "$deps" | grep -cE '^(mini-value|mini-bounty|mini-treasury)$' || true)
+            governance=$(echo "$deps" | grep -cE '^(mini-forge|mini-chain)$' || true)
+            if [ "$value" -gt 0 ] && [ "$governance" -gt 0 ]; then
+              echo "$crate depends on both the value layer and the governance layer" >&2
+              echo "$deps" | grep -E '^(mini-value|mini-bounty|mini-treasury|mini-forge|mini-chain)$' >&2
+              exit 1
+            fi
+          done
+          # And the value binary must never reach the governance layer at all.
+          if cargo tree -p mini-value-selftest --prefix none --no-dedupe \
+              | awk '{print $1}' | grep -qE '^(mini-forge|mini-chain)$'; then
+            echo 'mini-value-selftest reached the governance layer' >&2
+            exit 1
+          fi
 
       - name: Build a package and a self-contained installer
         run: packaging/windows/build-release.sh --host --out dist/ci

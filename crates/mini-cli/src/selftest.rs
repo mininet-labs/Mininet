@@ -47,6 +47,46 @@ pub fn run(scratch: Option<&Path>, area: Option<&str>) -> Result<(CommandResult,
     Ok((render(&report), clean))
 }
 
+/// Report which crates a user can exercise, and which they cannot.
+///
+/// The honest counterpart to a green run: a suite that passes says nothing
+/// about the code it never touched, so the gaps are printed with it.
+pub fn coverage() -> CommandResult {
+    use mini_selftest::coverage::{Coverage, COVERAGE};
+    let mut human = format!("{}\n\n", mini_selftest::coverage::summary());
+    let mut runnable = Vec::new();
+    let mut gaps = Vec::new();
+    for (name, coverage) in COVERAGE {
+        match coverage {
+            Coverage::Exercised { area } => {
+                human.push_str(&format!("  run       {name}  ({area})\n"));
+                runnable.push(name.to_string());
+            }
+            Coverage::SeparateBinary { binary, .. } => {
+                human.push_str(&format!("  run       {name}  (via {binary})\n"));
+                runnable.push(name.to_string());
+            }
+            Coverage::Transitive { via } => {
+                human.push_str(&format!("  depended  {name}  ({via})\n"));
+            }
+            Coverage::Gap { reason } => {
+                human.push_str(&format!("  NOT RUN   {name}  -- {reason}\n"));
+                gaps.push(name.to_string());
+            }
+        }
+    }
+    human.push_str(
+        "\nA passing run says nothing about the crates marked NOT RUN. Each states why it \
+         is not exercised rather than being quietly omitted.\n",
+    );
+    CommandResult::new(human)
+        .field("crates", JsonValue::num(COVERAGE.len() as u64))
+        .field("runnable", JsonValue::num(runnable.len() as u64))
+        .field("gaps", JsonValue::num(gaps.len() as u64))
+        .field("runnable_crates", JsonValue::strs(runnable))
+        .field("gap_crates", JsonValue::strs(gaps))
+}
+
 /// List what would run, without running it.
 pub fn list() -> CommandResult {
     let checks = mini_selftest::all_checks();

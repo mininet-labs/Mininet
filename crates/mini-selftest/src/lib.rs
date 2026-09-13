@@ -44,8 +44,11 @@
 #![warn(missing_docs)]
 
 mod checks;
+pub mod coverage;
+pub mod value;
 
 pub use checks::{all_checks, default_scratch, run_all, run_area, AREAS};
+pub use coverage::{Coverage, COVERAGE};
 
 /// How one check ended.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -3227,16 +3227,30 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "mini-bearer",
+ "mini-chain",
+ "mini-crdt",
  "mini-crypto",
  "mini-erasure",
  "mini-forge",
+ "mini-lexical-index",
  "mini-media",
  "mini-messaging",
+ "mini-net",
  "mini-objects",
+ "mini-privacy-policy",
+ "mini-private-index",
+ "mini-query",
+ "mini-ranker",
+ "mini-replication-policy",
+ "mini-resource-pricing",
+ "mini-reward",
+ "mini-settlement",
  "mini-social",
  "mini-spacetime",
  "mini-store",
  "mini-sync",
+ "mini-uniqueness",
+ "mini-web-extract",
  "mini-windows-setup",
 ]
 
@@ -3390,6 +3404,16 @@ dependencies = [
  "mini-crypto",
  "rand_core 0.6.4",
  "zeroize",
+]
+
+[[package]]
+name = "mini-value-selftest"
+version = "0.0.1"
+dependencies = [
+ "curve25519-dalek",
+ "did-mini",
+ "mini-treasury",
+ "mini-value",
 ]
 
 [[package]]
