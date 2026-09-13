@@ -16,6 +16,7 @@ use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
 use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
+use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
     comments, community_members, feed, followers, following, known_profiles, publish_comment,
     publish_community, publish_media_post, publish_post, publish_profile, publish_profile_details,
@@ -29,6 +30,7 @@ use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{
     kel_carrier, sync_bidirectional, sync_private_route_bidirectional, KelCache, SyncRole,
 };
+use mini_windows_setup::{InstallOptions, RecordingShell, Setup, SetupStatus, WindowsShell};
 use mini_windows_vault::{load_existing, load_or_create, load_user_data, save_user_data, SeedPair};
 use std::collections::HashMap;
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
@@ -48,6 +50,8 @@ enum View {
     Creator,
     Connections,
     System,
+    Diagnostics,
+    Updates,
     Privacy,
 }
 
@@ -137,6 +141,11 @@ struct MininetApp {
     selected_conversation: Option<usize>,
     sync_rx: Option<Receiver<Result<String, String>>>,
     sync_context: Option<SyncContext>,
+    /// Results of a diagnostics run in progress, off the UI thread.
+    selftest_rx: Option<Receiver<SelfTestReport>>,
+    selftest_report: Option<SelfTestReport>,
+    selftest_area: Option<&'static str>,
+    install_notice: String,
     notice: String,
 }
 
@@ -1395,6 +1404,10 @@ impl Default for MininetApp {
             selected_conversation: None,
             sync_rx: None,
             sync_context: None,
+            selftest_rx: None,
+            selftest_report: None,
+            selftest_area: None,
+            install_notice: String::new(),
             notice:
                 "Local object store ready. Identity is locked; no network activity has started."
                     .to_string(),
@@ -1450,6 +1463,39 @@ impl eframe::App for MininetApp {
                 (None, Ok(summary)) => summary,
                 (None, Err(error)) => format!("Peer sync failed: {error}"),
             };
+        }
+        if let Some(receiver) = self.selftest_rx.as_ref() {
+            match receiver.try_recv() {
+                Ok(report) => {
+                    self.selftest_rx = None;
+                    self.notice = format!("Diagnostics finished: {}", report.summary());
+                    self.selftest_report = Some(report);
+                }
+                // The worker went away without sending: a check panicked.
+                // Discarding this state with `.ok()` left the receiver in
+                // place forever, so the page kept spinning with every button
+                // disabled and no way to retry short of restarting.
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.selftest_rx = None;
+                    self.notice =
+                        "Diagnostics stopped unexpectedly. Nothing here has been verified."
+                            .to_string();
+                    self.selftest_report = Some(SelfTestReport {
+                        checks: vec![mini_selftest::Check {
+                            area: "diagnostics",
+                            name: "the diagnostics stopped before reporting",
+                            negative: false,
+                            outcome: CheckOutcome::Failed {
+                                detail: "a check ended the run without producing a result. \
+                                         Nothing has been verified; press a button to run again."
+                                    .to_string(),
+                            },
+                        }],
+                        elapsed_ms: 0,
+                    });
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
+            }
         }
         let mut visibility_results = Vec::new();
         let mut visibility_finished = false;
@@ -1526,6 +1572,8 @@ impl eframe::App for MininetApp {
                 ui.label(egui::RichText::new("CONTROL PLANE").small().strong());
                 ui.add_space(6.0);
                 self.nav_button(ui, View::Privacy, "Privacy & safety");
+                self.nav_button(ui, View::Diagnostics, "Diagnostics");
+                self.nav_button(ui, View::Updates, "Version & install");
                 ui.separator();
                 ui.label(
                     egui::RichText::new("No analytics\nNo ad SDKs\nNo embedded web view").small(),
@@ -1550,6 +1598,8 @@ impl eframe::App for MininetApp {
                         View::Creator => self.creator(ui),
                         View::Connections => self.connections(ui),
                         View::System => self.system(ui),
+                        View::Diagnostics => self.diagnostics(ui),
+                        View::Updates => self.updates(ui),
                         View::Privacy => self.privacy(ui),
                     }
                     ui.add_space(18.0);
@@ -1798,6 +1848,14 @@ impl MininetApp {
             View::Communities => (
                 "Communities",
                 "Portable spaces for discussion, not platform-owned silos.",
+            ),
+            View::Diagnostics => (
+                "Diagnostics",
+                "Run the real protocol code on this device and read what it actually did.",
+            ),
+            View::Updates => (
+                "Version & install",
+                "What is installed, whether it still matches its manifest, and how to go back.",
             ),
             View::Creator => (
                 "Creator studio",
@@ -3156,13 +3214,19 @@ impl MininetApp {
                 if ui.button("Open privacy center").clicked() {
                     self.view = View::Privacy;
                 }
+                if ui.button("Run diagnostics").clicked() {
+                    self.view = View::Diagnostics;
+                }
+                if ui.button("Version & install").clicked() {
+                    self.view = View::Updates;
+                }
             });
         });
         ui.add_space(10.0);
         ui.group(|ui| {
             ui.label(egui::RichText::new("Protocol coverage").strong());
-            ui.label("Integrated here: signed social objects, local feed assembly, communities, threaded replies, reactions, chunked media, DPAPI identity/conversation storage, Inbox beta, offline bundles, and encrypted one-shot TCP sync.");
-            ui.label("Available in the repository but not yet a finished desktop workflow: production chat sessions/mailboxes, forge repository/PR operations, presence/keystone encounters, reward accounting, privacy-cost routing, update adoption, and governance administration.");
+            ui.label("Integrated here: signed social objects, local feed assembly, communities, threaded replies, reactions, chunked media, DPAPI identity/conversation storage, Inbox beta, offline bundles, encrypted one-shot TCP sync, Windows install inspection with re-verification and rollback, and a diagnostics suite that executes the real identity, storage, social, media, messaging, sync, governance, erasure-coding, and storage-proof code.");
+            ui.label("Available in the repository but not yet a finished desktop workflow: production chat sessions/mailboxes, forge repository/PR administration, presence/keystone encounters, reward accounting, privacy-cost routing, and release adoption decisions. Diagnostics *exercises* the governed-review path end to end, which is not the same as offering a desktop workflow for running it.");
             ui.label("Those foundations are deliberately shown as boundaries rather than unsafe pretend buttons. Public object types remain inspectable and syncable when another Mininet tool creates them; private messages currently require an explicit one-shot conversation sync.");
         });
         ui.add_space(10.0);
@@ -3171,10 +3235,12 @@ impl MininetApp {
             for (feature, status, owner) in [
                 ("Local social, profiles, follows, walls, communities", "Integrated / test-covered", "Desktop"),
                 ("Offline bundles and manual encrypted TCP sync", "Integrated / operator-configured", "Desktop + networking"),
+                ("Windows packaging, install, verify, rollback, uninstall", "Integrated / test-covered; not code-signed; MSI ships for per-user managed deployment, no per-machine install", "Setup"),
+                ("Runnable diagnostics over the real protocol code", "Integrated / test-covered, including refusal checks", "Diagnostics"),
                 ("Internet relay and NAT traversal", "Partial: self-hosted relay foundation exists", "Networking"),
                 ("Private messaging", "Manual Inbox beta integrated; prekeys, ratchet, mailbox, provenance UI and multi-device delivery missing", "Messaging + desktop"),
                 ("Voice and video calls", "Not implemented end to end", "Realtime media"),
-                ("Forge repositories, pull requests, releases", "Protocol foundation; desktop workflow missing", "Forge UI"),
+                ("Forge repositories, pull requests, releases", "Protocol foundation, exercised by diagnostics; no desktop administration workflow", "Forge UI"),
                 ("Presence / keystone / reward encounter", "Protocol demo; production hardware path missing", "Identity + device"),
                 ("Notifications, moderation labels, block/mute", "Not integrated in desktop", "Social UI"),
                 ("Search, public web intake, external catalog adapters", "Partial or not started", "Search / adapters"),
@@ -3200,6 +3266,424 @@ impl MininetApp {
             });
         });
         ui.separator();
+    }
+
+    /// Start a diagnostics run off the UI thread.
+    ///
+    /// The suite opens real sockets and writes real files, so it takes long
+    /// enough that running it on the UI thread would freeze the window --- the
+    /// one place in this client where a background thread is worth the extra
+    /// state. Scratch state goes in a throwaway directory under the OS temp
+    /// directory, never in the user's own `MININET_HOME`, so a diagnostics run
+    /// can never touch identities or posts.
+    fn start_selftest(&mut self, area: Option<&'static str>) {
+        if self.selftest_rx.is_some() {
+            self.notice = "Diagnostics are already running.".to_string();
+            return;
+        }
+        let (sender, receiver) = mpsc::channel();
+        self.selftest_rx = Some(receiver);
+        self.selftest_area = area;
+        self.selftest_report = None;
+        self.notice = match area {
+            Some(area) => format!("Running the {area} checks..."),
+            None => "Running every check...".to_string(),
+        };
+        std::thread::spawn(move || {
+            let scratch = mini_selftest::default_scratch();
+            let report = match std::fs::create_dir_all(&scratch) {
+                Ok(()) => match area {
+                    Some(area) => mini_selftest::run_area(&scratch, area),
+                    None => mini_selftest::run_all(&scratch),
+                },
+                // An unwritable or full temp directory used to produce an
+                // empty report, which `is_clean()` reads as "nothing failed"
+                // --- a green result over a run that never happened, which is
+                // the exact failure this whole view exists to prevent.
+                Err(error) => SelfTestReport {
+                    checks: vec![mini_selftest::Check {
+                        area: "diagnostics",
+                        name: "the diagnostics could not start",
+                        negative: false,
+                        outcome: CheckOutcome::Failed {
+                            detail: format!(
+                                "could not create a scratch directory at {}: {error}. No check \
+                                 ran, so nothing here has been verified.",
+                                scratch.display()
+                            ),
+                        },
+                    }],
+                    elapsed_ms: 0,
+                },
+            };
+            let _ = std::fs::remove_dir_all(&scratch);
+            let _ = sender.send(report);
+        });
+    }
+
+    /// Diagnostics: run the real protocol stack and show what happened.
+    ///
+    /// This exists because a protocol whose guarantees can only be confirmed
+    /// by reading its test suite is a protocol its users cannot confirm at
+    /// all. Every line here is the shipped library code executing, not a
+    /// description of it.
+    fn diagnostics(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Diagnostics");
+        ui.label(
+            "Runs the real identity, storage, social, media, messaging, sync, governance, \
+             erasure-coding, storage-proof, and install code and reports what happened. \
+             Nothing here touches your identities or posts: every check builds its own \
+             throwaway state and deletes it afterwards.",
+        );
+        ui.add_space(8.0);
+        // Includes the value-layer checks a real run appends after spawning
+        // `mininet-value-selftest`: without them this summary undercounts
+        // what "Run every check" actually does whenever that binary ships
+        // alongside the client, which is every packaged build.
+        let total =
+            mini_selftest::all_checks().len() + mini_selftest::value::ADVERTISED_CHECKS.len();
+        let refusals = mini_selftest::all_checks()
+            .iter()
+            .filter(|(_, _, negative, _)| *negative)
+            .count()
+            + mini_selftest::value::ADVERTISED_CHECKS
+                .iter()
+                .filter(|(_, _, negative)| *negative)
+                .count();
+        ui.label(format!(
+            "{total} checks across {} areas. {refusals} of them check that something is \
+             *refused* rather than that it works, which is what shows the guarantees are \
+             load-bearing.",
+            mini_selftest::AREAS.len()
+        ));
+        ui.add_space(10.0);
+        let running = self.selftest_rx.is_some();
+        ui.horizontal_wrapped(|ui| {
+            if ui
+                .add_enabled(!running, egui::Button::new("Run every check"))
+                .clicked()
+            {
+                self.start_selftest(None);
+            }
+            for area in mini_selftest::AREAS {
+                if ui.add_enabled(!running, egui::Button::new(*area)).clicked() {
+                    self.start_selftest(Some(area));
+                }
+            }
+        });
+        if running {
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label("Running. The sync check opens a real loopback socket.");
+            });
+        }
+        ui.add_space(12.0);
+        // What a green result does *not* cover, shown next to the button that
+        // produces it. A suite that passes says nothing about code it never
+        // touched, and leaving that out is how a partial check gets read as a
+        // whole-system guarantee.
+        egui::CollapsingHeader::new("What these checks do and do not cover")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.label(mini_selftest::coverage::summary());
+                ui.add_space(6.0);
+                egui::ScrollArea::vertical()
+                    .id_salt("coverage")
+                    .max_height(220.0)
+                    .show(ui, |ui| {
+                        for (name, coverage) in mini_selftest::COVERAGE {
+                            let (mark, colour, detail) = match coverage {
+                                mini_selftest::Coverage::Exercised { area } => (
+                                    "run",
+                                    egui::Color32::from_rgb(90, 170, 110),
+                                    (*area).to_string(),
+                                ),
+                                mini_selftest::Coverage::SeparateBinary { binary, .. } => (
+                                    "run",
+                                    egui::Color32::from_rgb(90, 170, 110),
+                                    format!("via {binary}"),
+                                ),
+                                mini_selftest::Coverage::Transitive { via } => {
+                                    ("dep", egui::Color32::GRAY, (*via).to_string())
+                                }
+                                mini_selftest::Coverage::Gap { reason } => (
+                                    "not run",
+                                    egui::Color32::from_rgb(200, 150, 70),
+                                    (*reason).to_string(),
+                                ),
+                            };
+                            ui.horizontal_wrapped(|ui| {
+                                ui.colored_label(colour, mark);
+                                ui.label(egui::RichText::new(*name).strong());
+                                ui.label(egui::RichText::new(detail).small());
+                            });
+                        }
+                    });
+            });
+        ui.add_space(10.0);
+        let Some(report) = self.selftest_report.clone() else {
+            ui.label(
+                egui::RichText::new("No run yet. Nothing is claimed until you press a button.")
+                    .italics(),
+            );
+            return;
+        };
+        ui.group(|ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(egui::RichText::new(report.summary()).strong());
+                if report.is_clean() {
+                    ui.colored_label(egui::Color32::from_rgb(90, 170, 110), "nothing failed");
+                } else {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(220, 120, 60),
+                        "at least one check failed; this build should not be trusted",
+                    );
+                }
+            });
+            if let Some(area) = self.selftest_area {
+                ui.label(egui::RichText::new(format!("Only the {area} area ran.")).small());
+            }
+        });
+        ui.add_space(10.0);
+        let mut current_area = "";
+        for check in &report.checks {
+            if check.area != current_area {
+                ui.add_space(8.0);
+                ui.label(egui::RichText::new(check.area).strong());
+                current_area = check.area;
+            }
+            let (mark, colour) = match &check.outcome {
+                CheckOutcome::Passed { .. } => ("pass", egui::Color32::from_rgb(90, 170, 110)),
+                CheckOutcome::Failed { .. } => ("FAIL", egui::Color32::from_rgb(220, 120, 60)),
+                CheckOutcome::Skipped { .. } => ("skip", egui::Color32::GRAY),
+            };
+            ui.horizontal_wrapped(|ui| {
+                ui.colored_label(colour, mark);
+                ui.label(check.name);
+                if check.negative {
+                    ui.label(egui::RichText::new("refusal").small());
+                }
+            });
+            ui.label(egui::RichText::new(format!("      {}", check.outcome.detail())).small());
+        }
+    }
+
+    /// Version & install: what is installed, whether it still matches its
+    /// manifest, and how to go back.
+    ///
+    /// Reads the same `mini-windows-setup` state `mininet-setup.exe` writes,
+    /// so the client and the installer never disagree about what is
+    /// installed. Deliberately read-mostly: this view can re-verify and it can
+    /// roll back to a version already on disk, but it cannot install,
+    /// download, or update anything. Nothing in this client fetches a release
+    /// or applies one on a timer (`docs/INVARIANTS.md` U1); installing is
+    /// always something a person started, in the setup program.
+    fn updates(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Version & install");
+        // Derived from this executable's own location, not the default root:
+        // a client installed somewhere custom would otherwise inspect
+        // %LOCALAPPDATA%\\Programs\\Mininet, find nothing, and report itself
+        // unmanaged with verification and rollback disabled on an
+        // installation that has both.
+        let setup = match std::env::current_exe() {
+            Ok(exe) => Setup::containing(&exe),
+            Err(_) => Setup::for_current_user(),
+        }
+        .with_user_data_root(data_root());
+        let status = setup.status();
+        ui.add_space(6.0);
+        match &status {
+            Ok(status) => self.install_summary(ui, status),
+            Err(error) => {
+                ui.colored_label(
+                    egui::Color32::from_rgb(220, 120, 60),
+                    format!("Could not read the installation: {error}"),
+                );
+            }
+        }
+        ui.add_space(12.0);
+        if let Ok(status) = &status {
+            let installed = status.active.clone();
+            let can_roll_back = status.previous.is_some();
+            ui.horizontal_wrapped(|ui| {
+                if ui
+                    .add_enabled(
+                        installed.is_some(),
+                        egui::Button::new("Re-check installed files"),
+                    )
+                    .clicked()
+                {
+                    self.install_notice = match installed
+                        .as_ref()
+                        .map(|record| setup.verify_installed(&record.version_text))
+                    {
+                        Some(Ok(report)) if report.is_intact() => format!(
+                            "Installed {} matches its manifest: {} file(s), {} bytes re-hashed.",
+                            report.version_text, report.files_checked, report.bytes_checked
+                        ),
+                        Some(Ok(report)) => {
+                            let problems: Vec<String> = report
+                                .problems
+                                .iter()
+                                .map(mini_windows_setup::report::describe_problem)
+                                .collect();
+                            format!(
+                                "Installed {} does NOT match its manifest: {}. Reinstall from a \
+                                 package you trust before running it again.",
+                                report.version_text,
+                                problems.join(", ")
+                            )
+                        }
+                        Some(Err(error)) => format!("Could not check the files: {error}"),
+                        None => "Nothing is installed to check.".to_string(),
+                    };
+                }
+                if ui
+                    .add_enabled(can_roll_back, egui::Button::new("Roll back one version"))
+                    .clicked()
+                {
+                    // Shell integration is Windows-only; elsewhere the file
+                    // half still happens and the recorded actions are reported
+                    // rather than silently claimed.
+                    //
+                    // The options here must match what is actually on this
+                    // machine, not a fresh install's defaults: a
+                    // `Desktop shortcut` installed just an update ago would
+                    // otherwise be left pointing at the newer version while
+                    // rollback silently "fixes" only the Start Menu entry,
+                    // and an install made with `--no-start-menu` would gain
+                    // an unwanted Start Menu entry. The currently active
+                    // record remembers the real choice, since it is exactly
+                    // what the last install or upgrade actually applied.
+                    let options = match &installed {
+                        Some(record) => InstallOptions {
+                            start_menu_shortcut: record.start_menu_shortcut,
+                            desktop_shortcut: record.desktop_shortcut,
+                            register_uninstall: record.register_uninstall,
+                            ..InstallOptions::default()
+                        },
+                        None => InstallOptions::default(),
+                    };
+                    let mut windows_shell = WindowsShell::default();
+                    let mut recording_shell = RecordingShell::default();
+                    let shell: &mut dyn mini_windows_setup::ShellIntegration = if cfg!(windows) {
+                        &mut windows_shell
+                    } else {
+                        &mut recording_shell
+                    };
+                    self.install_notice = match setup.rollback(&options, shell, now_ms()) {
+                        Ok(record) => format!(
+                            "Rolled back to {}. Close and reopen the client to run it.",
+                            record.version_text
+                        ),
+                        Err(error) => format!("Rollback refused: {error}"),
+                    };
+                }
+                if ui.button("Show where things live").clicked() {
+                    self.install_notice = format!(
+                        "Program files: {}\nYour data: {}",
+                        status.install_root.display(),
+                        status.user_data_root.display()
+                    );
+                }
+            });
+        }
+        if !self.install_notice.is_empty() {
+            ui.add_space(10.0);
+            ui.group(|ui| {
+                for line in self.install_notice.lines() {
+                    ui.label(line);
+                }
+            });
+        }
+        ui.add_space(12.0);
+        ui.group(|ui| {
+            ui.label(egui::RichText::new("What this client will not do").strong());
+            ui.label(
+                "It does not check for updates, download a release, or install one. There is no \
+                 background task and no timer. Updating means running the setup program \
+                 yourself, with a package you obtained however you chose.",
+            );
+            ui.label(
+                "It cannot be forced or remotely disabled. A newer release cannot replace this \
+                 one without someone on this device approving that exact package by its digest.",
+            );
+            ui.label(
+                "Rolling back only ever moves to a version already on this disk, and only after \
+                 re-hashing every one of its files first.",
+            );
+        });
+        ui.add_space(10.0);
+        ui.group(|ui| {
+            ui.label(egui::RichText::new("Verify this yourself").strong());
+            ui.label(
+                "The manifest beside each package records every file's length, BLAKE3, and \
+                 SHA-256. Get-FileHash checks the SHA-256 column without running anything we \
+                 shipped.",
+            );
+            ui.label(
+                "A matching digest proves the file is the one the manifest describes. Who wrote \
+                 the manifest is a separate question, answered by the release attestations in \
+                 mini-forge, not by this view.",
+            );
+            ui.label(
+                egui::RichText::new(
+                    "These builds are not code-signed, so Windows SmartScreen warns on first \
+                     run. That warning is accurate.",
+                )
+                .italics(),
+            );
+        });
+    }
+
+    fn install_summary(&self, ui: &mut egui::Ui, status: &SetupStatus) {
+        ui.group(|ui| {
+            match &status.active {
+                Some(record) => {
+                    ui.label(
+                        egui::RichText::new(format!("Installed version {}", record.version_text))
+                            .strong(),
+                    );
+                    ui.monospace(format!("package digest {}", record.package_digest));
+                }
+                None => {
+                    ui.label(egui::RichText::new("No managed installation here").strong());
+                    ui.label(
+                        "This copy is running from a build directory or an unmanaged folder. \
+                         That works, but there is no manifest to check it against and no \
+                         rollback target.",
+                    );
+                }
+            }
+            match &status.previous {
+                Some(previous) => ui.label(format!("Can roll back to {}", previous.version_text)),
+                None => ui.label("No earlier version to roll back to"),
+            };
+            if !status.installed_versions.is_empty() {
+                ui.label(format!(
+                    "Versions on disk: {}",
+                    status.installed_versions.join(", ")
+                ));
+            }
+            ui.label(format!("Program files: {}", status.install_root.display()));
+            ui.label(format!(
+                "Your identities, posts, and settings: {} ({})",
+                status.user_data_root.display(),
+                if status.user_data_present {
+                    "present"
+                } else {
+                    "not created yet"
+                }
+            ));
+            ui.label(
+                egui::RichText::new(
+                    "Those two directories are separate on purpose: removing the program cannot \
+                     delete an identity you cannot recreate.",
+                )
+                .small(),
+            );
+        });
     }
 
     fn privacy(&mut self, ui: &mut egui::Ui) {

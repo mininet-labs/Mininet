@@ -2700,8 +2700,10 @@ dependencies = [
  "mini-pipeline-protocol",
  "mini-presence",
  "mini-provenance",
+ "mini-selftest",
  "mini-store",
  "mini-sync",
+ "mini-windows-setup",
  "tempfile",
 ]
 
@@ -2820,9 +2822,11 @@ dependencies = [
  "mini-media",
  "mini-messaging",
  "mini-objects",
+ "mini-selftest",
  "mini-social",
  "mini-store",
  "mini-sync",
+ "mini-windows-setup",
  "mini-windows-vault",
 ]
 
@@ -3218,10 +3222,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-selftest"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+ "mini-bearer",
+ "mini-chain",
+ "mini-crdt",
+ "mini-crypto",
+ "mini-erasure",
+ "mini-forge",
+ "mini-lexical-index",
+ "mini-media",
+ "mini-messaging",
+ "mini-net",
+ "mini-objects",
+ "mini-presence",
+ "mini-privacy-policy",
+ "mini-private-index",
+ "mini-query",
+ "mini-ranker",
+ "mini-replication-policy",
+ "mini-resource-pricing",
+ "mini-reward",
+ "mini-settlement",
+ "mini-social",
+ "mini-spacetime",
+ "mini-store",
+ "mini-sync",
+ "mini-uniqueness",
+ "mini-web-extract",
+ "mini-windows-setup",
+]
+
+[[package]]
 name = "mini-settlement"
 version = "0.0.1"
 dependencies = [
  "mini-crypto",
+]
+
+[[package]]
+name = "mini-setup"
+version = "0.0.1"
+dependencies = [
+ "eframe",
+ "mini-windows-setup",
 ]
 
 [[package]]
@@ -3362,6 +3408,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-value-selftest"
+version = "0.0.1"
+dependencies = [
+ "curve25519-dalek",
+ "did-mini",
+ "mini-treasury",
+ "mini-value",
+]
+
+[[package]]
 name = "mini-web-extract"
 version = "0.0.1"
 dependencies = [
@@ -3374,6 +3430,15 @@ name = "mini-web-types"
 version = "0.0.1"
 dependencies = [
  "mini-crypto",
+]
+
+[[package]]
+name = "mini-windows-setup"
+version = "0.0.1"
+dependencies = [
+ "mini-crypto",
+ "mini-durable",
+ "mini-forge",
 ]
 
 [[package]]

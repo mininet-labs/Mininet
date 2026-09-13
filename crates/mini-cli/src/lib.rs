@@ -54,9 +54,11 @@ mod project;
 mod provenance;
 mod release;
 mod repo;
+mod selftest;
 mod sequence;
 pub mod store;
 mod sync;
+mod windows;
 
 pub use cli::run;
 pub use error::{CliError, Result};

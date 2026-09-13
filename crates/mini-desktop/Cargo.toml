@@ -27,3 +27,12 @@ mini-sync = { path = "../mini-sync" }
 mini-social = { path = "../mini-social" }
 mini-store = { path = "../mini-store" }
 mini-windows-vault = { path = "../mini-windows-vault" }
+# Diagnostics and the version/install view.
+#
+# mini-selftest has a governance edge (mini-forge), so this client must NEVER
+# gain an edge to mini-value, mini-bounty, or mini-treasury in either
+# direction (P1, Directive 16 -- the voice/value wall). A social client has no
+# reason to, and a reviewer should reject any Cargo.toml change here that
+# adds one.
+mini-selftest = { path = "../mini-selftest" }
+mini-windows-setup = { path = "../mini-windows-setup" }

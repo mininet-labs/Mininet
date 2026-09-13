@@ -136,7 +136,35 @@ safe end-user workflow, including forge administration, keystone encounters,
 reward accounting, and update adoption. It does not present placeholder
 buttons for those unfinished surfaces.
 
+Diagnostics runs the real protocol code on this device and shows what
+happened: identity signing and pre-rotation, content addressing, the social
+feed, chunked media, encrypted messaging, two stores converging over a real
+loopback socket, a governed two-approval merge, erasure-coding recovery, and
+storage proofs. Roughly a third of the checks establish a *refusal* --- one
+approval does not reach the two-approval floor, an approval bound to one
+commit does not carry to another, a second conversation's key reads none of
+this one's messages --- because those are what show the guarantees are
+load-bearing rather than merely that the happy path runs. Every check builds
+its own throwaway state under the OS temp directory and deletes it, so a
+diagnostics run cannot touch identities or posts. The same suite is
+`mini selftest`, and CI runs it on every change.
+
+Version & install reads the same state `mininet-setup.exe` writes: the
+installed version, its package digest, what a rollback would return to, and
+where program files and user data each live. It can re-hash every installed
+file against its manifest, and it can roll back to a version already on disk
+--- after verifying that version first. It cannot check for updates, download
+a release, or install one. There is no background task and no timer; updating
+means running the setup program with a package you obtained however you chose.
+
+Install the client with `mininet-setup.exe` (see `packaging/windows/`), which
+installs per-user with no administrator rights, verifies every file against a
+manifest carrying both BLAKE3 and SHA-256 digests, registers in Apps &
+features, and keeps identities when uninstalling unless explicitly told
+otherwise.
+
 Before distribution, the Windows client still needs hardware-backed key
-storage, Windows packaging, reproducible release verification, store-level
+storage, Authenticode code signing (builds are unsigned today, so SmartScreen
+warns on first run and is right to), reproducible compiler output, store-level
 cross-process coordination, and an independent security review. See
 `docs/WINDOWS_CLIENT_SECURITY.md`.

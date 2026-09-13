@@ -34,6 +34,27 @@ pub enum CliError {
     Provenance(String),
     /// A `mini-installer` operation failed.
     Installer(String),
+    /// `mini selftest` ran and at least one check failed.
+    ///
+    /// Carried as an error, not an ordinary result, so the process exits
+    /// non-zero: a smoke test that prints FAIL lines and then reports success
+    /// to the shell is worse than no smoke test, because a script will trust
+    /// it. The payload is the full report in human mode and a compact summary
+    /// under `--json`, where the structured `clean` field is what a caller
+    /// should read.
+    SelfTest(String),
+    /// A `mini-windows-setup` operation failed (`mini windows ...`).
+    ///
+    /// Carries the engine's own stable code rather than flattening every
+    /// Windows-packaging failure to one string, so `mini windows --json`
+    /// and `mininet-setup --json` report the same `error_code` for the same
+    /// failure and a script can branch on it either way.
+    WindowsSetup {
+        /// `mini_windows_setup::SetupError::code`.
+        code: &'static str,
+        /// The engine's human-readable message.
+        message: String,
+    },
     /// Spawning or speaking `mini-pipeline-protocol` to the real
     /// `mini-build-runner-wasmtime` binary failed.
     Build(String),
@@ -74,6 +95,8 @@ impl fmt::Display for CliError {
             CliError::Media(e) => write!(f, "media error: {e}"),
             CliError::Provenance(e) => write!(f, "provenance error: {e}"),
             CliError::Installer(e) => write!(f, "installer error: {e}"),
+            CliError::SelfTest(report) => write!(f, "{report}"),
+            CliError::WindowsSetup { message, .. } => write!(f, "windows setup error: {message}"),
             CliError::Build(e) => write!(f, "build error: {e}"),
             CliError::Keystone(e) => write!(f, "keystone demo error: {e}"),
             CliError::Intake(e) => write!(f, "intake error: {e}"),
@@ -102,6 +125,8 @@ impl CliError {
             CliError::Media(_) => "media",
             CliError::Provenance(_) => "provenance",
             CliError::Installer(_) => "installer",
+            CliError::SelfTest(_) => "selftest_failed",
+            CliError::WindowsSetup { code, .. } => code,
             CliError::Build(_) => "build",
             CliError::Keystone(_) => "keystone",
             CliError::Intake(_) => "intake",

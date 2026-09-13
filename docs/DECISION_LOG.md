@@ -24212,3 +24212,245 @@ external-audit scope per their own reopening criteria.
 items (D-0517/D-0518's own follow-up lists) are untouched.
 
 **Supersedes / superseded by:** none.
+
+### D-0520 — Windows client packaging and install: `mini-windows-setup` engine, `mininet-setup.exe` wizard, `mini windows`/`mini selftest`, and the client's Diagnostics and Version & install views  ·  *Shipped*
+
+**Date:** 2026-09-13 · **Refs:** `crates/mini-windows-setup/`;
+`crates/mini-setup/`; `crates/mini-selftest/`; `crates/mini-cli/src/
+windows.rs`; `crates/mini-cli/src/selftest.rs`; `crates/mini-desktop/src/
+main.rs`; `packaging/windows/`; `docs/guides/windows-install-guide.md`;
+`docs/WINDOWS_CLIENT_SECURITY.md`; D-0071 (`mini-installer`, Unix-only);
+D-0070 (release verification); D-0078 (`--json` envelope).
+
+**Decision:** build the Windows half of the installation layer, and give the
+client a way for its user to confirm that the protocol code works on their
+own machine.
+
+1. **`mini-windows-setup`** — the engine. A canonical `MNWINPKG1` text
+   manifest (one fact per line, a length plus BLAKE3 *and* SHA-256 per file),
+   an uncompressed `MNPKGC1` container (manifest followed by file bytes in
+   manifest order, so it has no structure of its own to disagree with the
+   manifest about), strict Windows path safety, a per-user versioned layout
+   with an atomic pointer swap, and install/verify/activate/rollback/
+   uninstall. Files are verified out of the container *and* re-read from disk
+   and re-hashed after writing, before activation. A failed install tears down
+   its own staging directory.
+2. **`mini-setup`** — `mininet-setup.exe`: a five-page wizard plus `--silent`,
+   `--verify`, `--status`, `--dry-run`, `--rollback` and `--uninstall`, each
+   with `--json`. The payload comes from `--payload`, an environment variable,
+   bytes embedded at build time, or a sidecar container; setup never fetches
+   anything.
+3. **`mini-selftest`** — 24 checks that run the real stack (identity, storage,
+   social, media, messaging, sync over a real loopback socket, forge
+   governance, erasure coding, storage proofs, install). Nine establish a
+   *refusal*.
+4. **CLI**: `mini windows pack|inspect|plan|verify|status` and
+   `mini selftest [list|<area>]`, both on the D-0078 envelope.
+5. **Client**: Diagnostics and Version & install views; the readiness matrix
+   updated rather than left stale.
+6. **`packaging/windows/`**: a POSIX and a PowerShell build script producing a
+   container, a readable manifest, a self-contained setup executable and
+   SHA256SUMS; plus two CI jobs (Windows-native, and the pipeline on Linux via
+   `--host`).
+
+**Reason:** `mini-installer` (D-0071) activates by replacing a POSIX symlink
+and is documented Unix-only, so nothing could install the Windows client. The
+only "install" was `cargo run -p mini-desktop`, which is a developer workflow,
+not something a person can be asked to do. Separately, the client's own
+readiness matrix listed several subsystems as protocol foundations with no
+desktop workflow, and a user had no way to confirm that any of the shipped
+code works on their machine — a protocol whose guarantees can only be checked
+by reading its test suite is one most of its users cannot check at all.
+
+Four choices worth recording because the obvious alternative was rejected:
+
+- **No WiX/MSI.** An MSI would be a second implementation of installing, one
+  without the manifest re-verification, the digest-bound approval, or the
+  downgrade refusal. Managed deployment runs `mininet-setup.exe --silent` per
+  user instead — the same tested path an individual gets.
+- **Shell integration generates one PowerShell script rather than driving COM
+  through `windows-sys`.** Hand-written COM would be hundreds of lines of
+  `unsafe` that no non-Windows machine can type-check, in the one binary a
+  user runs before they have any reason to trust us.
+  `WScript.Shell.CreateShortcut` and `New-ItemProperty` are the boring,
+  universally present way to do exactly this, and both new crates stay
+  `forbid(unsafe_code)`. The generator is a pure, tested function and every
+  interpolated value is a single-quoted literal.
+- **`mini windows` gets the read and build verbs; installing stays with
+  `mininet-setup.exe`.** The Apps & features uninstall command has to name an
+  executable that will still exist later, which `mini` on a developer's
+  machine is not.
+- **`mini windows pack` requires `--built-at-ms`.** A tool that stamped the
+  clock would make every rebuild differ and silently destroy the
+  independent-builder digest comparison.
+
+**Constitutional impact:** no frozen invariant is touched or weakened.
+`docs/INVARIANTS.md` U1 (no forced update, no kill path) is *reinforced*:
+nothing in either new crate polls, fetches, or self-invokes; activation
+requires a caller-constructed `InstallApproval` naming one exact manifest
+digest (the `CLAUDE.md` typed-domain rule), and the client's Version & install
+view can re-verify and roll back but cannot install, download, or update.
+Downgrade protection reuses `mini_forge::check_no_rollback` rather than
+reimplementing it, so D-0070's semantics stay in one place.
+
+P1 / Directive 16 (the voice/value wall): `mini-windows-setup`,
+`mini-selftest` and `mini-desktop` all carry a governance edge (`mini-forge`)
+and therefore must never gain an edge to `mini-value`, `mini-bounty` or
+`mini-treasury` in either direction. No such edge is added, and each
+`Cargo.toml` says so where a reviewer will see it on the next diff. This is
+why `mini-selftest` has no shielded-payment or bounty check: adding one would
+be a wall violation, not a missing feature.
+
+Directive 14 (simplicity is security): the container format is
+manifest-then-bytes with no compression, chosen over a zip specifically to
+keep an archive parser out of the first binary a user runs.
+
+Honesty (the overclaiming-is-a-bug rule): every surface states that these
+builds are not code-signed, that SmartScreen will warn and is right to, that
+compiler output is not yet bit-reproducible, that a per-user directory is not
+tamper-proof, and that a matching digest proves what the file *is*, not who
+wrote the manifest.
+
+**Implementation status:** shipped. 76 new tests in the two packaging crates
+(engine against real temporary directories; the shipped binary driven across
+the process boundary, including executing the client it installed), 12 CLI
+packaging tests, 6 suite tests over the 24 diagnostics checks. Workspace
+`cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace --
+-D warnings`, and `cargo test --workspace --all-features` (2749 tests) are
+clean. Two CI jobs added: `windows-client` (windows-latest — the DPAPI vault,
+the real `.lnk` and `HKCU` paths, a real release build, then install, verify
+and uninstall) and `windows-packaging-pipeline` (ubuntu — `--host` build,
+reproducibility, the SHA-256 column checked against `sha256sum`, the full
+install/upgrade/rollback/uninstall lifecycle, and two tampered-package
+refusals).
+
+**Failure point:** the manifest's trailing digest and the two per-file digests
+establish integrity, not authorship. Anyone who can rewrite a manifest can
+recompute it, so a user who verifies digests against a manifest they were
+handed by an attacker learns nothing. Until Authenticode signing and routine
+`mini release attest` use are both in place, the honest claim is "this is the
+package the manifest describes", never "this package is genuine". A second,
+narrower risk: `WindowsShell` depends on `powershell.exe` being present and
+runnable; if it is not, shortcut and registry steps fail loudly and the file
+install remains valid, which is the intended degradation but leaves the user
+without a Start Menu entry.
+
+**Required follow-up:** Authenticode signing with a governed signing process
+(gates a public release; no issue yet). Bit-reproducible compiler output for
+the binaries inside the container (SPEC-11,
+`.github/workflows/reproducibility.yml`). Wiring `mini-update`'s
+`AdoptionState` and provenance gates to the Windows install path, so an
+adopted release can be staged by the same engine (the pieces exist; nothing
+connects them yet). Installer localization. A per-machine install story, if
+one is ever wanted, needs its own threat model rather than an extension of
+this one.
+
+**Supersedes / superseded by:** none. Complements D-0071 (`mini-installer`,
+which remains the Unix path) and D-0070 (release verification, which remains
+the source of authenticity this layer deliberately does not duplicate).
+
+### D-0521 — Correcting D-0520 on two points: the voice/value wall is a code property, not a user-facing one, and the MSI should exist  ·  *Shipped*
+
+**Date:** 2026-09-13 · **Refs:** supersedes two specific claims in D-0520;
+`crates/mini-value-selftest/`; `crates/mini-selftest/src/coverage.rs`;
+`crates/mini-selftest/src/value.rs`; `packaging/windows/Mininet.wxs`;
+`docs/INVARIANTS.md` P1; `docs/FOUNDER_DIRECTIVES.md` Directive 16;
+D-0069 (the `mini-build-runner-wasmtime` process boundary this reuses).
+
+**Decision:** reverse two of D-0520's choices, and fix the reasoning that
+produced them.
+
+1. **The value layer is exercisable from the diagnostics.** D-0520 omitted
+   every value-crate check and justified it as a voice/value wall
+   requirement. That was wrong. The canonical invariant is P1, *"No balance
+   maps to governance or validator vote weight"* — a rule about vote weight.
+   The "no dependency edge between value crates and governance crates"
+   phrasing D-0520 cited comes from `CLAUDE.md`, which states in its own
+   first paragraph that it grants no Mininet Authority and cannot override
+   the canonical invariants. A review heuristic was applied as if it were
+   the constitution, and the cost was user-facing capability.
+
+   `mini-value-selftest` now checks the value layer: a hidden amount commits
+   and its range proof verifies, a tampered proof does not, a proof does not
+   verify against another commitment, balanced outputs verify, and inflating
+   an output by one micro-unit fails the balance check — plus the custody
+   threshold rule, including that one custodian approving twice still counts
+   once and an outsider's approval counts for nothing.
+
+   It is a separate **binary** that `mini-selftest` spawns and reads a line
+   protocol from, never links. `mini-selftest` keeps its `mini-forge` edge,
+   the value binary keeps its `mini-value` edge, and no dependency path
+   connects them — the same process boundary D-0069 established for keeping
+   Wasmtime out of every other crate's graph. A CI step now proves this with
+   `cargo tree` rather than leaving it to review habit.
+
+   The general principle, stated so it is not re-derived wrongly a third
+   time: **the wall belongs in the dependency graph, not in the user
+   interface.** Refusing a person the ability to test the money code does
+   nothing to stop a balance influencing a vote, which is the thing P1
+   actually forbids.
+
+2. **The MSI exists.** D-0520 argued an MSI would be a second install
+   implementation without the engine's checks. True of an MSI that installs
+   via components; not true of the one now in
+   `packaging/windows/Mininet.wxs`, which lays down `mininet-setup.exe` and a
+   package and calls the setup program. The manifest re-verification, the
+   digest-bound approval, and the downgrade refusal all still apply, and
+   managed deployment (Intune, Group Policy, Configuration Manager) gets the
+   MSI it can actually consume. "It would duplicate logic" was a reason to
+   design the wrapper carefully, not a reason to ship nothing.
+
+   Two details the design turns on: the payload lives in a *sibling* of the
+   install root, because the uninstall action removes that root recursively
+   and would otherwise delete the files Windows Installer is removing; and
+   the install action suppresses setup's own Apps & features registration so
+   the MSI's is the only entry. Removal keeps identities and there is no
+   property to change that.
+
+3. **Coverage is now auditable.** D-0520's suite covered 13 of 82 crates and
+   nothing said so; a green result read as a whole-system check. Every
+   workspace crate is now classified — exercised, transitive, covered by the
+   spawned binary, or not covered with a stated reason — and a test parses
+   the workspace `Cargo.toml` and fails if a member is unclassified. Coverage
+   is 31 of 83 crates runnable, 50 checks, 22 of them refusals; the 49
+   uncovered crates each say why, and most reasons are the project's own
+   honest limits (presence needs two co-present devices and a ranging radio;
+   proof-of-replication's slowness is its security property).
+
+**Constitutional impact:** P1 and Directive 16 are untouched and better
+enforced: the wall is now checked mechanically in CI instead of by reading
+`Cargo.toml` diffs by hand. No frozen invariant is weakened. The
+identity-destruction path stays behind a typed approval naming an exact path
+and a typed confirmation word, and is deliberately unreachable from the MSI.
+`docs/INVARIANTS.md` U1 is unaffected: nothing added here polls, fetches, or
+self-invokes.
+
+**Implementation status:** shipped. Workspace `cargo fmt --all`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and `cargo
+test --workspace --all-features` (2760 tests) are clean. CI gains: the
+value-layer spawn path on both Linux and Windows, a `cargo tree` wall check,
+an MSI build, and an `msiexec` install/remove cycle asserting the client
+lands, only one Apps & features entry exists, and identities survive removal.
+
+**Failure point:** the coverage table is only as honest as the reasons
+written in it. The exhaustiveness test can force a crate to be classified; it
+cannot stop someone classifying a crate as a gap with a plausible-sounding
+reason when a real check was feasible. That is a review responsibility, and
+the reasons are deliberately written to be arguable rather than generic. The
+second risk is narrower: `cargo tree`'s wall check covers the front-end
+crates named in the CI step, so a new front end added without being listed
+there is unchecked.
+
+**Required follow-up:** raise coverage further — the value binary should grow
+a settlement fixture so `mini-engagement`, `mini-contribution` and
+`mini-private-payment` become reachable, and `mini-provenance`'s independent
+builder agreement deserves a check even though one process must play every
+builder. The `cargo tree` wall check should enumerate front ends from the
+workspace rather than a hardcoded list, closing the gap named above.
+Authenticode signing and bit-reproducible compiler output remain D-0520's
+follow-ups, unchanged.
+
+**Supersedes / superseded by:** supersedes D-0520's "no value-layer checks,
+per the voice/value wall" and "no WiX/MSI" choices specifically. Everything
+else in D-0520 — the package format, the install engine, the setup program,
+the CI jobs — stands as written.

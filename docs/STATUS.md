@@ -2605,11 +2605,41 @@ the top development priority.
   when the exact verified DID still has a nearby endpoint. A Windows-only real
   TCP test proves two independent roots complete profile verification and
   signed-follow delivery through one visible window.
+  Diagnostics (D-0520) runs the real protocol code on the user's own machine
+  and shows the result: 24 checks over `mini-selftest` covering identity,
+  storage, social objects, chunked media, encrypted messaging, two stores
+  converging over a real loopback socket, a governed two-approval merge,
+  erasure-coding recovery and storage proofs. Nine of them establish a
+  *refusal* (one approval does not reach the two-approval floor, an approval
+  bound to one commit does not carry to a substituted one, a second
+  conversation's key reads none of the first one's messages). The same suite
+  is `mini selftest`, and CI runs it.
+  Version & install (D-0520) reads the same `mini-windows-setup` state
+  `mininet-setup.exe` writes: installed version and package digest, rollback
+  target, and where program files and user data each live. It can re-hash
+  every installed file against its manifest and roll back to a version already
+  on disk after verifying that version first. It cannot check for updates,
+  fetch a release, or install one (INVARIANTS U1).
   It remains a reference client rather than a production release: no secure
   Inbox prekey/ratchet protocol, asynchronous mailbox delivery,
   calls, automatic Internet relay/NAT traversal, Internet-wide name directory,
-  search, forge workflow, hardware-backed key custody, packaging, or
-  independent security review.
+  search, forge administration workflow, hardware-backed key custody,
+  code signing, or independent security review.
+- **partial** — Windows packaging and install (D-0520, `mini-windows-setup` +
+  `mini-setup` + `packaging/windows/`). `mininet-setup.exe` is a real
+  double-click installer: per-user, no administrator, no service, no network
+  code in its dependency tree, every file verified out of the package and
+  re-read and re-hashed from disk before activation, an approval naming one
+  exact manifest digest, `mini_forge::check_no_rollback` on activation, an
+  atomic pointer swap into versioned directories, Start Menu and Apps &
+  features integration, and uninstall that keeps identities unless explicitly
+  told otherwise. `mini windows pack` builds reproducible containers plus a
+  readable manifest carrying BLAKE3 and SHA-256 per file, so a user can
+  re-check every byte with `Get-FileHash` without running a Mininet binary.
+  Not done: Authenticode code signing (so SmartScreen warns on first run, and
+  is right to), bit-reproducible compiler output for the binaries inside the
+  container (SPEC-11), a per-machine install, installer localization,
+  and wiring `mini-update`'s adoption/provenance gates to this install path.
 - **not started** — mobile and browser clients.
 
 See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,

@@ -1,0 +1,21 @@
+[package]
+name = "mini-setup"
+version = "0.0.1"
+description = "mininet-setup.exe: the double-click Windows installer wizard for the Mininet client, and its scriptable console modes over mini-windows-setup."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mininet-setup"
+path = "src/main.rs"
+
+[dependencies]
+mini-windows-setup = { path = "../mini-windows-setup" }
+# Same renderer configuration as mini-desktop so the workspace resolves one
+# eframe feature set: no persistence, no webbrowser, no accessibility
+# bridge, nothing that would let a setup program phone anywhere.
+eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
