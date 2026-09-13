@@ -70,6 +70,26 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Mode::Uninstall if run::handed_off_uninstall(&parsed).unwrap_or(false) => {
+            // A copy of this program, outside the directory being removed, is
+            // finishing the job. Saying so matters: the window closes
+            // immediately and a user who saw nothing would reasonably retry.
+            if parsed.json {
+                println!(
+                    "{}",
+                    json::ok(
+                        "setup.uninstall",
+                        &[("handed_off", mini_windows_setup::Field::Flag(true))]
+                    )
+                );
+            } else {
+                println!(
+                    "Removing Mininet from a temporary copy of this program, because the \
+                     installed copy is inside the folder being deleted."
+                );
+            }
+            ExitCode::SUCCESS
+        }
         mode => {
             let action = match mode {
                 Mode::Silent => run::install,

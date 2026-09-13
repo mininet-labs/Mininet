@@ -3272,8 +3272,23 @@ impl MininetApp {
                     Some(area) => mini_selftest::run_area(&scratch, area),
                     None => mini_selftest::run_all(&scratch),
                 },
-                Err(_) => SelfTestReport {
-                    checks: Vec::new(),
+                // An unwritable or full temp directory used to produce an
+                // empty report, which `is_clean()` reads as "nothing failed"
+                // --- a green result over a run that never happened, which is
+                // the exact failure this whole view exists to prevent.
+                Err(error) => SelfTestReport {
+                    checks: vec![mini_selftest::Check {
+                        area: "diagnostics",
+                        name: "the diagnostics could not start",
+                        negative: false,
+                        outcome: CheckOutcome::Failed {
+                            detail: format!(
+                                "could not create a scratch directory at {}: {error}. No check \
+                                 ran, so nothing here has been verified.",
+                                scratch.display()
+                            ),
+                        },
+                    }],
                     elapsed_ms: 0,
                 },
             };

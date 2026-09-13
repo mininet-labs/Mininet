@@ -723,44 +723,65 @@ fn dispatch_selftest(mut args: Vec<String>, json: bool) -> Result<String> {
 /// module docs).
 fn dispatch_windows(mut args: Vec<String>, json: bool) -> Result<String> {
     let noun = next(&mut args, "windows")?;
-    match noun.as_str() {
+    let result = dispatch_windows_noun(&noun, &mut args, json)?;
+    // Anything left over is a flag that was never consumed, which almost
+    // always means a typo. Silently ignoring `--targte` would emit a
+    // plausibly named package built for the default target instead of
+    // reporting the mistake.
+    reject_leftover(&args, &format!("windows {noun}"))?;
+    Ok(result)
+}
+
+/// Reject arguments no option consumed.
+fn reject_leftover(args: &[String], context: &str) -> Result<()> {
+    if args.is_empty() {
+        return Ok(());
+    }
+    Err(CliError::Usage(format!(
+        "`mini {context}`: unrecognized argument(s): {}",
+        args.join(" ")
+    )))
+}
+
+fn dispatch_windows_noun(noun: &str, args: &mut Vec<String>, json: bool) -> Result<String> {
+    match noun {
         "pack" => {
-            let source = required_path_flag(&mut args, "--source")?;
-            let out = required_path_flag(&mut args, "--out")?;
-            let version = extract_flag(&mut args, "--version")
+            let source = required_path_flag(args, "--source")?;
+            let out = required_path_flag(args, "--out")?;
+            let version = extract_flag(args, "--version")
                 .ok_or_else(|| CliError::Usage("--version required".to_string()))?;
             // Required rather than defaulted to the clock: two runs over the
             // same bytes must produce the same container, or an independent
             // builder cannot confirm they built the same package.
-            let built_at_ms = required_u64_flag(&mut args, "--built-at-ms")?;
+            let built_at_ms = required_u64_flag(args, "--built-at-ms")?;
             let request = crate::windows::PackRequest {
                 source,
                 out,
                 version,
-                package: extract_flag(&mut args, "--package")
+                package: extract_flag(args, "--package")
                     .unwrap_or_else(|| crate::windows::DEFAULT_PACKAGE.to_string()),
-                product: extract_flag(&mut args, "--product")
+                product: extract_flag(args, "--product")
                     .unwrap_or_else(|| crate::windows::DEFAULT_PRODUCT.to_string()),
-                launch: extract_flag(&mut args, "--launch")
+                launch: extract_flag(args, "--launch")
                     .unwrap_or_else(|| crate::windows::DEFAULT_LAUNCH.to_string()),
-                target: extract_flag(&mut args, "--target")
+                target: extract_flag(args, "--target")
                     .unwrap_or_else(|| crate::windows::DEFAULT_TARGET.to_string()),
                 built_at_ms,
-                include: extract_flag_multi(&mut args, "--include"),
-                shortcuts: extract_flag_multi(&mut args, "--shortcut"),
+                include: extract_flag_multi(args, "--include"),
+                shortcuts: extract_flag_multi(args, "--shortcut"),
             };
             crate::windows::pack(&request).map(|r: CommandResult| r.render(json, "windows.pack"))
         }
         "inspect" => {
-            let path = next(&mut args, "windows inspect")?;
+            let path = next(args, "windows inspect")?;
             crate::windows::inspect(Path::new(&path))
                 .map(|r: CommandResult| r.render(json, "windows.inspect"))
         }
         "plan" => {
-            let package = next(&mut args, "windows plan")?;
-            let install_root = extract_flag(&mut args, "--install-root").map(PathBuf::from);
-            let user_data_root = extract_flag(&mut args, "--user-data-root").map(PathBuf::from);
-            let options = windows_install_options(&mut args);
+            let package = next(args, "windows plan")?;
+            let install_root = extract_flag(args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(args, "--user-data-root").map(PathBuf::from);
+            let options = windows_install_options(args);
             crate::windows::plan(
                 Path::new(&package),
                 install_root.as_deref(),
@@ -770,9 +791,9 @@ fn dispatch_windows(mut args: Vec<String>, json: bool) -> Result<String> {
             .map(|r: CommandResult| r.render(json, "windows.plan"))
         }
         "verify" => {
-            let install_root = extract_flag(&mut args, "--install-root").map(PathBuf::from);
-            let user_data_root = extract_flag(&mut args, "--user-data-root").map(PathBuf::from);
-            let version = extract_flag(&mut args, "--version");
+            let install_root = extract_flag(args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(args, "--user-data-root").map(PathBuf::from);
+            let version = extract_flag(args, "--version");
             crate::windows::verify(
                 install_root.as_deref(),
                 user_data_root.as_deref(),
@@ -781,8 +802,8 @@ fn dispatch_windows(mut args: Vec<String>, json: bool) -> Result<String> {
             .map(|r: CommandResult| r.render(json, "windows.verify"))
         }
         "status" => {
-            let install_root = extract_flag(&mut args, "--install-root").map(PathBuf::from);
-            let user_data_root = extract_flag(&mut args, "--user-data-root").map(PathBuf::from);
+            let install_root = extract_flag(args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(args, "--user-data-root").map(PathBuf::from);
             crate::windows::status(install_root.as_deref(), user_data_root.as_deref())
                 .map(|r: CommandResult| r.render(json, "windows.status"))
         }

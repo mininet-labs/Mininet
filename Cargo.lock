@@ -3436,6 +3436,7 @@ name = "mini-windows-setup"
 version = "0.0.1"
 dependencies = [
  "mini-crypto",
+ "mini-durable",
  "mini-forge",
 ]
 

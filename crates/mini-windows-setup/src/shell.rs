@@ -42,8 +42,10 @@ pub enum ShellAction {
     CreateShortcut(ShortcutRequest),
     /// Delete a shortcut, ignoring one that is already gone.
     RemoveShortcut {
-        /// Full path of the `.lnk` file.
-        path: PathBuf,
+        /// Which known folder, or an exact directory.
+        location: ShortcutLocation,
+        /// File name of the `.lnk`.
+        link_name: String,
     },
     /// Create or replace the Apps & features entry under `HKCU`.
     RegisterUninstall(UninstallRegistration),
@@ -54,11 +56,51 @@ pub enum ShellAction {
     },
 }
 
+/// Where a shortcut goes.
+///
+/// The Start Menu and Desktop are *known folders*, and on a machine with
+/// OneDrive backup or enterprise folder redirection the Desktop is not
+/// `%USERPROFILE%\\Desktop` at all. Building that path in Rust would create a
+/// stray directory nobody sees. These variants are resolved on the machine by
+/// `[Environment]::GetFolderPath`, which is what Windows itself uses.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ShortcutLocation {
+    /// The user's Start Menu "Programs" folder.
+    StartMenu,
+    /// The user's Desktop, wherever it has been redirected to.
+    Desktop,
+    /// A caller-chosen directory. Used by tests and portable installs, which
+    /// must not touch a real known folder.
+    Exact(PathBuf),
+}
+
+impl ShortcutLocation {
+    /// The PowerShell expression that yields this directory.
+    fn expression(&self) -> Result<String, SetupError> {
+        Ok(match self {
+            Self::StartMenu => "[Environment]::GetFolderPath('Programs')".to_string(),
+            Self::Desktop => "[Environment]::GetFolderPath('DesktopDirectory')".to_string(),
+            Self::Exact(path) => ps_path("shortcut directory", path)?,
+        })
+    }
+
+    /// A best-effort path for reporting and planning, before any script runs.
+    pub fn planned_dir(&self) -> PathBuf {
+        match self {
+            Self::StartMenu => start_menu_dir(),
+            Self::Desktop => desktop_dir(),
+            Self::Exact(path) => path.clone(),
+        }
+    }
+}
+
 /// A shortcut to create.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShortcutRequest {
-    /// Full path of the `.lnk` file to write.
-    pub link_path: PathBuf,
+    /// Which known folder, or an exact directory.
+    pub location: ShortcutLocation,
+    /// File name of the `.lnk`, including the extension.
+    pub link_name: String,
     /// Full path of the executable it launches.
     pub target: PathBuf,
     /// Working directory the target starts in.
@@ -254,29 +296,33 @@ pub fn powershell_script(actions: &[ShellAction]) -> Result<String, SetupError> 
     for action in actions {
         match action {
             ShellAction::CreateShortcut(request) => {
-                let link = ps_path("shortcut path", &request.link_path)?;
+                let directory = request.location.expression()?;
+                let name = ps_literal("shortcut name", &request.link_name)?;
                 let target = ps_path("shortcut target", &request.target)?;
                 let working = ps_path("shortcut working directory", &request.working_dir)?;
                 let description = ps_literal("shortcut description", &request.description)?;
-                // PowerShell computes the parent directory, not Rust:
-                // `Path::parent` uses the *host's* separator rules, so on a
-                // Linux CI machine it would not split a `C:\\...` path at all.
-                // `Split-Path` always applies Windows semantics, which is what
-                // the path actually is.
-                out.push_str(&format!(
-                    "New-Item -ItemType Directory -Force -Path (Split-Path -Parent {link}) | Out-Null\n"
-                ));
+                // The directory is resolved on the machine, then joined there
+                // too: Rust's own path joining uses the *host's* separator
+                // rules, so on a Linux CI machine it would not build a Windows
+                // path correctly at all.
+                out.push_str(&format!("$dir = {directory}\n"));
+                out.push_str(&format!("$link = Join-Path $dir {name}\n"));
+                out.push_str("New-Item -ItemType Directory -Force -Path $dir | Out-Null\n");
                 out.push_str("$shell = New-Object -ComObject WScript.Shell\n");
-                out.push_str(&format!("$link = $shell.CreateShortcut({link})\n"));
+                out.push_str("$link = $shell.CreateShortcut($link)\n");
                 out.push_str(&format!("$link.TargetPath = {target}\n"));
                 out.push_str(&format!("$link.WorkingDirectory = {working}\n"));
                 out.push_str(&format!("$link.Description = {description}\n"));
                 out.push_str("$link.Save()\n");
             }
-            ShellAction::RemoveShortcut { path } => {
+            ShellAction::RemoveShortcut {
+                location,
+                link_name,
+            } => {
                 out.push_str(&format!(
-                    "Remove-Item -LiteralPath {} -Force -ErrorAction SilentlyContinue\n",
-                    ps_path("shortcut path", path)?
+                    "Remove-Item -LiteralPath (Join-Path {} {}) -Force -ErrorAction SilentlyContinue\n",
+                    location.expression()?,
+                    ps_literal("shortcut name", link_name)?
                 ));
             }
             ShellAction::RegisterUninstall(registration) => {
@@ -365,15 +411,16 @@ mod tests {
     #[test]
     fn shortcut_creation_writes_every_field_and_creates_its_directory() {
         let script = powershell_script(&[ShellAction::CreateShortcut(ShortcutRequest {
-            link_path: PathBuf::from("C:\\Menu\\Mininet.lnk"),
+            location: ShortcutLocation::Exact(PathBuf::from("C:\\Menu")),
+            link_name: "Mininet.lnk".to_string(),
             target: PathBuf::from("C:\\App\\mininet-desktop.exe"),
             working_dir: PathBuf::from("C:\\App"),
             description: "Mininet client".to_string(),
         })])
         .unwrap();
-        assert!(script.contains(
-            "New-Item -ItemType Directory -Force -Path (Split-Path -Parent 'C:\\Menu\\Mininet.lnk')"
-        ));
+        assert!(script.contains("$dir = 'C:\\Menu'"));
+        assert!(script.contains("$link = Join-Path $dir 'Mininet.lnk'"));
+        assert!(script.contains("New-Item -ItemType Directory -Force -Path $dir"));
         assert!(script.contains("$link.TargetPath = 'C:\\App\\mininet-desktop.exe'"));
         assert!(script.contains("$link.WorkingDirectory = 'C:\\App'"));
         assert!(script.contains("$link.Description = 'Mininet client'"));
@@ -384,7 +431,10 @@ mod tests {
     fn an_injection_attempt_in_a_path_stays_inside_one_quoted_literal() {
         // A path a hostile build could try to smuggle a command through.
         let script = powershell_script(&[ShellAction::RemoveShortcut {
-            path: PathBuf::from("C:\\a'; Remove-Item C:\\Windows -Recurse; '"),
+            location: ShortcutLocation::Exact(PathBuf::from(
+                "C:\\a'; Remove-Item C:\\Windows -Recurse; '",
+            )),
+            link_name: "Mininet.lnk".to_string(),
         }])
         .unwrap();
         // The apostrophes are doubled, so the hostile text is one string
@@ -396,7 +446,7 @@ mod tests {
             .filter(|line| line.starts_with("Remove-Item"))
             .collect();
         assert_eq!(commands.len(), 1);
-        assert!(commands[0].starts_with("Remove-Item -LiteralPath 'C:\\a''"));
+        assert!(commands[0].starts_with("Remove-Item -LiteralPath (Join-Path 'C:\\a''"));
     }
 
     #[test]
@@ -427,6 +477,29 @@ mod tests {
             }])
             .unwrap();
         assert_eq!(shell.actions.len(), 1);
+    }
+
+    #[test]
+    fn known_folders_are_resolved_on_the_machine_not_guessed_here() {
+        // A redirected Desktop (OneDrive, enterprise folder redirection) is
+        // not %USERPROFILE%\\Desktop, so the script must ask Windows.
+        let script = powershell_script(&[ShellAction::CreateShortcut(ShortcutRequest {
+            location: ShortcutLocation::Desktop,
+            link_name: "Mininet.lnk".to_string(),
+            target: PathBuf::from("C:\\App\\mininet-desktop.exe"),
+            working_dir: PathBuf::from("C:\\App"),
+            description: "Mininet client".to_string(),
+        })])
+        .unwrap();
+        assert!(script.contains("[Environment]::GetFolderPath('DesktopDirectory')"));
+        assert!(!script.contains("USERPROFILE"));
+
+        let menu = powershell_script(&[ShellAction::RemoveShortcut {
+            location: ShortcutLocation::StartMenu,
+            link_name: "Mininet.lnk".to_string(),
+        }])
+        .unwrap();
+        assert!(menu.contains("[Environment]::GetFolderPath('Programs')"));
     }
 
     #[cfg(not(windows))]

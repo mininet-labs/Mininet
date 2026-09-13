@@ -64,6 +64,9 @@ pub const PREVIOUS_FILE: &str = "previous.txt";
 /// Append-only log of setup actions.
 pub const LOG_FILE: &str = "setup-log.txt";
 
+/// Exclusive lock held across every mutating operation on an install root.
+pub const LOCK_FILE: &str = ".setup-lock";
+
 /// Which version is installed, and the exact package it came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InstallRecord {

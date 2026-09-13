@@ -312,3 +312,62 @@ fn the_same_inputs_always_produce_the_same_container_bytes() {
     let second = container_bytes(&manifest());
     assert_eq!(first, second);
 }
+
+#[test]
+fn a_shortcut_target_containing_spaces_round_trips() {
+    // Package paths explicitly allow spaces, and so do display names. A
+    // format that split on the first space made this writer produce manifests
+    // its own parser rejected.
+    let manifest = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "Program Files/client.exe",
+            built_at_ms: 1,
+        },
+        vec![PackageFile::describe("Program Files/client.exe", DESKTOP).unwrap()],
+        vec![PackageShortcut {
+            target: "Program Files/client.exe".to_string(),
+            name: "Mininet Desktop Client".to_string(),
+        }],
+    )
+    .unwrap();
+    let parsed = PackageManifest::parse(&manifest.to_bytes()).unwrap();
+    assert_eq!(parsed, manifest);
+    assert_eq!(parsed.shortcuts[0].target, "Program Files/client.exe");
+    assert_eq!(parsed.shortcuts[0].name, "Mininet Desktop Client");
+}
+
+#[test]
+fn a_package_larger_than_the_container_limit_is_refused_before_it_is_built() {
+    // Rejected by size arithmetic, not by assembling gigabytes in memory and
+    // discovering afterwards that nothing can open the result.
+    let huge = mini_windows_setup::PackageFile {
+        path: "big0.bin".to_string(),
+        length: mini_windows_setup::manifest::MAX_FILE_BYTES,
+        blake3: [0; 32],
+        sha256: [0; 32],
+    };
+    let manifest = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "big0.bin",
+            built_at_ms: 1,
+        },
+        (0..3)
+            .map(|index| mini_windows_setup::PackageFile {
+                path: format!("big{index}.bin"),
+                ..huge.clone()
+            })
+            .collect(),
+        vec![],
+    )
+    .unwrap();
+    let error = container::write(&manifest, |_| Ok(Vec::new())).unwrap_err();
+    assert_eq!(error.code(), "malformed_container");
+}

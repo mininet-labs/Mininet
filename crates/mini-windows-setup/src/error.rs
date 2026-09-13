@@ -91,6 +91,16 @@ pub enum SetupError {
     },
     /// A rollback was requested with no previous version recorded.
     NoPreviousVersion,
+    /// The install root contains, or is, the user-data root.
+    ///
+    /// Uninstall removes the install root recursively, so an overlap would
+    /// destroy the identity vault under an approval that promised to keep it.
+    OverlappingRoots {
+        /// The install root.
+        install_root: String,
+        /// The user-data root it would swallow.
+        user_data_root: String,
+    },
     /// The install root's pointer file exists but is not well formed.
     CorruptPointer {
         /// Which rule it broke.
@@ -163,6 +173,13 @@ impl core::fmt::Display for SetupError {
                 "refusing to replace active version {active} with older {candidate}"
             ),
             Self::NoPreviousVersion => write!(f, "no previous version recorded to roll back to"),
+            Self::OverlappingRoots {
+                install_root,
+                user_data_root,
+            } => write!(
+                f,
+                "install location {install_root} contains your identities and posts in {user_data_root};                  removing the program would delete them, so this location is refused"
+            ),
             Self::CorruptPointer { reason } => write!(f, "corrupt install pointer: {reason}"),
             Self::MissingVersionDirectory { version } => {
                 write!(f, "installed version {version} is missing from disk")
@@ -221,6 +238,7 @@ impl SetupError {
             Self::ApprovalMismatch { .. } => "approval_mismatch",
             Self::WouldDowngrade { .. } => "would_downgrade",
             Self::NoPreviousVersion => "no_previous_version",
+            Self::OverlappingRoots { .. } => "overlapping_roots",
             Self::CorruptPointer { .. } => "corrupt_pointer",
             Self::MissingVersionDirectory { .. } => "missing_version_directory",
             Self::UnsupportedPlatform => "unsupported_platform",

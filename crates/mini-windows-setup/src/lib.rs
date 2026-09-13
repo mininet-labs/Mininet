@@ -77,7 +77,7 @@ pub mod shell;
 
 pub use container::Container;
 pub use error::SetupError;
-pub use layout::{InstallLayout, InstallRecord};
+pub use layout::{InstallLayout, InstallRecord, LOCK_FILE};
 pub use log::{SetupEvent, SetupLog};
 pub use manifest::{ManifestHeader, PackageFile, PackageManifest, PackageShortcut};
 pub use report::Field;
@@ -434,6 +434,49 @@ impl Setup {
         &self.user_data_root
     }
 
+    /// Refuse an install root that contains, or is, the user-data root.
+    ///
+    /// Uninstall removes the install root recursively. If a user picked
+    /// `%LOCALAPPDATA%` as the install location, that recursive delete would
+    /// take the identity vault with it under an approval that promised to
+    /// keep identities --- the one promise this crate must never break. The
+    /// two roots are therefore required to be disjoint before anything is
+    /// written or removed, rather than the overlap being noticed afterwards.
+    ///
+    /// Compared on normalized-ish absolute forms: `Path::starts_with` is
+    /// component-wise, so it does not mistake `.../Mininet2` for a child of
+    /// `.../Mininet` the way a string prefix test would.
+    fn check_roots_are_disjoint(&self) -> Result<(), SetupError> {
+        let install = absolute(self.layout.root());
+        let data = absolute(&self.user_data_root);
+        if install == data || data.starts_with(&install) {
+            return Err(SetupError::OverlappingRoots {
+                install_root: install.display().to_string(),
+                user_data_root: data.display().to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Take the install root's exclusive lock for the duration of a mutating
+    /// operation.
+    ///
+    /// Two setup processes aimed at one install root would otherwise race:
+    /// both can clear and write the same staging directory, one can remove
+    /// the version directory the other just renamed into place, and the
+    /// pointer writes interleave. An install racing an uninstall is worse
+    /// still --- it can recreate part of a tree that is being removed.
+    ///
+    /// The lock file lives beside the pointers and is never deleted, so the
+    /// lock survives an uninstall that removes everything else; taking it is
+    /// what makes that removal safe in the first place.
+    fn lock(&self) -> Result<std::fs::File, SetupError> {
+        let root = self.layout.root();
+        mini_durable::create_dir_all(root).map_err(|error| SetupError::io(root, error))?;
+        let path = root.join(LOCK_FILE);
+        mini_durable::lock_exclusive(&path).map_err(|error| SetupError::io(&path, error))
+    }
+
     /// Compute what installing `manifest` would do. Writes nothing.
     ///
     /// This is what `--dry-run` prints and what the wizard's confirmation
@@ -512,6 +555,8 @@ impl Setup {
                 offered,
             });
         }
+        self.check_roots_are_disjoint()?;
+        let _lock = self.lock()?;
         let plan = self.plan(manifest, options)?;
         if plan.kind == PlanKind::Downgrade && !options.allow_downgrade {
             let active = plan
@@ -555,14 +600,40 @@ impl Setup {
         };
 
         let final_dir = self.layout.version_dir(&manifest.version_text);
-        if final_dir.exists() {
-            std::fs::remove_dir_all(&final_dir)
-                .map_err(|error| SetupError::io(&final_dir, error))?;
-        }
         if let Some(parent) = final_dir.parent() {
             std::fs::create_dir_all(parent).map_err(|error| SetupError::io(parent, error))?;
         }
-        std::fs::rename(&staging, &final_dir).map_err(|error| SetupError::io(&final_dir, error))?;
+        // Reinstalling the *active* version means `final_dir` is the
+        // directory the running client was started from. Deleting it before
+        // the replacement is in place would destroy a working installation
+        // for the duration, and on Windows can fail partway through with the
+        // executable locked --- leaving the pointer naming a directory that
+        // is now half gone. So the old directory is moved aside and only
+        // removed once the new one is committed; if the rename fails, it goes
+        // back.
+        let displaced = if final_dir.exists() {
+            let aside = self
+                .layout
+                .version_dir(&format!("{}.previous", manifest.version_text));
+            if aside.exists() {
+                std::fs::remove_dir_all(&aside).map_err(|error| SetupError::io(&aside, error))?;
+            }
+            std::fs::rename(&final_dir, &aside)
+                .map_err(|error| SetupError::io(&final_dir, error))?;
+            Some(aside)
+        } else {
+            None
+        };
+        if let Err(error) = std::fs::rename(&staging, &final_dir) {
+            if let Some(aside) = &displaced {
+                let _ = std::fs::rename(aside, &final_dir);
+            }
+            let _ = std::fs::remove_dir_all(&staging);
+            return Err(SetupError::io(&final_dir, error));
+        }
+        if let Some(aside) = displaced {
+            let _ = std::fs::remove_dir_all(aside);
+        }
 
         let manifest_path = self.layout.manifest_path(&manifest.version_text);
         layout::write_atomic(&manifest_path, &manifest.to_bytes())?;
@@ -730,6 +801,8 @@ impl Setup {
         shell: &mut dyn ShellIntegration,
         now_ms: u64,
     ) -> Result<InstallRecord, SetupError> {
+        self.check_roots_are_disjoint()?;
+        let _lock = self.lock()?;
         let previous = self
             .layout
             .previous()?
@@ -784,17 +857,49 @@ impl Setup {
                 offered: self.layout.root().display().to_string(),
             });
         }
+        // Checked even when identities are being destroyed on purpose: an
+        // overlap means the recursive removal below would delete the identity
+        // vault as a side effect of removing the program, which is a
+        // different act from the one the owner approved by naming a path.
+        self.check_roots_are_disjoint()?;
+        let _lock = self.lock()?;
         let versions_removed = self.layout.installed_versions()?;
         let mut actions = Vec::new();
-        if options.start_menu_shortcut {
-            actions.push(ShellAction::RemoveShortcut {
-                path: self.start_menu_link(options),
-            });
-        }
-        if options.desktop_shortcut {
-            actions.push(ShellAction::RemoveShortcut {
-                path: self.desktop_link(options),
-            });
+        // Remove exactly the shortcuts this install created, which means
+        // reading the same manifest that decided them. A package declaring a
+        // second shortcut would otherwise leave it behind pointing at a
+        // deleted executable.
+        let names = self
+            .layout
+            .current()
+            .ok()
+            .flatten()
+            .and_then(|record| self.layout.stored_manifest(&record.version_text).ok())
+            .map(|manifest| {
+                if manifest.shortcuts.is_empty() {
+                    vec![format!("{PRODUCT_KEY}.lnk")]
+                } else {
+                    manifest
+                        .shortcuts
+                        .iter()
+                        .map(|shortcut| format!("{}.lnk", shortcut.name))
+                        .collect()
+                }
+            })
+            .unwrap_or_else(|| vec![format!("{PRODUCT_KEY}.lnk")]);
+        for link_name in names {
+            if options.start_menu_shortcut {
+                actions.push(ShellAction::RemoveShortcut {
+                    location: self.start_menu_location(options),
+                    link_name: link_name.clone(),
+                });
+            }
+            if options.desktop_shortcut {
+                actions.push(ShellAction::RemoveShortcut {
+                    location: self.desktop_location(options),
+                    link_name,
+                });
+            }
         }
         if options.register_uninstall {
             actions.push(ShellAction::DeregisterUninstall {
@@ -847,20 +952,52 @@ impl Setup {
         })
     }
 
-    fn start_menu_link(&self, options: &InstallOptions) -> PathBuf {
-        options
-            .start_menu_dir
-            .clone()
-            .unwrap_or_else(shell::start_menu_dir)
-            .join(format!("{PRODUCT_KEY}.lnk"))
+    /// Where the Start Menu entry goes.
+    ///
+    /// An explicit override (tests, a portable install) wins; otherwise the
+    /// real known folder, resolved on the machine rather than guessed here.
+    fn start_menu_location(&self, options: &InstallOptions) -> shell::ShortcutLocation {
+        match &options.start_menu_dir {
+            Some(dir) => shell::ShortcutLocation::Exact(dir.clone()),
+            None => shell::ShortcutLocation::StartMenu,
+        }
     }
 
-    fn desktop_link(&self, options: &InstallOptions) -> PathBuf {
-        options
-            .desktop_dir
-            .clone()
-            .unwrap_or_else(shell::desktop_dir)
-            .join(format!("{PRODUCT_KEY}.lnk"))
+    /// Where a Desktop shortcut goes.
+    fn desktop_location(&self, options: &InstallOptions) -> shell::ShortcutLocation {
+        match &options.desktop_dir {
+            Some(dir) => shell::ShortcutLocation::Exact(dir.clone()),
+            None => shell::ShortcutLocation::Desktop,
+        }
+    }
+
+    /// The shortcuts a manifest asks for, as `(file name, target path)`.
+    ///
+    /// Taken from the manifest's own `shortcut` records, so a package that
+    /// declares a shortcut to a second executable, or declares none at all,
+    /// is installed as its reviewed manifest says rather than as a
+    /// hard-coded default. A manifest with no shortcut records still gets one
+    /// for its launch target, because that is the ordinary case and a client
+    /// nobody can start is not a useful install.
+    fn requested_shortcuts(
+        &self,
+        manifest: &PackageManifest,
+        version_dir: &Path,
+    ) -> Result<Vec<(String, PathBuf)>, SetupError> {
+        if manifest.shortcuts.is_empty() {
+            return Ok(vec![(
+                format!("{}.lnk", PRODUCT_KEY),
+                path::join(version_dir, &manifest.launch)?,
+            )]);
+        }
+        let mut out = Vec::with_capacity(manifest.shortcuts.len());
+        for shortcut in &manifest.shortcuts {
+            out.push((
+                format!("{}.lnk", shortcut.name),
+                path::join(version_dir, &shortcut.target)?,
+            ));
+        }
+        Ok(out)
     }
 
     fn shell_plan(
@@ -873,21 +1010,27 @@ impl Setup {
         let mut actions = Vec::new();
         let description = format!("{} client", manifest.product);
         manifest::check_display("shortcut description", &description)?;
-        if options.start_menu_shortcut {
-            actions.push(ShellAction::CreateShortcut(ShortcutRequest {
-                link_path: self.start_menu_link(options),
-                target: launch_path.to_path_buf(),
-                working_dir: version_dir.to_path_buf(),
-                description: description.clone(),
-            }));
-        }
-        if options.desktop_shortcut {
-            actions.push(ShellAction::CreateShortcut(ShortcutRequest {
-                link_path: self.desktop_link(options),
-                target: launch_path.to_path_buf(),
-                working_dir: version_dir.to_path_buf(),
-                description,
-            }));
+        let _ = launch_path;
+        let requested = self.requested_shortcuts(manifest, version_dir)?;
+        for (link_name, target) in &requested {
+            if options.start_menu_shortcut {
+                actions.push(ShellAction::CreateShortcut(ShortcutRequest {
+                    location: self.start_menu_location(options),
+                    link_name: link_name.clone(),
+                    target: target.clone(),
+                    working_dir: version_dir.to_path_buf(),
+                    description: description.clone(),
+                }));
+            }
+            if options.desktop_shortcut {
+                actions.push(ShellAction::CreateShortcut(ShortcutRequest {
+                    location: self.desktop_location(options),
+                    link_name: link_name.clone(),
+                    target: target.clone(),
+                    working_dir: version_dir.to_path_buf(),
+                    description: description.clone(),
+                }));
+            }
         }
         if options.register_uninstall {
             // Prefer a setup executable the package itself ships, so
@@ -907,7 +1050,18 @@ impl Setup {
                 display_version: manifest.version_text.clone(),
                 publisher: PUBLISHER.to_string(),
                 install_location: self.layout.root().to_path_buf(),
-                uninstall_command: format!("\"{}\" --uninstall", setup_exe.display()),
+                // The recorded command names the install root and the shell
+                // options this install actually used. Without them the
+                // process Apps & features starts would reconstruct the
+                // *default* root and default options, so a custom location
+                // would not be removed and a desktop shortcut would be left
+                // behind.
+                uninstall_command: uninstall_command(
+                    &setup_exe,
+                    self.layout.root(),
+                    &self.user_data_root,
+                    options,
+                ),
                 estimated_size_kb: manifest.total_bytes().div_ceil(1024).min(u32::MAX as u64)
                     as u32,
             }));
@@ -943,6 +1097,49 @@ fn set_executable_bits(dir: &Path, manifest: &PackageManifest) -> Result<(), Set
 #[cfg(not(unix))]
 fn set_executable_bits(_dir: &Path, _manifest: &PackageManifest) -> Result<(), SetupError> {
     Ok(())
+}
+
+/// The command Apps & features runs to remove this installation.
+///
+/// It repeats the install root, the user-data root, and the shell options,
+/// because the process it starts is a fresh one that would otherwise
+/// reconstruct defaults and remove the wrong thing --- or nothing.
+fn uninstall_command(
+    setup_exe: &Path,
+    install_root: &Path,
+    user_data_root: &Path,
+    options: &InstallOptions,
+) -> String {
+    let mut command = format!(
+        "\"{}\" --uninstall --install-root \"{}\" --user-data-root \"{}\"",
+        setup_exe.display(),
+        install_root.display(),
+        user_data_root.display()
+    );
+    if !options.start_menu_shortcut {
+        command.push_str(" --no-start-menu");
+    }
+    if options.desktop_shortcut {
+        command.push_str(" --desktop-shortcut");
+    }
+    if !options.register_uninstall {
+        command.push_str(" --no-register");
+    }
+    command
+}
+
+/// An absolute form of `path`, for comparing two roots.
+///
+/// `std::fs::canonicalize` is deliberately not used: it requires the path to
+/// exist, and these roots are routinely compared before either is created.
+fn absolute(path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    match std::env::current_dir() {
+        Ok(current) => current.join(path),
+        Err(_) => path.to_path_buf(),
+    }
 }
 
 /// Every file under `dir`, as `/`-separated paths relative to it.

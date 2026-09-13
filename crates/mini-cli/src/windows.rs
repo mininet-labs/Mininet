@@ -329,6 +329,16 @@ pub fn verify(
     for problem in &verify.problems {
         human.push_str(&format!("  {}\n", report::describe_problem(problem)));
     }
+    if !verify.is_intact() {
+        // A damaged installation must make the process exit non-zero. A
+        // deployment script using this as an integrity gate would otherwise
+        // read "ok" and carry on past exactly the situation it was checking
+        // for.
+        return Err(CliError::WindowsSetup {
+            code: "not_intact",
+            message: human.trim_end().to_string(),
+        });
+    }
     Ok(fields_into(
         CommandResult::new(human),
         report::verify_fields(&verify),
@@ -403,7 +413,19 @@ fn walk(dir: &Path) -> Result<Vec<String>> {
             } else {
                 format!("{prefix}/{name}")
             };
-            if entry.path().is_dir() {
+            // Symlinked directories are not descended into, for the same
+            // reason a symlinked file is not read: the tree being packaged
+            // must be the tree that was reviewed.
+            let file_type = entry
+                .file_type()
+                .map_err(|error| CliError::Io(format!("{}: {error}", current.display())))?;
+            if file_type.is_symlink() {
+                return Err(CliError::Usage(format!(
+                    "{} is a symbolic link; packaging follows no links",
+                    entry.path().display()
+                )));
+            }
+            if file_type.is_dir() {
                 stack.push((entry.path(), relative));
             } else {
                 out.push(relative);

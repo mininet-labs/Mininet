@@ -52,7 +52,17 @@ where
     F: FnMut(&str) -> Result<Vec<u8>, SetupError>,
 {
     let manifest_bytes = manifest.to_bytes();
-    let mut out = Vec::with_capacity(manifest_bytes.len() + manifest.total_bytes() as usize + 12);
+    // Checked before allocating, not after writing: the manifest format
+    // permits hundreds of files of up to 512 MiB, so a package that could
+    // never be opened would otherwise be assembled in memory first and
+    // rejected afterwards.
+    let encoded = MAGIC.len() as u64 + 4 + manifest_bytes.len() as u64 + manifest.total_bytes();
+    if encoded > MAX_CONTAINER_BYTES {
+        return Err(SetupError::MalformedContainer {
+            reason: "the package would exceed the container size limit",
+        });
+    }
+    let mut out = Vec::with_capacity(encoded as usize);
     out.extend_from_slice(MAGIC);
     out.extend_from_slice(&(manifest_bytes.len() as u32).to_be_bytes());
     out.extend_from_slice(&manifest_bytes);

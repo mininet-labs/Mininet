@@ -315,7 +315,16 @@ impl PackageManifest {
             ));
         }
         for shortcut in &self.shortcuts {
-            text.push_str(&format!("shortcut {} {}\n", shortcut.target, shortcut.name));
+            // Length-prefixed target, because *both* fields may contain a
+            // space: package paths allow them and display names allow them.
+            // Splitting on the first space would make this writer produce
+            // manifests its own parser rejects.
+            text.push_str(&format!(
+                "shortcut {} {} {}\n",
+                shortcut.target.len(),
+                shortcut.target,
+                shortcut.name
+            ));
         }
         text.into_bytes()
     }
@@ -492,10 +501,22 @@ fn parse_file_line(rest: &str, line: usize) -> Result<PackageFile, SetupError> {
 }
 
 fn parse_shortcut_line(rest: &str, line: usize) -> Result<PackageShortcut, SetupError> {
-    let (target, name) = rest.split_once(' ').ok_or(SetupError::MalformedManifest {
-        line,
-        reason: "shortcut line has no display name",
-    })?;
+    let malformed = |reason: &'static str| SetupError::MalformedManifest { line, reason };
+    // `shortcut <target-byte-length> <target> <name>`: the length makes the
+    // boundary unambiguous when either field contains a space.
+    let (length_text, after_length) = rest
+        .split_once(' ')
+        .ok_or(malformed("shortcut line has no target length"))?;
+    let length: usize = length_text
+        .parse()
+        .map_err(|_| malformed("shortcut target length is not a number"))?;
+    if after_length.len() < length + 1 {
+        return Err(malformed("shortcut target length runs past the line"));
+    }
+    let (target, remainder) = after_length.split_at(length);
+    let name = remainder
+        .strip_prefix(' ')
+        .ok_or(malformed("shortcut target length does not end at a space"))?;
     path::check(target)?;
     check_display("shortcut", name)?;
     Ok(PackageShortcut {

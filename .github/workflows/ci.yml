@@ -199,7 +199,10 @@ jobs:
           $out = cargo run --release -p mini-cli -- selftest
           if ($LASTEXITCODE -ne 0) { $out; throw 'a self-test check failed' }
           $out
-          if ($out -notmatch 'inflating an output breaks the balance check') {
+          # Joined first: PowerShell's -match/-notmatch over an *array* returns
+          # the matching elements rather than a boolean, so a non-empty result
+          # is truthy either way and the test always "fails".
+          if (-not (($out -join "`n").Contains('inflating an output breaks the balance check'))) {
             throw 'the value-layer checks did not run; the spawn path is broken'
           }
           cargo run --release -p mini-cli -- selftest coverage

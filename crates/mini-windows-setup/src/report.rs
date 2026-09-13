@@ -192,12 +192,21 @@ pub fn uninstall_fields(report: &UninstallReport) -> Vec<(&'static str, Field)> 
 /// A stable short name for one shell change.
 pub fn shell_action_name(action: &crate::ShellAction) -> String {
     match action {
-        crate::ShellAction::CreateShortcut(request) => {
-            format!("create-shortcut:{}", request.link_path.display())
-        }
-        crate::ShellAction::RemoveShortcut { path } => {
-            format!("remove-shortcut:{}", path.display())
-        }
+        crate::ShellAction::CreateShortcut(request) => format!(
+            "create-shortcut:{}",
+            request
+                .location
+                .planned_dir()
+                .join(&request.link_name)
+                .display()
+        ),
+        crate::ShellAction::RemoveShortcut {
+            location,
+            link_name,
+        } => format!(
+            "remove-shortcut:{}",
+            location.planned_dir().join(link_name).display()
+        ),
         crate::ShellAction::RegisterUninstall(registration) => {
             format!("register-uninstall:{}", registration.key_name)
         }

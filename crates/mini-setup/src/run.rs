@@ -329,6 +329,74 @@ pub fn rollback(args: &Args) -> Result<Outcome> {
     })
 }
 
+/// Re-run this program from a temporary copy when it lives inside the tree it
+/// is about to delete.
+///
+/// Apps & features starts the copy of `mininet-setup.exe` *inside* the active
+/// version directory. Windows locks a running executable's image, so removing
+/// the install root would fail partway through --- after the shortcut and the
+/// registry entry are already gone, leaving program files behind and no entry
+/// to retry from. Copying to the temp directory and handing the work to that
+/// copy is the standard way out, and it is what an uninstaller has to do.
+///
+/// Returns `Ok(true)` when the work was handed off and this process should
+/// simply exit.
+#[cfg(windows)]
+fn relaunch_outside_install_root(args: &Args) -> Result<bool> {
+    let exe = std::env::current_exe()
+        .map_err(|error| Failure::other("io", format!("could not locate this program: {error}")))?;
+    let root = setup_for(args).layout().root().to_path_buf();
+    if !exe.starts_with(&root) {
+        return Ok(false);
+    }
+    let staging = std::env::temp_dir().join(format!("mininet-uninstall-{}", std::process::id()));
+    std::fs::create_dir_all(&staging)
+        .map_err(|error| Failure::other("io", format!("{}: {error}", staging.display())))?;
+    let copy = staging.join("mininet-setup.exe");
+    std::fs::copy(&exe, &copy)
+        .map_err(|error| Failure::other("io", format!("{}: {error}", copy.display())))?;
+
+    // The same arguments, minus anything that would make the copy recurse.
+    let mut command = std::process::Command::new(&copy);
+    command.arg("--uninstall");
+    command.arg("--install-root").arg(&root);
+    command
+        .arg("--user-data-root")
+        .arg(setup_for(args).user_data_root());
+    if !args.options.start_menu_shortcut {
+        command.arg("--no-start-menu");
+    }
+    if args.options.desktop_shortcut {
+        command.arg("--desktop-shortcut");
+    }
+    if !args.options.register_uninstall {
+        command.arg("--no-register");
+    }
+    if args.destroy_identities {
+        command.arg("--destroy-identities");
+    }
+    if args.json {
+        command.arg("--json");
+    }
+    command.spawn().map_err(|error| {
+        Failure::other("io", format!("could not start {}: {error}", copy.display()))
+    })?;
+    Ok(true)
+}
+
+#[cfg(not(windows))]
+fn relaunch_outside_install_root(_args: &Args) -> Result<bool> {
+    // Only Windows locks a running executable's image; elsewhere the file can
+    // be unlinked while the process runs, so there is nothing to work around.
+    Ok(false)
+}
+
+/// True when this process handed its uninstall to a copy outside the install
+/// root and should exit without doing the work itself.
+pub fn handed_off_uninstall(args: &Args) -> Result<bool> {
+    relaunch_outside_install_root(args)
+}
+
 /// Remove the installation.
 pub fn uninstall(args: &Args) -> Result<Outcome> {
     let setup = setup_for(args);

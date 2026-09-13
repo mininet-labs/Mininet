@@ -303,7 +303,13 @@ impl SetupApp {
         ui.add_space(12.0);
         ui.horizontal_wrapped(|ui| {
             if ui.button("Check installed files").clicked() {
-                let result = run::verify(&self.effective_args());
+                // Explicitly without the payload: `run::verify` gives an
+                // explicit payload precedence, so a wizard opened with
+                // --payload while already installed would otherwise check the
+                // package file and report success over a corrupted install.
+                let mut args = self.effective_args();
+                args.payload = None;
+                let result = run::verify(&args);
                 self.finish(result);
             }
             if let Some(manifest) = self.manifest.clone() {

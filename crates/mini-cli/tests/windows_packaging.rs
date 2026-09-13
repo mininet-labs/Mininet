@@ -113,7 +113,9 @@ fn pack_writes_a_readable_manifest_beside_the_container() {
     let text = std::fs::read_to_string(&manifest).unwrap();
     assert!(text.starts_with("MNWINPKG1\n"));
     assert!(text.contains("product Mininet\n"));
-    assert!(text.contains("shortcut mininet-desktop.exe Mininet\n"));
+    // Length-prefixed target, so a path or a name containing a space still
+    // round-trips through this format.
+    assert!(text.contains("shortcut 19 mininet-desktop.exe Mininet\n"));
     // Both digests per file, so the SHA-256 column can be checked with
     // Get-FileHash by someone who trusts nothing we shipped.
     let file_lines: Vec<&str> = text
@@ -341,5 +343,120 @@ fn an_unknown_windows_subcommand_is_a_usage_error() {
     .unwrap_err();
     assert_eq!(error.error_code(), "usage");
     assert!(error.to_string().contains("install"));
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn a_symlinked_source_file_is_refused_rather_than_followed() {
+    // A release tree containing a link to a local key or configuration file
+    // would otherwise be packaged under the link's harmless-looking name.
+    #[cfg(unix)]
+    {
+        let base = tempdir("symlink");
+        let source = source_tree(&base, b"desktop\n");
+        let secret = base.join("id_rsa");
+        std::fs::write(&secret, b"PRIVATE KEY").unwrap();
+        std::os::unix::fs::symlink(&secret, source.join("harmless.dll")).unwrap();
+        let out = base.join("client.mnpkg");
+        let error = run(&[
+            "--home",
+            base.join("home").to_str().unwrap(),
+            "windows",
+            "pack",
+            "--source",
+            source.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+            "--version",
+            "0.1.0",
+            "--built-at-ms",
+            "1",
+        ])
+        .unwrap_err();
+        assert_eq!(error.error_code(), "usage");
+        assert!(error.to_string().contains("symbolic link"));
+        assert!(!out.exists());
+        let _ = std::fs::remove_dir_all(base);
+    }
+}
+
+#[test]
+fn a_misspelled_option_is_reported_rather_than_ignored() {
+    // `--targte` used to be dropped silently, producing a plausibly named
+    // package built for the default target.
+    let base = tempdir("typo");
+    let source = source_tree(&base, b"desktop\n");
+    let out = base.join("client.mnpkg");
+    let error = run(&[
+        "--home",
+        base.join("home").to_str().unwrap(),
+        "windows",
+        "pack",
+        "--source",
+        source.to_str().unwrap(),
+        "--out",
+        out.to_str().unwrap(),
+        "--version",
+        "0.1.0",
+        "--built-at-ms",
+        "1",
+        "--targte",
+        "i686-pc-windows-msvc",
+    ])
+    .unwrap_err();
+    assert_eq!(error.error_code(), "usage");
+    assert!(error.to_string().contains("--targte"));
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn verify_fails_the_command_when_the_installation_is_damaged() {
+    // A deployment script using this as an integrity gate must not read "ok"
+    // over a tampered installation.
+    let base = tempdir("verify-fails");
+    let source = source_tree(&base, b"desktop-0.1.0\n");
+    let container = pack(&base, &source, "0.1.0", "1757635200000");
+    let install_root = base.join("Programs");
+    let data_root = base.join("UserData");
+    let setup = std::process::Command::new(env!("CARGO_BIN_EXE_mini"))
+        .args([
+            "windows",
+            "plan",
+            container.to_str().unwrap(),
+            "--install-root",
+            install_root.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(setup.status.success());
+
+    // Install through the engine directly, then damage a file.
+    let bytes = std::fs::read(&container).unwrap();
+    let opened = mini_windows_setup::Container::open(&bytes).unwrap();
+    let engine = mini_windows_setup::Setup::new(&install_root).with_user_data_root(&data_root);
+    let approval = mini_windows_setup::InstallApproval::new(opened.manifest(), 1);
+    let options = mini_windows_setup::InstallOptions {
+        start_menu_dir: Some(base.join("menu")),
+        desktop_dir: Some(base.join("desktop")),
+        ..Default::default()
+    };
+    let mut shell = mini_windows_setup::RecordingShell::default();
+    let report = engine
+        .install(&opened, &approval, &options, &mut shell, 1)
+        .unwrap();
+    std::fs::write(&report.launch_path, b"tampered-but-same-len").unwrap();
+
+    let error = run(&[
+        "--home",
+        base.join("home").to_str().unwrap(),
+        "windows",
+        "verify",
+        "--install-root",
+        install_root.to_str().unwrap(),
+        "--user-data-root",
+        data_root.to_str().unwrap(),
+    ])
+    .unwrap_err();
+    assert_eq!(error.error_code(), "not_intact");
     let _ = std::fs::remove_dir_all(base);
 }

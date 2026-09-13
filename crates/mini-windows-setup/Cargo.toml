@@ -13,6 +13,10 @@ publish = false
 # Hashing only: BLAKE3 for Mininet content addresses, SHA-256 so a Windows
 # user can re-check every file with `Get-FileHash` without running any
 # Mininet binary at all.
+# Exclusive locking and durable writes, rather than a second implementation
+# of either. `lock_exclusive` is what serializes two setup processes aimed at
+# one install root.
+mini-durable = { path = "../mini-durable" }
 mini-crypto = { path = "../mini-crypto" }
 # `Version` + `check_no_rollback` are reused rather than reimplemented so
 # downgrade semantics live in exactly one place (mini-forge::release).

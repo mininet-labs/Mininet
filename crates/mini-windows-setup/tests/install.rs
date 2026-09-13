@@ -148,7 +148,7 @@ fn a_first_install_writes_every_file_activates_it_and_registers_one_shortcut() {
     assert_eq!(shell.actions.len(), 2);
     match &shell.actions[0] {
         ShellAction::CreateShortcut(request) => {
-            assert!(request.link_path.ends_with("Mininet.lnk"));
+            assert_eq!(request.link_name, "Mininet.lnk");
             assert_eq!(request.target, report.launch_path);
         }
         other => panic!("expected a shortcut, got {other:?}"),
@@ -681,4 +681,152 @@ fn a_portable_install_can_skip_every_shell_change() {
         .unwrap();
     assert!(shell.actions.is_empty());
     assert!(report.launch_path.is_file());
+}
+
+#[test]
+fn an_install_root_that_swallows_the_user_data_root_is_refused() {
+    // Choosing %LOCALAPPDATA% as the install location would make uninstall's
+    // recursive removal delete the identity vault under an approval that
+    // promised to keep it.
+    let base = tempdir("overlap");
+    let install_root = base.join("Local");
+    let setup = Setup::new(&install_root).with_user_data_root(install_root.join("Mininet"));
+    let manifest = package("0.1.0", DESKTOP_V1);
+    let bytes = bytes_for(&manifest, DESKTOP_V1);
+    let container = Container::open(&bytes).unwrap();
+    let approval = InstallApproval::new(container.manifest(), 1_000);
+    let mut shell = RecordingShell::default();
+    let error = setup
+        .install(
+            &container,
+            &approval,
+            &InstallOptions::default(),
+            &mut shell,
+            1_000,
+        )
+        .unwrap_err();
+    assert_eq!(error.code(), "overlapping_roots");
+
+    // And the same refusal on the way out, so an install made some other way
+    // cannot be removed into a deleted identity vault either.
+    let approval = UninstallApproval::keeping_identities(&install_root, 2_000);
+    let error = setup
+        .uninstall(&approval, &InstallOptions::default(), &mut shell, 2_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "overlapping_roots");
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn reinstalling_the_active_version_never_leaves_it_missing() {
+    let fixture = Fixture::new("reinstall-safe");
+    let mut shell = RecordingShell::default();
+    let first = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    assert!(first.launch_path.is_file());
+    // Same version again: the old directory must be moved aside and removed
+    // only once the replacement is committed, never deleted up front.
+    let second = fixture
+        .install("0.1.0", DESKTOP_V1, 2_000, &mut shell)
+        .unwrap();
+    assert!(second.launch_path.is_file());
+    assert_eq!(std::fs::read(&second.launch_path).unwrap(), DESKTOP_V1);
+    let versions = fixture.setup.layout().root().join("versions");
+    let leftovers: Vec<String> = std::fs::read_dir(&versions)
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .collect();
+    assert_eq!(leftovers, vec!["0.1.0".to_string()]);
+}
+
+#[test]
+fn the_shortcuts_a_manifest_declares_are_the_ones_created() {
+    // A package declaring a shortcut to a second executable must be installed
+    // as its reviewed manifest says, not as a hard-coded default.
+    let base = tempdir("manifest-shortcuts");
+    let manifest = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 1,
+        },
+        vec![
+            PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap(),
+            PackageFile::describe("mini.exe", CLI).unwrap(),
+        ],
+        vec![
+            PackageShortcut {
+                target: "mininet-desktop.exe".to_string(),
+                name: "Mininet".to_string(),
+            },
+            PackageShortcut {
+                target: "mini.exe".to_string(),
+                name: "Mininet Console".to_string(),
+            },
+        ],
+    )
+    .unwrap();
+    let bytes = mini_windows_setup::container::write(&manifest, |path| {
+        Ok(match path {
+            "mininet-desktop.exe" => DESKTOP_V1.to_vec(),
+            "mini.exe" => CLI.to_vec(),
+            other => panic!("unexpected {other}"),
+        })
+    })
+    .unwrap();
+    let container = Container::open(&bytes).unwrap();
+    let setup = Setup::new(base.join("Programs")).with_user_data_root(base.join("UserData"));
+    let options = InstallOptions {
+        start_menu_dir: Some(base.join("menu")),
+        desktop_dir: Some(base.join("desktop")),
+        ..InstallOptions::default()
+    };
+    let approval = InstallApproval::new(container.manifest(), 1_000);
+    let mut shell = RecordingShell::default();
+    setup
+        .install(&container, &approval, &options, &mut shell, 1_000)
+        .unwrap();
+    let names: Vec<String> = shell
+        .actions
+        .iter()
+        .filter_map(|action| match action {
+            ShellAction::CreateShortcut(request) => Some(request.link_name.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        names,
+        vec!["Mininet.lnk".to_string(), "Mininet Console.lnk".to_string()]
+    );
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn the_registered_uninstall_command_names_what_was_actually_installed() {
+    let mut fixture = Fixture::new("uninstall-command");
+    fixture.options.desktop_shortcut = true;
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let registration = shell
+        .actions
+        .iter()
+        .find_map(|action| match action {
+            ShellAction::RegisterUninstall(registration) => Some(registration),
+            _ => None,
+        })
+        .expect("an uninstall registration");
+    // Without these, Apps & features would start a process that reconstructs
+    // the *default* root and options and removes the wrong thing, or nothing.
+    let command = &registration.uninstall_command;
+    assert!(command.contains("--install-root"));
+    assert!(command.contains(fixture.setup.layout().root().to_str().unwrap()));
+    assert!(command.contains("--user-data-root"));
+    assert!(command.contains("--desktop-shortcut"));
 }
