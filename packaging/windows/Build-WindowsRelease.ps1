@@ -136,7 +136,8 @@ try {
     if (-not $SkipSetupEmbed) {
         Write-Host ''
         Write-Host '-- rebuilding setup with the package embedded'
-        $env:MININET_SETUP_PAYLOAD = $container
+        $containerAbs = [System.IO.Path]::GetFullPath($container)
+        $env:MININET_SETUP_PAYLOAD = $containerAbs
         try {
             & cargo build --release --target $Target -p mini-setup
             if ($LASTEXITCODE -ne 0) { throw "embedding build failed with exit code $LASTEXITCODE" }
