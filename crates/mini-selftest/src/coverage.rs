@@ -311,7 +311,9 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
     ),
     (
         "mini-installer",
-        Coverage::Exercised { area: "install" },
+        Coverage::Gap {
+            reason: "the shipped Windows client uses mini-windows-setup; the legacy POSIX installer is Unix-only and has its own install/activation test suite",
+        },
     ),
     (
         "mini-privacy-policy",
