@@ -70,7 +70,17 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        Mode::Uninstall if run::handed_off_uninstall(&parsed).unwrap_or(false) => {
+        Mode::Uninstall if match run::handed_off_uninstall(&parsed) {
+            Ok(value) => value,
+            Err(failure) => {
+                if parsed.json {
+                    println!("{}", json::err("setup.uninstall", &failure.code, &failure.message));
+                } else {
+                    eprintln!("mininet-setup: {}", failure.message);
+                }
+                return ExitCode::FAILURE;
+            }
+        } => {
             // A copy of this program, outside the directory being removed, is
             // finishing the job. Saying so matters: the window closes
             // immediately and a user who saw nothing would reasonably retry.
