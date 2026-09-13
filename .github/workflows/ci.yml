@@ -215,6 +215,22 @@ jobs:
           wix extension add --global WixToolset.Util.wixext | Out-Null
           ./packaging/windows/Build-WindowsRelease.ps1 -OutDir dist/ci -Msi
 
+      # A real, MSVC-built installer a person can download and run, not just
+      # a claim that the build works. Uploaded before the install/uninstall
+      # tests below touch the machine, so the artifact is exactly what those
+      # tests exercise.
+      - name: Upload the built installer and MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: mininet-windows-client-${{ github.sha }}
+          path: |
+            dist/ci/mininet-setup-*.exe
+            dist/ci/Mininet-*.msi
+            dist/ci/*.manifest.txt
+            dist/ci/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
       # The MSI is a thin wrapper over mininet-setup.exe rather than a second
       # install implementation, so what has to be proved is that the wrapper
       # works: msiexec puts the client on the machine, and removing the MSI

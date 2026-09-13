@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 83,
-    "files": 1042,
-    "headings": 3716,
-    "rust_symbols": 10954
+    "files": 1048,
+    "headings": 3734,
+    "rust_symbols": 10959
   },
   "crates": {
     "did-mini": {
@@ -1006,7 +1006,7 @@
       "title": "Android beta slice 9 (issue #205, hub #196): SPEC-11's verified-"
     },
     {
-      "bytes": 23840,
+      "bytes": 24482,
       "group": "ci",
       "headings": [
         {
@@ -1046,9 +1046,9 @@
         "set",
         "json"
       ],
-      "lines": 470,
+      "lines": 486,
       "path": ".github/workflows/ci.yml",
-      "sha256": "902d330eec2e7dad14b156494d2ea9acebe82c2d3d50d0a6c0d2e57219354041",
+      "sha256": "da3ab1bd3dfbab701412253a85bca7cf57fa559a411dfa977f198a97c1a546ac",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
@@ -17936,38 +17936,38 @@
       "title": "use std::fs;"
     },
     {
-      "bytes": 15152,
+      "bytes": 15410,
       "group": "crate:mini-cli",
       "headings": [],
       "keywords": [
         "base",
         "std",
-        "source",
         "unwrap",
+        "source",
+        "join",
         "pack",
         "path",
-        "join",
-        "text",
         "out",
         "tempdir",
         "source_tree",
+        "text",
         "str",
         "home",
         "to_str",
         "run",
+        "exe",
         "read",
         "version",
         "first",
         "assert_eq",
-        "manifest",
         "pathbuf",
-        "exe",
-        "desktop-0",
-        "second"
+        "write",
+        "second",
+        "remove_dir_all"
       ],
-      "lines": 463,
+      "lines": 467,
       "path": "crates/mini-cli/tests/windows_packaging.rs",
-      "sha256": "81c63e3097c19ae1dc2fd9ce97cf862aab4e6677b60733ba63498903efbbca8f",
+      "sha256": "e2ebe72e5fa927133dc095490e1b0361ec65d92590da90ae774b8fb596cb67e7",
       "symbols": [
         {
           "kind": "fn",
@@ -17981,87 +17981,87 @@
         },
         {
           "kind": "fn",
-          "line": 34,
+          "line": 38,
           "name": "run"
         },
         {
           "kind": "fn",
-          "line": 38,
+          "line": 42,
           "name": "pack"
         },
         {
           "kind": "fn",
-          "line": 62,
+          "line": 66,
           "name": "packing_the_same_bytes_twice_produces_identical_containers"
         },
         {
           "kind": "fn",
-          "line": 74,
+          "line": 78,
           "name": "a_different_build_timestamp_is_a_different_package"
         },
         {
           "kind": "fn",
-          "line": 85,
+          "line": 89,
           "name": "pack_without_a_build_timestamp_is_a_usage_error"
         },
         {
           "kind": "fn",
-          "line": 108,
+          "line": 112,
           "name": "pack_writes_a_readable_manifest_beside_the_container"
         },
         {
           "kind": "fn",
-          "line": 135,
+          "line": 139,
           "name": "the_sha256_column_matches_what_an_outside_tool_would_compute"
         },
         {
           "kind": "fn",
-          "line": 154,
+          "line": 158,
           "name": "inspect_works_on_a_container_and_on_the_bare_manifest"
         },
         {
           "kind": "fn",
-          "line": 185,
+          "line": 189,
           "name": "inspecting_a_damaged_container_reports_the_engines_own_error_code"
         },
         {
           "kind": "fn",
-          "line": 209,
+          "line": 213,
           "name": "a_file_that_cannot_be_a_windows_path_stops_the_pack"
         },
         {
           "kind": "fn",
-          "line": 236,
+          "line": 240,
           "name": "plan_changes_nothing_and_names_every_file_and_shell_action"
         },
         {
           "kind": "fn",
-          "line": 265,
+          "line": 269,
           "name": "status_and_verify_report_an_empty_install_root_without_pretending"
         },
         {
           "kind": "fn",
-          "line": 296,
+          "line": 300,
           "name": "json_output_carries_the_same_field_names_the_setup_binary_uses"
         },
         {
           "kind": "fn",
-          "line": 335,
+          "line": 339,
           "name": "an_unknown_windows_subcommand_is_a_usage_error"
         },
         {
           "kind": "fn",
-          "line": 350,
+          "line": 354,
           "name": "a_symlinked_source_file_is_refused_rather_than_followed"
         },
         {
           "kind": "fn",
-          "line": 384,
+          "line": 388,
           "name": "a_misspelled_option_is_reported_rather_than_ignored"
         },
         {
           "kind": "fn",
-          "line": 413,
+          "line": 417,
           "name": "verify_fails_the_command_when_the_installation_is_damaged"
         }
       ],
@@ -63890,7 +63890,7 @@
       "title": "mini-selftest"
     },
     {
-      "bytes": 66443,
+      "bytes": 67001,
       "group": "crate:mini-selftest",
       "headings": [],
       "keywords": [
@@ -63919,9 +63919,9 @@
         "erasure",
         "spacetime"
       ],
-      "lines": 1841,
+      "lines": 1850,
       "path": "crates/mini-selftest/src/checks.rs",
-      "sha256": "26abad9d25eb35c87943859429eb044a33e7068c1ad3acf437be139cf32dbbcb",
+      "sha256": "abec32ba325ce517a7b212b6bce9defeac26aea71bbcb25217b168902f419edb",
       "symbols": [
         {
           "kind": "const",
@@ -64110,129 +64110,129 @@
         },
         {
           "kind": "fn",
-          "line": 1258,
+          "line": 1267,
           "name": "check_install_round_trip"
         },
         {
           "kind": "fn",
-          "line": 1291,
+          "line": 1300,
           "name": "check_install_tamper_refused"
         },
         {
           "kind": "fn",
-          "line": 1325,
+          "line": 1334,
           "name": "check_installed_integrity"
         },
         {
           "kind": "fn",
-          "line": 1357,
+          "line": 1366,
           "name": "short"
         },
         {
           "kind": "fn",
-          "line": 1365,
+          "line": 1374,
           "name": "short_id"
         },
         {
           "kind": "fn",
-          "line": 1374,
+          "line": 1383,
           "name": "default_scratch"
         },
         {
           "kind": "fn",
-          "line": 1387,
+          "line": 1396,
           "name": "check_chain_vote_signature"
         },
         {
           "kind": "fn",
-          "line": 1405,
+          "line": 1414,
           "name": "check_chain_vote_is_bound_to_its_block"
         },
         {
           "kind": "fn",
-          "line": 1426,
+          "line": 1435,
           "name": "check_another_roots_device_cannot_cast_your_vote"
         },
         {
           "kind": "fn",
-          "line": 1451,
+          "line": 1460,
           "name": "check_settlement_claim_round_trip"
         },
         {
           "kind": "fn",
-          "line": 1471,
+          "line": 1480,
           "name": "check_settlement_amount_cannot_be_edited"
         },
         {
           "kind": "fn",
-          "line": 1496,
+          "line": 1505,
           "name": "check_crdt_converges_regardless_of_order"
         },
         {
           "kind": "fn",
-          "line": 1527,
+          "line": 1536,
           "name": "check_personhood_confidence_fusion"
         },
         {
           "kind": "fn",
-          "line": 1556,
+          "line": 1565,
           "name": "check_stale_personhood_evidence_decays"
         },
         {
           "kind": "fn",
-          "line": 1586,
+          "line": 1595,
           "name": "check_reward_accrual_is_rate_capped"
         },
         {
           "kind": "fn",
-          "line": 1602,
+          "line": 1611,
           "name": "check_search_tokenizer_and_query_parser"
         },
         {
           "kind": "fn",
-          "line": 1624,
+          "line": 1633,
           "name": "check_html_extraction_is_deterministic"
         },
         {
           "kind": "fn",
-          "line": 1637,
+          "line": 1646,
           "name": "check_ranking_is_monotonic_in_evidence"
         },
         {
           "kind": "fn",
-          "line": 1658,
+          "line": 1667,
           "name": "check_gossip_fanout_is_bounded_and_deterministic"
         },
         {
           "kind": "fn",
-          "line": 1692,
+          "line": 1701,
           "name": "check_privacy_tiers_cost_more_as_they_protect_more"
         },
         {
           "kind": "fn",
-          "line": 1723,
+          "line": 1732,
           "name": "check_a_stronger_tier_is_never_quoted_cheaper"
         },
         {
           "kind": "fn",
-          "line": 1747,
+          "line": 1756,
           "name": "check_replication_spreads_shards_across_distinct_holders"
         },
         {
           "kind": "fn",
-          "line": 1779,
+          "line": 1788,
           "name": "check_too_few_holders_is_refused_rather_than_doubled_up"
         },
         {
           "kind": "fn",
-          "line": 1800,
+          "line": 1809,
           "name": "check_private_lookup_labels_do_not_repeat_across_epochs"
         }
       ],
       "title": "use crate::{Check, Outcome, Report};"
     },
     {
-      "bytes": 19510,
+      "bytes": 19657,
       "group": "crate:mini-selftest",
       "headings": [],
       "keywords": [
@@ -64261,9 +64261,9 @@
         "run",
         "process"
       ],
-      "lines": 580,
+      "lines": 582,
       "path": "crates/mini-selftest/src/coverage.rs",
-      "sha256": "b93390c6d0f444615118b8c995d2517d715d78a80152c3c0dbb95792762b829d",
+      "sha256": "ce20977a32e61a815de7596625975be5123114d7619e139d461c8350af724366",
       "symbols": [
         {
           "kind": "enum",
@@ -64302,17 +64302,17 @@
         },
         {
           "kind": "fn",
-          "line": 549,
+          "line": 551,
           "name": "runnable_count"
         },
         {
           "kind": "fn",
-          "line": 557,
+          "line": 559,
           "name": "gaps"
         },
         {
           "kind": "fn",
-          "line": 568,
+          "line": 570,
           "name": "summary"
         }
       ],
@@ -66658,7 +66658,7 @@
       "title": "use mini_windows_setup::Field;"
     },
     {
-      "bytes": 5223,
+      "bytes": 5728,
       "group": "crate:mini-setup",
       "headings": [],
       "keywords": [
@@ -66668,28 +66668,28 @@
         "parsed",
         "exitcode",
         "args",
-        "println",
         "match",
-        "error",
+        "println",
         "failure",
         "mininet-setup",
+        "error",
         "err",
         "else",
-        "success",
+        "uninstall",
         "outcome",
         "window",
         "install",
+        "setup",
+        "eprintln",
+        "success",
         "version",
-        "uninstall",
         "main",
         "gui",
-        "wizard",
-        "flag",
-        "program"
+        "wizard"
       ],
-      "lines": 137,
+      "lines": 152,
       "path": "crates/mini-setup/src/main.rs",
-      "sha256": "b6115405ebb5c25bff8d41276a507f0faa5f6ead9689732490ee6c1c97f2dc13",
+      "sha256": "4880afb6722c2f201766bd002f91ce84749c56928355b09866d3bb2368d3c9a2",
       "symbols": [
         {
           "kind": "mod",
@@ -66730,38 +66730,38 @@
       "title": "mod args;"
     },
     {
-      "bytes": 5206,
+      "bytes": 5582,
       "group": "crate:mini-setup",
       "headings": [],
       "keywords": [
         "path",
         "payload",
         "std",
-        "bytes",
         "error",
+        "bytes",
         "mnpkg",
         "embedded",
+        "container",
         "dir",
-        "sidecar_name",
         "read",
         "some",
+        "format",
+        "sidecar_name",
         "locate",
         "executable",
         "pathbuf",
-        "format",
+        "return",
+        "map_err",
         "found",
         "out",
-        "sidecar_candidates",
         "package",
         "setup",
         "program",
-        "install",
-        "build",
-        "mininet_setup_payload"
+        "install"
       ],
-      "lines": 136,
+      "lines": 146,
       "path": "crates/mini-setup/src/payload.rs",
-      "sha256": "dda5a7d69f163ee7b7dff0bc15f798df303c47216f327eea59571c7b696d12ec",
+      "sha256": "a160623eda86b67a140c00dbc8a148a5c92ec84c761ebb844bb077e98cfe7852",
       "symbols": [
         {
           "kind": "const",
@@ -66795,34 +66795,34 @@
         },
         {
           "kind": "mod",
-          "line": 100,
+          "line": 110,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 104,
+          "line": 114,
           "name": "an_explicit_payload_that_does_not_exist_reports_the_path_it_tried"
         },
         {
           "kind": "fn",
-          "line": 110,
+          "line": 120,
           "name": "an_explicit_payload_is_read_verbatim"
         },
         {
           "kind": "fn",
-          "line": 122,
+          "line": 132,
           "name": "the_sidecar_search_always_includes_the_conventional_name"
         },
         {
           "kind": "fn",
-          "line": 128,
+          "line": 138,
           "name": "a_build_without_an_embedded_payload_carries_no_bytes"
         }
       ],
       "title": "use std::borrow::Cow;"
     },
     {
-      "bytes": 15804,
+      "bytes": 16160,
       "group": "crate:mini-setup",
       "headings": [],
       "keywords": [
@@ -66851,9 +66851,9 @@
         "path",
         "container"
       ],
-      "lines": 439,
+      "lines": 446,
       "path": "crates/mini-setup/src/run.rs",
-      "sha256": "c5a5c719ed296960bec9b345b55adf69287c03e89f13f7eeb2884180f2c258ee",
+      "sha256": "55e4620fe65a92d63a653731d4ca0c6a6ea6d328e13acb666a64c64391818710",
       "symbols": [
         {
           "kind": "struct",
@@ -66959,38 +66959,38 @@
       "title": "use crate::args::Args;"
     },
     {
-      "bytes": 16147,
+      "bytes": 16559,
       "group": "crate:mini-setup",
       "headings": [],
       "keywords": [
-        "env",
         "path",
-        "output",
+        "env",
         "std",
         "self",
         "str",
-        "version",
         "unwrap",
+        "exe",
         "cli",
-        "new",
-        "run",
-        "json",
+        "setup",
+        "output",
         "assert",
         "pathbuf",
         "command",
-        "exe",
         "base",
+        "new",
+        "run",
+        "mininet-setup",
+        "const",
         "args",
-        "string",
         "help",
-        "text",
+        "setup_exe",
+        "json",
         "drop",
-        "field",
         "stdout"
       ],
-      "lines": 435,
+      "lines": 442,
       "path": "crates/mini-setup/tests/cli.rs",
-      "sha256": "b6c7ef2e550962c31a889a90404c88835dd9ec532cf82663cfb59244942a4ef4",
+      "sha256": "0ecd58837e75bcaaadcc0e8f048febd1a8d41bce49a4eba3014e09fc2e74742f",
       "symbols": [
         {
           "kind": "const",
@@ -67013,148 +67013,153 @@
           "name": "CLI"
         },
         {
+          "kind": "const",
+          "line": 29,
+          "name": "SETUP"
+        },
+        {
           "kind": "fn",
-          "line": 26,
+          "line": 31,
           "name": "tempdir"
         },
         {
           "kind": "fn",
-          "line": 40,
+          "line": 45,
           "name": "write_package"
         },
         {
           "kind": "struct",
-          "line": 73,
+          "line": 80,
           "name": "Env"
         },
         {
           "kind": "impl",
-          "line": 79,
+          "line": 86,
           "name": "Env"
         },
         {
           "kind": "fn",
-          "line": 80,
+          "line": 87,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 89,
+          "line": 96,
           "name": "run"
         },
         {
           "kind": "fn",
-          "line": 102,
+          "line": 109,
           "name": "json"
         },
         {
           "kind": "impl",
-          "line": 108,
+          "line": 115,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 109,
+          "line": 116,
           "name": "drop"
         },
         {
           "kind": "fn",
-          "line": 114,
+          "line": 121,
           "name": "field"
         },
         {
           "kind": "fn",
-          "line": 128,
+          "line": 135,
           "name": "help_and_version_work_without_a_package"
         },
         {
           "kind": "fn",
-          "line": 143,
+          "line": 150,
           "name": "an_unrecognized_flag_fails_with_usage_and_exit_code_two"
         },
         {
           "kind": "fn",
-          "line": 153,
+          "line": 160,
           "name": "a_usage_error_is_reported_as_json_when_json_was_requested"
         },
         {
           "kind": "fn",
-          "line": 163,
+          "line": 170,
           "name": "status_on_a_clean_machine_says_nothing_is_installed"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 179,
           "name": "a_dry_run_reports_the_plan_and_writes_nothing"
         },
         {
           "kind": "fn",
-          "line": 193,
+          "line": 200,
           "name": "verifying_a_package_file_checks_every_byte_without_installing"
         },
         {
           "kind": "fn",
-          "line": 203,
+          "line": 210,
           "name": "verifying_a_damaged_package_fails_loudly_and_exits_non_zero"
         },
         {
           "kind": "fn",
-          "line": 219,
+          "line": 226,
           "name": "a_silent_install_places_the_files_and_reports_where_to_run_them"
         },
         {
           "kind": "fn",
-          "line": 249,
+          "line": 256,
           "name": "the_human_output_of_an_install_names_the_platform_limit_it_hit"
         },
         {
           "kind": "fn",
-          "line": 263,
+          "line": 270,
           "name": "an_upgrade_then_a_rollback_returns_to_the_earlier_build"
         },
         {
           "kind": "fn",
-          "line": 287,
+          "line": 294,
           "name": "installing_an_older_build_is_refused_until_downgrade_is_allowed"
         },
         {
           "kind": "fn",
-          "line": 309,
+          "line": 316,
           "name": "verifying_an_installation_detects_a_file_changed_after_install"
         },
         {
           "kind": "fn",
-          "line": 342,
+          "line": 349,
           "name": "uninstall_removes_the_program_and_keeps_identities"
         },
         {
           "kind": "fn",
-          "line": 360,
+          "line": 367,
           "name": "uninstall_destroys_identities_only_when_that_flag_is_given"
         },
         {
           "kind": "fn",
-          "line": 373,
+          "line": 380,
           "name": "destroying_identities_without_uninstalling_is_rejected_before_anything_runs"
         },
         {
           "kind": "fn",
-          "line": 391,
+          "line": 398,
           "name": "a_missing_package_is_a_clear_error_rather_than_a_crash"
         },
         {
           "kind": "fn",
-          "line": 400,
+          "line": 407,
           "name": "rolling_back_with_nothing_to_roll_back_to_says_so"
         },
         {
           "kind": "fn",
-          "line": 411,
+          "line": 418,
           "name": "a_portable_install_can_be_asked_for_no_shell_integration_at_all"
         },
         {
           "kind": "fn",
-          "line": 427,
+          "line": 434,
           "name": "the_setup_log_is_readable_text_after_an_install"
         }
       ],
@@ -84644,38 +84649,38 @@
       "title": "use crate::error::SetupError;"
     },
     {
-      "bytes": 10501,
+      "bytes": 10936,
       "group": "crate:mini-windows-setup",
       "headings": [],
       "keywords": [
         "string",
         "manifest",
-        "path",
         "package",
+        "path",
         "file",
         "install",
         "version",
         "did",
-        "rule",
-        "static",
-        "str",
         "root",
         "error",
         "digest",
-        "broke",
-        "reason",
+        "rule",
         "match",
         "recorded",
         "what",
+        "broke",
+        "reason",
+        "static",
+        "str",
         "one",
         "setuperror",
-        "fmt",
-        "display",
-        "its"
+        "its",
+        "reported",
+        "would"
       ],
-      "lines": 265,
+      "lines": 274,
       "path": "crates/mini-windows-setup/src/error.rs",
-      "sha256": "08b2e4b13d65512edb56196dd2cfd8213c7a1182a64af7cf9d81bd25f54f3d3a",
+      "sha256": "fb0e395aa6117c5a5756169636f38f588e6ec7105b39bba26260363883309cb5",
       "symbols": [
         {
           "kind": "enum",
@@ -84684,32 +84689,32 @@
         },
         {
           "kind": "impl",
-          "line": 141,
+          "line": 145,
           "name": "core::fmt::Display"
         },
         {
           "kind": "fn",
-          "line": 142,
+          "line": 146,
           "name": "fmt"
         },
         {
           "kind": "impl",
-          "line": 217,
+          "line": 225,
           "name": "std::error::Error"
         },
         {
           "kind": "fn",
-          "line": 218,
+          "line": 226,
           "name": "source"
         },
         {
           "kind": "impl",
-          "line": 226,
+          "line": 234,
           "name": "SetupError"
         },
         {
           "kind": "fn",
-          "line": 240,
+          "line": 248,
           "name": "code"
         }
       ],
@@ -84913,28 +84918,28 @@
       "title": "use crate::error::SetupError;"
     },
     {
-      "bytes": 51088,
+      "bytes": 53382,
       "group": "crate:mini-windows-setup",
       "headings": [],
       "keywords": [
         "install",
         "manifest",
         "path",
+        "layout",
         "digest",
         "container",
-        "layout",
         "windows",
         "what",
         "nothing",
-        "user",
-        "installapproval",
         "uninstall",
+        "user",
         "one",
         "error",
         "log",
         "report",
         "shell",
         "publisher",
+        "installapproval",
         "uninstallapproval",
         "default",
         "setup",
@@ -84942,9 +84947,9 @@
         "engine",
         "client"
       ],
-      "lines": 1269,
+      "lines": 1342,
       "path": "crates/mini-windows-setup/src/lib.rs",
-      "sha256": "f18210ee0e7f4117468ffa8b10529244f5a480de82d3c4c86189a1fa82bd0b3c",
+      "sha256": "e938f4e45dcefe3fe6f030f1390448fb83087f5fafc28ad0a2f760e34f2d7da3",
       "symbols": [
         {
           "kind": "mod",
@@ -84988,282 +84993,302 @@
         },
         {
           "kind": "const",
-          "line": 93,
+          "line": 95,
           "name": "PRODUCT_KEY"
         },
         {
           "kind": "const",
-          "line": 96,
+          "line": 98,
           "name": "PUBLISHER"
         },
         {
           "kind": "struct",
-          "line": 105,
+          "line": 107,
           "name": "InstallApproval"
         },
         {
           "kind": "impl",
-          "line": 110,
+          "line": 112,
           "name": "InstallApproval"
         },
         {
           "kind": "fn",
-          "line": 112,
+          "line": 114,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 120,
+          "line": 122,
           "name": "package_digest"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 127,
           "name": "approved_at_ms"
         },
         {
           "kind": "struct",
-          "line": 136,
+          "line": 138,
           "name": "UninstallApproval"
         },
         {
           "kind": "impl",
-          "line": 142,
+          "line": 144,
           "name": "UninstallApproval"
         },
         {
           "kind": "fn",
-          "line": 147,
+          "line": 149,
           "name": "keeping_identities"
         },
         {
           "kind": "fn",
-          "line": 162,
+          "line": 164,
           "name": "destroying_identities"
         },
         {
           "kind": "fn",
-          "line": 175,
+          "line": 177,
           "name": "install_root"
         },
         {
           "kind": "fn",
-          "line": 180,
+          "line": 182,
           "name": "destroy_user_data"
         },
         {
           "kind": "fn",
-          "line": 185,
+          "line": 187,
           "name": "approved_at_ms"
         },
         {
           "kind": "enum",
-          "line": 192,
+          "line": 194,
           "name": "PlanKind"
         },
         {
           "kind": "impl",
-          "line": 204,
+          "line": 206,
           "name": "PlanKind"
         },
         {
           "kind": "fn",
-          "line": 206,
+          "line": 208,
           "name": "as_str"
         },
         {
           "kind": "struct",
-          "line": 218,
+          "line": 220,
           "name": "PlannedFile"
         },
         {
           "kind": "struct",
-          "line": 229,
+          "line": 231,
           "name": "InstallOptions"
         },
         {
           "kind": "impl",
-          "line": 257,
+          "line": 259,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 258,
+          "line": 260,
           "name": "default"
         },
         {
           "kind": "struct",
-          "line": 274,
+          "line": 276,
           "name": "InstallPlan"
         },
         {
           "kind": "struct",
-          "line": 305,
+          "line": 307,
           "name": "InstallReport"
         },
         {
           "kind": "enum",
-          "line": 322,
+          "line": 324,
           "name": "VerifyProblem"
         },
         {
           "kind": "struct",
-          "line": 362,
+          "line": 364,
           "name": "VerifyReport"
         },
         {
           "kind": "impl",
-          "line": 373,
+          "line": 375,
           "name": "VerifyReport"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 377,
           "name": "is_intact"
         },
         {
           "kind": "struct",
-          "line": 382,
+          "line": 384,
           "name": "SetupStatus"
         },
         {
           "kind": "struct",
-          "line": 402,
+          "line": 404,
           "name": "UninstallReport"
         },
         {
           "kind": "struct",
-          "line": 417,
+          "line": 419,
           "name": "Setup"
         },
         {
           "kind": "impl",
-          "line": 422,
+          "line": 424,
           "name": "Setup"
         },
         {
           "kind": "fn",
-          "line": 424,
+          "line": 426,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 432,
+          "line": 434,
           "name": "for_current_user"
         },
         {
           "kind": "fn",
-          "line": 444,
+          "line": 446,
           "name": "containing"
         },
         {
           "kind": "fn",
-          "line": 459,
+          "line": 461,
           "name": "with_user_data_root"
         },
         {
           "kind": "fn",
-          "line": 465,
+          "line": 467,
           "name": "layout"
         },
         {
           "kind": "fn",
-          "line": 470,
+          "line": 472,
           "name": "user_data_root"
         },
         {
           "kind": "fn",
-          "line": 486,
+          "line": 488,
           "name": "check_roots_are_disjoint"
         },
         {
           "kind": "fn",
-          "line": 513,
+          "line": 515,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 527,
+          "line": 529,
           "name": "plan"
         },
         {
           "kind": "fn",
-          "line": 583,
+          "line": 595,
           "name": "install"
         },
         {
           "kind": "fn",
-          "line": 719,
+          "line": 733,
           "name": "stage_files"
         },
         {
           "kind": "fn",
-          "line": 755,
+          "line": 769,
           "name": "verify_installed"
         },
         {
           "kind": "fn",
-          "line": 828,
+          "line": 842,
           "name": "status"
         },
         {
           "kind": "fn",
-          "line": 857,
+          "line": 871,
           "name": "rollback"
         },
         {
           "kind": "fn",
-          "line": 916,
+          "line": 936,
           "name": "uninstall"
         },
         {
           "kind": "fn",
-          "line": 1028,
+          "line": 1046,
           "name": "start_menu_location"
         },
         {
           "kind": "fn",
-          "line": 1036,
+          "line": 1054,
           "name": "desktop_location"
         },
         {
           "kind": "fn",
-          "line": 1051,
+          "line": 1069,
           "name": "requested_shortcuts"
         },
         {
           "kind": "fn",
-          "line": 1072,
+          "line": 1090,
           "name": "shell_plan"
         },
         {
           "kind": "fn",
-          "line": 1149,
+          "line": 1168,
           "name": "set_executable_bits"
         },
         {
           "kind": "fn",
-          "line": 1167,
+          "line": 1186,
           "name": "set_executable_bits"
         },
         {
           "kind": "fn",
-          "line": 1178,
+          "line": 1197,
           "name": "check_target_is_runnable"
         },
         {
           "kind": "fn",
-          "line": 1203,
+          "line": 1222,
           "name": "uninstall_command"
         },
         {
           "kind": "fn",
-          "line": 1231,
+          "line": 1250,
+          "name": "absolute_normalized"
+        },
+        {
+          "kind": "fn",
+          "line": 1265,
+          "name": "compare_version_text"
+        },
+        {
+          "kind": "fn",
+          "line": 1266,
+          "name": "key"
+        },
+        {
+          "kind": "fn",
+          "line": 1279,
+          "name": "remove_managed_root_contents"
+        },
+        {
+          "kind": "fn",
+          "line": 1304,
           "name": "absolute"
         },
         {
           "kind": "fn",
-          "line": 1242,
+          "line": 1315,
           "name": "walk_relative"
         }
       ],
@@ -85367,7 +85392,7 @@
       "title": "use crate::error::SetupError;"
     },
     {
-      "bytes": 23143,
+      "bytes": 23841,
       "group": "crate:mini-windows-setup",
       "headings": [],
       "keywords": [
@@ -85396,9 +85421,9 @@
         "lines",
         "may"
       ],
-      "lines": 613,
+      "lines": 626,
       "path": "crates/mini-windows-setup/src/manifest.rs",
-      "sha256": "ae91d31b2e4bee78fe546e381bdfe3521789222ee5b87413d186985929d997a7",
+      "sha256": "b439c5096335685ca7d26e790095f5a4202273df0a30f5c5dd15ea349e804377",
       "symbols": [
         {
           "kind": "const",
@@ -85512,27 +85537,27 @@
         },
         {
           "kind": "fn",
-          "line": 479,
+          "line": 489,
           "name": "parse_file_line"
         },
         {
           "kind": "fn",
-          "line": 503,
+          "line": 513,
           "name": "parse_shortcut_line"
         },
         {
           "kind": "fn",
-          "line": 529,
+          "line": 542,
           "name": "check_token"
         },
         {
           "kind": "fn",
-          "line": 590,
+          "line": 603,
           "name": "hex"
         },
         {
           "kind": "fn",
-          "line": 599,
+          "line": 612,
           "name": "unhex"
         }
       ],
@@ -85960,7 +85985,7 @@
       "title": "use crate::error::SetupError;"
     },
     {
-      "bytes": 36405,
+      "bytes": 36770,
       "group": "crate:mini-windows-setup",
       "headings": [],
       "keywords": [
@@ -85989,9 +86014,9 @@
         "join",
         "assert_eq"
       ],
-      "lines": 1008,
+      "lines": 1014,
       "path": "crates/mini-windows-setup/tests/install.rs",
-      "sha256": "e2ef3d1cf52da0d6edd6836062f5f8b275305b10db65b412c812cad47bd2aca4",
+      "sha256": "86613d72cffb5523f0f7330421b2837db92286271c51bf964ea54f46142a6157",
       "symbols": [
         {
           "kind": "const",
@@ -86190,47 +86215,47 @@
         },
         {
           "kind": "fn",
-          "line": 810,
+          "line": 813,
           "name": "the_registered_uninstall_command_names_what_was_actually_installed"
         },
         {
           "kind": "fn",
-          "line": 835,
+          "line": 838,
           "name": "a_package_for_another_architecture_is_refused"
         },
         {
           "kind": "fn",
-          "line": 876,
+          "line": 882,
           "name": "swapping_in_another_package_of_the_same_version_is_detected"
         },
         {
           "kind": "fn",
-          "line": 907,
+          "line": 913,
           "name": "a_rollback_that_cannot_reach_the_shell_changes_nothing"
         },
         {
           "kind": "struct",
-          "line": 912,
+          "line": 918,
           "name": "RefusingShell"
         },
         {
           "kind": "impl",
-          "line": 913,
+          "line": 919,
           "name": "mini_windows_setup::ShellIntegration"
         },
         {
           "kind": "fn",
-          "line": 914,
+          "line": 920,
           "name": "apply"
         },
         {
           "kind": "fn",
-          "line": 953,
+          "line": 959,
           "name": "a_client_finds_the_install_root_it_was_started_from"
         },
         {
           "kind": "fn",
-          "line": 979,
+          "line": 985,
           "name": "the_install_lock_never_sits_inside_the_directory_it_guards"
         }
       ],
@@ -88960,6 +88985,300 @@
       "sha256": "6d1b2025526924d19d8ed39b004e5be865fea4810eaab0f9fd52d76bb1f70cf8",
       "symbols": [],
       "title": "Mininet Node Appliance \u2014 verification script."
+    },
+    {
+      "bytes": 348,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "x86_64-pc-windows-msvc",
+        "txt",
+        "mininet-client-0",
+        "dist",
+        "verify",
+        "sha256sums",
+        "manifest",
+        "mnpkg",
+        "mininet-setup-0"
+      ],
+      "lines": 4,
+      "path": "dist/verify/SHA256SUMS.txt",
+      "sha256": "086177c2a7d131a5a7a5477d710e37920a8011fa9caec80821df4d8ef75e4824",
+      "symbols": [],
+      "title": "dd82bc0f378f9dd4163b5edcf303cf14afb96fa0807896178c1d4cf7004a1a01  mininet-client-0.0.1-x86_64-pc-windows-msvc.manifest.t"
+    },
+    {
+      "bytes": 1532,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "file",
+        "exe",
+        "txt",
+        "mininet-desktop",
+        "x86_64-pc-windows-msvc",
+        "dist",
+        "verify",
+        "mininet-client-0",
+        "manifest",
+        "mnwinpkg1",
+        "package",
+        "mininet-windows-client",
+        "version",
+        "target",
+        "product",
+        "launch",
+        "built",
+        "client",
+        "install",
+        "license",
+        "security",
+        "mininet-setup",
+        "mininet-value-selftest",
+        "shortcut"
+      ],
+      "lines": 18,
+      "path": "dist/verify/mininet-client-0.0.1-x86_64-pc-windows-msvc.manifest.txt",
+      "sha256": "dd82bc0f378f9dd4163b5edcf303cf14afb96fa0807896178c1d4cf7004a1a01",
+      "symbols": [],
+      "title": "MNWINPKG1"
+    },
+    {
+      "bytes": 9804,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "mini-desktop"
+        }
+      ],
+      "keywords": [
+        "signed",
+        "bob",
+        "profile",
+        "alice",
+        "nearby",
+        "public",
+        "local",
+        "window",
+        "identity",
+        "did",
+        "objects",
+        "client",
+        "localappdata",
+        "profiles",
+        "people",
+        "same",
+        "sync",
+        "follow",
+        "mini-desktop",
+        "run",
+        "each",
+        "its",
+        "vault",
+        "friend"
+      ],
+      "lines": 171,
+      "path": "dist/verify/stage/docs/CLIENT.txt",
+      "sha256": "93e4e0d0ced1a388d7ef7e409d708b97c6682c59a42167b8cf573ac2c88f1b10",
+      "symbols": [],
+      "title": "mini-desktop"
+    },
+    {
+      "bytes": 5733,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Installing the Mininet Windows client"
+        },
+        {
+          "level": 2,
+          "line": 6,
+          "text": "What you get"
+        },
+        {
+          "level": 2,
+          "line": 18,
+          "text": "What it does, and what it will not do"
+        },
+        {
+          "level": 2,
+          "line": 35,
+          "text": "Windows will warn you, and it is right to"
+        },
+        {
+          "level": 2,
+          "line": 59,
+          "text": "Your data is not in the install directory"
+        },
+        {
+          "level": 2,
+          "line": 72,
+          "text": "Updating"
+        },
+        {
+          "level": 2,
+          "line": 87,
+          "text": "If something looks wrong"
+        },
+        {
+          "level": 2,
+          "line": 106,
+          "text": "Deploying it to many machines"
+        },
+        {
+          "level": 2,
+          "line": 123,
+          "text": "Removing it"
+        },
+        {
+          "level": 2,
+          "line": 132,
+          "text": "Known limits"
+        }
+      ],
+      "keywords": [
+        "you",
+        "what",
+        "file",
+        "install",
+        "windows",
+        "client",
+        "exe",
+        "mininet-setup",
+        "every",
+        "manifest",
+        "does",
+        "your",
+        "version",
+        "localappdata",
+        "installing",
+        "powershell",
+        "programs",
+        "setup",
+        "program",
+        "bytes",
+        "package",
+        "back",
+        "cannot",
+        "msi"
+      ],
+      "lines": 140,
+      "path": "dist/verify/stage/docs/INSTALL.txt",
+      "sha256": "43bfc1cc7627774c69583663a4655ac270e54b3e0d50fb70b86a5a9b762611a8",
+      "symbols": [],
+      "title": "Installing the Mininet Windows client"
+    },
+    {
+      "bytes": 7067,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "rights",
+        "work",
+        "copyright",
+        "related",
+        "affirmer",
+        "commons",
+        "waiver",
+        "creative",
+        "legal",
+        "cc0",
+        "law",
+        "works",
+        "purpose",
+        "including",
+        "each",
+        "public",
+        "other",
+        "purposes",
+        "extent",
+        "applicable",
+        "license",
+        "document",
+        "information",
+        "provided"
+      ],
+      "lines": 123,
+      "path": "dist/verify/stage/docs/LICENSE.txt",
+      "sha256": "6dffdee67108c86c96cb2b4aa6bdc45c0b1c8d4807385c8490d7cc0496f71cba",
+      "symbols": [],
+      "title": "Creative Commons Legal Code"
+    },
+    {
+      "bytes": 7430,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Windows client security boundary"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Defaults enforced by the shell"
+        },
+        {
+          "level": 2,
+          "line": 24,
+          "text": "Censorship and blocking resilience"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "Keylogger and endpoint boundary"
+        },
+        {
+          "level": 2,
+          "line": 69,
+          "text": "Release and supply-chain requirements"
+        },
+        {
+          "level": 3,
+          "line": 77,
+          "text": "What packaging now provides (D-0520)"
+        },
+        {
+          "level": 3,
+          "line": 101,
+          "text": "What it does not provide yet"
+        }
+      ],
+      "keywords": [
+        "windows",
+        "client",
+        "local",
+        "security",
+        "boundary",
+        "keylogger",
+        "endpoint",
+        "release",
+        "what",
+        "user",
+        "each",
+        "explicit",
+        "identity",
+        "signing",
+        "encrypted",
+        "shell",
+        "censorship",
+        "packaging",
+        "make",
+        "network",
+        "update",
+        "cannot",
+        "window",
+        "sync"
+      ],
+      "lines": 133,
+      "path": "dist/verify/stage/docs/SECURITY.txt",
+      "sha256": "a23a889bb130ab0819c043132a8d6c480c41764827aef6871d26a9e6840844e9",
+      "symbols": [],
+      "title": "Windows client security boundary"
     },
     {
       "bytes": 8363,
@@ -112102,6 +112421,12 @@
     "deploy/packages.lock",
     "deploy/verification/lock-packages.sh",
     "deploy/verification/verify.sh",
+    "dist/verify/SHA256SUMS.txt",
+    "dist/verify/mininet-client-0.0.1-x86_64-pc-windows-msvc.manifest.txt",
+    "dist/verify/stage/docs/CLIENT.txt",
+    "dist/verify/stage/docs/INSTALL.txt",
+    "dist/verify/stage/docs/LICENSE.txt",
+    "dist/verify/stage/docs/SECURITY.txt",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
     "forge-native/examples/working-group-charter.example.json",

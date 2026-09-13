@@ -86,6 +86,7 @@ pub use shell::{
     WindowsShell,
 };
 
+use layout::{LOG_FILE, MANIFESTS_DIR, PREVIOUS_FILE, VERSIONS_DIR};
 use mini_forge::check_no_rollback;
 use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
@@ -689,7 +690,10 @@ impl Setup {
 
         let record = InstallRecord::for_manifest(manifest, now_ms);
         let previous = match plan.active.clone() {
-            Some(active) if compare_version_text(&active.version_text, &manifest.version_text) != Ordering::Equal => {
+            Some(active)
+                if compare_version_text(&active.version_text, &manifest.version_text)
+                    != Ordering::Equal =>
+            {
                 self.layout.set_previous(&active)?;
                 Some(active)
             }

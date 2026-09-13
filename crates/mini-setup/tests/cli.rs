@@ -22,6 +22,11 @@ const SETUP_EXE: &str = env!("CARGO_BIN_EXE_mininet-setup");
 const DESKTOP_V1: &[u8] = b"#!/bin/sh\necho desktop-0.1.0\n";
 const DESKTOP_V2: &[u8] = b"#!/bin/sh\necho desktop-0.2.0\n";
 const CLI: &[u8] = b"#!/bin/sh\necho cli\n";
+// Uninstall registration requires the package to carry its own setup
+// executable (or an explicit `options.setup_exe`), matching what the real
+// release scripts stage. This fixture registers uninstall by default, so it
+// needs one too.
+const SETUP: &[u8] = b"#!/bin/sh\necho setup\n";
 
 fn tempdir(tag: &str) -> PathBuf {
     let mut path = std::env::temp_dir();
@@ -50,6 +55,7 @@ fn write_package(dir: &Path, version: &str, desktop: &[u8]) -> PathBuf {
         vec![
             PackageFile::describe("mininet-desktop.exe", desktop).unwrap(),
             PackageFile::describe("mini.exe", CLI).unwrap(),
+            PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
         ],
         vec![PackageShortcut {
             target: "mininet-desktop.exe".to_string(),
@@ -61,6 +67,7 @@ fn write_package(dir: &Path, version: &str, desktop: &[u8]) -> PathBuf {
         Ok(match path {
             "mininet-desktop.exe" => desktop.to_vec(),
             "mini.exe" => CLI.to_vec(),
+            "mininet-setup.exe" => SETUP.to_vec(),
             other => panic!("unexpected {other}"),
         })
     })
@@ -180,7 +187,7 @@ fn a_dry_run_reports_the_plan_and_writes_nothing() {
     ]);
     assert_eq!(field(&line, "kind"), "setup.plan");
     assert_eq!(field(&line, "plan"), "first_install");
-    assert_eq!(field(&line, "files"), "2");
+    assert_eq!(field(&line, "files"), "3");
     assert!(!env.install_root.exists());
 
     let human = env.run(&["--dry-run", "--payload", package.to_str().unwrap()]);
@@ -195,7 +202,7 @@ fn verifying_a_package_file_checks_every_byte_without_installing() {
     let package = write_package(&env.base, "0.1.0", DESKTOP_V1);
     let line = env.json(&["--verify", "--json", "--payload", package.to_str().unwrap()]);
     assert_eq!(field(&line, "intact"), "true");
-    assert_eq!(field(&line, "files_checked"), "2");
+    assert_eq!(field(&line, "files_checked"), "3");
     assert!(!env.install_root.exists());
 }
 
@@ -223,7 +230,7 @@ fn a_silent_install_places_the_files_and_reports_where_to_run_them() {
     assert_eq!(field(&line, "ok"), "true");
     assert_eq!(field(&line, "kind"), "setup.install");
     assert_eq!(field(&line, "version"), "0.1.0");
-    assert_eq!(field(&line, "files_written"), "2");
+    assert_eq!(field(&line, "files_written"), "3");
 
     let launch = PathBuf::from(field(&line, "launch_path"));
     assert!(launch.is_file());

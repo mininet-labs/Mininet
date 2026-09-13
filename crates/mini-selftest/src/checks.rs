@@ -1221,10 +1221,18 @@ fn sample_package(
     use mini_windows_setup::manifest::{ManifestHeader, PackageShortcut};
     let desktop = b"#!/bin/sh\necho selftest-client\n".to_vec();
     let cli = b"#!/bin/sh\necho selftest-cli\n".to_vec();
+    let setup = b"#!/bin/sh\necho selftest-setup\n".to_vec();
     let files = vec![
         mini_windows_setup::PackageFile::describe("mininet-desktop.exe", &desktop)
             .map_err(|error| error.to_string())?,
         mini_windows_setup::PackageFile::describe("mini.exe", &cli)
+            .map_err(|error| error.to_string())?,
+        // Uninstall registration now requires the package to carry its own
+        // setup executable (or an explicit `options.setup_exe`), so Apps &
+        // features never records a path to a program that was never
+        // installed. This fixture package registers uninstall, so it needs
+        // one too.
+        mini_windows_setup::PackageFile::describe("mininet-setup.exe", &setup)
             .map_err(|error| error.to_string())?,
     ];
     let manifest = mini_windows_setup::PackageManifest::new(
@@ -1246,6 +1254,7 @@ fn sample_package(
     let bytes = mini_windows_setup::container::write(&manifest, |path| match path {
         "mininet-desktop.exe" => Ok(desktop.clone()),
         "mini.exe" => Ok(cli.clone()),
+        "mininet-setup.exe" => Ok(setup.clone()),
         other => Err(mini_windows_setup::SetupError::MissingFile {
             path: other.to_string(),
         }),
