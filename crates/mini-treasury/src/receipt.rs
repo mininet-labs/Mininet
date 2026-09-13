@@ -11,7 +11,7 @@
 //! privacy properties complicating straightforward verification) — see
 //! [`ExternalReceiptOracle`]'s honest limit.
 //!
-//! **Legal status (D-0522):** the external Gate #96 legal review (pending
+//! **Legal status (D-0525):** the external Gate #96 legal review (pending
 //! qualified counsel-of-record signature, `docs/gates/
 //! legal-review-brief.md`) concludes this external-asset-for-MINI issuance
 //! mechanism must be deferred and production-unreachable at genesis — see

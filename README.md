@@ -414,7 +414,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0522`
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0525`
    (`D-0513`–`D-0516`: adopting external Gate #28 DTN/satellite and Gate #98
    Wi-Fi bearer design-report architectures on engineering merit (new
    `mini-dtn` crate scaffold, `mini-settlement::PaymentClaimV2`
@@ -426,7 +426,7 @@ to people who will never meet them:
    requirement, requiring real two-device corroboration for Gate #97
    "two-sided" ranging evidence, and giving `mini-mesh` genuine per-link
    locking so one slow peer's send can no longer stall every other link's
-   receive path; `D-0517`–`D-0521`: Gate #72 (privacy/value layer)
+   receive path; `D-0517`–`D-0524`: Gate #72 (privacy/value layer)
    remediation — real `frost_ristretto255` FROST signing, a vendored-
    Bulletproofs range-proof/Pedersen-commitment implementation over a
    corrected independent generator basis, the `PrivatePaymentV3` wire
@@ -436,7 +436,7 @@ to people who will never meet them:
    Codex remediation batch (`D-0519`); and Gate #96's external legal
    review adopted as engineering-conformance direction — no BTC/XMR/XRP-
    for-MINI issuance at genesis, no XRPL/Monero genesis liquidity promise
-   (`D-0522`, gate itself NOT closed pending qualified counsel signature)
+   (`D-0525`, gate itself NOT closed pending qualified counsel signature)
    — are the newest at the time of this edit; the Mininet Node Appliance
    deployment profile this line
    previously credited to `D-0439` is `D-0446` — `D-0439` is the

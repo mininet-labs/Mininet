@@ -954,7 +954,7 @@ given time.
   decoy distribution), which remain entirely unimplemented.
 - **policy kernel implemented; integration and external review open
   (proposed D-0413); contribution/bridge-issuance mechanism deferred at
-  genesis (D-0522, Gate #96 legal review, pending counsel signature)** —
+  genesis (D-0525, Gate #96 legal review, pending counsel signature)** —
   the treasury economic model (D-0073,
   `docs/design/treasury-economic-model.md`: XRPL/XMR bridge split,
   contribution epochs, oracle/vesting/issuance-ceiling mechanism) and the

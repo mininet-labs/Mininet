@@ -1856,7 +1856,7 @@
       ],
       "lines": 476,
       "path": "README.md",
-      "sha256": "863d0c23d2796caac9f8921a0749346e415265b20cd75c653c6c4730d137d796",
+      "sha256": "3bd5e4660b9f122adf557f0e08fec8a3fb490e2026399e8555066c75735def63",
       "symbols": [],
       "title": "Mininet"
     },
@@ -2025,7 +2025,7 @@
       ],
       "lines": 379,
       "path": "WHITEPAPER.md",
-      "sha256": "261ab1d2a1489b88021d10be10d05b3352932bedf30400f3ffcb67583e4aa2c0",
+      "sha256": "02a830b721a0904950df6ed03dbf027b23c5a1a23ed7487ec478e41ae9fd9c3d",
       "symbols": [],
       "title": "The Mininet Whitepaper"
     },
@@ -77447,7 +77447,7 @@
       ],
       "lines": 132,
       "path": "crates/mini-treasury/src/receipt.rs",
-      "sha256": "398aac71a8eb509ceea223301784db74323c199df05b310a0d45c3847e7ab273",
+      "sha256": "65c8e9e945de53b9b739da91f4a85bef7d6fd84e8819fb4f36a5989c7b32a937",
       "symbols": [
         {
           "kind": "enum",
@@ -86205,7 +86205,7 @@
       ],
       "lines": 24607,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "d911c76b77d99c34716d6811f94b8c7f1d32aed32c6c5067f2b62292ba13c47e",
+      "sha256": "c95e366d180260502cb39deeedb65c843137652e8f01982f676afdcdacff86e3",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -87683,7 +87683,7 @@
       ],
       "lines": 3031,
       "path": "docs/STATUS.md",
-      "sha256": "20a5b2020f5ab39cfff4061c07fc8f60c5fa3ef1faa0bbe9dd2cc740c0b92822",
+      "sha256": "41f2a0af6e692d52a8f0c503cdefc05186737a164e9ac418cdcdbe1ef8b20d78",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -96238,7 +96238,7 @@
       ],
       "lines": 265,
       "path": "docs/design/treasury-economic-model.md",
-      "sha256": "a3324e962ee180da0dbbb0abfc1c673cbe8df7c3313d57a70db800f4dc366f1a",
+      "sha256": "2fa2462dfbb9d996dc197230f207fda87b82ba4b10d6a044f8d79adb18a1ab4f",
       "symbols": [],
       "title": "Treasury economic model \u2014 founder decision (D-0073)"
     },
@@ -96949,7 +96949,7 @@
       ],
       "lines": 194,
       "path": "docs/gates/economic-simulation-spec.md",
-      "sha256": "86acf095939fa9c09d0867bbd42a018f00fb6f08080267a9ff1e4a2a0371598e",
+      "sha256": "538a1f8c13f8f9b2f8ec261f4dcd54336ca7580b9f79c0f35975450b9b1cb0fc",
       "symbols": [],
       "title": "Treasury economics & long-term attack modeling \u2014 simulation spec"
     },
@@ -97091,14 +97091,14 @@
         "roadmap",
         "issues",
         "status",
-        "d-0522",
+        "d-0525",
         "sale",
         "spec-07",
         "treasury"
       ],
       "lines": 125,
       "path": "docs/gates/legal-review-brief.md",
-      "sha256": "d22d90ac99b78cde8055a569708eaf848698547c5ff6dca805e4a3ab9c562b77",
+      "sha256": "3dd811422976966d19ce7eca41695074edb19111ef7b75f18118792d444c1670",
       "symbols": [],
       "title": "Legal counsel review \u2014 technical brief"
     },

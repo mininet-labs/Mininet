@@ -24213,7 +24213,7 @@ items (D-0517/D-0518's own follow-up lists) are untouched.
 
 **Supersedes / superseded by:** none.
 
-### D-0520 — Gate #72: fix `bp_range_v2`'s generator basis (self-found defect in D-0518); `mini_value::mlsag_v3`/`stealth_v3`; `mini_private_payment::claim_v3`/`memo_v3` — `PrivatePaymentV3` groundwork  ·  *Shipped, additive, not wired into consensus*
+### D-0523 — Gate #72: fix `bp_range_v2`'s generator basis (self-found defect in D-0518); `mini_value::mlsag_v3`/`stealth_v3`; `mini_private_payment::claim_v3`/`memo_v3` — `PrivatePaymentV3` groundwork  ·  *Shipped, additive, not wired into consensus*
 
 **Date:** 2026-09-12 · **Refs:** the full Gate #72 external cryptography
 audit report the founder supplied verbatim this session (`docs/audits/
@@ -24360,10 +24360,10 @@ engineering, not a documentation gap.
 no consensus-facing behavior existed to have been wrong about) D-0518's
 `bp_range_v2` generator choice.
 
-### D-0521 — Gate #72: F72-10 calibrated decoy distribution — `mini_private_payment::decoy::OSPEAD_AGE_WEIGHTS`/`select_ring_indices_v3`, wired into `claim_v3::build_v3`  ·  *Shipped, one interpretive judgment call disclosed*
+### D-0524 — Gate #72: F72-10 calibrated decoy distribution — `mini_private_payment::decoy::OSPEAD_AGE_WEIGHTS`/`select_ring_indices_v3`, wired into `claim_v3::build_v3`  ·  *Shipped, one interpretive judgment call disclosed*
 
 **Date:** 2026-09-12 · **Refs:** the same Gate #72 external audit report as
-D-0517–D-0520 (`docs/audits/source-reports-2026-09-12/
+D-0517–D-0523 (`docs/audits/source-reports-2026-09-12/
 Mininet_External_Audit_01_Gate_72_Cryptography_FINAL.txt`), finding F72-10,
 Section 5.4; `crates/mini-private-payment/src/decoy.rs`;
 `crates/mini-private-payment/src/claim_v3.rs`.
@@ -24427,7 +24427,7 @@ table under an unrelated future change):
   within-bucket construction, same canonical-sort-by-key-bytes and
   bounded-attempts-then-uniform-fallback behavior.
 - `claim_v3::build_v3` now calls `select_ring_indices_v3` instead of V1's
-  `select_ring_indices` — this is the first (and, per D-0520's Required
+  `select_ring_indices` — this is the first (and, per D-0523's Required
   follow-up, previously last-remaining-untouched) piece of F72-10 actually
   wired into the `PrivatePaymentV3` path.
 
@@ -24435,7 +24435,7 @@ table under an unrelated future change):
 invariant. `mini-private-payment::decoy`'s existing `select_ring`/
 `select_ring_indices`/`AGE_WEIGHTS` (the V1/V2 path) are untouched and
 re-verified unaffected; only `claim_v3::build_v3`, itself still unreachable
-from any consensus-checked path per D-0520, changes behavior.
+from any consensus-checked path per D-0523, changes behavior.
 
 **Implementation status:** shipped. `mini_private_payment::decoy` gained 7
 new tests (frozen-table check on `OSPEAD_AGE_WEIGHTS`, real-output-always-
@@ -24451,14 +24451,14 @@ failures every entry since D-0071 already records. `mini-private-payment`
 **Failure point:** closes F72-10 for `PrivatePaymentV3`'s own decoy
 selection. Does not touch V1/V2's `AGE_WEIGHTS` (that table remains the
 documented "legible starting shape, not a fitted distribution" it always
-was — no live traffic exists to justify migrating it, and D-0520 already
+was — no live traffic exists to justify migrating it, and D-0523 already
 established the V1/V2 and V3 paths as deliberately separate). The
 unit-of-`x` interpretation above is an inference, not a certainty; if a
 follow-up from the same audit team clarifies units, this table is a
 version bump (V4) and a new decision entry, never a silent tuning commit.
 
 **Required follow-up:** the remaining Gate #72 items are unchanged from
-D-0520's list minus this one: canonical claim bytes in consensus + derived
+D-0523's list minus this one: canonical claim bytes in consensus + derived
 key images and removing the transparent `PaymentClaim`/duplicate bounty
 ring path (Section 11, F72-05/06/08/09, deliberately not attempted here
 given consensus-breaking blast radius), and a real fee-policy registry to
@@ -24466,7 +24466,7 @@ replace `quote_fee_micro`'s placeholder (F72-13).
 
 **Supersedes / superseded by:** none.
 
-### D-0522 — Gate #96: adopt the external legal review's genesis-launch constraints as engineering direction; defer the BTC/XMR/XRP-for-MINI contribution mechanism and XRPL/XMR genesis liquidity framing (D-0073 amended, gate NOT closed — pending qualified counsel signature)  ·  *Adopted as engineering direction; legal gate remains open*
+### D-0525 — Gate #96: adopt the external legal review's genesis-launch constraints as engineering direction; defer the BTC/XMR/XRP-for-MINI contribution mechanism and XRPL/XMR genesis liquidity framing (D-0073 amended, gate NOT closed — pending qualified counsel signature)  ·  *Adopted as engineering direction; legal gate remains open*
 
 **Date:** 2026-09-12 · **Refs:** roadmap #96 (closed `not_planned` 2026-07-10,
 before this review existed — founder should revisit that closure), #47

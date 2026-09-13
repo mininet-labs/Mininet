@@ -8,7 +8,7 @@ mechanism-design/tokenomics specialists** — people who model adversarial
 systems (the Gauntlet/Chaos-Labs style of work other protocols commission),
 not token-launch marketing consultants.
 
-**Update (D-0522):** the external Gate #96 legal review (still pending
+**Update (D-0525):** the external Gate #96 legal review (still pending
 qualified counsel-of-record signature — see `docs/gates/
 legal-review-brief.md`) concludes the treasury-contribution/bridge-issuance
 mechanism this gate calibrates must be deferred and production-unreachable

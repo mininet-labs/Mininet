@@ -155,7 +155,7 @@ accidentally let money buy political power (see §2):
   structurally separate from ordinary governance. No such bridge exists at
   genesis, Mininet makes no liquidity or redemption promise about it, and
   any exchange value it might carry is discovered independently by
-  participants, not set by the protocol (D-0522).
+  participants, not set by the protocol (D-0525).
 
 Settlement itself follows Directive 5: an offline payment is a **signed
 promise**, never final ownership, until canonical consensus accepts it.

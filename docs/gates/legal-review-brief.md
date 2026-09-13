@@ -6,7 +6,7 @@ counsel can review the actual mechanism instead of reverse-engineering it
 from source — it is not a request for anyone in this repository, human or
 AI, to give legal advice.
 
-**Status update (D-0522):** a full external legal/regulatory review
+**Status update (D-0525):** a full external legal/regulatory review
 answering the questions below was received 2026-09-11
 (`docs/audits/source-reports-2026-09-12/
 Mininet_External_Legal_Review_03_Gate_96_FINAL.txt`), written as a
@@ -17,11 +17,11 @@ signature) is blank in the delivered document. **Gate #96 is therefore
 NOT closed** — roadmap issue #96 was closed `not_planned` in July before
 this review existed and should be revisited by the founder — but its
 engineering-actionable conclusions have been adopted as launch-architecture
-direction (D-0522) because they only ever *narrow* what genesis can do,
+direction (D-0525) because they only ever *narrow* what genesis can do,
 never widen it: no BTC/XMR/fiat/stablecoin-for-MINI issuance at genesis,
 no token sale of any kind, no XRPL/XMR genesis liquidity promise, and
 removal of "day-one price"/"strengthens holdings"/"instant liquidity"
-framing from official documentation. See D-0522 for the full list and
+framing from official documentation. See D-0525 for the full list and
 `docs/design/treasury-economic-model.md`'s updated status note for what
 this means for the SPEC-07/D-0073 contribution mechanism specifically.
 **What still requires the founder to actually engage counsel:** nothing
@@ -119,6 +119,6 @@ the jurisdiction."
 A legal opinion (or engagement letter plus a completed review) covering
 the questions above, with a clear go/no-go/go-with-conditions verdict for
 #47 accepting real funds. The go-with-conditions draft now exists
-(D-0522); what remains is a qualified, engaged lawyer actually reviewing
+(D-0525); what remains is a qualified, engaged lawyer actually reviewing
 and signing it (or delivering an independent equivalent) — recorded as a
 follow-up D-number once that happens.

@@ -7,7 +7,7 @@ This document records the founder's answer as a design spec; it is not a
 claim that the mechanism is simulated, audited, or implemented yet — see
 "What remains open" at the end.
 
-**Genesis status (D-0522):** the external legal review answering
+**Genesis status (D-0525):** the external legal review answering
 `docs/gates/legal-review-brief.md` (Gate #96, still pending qualified
 counsel-of-record signature) concludes the treasury-contribution mechanism
 described below — any external-asset-for-new-MINI issuance — must be
@@ -18,7 +18,7 @@ material legal fact, not a documentation change). Mechanism C (ordinary
 bridge trading of already-circulating MINI) is not itself an issuance
 mechanism and is not what L96-001 targets, but no genesis liquidity,
 redemption, or "day-one price" promise may be made about it either — see
-D-0522 and `docs/gates/legal-review-brief.md` for the full list. The
+D-0525 and `docs/gates/legal-review-brief.md` for the full list. The
 design below remains valid engineering thinking for a possible future,
 non-genesis reopening of mechanism D; it is not a genesis launch plan.
 
