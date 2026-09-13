@@ -265,12 +265,24 @@ fn at_least_70_percent(done: u32, assigned: u32) -> bool {
 
 /// Duty compensation requires work, not title possession or a particular vote.
 pub fn duty_payment_eligible(e: DutyEvidence) -> Result<(), ParliamentPolicyError> {
+    // `at_least_70_percent` treats an `assigned == 0` category as vacuously
+    // satisfied, so a period with nothing assigned anywhere would otherwise
+    // pass on `substantive_review_completed` alone -- a passive salary for
+    // title possession, the exact pattern this kernel exists to refuse.
+    let any_duty_assigned = e.committee_tasks_assigned > 0
+        || e.plenary_votes_eligible > 0
+        || e.emergency_calls_assigned > 0;
     let committee_ok = e.committee_tasks_completed <= e.committee_tasks_assigned
         && at_least_70_percent(e.committee_tasks_completed, e.committee_tasks_assigned);
     let plenary_ok = e.plenary_votes_participated <= e.plenary_votes_eligible
         && at_least_70_percent(e.plenary_votes_participated, e.plenary_votes_eligible);
     let emergency_ok = e.emergency_calls_answered == e.emergency_calls_assigned;
-    if committee_ok && plenary_ok && emergency_ok && e.substantive_review_completed {
+    if any_duty_assigned
+        && committee_ok
+        && plenary_ok
+        && emergency_ok
+        && e.substantive_review_completed
+    {
         Ok(())
     } else {
         Err(ParliamentPolicyError::DutyNotProven)

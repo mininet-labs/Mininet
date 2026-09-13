@@ -197,6 +197,27 @@ fn duty_payment_requires_activity_not_vote_direction() {
 }
 
 #[test]
+fn duty_payment_refuses_a_period_with_nothing_assigned() {
+    // Every activity ratio is vacuously satisfied when its denominator is
+    // zero, so a duty period assigned literally nothing must still be
+    // refused rather than pass on the unstructured review flag alone --
+    // otherwise this is a passive salary for title possession.
+    let nothing_assigned = DutyEvidence {
+        committee_tasks_assigned: 0,
+        committee_tasks_completed: 0,
+        plenary_votes_eligible: 0,
+        plenary_votes_participated: 0,
+        emergency_calls_assigned: 0,
+        emergency_calls_answered: 0,
+        substantive_review_completed: true,
+    };
+    assert_eq!(
+        duty_payment_eligible(nothing_assigned),
+        Err(ParliamentPolicyError::DutyNotProven)
+    );
+}
+
+#[test]
 fn chamber_growth_is_exact_and_evidence_gated() {
     assert_eq!(next_seat_capacity(7), Some(15));
     assert_eq!(next_seat_capacity(15), Some(31));

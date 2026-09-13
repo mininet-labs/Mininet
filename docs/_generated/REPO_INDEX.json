@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 79,
-    "files": 1002,
-    "headings": 3601,
-    "rust_symbols": 10335
+    "files": 1019,
+    "headings": 3667,
+    "rust_symbols": 10393
   },
   "crates": {
     "did-mini": {
@@ -37352,6 +37352,238 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
+      "bytes": 15791,
+      "group": "crate:mini-forge",
+      "headings": [],
+      "keywords": [
+        "u32",
+        "seat",
+        "parliamentpolicyerror",
+        "const",
+        "tally",
+        "vote",
+        "yes",
+        "votechoice",
+        "votetally",
+        "derive",
+        "abstain",
+        "active_seats",
+        "invitation",
+        "debug",
+        "clone",
+        "copy",
+        "partialeq",
+        "seatvote",
+        "evidence",
+        "self",
+        "return",
+        "err",
+        "max_active_seats",
+        "motionclass"
+      ],
+      "lines": 453,
+      "path": "crates/mini-forge/src/parliament_policy.rs",
+      "sha256": "f516803b1b66ea79cf18b0909952a775fdccfa2010cd180887cebfe2758b7fad",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 9,
+          "name": "FOUNDING_SEATS"
+        },
+        {
+          "kind": "const",
+          "line": 14,
+          "name": "MAX_ACTIVE_SEATS"
+        },
+        {
+          "kind": "const",
+          "line": 16,
+          "name": "H0_INVITATIONS_PER_WINDOW"
+        },
+        {
+          "kind": "const",
+          "line": 18,
+          "name": "STEWARD_INVITATIONS_PER_WINDOW"
+        },
+        {
+          "kind": "const",
+          "line": 20,
+          "name": "STEWARD_INVITER_MIN_SERVICE_DAYS"
+        },
+        {
+          "kind": "const",
+          "line": 22,
+          "name": "MAX_EMERGENCY_ORDER_MS"
+        },
+        {
+          "kind": "const",
+          "line": 24,
+          "name": "MAX_GUARDIAN_STAY_MS"
+        },
+        {
+          "kind": "const",
+          "line": 26,
+          "name": "FULL_PUBLIC_ELIGIBILITY_BPS"
+        },
+        {
+          "kind": "enum",
+          "line": 30,
+          "name": "ParliamentPolicyError"
+        },
+        {
+          "kind": "enum",
+          "line": 59,
+          "name": "MotionClass"
+        },
+        {
+          "kind": "enum",
+          "line": 70,
+          "name": "VoteChoice"
+        },
+        {
+          "kind": "struct",
+          "line": 79,
+          "name": "SeatVote"
+        },
+        {
+          "kind": "struct",
+          "line": 86,
+          "name": "VoteTally"
+        },
+        {
+          "kind": "impl",
+          "line": 92,
+          "name": "VoteTally"
+        },
+        {
+          "kind": "fn",
+          "line": 93,
+          "name": "participation"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "ceil_two_thirds"
+        },
+        {
+          "kind": "fn",
+          "line": 102,
+          "name": "ceil_three_fourths"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "majority"
+        },
+        {
+          "kind": "fn",
+          "line": 111,
+          "name": "tally_votes"
+        },
+        {
+          "kind": "fn",
+          "line": 145,
+          "name": "motion_passes"
+        },
+        {
+          "kind": "enum",
+          "line": 170,
+          "name": "InviterClass"
+        },
+        {
+          "kind": "struct",
+          "line": 180,
+          "name": "InvitationAllowance"
+        },
+        {
+          "kind": "fn",
+          "line": 185,
+          "name": "invitation_allowance"
+        },
+        {
+          "kind": "fn",
+          "line": 209,
+          "name": "can_issue_invitation"
+        },
+        {
+          "kind": "enum",
+          "line": 223,
+          "name": "EmergencyAction"
+        },
+        {
+          "kind": "struct",
+          "line": 231,
+          "name": "EmergencyOrder"
+        },
+        {
+          "kind": "fn",
+          "line": 238,
+          "name": "validate_emergency_order"
+        },
+        {
+          "kind": "struct",
+          "line": 252,
+          "name": "DutyEvidence"
+        },
+        {
+          "kind": "fn",
+          "line": 262,
+          "name": "at_least_70_percent"
+        },
+        {
+          "kind": "fn",
+          "line": 267,
+          "name": "duty_payment_eligible"
+        },
+        {
+          "kind": "enum",
+          "line": 295,
+          "name": "ParliamentPhase"
+        },
+        {
+          "kind": "struct",
+          "line": 303,
+          "name": "ParliamentState"
+        },
+        {
+          "kind": "struct",
+          "line": 314,
+          "name": "TransitionEvidence"
+        },
+        {
+          "kind": "fn",
+          "line": 326,
+          "name": "next_seat_capacity"
+        },
+        {
+          "kind": "fn",
+          "line": 336,
+          "name": "validate_transition"
+        },
+        {
+          "kind": "enum",
+          "line": 397,
+          "name": "GuardianStayTarget"
+        },
+        {
+          "kind": "enum",
+          "line": 405,
+          "name": "GuardianReason"
+        },
+        {
+          "kind": "struct",
+          "line": 415,
+          "name": "GuardianStay"
+        },
+        {
+          "kind": "fn",
+          "line": 423,
+          "name": "validate_guardian_stay"
+        }
+      ],
+      "title": "pub const FOUNDING_SEATS: u32 = 7;"
+    },
+    {
       "bytes": 12279,
       "group": "crate:mini-forge",
       "headings": [],
@@ -37987,6 +38219,138 @@
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Did};"
+    },
+    {
+      "bytes": 11174,
+      "group": "crate:mini-forge",
+      "headings": [],
+      "keywords": [
+        "motion_passes",
+        "motionclass",
+        "unwrap",
+        "assert",
+        "yes_votes",
+        "seatvote",
+        "seat",
+        "assert_eq",
+        "choice",
+        "votechoice",
+        "votes",
+        "err",
+        "parliamentpolicyerror",
+        "parliament_policy",
+        "yes",
+        "ordinary",
+        "four",
+        "five",
+        "inviterclass",
+        "order",
+        "vec",
+        "four_yes",
+        "four_yes_one_abstain",
+        "invitation_allowance"
+      ],
+      "lines": 377,
+      "path": "crates/mini-forge/tests/parliament_policy.rs",
+      "sha256": "08b7cd1862e26c3406d5c9e541f365e9041fb25d7b7511ea8651c66ce1ed7444",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 4,
+          "name": "parliament_policy"
+        },
+        {
+          "kind": "fn",
+          "line": 8,
+          "name": "yes_votes"
+        },
+        {
+          "kind": "fn",
+          "line": 18,
+          "name": "founder_has_no_extra_ordinary_vote_weight"
+        },
+        {
+          "kind": "fn",
+          "line": 45,
+          "name": "duplicate_seat_cannot_vote_twice"
+        },
+        {
+          "kind": "fn",
+          "line": 63,
+          "name": "hostile_seat_capacity_is_rejected_before_allocation"
+        },
+        {
+          "kind": "fn",
+          "line": 76,
+          "name": "ordinary_majority_needs_two_thirds_participation"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "major_motion_needs_quorum_and_majority_of_all_seats"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "emergency_fix_needs_majority_of_all_seats"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "constitutional_and_public_transition_need_two_thirds_of_all_seats"
+        },
+        {
+          "kind": "fn",
+          "line": 116,
+          "name": "guardian_override_needs_three_quarters_of_all_seats"
+        },
+        {
+          "kind": "fn",
+          "line": 124,
+          "name": "invitation_limits_are_candidate_access_not_votes"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "immediate_effect_orders_are_short_lived"
+        },
+        {
+          "kind": "fn",
+          "line": 177,
+          "name": "duty_payment_requires_activity_not_vote_direction"
+        },
+        {
+          "kind": "fn",
+          "line": 200,
+          "name": "duty_payment_refuses_a_period_with_nothing_assigned"
+        },
+        {
+          "kind": "fn",
+          "line": 221,
+          "name": "chamber_growth_is_exact_and_evidence_gated"
+        },
+        {
+          "kind": "fn",
+          "line": 261,
+          "name": "public_eligibility_never_moves_backwards"
+        },
+        {
+          "kind": "fn",
+          "line": 290,
+          "name": "public_transition_kills_h0_exception_one_way"
+        },
+        {
+          "kind": "fn",
+          "line": 329,
+          "name": "h0_cannot_stay_public_transition_or_own_sunset"
+        },
+        {
+          "kind": "fn",
+          "line": 354,
+          "name": "h0_stay_is_bounded_and_one_shot_per_exact_target"
+        }
+      ],
+      "title": "mod parliament_policy;"
     },
     {
       "bytes": 8163,
@@ -84750,7 +85114,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1457651,
+      "bytes": 1463289,
       "group": "docs",
       "headings": [
         {
@@ -85166,9 +85530,9 @@
         "beta",
         "gate",
         "phase",
+        "batch",
         "review",
         "design",
-        "batch",
         "audit",
         "closes",
         "decision",
@@ -85180,9 +85544,9 @@
         "doctrine",
         "own"
       ],
-      "lines": 24123,
+      "lines": 24215,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "f7c954d0ddb1eb9d54848bf824138e1f16f6e1912403fa4a67adf3fec4ca821e",
+      "sha256": "507392756f08e5a139c9385f8fa455e3bcd1827b985937f2071409577103ab45",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -92823,6 +93187,73 @@
       "title": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
     },
     {
+      "bytes": 4254,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Founding Parliament proposal scope"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "In scope"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "Explicitly not activated by this PR"
+        },
+        {
+          "level": 2,
+          "line": 50,
+          "text": "Why code now"
+        },
+        {
+          "level": 2,
+          "line": 56,
+          "text": "Primary red flags"
+        },
+        {
+          "level": 2,
+          "line": 71,
+          "text": "Merge/readiness gates"
+        }
+      ],
+      "keywords": [
+        "public",
+        "vote",
+        "transition",
+        "seat",
+        "parliament",
+        "one",
+        "proposal",
+        "governance",
+        "duty",
+        "evidence",
+        "founding",
+        "scope",
+        "rolling",
+        "policy",
+        "days",
+        "forge",
+        "explicitly",
+        "merge",
+        "proposed",
+        "guardian",
+        "stay",
+        "rules",
+        "rust",
+        "kernel"
+      ],
+      "lines": 80,
+      "path": "docs/design/founding-parliament-scope.md",
+      "sha256": "3cfbd9cb83d54004a8e8b8b55be2e744ff6d7e2bdaa8a70bec793828ba0239ad",
+      "symbols": [],
+      "title": "Founding Parliament proposal scope"
+    },
+    {
       "bytes": 65338,
       "group": "docs",
       "headings": [
@@ -96336,7 +96767,7 @@
       "title": "Architecture of Mininet Governance"
     },
     {
-      "bytes": 9331,
+      "bytes": 10685,
       "group": "docs",
       "headings": [
         {
@@ -96361,69 +96792,74 @@
         },
         {
           "level": 2,
-          "line": 59,
+          "line": 64,
           "text": "Universal lifecycle"
         },
         {
           "level": 2,
-          "line": 67,
+          "line": 72,
           "text": "Interpretation rules"
         },
         {
           "level": 2,
-          "line": 81,
+          "line": 86,
           "text": "Current hard honesty requirements"
         },
         {
           "level": 2,
-          "line": 91,
+          "line": 96,
           "text": "v0.5\u2013v0.6 specifications"
         },
         {
           "level": 2,
-          "line": 108,
+          "line": 113,
           "text": "Version 1.1 compatible operational guidance"
         },
         {
           "level": 2,
-          "line": 116,
+          "line": 121,
           "text": "Version 1 completion documents"
         },
         {
           "level": 2,
-          "line": 132,
+          "line": 137,
           "text": "Bootstrap operating decisions"
+        },
+        {
+          "level": 2,
+          "line": 141,
+          "text": "Founding Parliament proposal"
         }
       ],
       "keywords": [
         "governance",
         "bootstrap",
-        "github",
         "canonical",
         "rules",
-        "evidence",
         "authority",
-        "implementation",
+        "proposed",
         "documents",
-        "lifecycle",
-        "pack",
+        "current",
+        "github",
         "spec-00",
         "accepted",
         "constitutional",
+        "evidence",
         "normative",
-        "current",
         "specifications",
         "version",
         "forge",
+        "pack",
         "invariants",
-        "changes",
         "legitimacy",
-        "governed",
-        "owner"
+        "required",
+        "releases",
+        "index",
+        "purpose"
       ],
-      "lines": 135,
+      "lines": 149,
       "path": "docs/governance/00_GOVERNANCE_INDEX.md",
-      "sha256": "e2eabff5b6f59200bb92b1ba0883d714ed97b1b4ecea41dc9985ccdebc7ca746",
+      "sha256": "7fa8954a03a90aa8740bfbdcdaa45c62cfd5ae9f1f4852bc5ea5e64b253e379b",
       "symbols": [],
       "title": "Mininet Governance Index"
     },
@@ -101778,6 +102214,439 @@
       "title": "Pre-Go-Live Governance Pause and Anonymous-Only Bootstrap Participation"
     },
     {
+      "bytes": 11492,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Founding Parliament"
+        },
+        {
+          "level": 2,
+          "line": 6,
+          "text": "1. Purpose"
+        },
+        {
+          "level": 2,
+          "line": 12,
+          "text": "2. Relationship to current bootstrap policy"
+        },
+        {
+          "level": 2,
+          "line": 20,
+          "text": "3. H0"
+        },
+        {
+          "level": 2,
+          "line": 34,
+          "text": "4. Candidate invitation"
+        },
+        {
+          "level": 2,
+          "line": 58,
+          "text": "5. Rolling active seats"
+        },
+        {
+          "level": 2,
+          "line": 78,
+          "text": "6. Standing committees"
+        },
+        {
+          "level": 2,
+          "line": 96,
+          "text": "7. Immediate-effect authority"
+        },
+        {
+          "level": 2,
+          "line": 122,
+          "text": "8. Plenary voting"
+        },
+        {
+          "level": 3,
+          "line": 130,
+          "text": "Ordinary"
+        },
+        {
+          "level": 3,
+          "line": 135,
+          "text": "Major"
+        },
+        {
+          "level": 3,
+          "line": 142,
+          "text": "Emergency Fix"
+        },
+        {
+          "level": 3,
+          "line": 150,
+          "text": "Constitutional"
+        },
+        {
+          "level": 3,
+          "line": 157,
+          "text": "Public Transition"
+        },
+        {
+          "level": 3,
+          "line": 165,
+          "text": "Guardian Stay Override"
+        },
+        {
+          "level": 2,
+          "line": 169,
+          "text": "9. Parliamentary dossiers"
+        },
+        {
+          "level": 2,
+          "line": 177,
+          "text": "10. Selection and rotation"
+        },
+        {
+          "level": 2,
+          "line": 183,
+          "text": "11. Parliament is not a reward tier"
+        },
+        {
+          "level": 2,
+          "line": 189,
+          "text": "12. Public-governance destination"
+        },
+        {
+          "level": 2,
+          "line": 208,
+          "text": "13. Anti-capture invariants"
+        },
+        {
+          "level": 2,
+          "line": 225,
+          "text": "14. Exact failure point"
+        }
+      ],
+      "keywords": [
+        "parliament",
+        "active",
+        "governance",
+        "founding",
+        "invitation",
+        "may",
+        "seat",
+        "bootstrap",
+        "committees",
+        "authority",
+        "public",
+        "activation",
+        "steward",
+        "automatic",
+        "rolling",
+        "seats",
+        "human",
+        "vote",
+        "one",
+        "days",
+        "current",
+        "candidate",
+        "standing",
+        "ordinary"
+      ],
+      "lines": 230,
+      "path": "docs/governance/53_FOUNDING_PARLIAMENT.md",
+      "sha256": "ee8951a29682512f182e202fa7b949d9175ba07a59ce15804cc396550c87bf7c",
+      "symbols": [],
+      "title": "Founding Parliament"
+    },
+    {
+      "bytes": 4925,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "H0 Guardian Stay"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "1. Purpose"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "2. H0 has one ordinary vote"
+        },
+        {
+          "level": 2,
+          "line": 17,
+          "text": "3. Permitted reasons"
+        },
+        {
+          "level": 2,
+          "line": 30,
+          "text": "4. Effect"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "5. Mandatory reconsideration"
+        },
+        {
+          "level": 2,
+          "line": 67,
+          "text": "6. No serial veto"
+        },
+        {
+          "level": 2,
+          "line": 73,
+          "text": "7. Matters H0 may never stay"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "8. Sunset"
+        },
+        {
+          "level": 2,
+          "line": 95,
+          "text": "9. Key compromise and disappearance"
+        },
+        {
+          "level": 2,
+          "line": 103,
+          "text": "10. Value judgment"
+        }
+      ],
+      "keywords": [
+        "stay",
+        "guardian",
+        "may",
+        "one",
+        "ordinary",
+        "key",
+        "parliament",
+        "exact",
+        "public",
+        "motion",
+        "veto",
+        "temporary",
+        "active",
+        "power",
+        "same",
+        "authority",
+        "valid",
+        "state",
+        "override",
+        "its",
+        "governance",
+        "purpose",
+        "vote",
+        "reasons"
+      ],
+      "lines": 108,
+      "path": "docs/governance/54_H0_GUARDIAN_STAY.md",
+      "sha256": "7feaf629f9ca610d6d7e9614c3ba859d2dd5ebe8d42f7a8487dbadc5ecd803aa",
+      "symbols": [],
+      "title": "H0 Guardian Stay"
+    },
+    {
+      "bytes": 4811,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Parliament Activity and Compensation"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "1. Principle"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "2. Duty period"
+        },
+        {
+          "level": 2,
+          "line": 29,
+          "text": "3. Duty Receipt"
+        },
+        {
+          "level": 2,
+          "line": 42,
+          "text": "4. Abstention and recusal"
+        },
+        {
+          "level": 2,
+          "line": 50,
+          "text": "5. Payment character"
+        },
+        {
+          "level": 2,
+          "line": 63,
+          "text": "6. Technical work by Stewards"
+        },
+        {
+          "level": 2,
+          "line": 73,
+          "text": "7. Inactivity and vacancy"
+        },
+        {
+          "level": 2,
+          "line": 84,
+          "text": "8. Anti-gaming"
+        },
+        {
+          "level": 2,
+          "line": 98,
+          "text": "9. Treasury separation"
+        },
+        {
+          "level": 2,
+          "line": 104,
+          "text": "10. Values verdict"
+        }
+      ],
+      "keywords": [
+        "duty",
+        "period",
+        "payment",
+        "work",
+        "steward",
+        "parliament",
+        "recusal",
+        "active",
+        "may",
+        "compensation",
+        "seat",
+        "vote",
+        "contribution",
+        "technical",
+        "treasury",
+        "emergency",
+        "service",
+        "rewards",
+        "governance",
+        "abstention",
+        "stewards",
+        "inactivity",
+        "vacancy",
+        "separation"
+      ],
+      "lines": 111,
+      "path": "docs/governance/55_PARLIAMENT_ACTIVITY_AND_COMPENSATION.md",
+      "sha256": "ee986c700e3a89a680648c321bc86c8932adea43df9d93d4b682bf1b93558768",
+      "symbols": [],
+      "title": "Parliament Activity and Compensation"
+    },
+    {
+      "bytes": 5850,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Parliament to Public Governance Transition"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "1. Goal"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "2. Phases"
+        },
+        {
+          "level": 3,
+          "line": 13,
+          "text": "Phase F0 \u2014 Founding Parliament"
+        },
+        {
+          "level": 3,
+          "line": 21,
+          "text": "Phase F1 \u2014 Expanding Parliament"
+        },
+        {
+          "level": 3,
+          "line": 29,
+          "text": "Phase F2 \u2014 Public Parliament"
+        },
+        {
+          "level": 2,
+          "line": 37,
+          "text": "3. Expansion gate"
+        },
+        {
+          "level": 2,
+          "line": 52,
+          "text": "4. Public eligibility must be monotonic"
+        },
+        {
+          "level": 2,
+          "line": 62,
+          "text": "5. Public-transition evidence"
+        },
+        {
+          "level": 2,
+          "line": 75,
+          "text": "6. Founder/H0 sunset"
+        },
+        {
+          "level": 2,
+          "line": 85,
+          "text": "7. Representation after public maturity"
+        },
+        {
+          "level": 2,
+          "line": 100,
+          "text": "8. No self-preserving council"
+        },
+        {
+          "level": 2,
+          "line": 108,
+          "text": "9. GitHub and Forge"
+        },
+        {
+          "level": 2,
+          "line": 114,
+          "text": "10. Exact failure point"
+        }
+      ],
+      "keywords": [
+        "public",
+        "transition",
+        "parliament",
+        "phase",
+        "may",
+        "governance",
+        "founding",
+        "evidence",
+        "mature",
+        "forge",
+        "exact",
+        "eligibility",
+        "founder",
+        "github",
+        "invitation",
+        "guardian",
+        "stay",
+        "capacity",
+        "political",
+        "its",
+        "expanding",
+        "expansion",
+        "gate",
+        "sunset"
+      ],
+      "lines": 119,
+      "path": "docs/governance/56_PARLIAMENT_TO_PUBLIC_GOVERNANCE.md",
+      "sha256": "0e59d290ff0b64d751a84c7eb8ea12a74725c5237a8dc365caff3ea1b909eace",
+      "symbols": [],
+      "title": "Parliament to Public Governance Transition"
+    },
+    {
       "bytes": 4182,
       "group": "docs",
       "headings": [
@@ -104808,6 +105677,53 @@
       "title": "Post-Quantum Migration Research Report"
     },
     {
+      "bytes": 2147,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Forge-native Founding Parliament objects"
+        },
+        {
+          "level": 2,
+          "line": 18,
+          "text": "Missing before activation"
+        }
+      ],
+      "keywords": [
+        "json",
+        "schema",
+        "parliament",
+        "activation",
+        "seat",
+        "evidence",
+        "forge-native",
+        "founding",
+        "schemas",
+        "canonical",
+        "invitation",
+        "state",
+        "objects",
+        "missing",
+        "vocabulary",
+        "forge",
+        "until",
+        "exact-state",
+        "single-use",
+        "term",
+        "motion",
+        "one",
+        "release",
+        "signed"
+      ],
+      "lines": 35,
+      "path": "forge-native/FOUNDING_PARLIAMENT.md",
+      "sha256": "48439b1ed626b72e5ea7d1274276c74b5eec646413b402136dd90211f4c9bd57",
+      "symbols": [],
+      "title": "Forge-native Founding Parliament objects"
+    },
+    {
       "bytes": 497,
       "group": "root",
       "headings": [],
@@ -105056,6 +105972,294 @@
       "lines": 56,
       "path": "forge-native/schemas/governance-object.schema.json",
       "sha256": "7cd479c725b60a6264de9b69b8d57ad3f5e6b937d186bae9066a650349da3b6b",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 948,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "stay_id",
+        "exact_target_digest",
+        "reason",
+        "issued_at",
+        "expires_at",
+        "constitutional_refs",
+        "minlength",
+        "integer",
+        "minimum",
+        "array",
+        "items",
+        "uniqueitems",
+        "true",
+        "forge-native",
+        "schemas",
+        "h0-guardian-stay",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft"
+      ],
+      "lines": 18,
+      "path": "forge-native/schemas/h0-guardian-stay.schema.json",
+      "sha256": "6d9871074f9bc84e5f60c7450165e7fdc3939874357fbcdd6e2768319bf283f9",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1191,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "integer",
+        "minimum",
+        "string",
+        "schema",
+        "term_id",
+        "period_id",
+        "seat_id",
+        "committee_tasks_assigned",
+        "committee_tasks_completed",
+        "plenary_votes_eligible",
+        "plenary_votes_participated",
+        "emergency_calls_assigned",
+        "emergency_calls_answered",
+        "substantive_review_refs",
+        "minlength",
+        "array",
+        "items",
+        "uniqueitems",
+        "true",
+        "forge-native",
+        "schemas",
+        "parliament-duty-receipt",
+        "json"
+      ],
+      "lines": 21,
+      "path": "forge-native/schemas/parliament-duty-receipt.schema.json",
+      "sha256": "e5edbdbf870e2e8ce5171c483ea2ee4afa814a0764f09544ad8574f794186eef",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 766,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "order_id",
+        "action",
+        "exact_target_digest",
+        "issued_at",
+        "expires_at",
+        "evidence_refs",
+        "minlength",
+        "integer",
+        "minimum",
+        "forge-native",
+        "schemas",
+        "parliament-emergency-order",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "parliamentemergencyorder",
+        "payload",
+        "object"
+      ],
+      "lines": 17,
+      "path": "forge-native/schemas/parliament-emergency-order.schema.json",
+      "sha256": "da28d72f2338140be564d4d1464ecc9b7aef00fd59bd07544c6acd73e9828f57",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 616,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "schema",
+        "string",
+        "invitation_id",
+        "inviter_class",
+        "issued_at",
+        "expires_at",
+        "single_use_commitment",
+        "minlength",
+        "integer",
+        "minimum",
+        "forge-native",
+        "schemas",
+        "parliament-invitation",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "parliamentinvitation",
+        "payload",
+        "object",
+        "required"
+      ],
+      "lines": 16,
+      "path": "forge-native/schemas/parliament-invitation.schema.json",
+      "sha256": "4994fb2e346b587e6f8db54be8b72966b824b815787ec3631c2a41e34d0e161c",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 899,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "minlength",
+        "motion_id",
+        "class",
+        "exact_state_digest",
+        "committee",
+        "opened_at",
+        "integer",
+        "minimum",
+        "array",
+        "items",
+        "uniqueitems",
+        "true",
+        "forge-native",
+        "schemas",
+        "parliament-motion",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title"
+      ],
+      "lines": 19,
+      "path": "forge-native/schemas/parliament-motion.schema.json",
+      "sha256": "fc8915a4d560bf3937d75aea8652c13a9d585f4af2d8e695015dc6f39531610a",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 846,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "integer",
+        "minimum",
+        "string",
+        "schema",
+        "minlength",
+        "seat_id",
+        "term_id",
+        "steward_key",
+        "starts_at",
+        "ends_at",
+        "primary_committee",
+        "active",
+        "consecutive_term_number",
+        "forge-native",
+        "schemas",
+        "parliament-seat-term",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "parliamentseatterm"
+      ],
+      "lines": 19,
+      "path": "forge-native/schemas/parliament-seat-term.schema.json",
+      "sha256": "b5fa9bcf0b75a79c35069f89bbbace3dd0eb75a19184bcf3042eefce3438e4bd",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1024,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "integer",
+        "minimum",
+        "schema",
+        "from_phase",
+        "to_phase",
+        "from_seat_capacity",
+        "to_seat_capacity",
+        "from_public_eligibility_bps",
+        "to_public_eligibility_bps",
+        "from_h0_guardian_active",
+        "to_h0_guardian_active",
+        "evidence_refs",
+        "enum",
+        "founding",
+        "expanding",
+        "public",
+        "maximum",
+        "boolean",
+        "forge-native",
+        "schemas",
+        "parliament-transition",
+        "json",
+        "https"
+      ],
+      "lines": 19,
+      "path": "forge-native/schemas/parliament-transition.schema.json",
+      "sha256": "dca3b18c96f8ea0b3f0f11e1b94a16f74fa3907a7e7a982614752377e5820c64",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 574,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "minlength",
+        "motion_id",
+        "seat_id",
+        "term_id",
+        "choice",
+        "exact_state_digest",
+        "forge-native",
+        "schemas",
+        "parliament-vote",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "parliamentvote",
+        "payload",
+        "object",
+        "required",
+        "properties",
+        "integer"
+      ],
+      "lines": 16,
+      "path": "forge-native/schemas/parliament-vote.schema.json",
+      "sha256": "e983726b8870c1c6782bcdca57f058869499d03bfe2c56bd0762bcd0a8d7ce14",
       "symbols": [],
       "title": "{"
     },
@@ -105494,6 +106698,42 @@
       "sha256": "88972387c2267d1861b5453619c83d94d8d5d8548b2b7171520edc62257be4d5",
       "symbols": [],
       "title": "Example (illustrative only -- every value here is a placeholder, and the"
+    },
+    {
+      "bytes": 712,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "true",
+        "governance",
+        "parliament-proposal",
+        "json",
+        "schema_version",
+        "proposal_id",
+        "founding-parliament-v1",
+        "status",
+        "proposed",
+        "active",
+        "false",
+        "current_authority",
+        "pre-go-live-bootstrap",
+        "founding_seat_capacity",
+        "seat_growth_rule",
+        "seat_term_days",
+        "h0_invitations_per_30_days",
+        "steward_invitations_per_60_days",
+        "steward_invitation_rights_after_service_days",
+        "emergency_order_max_hours",
+        "h0_guardian_stay_max_days",
+        "public_eligibility_monotonic",
+        "public_transition_disables_h0_guardian_one_way",
+        "activation_requires_exact_state_decision"
+      ],
+      "lines": 20,
+      "path": "governance/parliament-proposal.json",
+      "sha256": "8e872590f72869b10db5b75803aed3ed29b3881159cf1c5b95b65fdf3005c7eb",
+      "symbols": [],
+      "title": "{"
     },
     {
       "bytes": 5229,
@@ -106936,6 +108176,7 @@
     "deploy/packages.lock",
     "deploy/verification/lock-packages.sh",
     "deploy/verification/verify.sh",
+    "forge-native/FOUNDING_PARLIAMENT.md",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
     "forge-native/examples/working-group-charter.example.json",
@@ -106943,6 +108184,14 @@
     "forge-native/schemas/bounty-offer.schema.json",
     "forge-native/schemas/conformance-claim.schema.json",
     "forge-native/schemas/governance-object.schema.json",
+    "forge-native/schemas/h0-guardian-stay.schema.json",
+    "forge-native/schemas/parliament-duty-receipt.schema.json",
+    "forge-native/schemas/parliament-emergency-order.schema.json",
+    "forge-native/schemas/parliament-invitation.schema.json",
+    "forge-native/schemas/parliament-motion.schema.json",
+    "forge-native/schemas/parliament-seat-term.schema.json",
+    "forge-native/schemas/parliament-transition.schema.json",
+    "forge-native/schemas/parliament-vote.schema.json",
     "forge-native/schemas/working-group-charter.schema.json",
     "governance/ai-charter-activation-decision.schema.json",
     "governance/ai-charter-activation.json",
@@ -106954,6 +108203,7 @@
     "governance/decisions/D-0084.json",
     "governance/document-summary.schema.json",
     "governance/exceptions.yml",
+    "governance/parliament-proposal.json",
     "governance/policy.yml",
     "governance/work-claims.json",
     "governance/work-claims.schema.json",
