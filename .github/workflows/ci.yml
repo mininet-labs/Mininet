@@ -152,6 +152,186 @@ jobs:
       - name: Run backup/restore acceptance tests
         run: bash deploy/backup/test_backup_restore.sh
 
+  # The Windows client's own platform (D-0520).
+  #
+  # Most of the Windows install engine is deliberately platform-independent
+  # and is covered by the `check` job above. Three things are not, and a
+  # Linux-only CI would never see them: `mini-windows-vault`'s DPAPI round
+  # trip, `WindowsShell` actually running its generated PowerShell, and the
+  # egui client and installer linking against the MSVC toolchain at all.
+  #
+  # This job does not run the whole workspace on Windows. That would double
+  # CI time for crates whose behaviour cannot differ by platform, and a
+  # slower pipeline gets bypassed. It runs exactly the crates whose behaviour
+  # *can*.
+  windows-client:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Show toolchain
+        run: rustup show
+
+      - name: Clippy the Windows-specific crates
+        run: >
+          cargo clippy --all-targets --all-features
+          -p mini-windows-vault -p mini-windows-setup -p mini-setup
+          -p mini-selftest -p mini-desktop -- -D warnings
+
+      - name: Test the Windows-specific crates
+        run: >
+          cargo test --all-features
+          -p mini-windows-vault -p mini-windows-setup -p mini-setup
+          -p mini-selftest -p mini-desktop
+
+      # The diagnostics suite a user can press a button to run, run here too:
+      # a self-test nobody checks will one day report a confident green on a
+      # broken build.
+      - name: Run the diagnostics suite
+        run: cargo run --release -p mini-cli -- selftest
+
+      - name: Build a real Windows release
+        shell: pwsh
+        run: ./packaging/windows/Build-WindowsRelease.ps1 -OutDir dist/ci
+
+      # Install for real, on real Windows, including the Start Menu entry and
+      # the Apps & features registration -- then check the installation
+      # against its manifest and remove it again. This is the one place the
+      # `.lnk` and `HKCU` code paths actually execute.
+      - name: Install, verify, and uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = (Get-ChildItem dist/ci/mininet-setup-*.exe)[0].FullName
+          & $setup --silent --json
+          if ($LASTEXITCODE -ne 0) { throw 'install failed' }
+          & $setup --status --json
+          & $setup --verify --json
+          if ($LASTEXITCODE -ne 0) { throw 'the installation did not verify' }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Mininet.lnk")) {
+            throw 'the Start Menu entry was not created'
+          }
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mininet'
+          if (-not (Test-Path $key)) { throw 'the Apps & features entry was not registered' }
+          & $setup --uninstall --json
+          if ($LASTEXITCODE -ne 0) { throw 'uninstall failed' }
+          if (Test-Path $key) { throw 'the Apps & features entry survived the uninstall' }
+          if (Test-Path "$env:LOCALAPPDATA\Programs\Mininet") {
+            throw 'program files survived the uninstall'
+          }
+
+  # The Windows packaging pipeline, exercised where there is no Windows
+  # toolchain (D-0520).
+  #
+  # `--host` builds host binaries under their Windows names, so the container
+  # format, the manifest, reproducibility, the embedded-payload build, and the
+  # whole install/verify/upgrade/rollback/uninstall lifecycle all run on every
+  # change rather than only when somebody happens to be on Windows. The
+  # `windows-client` job above is what proves the Windows-only halves; this one
+  # is what keeps the pipeline itself from rotting between those runs.
+  windows-packaging-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # The package's build timestamp is the commit's author date, so the
+          # reproducibility check below needs real git history, not a shallow
+          # checkout with a synthesized one.
+          fetch-depth: 0
+
+      - name: Build a package and a self-contained installer
+        run: packaging/windows/build-release.sh --host --out dist/ci
+
+      # Packing is reproducible: same input bytes plus same declared build
+      # timestamp gives the same container, which is what lets two people
+      # compare digests and conclude something. This packs the *same staged
+      # files* twice rather than rebuilding them, because bit-identical
+      # compiler output is a separate, unfinished guarantee (SPEC-11,
+      # reproducibility.yml) and folding it in here would make this check
+      # flaky for a reason it is not testing.
+      - name: Packing the same files twice is byte-identical
+        run: |
+          set -eu
+          for run in one two; do
+            cargo run --release -q -p mini-cli -- windows pack \
+              --source dist/ci/stage --out "dist/repro-$run/client.mnpkg" \
+              --version 0.0.1 --built-at-ms 1757635200000 \
+              --shortcut 'mininet-desktop.exe=Mininet'
+          done
+          cmp dist/repro-one/client.mnpkg dist/repro-two/client.mnpkg
+          cmp dist/repro-one/client.manifest.txt dist/repro-two/client.manifest.txt
+
+      - name: The manifest's SHA-256 column matches sha256sum
+        run: |
+          set -eu
+          manifest=$(ls dist/ci/mininet-client-*.manifest.txt)
+          stage=dist/ci/stage
+          grep '^file ' "$manifest" | while read -r _ _ _ sha path; do
+            actual=$(sha256sum "$stage/$path" | cut -d' ' -f1)
+            if [ "$sha" != "$actual" ]; then
+              echo "manifest records $sha for $path but sha256sum says $actual" >&2
+              exit 1
+            fi
+          done
+
+      - name: Install from the embedded payload, verify, upgrade, roll back, remove
+        run: |
+          set -eu
+          setup=$(ls dist/ci/mininet-setup-*)
+          root=$(mktemp -d)/Programs
+          data=$(mktemp -d)/UserData
+          common="--install-root $root --user-data-root $data"
+          # An install with no --payload proves the package really is inside
+          # the executable, which is the whole point of the single-file build.
+          MININET_SETUP_PAYLOAD= "$setup" --silent --json $common
+          MININET_SETUP_PAYLOAD= "$setup" --verify --json $common
+          mkdir -p "$data" && echo keys > "$data/identity.dpapi"
+          # A second, higher version so upgrade and rollback are real.
+          cargo run --release -q -p mini-cli -- windows pack \
+            --source dist/ci/stage --out dist/ci/next.mnpkg \
+            --version 99.0.0 --built-at-ms 1757635200000 \
+            --shortcut 'mininet-desktop.exe=Mininet'
+          "$setup" --silent --json --payload dist/ci/next.mnpkg $common
+          "$setup" --status --json $common | grep -q '"previous_version":"0'
+          "$setup" --rollback --json $common
+          "$setup" --uninstall --json $common
+          test ! -d "$root"
+          # Uninstalling never destroys identities unless explicitly told to.
+          test -f "$data/identity.dpapi"
+
+      # Two different tampering positions, because they exercise two
+      # different refusals: a byte in the payload has to be caught by a file's
+      # recorded digest, and a byte in the manifest by the manifest's own
+      # self-check. Either way nothing may reach disk.
+      - name: A tampered package is refused, wherever it was tampered with
+        run: |
+          set -eu
+          setup=$(ls dist/ci/mininet-setup-*)
+          package=$(ls dist/ci/mininet-client-*.mnpkg)
+          size=$(wc -c < "$package")
+
+          cp "$package" dist/ci/payload-tampered.mnpkg
+          printf '\xff' | dd of=dist/ci/payload-tampered.mnpkg bs=1 \
+            seek=$((size - 1)) count=1 conv=notrunc status=none
+          root=$(mktemp -d)/Programs
+          out=$("$setup" --silent --json --payload dist/ci/payload-tampered.mnpkg \
+            --install-root "$root" && echo INSTALLED || true)
+          echo "$out" | grep -q '"error_code":"digest_mismatch"'
+          # The refused attempt is still recorded in the setup log -- that is
+          # what the log is for -- so what must be absent is an *activation*
+          # and any half-written staging directory, not the root itself.
+          test ! -e "$root/current.txt"
+          test -z "$(ls -A "$root/versions" 2>/dev/null || true)"
+
+          cp "$package" dist/ci/manifest-tampered.mnpkg
+          printf '\xff' | dd of=dist/ci/manifest-tampered.mnpkg bs=1 \
+            seek=64 count=1 conv=notrunc status=none
+          root=$(mktemp -d)/Programs
+          out=$("$setup" --silent --json --payload dist/ci/manifest-tampered.mnpkg \
+            --install-root "$root" && echo INSTALLED || true)
+          echo "$out" | grep -q '"ok":false'
+          test ! -e "$root/current.txt"
+
   # SPEC-11's verified-reproducible release check moved to its own workflow
   # (.github/workflows/reproducibility.yml, D-0314): two full clean release
   # builds take 10+ minutes, and gating every PR push -- including

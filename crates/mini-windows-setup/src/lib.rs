@@ -541,27 +541,18 @@ impl Setup {
         }
         std::fs::create_dir_all(&staging).map_err(|error| SetupError::io(&staging, error))?;
 
-        let mut bytes_written = 0u64;
-        for file in &manifest.files {
-            let bytes = container.file(&file.path)?;
-            let destination = path::join(&staging, &file.path)?;
-            if let Some(parent) = destination.parent() {
-                std::fs::create_dir_all(parent).map_err(|error| SetupError::io(parent, error))?;
+        // Staging is torn down on any failure rather than left for the next
+        // install to clean up. A refused install that leaves a directory of
+        // half-verified executables behind is worse than a wasted write: the
+        // next person to look at the install root finds files that were never
+        // approved and cannot tell them from files that were.
+        let bytes_written = match self.stage_files(container, manifest, &staging) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                let _ = std::fs::remove_dir_all(&staging);
+                return Err(error);
             }
-            std::fs::write(&destination, bytes)
-                .map_err(|error| SetupError::io(&destination, error))?;
-            bytes_written += file.length;
-        }
-        // Step 4: read back what the filesystem actually stored. A write that
-        // returned Ok and a file that contains the right bytes are different
-        // claims, and only the second one is worth activating.
-        for file in &manifest.files {
-            let destination = path::join(&staging, &file.path)?;
-            let stored =
-                std::fs::read(&destination).map_err(|error| SetupError::io(&destination, error))?;
-            file.verify(&stored)?;
-        }
-        set_executable_bits(&staging, manifest)?;
+        };
 
         let final_dir = self.layout.version_dir(&manifest.version_text);
         if final_dir.exists() {
@@ -605,6 +596,41 @@ impl Setup {
             launch_path: plan.launch_path,
             shell_actions: plan.shell_actions,
         })
+    }
+
+    /// Write, then re-read and re-hash, every package file into `staging`.
+    ///
+    /// Separated out so [`Self::install`] can remove the whole staging
+    /// directory on any failure in one branch, rather than threading cleanup
+    /// through every fallible step.
+    fn stage_files(
+        &self,
+        container: &Container<'_>,
+        manifest: &PackageManifest,
+        staging: &Path,
+    ) -> Result<u64, SetupError> {
+        let mut bytes_written = 0u64;
+        for file in &manifest.files {
+            let bytes = container.file(&file.path)?;
+            let destination = path::join(staging, &file.path)?;
+            if let Some(parent) = destination.parent() {
+                std::fs::create_dir_all(parent).map_err(|error| SetupError::io(parent, error))?;
+            }
+            std::fs::write(&destination, bytes)
+                .map_err(|error| SetupError::io(&destination, error))?;
+            bytes_written += file.length;
+        }
+        // Read back what the filesystem actually stored. A write that returned
+        // Ok and a file that contains the right bytes are different claims,
+        // and only the second one is worth activating.
+        for file in &manifest.files {
+            let destination = path::join(staging, &file.path)?;
+            let stored =
+                std::fs::read(&destination).map_err(|error| SetupError::io(&destination, error))?;
+            file.verify(&stored)?;
+        }
+        set_executable_bits(staging, manifest)?;
+        Ok(bytes_written)
     }
 
     /// Re-hash an installed version against its stored manifest.

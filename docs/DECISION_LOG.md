@@ -24212,3 +24212,139 @@ external-audit scope per their own reopening criteria.
 items (D-0517/D-0518's own follow-up lists) are untouched.
 
 **Supersedes / superseded by:** none.
+
+### D-0520 — Windows client packaging and install: `mini-windows-setup` engine, `mininet-setup.exe` wizard, `mini windows`/`mini selftest`, and the client's Diagnostics and Version & install views  ·  *Shipped*
+
+**Date:** 2026-09-13 · **Refs:** `crates/mini-windows-setup/`;
+`crates/mini-setup/`; `crates/mini-selftest/`; `crates/mini-cli/src/
+windows.rs`; `crates/mini-cli/src/selftest.rs`; `crates/mini-desktop/src/
+main.rs`; `packaging/windows/`; `docs/guides/windows-install-guide.md`;
+`docs/WINDOWS_CLIENT_SECURITY.md`; D-0071 (`mini-installer`, Unix-only);
+D-0070 (release verification); D-0078 (`--json` envelope).
+
+**Decision:** build the Windows half of the installation layer, and give the
+client a way for its user to confirm that the protocol code works on their
+own machine.
+
+1. **`mini-windows-setup`** — the engine. A canonical `MNWINPKG1` text
+   manifest (one fact per line, a length plus BLAKE3 *and* SHA-256 per file),
+   an uncompressed `MNPKGC1` container (manifest followed by file bytes in
+   manifest order, so it has no structure of its own to disagree with the
+   manifest about), strict Windows path safety, a per-user versioned layout
+   with an atomic pointer swap, and install/verify/activate/rollback/
+   uninstall. Files are verified out of the container *and* re-read from disk
+   and re-hashed after writing, before activation. A failed install tears down
+   its own staging directory.
+2. **`mini-setup`** — `mininet-setup.exe`: a five-page wizard plus `--silent`,
+   `--verify`, `--status`, `--dry-run`, `--rollback` and `--uninstall`, each
+   with `--json`. The payload comes from `--payload`, an environment variable,
+   bytes embedded at build time, or a sidecar container; setup never fetches
+   anything.
+3. **`mini-selftest`** — 24 checks that run the real stack (identity, storage,
+   social, media, messaging, sync over a real loopback socket, forge
+   governance, erasure coding, storage proofs, install). Nine establish a
+   *refusal*.
+4. **CLI**: `mini windows pack|inspect|plan|verify|status` and
+   `mini selftest [list|<area>]`, both on the D-0078 envelope.
+5. **Client**: Diagnostics and Version & install views; the readiness matrix
+   updated rather than left stale.
+6. **`packaging/windows/`**: a POSIX and a PowerShell build script producing a
+   container, a readable manifest, a self-contained setup executable and
+   SHA256SUMS; plus two CI jobs (Windows-native, and the pipeline on Linux via
+   `--host`).
+
+**Reason:** `mini-installer` (D-0071) activates by replacing a POSIX symlink
+and is documented Unix-only, so nothing could install the Windows client. The
+only "install" was `cargo run -p mini-desktop`, which is a developer workflow,
+not something a person can be asked to do. Separately, the client's own
+readiness matrix listed several subsystems as protocol foundations with no
+desktop workflow, and a user had no way to confirm that any of the shipped
+code works on their machine — a protocol whose guarantees can only be checked
+by reading its test suite is one most of its users cannot check at all.
+
+Four choices worth recording because the obvious alternative was rejected:
+
+- **No WiX/MSI.** An MSI would be a second implementation of installing, one
+  without the manifest re-verification, the digest-bound approval, or the
+  downgrade refusal. Managed deployment runs `mininet-setup.exe --silent` per
+  user instead — the same tested path an individual gets.
+- **Shell integration generates one PowerShell script rather than driving COM
+  through `windows-sys`.** Hand-written COM would be hundreds of lines of
+  `unsafe` that no non-Windows machine can type-check, in the one binary a
+  user runs before they have any reason to trust us.
+  `WScript.Shell.CreateShortcut` and `New-ItemProperty` are the boring,
+  universally present way to do exactly this, and both new crates stay
+  `forbid(unsafe_code)`. The generator is a pure, tested function and every
+  interpolated value is a single-quoted literal.
+- **`mini windows` gets the read and build verbs; installing stays with
+  `mininet-setup.exe`.** The Apps & features uninstall command has to name an
+  executable that will still exist later, which `mini` on a developer's
+  machine is not.
+- **`mini windows pack` requires `--built-at-ms`.** A tool that stamped the
+  clock would make every rebuild differ and silently destroy the
+  independent-builder digest comparison.
+
+**Constitutional impact:** no frozen invariant is touched or weakened.
+`docs/INVARIANTS.md` U1 (no forced update, no kill path) is *reinforced*:
+nothing in either new crate polls, fetches, or self-invokes; activation
+requires a caller-constructed `InstallApproval` naming one exact manifest
+digest (the `CLAUDE.md` typed-domain rule), and the client's Version & install
+view can re-verify and roll back but cannot install, download, or update.
+Downgrade protection reuses `mini_forge::check_no_rollback` rather than
+reimplementing it, so D-0070's semantics stay in one place.
+
+P1 / Directive 16 (the voice/value wall): `mini-windows-setup`,
+`mini-selftest` and `mini-desktop` all carry a governance edge (`mini-forge`)
+and therefore must never gain an edge to `mini-value`, `mini-bounty` or
+`mini-treasury` in either direction. No such edge is added, and each
+`Cargo.toml` says so where a reviewer will see it on the next diff. This is
+why `mini-selftest` has no shielded-payment or bounty check: adding one would
+be a wall violation, not a missing feature.
+
+Directive 14 (simplicity is security): the container format is
+manifest-then-bytes with no compression, chosen over a zip specifically to
+keep an archive parser out of the first binary a user runs.
+
+Honesty (the overclaiming-is-a-bug rule): every surface states that these
+builds are not code-signed, that SmartScreen will warn and is right to, that
+compiler output is not yet bit-reproducible, that a per-user directory is not
+tamper-proof, and that a matching digest proves what the file *is*, not who
+wrote the manifest.
+
+**Implementation status:** shipped. 76 new tests in the two packaging crates
+(engine against real temporary directories; the shipped binary driven across
+the process boundary, including executing the client it installed), 12 CLI
+packaging tests, 6 suite tests over the 24 diagnostics checks. Workspace
+`cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace --
+-D warnings`, and `cargo test --workspace --all-features` (2749 tests) are
+clean. Two CI jobs added: `windows-client` (windows-latest — the DPAPI vault,
+the real `.lnk` and `HKCU` paths, a real release build, then install, verify
+and uninstall) and `windows-packaging-pipeline` (ubuntu — `--host` build,
+reproducibility, the SHA-256 column checked against `sha256sum`, the full
+install/upgrade/rollback/uninstall lifecycle, and two tampered-package
+refusals).
+
+**Failure point:** the manifest's trailing digest and the two per-file digests
+establish integrity, not authorship. Anyone who can rewrite a manifest can
+recompute it, so a user who verifies digests against a manifest they were
+handed by an attacker learns nothing. Until Authenticode signing and routine
+`mini release attest` use are both in place, the honest claim is "this is the
+package the manifest describes", never "this package is genuine". A second,
+narrower risk: `WindowsShell` depends on `powershell.exe` being present and
+runnable; if it is not, shortcut and registry steps fail loudly and the file
+install remains valid, which is the intended degradation but leaves the user
+without a Start Menu entry.
+
+**Required follow-up:** Authenticode signing with a governed signing process
+(gates a public release; no issue yet). Bit-reproducible compiler output for
+the binaries inside the container (SPEC-11,
+`.github/workflows/reproducibility.yml`). Wiring `mini-update`'s
+`AdoptionState` and provenance gates to the Windows install path, so an
+adopted release can be staged by the same engine (the pieces exist; nothing
+connects them yet). Installer localization. A per-machine install story, if
+one is ever wanted, needs its own threat model rather than an extension of
+this one.
+
+**Supersedes / superseded by:** none. Complements D-0071 (`mini-installer`,
+which remains the Unix path) and D-0070 (release verification, which remains
+the source of authenticity this layer deliberately does not duplicate).

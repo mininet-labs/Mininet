@@ -618,6 +618,17 @@ fn a_failed_install_leaves_the_running_version_active() {
         std::fs::read(status.launch_path.unwrap()).unwrap(),
         DESKTOP_V1
     );
+
+    // And the refused install left nothing behind. A directory of
+    // half-verified executables that were never approved is indistinguishable,
+    // to the next person looking, from ones that were.
+    let versions = fixture.setup.layout().root().join("versions");
+    let leftovers: Vec<String> = std::fs::read_dir(&versions)
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .collect();
+    assert_eq!(leftovers, vec!["0.1.0".to_string()]);
 }
 
 #[test]
