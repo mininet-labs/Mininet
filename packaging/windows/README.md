@@ -7,6 +7,7 @@ Everything needed to produce and install a Mininet Windows client release.
 | `build-release.sh` | Build a release on Linux, macOS, or Git Bash/WSL |
 | `Build-WindowsRelease.ps1` | The same build, natively on Windows |
 | `Install-Mininet.ps1` | Verify a package, print the plan, then install it |
+| `Mininet.wxs` | MSI for managed deployment, wrapping the same installer |
 
 Both build scripts call the same `mini windows pack`, and the install script
 calls `mininet-setup.exe` rather than installing anything itself. There is one
@@ -86,6 +87,34 @@ No administrator. No service. No scheduled task. No network access. Files go to
 separately in `%LOCALAPPDATA%\Mininet` and are never touched by installing,
 upgrading, or removing the program.
 
+## Managed deployment
+
+```powershell
+.\packaging\windows\Build-WindowsRelease.ps1 -Msi
+msiexec /i dist\windows\Mininet-0.1.0.msi /quiet /norestart
+```
+
+Needs WiX v5: `dotnet tool install --global wix` and
+`wix extension add --global WixToolset.Util.wixext`.
+
+The MSI deliberately does not know how to install Mininet. It lays down
+`mininet-setup.exe` and a package, then calls the setup program, so the
+manifest re-verification, the digest-bound approval, and the downgrade refusal
+all still apply. Expressing the install as MSI components instead would be a
+second implementation with none of those, and it would be the one nobody
+tests.
+
+Two details that follow from that split, and that matter if you edit the
+`.wxs`: the payload lives in `%LOCALAPPDATA%\Mininet Setup`, a *sibling* of
+the install root rather than inside it, because the uninstall action removes
+that root recursively; and the install action suppresses setup's own Apps &
+features registration so the MSI's is the only one. CI installs and removes
+through `msiexec` on a real Windows runner and checks both.
+
+Removing the MSI keeps identities, and there is no property to change that. A
+deployment tool must not be able to erase somebody's signing keys as a side
+effect of removing an application.
+
 ## Verifying without trusting anything here
 
 The manifest records a SHA-256 beside Mininet's own BLAKE3 for exactly this
@@ -110,13 +139,10 @@ built the same bytes.
 - **No code signing.** Authenticode needs a certificate and a governed signing
   process, neither of which exists yet. SmartScreen will warn on first run, and
   it is right to. The manifest is what a careful user has instead.
-- **No MSI, and no per-machine install.** An MSI would be a second
-  implementation of installing — one without the checks the engine has — so
-  there deliberately is not one. A managed deployment should run
-  `mininet-setup.exe --silent` per user (an Intune Win32 app in user context, or
-  a logon script), which is the same tested code path an individual gets.
-  A real per-machine install into `Program Files` needs elevation, a different
-  update story, and its own threat model; it is not done.
+- **No per-machine install.** The MSI below installs per user, like
+  everything else here. A real per-machine install into `Program Files` needs
+  elevation, a different update story, and its own threat model; it is not
+  done.
 - **No delta or background updates.** Every install is a whole package a person
   chose to install. Nothing polls.
 - **No installer localization.** The wizard is English only.

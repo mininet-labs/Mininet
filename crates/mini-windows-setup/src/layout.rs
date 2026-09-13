@@ -14,9 +14,10 @@
 //! anything else running as that user, so it offers no protection against
 //! malware already running in the session. `Program Files` would, at the
 //! price of requiring an administrator for every update. A managed
-//! deployment that wants that trade can use the MSI in
-//! `packaging/windows/`; this crate does not pretend a per-user directory is
-//! tamper-proof.
+//! deployment that wants that trade needs a per-machine install, which does
+//! not exist yet; the MSI in `packaging/windows/` is a managed-deployment
+//! wrapper around this same per-user path, not an elevation of it. This crate
+//! does not pretend a per-user directory is tamper-proof.
 //!
 //! ## Versioned directories and an atomic pointer
 //!

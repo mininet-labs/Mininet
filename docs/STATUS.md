@@ -2638,7 +2638,7 @@ the top development priority.
   re-check every byte with `Get-FileHash` without running a Mininet binary.
   Not done: Authenticode code signing (so SmartScreen warns on first run, and
   is right to), bit-reproducible compiler output for the binaries inside the
-  container (SPEC-11), any MSI or per-machine install, installer localization,
+  container (SPEC-11), a per-machine install, installer localization,
   and wiring `mini-update`'s adoption/provenance gates to this install path.
 - **not started** — mobile and browser clients.
 

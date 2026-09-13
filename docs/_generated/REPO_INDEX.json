@@ -2,7 +2,7 @@
   "counts": {
     "crates": 83,
     "files": 1042,
-    "headings": 3705,
+    "headings": 3710,
     "rust_symbols": 10914
   },
   "crates": {
@@ -1006,7 +1006,7 @@
       "title": "Android beta slice 9 (issue #205, hub #196): SPEC-11's verified-"
     },
     {
-      "bytes": 20650,
+      "bytes": 22837,
       "group": "ci",
       "headings": [
         {
@@ -1046,9 +1046,9 @@
         "set",
         "json"
       ],
-      "lines": 414,
+      "lines": 453,
       "path": ".github/workflows/ci.yml",
-      "sha256": "f50357ade43a5173016f2eb47f82f59647aab3f4e2afa7e914a11c8ce3e5153a",
+      "sha256": "6875121970075577fce148e86ddf9b0e9db6ebf3809110e6c55ed97576b9173a",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
@@ -84651,187 +84651,187 @@
       "title": "pub enum SetupError {"
     },
     {
-      "bytes": 12551,
+      "bytes": 12689,
       "group": "crate:mini-windows-setup",
       "headings": [],
       "keywords": [
         "version",
-        "pointer",
         "manifest",
-        "line",
+        "pointer",
         "str",
+        "line",
         "root",
         "txt",
         "self",
-        "corrupt",
-        "lines",
-        "const",
-        "installed",
         "install",
+        "const",
+        "lines",
+        "per-user",
         "files",
         "directory",
         "one",
+        "installed",
         "version_text",
-        "next",
+        "corrupt",
         "pointer_magic",
         "installrecord",
-        "per-user",
         "program",
         "running",
-        "file"
+        "file",
+        "next"
       ],
-      "lines": 316,
+      "lines": 317,
       "path": "crates/mini-windows-setup/src/layout.rs",
-      "sha256": "5c0ebf985b1cccea0a0d3f1a5b452884f8da99ab7165971bd1193aeef7ccd1e0",
+      "sha256": "21bff4ccacd45a8d7b19cd6e14af383045f23f2c1cdf65e065ecc561813336f2",
       "symbols": [
         {
           "kind": "const",
-          "line": 49,
+          "line": 50,
           "name": "POINTER_MAGIC"
         },
         {
           "kind": "const",
-          "line": 52,
+          "line": 53,
           "name": "VERSIONS_DIR"
         },
         {
           "kind": "const",
-          "line": 55,
+          "line": 56,
           "name": "MANIFESTS_DIR"
         },
         {
           "kind": "const",
-          "line": 58,
+          "line": 59,
           "name": "CURRENT_FILE"
         },
         {
           "kind": "const",
-          "line": 61,
+          "line": 62,
           "name": "PREVIOUS_FILE"
         },
         {
           "kind": "const",
-          "line": 64,
+          "line": 65,
           "name": "LOG_FILE"
         },
         {
           "kind": "struct",
-          "line": 68,
+          "line": 69,
           "name": "InstallRecord"
         },
         {
           "kind": "impl",
-          "line": 79,
+          "line": 80,
           "name": "InstallRecord"
         },
         {
           "kind": "fn",
-          "line": 81,
+          "line": 82,
           "name": "for_manifest"
         },
         {
           "kind": "fn",
-          "line": 90,
+          "line": 91,
           "name": "to_bytes"
         },
         {
           "kind": "fn",
-          "line": 98,
+          "line": 99,
           "name": "parse"
         },
         {
           "kind": "struct",
-          "line": 139,
+          "line": 140,
           "name": "InstallLayout"
         },
         {
           "kind": "impl",
-          "line": 143,
+          "line": 144,
           "name": "InstallLayout"
         },
         {
           "kind": "fn",
-          "line": 145,
+          "line": 146,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 155,
+          "line": 156,
           "name": "default_root"
         },
         {
           "kind": "fn",
-          "line": 177,
+          "line": 178,
           "name": "default_user_data_root"
         },
         {
           "kind": "fn",
-          "line": 191,
+          "line": 192,
           "name": "root"
         },
         {
           "kind": "fn",
-          "line": 196,
+          "line": 197,
           "name": "version_dir"
         },
         {
           "kind": "fn",
-          "line": 201,
+          "line": 202,
           "name": "manifest_path"
         },
         {
           "kind": "fn",
-          "line": 208,
+          "line": 209,
           "name": "current_path"
         },
         {
           "kind": "fn",
-          "line": 213,
+          "line": 214,
           "name": "previous_path"
         },
         {
           "kind": "fn",
-          "line": 218,
+          "line": 219,
           "name": "log_path"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 224,
           "name": "current"
         },
         {
           "kind": "fn",
-          "line": 228,
+          "line": 229,
           "name": "previous"
         },
         {
           "kind": "fn",
-          "line": 233,
+          "line": 234,
           "name": "stored_manifest"
         },
         {
           "kind": "fn",
-          "line": 244,
+          "line": 245,
           "name": "installed_versions"
         },
         {
           "kind": "fn",
-          "line": 267,
+          "line": 268,
           "name": "set_current"
         },
         {
           "kind": "fn",
-          "line": 272,
+          "line": 273,
           "name": "set_previous"
         },
         {
           "kind": "fn",
-          "line": 277,
+          "line": 278,
           "name": "clear_previous"
         },
         {
           "kind": "fn",
-          "line": 287,
+          "line": 288,
           "name": "read_pointer"
         }
       ],
@@ -89270,7 +89270,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1471654,
+      "bytes": 1478054,
       "group": "docs",
       "headings": [
         {
@@ -89690,8 +89690,8 @@
         "review",
         "design",
         "audit",
-        "closes",
         "shipped",
+        "closes",
         "decision",
         "local",
         "first",
@@ -89700,9 +89700,9 @@
         "new",
         "doctrine"
       ],
-      "lines": 24351,
+      "lines": 24457,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "ac7253466de0ce9f943d77bcad3e3cacaab3c05faf9def2ed90da8f668c132bf",
+      "sha256": "1990eb248a8a42e5da274b846db5f07fa01be3f01589f55670fd5e6a9a70bb08",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -91038,7 +91038,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 204406,
+      "bytes": 204397,
       "group": "docs",
       "headings": [
         {
@@ -91180,7 +91180,7 @@
       ],
       "lines": 3059,
       "path": "docs/STATUS.md",
-      "sha256": "783646182eb3a787c1da236089af4fbc4de3850af9d1c20bcac87474f87828c3",
+      "sha256": "17c95bae33a46e7ee6a097a6f046adc3c65fc1abaa09b4396301bf5b90c377dc",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -91521,7 +91521,7 @@
       "title": "Mininet UI Beta \u2014 Roadmap, Epics, Sprints, Tasks"
     },
     {
-      "bytes": 7170,
+      "bytes": 7430,
       "group": "docs",
       "headings": [
         {
@@ -91586,9 +91586,9 @@
         "window",
         "sync"
       ],
-      "lines": 129,
+      "lines": 133,
       "path": "docs/WINDOWS_CLIENT_SECURITY.md",
-      "sha256": "bb084f63402325c506f57304c6c062fd17794a42dfe7724337e304b0f6fcb2c3",
+      "sha256": "a23a889bb130ab0819c043132a8d6c480c41764827aef6871d26a9e6840844e9",
       "symbols": [],
       "title": "Windows client security boundary"
     },
@@ -107014,7 +107014,7 @@
       "title": "Running a Mininet node \u2014 the operator's guide"
     },
     {
-      "bytes": 5054,
+      "bytes": 5733,
       "group": "docs",
       "headings": [
         {
@@ -107055,11 +107055,16 @@
         {
           "level": 2,
           "line": 106,
+          "text": "Deploying it to many machines"
+        },
+        {
+          "level": 2,
+          "line": 123,
           "text": "Removing it"
         },
         {
           "level": 2,
-          "line": 115,
+          "line": 132,
           "text": "Known limits"
         }
       ],
@@ -107067,31 +107072,31 @@
         "you",
         "what",
         "file",
-        "exe",
-        "install",
-        "mininet-setup",
         "windows",
         "client",
-        "your",
-        "manifest",
-        "version",
+        "install",
+        "exe",
+        "mininet-setup",
         "every",
+        "manifest",
         "does",
+        "your",
+        "version",
         "localappdata",
         "installing",
-        "directory",
         "powershell",
         "programs",
+        "setup",
+        "program",
         "bytes",
+        "package",
         "back",
-        "first",
-        "run",
         "cannot",
-        "something"
+        "msi"
       ],
-      "lines": 123,
+      "lines": 140,
       "path": "docs/guides/windows-install-guide.md",
-      "sha256": "bee65e7a9ab8774d6a01df4a8932eb1823a5c92673d8d0813eabf06351368a28",
+      "sha256": "43bfc1cc7627774c69583663a4655ac270e54b3e0d50fb70b86a5a9b762611a8",
       "symbols": [],
       "title": "Installing the Mininet Windows client"
     },
@@ -110216,7 +110221,7 @@
       "title": "{"
     },
     {
-      "bytes": 5051,
+      "bytes": 6121,
       "group": "root",
       "headings": [
         {
@@ -110226,69 +110231,74 @@
         },
         {
           "level": 2,
-          "line": 17,
+          "line": 18,
           "text": "Building a release"
         },
         {
           "level": 3,
-          "line": 36,
+          "line": 37,
           "text": "Reproducible by default"
         },
         {
           "level": 3,
-          "line": 57,
+          "line": 58,
           "text": "Testing the pipeline without a Windows toolchain"
         },
         {
           "level": 2,
-          "line": 69,
+          "line": 70,
           "text": "Installing"
         },
         {
           "level": 2,
-          "line": 89,
+          "line": 90,
+          "text": "Managed deployment"
+        },
+        {
+          "level": 2,
+          "line": 118,
           "text": "Verifying without trusting anything here"
         },
         {
           "level": 2,
-          "line": 108,
+          "line": 137,
           "text": "What is missing, plainly"
         }
       ],
       "keywords": [
         "windows",
         "install",
-        "manifest",
         "packaging",
-        "release",
-        "what",
-        "file",
+        "msi",
         "exe",
         "build",
-        "package",
-        "installing",
         "ps1",
-        "same",
+        "package",
+        "manifest",
+        "release",
         "one",
-        "build-release",
-        "check",
         "powershell",
-        "every",
+        "installing",
+        "deployment",
+        "what",
+        "file",
+        "build-release",
+        "same",
+        "rather",
+        "check",
         "x86_64-pc-windows-msvc",
+        "localappdata",
         "reproducible",
-        "anything",
-        "install-mininet",
-        "verify",
-        "print"
+        "managed"
       ],
-      "lines": 123,
+      "lines": 149,
       "path": "packaging/windows/README.md",
-      "sha256": "11570ae02b604ca41a826196a96087d439e10eff062ac37497a28dd2788c4d08",
+      "sha256": "c6c2017b3c1644292d532753e14776d3bf42d4f97ea01d933985bc8669e33f05",
       "symbols": [],
       "title": "Windows packaging"
     },
     {
-      "bytes": 6902,
+      "bytes": 7154,
       "group": "root",
       "headings": [
         {
@@ -110414,71 +110424,86 @@
         {
           "level": 1,
           "line": 31,
-          "text": "Exits non-zero on the first failure. Nothing here touches the network"
+          "text": "The MSI for managed deployment is built by the PowerShell script's -Msi"
         },
         {
           "level": 1,
           "line": 32,
+          "text": "switch, not here: WiX runs on Windows, and a cross-built MSI nobody can"
+        },
+        {
+          "level": 1,
+          "line": 33,
+          "text": "install is worse than no MSI."
+        },
+        {
+          "level": 1,
+          "line": 35,
+          "text": "Exits non-zero on the first failure. Nothing here touches the network"
+        },
+        {
+          "level": 1,
+          "line": 36,
           "text": "except cargo's own dependency fetching."
         },
         {
           "level": 1,
-          "line": 94,
+          "line": 98,
           "text": "An absolute form too: MININET_SETUP_PAYLOAD is read by a build script whose"
         },
         {
           "level": 1,
-          "line": 95,
+          "line": 99,
           "text": "working directory is not this one, and --out may already be absolute."
         },
         {
           "level": 1,
-          "line": 113,
+          "line": 117,
           "text": "shellcheck disable=SC2086"
         },
         {
           "level": 1,
-          "line": 118,
+          "line": 122,
           "text": "Staged names always end in .exe: this is a Windows package, and the"
         },
         {
           "level": 1,
-          "line": 119,
+          "line": 123,
           "text": "manifest's launch target and the setup program's own uninstall command are"
         },
         {
           "level": 1,
-          "line": 120,
+          "line": 124,
           "text": "both looked up by that name. A --host build stages host binaries under the"
         },
         {
           "level": 1,
-          "line": 121,
+          "line": 125,
           "text": "same names on purpose, so the pipeline under test is the real one."
         },
         {
           "level": 1,
-          "line": 129,
+          "line": 134,
           "text": "The setup program inside the package is deliberately the variant *without*"
         },
         {
           "level": 1,
-          "line": 130,
+          "line": 135,
           "text": "an embedded payload: it is what Apps & features runs to uninstall, verify,"
         },
         {
           "level": 1,
-          "line": 131,
+          "line": 136,
           "text": "or roll back an existing install, so it never needs to carry a copy of the"
         },
         {
           "level": 1,
-          "line": 132,
+          "line": 137,
           "text": "package it came from. The distributable setup executable built below is the"
         },
         {
           "level": 1,
-          "line": 133,
+          "line": 138,
           "text": "same code with the payload embedded."
         }
       ],
@@ -110486,31 +110511,31 @@
         "windows",
         "build",
         "target",
-        "package",
         "version",
+        "package",
         "echo",
         "host",
         "git",
         "same",
-        "stage_dir",
         "container",
-        "setup",
+        "script",
         "default",
+        "msi",
         "out_dir",
+        "stage_dir",
+        "setup",
         "commit",
         "built-at-ms",
         "build-release",
         "release",
-        "script",
         "one",
         "own",
         "cargo",
-        "out",
-        "exe"
+        "out"
       ],
-      "lines": 183,
+      "lines": 188,
       "path": "packaging/windows/build-release.sh",
-      "sha256": "8d8b4451e89b0b96abbd40e7874892b15ed35d1cdd61e1e58888162bd8bbd3ff",
+      "sha256": "cc295d90b1e235404a0c302e2f6d1cf93fbd970db8483989dadc9565d65e95d4",
       "symbols": [],
       "title": "Build a Mininet Windows client release: binaries, package container,"
     },

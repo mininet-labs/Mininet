@@ -24348,3 +24348,109 @@ this one.
 **Supersedes / superseded by:** none. Complements D-0071 (`mini-installer`,
 which remains the Unix path) and D-0070 (release verification, which remains
 the source of authenticity this layer deliberately does not duplicate).
+
+### D-0521 — Correcting D-0520 on two points: the voice/value wall is a code property, not a user-facing one, and the MSI should exist  ·  *Shipped*
+
+**Date:** 2026-09-13 · **Refs:** supersedes two specific claims in D-0520;
+`crates/mini-value-selftest/`; `crates/mini-selftest/src/coverage.rs`;
+`crates/mini-selftest/src/value.rs`; `packaging/windows/Mininet.wxs`;
+`docs/INVARIANTS.md` P1; `docs/FOUNDER_DIRECTIVES.md` Directive 16;
+D-0069 (the `mini-build-runner-wasmtime` process boundary this reuses).
+
+**Decision:** reverse two of D-0520's choices, and fix the reasoning that
+produced them.
+
+1. **The value layer is exercisable from the diagnostics.** D-0520 omitted
+   every value-crate check and justified it as a voice/value wall
+   requirement. That was wrong. The canonical invariant is P1, *"No balance
+   maps to governance or validator vote weight"* — a rule about vote weight.
+   The "no dependency edge between value crates and governance crates"
+   phrasing D-0520 cited comes from `CLAUDE.md`, which states in its own
+   first paragraph that it grants no Mininet Authority and cannot override
+   the canonical invariants. A review heuristic was applied as if it were
+   the constitution, and the cost was user-facing capability.
+
+   `mini-value-selftest` now checks the value layer: a hidden amount commits
+   and its range proof verifies, a tampered proof does not, a proof does not
+   verify against another commitment, balanced outputs verify, and inflating
+   an output by one micro-unit fails the balance check — plus the custody
+   threshold rule, including that one custodian approving twice still counts
+   once and an outsider's approval counts for nothing.
+
+   It is a separate **binary** that `mini-selftest` spawns and reads a line
+   protocol from, never links. `mini-selftest` keeps its `mini-forge` edge,
+   the value binary keeps its `mini-value` edge, and no dependency path
+   connects them — the same process boundary D-0069 established for keeping
+   Wasmtime out of every other crate's graph. A CI step now proves this with
+   `cargo tree` rather than leaving it to review habit.
+
+   The general principle, stated so it is not re-derived wrongly a third
+   time: **the wall belongs in the dependency graph, not in the user
+   interface.** Refusing a person the ability to test the money code does
+   nothing to stop a balance influencing a vote, which is the thing P1
+   actually forbids.
+
+2. **The MSI exists.** D-0520 argued an MSI would be a second install
+   implementation without the engine's checks. True of an MSI that installs
+   via components; not true of the one now in
+   `packaging/windows/Mininet.wxs`, which lays down `mininet-setup.exe` and a
+   package and calls the setup program. The manifest re-verification, the
+   digest-bound approval, and the downgrade refusal all still apply, and
+   managed deployment (Intune, Group Policy, Configuration Manager) gets the
+   MSI it can actually consume. "It would duplicate logic" was a reason to
+   design the wrapper carefully, not a reason to ship nothing.
+
+   Two details the design turns on: the payload lives in a *sibling* of the
+   install root, because the uninstall action removes that root recursively
+   and would otherwise delete the files Windows Installer is removing; and
+   the install action suppresses setup's own Apps & features registration so
+   the MSI's is the only entry. Removal keeps identities and there is no
+   property to change that.
+
+3. **Coverage is now auditable.** D-0520's suite covered 13 of 82 crates and
+   nothing said so; a green result read as a whole-system check. Every
+   workspace crate is now classified — exercised, transitive, covered by the
+   spawned binary, or not covered with a stated reason — and a test parses
+   the workspace `Cargo.toml` and fails if a member is unclassified. Coverage
+   is 31 of 83 crates runnable, 50 checks, 22 of them refusals; the 49
+   uncovered crates each say why, and most reasons are the project's own
+   honest limits (presence needs two co-present devices and a ranging radio;
+   proof-of-replication's slowness is its security property).
+
+**Constitutional impact:** P1 and Directive 16 are untouched and better
+enforced: the wall is now checked mechanically in CI instead of by reading
+`Cargo.toml` diffs by hand. No frozen invariant is weakened. The
+identity-destruction path stays behind a typed approval naming an exact path
+and a typed confirmation word, and is deliberately unreachable from the MSI.
+`docs/INVARIANTS.md` U1 is unaffected: nothing added here polls, fetches, or
+self-invokes.
+
+**Implementation status:** shipped. Workspace `cargo fmt --all`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and `cargo
+test --workspace --all-features` (2760 tests) are clean. CI gains: the
+value-layer spawn path on both Linux and Windows, a `cargo tree` wall check,
+an MSI build, and an `msiexec` install/remove cycle asserting the client
+lands, only one Apps & features entry exists, and identities survive removal.
+
+**Failure point:** the coverage table is only as honest as the reasons
+written in it. The exhaustiveness test can force a crate to be classified; it
+cannot stop someone classifying a crate as a gap with a plausible-sounding
+reason when a real check was feasible. That is a review responsibility, and
+the reasons are deliberately written to be arguable rather than generic. The
+second risk is narrower: `cargo tree`'s wall check covers the front-end
+crates named in the CI step, so a new front end added without being listed
+there is unchecked.
+
+**Required follow-up:** raise coverage further — the value binary should grow
+a settlement fixture so `mini-engagement`, `mini-contribution` and
+`mini-private-payment` become reachable, and `mini-provenance`'s independent
+builder agreement deserves a check even though one process must play every
+builder. The `cargo tree` wall check should enumerate front ends from the
+workspace rather than a hardcoded list, closing the gap named above.
+Authenticode signing and bit-reproducible compiler output remain D-0520's
+follow-ups, unchanged.
+
+**Supersedes / superseded by:** supersedes D-0520's "no value-layer checks,
+per the voice/value wall" and "no WiX/MSI" choices specifically. Everything
+else in D-0520 — the package format, the install engine, the setup program,
+the CI jobs — stands as written.

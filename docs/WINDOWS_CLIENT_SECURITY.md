@@ -109,9 +109,13 @@ installable-and-hash-verifiable half of that requirement:
   reproducible today (`mini windows pack` takes an explicit build timestamp
   and CI asserts two packs of the same files are byte-identical); making the
   Rust binaries inside it reproducible is SPEC-11's separate, unfinished work.
-- **No MSI and no per-machine install.** An MSI would be a second install
-  implementation without the engine's checks, so there deliberately is not
-  one. Managed deployment runs `mininet-setup.exe --silent` per user.
+- **No per-machine install.** `packaging/windows/Mininet.wxs` builds an MSI
+  for managed deployment (Intune, Group Policy, Configuration Manager), but it
+  is a thin wrapper: it lays down the setup program and a package and calls
+  `mininet-setup.exe`, so the checks above apply unchanged. It installs per
+  user, like everything else here. A real per-machine install into
+  `Program Files` needs elevation, a different update story, and its own
+  threat model; it is not done.
 - **A per-user install directory is writable by anything running as that
   user.** It is not tamper-proof storage. `--verify` detects modification
   after the fact; it cannot prevent it.

@@ -103,6 +103,23 @@ that something is *refused*. The same suite is `mini selftest`.
 plain text. It carries versions, digests and timestamps and deliberately no
 path from your profile, so it is safe to paste into a bug report.
 
+## Deploying it to many machines
+
+`packaging/windows/Mininet.wxs` builds an MSI that Intune, Group Policy, or
+Configuration Manager can consume:
+
+```powershell
+msiexec /i Mininet-0.1.0.msi /quiet /norestart
+msiexec /x Mininet-0.1.0.msi /quiet /norestart
+```
+
+Deploy it **in user context**. The MSI does not know how to install Mininet;
+it lays down the setup program and a package and calls `mininet-setup.exe`, so
+every check above still applies. Removing it removes the client and keeps
+identities. There is deliberately no way to make it destroy them: a deployment
+tool must not be able to erase somebody's signing keys as a side effect of
+removing an application.
+
 ## Removing it
 
 Apps & features, or:
@@ -115,8 +132,8 @@ mininet-setup.exe --uninstall --destroy-identities   # irreversible
 ## Known limits
 
 - Not code-signed; SmartScreen warns on first run.
-- No MSI and no per-machine install. A managed deployment should run
-  `mininet-setup.exe --silent` per user.
+- No per-machine install. There is an MSI for managed deployment, but it
+  installs per user like everything else here.
 - The installer window is English only.
 - A per-user install directory is writable by anything else running as you. It
   is not tamper-proof storage, and no arrangement of files could make it so.

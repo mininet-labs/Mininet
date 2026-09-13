@@ -28,6 +28,10 @@
 #   --skip-setup-embed   stop after the container; do not rebuild
 #                        mininet-setup with the payload embedded
 #
+# The MSI for managed deployment is built by the PowerShell script's -Msi
+# switch, not here: WiX runs on Windows, and a cross-built MSI nobody can
+# install is worse than no MSI.
+#
 # Exits non-zero on the first failure. Nothing here touches the network
 # except cargo's own dependency fetching.
 
@@ -123,6 +127,7 @@ cp "$BIN_DIR/mininet-desktop$EXE_SUFFIX" "$STAGE_DIR/mininet-desktop.exe"
 cp "$BIN_DIR/mini$EXE_SUFFIX" "$STAGE_DIR/mini.exe"
 cp "$BIN_DIR/mininet-setup$EXE_SUFFIX" "$STAGE_DIR/mininet-setup.exe"
 cp docs/WINDOWS_CLIENT_SECURITY.md "$STAGE_DIR/docs/SECURITY.txt"
+cp docs/guides/windows-install-guide.md "$STAGE_DIR/docs/INSTALL.txt"
 cp crates/mini-desktop/README.md "$STAGE_DIR/docs/CLIENT.txt"
 cp LICENSE "$STAGE_DIR/docs/LICENSE.txt"
 

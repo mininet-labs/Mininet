@@ -204,9 +204,48 @@ jobs:
           }
           cargo run --release -p mini-cli -- selftest coverage
 
-      - name: Build a real Windows release
+      - name: Build a real Windows release, including the MSI
         shell: pwsh
-        run: ./packaging/windows/Build-WindowsRelease.ps1 -OutDir dist/ci
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet tool install --global wix | Out-Null
+          wix extension add --global WixToolset.Util.wixext | Out-Null
+          ./packaging/windows/Build-WindowsRelease.ps1 -OutDir dist/ci -Msi
+
+      # The MSI is a thin wrapper over mininet-setup.exe rather than a second
+      # install implementation, so what has to be proved is that the wrapper
+      # works: msiexec puts the client on the machine, and removing the MSI
+      # takes it off again while leaving identities alone.
+      - name: Install and remove through the MSI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = (Get-ChildItem dist/ci/Mininet-*.msi)[0].FullName
+          $data = "$env:LOCALAPPDATA\Mininet"
+          New-Item -ItemType Directory -Force -Path $data | Out-Null
+          Set-Content -LiteralPath "$data\identity.dpapi" -Value 'keep me'
+
+          $log = 'dist/ci/msi-install.log'
+          $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /quiet /norestart /l*v `"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 60; throw "msiexec install exited $($p.ExitCode)" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\Programs\Mininet\current.txt")) {
+            Get-Content $log -Tail 60
+            throw 'the MSI reported success but no client was installed'
+          }
+          # Exactly one Apps and features entry: the MSI's. Setup must not have
+          # registered a second one.
+          $own = Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mininet'
+          if ($own) { throw 'setup registered its own uninstall entry alongside the MSI' }
+
+          $log = 'dist/ci/msi-uninstall.log'
+          $p = Start-Process msiexec -ArgumentList "/x `"$msi`" /quiet /norestart /l*v `"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 60; throw "msiexec uninstall exited $($p.ExitCode)" }
+          if (Test-Path "$env:LOCALAPPDATA\Programs\Mininet") {
+            throw 'the client survived MSI removal'
+          }
+          if (-not (Test-Path "$data\identity.dpapi")) {
+            throw 'MSI removal destroyed the user identity vault'
+          }
 
       # Install for real, on real Windows, including the Start Menu entry and
       # the Apps & features registration -- then check the installation

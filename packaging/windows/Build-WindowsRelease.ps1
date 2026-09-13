@@ -51,7 +51,8 @@ param(
     [string]$Version,
     [long]$BuiltAtMs = 0,
     [string]$OutDir,
-    [switch]$SkipSetupEmbed
+    [switch]$SkipSetupEmbed,
+    [switch]$Msi
 )
 
 $ErrorActionPreference = 'Stop'
@@ -111,6 +112,7 @@ try {
     Copy-Item 'docs\WINDOWS_CLIENT_SECURITY.md' (Join-Path $stageDir 'docs\SECURITY.txt')
     Copy-Item 'crates\mini-desktop\README.md' (Join-Path $stageDir 'docs\CLIENT.txt')
     Copy-Item 'LICENSE' (Join-Path $stageDir 'docs\LICENSE.txt')
+    Copy-Item 'docs\guides\windows-install-guide.md' (Join-Path $stageDir 'docs\INSTALL.txt')
 
     Write-Host '-- packing the container'
     & cargo run --release -q -p mini-cli -- windows pack `
@@ -139,6 +141,34 @@ try {
         }
         Copy-Item (Join-Path $binDir 'mininet-setup.exe') $setupOut -Force
         Write-Host "   $setupOut"
+    }
+
+    if ($Msi) {
+        Write-Host ''
+        Write-Host '-- building the MSI for managed deployment'
+        if (-not (Get-Command wix -ErrorAction SilentlyContinue)) {
+            throw 'wix is not on PATH. Install it with: dotnet tool install --global wix'
+        }
+        # The MSI wraps mininet-setup.exe rather than reimplementing the
+        # install, so it needs the setup program and a package side by side
+        # under fixed names.
+        $msiPayload = Join-Path $OutDir 'msi-payload'
+        if (Test-Path $msiPayload) { Remove-Item -LiteralPath $msiPayload -Recurse -Force }
+        New-Item -ItemType Directory -Force -Path $msiPayload | Out-Null
+        if (-not (Test-Path $setupOut)) {
+            throw 'the MSI needs the self-contained setup executable; do not combine -Msi with -SkipSetupEmbed'
+        }
+        Copy-Item $setupOut (Join-Path $msiPayload 'mininet-setup.exe')
+        Copy-Item $container (Join-Path $msiPayload 'mininet-client.mnpkg')
+        $msiOut = Join-Path $OutDir "Mininet-$Version.msi"
+        & wix build (Join-Path $PSScriptRoot 'Mininet.wxs') `
+            -ext WixToolset.Util.wixext `
+            -d Version=$Version `
+            -d Payload=$msiPayload `
+            -o $msiOut
+        if ($LASTEXITCODE -ne 0) { throw "wix build failed with exit code $LASTEXITCODE" }
+        Write-Host "   $msiOut"
+        Remove-Item -LiteralPath $msiPayload -Recurse -Force
     }
 
     Write-Host ''
