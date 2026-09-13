@@ -111,6 +111,7 @@ fn main() -> ExitCode {
                 Mode::Verify => run::verify,
                 Mode::Status => run::status,
                 Mode::Rollback => run::rollback,
+                Mode::UndoInstall => run::undo_install,
                 Mode::Uninstall => run::uninstall,
                 Mode::DryRun => run::plan,
                 Mode::Help | Mode::Version | Mode::Wizard => unreachable!("handled above"),

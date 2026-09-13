@@ -243,6 +243,24 @@ impl PackageManifest {
         for shortcut in &shortcuts {
             path::check(&shortcut.target)?;
             check_display("shortcut", &shortcut.name)?;
+            // The same "one filename component" rule `parse_shortcut_line`
+            // enforces on the way back in, checked here on the way out too:
+            // without it, `mini windows pack` could write a manifest naming
+            // "../Startup/x" or containing a path separator, which its own
+            // digest and length-prefix framing round-trip perfectly fine but
+            // which the reader (this same rule, on the parse side) then
+            // refuses -- a pack command reporting success for a package
+            // nothing can install.
+            if shortcut.name == "."
+                || shortcut.name == ".."
+                || shortcut.name.contains('/')
+                || shortcut.name.contains('\\')
+            {
+                return Err(SetupError::MalformedManifest {
+                    line: 0,
+                    reason: "shortcut name must be one filename component",
+                });
+            }
             if !seen.contains(&path::fold_case(&shortcut.target)) {
                 return Err(SetupError::MalformedManifest {
                     line: 0,
@@ -520,8 +538,26 @@ fn parse_shortcut_line(rest: &str, line: usize) -> Result<PackageShortcut, Setup
     let length: usize = length_text
         .parse()
         .map_err(|_| malformed("shortcut target length is not a number"))?;
-    if after_length.len() < length + 1 {
+    // Checked, not `length + 1`: an untrusted manifest can supply a decimal
+    // length up to `usize::MAX`, and this line's own well-formedness has to
+    // fail on arithmetic that cannot represent "one past the target", not
+    // panic on it -- the same reasoning `path::join`'s length checks already
+    // use for join-depth arithmetic.
+    let in_bounds = length
+        .checked_add(1)
+        .is_some_and(|needed| needed <= after_length.len());
+    if !in_bounds {
         return Err(malformed("shortcut target length runs past the line"));
+    }
+    // `split_at` panics if `length` does not fall on a UTF-8 character
+    // boundary. The byte-length check above bounds it within the string;
+    // this bounds it to a point `str` can actually split at, so a length
+    // landing inside a multibyte character is reported the same as any
+    // other malformed line rather than aborting the process.
+    if !after_length.is_char_boundary(length) {
+        return Err(malformed(
+            "shortcut target length does not fall on a character boundary",
+        ));
     }
     let (target, remainder) = after_length.split_at(length);
     let name = remainder

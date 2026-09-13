@@ -341,6 +341,62 @@ fn a_shortcut_target_containing_spaces_round_trips() {
 }
 
 #[test]
+fn a_shortcut_name_with_a_path_separator_is_refused_at_construction() {
+    // `parse_shortcut_line` (the reader) requires a shortcut name to be one
+    // filename component; `PackageManifest::new` (the writer) checked only
+    // that the name was safe *display text*, which a name containing a
+    // separator still is. That let `mini windows pack` succeed and write a
+    // manifest its own `mini windows inspect` immediately rejected. Now both
+    // sides enforce the same rule.
+    let error = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 1,
+        },
+        vec![PackageFile::describe("mininet-desktop.exe", DESKTOP).unwrap()],
+        vec![PackageShortcut {
+            target: "mininet-desktop.exe".to_string(),
+            name: "../Startup/x".to_string(),
+        }],
+    )
+    .unwrap_err();
+    assert_eq!(error.code(), "malformed_manifest");
+}
+
+#[test]
+fn a_shortcut_length_that_overflows_is_refused_not_panicked() {
+    // `shortcut <target-byte-length> ...`: the length is an untrusted decimal
+    // an attacker controls directly. `usize::MAX` makes `length + 1` overflow
+    // if computed unchecked; this must be a MalformedManifest, not a panic.
+    let text = String::from_utf8(manifest().to_bytes()).unwrap();
+    let hostile = text.replace("shortcut 19 ", "shortcut 18446744073709551615 ");
+    let error = PackageManifest::parse(hostile.as_bytes()).unwrap_err();
+    assert_eq!(error.code(), "malformed_manifest");
+}
+
+#[test]
+fn a_shortcut_length_landing_mid_character_is_refused_not_panicked() {
+    // `str::split_at` panics if the byte offset is not a UTF-8 character
+    // boundary. A crafted manifest line's declared length is independent of
+    // anything a legitimate writer would produce (this crate's own writer
+    // never emits non-ASCII target bytes, `path::check` forbids them), but
+    // `parse_shortcut_line` reads the raw manifest text and must not panic on
+    // it before that validation ever runs. "café.exe" (9 bytes: 'é' is 2)
+    // with a declared length of 4 lands between 'é''s two bytes.
+    let text = String::from_utf8(manifest().to_bytes()).unwrap();
+    let hostile = text.replace(
+        "shortcut 19 mininet-desktop.exe Mininet",
+        "shortcut 4 café.exe Mininet",
+    );
+    let error = PackageManifest::parse(hostile.as_bytes()).unwrap_err();
+    assert_eq!(error.code(), "malformed_manifest");
+}
+
+#[test]
 fn a_package_larger_than_the_container_limit_is_refused_before_it_is_built() {
     // Rejected by size arithmetic, not by assembling gigabytes in memory and
     // discovering afterwards that nothing can open the result.

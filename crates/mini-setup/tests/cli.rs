@@ -419,6 +419,55 @@ fn a_missing_package_is_a_clear_error_rather_than_a_crash() {
 }
 
 #[test]
+fn undo_install_after_a_first_install_removes_it_entirely() {
+    // Regression for the MSI wrapper's rollback custom action: on a first
+    // install there is no previous version, so plain `--rollback` would
+    // report `no_previous_version` and (called with Return="ignore") leave
+    // the freshly installed client behind. `--undo-install` must instead
+    // remove what was just installed.
+    let env = Env::new("undo-install-first");
+    let package = write_package(&env.base, "0.1.0", DESKTOP_V1);
+    env.json(&["--silent", "--json", "--payload", package.to_str().unwrap()]);
+    assert!(env.install_root.exists());
+
+    let line = env.json(&["--undo-install", "--json"]);
+    assert_eq!(field(&line, "ok"), "true");
+    assert_eq!(field(&line, "kind"), "setup.uninstall");
+    assert!(!env.install_root.exists());
+}
+
+#[test]
+fn undo_install_after_an_upgrade_falls_back_to_the_previous_version() {
+    // Same custom action, the other case it must handle: an upgrade already
+    // recorded a previous version, so undoing it means returning to that
+    // version rather than removing the client entirely.
+    let env = Env::new("undo-install-upgrade");
+    let first = write_package(&env.base, "0.1.0", DESKTOP_V1);
+    let second = write_package(&env.base, "0.2.0", DESKTOP_V2);
+    env.json(&["--silent", "--json", "--payload", first.to_str().unwrap()]);
+    env.json(&["--silent", "--json", "--payload", second.to_str().unwrap()]);
+
+    let line = env.json(&["--undo-install", "--json"]);
+    assert_eq!(field(&line, "ok"), "true");
+    assert_eq!(field(&line, "kind"), "setup.rollback");
+    assert_eq!(field(&line, "active_version"), "0.1.0");
+    assert!(env.install_root.exists());
+    assert_eq!(
+        std::fs::read(PathBuf::from(field(&line, "launch_path"))).unwrap(),
+        DESKTOP_V1
+    );
+}
+
+#[test]
+fn undo_install_with_nothing_installed_is_a_harmless_no_op() {
+    let env = Env::new("undo-install-empty");
+    let line = env.json(&["--undo-install", "--json"]);
+    assert_eq!(field(&line, "ok"), "true");
+    assert_eq!(field(&line, "kind"), "setup.undo_install");
+    assert_eq!(field(&line, "undone"), "false");
+}
+
+#[test]
 fn rolling_back_with_nothing_to_roll_back_to_says_so() {
     let env = Env::new("rollback-empty");
     let package = write_package(&env.base, "0.1.0", DESKTOP_V1);

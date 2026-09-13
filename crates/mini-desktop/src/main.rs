@@ -3235,7 +3235,7 @@ impl MininetApp {
             for (feature, status, owner) in [
                 ("Local social, profiles, follows, walls, communities", "Integrated / test-covered", "Desktop"),
                 ("Offline bundles and manual encrypted TCP sync", "Integrated / operator-configured", "Desktop + networking"),
-                ("Windows packaging, install, verify, rollback, uninstall", "Integrated / test-covered; not code-signed, no MSI, no per-machine install", "Setup"),
+                ("Windows packaging, install, verify, rollback, uninstall", "Integrated / test-covered; not code-signed; MSI ships for per-user managed deployment, no per-machine install", "Setup"),
                 ("Runnable diagnostics over the real protocol code", "Integrated / test-covered, including refusal checks", "Diagnostics"),
                 ("Internet relay and NAT traversal", "Partial: self-hosted relay foundation exists", "Networking"),
                 ("Private messaging", "Manual Inbox beta integrated; prekeys, ratchet, mailbox, provenance UI and multi-device delivery missing", "Messaging + desktop"),
@@ -3546,7 +3546,25 @@ impl MininetApp {
                     // Shell integration is Windows-only; elsewhere the file
                     // half still happens and the recorded actions are reported
                     // rather than silently claimed.
-                    let options = InstallOptions::default();
+                    //
+                    // The options here must match what is actually on this
+                    // machine, not a fresh install's defaults: a
+                    // `Desktop shortcut` installed just an update ago would
+                    // otherwise be left pointing at the newer version while
+                    // rollback silently "fixes" only the Start Menu entry,
+                    // and an install made with `--no-start-menu` would gain
+                    // an unwanted Start Menu entry. The currently active
+                    // record remembers the real choice, since it is exactly
+                    // what the last install or upgrade actually applied.
+                    let options = match &installed {
+                        Some(record) => InstallOptions {
+                            start_menu_shortcut: record.start_menu_shortcut,
+                            desktop_shortcut: record.desktop_shortcut,
+                            register_uninstall: record.register_uninstall,
+                            ..InstallOptions::default()
+                        },
+                        None => InstallOptions::default(),
+                    };
                     let mut windows_shell = WindowsShell::default();
                     let mut recording_shell = RecordingShell::default();
                     let shell: &mut dyn mini_windows_setup::ShellIntegration = if cfg!(windows) {

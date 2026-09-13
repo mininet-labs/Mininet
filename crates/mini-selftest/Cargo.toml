@@ -28,6 +28,7 @@ mini-crdt = { path = "../mini-crdt" }
 mini-forge = { path = "../mini-forge" }
 mini-lexical-index = { path = "../mini-lexical-index" }
 mini-net = { path = "../mini-net" }
+mini-presence = { path = "../mini-presence" }
 mini-privacy-policy = { path = "../mini-privacy-policy" }
 mini-private-index = { path = "../mini-private-index" }
 mini-replication-policy = { path = "../mini-replication-policy" }

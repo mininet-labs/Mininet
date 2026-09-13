@@ -329,6 +329,35 @@ pub fn rollback(args: &Args) -> Result<Outcome> {
     })
 }
 
+/// Reverse whatever the most recent install or upgrade did.
+///
+/// A caller unwinding a failed transaction around an install --- the MSI
+/// wrapper's own rollback custom action is the reason this exists --- cannot
+/// know in advance whether that install was the first one ever (nothing to
+/// roll back to) or an upgrade (a previous version recorded in
+/// `previous.txt`). Plain `--rollback` assumes the second case: on a first
+/// install it finds no previous version, reports `NoPreviousVersion`, and
+/// (called with `Return="ignore"` from MSI) does nothing, leaving the fresh
+/// client tree and shortcut behind with no MSI registration left to remove
+/// them. This checks what is actually recorded and picks the operation that
+/// undoes it: fall back to the previous version when one exists, otherwise
+/// remove the installation this transaction just created.
+pub fn undo_install(args: &Args) -> Result<Outcome> {
+    let setup = setup_for(args);
+    let status = setup.status()?;
+    if status.previous.is_some() {
+        return rollback(args);
+    }
+    if status.active.is_some() {
+        return uninstall(args);
+    }
+    Ok(Outcome {
+        kind: "setup.undo_install",
+        human: "Nothing was installed to undo.\n".to_string(),
+        fields: vec![("undone", mini_windows_setup::Field::Flag(false))],
+    })
+}
+
 /// Re-run this program from a temporary copy when it lives inside the tree it
 /// is about to delete.
 ///

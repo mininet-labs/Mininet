@@ -3237,6 +3237,7 @@ dependencies = [
  "mini-messaging",
  "mini-net",
  "mini-objects",
+ "mini-presence",
  "mini-privacy-policy",
  "mini-private-index",
  "mini-query",

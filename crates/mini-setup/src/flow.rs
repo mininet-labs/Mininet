@@ -182,16 +182,41 @@ impl Wizard {
         for file in &manifest.files {
             lines.push(format!("  {}", file.path));
         }
-        lines.push(if self.options.start_menu_shortcut {
-            "Start Menu entry: yes".to_string()
+        // A manifest declaring no shortcuts gets the one default entry to
+        // the launch target (`Setup::requested_shortcuts`'s own fallback,
+        // mirrored here); one declaring several gets every name and target
+        // it names. Reducing that to a single "Start Menu entry: yes"
+        // boolean, as this page used to, meant a manifest naming a second
+        // shortcut at a different packaged executable created shell changes
+        // the approval the user actually read never showed.
+        let requested: Vec<(String, String)> = if manifest.shortcuts.is_empty() {
+            vec![(
+                format!("{}.lnk", mini_windows_setup::PRODUCT_KEY),
+                manifest.launch.clone(),
+            )]
         } else {
-            "Start Menu entry: no".to_string()
-        });
-        lines.push(if self.options.desktop_shortcut {
-            "Desktop shortcut: yes".to_string()
+            manifest
+                .shortcuts
+                .iter()
+                .map(|shortcut| (format!("{}.lnk", shortcut.name), shortcut.target.clone()))
+                .collect()
+        };
+        if self.options.start_menu_shortcut {
+            lines.push(format!("Start Menu entries ({}):", requested.len()));
+            for (name, target) in &requested {
+                lines.push(format!("  {name} -> {target}"));
+            }
         } else {
-            "Desktop shortcut: no".to_string()
-        });
+            lines.push("Start Menu entry: no".to_string());
+        }
+        if self.options.desktop_shortcut {
+            lines.push(format!("Desktop shortcuts ({}):", requested.len()));
+            for (name, target) in &requested {
+                lines.push(format!("  {name} -> {target}"));
+            }
+        } else {
+            lines.push("Desktop shortcut: no".to_string());
+        }
         lines.push(if self.options.register_uninstall {
             "Listed in Apps & features: yes".to_string()
         } else {
@@ -231,6 +256,9 @@ mod tests {
             .version,
             package_digest: "ab".repeat(32),
             installed_at_ms: 1,
+            start_menu_shortcut: true,
+            desktop_shortcut: false,
+            register_uninstall: true,
         });
         status.installed_versions = vec!["0.1.0".to_string()];
         status
@@ -372,6 +400,48 @@ mod tests {
             .iter()
             .any(|line| line == "Administrator rights: not required"));
         assert!(lines.iter().any(|line| line == "Network access: none"));
+    }
+
+    #[test]
+    fn the_review_page_shows_every_declared_shortcut_not_a_yes_no_boolean() {
+        // A manifest declaring a second shortcut at a packaged executable
+        // other than the main launch target used to approve as a bare
+        // "Start Menu entry: yes" -- shell changes the user never actually
+        // saw before approving them.
+        let manifest = PackageManifest::new(
+            mini_windows_setup::ManifestHeader {
+                package: "mininet-windows-client",
+                version: "0.1.0",
+                target: "x86_64-pc-windows-msvc",
+                product: "Mininet",
+                launch: "mininet-desktop.exe",
+                built_at_ms: 1,
+            },
+            vec![
+                mini_windows_setup::PackageFile::describe("mininet-desktop.exe", b"a").unwrap(),
+                mini_windows_setup::PackageFile::describe("mini.exe", b"bb").unwrap(),
+            ],
+            vec![
+                mini_windows_setup::manifest::PackageShortcut {
+                    target: "mininet-desktop.exe".to_string(),
+                    name: "Mininet".to_string(),
+                },
+                mini_windows_setup::manifest::PackageShortcut {
+                    target: "mini.exe".to_string(),
+                    name: "Mininet Console".to_string(),
+                },
+            ],
+        )
+        .unwrap();
+        let wizard = Wizard::new(&empty_status(), InstallOptions::default());
+        let lines = wizard.review_lines(&manifest, "first install");
+        assert!(lines
+            .iter()
+            .any(|line| line == "  Mininet.lnk -> mininet-desktop.exe"));
+        assert!(lines
+            .iter()
+            .any(|line| line == "  Mininet Console.lnk -> mini.exe"));
+        assert!(!lines.iter().any(|line| line == "Start Menu entry: yes"));
     }
 
     #[test]

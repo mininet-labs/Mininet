@@ -705,7 +705,7 @@ impl Setup {
         let manifest_path = self.layout.manifest_path(&manifest.version_text);
         layout::write_atomic(&manifest_path, &manifest.to_bytes())?;
 
-        let record = InstallRecord::for_manifest(manifest, now_ms);
+        let record = InstallRecord::for_manifest(manifest, options, now_ms);
         let previous = match plan.active.clone() {
             Some(active)
                 if compare_version_text(&active.version_text, &manifest.version_text)

@@ -1600,10 +1600,82 @@ fn check_reward_accrual_is_rate_capped(_scratch: &Path) -> Result<String, String
     if params.maturation_ms == 0 {
         return Err("the demo reward profile vests instantly".to_string());
     }
+
+    // Checking the profile's numbers alone would still pass if `accrue`
+    // ignored one of them. Exercise the real function instead: six
+    // co-presences at `base_points` each (6_000) inside one window would
+    // exceed the demo profile's 5_000-point cap if it were not enforced, and
+    // a maturation delay of a whole day means none of it should be vested
+    // moments after the events themselves.
+    let subject = reward_check_identity(0)?;
+    let verdicts: Vec<mini_presence::PresenceVerdict> = (1..=6)
+        .map(|seed| {
+            Ok(mini_presence::PresenceVerdict {
+                initiator_root: subject.clone(),
+                responder_root: reward_check_identity(seed)?,
+                at_ms: 1_000 + u64::from(seed) * 100,
+                hardware_ranged: false,
+            })
+        })
+        .collect::<Result<_, String>>()?;
+    let last_event_ms = verdicts
+        .iter()
+        .map(|verdict| verdict.at_ms)
+        .max()
+        .expect("six verdicts were just constructed above");
+
+    let just_after = mini_reward::accrue(&subject, &verdicts, &params, last_event_ms);
+    if just_after.accrued_points != params.max_points_per_window {
+        return Err(format!(
+            "six co-presences of {} points each should cap accrual at the window limit of {}, \
+             but {} points accrued",
+            params.base_points, params.max_points_per_window, just_after.accrued_points
+        ));
+    }
+    if just_after.vested_points != 0 {
+        return Err(format!(
+            "presence recorded moments ago already vested {} of its {} accrued points, \
+             skipping the maturation delay",
+            just_after.vested_points, just_after.accrued_points
+        ));
+    }
+
+    let after_maturation = mini_reward::accrue(
+        &subject,
+        &verdicts,
+        &params,
+        last_event_ms + params.maturation_ms + 1,
+    );
+    if after_maturation.vested_points != params.max_points_per_window {
+        return Err(format!(
+            "{} ms past maturation, the capped total of {} should be fully vested, but only {} \
+             vested",
+            params.maturation_ms + 1,
+            params.max_points_per_window,
+            after_maturation.vested_points
+        ));
+    }
+
     Ok(format!(
-        "the demo profile caps accrual at {} points per {} ms and vests only after {} ms",
-        params.max_points_per_window, params.window_ms, params.maturation_ms
+        "six co-presences of {} points each capped accrual at {} per {} ms window and left it \
+         unvested until {} ms after the event",
+        params.base_points, params.max_points_per_window, params.window_ms, params.maturation_ms
     ))
+}
+
+/// A distinct, validly-formed identity root for the reward accrual check.
+///
+/// A real `did:mini` root, not a placeholder string: [`mini_reward::accrue`]
+/// only ever sees roots that passed identity construction in the real
+/// system, and a check exercising it should offer the same shape of input.
+fn reward_check_identity(seed: u8) -> Result<Did, String> {
+    Ok(
+        Controller::incept_single_from_seeds(&[seed; 32], &[seed.wrapping_add(100); 32])
+            .map_err(|error| {
+                format!("inception failed while building a reward check fixture: {error}")
+            })?
+            .did(),
+    )
 }
 
 // --- search ----------------------------------------------------------------
@@ -1672,6 +1744,9 @@ fn check_gossip_fanout_is_bounded_and_deterministic(_scratch: &Path) -> Result<S
                 .map_err(|error| format!("could not generate a peer id: {error}"))?,
         );
     }
+    let candidate_set: std::collections::HashSet<mini_net::PeerId> =
+        candidates.iter().copied().collect();
+
     let chosen = mini_net::fanout_peers(&candidates, 4);
     if chosen.len() != 4 {
         return Err(format!(
@@ -1679,6 +1754,8 @@ fn check_gossip_fanout_is_bounded_and_deterministic(_scratch: &Path) -> Result<S
             chosen.len()
         ));
     }
+    fanout_selected_only_real_distinct_peers(&chosen, &candidate_set)?;
+
     let again = mini_net::fanout_peers(&candidates, 4);
     if chosen != again {
         return Err(
@@ -1689,11 +1766,38 @@ fn check_gossip_fanout_is_bounded_and_deterministic(_scratch: &Path) -> Result<S
     if over.len() > candidates.len() {
         return Err("a fanout larger than the candidate set invented peers".to_string());
     }
+    fanout_selected_only_real_distinct_peers(&over, &candidate_set)?;
+
     Ok(format!(
-        "gossip fanout selected {} of {} peers, repeatably, and never more than exist",
+        "gossip fanout selected {} of {} real, distinct peers, repeatably, and never invented \
+         or repeated one",
         chosen.len(),
         candidates.len()
     ))
+}
+
+/// Every id `selected` names is one of `candidates`, and none repeats.
+///
+/// The advertised guarantee is that fanout never invents peers, so a check
+/// for it has to look at the selected ids themselves: matching only the
+/// *count* returned would still pass an implementation that fabricates or
+/// duplicates ids instead of actually selecting from the candidate pool.
+fn fanout_selected_only_real_distinct_peers(
+    selected: &[mini_net::PeerId],
+    candidates: &std::collections::HashSet<mini_net::PeerId>,
+) -> Result<(), String> {
+    if selected.iter().any(|peer| !candidates.contains(peer)) {
+        return Err("fanout selected a peer id that was never in the candidate set".to_string());
+    }
+    let distinct: std::collections::HashSet<_> = selected.iter().copied().collect();
+    if distinct.len() != selected.len() {
+        return Err(format!(
+            "fanout returned {} peer(s) but only {} were distinct",
+            selected.len(),
+            distinct.len()
+        ));
+    }
+    Ok(())
 }
 
 // --- policy ----------------------------------------------------------------

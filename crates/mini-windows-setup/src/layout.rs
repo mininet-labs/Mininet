@@ -43,6 +43,7 @@
 
 use crate::error::SetupError;
 use crate::manifest::{unhex, PackageManifest};
+use crate::InstallOptions;
 use mini_forge::Version;
 use std::path::{Path, PathBuf};
 
@@ -82,23 +83,43 @@ pub struct InstallRecord {
     pub package_digest: String,
     /// When setup activated it, milliseconds since the Unix epoch.
     pub installed_at_ms: u64,
+    /// Whether this install created a Start Menu entry.
+    ///
+    /// Recorded so a later rollback or reinstall can recover the owner's
+    /// actual shell-integration choice instead of reconstructing
+    /// [`InstallOptions::default`], which would silently add or drop
+    /// shortcuts the owner never asked to change.
+    pub start_menu_shortcut: bool,
+    /// Whether this install created a Desktop shortcut.
+    pub desktop_shortcut: bool,
+    /// Whether this install registered in Apps & features.
+    pub register_uninstall: bool,
 }
 
 impl InstallRecord {
-    /// Build a record for a manifest activated at `now_ms`.
-    pub fn for_manifest(manifest: &PackageManifest, now_ms: u64) -> Self {
+    /// Build a record for a manifest activated at `now_ms`, remembering the
+    /// shell-integration choices `options` actually applied.
+    pub fn for_manifest(manifest: &PackageManifest, options: &InstallOptions, now_ms: u64) -> Self {
         Self {
             version_text: manifest.version_text.clone(),
             version: manifest.version.clone(),
             package_digest: manifest.digest_hex(),
             installed_at_ms: now_ms,
+            start_menu_shortcut: options.start_menu_shortcut,
+            desktop_shortcut: options.desktop_shortcut,
+            register_uninstall: options.register_uninstall,
         }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         format!(
-            "{POINTER_MAGIC}\nversion {}\ndigest {}\ninstalled {}\n",
-            self.version_text, self.package_digest, self.installed_at_ms
+            "{POINTER_MAGIC}\nversion {}\ndigest {}\ninstalled {}\nstart_menu {}\ndesktop {}\nregister_uninstall {}\n",
+            self.version_text,
+            self.package_digest,
+            self.installed_at_ms,
+            self.start_menu_shortcut as u8,
+            self.desktop_shortcut as u8,
+            self.register_uninstall as u8,
         )
         .into_bytes()
     }
@@ -122,8 +143,30 @@ impl InstallRecord {
             .next()
             .and_then(|line| line.strip_prefix("installed "))
             .ok_or_else(|| corrupt("pointer has no installed line"))?;
-        if lines.next().is_some() {
-            return Err(corrupt("pointer has trailing content"));
+        // The shell-integration lines were added after this format shipped.
+        // A pointer file written by an older binary simply lacks them, and
+        // that is not corruption: fall back to `InstallOptions::default`'s
+        // choices, the same choices such an install would have made.
+        let parse_flag = |value: &str| -> Result<bool, SetupError> {
+            match value {
+                "0" => Ok(false),
+                "1" => Ok(true),
+                _ => Err(corrupt("pointer flag is not 0 or 1")),
+            }
+        };
+        let mut start_menu_shortcut = true;
+        let mut desktop_shortcut = false;
+        let mut register_uninstall = true;
+        for line in lines {
+            if let Some(value) = line.strip_prefix("start_menu ") {
+                start_menu_shortcut = parse_flag(value)?;
+            } else if let Some(value) = line.strip_prefix("desktop ") {
+                desktop_shortcut = parse_flag(value)?;
+            } else if let Some(value) = line.strip_prefix("register_uninstall ") {
+                register_uninstall = parse_flag(value)?;
+            } else {
+                return Err(corrupt("pointer has trailing content"));
+            }
         }
         if unhex(digest).is_none() {
             return Err(corrupt("pointer digest is not 32 hex bytes"));
@@ -138,6 +181,9 @@ impl InstallRecord {
             version,
             package_digest: digest.to_string(),
             installed_at_ms,
+            start_menu_shortcut,
+            desktop_shortcut,
+            register_uninstall,
         })
     }
 }

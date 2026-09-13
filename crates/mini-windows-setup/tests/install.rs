@@ -467,6 +467,80 @@ fn rollback_returns_to_the_previous_version_and_repoints_the_shortcut() {
 }
 
 #[test]
+fn the_install_record_remembers_the_shortcut_choices_actually_used() {
+    // `InstallRecord` is what a caller like the desktop client reads back to
+    // decide what a later rollback should do. If it did not carry the real
+    // choice, a rollback reconstructing `InstallOptions::default()` would
+    // silently add or drop shortcuts nobody asked to change.
+    let mut fixture = Fixture::new("record-remembers-options");
+    fixture.options.desktop_shortcut = true;
+    fixture.options.start_menu_shortcut = false;
+    fixture.options.register_uninstall = false;
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    let active = fixture.setup.status().unwrap().active.unwrap();
+    assert!(active.desktop_shortcut);
+    assert!(!active.start_menu_shortcut);
+    assert!(!active.register_uninstall);
+}
+
+#[test]
+fn rollback_preserves_the_desktop_shortcut_when_the_caller_reads_the_installed_record() {
+    // Regression for a bug where the desktop client rebuilt `InstallOptions`
+    // from scratch before calling `rollback`, so an install that added a
+    // Desktop shortcut lost it on rollback (only the Start Menu entry was
+    // repointed) and an install made with `--no-start-menu` gained an
+    // unwanted one. The fix is for the caller to read the currently active
+    // `InstallRecord`'s persisted choices instead of reconstructing
+    // defaults; this proves that once it does, the Desktop shortcut is
+    // still repointed rather than silently dropped.
+    let mut fixture = Fixture::new("rollback-keeps-desktop-choice");
+    fixture.options.desktop_shortcut = true;
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+
+    let installed = fixture.setup.status().unwrap().active.unwrap();
+    assert!(installed.desktop_shortcut, "fixture set up wrong");
+
+    // What a correct caller does: derive options from the installed record
+    // rather than from `InstallOptions::default()` (which has
+    // `desktop_shortcut: false` and would reproduce the bug).
+    let options_from_record = InstallOptions {
+        start_menu_shortcut: installed.start_menu_shortcut,
+        desktop_shortcut: installed.desktop_shortcut,
+        register_uninstall: installed.register_uninstall,
+        ..fixture.options.clone()
+    };
+    let mut rollback_shell = RecordingShell::default();
+    fixture
+        .setup
+        .rollback(&options_from_record, &mut rollback_shell, 3_000)
+        .unwrap();
+
+    let desktop_location =
+        mini_windows_setup::shell::ShortcutLocation::Exact(fixture.base.join("desktop"));
+    let repointed_desktop_shortcut = rollback_shell.actions.iter().any(|action| {
+        matches!(
+            action,
+            ShellAction::CreateShortcut(request) if request.location == desktop_location
+        )
+    });
+    assert!(
+        repointed_desktop_shortcut,
+        "rollback dropped the Desktop shortcut instead of repointing it: {:?}",
+        rollback_shell.actions
+    );
+}
+
+#[test]
 fn rollback_refuses_a_previous_version_whose_files_are_damaged() {
     let fixture = Fixture::new("rollback-bad");
     let mut shell = RecordingShell::default();

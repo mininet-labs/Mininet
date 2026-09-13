@@ -90,12 +90,24 @@
                   Impersonate="yes"
                   Return="check" />
 
-    <!-- If MSI performs a repair/reinstall, re-run the external installer
-         after restoring the two wrapper files. This is deliberately the same
-         setup entry point rather than an MSI-only file copy. -->
+    <!--
+      If this transaction fails after RunMininetSetup already ran, undo what
+      it did. That action changes the client tree, shortcuts, and pointer
+      files entirely outside Windows Installer's own component transaction,
+      so only a paired rollback action (this one) can reverse it.
+
+      Deliberately the setup program's undo_install mode, not its plain
+      version rollback mode: on a first ever install there is no previous
+      version recorded, so a plain rollback would report NoPreviousVersion
+      and (ignored via Return="ignore") do nothing, leaving the freshly
+      installed client and shortcut behind with no MSI registration left to
+      remove them. undo_install checks what was actually there before this
+      transaction started and reverses exactly that: falls back to a
+      previous version when an upgrade recorded one, or removes the fresh
+      install entirely when there was none. -->
     <CustomAction Id="SetRollbackCommand"
                   Property="RunMininetRollback"
-                  Value="&quot;[#MininetSetupExe]&quot; --rollback --no-register" />
+                  Value="&quot;[#MininetSetupExe]&quot; --undo-install --no-register" />
     <CustomAction Id="RollbackMininetSetup"
                   BinaryRef="Wix4UtilCA_X86"
                   DllEntry="WixQuietExec"

@@ -211,8 +211,14 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet tool install --global wix | Out-Null
-          wix extension add --global WixToolset.Util.wixext | Out-Null
+          # Pinned to an exact NuGet version, not "latest": this step's own
+          # output is what the next one publishes as a downloadable artifact,
+          # so an unpinned tool/extension pull is the one unreviewed input in
+          # this job that could change between a green run and the bytes it
+          # ships, unlike every action reference here, which is a pinned
+          # commit SHA.
+          dotnet tool install --global wix --version 5.0.2 | Out-Null
+          wix extension add --global WixToolset.Util.wixext/5.0.2 | Out-Null
           ./packaging/windows/Build-WindowsRelease.ps1 -OutDir dist/ci -Msi
 
       # A real, MSVC-built installer a person can download and run, not just
@@ -220,7 +226,7 @@ jobs:
       # tests below touch the machine, so the artifact is exactly what those
       # tests exercise.
       - name: Upload the built installer and MSI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: mininet-windows-client-${{ github.sha }}
           path: |

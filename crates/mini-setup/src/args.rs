@@ -26,6 +26,17 @@ pub enum Mode {
     Status,
     /// Return to the previous version.
     Rollback,
+    /// Reverse whatever the most recent install or upgrade did: roll back to
+    /// the previous version when one is recorded, otherwise remove the
+    /// installation entirely.
+    ///
+    /// Exists for an external transaction (the MSI wrapper's own rollback
+    /// custom action) that needs to undo "whatever just happened" without
+    /// knowing in advance whether that was a first install or an upgrade.
+    /// Plain `--rollback` cannot serve that caller: on a first install there
+    /// is no previous version, so it reports `NoPreviousVersion` and leaves
+    /// the freshly installed client behind with nothing left to remove it.
+    UndoInstall,
     /// Remove the installation.
     Uninstall,
     /// Print the plan for the payload without changing anything.
@@ -45,6 +56,7 @@ impl Mode {
             Self::Verify => "setup.verify",
             Self::Status => "setup.status",
             Self::Rollback => "setup.rollback",
+            Self::UndoInstall => "setup.undo_install",
             Self::Uninstall => "setup.uninstall",
             Self::DryRun => "setup.plan",
             Self::Help => "setup.help",
@@ -98,6 +110,8 @@ USAGE:
     mininet-setup --verify [OPTIONS]        re-hash the package or the install
     mininet-setup --status [OPTIONS]        report what is installed
     mininet-setup --rollback [OPTIONS]      return to the previous version
+    mininet-setup --undo-install [OPTIONS]  reverse the last install or upgrade,
+                                             whichever that turns out to require
     mininet-setup --uninstall [OPTIONS]     remove the installation
 
 OPTIONS:
@@ -158,6 +172,7 @@ where
             "--verify" => set_mode(Mode::Verify, &mut mode)?,
             "--status" => set_mode(Mode::Status, &mut mode)?,
             "--rollback" => set_mode(Mode::Rollback, &mut mode)?,
+            "--undo-install" => set_mode(Mode::UndoInstall, &mut mode)?,
             "--uninstall" => set_mode(Mode::Uninstall, &mut mode)?,
             "--dry-run" => set_mode(Mode::DryRun, &mut mode)?,
             "-h" | "--help" | "/?" => set_mode(Mode::Help, &mut mode)?,
@@ -189,6 +204,7 @@ fn flag_for(mode: Mode) -> &'static str {
         Mode::Verify => "verify",
         Mode::Status => "status",
         Mode::Rollback => "rollback",
+        Mode::UndoInstall => "undo-install",
         Mode::Uninstall => "uninstall",
         Mode::DryRun => "dry-run",
         Mode::Help => "help",
@@ -218,6 +234,7 @@ mod tests {
             ("--verify", Mode::Verify),
             ("--status", Mode::Status),
             ("--rollback", Mode::Rollback),
+            ("--undo-install", Mode::UndoInstall),
             ("--uninstall", Mode::Uninstall),
             ("--dry-run", Mode::DryRun),
             ("--help", Mode::Help),
