@@ -77,7 +77,7 @@ pub mod shell;
 
 pub use container::Container;
 pub use error::SetupError;
-pub use layout::{InstallLayout, InstallRecord, LOCK_FILE};
+pub use layout::{InstallLayout, InstallRecord, CURRENT_FILE, LOCK_FILE};
 pub use log::{SetupEvent, SetupLog};
 pub use manifest::{ManifestHeader, PackageFile, PackageManifest, PackageShortcut};
 pub use report::Field;
@@ -238,6 +238,13 @@ pub struct InstallOptions {
     pub register_uninstall: bool,
     /// Permit activating an older version than the active one.
     pub allow_downgrade: bool,
+    /// Permit installing a package built for another architecture.
+    ///
+    /// Off by default: an x64 setup that happily installs an ARM package
+    /// reports success and leaves a Start Menu shortcut pointing at binaries
+    /// Windows cannot execute. On for deliberate cross-staging, which is what
+    /// the packaging scripts do when they build a Windows package on Linux.
+    pub allow_foreign_target: bool,
     /// Override the Start Menu directory (tests, portable installs).
     pub start_menu_dir: Option<PathBuf>,
     /// Override the Desktop directory.
@@ -254,6 +261,7 @@ impl Default for InstallOptions {
             desktop_shortcut: false,
             register_uninstall: true,
             allow_downgrade: false,
+            allow_foreign_target: false,
             start_menu_dir: None,
             desktop_dir: None,
             setup_exe: None,
@@ -330,6 +338,13 @@ pub enum VerifyProblem {
     Digest {
         /// Relative package path.
         path: String,
+    },
+    /// The stored manifest is not the package the owner approved.
+    UnexpectedPackage {
+        /// Digest recorded in the pointer at install time.
+        approved: String,
+        /// Digest of the manifest found on disk now.
+        found: String,
     },
     /// A file is present that the manifest does not list.
     ///
@@ -416,6 +431,28 @@ impl Setup {
     /// Operate on the default per-user root for this environment.
     pub fn for_current_user() -> Self {
         Self::new(InstallLayout::default_root())
+    }
+
+    /// Operate on whichever install root contains `executable`, falling back
+    /// to the default.
+    ///
+    /// A client installed to a custom location would otherwise inspect the
+    /// *default* root, find nothing, and report itself unmanaged --- with
+    /// integrity verification and rollback disabled on an installation that
+    /// has both. Walking up from the running executable finds the root that
+    /// actually produced it.
+    pub fn containing(executable: &Path) -> Self {
+        let mut candidate = executable.parent();
+        while let Some(dir) = candidate {
+            // `<root>/versions/<version>/<exe>`: the root is the grandparent
+            // of the directory the executable sits in, and it is the root only
+            // if it carries the pointer file this crate writes.
+            if dir.join(CURRENT_FILE).is_file() {
+                return Self::new(dir);
+            }
+            candidate = dir.parent();
+        }
+        Self::for_current_user()
     }
 
     /// Override the user-data location (tests, `MININET_HOME` profiles).
@@ -556,6 +593,7 @@ impl Setup {
             });
         }
         self.check_roots_are_disjoint()?;
+        check_target_is_runnable(&manifest.target, options)?;
         let _lock = self.lock()?;
         let plan = self.plan(manifest, options)?;
         if plan.kind == PlanKind::Downgrade && !options.allow_downgrade {
@@ -714,6 +752,23 @@ impl Setup {
         let manifest = self.layout.stored_manifest(version_text)?;
         let version_dir = self.layout.version_dir(version_text);
         let mut problems = Vec::new();
+        // Files and manifest can be replaced *together* --- by copying another
+        // installation of the same version over this one, say --- and the
+        // replacement manifest then validly describes the replacement files.
+        // Checking files against their own manifest would call that intact.
+        // The pointer records the digest the owner actually approved, so the
+        // manifest is checked against that first.
+        if let Some(record) = self.layout.current()? {
+            if record.version_text == version_text {
+                let found = manifest.digest_hex();
+                if found != record.package_digest {
+                    problems.push(VerifyProblem::UnexpectedPackage {
+                        approved: record.package_digest.clone(),
+                        found,
+                    });
+                }
+            }
+        }
         let mut files_checked = 0usize;
         let mut bytes_checked = 0u64;
         for file in &manifest.files {
@@ -821,16 +876,26 @@ impl Setup {
                     | Some(VerifyProblem::Digest { path })
                     | Some(VerifyProblem::Length { path, .. })
                     | Some(VerifyProblem::Unexpected { path }) => path.clone(),
-                    None => previous.version_text.clone(),
+                    Some(VerifyProblem::UnexpectedPackage { .. }) | None => {
+                        previous.version_text.clone()
+                    }
                 },
             });
         }
         let manifest = self.layout.stored_manifest(&previous.version_text)?;
         let launch_path = path::join(&version_dir, &manifest.launch)?;
         let actions = self.shell_plan(&manifest, options, &launch_path, &version_dir)?;
+        // Shell integration first, pointers second. Both orderings can fail,
+        // but only this one fails *safely*: a shortcut that already points at
+        // the older version while the pointer still names the newer one is
+        // inconsistent for an instant and repairs itself on retry. The other
+        // way round, a failed `apply` left the rollback recorded as done,
+        // reported as refused, and impossible to retry --- the pointer said
+        // the old version was active while the shortcut still launched the
+        // new one, and the rollback target had already been consumed.
+        shell.apply(&actions)?;
         self.layout.set_current(&previous)?;
         self.layout.clear_previous()?;
-        shell.apply(&actions)?;
         SetupLog::new(self.layout.log_path()).append(SetupEvent::RolledBack {
             version: previous.version_text.clone(),
             at_ms: now_ms,
@@ -1097,6 +1162,33 @@ fn set_executable_bits(dir: &Path, manifest: &PackageManifest) -> Result<(), Set
 #[cfg(not(unix))]
 fn set_executable_bits(_dir: &Path, _manifest: &PackageManifest) -> Result<(), SetupError> {
     Ok(())
+}
+
+/// Refuse a package whose target architecture this machine cannot run.
+///
+/// Only the architecture is compared, not the whole triple: a package is
+/// built for `x86_64-pc-windows-msvc` whichever operating system assembled
+/// it, and the packaging scripts legitimately build Windows packages on
+/// Linux. What matters at install time is whether the binaries can execute
+/// here at all.
+fn check_target_is_runnable(target: &str, options: &InstallOptions) -> Result<(), SetupError> {
+    if options.allow_foreign_target {
+        return Ok(());
+    }
+    let package_arch = target.split('-').next().unwrap_or(target);
+    let host_arch = std::env::consts::ARCH;
+    // x86_64 hosts run i686 binaries, and ARM64 Windows emulates x86_64; the
+    // reverse is not true, and that asymmetry is what this check exists for.
+    let runnable = package_arch == host_arch
+        || (host_arch == "x86_64" && package_arch == "i686")
+        || (host_arch == "aarch64" && matches!(package_arch, "x86_64" | "i686"));
+    if runnable {
+        return Ok(());
+    }
+    Err(SetupError::ForeignTarget {
+        package_target: target.to_string(),
+        host_arch: host_arch.to_string(),
+    })
 }
 
 /// The command Apps & features runs to remove this installation.

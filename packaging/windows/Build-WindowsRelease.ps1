@@ -97,7 +97,7 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $stageDir 'docs') | Out-Null
 
     Write-Host '-- building client, cli, and setup'
-    & cargo build --release --target $Target -p mini-desktop -p mini-cli -p mini-setup
+    & cargo build --release --target $Target -p mini-desktop -p mini-cli -p mini-setup -p mini-value-selftest
     if ($LASTEXITCODE -ne 0) { throw "cargo build failed with exit code $LASTEXITCODE" }
 
     Write-Host '-- staging package files'
@@ -109,6 +109,10 @@ try {
     # from. The distributable executable below is the same code with the
     # payload embedded.
     Copy-Item (Join-Path $binDir 'mininet-setup.exe') (Join-Path $stageDir 'mininet-setup.exe')
+    # The value-layer diagnostics run in their own process, so the client has
+    # to ship that process. Without it every installed copy silently skips the
+    # value and treasury checks the Diagnostics page advertises.
+    Copy-Item (Join-Path $binDir 'mininet-value-selftest.exe') (Join-Path $stageDir 'mininet-value-selftest.exe')
     Copy-Item 'docs\WINDOWS_CLIENT_SECURITY.md' (Join-Path $stageDir 'docs\SECURITY.txt')
     Copy-Item 'crates\mini-desktop\README.md' (Join-Path $stageDir 'docs\CLIENT.txt')
     Copy-Item 'LICENSE' (Join-Path $stageDir 'docs\LICENSE.txt')

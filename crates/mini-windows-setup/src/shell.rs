@@ -191,7 +191,7 @@ impl ShellIntegration for WindowsShell {
         std::fs::create_dir_all(&dir).map_err(|error| SetupError::io(&dir, error))?;
         let path = dir.join(format!("mininet-setup-{}.ps1", std::process::id()));
         std::fs::write(&path, script.as_bytes()).map_err(|error| SetupError::io(&path, error))?;
-        let status = std::process::Command::new("powershell.exe")
+        let status = std::process::Command::new(windows_powershell()?)
             .args([
                 "-NoProfile",
                 "-NonInteractive",
@@ -219,6 +219,34 @@ impl ShellIntegration for WindowsShell {
     fn apply(&mut self, _actions: &[ShellAction]) -> Result<(), SetupError> {
         Err(SetupError::UnsupportedPlatform)
     }
+}
+
+/// The absolute path of Windows PowerShell.
+///
+/// Resolved from `%SystemRoot%` rather than spawned by bare name: a bare name
+/// is resolved by the OS, and on Windows that search has historically
+/// included the current directory, so an installer run from a directory an
+/// attacker can write to would run their `powershell.exe` as the user.
+#[cfg(windows)]
+fn windows_powershell() -> Result<PathBuf, SetupError> {
+    let root = std::env::var_os("SystemRoot")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("C:\\Windows"));
+    let path = root
+        .join("System32")
+        .join("WindowsPowerShell")
+        .join("v1.0")
+        .join("powershell.exe");
+    if !path.is_file() {
+        return Err(SetupError::ShellIntegrationFailed {
+            step: "powershell".to_string(),
+            detail: format!(
+                "{} is not present, so Start Menu and Apps & features integration cannot run",
+                path.display()
+            ),
+        });
+    }
+    Ok(path)
 }
 
 /// The user's Start Menu "Programs" directory.

@@ -116,7 +116,7 @@ mkdir -p "$STAGE_DIR/docs"
 echo "-- building client, cli, and setup"
 # shellcheck disable=SC2086
 cargo build --release $TARGET_ARGS \
-    -p mini-desktop -p mini-cli -p mini-setup
+    -p mini-desktop -p mini-cli -p mini-setup -p mini-value-selftest
 
 echo "-- staging package files"
 # Staged names always end in .exe: this is a Windows package, and the
@@ -126,6 +126,10 @@ echo "-- staging package files"
 cp "$BIN_DIR/mininet-desktop$EXE_SUFFIX" "$STAGE_DIR/mininet-desktop.exe"
 cp "$BIN_DIR/mini$EXE_SUFFIX" "$STAGE_DIR/mini.exe"
 cp "$BIN_DIR/mininet-setup$EXE_SUFFIX" "$STAGE_DIR/mininet-setup.exe"
+# The value-layer diagnostics run in their own process, which means the client
+# has to actually ship that process. Without it every installed copy silently
+# skips the value and treasury checks the Diagnostics page advertises.
+cp "$BIN_DIR/mininet-value-selftest$EXE_SUFFIX" "$STAGE_DIR/mininet-value-selftest.exe"
 cp docs/WINDOWS_CLIENT_SECURITY.md "$STAGE_DIR/docs/SECURITY.txt"
 cp docs/guides/windows-install-guide.md "$STAGE_DIR/docs/INSTALL.txt"
 cp crates/mini-desktop/README.md "$STAGE_DIR/docs/CLIENT.txt"

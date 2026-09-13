@@ -28,14 +28,21 @@ const MAGIC: &str = "MNVALUECHK1";
 
 /// Where to look for the value-check binary.
 ///
-/// Beside the running executable first, because that is how it ships; then
-/// an explicit override for development and packaging; the bare name last,
-/// so a `PATH` install works.
+/// **Absolute paths only, and never a `PATH` search.** Spawning a bare name
+/// lets the OS pick the executable, and on Windows the search has
+/// historically included the current directory --- so running the client from
+/// a directory an attacker can write to would run their binary as the user.
+/// A helper that cannot be found is reported as a skip, which is a far better
+/// outcome than running whatever was found instead.
+///
+/// An explicit override comes first, for development and packaging; then the
+/// directory of the running executable, which is how it ships.
 pub fn candidates() -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Some(explicit) = std::env::var_os("MININET_VALUE_SELFTEST") {
-        if !explicit.is_empty() {
-            out.push(PathBuf::from(explicit));
+        let path = PathBuf::from(explicit);
+        if path.is_absolute() {
+            out.push(path);
         }
     }
     if let Ok(exe) = std::env::current_exe() {
@@ -44,7 +51,6 @@ pub fn candidates() -> Vec<PathBuf> {
             out.push(dir.join(format!("{BINARY}.exe")));
         }
     }
-    out.push(PathBuf::from(BINARY));
     out
 }
 
@@ -75,8 +81,14 @@ fn unavailable(reason: &str) -> Check {
 }
 
 fn spawn() -> Result<Vec<Check>, String> {
-    let mut last = "no value-check binary found".to_string();
+    let mut last = "no value-check binary found beside this program".to_string();
     for candidate in candidates() {
+        // Existence is checked before spawning so a missing helper reports a
+        // skip rather than an OS error, and so nothing is ever handed to the
+        // OS as a bare name to resolve.
+        if !candidate.is_absolute() || !candidate.is_file() {
+            continue;
+        }
         match std::process::Command::new(&candidate).output() {
             Ok(output) => {
                 let text = String::from_utf8_lossy(&output.stdout);
@@ -207,6 +219,31 @@ mod tests {
     fn an_unknown_outcome_word_is_refused() {
         let text = "MNVALUECHK1\nvalue\tname\tfalse\tmaybe\tdetail\n";
         assert!(parse(text).unwrap_err().contains("maybe"));
+    }
+
+    #[test]
+    fn no_candidate_is_ever_a_bare_name_for_the_os_to_resolve() {
+        // A bare name would let the OS search, and on Windows that search has
+        // historically included the current directory.
+        for candidate in candidates() {
+            assert!(
+                candidate.is_absolute(),
+                "{} is not absolute, so spawning it would be a PATH search",
+                candidate.display()
+            );
+        }
+    }
+
+    #[test]
+    fn a_relative_override_is_ignored_rather_than_searched_for() {
+        // Safe to set here: the value is read at call time, and the assertion
+        // is that a relative override contributes no candidate at all.
+        std::env::set_var("MININET_VALUE_SELFTEST", "mininet-value-selftest");
+        let relative = candidates()
+            .into_iter()
+            .any(|path| path == std::path::Path::new("mininet-value-selftest"));
+        std::env::remove_var("MININET_VALUE_SELFTEST");
+        assert!(!relative);
     }
 
     #[test]

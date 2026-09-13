@@ -386,6 +386,20 @@ jobs:
             fi
           done
 
+      # The packaged tree must carry the value-check binary, or every installed
+      # copy silently skips the checks the Diagnostics page advertises. Run it
+      # from the staging directory with no override in the environment, which
+      # is exactly how an installed client finds it.
+      - name: The packaged tree runs the value checks without an override
+        run: |
+          set -eu
+          test -f dist/ci/stage/mininet-value-selftest.exe
+          unset MININET_VALUE_SELFTEST || true
+          out=$(cd dist/ci/stage && ./mini.exe selftest)
+          echo "$out" | tail -20
+          echo "$out" | grep -q 'inflating an output breaks the balance check' \
+            || { echo 'the packaged tree does not run the value checks' >&2; exit 1; }
+
       - name: Install from the embedded payload, verify, upgrade, roll back, remove
         run: |
           set -eu

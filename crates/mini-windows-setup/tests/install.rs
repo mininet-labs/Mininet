@@ -830,3 +830,147 @@ fn the_registered_uninstall_command_names_what_was_actually_installed() {
     assert!(command.contains("--user-data-root"));
     assert!(command.contains("--desktop-shortcut"));
 }
+
+#[test]
+fn a_package_for_another_architecture_is_refused() {
+    // An x64 setup that installs an ARM package reports success and leaves a
+    // shortcut pointing at binaries Windows cannot execute.
+    let base = tempdir("foreign");
+    let manifest = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            // Deliberately not this machine's architecture.
+            target: "powerpc64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 1,
+        },
+        vec![PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap()],
+        vec![],
+    )
+    .unwrap();
+    let bytes =
+        mini_windows_setup::container::write(&manifest, |_| Ok(DESKTOP_V1.to_vec())).unwrap();
+    let container = Container::open(&bytes).unwrap();
+    let setup = Setup::new(base.join("Programs")).with_user_data_root(base.join("UserData"));
+    let mut options = options(&base);
+    let approval = InstallApproval::new(container.manifest(), 1_000);
+    let mut shell = RecordingShell::default();
+    let error = setup
+        .install(&container, &approval, &options, &mut shell, 1_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "foreign_target");
+    assert!(setup.status().unwrap().active.is_none());
+
+    // Cross-staging is still possible when a caller says so explicitly, which
+    // is what the packaging scripts do when building a Windows package.
+    options.allow_foreign_target = true;
+    setup
+        .install(&container, &approval, &options, &mut shell, 2_000)
+        .unwrap();
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn swapping_in_another_package_of_the_same_version_is_detected() {
+    // Files and manifest replaced together are self-consistent, so checking
+    // files against their own manifest would call this intact. The pointer
+    // records the digest the owner approved, which is what catches it.
+    let fixture = Fixture::new("swapped-package");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    assert!(fixture.setup.verify_installed("0.1.0").unwrap().is_intact());
+
+    // A different build of the same version, written over the installation
+    // together with its own valid manifest.
+    let other = package("0.1.0", DESKTOP_V2);
+    let version_dir = fixture.setup.layout().version_dir("0.1.0");
+    std::fs::write(version_dir.join("mininet-desktop.exe"), DESKTOP_V2).unwrap();
+    std::fs::write(
+        fixture.setup.layout().manifest_path("0.1.0"),
+        other.to_bytes(),
+    )
+    .unwrap();
+
+    let report = fixture.setup.verify_installed("0.1.0").unwrap();
+    assert!(!report.is_intact());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| matches!(problem, VerifyProblem::UnexpectedPackage { .. })));
+}
+
+#[test]
+fn a_rollback_that_cannot_reach_the_shell_changes_nothing() {
+    // Pointers must not move before shell integration succeeds: the old
+    // ordering recorded the rollback as done, reported it refused, and left
+    // no rollback target to retry with.
+    #[derive(Debug, Default)]
+    struct RefusingShell;
+    impl mini_windows_setup::ShellIntegration for RefusingShell {
+        fn apply(
+            &mut self,
+            _actions: &[ShellAction],
+        ) -> Result<(), mini_windows_setup::SetupError> {
+            Err(mini_windows_setup::SetupError::UnsupportedPlatform)
+        }
+    }
+
+    let fixture = Fixture::new("rollback-shell-fails");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+
+    let mut refusing = RefusingShell;
+    let error = fixture
+        .setup
+        .rollback(&fixture.options, &mut refusing, 3_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "unsupported_platform");
+
+    // Still on the newer version, and the rollback target is still there to
+    // try again with.
+    let status = fixture.setup.status().unwrap();
+    assert_eq!(status.active.unwrap().version_text, "0.2.0");
+    assert_eq!(status.previous.unwrap().version_text, "0.1.0");
+
+    // And a retry through a working shell succeeds.
+    let restored = fixture
+        .setup
+        .rollback(&fixture.options, &mut shell, 4_000)
+        .unwrap();
+    assert_eq!(restored.version_text, "0.1.0");
+}
+
+#[test]
+fn a_client_finds_the_install_root_it_was_started_from() {
+    // A custom install location must not read as unmanaged, which would
+    // disable verification and rollback on an installation that has both.
+    let fixture = Fixture::new("containing");
+    let mut shell = RecordingShell::default();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    let discovered = Setup::containing(&report.launch_path);
+    assert_eq!(discovered.layout().root(), fixture.setup.layout().root());
+    assert_eq!(
+        discovered.status().unwrap().active.unwrap().version_text,
+        "0.1.0"
+    );
+
+    // Something outside any install tree falls back to the default rather
+    // than guessing.
+    let elsewhere = Setup::containing(std::path::Path::new("/tmp/not-an-install/app.exe"));
+    assert_eq!(
+        elsewhere.layout().root(),
+        mini_windows_setup::InstallLayout::default_root()
+    );
+}

@@ -1464,14 +1464,38 @@ impl eframe::App for MininetApp {
                 (None, Err(error)) => format!("Peer sync failed: {error}"),
             };
         }
-        if let Some(report) = self
-            .selftest_rx
-            .as_ref()
-            .and_then(|receiver| receiver.try_recv().ok())
-        {
-            self.selftest_rx = None;
-            self.notice = format!("Diagnostics finished: {}", report.summary());
-            self.selftest_report = Some(report);
+        if let Some(receiver) = self.selftest_rx.as_ref() {
+            match receiver.try_recv() {
+                Ok(report) => {
+                    self.selftest_rx = None;
+                    self.notice = format!("Diagnostics finished: {}", report.summary());
+                    self.selftest_report = Some(report);
+                }
+                // The worker went away without sending: a check panicked.
+                // Discarding this state with `.ok()` left the receiver in
+                // place forever, so the page kept spinning with every button
+                // disabled and no way to retry short of restarting.
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.selftest_rx = None;
+                    self.notice =
+                        "Diagnostics stopped unexpectedly. Nothing here has been verified."
+                            .to_string();
+                    self.selftest_report = Some(SelfTestReport {
+                        checks: vec![mini_selftest::Check {
+                            area: "diagnostics",
+                            name: "the diagnostics stopped before reporting",
+                            negative: false,
+                            outcome: CheckOutcome::Failed {
+                                detail: "a check ended the run without producing a result. \
+                                         Nothing has been verified; press a button to run again."
+                                    .to_string(),
+                            },
+                        }],
+                        elapsed_ms: 0,
+                    });
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
+            }
         }
         let mut visibility_results = Vec::new();
         let mut visibility_finished = false;
@@ -3449,7 +3473,16 @@ impl MininetApp {
     /// always something a person started, in the setup program.
     fn updates(&mut self, ui: &mut egui::Ui) {
         ui.heading("Version & install");
-        let setup = Setup::for_current_user().with_user_data_root(data_root());
+        // Derived from this executable's own location, not the default root:
+        // a client installed somewhere custom would otherwise inspect
+        // %LOCALAPPDATA%\\Programs\\Mininet, find nothing, and report itself
+        // unmanaged with verification and rollback disabled on an
+        // installation that has both.
+        let setup = match std::env::current_exe() {
+            Ok(exe) => Setup::containing(&exe),
+            Err(_) => Setup::for_current_user(),
+        }
+        .with_user_data_root(data_root());
         let status = setup.status();
         ui.add_space(6.0);
         match &status {

@@ -227,5 +227,8 @@ pub fn describe_problem(problem: &VerifyProblem) -> String {
         } => format!("length:{path}:expected={expected}:found={found}"),
         VerifyProblem::Digest { path } => format!("digest:{path}"),
         VerifyProblem::Unexpected { path } => format!("unexpected:{path}"),
+        VerifyProblem::UnexpectedPackage { approved, found } => {
+            format!("unexpected-package:approved={approved}:found={found}")
+        }
     }
 }

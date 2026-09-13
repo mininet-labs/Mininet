@@ -91,6 +91,13 @@ pub enum SetupError {
     },
     /// A rollback was requested with no previous version recorded.
     NoPreviousVersion,
+    /// The package was built for an architecture this machine cannot run.
+    ForeignTarget {
+        /// The package's target triple.
+        package_target: String,
+        /// This machine's architecture.
+        host_arch: String,
+    },
     /// The install root contains, or is, the user-data root.
     ///
     /// Uninstall removes the install root recursively, so an overlap would
@@ -173,6 +180,13 @@ impl core::fmt::Display for SetupError {
                 "refusing to replace active version {active} with older {candidate}"
             ),
             Self::NoPreviousVersion => write!(f, "no previous version recorded to roll back to"),
+            Self::ForeignTarget {
+                package_target,
+                host_arch,
+            } => write!(
+                f,
+                "this package is built for {package_target}, which a {host_arch} machine cannot run"
+            ),
             Self::OverlappingRoots {
                 install_root,
                 user_data_root,
@@ -238,6 +252,7 @@ impl SetupError {
             Self::ApprovalMismatch { .. } => "approval_mismatch",
             Self::WouldDowngrade { .. } => "would_downgrade",
             Self::NoPreviousVersion => "no_previous_version",
+            Self::ForeignTarget { .. } => "foreign_target",
             Self::OverlappingRoots { .. } => "overlapping_roots",
             Self::CorruptPointer { .. } => "corrupt_pointer",
             Self::MissingVersionDirectory { .. } => "missing_version_directory",
