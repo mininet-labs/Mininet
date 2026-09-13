@@ -17,8 +17,11 @@ current: when a convention changes, change it in the same proposal.
 ## What this project is
 
 Mininet: a constitutional P2P protocol — identity, personhood, money,
-storage, governance — built in Rust as ~33 `mini-*` crates (two,
-`mini-cli` and `mini-build-runner-wasmtime`, are binaries), designed to
+storage, governance — built in Rust as ~79 `mini-*` crates (several are
+binaries, notably `mini-cli` and `mini-build-runner-wasmtime`; check
+`docs/_generated/REPO_MAP.md` or `python3 tools/mininet_nav.py map` for the
+exact current roster rather than trusting any hardcoded count, including
+this one — this file has gone stale on crate count before), designed to
 outlive its creators (think in centuries, not releases). The founder may give
 engineering direction via chat and currently performs the mechanical GitHub
 PR merge action under the active bootstrap operating decision. Chat direction
@@ -42,11 +45,21 @@ not authority precedence.
    Two "hard, temporary limitations" at its top must never be papered over:
    identity-root ≠ verified human (Sybil unsolved), and proof-of-space-time
    proves possession, not replication uniqueness.
-3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0084 so far. **Never edit
+3. `docs/DECISION_LOG.md` — append-only. D-0001–D-0525 so far (main
+   sequence; check the log's own header for the exact current count and the
+   reserved parallel-track bands — this number moves fast and any hardcoded
+   count here, this one included, goes stale within days). **Never edit
    old entries**; supersede with a new one. From D-0045 on, entries use the
    7-field template (Decision/Reason/Constitutional impact/Implementation
    status/Failure point/Required follow-up/Supersedes). Constitutional impact
-   must cite IDs ("Directive 4, M2"), not prose.
+   must cite IDs ("Directive 4, M2"), not prose. **Before claiming the next
+   free number, check every open PR's diff for `docs/DECISION_LOG.md`, not
+   just `main`'s tail** — two independent branches claimed D-0520/D-0521 for
+   unrelated decisions in September 2026 (PR #345's Windows installer vs.
+   this branch's Gate #72/#96 work); the one not yet in an open PR was
+   renumbered to D-0523–D-0525 to resolve it. Numbers only collide before
+   merge; append-only discipline means the fix must be a renumber on the
+   still-flexible side, never a silent skip or an edit to a merged entry.
 4. `docs/FAILURE_BOOK.md` — paths tried and rejected. Check it before
    proposing anything, so rejected designs aren't re-proposed.
 5. `docs/THREAT_MODEL.md` — civilization-scale threats (human/technical/
@@ -137,14 +150,49 @@ what's activated vs. staged vs. founder-only),
   recovery (`recover_from_kel`), pairwise pseudonyms. Everything roots here.
 - `mini-presence` / `mini-uniqueness` — co-presence attestation / personhood
   signal fusion (Sybil resistance = THE open question, roadmap #18).
+  `mini-presence`'s `RangingEvidenceV2`/`PresencePolicyV2`/
+  `verify_presence_v2` (Gate #97 architecture, D-0510, hardened through
+  D-0516/D-0519) require real two-sided ranging corroboration and
+  authenticated evidence rather than trusting a single signer's claim —
+  Gate #97's own hardware acceptance evidence is still outstanding.
+  Personhood/Sybil research contribution:
+  `docs/research/MN21_PERSONHOOD_VOUCH_GROWTH_CEILING_AND_EXTENSIONS_
+  20260912.md` derives a ~9-year best-case bootstrap-to-mainnet growth
+  ceiling from the unsigned Gate #21 external audit's own vouch-quota
+  formula, plus four extension proposals (sliding-window epochs, VDF-
+  anchored timing, cryptographic accumulators at scale, a coercion-
+  mitigation sketch) — issue #21 stays open by design.
 - `mini-chain` — BFT finality verification, equal weight per identity root.
   `mini-settlement` — offline payment claims, M1/M2/M3 (D-0055).
   `mini-execution` — chain-backed `CanonicalLedgerView` tying the two
   together (D-0061, closes #40); still not networked consensus (#36-#45).
 - `mini-value` — stealth addresses, ring signatures, Bulletproofs (D-0036
   prototypes). `mini-bounty` composes them for anonymous dev bounties.
+  **Gate #72 (external crypto audit) remediation is well underway but not
+  complete or wired into consensus:** `mini_custody::signing` now uses
+  real `frost_ristretto255` round1/round2/aggregate in place of the old
+  hand-rolled two-round FROST math (D-0517, legacy path gated behind
+  `legacy-hand-rolled-signing`); `mini_value::bp_range_v2` is a real
+  Bulletproofs range-proof/Pedersen-commitment implementation over the
+  vendored `bulletproofs` crate, additive alongside the old hand-rolled
+  one (D-0518, its generator-basis defect self-found and fixed in
+  D-0523); `mini_value::mlsag_v3`/`stealth_v3` and
+  `mini_private_payment::claim_v3`/`memo_v3` are `PrivatePaymentV3`
+  groundwork — a three-digest wire format, still additive (D-0523);
+  `mini_private_payment::decoy`'s `OSPEAD_AGE_WEIGHTS`/
+  `select_ring_indices_v3` is the audit's calibrated log-GB2 decoy
+  distribution, wired into `claim_v3::build_v3` (D-0524). **None of
+  PrivatePaymentV3 is wired into any consensus-checked path yet** —
+  canonical claim bytes, derived key images, and removing the old
+  transparent `PaymentClaim`/duplicate bounty ring path are named,
+  undone follow-up (see D-0517/D-0518's own follow-up lists and Gate
+  #72's status doc). #93 (custody DKG) and #72 (this remediation)
+  external audits are both still open.
 - `mini-treasury` — FROST threshold custody; real DKG + resharing now
-  exist (D-0059/D-0060) but are unaudited (#93). `mini-spacetime` —
+  exist (D-0059/D-0060) but are unaudited (#93); `mini-custody` (new,
+  D-0503/D-0509) is the production custody DKG ceremony crate over
+  `frost-ristretto255`, wired into `mini-treasury` with the old hand-
+  rolled DKG gated dev-only. `mini-spacetime` —
   possession-only storage proofs (Merkle/PDP). `mini-porep` — real
   proof-of-replication (D-0064, closes #31): sequential SDR-style sealing
   distinguishes many honest holders from one warehouse; unaudited.
@@ -196,7 +244,26 @@ what's activated vs. staged vs. founder-only),
   trusted-provenance-eligible until a separate OS-isolated mechanism is
   designed and decided. `mini-net` — DHT/gossip over real TCP.
 - `mini-bearer`/`mini-bootstrap`/`mini-sync`/`mini-update` — transport,
-  BLE-first bootstrap, CRDT sync, self-contained updates. `mini-update`'s
+  BLE-first bootstrap, CRDT sync, self-contained updates.
+  `mini-mesh` (new crate, D-0503) generalizes the multi-hop relay shape
+  already proven in `mini_net::GossipRouter`/`mini_consensus::net::TcpMesh`
+  onto any `mini_bearer::Bearer`: `EncryptedLink<B: Bearer>` (existing
+  `Channel` handshake, no new cryptography) plus `MeshNode` (dynamic link
+  set + dedup-flood re-gossip), proven both in-process and over real
+  loopback TCP sockets. Wired into Android via `mini-ffi::mesh::MeshHandle`
+  (D-0504) and `BlePeripheralServer`/`BleCentralRadio`/`BleMeshService`
+  (D-0505) so nearby phones can reach each other over BLE alone with no
+  internet — the algorithm and Android plumbing are real and tested, but
+  two-phone physical-hardware acceptance evidence is still outstanding and
+  `BleMeshService` is not yet wired into any UI/pairing flow. `mini-bearer`
+  also gained Gate #98's platform-neutral `LocalServiceRecord`/
+  `LocalRouteHint` Wi-Fi-adjacent bearer types (D-0514) — architecture
+  adopted on engineering merit, issue #98 stays open. `mini-dtn` (new
+  crate, D-0513) is the Gate #28 DTN/satellite-bearer architecture
+  scaffold — `mini_settlement::PaymentClaimV2` height-anchored settlement
+  plus a deferred-transport core (semantic dedup, DRR-scheduled delivery
+  classes, bounded-memory in-flight parcels) — issue #28 stays open.
+  `mini-update`'s
   `AdoptionState` layers device-local freshness/staleness bounds
   (`FreshnessPolicy`) and an optional independent build-provenance quorum
   gate (`ProvenancePolicy` + `evaluate_with_provenance`, over
@@ -216,6 +283,55 @@ what's activated vs. staged vs. founder-only),
   rewards, walls, object model, the two-device keystone demo.
 
 Find anything: `python3 tools/mininet_nav.py map` (see `docs/NAVIGATION.md`).
+
+## Latest merged work and open PRs (as of 2026-09-13 — check GitHub before trusting this list, it will go stale)
+
+PR #333 (BLE multi-hop mesh relay, D-0503–D-0519) merged into `main` on
+2026-09-12 per the founder's direction that nearby devices reach each other
+over BLE alone, not just pairwise: `mini-mesh` (above), Gate #93's real
+custody DKG (`mini-custody`), Gate #97's authenticated two-sided presence
+evidence, and Gate #28/#98's DTN/Wi-Fi architecture adoptions all landed
+through it, plus a running series of Codex/CodeQL remediation batches
+(D-0507–D-0519) and Gate #72 crypto-audit remediation (D-0517/D-0518).
+Six PRs were open as of this writing, none yet merged — check their current
+state on GitHub rather than assuming this summary is current:
+
+- **#334** — Open Beta + Forge transition (giant milestone, deliberately
+  draft): new `mini-beta` crate, anonymous participation objects, Beta MINI
+  reference ledger. Stacked on top: **#341** (`mini-beta-grants`,
+  decentralized multi-party grant acceptance, removes single-key issuance)
+  and **#343** (`mini-beta-exec`, durable UTXO-style authenticated
+  execution) and **#342** (Forge-native CLI surface for the whole path,
+  no GitHub dependency). All explicitly test-domain-only value, isolated
+  from production value/settlement/treasury/chain/consensus/governance by
+  an enforced dependency wall.
+- **#340** — Founding Parliament governance bridge (rolling `2n+1`-growth
+  seats, 90-day duty leases, H0's time-boxed/overridable Guardian Stay,
+  evidence-gated transition to public governance): a proposal + executable
+  policy kernel (`mini-forge::parliament_policy`), explicitly not activating
+  anything by merging.
+- **#344** — economics research: stable-purchasing-power vs. Human-Share
+  framing over a 1,000-year horizon, an offline interactive planner, and a
+  finite founder-compensation/milestone proposal. Not a rule change.
+- **#345** — Windows client installer (`mini-windows-setup`, an MSI, and a
+  `mini-selftest` diagnostics crate that keeps the value/governance wall
+  intact by spawning a separate `mini-value-selftest` binary rather than
+  linking both). D-0520/D-0521 in this PR's own numbering; **do not
+  confuse with this branch's now-renumbered D-0523/D-0524** (same
+  originally-claimed numbers, resolved per the collision note in
+  "Canonical sources" above).
+
+**D-0525 (Gate #96, external legal review adopted as engineering
+direction):** no BTC/XMR/fiat/stablecoin-for-MINI issuance at genesis, no
+token sale of any kind, no XRPL/XMR genesis liquidity promise — narrows
+what genesis can do, never widens it. The gate itself is **not** closed
+(pending a qualified lawyer's actual signature); see
+`docs/gates/legal-review-brief.md`. Watch for founder chat proposals that
+re-introduce a donation-for-issuance shape (e.g. a proportional/auction-
+style airdrop funded by external-asset donations) — those hit the exact
+fact pattern D-0525 deferred and need to go back through the same legal
+gate, not around it; chat direction authorizes engineering exploration, not
+a bypass of an already-adopted legal constraint.
 
 ## Current priority (D-0066 — Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)
 
@@ -251,12 +367,25 @@ entails.
 
 ## Current launch blockers (keep these in view as horizontal work resumes)
 
-1. Sybil/personhood economics — #18, the sharpest open question.
+1. Sybil/personhood economics — #18, the sharpest open question; see also
+   the growth-ceiling research contribution referenced above (#21).
 2. KEL freshness/witnesses (M3) — stale-KEL revocation gap, audit #12 F4.
-3. FROST DKG — implemented and tested (D-0059/D-0060); external audit still
-   open, #93 (P0, D-0048).
-4. Real BLE transport + client app — needs hardware, not startable here.
+3. FROST DKG — implemented and tested (D-0059/D-0060), now backed by a
+   production `mini-custody` ceremony crate over `frost-ristretto255`
+   (D-0503/D-0509); external audit still open, #93 (P0, D-0048).
+4. BLE transport — the multi-hop relay algorithm and Android plumbing are
+   now real and tested (`mini-mesh`, D-0503–D-0505); two-phone physical-
+   hardware acceptance evidence and UI wiring are still outstanding.
 5. External crypto audit — #72, gates everything value-bearing (D-0047).
+   Real remediation has landed (`frost_ristretto255` FROST signing,
+   vendored-Bulletproofs range proofs, calibrated OSPEAD decoy
+   distribution, D-0517/D-0518/D-0523/D-0524) but none of it is wired into
+   any consensus-checked path yet, and the external audit itself is still
+   open — do not read the remediation as the gate closing.
+6. Gate #96 (legal/regulatory) — external review received and its
+   genesis-narrowing conclusions adopted as engineering direction (D-0525),
+   but the gate is not closed pending qualified counsel signature; #47's
+   treasury-contribution mechanism stays deferred at genesis either way.
 
 ## Session hygiene for the agent
 

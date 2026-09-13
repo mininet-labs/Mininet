@@ -2,7 +2,7 @@
   "counts": {
     "crates": 79,
     "files": 1007,
-    "headings": 3610,
+    "headings": 3611,
     "rust_symbols": 10510
   },
   "crates": {
@@ -1415,7 +1415,7 @@
       "title": "Mininet AI Session Entry Point"
     },
     {
-      "bytes": 17298,
+      "bytes": 25978,
       "group": "root",
       "headings": [
         {
@@ -1430,69 +1430,74 @@
         },
         {
           "level": 2,
-          "line": 30,
+          "line": 33,
           "text": "Canonical sources \u2014 load what the task requires"
         },
         {
           "level": 2,
-          "line": 66,
+          "line": 79,
           "text": "Hard rules (violating any of these is the only real failure mode)"
         },
         {
           "level": 2,
-          "line": 108,
+          "line": 121,
           "text": "Workflow ritual (what the founder expects every batch)"
         },
         {
           "level": 2,
-          "line": 133,
+          "line": 146,
           "text": "Codebase map (the 30-second version)"
         },
         {
           "level": 2,
-          "line": 220,
+          "line": 287,
+          "text": "Latest merged work and open PRs (as of 2026-09-13 \u2014 check GitHub before trusting this list, it will go stale)"
+        },
+        {
+          "level": 2,
+          "line": 336,
           "text": "Current priority (D-0066 \u2014 Batches 1-5 shipped; widening into Batch 6/Branches A-D is the founder's call)"
         },
         {
           "level": 2,
-          "line": 252,
+          "line": 368,
           "text": "Current launch blockers (keep these in view as horizontal work resumes)"
         },
         {
           "level": 2,
-          "line": 261,
+          "line": 390,
           "text": "Session hygiene for the agent"
         }
       ],
       "keywords": [
         "what",
+        "current",
         "never",
         "canonical",
-        "every",
-        "constitutional",
+        "work",
         "context",
-        "founder",
-        "current",
+        "check",
         "authority",
-        "invariants",
-        "governance",
-        "direction",
+        "constitutional",
         "claude",
         "agent",
-        "failure",
-        "work",
+        "founder",
+        "every",
         "session",
         "agents",
+        "governance",
+        "count",
+        "one",
         "directive",
         "project",
         "sources",
         "task",
-        "requires",
-        "hard"
+        "hard",
+        "these"
       ],
-      "lines": 273,
+      "lines": 402,
       "path": "CLAUDE.md",
-      "sha256": "877085699165fd82a2a8a388c26a95e52e4f8aba5dceb13db061f41202a73f67",
+      "sha256": "63bb7bfa716164fde03b7f82e6be944ae32d9990982595f910bab923773f84ab",
       "symbols": [],
       "title": "CLAUDE.md \u2014 agent context for working on Mininet"
     },
