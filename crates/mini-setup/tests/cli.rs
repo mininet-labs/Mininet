@@ -100,7 +100,22 @@ impl Env {
             .arg("--install-root")
             .arg(&self.install_root)
             .arg("--user-data-root")
-            .arg(&self.user_data);
+            .arg(&self.user_data)
+            // `--install-root`/`--user-data-root` isolate the files an
+            // install writes, but the Start Menu shortcut and the Apps &
+            // features registry key are not parameterized by install root
+            // at all: on real Windows they are the one real global
+            // `Mininet.lnk` and the one real `HKCU:\...\Uninstall\Mininet`
+            // key, shared by every test in this binary. `cargo test` runs
+            // this file's tests in parallel by default, so without this,
+            // two tests installing at once race on that shared state --
+            // this file exists to test the CLI/JSON boundary (its own
+            // module doc), not shell integration, which
+            // `mini-windows-setup`'s own suite already covers end to end
+            // against `RecordingShell`. Harmless to repeat on the one test
+            // that already passes these itself.
+            .arg("--no-start-menu")
+            .arg("--no-register");
         // A stray .mnpkg beside the test binary must never be picked up.
         command.env("MININET_SETUP_PAYLOAD", "");
         command.output().expect("running mininet-setup")

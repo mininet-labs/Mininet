@@ -3336,16 +3336,24 @@ impl MininetApp {
              throwaway state and deletes it afterwards.",
         );
         ui.add_space(8.0);
-        let available = mini_selftest::all_checks();
-        let refusals = available
+        // Includes the value-layer checks a real run appends after spawning
+        // `mininet-value-selftest`: without them this summary undercounts
+        // what "Run every check" actually does whenever that binary ships
+        // alongside the client, which is every packaged build.
+        let total =
+            mini_selftest::all_checks().len() + mini_selftest::value::ADVERTISED_CHECKS.len();
+        let refusals = mini_selftest::all_checks()
             .iter()
             .filter(|(_, _, negative, _)| *negative)
-            .count();
+            .count()
+            + mini_selftest::value::ADVERTISED_CHECKS
+                .iter()
+                .filter(|(_, _, negative)| *negative)
+                .count();
         ui.label(format!(
-            "{} checks across {} areas. {refusals} of them check that something is \
+            "{total} checks across {} areas. {refusals} of them check that something is \
              *refused* rather than that it works, which is what shows the guarantees are \
              load-bearing.",
-            available.len(),
             mini_selftest::AREAS.len()
         ));
         ui.add_space(10.0);

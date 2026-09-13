@@ -550,6 +550,15 @@ impl Setup {
             }
             Some(_) => PlanKind::Downgrade,
         };
+        // Whatever this version is replacing (an older version on upgrade or
+        // downgrade, or a different build of the same version on reinstall)
+        // may have declared shortcut names this manifest does not. Read
+        // before that record's own shell actions are recomputed below, so a
+        // retired name can be retired rather than merely not recreated.
+        let previous_shortcut_names = active
+            .as_ref()
+            .map(|record| self.stored_shortcut_names(&record.version_text))
+            .unwrap_or_default();
         let version_dir = self.layout.version_dir(&manifest.version_text);
         let mut files = Vec::with_capacity(manifest.files.len());
         for file in &manifest.files {
@@ -560,7 +569,13 @@ impl Setup {
             });
         }
         let launch_path = path::join(&version_dir, &manifest.launch)?;
-        let shell_actions = self.shell_plan(manifest, options, &launch_path, &version_dir)?;
+        let shell_actions = self.shell_plan(
+            manifest,
+            options,
+            &launch_path,
+            &version_dir,
+            &previous_shortcut_names,
+        )?;
         Ok(InstallPlan {
             package: manifest.package.clone(),
             version_text: manifest.version_text.clone(),
@@ -910,7 +925,23 @@ impl Setup {
         }
         let manifest = self.layout.stored_manifest(&previous.version_text)?;
         let launch_path = path::join(&version_dir, &manifest.launch)?;
-        let actions = self.shell_plan(&manifest, options, &launch_path, &version_dir)?;
+        // The version rollback is replacing may have declared shortcut names
+        // this older manifest does not, same as any other transition between
+        // two installed versions.
+        let retiring_shortcut_names = self
+            .layout
+            .current()
+            .ok()
+            .flatten()
+            .map(|record| self.stored_shortcut_names(&record.version_text))
+            .unwrap_or_default();
+        let actions = self.shell_plan(
+            &manifest,
+            options,
+            &launch_path,
+            &version_dir,
+            &retiring_shortcut_names,
+        )?;
         // Shell integration first, pointers second. Both orderings can fail,
         // but only this one fails *safely*: a shortcut that already points at
         // the older version while the pointer still names the newer one is
@@ -965,18 +996,7 @@ impl Setup {
             .current()
             .ok()
             .flatten()
-            .and_then(|record| self.layout.stored_manifest(&record.version_text).ok())
-            .map(|manifest| {
-                if manifest.shortcuts.is_empty() {
-                    vec![format!("{PRODUCT_KEY}.lnk")]
-                } else {
-                    manifest
-                        .shortcuts
-                        .iter()
-                        .map(|shortcut| format!("{}.lnk", shortcut.name))
-                        .collect()
-                }
-            })
+            .map(|record| self.stored_shortcut_names(&record.version_text))
             .unwrap_or_else(|| vec![format!("{PRODUCT_KEY}.lnk")]);
         for link_name in names {
             if options.start_menu_shortcut {
@@ -1068,6 +1088,19 @@ impl Setup {
     /// hard-coded default. A manifest with no shortcut records still gets one
     /// for its launch target, because that is the ordinary case and a client
     /// nobody can start is not a useful install.
+    /// The `.lnk` name(s) a version's stored manifest is currently
+    /// registered under, or the one default name if no manifest can be
+    /// read. Shared by uninstall (which must remove exactly what a version
+    /// created) and upgrade planning (which must retire a name the new
+    /// version no longer declares).
+    fn stored_shortcut_names(&self, version_text: &str) -> Vec<String> {
+        self.layout
+            .stored_manifest(version_text)
+            .ok()
+            .map(|manifest| shortcut_link_names(&manifest))
+            .unwrap_or_else(|| vec![format!("{PRODUCT_KEY}.lnk")])
+    }
+
     fn requested_shortcuts(
         &self,
         manifest: &PackageManifest,
@@ -1095,6 +1128,7 @@ impl Setup {
         options: &InstallOptions,
         launch_path: &Path,
         version_dir: &Path,
+        previous_shortcut_names: &[String],
     ) -> Result<Vec<ShellAction>, SetupError> {
         let mut actions = Vec::new();
         let description = format!("{} client", manifest.product);
@@ -1119,6 +1153,30 @@ impl Setup {
                     working_dir: version_dir.to_path_buf(),
                     description: description.clone(),
                 }));
+            }
+        }
+        // A name the version being replaced declared but this one does not
+        // is retired, not merely left uncreated: otherwise it would keep
+        // pointing at whatever that older version directory still holds
+        // (its own upgrade target on a later reinstall, or nothing at all
+        // once it is removed), which is not what "installed" declares.
+        let requested_names: std::collections::BTreeSet<&str> =
+            requested.iter().map(|(name, _)| name.as_str()).collect();
+        for retired_name in previous_shortcut_names {
+            if requested_names.contains(retired_name.as_str()) {
+                continue;
+            }
+            if options.start_menu_shortcut {
+                actions.push(ShellAction::RemoveShortcut {
+                    location: self.start_menu_location(options),
+                    link_name: retired_name.clone(),
+                });
+            }
+            if options.desktop_shortcut {
+                actions.push(ShellAction::RemoveShortcut {
+                    location: self.desktop_location(options),
+                    link_name: retired_name.clone(),
+                });
             }
         }
         if options.register_uninstall {
@@ -1227,6 +1285,14 @@ fn uninstall_command(
     user_data_root: &Path,
     options: &InstallOptions,
 ) -> String {
+    // Apps & features starts the recorded command in a working directory
+    // this crate does not control. A relative root (an editable install
+    // location like a bare "Mininet") would then resolve against whatever
+    // that directory happens to be, inspecting or removing a different path
+    // than the one actually installed. Absolute, so the command means the
+    // same thing regardless of where it runs from.
+    let install_root = absolute_normalized(install_root);
+    let user_data_root = absolute_normalized(user_data_root);
     let mut command = format!(
         "\"{}\" --uninstall --install-root \"{}\" --user-data-root \"{}\"",
         setup_exe.display(),
@@ -1303,6 +1369,22 @@ fn remove_managed_root_contents(root: &Path) -> Result<(), SetupError> {
     Ok(())
 }
 
+/// The `.lnk` name(s) `manifest` declares, or the one default name for a
+/// manifest that declares none. The single place both the fallback and the
+/// naming convention (`<shortcut name>.lnk`) live, so uninstall and upgrade
+/// planning cannot drift apart on what a version's shortcuts are called.
+fn shortcut_link_names(manifest: &PackageManifest) -> Vec<String> {
+    if manifest.shortcuts.is_empty() {
+        vec![format!("{PRODUCT_KEY}.lnk")]
+    } else {
+        manifest
+            .shortcuts
+            .iter()
+            .map(|shortcut| format!("{}.lnk", shortcut.name))
+            .collect()
+    }
+}
+
 fn absolute(path: &Path) -> PathBuf {
     if path.is_absolute() {
         return path.to_path_buf();
@@ -1331,7 +1413,21 @@ fn walk_relative(dir: &Path) -> Result<Vec<String>, SetupError> {
             } else {
                 format!("{prefix}/{name}")
             };
-            if entry.path().is_dir() {
+            // `DirEntry::file_type()` is symlink-aware (an `lstat`, not a
+            // `stat`): a symlink reports as a symlink here, not as whatever
+            // it points to. This matters because a manifest never declares a
+            // symlink, so one found under an installed version is already
+            // unexpected -- and following it (`entry.path().is_dir()` would)
+            // could walk back into the version directory through a link
+            // pointing at itself or an ancestor, or descend into an
+            // arbitrarily large tree a link points outside the install.
+            // Recording it as a plain entry, without recursing, surfaces it
+            // as `VerifyProblem::Unexpected` below rather than either of
+            // those.
+            let file_type = entry
+                .file_type()
+                .map_err(|error| SetupError::io(&current, error))?;
+            if file_type.is_dir() {
                 stack.push((entry.path(), relative));
             } else {
                 out.push(relative);
@@ -1340,4 +1436,43 @@ fn walk_relative(dir: &Path) -> Result<Vec<String>, SetupError> {
     }
     out.sort();
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_recorded_uninstall_command_names_an_absolute_root_even_for_a_relative_one() {
+        // Apps & features starts the recorded command in a working directory
+        // this crate does not control, so a relative root recorded verbatim
+        // would resolve against whatever that directory happens to be at
+        // uninstall time -- inspecting or removing a different path than the
+        // one actually installed. This is a unit test rather than one that
+        // drives a real install because forcing a *relative* root safely
+        // needs a process-wide chdir, which is not safe to do in a binary
+        // that runs tests in parallel.
+        let options = InstallOptions::default();
+        let command = uninstall_command(
+            Path::new("mininet-setup.exe"),
+            Path::new("Mininet"),
+            Path::new("MininetData"),
+            &options,
+        );
+        // The exact literal the caller passed never appears bare: it is
+        // always joined onto an absolute prefix first.
+        assert!(
+            !command.contains("\"Mininet\""),
+            "the relative root was recorded verbatim: {command}"
+        );
+        assert!(
+            !command.contains("\"MininetData\""),
+            "the relative user-data root was recorded verbatim: {command}"
+        );
+        let install_root = absolute_normalized(Path::new("Mininet"));
+        let user_data_root = absolute_normalized(Path::new("MininetData"));
+        assert!(install_root.is_absolute());
+        assert!(command.contains(install_root.to_str().unwrap()));
+        assert!(command.contains(user_data_root.to_str().unwrap()));
+    }
 }

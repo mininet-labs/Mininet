@@ -88,19 +88,26 @@ pub fn coverage() -> CommandResult {
 }
 
 /// List what would run, without running it.
+///
+/// Includes the value-layer checks that a real run appends after spawning
+/// `mininet-value-selftest` (`mini_selftest::value`'s module docs), from a
+/// static table rather than by spawning the binary here: this command's own
+/// contract is to list without running, and actually spawning it would mean
+/// doing real cryptographic work just to print a name.
 pub fn list() -> CommandResult {
-    let checks = mini_selftest::all_checks();
+    let checks: Vec<(&str, &str, bool)> = mini_selftest::all_checks()
+        .into_iter()
+        .map(|(area, name, negative, _)| (area, name, negative))
+        .chain(mini_selftest::value::ADVERTISED_CHECKS.iter().copied())
+        .collect();
     let mut human = format!("{} checks across {} areas:\n", checks.len(), AREAS.len());
-    for (area, name, negative, _) in &checks {
+    for (area, name, negative) in &checks {
         human.push_str(&format!(
             "  [{area}]{} {name}\n",
             if *negative { " (refusal)" } else { "" }
         ));
     }
-    let refusals = checks
-        .iter()
-        .filter(|(_, _, negative, _)| *negative)
-        .count();
+    let refusals = checks.iter().filter(|(_, _, negative)| *negative).count();
     human.push_str(&format!(
         "{refusals} of them check that something is refused, not that it works.\n"
     ));
@@ -113,7 +120,7 @@ pub fn list() -> CommandResult {
             JsonValue::strs(
                 checks
                     .iter()
-                    .map(|(area, name, _, _)| format!("{area}: {name}")),
+                    .map(|(area, name, _)| format!("{area}: {name}")),
             ),
         )
 }

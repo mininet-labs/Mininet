@@ -395,6 +395,40 @@ fn verification_reports_every_problem_rather_than_only_the_first() {
     )));
 }
 
+#[cfg(unix)]
+#[test]
+fn a_directory_symlink_inside_the_install_is_reported_not_followed() {
+    // A manifest never declares a symlink, so one found under an installed
+    // version is already unexpected -- and following it, rather than
+    // reporting it, could walk back into the version directory through a
+    // link to itself (unbounded recursion) or out through a link to an
+    // arbitrarily large or sensitive directory elsewhere on disk.
+    let fixture = Fixture::new("verify-symlink");
+    let mut shell = RecordingShell::default();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let version_dir = report.launch_path.parent().unwrap().to_path_buf();
+
+    // A link back to the version directory itself: the case that would hang
+    // forever if verification followed it.
+    std::os::unix::fs::symlink(&version_dir, version_dir.join("self_link")).unwrap();
+
+    let verify = fixture.setup.verify_installed("0.1.0").unwrap();
+    assert!(!verify.is_intact());
+    assert!(verify.problems.iter().any(|problem| matches!(
+        problem,
+        VerifyProblem::Unexpected { path } if path == "self_link"
+    )));
+    // Nothing named after a file *inside* the version directory (reached
+    // only by following the link) was reported -- confirming the link
+    // itself was recorded, not traversed.
+    assert!(!verify
+        .problems
+        .iter()
+        .any(|problem| matches!(problem, VerifyProblem::Unexpected { path } if path.starts_with("self_link/"))));
+}
+
 #[test]
 fn rollback_returns_to_the_previous_version_and_repoints_the_shortcut() {
     let fixture = Fixture::new("rollback");
@@ -806,6 +840,113 @@ fn the_shortcuts_a_manifest_declares_are_the_ones_created() {
         names,
         vec!["Mininet.lnk".to_string(), "Mininet Console.lnk".to_string()]
     );
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn upgrading_to_a_manifest_with_a_different_shortcut_name_retires_the_old_one() {
+    // Not merely "not recreated": a name the previous manifest declared and
+    // this one does not must be actively removed, or it keeps pointing at
+    // whatever the old version directory still holds after the upgrade.
+    let base = tempdir("shortcut-retirement");
+    let setup = Setup::new(base.join("Programs")).with_user_data_root(base.join("UserData"));
+    let options = InstallOptions {
+        start_menu_dir: Some(base.join("menu")),
+        desktop_dir: Some(base.join("desktop")),
+        ..InstallOptions::default()
+    };
+
+    let first = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 1,
+        },
+        vec![
+            PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap(),
+            PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
+        ],
+        vec![PackageShortcut {
+            target: "mininet-desktop.exe".to_string(),
+            name: "Mininet".to_string(),
+        }],
+    )
+    .unwrap();
+    let first_bytes = mini_windows_setup::container::write(&first, |path| {
+        Ok(match path {
+            "mininet-desktop.exe" => DESKTOP_V1.to_vec(),
+            "mininet-setup.exe" => SETUP.to_vec(),
+            other => panic!("unexpected {other}"),
+        })
+    })
+    .unwrap();
+    let container = Container::open(&first_bytes).unwrap();
+    let approval = InstallApproval::new(container.manifest(), 1_000);
+    setup
+        .install(
+            &container,
+            &approval,
+            &options,
+            &mut RecordingShell::default(),
+            1_000,
+        )
+        .unwrap();
+
+    let second = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.2.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 2,
+        },
+        vec![
+            PackageFile::describe("mininet-desktop.exe", DESKTOP_V2).unwrap(),
+            PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
+        ],
+        vec![PackageShortcut {
+            target: "mininet-desktop.exe".to_string(),
+            name: "Mininet Client".to_string(),
+        }],
+    )
+    .unwrap();
+    let second_bytes = mini_windows_setup::container::write(&second, |path| {
+        Ok(match path {
+            "mininet-desktop.exe" => DESKTOP_V2.to_vec(),
+            "mininet-setup.exe" => SETUP.to_vec(),
+            other => panic!("unexpected {other}"),
+        })
+    })
+    .unwrap();
+    let container = Container::open(&second_bytes).unwrap();
+    let approval = InstallApproval::new(container.manifest(), 2_000);
+    let mut shell = RecordingShell::default();
+    setup
+        .install(&container, &approval, &options, &mut shell, 2_000)
+        .unwrap();
+
+    let created: Vec<&str> = shell
+        .actions
+        .iter()
+        .filter_map(|action| match action {
+            ShellAction::CreateShortcut(request) => Some(request.link_name.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(created, vec!["Mininet Client.lnk"]);
+    let removed: Vec<&str> = shell
+        .actions
+        .iter()
+        .filter_map(|action| match action {
+            ShellAction::RemoveShortcut { link_name, .. } => Some(link_name.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(removed, vec!["Mininet.lnk"]);
     let _ = std::fs::remove_dir_all(base);
 }
 

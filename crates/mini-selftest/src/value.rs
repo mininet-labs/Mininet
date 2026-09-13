@@ -26,6 +26,54 @@ pub const BINARY: &str = "mininet-value-selftest";
 /// Format tag the binary prints before its first result line.
 const MAGIC: &str = "MNVALUECHK1";
 
+/// The value-layer checks this crate advertises via `mini selftest list`,
+/// as `(area, name, negative)` -- matching, by hand, the table
+/// `mini-value-selftest/src/main.rs`'s own `checks()` builds.
+///
+/// A plain data duplicate, not a shared function, because the only
+/// alternative to duplicating these names is either spawning the binary
+/// just to list what it would do (real crypto work for a command whose own
+/// contract is "without running it"), or one of the two crates depending on
+/// the other -- which would recreate exactly the edge this whole process
+/// boundary exists to avoid, in whichever direction it went. Kept honest by
+/// [`self::tests::advertised_names_match_what_the_binary_actually_reports`],
+/// which spawns the real binary (skipping itself, not failing, if it is not
+/// built) and fails if this list and its output ever disagree.
+pub const ADVERTISED_CHECKS: &[(&str, &str, bool)] = &[
+    (
+        "value",
+        "a hidden amount commits and its range proof verifies",
+        false,
+    ),
+    ("value", "a tampered range proof does not verify", true),
+    (
+        "value",
+        "a range proof does not verify against a different commitment",
+        true,
+    ),
+    ("value", "outputs that balance their inputs verify", false),
+    (
+        "value",
+        "inflating an output breaks the balance check",
+        true,
+    ),
+    (
+        "treasury",
+        "a threshold of distinct custodians authorizes a payout",
+        false,
+    ),
+    (
+        "treasury",
+        "one custodian cannot reach the threshold, even by approving twice",
+        true,
+    ),
+    (
+        "treasury",
+        "an approval from outside the custody set counts for nothing",
+        true,
+    ),
+];
+
 /// Where to look for the value-check binary.
 ///
 /// **Absolute paths only, and never a `PATH` search.** Spawning a bare name
@@ -232,6 +280,41 @@ mod tests {
                 candidate.display()
             );
         }
+    }
+
+    #[test]
+    fn advertised_names_match_what_the_binary_actually_reports() {
+        // `ADVERTISED_CHECKS` is hand-maintained, duplicating
+        // mini-value-selftest's own table rather than linking it (see that
+        // constant's doc comment for why). This is what keeps the
+        // duplication honest: spawn the real binary and compare, rather
+        // than trusting the copy forever. Skips, rather than fails, when the
+        // binary is not locatable in this run -- consistent with every other
+        // check in this module -- but CI builds the binary and sets
+        // `MININET_VALUE_SELFTEST` before running this test specifically so
+        // the comparison is not skipped there.
+        if located().is_none() {
+            eprintln!("mininet-value-selftest not found; skipping the drift check");
+            return;
+        }
+        let reported: Vec<(String, String, bool)> = run()
+            .into_iter()
+            .map(|check| {
+                let (area, name) = check
+                    .name
+                    .split_once(": ")
+                    .expect("value::run() names are \"area: name\"");
+                (area.to_string(), name.to_string(), check.negative)
+            })
+            .collect();
+        let advertised: Vec<(String, String, bool)> = ADVERTISED_CHECKS
+            .iter()
+            .map(|(area, name, negative)| (area.to_string(), name.to_string(), *negative))
+            .collect();
+        assert_eq!(
+            reported, advertised,
+            "ADVERTISED_CHECKS has drifted from what mininet-value-selftest actually reports"
+        );
     }
 
     #[test]

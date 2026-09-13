@@ -705,14 +705,14 @@ fn dispatch_selftest(mut args: Vec<String>, json: bool) -> Result<String> {
     if clean {
         return Ok(rendered);
     }
-    // Failing checks exit non-zero. Under --json the compact summary goes in
-    // the error envelope's message and `error_code` is `selftest_failed`; a
-    // caller wanting the detail re-runs and reads the ok envelope's fields.
-    Err(CliError::SelfTest(if json {
-        "at least one self-test check failed; re-run without --json for the report".to_string()
-    } else {
-        rendered
-    }))
+    // Failing checks exit non-zero either way. The report itself --
+    // human text or, under --json, the full `{"clean":false,"passed":...,
+    // "failures":[...],"skips":[...]}` envelope -- is carried as the error's
+    // payload rather than replaced with a generic sentence: a caller reading
+    // `--json` output needs `error_code` to know the command failed *and*
+    // the report's fields to know which checks did, without a second
+    // invocation in a different mode to find out.
+    Err(CliError::SelfTest(rendered))
 }
 
 /// `mini windows ...` --- build and inspect Windows client packages.
