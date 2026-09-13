@@ -974,3 +974,34 @@ fn a_client_finds_the_install_root_it_was_started_from() {
         mini_windows_setup::InstallLayout::default_root()
     );
 }
+
+#[test]
+fn the_install_lock_never_sits_inside_the_directory_it_guards() {
+    // Windows refuses to remove a directory containing an open handle, so a
+    // lock held inside the install root makes the uninstall that holds it
+    // fail with access denied. Unlinking an open file is fine on Linux, so
+    // this is invisible without either a Windows runner or this assertion.
+    let fixture = Fixture::new("lock-location");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    let root = fixture.setup.layout().root();
+    let lock = fixture.setup.layout().lock_path();
+    assert!(lock.is_file(), "the lock should exist after an install");
+    assert!(
+        !lock.starts_with(root),
+        "the lock at {} is inside the root at {} that uninstall removes",
+        lock.display(),
+        root.display()
+    );
+
+    // And the root really does come away cleanly.
+    let approval = UninstallApproval::keeping_identities(root, 2_000);
+    fixture
+        .setup
+        .uninstall(&approval, &fixture.options, &mut shell, 2_000)
+        .unwrap();
+    assert!(!root.exists());
+}

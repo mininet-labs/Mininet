@@ -65,7 +65,11 @@ pub const PREVIOUS_FILE: &str = "previous.txt";
 pub const LOG_FILE: &str = "setup-log.txt";
 
 /// Exclusive lock held across every mutating operation on an install root.
-pub const LOCK_FILE: &str = ".setup-lock";
+///
+/// Written as a **sibling** of the root, as `<root name>` plus this suffix.
+/// A lock file inside the root would be an open handle inside a directory
+/// that uninstall removes, and Windows refuses to remove such a directory.
+pub const LOCK_SUFFIX: &str = ".setup-lock";
 
 /// Which version is installed, and the exact package it came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -221,6 +225,21 @@ impl InstallLayout {
     /// The append-only setup log.
     pub fn log_path(&self) -> PathBuf {
         self.root.join(LOG_FILE)
+    }
+
+    /// The exclusive lock guarding this install root.
+    ///
+    /// Beside the root rather than in it: see [`LOCK_SUFFIX`].
+    pub fn lock_path(&self) -> PathBuf {
+        let name = self
+            .root
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| "mininet".to_string());
+        match self.root.parent() {
+            Some(parent) => parent.join(format!("{name}{LOCK_SUFFIX}")),
+            None => PathBuf::from(format!("{name}{LOCK_SUFFIX}")),
+        }
     }
 
     /// Read the active install record, if there is one.

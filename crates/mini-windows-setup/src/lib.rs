@@ -77,7 +77,7 @@ pub mod shell;
 
 pub use container::Container;
 pub use error::SetupError;
-pub use layout::{InstallLayout, InstallRecord, CURRENT_FILE, LOCK_FILE};
+pub use layout::{InstallLayout, InstallRecord, CURRENT_FILE, LOCK_SUFFIX};
 pub use log::{SetupEvent, SetupLog};
 pub use manifest::{ManifestHeader, PackageFile, PackageManifest, PackageShortcut};
 pub use report::Field;
@@ -504,13 +504,17 @@ impl Setup {
     /// pointer writes interleave. An install racing an uninstall is worse
     /// still --- it can recreate part of a tree that is being removed.
     ///
-    /// The lock file lives beside the pointers and is never deleted, so the
-    /// lock survives an uninstall that removes everything else; taking it is
-    /// what makes that removal safe in the first place.
+    /// The lock file is a **sibling** of the install root, not a file inside
+    /// it. Windows refuses to remove a directory that contains an open handle,
+    /// so a lock held inside the root would make the uninstall that holds it
+    /// fail with access denied --- which is exactly what it did the first time
+    /// this was written, on Windows only, because unlinking an open file is
+    /// fine on Linux and the tests all passed locally.
     fn lock(&self) -> Result<std::fs::File, SetupError> {
-        let root = self.layout.root();
-        mini_durable::create_dir_all(root).map_err(|error| SetupError::io(root, error))?;
-        let path = root.join(LOCK_FILE);
+        let path = self.layout.lock_path();
+        if let Some(parent) = path.parent() {
+            mini_durable::create_dir_all(parent).map_err(|error| SetupError::io(parent, error))?;
+        }
         mini_durable::lock_exclusive(&path).map_err(|error| SetupError::io(&path, error))
     }
 
