@@ -18,6 +18,21 @@ exceptions:
       - two_independent_human_maintainers_appointed
       - production_release_candidate
       - forge_becomes_canonical
+  - id: DEP-EX-0001
+    scope: RUSTSEC-2026-0283
+    owner: security-stewards
+    reason: >-
+      clear_on_drop 0.2.5 is unmaintained (no safe upgrade exists per the
+      advisory's own Solution field), reachable only as an internal
+      dependency of the vendored bulletproofs 5.0.0 crate (mini-value's
+      D-0036/D-0040 range proofs). It is internal to bulletproofs' own
+      zeroing, not a call site this tree makes directly.
+    mitigation: >-
+      deny.toml carries the same reasoning inline. Revisit when
+      bulletproofs releases a version off clear_on_drop, or if
+      mini-value's Bulletproofs dependency is replaced.
+    expires: 2026-12-13
+    decision: D-0522
 # Example (illustrative only -- every value here is a placeholder, and the
 # date is deliberately not a real one so no scanner can mistake this block
 # for a live exception, whether or not it strips comments first):

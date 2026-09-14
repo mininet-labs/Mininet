@@ -3,7 +3,7 @@
     "crates": 83,
     "files": 1059,
     "headings": 3782,
-    "rust_symbols": 11037
+    "rust_symbols": 11039
   },
   "crates": {
     "did-mini": {
@@ -37749,7 +37749,7 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
-      "bytes": 15791,
+      "bytes": 16780,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -37778,9 +37778,9 @@
         "max_active_seats",
         "motionclass"
       ],
-      "lines": 453,
+      "lines": 468,
       "path": "crates/mini-forge/src/parliament_policy.rs",
-      "sha256": "f516803b1b66ea79cf18b0909952a775fdccfa2010cd180887cebfe2758b7fad",
+      "sha256": "381a28eebefb1cebf284bbefe54800b7dc5ba1a4ca70c017ccd0ed6c0acb9f45",
       "symbols": [
         {
           "kind": "const",
@@ -37929,52 +37929,52 @@
         },
         {
           "kind": "fn",
-          "line": 267,
+          "line": 272,
           "name": "duty_payment_eligible"
         },
         {
           "kind": "enum",
-          "line": 295,
+          "line": 300,
           "name": "ParliamentPhase"
         },
         {
           "kind": "struct",
-          "line": 303,
+          "line": 308,
           "name": "ParliamentState"
         },
         {
           "kind": "struct",
-          "line": 314,
+          "line": 319,
           "name": "TransitionEvidence"
         },
         {
           "kind": "fn",
-          "line": 326,
+          "line": 331,
           "name": "next_seat_capacity"
         },
         {
           "kind": "fn",
-          "line": 336,
+          "line": 341,
           "name": "validate_transition"
         },
         {
           "kind": "enum",
-          "line": 397,
+          "line": 412,
           "name": "GuardianStayTarget"
         },
         {
           "kind": "enum",
-          "line": 405,
+          "line": 420,
           "name": "GuardianReason"
         },
         {
           "kind": "struct",
-          "line": 415,
+          "line": 430,
           "name": "GuardianStay"
         },
         {
           "kind": "fn",
-          "line": 423,
+          "line": 438,
           "name": "validate_guardian_stay"
         }
       ],
@@ -38618,7 +38618,7 @@
       "title": "use did_mini::{Capabilities, Controller, Did};"
     },
     {
-      "bytes": 11174,
+      "bytes": 13128,
       "group": "crate:mini-forge",
       "headings": [],
       "keywords": [
@@ -38647,9 +38647,9 @@
         "four_yes_one_abstain",
         "invitation_allowance"
       ],
-      "lines": 377,
+      "lines": 429,
       "path": "crates/mini-forge/tests/parliament_policy.rs",
-      "sha256": "08b7cd1862e26c3406d5c9e541f365e9041fb25d7b7511ea8651c66ce1ed7444",
+      "sha256": "6105c4c5b460fee0b27f02744cd8dfae75d4ed88f9beed8ffbdfed83b9db50e1",
       "symbols": [
         {
           "kind": "mod",
@@ -38724,26 +38724,36 @@
         {
           "kind": "fn",
           "line": 221,
+          "name": "duty_payment_ratio_does_not_overflow_near_u32_max"
+        },
+        {
+          "kind": "fn",
+          "line": 241,
           "name": "chamber_growth_is_exact_and_evidence_gated"
         },
         {
           "kind": "fn",
-          "line": 261,
+          "line": 281,
           "name": "public_eligibility_never_moves_backwards"
         },
         {
           "kind": "fn",
-          "line": 290,
+          "line": 310,
+          "name": "full_eligibility_requires_the_public_phase_not_just_the_number"
+        },
+        {
+          "kind": "fn",
+          "line": 342,
           "name": "public_transition_kills_h0_exception_one_way"
         },
         {
           "kind": "fn",
-          "line": 329,
+          "line": 381,
           "name": "h0_cannot_stay_public_transition_or_own_sunset"
         },
         {
           "kind": "fn",
-          "line": 354,
+          "line": 406,
           "name": "h0_stay_is_bounded_and_one_shot_per_exact_target"
         }
       ],
@@ -89974,7 +89984,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1478054,
+      "bytes": 1481778,
       "group": "docs",
       "headings": [
         {
@@ -90393,8 +90403,8 @@
         "batch",
         "review",
         "design",
-        "audit",
         "shipped",
+        "audit",
         "closes",
         "decision",
         "local",
@@ -90404,9 +90414,9 @@
         "new",
         "doctrine"
       ],
-      "lines": 24457,
+      "lines": 24520,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "1990eb248a8a42e5da274b846db5f07fa01be3f01589f55670fd5e6a9a70bb08",
+      "sha256": "869f8e05a1e277867027d92241cd6c9fd2b440ee28878b1848955f182ba0e26d",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -111570,71 +111580,73 @@
       "title": "{"
     },
     {
-      "bytes": 1326,
+      "bytes": 2008,
       "group": "root",
       "headings": [
         {
           "level": 1,
-          "line": 21,
+          "line": 36,
           "text": "Example (illustrative only -- every value here is a placeholder, and the"
         },
         {
           "level": 1,
-          "line": 22,
+          "line": 37,
           "text": "date is deliberately not a real one so no scanner can mistake this block"
         },
         {
           "level": 1,
-          "line": 23,
+          "line": 38,
           "text": "for a live exception, whether or not it strips comments first):"
         },
         {
           "level": 1,
-          "line": 24,
+          "line": 39,
           "text": "- id: DEP-EX-0001"
         },
         {
           "level": 1,
-          "line": 25,
+          "line": 40,
           "text": "scope: RUSTSEC-YYYY-NNNN"
         },
         {
           "level": 1,
-          "line": 26,
+          "line": 41,
           "text": "owner: did:mini:example-pseudonym"
         },
         {
           "level": 1,
-          "line": 27,
+          "line": 42,
           "text": "reason: No patched compatible version; affected code path is unreachable."
         },
         {
           "level": 1,
-          "line": 28,
+          "line": 43,
           "text": "mitigation: Disable the affected feature and add a regression test."
         },
         {
           "level": 1,
-          "line": 29,
+          "line": 44,
           "text": "expires: YYYY-MM-DD"
         },
         {
           "level": 1,
-          "line": 30,
+          "line": 45,
           "text": "decision: D-00XX"
         }
       ],
       "keywords": [
-        "affected",
-        "one",
         "scope",
         "owner",
         "reason",
         "version",
-        "path",
+        "affected",
         "mitigation",
         "expires",
         "decision",
+        "bulletproofs",
+        "one",
+        "dep-ex-0001",
+        "path",
         "governance",
         "exceptions",
         "example",
@@ -111646,13 +111658,11 @@
         "date",
         "deliberately",
         "real",
-        "scanner",
-        "mistake",
-        "block"
+        "scanner"
       ],
-      "lines": 31,
+      "lines": 46,
       "path": "governance/exceptions.yml",
-      "sha256": "88972387c2267d1861b5453619c83d94d8d5d8548b2b7171520edc62257be4d5",
+      "sha256": "a841d5497284cc0c8bdc2baadb738f9bbae501e82c0ddc263954a5c252c0c0e9",
       "symbols": [],
       "title": "Example (illustrative only -- every value here is a placeholder, and the"
     },

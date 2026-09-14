@@ -260,7 +260,12 @@ pub struct DutyEvidence {
 }
 
 fn at_least_70_percent(done: u32, assigned: u32) -> bool {
-    assigned == 0 || done.saturating_mul(10) >= assigned.saturating_mul(7)
+    // Saturating u32 multiplication was wrong here: near u32::MAX both sides
+    // saturate to the same value regardless of the true ratio (done =
+    // 429_496_730, assigned = u32::MAX is ~10% complete but passed). u64
+    // comfortably holds u32::MAX * 10 with no overflow, so there is no
+    // reason to saturate at all.
+    assigned == 0 || u64::from(done) * 10 >= u64::from(assigned) * 7
 }
 
 /// Duty compensation requires work, not title possession or a particular vote.
@@ -345,6 +350,16 @@ pub fn validate_transition(
         || next.seat_capacity < current.seat_capacity
         || next.public_eligibility_bps < current.public_eligibility_bps
         || next.public_eligibility_bps > FULL_PUBLIC_ELIGIBILITY_BPS
+        // Full eligibility is what the Public-phase evidence gate below
+        // exists to prove (mature personhood, a proven public ballot, no
+        // Founder recovery dependency, H0 authority gone). Without this,
+        // a transition that never sets `next.phase = Public` could still
+        // set `public_eligibility_bps = FULL_PUBLIC_ELIGIBILITY_BPS`
+        // while `next.phase` stays `Expanding`, skipping that gate
+        // entirely and reaching full public access on nothing but the
+        // Expanding-phase evidence.
+        || (next.public_eligibility_bps == FULL_PUBLIC_ELIGIBILITY_BPS
+            && next.phase != ParliamentPhase::Public)
         || next.phase < current.phase
         || (!current.h0_guardian_active && next.h0_guardian_active)
     {

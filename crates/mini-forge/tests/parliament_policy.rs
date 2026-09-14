@@ -218,6 +218,26 @@ fn duty_payment_refuses_a_period_with_nothing_assigned() {
 }
 
 #[test]
+fn duty_payment_ratio_does_not_overflow_near_u32_max() {
+    // done.saturating_mul(10) and assigned.saturating_mul(7) both saturate
+    // to u32::MAX for large enough inputs regardless of the true ratio, so
+    // a ~10%-complete period could previously pass the 70% threshold.
+    let barely_started = DutyEvidence {
+        committee_tasks_assigned: u32::MAX,
+        committee_tasks_completed: 429_496_730, // ~10% of u32::MAX
+        plenary_votes_eligible: 0,
+        plenary_votes_participated: 0,
+        emergency_calls_assigned: 0,
+        emergency_calls_answered: 0,
+        substantive_review_completed: true,
+    };
+    assert_eq!(
+        duty_payment_eligible(barely_started),
+        Err(ParliamentPolicyError::DutyNotProven)
+    );
+}
+
+#[test]
 fn chamber_growth_is_exact_and_evidence_gated() {
     assert_eq!(next_seat_capacity(7), Some(15));
     assert_eq!(next_seat_capacity(15), Some(31));
@@ -282,6 +302,38 @@ fn public_eligibility_never_moves_backwards() {
     };
     assert_eq!(
         validate_transition(current, regressed, evidence),
+        Err(ParliamentPolicyError::AuthorityRegression)
+    );
+}
+
+#[test]
+fn full_eligibility_requires_the_public_phase_not_just_the_number() {
+    // Reaching FULL_PUBLIC_ELIGIBILITY_BPS is what the Public-phase evidence
+    // gate exists to prove. A transition that reaches the full value while
+    // staying in Expanding must not skip that gate.
+    let current = ParliamentState {
+        phase: ParliamentPhase::Expanding,
+        seat_capacity: 31,
+        public_eligibility_bps: 9_000,
+        h0_guardian_active: true,
+    };
+    let full_bps_wrong_phase = ParliamentState {
+        public_eligibility_bps: FULL_PUBLIC_ELIGIBILITY_BPS,
+        ..current
+    };
+    let no_evidence = TransitionEvidence {
+        qualified_candidates: 0,
+        committees_staffed: false,
+        key_rotation_recovery_tested: false,
+        adversarial_governance_exercise_passed: false,
+        forge_operates_without_github: false,
+        invitation_capture_review_passed: false,
+        mature_personhood: false,
+        public_ballot_proven: false,
+        no_founder_recovery_dependency: false,
+    };
+    assert_eq!(
+        validate_transition(current, full_bps_wrong_phase, no_evidence),
         Err(ParliamentPolicyError::AuthorityRegression)
     );
 }
