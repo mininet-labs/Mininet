@@ -32,7 +32,7 @@ use mini_sync::{
 };
 use mini_windows_setup::{InstallOptions, RecordingShell, Setup, SetupStatus, WindowsShell};
 use mini_windows_vault::{load_existing, load_or_create, load_user_data, save_user_data, SeedPair};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
@@ -242,6 +242,17 @@ enum LocalSearchResult {
         name: String,
         charter: String,
     },
+}
+
+/// One "people you may know" row: real, disclosed social-graph signals
+/// only. See [`Workspace::discover_candidates`]'s doc comment for why
+/// there is no confidence/uniqueness score here.
+#[derive(Debug, Clone)]
+struct DiscoverCandidate {
+    human: Did,
+    display_name: String,
+    shared_communities: usize,
+    mutual_follows: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1106,6 +1117,68 @@ impl Workspace {
             }
         }
         results
+    }
+
+    /// Real, disclosed discovery signals for people not yet a friend:
+    /// how many communities you both belong to, and how many identities
+    /// you both follow. Deliberately not a "match" or a uniqueness claim --
+    /// `mini-uniqueness` gives a confidence score for an identity root, not
+    /// a verified-human guarantee, and a real vouch requires a live
+    /// two-device exchange this client does not yet implement (mirroring
+    /// `mini-presence`'s own live-session-only design). Only candidates
+    /// with at least one real shared signal are returned; there is no
+    /// browse-everyone fallback that would silently degrade into exactly
+    /// the anonymous-stranger matching this feature was built to avoid.
+    fn discover_candidates(&self) -> Vec<DiscoverCandidate> {
+        let Some(me) = self.human.as_ref() else {
+            return Vec::new();
+        };
+        let my_following: HashSet<Did> = following(&self.store, me)
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+        let my_communities: Vec<mini_objects::ObjectId> = self
+            .communities()
+            .into_iter()
+            .filter(|(.., joined)| *joined)
+            .map(|(id, ..)| id)
+            .collect();
+
+        let mut candidates = Vec::new();
+        for profile in self.known_profiles() {
+            if &profile.human == me || self.is_friend(&profile.human) {
+                continue;
+            }
+            let their_following: HashSet<Did> = following(&self.store, &profile.human)
+                .unwrap_or_default()
+                .into_iter()
+                .collect();
+            let mutual_follows = my_following.intersection(&their_following).count();
+            let shared_communities = my_communities
+                .iter()
+                .filter(|community| {
+                    community_members(&self.store, community)
+                        .unwrap_or_default()
+                        .contains(&profile.human)
+                })
+                .count();
+            if mutual_follows == 0 && shared_communities == 0 {
+                continue;
+            }
+            candidates.push(DiscoverCandidate {
+                human: profile.human,
+                display_name: profile.display_name,
+                shared_communities,
+                mutual_follows,
+            });
+        }
+        candidates.sort_by(|a, b| {
+            (b.mutual_follows + b.shared_communities)
+                .cmp(&(a.mutual_follows + a.shared_communities))
+                .then_with(|| a.display_name.cmp(&b.display_name))
+        });
+        candidates.truncate(20);
+        candidates
     }
 
     fn create_beta_conversation(&mut self, label: &str, peer: &str) -> Result<String, String> {
@@ -3310,9 +3383,92 @@ impl MininetApp {
             });
             ui.add_space(SPACE_SM);
         }
+
+        let candidates = self
+            .workspace
+            .as_ref()
+            .map(Workspace::discover_candidates)
+            .unwrap_or_default();
+        if !candidates.is_empty() {
+            ui.add_space(SPACE_MD);
+            ui.label(
+                egui::RichText::new("People you may know")
+                    .strong()
+                    .color(COLOR_TEXT_PRIMARY),
+            );
+            ui.label(
+                egui::RichText::new(
+                    "Ranked only by shared communities and mutual follows already on this \
+                     device -- not a verified-human match. A real mutual vouch needs a live \
+                     two-device exchange this client does not implement yet.",
+                )
+                .small()
+                .color(COLOR_TEXT_SECONDARY),
+            );
+            ui.add_space(SPACE_SM);
+            for candidate in candidates {
+                card(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        self.avatar(ui, &candidate.display_name, None, 40.0);
+                        ui.vertical(|ui| {
+                            ui.label(
+                                egui::RichText::new(&candidate.display_name)
+                                    .strong()
+                                    .color(COLOR_TEXT_PRIMARY),
+                            );
+                            let mut signals = Vec::new();
+                            if candidate.mutual_follows > 0 {
+                                signals.push(format!(
+                                    "{} mutual follow{}",
+                                    candidate.mutual_follows,
+                                    if candidate.mutual_follows == 1 {
+                                        ""
+                                    } else {
+                                        "s"
+                                    }
+                                ));
+                            }
+                            if candidate.shared_communities > 0 {
+                                signals.push(format!(
+                                    "{} shared communit{}",
+                                    candidate.shared_communities,
+                                    if candidate.shared_communities == 1 {
+                                        "y"
+                                    } else {
+                                        "ies"
+                                    }
+                                ));
+                            }
+                            ui.label(
+                                egui::RichText::new(signals.join(" · "))
+                                    .small()
+                                    .color(COLOR_TEXT_SECONDARY),
+                            );
+                        });
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .add(
+                                    egui::Button::new("Add friend")
+                                        .fill(COLOR_ACCENT.gamma_multiply(0.35)),
+                                )
+                                .clicked()
+                            {
+                                if let Some(profile) = self
+                                    .workspace
+                                    .as_ref()
+                                    .and_then(|workspace| workspace.profile_for(&candidate.human))
+                                {
+                                    self.add_friend(&profile);
+                                }
+                            }
+                        });
+                    });
+                });
+                ui.add_space(SPACE_SM);
+            }
+        }
     }
 
-    #[allow(clippy::too_many_arguments)]
     #[allow(clippy::too_many_arguments)]
     fn post_card(
         &mut self,
