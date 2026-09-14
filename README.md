@@ -116,6 +116,30 @@ so, everywhere, on purpose.
   atomic symlink-based activation, automatic rollback on a failed health
   check, still no forced update (activation always requires an explicit,
   typed `OwnerApproval` naming the exact release id)
+- `mini-windows-setup` (D-0520): the Windows half of that layer, which
+  `mini-installer`'s symlink activation cannot serve — a canonical text
+  manifest carrying a length plus BLAKE3 *and* SHA-256 per file (so a user
+  can re-check every byte with `Get-FileHash`, running no Mininet binary),
+  an uncompressed container, strict Windows path safety, a per-user
+  versioned layout with an atomic pointer swap, and install/verify/
+  rollback/uninstall. Files are verified out of the package *and* re-read
+  and re-hashed from disk before activation; `InstallApproval` names one
+  exact manifest digest; activation runs `mini_forge::check_no_rollback`;
+  uninstall keeps identities unless a separate typed approval names the
+  exact path to destroy
+- `mini-setup` (D-0520): `mininet-setup.exe` — the double-click wizard and
+  its `--silent`/`--verify`/`--status`/`--dry-run`/`--rollback`/
+  `--uninstall` console modes, all with `--json`. Per-user, no
+  administrator, no service, and no networking dependency at all: it
+  installs the bytes it is handed and never fetches its own payload.
+  `packaging/windows/` builds the container, the readable manifest, the
+  self-contained installer, and SHA256SUMS
+- `mini-selftest` (D-0520): 24 diagnostics that run the real stack —
+  identity, storage, social, media, messaging, sync over a real loopback
+  socket, governed review, erasure coding, storage proofs, install. Nine
+  establish a *refusal* (one approval does not reach the two-approval
+  floor; an approval bound to one commit does not carry to a substituted
+  one). Surfaced as `mini selftest` and the client's Diagnostics view
 - `mini-privacy-policy` (D-0094): typed cost-doctrine vocabulary
   (protection properties, mechanisms, the five un-removable residual
   floors) and a Tier 0-3 privacy request/achieved-result policy object —
