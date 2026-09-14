@@ -1147,14 +1147,25 @@ impl BetaMiniLedger {
                     .contribution_id
                     .as_ref()
                     .ok_or(BetaError::InvalidObject)?;
-                if self.spent_contributions.contains(contribution_id) {
-                    return Err(BetaError::DuplicateGrant);
-                }
                 let contribution = parse_contribution_object(&store.get(contribution_id)?)?;
                 if contribution.campaign_id.as_ref() != Some(&grant.campaign_id) {
                     return Err(BetaError::InvalidObject);
                 }
-                Some(contribution_id.clone())
+                // Keyed on the underlying accepted work (`source_id`), not the
+                // receipt object's own id. `create_contribution_receipt` does
+                // not itself enforce that only one receipt is ever created per
+                // `source_id` -- it is a bookkeeping record, not a uniqueness
+                // authority -- so two distinct receipt objects can otherwise
+                // reference the identical accepted work. Keying on the receipt
+                // id would let each such receipt back its own participation
+                // grant, doubling the reward for one piece of work; keying on
+                // `source_id` makes the second grant attempt collide exactly
+                // like a genuine duplicate, regardless of how many receipt
+                // objects the record signer created for it.
+                if self.spent_contributions.contains(&contribution.source_id) {
+                    return Err(BetaError::DuplicateGrant);
+                }
+                Some(contribution.source_id.clone())
             }
         };
 

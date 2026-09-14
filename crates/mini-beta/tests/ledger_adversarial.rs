@@ -162,6 +162,64 @@ fn one_contribution_cannot_back_two_distinct_participation_grants() {
 }
 
 #[test]
+fn two_receipts_for_the_same_source_cannot_each_back_a_participation_grant() {
+    // create_contribution_receipt is a bookkeeping record, not a uniqueness
+    // authority -- nothing stops a record signer from creating two distinct
+    // receipt objects for the identical accepted work (same `source_id`).
+    // The ledger, not the intake path, is what must refuse to pay out twice
+    // for one piece of work.
+    let signer = signer(50);
+    let mut store = Store::new(MemoryBackend::new());
+    let target = target(&mut store, &signer, b"one piece of accepted work");
+    let epoch = BetaEpochId::new([11; 32]).unwrap();
+    let campaign = campaign(&mut store, &signer, &target, epoch, 1_000, 1);
+    // Two independent receipts, same source, different claim tags/sequences.
+    let receipt_a = contribution(&mut store, &signer, &target, campaign.id(), 21, 2);
+    let receipt_b = contribution(&mut store, &signer, &target, campaign.id(), 22, 3);
+    assert_ne!(receipt_a.id(), receipt_b.id());
+    let account = BetaAccountId::new([12; 32]).unwrap();
+
+    let first = create_grant_authorization(
+        &mut store,
+        &signer.did(),
+        &signer,
+        campaign.id(),
+        Some(receipt_a.id()),
+        epoch,
+        account,
+        GrantClass::Participation,
+        10,
+        "first receipt",
+        4,
+        4,
+    )
+    .unwrap();
+    let second = create_grant_authorization(
+        &mut store,
+        &signer.did(),
+        &signer,
+        campaign.id(),
+        Some(receipt_b.id()),
+        epoch,
+        account,
+        GrantClass::Participation,
+        10,
+        "second receipt, same underlying work",
+        5,
+        5,
+    )
+    .unwrap();
+
+    let mut ledger = BetaMiniLedger::new(epoch, BetaMiniPolicy::open_beta_default()).unwrap();
+    ledger.apply_grant(&store, first.id()).unwrap();
+    assert!(matches!(
+        ledger.apply_grant(&store, second.id()),
+        Err(BetaError::DuplicateGrant)
+    ));
+    assert_eq!(ledger.balance(&account), 10);
+}
+
+#[test]
 fn participation_grant_rechecks_contribution_campaign_on_apply() {
     let signer = signer(20);
     let mut store = Store::new(MemoryBackend::new());

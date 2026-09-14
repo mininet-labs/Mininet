@@ -1,0 +1,1228 @@
+//! The install lifecycle, end to end, on whatever platform runs the tests.
+//!
+//! Every test here drives the real engine against a real temporary
+//! directory: files are written, read back, hashed, activated, rolled back,
+//! and removed. Only the two genuinely Windows-specific steps --- the `.lnk`
+//! and the `HKCU` entry --- are captured by `RecordingShell` instead of
+//! performed, and the tests assert on exactly what would have been done.
+
+use mini_windows_setup::container::{self, Container};
+use mini_windows_setup::manifest::{ManifestHeader, PackageManifest, PackageShortcut};
+use mini_windows_setup::{
+    InstallApproval, InstallOptions, PackageFile, PlanKind, RecordingShell, Setup, ShellAction,
+    UninstallApproval, VerifyProblem,
+};
+use std::path::PathBuf;
+
+const DESKTOP_V1: &[u8] = b"#!/bin/sh\necho mininet-desktop 0.1.0\n";
+const DESKTOP_V2: &[u8] = b"#!/bin/sh\necho mininet-desktop 0.2.0\n";
+const CLI: &[u8] = b"#!/bin/sh\necho mini cli\n";
+const SETUP: &[u8] = b"#!/bin/sh\necho mininet-setup\n";
+
+fn tempdir(tag: &str) -> PathBuf {
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "mini-windows-setup-{tag}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&path).unwrap();
+    path
+}
+
+fn package(version: &str, desktop: &[u8]) -> PackageManifest {
+    PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version,
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 1_757_635_200_000,
+        },
+        vec![
+            PackageFile::describe("mininet-desktop.exe", desktop).unwrap(),
+            PackageFile::describe("mini.exe", CLI).unwrap(),
+            PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
+        ],
+        vec![PackageShortcut {
+            target: "mininet-desktop.exe".to_string(),
+            name: "Mininet".to_string(),
+        }],
+    )
+    .unwrap()
+}
+
+fn bytes_for(manifest: &PackageManifest, desktop: &[u8]) -> Vec<u8> {
+    container::write(manifest, |path| {
+        Ok(match path {
+            "mininet-desktop.exe" => desktop.to_vec(),
+            "mini.exe" => CLI.to_vec(),
+            "mininet-setup.exe" => SETUP.to_vec(),
+            other => panic!("unexpected file {other}"),
+        })
+    })
+    .unwrap()
+}
+
+/// Options whose shell paths stay inside the test directory, so a test run
+/// can never touch a real Start Menu.
+fn options(root: &std::path::Path) -> InstallOptions {
+    InstallOptions {
+        start_menu_dir: Some(root.join("start-menu")),
+        desktop_dir: Some(root.join("desktop")),
+        ..InstallOptions::default()
+    }
+}
+
+struct Fixture {
+    base: PathBuf,
+    setup: Setup,
+    options: InstallOptions,
+}
+
+impl Fixture {
+    fn new(tag: &str) -> Self {
+        let base = tempdir(tag);
+        let install_root = base.join("Programs").join("Mininet");
+        let setup = Setup::new(&install_root).with_user_data_root(base.join("UserData"));
+        let options = options(&base);
+        Self {
+            base,
+            setup,
+            options,
+        }
+    }
+
+    fn install(
+        &self,
+        version: &str,
+        desktop: &[u8],
+        now_ms: u64,
+        shell: &mut RecordingShell,
+    ) -> Result<mini_windows_setup::InstallReport, mini_windows_setup::SetupError> {
+        let manifest = package(version, desktop);
+        let bytes = bytes_for(&manifest, desktop);
+        let container = Container::open(&bytes).unwrap();
+        let approval = InstallApproval::new(container.manifest(), now_ms);
+        self.setup
+            .install(&container, &approval, &self.options, shell, now_ms)
+    }
+}
+
+impl Drop for Fixture {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.base);
+    }
+}
+
+#[test]
+fn a_first_install_writes_every_file_activates_it_and_registers_one_shortcut() {
+    let fixture = Fixture::new("first");
+    let mut shell = RecordingShell::default();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    assert_eq!(report.files_written, 3);
+    assert_eq!(
+        report.bytes_written,
+        (DESKTOP_V1.len() + CLI.len() + SETUP.len()) as u64
+    );
+    assert!(report.previous.is_none());
+    assert!(report.launch_path.is_file());
+    assert_eq!(std::fs::read(&report.launch_path).unwrap(), DESKTOP_V1);
+
+    let status = fixture.setup.status().unwrap();
+    let active = status.active.expect("a version is active");
+    assert_eq!(active.version_text, "0.1.0");
+    assert_eq!(status.installed_versions, vec!["0.1.0".to_string()]);
+    assert!(status.previous.is_none());
+
+    // Exactly one Start Menu shortcut and one Apps & features entry, and no
+    // desktop shortcut: an installer that adds one without being asked is
+    // the behaviour this project exists not to have.
+    assert_eq!(shell.actions.len(), 2);
+    match &shell.actions[0] {
+        ShellAction::CreateShortcut(request) => {
+            assert_eq!(request.link_name, "Mininet.lnk");
+            assert_eq!(request.target, report.launch_path);
+        }
+        other => panic!("expected a shortcut, got {other:?}"),
+    }
+    match &shell.actions[1] {
+        ShellAction::RegisterUninstall(registration) => {
+            assert_eq!(registration.display_version, "0.1.0");
+            assert!(registration.uninstall_command.contains("--uninstall"));
+            assert!(registration.uninstall_command.contains("mininet-setup.exe"));
+        }
+        other => panic!("expected an uninstall registration, got {other:?}"),
+    }
+}
+
+#[test]
+fn the_installed_client_is_the_package_bytes_and_actually_runs() {
+    // The point of an installer is that what it put on disk works. On a
+    // Unix host the engine marks `.exe` entries executable, so the installed
+    // artifact can be executed here rather than merely compared.
+    let fixture = Fixture::new("runs");
+    let mut shell = RecordingShell::default();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    #[cfg(unix)]
+    {
+        let output = std::process::Command::new(&report.launch_path)
+            .output()
+            .expect("the installed executable should run");
+        assert!(output.status.success());
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout).trim(),
+            "mininet-desktop 0.1.0"
+        );
+    }
+    #[cfg(not(unix))]
+    assert!(report.launch_path.is_file());
+}
+
+#[test]
+fn an_approval_for_one_build_cannot_install_a_different_build() {
+    let fixture = Fixture::new("approval");
+    let mut shell = RecordingShell::default();
+    let approved = package("0.1.0", DESKTOP_V1);
+    let offered = package("0.1.0", DESKTOP_V2);
+    let bytes = bytes_for(&offered, DESKTOP_V2);
+    let container = Container::open(&bytes).unwrap();
+    // Same package name, same version, different contents.
+    assert_ne!(approved.digest_hex(), offered.digest_hex());
+    let approval = InstallApproval::new(&approved, 1_000);
+    let error = fixture
+        .setup
+        .install(&container, &approval, &fixture.options, &mut shell, 1_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "approval_mismatch");
+    // Nothing was written and nothing was registered.
+    assert!(fixture.setup.status().unwrap().active.is_none());
+    assert!(shell.actions.is_empty());
+}
+
+#[test]
+fn an_upgrade_records_the_older_version_as_the_rollback_target() {
+    let fixture = Fixture::new("upgrade");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let report = fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+
+    assert_eq!(report.active.version_text, "0.2.0");
+    assert_eq!(report.previous.unwrap().version_text, "0.1.0");
+    let status = fixture.setup.status().unwrap();
+    assert_eq!(status.active.unwrap().version_text, "0.2.0");
+    assert_eq!(status.previous.unwrap().version_text, "0.1.0");
+    // The old version's files are still on disk: that is what makes the
+    // rollback real rather than a re-download.
+    assert_eq!(
+        status.installed_versions,
+        vec!["0.1.0".to_string(), "0.2.0".to_string()]
+    );
+    assert_eq!(std::fs::read(&report.launch_path).unwrap(), DESKTOP_V2);
+}
+
+#[test]
+fn installing_an_older_version_over_a_newer_one_is_refused_by_default() {
+    let fixture = Fixture::new("downgrade");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 1_000, &mut shell)
+        .unwrap();
+    let error = fixture
+        .install("0.1.0", DESKTOP_V1, 2_000, &mut shell)
+        .unwrap_err();
+    assert_eq!(error.code(), "would_downgrade");
+    // Still on the newer version: a refused downgrade changes nothing.
+    assert_eq!(
+        fixture.setup.status().unwrap().active.unwrap().version_text,
+        "0.2.0"
+    );
+}
+
+#[test]
+fn a_downgrade_is_possible_when_the_caller_declares_one() {
+    let mut fixture = Fixture::new("downgrade-ok");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 1_000, &mut shell)
+        .unwrap();
+    fixture.options.allow_downgrade = true;
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 2_000, &mut shell)
+        .unwrap();
+    assert_eq!(report.active.version_text, "0.1.0");
+    assert_eq!(std::fs::read(&report.launch_path).unwrap(), DESKTOP_V1);
+}
+
+#[test]
+fn planning_reports_the_relationship_to_what_is_already_installed() {
+    let fixture = Fixture::new("plan");
+    let mut shell = RecordingShell::default();
+    let first = package("0.1.0", DESKTOP_V1);
+    assert_eq!(
+        fixture.setup.plan(&first, &fixture.options).unwrap().kind,
+        PlanKind::FirstInstall
+    );
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    assert_eq!(
+        fixture.setup.plan(&first, &fixture.options).unwrap().kind,
+        PlanKind::Reinstall
+    );
+    assert_eq!(
+        fixture
+            .setup
+            .plan(&package("0.2.0", DESKTOP_V2), &fixture.options)
+            .unwrap()
+            .kind,
+        PlanKind::Upgrade
+    );
+    assert_eq!(
+        fixture
+            .setup
+            .plan(&package("0.0.9", DESKTOP_V1), &fixture.options)
+            .unwrap()
+            .kind,
+        PlanKind::Downgrade
+    );
+}
+
+#[test]
+fn a_plan_lists_every_change_before_anything_is_written() {
+    let fixture = Fixture::new("plan-detail");
+    let manifest = package("0.1.0", DESKTOP_V1);
+    let plan = fixture.setup.plan(&manifest, &fixture.options).unwrap();
+    assert_eq!(plan.files.len(), 3);
+    assert_eq!(plan.total_bytes, manifest.total_bytes());
+    assert_eq!(plan.package_digest, manifest.digest_hex());
+    assert_eq!(plan.shell_actions.len(), 2);
+    assert!(plan.user_data_root.ends_with("UserData"));
+    for file in &plan.files {
+        assert!(file.destination.starts_with(&plan.version_dir));
+        assert!(!file.destination.exists());
+    }
+    assert!(!plan.install_root.join("current.txt").exists());
+}
+
+#[test]
+fn a_reinstall_of_the_active_version_keeps_the_existing_rollback_target() {
+    let fixture = Fixture::new("reinstall");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+    let report = fixture
+        .install("0.2.0", DESKTOP_V2, 3_000, &mut shell)
+        .unwrap();
+    assert_eq!(report.previous.unwrap().version_text, "0.1.0");
+    assert_eq!(
+        fixture
+            .setup
+            .status()
+            .unwrap()
+            .previous
+            .unwrap()
+            .version_text,
+        "0.1.0"
+    );
+}
+
+#[test]
+fn verification_reads_the_installed_files_back_and_finds_them_intact() {
+    let fixture = Fixture::new("verify");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let report = fixture.setup.verify_installed("0.1.0").unwrap();
+    assert!(report.is_intact());
+    assert_eq!(report.files_checked, 3);
+    assert_eq!(
+        report.bytes_checked,
+        (DESKTOP_V1.len() + CLI.len() + SETUP.len()) as u64
+    );
+}
+
+#[test]
+fn verification_reports_every_problem_rather_than_only_the_first() {
+    let fixture = Fixture::new("verify-bad");
+    let mut shell = RecordingShell::default();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let version_dir = report.launch_path.parent().unwrap().to_path_buf();
+
+    // One file tampered with, one truncated, one deleted, one added.
+    std::fs::write(version_dir.join("mininet-desktop.exe"), DESKTOP_V2).unwrap();
+    std::fs::write(version_dir.join("mini.exe"), b"short").unwrap();
+    std::fs::remove_file(version_dir.join("mininet-setup.exe")).unwrap();
+    std::fs::write(version_dir.join("extra.dll"), b"hijack").unwrap();
+
+    let verify = fixture.setup.verify_installed("0.1.0").unwrap();
+    assert!(!verify.is_intact());
+    assert!(verify.problems.iter().any(|problem| matches!(
+        problem,
+        VerifyProblem::Digest { path } if path == "mininet-desktop.exe"
+    )));
+    assert!(verify.problems.iter().any(|problem| matches!(
+        problem,
+        VerifyProblem::Length { path, .. } if path == "mini.exe"
+    )));
+    assert!(verify.problems.iter().any(|problem| matches!(
+        problem,
+        VerifyProblem::Missing { path } if path == "mininet-setup.exe"
+    )));
+    assert!(verify.problems.iter().any(|problem| matches!(
+        problem,
+        VerifyProblem::Unexpected { path } if path == "extra.dll"
+    )));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_directory_symlink_inside_the_install_is_reported_not_followed() {
+    // A manifest never declares a symlink, so one found under an installed
+    // version is already unexpected -- and following it, rather than
+    // reporting it, could walk back into the version directory through a
+    // link to itself (unbounded recursion) or out through a link to an
+    // arbitrarily large or sensitive directory elsewhere on disk.
+    let fixture = Fixture::new("verify-symlink");
+    let mut shell = RecordingShell::default();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let version_dir = report.launch_path.parent().unwrap().to_path_buf();
+
+    // A link back to the version directory itself: the case that would hang
+    // forever if verification followed it.
+    std::os::unix::fs::symlink(&version_dir, version_dir.join("self_link")).unwrap();
+
+    let verify = fixture.setup.verify_installed("0.1.0").unwrap();
+    assert!(!verify.is_intact());
+    assert!(verify.problems.iter().any(|problem| matches!(
+        problem,
+        VerifyProblem::Unexpected { path } if path == "self_link"
+    )));
+    // Nothing named after a file *inside* the version directory (reached
+    // only by following the link) was reported -- confirming the link
+    // itself was recorded, not traversed.
+    assert!(!verify
+        .problems
+        .iter()
+        .any(|problem| matches!(problem, VerifyProblem::Unexpected { path } if path.starts_with("self_link/"))));
+}
+
+#[test]
+fn rollback_returns_to_the_previous_version_and_repoints_the_shortcut() {
+    let fixture = Fixture::new("rollback");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+
+    let mut rollback_shell = RecordingShell::default();
+    let restored = fixture
+        .setup
+        .rollback(&fixture.options, &mut rollback_shell, 3_000)
+        .unwrap();
+    assert_eq!(restored.version_text, "0.1.0");
+
+    let status = fixture.setup.status().unwrap();
+    assert_eq!(status.active.unwrap().version_text, "0.1.0");
+    // The rollback target is consumed: rolling back twice in a row would be
+    // a downgrade nobody asked for.
+    assert!(status.previous.is_none());
+    let launch = status.launch_path.unwrap();
+    assert_eq!(std::fs::read(&launch).unwrap(), DESKTOP_V1);
+
+    match &rollback_shell.actions[0] {
+        ShellAction::CreateShortcut(request) => assert_eq!(request.target, launch),
+        other => panic!("expected the shortcut to be repointed, got {other:?}"),
+    }
+    let error = fixture
+        .setup
+        .rollback(&fixture.options, &mut rollback_shell, 4_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "no_previous_version");
+}
+
+#[test]
+fn the_install_record_remembers_the_shortcut_choices_actually_used() {
+    // `InstallRecord` is what a caller like the desktop client reads back to
+    // decide what a later rollback should do. If it did not carry the real
+    // choice, a rollback reconstructing `InstallOptions::default()` would
+    // silently add or drop shortcuts nobody asked to change.
+    let mut fixture = Fixture::new("record-remembers-options");
+    fixture.options.desktop_shortcut = true;
+    fixture.options.start_menu_shortcut = false;
+    fixture.options.register_uninstall = false;
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    let active = fixture.setup.status().unwrap().active.unwrap();
+    assert!(active.desktop_shortcut);
+    assert!(!active.start_menu_shortcut);
+    assert!(!active.register_uninstall);
+}
+
+#[test]
+fn rollback_preserves_the_desktop_shortcut_when_the_caller_reads_the_installed_record() {
+    // Regression for a bug where the desktop client rebuilt `InstallOptions`
+    // from scratch before calling `rollback`, so an install that added a
+    // Desktop shortcut lost it on rollback (only the Start Menu entry was
+    // repointed) and an install made with `--no-start-menu` gained an
+    // unwanted one. The fix is for the caller to read the currently active
+    // `InstallRecord`'s persisted choices instead of reconstructing
+    // defaults; this proves that once it does, the Desktop shortcut is
+    // still repointed rather than silently dropped.
+    let mut fixture = Fixture::new("rollback-keeps-desktop-choice");
+    fixture.options.desktop_shortcut = true;
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+
+    let installed = fixture.setup.status().unwrap().active.unwrap();
+    assert!(installed.desktop_shortcut, "fixture set up wrong");
+
+    // What a correct caller does: derive options from the installed record
+    // rather than from `InstallOptions::default()` (which has
+    // `desktop_shortcut: false` and would reproduce the bug).
+    let options_from_record = InstallOptions {
+        start_menu_shortcut: installed.start_menu_shortcut,
+        desktop_shortcut: installed.desktop_shortcut,
+        register_uninstall: installed.register_uninstall,
+        ..fixture.options.clone()
+    };
+    let mut rollback_shell = RecordingShell::default();
+    fixture
+        .setup
+        .rollback(&options_from_record, &mut rollback_shell, 3_000)
+        .unwrap();
+
+    let desktop_location =
+        mini_windows_setup::shell::ShortcutLocation::Exact(fixture.base.join("desktop"));
+    let repointed_desktop_shortcut = rollback_shell.actions.iter().any(|action| {
+        matches!(
+            action,
+            ShellAction::CreateShortcut(request) if request.location == desktop_location
+        )
+    });
+    assert!(
+        repointed_desktop_shortcut,
+        "rollback dropped the Desktop shortcut instead of repointing it: {:?}",
+        rollback_shell.actions
+    );
+}
+
+#[test]
+fn rollback_refuses_a_previous_version_whose_files_are_damaged() {
+    let fixture = Fixture::new("rollback-bad");
+    let mut shell = RecordingShell::default();
+    let first = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+    std::fs::write(&first.launch_path, b"corrupted").unwrap();
+
+    let error = fixture
+        .setup
+        .rollback(&fixture.options, &mut shell, 3_000)
+        .unwrap_err();
+    assert!(matches!(
+        error.code(),
+        "digest_mismatch" | "length_mismatch"
+    ));
+    // Still on the newer version rather than on a broken older one.
+    assert_eq!(
+        fixture.setup.status().unwrap().active.unwrap().version_text,
+        "0.2.0"
+    );
+}
+
+#[test]
+fn uninstall_removes_program_files_and_keeps_identities_by_default() {
+    let fixture = Fixture::new("uninstall");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let user_data = fixture.setup.user_data_root().to_path_buf();
+    std::fs::create_dir_all(&user_data).unwrap();
+    std::fs::write(user_data.join("identity.dpapi"), b"irreplaceable").unwrap();
+
+    let mut uninstall_shell = RecordingShell::default();
+    let approval = UninstallApproval::keeping_identities(fixture.setup.layout().root(), 2_000);
+    let report = fixture
+        .setup
+        .uninstall(&approval, &fixture.options, &mut uninstall_shell, 2_000)
+        .unwrap();
+
+    assert_eq!(report.versions_removed, vec!["0.1.0".to_string()]);
+    assert!(!fixture.setup.layout().root().exists());
+    assert_eq!(report.user_data_kept.as_deref(), Some(user_data.as_path()));
+    assert!(report.user_data_destroyed.is_none());
+    // The one thing a person cannot recreate is still there.
+    assert_eq!(
+        std::fs::read(user_data.join("identity.dpapi")).unwrap(),
+        b"irreplaceable"
+    );
+
+    assert!(uninstall_shell
+        .actions
+        .iter()
+        .any(|action| matches!(action, ShellAction::RemoveShortcut { .. })));
+    assert!(uninstall_shell
+        .actions
+        .iter()
+        .any(|action| matches!(action, ShellAction::DeregisterUninstall { .. })));
+}
+
+#[test]
+fn uninstall_destroys_identities_only_when_that_exact_path_was_approved() {
+    let fixture = Fixture::new("uninstall-destroy");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let user_data = fixture.setup.user_data_root().to_path_buf();
+    std::fs::create_dir_all(&user_data).unwrap();
+    std::fs::write(user_data.join("identity.dpapi"), b"gone").unwrap();
+
+    let approval =
+        UninstallApproval::destroying_identities(fixture.setup.layout().root(), &user_data, 2_000);
+    let report = fixture
+        .setup
+        .uninstall(&approval, &fixture.options, &mut shell, 2_000)
+        .unwrap();
+    assert_eq!(
+        report.user_data_destroyed.as_deref(),
+        Some(user_data.as_path())
+    );
+    assert!(report.user_data_kept.is_none());
+    assert!(!user_data.exists());
+}
+
+#[test]
+fn an_uninstall_approval_for_another_install_root_is_refused() {
+    let fixture = Fixture::new("uninstall-wrong-root");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let approval = UninstallApproval::keeping_identities("/somewhere/else", 2_000);
+    let error = fixture
+        .setup
+        .uninstall(&approval, &fixture.options, &mut shell, 2_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "approval_mismatch");
+    assert!(fixture.setup.layout().root().exists());
+}
+
+#[test]
+fn the_setup_log_records_each_step_and_outlives_the_uninstall() {
+    let fixture = Fixture::new("log");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+    fixture
+        .setup
+        .rollback(&fixture.options, &mut shell, 3_000)
+        .unwrap();
+
+    let log = mini_windows_setup::SetupLog::new(fixture.setup.layout().log_path());
+    let lines = log.read().unwrap();
+    assert_eq!(
+        lines
+            .iter()
+            .filter(|line| line.contains("install-started"))
+            .count(),
+        2
+    );
+    assert!(lines
+        .iter()
+        .any(|line| line.contains("rolled-back version=0.1.0")));
+    // No path from the user's profile leaks into a log people are asked to
+    // paste into bug reports.
+    for line in &lines {
+        assert!(!line.contains("mini-windows-setup-log"));
+    }
+
+    let approval = UninstallApproval::keeping_identities(fixture.setup.layout().root(), 4_000);
+    fixture
+        .setup
+        .uninstall(&approval, &fixture.options, &mut shell, 4_000)
+        .unwrap();
+    let preserved = fixture
+        .setup
+        .layout()
+        .root()
+        .with_extension("uninstalled.log.txt");
+    let after = mini_windows_setup::SetupLog::new(&preserved)
+        .read()
+        .unwrap();
+    assert!(after.len() > lines.len());
+    assert!(after.last().unwrap().contains("uninstalled"));
+}
+
+#[test]
+fn a_failed_install_leaves_the_running_version_active() {
+    let fixture = Fixture::new("failed");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    // A container whose payload was damaged after it was built: the manifest
+    // is internally consistent, so this is only caught when the bytes are
+    // read on their way to disk.
+    let manifest = package("0.2.0", DESKTOP_V2);
+    let mut bytes = bytes_for(&manifest, DESKTOP_V2);
+    let length = bytes.len();
+    bytes[length - 1] ^= 0xff;
+    let container = Container::open(&bytes).unwrap();
+    let approval = InstallApproval::new(container.manifest(), 2_000);
+    let error = fixture
+        .setup
+        .install(&container, &approval, &fixture.options, &mut shell, 2_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "digest_mismatch");
+
+    let status = fixture.setup.status().unwrap();
+    assert_eq!(status.active.unwrap().version_text, "0.1.0");
+    assert_eq!(status.installed_versions, vec!["0.1.0".to_string()]);
+    assert_eq!(
+        std::fs::read(status.launch_path.unwrap()).unwrap(),
+        DESKTOP_V1
+    );
+
+    // And the refused install left nothing behind. A directory of
+    // half-verified executables that were never approved is indistinguishable,
+    // to the next person looking, from ones that were.
+    let versions = fixture.setup.layout().root().join("versions");
+    let leftovers: Vec<String> = std::fs::read_dir(&versions)
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .collect();
+    assert_eq!(leftovers, vec!["0.1.0".to_string()]);
+}
+
+#[test]
+fn status_on_an_empty_root_is_an_answer_not_an_error() {
+    let base = tempdir("empty");
+    let setup = Setup::new(base.join("never-installed"));
+    let status = setup.status().unwrap();
+    assert!(status.active.is_none());
+    assert!(status.previous.is_none());
+    assert!(status.installed_versions.is_empty());
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn a_corrupt_pointer_file_is_reported_rather_than_guessed_through() {
+    let fixture = Fixture::new("corrupt-pointer");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    std::fs::write(fixture.setup.layout().current_path(), b"garbage\n").unwrap();
+    let error = fixture.setup.status().unwrap_err();
+    assert_eq!(error.code(), "corrupt_pointer");
+}
+
+#[test]
+fn a_desktop_shortcut_is_only_created_when_the_user_asks_for_one() {
+    let mut fixture = Fixture::new("desktop");
+    fixture.options.desktop_shortcut = true;
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let shortcuts = shell
+        .actions
+        .iter()
+        .filter(|action| matches!(action, ShellAction::CreateShortcut(_)))
+        .count();
+    assert_eq!(shortcuts, 2);
+}
+
+#[test]
+fn a_portable_install_can_skip_every_shell_change() {
+    let mut fixture = Fixture::new("portable");
+    fixture.options.start_menu_shortcut = false;
+    fixture.options.register_uninstall = false;
+    let mut shell = RecordingShell::default();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    assert!(shell.actions.is_empty());
+    assert!(report.launch_path.is_file());
+}
+
+#[test]
+fn an_install_root_that_swallows_the_user_data_root_is_refused() {
+    // Choosing %LOCALAPPDATA% as the install location would make uninstall's
+    // recursive removal delete the identity vault under an approval that
+    // promised to keep it.
+    let base = tempdir("overlap");
+    let install_root = base.join("Local");
+    let setup = Setup::new(&install_root).with_user_data_root(install_root.join("Mininet"));
+    let manifest = package("0.1.0", DESKTOP_V1);
+    let bytes = bytes_for(&manifest, DESKTOP_V1);
+    let container = Container::open(&bytes).unwrap();
+    let approval = InstallApproval::new(container.manifest(), 1_000);
+    let mut shell = RecordingShell::default();
+    let error = setup
+        .install(
+            &container,
+            &approval,
+            &InstallOptions::default(),
+            &mut shell,
+            1_000,
+        )
+        .unwrap_err();
+    assert_eq!(error.code(), "overlapping_roots");
+
+    // And the same refusal on the way out, so an install made some other way
+    // cannot be removed into a deleted identity vault either.
+    let approval = UninstallApproval::keeping_identities(&install_root, 2_000);
+    let error = setup
+        .uninstall(&approval, &InstallOptions::default(), &mut shell, 2_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "overlapping_roots");
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn reinstalling_the_active_version_never_leaves_it_missing() {
+    let fixture = Fixture::new("reinstall-safe");
+    let mut shell = RecordingShell::default();
+    let first = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    assert!(first.launch_path.is_file());
+    // Same version again: the old directory must be moved aside and removed
+    // only once the replacement is committed, never deleted up front.
+    let second = fixture
+        .install("0.1.0", DESKTOP_V1, 2_000, &mut shell)
+        .unwrap();
+    assert!(second.launch_path.is_file());
+    assert_eq!(std::fs::read(&second.launch_path).unwrap(), DESKTOP_V1);
+    let versions = fixture.setup.layout().root().join("versions");
+    let leftovers: Vec<String> = std::fs::read_dir(&versions)
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .collect();
+    assert_eq!(leftovers, vec!["0.1.0".to_string()]);
+}
+
+#[test]
+fn the_shortcuts_a_manifest_declares_are_the_ones_created() {
+    // A package declaring a shortcut to a second executable must be installed
+    // as its reviewed manifest says, not as a hard-coded default.
+    let base = tempdir("manifest-shortcuts");
+    let manifest = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 1,
+        },
+        vec![
+            PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap(),
+            PackageFile::describe("mini.exe", CLI).unwrap(),
+        ],
+        vec![
+            PackageShortcut {
+                target: "mininet-desktop.exe".to_string(),
+                name: "Mininet".to_string(),
+            },
+            PackageShortcut {
+                target: "mini.exe".to_string(),
+                name: "Mininet Console".to_string(),
+            },
+        ],
+    )
+    .unwrap();
+    let bytes = mini_windows_setup::container::write(&manifest, |path| {
+        Ok(match path {
+            "mininet-desktop.exe" => DESKTOP_V1.to_vec(),
+            "mini.exe" => CLI.to_vec(),
+            other => panic!("unexpected {other}"),
+        })
+    })
+    .unwrap();
+    let container = Container::open(&bytes).unwrap();
+    let setup = Setup::new(base.join("Programs")).with_user_data_root(base.join("UserData"));
+    let options = InstallOptions {
+        start_menu_dir: Some(base.join("menu")),
+        desktop_dir: Some(base.join("desktop")),
+        // This manifest is testing shortcut declarations, not uninstall
+        // registration, and deliberately does not ship mininet-setup.exe.
+        register_uninstall: false,
+        ..InstallOptions::default()
+    };
+    let approval = InstallApproval::new(container.manifest(), 1_000);
+    let mut shell = RecordingShell::default();
+    setup
+        .install(&container, &approval, &options, &mut shell, 1_000)
+        .unwrap();
+    let names: Vec<String> = shell
+        .actions
+        .iter()
+        .filter_map(|action| match action {
+            ShellAction::CreateShortcut(request) => Some(request.link_name.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        names,
+        vec!["Mininet.lnk".to_string(), "Mininet Console.lnk".to_string()]
+    );
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn upgrading_to_a_manifest_with_a_different_shortcut_name_retires_the_old_one() {
+    // Not merely "not recreated": a name the previous manifest declared and
+    // this one does not must be actively removed, or it keeps pointing at
+    // whatever the old version directory still holds after the upgrade.
+    let base = tempdir("shortcut-retirement");
+    let setup = Setup::new(base.join("Programs")).with_user_data_root(base.join("UserData"));
+    let options = InstallOptions {
+        start_menu_dir: Some(base.join("menu")),
+        desktop_dir: Some(base.join("desktop")),
+        ..InstallOptions::default()
+    };
+
+    let first = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 1,
+        },
+        vec![
+            PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap(),
+            PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
+        ],
+        vec![PackageShortcut {
+            target: "mininet-desktop.exe".to_string(),
+            name: "Mininet".to_string(),
+        }],
+    )
+    .unwrap();
+    let first_bytes = mini_windows_setup::container::write(&first, |path| {
+        Ok(match path {
+            "mininet-desktop.exe" => DESKTOP_V1.to_vec(),
+            "mininet-setup.exe" => SETUP.to_vec(),
+            other => panic!("unexpected {other}"),
+        })
+    })
+    .unwrap();
+    let container = Container::open(&first_bytes).unwrap();
+    let approval = InstallApproval::new(container.manifest(), 1_000);
+    setup
+        .install(
+            &container,
+            &approval,
+            &options,
+            &mut RecordingShell::default(),
+            1_000,
+        )
+        .unwrap();
+
+    let second = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.2.0",
+            target: "x86_64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 2,
+        },
+        vec![
+            PackageFile::describe("mininet-desktop.exe", DESKTOP_V2).unwrap(),
+            PackageFile::describe("mininet-setup.exe", SETUP).unwrap(),
+        ],
+        vec![PackageShortcut {
+            target: "mininet-desktop.exe".to_string(),
+            name: "Mininet Client".to_string(),
+        }],
+    )
+    .unwrap();
+    let second_bytes = mini_windows_setup::container::write(&second, |path| {
+        Ok(match path {
+            "mininet-desktop.exe" => DESKTOP_V2.to_vec(),
+            "mininet-setup.exe" => SETUP.to_vec(),
+            other => panic!("unexpected {other}"),
+        })
+    })
+    .unwrap();
+    let container = Container::open(&second_bytes).unwrap();
+    let approval = InstallApproval::new(container.manifest(), 2_000);
+    let mut shell = RecordingShell::default();
+    setup
+        .install(&container, &approval, &options, &mut shell, 2_000)
+        .unwrap();
+
+    let created: Vec<&str> = shell
+        .actions
+        .iter()
+        .filter_map(|action| match action {
+            ShellAction::CreateShortcut(request) => Some(request.link_name.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(created, vec!["Mininet Client.lnk"]);
+    let removed: Vec<&str> = shell
+        .actions
+        .iter()
+        .filter_map(|action| match action {
+            ShellAction::RemoveShortcut { link_name, .. } => Some(link_name.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(removed, vec!["Mininet.lnk"]);
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn the_registered_uninstall_command_names_what_was_actually_installed() {
+    let mut fixture = Fixture::new("uninstall-command");
+    fixture.options.desktop_shortcut = true;
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    let registration = shell
+        .actions
+        .iter()
+        .find_map(|action| match action {
+            ShellAction::RegisterUninstall(registration) => Some(registration),
+            _ => None,
+        })
+        .expect("an uninstall registration");
+    // Without these, Apps & features would start a process that reconstructs
+    // the *default* root and options and removes the wrong thing, or nothing.
+    let command = &registration.uninstall_command;
+    assert!(command.contains("--install-root"));
+    assert!(command.contains(fixture.setup.layout().root().to_str().unwrap()));
+    assert!(command.contains("--user-data-root"));
+    assert!(command.contains("--desktop-shortcut"));
+}
+
+#[test]
+fn a_package_for_another_architecture_is_refused() {
+    // An x64 setup that installs an ARM package reports success and leaves a
+    // shortcut pointing at binaries Windows cannot execute.
+    let base = tempdir("foreign");
+    let manifest = PackageManifest::new(
+        ManifestHeader {
+            package: "mininet-windows-client",
+            version: "0.1.0",
+            // Deliberately not this machine's architecture.
+            target: "powerpc64-pc-windows-msvc",
+            product: "Mininet",
+            launch: "mininet-desktop.exe",
+            built_at_ms: 1,
+        },
+        vec![PackageFile::describe("mininet-desktop.exe", DESKTOP_V1).unwrap()],
+        vec![],
+    )
+    .unwrap();
+    let bytes =
+        mini_windows_setup::container::write(&manifest, |_| Ok(DESKTOP_V1.to_vec())).unwrap();
+    let container = Container::open(&bytes).unwrap();
+    let setup = Setup::new(base.join("Programs")).with_user_data_root(base.join("UserData"));
+    let mut options = options(&base);
+    // This manifest is testing the architecture refusal, not uninstall
+    // registration, and deliberately ships only mininet-desktop.exe.
+    options.register_uninstall = false;
+    let approval = InstallApproval::new(container.manifest(), 1_000);
+    let mut shell = RecordingShell::default();
+    let error = setup
+        .install(&container, &approval, &options, &mut shell, 1_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "foreign_target");
+    assert!(setup.status().unwrap().active.is_none());
+
+    // Cross-staging is still possible when a caller says so explicitly, which
+    // is what the packaging scripts do when building a Windows package.
+    options.allow_foreign_target = true;
+    setup
+        .install(&container, &approval, &options, &mut shell, 2_000)
+        .unwrap();
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[test]
+fn swapping_in_another_package_of_the_same_version_is_detected() {
+    // Files and manifest replaced together are self-consistent, so checking
+    // files against their own manifest would call this intact. The pointer
+    // records the digest the owner approved, which is what catches it.
+    let fixture = Fixture::new("swapped-package");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    assert!(fixture.setup.verify_installed("0.1.0").unwrap().is_intact());
+
+    // A different build of the same version, written over the installation
+    // together with its own valid manifest.
+    let other = package("0.1.0", DESKTOP_V2);
+    let version_dir = fixture.setup.layout().version_dir("0.1.0");
+    std::fs::write(version_dir.join("mininet-desktop.exe"), DESKTOP_V2).unwrap();
+    std::fs::write(
+        fixture.setup.layout().manifest_path("0.1.0"),
+        other.to_bytes(),
+    )
+    .unwrap();
+
+    let report = fixture.setup.verify_installed("0.1.0").unwrap();
+    assert!(!report.is_intact());
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| matches!(problem, VerifyProblem::UnexpectedPackage { .. })));
+}
+
+#[test]
+fn a_rollback_that_cannot_reach_the_shell_changes_nothing() {
+    // Pointers must not move before shell integration succeeds: the old
+    // ordering recorded the rollback as done, reported it refused, and left
+    // no rollback target to retry with.
+    #[derive(Debug, Default)]
+    struct RefusingShell;
+    impl mini_windows_setup::ShellIntegration for RefusingShell {
+        fn apply(
+            &mut self,
+            _actions: &[ShellAction],
+        ) -> Result<(), mini_windows_setup::SetupError> {
+            Err(mini_windows_setup::SetupError::UnsupportedPlatform)
+        }
+    }
+
+    let fixture = Fixture::new("rollback-shell-fails");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+    fixture
+        .install("0.2.0", DESKTOP_V2, 2_000, &mut shell)
+        .unwrap();
+
+    let mut refusing = RefusingShell;
+    let error = fixture
+        .setup
+        .rollback(&fixture.options, &mut refusing, 3_000)
+        .unwrap_err();
+    assert_eq!(error.code(), "unsupported_platform");
+
+    // Still on the newer version, and the rollback target is still there to
+    // try again with.
+    let status = fixture.setup.status().unwrap();
+    assert_eq!(status.active.unwrap().version_text, "0.2.0");
+    assert_eq!(status.previous.unwrap().version_text, "0.1.0");
+
+    // And a retry through a working shell succeeds.
+    let restored = fixture
+        .setup
+        .rollback(&fixture.options, &mut shell, 4_000)
+        .unwrap();
+    assert_eq!(restored.version_text, "0.1.0");
+}
+
+#[test]
+fn a_client_finds_the_install_root_it_was_started_from() {
+    // A custom install location must not read as unmanaged, which would
+    // disable verification and rollback on an installation that has both.
+    let fixture = Fixture::new("containing");
+    let mut shell = RecordingShell::default();
+    let report = fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    let discovered = Setup::containing(&report.launch_path);
+    assert_eq!(discovered.layout().root(), fixture.setup.layout().root());
+    assert_eq!(
+        discovered.status().unwrap().active.unwrap().version_text,
+        "0.1.0"
+    );
+
+    // Something outside any install tree falls back to the default rather
+    // than guessing.
+    let elsewhere = Setup::containing(std::path::Path::new("/tmp/not-an-install/app.exe"));
+    assert_eq!(
+        elsewhere.layout().root(),
+        mini_windows_setup::InstallLayout::default_root()
+    );
+}
+
+#[test]
+fn the_install_lock_never_sits_inside_the_directory_it_guards() {
+    // Windows refuses to remove a directory containing an open handle, so a
+    // lock held inside the install root makes the uninstall that holds it
+    // fail with access denied. Unlinking an open file is fine on Linux, so
+    // this is invisible without either a Windows runner or this assertion.
+    let fixture = Fixture::new("lock-location");
+    let mut shell = RecordingShell::default();
+    fixture
+        .install("0.1.0", DESKTOP_V1, 1_000, &mut shell)
+        .unwrap();
+
+    let root = fixture.setup.layout().root();
+    let lock = fixture.setup.layout().lock_path();
+    assert!(lock.is_file(), "the lock should exist after an install");
+    assert!(
+        !lock.starts_with(root),
+        "the lock at {} is inside the root at {} that uninstall removes",
+        lock.display(),
+        root.display()
+    );
+
+    // And the root really does come away cleanly.
+    let approval = UninstallApproval::keeping_identities(root, 2_000);
+    fixture
+        .setup
+        .uninstall(&approval, &fixture.options, &mut shell, 2_000)
+        .unwrap();
+    assert!(!root.exists());
+}

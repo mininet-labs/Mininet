@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A Windows Installer package for managed deployment (Intune, Group Policy,
+  Configuration Manager): the places that can only consume an MSI.
+
+  This MSI deliberately does NOT know how to install Mininet. It lays down two
+  files and calls mininet-setup.exe, which is the one implementation of
+  installing in this repository: the one that re-verifies every file against
+  the package manifest, requires an approval naming the exact package digest,
+  refuses a silent downgrade, and keeps identities when removing the client. A
+  second implementation expressed as MSI components would have none of those,
+  and would be the one nobody tests.
+
+  Two consequences of that split are worth reading before editing.
+
+  First, the payload lives in "%LOCALAPPDATA%\Mininet Setup", a sibling of the
+  install root, never inside it. The setup program removes its install root
+  recursively when uninstalling; if the MSI's own files sat there, the
+  uninstall custom action would delete the very files Windows Installer was in
+  the middle of removing.
+
+  Second, the install custom action suppresses setup's own Apps and features
+  registration, so that entry comes from this MSI alone. Setup still creates
+  the Start Menu shortcut and still removes it later. One entry, one owner,
+  each.
+
+  Per user by design (Scope="perUser"): the client installs into the user's
+  own profile and needs no administrator, so a per machine MSI would promise
+  an elevation the product does not use. Deploy it in user context.
+
+  Build with WiX v5 or newer:
+    wix build packaging\windows\Mininet.wxs -d Version=0.1.0
+        -d Payload=dist\windows -o dist\windows\Mininet.msi
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="Mininet"
+      Manufacturer="The Mininet contributors"
+      Version="$(var.Version)"
+      UpgradeCode="7b1f3a52-9c64-4f8e-9a3d-2f5c8e6b41d7"
+      Scope="perUser"
+      Compressed="yes">
+
+    <!--
+      Upgrading in place is allowed; going backwards is not, matching the
+      engine's own refusal to downgrade without an explicit decision.
+    -->
+    <MajorUpgrade
+        AllowDowngrades="no"
+        DowngradeErrorMessage="A newer version of Mininet is already installed. Remove it first, or roll back with mininet-setup.exe." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="SETUPFOLDER" Name="Mininet Setup" />
+    </StandardDirectory>
+
+    <ComponentGroup Id="SetupPayload" Directory="SETUPFOLDER">
+      <Component Id="SetupExecutable" Guid="*">
+        <File Id="MininetSetupExe"
+              Name="mininet-setup.exe"
+              Source="$(var.Payload)\mininet-setup.exe"
+              KeyPath="yes" />
+      </Component>
+      <Component Id="PackageContainer" Guid="*">
+        <File Id="MininetClientPackage"
+              Name="mininet-client.mnpkg"
+              Source="$(var.Payload)\mininet-client.mnpkg"
+              KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="Client" Title="Mininet client" Level="1">
+      <ComponentGroupRef Id="SetupPayload" />
+    </Feature>
+
+    <!--
+      Install and removal both go through the same program. The install action
+      uses Return="check", so a refused install (a digest that does not match,
+      a downgrade) fails the MSI rather than reporting success over a client
+      that was never installed.
+    -->
+    <CustomAction Id="SetInstallCommand"
+                  Property="RunMininetSetup"
+                  Value="&quot;[#MininetSetupExe]&quot; --silent --no-register --payload &quot;[#MininetClientPackage]&quot;" />
+    <CustomAction Id="RunMininetSetup"
+                  BinaryRef="Wix4UtilCA_X86"
+                  DllEntry="WixQuietExec"
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="check" />
+
+    <!--
+      If this transaction fails after RunMininetSetup already ran, undo what
+      it did. That action changes the client tree, shortcuts, and pointer
+      files entirely outside Windows Installer's own component transaction,
+      so only a paired rollback action (this one) can reverse it.
+
+      Deliberately the setup program's undo_install mode, not its plain
+      version rollback mode: on a first ever install there is no previous
+      version recorded, so a plain rollback would report NoPreviousVersion
+      and (ignored via Return="ignore") do nothing, leaving the freshly
+      installed client and shortcut behind with no MSI registration left to
+      remove them. undo_install checks what was actually there before this
+      transaction started and reverses exactly that: falls back to a
+      previous version when an upgrade recorded one, or removes the fresh
+      install entirely when there was none. -->
+    <CustomAction Id="SetRollbackCommand"
+                  Property="RunMininetRollback"
+                  Value="&quot;[#MininetSetupExe]&quot; --undo-install --no-register" />
+    <CustomAction Id="RollbackMininetSetup"
+                  BinaryRef="Wix4UtilCA_X86"
+                  DllEntry="WixQuietExec"
+                  Execute="rollback"
+                  Impersonate="yes"
+                  Return="ignore" />
+
+    <!--
+      Removal keeps identities. There is deliberately no property for
+      destroying them: a deployment tool removing an application must not be
+      able to erase the only copy of a person's signing keys as a side effect.
+      Someone who wants that runs the setup program themselves and types the
+      confirmation word.
+    -->
+    <CustomAction Id="SetUninstallCommand"
+                  Property="RunMininetUninstall"
+                  Value="&quot;[#MininetSetupExe]&quot; --uninstall --no-register" />
+    <CustomAction Id="RunMininetUninstall"
+                  BinaryRef="Wix4UtilCA_X86"
+                  DllEntry="WixQuietExec"
+                  Execute="deferred"
+                  Impersonate="yes"
+                  Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="SetInstallCommand" Before="RunMininetSetup" Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="RunMininetSetup" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="SetRollbackCommand" Before="RollbackMininetSetup" Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="RollbackMininetSetup" Before="InstallFinalize" Condition="NOT Installed OR REINSTALL" />
+      <!--
+        Sequenced before RemoveFiles, so setup.exe still exists when it is
+        called. Return="ignore" on the removal action: a client already
+        removed by hand must not leave the MSI un-uninstallable, which would
+        strand the machine in a state a deployment tool cannot fix.
+      -->
+      <Custom Action="SetUninstallCommand" Before="RunMininetUninstall" Condition="Installed AND (REMOVE=&quot;ALL&quot;)" />
+      <Custom Action="RunMininetUninstall" Before="RemoveFiles" Condition="Installed AND (REMOVE=&quot;ALL&quot;)" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>
