@@ -18,13 +18,13 @@ use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
-    comments, community_members, feed, followers, following, known_profiles, publish_comment,
-    publish_community, publish_media_post, publish_post, publish_profile, publish_profile_details,
-    publish_wall, resolve_community, resolve_post, resolve_profile, set_follow, set_membership,
-    set_reaction, FeedFilter, FeedItem, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
-    NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy,
-    MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
-    MAX_PROFILE_FIELD_VALUE_BYTES,
+    comments, community_members, community_posts, feed, followers, following, known_profiles,
+    publish_comment, publish_community, publish_community_post, publish_media_post, publish_post,
+    publish_profile, publish_profile_details, publish_wall, resolve_community, resolve_post,
+    resolve_profile, set_follow, set_membership, set_reaction, CommunityPost, FeedFilter, FeedItem,
+    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
+    PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
+    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{
@@ -252,6 +252,10 @@ struct MininetApp {
     composer: String,
     community_name: String,
     community_charter: String,
+    /// Which community's inline post composer is currently open, if any --
+    /// only one at a time, mirroring `reply_target`'s single-slot pattern.
+    open_community_composer: Option<mini_objects::ObjectId>,
+    community_post_text: String,
     profile_name: String,
     profile_bio: String,
     profile_photo_path: String,
@@ -787,6 +791,80 @@ impl Workspace {
             .unwrap_or(0)
     }
 
+    /// Direct replies to `parent` (a post or another comment) -- the one
+    /// level [`comment_thread`](MininetApp::comment_thread) recurses over
+    /// to build a visible nested thread.
+    fn comment_children(&self, parent: &mini_objects::ObjectId) -> Vec<mini_social::Comment> {
+        comments(&self.store, parent).unwrap_or_default()
+    }
+
+    fn publish_community_post(
+        &mut self,
+        community: &mini_objects::ObjectId,
+        text: &str,
+    ) -> Result<(), String> {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or_else(|| "identity is locked".to_string())?;
+        let human = self.human_did()?.clone();
+        publish_community_post(
+            &mut self.store,
+            &human,
+            &identity.device,
+            community.clone(),
+            text,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
+        self.sequence = self.sequence.saturating_add(1);
+        Ok(())
+    }
+
+    /// Every post scoped to `community`, newest first.
+    fn community_feed(&self, community: &mini_objects::ObjectId) -> Vec<CommunityPost> {
+        community_posts(&self.store, community).unwrap_or_default()
+    }
+
+    /// Cast a Reddit-style exclusive vote: choosing a side always explicitly
+    /// clears the other, so a stale opposite vote never lingers active.
+    /// There is no toggle-to-clear-both yet -- clicking Upvote/Downvote
+    /// again simply re-asserts the same side, which is what the UI's two
+    /// separate buttons naturally produce.
+    fn react_vote(&mut self, target: &mini_objects::ObjectId, upvote: bool) -> Result<(), String> {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or_else(|| "identity is locked".to_string())?;
+        let human = self.human_did()?.clone();
+        set_reaction(
+            &mut self.store,
+            &human,
+            &identity.device,
+            target,
+            ReactionKind::Upvote,
+            upvote,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
+        self.sequence = self.sequence.saturating_add(1);
+        set_reaction(
+            &mut self.store,
+            &human,
+            &identity.device,
+            target,
+            ReactionKind::Downvote,
+            !upvote,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
+        self.sequence = self.sequence.saturating_add(1);
+        Ok(())
+    }
+
     fn export_bundle(&self, path: &str) -> Result<usize, String> {
         const MAGIC: &[u8] = b"MINIBND1";
         const MAX_OBJECTS: usize = 10_000;
@@ -928,6 +1006,15 @@ impl Workspace {
         resolve_post(&self.store, &item.id)
             .map(|post| post.text)
             .unwrap_or_else(|_| "[unreadable or encrypted post]".to_string())
+    }
+
+    /// Same resolution as [`Self::post_text`], for a caller (like
+    /// [`CommunityPost`]) that only has the post id, not a whole
+    /// [`FeedItem`]. `None` only for a malformed/unreadable post -- callers
+    /// decide how to render that, rather than this baking in feed's
+    /// specific placeholder text.
+    fn post_body(&self, id: &mini_objects::ObjectId) -> Option<String> {
+        resolve_post(&self.store, id).map(|post| post.text).ok()
     }
 
     fn communities(&self) -> Vec<(mini_objects::ObjectId, String, String, usize, bool)> {
@@ -1487,6 +1574,8 @@ impl Default for MininetApp {
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
+            open_community_composer: None,
+            community_post_text: String::new(),
             profile_name: existing_profile
                 .as_ref()
                 .map(|profile| profile.display_name.clone())
@@ -3140,6 +3229,146 @@ impl MininetApp {
         ui.add_space(SPACE_SM);
     }
 
+    /// A Reddit-style vote/reply/author row for one community post, plus
+    /// its nested reply thread below it.
+    fn community_post_card(&mut self, ui: &mut egui::Ui, post: &CommunityPost) {
+        let profile = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.profile_for(&post.author));
+        let display_name = profile
+            .as_ref()
+            .map(|profile| profile.display_name.clone())
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or_else(|| short_scid(&post.author));
+        let avatar_id = profile.as_ref().and_then(|profile| profile.avatar.clone());
+        let is_unlocked = self.workspace.as_ref().is_some_and(Workspace::is_unlocked);
+        let body = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.post_body(&post.id));
+        card(ui, |ui| {
+            ui.horizontal(|ui| {
+                self.avatar(ui, &display_name, avatar_id.as_ref(), 36.0);
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(&display_name)
+                                .strong()
+                                .color(COLOR_TEXT_PRIMARY),
+                        );
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "· {}",
+                                relative_time(now_ms(), post.timestamp_ms)
+                            ))
+                            .small()
+                            .color(COLOR_TEXT_SECONDARY),
+                        );
+                    });
+                    if let Some(body) = &body {
+                        ui.label(egui::RichText::new(body).color(COLOR_TEXT_PRIMARY));
+                    }
+                });
+            });
+            ui.add_space(SPACE_SM);
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(is_unlocked, egui::Button::new("Upvote"))
+                    .clicked()
+                {
+                    self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                        match workspace.react_vote(&post.id, true) {
+                            Ok(()) => "Upvote written locally.".to_string(),
+                            Err(error) => format!("Could not vote: {error}"),
+                        }
+                    } else {
+                        "Local workspace unavailable.".to_string()
+                    };
+                }
+                ui.label(
+                    egui::RichText::new(post.vote_score.to_string())
+                        .strong()
+                        .color(COLOR_TEXT_PRIMARY),
+                );
+                if ui
+                    .add_enabled(is_unlocked, egui::Button::new("Downvote"))
+                    .clicked()
+                {
+                    self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                        match workspace.react_vote(&post.id, false) {
+                            Ok(()) => "Downvote written locally.".to_string(),
+                            Err(error) => format!("Could not vote: {error}"),
+                        }
+                    } else {
+                        "Local workspace unavailable.".to_string()
+                    };
+                }
+                if ui.button("Reply").clicked() {
+                    self.reply_target = Some(post.id.clone());
+                }
+            });
+            ui.add_space(SPACE_SM);
+            self.comment_thread(ui, &post.id.clone(), 0);
+        });
+        ui.add_space(SPACE_SM);
+    }
+
+    /// Recursively render every reply to `parent`, indented one step per
+    /// depth level. Bounded to `MAX_THREAD_DEPTH` so a pathological or
+    /// adversarial reply chain cannot make this recurse unboundedly deep.
+    fn comment_thread(&mut self, ui: &mut egui::Ui, parent: &mini_objects::ObjectId, depth: u8) {
+        const MAX_THREAD_DEPTH: u8 = 6;
+        if depth >= MAX_THREAD_DEPTH {
+            return;
+        }
+        let children = self
+            .workspace
+            .as_ref()
+            .map(|workspace| workspace.comment_children(parent))
+            .unwrap_or_default();
+        for comment in children {
+            let profile = self
+                .workspace
+                .as_ref()
+                .and_then(|workspace| workspace.profile_for(&comment.author));
+            let display_name = profile
+                .as_ref()
+                .map(|profile| profile.display_name.clone())
+                .filter(|name| !name.trim().is_empty())
+                .unwrap_or_else(|| short_scid(&comment.author));
+            let avatar_id = profile.as_ref().and_then(|profile| profile.avatar.clone());
+            ui.horizontal(|ui| {
+                ui.add_space(SPACE_LG * f32::from(depth));
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        self.avatar(ui, &display_name, avatar_id.as_ref(), 24.0);
+                        ui.label(
+                            egui::RichText::new(&display_name)
+                                .strong()
+                                .small()
+                                .color(COLOR_TEXT_PRIMARY),
+                        );
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "· {}",
+                                relative_time(now_ms(), comment.timestamp_ms)
+                            ))
+                            .small()
+                            .color(COLOR_TEXT_SECONDARY),
+                        );
+                    });
+                    ui.label(egui::RichText::new(&comment.text).color(COLOR_TEXT_PRIMARY));
+                    if ui.small_button("Reply").clicked() {
+                        self.reply_target = Some(comment.id.clone());
+                    }
+                    self.comment_thread(ui, &comment.id.clone(), depth + 1);
+                });
+            });
+            ui.add_space(SPACE_XS);
+        }
+    }
+
     fn communities(&mut self, ui: &mut egui::Ui) {
         let is_unlocked = self.workspace.as_ref().is_some_and(Workspace::is_unlocked);
         card(ui, |ui| {
@@ -3195,6 +3424,11 @@ impl MininetApp {
             );
         }
         for (id, name, charter, member_count, joined) in cards {
+            let posts = self
+                .workspace
+                .as_ref()
+                .map(|workspace| workspace.community_feed(&id))
+                .unwrap_or_default();
             card(ui, |ui| {
                 ui.label(egui::RichText::new(name).strong().color(COLOR_TEXT_PRIMARY));
                 ui.label(egui::RichText::new(charter).color(COLOR_TEXT_PRIMARY));
@@ -3203,33 +3437,95 @@ impl MininetApp {
                         .small()
                         .color(COLOR_TEXT_SECONDARY),
                 );
-                if ui
-                    .add_enabled(
-                        is_unlocked,
-                        egui::Button::new(if joined {
-                            "Leave community"
-                        } else {
-                            "Join community"
-                        }),
-                    )
-                    .clicked()
-                {
-                    self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_community_membership(&id, !joined) {
-                            Ok(()) => {
-                                if joined {
-                                    "Leave object written locally.".to_string()
-                                } else {
-                                    "Join object written locally.".to_string()
+                ui.horizontal(|ui| {
+                    if ui
+                        .add_enabled(
+                            is_unlocked,
+                            egui::Button::new(if joined {
+                                "Leave community"
+                            } else {
+                                "Join community"
+                            }),
+                        )
+                        .clicked()
+                    {
+                        self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                            match workspace.set_community_membership(&id, !joined) {
+                                Ok(()) => {
+                                    if joined {
+                                        "Leave object written locally.".to_string()
+                                    } else {
+                                        "Join object written locally.".to_string()
+                                    }
                                 }
+                                Err(error) => format!("Could not change membership: {error}"),
                             }
-                            Err(error) => format!("Could not change membership: {error}"),
+                        } else {
+                            "Local workspace unavailable.".to_string()
+                        };
+                    }
+                    let composing = self.open_community_composer.as_ref() == Some(&id);
+                    if ui
+                        .add_enabled(is_unlocked, egui::Button::new("Post"))
+                        .clicked()
+                    {
+                        self.open_community_composer =
+                            if composing { None } else { Some(id.clone()) };
+                        self.community_post_text.clear();
+                    }
+                });
+                if self.open_community_composer.as_ref() == Some(&id) {
+                    ui.add_space(SPACE_XS);
+                    ui.add_sized(
+                        [ui.available_width(), 56.0],
+                        egui::TextEdit::multiline(&mut self.community_post_text)
+                            .hint_text("Write a post for this community…"),
+                    );
+                    ui.horizontal(|ui| {
+                        if ui
+                            .add(
+                                egui::Button::new("Publish")
+                                    .fill(COLOR_ACCENT.gamma_multiply(0.35)),
+                            )
+                            .clicked()
+                        {
+                            self.notice = if self.community_post_text.trim().is_empty() {
+                                "Write something first.".to_string()
+                            } else if let Some(workspace) = self.workspace.as_mut() {
+                                match workspace
+                                    .publish_community_post(&id, self.community_post_text.trim())
+                                {
+                                    Ok(()) => {
+                                        self.community_post_text.clear();
+                                        self.open_community_composer = None;
+                                        "Community post written locally.".to_string()
+                                    }
+                                    Err(error) => format!("Could not publish: {error}"),
+                                }
+                            } else {
+                                "Local workspace unavailable.".to_string()
+                            };
                         }
-                    } else {
-                        "Local workspace unavailable.".to_string()
-                    };
+                        if ui.button("Cancel").clicked() {
+                            self.open_community_composer = None;
+                            self.community_post_text.clear();
+                        }
+                    });
+                }
+                if !posts.is_empty() {
+                    ui.add_space(SPACE_SM);
+                    ui.separator();
+                    ui.add_space(SPACE_XS);
+                    ui.label(
+                        egui::RichText::new(format!("{} post(s) in this community", posts.len()))
+                            .small()
+                            .color(COLOR_TEXT_SECONDARY),
+                    );
                 }
             });
+            for post in &posts {
+                self.community_post_card(ui, post);
+            }
             ui.add_space(SPACE_SM);
         }
         ui.add_space(SPACE_MD);
