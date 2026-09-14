@@ -122,6 +122,8 @@ fn dispatch(home: &Path, store_path: &Path, mut args: Vec<String>, json: bool) -
         "release" => dispatch_release(home, store_path, args, json),
         "provenance" => dispatch_provenance(home, store_path, args, json),
         "installer" => dispatch_installer(home, store_path, args, json),
+        "windows" => dispatch_windows(args, json),
+        "selftest" => dispatch_selftest(args, json),
         other => Err(CliError::Usage(format!("unknown command: {other:?}"))),
     }
 }
@@ -676,6 +678,163 @@ fn dispatch_provenance(
             "unknown `provenance` subcommand: {other:?}"
         ))),
     }
+}
+
+/// `mini selftest [list|<area>]` --- run the diagnostics suite.
+///
+/// The same checks the client's Diagnostics page runs. A failed check makes
+/// `main` exit non-zero, so this works as a post-install smoke test in a
+/// script rather than only as something a person reads.
+fn dispatch_selftest(mut args: Vec<String>, json: bool) -> Result<String> {
+    let scratch = extract_flag(&mut args, "--scratch").map(PathBuf::from);
+    let noun = if args.is_empty() {
+        None
+    } else {
+        Some(next(&mut args, "selftest")?)
+    };
+    let area = match noun.as_deref() {
+        Some("list") => return Ok(crate::selftest::list().render(json, "selftest.list")),
+        Some("coverage") => {
+            return Ok(crate::selftest::coverage().render(json, "selftest.coverage"))
+        }
+        Some(area) => Some(area.to_string()),
+        None => None,
+    };
+    let (result, clean) = crate::selftest::run(scratch.as_deref(), area.as_deref())?;
+    let rendered = result.render(json, "selftest.run");
+    if clean {
+        return Ok(rendered);
+    }
+    // Failing checks exit non-zero either way. The report itself --
+    // human text or, under --json, the full `{"clean":false,"passed":...,
+    // "failures":[...],"skips":[...]}` envelope -- is carried as the error's
+    // payload rather than replaced with a generic sentence: a caller reading
+    // `--json` output needs `error_code` to know the command failed *and*
+    // the report's fields to know which checks did, without a second
+    // invocation in a different mode to find out.
+    Err(CliError::SelfTest(rendered))
+}
+
+/// `mini windows ...` --- build and inspect Windows client packages.
+///
+/// Read and build verbs only. Installing stays with `mininet-setup.exe`,
+/// which ships inside the package and is therefore still present when Apps &
+/// features later needs to run its uninstall command (`crate::windows`'s
+/// module docs).
+fn dispatch_windows(mut args: Vec<String>, json: bool) -> Result<String> {
+    let noun = next(&mut args, "windows")?;
+    let result = dispatch_windows_noun(&noun, &mut args, json)?;
+    // Anything left over is a flag that was never consumed, which almost
+    // always means a typo. Silently ignoring `--targte` would emit a
+    // plausibly named package built for the default target instead of
+    // reporting the mistake.
+    reject_leftover(&args, &format!("windows {noun}"))?;
+    Ok(result)
+}
+
+/// Reject arguments no option consumed.
+fn reject_leftover(args: &[String], context: &str) -> Result<()> {
+    if args.is_empty() {
+        return Ok(());
+    }
+    Err(CliError::Usage(format!(
+        "`mini {context}`: unrecognized argument(s): {}",
+        args.join(" ")
+    )))
+}
+
+fn dispatch_windows_noun(noun: &str, args: &mut Vec<String>, json: bool) -> Result<String> {
+    match noun {
+        "pack" => {
+            let source = required_path_flag(args, "--source")?;
+            let out = required_path_flag(args, "--out")?;
+            let version = extract_flag(args, "--version")
+                .ok_or_else(|| CliError::Usage("--version required".to_string()))?;
+            // Required rather than defaulted to the clock: two runs over the
+            // same bytes must produce the same container, or an independent
+            // builder cannot confirm they built the same package.
+            let built_at_ms = required_u64_flag(args, "--built-at-ms")?;
+            let request = crate::windows::PackRequest {
+                source,
+                out,
+                version,
+                package: extract_flag(args, "--package")
+                    .unwrap_or_else(|| crate::windows::DEFAULT_PACKAGE.to_string()),
+                product: extract_flag(args, "--product")
+                    .unwrap_or_else(|| crate::windows::DEFAULT_PRODUCT.to_string()),
+                launch: extract_flag(args, "--launch")
+                    .unwrap_or_else(|| crate::windows::DEFAULT_LAUNCH.to_string()),
+                target: extract_flag(args, "--target")
+                    .unwrap_or_else(|| crate::windows::DEFAULT_TARGET.to_string()),
+                built_at_ms,
+                include: extract_flag_multi(args, "--include"),
+                shortcuts: extract_flag_multi(args, "--shortcut"),
+            };
+            crate::windows::pack(&request).map(|r: CommandResult| r.render(json, "windows.pack"))
+        }
+        "inspect" => {
+            let path = next(args, "windows inspect")?;
+            crate::windows::inspect(Path::new(&path))
+                .map(|r: CommandResult| r.render(json, "windows.inspect"))
+        }
+        "plan" => {
+            let package = next(args, "windows plan")?;
+            let install_root = extract_flag(args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(args, "--user-data-root").map(PathBuf::from);
+            let options = windows_install_options(args);
+            crate::windows::plan(
+                Path::new(&package),
+                install_root.as_deref(),
+                user_data_root.as_deref(),
+                &options,
+            )
+            .map(|r: CommandResult| r.render(json, "windows.plan"))
+        }
+        "verify" => {
+            let install_root = extract_flag(args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(args, "--user-data-root").map(PathBuf::from);
+            let version = extract_flag(args, "--version");
+            crate::windows::verify(
+                install_root.as_deref(),
+                user_data_root.as_deref(),
+                version.as_deref(),
+            )
+            .map(|r: CommandResult| r.render(json, "windows.verify"))
+        }
+        "status" => {
+            let install_root = extract_flag(args, "--install-root").map(PathBuf::from);
+            let user_data_root = extract_flag(args, "--user-data-root").map(PathBuf::from);
+            crate::windows::status(install_root.as_deref(), user_data_root.as_deref())
+                .map(|r: CommandResult| r.render(json, "windows.status"))
+        }
+        other => Err(CliError::Usage(format!(
+            "unknown `windows` subcommand: {other:?}"
+        ))),
+    }
+}
+
+/// Install choices shared by `windows plan`.
+///
+/// The defaults match `mininet-setup`'s, so a plan printed here describes
+/// what that program would actually do rather than a differently-configured
+/// hypothetical.
+fn windows_install_options(args: &mut Vec<String>) -> mini_windows_setup::InstallOptions {
+    let mut options = mini_windows_setup::InstallOptions::default();
+    if extract_bool_flag(args, "--no-start-menu") {
+        options.start_menu_shortcut = false;
+    }
+    if extract_bool_flag(args, "--desktop-shortcut") {
+        options.desktop_shortcut = true;
+    }
+    if extract_bool_flag(args, "--no-register") {
+        options.register_uninstall = false;
+    }
+    if extract_bool_flag(args, "--allow-downgrade") {
+        options.allow_downgrade = true;
+    }
+    options.start_menu_dir = extract_flag(args, "--start-menu-dir").map(PathBuf::from);
+    options.desktop_dir = extract_flag(args, "--desktop-dir").map(PathBuf::from);
+    options
 }
 
 fn dispatch_installer(
