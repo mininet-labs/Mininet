@@ -1,0 +1,21 @@
+[package]
+name = "mini-beta-exec"
+version = "0.0.1"
+description = "Durable authenticated and fail-closed replicated execution for resettable Beta MINI test value."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+blake3 = "1"
+did-mini = { path = "../did-mini" }
+mini-beta = { path = "../mini-beta" }
+mini-beta-grants = { path = "../mini-beta-grants" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }
+
+[dev-dependencies]
+tempfile = "3"

@@ -16,6 +16,7 @@ members = [
     "crates/mini-reward",
     "crates/mini-beta",
     "crates/mini-beta-grants",
+    "crates/mini-beta-exec",
     "crates/mini-keystone",
     "crates/mini-ffi",
     "crates/mini-objects",

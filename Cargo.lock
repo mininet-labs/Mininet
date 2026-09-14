@@ -2635,6 +2635,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-beta-exec"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "did-mini",
+ "mini-beta",
+ "mini-beta-grants",
+ "mini-objects",
+ "mini-store",
+ "tempfile",
+]
+
+[[package]]
 name = "mini-beta-grants"
 version = "0.0.1"
 dependencies = [
