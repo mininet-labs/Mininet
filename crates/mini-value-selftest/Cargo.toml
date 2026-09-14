@@ -1,0 +1,31 @@
+[package]
+name = "mini-value-selftest"
+version = "0.0.1"
+description = "Diagnostics for the value layer, in their own process so no crate links both the value layer and the governance layer."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mininet-value-selftest"
+path = "src/main.rs"
+
+[dependencies]
+# VALUE-LAYER EDGES ONLY.
+#
+# This crate must NEVER gain an edge to mini-forge, mini-chain, or anything
+# else that counts votes or approvals. That is the whole reason it exists as
+# a separate process: mini-selftest holds the governance edges and spawns
+# this binary, so a user can test money and governance from one window while
+# no dependency path ever connects the two (P1, Directive 16).
+#
+# The canonical invariant is "no balance maps to governance or validator vote
+# weight". Keeping these graphs apart is how that is enforced in code; it is
+# not a reason to hide the money code from the person running it.
+curve25519-dalek = "4"
+did-mini = { path = "../did-mini" }
+mini-value = { path = "../mini-value" }
+mini-treasury = { path = "../mini-treasury" }

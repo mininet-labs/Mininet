@@ -152,6 +152,334 @@ jobs:
       - name: Run backup/restore acceptance tests
         run: bash deploy/backup/test_backup_restore.sh
 
+  # The Windows client's own platform (D-0520).
+  #
+  # Most of the Windows install engine is deliberately platform-independent
+  # and is covered by the `check` job above. Three things are not, and a
+  # Linux-only CI would never see them: `mini-windows-vault`'s DPAPI round
+  # trip, `WindowsShell` actually running its generated PowerShell, and the
+  # egui client and installer linking against the MSVC toolchain at all.
+  #
+  # This job does not run the whole workspace on Windows. That would double
+  # CI time for crates whose behaviour cannot differ by platform, and a
+  # slower pipeline gets bypassed. It runs exactly the crates whose behaviour
+  # *can*.
+  windows-client:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Show toolchain
+        run: rustup show
+
+      - name: Clippy the Windows-specific crates
+        run: >
+          cargo clippy --all-targets --all-features
+          -p mini-windows-vault -p mini-windows-setup -p mini-setup
+          -p mini-selftest -p mini-desktop -- -D warnings
+
+      - name: Test the Windows-specific crates
+        run: >
+          cargo test --all-features
+          -p mini-windows-vault -p mini-windows-setup -p mini-setup
+          -p mini-selftest -p mini-desktop
+
+      # The diagnostics suite a user can press a button to run, run here too:
+      # a self-test nobody checks will one day report a confident green on a
+      # broken build.
+      # The value-layer checks run in a separate process on purpose, so the
+      # spawn path is exercised here rather than assumed: without the binary
+      # present, the suite would report a skip and still pass.
+      - name: Run the diagnostics suite, value layer included
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo build --release -p mini-value-selftest
+          $env:MININET_VALUE_SELFTEST = "$PWD/target/release/mininet-value-selftest.exe"
+          $out = cargo run --release -p mini-cli -- selftest
+          if ($LASTEXITCODE -ne 0) { $out; throw 'a self-test check failed' }
+          $out
+          # Joined first: PowerShell's -match/-notmatch over an *array* returns
+          # the matching elements rather than a boolean, so a non-empty result
+          # is truthy either way and the test always "fails".
+          if (-not (($out -join "`n").Contains('inflating an output breaks the balance check'))) {
+            throw 'the value-layer checks did not run; the spawn path is broken'
+          }
+          cargo run --release -p mini-cli -- selftest coverage
+
+      - name: Build a real Windows release, including the MSI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Pinned to an exact NuGet version, not "latest": this step's own
+          # output is what the next one publishes as a downloadable artifact,
+          # so an unpinned tool/extension pull is the one unreviewed input in
+          # this job that could change between a green run and the bytes it
+          # ships, unlike every action reference here, which is a pinned
+          # commit SHA.
+          dotnet tool install --global wix --version 5.0.2 | Out-Null
+          wix extension add --global WixToolset.Util.wixext/5.0.2 | Out-Null
+          ./packaging/windows/Build-WindowsRelease.ps1 -OutDir dist/ci -Msi
+
+      # A real, MSVC-built installer a person can download and run, not just
+      # a claim that the build works. Uploaded before the install/uninstall
+      # tests below touch the machine, so the artifact is exactly what those
+      # tests exercise.
+      - name: Upload the built installer and MSI
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mininet-windows-client-${{ github.sha }}
+          path: |
+            dist/ci/mininet-setup-*.exe
+            dist/ci/Mininet-*.msi
+            dist/ci/*.manifest.txt
+            dist/ci/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      # The MSI is a thin wrapper over mininet-setup.exe rather than a second
+      # install implementation, so what has to be proved is that the wrapper
+      # works: msiexec puts the client on the machine, and removing the MSI
+      # takes it off again while leaving identities alone.
+      - name: Install and remove through the MSI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = (Get-ChildItem dist/ci/Mininet-*.msi)[0].FullName
+          $data = "$env:LOCALAPPDATA\Mininet"
+          New-Item -ItemType Directory -Force -Path $data | Out-Null
+          Set-Content -LiteralPath "$data\identity.dpapi" -Value 'keep me'
+
+          $log = 'dist/ci/msi-install.log'
+          $p = Start-Process msiexec -ArgumentList "/i `"$msi`" /quiet /norestart /l*v `"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 60; throw "msiexec install exited $($p.ExitCode)" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\Programs\Mininet\current.txt")) {
+            Get-Content $log -Tail 60
+            throw 'the MSI reported success but no client was installed'
+          }
+          # Exactly one Apps and features entry: the MSI's. Setup must not have
+          # registered a second one.
+          $own = Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mininet'
+          if ($own) { throw 'setup registered its own uninstall entry alongside the MSI' }
+
+          $log = 'dist/ci/msi-uninstall.log'
+          $p = Start-Process msiexec -ArgumentList "/x `"$msi`" /quiet /norestart /l*v `"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 60; throw "msiexec uninstall exited $($p.ExitCode)" }
+          if (Test-Path "$env:LOCALAPPDATA\Programs\Mininet") {
+            throw 'the client survived MSI removal'
+          }
+          if (-not (Test-Path "$data\identity.dpapi")) {
+            throw 'MSI removal destroyed the user identity vault'
+          }
+
+      # Install for real, on real Windows, including the Start Menu entry and
+      # the Apps & features registration -- then check the installation
+      # against its manifest and remove it again. This is the one place the
+      # `.lnk` and `HKCU` code paths actually execute.
+      - name: Install, verify, and uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = (Get-ChildItem dist/ci/mininet-setup-*.exe)[0].FullName
+          & $setup --silent --json
+          if ($LASTEXITCODE -ne 0) { throw 'install failed' }
+          & $setup --status --json
+          & $setup --verify --json
+          if ($LASTEXITCODE -ne 0) { throw 'the installation did not verify' }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Mininet.lnk")) {
+            throw 'the Start Menu entry was not created'
+          }
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Mininet'
+          if (-not (Test-Path $key)) { throw 'the Apps & features entry was not registered' }
+          & $setup --uninstall --json
+          if ($LASTEXITCODE -ne 0) { throw 'uninstall failed' }
+          if (Test-Path $key) { throw 'the Apps & features entry survived the uninstall' }
+          if (Test-Path "$env:LOCALAPPDATA\Programs\Mininet") {
+            throw 'program files survived the uninstall'
+          }
+
+  # The Windows packaging pipeline, exercised where there is no Windows
+  # toolchain (D-0520).
+  #
+  # `--host` builds host binaries under their Windows names, so the container
+  # format, the manifest, reproducibility, the embedded-payload build, and the
+  # whole install/verify/upgrade/rollback/uninstall lifecycle all run on every
+  # change rather than only when somebody happens to be on Windows. The
+  # `windows-client` job above is what proves the Windows-only halves; this one
+  # is what keeps the pipeline itself from rotting between those runs.
+  windows-packaging-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # The package's build timestamp is the commit's author date, so the
+          # reproducibility check below needs real git history, not a shallow
+          # checkout with a synthesized one.
+          fetch-depth: 0
+
+      # Catch `cfg(windows)`-only breakage here, in a job that finishes in a
+      # couple of minutes, instead of only on the windows-latest runner.
+      #
+      # This exists because of a real failure: an import used by only the
+      # `#[cfg(not(windows))]` branch of one function is an *unused import* on
+      # Windows, which `-D warnings` turns into a build failure that no Linux
+      # check could see. `cargo clippy --target` needs the target's std but no
+      # linker, so the whole Windows-conditional surface -- the DPAPI vault,
+      # `WindowsShell`, every `cfg` branch -- is type-checked here for the
+      # price of one `rustup target add`.
+      - name: Type-check the Windows-conditional code from Linux
+        run: |
+          set -eu
+          rustup target add x86_64-pc-windows-gnu
+          cargo clippy --target x86_64-pc-windows-gnu --all-targets --all-features \
+            -p mini-windows-vault -p mini-windows-setup -p mini-setup \
+            -p mini-selftest -p mini-desktop -- -D warnings
+
+      # Same spawn path on Linux, where most contributors will see it first.
+      - name: Run the diagnostics suite, value layer included
+        run: |
+          set -eu
+          cargo build --release -p mini-value-selftest
+          export MININET_VALUE_SELFTEST="$PWD/target/release/mininet-value-selftest"
+          out=$(cargo run --release -p mini-cli -- selftest)
+          echo "$out"
+          echo "$out" | grep -q 'inflating an output breaks the balance check' \
+            || { echo 'the value-layer checks did not run; the spawn path is broken' >&2; exit 1; }
+          cargo run --release -p mini-cli -- selftest coverage
+
+      # The wall, checked mechanically rather than by review habit: no crate
+      # may sit on a dependency path that reaches both the value layer and the
+      # governance layer. P1 is about vote weight, and this is how that is kept
+      # true in code -- which is exactly why it does not need to be enforced by
+      # withholding features from the user.
+      - name: No crate links both the value layer and the governance layer
+        run: |
+          set -eu
+          cargo tree --version >/dev/null
+          for crate in mini-selftest mini-desktop mini-cli mini-windows-setup mini-setup; do
+            deps=$(cargo tree -p "$crate" --prefix none --no-dedupe 2>/dev/null | awk '{print $1}' | sort -u)
+            value=$(echo "$deps" | grep -cE '^(mini-value|mini-bounty|mini-treasury)$' || true)
+            governance=$(echo "$deps" | grep -cE '^(mini-forge|mini-chain)$' || true)
+            if [ "$value" -gt 0 ] && [ "$governance" -gt 0 ]; then
+              echo "$crate depends on both the value layer and the governance layer" >&2
+              echo "$deps" | grep -E '^(mini-value|mini-bounty|mini-treasury|mini-forge|mini-chain)$' >&2
+              exit 1
+            fi
+          done
+          # And the value binary must never reach the governance layer at all.
+          if cargo tree -p mini-value-selftest --prefix none --no-dedupe \
+              | awk '{print $1}' | grep -qE '^(mini-forge|mini-chain)$'; then
+            echo 'mini-value-selftest reached the governance layer' >&2
+            exit 1
+          fi
+
+      - name: Build a package and a self-contained installer
+        run: packaging/windows/build-release.sh --host --out dist/ci
+
+      # Packing is reproducible: same input bytes plus same declared build
+      # timestamp gives the same container, which is what lets two people
+      # compare digests and conclude something. This packs the *same staged
+      # files* twice rather than rebuilding them, because bit-identical
+      # compiler output is a separate, unfinished guarantee (SPEC-11,
+      # reproducibility.yml) and folding it in here would make this check
+      # flaky for a reason it is not testing.
+      - name: Packing the same files twice is byte-identical
+        run: |
+          set -eu
+          for run in one two; do
+            cargo run --release -q -p mini-cli -- windows pack \
+              --source dist/ci/stage --out "dist/repro-$run/client.mnpkg" \
+              --version 0.0.1 --built-at-ms 1757635200000 \
+              --shortcut 'mininet-desktop.exe=Mininet'
+          done
+          cmp dist/repro-one/client.mnpkg dist/repro-two/client.mnpkg
+          cmp dist/repro-one/client.manifest.txt dist/repro-two/client.manifest.txt
+
+      - name: The manifest's SHA-256 column matches sha256sum
+        run: |
+          set -eu
+          manifest=$(ls dist/ci/mininet-client-*.manifest.txt)
+          stage=dist/ci/stage
+          grep '^file ' "$manifest" | while read -r _ _ _ sha path; do
+            actual=$(sha256sum "$stage/$path" | cut -d' ' -f1)
+            if [ "$sha" != "$actual" ]; then
+              echo "manifest records $sha for $path but sha256sum says $actual" >&2
+              exit 1
+            fi
+          done
+
+      # The packaged tree must carry the value-check binary, or every installed
+      # copy silently skips the checks the Diagnostics page advertises. Run it
+      # from the staging directory with no override in the environment, which
+      # is exactly how an installed client finds it.
+      - name: The packaged tree runs the value checks without an override
+        run: |
+          set -eu
+          test -f dist/ci/stage/mininet-value-selftest.exe
+          unset MININET_VALUE_SELFTEST || true
+          out=$(cd dist/ci/stage && ./mini.exe selftest)
+          echo "$out" | tail -20
+          echo "$out" | grep -q 'inflating an output breaks the balance check' \
+            || { echo 'the packaged tree does not run the value checks' >&2; exit 1; }
+
+      - name: Install from the embedded payload, verify, upgrade, roll back, remove
+        run: |
+          set -eu
+          setup=$(ls dist/ci/mininet-setup-*)
+          root=$(mktemp -d)/Programs
+          data=$(mktemp -d)/UserData
+          common="--install-root $root --user-data-root $data"
+          # An install with no --payload proves the package really is inside
+          # the executable, which is the whole point of the single-file build.
+          MININET_SETUP_PAYLOAD= "$setup" --silent --json $common
+          MININET_SETUP_PAYLOAD= "$setup" --verify --json $common
+          mkdir -p "$data" && echo keys > "$data/identity.dpapi"
+          # A second, higher version so upgrade and rollback are real.
+          cargo run --release -q -p mini-cli -- windows pack \
+            --source dist/ci/stage --out dist/ci/next.mnpkg \
+            --version 99.0.0 --built-at-ms 1757635200000 \
+            --shortcut 'mininet-desktop.exe=Mininet'
+          "$setup" --silent --json --payload dist/ci/next.mnpkg $common
+          "$setup" --status --json $common | grep -q '"previous_version":"0'
+          "$setup" --rollback --json $common
+          "$setup" --uninstall --json $common
+          test ! -d "$root"
+          # Uninstalling never destroys identities unless explicitly told to.
+          test -f "$data/identity.dpapi"
+
+      # Two different tampering positions, because they exercise two
+      # different refusals: a byte in the payload has to be caught by a file's
+      # recorded digest, and a byte in the manifest by the manifest's own
+      # self-check. Either way nothing may reach disk.
+      - name: A tampered package is refused, wherever it was tampered with
+        run: |
+          set -eu
+          setup=$(ls dist/ci/mininet-setup-*)
+          package=$(ls dist/ci/mininet-client-*.mnpkg)
+          size=$(wc -c < "$package")
+
+          cp "$package" dist/ci/payload-tampered.mnpkg
+          printf '\xff' | dd of=dist/ci/payload-tampered.mnpkg bs=1 \
+            seek=$((size - 1)) count=1 conv=notrunc status=none
+          root=$(mktemp -d)/Programs
+          out=$("$setup" --silent --json --payload dist/ci/payload-tampered.mnpkg \
+            --install-root "$root" && echo INSTALLED || true)
+          echo "$out" | grep -q '"error_code":"digest_mismatch"'
+          # The refused attempt is still recorded in the setup log -- that is
+          # what the log is for -- so what must be absent is an *activation*
+          # and any half-written staging directory, not the root itself.
+          test ! -e "$root/current.txt"
+          test -z "$(ls -A "$root/versions" 2>/dev/null || true)"
+
+          cp "$package" dist/ci/manifest-tampered.mnpkg
+          printf '\xff' | dd of=dist/ci/manifest-tampered.mnpkg bs=1 \
+            seek=64 count=1 conv=notrunc status=none
+          root=$(mktemp -d)/Programs
+          out=$("$setup" --silent --json --payload dist/ci/manifest-tampered.mnpkg \
+            --install-root "$root" && echo INSTALLED || true)
+          echo "$out" | grep -q '"ok":false'
+          test ! -e "$root/current.txt"
+
   # SPEC-11's verified-reproducible release check moved to its own workflow
   # (.github/workflows/reproducibility.yml, D-0314): two full clean release
   # builds take 10+ minutes, and gating every PR push -- including
