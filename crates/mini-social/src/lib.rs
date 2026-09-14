@@ -38,8 +38,9 @@ pub use discovery::{
 };
 
 pub use post::{
-    build_intake_post, build_post, decode_post, publish_media_post, publish_post, resolve_post,
-    Post, PostKind, MAX_POST_BYTES,
+    build_intake_post, build_post, decode_post, publish_community_media_post,
+    publish_community_post, publish_media_post, publish_post, resolve_post, Post, PostKind,
+    MAX_POST_BYTES,
 };
 
 pub use pairing::{
@@ -958,6 +959,79 @@ pub fn reaction_counts<B: Backend>(
         .collect())
 }
 
+/// Deterministic net vote score for any target object: active
+/// [`ReactionKind::Upvote`] count minus active [`ReactionKind::Downvote`]
+/// count. Separate from [`reaction_counts`]'s per-kind totals (which
+/// [`FeedItem::support_count`] sums across every kind, downvotes included —
+/// that field answers "how much active reaction," not "net approval") so a
+/// Reddit-style ranking has a real signed score to sort by.
+pub fn reaction_score<B: Backend>(store: &Store<B>, target: &ObjectId) -> Result<i64> {
+    let counts = reaction_counts(store, target)?;
+    let upvotes = counts
+        .iter()
+        .find(|(kind, _)| *kind == ReactionKind::Upvote)
+        .map_or(0, |(_, count)| *count as i64);
+    let downvotes = counts
+        .iter()
+        .find(|(kind, _)| *kind == ReactionKind::Downvote)
+        .map_or(0, |(_, count)| *count as i64);
+    Ok(upvotes - downvotes)
+}
+
+/// One post inside a community's own feed — every post structurally scoped
+/// to that community (`PostKind::Community`/`PostKind::CommunityMedia`),
+/// regardless of who the viewer follows. A community is a shared space, not
+/// a personalized timeline, so unlike [`FeedItem`] there is no
+/// [`FeedReason`] here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommunityPost {
+    /// The post's id.
+    pub id: ObjectId,
+    /// Its author.
+    pub author: Did,
+    /// Author-claimed time (display hint).
+    pub timestamp_ms: u64,
+    /// Net vote score ([`reaction_score`]).
+    pub vote_score: i64,
+}
+
+/// Every post scoped to `community`, newest first. Pure over the store.
+pub fn community_posts<B: Backend>(
+    store: &Store<B>,
+    community: &ObjectId,
+) -> Result<Vec<CommunityPost>> {
+    let mut items = Vec::new();
+    for id in store.linking_to(community)? {
+        let object = store.get(&id)?;
+        if object.object_type != ObjectType::POST {
+            continue;
+        }
+        let Ok(decoded) = post::decode_post(&object) else {
+            continue;
+        };
+        let scoped_to = match &decoded.kind {
+            post::PostKind::Community { community } => Some(community),
+            post::PostKind::CommunityMedia { community, .. } => Some(community),
+            _ => None,
+        };
+        if scoped_to != Some(community) {
+            continue;
+        }
+        items.push(CommunityPost {
+            id: object.id().clone(),
+            author: object.author_human.clone(),
+            timestamp_ms: object.timestamp_ms,
+            vote_score: reaction_score(store, object.id())?,
+        });
+    }
+    items.sort_by(|a, b| {
+        b.timestamp_ms
+            .cmp(&a.timestamp_ms)
+            .then_with(|| b.id.as_str().cmp(a.id.as_str()))
+    });
+    Ok(items)
+}
+
 /// Why an item is in the feed — always answerable (SPEC-09 §5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FeedReason {
@@ -981,6 +1055,9 @@ pub struct FeedItem {
     /// Active reactions on this post, exposed so clients can explain support
     /// ordering without an additional hidden server query.
     pub support_count: usize,
+    /// Net vote score ([`reaction_score`]): active upvotes minus active
+    /// downvotes. Unlike `support_count`, a downvote lowers this.
+    pub vote_score: i64,
 }
 
 /// User-chosen ranking filters. Filters are total orderings — they reorder,
@@ -1025,6 +1102,7 @@ pub fn feed<B: Backend>(
                         .into_iter()
                         .map(|(_, count)| count)
                         .sum(),
+                    vote_score: reaction_score(store, obj.id())?,
                 });
             }
         }

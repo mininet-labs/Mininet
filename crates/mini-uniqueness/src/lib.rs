@@ -50,6 +50,7 @@
 mod confidence;
 mod error;
 mod graph;
+mod object;
 mod status;
 mod verify;
 mod vouch;
@@ -60,6 +61,7 @@ pub use confidence::{
 };
 pub use error::{Result, UniquenessError};
 pub use graph::{recommended_iterations, trust_scores, VouchGraph, TRUST_SCALE};
+pub use object::{publish_vouch, resolve_vouch, vouches_published_by, MAX_VOUCH_BYTES};
 pub use status::{
     HumanRecord, HumanStatus, PromotionPolicy, SignalEvidence, SignalSource, TrustWeights,
 };

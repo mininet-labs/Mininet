@@ -1,4 +1,5 @@
-//! Errors for vouch verification and graph/confidence computation.
+//! Errors for vouch verification, publishing, and graph/confidence
+//! computation.
 
 use did_mini::IdentityError;
 
@@ -25,6 +26,15 @@ pub enum UniquenessError {
     SelfVouch,
     /// An underlying identity/delegation/signature failure.
     Identity(IdentityError),
+    /// An encoded vouch attestation exceeded [`crate::object::MAX_VOUCH_BYTES`].
+    AttestationTooLarge,
+    /// A stored object was not a structurally valid vouch attestation: wrong
+    /// object type, wrong payload kind, or malformed/truncated bytes.
+    BadVouchObject,
+    /// An underlying object-construction failure.
+    Object(mini_objects::ObjectError),
+    /// An underlying object-store failure.
+    Store(mini_store::StoreError),
 }
 
 impl core::fmt::Display for UniquenessError {
@@ -45,6 +55,12 @@ impl core::fmt::Display for UniquenessError {
                 write!(f, "both devices belong to the same identity root")
             }
             UniquenessError::Identity(e) => write!(f, "identity error: {e}"),
+            UniquenessError::AttestationTooLarge => write!(f, "vouch attestation too large"),
+            UniquenessError::BadVouchObject => {
+                write!(f, "not a structurally valid vouch attestation object")
+            }
+            UniquenessError::Object(e) => write!(f, "object error: {e}"),
+            UniquenessError::Store(e) => write!(f, "store error: {e}"),
         }
     }
 }

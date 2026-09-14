@@ -41,6 +41,17 @@ impl TransportKind {
             TransportKind::Ble | TransportKind::LocalWifi | TransportKind::InProcess
         )
     }
+
+    /// Inverse of [`Self::tag`], for decoding a stored/synced attestation.
+    pub fn from_tag(tag: u8) -> Option<Self> {
+        match tag {
+            1 => Some(TransportKind::Ble),
+            2 => Some(TransportKind::LocalWifi),
+            3 => Some(TransportKind::InProcess),
+            4 => Some(TransportKind::Relay),
+            _ => None,
+        }
+    }
 }
 
 /// Optional hardware-backed ranging evidence, layered on top of the software

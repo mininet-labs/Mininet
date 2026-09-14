@@ -7,9 +7,10 @@
 
 use did_mini::{Capabilities, Controller};
 use mini_presence::TransportKind;
+use mini_store::{MemoryBackend, Store};
 use mini_uniqueness::{
-    verify_vouch, InMemoryReplayGuard, UniquenessError, VerifyContext, VouchAttestation,
-    VouchFields, VoucherParty, VOUCH_VERSION,
+    publish_vouch, resolve_vouch, verify_vouch, vouches_published_by, InMemoryReplayGuard,
+    UniquenessError, VerifyContext, VouchAttestation, VouchFields, VoucherParty, VOUCH_VERSION,
 };
 
 /// A deterministic, non-secret 32-byte test nonce -- see
@@ -211,4 +212,65 @@ fn matching_nonces_are_rejected_as_replay() {
         verify_vouch(&att, &ctx, &mut replay),
         Err(UniquenessError::Replay)
     );
+}
+
+#[test]
+fn a_published_vouch_round_trips_and_still_verifies() {
+    let (a_root, a_dev) = human([1; 32], [2; 32], [3; 32], [4; 32], Capabilities::primary());
+    let (b_root, b_dev) = human([5; 32], [6; 32], [7; 32], [8; 32], Capabilities::primary());
+    let att = valid_vouch(&a_dev, &b_dev);
+
+    let mut store = Store::new(MemoryBackend::new());
+    let object = publish_vouch(&mut store, &a_root.did(), &a_dev, &att, 100, 1).unwrap();
+
+    let resolved = resolve_vouch(&store, object.id()).unwrap();
+    assert_eq!(resolved, att);
+
+    let (a_root_kel, b_root_kel) = (a_root.kel(), b_root.kel());
+    let (a_dev_kel, b_dev_kel) = (a_dev.kel(), b_dev.kel());
+    let ctx = VerifyContext {
+        a_root: &a_root_kel,
+        b_root: &b_root_kel,
+        a_device: &a_dev_kel,
+        b_device: &b_dev_kel,
+    };
+    let mut replay = InMemoryReplayGuard::new();
+    let verdict = verify_vouch(&resolved, &ctx, &mut replay).unwrap();
+    assert_eq!(verdict.a_root.as_str(), a_root.did().as_str());
+    assert_eq!(verdict.b_root.as_str(), b_root.did().as_str());
+
+    let published = vouches_published_by(&store, &a_root.did()).unwrap();
+    assert_eq!(published, vec![att]);
+    assert!(vouches_published_by(&store, &b_root.did())
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn a_tampered_stored_vouch_still_fails_verification_after_resolving() {
+    // Publishing/resolving must never launder a bad attestation: the outer
+    // object signature is custody, not proof, so a tampered inner
+    // transcript must still fail `verify_vouch` after a round trip.
+    let (a_root, a_dev) = human([1; 32], [2; 32], [3; 32], [4; 32], Capabilities::primary());
+    let (b_root, b_dev) = human([5; 32], [6; 32], [7; 32], [8; 32], Capabilities::primary());
+    let mut att = valid_vouch(&a_dev, &b_dev);
+    att.fields.asserted_at_ms = 42; // tamper after signing, no re-sign
+
+    let mut store = Store::new(MemoryBackend::new());
+    let object = publish_vouch(&mut store, &a_root.did(), &a_dev, &att, 100, 1).unwrap();
+    let resolved = resolve_vouch(&store, object.id()).unwrap();
+
+    let (a_root_kel, b_root_kel) = (a_root.kel(), b_root.kel());
+    let (a_dev_kel, b_dev_kel) = (a_dev.kel(), b_dev.kel());
+    let ctx = VerifyContext {
+        a_root: &a_root_kel,
+        b_root: &b_root_kel,
+        a_device: &a_dev_kel,
+        b_device: &b_dev_kel,
+    };
+    let mut replay = InMemoryReplayGuard::new();
+    assert!(matches!(
+        verify_vouch(&resolved, &ctx, &mut replay),
+        Err(UniquenessError::Identity(_))
+    ));
 }

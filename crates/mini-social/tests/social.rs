@@ -5,9 +5,10 @@
 use did_mini::{Capabilities, Controller, Did};
 use mini_objects::{ObjectBuilder, ObjectType, Payload};
 use mini_social::{
-    comments, community_members, feed, followers, following, known_profiles, publish_comment,
-    publish_community, publish_media_post, publish_post, publish_profile, publish_profile_details,
-    publish_wall, publish_wall_linkage, reaction_counts, resolve_community, resolve_post,
+    comments, community_members, community_posts, feed, followers, following, known_profiles,
+    publish_comment, publish_community, publish_community_media_post, publish_community_post,
+    publish_media_post, publish_post, publish_profile, publish_profile_details, publish_wall,
+    publish_wall_linkage, reaction_counts, reaction_score, resolve_community, resolve_post,
     resolve_profile, resolve_wall, resolve_wall_linkage, set_follow, set_membership, set_reaction,
     FeedFilter, FeedReason, MembershipMode, PostKind, PublicProfileDraft, PublicProfileField,
     ReactionKind, SocialError, VisibilityPolicy, MAX_POST_BYTES,
@@ -998,4 +999,165 @@ fn feed_excludes_a_malformed_post_but_keeps_valid_ones() {
     assert!(ids.contains(good.id()));
     assert!(!ids.contains(bad.id()));
     assert_eq!(items.len(), 1);
+}
+
+#[test]
+fn community_posts_round_trip_and_are_scoped_to_their_own_community() {
+    let (owner, device) = human(80);
+    let mut store = Store::new(MemoryBackend::new());
+
+    let community_a = publish_community(
+        &mut store,
+        &owner.did(),
+        &device,
+        "Community A",
+        "Charter A",
+        MembershipMode::Open,
+        1,
+        1,
+    )
+    .unwrap();
+    let community_b = publish_community(
+        &mut store,
+        &owner.did(),
+        &device,
+        "Community B",
+        "Charter B",
+        MembershipMode::Open,
+        2,
+        2,
+    )
+    .unwrap();
+
+    let in_a = publish_community_post(
+        &mut store,
+        &owner.did(),
+        &device,
+        community_a.id().clone(),
+        "hello A",
+        3,
+        3,
+    )
+    .unwrap();
+    let in_b = publish_community_post(
+        &mut store,
+        &owner.did(),
+        &device,
+        community_b.id().clone(),
+        "hello B",
+        4,
+        4,
+    )
+    .unwrap();
+
+    let decoded = resolve_post(&store, in_a.id()).unwrap();
+    assert_eq!(
+        decoded.kind,
+        PostKind::Community {
+            community: community_a.id().clone()
+        }
+    );
+    assert_eq!(decoded.text, "hello A");
+
+    let posts_a = community_posts(&store, community_a.id()).unwrap();
+    assert_eq!(posts_a.len(), 1);
+    assert_eq!(&posts_a[0].id, in_a.id());
+    assert!(!posts_a.iter().any(|item| &item.id == in_b.id()));
+
+    let posts_b = community_posts(&store, community_b.id()).unwrap();
+    assert_eq!(posts_b.len(), 1);
+    assert_eq!(&posts_b[0].id, in_b.id());
+}
+
+#[test]
+fn community_media_post_round_trips_with_both_links_intact() {
+    let (owner, device) = human(81);
+    let mut store = Store::new(MemoryBackend::new());
+    let community = publish_community(
+        &mut store,
+        &owner.did(),
+        &device,
+        "Media community",
+        "Charter",
+        MembershipMode::Open,
+        1,
+        1,
+    )
+    .unwrap();
+    let media = publish_post(&mut store, &owner.did(), &device, "stand-in media id", 2, 2)
+        .unwrap()
+        .id()
+        .clone();
+
+    let post = publish_community_media_post(
+        &mut store,
+        &owner.did(),
+        &device,
+        community.id().clone(),
+        media.clone(),
+        "caption",
+        3,
+        3,
+    )
+    .unwrap();
+
+    let decoded = resolve_post(&store, post.id()).unwrap();
+    assert_eq!(
+        decoded.kind,
+        PostKind::CommunityMedia {
+            community: community.id().clone(),
+            media,
+        }
+    );
+    assert_eq!(decoded.text, "caption");
+}
+
+#[test]
+fn reaction_score_is_net_upvotes_minus_downvotes_and_differs_from_support_count() {
+    let (owner, device) = human(82);
+    let (voter, voter_device) = human(83);
+    let mut store = Store::new(MemoryBackend::new());
+    let post = publish_post(&mut store, &owner.did(), &device, "vote me", 1, 1).unwrap();
+
+    assert_eq!(reaction_score(&store, post.id()).unwrap(), 0);
+
+    set_reaction(
+        &mut store,
+        &voter.did(),
+        &voter_device,
+        post.id(),
+        ReactionKind::Upvote,
+        true,
+        2,
+        1,
+    )
+    .unwrap();
+    assert_eq!(reaction_score(&store, post.id()).unwrap(), 1);
+
+    set_reaction(
+        &mut store,
+        &owner.did(),
+        &device,
+        post.id(),
+        ReactionKind::Downvote,
+        true,
+        3,
+        2,
+    )
+    .unwrap();
+    // Net score drops with the downvote...
+    assert_eq!(reaction_score(&store, post.id()).unwrap(), 0);
+    // ...but the old summed-across-all-kinds count still rises, which is
+    // exactly the gap `reaction_score`/`FeedItem::vote_score` exist to fix.
+    let summed: usize = reaction_counts(&store, post.id())
+        .unwrap()
+        .into_iter()
+        .map(|(_, count)| count)
+        .sum();
+    assert_eq!(summed, 2);
+
+    let items = feed(&store, &owner.did(), FeedFilter::Chronological, 10).unwrap();
+    let item = items.iter().find(|item| &item.id == post.id()).unwrap();
+    assert_eq!(item.vote_score, 0);
+    assert_eq!(item.support_count, 2);
 }

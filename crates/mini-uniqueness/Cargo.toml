@@ -12,11 +12,15 @@ publish = false
 [dependencies]
 did-mini = { path = "../did-mini" }
 mini-presence = { path = "../mini-presence" }
-
-[dev-dependencies]
-# Test-only: derives deterministic test nonce bytes via a real hash instead
-# of a literal array, matching mini-presence's own test convention and
-# mini-keystone's demo_nonce (see tests/vouch.rs). Already resolved
-# transitively through mini-presence; this just makes it directly usable
-# from integration tests.
+# Real dependency, not test-only, from here on: `object` encodes/decodes an
+# attestation's own `IndexedSig`s, matching `mini-social::pairing`'s
+# existing wire encoding exactly.
 mini-crypto = { path = "../mini-crypto" }
+# Publish/resolve a `VouchAttestation` as a real signed, content-addressed
+# object so it can be stored and synced, mirroring mini-social's
+# `publish_*`/`resolve_*` pattern (`post.rs`'s own module doc explains why:
+# a shared, bounded, tested decode path instead of every caller hand-rolling
+# one). No governance or value edge: mini-objects/mini-store are leaf data
+# types, same as everywhere else they're depended on in this workspace.
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }

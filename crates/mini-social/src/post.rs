@@ -38,6 +38,9 @@ pub const MAX_POST_BYTES: usize = 16 * 1024;
 /// exact relation name.
 const MEDIA_LINK_REL: &str = "media";
 
+/// The `Link::rel` a community-scoped post's community link carries.
+const COMMUNITY_LINK_REL: &str = "community";
+
 /// What structural shape a decoded post has. New variants are a breaking
 /// addition on purpose (`#[non_exhaustive]`): a future post shape needs an
 /// explicit decision here, not an unvalidated raw path that happens to
@@ -54,6 +57,20 @@ pub enum PostKind {
     },
     /// Text published from one intake, with both immutable identifiers signed.
     Intake { intake: ObjectId, source: ObjectId },
+    /// A plain post scoped to one community: exactly one `"community"` link;
+    /// the payload is this post's text.
+    Community {
+        /// The community this post belongs to.
+        community: ObjectId,
+    },
+    /// A media post scoped to one community: `"community"` and `"media"`
+    /// links together; the payload is this post's caption.
+    CommunityMedia {
+        /// The community this post belongs to.
+        community: ObjectId,
+        /// The linked media manifest's object id.
+        media: ObjectId,
+    },
 }
 
 /// A resolved, structurally validated post.
@@ -161,6 +178,59 @@ pub fn publish_media_post<B: Backend>(
     Ok(post)
 }
 
+/// Publish a post scoped to one community: a `"community"` link plus a text
+/// body bounded to [`MAX_POST_BYTES`] before signing. The linked community
+/// id is not verified to exist or accept posts here — that structural/
+/// membership check is a reader's job (mirrors how a `"media"` link is not
+/// verified to resolve at publish time either).
+pub fn publish_community_post<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    community: ObjectId,
+    text: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    if text.len() > MAX_POST_BYTES {
+        return Err(SocialError::FieldTooLarge);
+    }
+    let post = ObjectBuilder::new(ObjectType::POST)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .link(COMMUNITY_LINK_REL, community)
+        .payload(Payload::Public(text.as_bytes().to_vec()))
+        .sign(human, device)?;
+    store.insert(&post)?;
+    Ok(post)
+}
+
+/// Publish a media post scoped to one community: `"community"` and
+/// `"media"` links together, plus a caption bounded to [`MAX_POST_BYTES`].
+pub fn publish_community_media_post<B: Backend>(
+    store: &mut Store<B>,
+    human: &Did,
+    device: &Controller,
+    community: ObjectId,
+    media: ObjectId,
+    caption: &str,
+    timestamp_ms: u64,
+    sequence: u64,
+) -> Result<Object> {
+    if caption.len() > MAX_POST_BYTES {
+        return Err(SocialError::FieldTooLarge);
+    }
+    let post = ObjectBuilder::new(ObjectType::POST)
+        .timestamp_ms(timestamp_ms)
+        .sequence(sequence)
+        .link(COMMUNITY_LINK_REL, community)
+        .link(MEDIA_LINK_REL, media)
+        .payload(Payload::Public(caption.as_bytes().to_vec()))
+        .sign(human, device)?;
+    store.insert(&post)?;
+    Ok(post)
+}
+
 /// Decode and structurally validate an already-fetched `POST` object —
 /// pure, no store access, so callers scanning many objects (e.g.
 /// [`crate::feed`]) can validate without a second fetch. Rejects: wrong
@@ -185,6 +255,9 @@ pub fn decode_post(object: &Object) -> Result<Post> {
         [Link { rel, target }] if rel == MEDIA_LINK_REL => PostKind::Media {
             media: target.clone(),
         },
+        [Link { rel, target }] if rel == COMMUNITY_LINK_REL => PostKind::Community {
+            community: target.clone(),
+        },
         [Link {
             rel: intake_rel,
             target: intake,
@@ -195,6 +268,18 @@ pub fn decode_post(object: &Object) -> Result<Post> {
             intake: intake.clone(),
             source: source.clone(),
         },
+        [Link {
+            rel: community_rel,
+            target: community,
+        }, Link {
+            rel: media_rel,
+            target: media,
+        }] if community_rel == COMMUNITY_LINK_REL && media_rel == MEDIA_LINK_REL => {
+            PostKind::CommunityMedia {
+                community: community.clone(),
+                media: media.clone(),
+            }
+        }
         _ => return Err(SocialError::BadPost),
     };
 
