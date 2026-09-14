@@ -207,6 +207,7 @@ pub fn publish_community_post<B: Backend>(
 
 /// Publish a media post scoped to one community: `"community"` and
 /// `"media"` links together, plus a caption bounded to [`MAX_POST_BYTES`].
+#[allow(clippy::too_many_arguments)]
 pub fn publish_community_media_post<B: Backend>(
     store: &mut Store<B>,
     human: &Did,

@@ -54,9 +54,13 @@ const SPACE_LG: f32 = 18.0;
 const SPACE_XL: f32 = 28.0;
 
 /// The one accent color, reused wherever something should read as
-/// "primary" -- matches `apply_theme`'s existing active-widget color, so
-/// buttons and cards agree with the rest of the chrome.
-const COLOR_ACCENT: egui::Color32 = egui::Color32::from_rgb(90, 158, 214);
+/// "primary". A single vivid blue, deliberately close to the X-style
+/// visual language this pass adopts (one saturated accent against a near-
+/// black "Dim" panel, not a muted developer-tool blue) -- buttons, pills,
+/// and cards all agree with the rest of the chrome through this one
+/// constant, so `apply_theme`'s `Visuals::widgets.active.bg_fill` is set
+/// from this too, rather than drifting from it.
+const COLOR_ACCENT: egui::Color32 = egui::Color32::from_rgb(29, 155, 240);
 const COLOR_TEXT_PRIMARY: egui::Color32 = egui::Color32::from_rgb(230, 236, 244);
 const COLOR_TEXT_SECONDARY: egui::Color32 = egui::Color32::from_rgb(148, 162, 180);
 const COLOR_SUCCESS: egui::Color32 = egui::Color32::from_rgb(122, 202, 154);
@@ -191,7 +195,10 @@ enum View {
     Onboarding,
     Home,
     Inbox,
-    People,
+    /// People search, opt-in nearby discovery, and (Phase 6) vouch-based
+    /// connection discovery — named "Discover" to match
+    /// `docs/PLATFORM_PRODUCT_ARCHITECTURE.md`'s unified shell.
+    Discover,
     Communities,
     Creator,
     Connections,
@@ -1709,27 +1716,60 @@ impl eframe::App for MininetApp {
 
         egui::SidePanel::left("navigation")
             .resizable(false)
-            .default_width(228.0)
+            .default_width(232.0)
             .show(ctx, |ui| {
-                ui.add_space(12.0);
-                ui.label(egui::RichText::new("YOUR NETWORK").small().strong());
-                ui.add_space(6.0);
-                self.nav_button(ui, View::Home, "Home");
-                self.nav_button(ui, View::Inbox, "Inbox (beta)");
-                self.nav_button(ui, View::People, "People");
-                self.nav_button(ui, View::Communities, "Communities");
-                self.nav_button(ui, View::Creator, "Creator studio");
-                self.nav_button(ui, View::Connections, "Connections");
-                self.nav_button(ui, View::System, "System & storage");
-                ui.add_space(18.0);
-                ui.label(egui::RichText::new("CONTROL PLANE").small().strong());
-                ui.add_space(6.0);
-                self.nav_button(ui, View::Privacy, "Privacy & safety");
-                self.nav_button(ui, View::Diagnostics, "Diagnostics");
-                self.nav_button(ui, View::Updates, "Version & install");
+                ui.add_space(SPACE_MD);
+                ui.horizontal(|ui| {
+                    ui.add_space(SPACE_SM);
+                    ui.label(
+                        egui::RichText::new("MININET")
+                            .strong()
+                            .size(18.0)
+                            .color(COLOR_TEXT_PRIMARY),
+                    );
+                });
+                ui.add_space(SPACE_LG);
+                self.nav_button(ui, View::Home, "★", "Home");
+                self.nav_button(ui, View::Discover, "◎", "Discover");
+                self.nav_button(ui, View::Communities, "♦", "Communities");
+                self.nav_button(ui, View::Inbox, "✉", "Inbox (beta)");
+                self.nav_button(ui, View::Creator, "☆", "Creator studio");
+                self.nav_button(ui, View::Connections, "↔", "Connections");
+                self.nav_button(ui, View::System, "⚙", "System & storage");
+                ui.add_space(SPACE_MD);
+                if ui
+                    .add(
+                        egui::Button::new(
+                            egui::RichText::new("Post")
+                                .strong()
+                                .color(COLOR_TEXT_PRIMARY),
+                        )
+                        .fill(COLOR_ACCENT)
+                        .corner_radius(20.0)
+                        .min_size(egui::vec2(ui.available_width(), 40.0)),
+                    )
+                    .clicked()
+                {
+                    self.view = View::Home;
+                }
+                ui.add_space(SPACE_LG);
+                ui.separator();
+                ui.add_space(SPACE_SM);
+                ui.label(
+                    egui::RichText::new("CONTROL PLANE")
+                        .small()
+                        .strong()
+                        .color(COLOR_TEXT_SECONDARY),
+                );
+                ui.add_space(SPACE_XS);
+                self.nav_button(ui, View::Privacy, "◕", "Privacy & safety");
+                self.nav_button(ui, View::Diagnostics, "✱", "Diagnostics");
+                self.nav_button(ui, View::Updates, "↻", "Version & install");
                 ui.separator();
                 ui.label(
-                    egui::RichText::new("No analytics\nNo ad SDKs\nNo embedded web view").small(),
+                    egui::RichText::new("No analytics\nNo ad SDKs\nNo embedded web view")
+                        .small()
+                        .color(COLOR_TEXT_SECONDARY),
                 );
             });
 
@@ -1746,7 +1786,7 @@ impl eframe::App for MininetApp {
                         }
                         View::Home => self.home(ui),
                         View::Inbox => self.inbox(ui),
-                        View::People => self.people(ui),
+                        View::Discover => self.discover(ui),
                         View::Communities => self.communities(ui),
                         View::Creator => self.creator(ui),
                         View::Connections => self.connections(ui),
@@ -1949,8 +1989,8 @@ impl MininetApp {
         visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(20, 27, 38);
         visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(27, 37, 52);
         visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(42, 61, 82);
-        visuals.widgets.active.bg_fill = egui::Color32::from_rgb(65, 116, 154);
-        visuals.selection.bg_fill = egui::Color32::from_rgb(42, 105, 145);
+        visuals.widgets.active.bg_fill = COLOR_ACCENT.gamma_multiply(0.55);
+        visuals.selection.bg_fill = COLOR_ACCENT.gamma_multiply(0.45);
         let mut style = (*ctx.style()).clone();
         style.visuals = visuals;
         style.spacing.item_spacing = egui::vec2(12.0, 10.0);
@@ -1971,17 +2011,51 @@ impl MininetApp {
         ctx.set_style(style);
     }
 
-    fn nav_button(&mut self, ui: &mut egui::Ui, view: View, label: &str) {
+    /// A left-rail nav row: an icon glyph plus a label in a pill that fills
+    /// with the accent color when selected — the X-style left nav, not the
+    /// plain `SelectableLabel` rectangle this used to be.
+    fn nav_button(&mut self, ui: &mut egui::Ui, view: View, icon: &str, label: &str) {
         let selected = self.view == view;
-        if ui
-            .add_sized(
-                [ui.available_width(), 38.0],
-                egui::SelectableLabel::new(selected, label),
-            )
-            .clicked()
-        {
+        let desired_size = egui::vec2(ui.available_width(), 40.0);
+        let (rect, response) = ui.allocate_exact_size(
+            desired_size,
+            egui::Sense::click().union(egui::Sense::hover()),
+        );
+        if response.clicked() {
             self.view = view;
         }
+        let bg = if selected {
+            COLOR_ACCENT.gamma_multiply(0.22)
+        } else if response.hovered() {
+            COLOR_CARD_BG
+        } else {
+            egui::Color32::TRANSPARENT
+        };
+        let painter = ui.painter();
+        painter.rect_filled(rect, 20.0, bg);
+        let text_color = if selected {
+            COLOR_TEXT_PRIMARY
+        } else {
+            COLOR_TEXT_SECONDARY
+        };
+        painter.text(
+            rect.left_center() + egui::vec2(16.0, 0.0),
+            egui::Align2::LEFT_CENTER,
+            icon,
+            egui::FontId::proportional(16.0),
+            if selected {
+                COLOR_ACCENT
+            } else {
+                COLOR_TEXT_SECONDARY
+            },
+        );
+        painter.text(
+            rect.left_center() + egui::vec2(42.0, 0.0),
+            egui::Align2::LEFT_CENTER,
+            label,
+            egui::FontId::proportional(14.0),
+            text_color,
+        );
     }
 
     fn header(&self, ui: &mut egui::Ui) {
@@ -1998,9 +2072,9 @@ impl MininetApp {
                 "Inbox beta",
                 "Encrypted route-scoped messages with manual trusted invitation and sync.",
             ),
-            View::People => (
-                "People",
-                "Search signed profiles already on your device or discover opt-in nearby peers.",
+            View::Discover => (
+                "Discover",
+                "Search signed profiles already on your device, opt-in nearby peers, and (soon) people you may know through mutual vouches.",
             ),
             View::Communities => (
                 "Communities",
@@ -2031,8 +2105,8 @@ impl MininetApp {
                 "See exactly what this client can and cannot do.",
             ),
         };
-        ui.heading(title);
-        ui.label(egui::RichText::new(subtitle).color(egui::Color32::LIGHT_GRAY));
+        ui.heading(egui::RichText::new(title).color(COLOR_TEXT_PRIMARY));
+        ui.label(egui::RichText::new(subtitle).color(COLOR_TEXT_SECONDARY));
     }
 
     fn onboarding(&mut self, ctx: &egui::Context) {
@@ -2169,7 +2243,7 @@ impl MininetApp {
                                                     self.profile_name = self.account_name.trim().to_string();
                                                     self.profile_bio = self.account_bio.trim().to_string();
                                                     self.view = View::Creator;
-                                                    "Public account created locally and identity locked again. Add any optional public details below, or open People when you are ready.".to_string()
+                                                    "Public account created locally and identity locked again. Add any optional public details below, or open Discover when you are ready.".to_string()
                                                 }
                                                 Err(error) => format!("Could not create public account: {error}"),
                                             }
@@ -2695,7 +2769,7 @@ impl MininetApp {
         }
     }
 
-    fn people(&mut self, ui: &mut egui::Ui) {
+    fn discover(&mut self, ui: &mut egui::Ui) {
         let profile_needs_upgrade = self
             .workspace
             .as_ref()
@@ -3314,7 +3388,7 @@ impl MininetApp {
                                     self.profile_photo_path.clear();
                                     self.profile_remove_photo = false;
                                     self.profile_textures.clear();
-                                    "Public profile saved locally. Use People to become visible nearby or sync it to another peer.".to_string()
+                                    "Public profile saved locally. Use Discover to become visible nearby or sync it to another peer.".to_string()
                                 }
                                 Err(error) => format!("Could not publish profile: {error}"),
                             }
@@ -3555,14 +3629,14 @@ impl MininetApp {
         ui.add_space(12.0);
         ui.group(|ui| {
             ui.label(egui::RichText::new("Add a friend or contact").strong());
-            ui.label("Open People to search signed profiles by name or DID, discover an opt-in nearby profile, and add a friend with one button.");
+            ui.label("Open Discover to search signed profiles by name or DID, discover an opt-in nearby profile, and add a friend with one button.");
             if let Some(workspace) = self.workspace.as_ref() {
                 if let Some(human) = workspace.human.as_ref() {
                     ui.label(format!("Your DID: {human}"));
                 }
             }
             if ui.button("Open friend manager").clicked() {
-                self.view = View::People;
+                self.view = View::Discover;
             }
             ui.label("A friend is shown as mutual only after both signed follow objects arrive through sync.");
         });
