@@ -22,9 +22,9 @@ use mini_social::{
     publish_comment, publish_community, publish_community_post, publish_media_post, publish_post,
     publish_profile, publish_profile_details, publish_wall, resolve_community, resolve_post,
     resolve_profile, set_follow, set_membership, set_reaction, CommunityPost, FeedFilter, FeedItem,
-    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
-    PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
-    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
+    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PostKind,
+    PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES,
+    MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{
@@ -200,6 +200,9 @@ enum View {
     /// `docs/PLATFORM_PRODUCT_ARCHITECTURE.md`'s unified shell.
     Discover,
     Communities,
+    /// Local-only content search -- see `Workspace::local_search`'s doc
+    /// comment for why this is not the real MiniSearch/web-crawl pipeline.
+    Web,
     Creator,
     Connections,
     System,
@@ -217,6 +220,28 @@ enum UpdatePolicy {
 #[derive(Debug, Clone)]
 enum SyncContext {
     FriendRequest { display_name: String },
+}
+
+/// One local-content search hit. A typed enum, not a stringly-typed "kind"
+/// field, so the renderer can never mishandle a result it doesn't
+/// recognize -- matching this file's typed-domain convention elsewhere.
+#[derive(Debug, Clone)]
+enum LocalSearchResult {
+    Post {
+        id: mini_objects::ObjectId,
+        author: Did,
+        text: String,
+        timestamp_ms: u64,
+    },
+    Profile {
+        human: Did,
+        display_name: String,
+        bio: String,
+    },
+    Community {
+        name: String,
+        charter: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -256,6 +281,7 @@ struct MininetApp {
     /// only one at a time, mirroring `reply_target`'s single-slot pattern.
     open_community_composer: Option<mini_objects::ObjectId>,
     community_post_text: String,
+    web_query: String,
     profile_name: String,
     profile_bio: String,
     profile_photo_path: String,
@@ -271,6 +297,10 @@ struct MininetApp {
     discovery_rx: Option<Receiver<Result<Vec<NearbyProfile>, String>>>,
     visibility_rx: Option<Receiver<Result<String, String>>>,
     profile_textures: HashMap<String, egui::TextureHandle>,
+    /// Larger-thumbnail cache for inline feed/community media, keyed
+    /// separately from `profile_textures` since a feed image wants more
+    /// detail than an avatar badge does.
+    media_textures: HashMap<String, egui::TextureHandle>,
     wall_name: String,
     wall_bio: String,
     wall_links: String,
@@ -998,23 +1028,21 @@ impl Workspace {
             .count()
     }
 
-    fn post_text(&self, item: &FeedItem) -> String {
-        // Canonical path only: `resolve_post` re-applies the same
-        // structural validation `feed` already used to admit this item
-        // (type, bound, UTF-8, link shape), rather than re-decoding the
-        // raw payload here and risking a second, divergent decode rule.
-        resolve_post(&self.store, &item.id)
-            .map(|post| post.text)
-            .unwrap_or_else(|_| "[unreadable or encrypted post]".to_string())
+    /// The full decoded post (text and structural kind together), for a
+    /// caller that needs to know whether to render inline media.
+    fn resolved_post(&self, id: &mini_objects::ObjectId) -> Option<mini_social::Post> {
+        resolve_post(&self.store, id).ok()
     }
 
-    /// Same resolution as [`Self::post_text`], for a caller (like
-    /// [`CommunityPost`]) that only has the post id, not a whole
-    /// [`FeedItem`]. `None` only for a malformed/unreadable post -- callers
-    /// decide how to render that, rather than this baking in feed's
-    /// specific placeholder text.
-    fn post_body(&self, id: &mini_objects::ObjectId) -> Option<String> {
-        resolve_post(&self.store, id).map(|post| post.text).ok()
+    /// The content type of an already-published media manifest, if `id`
+    /// resolves to one -- lets a card decide between inline image, an
+    /// honest "video not playable yet" label, or a generic attachment
+    /// note, without assembling the whole payload just to find out.
+    fn media_content_type(&self, id: &mini_objects::ObjectId) -> Option<String> {
+        let object = self.store.get(id).ok()?;
+        read_manifest(&object)
+            .ok()
+            .map(|manifest| manifest.content_type)
     }
 
     fn communities(&self) -> Vec<(mini_objects::ObjectId, String, String, usize, bool)> {
@@ -1031,6 +1059,53 @@ impl Workspace {
                 Some((id, community.name, community.charter, members.len(), joined))
             })
             .collect()
+    }
+
+    /// A local-only match against this device's own stored content.
+    /// Deliberately not "web search": `mini-query`/`mini-lexical-index`/
+    /// `mini-ranker` exist, but their whole type system (`CanonicalUrl`,
+    /// `CrawlObservationId`) assumes a document was actually crawled from
+    /// the open web -- forcing a native Mininet post through that pipeline
+    /// would mean fabricating a crawl-observation provenance for content
+    /// that was never crawled, exactly the kind of overclaiming this
+    /// project's own conventions forbid. This is a plain substring match
+    /// instead, honestly scoped to what it actually does.
+    fn local_search(&self, query: &str) -> Vec<LocalSearchResult> {
+        let query = query.to_lowercase();
+        if query.is_empty() {
+            return Vec::new();
+        }
+        let mut results = Vec::new();
+        for id in self.store.by_type(&ObjectType::POST).unwrap_or_default() {
+            let Ok(post) = resolve_post(&self.store, &id) else {
+                continue;
+            };
+            if post.text.to_lowercase().contains(&query) {
+                results.push(LocalSearchResult::Post {
+                    id,
+                    author: post.author,
+                    text: post.text,
+                    timestamp_ms: post.timestamp_ms,
+                });
+            }
+        }
+        for profile in self.known_profiles() {
+            if profile.display_name.to_lowercase().contains(&query)
+                || profile.bio.to_lowercase().contains(&query)
+            {
+                results.push(LocalSearchResult::Profile {
+                    human: profile.human,
+                    display_name: profile.display_name,
+                    bio: profile.bio,
+                });
+            }
+        }
+        for (_id, name, charter, _member_count, _joined) in self.communities() {
+            if name.to_lowercase().contains(&query) || charter.to_lowercase().contains(&query) {
+                results.push(LocalSearchResult::Community { name, charter });
+            }
+        }
+        results
     }
 
     fn create_beta_conversation(&mut self, label: &str, peer: &str) -> Result<String, String> {
@@ -1576,6 +1651,7 @@ impl Default for MininetApp {
             community_charter: String::new(),
             open_community_composer: None,
             community_post_text: String::new(),
+            web_query: String::new(),
             profile_name: existing_profile
                 .as_ref()
                 .map(|profile| profile.display_name.clone())
@@ -1620,6 +1696,7 @@ impl Default for MininetApp {
             discovery_rx: None,
             visibility_rx: None,
             profile_textures: HashMap::new(),
+            media_textures: HashMap::new(),
             wall_name: String::new(),
             wall_bio: String::new(),
             wall_links: String::new(),
@@ -1821,6 +1898,7 @@ impl eframe::App for MininetApp {
                 self.nav_button(ui, View::Home, "★", "Home");
                 self.nav_button(ui, View::Discover, "◎", "Discover");
                 self.nav_button(ui, View::Communities, "♦", "Communities");
+                self.nav_button(ui, View::Web, "◑", "Web");
                 self.nav_button(ui, View::Inbox, "✉", "Inbox (beta)");
                 self.nav_button(ui, View::Creator, "☆", "Creator studio");
                 self.nav_button(ui, View::Connections, "↔", "Connections");
@@ -1877,6 +1955,7 @@ impl eframe::App for MininetApp {
                         View::Inbox => self.inbox(ui),
                         View::Discover => self.discover(ui),
                         View::Communities => self.communities(ui),
+                        View::Web => self.web(ui),
                         View::Creator => self.creator(ui),
                         View::Connections => self.connections(ui),
                         View::System => self.system(ui),
@@ -2168,6 +2247,10 @@ impl MininetApp {
             View::Communities => (
                 "Communities",
                 "Portable spaces for discussion, not platform-owned silos.",
+            ),
+            View::Web => (
+                "Web",
+                "Search posts, profiles, and communities already on this device. Local only -- live web search isn't wired into this client yet.",
             ),
             View::Diagnostics => (
                 "Diagnostics",
@@ -2471,10 +2554,17 @@ impl MininetApp {
                 items
                     .iter()
                     .map(|item| {
+                        let resolved = workspace.resolved_post(&item.id);
+                        let body = resolved
+                            .as_ref()
+                            .map(|post| post.text.clone())
+                            .unwrap_or_else(|| "[unreadable or encrypted post]".to_string());
+                        let kind = resolved.map_or(PostKind::Plain, |post| post.kind);
                         (
                             item.id.clone(),
                             item.author.clone(),
-                            workspace.post_text(item),
+                            body,
+                            kind,
                             item.timestamp_ms,
                             match item.reason {
                                 mini_social::FeedReason::Own => "Own",
@@ -2487,12 +2577,13 @@ impl MininetApp {
                     .collect()
             })
             .unwrap_or_default();
-        for (id, author, body, timestamp_ms, reason, support_count, comment_count) in cards {
+        for (id, author, body, kind, timestamp_ms, reason, support_count, comment_count) in cards {
             self.post_card(
                 ui,
                 &id,
                 &author,
                 &body,
+                &kind,
                 timestamp_ms,
                 reason,
                 support_count,
@@ -2818,6 +2909,79 @@ impl MininetApp {
         self.profile_textures
             .insert(avatar.as_str().to_string(), texture.clone());
         Some(texture)
+    }
+
+    /// Same decode-and-cache shape as [`Self::profile_texture`], but capped
+    /// larger (feed media reads better with more detail than an avatar
+    /// badge needs) and cached separately so the two never fight over one
+    /// entry for the same object id.
+    fn feed_media_texture(
+        &mut self,
+        ctx: &egui::Context,
+        media: &mini_objects::ObjectId,
+    ) -> Option<egui::TextureHandle> {
+        if let Some(texture) = self.media_textures.get(media.as_str()) {
+            return Some(texture.clone());
+        }
+        let bytes = self.workspace.as_ref()?.profile_image(media).ok()?;
+        let image = decode_profile_image(&bytes).ok()?.0.thumbnail(480, 480);
+        let rgba = image.to_rgba8();
+        let size = [rgba.width() as usize, rgba.height() as usize];
+        let color = egui::ColorImage::from_rgba_unmultiplied(size, rgba.as_raw());
+        let texture = ctx.load_texture(
+            format!("media:{}", media.as_str()),
+            color,
+            egui::TextureOptions::LINEAR,
+        );
+        self.media_textures
+            .insert(media.as_str().to_string(), texture.clone());
+        Some(texture)
+    }
+
+    /// Render inline media for a post's structural kind: an image preview
+    /// when the manifest's content type is `image/*`, an honest label when
+    /// it is `video/*` (no embedded player exists yet -- this client never
+    /// pretends one does), or a generic attachment note for anything else.
+    fn media_preview(&mut self, ui: &mut egui::Ui, kind: &PostKind) {
+        let media = match kind {
+            PostKind::Media { media } | PostKind::CommunityMedia { media, .. } => media.clone(),
+            _ => return,
+        };
+        let content_type = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.media_content_type(&media));
+        ui.add_space(SPACE_SM);
+        match content_type.as_deref() {
+            Some(content_type) if content_type.starts_with("image/") => {
+                if let Some(texture) = self.feed_media_texture(ui.ctx(), &media) {
+                    let size = texture.size_vec2();
+                    let max_width = ui.available_width().min(480.0);
+                    let scale = (max_width / size.x).min(1.0);
+                    ui.add(egui::Image::new((texture.id(), size * scale)).corner_radius(8.0));
+                }
+            }
+            Some(content_type) if content_type.starts_with("video/") => {
+                card(ui, |ui| {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "Video attachment ({content_type}) \u{2014} playback is not built \
+                             into this client yet."
+                        ))
+                        .small()
+                        .color(COLOR_TEXT_SECONDARY),
+                    );
+                });
+            }
+            Some(content_type) => {
+                ui.label(
+                    egui::RichText::new(format!("Attachment: {content_type}"))
+                        .small()
+                        .color(COLOR_TEXT_SECONDARY),
+                );
+            }
+            None => {}
+        }
     }
 
     /// Draw an avatar: the real cached profile photo for `avatar` when one
@@ -3149,12 +3313,14 @@ impl MininetApp {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     fn post_card(
         &mut self,
         ui: &mut egui::Ui,
         id: &mini_objects::ObjectId,
         author: &Did,
         body: &str,
+        kind: &PostKind,
         timestamp_ms: u64,
         reason: &str,
         support_count: usize,
@@ -3193,6 +3359,7 @@ impl MininetApp {
                     ui.label(egui::RichText::new(body).color(COLOR_TEXT_PRIMARY));
                 });
             });
+            self.media_preview(ui, kind);
             ui.add_space(SPACE_SM);
             ui.label(
                 egui::RichText::new(format!(
@@ -3243,10 +3410,12 @@ impl MininetApp {
             .unwrap_or_else(|| short_scid(&post.author));
         let avatar_id = profile.as_ref().and_then(|profile| profile.avatar.clone());
         let is_unlocked = self.workspace.as_ref().is_some_and(Workspace::is_unlocked);
-        let body = self
+        let resolved = self
             .workspace
             .as_ref()
-            .and_then(|workspace| workspace.post_body(&post.id));
+            .and_then(|workspace| workspace.resolved_post(&post.id));
+        let body = resolved.as_ref().map(|post| post.text.clone());
+        let kind = resolved.map_or(PostKind::Plain, |post| post.kind);
         card(ui, |ui| {
             ui.horizontal(|ui| {
                 self.avatar(ui, &display_name, avatar_id.as_ref(), 36.0);
@@ -3271,6 +3440,7 @@ impl MininetApp {
                     }
                 });
             });
+            self.media_preview(ui, &kind);
             ui.add_space(SPACE_SM);
             ui.horizontal(|ui| {
                 if ui
@@ -3530,6 +3700,128 @@ impl MininetApp {
         }
         ui.add_space(SPACE_MD);
         ui.label(egui::RichText::new("Community content remains fetchable by object id. Labels and local filters can change your view; they do not erase the author's copy.").italics().color(COLOR_TEXT_SECONDARY));
+    }
+
+    fn web(&mut self, ui: &mut egui::Ui) {
+        card(ui, |ui| {
+            ui.label(
+                egui::RichText::new("Search this device")
+                    .strong()
+                    .color(COLOR_TEXT_PRIMARY),
+            );
+            ui.add_sized(
+                [ui.available_width(), 34.0],
+                egui::TextEdit::singleline(&mut self.web_query)
+                    .hint_text("Search posts, profiles, and communities…"),
+            );
+            ui.label(
+                egui::RichText::new(
+                    "Local only: matches this device's own stored content. Live web search \
+                     (crawling, a public index) is not wired into this client yet.",
+                )
+                .small()
+                .color(COLOR_TEXT_SECONDARY),
+            );
+        });
+        ui.add_space(SPACE_MD);
+        let query = self.web_query.trim();
+        if query.is_empty() {
+            return;
+        }
+        let results = self
+            .workspace
+            .as_ref()
+            .map(|workspace| workspace.local_search(query))
+            .unwrap_or_default();
+        if results.is_empty() {
+            card(ui, |ui| {
+                ui.label(egui::RichText::new("No local matches.").color(COLOR_TEXT_SECONDARY));
+            });
+            return;
+        }
+        ui.label(
+            egui::RichText::new(format!("{} local match(es)", results.len()))
+                .small()
+                .color(COLOR_TEXT_SECONDARY),
+        );
+        ui.add_space(SPACE_SM);
+        for result in results {
+            match result {
+                LocalSearchResult::Post {
+                    id,
+                    author,
+                    text,
+                    timestamp_ms,
+                } => {
+                    let display_name = self
+                        .workspace
+                        .as_ref()
+                        .and_then(|workspace| workspace.profile_for(&author))
+                        .map(|profile| profile.display_name)
+                        .filter(|name| !name.trim().is_empty())
+                        .unwrap_or_else(|| short_scid(&author));
+                    card(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new("Post").small().color(COLOR_ACCENT));
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "{display_name} · {}",
+                                    relative_time(now_ms(), timestamp_ms)
+                                ))
+                                .small()
+                                .color(COLOR_TEXT_SECONDARY),
+                            );
+                        });
+                        ui.label(egui::RichText::new(text).color(COLOR_TEXT_PRIMARY));
+                        if ui.small_button("Reply").clicked() {
+                            self.reply_target = Some(id);
+                            self.view = View::Home;
+                        }
+                    });
+                }
+                LocalSearchResult::Profile {
+                    human,
+                    display_name,
+                    bio,
+                } => {
+                    card(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new("Profile").small().color(COLOR_ACCENT));
+                            ui.label(
+                                egui::RichText::new(&display_name)
+                                    .strong()
+                                    .color(COLOR_TEXT_PRIMARY),
+                            );
+                        });
+                        if !bio.trim().is_empty() {
+                            ui.label(egui::RichText::new(bio).color(COLOR_TEXT_PRIMARY));
+                        }
+                        ui.label(
+                            egui::RichText::new(human.as_str())
+                                .small()
+                                .color(COLOR_TEXT_SECONDARY),
+                        );
+                    });
+                }
+                LocalSearchResult::Community { name, charter } => {
+                    card(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new("Community").small().color(COLOR_ACCENT));
+                            ui.label(
+                                egui::RichText::new(&name)
+                                    .strong()
+                                    .color(COLOR_TEXT_PRIMARY),
+                            );
+                        });
+                        ui.label(egui::RichText::new(charter).color(COLOR_TEXT_PRIMARY));
+                        if ui.small_button("Open Communities").clicked() {
+                            self.view = View::Communities;
+                        }
+                    });
+                }
+            }
+            ui.add_space(SPACE_SM);
+        }
     }
 
     fn creator(&mut self, ui: &mut egui::Ui) {
