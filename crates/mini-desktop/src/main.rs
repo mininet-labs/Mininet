@@ -40,6 +40,170 @@ use std::time::Duration;
 
 const PEER_IO_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Shared visual language: colors, an initials avatar, and a card frame.
+///
+/// Every glyph used anywhere in this module is checked against the three
+/// fonts `eframe`'s `default_fonts` feature actually bundles (Ubuntu-Light,
+/// NotoEmoji-Regular, emoji-icon-font) -- a glyph outside that set renders
+/// as a tofu box with no compile-time or CI signal, so `mod glyph_coverage`
+/// below pins the set this file relies on with a real rendering-backed test
+/// rather than trusting a visual read once.
+mod theme {
+    use eframe::egui::{self, Color32};
+
+    pub const BG: Color32 = Color32::from_rgb(21, 32, 43);
+    pub const CARD: Color32 = Color32::from_rgb(25, 39, 52);
+    pub const CARD_HOVER: Color32 = Color32::from_rgb(32, 48, 63);
+    pub const BORDER: Color32 = Color32::from_rgb(56, 68, 77);
+    pub const ACCENT: Color32 = Color32::from_rgb(29, 155, 240);
+    pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(247, 249, 249);
+    pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(139, 152, 165);
+    pub const LOCAL_GREEN: Color32 = Color32::from_rgb(0, 186, 124);
+    pub const LIKE_PINK: Color32 = Color32::from_rgb(249, 24, 128);
+
+    const AVATAR_PALETTE: [Color32; 8] = [
+        Color32::from_rgb(29, 155, 240),
+        Color32::from_rgb(0, 186, 124),
+        Color32::from_rgb(249, 24, 128),
+        Color32::from_rgb(255, 173, 31),
+        Color32::from_rgb(148, 116, 255),
+        Color32::from_rgb(255, 122, 89),
+        Color32::from_rgb(23, 191, 195),
+        Color32::from_rgb(230, 89, 143),
+    ];
+
+    /// A deterministic color from a small curated palette, keyed by name --
+    /// stable across renders/sessions without storing or fetching anything.
+    fn avatar_color(seed: &str) -> Color32 {
+        let hash: u32 = seed
+            .bytes()
+            .fold(5381u32, |h, b| h.wrapping_mul(33).wrapping_add(b as u32));
+        AVATAR_PALETTE[(hash as usize) % AVATAR_PALETTE.len()]
+    }
+
+    /// A filled circle with the name's first letter. No image loading, no
+    /// network fetch, no cache: identical inputs always paint identically.
+    pub fn avatar(ui: &mut egui::Ui, name: &str, size: f32) -> egui::Response {
+        let (rect, response) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::hover());
+        if ui.is_rect_visible(rect) {
+            ui.painter()
+                .circle_filled(rect.center(), size / 2.0, avatar_color(name));
+            let initial = name
+                .chars()
+                .next()
+                .unwrap_or('?')
+                .to_uppercase()
+                .to_string();
+            ui.painter().text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                initial,
+                egui::FontId::proportional(size * 0.42),
+                Color32::WHITE,
+            );
+        }
+        response
+    }
+
+    /// The rounded, bordered surface every post/community/profile card uses.
+    pub fn card_frame() -> egui::Frame {
+        egui::Frame::new()
+            .fill(CARD)
+            .stroke(egui::Stroke::new(1.0, BORDER))
+            .corner_radius(egui::CornerRadius::same(14))
+            .inner_margin(egui::Margin::same(16))
+    }
+
+    /// A small rounded status/category label, e.g. "PEER-TO-PEER" or "Own".
+    pub fn pill_badge(ui: &mut egui::Ui, text: &str, color: Color32) {
+        egui::Frame::new()
+            .fill(color.linear_multiply(0.16))
+            .stroke(egui::Stroke::new(1.0, color))
+            .corner_radius(egui::CornerRadius::same(255))
+            .inner_margin(egui::Margin::symmetric(10, 4))
+            .show(ui, |ui| {
+                ui.label(egui::RichText::new(text).small().color(color).strong());
+            });
+    }
+
+    /// A borderless, pill-hover glyph+label action (reply, like, seed …).
+    pub fn icon_action(ui: &mut egui::Ui, glyph: &str, label: &str, hover_color: Color32) -> bool {
+        let response = ui.add(
+            egui::Button::new(
+                egui::RichText::new(format!("{glyph}  {label}"))
+                    .small()
+                    .color(TEXT_SECONDARY),
+            )
+            .fill(Color32::TRANSPARENT)
+            .stroke(egui::Stroke::NONE)
+            .corner_radius(egui::CornerRadius::same(255)),
+        );
+        if response.hovered() {
+            ui.painter().rect_filled(
+                response.rect.expand(4.0),
+                egui::CornerRadius::same(255),
+                hover_color.linear_multiply(0.15),
+            );
+        }
+        response.clicked()
+    }
+
+    pub fn apply(ctx: &egui::Context) {
+        let mut visuals = egui::Visuals::dark();
+        visuals.panel_fill = BG;
+        visuals.window_fill = BG;
+        visuals.faint_bg_color = CARD;
+        visuals.extreme_bg_color = Color32::from_rgb(15, 24, 32);
+        visuals.override_text_color = Some(TEXT_PRIMARY);
+
+        visuals.widgets.noninteractive.bg_fill = BG;
+        visuals.widgets.noninteractive.weak_bg_fill = BG;
+        visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, BORDER);
+        visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, TEXT_SECONDARY);
+        visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(10);
+
+        visuals.widgets.inactive.bg_fill = CARD;
+        visuals.widgets.inactive.weak_bg_fill = CARD;
+        visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, BORDER);
+        visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, TEXT_PRIMARY);
+        visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(255);
+
+        visuals.widgets.hovered.bg_fill = CARD_HOVER;
+        visuals.widgets.hovered.weak_bg_fill = CARD_HOVER;
+        visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, ACCENT);
+        visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, TEXT_PRIMARY);
+        visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(255);
+
+        visuals.widgets.active.bg_fill = ACCENT;
+        visuals.widgets.active.weak_bg_fill = ACCENT;
+        visuals.widgets.active.bg_stroke = egui::Stroke::new(1.0, ACCENT);
+        visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, Color32::WHITE);
+        visuals.widgets.active.corner_radius = egui::CornerRadius::same(255);
+
+        visuals.selection.bg_fill = ACCENT.linear_multiply(0.35);
+        visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT);
+        visuals.hyperlink_color = ACCENT;
+
+        let mut style = (*ctx.style()).clone();
+        style.visuals = visuals;
+        style.spacing.item_spacing = egui::vec2(10.0, 12.0);
+        style.spacing.button_padding = egui::vec2(16.0, 10.0);
+        style
+            .text_styles
+            .insert(egui::TextStyle::Heading, egui::FontId::proportional(22.0));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Body, egui::FontId::proportional(15.0));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Button, egui::FontId::proportional(14.0));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Small, egui::FontId::proportional(12.5));
+        ctx.set_style(style);
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum View {
     Onboarding,
@@ -1525,86 +1689,137 @@ impl eframe::App for MininetApp {
             self.onboarding(ctx);
             return;
         }
-        egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
-            ui.set_min_height(54.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("MININET").strong().size(20.0));
-                ui.label(egui::RichText::new("local-first social network").color(egui::Color32::GRAY));
-                ui.separator();
-                ui.colored_label(egui::Color32::from_rgb(100, 210, 160), "LOCAL ONLY");
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Privacy center").clicked() {
-                        self.view = View::Privacy;
-                    }
-                    if let Some(workspace) = self.workspace.as_mut() {
-                        if workspace.is_unlocked() {
-                            if ui.button("Lock identity").clicked() {
-                                workspace.lock();
-                                self.signing_confirmation = false;
-                                self.notice = "Identity locked. Reading remains available; signing is disabled.".to_string();
-                            }
-                        } else if ui.button("Unlock identity").clicked() {
-                            match workspace.unlock() {
-                                Ok(()) => self.notice = "Identity unlocked. Review and confirm before signing.".to_string(),
-                                Err(error) => self.notice = format!("Unlock failed: {error}"),
+        egui::TopBottomPanel::top("top_bar")
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG)
+                    .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                    .inner_margin(egui::Margin::symmetric(20, 10)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    theme::avatar(ui, "Mininet", 30.0);
+                    ui.add_space(6.0);
+                    ui.label(
+                        egui::RichText::new("Mininet")
+                            .strong()
+                            .size(19.0)
+                            .color(theme::TEXT_PRIMARY),
+                    );
+                    ui.add_space(8.0);
+                    theme::pill_badge(ui, "🌐 PEER-TO-PEER", theme::LOCAL_GREEN);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .add(
+                                egui::Button::new(
+                                    egui::RichText::new("Privacy center")
+                                        .color(theme::TEXT_PRIMARY),
+                                )
+                                .corner_radius(egui::CornerRadius::same(255)),
+                            )
+                            .clicked()
+                        {
+                            self.view = View::Privacy;
+                        }
+                        ui.add_space(8.0);
+                        if let Some(workspace) = self.workspace.as_mut() {
+                            if workspace.is_unlocked() {
+                                if ui
+                                    .add(
+                                        egui::Button::new(
+                                            egui::RichText::new("🔒  Lock identity").strong(),
+                                        )
+                                        .corner_radius(egui::CornerRadius::same(255)),
+                                    )
+                                    .clicked()
+                                {
+                                    workspace.lock();
+                                    self.signing_confirmation = false;
+                                    self.notice = "Identity locked. Reading remains available; signing is disabled.".to_string();
+                                }
+                            } else if ui
+                                .add(
+                                    egui::Button::new(
+                                        egui::RichText::new("🔓  Unlock identity").strong(),
+                                    )
+                                    .fill(theme::ACCENT)
+                                    .corner_radius(egui::CornerRadius::same(255)),
+                                )
+                                .clicked()
+                            {
+                                match workspace.unlock() {
+                                    Ok(()) => self.notice = "Identity unlocked. Review and confirm before signing.".to_string(),
+                                    Err(error) => self.notice = format!("Unlock failed: {error}"),
+                                }
                             }
                         }
-                    }
+                    });
                 });
             });
-        });
 
         egui::SidePanel::left("navigation")
             .resizable(false)
-            .default_width(228.0)
+            .default_width(240.0)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG)
+                    .inner_margin(egui::Margin::symmetric(12, 18)),
+            )
             .show(ctx, |ui| {
-                ui.add_space(12.0);
-                ui.label(egui::RichText::new("YOUR NETWORK").small().strong());
-                ui.add_space(6.0);
-                self.nav_button(ui, View::Home, "Home");
-                self.nav_button(ui, View::Inbox, "Inbox (beta)");
-                self.nav_button(ui, View::People, "People");
-                self.nav_button(ui, View::Communities, "Communities");
-                self.nav_button(ui, View::Creator, "Creator studio");
-                self.nav_button(ui, View::Connections, "Connections");
-                self.nav_button(ui, View::System, "System & storage");
-                ui.add_space(18.0);
-                ui.label(egui::RichText::new("CONTROL PLANE").small().strong());
-                ui.add_space(6.0);
-                self.nav_button(ui, View::Privacy, "Privacy & safety");
-                self.nav_button(ui, View::Diagnostics, "Diagnostics");
-                self.nav_button(ui, View::Updates, "Version & install");
+                self.nav_button(ui, View::Home, "🏠", "Home");
+                self.nav_button(ui, View::Inbox, "✉", "Inbox (beta)");
+                self.nav_button(ui, View::People, "👥", "People");
+                self.nav_button(ui, View::Communities, "🏢", "Communities");
+                self.nav_button(ui, View::Creator, "✏", "Creator studio");
+                self.nav_button(ui, View::Connections, "🔗", "Connections");
+                self.nav_button(ui, View::System, "🖥", "System & storage");
+                ui.add_space(16.0);
                 ui.separator();
+                ui.add_space(10.0);
+                self.nav_button(ui, View::Privacy, "🔒", "Privacy & safety");
+                self.nav_button(ui, View::Diagnostics, "🔍", "Diagnostics");
+                self.nav_button(ui, View::Updates, "⬆", "Version & install");
+                ui.add_space(16.0);
+                ui.separator();
+                ui.add_space(8.0);
                 ui.label(
-                    egui::RichText::new("No analytics\nNo ad SDKs\nNo embedded web view").small(),
+                    egui::RichText::new("No analytics · No ad SDKs · No embedded web view")
+                        .small()
+                        .color(theme::TEXT_SECONDARY),
                 );
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    ui.add_space(18.0);
-                    self.header(ui);
-                    ui.add_space(14.0);
-                    match self.view {
-                        View::Onboarding => {
-                            unreachable!("onboarding returns before the main shell")
+        egui::CentralPanel::default()
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG)
+                    .inner_margin(egui::Margin::symmetric(28, 22)),
+            )
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        ui.set_max_width(660.0);
+                        self.header(ui);
+                        ui.add_space(16.0);
+                        match self.view {
+                            View::Onboarding => {
+                                unreachable!("onboarding returns before the main shell")
+                            }
+                            View::Home => self.home(ui),
+                            View::Inbox => self.inbox(ui),
+                            View::People => self.people(ui),
+                            View::Communities => self.communities(ui),
+                            View::Creator => self.creator(ui),
+                            View::Connections => self.connections(ui),
+                            View::System => self.system(ui),
+                            View::Diagnostics => self.diagnostics(ui),
+                            View::Updates => self.updates(ui),
+                            View::Privacy => self.privacy(ui),
                         }
-                        View::Home => self.home(ui),
-                        View::Inbox => self.inbox(ui),
-                        View::People => self.people(ui),
-                        View::Communities => self.communities(ui),
-                        View::Creator => self.creator(ui),
-                        View::Connections => self.connections(ui),
-                        View::System => self.system(ui),
-                        View::Diagnostics => self.diagnostics(ui),
-                        View::Updates => self.updates(ui),
-                        View::Privacy => self.privacy(ui),
-                    }
-                    ui.add_space(18.0);
-                });
-        });
+                        ui.add_space(18.0);
+                    });
+            });
 
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -1784,47 +1999,27 @@ impl MininetApp {
     }
 
     fn apply_theme(&self, ctx: &egui::Context) {
-        let mut visuals = egui::Visuals::dark();
-        visuals.panel_fill = egui::Color32::from_rgb(15, 20, 29);
-        visuals.window_fill = egui::Color32::from_rgb(10, 14, 21);
-        visuals.faint_bg_color = egui::Color32::from_rgb(28, 37, 52);
-        visuals.extreme_bg_color = egui::Color32::from_rgb(8, 11, 17);
-        visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(20, 27, 38);
-        visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(27, 37, 52);
-        visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(42, 61, 82);
-        visuals.widgets.active.bg_fill = egui::Color32::from_rgb(65, 116, 154);
-        visuals.selection.bg_fill = egui::Color32::from_rgb(42, 105, 145);
-        let mut style = (*ctx.style()).clone();
-        style.visuals = visuals;
-        style.spacing.item_spacing = egui::vec2(12.0, 10.0);
-        style.spacing.button_padding = egui::vec2(14.0, 9.0);
-        style.spacing.window_margin = egui::Margin::same(18);
-        style
-            .text_styles
-            .insert(egui::TextStyle::Heading, egui::FontId::proportional(28.0));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Body, egui::FontId::proportional(15.0));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Button, egui::FontId::proportional(14.0));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Small, egui::FontId::proportional(12.0));
-        ctx.set_style(style);
+        theme::apply(ctx);
     }
 
-    fn nav_button(&mut self, ui: &mut egui::Ui, view: View, label: &str) {
+    fn nav_button(&mut self, ui: &mut egui::Ui, view: View, glyph: &str, label: &str) {
         let selected = self.view == view;
-        if ui
-            .add_sized(
-                [ui.available_width(), 38.0],
-                egui::SelectableLabel::new(selected, label),
-            )
-            .clicked()
-        {
+        let text = egui::RichText::new(format!("{glyph}  {label}"))
+            .size(15.5)
+            .color(if selected {
+                theme::TEXT_PRIMARY
+            } else {
+                theme::TEXT_SECONDARY
+            });
+        let text = if selected { text.strong() } else { text };
+        let response = ui.add_sized(
+            [ui.available_width(), 42.0],
+            egui::SelectableLabel::new(selected, text),
+        );
+        if response.clicked() {
             self.view = view;
         }
+        ui.add_space(2.0);
     }
 
     fn header(&self, ui: &mut egui::Ui) {
@@ -1874,18 +2069,34 @@ impl MininetApp {
                 "See exactly what this client can and cannot do.",
             ),
         };
-        ui.heading(title);
-        ui.label(egui::RichText::new(subtitle).color(egui::Color32::LIGHT_GRAY));
+        ui.label(
+            egui::RichText::new(title)
+                .strong()
+                .size(24.0)
+                .color(theme::TEXT_PRIMARY),
+        );
+        ui.add_space(2.0);
+        ui.label(egui::RichText::new(subtitle).color(theme::TEXT_SECONDARY));
+        ui.add_space(6.0);
     }
 
     fn onboarding(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(theme::BG).inner_margin(egui::Margin::same(24)))
+            .show(ctx, |ui| {
             ui.vertical_centered(|ui| {
                 ui.add_space(54.0);
-                ui.heading("MININET");
+                theme::avatar(ui, "Mininet", 64.0);
+                ui.add_space(10.0);
+                ui.label(
+                    egui::RichText::new("MININET")
+                        .strong()
+                        .size(30.0)
+                        .color(theme::TEXT_PRIMARY),
+                );
                 ui.label(
                     egui::RichText::new("Your identity. Your objects. Your transport choices.")
-                        .color(egui::Color32::LIGHT_GRAY),
+                        .color(theme::TEXT_SECONDARY),
                 );
                 ui.add_space(22.0);
                 ui.allocate_ui_with_layout(
@@ -1906,7 +2117,7 @@ impl MininetApp {
                             .is_some_and(Workspace::is_unlocked);
                         if self.workspace.is_some() {
                             if !root_created {
-                                ui.group(|ui| {
+                                theme::card_frame().show(ui, |ui| {
                                     ui.heading("1. Create your Mininet root");
                                     ui.label("This creates a new local signing root protected by the Windows user vault. It never uploads a seed or contacts a server.");
                                     ui.label("You will be able to export recovery material only through a separate, deliberate backup flow.");
@@ -1923,7 +2134,7 @@ impl MininetApp {
                                     }
                                 });
                             } else if !has_public_account {
-                                ui.group(|ui| {
+                                theme::card_frame().show(ui, |ui| {
                                     ui.heading("2. Create your public account");
                                     ui.label("Start with a display name and optional bio. Next, you can choose a photo, location, age, and any custom public details before becoming visible to anyone.");
                                     ui.label("Your cryptographic identity remains the DID shown in Privacy & safety.");
@@ -1991,53 +2202,65 @@ impl MininetApp {
     }
 
     fn home(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
-            ui.label(egui::RichText::new("Create something").strong());
-            ui.add_space(4.0);
-            ui.add_sized(
-                [ui.available_width(), 72.0],
-                egui::TextEdit::multiline(&mut self.composer)
-                    .hint_text("Write a post… (saved locally before sync)"),
-            );
-            ui.checkbox(
-                &mut self.signing_confirmation,
-                "I confirm this action will create a signed Mininet object",
-            );
-            ui.horizontal(|ui| {
-                if ui
-                    .add_enabled(
-                        self.workspace.as_ref().is_some_and(Workspace::is_unlocked),
-                        egui::Button::new("Publish locally"),
-                    )
-                    .clicked()
-                {
-                    self.notice = if self.composer.trim().is_empty() {
-                        "Nothing published: write something first.".to_string()
-                    } else if !self.signing_confirmation {
-                        "Confirm signing before publishing.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.publish_post(self.composer.trim()) {
-                            Ok(()) => {
-                                self.composer.clear();
-                                self.signing_confirmation = false;
-                                "Post written to the local object store. No network used."
-                                    .to_string()
-                            }
-                            Err(error) => format!("Could not publish locally: {error}"),
+        theme::card_frame().show(ui, |ui| {
+            ui.horizontal_top(|ui| {
+                theme::avatar(ui, &self.profile_name, 44.0);
+                ui.add_space(10.0);
+                ui.vertical(|ui| {
+                    ui.set_width(ui.available_width());
+                    ui.add(
+                        egui::TextEdit::multiline(&mut self.composer)
+                            .hint_text("What's happening on the network?")
+                            .frame(false)
+                            .desired_rows(2),
+                    );
+                    ui.add_space(4.0);
+                    ui.checkbox(
+                        &mut self.signing_confirmation,
+                        "I confirm this action will create a signed Mininet object",
+                    );
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("🖼  Attach media").clicked() {
+                            self.view = View::Creator;
                         }
-                    } else {
-                        "Local workspace unavailable; no content was published.".to_string()
-                    };
-                }
-                if ui.button("Attach media").clicked() {
-                    self.view = View::Creator;
-                }
-                if ui.button("Add community").clicked() {
-                    self.view = View::Communities;
-                }
+                        if ui.button("🏢  Add community").clicked() {
+                            self.view = View::Communities;
+                        }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .add_enabled(
+                                    self.workspace.as_ref().is_some_and(Workspace::is_unlocked),
+                                    egui::Button::new(egui::RichText::new("Post").strong())
+                                        .fill(theme::ACCENT)
+                                        .corner_radius(egui::CornerRadius::same(255)),
+                                )
+                                .clicked()
+                            {
+                                self.notice = if self.composer.trim().is_empty() {
+                                    "Nothing published: write something first.".to_string()
+                                } else if !self.signing_confirmation {
+                                    "Confirm signing before publishing.".to_string()
+                                } else if let Some(workspace) = self.workspace.as_mut() {
+                                    match workspace.publish_post(self.composer.trim()) {
+                                        Ok(()) => {
+                                            self.composer.clear();
+                                            self.signing_confirmation = false;
+                                            "Post written to the local object store. No network used."
+                                                .to_string()
+                                        }
+                                        Err(error) => format!("Could not publish locally: {error}"),
+                                    }
+                                } else {
+                                    "Local workspace unavailable; no content was published.".to_string()
+                                };
+                            }
+                        });
+                    });
+                });
             });
         });
-        ui.add_space(14.0);
+        ui.add_space(16.0);
         ui.horizontal(|ui| {
             ui.label("Feed order:");
             egui::ComboBox::from_id_salt("feed_filter")
@@ -2101,7 +2324,7 @@ impl MininetApp {
             );
         }
         if let Some(target) = self.reply_target.clone() {
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.label(egui::RichText::new("Reply to selected post").strong());
                 ui.text_edit_multiline(&mut self.reply_text);
                 ui.checkbox(
@@ -2132,7 +2355,7 @@ impl MininetApp {
     }
 
     fn inbox(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Beta security boundary").strong());
             ui.label("Messages are signed and encrypted at rest, and private sync is limited to the selected opaque conversation route.");
             ui.colored_label(
@@ -2162,7 +2385,7 @@ impl MininetApp {
             })
             .unwrap_or_default();
 
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Conversations").strong());
             if conversation_cards.is_empty() {
                 ui.label("No private conversations are stored in this Windows profile.");
@@ -2255,7 +2478,7 @@ impl MininetApp {
 
         if !self.conversation_invite.is_empty() {
             ui.add_space(10.0);
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.label(egui::RichText::new("Sensitive invite — grants message access").strong());
                 ui.add_sized(
                     [ui.available_width(), 72.0],
@@ -2281,7 +2504,7 @@ impl MininetApp {
         };
 
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.heading(&label);
             ui.label(format!("Claimed peer: {peer}"));
             ui.label(egui::RichText::new("Message signatures are retained, but this beta view does not yet prove current device delegation/provenance.").small());
@@ -2298,7 +2521,7 @@ impl MininetApp {
                     .as_ref()
                     .and_then(|workspace| workspace.human.as_ref());
                 for message in scan.messages {
-                    ui.group(|ui| {
+                    theme::card_frame().show(ui, |ui| {
                         let sender = if own_did == Some(&message.author_human) {
                             "You".to_string()
                         } else if message.author_human.as_str() == peer {
@@ -2363,7 +2586,7 @@ impl MininetApp {
         });
 
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Deliver selected conversation").strong());
             ui.label("Both peers must select the same imported conversation. The route check completes before message IDs are exchanged.");
             ui.horizontal(|ui| {
@@ -2415,7 +2638,7 @@ impl MininetApp {
             .as_ref()
             .is_some_and(Workspace::profile_needs_device_upgrade);
         if profile_needs_upgrade {
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.colored_label(
                     egui::Color32::YELLOW,
                     egui::RichText::new("One-time verified-sync upgrade").strong(),
@@ -2433,7 +2656,7 @@ impl MininetApp {
             });
             ui.add_space(12.0);
         }
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Find people").strong());
             ui.add_sized(
                 [ui.available_width(), 34.0],
@@ -2485,7 +2708,7 @@ impl MininetApp {
             ui.add_space(12.0);
             ui.label(egui::RichText::new("Nearby — not yet verified").strong());
             for profile in nearby {
-                ui.group(|ui| {
+                theme::card_frame().show(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
                         ui.label(egui::RichText::new(&profile.display_name).strong());
                         ui.label(profile.did.as_str());
@@ -2531,7 +2754,7 @@ impl MininetApp {
                 .workspace
                 .as_ref()
                 .is_some_and(|workspace| workspace.is_friend(&profile.human));
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.horizontal(|ui| {
                     if let Some(texture) = texture {
                         ui.add(egui::Image::new((
@@ -2624,46 +2847,58 @@ impl MininetApp {
         support_count: usize,
         comment_count: usize,
     ) {
-        ui.group(|ui| {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("●").color(egui::Color32::from_rgb(100, 210, 160)));
-                ui.label(egui::RichText::new(title).strong());
-                ui.label(
-                    egui::RichText::new("  2m")
-                        .small()
-                        .color(egui::Color32::GRAY),
-                );
-            });
-            ui.label(body);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(format!("Why here: {reason}")).small());
-                ui.label(egui::RichText::new(format!("{support_count} likes")).small());
-                ui.label(egui::RichText::new(format!("{comment_count} replies")).small());
-                if ui.button("Reply").clicked() {
-                    self.reply_target = Some(id.clone());
-                }
-                if ui.button("React").clicked() {
-                    self.notice = if !self.signing_confirmation {
-                        "Confirm signing before reacting.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.react_like(id) {
-                            Ok(()) => {
-                                self.signing_confirmation = false;
-                                "Like written locally. No network used.".to_string()
-                            }
-                            Err(error) => format!("Could not react: {error}"),
+        theme::card_frame().show(ui, |ui| {
+            ui.horizontal_top(|ui| {
+                theme::avatar(ui, title, 40.0);
+                ui.add_space(10.0);
+                ui.vertical(|ui| {
+                    ui.set_width(ui.available_width());
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(title)
+                                .strong()
+                                .color(theme::TEXT_PRIMARY),
+                        );
+                        ui.label(
+                            egui::RichText::new(format!("· {reason} · 2m"))
+                                .small()
+                                .color(theme::TEXT_SECONDARY),
+                        );
+                    });
+                    ui.add_space(3.0);
+                    ui.label(egui::RichText::new(body).color(theme::TEXT_PRIMARY));
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if theme::icon_action(ui, "💬", &comment_count.to_string(), theme::ACCENT)
+                        {
+                            self.reply_target = Some(id.clone());
                         }
-                    } else {
-                        "Local workspace unavailable.".to_string()
-                    };
-                }
+                        ui.add_space(14.0);
+                        if theme::icon_action(ui, "♥", &support_count.to_string(), theme::LIKE_PINK)
+                        {
+                            self.notice = if !self.signing_confirmation {
+                                "Confirm signing before reacting.".to_string()
+                            } else if let Some(workspace) = self.workspace.as_mut() {
+                                match workspace.react_like(id) {
+                                    Ok(()) => {
+                                        self.signing_confirmation = false;
+                                        "Like written locally. No network used.".to_string()
+                                    }
+                                    Err(error) => format!("Could not react: {error}"),
+                                }
+                            } else {
+                                "Local workspace unavailable.".to_string()
+                            };
+                        }
+                    });
+                });
             });
         });
-        ui.add_space(8.0);
+        ui.add_space(12.0);
     }
 
     fn communities(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Create a local community").strong());
             ui.text_edit_singleline(&mut self.community_name);
             ui.add_sized(
@@ -2708,7 +2943,7 @@ impl MininetApp {
             ui.label("No community cards are present locally yet.");
         }
         for (id, name, charter, member_count, joined) in cards {
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.heading(name);
                 ui.label(charter);
                 ui.label(format!("{member_count} locally known members"));
@@ -2745,7 +2980,7 @@ impl MininetApp {
     }
 
     fn creator(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Your public profile").strong());
             ui.label("You choose every optional detail below. Only the display name is required; blank or disabled fields are not published.");
             ui.label("Display name");
@@ -2876,7 +3111,7 @@ impl MininetApp {
             }
         });
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Public wall").strong());
             ui.label("A voluntary public-facing surface separate from your profile. It does not reveal another root unless you explicitly publish a linkage object.");
             ui.label("Wall name");
@@ -2930,7 +3165,7 @@ impl MininetApp {
         ui.add_space(12.0);
         let target_valid =
             self.follow_target.trim().is_empty() || Did::parse(self.follow_target.trim()).is_ok();
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("People and follows").strong());
             ui.label("Exchange the full did:mini identifier through a trusted channel. Usernames are not unique contact identifiers.");
             if let Some(workspace) = self.workspace.as_ref() {
@@ -3018,7 +3253,7 @@ impl MininetApp {
             }
         });
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.heading("Your creator page");
             ui.label("Profile + pinned collections + progressive media");
             ui.separator();
@@ -3076,7 +3311,7 @@ impl MininetApp {
             self.privacy.relays,
         );
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Add a friend or contact").strong());
             ui.label("Open People to search signed profiles by name or DID, discover an opt-in nearby profile, and add a friend with one button.");
             if let Some(workspace) = self.workspace.as_ref() {
@@ -3090,7 +3325,7 @@ impl MininetApp {
             ui.label("A friend is shown as mutual only after both signed follow objects arrive through sync.");
         });
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("One-shot direct peer sync").strong());
             ui.label("Encrypted TCP bearer + verified MINI/SYNC1 ingest. Nothing runs until you press a button.");
             ui.label("Use this with a peer you trust; the address is not authenticated by discovery.");
@@ -3116,7 +3351,7 @@ impl MininetApp {
             ui.label("Direct TCP works on LAN or over the internet when the endpoint is reachable. Port forwarding, firewall rules, NAT traversal, and relay deployment remain the operator's responsibility.");
         });
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Offline transfer").strong());
             ui.label("Move signed objects by USB, a trusted shared folder, or a peer handoff. Bundles do not contain the DPAPI identity vault.");
             ui.text_edit_singleline(&mut self.export_path);
@@ -3160,7 +3395,7 @@ impl MininetApp {
                 .map_or(0, |ids| ids.len())
         };
         let total = workspace.store.all_ids().map_or(0, |ids| ids.len());
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Local state").strong());
             ui.label(format!(
                 "{total} signed/content-addressed object(s) stored locally."
@@ -3189,14 +3424,14 @@ impl MininetApp {
                 ("Forge commits", count(&ObjectType::COMMIT)),
                 ("Releases", count(&ObjectType::RELEASE)),
             ] {
-                ui.group(|ui| {
+                theme::card_frame().show(ui, |ui| {
                     ui.heading(value.to_string());
                     ui.label(label);
                 });
             }
         });
         ui.add_space(10.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Available client surfaces").strong());
             ui.horizontal_wrapped(|ui| {
                 if ui.button("Open feed").clicked() {
@@ -3223,14 +3458,14 @@ impl MininetApp {
             });
         });
         ui.add_space(10.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Protocol coverage").strong());
             ui.label("Integrated here: signed social objects, local feed assembly, communities, threaded replies, reactions, chunked media, DPAPI identity/conversation storage, Inbox beta, offline bundles, encrypted one-shot TCP sync, Windows install inspection with re-verification and rollback, and a diagnostics suite that executes the real identity, storage, social, media, messaging, sync, governance, erasure-coding, and storage-proof code.");
             ui.label("Available in the repository but not yet a finished desktop workflow: production chat sessions/mailboxes, forge repository/PR administration, presence/keystone encounters, reward accounting, privacy-cost routing, and release adoption decisions. Diagnostics *exercises* the governed-review path end to end, which is not the same as offering a desktop workflow for running it.");
             ui.label("Those foundations are deliberately shown as boundaries rather than unsafe pretend buttons. Public object types remain inspectable and syncable when another Mininet tool creates them; private messages currently require an explicit one-shot conversation sync.");
         });
         ui.add_space(10.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Production readiness").strong());
             for (feature, status, owner) in [
                 ("Local social, profiles, follows, walls, communities", "Integrated / test-covered", "Desktop"),
@@ -3429,7 +3664,7 @@ impl MininetApp {
             );
             return;
         };
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label(egui::RichText::new(report.summary()).strong());
                 if report.is_clean() {
@@ -3591,14 +3826,14 @@ impl MininetApp {
         }
         if !self.install_notice.is_empty() {
             ui.add_space(10.0);
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 for line in self.install_notice.lines() {
                     ui.label(line);
                 }
             });
         }
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("What this client will not do").strong());
             ui.label(
                 "It does not check for updates, download a release, or install one. There is no \
@@ -3615,7 +3850,7 @@ impl MininetApp {
             );
         });
         ui.add_space(10.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Verify this yourself").strong());
             ui.label(
                 "The manifest beside each package records every file's length, BLAKE3, and \
@@ -3638,7 +3873,7 @@ impl MininetApp {
     }
 
     fn install_summary(&self, ui: &mut egui::Ui, status: &SetupStatus) {
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             match &status.active {
                 Some(record) => {
                     ui.label(
@@ -4002,5 +4237,41 @@ mod tests {
         assert_eq!(followers(&bob_store, &bob_did).unwrap(), vec![alice_did]);
 
         std::fs::remove_dir_all(test_root).unwrap();
+    }
+}
+
+/// eframe's `default_fonts` feature bundles exactly three fonts (Ubuntu-
+/// Light, NotoEmoji-Regular, emoji-icon-font) with real but incomplete
+/// pictograph coverage -- a glyph outside that set renders as a silent tofu
+/// box, with no compile-time or clippy signal. Found the hard way once
+/// already: an initial glyph choice for `theme`'s icons (🏛 Communities, 🔓
+/// via a different codepoint, ⇅ seeding) rendered as empty boxes under a
+/// real Xvfb screenshot even though the code compiled cleanly. This test
+/// drives one real headless egui pass (no window/GPU needed -- font
+/// shaping is pure CPU work) and asserts every glyph this file actually
+/// paints is covered, so a future icon change that silently regresses
+/// coverage fails CI instead of shipping a blank box.
+#[cfg(test)]
+mod glyph_coverage {
+    use eframe::egui;
+
+    const USED_GLYPHS: &[&str] = &[
+        "🏠", "✉", "👥", "🏢", "✏", "🔗", "🖥", "🔒", "🔓", "🔍", "⬆", "💬", "♥", "♡", "🔄", "🌐",
+        "•", "🗑", "🖼", "🎬", "📎", "⚠", "ℹ",
+    ];
+
+    #[test]
+    fn every_glyph_this_ui_paints_is_in_the_bundled_fonts() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run(Default::default(), |ctx| {
+            let font_id = egui::FontId::proportional(15.0);
+            for glyph in USED_GLYPHS {
+                assert!(
+                    ctx.fonts(|f| f.has_glyphs(&font_id, glyph)),
+                    "glyph {glyph:?} is not covered by eframe's bundled fonts -- it will \
+                     render as a tofu box"
+                );
+            }
+        });
     }
 }
