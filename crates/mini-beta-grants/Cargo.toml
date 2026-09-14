@@ -1,0 +1,16 @@
+[package]
+name = "mini-beta-grants"
+version = "0.0.1"
+description = "Campaign-scoped multi-party acceptance evidence for Beta MINI grants. No production value or governance authority."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-beta = { path = "../mini-beta" }
+mini-objects = { path = "../mini-objects" }
+mini-store = { path = "../mini-store" }
