@@ -145,6 +145,9 @@ struct MininetApp {
     card_input: String,
     /// Host part the owner wants on their connection card.
     card_host: String,
+    /// Post ids the owner has not had on screen yet; cleared when Home is
+    /// shown. Counted from timeline snapshots, so it needs no server.
+    unseen_posts: Vec<String>,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -1288,6 +1291,7 @@ impl Default for MininetApp {
             new_peer_endpoint: String::new(),
             card_input: String::new(),
             card_host: String::new(),
+            unseen_posts: Vec::new(),
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -2021,7 +2025,12 @@ impl MininetApp {
                     .inner_margin(egui::Margin::symmetric(12, 16)),
             )
             .show(ctx, |ui| {
-                self.nav_button(ui, View::Home, "🏠", "Home");
+                let home_label = if self.unseen_posts.is_empty() {
+                    "Home".to_string()
+                } else {
+                    format!("Home  ({} new)", self.unseen_posts.len())
+                };
+                self.nav_button(ui, View::Home, "🏠", &home_label);
                 self.nav_button(ui, View::Discover, "🔍", "Explore");
                 self.nav_button(ui, View::Media, "🎬", "Media");
                 self.nav_button(ui, View::Inbox, "✉", "Messages");
@@ -2264,6 +2273,17 @@ No tracking. No forced updates.",
                 self.timeline_refresh = Instant::now() + Duration::from_secs(5);
                 match result {
                     Ok(cards) => {
+                        if self.view != View::Home && !self.timeline_cards.is_empty() {
+                            for card in &cards {
+                                let id = card.id.as_str();
+                                if !card.own
+                                    && !self.timeline_cards.iter().any(|old| old.id.as_str() == id)
+                                    && !self.unseen_posts.iter().any(|seen| seen == id)
+                                {
+                                    self.unseen_posts.push(id.to_owned());
+                                }
+                            }
+                        }
                         self.timeline_cards = cards;
                         self.timeline_error = None;
                     }
@@ -2271,7 +2291,11 @@ No tracking. No forced updates.",
                 }
             }
         }
-        if !matches!(self.view, View::Home | View::Discover | View::Media) {
+        if self.view == View::Home {
+            self.unseen_posts.clear();
+        }
+        let networking = self.network_session.is_some() || self.host.is_some();
+        if !matches!(self.view, View::Home | View::Discover | View::Media) && !networking {
             return;
         }
         let wanted = (self.feed_filter, self.timeline_scope);
