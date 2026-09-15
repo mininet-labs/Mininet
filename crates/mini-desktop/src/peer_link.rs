@@ -253,28 +253,51 @@ fn recv_sealed(
     Ok(plain)
 }
 
-/// Each side states the DID a service ticket may name. It is a claim, not
-/// an authentication: a wrong DID only means the ticket credits nobody.
+/// What a peer announced after the handshake.
+struct PeerHello {
+    did: Did,
+    /// The peer's ask in micro-MINI per MB for what it serves.
+    ask_micro_per_mb: u64,
+}
+
+/// Each side states the DID a service ticket may name and its ask. Both
+/// are claims, not authentication: a wrong DID only means the ticket
+/// credits nobody, and the ask is capped by the receiver's ceiling.
 fn exchange_hello(
     bearer: &mut Link,
     channel: &mut Channel,
     role: SyncRole,
     me: &Did,
-) -> Result<Did, String> {
-    let mine = me.as_str().as_bytes();
+    my_ask_micro_per_mb: u64,
+) -> Result<PeerHello, String> {
+    let mine = format!("{}|{}", me.as_str(), my_ask_micro_per_mb);
     let theirs = match role {
         SyncRole::Responder => {
-            send_sealed(bearer, channel, HELLO_AAD, mine)?;
+            send_sealed(bearer, channel, HELLO_AAD, mine.as_bytes())?;
             recv_sealed(bearer, channel, HELLO_AAD, MAX_HELLO_BYTES)?
         }
         SyncRole::Initiator => {
             let theirs = recv_sealed(bearer, channel, HELLO_AAD, MAX_HELLO_BYTES)?;
-            send_sealed(bearer, channel, HELLO_AAD, mine)?;
+            send_sealed(bearer, channel, HELLO_AAD, mine.as_bytes())?;
             theirs
         }
     };
     let text = String::from_utf8(theirs).map_err(|_| "peer hello is not UTF-8".to_string())?;
-    Did::parse(&text).map_err(|error| format!("peer hello is not a DID: {error}"))
+    let (did, ask) = text
+        .split_once('|')
+        .ok_or_else(|| "peer hello has no rate".to_string())?;
+    Ok(PeerHello {
+        did: Did::parse(did).map_err(|error| format!("peer hello is not a DID: {error}"))?,
+        ask_micro_per_mb: ask
+            .parse()
+            .map_err(|_| "peer hello has a malformed rate".to_string())?,
+    })
+}
+
+/// The owner's ask and ceiling, read from the persisted connection settings.
+fn my_rates(root: &Path) -> (u64, u64) {
+    let settings = crate::connectivity::load(root);
+    (settings.rate_micro_per_mb, settings.max_pay_micro_per_mb)
 }
 
 /// Media manifests on this device whose every chunk is present, with sizes.
@@ -300,6 +323,8 @@ fn complete_manifests(store: &Store<FsBackend>) -> BTreeMap<String, (ObjectId, u
 pub struct TicketOutcome {
     /// Bytes this side attested to the peer.
     pub issued_bytes: u64,
+    /// Rate this side agreed to pay the peer.
+    pub rate_micro_per_mb: u64,
     /// Bytes the peer attested to this side, if its ticket verified.
     pub received_bytes: Option<u64>,
     pub note: Option<String>,
@@ -307,7 +332,11 @@ pub struct TicketOutcome {
 
 impl TicketOutcome {
     fn summary(&self) -> String {
-        let mut parts = vec![format!("attested {} KB received", self.issued_bytes / 1024)];
+        let mut parts = vec![format!(
+            "attested {} KB received at {} µMINI/MB",
+            self.issued_bytes / 1024,
+            self.rate_micro_per_mb
+        )];
         match self.received_bytes {
             Some(bytes) => parts.push(format!("peer attested {} KB served", bytes / 1024)),
             None => parts.push("no ticket from peer".into()),
@@ -331,6 +360,7 @@ fn exchange_tickets(
     cache: &mut KelCache,
     identity: &DesktopIdentity,
     peer: &Did,
+    agreed_rate_micro_per_mb: u64,
     service: Service,
     bytes_received: u64,
     objects_received: u32,
@@ -339,6 +369,7 @@ fn exchange_tickets(
     let me = identity.root.did();
     let mut outcome = TicketOutcome {
         issued_bytes: bytes_received,
+        rate_micro_per_mb: agreed_rate_micro_per_mb,
         ..Default::default()
     };
     let issue = || -> Result<Vec<u8>, String> {
@@ -346,6 +377,7 @@ fn exchange_tickets(
         let fields = TicketFields {
             provider: peer.clone(),
             service,
+            rate_micro_per_mb: agreed_rate_micro_per_mb,
             bytes_received,
             objects_received,
             channel_binding: channel.channel_binding(),
@@ -385,6 +417,9 @@ fn exchange_tickets(
         if ticket.fields.channel_binding != channel.channel_binding() {
             return Err("peer ticket is bound to a different session".into());
         }
+        if ticket.fields.rate_micro_per_mb > agreed_rate_micro_per_mb {
+            return Err("peer ticket prices above the agreed rate".into());
+        }
         store.insert(&object).map_err(|error| error.to_string())?;
         Ok(ticket.fields.bytes_received)
     };
@@ -420,12 +455,16 @@ pub fn dial_public(root: &Path, endpoint: &str) -> Result<String, String> {
     let (mut store, mut cache) = open_sync_state(root, &identity)?;
     let (mut bearer, mut channel) = connect(endpoint)?;
     send_intent(&mut bearer, &mut channel, Intent::Public)?;
-    let peer = exchange_hello(
+    let (my_ask, my_ceiling) = my_rates(root);
+    let hello = exchange_hello(
         &mut bearer,
         &mut channel,
         SyncRole::Initiator,
         &identity.root.did(),
+        my_ask,
     )?;
+    let peer = hello.did.clone();
+    let agreed = mini_ticket::Rate::agree(hello.ask_micro_per_mb, my_ceiling);
     let before = complete_manifests(&store);
     let start = bearer.received_bytes();
     let report = sync_bidirectional(
@@ -446,6 +485,7 @@ pub fn dial_public(root: &Path, endpoint: &str) -> Result<String, String> {
         &mut cache,
         &identity,
         &peer,
+        agreed,
         Service::PublicSync,
         received,
         report.accepted as u32,
@@ -483,12 +523,16 @@ pub fn dial_private(
     let (mut store, mut cache) = open_sync_state(root, &identity)?;
     let (mut bearer, mut channel) = connect(endpoint)?;
     send_intent(&mut bearer, &mut channel, Intent::Private(route))?;
-    let peer = exchange_hello(
+    let (my_ask, my_ceiling) = my_rates(root);
+    let hello = exchange_hello(
         &mut bearer,
         &mut channel,
         SyncRole::Initiator,
         &identity.root.did(),
+        my_ask,
     )?;
+    let peer = hello.did.clone();
+    let agreed = mini_ticket::Rate::agree(hello.ask_micro_per_mb, my_ceiling);
     let start = bearer.received_bytes();
     match sync_private_route_bidirectional(
         &mut bearer,
@@ -507,6 +551,7 @@ pub fn dial_private(
                 &mut cache,
                 &identity,
                 &peer,
+                agreed,
                 Service::PrivateSync,
                 received,
                 report.accepted as u32,
@@ -538,12 +583,16 @@ pub fn serve(
     }
     let identity = load_identity(root, "hosting")?;
     let (mut store, mut cache) = open_sync_state(root, &identity)?;
-    let peer = exchange_hello(
+    let (my_ask, my_ceiling) = my_rates(root);
+    let hello = exchange_hello(
         &mut bearer,
         &mut channel,
         SyncRole::Responder,
         &identity.root.did(),
+        my_ask,
     )?;
+    let peer = hello.did.clone();
+    let agreed = mini_ticket::Rate::agree(hello.ask_micro_per_mb, my_ceiling);
     match intent {
         Intent::Public => {
             let before = complete_manifests(&store);
@@ -566,6 +615,7 @@ pub fn serve(
                 &mut cache,
                 &identity,
                 &peer,
+                agreed,
                 Service::PublicSync,
                 received,
                 report.accepted as u32,
@@ -595,6 +645,7 @@ pub fn serve(
                         &mut cache,
                         &identity,
                         &peer,
+                        agreed,
                         Service::PrivateSync,
                         received,
                         report.accepted as u32,

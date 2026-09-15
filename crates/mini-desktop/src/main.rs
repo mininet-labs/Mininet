@@ -5104,6 +5104,17 @@ No tracking. No forced updates.",
                         self.save_connections();
                     }
                 }
+                ui.label("most I pay per MB");
+                let mut ceiling_text = self.connections.max_pay_micro_per_mb.to_string();
+                if ui
+                    .add(egui::TextEdit::singleline(&mut ceiling_text).desired_width(90.0))
+                    .lost_focus()
+                {
+                    if let Ok(value) = ceiling_text.trim().parse::<u64>() {
+                        self.connections.max_pay_micro_per_mb = value;
+                        self.save_connections();
+                    }
+                }
                 ui.label("creator share (bps)");
                 let mut bps_text = self.connections.creator_bps.to_string();
                 if ui
@@ -5118,7 +5129,7 @@ No tracking. No forced updates.",
                     }
                 }
             });
-            theme::muted(ui, "The rate prices tickets on this device only; a peer's ledger uses its own rate. Media bytes are split between the host and the manifest's author by the creator share.");
+            theme::muted(ui, "Each exchange agrees a rate: the provider's ask, capped by the receiver's ceiling. The agreed rate is written into the ticket, so both ledgers compute the same credit. Media bytes are split between the host and the manifest's author by the creator share.");
         });
         ui.add_space(8.0);
         theme::card_frame().show(ui, |ui| {
@@ -5183,6 +5194,7 @@ No tracking. No forced updates.",
                     egui::RichText::new(format!("+{}", mini(entry.host_micro)))
                         .color(theme::ONLINE_GREEN),
                 );
+                theme::muted(ui, &format!("@ {} µMINI/MB", t.fields.rate_micro_per_mb));
                 if !entry.creator_micro.is_empty() {
                     theme::muted(
                         ui,

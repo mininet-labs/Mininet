@@ -134,6 +134,10 @@ pub struct CompletedMedia {
 pub struct TicketFields {
     pub provider: Did,
     pub service: Service,
+    /// Micro-MINI per MB both sides agreed for this exchange: the
+    /// provider's announced ask, capped by the receiver's ceiling. Priced
+    /// into the ticket so both ledgers compute the same credit.
+    pub rate_micro_per_mb: u64,
     pub bytes_received: u64,
     pub objects_received: u32,
     pub channel_binding: [u8; 32],
@@ -228,6 +232,7 @@ fn encode_ticket(fields: &TicketFields) -> Result<Vec<u8>> {
     out.push(TICKET_VERSION);
     put_str(&mut out, fields.provider.as_str());
     out.push(fields.service.code());
+    put_u64(&mut out, fields.rate_micro_per_mb);
     put_u64(&mut out, fields.bytes_received);
     put_u32(&mut out, fields.objects_received);
     out.extend_from_slice(&fields.channel_binding);
@@ -277,6 +282,7 @@ pub fn read_ticket(object: &Object) -> Result<ServiceTicket> {
     }
     let provider = Did::parse(&r.str(MAX_DID_BYTES)?).map_err(|_| TicketError::Malformed)?;
     let service = Service::from_code(r.u8()?).ok_or(TicketError::Malformed)?;
+    let rate_micro_per_mb = r.u64()?;
     let bytes_received = r.u64()?;
     let objects_received = r.u32()?;
     let channel_binding = r.bytes32()?;
@@ -319,6 +325,7 @@ pub fn read_ticket(object: &Object) -> Result<ServiceTicket> {
         fields: TicketFields {
             provider,
             service,
+            rate_micro_per_mb,
             bytes_received,
             objects_received,
             channel_binding,
@@ -360,9 +367,22 @@ impl Rate {
     /// Micro-MINI for `bytes` at this rate, priced through the shared Tier-0
     /// quote so the convention stays the one every other crate uses.
     pub fn price(&self, bytes: u64) -> Result<u64> {
+        price_at(self.micro_mini_per_mb, bytes)
+    }
+
+    /// The rate two sides settle on: the provider's ask, capped by what the
+    /// receiver is willing to pay.
+    pub fn agree(provider_ask_micro_per_mb: u64, receiver_ceiling_micro_per_mb: u64) -> u64 {
+        provider_ask_micro_per_mb.min(receiver_ceiling_micro_per_mb)
+    }
+}
+
+/// Micro-MINI for `bytes` at `micro_mini_per_mb`, through the Tier-0 quote.
+pub fn price_at(micro_mini_per_mb: u64, bytes: u64) -> Result<u64> {
+    {
         let mb = bytes.div_ceil(1_000_000);
         let prices = PriceVector {
-            bandwidth_micro_mini_per_mb: self.micro_mini_per_mb,
+            bandwidth_micro_mini_per_mb: micro_mini_per_mb,
             storage_micro_mini_per_mb_day: 0,
         };
         quote(&prices, PrivacyTier::Direct, mb, 0)
@@ -441,7 +461,10 @@ impl Ledger {
                     .ok_or(TicketError::Overflow)?;
                 ledger.owed_micro = ledger
                     .owed_micro
-                    .checked_add(rate.price(ticket.fields.bytes_received)?)
+                    .checked_add(price_at(
+                        ticket.fields.rate_micro_per_mb,
+                        ticket.fields.bytes_received,
+                    )?)
                     .ok_or(TicketError::Overflow)?;
                 ledger.issued.push(ticket);
                 continue;
@@ -459,8 +482,7 @@ impl Ledger {
                 media_bytes = media_bytes
                     .checked_add(media.bytes)
                     .ok_or(TicketError::Overflow)?;
-                let share = rate
-                    .price(media.bytes)?
+                let share = price_at(ticket.fields.rate_micro_per_mb, media.bytes)?
                     .checked_mul(u64::from(rate.creator_bps))
                     .ok_or(TicketError::Overflow)?
                     / 10_000;
@@ -469,7 +491,10 @@ impl Ledger {
                     .or_insert(0);
                 *entry = entry.checked_add(share).ok_or(TicketError::Overflow)?;
             }
-            let total = rate.price(ticket.fields.bytes_received)?;
+            let total = price_at(
+                ticket.fields.rate_micro_per_mb,
+                ticket.fields.bytes_received,
+            )?;
             let creator_total: u64 = creator_micro.values().sum();
             let host_micro = total.saturating_sub(creator_total);
             if &ticket.fields.provider == me {
@@ -532,6 +557,7 @@ pub fn build_redemption<B: Backend>(
         return Err(TicketError::TooManyTickets);
     }
     let mut bytes: u64 = 0;
+    let mut micro_mini: u64 = 0;
     for id in tickets {
         let object = store
             .get(id)
@@ -543,8 +569,13 @@ pub fn build_redemption<B: Backend>(
         bytes = bytes
             .checked_add(ticket.fields.bytes_received)
             .ok_or(TicketError::Overflow)?;
+        micro_mini = micro_mini
+            .checked_add(price_at(
+                ticket.fields.rate_micro_per_mb,
+                ticket.fields.bytes_received,
+            )?)
+            .ok_or(TicketError::Overflow)?;
     }
-    let micro_mini = rate.price(bytes)?;
     let mut payload = Vec::new();
     payload.push(REDEMPTION_VERSION);
     put_u64(&mut payload, bytes);
@@ -613,6 +644,7 @@ pub fn read_redemption(object: &Object) -> Result<RedemptionRequest> {
 /// holding the tickets.
 pub fn verify_redemption<B: Backend>(store: &Store<B>, request: &RedemptionRequest) -> Result<()> {
     let mut bytes: u64 = 0;
+    let mut micro: u64 = 0;
     let mut seen: BTreeSet<(String, [u8; 32])> = BTreeSet::new();
     for id in &request.tickets {
         let object = store
@@ -628,8 +660,14 @@ pub fn verify_redemption<B: Backend>(store: &Store<B>, request: &RedemptionReque
         bytes = bytes
             .checked_add(ticket.fields.bytes_received)
             .ok_or(TicketError::Overflow)?;
+        micro = micro
+            .checked_add(price_at(
+                ticket.fields.rate_micro_per_mb,
+                ticket.fields.bytes_received,
+            )?)
+            .ok_or(TicketError::Overflow)?;
     }
-    if bytes != request.bytes || request.rate.price(bytes)? != request.micro_mini {
+    if bytes != request.bytes || micro != request.micro_mini {
         return Err(TicketError::Malformed);
     }
     Ok(())
@@ -662,6 +700,7 @@ mod tests {
         TicketFields {
             provider: provider.clone(),
             service: Service::PublicSync,
+            rate_micro_per_mb: 100,
             bytes_received: bytes,
             objects_received: 3,
             channel_binding: mini_crypto::random_32().unwrap(),
@@ -787,6 +826,37 @@ mod tests {
             verify_redemption(&store, &stranger),
             Err(TicketError::NotTheNamedProvider)
         );
+    }
+
+    #[test]
+    fn ledger_prices_from_the_ticket_not_the_device() {
+        let mut store = Store::new(MemoryBackend::new());
+        let (host, _) = person(50);
+        let (consumer, consumer_dev) = person(60);
+        let mut f = fields(&host.did(), 2_000_000, Vec::new());
+        f.rate_micro_per_mb = 7;
+        store
+            .insert(&issue_ticket(&consumer.did(), &consumer_dev, &f, 1, 1).unwrap())
+            .unwrap();
+        // The device's own rate is irrelevant to what the ticket says.
+        let local = Rate {
+            micro_mini_per_mb: 1_000,
+            creator_bps: 0,
+        };
+        assert_eq!(
+            Ledger::collect(&store, &host.did(), local)
+                .unwrap()
+                .host_micro,
+            14
+        );
+        assert_eq!(
+            Ledger::collect(&store, &consumer.did(), local)
+                .unwrap()
+                .owed_micro,
+            14
+        );
+        assert_eq!(Rate::agree(50, 20), 20);
+        assert_eq!(Rate::agree(5, 20), 5);
     }
 
     #[test]

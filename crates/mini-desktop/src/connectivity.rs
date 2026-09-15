@@ -38,8 +38,10 @@ pub struct ConnectionSettings {
     pub router_mapping_on_launch: bool,
     /// Sessions also exchange the owner's private conversation routes.
     pub include_private: bool,
-    /// Micro-MINI per MB this device prices service tickets at.
+    /// Micro-MINI per MB this device asks for what it serves.
     pub rate_micro_per_mb: u64,
+    /// The most this device agrees to pay per MB it receives.
+    pub max_pay_micro_per_mb: u64,
     /// Creator share of media bytes, basis points (0..=10000).
     pub creator_bps: u16,
     pub peers: Vec<PeerEntry>,
@@ -55,6 +57,7 @@ impl Default for ConnectionSettings {
             router_mapping_on_launch: false,
             include_private: false,
             rate_micro_per_mb: 10,
+            max_pay_micro_per_mb: 50,
             creator_bps: 3000,
             peers: Vec::new(),
         }
@@ -149,6 +152,10 @@ impl ConnectionSettings {
             u8::from(self.include_private)
         ));
         out.push_str(&format!("rate_micro_per_mb\t{}\n", self.rate_micro_per_mb));
+        out.push_str(&format!(
+            "max_pay_micro_per_mb\t{}\n",
+            self.max_pay_micro_per_mb
+        ));
         out.push_str(&format!("creator_bps\t{}\n", self.creator_bps));
         for peer in &self.peers {
             out.push_str(&format!(
@@ -214,6 +221,12 @@ impl ConnectionSettings {
                         .next()
                         .and_then(|value| value.parse::<u64>().ok())
                         .ok_or("invalid rate")?;
+                }
+                "max_pay_micro_per_mb" => {
+                    settings.max_pay_micro_per_mb = parts
+                        .next()
+                        .and_then(|value| value.parse::<u64>().ok())
+                        .ok_or("invalid ceiling")?;
                 }
                 "creator_bps" => {
                     settings.creator_bps = parts
@@ -442,6 +455,7 @@ mod tests {
             router_mapping_on_launch: true,
             include_private: true,
             rate_micro_per_mb: 25,
+            max_pay_micro_per_mb: 40,
             creator_bps: 5000,
             peers: Vec::new(),
         };
