@@ -10,6 +10,7 @@
 mod connectivity;
 mod conversation_state;
 mod discussion;
+mod library;
 mod mute_list;
 mod network_session;
 mod peer_link;
@@ -56,6 +57,8 @@ enum View {
     Communities,
     Creator,
     Connections,
+    Library,
+    Earnings,
     System,
     Diagnostics,
     Updates,
@@ -181,6 +184,15 @@ struct MininetApp {
     discussion_reply_target: Option<mini_objects::ObjectId>,
     discussion_reply_text: String,
     collapsed_nodes: Vec<String>,
+    library_items: Vec<library::Item>,
+    library_dirty: bool,
+    library_path: String,
+    library_name: String,
+    library_content_type: String,
+    library_export_target: Option<mini_objects::ObjectId>,
+    library_share_target: Option<mini_objects::ObjectId>,
+    library_caption: String,
+    export_file_path: String,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -692,6 +704,142 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn publish_file(
+        &mut self,
+        path: &std::path::Path,
+        name: &str,
+        content_type: &str,
+    ) -> Result<library::Published, String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = (|| {
+            let identity = self
+                .identity
+                .as_ref()
+                .ok_or_else(|| "identity is locked".to_string())?;
+            let human = self.human_did()?.clone();
+            let published = library::publish_file(
+                &mut self.store,
+                &human,
+                &identity.device,
+                path,
+                name,
+                content_type,
+                now_ms(),
+                self.sequence,
+            )?;
+            self.sequence = self.sequence.saturating_add(published.objects);
+            Ok(published)
+        })();
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    /// Post a caption linking an existing manifest or collection.
+    fn publish_media_post_for(
+        &mut self,
+        media: &mini_objects::ObjectId,
+        caption: &str,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = (|| {
+            let identity = self
+                .identity
+                .as_ref()
+                .ok_or_else(|| "identity is locked".to_string())?;
+            let human = self.human_did()?.clone();
+            publish_media_post(
+                &mut self.store,
+                &human,
+                &identity.device,
+                media.clone(),
+                caption,
+                now_ms(),
+                self.sequence,
+            )
+            .map_err(|error| error.to_string())?;
+            self.sequence = self.sequence.saturating_add(1);
+            Ok(())
+        })();
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    fn build_redemption(
+        &mut self,
+        tickets: &[mini_objects::ObjectId],
+        rate: mini_ticket::Rate,
+    ) -> Result<(mini_objects::ObjectId, u64), String> {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or_else(|| "identity is locked".to_string())?;
+        let human = self.human_did()?.clone();
+        let object = mini_ticket::build_redemption(
+            &self.store,
+            &human,
+            &identity.device,
+            tickets,
+            rate,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
+        self.store
+            .insert(&object)
+            .map_err(|error| error.to_string())?;
+        self.sequence = self.sequence.saturating_add(1);
+        let request = mini_ticket::read_redemption(&object).map_err(|error| error.to_string())?;
+        Ok((request.id, request.micro_mini))
+    }
+
+    /// (id, micro-MINI, ticket count, verifies) for every redemption request
+    /// authored by this identity, newest first.
+    fn redemption_requests(&self) -> Vec<(mini_objects::ObjectId, u64, usize, bool)> {
+        let Some(me) = self.human.as_ref() else {
+            return Vec::new();
+        };
+        let Ok(ids) = self
+            .store
+            .by_type(&ObjectType::Custom(mini_ticket::REDEMPTION_TYPE.into()))
+        else {
+            return Vec::new();
+        };
+        let mut rows: Vec<(u64, mini_objects::ObjectId, u64, usize, bool)> = Vec::new();
+        for id in ids {
+            let Ok(object) = self.store.get(&id) else {
+                continue;
+            };
+            let Ok(request) = mini_ticket::read_redemption(&object) else {
+                continue;
+            };
+            if &request.claimant != me {
+                continue;
+            }
+            let ok = mini_ticket::verify_redemption(&self.store, &request).is_ok();
+            rows.push((
+                request.timestamp_ms,
+                request.id,
+                request.micro_mini,
+                request.tickets.len(),
+                ok,
+            ));
+        }
+        rows.sort_by(|a, b| b.0.cmp(&a.0));
+        rows.into_iter()
+            .map(|(_, id, micro, n, ok)| (id, micro, n, ok))
+            .collect()
     }
 
     fn publish_comment_confirmed(
@@ -1372,6 +1520,15 @@ impl Default for MininetApp {
             discussion_reply_target: None,
             discussion_reply_text: String::new(),
             collapsed_nodes: Vec::new(),
+            library_items: Vec::new(),
+            library_dirty: true,
+            library_path: String::new(),
+            library_name: String::new(),
+            library_content_type: String::new(),
+            library_export_target: None,
+            library_share_target: None,
+            library_caption: String::new(),
+            export_file_path: String::new(),
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1560,6 +1717,8 @@ impl eframe::App for MininetApp {
                             View::Communities => self.communities(ui),
                             View::Creator => self.creator(ui),
                             View::Connections => self.connections(ui),
+                            View::Library => self.library(ui),
+                            View::Earnings => self.earnings(ui),
                             View::System => self.system(ui),
                             View::Diagnostics => self.diagnostics(ui),
                             View::Updates => self.updates(ui),
@@ -1597,6 +1756,7 @@ impl MininetApp {
         self.timeline_refresh = Instant::now();
         self.previews_dirty = true;
         self.discussion_dirty = true;
+        self.library_dirty = true;
     }
 
     fn rebuild_conversation_previews(&mut self) {
@@ -1907,6 +2067,19 @@ impl MininetApp {
     }
 
     fn poll_dropped_files(&mut self, ctx: &egui::Context) {
+        if self.view == View::Library {
+            if let Some(path) = ctx.input(|input| {
+                input
+                    .raw
+                    .dropped_files
+                    .iter()
+                    .find_map(|file| file.path.clone())
+            }) {
+                self.library_path = path.display().to_string();
+                self.notice = "File selected. Confirm signing and press Add to library.".into();
+            }
+            return;
+        }
         if self.view != View::Creator {
             return;
         }
@@ -2170,6 +2343,8 @@ impl MininetApp {
                 self.nav_button(ui, View::Communities, "🏢", "Communities");
                 self.nav_button(ui, View::Creator, "✏", "Creator studio");
                 self.nav_button(ui, View::Connections, "🔗", "Connections");
+                self.nav_button(ui, View::Library, "📋", "Library");
+                self.nav_button(ui, View::Earnings, "💰", "Earnings");
                 self.nav_button(ui, View::System, "🖥", "System & storage");
                 ui.add_space(12.0);
                 ui.separator();
@@ -2682,17 +2857,38 @@ No tracking. No forced updates.",
             return "media manifest not received yet".into();
         };
         let Ok(manifest) = read_manifest(&object) else {
+            if let Ok(collection) = library::read_collection(&object) {
+                let progress = library::list(&workspace.store)
+                    .ok()
+                    .and_then(|items| items.into_iter().find(|item| item.id == collection.id));
+                return match progress {
+                    Some(item) if item.complete() => format!(
+                        "{} · {} · {} · complete, in your Library",
+                        collection.name,
+                        collection.content_type,
+                        library::human_size(collection.total_len)
+                    ),
+                    Some(item) => format!(
+                        "{} · {} · {} · {}% received, still arriving from peers",
+                        collection.name,
+                        collection.content_type,
+                        library::human_size(collection.total_len),
+                        item.percent()
+                    ),
+                    None => format!("{} · {}", collection.name, collection.content_type),
+                };
+            }
             return "unreadable media manifest".into();
         };
         let complete = mini_media::missing_chunks(&workspace.store, &manifest)
             .map(|missing| missing.is_empty())
             .unwrap_or(false);
         format!(
-            "{} · {} KB · {}",
+            "{} · {} · {}",
             manifest.content_type,
-            manifest.total_len / 1024,
+            library::human_size(manifest.total_len),
             if complete {
-                "received"
+                "received, in your Library"
             } else {
                 "still arriving from peers"
             }
@@ -3162,6 +3358,14 @@ No tracking. No forced updates.",
             View::Connections => (
                 "Connections",
                 "Your saved peers, hosting, and the sessions that keep content flowing.",
+            ),
+            View::Library => (
+                "Library",
+                "Files and movies you hold, seed, and can rebuild — any size, resumable, verified.",
+            ),
+            View::Earnings => (
+                "Earnings",
+                "Service tickets peers signed for what you served. Unsettled credit, redeemable only by your DID.",
             ),
             View::System => (
                 "Mininet system",
@@ -4400,6 +4604,465 @@ No tracking. No forced updates.",
                 });
             });
             ui.add_space(8.0);
+        }
+    }
+
+    // ----- library (files and movies) ---------------------------------------
+
+    fn reload_library(&mut self) {
+        self.library_dirty = false;
+        self.library_items = self
+            .workspace
+            .as_ref()
+            .map(|workspace| library::list(&workspace.store))
+            .transpose()
+            .unwrap_or_else(|error| {
+                self.notice = format!("Library could not be read: {error}");
+                None
+            })
+            .unwrap_or_default();
+    }
+
+    fn library(&mut self, ui: &mut egui::Ui) {
+        if self.library_dirty {
+            self.reload_library();
+        }
+        let hosting = self.host.as_ref().is_some_and(|host| host.listening);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Add a file or movie");
+            theme::muted(
+                ui,
+                "Any file becomes signed, content-addressed 1 MiB chunks. Up to 256 MiB is one manifest; larger files (up to 64 GiB) become an ordered collection of manifests. Peers that hold any part seed that part; downloads resume chunk by chunk.",
+            );
+            ui.horizontal(|ui| {
+                ui.label("Path");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.library_path)
+                        .hint_text("C:\\Videos\\movie.mp4 (or drop a file on this window)")
+                        .desired_width(f32::INFINITY),
+                );
+            });
+            ui.horizontal(|ui| {
+                ui.label("Name");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.library_name)
+                        .hint_text("Shown to peers")
+                        .desired_width(240.0),
+                );
+                ui.label("Type");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.library_content_type)
+                        .hint_text("guessed from the extension")
+                        .desired_width(160.0),
+                );
+            });
+            ui.checkbox(
+                &mut self.signing_confirmation,
+                "I confirm this creates signed objects that peers may replicate",
+            );
+            ui.horizontal(|ui| {
+                if ui.add(theme::primary_button("Add to library")).clicked() {
+                    let path = std::path::PathBuf::from(self.library_path.trim());
+                    let name = if self.library_name.trim().is_empty() {
+                        path.file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("file")
+                            .to_string()
+                    } else {
+                        self.library_name.trim().to_string()
+                    };
+                    let content_type = if self.library_content_type.trim().is_empty() {
+                        library::content_type_for(&path).to_string()
+                    } else {
+                        self.library_content_type.trim().to_string()
+                    };
+                    self.notice = if self.library_path.trim().is_empty() {
+                        "Enter a file path first.".into()
+                    } else if !self.signing_confirmation {
+                        "Confirm signing before adding.".into()
+                    } else {
+                        match self.workspace.as_mut() {
+                            Some(workspace) => match workspace.publish_file(&path, &name, &content_type) {
+                                Ok(published) => {
+                                    self.signing_confirmation = false;
+                                    self.library_dirty = true;
+                                    self.library_path.clear();
+                                    self.library_name.clear();
+                                    self.library_content_type.clear();
+                                    format!(
+                                        "Added {name}: {} in {} part(s), {} objects. {}",
+                                        library::human_size(published.bytes),
+                                        published.parts,
+                                        published.objects,
+                                        if hosting {
+                                            "Peers can fetch it now."
+                                        } else {
+                                            "Start hosting or a session to seed it."
+                                        }
+                                    )
+                                }
+                                Err(error) => format!("Could not add file: {error}"),
+                            },
+                            None => "Local workspace unavailable.".into(),
+                        }
+                    };
+                }
+                if ui.add(theme::secondary_button("🔄  Refresh")).clicked() {
+                    self.library_dirty = true;
+                }
+            });
+        });
+        ui.add_space(8.0);
+        ui.horizontal_wrapped(|ui| {
+            if hosting {
+                theme::pill_badge(ui, "SEEDING", theme::ONLINE_GREEN);
+                theme::muted(ui, "Everything complete below is available to peers that connect.");
+            } else {
+                theme::pill_badge(ui, "NOT SEEDING", theme::TEXT_SECONDARY);
+                theme::muted(ui, "Start hosting in Connections to seed to peers; sessions also share what you hold.");
+            }
+        });
+        ui.add_space(6.0);
+        if self.library_items.is_empty() {
+            theme::muted(
+                ui,
+                "Nothing in the library yet. Add a file above, or receive media from peers.",
+            );
+        }
+        let own = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.human.clone());
+        let items = self.library_items.clone();
+        for item in &items {
+            ui.push_id(item.id.as_str(), |ui| {
+                theme::card_frame().show(ui, |ui| {
+                    ui.horizontal_top(|ui| {
+                        let glyph = if item.content_type.starts_with("video/") {
+                            "🎬"
+                        } else if item.content_type.starts_with("image/") {
+                            "🖼"
+                        } else {
+                            "📋"
+                        };
+                        ui.label(egui::RichText::new(glyph).size(26.0));
+                        ui.vertical(|ui| {
+                            ui.set_width(ui.available_width());
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(egui::RichText::new(&item.name).strong().size(16.0));
+                                theme::muted(ui, &item.content_type);
+                                theme::muted(ui, &format!("· {}", library::human_size(item.total_len)));
+                                if item.kind == library::Kind::Collection {
+                                    theme::pill_badge(ui, "COLLECTION", theme::ACCENT);
+                                }
+                                if own.as_ref() == Some(&item.author) {
+                                    theme::pill_badge(ui, "Yours", theme::ACCENT);
+                                }
+                            });
+                            let percent = item.percent();
+                            ui.add(
+                                egui::ProgressBar::new(f32::from(percent) / 100.0)
+                                    .text(if item.complete() {
+                                        format!("complete · {} chunk(s)", item.chunks_total)
+                                    } else {
+                                        format!(
+                                            "{percent}% · {}/{} chunk(s){}",
+                                            item.chunks_present,
+                                            item.chunks_total,
+                                            if item.parts_missing > 0 {
+                                                format!(" · {} part(s) not announced yet", item.parts_missing)
+                                            } else {
+                                                String::new()
+                                            }
+                                        )
+                                    })
+                                    .desired_width(ui.available_width()),
+                            );
+                            theme::muted(
+                                ui,
+                                &format!(
+                                    "by {} · {}",
+                                    short_did(item.author.as_str()),
+                                    timeline::age(item.timestamp_ms, now_ms())
+                                ),
+                            );
+                            ui.horizontal_wrapped(|ui| {
+                                if item.complete() {
+                                    if ui.add(theme::secondary_button("Export to disk")).clicked() {
+                                        self.library_export_target = Some(item.id.clone());
+                                        if self.export_file_path.trim().is_empty() {
+                                            self.export_file_path = std::env::var_os("USERPROFILE")
+                                                .map(std::path::PathBuf::from)
+                                                .unwrap_or_default()
+                                                .join("Downloads")
+                                                .join(&item.name)
+                                                .display()
+                                                .to_string();
+                                        }
+                                    }
+                                    if ui.add(theme::secondary_button("Share as post")).clicked() {
+                                        self.library_share_target = Some(item.id.clone());
+                                        self.library_caption.clear();
+                                    }
+                                } else {
+                                    theme::muted(ui, "Missing chunks arrive from any peer that holds them.");
+                                }
+                                if ui.add(theme::secondary_button("Copy id")).clicked() {
+                                    ui.ctx().copy_text(item.id.as_str().to_owned());
+                                }
+                            });
+                            if self.library_export_target.as_ref() == Some(&item.id) {
+                                ui.horizontal(|ui| {
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut self.export_file_path)
+                                            .desired_width(f32::INFINITY),
+                                    );
+                                });
+                                ui.horizontal(|ui| {
+                                    if ui.add(theme::primary_button("Write file")).clicked() {
+                                        let target = std::path::PathBuf::from(self.export_file_path.trim());
+                                        self.notice = match self.workspace.as_ref() {
+                                            Some(workspace) => match std::fs::File::create(&target) {
+                                                Ok(mut file) => {
+                                                    match library::export(&workspace.store, &item.id, &mut file) {
+                                                        Ok(bytes) => {
+                                                            self.library_export_target = None;
+                                                            format!(
+                                                                "Wrote {} to {}.",
+                                                                library::human_size(bytes),
+                                                                target.display()
+                                                            )
+                                                        }
+                                                        Err(error) => format!("Export failed: {error}"),
+                                                    }
+                                                }
+                                                Err(error) => format!("Could not create file: {error}"),
+                                            },
+                                            None => "Local workspace unavailable.".into(),
+                                        };
+                                    }
+                                    if ui.add(theme::secondary_button("Cancel")).clicked() {
+                                        self.library_export_target = None;
+                                    }
+                                });
+                            }
+                            if self.library_share_target.as_ref() == Some(&item.id) {
+                                ui.add(
+                                    egui::TextEdit::multiline(&mut self.library_caption)
+                                        .hint_text("Caption")
+                                        .desired_rows(2)
+                                        .desired_width(f32::INFINITY),
+                                );
+                                ui.checkbox(
+                                    &mut self.signing_confirmation,
+                                    "I confirm this creates a signed post",
+                                );
+                                ui.horizontal(|ui| {
+                                    if ui.add(theme::primary_button("Post")).clicked() {
+                                        self.notice = if !self.signing_confirmation {
+                                            "Confirm signing before posting.".into()
+                                        } else {
+                                            match self.workspace.as_mut() {
+                                                Some(workspace) => match workspace
+                                                    .publish_media_post_for(&item.id, self.library_caption.trim())
+                                                {
+                                                    Ok(()) => {
+                                                        self.signing_confirmation = false;
+                                                        self.library_share_target = None;
+                                                        self.timeline_refresh = Instant::now();
+                                                        "Posted. It shares on the next exchange.".into()
+                                                    }
+                                                    Err(error) => format!("Could not post: {error}"),
+                                                },
+                                                None => "Local workspace unavailable.".into(),
+                                            }
+                                        };
+                                    }
+                                    if ui.add(theme::secondary_button("Cancel")).clicked() {
+                                        self.library_share_target = None;
+                                    }
+                                });
+                            }
+                        });
+                    });
+                });
+            });
+            ui.add_space(6.0);
+        }
+    }
+
+    // ----- earnings (service tickets) ----------------------------------------
+
+    fn earnings(&mut self, ui: &mut egui::Ui) {
+        let rate = mini_ticket::Rate {
+            micro_mini_per_mb: self.connections.rate_micro_per_mb,
+            creator_bps: self.connections.creator_bps,
+        };
+        let ledger = self.workspace.as_ref().and_then(|workspace| {
+            workspace
+                .human
+                .as_ref()
+                .map(|me| mini_ticket::Ledger::collect(&workspace.store, me, rate))
+        });
+        let ledger = match ledger {
+            Some(Ok(ledger)) => ledger,
+            Some(Err(error)) => {
+                ui.colored_label(
+                    theme::WARN_AMBER,
+                    format!("Ledger could not be read: {error}"),
+                );
+                return;
+            }
+            None => {
+                theme::muted(ui, "Create your identity first.");
+                return;
+            }
+        };
+        let mini = |micro: u64| format!("{}.{:06} MINI", micro / 1_000_000, micro % 1_000_000);
+        let stats = [
+            ("Earned as host", mini(ledger.host_micro)),
+            ("Earned as creator", mini(ledger.creator_micro)),
+            ("Owed to peers", mini(ledger.owed_micro)),
+        ];
+        ui.columns(3, |columns| {
+            for (column, (label, value)) in columns.iter_mut().zip(stats) {
+                theme::card_frame().show(column, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.label(egui::RichText::new(value).strong().size(18.0));
+                    theme::muted(ui, label);
+                });
+            }
+        });
+        theme::muted(
+            ui,
+            &format!(
+                "Unsettled credit from {} ticket(s) naming you, {} you issued · served {} · received {}. {} duplicate(s) ignored{}.",
+                ledger.as_host.len(),
+                ledger.issued.len(),
+                library::human_size(ledger.bytes_served),
+                library::human_size(ledger.bytes_received),
+                ledger.duplicates,
+                if ledger.malformed > 0 {
+                    format!(", {} malformed ticket object(s) skipped", ledger.malformed)
+                } else {
+                    String::new()
+                }
+            ),
+        );
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "How this works");
+            ui.label("Every exchange ends with each side signing a service ticket for what it received, naming the other side's DID. Tickets are ordinary signed objects: they replicate, they verify through the same provenance checks as posts, and they can only be redeemed by the DID they name.");
+            ui.colored_label(
+                theme::WARN_AMBER,
+                "Credit here is not money yet. A redemption request is a signed, checkable claim; it becomes a payout only when the audited settlement layer (D-0037/D-0047) admits it. A ticket proves one peer attested to one exchange, not that anyone is honest or unique.",
+            );
+        });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Your rate");
+            ui.horizontal(|ui| {
+                ui.label("micro-MINI per MB served");
+                let mut rate_text = self.connections.rate_micro_per_mb.to_string();
+                if ui
+                    .add(egui::TextEdit::singleline(&mut rate_text).desired_width(90.0))
+                    .lost_focus()
+                {
+                    if let Ok(value) = rate_text.trim().parse::<u64>() {
+                        self.connections.rate_micro_per_mb = value;
+                        self.save_connections();
+                    }
+                }
+                ui.label("creator share (bps)");
+                let mut bps_text = self.connections.creator_bps.to_string();
+                if ui
+                    .add(egui::TextEdit::singleline(&mut bps_text).desired_width(70.0))
+                    .lost_focus()
+                {
+                    if let Ok(value) = bps_text.trim().parse::<u16>() {
+                        if value <= 10_000 {
+                            self.connections.creator_bps = value;
+                            self.save_connections();
+                        }
+                    }
+                }
+            });
+            theme::muted(ui, "The rate prices tickets on this device only; a peer's ledger uses its own rate. Media bytes are split between the host and the manifest's author by the creator share.");
+        });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Redeem");
+            theme::muted(ui, "Builds a signed redemption request over every ticket naming you. Only your DID can build or pass verification for these tickets. The request is stored locally and replicates like any object; settlement is not executed.");
+            let can = !ledger.as_host.is_empty()
+                && self.workspace.as_ref().is_some_and(Workspace::is_unlocked);
+            if ui
+                .add_enabled(can, theme::primary_button("Create redemption request"))
+                .on_disabled_hover_text("Needs at least one ticket naming you and an unlocked identity.")
+                .clicked()
+            {
+                let ids: Vec<mini_objects::ObjectId> = ledger
+                    .as_host
+                    .iter()
+                    .filter(|entry| entry.host_micro > 0)
+                    .map(|entry| entry.ticket.id.clone())
+                    .take(mini_ticket::MAX_REDEMPTION_TICKETS)
+                    .collect();
+                self.notice = match self.workspace.as_mut() {
+                    Some(workspace) => match workspace.build_redemption(&ids, rate) {
+                        Ok((id, micro)) => format!(
+                            "Redemption request {} signed for {} over {} ticket(s). It settles when the audited layer accepts it.",
+                            short_did(id.as_str()),
+                            mini(micro),
+                            ids.len()
+                        ),
+                        Err(error) => format!("Could not build a redemption request: {error}"),
+                    },
+                    None => "Local workspace unavailable.".into(),
+                };
+            }
+            if let Some(requests) = self
+                .workspace
+                .as_ref()
+                .map(|workspace| workspace.redemption_requests())
+            {
+                for (id, micro, tickets, ok) in requests.iter().take(10) {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new(if *ok { "✔" } else { "✖" }).color(if *ok {
+                            theme::ONLINE_GREEN
+                        } else {
+                            theme::WARN_AMBER
+                        }));
+                        ui.label(format!("{} · {} ticket(s)", mini(*micro), tickets));
+                        theme::muted(ui, &short_did(id.as_str()));
+                        theme::muted(ui, if *ok { "verifies" } else { "does not verify against local tickets" });
+                    });
+                }
+            }
+        });
+        ui.add_space(8.0);
+        theme::section_title(ui, "Recent tickets");
+        for entry in ledger.as_host.iter().rev().take(20) {
+            let t = &entry.ticket;
+            ui.horizontal_wrapped(|ui| {
+                theme::avatar(ui, "P", t.consumer.as_str(), 22.0);
+                ui.label(egui::RichText::new(short_did(t.consumer.as_str())).small());
+                theme::muted(ui, t.fields.service.label());
+                ui.label(library::human_size(t.fields.bytes_received));
+                ui.label(
+                    egui::RichText::new(format!("+{}", mini(entry.host_micro)))
+                        .color(theme::ONLINE_GREEN),
+                );
+                if !entry.creator_micro.is_empty() {
+                    theme::muted(
+                        ui,
+                        &format!("creator share to {} author(s)", entry.creator_micro.len()),
+                    );
+                }
+                theme::muted(ui, &timeline::age(t.timestamp_ms, now_ms()));
+            });
+        }
+        if ledger.as_host.is_empty() {
+            theme::muted(ui, "No tickets name you yet. Host or run a session; every completed exchange earns one.");
         }
     }
 

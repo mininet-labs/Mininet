@@ -134,6 +134,11 @@ so, everywhere, on purpose.
   installs the bytes it is handed and never fetches its own payload.
   `packaging/windows/` builds the container, the readable manifest, the
   self-contained installer, and SHA256SUMS
+- `mini-ticket` (D-0523): signed service tickets — a receiver's attestation
+  of bytes served over one encrypted session, naming the provider DID that
+  alone may redeem it; a host/creator ledger in micro-MINI and a typed
+  redemption request. Evidence, not money: unsettled until the audited
+  settlement layer admits it. Leaf crate, no value or governance edge.
 - `mini-selftest` (D-0520): 24 diagnostics that run the real stack —
   identity, storage, social, media, messaging, sync over a real loopback
   socket, governed review, erasure coding, storage proofs, install. Nine
@@ -435,7 +440,7 @@ to people who will never meet them:
 2. [`docs/INVARIANTS.md`](docs/INVARIANTS.md) — *what can never be broken*,
    each row traced Directive → Invariant → Source → enforcing code + test.
 3. [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) — *why each choice was made,
-   and when it was superseded* (append-only; main sequence `D-0001`–`D-0522`
+   and when it was superseded* (append-only; main sequence `D-0001`–`D-0523`
    (`D-0513`–`D-0516`: adopting external Gate #28 DTN/satellite and Gate #98
    Wi-Fi bearer design-report architectures on engineering merit (new
    `mini-dtn` crate scaffold, `mini-settlement::PaymentClaimV2`

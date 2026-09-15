@@ -24556,3 +24556,80 @@ workers. Firewall guidance in the installer (the client itself now states
 the prompt).
 
 **Supersedes / superseded by:** none. Extends D-0520/D-0521.
+
+### D-0523 — Service tickets (`mini-ticket`), the desktop Earnings ledger, and the seedable Library (files and movies of any size)  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-ticket/`; `crates/mini-desktop/src/{peer_link,library}.rs`;
+D-0522 (the connected desktop this extends); D-0417 (`mini-contribution`, the
+full escrow/settlement coordinator this deliberately does not activate);
+D-0302 (`mini-resource-pricing`, whose micro-MINI/MB convention tickets
+reuse); D-0037/D-0047 (no real value before external audit);
+`docs/INVARIANTS.md` P1; `docs/FOUNDER_DIRECTIVES.md` Directives 5, 16, 18.
+
+**Decision:** pay the people who hold and serve data with *evidence first*,
+money later, and make files of any size seedable now.
+
+1. **A service ticket is the receiver's signed attestation of one
+   exchange.** After every desktop exchange each side signs an ordinary
+   content-addressed object (`mininet/service-ticket/v1`) naming the other
+   side's DID as provider, the service kind, bytes and objects received,
+   the CH1 channel binding, a fresh nonce, and the media manifests that
+   became complete during the exchange. Tickets replicate, deduplicate and
+   verify exactly like posts; a peer ticket is stored only after ingest
+   provenance, provider match, announced-consumer match and channel
+   binding all pass.
+
+2. **The ledger credits hosts and creators.** `mini_ticket::Ledger`
+   prices tickets naming the owner in micro-MINI at the owner's rate
+   (Tier-0 quote convention from `mini-resource-pricing`), splits attributed
+   media bytes between host and the manifest's author by an owner-chosen
+   creator share, and deduplicates by consumer+nonce. The desktop shows it
+   in **Earnings** with the rate settings.
+
+3. **Redeemable only by the named `did:mini`.** A redemption request
+   (`mininet/ticket-redemption/v1`) can be built only by, and verifies only
+   for, the DID every referenced ticket names; the totals must equal what
+   the tickets add up to at the stated rate. Anyone holding the tickets can
+   check it. Nothing is paid: the request is the claim the audited
+   settlement layer will admit or refuse under its own rules. This is the
+   honest boundary D-0037/D-0047 draw, and `mini-contribution`'s escrow
+   path stays unactivated in the client.
+
+4. **Library: any file, any size, seeded and resumable.** Files up to
+   256 MiB are one `mini-media` manifest; larger files (to 64 GiB) become an
+   ordered `mininet/media-collection/v1` of manifests. Every part is a
+   normal manifest, so chunks replicate and resume as today and a peer
+   holding some parts seeds those parts. Export reassembles chunk by chunk
+   to disk. The desktop hosts everything complete when hosting is on.
+
+**Constitutional impact:** none to any frozen row. P1/Directive 16 hold by
+construction: `mini-ticket` is a leaf with no value or governance
+dependency; a ticket carries no vote and cannot become one. Directive 5:
+a signed ticket is evidence, never final ownership. Directive 18: rates and
+tickets are local; removing a peer removes nothing owed elsewhere. No
+external audit gate is softened: credit is labelled unsettled in-app and in
+docs.
+
+**Implementation status:** shipped and verified. `mini-ticket` unit tests
+(encoding, ledger host/creator split, dedup, provider-only redemption);
+the desktop's real-TCP host test now asserts tickets on both sides and
+that only the named provider can redeem; the library round-trips a
+one-part and a two-part collection including partial-receipt reporting.
+Live on one Windows 11 machine: B added a 5 MB file, A pulled it through
+a session, both sides exchanged tickets, and B's Earnings showed host
+credit plus the creator share for the completed manifest.
+
+**Failure point:** a receiver can decline to issue a ticket or lie about
+bytes downward; a provider can announce someone else's DID and lose the
+credit. Neither creates money. Ticket objects replicate to everyone in a
+public sync, which grows stores linearly with exchanges; pruning old
+tickets is not built. Creator attribution covers manifests that *complete*
+during an exchange, not partial progress. The rate is per device; there is
+no agreed price and no market. No settlement, no payout, no Sybil defence.
+
+**Required follow-up:** admit redemption requests into the audited
+settlement path when D-0047 clears; ticket pruning/aggregation; agreed
+rates via provider declarations (`mini-provider`); chunk-level attribution;
+streaming playback from partial collections.
+
+**Supersedes / superseded by:** none. Extends D-0522.

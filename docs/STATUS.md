@@ -3076,3 +3076,14 @@ Not verified: two machines behind different NATs. Still missing: relay,
 rendezvous, NAT traversal, endpoint advertisements, durable outbox,
 whole-exchange deadlines, indexed timelines, video playback, maps, dating
 and business workflows. See `docs/proposals/connected-mininet-client.md`.
+
+## Service tickets and the seedable Library — 2026-09-15 (D-0523)
+
+`mini-ticket` adds signed, replicable service tickets issued by the receiver
+of every desktop exchange, a ledger that credits hosts and creators in
+micro-MINI (unsettled), and a redemption request only the named DID can
+build or verify. The desktop's Library publishes files of any size (up to
+64 GiB as an ordered collection of manifests), shows seeding progress, and
+exports chunk by chunk; Earnings shows the ledger and rate. Verified over
+real TCP and live with two instances. Not built: settlement or payout,
+ticket pruning, agreed rates, streaming playback.

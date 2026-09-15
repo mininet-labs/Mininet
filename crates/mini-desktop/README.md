@@ -10,7 +10,12 @@ received-post search (Explore), a media filter with inline images, and
 "Who to follow" from received signed profiles. Communities open into
 Reddit-style threaded discussion (title + body threads, nested replies,
 upvotes, Top/New) built entirely from existing comment and reaction
-objects, so discussions replicate like everything else.
+objects, so discussions replicate like everything else. **Library** holds
+files and movies of any size (one manifest up to 256 MiB, larger files as an
+ordered collection of manifests) with seeding progress and chunk-by-chunk
+export; **Earnings** shows the service tickets peers signed for what you
+served, priced at your rate as unsettled micro-MINI credit, redeemable only
+by your DID once the audited settlement layer admits the request.
 
 Connections is where networking starts, and only there:
 
