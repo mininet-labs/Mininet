@@ -17,6 +17,7 @@ use image::codecs::gif::GifDecoder;
 use image::codecs::webp::WebPDecoder;
 use image::AnimationDecoder;
 use mini_objects::ObjectId;
+#[cfg(windows)]
 use rodio::{Decoder, MixerDeviceSink, Player, Source};
 use std::io::Cursor;
 use std::time::{Duration, Instant};
@@ -63,12 +64,14 @@ pub struct NowPlaying {
     pub duration: Option<Duration>,
 }
 
+#[cfg(windows)]
 pub struct AudioPlayer {
     _device: MixerDeviceSink,
     player: Player,
     now: Option<NowPlaying>,
 }
 
+#[cfg(windows)]
 impl AudioPlayer {
     /// Open the default output device. Called on first play only.
     pub fn open() -> Result<Self, String> {
@@ -151,6 +154,49 @@ impl AudioPlayer {
     pub fn set_volume(&self, volume: f32) {
         self.player.set_volume(volume.clamp(0.0, 1.5));
     }
+}
+
+/// On non-Windows targets audio output is not compiled in (see Cargo.toml).
+#[cfg(not(windows))]
+pub struct AudioPlayer {
+    now: Option<NowPlaying>,
+}
+
+#[cfg(not(windows))]
+impl AudioPlayer {
+    pub fn open() -> Result<Self, String> {
+        Err("audio playback is built for Windows in this client".into())
+    }
+    pub fn play_bytes(
+        &mut self,
+        _bytes: Vec<u8>,
+        _media: ObjectId,
+        _title: String,
+        _author: String,
+    ) -> Result<(), String> {
+        Err("audio playback is built for Windows in this client".into())
+    }
+    pub fn now(&self) -> Option<&NowPlaying> {
+        self.now.as_ref()
+    }
+    pub fn is_playing(&self) -> bool {
+        false
+    }
+    pub fn toggle(&self) {}
+    pub fn is_paused(&self) -> bool {
+        true
+    }
+    pub fn stop(&mut self) {
+        self.now = None;
+    }
+    pub fn position(&self) -> Duration {
+        Duration::ZERO
+    }
+    pub fn seek(&self, _to: Duration) {}
+    pub fn volume(&self) -> f32 {
+        1.0
+    }
+    pub fn set_volume(&self, _volume: f32) {}
 }
 
 /// A decoded animation: frames as textures with their delays.
@@ -276,6 +322,7 @@ mod tests {
         assert_eq!(format_duration(Duration::from_secs(3725)), "1:02:05");
     }
 
+    #[cfg(windows)]
     #[test]
     fn a_wav_decodes_without_an_output_device() {
         // 0.1 s of silence, 8 kHz mono 16-bit: a real decode path, no device.

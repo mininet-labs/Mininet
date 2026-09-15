@@ -490,6 +490,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-ticket",
+        Coverage::Gap {
+            reason: "service-ticket encoding and the provider-only redemption rule are unit-tested in-crate and exercised end to end by mini-desktop's real-TCP host test; a diagnostic would only repeat those",
+        },
+    ),
+    (
         "mini-query",
         Coverage::Exercised { area: "search" },
     ),
