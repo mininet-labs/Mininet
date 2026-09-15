@@ -143,6 +143,8 @@ struct MininetApp {
     new_peer_label: String,
     new_peer_endpoint: String,
     card_input: String,
+    /// Host part the owner wants on their connection card.
+    card_host: String,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -1285,6 +1287,7 @@ impl Default for MininetApp {
             new_peer_label: String::new(),
             new_peer_endpoint: String::new(),
             card_input: String::new(),
+            card_host: String::new(),
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -2696,7 +2699,21 @@ No tracking. No forced updates.",
     fn post_card(&mut self, ui: &mut egui::Ui, card: &timeline::Card) {
         theme::row_frame().show(ui, |ui| {
             ui.horizontal_top(|ui| {
-                theme::avatar(ui, &card.author, &card.did, 42.0);
+                match card
+                    .avatar
+                    .as_ref()
+                    .and_then(|avatar| self.profile_texture(ui.ctx(), avatar))
+                {
+                    Some(texture) => {
+                        ui.add(
+                            egui::Image::new((texture.id(), egui::vec2(42.0, 42.0)))
+                                .corner_radius(21.0),
+                        );
+                    }
+                    None => {
+                        theme::avatar(ui, &card.author, &card.did, 42.0);
+                    }
+                }
                 ui.add_space(8.0);
                 ui.vertical(|ui| {
                     ui.set_width(ui.available_width());
@@ -3108,7 +3125,7 @@ No tracking. No forced updates.",
             theme::section_title(ui, "Accept connections (host)");
             theme::muted(
                 ui,
-                "Let peers reach you. The port must be reachable from the internet (router port-forward, VPS, or the same LAN); no NAT traversal or relay is provided yet. Only signed public objects and, if enabled, your own conversations' encrypted envelopes are exchanged.",
+                "Let peers reach you. The port must be reachable from the internet (router port-forward, VPS, or the same LAN); no NAT traversal or relay is provided yet. Only signed public objects and, if enabled, your own conversations' encrypted envelopes are exchanged. The first time you host, Windows Firewall asks whether to allow mininet-desktop; hosting only works if you allow it.",
             );
             match self.host.as_ref() {
                 Some(host) => {
@@ -3169,10 +3186,36 @@ No tracking. No forced updates.",
                 theme::section_title(ui, "Your connection card");
                 theme::muted(
                     ui,
-                    "Send this to a friend. It carries your public address and DID; it grants nothing by itself. Replace the host part with the address peers can actually reach (your public IP or hostname).",
+                    "Send this to a friend. It carries the address peers can reach you at and your DID; it grants nothing by itself. Use your public IP or hostname for the internet, or your LAN address for the same network.",
                 );
+                ui.horizontal(|ui| {
+                    ui.label("Reachable host");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.card_host)
+                            .hint_text("public IP, hostname, or LAN address")
+                            .desired_width(240.0),
+                    );
+                    if ui
+                        .add(theme::secondary_button("Detect LAN address"))
+                        .on_hover_text("Asks the OS which local address routes outward. No packet is sent.")
+                        .clicked()
+                    {
+                        match connectivity::local_address() {
+                            Ok(address) => {
+                                self.card_host = address;
+                                self.notice = "LAN address filled in. Peers outside your network still need your public IP or a port-forward.".into();
+                            }
+                            Err(error) => self.notice = format!("Could not detect a LAN address: {error}"),
+                        }
+                    }
+                });
+                let host = if self.card_host.trim().is_empty() {
+                    "YOUR-PUBLIC-IP".to_string()
+                } else {
+                    self.card_host.trim().to_string()
+                };
                 let card = connectivity::ConnectionCard {
-                    endpoint: format!("YOUR-PUBLIC-IP:{}", self.connections.listen_port),
+                    endpoint: format!("{host}:{}", self.connections.listen_port),
                     did: did.clone(),
                     name: name.clone(),
                 }
@@ -3184,7 +3227,11 @@ No tracking. No forced updates.",
                 );
                 if ui.add(theme::secondary_button("📋  Copy card")).clicked() {
                     ui.ctx().copy_text(card);
-                    self.notice = "Connection card copied. Edit the host part before sending if needed.".into();
+                    self.notice = if self.card_host.trim().is_empty() {
+                        "Connection card copied. Replace YOUR-PUBLIC-IP with an address peers can reach.".into()
+                    } else {
+                        "Connection card copied.".into()
+                    };
                 }
             });
             ui.add_space(12.0);

@@ -36,6 +36,8 @@ pub struct Card {
     pub comment_count: usize,
     pub media: Option<ObjectId>,
     pub own: bool,
+    /// The author's profile photo manifest, when their signed profile has one.
+    pub avatar: Option<ObjectId>,
 }
 
 pub fn snapshot(
@@ -110,20 +112,20 @@ fn build<B: Backend>(
             items
         }
     };
-    let mut names: HashMap<String, String> = HashMap::new();
+    let mut names: HashMap<String, (String, Option<ObjectId>)> = HashMap::new();
     items
         .into_iter()
         .map(|(id, author, timestamp_ms, reason, support_count)| {
             let did = author.as_str().to_owned();
-            let name = match names.get(&did) {
-                Some(name) => name.clone(),
+            let (name, avatar) = match names.get(&did) {
+                Some(entry) => entry.clone(),
                 None => {
-                    let name = resolve_profile(store, &author)
+                    let entry = resolve_profile(store, &author)
                         .map_err(|error| error.to_string())?
-                        .map(|profile| profile.display_name)
-                        .unwrap_or_else(|| "Mininet participant".into());
-                    names.insert(did.clone(), name.clone());
-                    name
+                        .map(|profile| (profile.display_name, profile.avatar))
+                        .unwrap_or_else(|| ("Mininet participant".into(), None));
+                    names.insert(did.clone(), entry.clone());
+                    entry
                 }
             };
             let post = resolve_post(store, &id).map_err(|error| error.to_string())?;
@@ -143,6 +145,7 @@ fn build<B: Backend>(
                     PostKind::Media { media } => Some(media),
                     _ => None,
                 },
+                avatar,
             })
         })
         .collect()

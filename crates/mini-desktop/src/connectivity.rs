@@ -204,6 +204,22 @@ impl ConnectionSettings {
     }
 }
 
+/// The local address the OS would route outward from. Uses a UDP socket's
+/// `connect`, which only consults the routing table and sends nothing; the
+/// documentation-range target address never receives a packet. Owner-
+/// triggered only, never called on launch.
+pub fn local_address() -> Result<String, String> {
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|error| error.to_string())?;
+    socket
+        .connect("192.0.2.1:9")
+        .map_err(|error| error.to_string())?;
+    let address = socket.local_addr().map_err(|error| error.to_string())?;
+    if address.ip().is_unspecified() {
+        return Err("no route to a network".into());
+    }
+    Ok(address.ip().to_string())
+}
+
 pub fn settings_path(root: &Path) -> std::path::PathBuf {
     root.join("connections.txt")
 }
