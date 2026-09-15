@@ -6230,6 +6230,51 @@ mod tests {
             .collect();
         assert!(names.iter().any(|name| name == "Bob"));
 
+        // Service tickets: Bob (host) holds tickets naming him as provider,
+        // signed by Alice; Alice holds Bob's tickets naming her. Both sides
+        // hold their own issued tickets too. Four exchanges each way.
+        let rate = mini_ticket::Rate::default();
+        let bob_ledger = mini_ticket::Ledger::collect(&bob_store, &bob_did, rate).unwrap();
+        assert_eq!(bob_ledger.malformed, 0);
+        assert!(bob_ledger.as_host.len() >= 2, "{bob_ledger:?}");
+        assert!(bob_ledger
+            .as_host
+            .iter()
+            .all(|entry| entry.ticket.consumer == alice_did));
+        assert!(bob_ledger.issued.len() >= 2);
+        let alice_ledger = mini_ticket::Ledger::collect(&alice_store, &alice_did, rate).unwrap();
+        assert!(alice_ledger.as_host.len() >= 2, "{alice_ledger:?}");
+        assert!(alice_ledger.issued.len() >= 2);
+        // Only Bob can redeem tickets that name Bob.
+        let ids: Vec<mini_objects::ObjectId> = bob_ledger
+            .as_host
+            .iter()
+            .map(|entry| entry.ticket.id.clone())
+            .collect();
+        let bob_identity = load_desktop_identity(&bob_root, false).unwrap();
+        let request = mini_ticket::build_redemption(
+            &bob_store,
+            &bob_did,
+            &bob_identity.device,
+            &ids,
+            rate,
+            1,
+            99,
+        )
+        .unwrap();
+        let decoded = mini_ticket::read_redemption(&request).unwrap();
+        mini_ticket::verify_redemption(&bob_store, &decoded).unwrap();
+        assert!(mini_ticket::build_redemption(
+            &bob_store,
+            &alice_did,
+            &alice_identity.device,
+            &ids,
+            rate,
+            1,
+            99
+        )
+        .is_err());
+
         std::fs::remove_dir_all(test_root).unwrap();
     }
 }
