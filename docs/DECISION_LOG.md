@@ -24454,3 +24454,91 @@ follow-ups, unchanged.
 per the voice/value wall" and "no WiX/MSI" choices specifically. Everything
 else in D-0520 — the package format, the install engine, the setup program,
 the CI jobs — stands as written.
+
+### D-0522 — Connected desktop beta: X-style shell, owner-started hosting and multi-peer sessions, intent-tagged desktop link, opt-in private-conversation delivery  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{peer_link,network_session,connectivity,theme,timeline}.rs`;
+`mini_sync::sync_private_route_responder_any`; `docs/proposals/connected-mininet-client.md`;
+D-0520/D-0521 (Windows client and packaging this builds on); `docs/INVARIANTS.md` U1, P5/P6;
+`docs/FOUNDER_DIRECTIVES.md` Directives 2, 3, 9, 14, 18.
+
+**Decision:** make the Windows reference client usable for a real two-machine
+beta without changing any protocol, object format or trust rule.
+
+1. **Hosting is a window the owner opens.** "Accept connections" binds one
+   port and serves many connections until the owner presses Stop or closes
+   the application (bounded to four concurrent, per-I/O timeouts, one worker
+   per connection). Previously the listener accepted exactly one connection
+   and exited, which made an internet exchange a two-person choreography.
+
+2. **Sessions cycle through saved peers.** A session dials every saved peer
+   (up to 32) every 30 s after success, backing off to 2 min after failures,
+   for 15 min, 1 h, or while the app is open. Peers are saved as plain
+   dial hints (`connections.txt`), optionally with the human DID from a
+   pasteable *connection card* (`mininet-peer-v1;endpoint=…;did=…;name=…`).
+   A card grants nothing; the DID is followed, never trusted, until its
+   signed profile arrives through ingest.
+
+3. **One socket, one intent.** After the anonymous CH1 handshake the dialer
+   sends one sealed intent frame — public `MINI/SYNC1`, or one private
+   route — so a host serves both without a second port. The private path
+   uses a new responder-side `mini-sync` API that matches the initiator's
+   named route against the routes the host holds; the wire exchange is
+   byte-identical to the single-route form and reveals nothing for routes
+   the initiator did not name. Every desktop path (one-shot, nearby
+   visibility, sessions, hosting) now speaks this one link.
+
+4. **Private delivery is opt-in and stays off by default.** "Include my
+   private conversations" adds the owner's routes to sessions and hosting;
+   otherwise a private intent is refused before any route is compared.
+
+5. **Networking on launch is a persisted, default-off owner choice** (session
+   on launch, hosting on launch). Nothing else opens a socket because the
+   application started. This is the *only* change to the "no network
+   activity on launch" posture and it is the owner's explicit setting.
+
+6. **The shell reads like a social client.** Black X-inspired layout, rail /
+   timeline / discovery column, real author names and author-claimed
+   relative times, worker-loaded 50-card timeline with Following/Everyone
+   scopes, inline received images, Explore search over received posts,
+   Media filter, "Who to follow" from received profiles, honest connection
+   state (Offline / Hosting / Connecting / Connected / Peers unreachable)
+   with the actual per-peer results. Store refreshes after an exchange no
+   longer drop an unlocked identity.
+
+**Constitutional impact:** none to any frozen row. U1 holds: nothing here
+fetches, activates or installs a release. P5/P6 hold: the bearer stays
+anonymous, endpoints are not identities, private routes are compared only
+inside the encrypted channel and only when the initiator names them. No
+value crate edge is added (`mini-desktop` still depends on no
+`mini-value`/`mini-bounty`/`mini-treasury`). Directive 18: removing a saved
+peer or stopping hosting loses convenience only; identity and local state
+are untouched.
+
+**Implementation status:** shipped and verified. `cargo fmt --all`; `cargo
+clippy -p mini-desktop -p mini-sync --all-targets --all-features -- -D
+warnings`; `cargo test -p mini-desktop -p mini-sync` (27 + 5 new tests)
+clean, including a real-TCP test in which one host serves six connections
+from a session worker (public + shared private route synced, an unshared
+route declined, second exchange idempotent). Two desktop instances were
+run on one Windows 11 machine with separate data roots: A hosted on launch,
+B started a session on launch, B posted, A received the post in Explore and
+was offered Bob in "Who to follow"; B followed Alice from the discovery
+column. Windows Firewall raised its normal inbound prompt for the host.
+
+**Failure point:** this is loopback/LAN-grade evidence. Two clients behind
+different NATs still need a port forward or a reachable host; no relay,
+rendezvous, NAT traversal or endpoint advertisement is deployed. A session's
+"Connected" means the last exchange with at least one saved peer completed,
+not that any particular object reached any particular person. Per-I/O
+timeouts still do not bound a whole exchange. The Everyone timeline walks
+every received post on each refresh; it is capped at 50 cards but not
+indexed. Media playback is not integrated; images show once complete.
+
+**Required follow-up:** step 2 of the proposal — a connection service with a
+durable outbox, signed expiring endpoint advertisements, and at least one
+replaceable relay/rendezvous path — before any claim of an internet beta
+across NATs. Indexed timeline pages and cancellation of stale timeline
+workers. Firewall guidance in the installer.
+
+**Supersedes / superseded by:** none. Extends D-0520/D-0521.

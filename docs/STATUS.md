@@ -2644,7 +2644,7 @@ the top development priority.
 
 See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,
 backend composition, maturity matrix, and implementation order.
-No desktop or web application exists anywhere in this repository.
+A Windows-first desktop reference client exists; a browser client is not implemented.
 `docs/UI_BETA_PLAN.md` is a plan, not code, for those. An Android client
 foundation exists: a `mini-ffi` UniFFI command/event boundary plus a thin
 Jetpack Compose onboarding shell, stopping at `RootCreationReady` with no
@@ -3056,3 +3056,23 @@ trusted first peer, majority-by-download rule, admin/unmasking key, or
 value-to-routing/ranking/voice path. An authenticated endpoint proves control of
 one key-bound endpoint on one channel, not personhood, operator independence,
 result truth, or governance standing.
+
+## Connected desktop beta — 2026-09-15 (D-0522)
+
+The Windows client now opens into an X-style black shell (rail, timeline,
+discovery column) with real author names/times, a worker-loaded 50-card
+timeline with Following and Everyone scopes, received-post search, a media
+filter with inline images, and "Who to follow" from received profiles.
+Connectivity: an owner-started hosting window that accepts many connections,
+multi-peer sessions with backoff (15 min / 1 h / while open), pasteable
+connection cards, opt-in private-conversation delivery through the same
+link, and default-off "on launch" policies. One sealed intent frame after
+the CH1 handshake selects public sync or one private route on one socket
+(`mini_sync::sync_private_route_responder_any` serves the host side).
+
+Verified: crate tests including a real-TCP host/session exchange, and two
+live instances on one Windows machine exchanging a post and a follow.
+Not verified: two machines behind different NATs. Still missing: relay,
+rendezvous, NAT traversal, endpoint advertisements, durable outbox,
+whole-exchange deadlines, indexed timelines, video playback, maps, dating
+and business workflows. See `docs/proposals/connected-mininet-client.md`.

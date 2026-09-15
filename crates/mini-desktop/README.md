@@ -2,6 +2,37 @@
 
 Windows-first egui reference client shell for Mininet.
 
+The connected desktop beta (D-0522) opens into an X-style black shell:
+navigation rail, central timeline, and a discovery column on wide windows.
+Timelines are loaded by a worker (50 cards), show real author names and
+author-claimed relative times, and offer *Following* and *Everyone* scopes,
+received-post search (Explore), a media filter with inline images, and
+"Who to follow" from received signed profiles.
+
+Connections is where networking starts, and only there:
+
+- **Accept connections (host)** binds one port and serves many connections
+  until you stop it. Peers reach you only if that port is reachable
+  (port-forward, VPS, or the same LAN) — no relay or NAT traversal yet.
+- **Sessions** dial every saved peer every 30 s (backing off to 2 min after
+  failures) for 15 min, 1 h, or while the app is open, exchanging public
+  posts, profiles, follows and reactions.
+- **Connection cards** (`mininet-peer-v1;endpoint=…;did=…;name=…`) let a
+  friend save your endpoint and follow your DID in one paste. A card grants
+  nothing; names are trusted only once the signed profile arrives.
+- **Private conversations** are included in sessions/hosting only when you
+  enable it; otherwise a private request is refused before any route check.
+- **On launch** nothing connects unless you enabled "session on launch" or
+  "accept connections on launch" here. Both default off.
+
+Under the hood every desktop path is one link: anonymous CH1 handshake over
+TCP, one sealed intent frame (public `MINI/SYNC1` or one private route),
+then that bounded protocol. Verified by crate tests over real TCP and by two
+live instances on one Windows machine; two machines behind different NATs
+have not been demonstrated. See
+[`connected-mininet-client.md`](../../docs/proposals/connected-mininet-client.md)
+for the full product specification and what remains.
+
 Run it locally:
 
 ```powershell
@@ -124,9 +155,10 @@ real encrypted TCP bearer and verified `MINI/SYNC1` ingest. It is
 foreground-user initiated, runs off the UI thread, and accepts no silent
 background network activity. People adds a separate opt-in three-second LAN
 scan and 60-second visible window; announcements are unverified hints, each
-socket has bounded I/O, and there is no retry loop or always-on listener.
+socket has bounded I/O. Hosting and sessions in Connections are the only
+repeating network activity and both are owner-started or owner-enabled.
 
-It does not start networking, open external URLs, collect telemetry, execute
+It does not start networking on launch, open external URLs, collect telemetry, execute
 updates, or embed a browser. Private signing material is not stored as
 plaintext.
 
