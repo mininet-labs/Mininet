@@ -72,6 +72,18 @@ enum SyncContext {
     FriendRequest { display_name: String },
 }
 
+/// One row of the Messages conversation list.
+#[derive(Debug, Clone)]
+struct ConversationPreview {
+    index: usize,
+    label: String,
+    peer_name: String,
+    peer_did: String,
+    last_body: String,
+    last_timestamp_ms: u64,
+    count: usize,
+}
+
 /// An owner-started hosting window: the accepting socket lives on a worker
 /// thread and stops when this is dropped or the owner presses Stop.
 struct HostState {
@@ -153,6 +165,10 @@ struct MininetApp {
     muted: mute_list::MuteList,
     /// Post ids whose reply thread is expanded inline.
     expanded_threads: Vec<String>,
+    /// Conversation list rows (peer name, last message, count), rebuilt
+    /// only when the store changes so decryption never runs per frame.
+    conversation_previews: Vec<ConversationPreview>,
+    previews_dirty: bool,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -1300,6 +1316,8 @@ impl Default for MininetApp {
             unseen_posts: Vec::new(),
             muted,
             expanded_threads: Vec::new(),
+            conversation_previews: Vec::new(),
+            previews_dirty: true,
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1523,6 +1541,51 @@ impl MininetApp {
             None => self.workspace = Workspace::open().ok(),
         }
         self.timeline_refresh = Instant::now();
+        self.previews_dirty = true;
+    }
+
+    fn rebuild_conversation_previews(&mut self) {
+        self.previews_dirty = false;
+        let Some(workspace) = self.workspace.as_ref() else {
+            self.conversation_previews.clear();
+            return;
+        };
+        let profiles = workspace.known_profiles();
+        self.conversation_previews = workspace
+            .conversations
+            .iter()
+            .enumerate()
+            .map(|(index, conversation)| {
+                let peer_did = conversation.peer.as_str().to_owned();
+                let peer_name = profiles
+                    .iter()
+                    .find(|profile| profile.human == conversation.peer)
+                    .map(|profile| profile.display_name.clone())
+                    .unwrap_or_else(|| conversation.label.clone());
+                let (last_body, last_timestamp_ms, count) = workspace
+                    .private_messages(index)
+                    .ok()
+                    .map(|scan| {
+                        let count = scan.messages.len();
+                        let last = scan.messages.last();
+                        (
+                            last.map(|message| message.body.clone()).unwrap_or_default(),
+                            last.map(|message| message.timestamp_ms).unwrap_or(0),
+                            count,
+                        )
+                    })
+                    .unwrap_or_default();
+                ConversationPreview {
+                    index,
+                    label: conversation.label.clone(),
+                    peer_name,
+                    peer_did,
+                    last_body,
+                    last_timestamp_ms,
+                    count,
+                }
+            })
+            .collect();
     }
 
     fn save_connections(&mut self) {
@@ -3767,18 +3830,63 @@ No tracking. No forced updates.",
             })
             .unwrap_or_default();
 
+        if self.previews_dirty {
+            self.rebuild_conversation_previews();
+        }
         theme::card_frame().show(ui, |ui| {
-            ui.label(egui::RichText::new("Conversations").strong());
+            theme::section_title(ui, "Conversations");
             if conversation_cards.is_empty() {
-                ui.label("No private conversations are stored in this Windows profile.");
+                theme::muted(ui, "No private conversations yet. Open a profile in People and press Message, or import an invite below.");
             }
-            for (index, label, peer) in &conversation_cards {
-                let selected = self.selected_conversation == Some(*index);
-                if ui
-                    .selectable_label(selected, format!("{label}  ·  {peer}"))
-                    .clicked()
-                {
-                    self.selected_conversation = Some(*index);
+            let previews = self.conversation_previews.clone();
+            for preview in previews {
+                let selected = self.selected_conversation == Some(preview.index);
+                let fill = if selected { theme::CARD_HOVER } else { egui::Color32::TRANSPARENT };
+                let response = egui::Frame::new()
+                    .fill(fill)
+                    .corner_radius(egui::CornerRadius::same(10))
+                    .inner_margin(egui::Margin::symmetric(8, 6))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            theme::avatar(ui, &preview.peer_name, &preview.peer_did, 36.0);
+                            ui.vertical(|ui| {
+                                ui.set_width(ui.available_width());
+                                ui.horizontal(|ui| {
+                                    ui.label(egui::RichText::new(&preview.peer_name).strong());
+                                    theme::muted(ui, &preview.label);
+                                    ui.with_layout(
+                                        egui::Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            if preview.count > 0 {
+                                                theme::muted(
+                                                    ui,
+                                                    &format!(
+                                                        "{} · {} message(s)",
+                                                        timeline::age(preview.last_timestamp_ms, now_ms()),
+                                                        preview.count
+                                                    ),
+                                                );
+                                            }
+                                        },
+                                    );
+                                });
+                                let line = if preview.last_body.is_empty() {
+                                    "No messages yet".to_string()
+                                } else {
+                                    preview.last_body.chars().take(90).collect()
+                                };
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(line).small().color(theme::TEXT_SECONDARY),
+                                    )
+                                    .truncate(),
+                                );
+                            });
+                        });
+                    })
+                    .response;
+                if response.interact(egui::Sense::click()).clicked() {
+                    self.selected_conversation = Some(preview.index);
                 }
             }
         });
@@ -3813,6 +3921,7 @@ No tracking. No forced updates.",
                                 self.selected_conversation =
                                     Some(workspace.conversations.len().saturating_sub(1));
                                 self.conversation_invite = invite;
+                                self.previews_dirty = true;
                                 self.conversation_label.clear();
                                 self.conversation_peer.clear();
                                 "Conversation stored through DPAPI. Transfer the invite securely."
@@ -3844,6 +3953,7 @@ No tracking. No forced updates.",
                         match workspace.import_beta_conversation(&label, &invite) {
                             Ok(index) => {
                                 self.selected_conversation = Some(index);
+                                self.previews_dirty = true;
                                 self.import_conversation_label.clear();
                                 self.import_conversation_invite.clear();
                                 "Conversation capability imported into DPAPI-protected storage."
@@ -3956,6 +4066,7 @@ No tracking. No forced updates.",
                         Ok(()) => {
                             self.message_text.clear();
                             self.signing_confirmation = false;
+                            self.previews_dirty = true;
                             if self.connections.include_private
                                 && (self.network_session.is_some() || self.host.is_some())
                             {
