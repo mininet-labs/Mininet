@@ -208,6 +208,8 @@ struct MininetApp {
     watch_target: Option<mini_objects::ObjectId>,
     /// The one video decode in flight; dropping it stops the worker.
     video: Option<video::VideoPlayer>,
+    /// Audio to play after the current track: (media, title, author).
+    play_queue: std::collections::VecDeque<(mini_objects::ObjectId, String, String)>,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -1570,6 +1572,7 @@ impl Default for MininetApp {
             shorts_index: 0,
             watch_target: None,
             video: None,
+            play_queue: std::collections::VecDeque::new(),
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1687,6 +1690,7 @@ impl eframe::App for MininetApp {
         self.poll_selftest();
         self.poll_visibility();
         self.schedule_session();
+        self.advance_play_queue();
         if self.network_session.is_some() || self.host.is_some() {
             ctx.request_repaint_after(Duration::from_secs(1));
         }
@@ -4851,6 +4855,38 @@ No tracking. No forced updates.",
             });
         });
         ui.add_space(8.0);
+        let audio_items: Vec<(mini_objects::ObjectId, String, String)> = self
+            .library_items
+            .iter()
+            .filter(|item| {
+                item.complete()
+                    && player::playback_for(&item.content_type) == player::Playback::Audio
+            })
+            .map(|item| {
+                (
+                    item.id.clone(),
+                    item.name.clone(),
+                    short_did(item.author.as_str()),
+                )
+            })
+            .collect();
+        if !audio_items.is_empty()
+            && ui
+                .add(theme::secondary_button(&format!(
+                    "♫  Play all {} track(s)",
+                    audio_items.len()
+                )))
+                .clicked()
+        {
+            let mut items = audio_items.into_iter();
+            if let Some((media, title, author)) = items.next() {
+                self.play_queue.clear();
+                self.play_audio(&media, title, author);
+                for (media, title, author) in items.take(100) {
+                    self.play_queue.push_back((media, title, author));
+                }
+            }
+        }
         ui.horizontal_wrapped(|ui| {
             if hosting {
                 theme::pill_badge(ui, "SEEDING", theme::ONLINE_GREEN);
@@ -5265,6 +5301,43 @@ No tracking. No forced updates.",
         self.animations.get(&key).and_then(Option::as_ref)
     }
 
+    /// When the current track has finished, start the next queued one.
+    fn advance_play_queue(&mut self) {
+        let finished = self
+            .audio
+            .as_ref()
+            .is_some_and(|audio| audio.now().is_some() && audio.finished());
+        if !finished {
+            return;
+        }
+        match self.play_queue.pop_front() {
+            Some((media, title, author)) => self.play_audio(&media, title, author),
+            None => {
+                if let Some(audio) = self.audio.as_mut() {
+                    audio.stop();
+                }
+            }
+        }
+    }
+
+    fn enqueue_audio(&mut self, media: &mini_objects::ObjectId, title: String, author: String) {
+        let playing = self
+            .audio
+            .as_ref()
+            .is_some_and(|audio| audio.now().is_some() && !audio.finished());
+        if !playing {
+            self.play_audio(media, title, author);
+            return;
+        }
+        if self.play_queue.len() >= 100 {
+            self.notice = "The queue holds at most 100 tracks.".into();
+            return;
+        }
+        self.play_queue
+            .push_back((media.clone(), title.clone(), author));
+        self.notice = format!("Queued {title} ({} in queue).", self.play_queue.len());
+    }
+
     fn play_audio(&mut self, media: &mini_objects::ObjectId, title: String, author: String) {
         if self.audio.is_none() {
             match player::AudioPlayer::open() {
@@ -5367,8 +5440,20 @@ No tracking. No forced updates.",
                                 theme::muted(ui, "Still arriving from peers.");
                             } else if playing_this {
                                 self.now_playing_controls(ui);
-                            } else if ui.add(theme::primary_button("▶  Play")).clicked() {
-                                self.play_audio(media, label.clone(), author.to_owned());
+                            } else {
+                                ui.horizontal(|ui| {
+                                    if ui.add(theme::primary_button("▶  Play")).clicked() {
+                                        self.play_audio(media, label.clone(), author.to_owned());
+                                    }
+                                    if self
+                                        .audio
+                                        .as_ref()
+                                        .is_some_and(|audio| audio.now().is_some())
+                                        && ui.add(theme::secondary_button("Play next")).clicked()
+                                    {
+                                        self.enqueue_audio(media, label.clone(), author.to_owned());
+                                    }
+                                });
                             }
                         });
                     });
@@ -5643,9 +5728,22 @@ No tracking. No forced updates.",
                             .on_hover_text("Stop")
                             .clicked()
                         {
+                            self.play_queue.clear();
                             if let Some(audio) = self.audio.as_mut() {
                                 audio.stop();
                             }
+                        }
+                        if !self.play_queue.is_empty() {
+                            if ui
+                                .add(theme::secondary_button("▶▶"))
+                                .on_hover_text("Skip to the next queued track")
+                                .clicked()
+                            {
+                                if let Some((media, title, author)) = self.play_queue.pop_front() {
+                                    self.play_audio(&media, title, author);
+                                }
+                            }
+                            theme::muted(ui, &format!("{} queued", self.play_queue.len()));
                         }
                     });
                 });

@@ -128,6 +128,11 @@ impl AudioPlayer {
         self.now.is_some() && !self.player.is_paused() && !self.player.empty()
     }
 
+    /// A track was loaded and the queue has drained.
+    pub fn finished(&self) -> bool {
+        self.now.is_some() && self.player.empty()
+    }
+
     pub fn toggle(&self) {
         if self.player.is_paused() {
             self.player.play();
@@ -186,6 +191,9 @@ impl AudioPlayer {
         self.now.as_ref()
     }
     pub fn is_playing(&self) -> bool {
+        false
+    }
+    pub fn finished(&self) -> bool {
         false
     }
     pub fn toggle(&self) {}
