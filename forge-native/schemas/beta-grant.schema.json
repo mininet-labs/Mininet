@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Beta MINI Grant Authorization payload",
+  "description": "Forge-native semantic schema for mininet.beta/grant/v1. Beta MINI is resettable test value only; this record carries no production conversion promise and no authority weight.",
+  "type": "object",
+  "required": [
+    "campaign_id",
+    "beta_epoch",
+    "account_id",
+    "grant_class",
+    "amount_micro",
+    "memo"
+  ],
+  "properties": {
+    "campaign_id": { "type": "string", "minLength": 1 },
+    "contribution_id": { "type": ["string", "null"] },
+    "beta_epoch": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "account_id": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "grant_class": { "enum": ["testing", "participation"] },
+    "amount_micro": { "type": "integer", "minimum": 1 },
+    "memo": { "type": "string", "minLength": 1, "maxLength": 512 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "grant_class": { "const": "participation" } } },
+      "then": {
+        "required": ["contribution_id"],
+        "properties": { "contribution_id": { "type": "string", "minLength": 1 } }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
