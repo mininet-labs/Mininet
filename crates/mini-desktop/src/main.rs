@@ -17,6 +17,7 @@ mod peer_link;
 mod player;
 mod theme;
 mod timeline;
+mod video;
 
 use conversation_state::ConversationRecord;
 use did_mini::{Capabilities, Controller, Did};
@@ -205,6 +206,8 @@ struct MininetApp {
     animations: HashMap<String, Option<player::Animation>>,
     shorts_index: usize,
     watch_target: Option<mini_objects::ObjectId>,
+    /// The one video decode in flight; dropping it stops the worker.
+    video: Option<video::VideoPlayer>,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -1566,6 +1569,7 @@ impl Default for MininetApp {
             animations: HashMap::new(),
             shorts_index: 0,
             watch_target: None,
+            video: None,
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1692,6 +1696,9 @@ impl eframe::App for MininetApp {
             .is_some_and(player::AudioPlayer::is_playing)
         {
             ctx.request_repaint_after(Duration::from_millis(250));
+        }
+        if self.video.as_ref().is_some_and(|video| !video.ended) {
+            ctx.request_repaint_after(Duration::from_millis(16));
         }
         if self.sync_rx.is_some()
             || self.session_rx.is_some()
@@ -5367,6 +5374,9 @@ No tracking. No forced updates.",
                     });
                 });
             }
+            player::Playback::Video => {
+                self.video_stage(ui, media, max, &label, author, &content_type, complete);
+            }
             player::Playback::VideoUnsupported => {
                 theme::card_frame().show(ui, |ui| {
                     ui.set_width(max.x.min(ui.available_width()));
@@ -5375,7 +5385,7 @@ No tracking. No forced updates.",
                     theme::muted(ui, &format!("{content_type} · {}", if complete { "complete on this device" } else { "still arriving from peers" }));
                     ui.colored_label(
                         theme::WARN_AMBER,
-                        "In-app video decoding is not built yet: no pure-Rust H.264/VP9/AV1 decoder exists and Mininet will not embed a browser or launch another program. Export it from your Library to watch.",
+                        "This container does not decode in-app: Mininet plays H.264 video in MP4/M4V/MOV in-process, and will not embed a browser or launch another program for other formats. Export it from your Library to watch.",
                     );
                     if complete && ui.add(theme::secondary_button("Open in Library")).clicked() {
                         self.view = View::Library;
@@ -5411,6 +5421,150 @@ No tracking. No forced updates.",
                 ),
             );
         });
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn video_stage(
+        &mut self,
+        ui: &mut egui::Ui,
+        media: &mini_objects::ObjectId,
+        max: egui::Vec2,
+        label: &str,
+        author: &str,
+        content_type: &str,
+        complete: bool,
+    ) {
+        let active = self
+            .video
+            .as_ref()
+            .is_some_and(|video| &video.media == media);
+        if !active {
+            theme::card_frame().show(ui, |ui| {
+                ui.set_width(max.x.min(ui.available_width()));
+                ui.label(egui::RichText::new("🎬").size(48.0));
+                ui.label(egui::RichText::new(label).strong().size(16.0));
+                theme::muted(ui, &format!("{content_type} · {author}"));
+                if !complete {
+                    theme::muted(ui, "Still arriving from peers.");
+                } else if ui.add(theme::primary_button("▶  Play")).clicked() {
+                    self.start_video(media, label.to_owned(), author.to_owned());
+                }
+                theme::muted(ui, "Decodes H.264 with AAC audio in-process. H.265/VP9/AV1 show an explanation instead.");
+            });
+            return;
+        }
+        // Audio for this file is the clock when it is playing.
+        let clock = self
+            .audio
+            .as_ref()
+            .filter(|audio| audio.now().is_some_and(|now| &now.media == media))
+            .map(player::AudioPlayer::position);
+        let ctx = ui.ctx().clone();
+        let (texture, ended, error, shown, probe) = {
+            let video = self.video.as_mut().expect("active");
+            let texture = video.frame_at(&ctx, clock).map(|t| (t.id(), t.size_vec2()));
+            (
+                texture,
+                video.ended,
+                video.error.clone(),
+                video.shown_pts,
+                video.probe.clone(),
+            )
+        };
+        match texture {
+            Some((id, size)) => {
+                let scale = (max.x / size.x.max(1.0))
+                    .min(max.y / size.y.max(1.0))
+                    .min(1.0);
+                ui.add(egui::Image::new((id, size * scale)).corner_radius(12.0));
+            }
+            None if error.is_none() => {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    theme::muted(ui, "decoding…");
+                });
+            }
+            None => {}
+        }
+        if let Some(error) = error {
+            ui.colored_label(
+                theme::WARN_AMBER,
+                format!("Cannot play in-app: {error}. Export it from your Library to watch."),
+            );
+        }
+        ui.horizontal_wrapped(|ui| {
+            if let Some(probe) = probe {
+                theme::muted(
+                    ui,
+                    &format!(
+                        "{} {}x{} · {} / {}{}",
+                        probe.video_codec,
+                        probe.width,
+                        probe.height,
+                        player::format_duration(shown),
+                        player::format_duration(probe.duration),
+                        if probe.has_aac_audio {
+                            " · AAC"
+                        } else {
+                            " · no audio track"
+                        }
+                    ),
+                );
+            }
+            if ended && ui.add(theme::secondary_button("↺  Replay")).clicked() {
+                self.start_video(media, label.to_owned(), author.to_owned());
+            }
+            if ui.add(theme::secondary_button("■  Stop")).clicked() {
+                self.video = None;
+                if let Some(audio) = self.audio.as_mut() {
+                    if audio.now().is_some_and(|now| &now.media == media) {
+                        audio.stop();
+                    }
+                }
+            }
+        });
+        if clock.is_some() {
+            self.now_playing_controls(ui);
+        }
+    }
+
+    fn start_video(&mut self, media: &mini_objects::ObjectId, title: String, author: String) {
+        let bytes = self
+            .workspace
+            .as_ref()
+            .ok_or_else(|| "Local workspace unavailable.".to_string())
+            .and_then(|workspace| workspace.media_bytes(media, video::MAX_VIDEO_BYTES));
+        let bytes = match bytes {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.notice = format!("Could not load video: {error}");
+                return;
+            }
+        };
+        // Audio first (it may legitimately fail: no audio track), then video.
+        self.video = None;
+        if self.audio.is_none() {
+            self.audio = player::AudioPlayer::open().ok();
+        }
+        let audio_started = self
+            .audio
+            .as_mut()
+            .map(|audio| {
+                audio.play_container(bytes.clone(), media.clone(), title.clone(), author.clone())
+            })
+            .is_some_and(|result| result.is_ok());
+        match video::VideoPlayer::start(media.clone(), bytes) {
+            Ok(mut video) => {
+                video.restart_clock();
+                self.video = Some(video);
+                self.notice = if audio_started {
+                    format!("Playing {title}.")
+                } else {
+                    format!("Playing {title} (no decodable audio track).")
+                };
+            }
+            Err(error) => self.notice = error,
+        }
     }
 
     fn now_playing_controls(&mut self, ui: &mut egui::Ui) {

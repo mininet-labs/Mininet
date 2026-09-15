@@ -24685,3 +24685,63 @@ OS-media-foundation adapter behind an explicit owner switch, both to be
 decided, not assumed); streaming decode for large audio; playlists.
 
 **Supersedes / superseded by:** none. Extends D-0523.
+
+### D-0525 — Fixing D-0522–D-0524's stated limits: UPnP router mapping, agreed ticket rates, in-process H.264 video  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{video,player,connectivity,peer_link}.rs`;
+`crates/mini-ticket`; D-0522 (no NAT help), D-0523 (device-local rates),
+D-0524 (no video); `deny.toml` (BSD-2 already allowed).
+
+**Decision:** close the limits that were closable in the client, and say
+plainly which still stand.
+
+1. **Reachability: owner-triggered UPnP.** "Open port on router" asks the
+   LAN gateway to forward the hosting port for a two-hour lease and reports
+   the WAN address into the connection card. A router that answers with
+   0.0.0.0, a private range, or carrier-grade NAT space is shown as
+   "mapped, no public address" with the reason. Renewal on launch is a
+   separate default-off choice tied to hosting on launch. Nothing is sent
+   beyond the LAN. This is not a relay and does not help behind CGNAT.
+
+2. **Agreed rates.** The post-handshake hello carries each side's ask;
+   the ticket records the agreed rate (provider ask capped by the
+   receiver's new "most I pay per MB" setting); a peer ticket priced above
+   the agreement is refused; every ledger and redemption total is computed
+   from ticket rates, so both sides agree on the credit.
+
+3. **Video plays in-process.** H.264 in MP4/M4V/MOV decodes through Cisco
+   OpenH264 (BSD-2, built from source, C/C++ compiled in-tree — the first
+   non-Rust code in the client, isolated behind the `openh264` crate's safe
+   API) with the `mp4` demuxer; AAC audio is decoded by symphonia driven
+   directly (rodio's convenience wrapper picks the video track in MP4s)
+   and its clock paces the frames. Verified: a 720p H.264/AAC clip plays
+   in sync. **OpenH264 does not decode B-frames**; the client detects them
+   from the `ctts` table before decoding and says so with the re-encode
+   hint (`ffmpeg -bf 0`). H.265/VP9/AV1 and WebM/MKV still do not decode.
+   The decoder is built optimized even in dev profiles (about 140 fps at
+   720p; 12 fps at -O0).
+
+**Constitutional impact:** none. New dependencies (`igd`, `openh264`,
+`mp4`, direct `symphonia`) touch no value or governance crate. UPnP is the
+only new network behaviour and it is owner-triggered or tied to an
+explicit launch policy.
+
+**Implementation status:** shipped; unit tests for NAT-range detection,
+AVCC→Annex B, garbage MP4 handling, and (when a local sample exists) full
+decode of a 300-frame clip and its AAC track. Live: router mapping against
+a real (double-NATed) gateway; video with audio in Shorts.
+
+**Failure point:** UPnP is often disabled and never helps behind CGNAT;
+the mapping expires and relies on the owner or the launch policy to renew.
+B-frames are common in phone recordings and x264 defaults, so a fair share
+of real files will show the explanation rather than play until a decoder
+with B-frame support is chosen. Video is decoded whole in memory (cap
+512 MB) and cannot seek; audio seek moves the clock but frames only
+advance forward.
+
+**Required follow-up:** a B-frame-capable decoder path (pure-Rust AV1/
+H.264 as they mature, or an OS-codec adapter behind an owner switch —
+still a decision, not an assumption); streaming decode from chunks;
+seekable video; relay/rendezvous for CGNAT.
+
+**Supersedes / superseded by:** none. Extends D-0522–D-0524.

@@ -18,8 +18,12 @@ served, priced at your rate as unsettled micro-MINI credit, redeemable only
 by your DID once the audited settlement layer admits the request.
 **Shorts** plays media posts one at a time and **Watch** shows one with its
 comments and what is up next; audio plays in-app through pure-Rust decoders
-and animated GIF/WebP loop, while video (no pure-Rust decoder, no embedded
-browser or external launch) shows a poster with export.
+and animated GIF/WebP loop; H.264 video without B-frames plays in-process
+(OpenH264 + AAC via symphonia), while B-frame H.264, H.265/VP9/AV1 and
+WebM/MKV show an explanation with export. Connections can ask the router
+to forward the hosting port (UPnP) and reports whether the result is a
+public address. Ticket rates are agreed per exchange (provider ask capped by
+the receiver's ceiling) and written into the ticket.
 
 Connections is where networking starts, and only there:
 

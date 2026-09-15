@@ -29,6 +29,10 @@ mini-crypto = { path = "../mini-crypto" }
 # Owner-triggered UPnP IGD port mapping and external-address lookup. Talks
 # only to the local router (SSDP multicast + HTTP on the LAN); never on launch.
 igd = { version = "0.12", default-features = false }
+# In-process H.264 decoding (Cisco OpenH264, BSD-2, built from bundled source)
+# and MP4 demuxing. Runs in this process: no browser, no external player.
+openh264 = { version = "0.9", default-features = false, features = ["source"] }
+mp4 = "0.14"
 mini-social = { path = "../mini-social" }
 mini-store = { path = "../mini-store" }
 mini-windows-vault = { path = "../mini-windows-vault" }
@@ -48,3 +52,6 @@ mini-windows-setup = { path = "../mini-windows-setup" }
 # No video codec exists in pure Rust; video stays export-to-watch for now.
 [target.'cfg(windows)'.dependencies]
 rodio = { version = "0.22", default-features = false, features = ["symphonia-all", "playback"] }
+# Driven directly for MP4 audio tracks (rodio's wrapper picks the video
+# track as default in MP4 containers).
+symphonia = { version = "0.5", default-features = false, features = ["aac", "isomp4", "alac"] }

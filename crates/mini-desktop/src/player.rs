@@ -3,11 +3,12 @@
 //! Ogg Vorbis, WAV, AAC/ALAC in MP4 containers) and animated GIF/WebP
 //! through the `image` crate already used for photos.
 //!
-//! What is deliberately not here: H.264/VP9/AV1 video decoding. No
-//! pure-Rust decoder for those exists, and this shell will not embed a
-//! browser or launch another program to play a file. Video posts show a
-//! poster card and can be exported from the Library; that limit is stated
-//! in the UI rather than hidden behind a broken play button.
+//! Video: H.264 in MP4-family containers decodes in-process through
+//! `crate::video` (OpenH264 built from source) with AAC audio through this
+//! module. H.265/VP9/AV1 and WebM/MKV do not decode; those posts show a
+//! poster card with export, and the limit is stated in the UI rather than
+//! hidden behind a broken play button. This shell never embeds a browser
+//! or launches another program to play a file.
 //!
 //! The audio device is opened lazily on the first play and never on
 //! launch.
@@ -35,7 +36,10 @@ pub enum Playback {
     Audio,
     Animation,
     Image,
-    /// Real video: shown as a poster; export to watch.
+    /// MP4-family container: H.264 decodes in-app; anything else falls
+    /// back to the poster with the reason.
+    Video,
+    /// A container this client cannot demux (WebM, MKV, AVI…): poster.
     VideoUnsupported,
     Other,
 }
@@ -48,6 +52,8 @@ pub fn playback_for(content_type: &str) -> Playback {
         Playback::Animation
     } else if ct.starts_with("image/") {
         Playback::Image
+    } else if ct == "video/mp4" || ct == "video/quicktime" || ct == "video/x-m4v" {
+        Playback::Video
     } else if ct.starts_with("video/") {
         Playback::VideoUnsupported
     } else {
@@ -199,6 +205,184 @@ impl AudioPlayer {
     pub fn set_volume(&self, _volume: f32) {}
 }
 
+/// An audio track pulled from an MP4-family container through symphonia,
+/// packet by packet, as a `rodio` source. Used for video files, where the
+/// container's default track is the video and `rodio::Decoder` stops after
+/// one packet.
+#[cfg(windows)]
+pub struct ContainerAudio {
+    format: Box<dyn symphonia::core::formats::FormatReader>,
+    decoder: Box<dyn symphonia::core::codecs::Decoder>,
+    track_id: u32,
+    sample_rate: u32,
+    channels: u16,
+    buffer: Vec<f32>,
+    position: usize,
+    duration: Option<Duration>,
+    finished: bool,
+}
+
+#[cfg(windows)]
+impl ContainerAudio {
+    pub fn open(bytes: Vec<u8>) -> Result<Self, String> {
+        use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
+        use symphonia::core::formats::FormatOptions;
+        use symphonia::core::io::MediaSourceStream;
+        use symphonia::core::meta::MetadataOptions;
+        use symphonia::core::probe::Hint;
+        let mss = MediaSourceStream::new(Box::new(Cursor::new(bytes)), Default::default());
+        let mut hint = Hint::new();
+        hint.mime_type("video/mp4");
+        let probed = symphonia::default::get_probe()
+            .format(
+                &hint,
+                mss,
+                &FormatOptions::default(),
+                &MetadataOptions::default(),
+            )
+            .map_err(|error| format!("container: {error}"))?;
+        let format = probed.format;
+        let track = format
+            .tracks()
+            .iter()
+            .find(|track| {
+                track.codec_params.codec != CODEC_TYPE_NULL
+                    && track.codec_params.sample_rate.is_some()
+            })
+            .ok_or("no decodable audio track")?;
+        let params = track.codec_params.clone();
+        let track_id = track.id;
+        let decoder = symphonia::default::get_codecs()
+            .make(&params, &DecoderOptions::default())
+            .map_err(|error| format!("audio codec: {error}"))?;
+        let sample_rate = params.sample_rate.ok_or("audio track has no sample rate")?;
+        let channels = params
+            .channels
+            .map(|channels| channels.count() as u16)
+            .unwrap_or(2)
+            .max(1);
+        let duration = params
+            .n_frames
+            .map(|frames| Duration::from_secs_f64(frames as f64 / f64::from(sample_rate.max(1))));
+        Ok(Self {
+            format,
+            decoder,
+            track_id,
+            sample_rate,
+            channels,
+            buffer: Vec::new(),
+            position: 0,
+            duration,
+            finished: false,
+        })
+    }
+
+    fn refill(&mut self) -> bool {
+        use symphonia::core::audio::SampleBuffer;
+        while !self.finished {
+            let packet = match self.format.next_packet() {
+                Ok(packet) => packet,
+                Err(_) => {
+                    self.finished = true;
+                    return false;
+                }
+            };
+            if packet.track_id() != self.track_id {
+                continue;
+            }
+            match self.decoder.decode(&packet) {
+                Ok(decoded) => {
+                    let spec = *decoded.spec();
+                    let mut samples = SampleBuffer::<f32>::new(decoded.capacity() as u64, spec);
+                    samples.copy_interleaved_ref(decoded);
+                    self.buffer.clear();
+                    self.buffer.extend_from_slice(samples.samples());
+                    self.position = 0;
+                    if !self.buffer.is_empty() {
+                        return true;
+                    }
+                }
+                Err(symphonia::core::errors::Error::DecodeError(_)) => continue,
+                Err(_) => {
+                    self.finished = true;
+                    return false;
+                }
+            }
+        }
+        false
+    }
+}
+
+#[cfg(windows)]
+impl Iterator for ContainerAudio {
+    type Item = f32;
+    fn next(&mut self) -> Option<f32> {
+        if self.position >= self.buffer.len() && !self.refill() {
+            return None;
+        }
+        let sample = self.buffer[self.position];
+        self.position += 1;
+        Some(sample)
+    }
+}
+
+#[cfg(windows)]
+impl Source for ContainerAudio {
+    fn current_span_len(&self) -> Option<usize> {
+        None
+    }
+    fn channels(&self) -> rodio::ChannelCount {
+        rodio::ChannelCount::new(self.channels).unwrap_or(rodio::nz!(2))
+    }
+    fn sample_rate(&self) -> rodio::SampleRate {
+        rodio::SampleRate::new(self.sample_rate).unwrap_or(rodio::nz!(44100))
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        self.duration
+    }
+}
+
+#[cfg(windows)]
+impl AudioPlayer {
+    /// Play the audio track of a video container.
+    pub fn play_container(
+        &mut self,
+        bytes: Vec<u8>,
+        media: ObjectId,
+        title: String,
+        author: String,
+    ) -> Result<(), String> {
+        if bytes.len() as u64 > crate::video::MAX_VIDEO_BYTES {
+            return Err("video too large for in-memory playback".into());
+        }
+        let source = ContainerAudio::open(bytes)?;
+        let duration = source.total_duration();
+        self.player.stop();
+        self.player.append(source);
+        self.player.play();
+        self.now = Some(NowPlaying {
+            media,
+            title,
+            author,
+            duration,
+        });
+        Ok(())
+    }
+}
+
+#[cfg(not(windows))]
+impl AudioPlayer {
+    pub fn play_container(
+        &mut self,
+        _bytes: Vec<u8>,
+        _media: ObjectId,
+        _title: String,
+        _author: String,
+    ) -> Result<(), String> {
+        Err("audio playback is built for Windows in this client".into())
+    }
+}
+
 /// A decoded animation: frames as textures with their delays.
 pub struct Animation {
     frames: Vec<(egui::TextureHandle, Duration)>,
@@ -316,7 +500,9 @@ mod tests {
         assert_eq!(playback_for("image/gif"), Playback::Animation);
         assert_eq!(playback_for("image/webp"), Playback::Animation);
         assert_eq!(playback_for("image/png"), Playback::Image);
-        assert_eq!(playback_for("video/mp4"), Playback::VideoUnsupported);
+        assert_eq!(playback_for("video/mp4"), Playback::Video);
+        assert_eq!(playback_for("video/quicktime"), Playback::Video);
+        assert_eq!(playback_for("video/webm"), Playback::VideoUnsupported);
         assert_eq!(playback_for("application/pdf"), Playback::Other);
         assert_eq!(format_duration(Duration::from_secs(65)), "1:05");
         assert_eq!(format_duration(Duration::from_secs(3725)), "1:02:05");
@@ -370,5 +556,23 @@ mod tests {
         assert_eq!(animation.total, Duration::from_millis(200));
         assert_eq!(animation.size, egui::vec2(4.0, 4.0));
         assert!(Animation::decode(&ctx, "t", "image/png", &bytes).is_err());
+    }
+}
+
+#[cfg(all(test, windows))]
+mod clip_audio_tests {
+    use super::*;
+
+    #[test]
+    fn local_clip_audio_decodes_through_the_container_source() {
+        let Ok(bytes) = std::fs::read("C:/dev/clip720.mp4") else {
+            return;
+        };
+        let source = ContainerAudio::open(bytes).unwrap();
+        assert_eq!(source.sample_rate().get(), 44_100);
+        let duration = source.total_duration().unwrap();
+        assert!(duration >= Duration::from_secs(9), "{duration:?}");
+        let samples = source.count();
+        assert!(samples > 400_000, "got {samples}");
     }
 }

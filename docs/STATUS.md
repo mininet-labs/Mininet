@@ -3094,3 +3094,11 @@ Audio (MP3/FLAC/Ogg/WAV/AAC-in-MP4) plays in-app through pure-Rust
 decoders with seek, pause, volume and a now-playing bar; animated GIF/WebP
 loop in Shorts and Watch. Video does not decode in-app (no pure-Rust
 decoder; no browser or external launch) and the UI says so, offering export.
+
+## Limits closed — 2026-09-15 (D-0525)
+
+Owner-triggered UPnP router mapping with honest public-address detection;
+agreed per-exchange ticket rates written into tickets; in-process H.264
+(no B-frames) + AAC video playback via OpenH264 and symphonia. Still not
+built: relay/rendezvous for CGNAT, B-frame video, H.265/VP9/AV1, seekable
+video, settlement.
