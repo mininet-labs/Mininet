@@ -151,6 +151,8 @@ struct MininetApp {
     unseen_posts: Vec<String>,
     /// Device-local mute list; hides posts, suggestions and directory rows.
     muted: mute_list::MuteList,
+    /// Post ids whose reply thread is expanded inline.
+    expanded_threads: Vec<String>,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -1297,6 +1299,7 @@ impl Default for MininetApp {
             card_host: String::new(),
             unseen_posts: Vec::new(),
             muted,
+            expanded_threads: Vec::new(),
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -2820,7 +2823,15 @@ No tracking. No forced updates.",
                             &card.comment_count.to_string(),
                             theme::ACCENT,
                         ) {
-                            self.reply_target = Some(card.id.clone());
+                            let id = card.id.as_str().to_owned();
+                            if let Some(index) =
+                                self.expanded_threads.iter().position(|open| *open == id)
+                            {
+                                self.expanded_threads.remove(index);
+                            } else {
+                                self.expanded_threads.push(id);
+                                self.reply_target = Some(card.id.clone());
+                            }
                         }
                         ui.add_space(10.0);
                         if theme::icon_action(
@@ -2884,7 +2895,91 @@ No tracking. No forced updates.",
                 });
             });
         });
+        if self
+            .expanded_threads
+            .iter()
+            .any(|open| open == card.id.as_str())
+        {
+            self.thread(ui, &card.id);
+        }
         ui.separator();
+    }
+
+    /// Replies to one post, read from the local store when the thread is
+    /// expanded. Bounded by the store's own comment query; muted authors
+    /// are hidden like everywhere else.
+    fn thread(&mut self, ui: &mut egui::Ui, parent: &mini_objects::ObjectId) {
+        const MAX_SHOWN: usize = 100;
+        let Some(workspace) = self.workspace.as_ref() else {
+            return;
+        };
+        let own = workspace.human.clone();
+        let mut replies = match mini_social::comments(&workspace.store, parent) {
+            Ok(replies) => replies,
+            Err(error) => {
+                theme::muted(ui, &format!("Replies could not be read: {error}"));
+                return;
+            }
+        };
+        replies.sort_by_key(|reply| reply.timestamp_ms);
+        let hidden = replies.len().saturating_sub(MAX_SHOWN);
+        let rows: Vec<(String, String, String, u64, bool)> = replies
+            .into_iter()
+            .take(MAX_SHOWN)
+            .filter(|reply| !self.muted.contains(reply.author.as_str()))
+            .map(|reply| {
+                let name = resolve_profile(&workspace.store, &reply.author)
+                    .ok()
+                    .flatten()
+                    .map(|profile| profile.display_name)
+                    .unwrap_or_else(|| "Mininet participant".into());
+                (
+                    name,
+                    reply.author.as_str().to_owned(),
+                    reply.text,
+                    reply.timestamp_ms,
+                    own.as_ref() == Some(&reply.author),
+                )
+            })
+            .collect();
+        egui::Frame::new()
+            .inner_margin(egui::Margin {
+                left: 56,
+                right: 16,
+                top: 0,
+                bottom: 8,
+            })
+            .show(ui, |ui| {
+                if rows.is_empty() {
+                    theme::muted(
+                        ui,
+                        "No replies received yet. Yours goes out on the next exchange.",
+                    );
+                }
+                for (name, did, text, timestamp_ms, own) in rows {
+                    ui.horizontal_top(|ui| {
+                        theme::avatar(ui, &name, &did, 30.0);
+                        ui.vertical(|ui| {
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(egui::RichText::new(&name).strong());
+                                theme::muted(ui, &short_did(&did));
+                                theme::muted(
+                                    ui,
+                                    &format!("· {}", timeline::age(timestamp_ms, now_ms())),
+                                );
+                                if own {
+                                    theme::pill_badge(ui, "You", theme::ACCENT);
+                                }
+                            });
+                            ui.label(egui::RichText::new(text).color(theme::TEXT_PRIMARY));
+                        });
+                    });
+                    ui.add_space(4.0);
+                }
+                if hidden > 0 {
+                    theme::muted(ui, &format!("{hidden} older repl(ies) not shown."));
+                }
+            });
     }
 
     fn nav_button(&mut self, ui: &mut egui::Ui, view: View, glyph: &str, label: &str) {
