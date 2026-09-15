@@ -3103,3 +3103,9 @@ agreed per-exchange ticket rates written into tickets; in-process H.264
 built: relay/rendezvous for CGNAT, B-frame video, H.265/VP9/AV1, seekable
 video, settlement. Media is a YouTube-style catalog (search, filters, sort,
 poster grid) with per-author Channel pages; search covers this device only.
+
+## Search my peers — 2026-09-15 (D-0527)
+
+Network search (one hop, saved peers) and targeted verified fetch through
+`mini-sync` retrieval, from the Media view. `docs/BETA_TESTING.md` is the
+tester guide for this line.

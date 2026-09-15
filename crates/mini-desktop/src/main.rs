@@ -13,6 +13,7 @@ mod conversation_state;
 mod discussion;
 mod library;
 mod mute_list;
+mod netsearch;
 mod network_session;
 mod peer_link;
 mod player;
@@ -93,6 +94,9 @@ struct ConversationPreview {
     last_timestamp_ms: u64,
     count: usize,
 }
+
+/// One saved peer's answer to a network search: (label, endpoint, hits).
+type SearchAnswer = (String, String, Result<Vec<netsearch::RemoteResult>, String>);
 
 /// An owner-started hosting window: the accepting socket lives on a worker
 /// thread and stops when this is dropped or the owner presses Stop.
@@ -222,6 +226,15 @@ struct MininetApp {
     thumb_tx: Option<std::sync::mpsc::Sender<(String, String)>>,
     thumb_rx: Option<Receiver<(String, Option<egui::ColorImage>)>>,
     channel_did: Option<String>,
+    /// Network search in flight: (peer label, endpoint, outcome) per peer.
+    netsearch_rx: Option<Receiver<SearchAnswer>>,
+    netsearch_pending: usize,
+    /// Remote hits: (peer label, endpoint, result), deduplicated by post id.
+    netsearch_results: Vec<(String, String, netsearch::RemoteResult)>,
+    netsearch_query: String,
+    /// One fetch in flight: (endpoint, post) and its outcome channel.
+    fetch_rx: Option<Receiver<Result<String, String>>>,
+    fetching: Option<mini_objects::ObjectId>,
     /// Audio to play after the current track: (media, title, author).
     play_queue: std::collections::VecDeque<(mini_objects::ObjectId, String, String)>,
     composer: String,
@@ -1598,6 +1611,12 @@ impl Default for MininetApp {
             thumb_tx: None,
             thumb_rx: None,
             channel_did: None,
+            netsearch_rx: None,
+            netsearch_pending: 0,
+            netsearch_results: Vec::new(),
+            netsearch_query: String::new(),
+            fetch_rx: None,
+            fetching: None,
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1707,6 +1726,7 @@ impl eframe::App for MininetApp {
         }
         self.poll_timeline(ctx);
         self.poll_catalog(ctx);
+        self.poll_netsearch();
         self.poll_host();
         self.poll_router();
         self.poll_session();
@@ -2960,6 +2980,121 @@ No tracking. No forced updates.",
 
     // ----- catalog, thumbnails, channels -------------------------------------
 
+    fn start_network_search(&mut self) {
+        let query = self.catalog_query.trim().to_string();
+        if query.is_empty() {
+            self.notice = "Type something to search for first.".into();
+            return;
+        }
+        if self.connections.peers.is_empty() {
+            self.notice = "Save at least one peer in Connections to search the network.".into();
+            return;
+        }
+        if self.netsearch_rx.is_some() {
+            return;
+        }
+        let (sender, receiver) = mpsc::channel();
+        self.netsearch_rx = Some(receiver);
+        self.netsearch_results.clear();
+        self.netsearch_query = query.clone();
+        self.netsearch_pending = self.connections.peers.len();
+        let root = data_root();
+        for peer in &self.connections.peers {
+            let (label, endpoint, query, root, sender) = (
+                peer.label.clone(),
+                peer.endpoint.clone(),
+                query.clone(),
+                root.clone(),
+                sender.clone(),
+            );
+            std::thread::spawn(move || {
+                let result = peer_link::dial_search(&root, &endpoint, &query);
+                let _ = sender.send((label, endpoint, result));
+            });
+        }
+        self.log_activity(format!(
+            "Searching {} saved peer(s) for \"{query}\".",
+            self.connections.peers.len()
+        ));
+    }
+
+    fn poll_netsearch(&mut self) {
+        let mut arrived = Vec::new();
+        let mut closed = false;
+        if let Some(receiver) = self.netsearch_rx.as_ref() {
+            loop {
+                match receiver.try_recv() {
+                    Ok(item) => arrived.push(item),
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        closed = true;
+                        break;
+                    }
+                }
+            }
+        }
+        for (label, endpoint, result) in arrived {
+            self.netsearch_pending = self.netsearch_pending.saturating_sub(1);
+            match result {
+                Ok(results) => {
+                    let count = results.len();
+                    for result in results {
+                        if !self
+                            .netsearch_results
+                            .iter()
+                            .any(|(_, _, existing)| existing.post == result.post)
+                        {
+                            self.netsearch_results
+                                .push((label.clone(), endpoint.clone(), result));
+                        }
+                    }
+                    self.log_activity(format!("{label}: {count} match(es)."));
+                }
+                Err(error) => self.log_activity(format!("{label}: search failed: {error}")),
+            }
+        }
+        if closed || (self.netsearch_rx.is_some() && self.netsearch_pending == 0) {
+            self.netsearch_rx = None;
+        }
+        let fetched = self
+            .fetch_rx
+            .as_ref()
+            .and_then(|receiver| match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => Some(Err("fetch worker stopped".into())),
+            });
+        if let Some(result) = fetched {
+            self.fetch_rx = None;
+            self.fetching = None;
+            match result {
+                Ok(summary) => {
+                    self.notice = summary.clone();
+                    self.log_activity(summary);
+                    self.reload_workspace();
+                }
+                Err(error) => {
+                    self.notice = format!("Fetch failed: {error}");
+                    self.log_activity(format!("Fetch failed: {error}"));
+                }
+            }
+        }
+    }
+
+    fn start_fetch(&mut self, endpoint: String, post: mini_objects::ObjectId) {
+        if self.fetch_rx.is_some() {
+            self.notice = "A fetch is already running.".into();
+            return;
+        }
+        let (sender, receiver) = mpsc::channel();
+        self.fetch_rx = Some(receiver);
+        self.fetching = Some(post.clone());
+        let root = data_root();
+        std::thread::spawn(move || {
+            let _ = sender.send(peer_link::dial_fetch(&root, &endpoint, &[post]));
+        });
+    }
+
     fn poll_catalog(&mut self, ctx: &egui::Context) {
         if let Some(receiver) = self.catalog_rx.as_ref() {
             match receiver.try_recv() {
@@ -3106,6 +3241,91 @@ No tracking. No forced updates.",
                 self.view = View::Library;
             }
         });
+        ui.horizontal_wrapped(|ui| {
+            let searching = self.netsearch_rx.is_some();
+            if ui
+                .add_enabled(!searching, theme::primary_button("🌐  Search my peers"))
+                .on_hover_text("Asks every saved peer what it holds that matches. Results are that peer's claims until fetched and verified.")
+                .clicked()
+            {
+                self.start_network_search();
+            }
+            if searching {
+                ui.spinner();
+                theme::muted(ui, &format!("{} peer(s) still answering…", self.netsearch_pending));
+            }
+            if !self.netsearch_results.is_empty() {
+                theme::muted(
+                    ui,
+                    &format!(
+                        "{} remote hit(s) for \"{}\"",
+                        self.netsearch_results.len(),
+                        self.netsearch_query
+                    ),
+                );
+                if ui.add(theme::secondary_button("Clear")).clicked() {
+                    self.netsearch_results.clear();
+                }
+            }
+        });
+        if !self.netsearch_results.is_empty() {
+            ui.add_space(4.0);
+            theme::section_title(ui, "On your peers");
+            let local_posts: std::collections::HashSet<String> = self
+                .catalog
+                .iter()
+                .map(|entry| entry.post.as_str().to_owned())
+                .collect();
+            let hits = self.netsearch_results.clone();
+            for (label, endpoint, hit) in hits {
+                ui.push_id(hit.post.as_str(), |ui| {
+                    theme::card_frame().show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new(match hit.kind.as_str() {
+                                "Video" | "GIF" => "🎬",
+                                "Music" => "♫",
+                                "Image" => "🖼",
+                                _ => "📋",
+                            }).size(26.0));
+                            ui.vertical(|ui| {
+                                ui.set_width(ui.available_width());
+                                ui.label(egui::RichText::new(&hit.title).strong());
+                                if !hit.description.is_empty() {
+                                    theme::muted(ui, &hit.description);
+                                }
+                                theme::muted(ui, &format!(
+                                    "{} · {} · {} · {} · on {label}",
+                                    hit.author_name,
+                                    hit.kind,
+                                    library::human_size(hit.bytes),
+                                    timeline::age(hit.timestamp_ms, now_ms())
+                                ));
+                                ui.horizontal(|ui| {
+                                    if local_posts.contains(hit.post.as_str()) {
+                                        theme::pill_badge(ui, "ON THIS DEVICE", theme::ONLINE_GREEN);
+                                        if ui.add(theme::secondary_button("▶  Watch")).clicked() {
+                                            self.watch_target = Some(hit.post.clone());
+                                            self.view = View::Watch;
+                                        }
+                                    } else if self.fetching.as_ref() == Some(&hit.post) {
+                                        ui.spinner();
+                                        theme::muted(ui, "fetching…");
+                                    } else if ui
+                                        .add_enabled(self.fetch_rx.is_none(), theme::primary_button("⬇  Fetch"))
+                                        .on_hover_text("Retrieves the post, its author's identity, the manifest and chunks from this peer, verified on arrival. Large files continue over sessions.")
+                                        .clicked()
+                                    {
+                                        self.start_fetch(endpoint.clone(), hit.post.clone());
+                                    }
+                                });
+                            });
+                        });
+                    });
+                });
+            }
+            ui.add_space(8.0);
+            theme::section_title(ui, "On this device");
+        }
         ui.add_space(6.0);
         let mut entries: Vec<catalog::Entry> = self
             .catalog
@@ -8487,6 +8707,136 @@ mod tests {
             99
         )
         .is_err());
+
+        std::fs::remove_dir_all(test_root).unwrap();
+    }
+    /// Network search and targeted fetch over real TCP: Alice hosts a
+    /// media post; Bob has never synced with her, searches by a word in
+    /// the title, fetches the hit, and ends up holding the verified post,
+    /// Alice's identity and profile, the manifest and every chunk.
+    #[cfg(windows)]
+    #[test]
+    fn search_finds_media_on_a_peer_and_fetch_brings_the_verified_closure() {
+        use super::{
+            known_profiles, load_desktop_identity, load_or_create, netsearch, peer_link,
+            publish_profile,
+        };
+        use mini_media::{missing_chunks, publish_media, read_manifest};
+        use mini_social::publish_media_post;
+        use mini_store::FsBackend;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::{mpsc, Arc};
+        use std::time::Duration;
+
+        fn profile_root(root: &std::path::Path, name: &str) -> did_mini::Did {
+            load_or_create(&root.join("identity.dpapi")).unwrap();
+            let identity = load_desktop_identity(root, true).unwrap();
+            let human = identity.root.did();
+            let mut store = Store::new(FsBackend::open(root).unwrap());
+            publish_profile(
+                &mut store,
+                &human,
+                &identity.device,
+                name,
+                "search test",
+                None,
+                1,
+                0,
+            )
+            .unwrap();
+            human
+        }
+
+        let test_root = std::env::temp_dir().join(format!(
+            "mininet-desktop-search-{}-{}",
+            std::process::id(),
+            super::now_ms()
+        ));
+        let alice_root = test_root.join("alice");
+        let bob_root = test_root.join("bob");
+        let alice_did = profile_root(&alice_root, "Alice");
+        let _bob_did = profile_root(&bob_root, "Bob");
+        let alice_identity = load_desktop_identity(&alice_root, false).unwrap();
+        let clip_bytes: Vec<u8> = (0..(2 * mini_media::CHUNK_SIZE + 77))
+            .map(|i| (i % 253) as u8)
+            .collect();
+        let (post_id, media_id) = {
+            let mut store = Store::new(FsBackend::open(&alice_root).unwrap());
+            let manifest = publish_media(
+                &mut store,
+                &alice_did,
+                &alice_identity.device,
+                "video/mp4",
+                &clip_bytes,
+                5,
+                2,
+            )
+            .unwrap();
+            let post = publish_media_post(
+                &mut store,
+                &alice_did,
+                &alice_identity.device,
+                manifest.id.clone(),
+                "Sunset over the harbour
+shot at dusk",
+                6,
+                10,
+            )
+            .unwrap();
+            (post.id().clone(), manifest.id)
+        };
+
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = probe.local_addr().unwrap().port();
+        drop(probe);
+        let stop = Arc::new(AtomicBool::new(false));
+        let (events, event_rx) = mpsc::channel();
+        let host_root = alice_root.clone();
+        let host_stop = Arc::clone(&stop);
+        let host = std::thread::spawn(move || {
+            peer_link::run_host(host_root, port, Vec::new(), host_stop, events)
+        });
+        assert!(matches!(
+            event_rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            peer_link::HostEvent::Listening { .. }
+        ));
+        let endpoint = format!("127.0.0.1:{port}");
+
+        let hits = peer_link::dial_search(&bob_root, &endpoint, "harbour").unwrap();
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        assert_eq!(hits[0].post, post_id);
+        assert_eq!(hits[0].title, "Sunset over the harbour");
+        assert_eq!(hits[0].author_name, "Alice");
+        assert_eq!(hits[0].kind, "Video");
+        assert!(
+            peer_link::dial_search(&bob_root, &endpoint, "nothing-like-this")
+                .unwrap()
+                .is_empty()
+        );
+
+        let summary =
+            peer_link::dial_fetch(&bob_root, &endpoint, std::slice::from_ref(&post_id)).unwrap();
+        assert!(summary.contains("Fetched"), "{summary}");
+
+        stop.store(true, Ordering::Relaxed);
+        host.join().unwrap();
+
+        let bob_store = Store::new(FsBackend::open(&bob_root).unwrap());
+        assert!(bob_store.contains(&post_id).unwrap());
+        let manifest = read_manifest(&bob_store.get(&media_id).unwrap()).unwrap();
+        assert!(missing_chunks(&bob_store, &manifest).unwrap().is_empty());
+        let mut out = Vec::new();
+        super::library::export(&bob_store, &media_id, &mut out).unwrap();
+        assert_eq!(out, clip_bytes);
+        let names: Vec<String> = known_profiles(&bob_store)
+            .unwrap()
+            .into_iter()
+            .map(|profile| profile.display_name)
+            .collect();
+        assert!(names.iter().any(|name| name == "Alice"), "{names:?}");
+        let bob_did = load_desktop_identity(&bob_root, false).unwrap().root.did();
+        let local = netsearch::local_results(&bob_store, &bob_did, "sunset").unwrap();
+        assert_eq!(local.len(), 1, "fetched post is searchable locally");
 
         std::fs::remove_dir_all(test_root).unwrap();
     }

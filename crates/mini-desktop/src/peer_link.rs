@@ -35,6 +35,10 @@ use std::time::{Duration, Instant};
 const INTENT_AAD: &[u8] = b"MININET-DESKTOP/INTENT1";
 const INTENT_PUBLIC: u8 = 1;
 const INTENT_PRIVATE: u8 = 2;
+const INTENT_SEARCH: u8 = 3;
+const INTENT_FETCH: u8 = 4;
+const SEARCH_AAD: &[u8] = b"MININET-DESKTOP/SEARCH1";
+const MAX_SEARCH_RESULT_BYTES: usize = 64 * 1024;
 /// Connections a host serves at the same time; extra ones are refused.
 const MAX_CONCURRENT_CONNECTIONS: usize = 4;
 const ACCEPT_POLL: Duration = Duration::from_millis(250);
@@ -122,20 +126,44 @@ fn bound(bearer: TcpBearer) -> Link {
 }
 
 /// What the dialing side wants from this connection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Intent {
     Public,
     Private(OpaqueRoute),
+    /// Ask the peer's catalog; the query rides in the intent frame.
+    Search(String),
+    /// Retrieve the closure of named posts.
+    Fetch(Vec<ObjectId>),
 }
 
 impl Intent {
-    fn encode(self) -> Vec<u8> {
+    fn encode(&self) -> Vec<u8> {
         match self {
             Intent::Public => vec![INTENT_PUBLIC],
             Intent::Private(route) => {
                 let mut out = Vec::with_capacity(33);
                 out.push(INTENT_PRIVATE);
                 out.extend_from_slice(route.as_bytes());
+                out
+            }
+            Intent::Search(query) => {
+                let mut out = vec![INTENT_SEARCH];
+                let query: String = query
+                    .chars()
+                    .take(crate::netsearch::MAX_QUERY_BYTES)
+                    .collect();
+                out.extend_from_slice(query.as_bytes());
+                out
+            }
+            Intent::Fetch(ids) => {
+                let mut out = vec![INTENT_FETCH];
+                out.extend_from_slice(
+                    ids.iter()
+                        .map(|id| id.as_str())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                        .as_bytes(),
+                );
                 out
             }
         }
@@ -148,6 +176,27 @@ impl Intent {
                 let mut bytes = [0u8; 32];
                 bytes.copy_from_slice(route);
                 Ok(Intent::Private(OpaqueRoute::from_bytes(bytes)))
+            }
+            [INTENT_SEARCH, query @ ..] => {
+                let query = std::str::from_utf8(query).map_err(|_| "search query is not UTF-8")?;
+                if query.chars().count() > crate::netsearch::MAX_QUERY_BYTES {
+                    return Err("search query too long".into());
+                }
+                Ok(Intent::Search(query.to_owned()))
+            }
+            [INTENT_FETCH, ids @ ..] => {
+                let text = std::str::from_utf8(ids).map_err(|_| "fetch ids are not UTF-8")?;
+                let ids: Result<Vec<ObjectId>, String> = text
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .take(64)
+                    .map(|s| ObjectId::parse(s).map_err(|e| e.to_string()))
+                    .collect();
+                let ids = ids?;
+                if ids.is_empty() {
+                    return Err("fetch names no objects".into());
+                }
+                Ok(Intent::Fetch(ids))
             }
             _ => Err("peer sent an unrecognized intent".into()),
         }
@@ -567,6 +616,79 @@ pub fn dial_private(
     }
 }
 
+/// Ask one peer what it holds that matches `query`.
+pub fn dial_search(
+    root: &Path,
+    endpoint: &str,
+    query: &str,
+) -> Result<Vec<crate::netsearch::RemoteResult>, String> {
+    let identity = load_identity(root, "searching")?;
+    let (mut bearer, mut channel) = connect(endpoint)?;
+    send_intent(&mut bearer, &mut channel, Intent::Search(query.to_owned()))?;
+    let (my_ask, _) = my_rates(root);
+    let _ = exchange_hello(
+        &mut bearer,
+        &mut channel,
+        SyncRole::Initiator,
+        &identity.root.did(),
+        my_ask,
+    )?;
+    let bytes = recv_sealed(
+        &mut bearer,
+        &mut channel,
+        SEARCH_AAD,
+        MAX_SEARCH_RESULT_BYTES,
+    )?;
+    crate::netsearch::decode_results(&bytes)
+}
+
+/// Fetch the closure of `posts` from one peer through verified retrieval,
+/// then exchange tickets for what moved.
+pub fn dial_fetch(root: &Path, endpoint: &str, posts: &[ObjectId]) -> Result<String, String> {
+    let identity = load_identity(root, "fetching")?;
+    let (mut store, mut cache) = open_sync_state(root, &identity)?;
+    let (mut bearer, mut channel) = connect(endpoint)?;
+    send_intent(&mut bearer, &mut channel, Intent::Fetch(posts.to_vec()))?;
+    let (my_ask, my_ceiling) = my_rates(root);
+    let hello = exchange_hello(
+        &mut bearer,
+        &mut channel,
+        SyncRole::Initiator,
+        &identity.root.did(),
+        my_ask,
+    )?;
+    let peer = hello.did.clone();
+    let agreed = mini_ticket::Rate::agree(hello.ask_micro_per_mb, my_ceiling);
+    let before = complete_manifests(&store);
+    let start = bearer.received_bytes();
+    let report =
+        mini_sync::request_retrieval(&mut bearer, &mut channel, &mut store, &mut cache, posts)
+            .map_err(|error| error.to_string())?;
+    let received = bearer.received_bytes().saturating_sub(start);
+    let completed = newly_completed(&before, &complete_manifests(&store));
+    let tickets = exchange_tickets(
+        &mut bearer,
+        &mut channel,
+        SyncRole::Initiator,
+        &mut store,
+        &mut cache,
+        &identity,
+        &peer,
+        agreed,
+        Service::PublicSync,
+        received,
+        report.ingest.accepted as u32,
+        completed,
+    );
+    Ok(format!(
+        "Fetched {} of {} object(s) ({}). Tickets: {}.",
+        report.ingest.accepted,
+        report.selected,
+        public_summary(&report.ingest),
+        tickets.summary()
+    ))
+}
+
 /// Serve one accepted connection: handshake, read the intent, run the
 /// matching bounded protocol. `private_routes` is empty when the owner has
 /// not opted private conversations into hosting; a private intent is then
@@ -594,6 +716,47 @@ pub fn serve(
     let peer = hello.did.clone();
     let agreed = mini_ticket::Rate::agree(hello.ask_micro_per_mb, my_ceiling);
     match intent {
+        Intent::Search(query) => {
+            let results = crate::netsearch::local_results(&store, &identity.root.did(), &query)?;
+            let bytes = crate::netsearch::encode_results(&results);
+            send_sealed(&mut bearer, &mut channel, SEARCH_AAD, &bytes)?;
+            Ok(format!(
+                "search \"{}\": {} result(s)",
+                query.chars().take(40).collect::<String>(),
+                results.len()
+            ))
+        }
+        Intent::Fetch(_) => {
+            let seeds = mini_sync::receive_retrieval_request(&mut bearer, &mut channel)
+                .map_err(|error| error.to_string())?;
+            let selected = crate::netsearch::fetch_closure(&store, &seeds)?;
+            if selected.is_empty() {
+                return Err("fetch: none of the requested objects are on this device".into());
+            }
+            let start = bearer.received_bytes();
+            mini_sync::serve_retrieval(&mut bearer, &mut channel, &store, &selected)
+                .map_err(|error| error.to_string())?;
+            let received = bearer.received_bytes().saturating_sub(start);
+            let tickets = exchange_tickets(
+                &mut bearer,
+                &mut channel,
+                SyncRole::Responder,
+                &mut store,
+                &mut cache,
+                &identity,
+                &peer,
+                agreed,
+                Service::PublicSync,
+                received,
+                0,
+                Vec::new(),
+            );
+            Ok(format!(
+                "fetch: served {} object(s); tickets: {}",
+                selected.len(),
+                tickets.summary()
+            ))
+        }
         Intent::Public => {
             let before = complete_manifests(&store);
             let start = bearer.received_bytes();
@@ -765,6 +928,11 @@ mod tests {
         assert!(Intent::decode(&[INTENT_PRIVATE; 10]).is_err());
         assert!(Intent::decode(&[INTENT_PRIVATE; 34]).is_err());
         assert!(Intent::decode(&[9]).is_err());
+        assert_eq!(
+            Intent::decode(&Intent::Search("hi there".into()).encode()),
+            Ok(Intent::Search("hi there".into()))
+        );
+        assert!(Intent::decode(&[INTENT_FETCH]).is_err());
     }
 
     #[test]
