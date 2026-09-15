@@ -1,7 +1,7 @@
 # Mininet desktop beta — setup and test guide
 
 For testers of the Windows client on the `claude/connected-desktop-beta`
-line (D-0523–D-0526). Everything below was exercised on Windows 11; other
+line (D-0523–D-0527). Everything below was exercised on Windows 11; other
 platforms are not part of this beta. Nothing here moves money and nothing
 here is anonymous: read "What this beta is not" before inviting anyone.
 
