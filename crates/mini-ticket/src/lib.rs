@@ -655,14 +655,17 @@ mod tests {
         (root, device)
     }
 
-    fn fields(provider: &Did, nonce: u8, bytes: u64, media: Vec<CompletedMedia>) -> TicketFields {
+    /// A ticket with a fresh random nonce and channel binding, as a real
+    /// exchange would produce. Tests that need the *same* nonce twice reuse
+    /// the returned value.
+    fn fields(provider: &Did, bytes: u64, media: Vec<CompletedMedia>) -> TicketFields {
         TicketFields {
             provider: provider.clone(),
             service: Service::PublicSync,
             bytes_received: bytes,
             objects_received: 3,
-            channel_binding: [7; 32],
-            nonce: [nonce; 32],
+            channel_binding: mini_crypto::random_32().unwrap(),
+            nonce: mini_crypto::random_32().unwrap(),
             completed_media: media,
         }
     }
@@ -671,7 +674,7 @@ mod tests {
     fn ticket_round_trips_and_rejects_tampering() {
         let (host, _) = person(10);
         let (consumer, consumer_dev) = person(20);
-        let f = fields(&host.did(), 1, 5_000_000, Vec::new());
+        let f = fields(&host.did(), 5_000_000, Vec::new());
         let object = issue_ticket(&consumer.did(), &consumer_dev, &f, 1_000, 1).unwrap();
         let ticket = read_ticket(&object).unwrap();
         assert_eq!(ticket.consumer, consumer.did());
@@ -719,13 +722,13 @@ mod tests {
             manifest: manifest.id.clone(),
             bytes: 2_000_000,
         }];
-        let f = fields(&host.did(), 1, 3_000_000, media);
+        let f = fields(&host.did(), 3_000_000, media);
         let t1 = issue_ticket(&consumer.did(), &consumer_dev, &f, 10, 1).unwrap();
         store.insert(&t1).unwrap();
         // Same nonce again: a duplicate, ignored.
         let t1b = issue_ticket(&consumer.did(), &consumer_dev, &f, 11, 2).unwrap();
         store.insert(&t1b).unwrap();
-        let f2 = fields(&host.did(), 2, 1_000_000, Vec::new());
+        let f2 = fields(&host.did(), 1_000_000, Vec::new());
         store
             .insert(&issue_ticket(&consumer.did(), &consumer_dev, &f2, 12, 3).unwrap())
             .unwrap();
