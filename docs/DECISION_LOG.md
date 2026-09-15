@@ -24511,6 +24511,14 @@ beta without changing any protocol, object format or trust rule.
    nothing, deletes nothing and does not stop replication; it is the local
    half of blocking, the delivery half needs the connection service.
 
+8. **Reddit-style community discussion from existing objects.** A thread
+   is a signed comment whose parent is the community object, a reply is a
+   comment on a comment, an upvote is the existing like reaction. No new
+   object type, link relation or wire format; threads replicate through the
+   same exchanges as posts and are readable by any comment-aware client.
+   Rendering is bounded (100 threads, 200 replies per node, depth 6) and
+   honours the mute list.
+
 **Constitutional impact:** none to any frozen row. U1 holds: nothing here
 fetches, activates or installs a release. P5/P6 hold: the bearer stays
 anonymous, endpoints are not identities, private routes are compared only

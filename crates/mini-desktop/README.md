@@ -7,7 +7,10 @@ navigation rail, central timeline, and a discovery column on wide windows.
 Timelines are loaded by a worker (50 cards), show real author names and
 author-claimed relative times, and offer *Following* and *Everyone* scopes,
 received-post search (Explore), a media filter with inline images, and
-"Who to follow" from received signed profiles.
+"Who to follow" from received signed profiles. Communities open into
+Reddit-style threaded discussion (title + body threads, nested replies,
+upvotes, Top/New) built entirely from existing comment and reaction
+objects, so discussions replicate like everything else.
 
 Connections is where networking starts, and only there:
 

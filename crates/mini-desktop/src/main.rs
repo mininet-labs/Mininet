@@ -9,6 +9,7 @@
 
 mod connectivity;
 mod conversation_state;
+mod discussion;
 mod mute_list;
 mod network_session;
 mod peer_link;
@@ -169,6 +170,17 @@ struct MininetApp {
     /// only when the store changes so decryption never runs per frame.
     conversation_previews: Vec<ConversationPreview>,
     previews_dirty: bool,
+    /// Community currently opened for discussion.
+    open_community: Option<mini_objects::ObjectId>,
+    discussion: Vec<discussion::Node>,
+    discussion_dirty: bool,
+    discussion_error: Option<String>,
+    discussion_order: discussion::Order,
+    discussion_title: String,
+    discussion_body: String,
+    discussion_reply_target: Option<mini_objects::ObjectId>,
+    discussion_reply_text: String,
+    collapsed_nodes: Vec<String>,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -680,6 +692,38 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn publish_comment_confirmed(
+        &mut self,
+        parent: &mini_objects::ObjectId,
+        text: &str,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_comment(parent, text);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    fn set_community_membership_confirmed(
+        &mut self,
+        community: &mini_objects::ObjectId,
+        joined: bool,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.set_community_membership(community, joined);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn react_like(&mut self, target: &mini_objects::ObjectId) -> Result<(), String> {
@@ -1318,6 +1362,16 @@ impl Default for MininetApp {
             expanded_threads: Vec::new(),
             conversation_previews: Vec::new(),
             previews_dirty: true,
+            open_community: None,
+            discussion: Vec::new(),
+            discussion_dirty: true,
+            discussion_error: None,
+            discussion_order: discussion::Order::Top,
+            discussion_title: String::new(),
+            discussion_body: String::new(),
+            discussion_reply_target: None,
+            discussion_reply_text: String::new(),
+            collapsed_nodes: Vec::new(),
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1542,6 +1596,7 @@ impl MininetApp {
         }
         self.timeline_refresh = Instant::now();
         self.previews_dirty = true;
+        self.discussion_dirty = true;
     }
 
     fn rebuild_conversation_previews(&mut self) {
@@ -3090,7 +3145,7 @@ No tracking. No forced updates.",
             ),
             View::Communities => (
                 "Communities",
-                "Portable spaces for discussion, not platform-owned silos.",
+                "Threaded discussion in portable, signed spaces — not platform-owned silos.",
             ),
             View::Diagnostics => (
                 "Diagnostics",
@@ -4349,9 +4404,73 @@ No tracking. No forced updates.",
     }
 
     fn communities(&mut self, ui: &mut egui::Ui) {
+        if let Some(community) = self.open_community.clone() {
+            self.community_discussion(ui, &community);
+            return;
+        }
+        let cards = self
+            .workspace
+            .as_ref()
+            .map(|workspace| workspace.communities())
+            .unwrap_or_default();
+        theme::muted(
+            ui,
+            "Communities are signed objects that replicate like posts. Discussions inside them are threaded comments; upvotes are reactions.",
+        );
+        ui.add_space(6.0);
+        if cards.is_empty() {
+            theme::card_frame().show(ui, |ui| {
+                ui.heading("No communities yet");
+                theme::muted(ui, "Create one below, or connect to a peer whose communities will arrive with the next exchange.");
+            });
+        }
+        for (id, name, charter, member_count, joined) in cards {
+            theme::card_frame().show(ui, |ui| {
+                ui.horizontal_top(|ui| {
+                    theme::avatar(ui, &name, id.as_str(), 44.0);
+                    ui.vertical(|ui| {
+                        ui.set_width(ui.available_width());
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new(&name).strong().size(18.0));
+                            if joined {
+                                theme::pill_badge(ui, "JOINED", theme::ONLINE_GREEN);
+                            }
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.add(theme::primary_button("Open")).clicked() {
+                                        self.open_community = Some(id.clone());
+                                        self.discussion_dirty = true;
+                                    }
+                                    if ui
+                                        .add(theme::secondary_button(if joined {
+                                            "Leave"
+                                        } else {
+                                            "Join"
+                                        }))
+                                        .clicked()
+                                    {
+                                        self.set_membership(&id, !joined);
+                                    }
+                                },
+                            );
+                        });
+                        if !charter.is_empty() {
+                            ui.label(&charter);
+                        }
+                        theme::muted(ui, &format!("{member_count} locally known member(s)"));
+                    });
+                });
+            });
+        }
+        ui.add_space(10.0);
         theme::card_frame().show(ui, |ui| {
-            ui.label(egui::RichText::new("Create a local community").strong());
-            ui.text_edit_singleline(&mut self.community_name);
+            theme::section_title(ui, "Create a community");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.community_name)
+                    .hint_text("Name")
+                    .desired_width(f32::INFINITY),
+            );
             ui.add_sized(
                 [ui.available_width(), 48.0],
                 egui::TextEdit::multiline(&mut self.community_charter)
@@ -4359,9 +4478,9 @@ No tracking. No forced updates.",
             );
             ui.checkbox(
                 &mut self.signing_confirmation,
-                "I confirm this action will create a signed community object",
+                "I confirm this creates a signed community object",
             );
-            if ui.button("Publish community locally").clicked() {
+            if ui.add(theme::primary_button("Create")).clicked() {
                 self.notice = if self.community_name.trim().is_empty() {
                     "A community name is required.".to_string()
                 } else if !self.signing_confirmation {
@@ -4375,7 +4494,7 @@ No tracking. No forced updates.",
                             self.community_name.clear();
                             self.community_charter.clear();
                             self.signing_confirmation = false;
-                            "Community card written locally. No directory was contacted."
+                            "Community created. It shares with your peers on the next exchange."
                                 .to_string()
                         }
                         Err(error) => format!("Could not create community: {error}"),
@@ -4385,49 +4504,341 @@ No tracking. No forced updates.",
                 };
             }
         });
-        let cards = self
+        ui.add_space(8.0);
+        theme::muted(ui, "Community content remains fetchable by object id. Labels and local filters change your view; they do not erase the author's copy.");
+    }
+
+    fn set_membership(&mut self, id: &mini_objects::ObjectId, join: bool) {
+        self.notice = match self.workspace.as_mut() {
+            Some(workspace) => match workspace.set_community_membership_confirmed(id, join) {
+                Ok(()) if join => {
+                    "Joined. The signed membership shares on the next exchange.".into()
+                }
+                Ok(()) => "Left the community.".into(),
+                Err(error) => format!("Could not change membership: {error}"),
+            },
+            None => "Local workspace unavailable.".into(),
+        };
+    }
+
+    fn reload_discussion(&mut self, community: &mini_objects::ObjectId) {
+        self.discussion_dirty = false;
+        let Some(workspace) = self.workspace.as_ref() else {
+            self.discussion.clear();
+            return;
+        };
+        let Some(viewer) = workspace.human.as_ref() else {
+            self.discussion.clear();
+            return;
+        };
+        let muted = self.muted.clone();
+        match discussion::load(
+            &workspace.store,
+            community,
+            viewer,
+            self.discussion_order,
+            &|did| muted.contains(did),
+        ) {
+            Ok(threads) => {
+                self.discussion = threads;
+                self.discussion_error = None;
+            }
+            Err(error) => self.discussion_error = Some(error),
+        }
+    }
+
+    fn community_discussion(&mut self, ui: &mut egui::Ui, community: &mini_objects::ObjectId) {
+        let (name, charter, joined) = self
             .workspace
             .as_ref()
-            .map(|workspace| workspace.communities())
-            .unwrap_or_default();
-        if cards.is_empty() {
-            ui.label("No community cards are present locally yet.");
+            .and_then(|workspace| {
+                workspace
+                    .communities()
+                    .into_iter()
+                    .find(|(id, ..)| id == community)
+                    .map(|(_, name, charter, _, joined)| (name, charter, joined))
+            })
+            .unwrap_or_else(|| ("Community".into(), String::new(), false));
+        if self.discussion_dirty {
+            self.reload_discussion(community);
         }
-        for (id, name, charter, member_count, joined) in cards {
-            theme::card_frame().show(ui, |ui| {
-                ui.heading(name);
-                ui.label(charter);
-                ui.label(format!("{member_count} locally known members"));
-                if ui
-                    .button(if joined {
-                        "Leave community"
+        ui.horizontal(|ui| {
+            if ui
+                .add(theme::secondary_button("◀  All communities"))
+                .clicked()
+            {
+                self.open_community = None;
+                self.discussion_reply_target = None;
+                return;
+            }
+            theme::avatar(ui, &name, community.as_str(), 30.0);
+            ui.label(egui::RichText::new(&name).strong().size(18.0));
+            if joined {
+                theme::pill_badge(ui, "JOINED", theme::ONLINE_GREEN);
+            } else if ui.add(theme::secondary_button("Join")).clicked() {
+                self.set_membership(community, true);
+            }
+        });
+        if self.open_community.is_none() {
+            return;
+        }
+        if !charter.is_empty() {
+            theme::muted(ui, &charter);
+        }
+        ui.add_space(8.0);
+
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Start a discussion");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.discussion_title)
+                    .hint_text("Title")
+                    .desired_width(f32::INFINITY),
+            );
+            ui.add(
+                egui::TextEdit::multiline(&mut self.discussion_body)
+                    .hint_text("Say more (optional)")
+                    .desired_rows(3)
+                    .desired_width(f32::INFINITY),
+            );
+            ui.checkbox(
+                &mut self.signing_confirmation,
+                "I confirm this creates a signed discussion object",
+            );
+            if ui.add(theme::primary_button("Post discussion")).clicked() {
+                let title = self.discussion_title.trim().to_string();
+                let body = self.discussion_body.trim().to_string();
+                self.notice = if title.is_empty() {
+                    "Give the discussion a title.".into()
+                } else if !self.signing_confirmation {
+                    "Confirm signing before posting.".into()
+                } else {
+                    let text = if body.is_empty() {
+                        title
                     } else {
-                        "Join community"
-                    })
-                    .clicked()
-                {
-                    self.notice = if !self.signing_confirmation {
-                        "Confirm signing before changing membership.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_community_membership(&id, !joined) {
-                            Ok(()) => {
-                                self.signing_confirmation = false;
-                                if joined {
-                                    "Leave object written locally.".to_string()
-                                } else {
-                                    "Join object written locally.".to_string()
-                                }
-                            }
-                            Err(error) => format!("Could not change membership: {error}"),
+                        format!("{title}\n\n{body}")
+                    };
+                    match self.publish_comment_confirmed(community, &text) {
+                        Ok(()) => {
+                            self.discussion_title.clear();
+                            self.discussion_body.clear();
+                            self.signing_confirmation = false;
+                            self.discussion_dirty = true;
+                            "Discussion posted. It shares with your peers on the next exchange."
+                                .into()
                         }
-                    } else {
-                        "Local workspace unavailable.".to_string()
+                        Err(error) => format!("Could not post: {error}"),
+                    }
+                };
+            }
+        });
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            for (order, label) in [
+                (discussion::Order::Top, "Top"),
+                (discussion::Order::New, "New"),
+            ] {
+                if ui
+                    .selectable_label(self.discussion_order == order, label)
+                    .clicked()
+                    && self.discussion_order != order
+                {
+                    self.discussion_order = order;
+                    self.discussion_dirty = true;
+                }
+            }
+            if ui
+                .add(theme::secondary_button("🔄"))
+                .on_hover_text("Reload")
+                .clicked()
+            {
+                self.discussion_dirty = true;
+            }
+            theme::muted(ui, &format!("{} discussion(s)", self.discussion.len()));
+        });
+        if let Some(error) = &self.discussion_error {
+            ui.colored_label(
+                theme::WARN_AMBER,
+                format!("Could not load discussions: {error}"),
+            );
+        }
+        if self.discussion.is_empty() {
+            theme::muted(ui, "Nothing here yet. Start the first discussion above.");
+        }
+        let threads = self.discussion.clone();
+        for thread in &threads {
+            ui.push_id(thread.id.as_str(), |ui| {
+                theme::card_frame().show(ui, |ui| {
+                    self.discussion_node(ui, thread, 0);
+                });
+            });
+            ui.add_space(6.0);
+        }
+    }
+
+    fn discussion_node(&mut self, ui: &mut egui::Ui, node: &discussion::Node, depth: usize) {
+        let collapsed = self.collapsed_nodes.iter().any(|id| id == node.id.as_str());
+        let (title, body) = discussion::split_title(&node.text);
+        ui.horizontal_top(|ui| {
+            // Upvote column, Reddit style.
+            ui.vertical(|ui| {
+                ui.set_width(40.0);
+                if theme::icon_action(ui, "⬆", "", theme::ACCENT) {
+                    self.notice = match self.workspace.as_mut() {
+                        Some(workspace) => match workspace.react_like(&node.id) {
+                            Ok(()) => {
+                                self.discussion_dirty = true;
+                                "Upvote signed. It shares on the next exchange.".into()
+                            }
+                            Err(error) => format!("Could not upvote: {error}"),
+                        },
+                        None => "Local workspace unavailable.".into(),
                     };
                 }
+                ui.label(
+                    egui::RichText::new(node.upvotes.to_string())
+                        .strong()
+                        .color(theme::TEXT_PRIMARY),
+                );
             });
-        }
-        ui.add_space(16.0);
-        ui.label(egui::RichText::new("Community content remains fetchable by object id. Labels and local filters can change your view; they do not erase the author's copy.").italics());
+            ui.vertical(|ui| {
+                ui.set_width(ui.available_width());
+                ui.horizontal_wrapped(|ui| {
+                    theme::avatar(ui, &node.author, &node.did, 22.0);
+                    ui.label(egui::RichText::new(&node.author).strong());
+                    theme::muted(ui, &short_did(&node.did));
+                    theme::muted(
+                        ui,
+                        &format!("· {}", timeline::age(node.timestamp_ms, now_ms())),
+                    );
+                    if node.own {
+                        theme::pill_badge(ui, "You", theme::ACCENT);
+                    }
+                });
+                if depth == 0 {
+                    ui.label(
+                        egui::RichText::new(title)
+                            .strong()
+                            .size(17.0)
+                            .color(theme::TEXT_PRIMARY),
+                    );
+                    if !body.is_empty() {
+                        ui.label(egui::RichText::new(body).color(theme::TEXT_PRIMARY));
+                    }
+                } else {
+                    ui.label(egui::RichText::new(&node.text).color(theme::TEXT_PRIMARY));
+                }
+                ui.horizontal(|ui| {
+                    let replies = node.total_replies();
+                    if theme::icon_action(ui, "💬", &format!("Reply · {replies}"), theme::ACCENT)
+                    {
+                        self.discussion_reply_target = Some(node.id.clone());
+                        self.discussion_reply_text.clear();
+                    }
+                    if replies > 0
+                        && theme::icon_action(
+                            ui,
+                            if collapsed { "▶" } else { "•" },
+                            if collapsed {
+                                "Show replies"
+                            } else {
+                                "Hide replies"
+                            },
+                            theme::TEXT_SECONDARY,
+                        )
+                    {
+                        if collapsed {
+                            self.collapsed_nodes.retain(|id| id != node.id.as_str());
+                        } else {
+                            self.collapsed_nodes.push(node.id.as_str().to_owned());
+                        }
+                    }
+                    if !node.own && theme::icon_action(ui, "🔇", "Mute", theme::WARN_AMBER) {
+                        let (did, name) = (node.did.clone(), node.author.clone());
+                        self.set_muted(&did, &name, true);
+                        self.discussion_dirty = true;
+                    }
+                });
+                if self.discussion_reply_target.as_ref() == Some(&node.id) {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut self.discussion_reply_text)
+                            .hint_text("Write a reply")
+                            .desired_rows(2)
+                            .desired_width(f32::INFINITY),
+                    );
+                    ui.checkbox(
+                        &mut self.signing_confirmation,
+                        "I confirm this creates a signed reply",
+                    );
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::primary_button("Reply")).clicked() {
+                            let text = self.discussion_reply_text.trim().to_string();
+                            self.notice = if text.is_empty() {
+                                "Write a reply first.".into()
+                            } else if !self.signing_confirmation {
+                                "Confirm signing before replying.".into()
+                            } else {
+                                match self.publish_comment_confirmed(&node.id, &text) {
+                                    Ok(()) => {
+                                        self.discussion_reply_target = None;
+                                        self.discussion_reply_text.clear();
+                                        self.signing_confirmation = false;
+                                        self.discussion_dirty = true;
+                                        "Reply posted. It shares on the next exchange.".into()
+                                    }
+                                    Err(error) => format!("Could not reply: {error}"),
+                                }
+                            };
+                        }
+                        if ui.add(theme::secondary_button("Cancel")).clicked() {
+                            self.discussion_reply_target = None;
+                        }
+                    });
+                }
+                if !collapsed {
+                    for reply in &node.replies {
+                        ui.push_id(reply.id.as_str(), |ui| {
+                            egui::Frame::new()
+                                .inner_margin(egui::Margin {
+                                    left: 10,
+                                    right: 0,
+                                    top: 6,
+                                    bottom: 0,
+                                })
+                                .stroke(egui::Stroke::NONE)
+                                .show(ui, |ui| {
+                                    let rect = ui.max_rect();
+                                    ui.painter().vline(
+                                        rect.left() + 2.0,
+                                        rect.y_range(),
+                                        egui::Stroke::new(2.0, theme::BORDER),
+                                    );
+                                    self.discussion_node(ui, reply, depth + 1);
+                                });
+                        });
+                    }
+                    if node.truncated > 0 {
+                        theme::muted(
+                            ui,
+                            &format!(
+                                "{} deeper repl(ies) not shown at this depth.",
+                                node.truncated
+                            ),
+                        );
+                    }
+                }
+            });
+        });
+    }
+
+    fn publish_comment_confirmed(
+        &mut self,
+        parent: &mini_objects::ObjectId,
+        text: &str,
+    ) -> Result<(), String> {
+        self.workspace
+            .as_mut()
+            .ok_or_else(|| "Local workspace unavailable.".to_string())
+            .and_then(|workspace| workspace.publish_comment_confirmed(parent, text))
     }
 
     fn creator(&mut self, ui: &mut egui::Ui) {
