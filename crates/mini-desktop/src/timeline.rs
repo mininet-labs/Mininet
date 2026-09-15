@@ -4,8 +4,8 @@
 use did_mini::Did;
 use mini_objects::{ObjectId, ObjectType};
 use mini_social::{
-    comments, feed, reaction_counts, resolve_post, resolve_profile, FeedFilter, FeedReason,
-    PostKind,
+    comments, feed, following, reaction_counts, resolve_post, resolve_profile, FeedFilter,
+    FeedReason, PostKind,
 };
 use mini_store::{Backend, FsBackend, Store};
 use std::collections::HashMap;
@@ -76,6 +76,7 @@ fn build<B: Backend>(
             })
             .collect(),
         Scope::Everyone => {
+            let followed = following(store, human).map_err(|error| error.to_string())?;
             let mut items: Vec<Item> = Vec::new();
             for id in store
                 .by_type(&ObjectType::POST)
@@ -93,6 +94,8 @@ fn build<B: Backend>(
                     .sum();
                 let reason = if &post.author == human {
                     "Your post"
+                } else if followed.contains(&post.author) {
+                    "You follow this author"
                 } else {
                     "Received from a peer"
                 };

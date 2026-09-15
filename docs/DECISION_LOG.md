@@ -24506,6 +24506,11 @@ beta without changing any protocol, object format or trust rule.
    with the actual per-peer results. Store refreshes after an exchange no
    longer drop an unlocked identity.
 
+7. **A device-local mute list** (`muted.txt`) hides an author's posts,
+   directory entry and suggestions on this device only. It publishes
+   nothing, deletes nothing and does not stop replication; it is the local
+   half of blocking, the delivery half needs the connection service.
+
 **Constitutional impact:** none to any frozen row. U1 holds: nothing here
 fetches, activates or installs a release. P5/P6 hold: the bearer stays
 anonymous, endpoints are not identities, private routes are compared only

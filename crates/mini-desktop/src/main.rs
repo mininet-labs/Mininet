@@ -9,6 +9,7 @@
 
 mod connectivity;
 mod conversation_state;
+mod mute_list;
 mod network_session;
 mod peer_link;
 mod theme;
@@ -148,6 +149,8 @@ struct MininetApp {
     /// Post ids the owner has not had on screen yet; cleared when Home is
     /// shown. Counted from timeline snapshots, so it needs no server.
     unseen_posts: Vec<String>,
+    /// Device-local mute list; hides posts, suggestions and directory rows.
+    muted: mute_list::MuteList,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -1259,6 +1262,7 @@ impl Default for MininetApp {
         let workspace = Workspace::open().ok();
         let connections = connectivity::load(&data_root());
         let listen_port = connections.listen_port.to_string();
+        let (muted, mute_error) = mute_list::load(&data_root());
         let existing_profile = workspace.as_ref().and_then(Workspace::current_profile);
         let view = if workspace
             .as_ref()
@@ -1292,6 +1296,7 @@ impl Default for MininetApp {
             card_input: String::new(),
             card_host: String::new(),
             unseen_posts: Vec::new(),
+            muted,
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1376,9 +1381,15 @@ impl Default for MininetApp {
             selftest_report: None,
             selftest_area: None,
             install_notice: String::new(),
-            notice:
-                "Local object store ready. Identity is locked; no network activity has started."
-                    .to_string(),
+            notice: match mute_error {
+                Some(error) => {
+                    format!("Mute list could not be read and is treated as empty: {error}")
+                }
+                None => {
+                    "Local object store ready. Identity is locked; no network activity has started."
+                        .to_string()
+                }
+            },
         }
     }
 }
@@ -2218,6 +2229,23 @@ No tracking. No forced updates.",
             });
     }
 
+    fn set_muted(&mut self, did: &str, name: &str, mute: bool) {
+        let result = if mute {
+            self.muted.mute(did).map(|_| ())
+        } else {
+            self.muted.unmute(did);
+            Ok(())
+        };
+        self.notice = match result.and_then(|()| mute_list::save(&data_root(), &self.muted)) {
+            Ok(()) if mute => format!(
+                "Muted {name} on this device. Their posts, suggestions and directory entry are hidden here; nothing was published or deleted."
+            ),
+            Ok(()) => format!("Unmuted {name}."),
+            Err(error) => format!("Mute list not saved: {error}"),
+        };
+        self.timeline_refresh = Instant::now();
+    }
+
     /// Owner label for an endpoint, or the endpoint itself.
     fn peer_label(&self, endpoint: &str) -> String {
         self.connections
@@ -2238,6 +2266,7 @@ No tracking. No forced updates.",
             .known_profiles()
             .into_iter()
             .filter(|profile| own.as_ref() != Some(&profile.human))
+            .filter(|profile| !self.muted.contains(profile.human.as_str()))
             .filter(|profile| !workspace.follows(&profile.human))
             .take(limit)
             .map(|profile| (profile.display_name, profile.human.as_str().to_owned()))
@@ -2277,6 +2306,7 @@ No tracking. No forced updates.",
                             for card in &cards {
                                 let id = card.id.as_str();
                                 if !card.own
+                                    && !self.muted.contains(&card.did)
                                     && !self.timeline_cards.iter().any(|old| old.id.as_str() == id)
                                     && !self.unseen_posts.iter().any(|seen| seen == id)
                                 {
@@ -2394,7 +2424,8 @@ No tracking. No forced updates.",
             .timeline_cards
             .iter()
             .filter(|card| {
-                (!media_only || card.media.is_some())
+                !self.muted.contains(&card.did)
+                    && (!media_only || card.media.is_some())
                     && (query.is_empty()
                         || card.body.to_lowercase().contains(&query)
                         || card.author.to_lowercase().contains(&query)
@@ -2825,8 +2856,14 @@ No tracking. No forced updates.",
                         }
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.menu_button("ℹ", |ui| {
+                                ui.set_min_width(420.0);
                                 ui.label(egui::RichText::new("Post identity").strong());
-                                ui.label(&card.did);
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(&card.did).monospace().small(),
+                                    )
+                                    .wrap_mode(egui::TextWrapMode::Extend),
+                                );
                                 theme::muted(ui, card.reason);
                                 theme::muted(
                                     ui,
@@ -2834,6 +2871,11 @@ No tracking. No forced updates.",
                                 );
                                 if ui.button("Copy author DID").clicked() {
                                     ui.ctx().copy_text(card.did.clone());
+                                    ui.close_menu();
+                                }
+                                if !card.own && ui.button("Mute author on this device").clicked() {
+                                    let (did, name) = (card.did.clone(), card.author.clone());
+                                    self.set_muted(&did, &name, true);
                                     ui.close_menu();
                                 }
                             });
@@ -4082,6 +4124,18 @@ No tracking. No forced updates.",
                     if ui.add(theme::secondary_button("Copy DID")).clicked() {
                         ui.ctx().copy_text(profile.human.as_str().to_string());
                     }
+                    if !is_own {
+                        let muted = self.muted.contains(profile.human.as_str());
+                        if ui
+                            .add(theme::secondary_button(if muted { "Unmute" } else { "Mute" }))
+                            .clicked()
+                        {
+                            self.set_muted(profile.human.as_str(), &profile.display_name, !muted);
+                        }
+                        if muted {
+                            theme::pill_badge(ui, "MUTED HERE", theme::WARN_AMBER);
+                        }
+                    }
                 });
             });
             ui.add_space(8.0);
@@ -5074,6 +5128,24 @@ No tracking. No forced updates.",
                 ui.label("No Mininet root exists yet. Complete onboarding to create one.");
             }
             ui.label("The identity seed envelope is protected by Windows DPAPI for the current user. This does not defend against malware or an administrator running as that user.");
+        }
+        ui.add_space(10.0);
+        ui.add_space(10.0);
+        ui.label(
+            egui::RichText::new(format!("Muted on this device ({})", self.muted.len())).strong(),
+        );
+        if self.muted.is_empty() {
+            theme::muted(ui, "Nobody. Mute an author from a post's ℹ menu or from People. Muting hides content here only; it publishes nothing.");
+        } else {
+            let muted: Vec<String> = self.muted.iter().map(str::to_owned).collect();
+            for did in muted {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(short_did(&did)).small());
+                    if ui.add(theme::secondary_button("Unmute")).clicked() {
+                        self.set_muted(&did, &short_did(&did), false);
+                    }
+                });
+            }
         }
         ui.add_space(10.0);
         ui.colored_label(egui::Color32::YELLOW, "Windows boundary");
