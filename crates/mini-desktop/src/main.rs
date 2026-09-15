@@ -1484,6 +1484,7 @@ fn run_discoverable_profile_sync(
     display_name: &str,
     visibility_duration: Duration,
     progress: &mpsc::Sender<Result<String, String>>,
+    ready: Option<&mpsc::Sender<()>>,
 ) -> Result<String, String> {
     let identity = load_desktop_identity(root, false).map_err(|error| {
         format!(
@@ -1497,6 +1498,13 @@ fn run_discoverable_profile_sync(
         .map_err(|error| error.to_string())?;
     let announcer = LocalProfileAnnouncer::bind(port, &identity.root.did(), display_name)
         .map_err(|error| error.to_string())?;
+    // The socket is in LISTEN state as soon as `TcpListener::bind` above
+    // returns (std's `bind` calls `listen()` internally), and the local
+    // announcer is bound too, so it is safe to tell a caller we are ready to
+    // accept connections. Only tests observe this; real callers pass `None`.
+    if let Some(ready) = ready {
+        let _ = ready.send(());
+    }
     let deadline = std::time::Instant::now() + visibility_duration;
     let mut completed = 0usize;
     loop {
@@ -3788,8 +3796,14 @@ No tracking. No forced updates.",
         );
         let root = data_root();
         std::thread::spawn(move || {
-            let result =
-                run_discoverable_profile_sync(&root, port, &name, Duration::from_secs(60), &sender);
+            let result = run_discoverable_profile_sync(
+                &root,
+                port,
+                &name,
+                Duration::from_secs(60),
+                &sender,
+                None,
+            );
             let _ = sender.send(result);
         });
     }
@@ -8478,6 +8492,7 @@ mod tests {
         let port = probe.local_addr().unwrap().port();
         drop(probe);
         let (sender, receiver) = mpsc::channel();
+        let (ready_tx, ready_rx) = mpsc::channel();
         let server_root = bob_root.clone();
         let server = std::thread::spawn(move || {
             run_discoverable_profile_sync(
@@ -8486,19 +8501,17 @@ mod tests {
                 "Bob",
                 Duration::from_secs(4),
                 &sender,
+                Some(&ready_tx),
             )
         });
-        // Wait until the server thread owns the port (a fixed sleep raced a
-        // slow runner): binding it ourselves fails once it is listening.
-        let bound_by_server = (0..100).any(|_| {
-            if std::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port)).is_err() {
-                true
-            } else {
-                std::thread::sleep(Duration::from_millis(50));
-                false
-            }
-        });
-        assert!(bound_by_server, "server never bound port {port}");
+        // Wait for the server's real readiness signal (sent right after it
+        // binds and starts listening) instead of racing it for the port: a
+        // bind-probe from this thread can itself hold the port open across
+        // its own sleep and steal it from the real server, which is exactly
+        // what made this test flaky.
+        ready_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("server never signaled it was listening");
 
         let endpoint = format!("127.0.0.1:{port}");
         run_peer_sync(&alice_root, &endpoint, false).unwrap();
