@@ -58,6 +58,37 @@ pub fn sync_private_route_bidirectional<B: Backend>(
     }
 }
 
+/// Responder-side variant of [`sync_private_route_bidirectional`] for a peer
+/// that holds several conversations and does not know in advance which one
+/// the initiator selected. The wire exchange is byte-identical to the
+/// single-route form: the initiator still names exactly one route first, and
+/// the responder acknowledges only if that route is in `routes`. Nothing is
+/// enumerated for a route the initiator did not name, so a caller holding
+/// many routes reveals no more than a caller holding one.
+///
+/// Returns the matched route with the report so the caller can attribute the
+/// exchange to a conversation.
+pub fn sync_private_route_responder_any<B: Backend>(
+    bearer: &mut dyn Bearer,
+    channel: &mut Channel,
+    store: &mut Store<B>,
+    routes: &[OpaqueRoute],
+) -> Result<(OpaqueRoute, PrivateSyncReport)> {
+    let requested = match recv(bearer, channel)? {
+        PrivateMsg::Route(peer) => peer,
+        _ => return Err(SyncError::Protocol),
+    };
+    let matched = routes
+        .iter()
+        .copied()
+        .find(|route| *route.as_bytes() == requested);
+    send(bearer, channel, &PrivateMsg::RouteAck(matched.is_some()))?;
+    let route = matched.ok_or(SyncError::PrivateRouteMismatch)?;
+    serve_pull(bearer, channel, store, route)?;
+    let report = pull(bearer, channel, store, route)?;
+    Ok((route, report))
+}
+
 fn confirm_route(
     bearer: &mut dyn Bearer,
     channel: &mut Channel,

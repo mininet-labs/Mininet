@@ -24517,3 +24517,405 @@ Tightening `check_governance.py` to cross-reference `deny.toml` ignores
 against `exceptions.yml` by advisory ID, named above, is also open.
 
 **Supersedes / superseded by:** none.
+
+### D-0523 — Connected desktop beta: X-style shell, owner-started hosting and multi-peer sessions, intent-tagged desktop link, opt-in private-conversation delivery  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{peer_link,network_session,connectivity,theme,timeline}.rs`;
+`mini_sync::sync_private_route_responder_any`; `docs/proposals/connected-mininet-client.md`;
+D-0520/D-0521 (Windows client and packaging this builds on); `docs/INVARIANTS.md` U1, P5/P6;
+`docs/FOUNDER_DIRECTIVES.md` Directives 2, 3, 9, 14, 18.
+
+**Decision:** make the Windows reference client usable for a real two-machine
+beta without changing any protocol, object format or trust rule.
+
+1. **Hosting is a window the owner opens.** "Accept connections" binds one
+   port and serves many connections until the owner presses Stop or closes
+   the application (bounded to four concurrent, per-I/O timeouts, one worker
+   per connection). Previously the listener accepted exactly one connection
+   and exited, which made an internet exchange a two-person choreography.
+
+2. **Sessions cycle through saved peers.** A session dials every saved peer
+   (up to 32) every 30 s after success, backing off to 2 min after failures,
+   for 15 min, 1 h, or while the app is open. Peers are saved as plain
+   dial hints (`connections.txt`), optionally with the human DID from a
+   pasteable *connection card* (`mininet-peer-v1;endpoint=…;did=…;name=…`).
+   A card grants nothing; the DID is followed, never trusted, until its
+   signed profile arrives through ingest.
+
+3. **One socket, one intent.** After the anonymous CH1 handshake the dialer
+   sends one sealed intent frame — public `MINI/SYNC1`, or one private
+   route — so a host serves both without a second port. The private path
+   uses a new responder-side `mini-sync` API that matches the initiator's
+   named route against the routes the host holds; the wire exchange is
+   byte-identical to the single-route form and reveals nothing for routes
+   the initiator did not name. Every desktop path (one-shot, nearby
+   visibility, sessions, hosting) now speaks this one link.
+
+4. **Private delivery is opt-in and stays off by default.** "Include my
+   private conversations" adds the owner's routes to sessions and hosting;
+   otherwise a private intent is refused before any route is compared.
+
+5. **Networking on launch is a persisted, default-off owner choice** (session
+   on launch, hosting on launch). Nothing else opens a socket because the
+   application started. This is the *only* change to the "no network
+   activity on launch" posture and it is the owner's explicit setting.
+
+6. **The shell reads like a social client.** Black X-inspired layout, rail /
+   timeline / discovery column, real author names and author-claimed
+   relative times, worker-loaded 50-card timeline with Following/Everyone
+   scopes, inline received images, Explore search over received posts,
+   Media filter, "Who to follow" from received profiles, honest connection
+   state (Offline / Hosting / Connecting / Connected / Peers unreachable)
+   with the actual per-peer results. Store refreshes after an exchange no
+   longer drop an unlocked identity.
+
+7. **A device-local mute list** (`muted.txt`) hides an author's posts,
+   directory entry and suggestions on this device only. It publishes
+   nothing, deletes nothing and does not stop replication; it is the local
+   half of blocking, the delivery half needs the connection service.
+
+8. **Reddit-style community discussion from existing objects.** A thread
+   is a signed comment whose parent is the community object, a reply is a
+   comment on a comment, an upvote is the existing like reaction. No new
+   object type, link relation or wire format; threads replicate through the
+   same exchanges as posts and are readable by any comment-aware client.
+   Rendering is bounded (100 threads, 200 replies per node, depth 6) and
+   honours the mute list.
+
+**Constitutional impact:** none to any frozen row. U1 holds: nothing here
+fetches, activates or installs a release. P5/P6 hold: the bearer stays
+anonymous, endpoints are not identities, private routes are compared only
+inside the encrypted channel and only when the initiator names them. No
+value crate edge is added (`mini-desktop` still depends on no
+`mini-value`/`mini-bounty`/`mini-treasury`). Directive 18: removing a saved
+peer or stopping hosting loses convenience only; identity and local state
+are untouched.
+
+**Implementation status:** shipped and verified. `cargo fmt --all`; `cargo
+clippy -p mini-desktop -p mini-sync --all-targets --all-features -- -D
+warnings`; `cargo test -p mini-desktop -p mini-sync` (27 + 5 new tests)
+clean, including a real-TCP test in which one host serves six connections
+from a session worker (public + shared private route synced, an unshared
+route declined, second exchange idempotent). Two desktop instances were
+run on one Windows 11 machine with separate data roots: A hosted on launch,
+B started a session on launch, B posted, A received the post in Explore and
+was offered Bob in "Who to follow"; B followed Alice from the discovery
+column. Windows Firewall raised its normal inbound prompt for the host.
+
+**Failure point:** this is loopback/LAN-grade evidence. Two clients behind
+different NATs still need a port forward or a reachable host; no relay,
+rendezvous, NAT traversal or endpoint advertisement is deployed. A session's
+"Connected" means the last exchange with at least one saved peer completed,
+not that any particular object reached any particular person. A `BoundedBearer` wrapper caps every desktop exchange at 180 s and
+256 MiB end to end (added after the initial landing). The Everyone timeline walks
+every received post on each refresh; it is capped at 50 cards but not
+indexed. Media playback is not integrated; images show once complete.
+
+**Required follow-up:** step 2 of the proposal — a connection service with a
+durable outbox, signed expiring endpoint advertisements, and at least one
+replaceable relay/rendezvous path — before any claim of an internet beta
+across NATs. Indexed timeline pages and cancellation of stale timeline
+workers. Firewall guidance in the installer (the client itself now states
+the prompt).
+
+**Supersedes / superseded by:** none. Extends D-0520/D-0521.
+
+### D-0524 — Service tickets (`mini-ticket`), the desktop Earnings ledger, and the seedable Library (files and movies of any size)  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-ticket/`; `crates/mini-desktop/src/{peer_link,library}.rs`;
+D-0523 (the connected desktop this extends); D-0417 (`mini-contribution`, the
+full escrow/settlement coordinator this deliberately does not activate);
+D-0302 (`mini-resource-pricing`, whose micro-MINI/MB convention tickets
+reuse); D-0037/D-0047 (no real value before external audit);
+`docs/INVARIANTS.md` P1; `docs/FOUNDER_DIRECTIVES.md` Directives 5, 16, 18.
+
+**Decision:** pay the people who hold and serve data with *evidence first*,
+money later, and make files of any size seedable now.
+
+1. **A service ticket is the receiver's signed attestation of one
+   exchange.** After every desktop exchange each side signs an ordinary
+   content-addressed object (`mininet/service-ticket/v1`) naming the other
+   side's DID as provider, the service kind, bytes and objects received,
+   the CH1 channel binding, a fresh nonce, and the media manifests that
+   became complete during the exchange. Tickets replicate, deduplicate and
+   verify exactly like posts; a peer ticket is stored only after ingest
+   provenance, provider match, announced-consumer match and channel
+   binding all pass.
+
+2. **The ledger credits hosts and creators.** `mini_ticket::Ledger`
+   prices tickets naming the owner in micro-MINI at the owner's rate
+   (Tier-0 quote convention from `mini-resource-pricing`), splits attributed
+   media bytes between host and the manifest's author by an owner-chosen
+   creator share, and deduplicates by consumer+nonce. The desktop shows it
+   in **Earnings** with the rate settings.
+
+3. **Redeemable only by the named `did:mini`.** A redemption request
+   (`mininet/ticket-redemption/v1`) can be built only by, and verifies only
+   for, the DID every referenced ticket names; the totals must equal what
+   the tickets add up to at the stated rate. Anyone holding the tickets can
+   check it. Nothing is paid: the request is the claim the audited
+   settlement layer will admit or refuse under its own rules. This is the
+   honest boundary D-0037/D-0047 draw, and `mini-contribution`'s escrow
+   path stays unactivated in the client.
+
+4. **Library: any file, any size, seeded and resumable.** Files up to
+   256 MiB are one `mini-media` manifest; larger files (to 64 GiB) become an
+   ordered `mininet/media-collection/v1` of manifests. Every part is a
+   normal manifest, so chunks replicate and resume as today and a peer
+   holding some parts seeds those parts. Export reassembles chunk by chunk
+   to disk. The desktop hosts everything complete when hosting is on.
+
+**Constitutional impact:** none to any frozen row. P1/Directive 16 hold by
+construction: `mini-ticket` is a leaf with no value or governance
+dependency; a ticket carries no vote and cannot become one. Directive 5:
+a signed ticket is evidence, never final ownership. Directive 18: rates and
+tickets are local; removing a peer removes nothing owed elsewhere. No
+external audit gate is softened: credit is labelled unsettled in-app and in
+docs.
+
+**Implementation status:** shipped and verified. `mini-ticket` unit tests
+(encoding, ledger host/creator split, dedup, provider-only redemption);
+the desktop's real-TCP host test now asserts tickets on both sides and
+that only the named provider can redeem; the library round-trips a
+one-part and a two-part collection including partial-receipt reporting.
+Live on one Windows 11 machine: B added a 5 MB file, A pulled it through
+a session, both sides exchanged tickets, and B's Earnings showed host
+credit plus the creator share for the completed manifest.
+
+**Failure point:** a receiver can decline to issue a ticket or lie about
+bytes downward; a provider can announce someone else's DID and lose the
+credit. Neither creates money. Ticket objects replicate to everyone in a
+public sync, which grows stores linearly with exchanges; pruning old
+tickets is not built. Creator attribution covers manifests that *complete*
+during an exchange, not partial progress. The rate is per device; there is
+no agreed price and no market. No settlement, no payout, no Sybil defence.
+
+**Required follow-up:** admit redemption requests into the audited
+settlement path when D-0047 clears; ticket pruning/aggregation; agreed
+rates via provider declarations (`mini-provider`); chunk-level attribution;
+streaming playback from partial collections.
+
+**Supersedes / superseded by:** none. Extends D-0523.
+
+### D-0525 — In-app Shorts and Watch: pure-Rust audio playback and animated GIF/WebP, video stays export-to-watch  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/player.rs`; D-0524
+(the Library this plays from); `deny.toml` (MPL-2.0 already allowed);
+`crates/mini-desktop/README.md` ("no embedded browser, no external
+execution").
+
+**Decision:** give the client a shorts feed, a watch page and a persistent
+now-playing bar, playing what can be played honestly without breaking the
+shell's boundaries.
+
+1. **Audio plays in-app** through `rodio` 0.22 with `symphonia` (pure Rust:
+   MP3, FLAC, Ogg Vorbis, WAV, AAC/ALAC in MP4) and `cpal` (WASAPI on
+   Windows). The output device is opened on the first Play, never on launch.
+   Seek, pause, volume and a bottom now-playing bar work across every view.
+   Payloads are decoded in memory up to 96 MB.
+
+2. **Animated GIF/WebP play in-app** through the `image` crate the client
+   already uses for photos, bounded to 600 frames and 720 px, looping.
+
+3. **Video (H.264/VP9/AV1) does not play in-app, and the UI says so.** No
+   pure-Rust decoder exists; embedding a browser or launching another
+   program would breach the shell's stated properties. A video post shows a
+   poster card with a one-click path to export it from the Library. This is
+   a stated limit, not a hidden one.
+
+4. **Shorts** shows media posts one at a time (arrow keys / J/K), with
+   like, comment and follow; **Watch** shows one post large with its
+   threaded comments and an "Up next" list; both read the Everyone timeline.
+
+**Constitutional impact:** none. New dependency `rodio` (MIT/Apache-2.0)
+pulls `symphonia` (MPL-2.0, already on the allow-list) and `cpal`; none
+touch value or governance crates, and the front-end wall check is
+unaffected. No network activity is added by playback.
+
+**Implementation status:** shipped; tests cover content-type routing, a
+real WAV decode through symphonia without a device, and GIF frame decoding.
+Live on Windows 11: a WAV posted from the Library played with a moving seek
+bar and the now-playing bar; a 24-frame GIF looped in Shorts and Watch.
+
+**Failure point:** a hostile GIF can still cost 600 textures of 720 px
+(bounded, but not free); audio is decoded whole in memory; there is no
+gapless playlist and no video. Autoplay of audio is deliberately off — the
+owner presses Play.
+
+**Required follow-up:** video through a decoder that fits the shell's
+rules (candidates: a pure-Rust AV1 decoder when one matures, or an
+OS-media-foundation adapter behind an explicit owner switch, both to be
+decided, not assumed); streaming decode for large audio; playlists.
+
+**Supersedes / superseded by:** none. Extends D-0524.
+
+### D-0526 — Fixing D-0523–D-0525's stated limits: UPnP router mapping, agreed ticket rates, in-process H.264 video  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{video,player,connectivity,peer_link}.rs`;
+`crates/mini-ticket`; D-0523 (no NAT help), D-0524 (device-local rates),
+D-0525 (no video); `deny.toml` (BSD-2 already allowed).
+
+**Decision:** close the limits that were closable in the client, and say
+plainly which still stand.
+
+1. **Reachability: owner-triggered UPnP.** "Open port on router" asks the
+   LAN gateway to forward the hosting port for a two-hour lease and reports
+   the WAN address into the connection card. A router that answers with
+   0.0.0.0, a private range, or carrier-grade NAT space is shown as
+   "mapped, no public address" with the reason. Renewal on launch is a
+   separate default-off choice tied to hosting on launch. Nothing is sent
+   beyond the LAN. This is not a relay and does not help behind CGNAT.
+
+2. **Agreed rates.** The post-handshake hello carries each side's ask;
+   the ticket records the agreed rate (provider ask capped by the
+   receiver's new "most I pay per MB" setting); a peer ticket priced above
+   the agreement is refused; every ledger and redemption total is computed
+   from ticket rates, so both sides agree on the credit.
+
+3. **Video plays in-process.** H.264 in MP4/M4V/MOV decodes through Cisco
+   OpenH264 (BSD-2, built from source, C/C++ compiled in-tree — the first
+   non-Rust code in the client, isolated behind the `openh264` crate's safe
+   API) with the `mp4` demuxer; AAC audio is decoded by symphonia driven
+   directly (rodio's convenience wrapper picks the video track in MP4s)
+   and its clock paces the frames. Verified: a 720p H.264/AAC clip plays
+   in sync. **OpenH264 does not decode B-frames**; the client detects them
+   from the `ctts` table before decoding and says so with the re-encode
+   hint (`ffmpeg -bf 0`). H.265/VP9/AV1 and WebM/MKV still do not decode.
+   The decoder is built optimized even in dev profiles (about 140 fps at
+   720p; 12 fps at -O0).
+
+**Constitutional impact:** none. New dependencies (`igd`, `openh264`,
+`mp4`, direct `symphonia`) touch no value or governance crate. UPnP is the
+only new network behaviour and it is owner-triggered or tied to an
+explicit launch policy.
+
+**Implementation status:** shipped; unit tests for NAT-range detection,
+AVCC→Annex B, garbage MP4 handling, and (when a local sample exists) full
+decode of a 300-frame clip and its AAC track. Live: router mapping against
+a real (double-NATed) gateway; video with audio in Shorts.
+
+**Failure point:** UPnP is often disabled and never helps behind CGNAT;
+the mapping expires and relies on the owner or the launch policy to renew.
+B-frames are common in phone recordings and x264 defaults, so a fair share
+of real files will show the explanation rather than play until a decoder
+with B-frame support is chosen. Video is decoded whole in memory (cap
+512 MB) and cannot seek; audio seek moves the clock but frames only
+advance forward.
+
+**Required follow-up:** a B-frame-capable decoder path (pure-Rust AV1/
+H.264 as they mature, or an OS-codec adapter behind an owner switch —
+still a decision, not an assumption); streaming decode from chunks;
+seekable video; relay/rendezvous for CGNAT.
+
+**Addendum (same day):** the Media view is now a catalog: every media post
+on the device indexed off the render thread (title = caption first line or
+file name, description, author, kind, size, likes, comments, completeness;
+bounded to 2 000 posts), searched by words over title/description/author/
+DID/type, filtered by kind, sorted by newest/most liked/most discussed, and
+shown as a grid of cards with posters decoded by a thumbnail worker (first
+H.264 keyframe — which works even for B-frame files — or a scaled image).
+Cards open Watch; author names open a **Channel** page (profile, follow,
+message, their media and posts). Search is over what this device holds;
+it is not network search.
+
+**Supersedes / superseded by:** none. Extends D-0523–D-0525.
+
+### D-0527 — Search my peers: network search and targeted, verified fetch over the desktop link  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{netsearch,peer_link,catalog}.rs`;
+`mini_sync::{request_retrieval, serve_retrieval}` (D-0080's bounded
+retrieval, first used by a client); D-0526 (the catalog this searches).
+
+**Decision:** two more intents on the one desktop link.
+
+1. **Search.** The dialer sends a query (≤200 chars) in the intent frame;
+   the peer answers from its own media catalog with ≤50 small records
+   (post and media ids, title, description, author name and DID, kind,
+   size, time). Results are that peer's claims until fetched.
+2. **Fetch.** The dialer names posts; the peer serves the exact closure —
+   the author's KEL carriers, current profile and its HEAD, the post, the
+   manifest or collection with part manifests, then chunks — through
+   `mini-sync`'s existing retrieval (≤4000 objects, <512 MiB), which
+   verifies every object on ingest. Chunks past the budget arrive through
+   later fetches or sessions. Tickets are exchanged for what moved.
+3. **UI.** "Search my peers" in Media fans the query out to every saved
+   peer on worker threads, lists hits under "On your peers" with a
+   **Fetch** button, flips them to "on this device" when they arrive, and
+   keeps local results below. Owner-triggered only.
+
+This is search over the peers the owner chose and one hop deep, not an
+index of the network; a peer can lie about what it holds, and a fetch
+proves it by verification or fails. Network-wide indexing remains the
+index-peer work the product specification lists.
+
+**Constitutional impact:** none. No new dependency; the retrieval protocol
+and its budgets are unchanged; nothing runs without the owner pressing a
+button.
+
+**Implementation status:** shipped; unit tests for result encoding and
+closure construction; a real-TCP test in which a never-synced peer
+searches by a title word, fetches, and ends with the verified post,
+identity, profile, manifest and chunks (export matches the original).
+Live: a third fresh identity searched a hosting peer, fetched a 3.8 MB
+video and could watch it.
+
+**Failure point:** one hop, saved peers only; a large collection needs
+several fetches or a session to complete; results are unsigned claims.
+
+**Required follow-up:** multi-hop forwarding with budgets; signed result
+records; index peers. (Two-hop forwarding and proxied fetch: D-0528.)
+
+**Supersedes / superseded by:** none. Extends D-0526.
+
+### D-0528 — Search forwarding with proxied fetch; no ticket for an idle exchange  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{peer_link,netsearch,connectivity}.rs`;
+D-0527 (the search this extends); D-0524 (the tickets this thins out).
+
+**Decision:** two of D-0527's stated limits closed before the line merges.
+
+1. **Search reaches a host's neighbourhood.** The search intent carries a
+   hop budget (0 or 1; anything larger is clamped). A host answering with
+   budget 1 also forwards the query to at most eight of its own saved peers
+   on worker threads with a 25 s deadline each, merges what they hold
+   (deduplicated, still ≤50 records), and marks each such hit with the
+   endpoint that holds it (`via`). Hits two hops out are dropped rather
+   than promised. The host remembers post → origin (bounded, 4096).
+2. **Fetch through the host.** A fetch now begins with a one-byte status
+   frame after the hello: *serving*, *fetching from origin*, or *unknown*.
+   When a requester asks a host for a post it does not hold but knows the
+   origin of, the host starts one bounded proxy fetch from that origin (its
+   own verified retrieval, its own ticket to the origin), answers *fetching*,
+   and serves the closure on a later attempt; the requester retries a bounded
+   number of times (8 × 15 s in the UI). The host then seeds the object and
+   holds the host ticket for it — the hub earns for carrying.
+3. **Owner switch.** "While hosting, answer searches with what my saved
+   peers hold too" (`forward_searches`, default on, persisted) gates both
+   forwarding and proxy fetching.
+4. **Idle exchanges mint no ticket.** A session polls every 30 s; each poll
+   used to issue a ticket object that replicated to everyone (~120 objects
+   per hour per side while idle). An exchange that received no objects,
+   completed no media and moved under 64 KiB now sends an empty ticket frame
+   instead; the peer accepts it as "nothing to attest". Ticket volume is
+   proportional to content moved, not to session length.
+
+**Constitutional impact:** none. No new dependency. Forwarding is bounded
+in fan-out (8), depth (1), time (25 s per peer) and size; nothing runs
+without a requester the owner's host already accepted, and the owner can
+switch it off.
+
+**Implementation status:** shipped; the real-TCP test now runs a third
+identity that only knows the hub, finds a clip held by the hub's peer,
+fetches it through the hub (status *fetching* → served), and holds the
+verified manifest and chunks; the session test asserts every ticket that
+exists attests to objects actually received.
+
+**Failure point:** two hops maximum; a proxy fetch of a large collection
+completes across attempts; origin memory is per process and lost on
+restart; results remain unsigned claims until fetched.
+
+**Required follow-up:** ticket pruning needs a delete path in
+`mini-store` (its store is append-only), which is a separate decision;
+signed result records; index peers.
+
+**Supersedes / superseded by:** none. Extends D-0527.
