@@ -16,6 +16,10 @@ ordered collection of manifests) with seeding progress and chunk-by-chunk
 export; **Earnings** shows the service tickets peers signed for what you
 served, priced at your rate as unsettled micro-MINI credit, redeemable only
 by your DID once the audited settlement layer admits the request.
+**Shorts** plays media posts one at a time and **Watch** shows one with its
+comments and what is up next; audio plays in-app through pure-Rust decoders
+and animated GIF/WebP loop, while video (no pure-Rust decoder, no embedded
+browser or external launch) shows a poster with export.
 
 Connections is where networking starts, and only there:
 

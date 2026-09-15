@@ -14,6 +14,7 @@ mod library;
 mod mute_list;
 mod network_session;
 mod peer_link;
+mod player;
 mod theme;
 mod timeline;
 
@@ -52,6 +53,8 @@ enum View {
     Home,
     Discover,
     Media,
+    Shorts,
+    Watch,
     Inbox,
     People,
     Communities,
@@ -193,6 +196,12 @@ struct MininetApp {
     library_share_target: Option<mini_objects::ObjectId>,
     library_caption: String,
     export_file_path: String,
+    /// Opened on first play, never on launch.
+    audio: Option<player::AudioPlayer>,
+    /// Decoded animations by media id; `None` records a failed decode.
+    animations: HashMap<String, Option<player::Animation>>,
+    shorts_index: usize,
+    watch_target: Option<mini_objects::ObjectId>,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -577,6 +586,25 @@ impl Workspace {
             self.lock();
         }
         result
+    }
+
+    /// Assemble a complete manifest or collection into memory, bounded.
+    fn media_bytes(&self, id: &mini_objects::ObjectId, max: u64) -> Result<Vec<u8>, String> {
+        let object = self.store.get(id).map_err(|error| error.to_string())?;
+        let total = match read_manifest(&object) {
+            Ok(manifest) => manifest.total_len,
+            Err(_) => library::read_collection(&object)?.total_len,
+        };
+        if total > max {
+            return Err(format!(
+                "{} is larger than the {} MB in-memory playback limit",
+                library::human_size(total),
+                max / (1024 * 1024)
+            ));
+        }
+        let mut out = Vec::with_capacity(total as usize);
+        library::export(&self.store, id, &mut out)?;
+        Ok(out)
     }
 
     fn profile_image(&self, id: &mini_objects::ObjectId) -> Result<Vec<u8>, String> {
@@ -1529,6 +1557,10 @@ impl Default for MininetApp {
             library_share_target: None,
             library_caption: String::new(),
             export_file_path: String::new(),
+            audio: None,
+            animations: HashMap::new(),
+            shorts_index: 0,
+            watch_target: None,
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1648,6 +1680,13 @@ impl eframe::App for MininetApp {
         if self.network_session.is_some() || self.host.is_some() {
             ctx.request_repaint_after(Duration::from_secs(1));
         }
+        if self
+            .audio
+            .as_ref()
+            .is_some_and(player::AudioPlayer::is_playing)
+        {
+            ctx.request_repaint_after(Duration::from_millis(250));
+        }
         if self.sync_rx.is_some()
             || self.session_rx.is_some()
             || self.discovery_rx.is_some()
@@ -1666,6 +1705,7 @@ impl eframe::App for MininetApp {
         if ctx.screen_rect().width() >= 1100.0 {
             self.discovery_column(ctx);
         }
+        self.now_playing_bar(ctx);
         egui::TopBottomPanel::bottom("status_bar")
             .frame(
                 egui::Frame::new()
@@ -1712,6 +1752,8 @@ impl eframe::App for MininetApp {
                             View::Home => self.home(ui),
                             View::Discover => self.discover(ui),
                             View::Media => self.media_timeline(ui),
+                            View::Shorts => self.shorts(ui),
+                            View::Watch => self.watch(ui),
                             View::Inbox => self.inbox(ui),
                             View::People => self.people(ui),
                             View::Communities => self.communities(ui),
@@ -2338,6 +2380,7 @@ impl MininetApp {
                 self.nav_button(ui, View::Home, "🏠", &home_label);
                 self.nav_button(ui, View::Discover, "🔍", "Explore");
                 self.nav_button(ui, View::Media, "🎬", "Media");
+                self.nav_button(ui, View::Shorts, "▶", "Shorts");
                 self.nav_button(ui, View::Inbox, "✉", "Messages");
                 self.nav_button(ui, View::People, "👥", "People");
                 self.nav_button(ui, View::Communities, "🏢", "Communities");
@@ -2621,7 +2664,11 @@ No tracking. No forced updates.",
             self.unseen_posts.clear();
         }
         let networking = self.network_session.is_some() || self.host.is_some();
-        if !matches!(self.view, View::Home | View::Discover | View::Media) && !networking {
+        if !matches!(
+            self.view,
+            View::Home | View::Discover | View::Media | View::Shorts | View::Watch
+        ) && !networking
+        {
             return;
         }
         let wanted = (self.feed_filter, self.timeline_scope);
@@ -3168,6 +3215,12 @@ No tracking. No forced updates.",
                             self.timeline_refresh = Instant::now();
                         }
                         ui.add_space(10.0);
+                        if card.media.is_some()
+                            && theme::icon_action(ui, "▶", "Watch", theme::ACCENT)
+                        {
+                            self.watch_target = Some(card.id.clone());
+                            self.view = View::Watch;
+                        }
                         if !card.own {
                             let follows = self
                                 .workspace
@@ -3330,7 +3383,9 @@ No tracking. No forced updates.",
                 "Explore",
                 "Search everything your device has received. Connect peers to bring more into view.",
             ),
-            View::Media => ("Media", "Photo and video posts from people on your network."),
+            View::Media => ("Media", "Photo, video and music posts from people on your network."),
+            View::Shorts => ("Shorts", "One at a time. GIFs and music play here; arrow keys to move."),
+            View::Watch => ("Watch", "Play, read the comments, and see what is up next."),
             View::Inbox => (
                 "Messages",
                 "Encrypted conversations. Delivered through your connection sessions when you allow it.",
@@ -5063,6 +5118,562 @@ No tracking. No forced updates.",
         }
         if ledger.as_host.is_empty() {
             theme::muted(ui, "No tickets name you yet. Host or run a session; every completed exchange earns one.");
+        }
+    }
+
+    // ----- media stage, shorts, watch, now playing ---------------------------
+
+    /// Content type, display name and completeness of a manifest or
+    /// collection this device holds (or knows about).
+    fn media_info(&mut self, media: &mini_objects::ObjectId) -> Option<(String, String, bool)> {
+        if self.library_dirty {
+            self.reload_library();
+        }
+        let workspace = self.workspace.as_ref()?;
+        let object = workspace.store.get(media).ok()?;
+        if let Ok(manifest) = read_manifest(&object) {
+            let complete = mini_media::missing_chunks(&workspace.store, &manifest)
+                .map(|missing| missing.is_empty())
+                .unwrap_or(false);
+            return Some((manifest.content_type, String::new(), complete));
+        }
+        let collection = library::read_collection(&object).ok()?;
+        let complete = self
+            .library_items
+            .iter()
+            .find(|item| item.id == collection.id)
+            .map(library::Item::complete)
+            .unwrap_or(false);
+        Some((collection.content_type, collection.name, complete))
+    }
+
+    /// Decode an animation once per media id.
+    fn animation_for(
+        &mut self,
+        ctx: &egui::Context,
+        media: &mini_objects::ObjectId,
+        content_type: &str,
+    ) -> Option<&player::Animation> {
+        let key = media.as_str().to_owned();
+        if !self.animations.contains_key(&key) {
+            let decoded = self
+                .workspace
+                .as_ref()
+                .and_then(|workspace| {
+                    workspace
+                        .media_bytes(media, player::MAX_ANIMATION_BYTES)
+                        .ok()
+                })
+                .and_then(|bytes| player::Animation::decode(ctx, &key, content_type, &bytes).ok());
+            self.animations.insert(key.clone(), decoded);
+        }
+        self.animations.get(&key).and_then(Option::as_ref)
+    }
+
+    fn play_audio(&mut self, media: &mini_objects::ObjectId, title: String, author: String) {
+        if self.audio.is_none() {
+            match player::AudioPlayer::open() {
+                Ok(player) => self.audio = Some(player),
+                Err(error) => {
+                    self.notice = error;
+                    return;
+                }
+            }
+        }
+        let bytes = self
+            .workspace
+            .as_ref()
+            .ok_or_else(|| "Local workspace unavailable.".to_string())
+            .and_then(|workspace| workspace.media_bytes(media, player::MAX_AUDIO_BYTES));
+        self.notice = match bytes {
+            Ok(bytes) => match self.audio.as_mut().expect("opened above").play_bytes(
+                bytes,
+                media.clone(),
+                title.clone(),
+                author,
+            ) {
+                Ok(()) => format!("Playing {title}."),
+                Err(error) => error,
+            },
+            Err(error) => format!("Could not load audio: {error}"),
+        };
+    }
+
+    /// Draw one media object at up to `max` size: image, looping animation,
+    /// audio controls, or an honest poster for video.
+    fn media_stage(
+        &mut self,
+        ui: &mut egui::Ui,
+        media: &mini_objects::ObjectId,
+        max: egui::Vec2,
+        title: &str,
+        author: &str,
+    ) {
+        let Some((content_type, name, complete)) = self.media_info(media) else {
+            theme::card_frame().show(ui, |ui| {
+                ui.label(egui::RichText::new("🎬  Media not received yet").strong());
+                theme::muted(ui, "The manifest arrives with the next exchange.");
+            });
+            return;
+        };
+        let label = if name.is_empty() {
+            title.to_owned()
+        } else {
+            name.clone()
+        };
+        let fit = |size: egui::Vec2| -> egui::Vec2 {
+            let scale = (max.x / size.x.max(1.0))
+                .min(max.y / size.y.max(1.0))
+                .min(1.0);
+            size * scale
+        };
+        match player::playback_for(&content_type) {
+            player::Playback::Image => match self.media_texture(ui.ctx(), media) {
+                Some(texture) => {
+                    let size = fit(texture.size_vec2());
+                    ui.add(egui::Image::new((texture.id(), size)).corner_radius(12.0));
+                }
+                None => self.media_placeholder(ui, "🖼", &label, &content_type, complete),
+            },
+            player::Playback::Animation => {
+                let frame = self
+                    .animation_for(ui.ctx(), media, &content_type)
+                    .map(|animation| {
+                        (
+                            animation.current().id(),
+                            animation.size,
+                            animation.frame_count(),
+                        )
+                    });
+                match frame {
+                    Some((id, size, frames)) => {
+                        let size = fit(size);
+                        ui.add(egui::Image::new((id, size)).corner_radius(12.0));
+                        theme::muted(ui, &format!("{frames} frame(s) · loops"));
+                        ui.ctx().request_repaint_after(Duration::from_millis(33));
+                    }
+                    None => self.media_placeholder(ui, "🎬", &label, &content_type, complete),
+                }
+            }
+            player::Playback::Audio => {
+                let playing_this = self
+                    .audio
+                    .as_ref()
+                    .and_then(player::AudioPlayer::now)
+                    .is_some_and(|now| &now.media == media);
+                theme::card_frame().show(ui, |ui| {
+                    ui.set_width(max.x.min(ui.available_width()));
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("♫").size(40.0).color(theme::ACCENT));
+                        ui.vertical(|ui| {
+                            ui.label(egui::RichText::new(&label).strong().size(16.0));
+                            theme::muted(ui, &format!("{content_type} · {author}"));
+                            if !complete {
+                                theme::muted(ui, "Still arriving from peers.");
+                            } else if playing_this {
+                                self.now_playing_controls(ui);
+                            } else if ui.add(theme::primary_button("▶  Play")).clicked() {
+                                self.play_audio(media, label.clone(), author.to_owned());
+                            }
+                        });
+                    });
+                });
+            }
+            player::Playback::VideoUnsupported => {
+                theme::card_frame().show(ui, |ui| {
+                    ui.set_width(max.x.min(ui.available_width()));
+                    ui.label(egui::RichText::new("🎬").size(48.0));
+                    ui.label(egui::RichText::new(&label).strong().size(16.0));
+                    theme::muted(ui, &format!("{content_type} · {}", if complete { "complete on this device" } else { "still arriving from peers" }));
+                    ui.colored_label(
+                        theme::WARN_AMBER,
+                        "In-app video decoding is not built yet: no pure-Rust H.264/VP9/AV1 decoder exists and Mininet will not embed a browser or launch another program. Export it from your Library to watch.",
+                    );
+                    if complete && ui.add(theme::secondary_button("Open in Library")).clicked() {
+                        self.view = View::Library;
+                        self.library_export_target = Some(media.clone());
+                    }
+                });
+            }
+            player::Playback::Other => {
+                self.media_placeholder(ui, "📋", &label, &content_type, complete)
+            }
+        }
+    }
+
+    fn media_placeholder(
+        &mut self,
+        ui: &mut egui::Ui,
+        glyph: &str,
+        label: &str,
+        content_type: &str,
+        complete: bool,
+    ) {
+        theme::card_frame().show(ui, |ui| {
+            ui.label(egui::RichText::new(format!("{glyph}  {label}")).strong());
+            theme::muted(
+                ui,
+                &format!(
+                    "{content_type} · {}",
+                    if complete {
+                        "complete, see Library"
+                    } else {
+                        "still arriving from peers"
+                    }
+                ),
+            );
+        });
+    }
+
+    fn now_playing_controls(&mut self, ui: &mut egui::Ui) {
+        let Some(audio) = self.audio.as_mut() else {
+            return;
+        };
+        let Some(now) = audio.now().cloned() else {
+            return;
+        };
+        let position = audio.position();
+        ui.horizontal(|ui| {
+            let glyph = if audio.is_paused() { "▶" } else { "■" };
+            if ui.add(theme::secondary_button(glyph)).clicked() {
+                audio.toggle();
+            }
+            let total = now.duration.unwrap_or(position).max(Duration::from_secs(1));
+            let mut fraction = (position.as_secs_f32() / total.as_secs_f32()).clamp(0.0, 1.0);
+            let slider = ui.add(
+                egui::Slider::new(&mut fraction, 0.0..=1.0)
+                    .show_value(false)
+                    .trailing_fill(true),
+            );
+            if slider.drag_stopped() || (slider.changed() && !slider.dragged()) {
+                audio.seek(total.mul_f32(fraction));
+            }
+            theme::muted(
+                ui,
+                &format!(
+                    "{} / {}",
+                    player::format_duration(position),
+                    now.duration
+                        .map(player::format_duration)
+                        .unwrap_or_else(|| "?".into())
+                ),
+            );
+            let mut volume = audio.volume();
+            if ui
+                .add(egui::Slider::new(&mut volume, 0.0..=1.5).show_value(false))
+                .on_hover_text("Volume")
+                .changed()
+            {
+                audio.set_volume(volume);
+            }
+        });
+        ui.ctx().request_repaint_after(Duration::from_millis(250));
+    }
+
+    fn now_playing_bar(&mut self, ctx: &egui::Context) {
+        let Some(now) = self
+            .audio
+            .as_ref()
+            .and_then(player::AudioPlayer::now)
+            .cloned()
+        else {
+            return;
+        };
+        egui::TopBottomPanel::bottom("now_playing")
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::CARD)
+                    .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                    .inner_margin(egui::Margin::symmetric(16, 8)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("♫").color(theme::ACCENT).size(18.0));
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new(&now.title).strong());
+                        theme::muted(ui, &now.author);
+                    });
+                    ui.add_space(12.0);
+                    self.now_playing_controls(ui);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .add(theme::secondary_button("✖"))
+                            .on_hover_text("Stop")
+                            .clicked()
+                        {
+                            if let Some(audio) = self.audio.as_mut() {
+                                audio.stop();
+                            }
+                        }
+                    });
+                });
+            });
+    }
+
+    /// Media posts, newest first, from the Everyone timeline.
+    fn media_cards(&self) -> Vec<timeline::Card> {
+        self.timeline_cards
+            .iter()
+            .filter(|card| card.media.is_some() && !self.muted.contains(&card.did))
+            .cloned()
+            .collect()
+    }
+
+    fn shorts(&mut self, ui: &mut egui::Ui) {
+        if self.timeline_scope != timeline::Scope::Everyone {
+            self.timeline_scope = timeline::Scope::Everyone;
+        }
+        let cards = self.media_cards();
+        if cards.is_empty() {
+            theme::card_frame().show(ui, |ui| {
+                ui.heading("No shorts yet");
+                theme::muted(ui, "Media posts from your network appear here one at a time. Add a clip, GIF or track in Library and share it as a post.");
+                if ui.add(theme::primary_button("Open Library")).clicked() {
+                    self.view = View::Library;
+                }
+            });
+            return;
+        }
+        let (up, down) = ui.input(|input| {
+            (
+                input.key_pressed(egui::Key::ArrowUp) || input.key_pressed(egui::Key::K),
+                input.key_pressed(egui::Key::ArrowDown)
+                    || input.key_pressed(egui::Key::J)
+                    || input.key_pressed(egui::Key::Space),
+            )
+        });
+        if down && self.shorts_index + 1 < cards.len() {
+            self.shorts_index += 1;
+        }
+        if up && self.shorts_index > 0 {
+            self.shorts_index -= 1;
+        }
+        self.shorts_index = self.shorts_index.min(cards.len() - 1);
+        let card = cards[self.shorts_index].clone();
+        let media = card.media.clone().expect("media cards only");
+        ui.horizontal(|ui| {
+            theme::muted(ui, &format!("{} / {}", self.shorts_index + 1, cards.len()));
+            theme::muted(ui, "· arrow keys or J/K to move");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .add_enabled(
+                        self.shorts_index + 1 < cards.len(),
+                        theme::secondary_button("Next  ▶"),
+                    )
+                    .clicked()
+                {
+                    self.shorts_index += 1;
+                }
+                if ui
+                    .add_enabled(
+                        self.shorts_index > 0,
+                        theme::secondary_button("◀  Previous"),
+                    )
+                    .clicked()
+                {
+                    self.shorts_index -= 1;
+                }
+            });
+        });
+        ui.add_space(6.0);
+        ui.vertical_centered(|ui| {
+            let stage = egui::vec2(
+                ui.available_width().min(460.0),
+                (ui.available_height() - 150.0).clamp(240.0, 640.0),
+            );
+            self.media_stage(ui, &media, stage, &card.body, &card.author);
+        });
+        ui.add_space(8.0);
+        self.media_actions(ui, &card);
+    }
+
+    /// Author row + like / reply / follow / watch for one media card.
+    fn media_actions(&mut self, ui: &mut egui::Ui, card: &timeline::Card) {
+        ui.horizontal_wrapped(|ui| {
+            theme::avatar(ui, &card.author, &card.did, 32.0);
+            ui.label(egui::RichText::new(&card.author).strong());
+            theme::muted(ui, &short_did(&card.did));
+            theme::muted(
+                ui,
+                &format!("· {}", timeline::age(card.timestamp_ms, now_ms())),
+            );
+            if !card.own {
+                let follows = self
+                    .workspace
+                    .as_ref()
+                    .zip(Did::parse(&card.did).ok())
+                    .is_some_and(|(workspace, did)| workspace.follows(&did));
+                if !follows && ui.add(theme::secondary_button("Follow")).clicked() {
+                    let (did, name) = (card.did.clone(), card.author.clone());
+                    self.follow_did(&did, &name);
+                }
+            }
+        });
+        if !card.body.trim().is_empty() {
+            ui.label(egui::RichText::new(&card.body).color(theme::TEXT_PRIMARY));
+        }
+        ui.horizontal(|ui| {
+            if theme::icon_action(ui, "♥", &card.support_count.to_string(), theme::LIKE_PINK) {
+                self.notice = match self.workspace.as_mut() {
+                    Some(workspace) => match workspace.react_like(&card.id) {
+                        Ok(()) => "Like signed and saved.".into(),
+                        Err(error) => format!("Could not react: {error}"),
+                    },
+                    None => "Local workspace unavailable.".into(),
+                };
+                self.timeline_refresh = Instant::now();
+            }
+            if theme::icon_action(ui, "💬", &card.comment_count.to_string(), theme::ACCENT) {
+                self.watch_target = Some(card.id.clone());
+                self.reply_target = Some(card.id.clone());
+                self.view = View::Watch;
+            }
+            if self.view != View::Watch && theme::icon_action(ui, "▶", "Watch", theme::ACCENT) {
+                self.watch_target = Some(card.id.clone());
+                self.view = View::Watch;
+            }
+        });
+    }
+
+    fn watch(&mut self, ui: &mut egui::Ui) {
+        if self.timeline_scope != timeline::Scope::Everyone {
+            self.timeline_scope = timeline::Scope::Everyone;
+        }
+        let cards = self.media_cards();
+        let Some(card) = self
+            .watch_target
+            .as_ref()
+            .and_then(|target| cards.iter().find(|card| &card.id == target))
+            .cloned()
+            .or_else(|| cards.first().cloned())
+        else {
+            theme::card_frame().show(ui, |ui| {
+                ui.heading("Nothing to watch yet");
+                theme::muted(ui, "Media posts from your network play here, with comments below and more to watch on the side.");
+                if ui.add(theme::primary_button("Open Library")).clicked() {
+                    self.view = View::Library;
+                }
+            });
+            return;
+        };
+        self.watch_target = Some(card.id.clone());
+        let media = card.media.clone().expect("media cards only");
+        let stage = egui::vec2(ui.available_width(), 480.0);
+        self.media_stage(ui, &media, stage, &card.body, &card.author);
+        ui.add_space(6.0);
+        let (title, description) = discussion::split_title(&card.body);
+        ui.label(
+            egui::RichText::new(if title.is_empty() { "Untitled" } else { title })
+                .strong()
+                .size(20.0)
+                .color(theme::TEXT_PRIMARY),
+        );
+        if !description.is_empty() {
+            ui.label(egui::RichText::new(description).color(theme::TEXT_PRIMARY));
+        }
+        let card_no_body = timeline::Card {
+            body: String::new(),
+            ..card.clone()
+        };
+        self.media_actions(ui, &card_no_body);
+        ui.add_space(8.0);
+        theme::section_title(ui, "Comments");
+        if self.reply_target.as_ref() == Some(&card.id) {
+            theme::card_frame().show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.reply_text)
+                        .hint_text("Add a comment")
+                        .desired_rows(2)
+                        .desired_width(f32::INFINITY),
+                );
+                ui.checkbox(
+                    &mut self.signing_confirmation,
+                    "I confirm this creates a signed reply",
+                );
+                ui.horizontal(|ui| {
+                    if ui.add(theme::primary_button("Comment")).clicked() {
+                        let text = self.reply_text.trim().to_string();
+                        self.notice = if text.is_empty() {
+                            "Write a comment first.".into()
+                        } else if !self.signing_confirmation {
+                            "Confirm signing before commenting.".into()
+                        } else {
+                            match self.publish_comment_confirmed(&card.id, &text) {
+                                Ok(()) => {
+                                    self.reply_text.clear();
+                                    self.reply_target = None;
+                                    self.signing_confirmation = false;
+                                    self.timeline_refresh = Instant::now();
+                                    "Comment signed and saved. It shares on the next exchange."
+                                        .into()
+                                }
+                                Err(error) => format!("Could not comment: {error}"),
+                            }
+                        };
+                    }
+                    if ui.add(theme::secondary_button("Cancel")).clicked() {
+                        self.reply_target = None;
+                    }
+                });
+            });
+        } else if ui
+            .add(theme::secondary_button("💬  Add a comment"))
+            .clicked()
+        {
+            self.reply_target = Some(card.id.clone());
+        }
+        self.thread(ui, &card.id);
+        ui.add_space(10.0);
+        let others: Vec<timeline::Card> = cards
+            .into_iter()
+            .filter(|other| other.id != card.id)
+            .take(12)
+            .collect();
+        if !others.is_empty() {
+            theme::section_title(ui, "Up next");
+            for other in others {
+                ui.push_id(other.id.as_str(), |ui| {
+                    theme::card_frame().show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let info = other
+                                .media
+                                .as_ref()
+                                .and_then(|media| self.media_info(media));
+                            let glyph =
+                                match info.as_ref().map(|(ct, _, _)| player::playback_for(ct)) {
+                                    Some(player::Playback::Audio) => "♫",
+                                    Some(player::Playback::Image) => "🖼",
+                                    _ => "🎬",
+                                };
+                            ui.label(egui::RichText::new(glyph).size(22.0));
+                            ui.vertical(|ui| {
+                                let (t, _) = discussion::split_title(&other.body);
+                                ui.label(
+                                    egui::RichText::new(if t.is_empty() { "Untitled" } else { t })
+                                        .strong(),
+                                );
+                                theme::muted(
+                                    ui,
+                                    &format!(
+                                        "{} · {}",
+                                        other.author,
+                                        timeline::age(other.timestamp_ms, now_ms())
+                                    ),
+                                );
+                            });
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.add(theme::secondary_button("▶  Watch")).clicked() {
+                                        self.watch_target = Some(other.id.clone());
+                                        self.reply_target = None;
+                                    }
+                                },
+                            );
+                        });
+                    });
+                });
+            }
         }
     }
 

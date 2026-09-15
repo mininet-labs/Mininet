@@ -18,6 +18,9 @@ path = "src/main.rs"
 # or optional platform integration is pulled into the reference shell.
 eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
 image = { version = "0.25", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
+# Pure-Rust audio decoding (symphonia, MPL-2.0) and output (cpal/WASAPI). No
+# video codec exists in pure Rust; video stays export-to-watch for now.
+rodio = { version = "0.22", default-features = false, features = ["symphonia-all", "playback"] }
 did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-media = { path = "../mini-media" }

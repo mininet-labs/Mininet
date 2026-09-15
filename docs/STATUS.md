@@ -3087,3 +3087,10 @@ build or verify. The desktop's Library publishes files of any size (up to
 exports chunk by chunk; Earnings shows the ledger and rate. Verified over
 real TCP and live with two instances. Not built: settlement or payout,
 ticket pruning, agreed rates, streaming playback.
+
+## Shorts, Watch and in-app playback — 2026-09-15 (D-0524)
+
+Audio (MP3/FLAC/Ogg/WAV/AAC-in-MP4) plays in-app through pure-Rust
+decoders with seek, pause, volume and a now-playing bar; animated GIF/WebP
+loop in Shorts and Watch. Video does not decode in-app (no pure-Rust
+decoder; no browser or external launch) and the UI says so, offering export.

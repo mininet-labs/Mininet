@@ -24633,3 +24633,55 @@ rates via provider declarations (`mini-provider`); chunk-level attribution;
 streaming playback from partial collections.
 
 **Supersedes / superseded by:** none. Extends D-0522.
+
+### D-0524 — In-app Shorts and Watch: pure-Rust audio playback and animated GIF/WebP, video stays export-to-watch  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/player.rs`; D-0523
+(the Library this plays from); `deny.toml` (MPL-2.0 already allowed);
+`crates/mini-desktop/README.md` ("no embedded browser, no external
+execution").
+
+**Decision:** give the client a shorts feed, a watch page and a persistent
+now-playing bar, playing what can be played honestly without breaking the
+shell's boundaries.
+
+1. **Audio plays in-app** through `rodio` 0.22 with `symphonia` (pure Rust:
+   MP3, FLAC, Ogg Vorbis, WAV, AAC/ALAC in MP4) and `cpal` (WASAPI on
+   Windows). The output device is opened on the first Play, never on launch.
+   Seek, pause, volume and a bottom now-playing bar work across every view.
+   Payloads are decoded in memory up to 96 MB.
+
+2. **Animated GIF/WebP play in-app** through the `image` crate the client
+   already uses for photos, bounded to 600 frames and 720 px, looping.
+
+3. **Video (H.264/VP9/AV1) does not play in-app, and the UI says so.** No
+   pure-Rust decoder exists; embedding a browser or launching another
+   program would breach the shell's stated properties. A video post shows a
+   poster card with a one-click path to export it from the Library. This is
+   a stated limit, not a hidden one.
+
+4. **Shorts** shows media posts one at a time (arrow keys / J/K), with
+   like, comment and follow; **Watch** shows one post large with its
+   threaded comments and an "Up next" list; both read the Everyone timeline.
+
+**Constitutional impact:** none. New dependency `rodio` (MIT/Apache-2.0)
+pulls `symphonia` (MPL-2.0, already on the allow-list) and `cpal`; none
+touch value or governance crates, and the front-end wall check is
+unaffected. No network activity is added by playback.
+
+**Implementation status:** shipped; tests cover content-type routing, a
+real WAV decode through symphonia without a device, and GIF frame decoding.
+Live on Windows 11: a WAV posted from the Library played with a moving seek
+bar and the now-playing bar; a 24-frame GIF looped in Shorts and Watch.
+
+**Failure point:** a hostile GIF can still cost 600 textures of 720 px
+(bounded, but not free); audio is decoded whole in memory; there is no
+gapless playlist and no video. Autoplay of audio is deliberately off — the
+owner presses Play.
+
+**Required follow-up:** video through a decoder that fits the shell's
+rules (candidates: a pure-Rust AV1 decoder when one matures, or an
+OS-media-foundation adapter behind an explicit owner switch, both to be
+decided, not assumed); streaming decode for large audio; playlists.
+
+**Supersedes / superseded by:** none. Extends D-0523.
