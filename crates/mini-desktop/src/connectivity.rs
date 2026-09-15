@@ -38,6 +38,9 @@ pub struct ConnectionSettings {
     pub router_mapping_on_launch: bool,
     /// Sessions also exchange the owner's private conversation routes.
     pub include_private: bool,
+    /// While hosting, answer searches with what the saved peers hold too
+    /// (forwards the query one hop) and fetch on a requester's behalf.
+    pub forward_searches: bool,
     /// Micro-MINI per MB this device asks for what it serves.
     pub rate_micro_per_mb: u64,
     /// The most this device agrees to pay per MB it receives.
@@ -56,6 +59,7 @@ impl Default for ConnectionSettings {
             host_on_launch: false,
             router_mapping_on_launch: false,
             include_private: false,
+            forward_searches: true,
             rate_micro_per_mb: 10,
             max_pay_micro_per_mb: 50,
             creator_bps: 3000,
@@ -148,6 +152,10 @@ impl ConnectionSettings {
             u8::from(self.router_mapping_on_launch)
         ));
         out.push_str(&format!(
+            "forward_searches\t{}\n",
+            u8::from(self.forward_searches)
+        ));
+        out.push_str(&format!(
             "include_private\t{}\n",
             u8::from(self.include_private)
         ));
@@ -215,6 +223,9 @@ impl ConnectionSettings {
                 }
                 "include_private" => {
                     settings.include_private = flag(parts.next().unwrap_or_default())?;
+                }
+                "forward_searches" => {
+                    settings.forward_searches = flag(parts.next().unwrap_or_default())?;
                 }
                 "rate_micro_per_mb" => {
                     settings.rate_micro_per_mb = parts
@@ -453,6 +464,7 @@ mod tests {
             session_on_launch: true,
             host_on_launch: true,
             router_mapping_on_launch: true,
+            forward_searches: false,
             include_private: true,
             rate_micro_per_mb: 25,
             max_pay_micro_per_mb: 40,

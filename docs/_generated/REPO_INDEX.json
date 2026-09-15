@@ -3,7 +3,7 @@
     "crates": 84,
     "files": 1075,
     "headings": 3823,
-    "rust_symbols": 11539
+    "rust_symbols": 11558
   },
   "crates": {
     "did-mini": {
@@ -1886,7 +1886,7 @@
       ],
       "lines": 491,
       "path": "README.md",
-      "sha256": "3b8811a9bef8436de0d8944a8bbf8f0e92b12712256b1b531b0f1e26869588b2",
+      "sha256": "24ecb8f6144b569b743d572cdd48e9742ad1cba7fe5b45650f347a037037f8a1",
       "symbols": [],
       "title": "Mininet"
     },
@@ -27752,7 +27752,7 @@
       "title": "Keep the renderer explicit: no persistence, webbrowser, web screen reader,"
     },
     {
-      "bytes": 13373,
+      "bytes": 13428,
       "group": "crate:mini-desktop",
       "headings": [
         {
@@ -27767,13 +27767,13 @@
         "signed",
         "connections",
         "open",
+        "peers",
         "you",
         "did",
         "profile",
         "nearby",
         "mini-desktop",
         "profiles",
-        "peers",
         "your",
         "public",
         "endpoint",
@@ -27787,9 +27787,9 @@
         "names",
         "search"
       ],
-      "lines": 222,
+      "lines": 223,
       "path": "crates/mini-desktop/README.md",
-      "sha256": "52fe09bd5b6298721c0f346894d574972320c05a87db193c4670ebb45d27538a",
+      "sha256": "16e69edbba7a80127f73d7119f4b908041f4989a7e909b4d83c780e6ec1ca3ff",
       "symbols": [],
       "title": "mini-desktop"
     },
@@ -27926,38 +27926,38 @@
       "title": "use crate::library;"
     },
     {
-      "bytes": 21560,
+      "bytes": 21528,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "did",
         "endpoint",
         "self",
-        "label",
         "peers",
+        "label",
         "peer",
         "string",
         "str",
-        "owner",
         "bool",
+        "saved",
+        "owner",
+        "connectionsettings",
+        "one",
+        "false",
         "format",
         "out",
-        "connectionsettings",
-        "saved",
-        "false",
         "max_label_bytes",
         "peerentry",
         "default",
         "const",
-        "one",
         "port",
-        "session_length",
         "return",
-        "len"
+        "len",
+        "file_header"
       ],
-      "lines": 556,
+      "lines": 568,
       "path": "crates/mini-desktop/src/connectivity.rs",
-      "sha256": "29af5f88c3a2fe0a0119a6c352332ee85b62ee52eba858f93d832fe6df353003",
+      "sha256": "85e513cabf32c09b57e066f2f6f3cf9533abe18d6a9bd08779eabe42c62f6497",
       "symbols": [
         {
           "kind": "const",
@@ -27991,157 +27991,157 @@
         },
         {
           "kind": "impl",
-          "line": 50,
+          "line": 53,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 51,
+          "line": 54,
           "name": "default"
         },
         {
           "kind": "fn",
-          "line": 67,
+          "line": 71,
           "name": "clean_label"
         },
         {
           "kind": "impl",
-          "line": 80,
+          "line": 84,
           "name": "ConnectionSettings"
         },
         {
           "kind": "fn",
-          "line": 83,
+          "line": 87,
           "name": "upsert_peer"
         },
         {
           "kind": "fn",
-          "line": 119,
+          "line": 123,
           "name": "remove_peer"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 129,
           "name": "endpoints"
         },
         {
           "kind": "fn",
-          "line": 132,
+          "line": 136,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 173,
+          "line": 181,
           "name": "decode"
         },
         {
           "kind": "fn",
-          "line": 255,
+          "line": 266,
           "name": "local_address"
         },
         {
           "kind": "struct",
-          "line": 269,
+          "line": 280,
           "name": "RouterMapping"
         },
         {
           "kind": "fn",
-          "line": 285,
+          "line": 296,
           "name": "map_port_on_router"
         },
         {
           "kind": "fn",
-          "line": 322,
+          "line": 333,
           "name": "is_cgnat"
         },
         {
           "kind": "fn",
-          "line": 328,
+          "line": 339,
           "name": "unmap_port_on_router"
         },
         {
           "kind": "fn",
-          "line": 339,
+          "line": 350,
           "name": "settings_path"
         },
         {
           "kind": "fn",
-          "line": 343,
+          "line": 354,
           "name": "load"
         },
         {
           "kind": "fn",
-          "line": 357,
+          "line": 368,
           "name": "save"
         },
         {
           "kind": "struct",
-          "line": 365,
+          "line": 376,
           "name": "ConnectionCard"
         },
         {
           "kind": "const",
-          "line": 371,
+          "line": 382,
           "name": "CARD_PREFIX"
         },
         {
           "kind": "impl",
-          "line": 373,
+          "line": 384,
           "name": "ConnectionCard"
         },
         {
           "kind": "fn",
-          "line": 374,
+          "line": 385,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 386,
+          "line": 397,
           "name": "decode"
         },
         {
           "kind": "mod",
-          "line": 421,
+          "line": 432,
           "name": "tests"
         },
         {
           "kind": "const",
-          "line": 424,
+          "line": 435,
           "name": "DID"
         },
         {
           "kind": "fn",
-          "line": 427,
+          "line": 438,
           "name": "valid_did"
         },
         {
           "kind": "fn",
-          "line": 438,
+          "line": 449,
           "name": "defaults_start_no_network_activity"
         },
         {
           "kind": "fn",
-          "line": 448,
+          "line": 459,
           "name": "settings_round_trip_including_peers"
         },
         {
           "kind": "fn",
-          "line": 483,
+          "line": 495,
           "name": "malformed_settings_are_rejected_whole"
         },
         {
           "kind": "fn",
-          "line": 504,
+          "line": 516,
           "name": "connection_card_round_trips_and_rejects_garbage"
         },
         {
           "kind": "fn",
-          "line": 529,
+          "line": 541,
           "name": "carrier_grade_nat_range_is_recognised"
         },
         {
           "kind": "fn",
-          "line": 537,
+          "line": 549,
           "name": "saving_and_loading_uses_the_data_root"
         }
       ],
@@ -28594,12 +28594,11 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 381982,
+      "bytes": 395256,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "string",
-        "timeline",
         "std",
         "bool",
         "default",
@@ -28608,7 +28607,6 @@
         "debug",
         "clone",
         "usize",
-        "option",
         "library",
         "network_session",
         "view",
@@ -28618,14 +28616,16 @@
         "privacystate",
         "workspace",
         "connections",
-        "receiver",
         "struct",
-        "vec",
-        "false"
+        "false",
+        "option",
+        "connectivity",
+        "conversation_state",
+        "netsearch"
       ],
-      "lines": 8844,
+      "lines": 8942,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "b344ef3c1b137e84f5286a6756f6e758535a42bd198e81086f461a9ee7c9e39f",
+      "sha256": "c9ac1001e1bfa1b7f7ae4682f6e65583368779d2b3f565cb211a1d5ea121143c",
       "symbols": [
         {
           "kind": "mod",
@@ -29359,272 +29359,272 @@
         },
         {
           "kind": "fn",
-          "line": 3098,
+          "line": 3104,
           "name": "poll_catalog"
         },
         {
           "kind": "fn",
-          "line": 3145,
+          "line": 3151,
           "name": "thumbnail"
         },
         {
           "kind": "fn",
-          "line": 3197,
+          "line": 3203,
           "name": "media_timeline"
         },
         {
           "kind": "fn",
-          "line": 3360,
+          "line": 3371,
           "name": "catalog_grid"
         },
         {
           "kind": "fn",
-          "line": 3514,
+          "line": 3525,
           "name": "channel"
         },
         {
           "kind": "fn",
-          "line": 3647,
+          "line": 3658,
           "name": "media_texture"
         },
         {
           "kind": "fn",
-          "line": 3677,
+          "line": 3688,
           "name": "media_description"
         },
         {
           "kind": "fn",
-          "line": 3723,
+          "line": 3734,
           "name": "start_nearby_scan"
         },
         {
           "kind": "fn",
-          "line": 3740,
+          "line": 3751,
           "name": "start_profile_visibility"
         },
         {
           "kind": "fn",
-          "line": 3786,
+          "line": 3797,
           "name": "start_peer_sync"
         },
         {
           "kind": "fn",
-          "line": 3812,
+          "line": 3823,
           "name": "start_private_sync"
         },
         {
           "kind": "fn",
-          "line": 3849,
+          "line": 3860,
           "name": "add_friend"
         },
         {
           "kind": "fn",
-          "line": 3896,
+          "line": 3907,
           "name": "post_card"
         },
         {
           "kind": "fn",
-          "line": 4066,
+          "line": 4077,
           "name": "thread"
         },
         {
           "kind": "const",
-          "line": 4067,
+          "line": 4078,
           "name": "MAX_SHOWN"
         },
         {
           "kind": "fn",
-          "line": 4140,
+          "line": 4151,
           "name": "nav_button"
         },
         {
           "kind": "fn",
-          "line": 4160,
+          "line": 4171,
           "name": "header"
         },
         {
           "kind": "fn",
-          "line": 4232,
+          "line": 4243,
           "name": "home"
         },
         {
           "kind": "fn",
-          "line": 4355,
+          "line": 4366,
           "name": "connections"
         },
         {
           "kind": "fn",
-          "line": 4781,
+          "line": 4802,
           "name": "onboarding"
         },
         {
           "kind": "fn",
-          "line": 4895,
+          "line": 4916,
           "name": "inbox"
         },
         {
           "kind": "fn",
-          "line": 5215,
+          "line": 5236,
           "name": "profile_texture"
         },
         {
           "kind": "fn",
-          "line": 5238,
+          "line": 5259,
           "name": "people"
         },
         {
           "kind": "fn",
-          "line": 5458,
+          "line": 5479,
           "name": "reload_library"
         },
         {
           "kind": "fn",
-          "line": 5472,
+          "line": 5493,
           "name": "library"
         },
         {
           "kind": "fn",
-          "line": 5774,
+          "line": 5795,
           "name": "earnings"
         },
         {
           "kind": "fn",
-          "line": 5963,
+          "line": 5984,
           "name": "media_info"
         },
         {
           "kind": "fn",
-          "line": 5986,
+          "line": 6007,
           "name": "animation_for"
         },
         {
           "kind": "fn",
-          "line": 6009,
+          "line": 6030,
           "name": "advance_play_queue"
         },
         {
           "kind": "fn",
-          "line": 6027,
+          "line": 6048,
           "name": "enqueue_audio"
         },
         {
           "kind": "fn",
-          "line": 6045,
+          "line": 6066,
           "name": "play_audio"
         },
         {
           "kind": "fn",
-          "line": 6076,
+          "line": 6097,
           "name": "media_stage"
         },
         {
           "kind": "fn",
-          "line": 6191,
+          "line": 6212,
           "name": "media_placeholder"
         },
         {
           "kind": "fn",
-          "line": 6216,
+          "line": 6237,
           "name": "video_stage"
         },
         {
           "kind": "fn",
-          "line": 6320,
+          "line": 6341,
           "name": "start_video"
         },
         {
           "kind": "fn",
-          "line": 6359,
+          "line": 6380,
           "name": "now_playing_controls"
         },
         {
           "kind": "fn",
-          "line": 6404,
+          "line": 6425,
           "name": "now_playing_bar"
         },
         {
           "kind": "fn",
-          "line": 6458,
+          "line": 6479,
           "name": "media_cards"
         },
         {
           "kind": "fn",
-          "line": 6466,
+          "line": 6487,
           "name": "shorts"
         },
         {
           "kind": "fn",
-          "line": 6535,
+          "line": 6556,
           "name": "media_actions"
         },
         {
           "kind": "fn",
-          "line": 6582,
+          "line": 6603,
           "name": "watch"
         },
         {
           "kind": "fn",
-          "line": 6724,
+          "line": 6745,
           "name": "communities"
         },
         {
           "kind": "fn",
-          "line": 6829,
+          "line": 6850,
           "name": "router_controls"
         },
         {
           "kind": "fn",
-          "line": 6903,
+          "line": 6924,
           "name": "set_membership"
         },
         {
           "kind": "fn",
-          "line": 6916,
+          "line": 6937,
           "name": "reload_discussion"
         },
         {
           "kind": "fn",
-          "line": 6942,
+          "line": 6963,
           "name": "community_discussion"
         },
         {
           "kind": "fn",
-          "line": 7070,
+          "line": 7091,
           "name": "discussion_node"
         },
         {
           "kind": "fn",
-          "line": 7225,
+          "line": 7246,
           "name": "publish_comment_confirmed"
         },
         {
           "kind": "fn",
-          "line": 7236,
+          "line": 7257,
           "name": "creator"
         },
         {
           "kind": "fn",
-          "line": 7551,
+          "line": 7572,
           "name": "system"
         },
         {
           "kind": "fn",
-          "line": 7659,
+          "line": 7680,
           "name": "start_selftest"
         },
         {
           "kind": "fn",
-          "line": 7710,
+          "line": 7731,
           "name": "diagnostics"
         },
         {
           "kind": "fn",
-          "line": 7862,
+          "line": 7883,
           "name": "updates"
         },
         {
           "kind": "fn",
-          "line": 8020,
+          "line": 8041,
           "name": "install_summary"
         }
       ],
@@ -29768,7 +29768,7 @@
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 13194,
+      "bytes": 13497,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -29776,30 +29776,30 @@
         "pos",
         "out",
         "string",
-        "usize",
         "put_str",
         "get_str",
+        "usize",
+        "peer",
         "post",
-        "len",
         "truncated",
         "map_err",
         "media",
-        "title",
+        "len",
         "u16",
         "max_results",
         "remoteresult",
-        "description",
-        "kind",
+        "search",
+        "title",
         "results",
         "objectid",
-        "author_did",
         "vec",
         "extend_from_slice",
-        "get_u64"
+        "get_u64",
+        "fetch"
       ],
-      "lines": 365,
+      "lines": 372,
       "path": "crates/mini-desktop/src/netsearch.rs",
-      "sha256": "530c1c0578e186060515b5a8d9de508aea9159ad839e134079147ef2d56316c2",
+      "sha256": "f4c51baafdd5ac6cb3399ca637c651f00b7c02df5d2536aa1bfe6c34ea6ba83b",
       "symbols": [
         {
           "kind": "const",
@@ -29828,57 +29828,57 @@
         },
         {
           "kind": "fn",
-          "line": 49,
+          "line": 52,
           "name": "put_str"
         },
         {
           "kind": "fn",
-          "line": 55,
+          "line": 58,
           "name": "get_str"
         },
         {
           "kind": "fn",
-          "line": 70,
+          "line": 73,
           "name": "get_u64"
         },
         {
           "kind": "fn",
-          "line": 82,
+          "line": 85,
           "name": "encode_results"
         },
         {
           "kind": "fn",
-          "line": 102,
+          "line": 106,
           "name": "decode_results"
         },
         {
           "kind": "fn",
-          "line": 146,
+          "line": 152,
           "name": "local_results"
         },
         {
           "kind": "fn",
-          "line": 175,
+          "line": 182,
           "name": "fetch_closure"
         },
         {
           "kind": "mod",
-          "line": 269,
+          "line": 276,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 277,
+          "line": 284,
           "name": "person"
         },
         {
           "kind": "fn",
-          "line": 291,
+          "line": 298,
           "name": "results_round_trip_and_reject_garbage"
         },
         {
           "kind": "fn",
-          "line": 319,
+          "line": 326,
           "name": "fetch_closure_carries_identity_post_manifest_and_chunks"
         }
       ],
@@ -30122,38 +30122,38 @@
       "title": "use std::time::{Duration, Instant};"
     },
     {
-      "bytes": 35512,
+      "bytes": 46189,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
-        "self",
-        "frame",
         "const",
-        "bearer",
-        "received",
-        "boundedbearer",
-        "charge",
+        "self",
         "std",
-        "usize",
-        "inner",
-        "intent",
         "one",
-        "deadline",
-        "exchange",
-        "mini_bearer",
+        "frame",
+        "usize",
+        "bearer",
+        "sync",
         "duration",
-        "instant",
-        "len",
-        "bound",
+        "deadline",
+        "new",
+        "exchange",
+        "boundedbearer",
+        "intent",
         "protocol",
+        "mini_bearer",
+        "instant",
+        "mutex",
         "bytes",
+        "inner",
         "remaining_bytes",
-        "u64",
-        "result"
+        "received",
+        "charge",
+        "send"
       ],
-      "lines": 955,
+      "lines": 1237,
       "path": "crates/mini-desktop/src/peer_link.rs",
-      "sha256": "44f3d570b935ed377d6ab31ae4a0bb06cbad1633950c8385efd9f1441abfb429",
+      "sha256": "6cd96910d9595c5e0aebfe7b168dab19be5e29a8e5ed791962563f82fa405647",
       "symbols": [
         {
           "kind": "const",
@@ -30188,271 +30188,366 @@
         {
           "kind": "const",
           "line": 41,
+          "name": "FETCH_AAD"
+        },
+        {
+          "kind": "const",
+          "line": 42,
           "name": "MAX_SEARCH_RESULT_BYTES"
         },
         {
           "kind": "const",
-          "line": 43,
+          "line": 44,
+          "name": "MAX_FORWARDED_PEERS"
+        },
+        {
+          "kind": "const",
+          "line": 47,
+          "name": "FORWARD_DEADLINE"
+        },
+        {
+          "kind": "const",
+          "line": 52,
+          "name": "MAX_REMEMBERED_ORIGINS"
+        },
+        {
+          "kind": "const",
+          "line": 57,
+          "name": "FETCH_STATUS_SERVING"
+        },
+        {
+          "kind": "const",
+          "line": 58,
+          "name": "FETCH_STATUS_FETCHING_FROM_ORIGIN"
+        },
+        {
+          "kind": "const",
+          "line": 59,
+          "name": "FETCH_STATUS_UNKNOWN"
+        },
+        {
+          "kind": "const",
+          "line": 61,
           "name": "MAX_CONCURRENT_CONNECTIONS"
         },
         {
           "kind": "const",
-          "line": 44,
+          "line": 62,
           "name": "ACCEPT_POLL"
         },
         {
           "kind": "const",
-          "line": 48,
+          "line": 66,
           "name": "EXCHANGE_DEADLINE"
         },
         {
           "kind": "const",
-          "line": 50,
+          "line": 68,
           "name": "EXCHANGE_BYTE_BUDGET"
         },
         {
           "kind": "struct",
-          "line": 55,
+          "line": 73,
           "name": "BoundedBearer"
         },
         {
           "kind": "impl",
-          "line": 62,
+          "line": 80,
           "name": "BoundedBearer<B>"
         },
         {
           "kind": "fn",
-          "line": 63,
+          "line": 81,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 73,
+          "line": 91,
           "name": "received_bytes"
         },
         {
           "kind": "fn",
-          "line": 77,
+          "line": 95,
           "name": "charge"
         },
         {
           "kind": "impl",
-          "line": 89,
+          "line": 107,
           "name": "Bearer"
         },
         {
           "kind": "fn",
-          "line": 90,
+          "line": 108,
           "name": "send"
         },
         {
           "kind": "fn",
-          "line": 95,
+          "line": 113,
           "name": "recv"
         },
         {
           "kind": "fn",
-          "line": 103,
+          "line": 121,
           "name": "try_recv"
         },
         {
           "kind": "fn",
-          "line": 113,
+          "line": 131,
           "name": "max_frame_bytes"
         },
         {
           "kind": "type",
-          "line": 118,
+          "line": 136,
           "name": "Link"
         },
         {
           "kind": "fn",
-          "line": 120,
+          "line": 138,
           "name": "bound"
         },
         {
+          "kind": "fn",
+          "line": 142,
+          "name": "bound_within"
+        },
+        {
           "kind": "enum",
-          "line": 130,
+          "line": 148,
           "name": "Intent"
         },
         {
           "kind": "impl",
-          "line": 139,
+          "line": 162,
           "name": "Intent"
         },
         {
           "kind": "fn",
-          "line": 140,
+          "line": 163,
           "name": "encode"
         },
         {
           "kind": "fn",
-          "line": 172,
+          "line": 195,
           "name": "decode"
         },
         {
           "kind": "enum",
-          "line": 208,
+          "line": 234,
           "name": "PrivateOutcome"
         },
         {
           "kind": "fn",
-          "line": 215,
+          "line": 241,
           "name": "resolve"
         },
         {
           "kind": "fn",
-          "line": 223,
+          "line": 249,
           "name": "connect"
         },
         {
           "kind": "fn",
-          "line": 238,
+          "line": 253,
+          "name": "connect_within"
+        },
+        {
+          "kind": "fn",
+          "line": 271,
           "name": "accept"
         },
         {
           "kind": "fn",
-          "line": 250,
+          "line": 283,
           "name": "send_intent"
         },
         {
           "kind": "fn",
-          "line": 257,
+          "line": 290,
           "name": "recv_intent"
         },
         {
           "kind": "fn",
-          "line": 265,
+          "line": 298,
           "name": "public_summary"
         },
         {
           "kind": "const",
-          "line": 272,
+          "line": 305,
           "name": "HELLO_AAD"
         },
         {
           "kind": "const",
-          "line": 273,
+          "line": 306,
           "name": "TICKET_AAD"
         },
         {
           "kind": "const",
-          "line": 274,
+          "line": 307,
           "name": "MAX_HELLO_BYTES"
         },
         {
           "kind": "const",
-          "line": 275,
+          "line": 308,
           "name": "MAX_TICKET_OBJECT_BYTES"
         },
         {
+          "kind": "const",
+          "line": 312,
+          "name": "TICKET_MIN_BYTES"
+        },
+        {
           "kind": "fn",
-          "line": 277,
+          "line": 314,
           "name": "send_sealed"
         },
         {
           "kind": "fn",
-          "line": 289,
+          "line": 326,
           "name": "recv_sealed"
         },
         {
           "kind": "struct",
-          "line": 306,
+          "line": 343,
           "name": "PeerHello"
         },
         {
           "kind": "fn",
-          "line": 315,
+          "line": 352,
           "name": "exchange_hello"
         },
         {
           "kind": "fn",
-          "line": 347,
+          "line": 384,
           "name": "my_rates"
         },
         {
           "kind": "fn",
-          "line": 353,
+          "line": 390,
           "name": "complete_manifests"
         },
         {
           "kind": "struct",
-          "line": 372,
+          "line": 409,
           "name": "TicketOutcome"
         },
         {
           "kind": "impl",
-          "line": 382,
+          "line": 421,
           "name": "TicketOutcome"
         },
         {
           "kind": "fn",
-          "line": 383,
+          "line": 422,
           "name": "summary"
         },
         {
           "kind": "fn",
-          "line": 404,
+          "line": 449,
           "name": "exchange_tickets"
         },
         {
           "kind": "fn",
-          "line": 493,
+          "line": 550,
           "name": "load_identity"
         },
         {
           "kind": "fn",
-          "line": 502,
+          "line": 559,
           "name": "dial_public"
         },
         {
           "kind": "fn",
-          "line": 550,
+          "line": 607,
           "name": "newly_completed"
         },
         {
           "kind": "fn",
-          "line": 566,
+          "line": 623,
           "name": "dial_private"
         },
         {
           "kind": "fn",
-          "line": 620,
+          "line": 678,
           "name": "dial_search"
         },
         {
           "kind": "fn",
-          "line": 647,
+          "line": 686,
+          "name": "dial_search_hops"
+        },
+        {
+          "kind": "enum",
+          "line": 722,
+          "name": "FetchOutcome"
+        },
+        {
+          "kind": "fn",
+          "line": 733,
           "name": "dial_fetch"
         },
         {
           "kind": "fn",
-          "line": 696,
+          "line": 785,
+          "name": "dial_fetch_patiently"
+        },
+        {
+          "kind": "fn",
+          "line": 809,
+          "name": "origin_key"
+        },
+        {
+          "kind": "fn",
+          "line": 813,
+          "name": "remember_origin"
+        },
+        {
+          "kind": "fn",
+          "line": 828,
+          "name": "origin_of"
+        },
+        {
+          "kind": "fn",
+          "line": 835,
+          "name": "proxy_fetch_in_flight"
+        },
+        {
+          "kind": "fn",
+          "line": 848,
+          "name": "forwarded_results"
+        },
+        {
+          "kind": "fn",
+          "line": 897,
+          "name": "start_proxy_fetch"
+        },
+        {
+          "kind": "fn",
+          "line": 926,
           "name": "serve"
         },
         {
           "kind": "enum",
-          "line": 835,
+          "line": 1115,
           "name": "HostEvent"
         },
         {
           "kind": "fn",
-          "line": 851,
+          "line": 1131,
           "name": "run_host"
         },
         {
           "kind": "mod",
-          "line": 916,
+          "line": 1196,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 920,
+          "line": 1200,
           "name": "intent_frames_round_trip_and_reject_wrong_lengths"
         },
         {
           "kind": "fn",
-          "line": 939,
+          "line": 1221,
           "name": "bounded_bearer_stops_at_deadline_and_byte_budget"
         }
       ],
@@ -92856,7 +92951,7 @@
       "title": "Beta status"
     },
     {
-      "bytes": 10752,
+      "bytes": 11407,
       "group": "docs",
       "headings": [
         {
@@ -92901,27 +92996,27 @@
         },
         {
           "level": 2,
-          "line": 145,
+          "line": 149,
           "text": "8. Private messages"
         },
         {
           "level": 2,
-          "line": 156,
+          "line": 160,
           "text": "9. Communities (Reddit-style)"
         },
         {
           "level": 2,
-          "line": 163,
+          "line": 167,
           "text": "10. Earnings (service tickets)"
         },
         {
           "level": 2,
-          "line": 174,
+          "line": 178,
           "text": "11. What to test and report"
         },
         {
           "level": 2,
-          "line": 202,
+          "line": 208,
           "text": "12. What this beta is not"
         }
       ],
@@ -92951,9 +93046,9 @@
         "client",
         "launch"
       ],
-      "lines": 212,
+      "lines": 221,
       "path": "docs/BETA_TESTING.md",
-      "sha256": "1da6e431741c5461454f6d62ab299076ff4d96ffb23240972f5393aacb0dcc2b",
+      "sha256": "4dc176ac620a4b691a6143b2dc8bca1349ffacdfdd2925836a7a235610561002",
       "symbols": [],
       "title": "Mininet desktop beta \u2014 setup and test guide"
     },
@@ -93183,7 +93278,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1526775,
+      "bytes": 1529928,
       "group": "docs",
       "headings": [
         {
@@ -93613,9 +93708,9 @@
         "new",
         "doctrine"
       ],
-      "lines": 24869,
+      "lines": 24922,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "26f424c0fd82f0c8ac354a9e4fd4a370a94617d62f37cdd7f7fab8711314332f",
+      "sha256": "659a9a66ce390b897ca750b8f2097444a1fce861bc5f42f3f8a89cd70ae4aeb1",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -94951,7 +95046,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 210437,
+      "bytes": 210621,
       "group": "docs",
       "headings": [
         {
@@ -95087,7 +95182,7 @@
         {
           "level": 2,
           "line": 3107,
-          "text": "Search my peers \u2014 2026-09-15 (D-0527)"
+          "text": "Search my peers \u2014 2026-09-15 (D-0527, D-0528)"
         }
       ],
       "keywords": [
@@ -95116,9 +95211,9 @@
         "one",
         "design"
       ],
-      "lines": 3112,
+      "lines": 3114,
       "path": "docs/STATUS.md",
-      "sha256": "4b67870f3b9ff3d0f453b67393056f938ebdb65649db973859a17d5db71b7661",
+      "sha256": "daf22bb6039c81c13a8236396f0123149bf26e481bd5e4ec0a51f534ba55d1bf",
       "symbols": [],
       "title": "Implementation status"
     },

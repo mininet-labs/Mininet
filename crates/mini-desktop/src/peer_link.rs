@@ -38,7 +38,25 @@ const INTENT_PRIVATE: u8 = 2;
 const INTENT_SEARCH: u8 = 3;
 const INTENT_FETCH: u8 = 4;
 const SEARCH_AAD: &[u8] = b"MININET-DESKTOP/SEARCH1";
+const FETCH_AAD: &[u8] = b"MININET-DESKTOP/FETCH1";
 const MAX_SEARCH_RESULT_BYTES: usize = 64 * 1024;
+/// Saved peers a host forwards one search to, at most.
+const MAX_FORWARDED_PEERS: usize = 8;
+/// A forwarded search must answer within this, so the requester's own
+/// exchange deadline is not spent waiting on a slow neighbour.
+const FORWARD_DEADLINE: Duration = Duration::from_secs(25);
+/// (data root, post) → endpoint that answered a forwarded search with it, so
+/// a later fetch of something this host does not hold can be pulled from
+/// there. Keyed by root so several identities in one process (tests) do not
+/// see each other's entries. Bounded; oldest entries drop.
+const MAX_REMEMBERED_ORIGINS: usize = 4096;
+static ORIGINS: std::sync::Mutex<BTreeMap<String, String>> = std::sync::Mutex::new(BTreeMap::new());
+/// Proxy fetches in flight (root-qualified post ids), so one request does
+/// not start two.
+static PROXY_FETCHES: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+const FETCH_STATUS_SERVING: u8 = 1;
+const FETCH_STATUS_FETCHING_FROM_ORIGIN: u8 = 2;
+const FETCH_STATUS_UNKNOWN: u8 = 0;
 /// Connections a host serves at the same time; extra ones are refused.
 const MAX_CONCURRENT_CONNECTIONS: usize = 4;
 const ACCEPT_POLL: Duration = Duration::from_millis(250);
@@ -118,11 +136,11 @@ impl<B: Bearer> Bearer for BoundedBearer<B> {
 type Link = BoundedBearer<TcpBearer>;
 
 fn bound(bearer: TcpBearer) -> Link {
-    BoundedBearer::new(
-        bearer,
-        Instant::now() + EXCHANGE_DEADLINE,
-        EXCHANGE_BYTE_BUDGET,
-    )
+    bound_within(bearer, EXCHANGE_DEADLINE)
+}
+
+fn bound_within(bearer: TcpBearer, deadline: Duration) -> Link {
+    BoundedBearer::new(bearer, Instant::now() + deadline, EXCHANGE_BYTE_BUDGET)
 }
 
 /// What the dialing side wants from this connection.
@@ -130,8 +148,13 @@ fn bound(bearer: TcpBearer) -> Link {
 pub enum Intent {
     Public,
     Private(OpaqueRoute),
-    /// Ask the peer's catalog; the query rides in the intent frame.
-    Search(String),
+    /// Ask the peer's catalog; the query rides in the intent frame with the
+    /// number of further hops the peer may forward it (0 = answer only from
+    /// what it holds).
+    Search {
+        query: String,
+        hops: u8,
+    },
     /// Retrieve the closure of named posts.
     Fetch(Vec<ObjectId>),
 }
@@ -146,8 +169,8 @@ impl Intent {
                 out.extend_from_slice(route.as_bytes());
                 out
             }
-            Intent::Search(query) => {
-                let mut out = vec![INTENT_SEARCH];
+            Intent::Search { query, hops } => {
+                let mut out = vec![INTENT_SEARCH, *hops];
                 let query: String = query
                     .chars()
                     .take(crate::netsearch::MAX_QUERY_BYTES)
@@ -177,12 +200,15 @@ impl Intent {
                 bytes.copy_from_slice(route);
                 Ok(Intent::Private(OpaqueRoute::from_bytes(bytes)))
             }
-            [INTENT_SEARCH, query @ ..] => {
+            [INTENT_SEARCH, hops, query @ ..] => {
                 let query = std::str::from_utf8(query).map_err(|_| "search query is not UTF-8")?;
                 if query.chars().count() > crate::netsearch::MAX_QUERY_BYTES {
                     return Err("search query too long".into());
                 }
-                Ok(Intent::Search(query.to_owned()))
+                Ok(Intent::Search {
+                    query: query.to_owned(),
+                    hops: (*hops).min(1),
+                })
             }
             [INTENT_FETCH, ids @ ..] => {
                 let text = std::str::from_utf8(ids).map_err(|_| "fetch ids are not UTF-8")?;
@@ -221,11 +247,18 @@ fn resolve(endpoint: &str) -> Result<SocketAddr, String> {
 }
 
 fn connect(endpoint: &str) -> Result<(Link, Channel), String> {
+    connect_within(endpoint, EXCHANGE_DEADLINE)
+}
+
+fn connect_within(endpoint: &str, deadline: Duration) -> Result<(Link, Channel), String> {
     let address = resolve(endpoint)?;
     let stream = TcpStream::connect_timeout(&address, PEER_IO_TIMEOUT)
         .map_err(|error| format!("{endpoint} refused or timed out: {error}"))?;
     configure_peer_stream(&stream)?;
-    let mut bearer = bound(TcpBearer::from_stream(stream).map_err(|error| error.to_string())?);
+    let mut bearer = bound_within(
+        TcpBearer::from_stream(stream).map_err(|error| error.to_string())?,
+        deadline,
+    );
     let (initiator, hello) = Initiator::start().map_err(|error| error.to_string())?;
     bearer.send(&hello).map_err(|error| error.to_string())?;
     let response = bearer.recv().map_err(|error| error.to_string())?;
@@ -273,6 +306,10 @@ const HELLO_AAD: &[u8] = b"MININET-DESKTOP/HELLO1";
 const TICKET_AAD: &[u8] = b"MININET-DESKTOP/TICKET1";
 const MAX_HELLO_BYTES: usize = 300;
 const MAX_TICKET_OBJECT_BYTES: usize = 64 * 1024;
+/// An exchange that moved no objects and fewer bytes than this is protocol
+/// overhead (handshake, hello, empty offers); no ticket is issued for it, so
+/// an idle session does not mint a replicated object every poll.
+const TICKET_MIN_BYTES: u64 = 64 * 1024;
 
 fn send_sealed(
     bearer: &mut Link,
@@ -376,11 +413,19 @@ pub struct TicketOutcome {
     pub rate_micro_per_mb: u64,
     /// Bytes the peer attested to this side, if its ticket verified.
     pub received_bytes: Option<u64>,
+    /// Neither side had anything worth attesting; no ticket objects exist.
+    pub idle: bool,
     pub note: Option<String>,
 }
 
 impl TicketOutcome {
     fn summary(&self) -> String {
+        if self.idle {
+            return match &self.note {
+                Some(note) => format!("nothing moved, no ticket ({note})"),
+                None => "nothing moved, no ticket".into(),
+            };
+        }
         let mut parts = vec![format!(
             "attested {} KB received at {} µMINI/MB",
             self.issued_bytes / 1024,
@@ -421,7 +466,12 @@ fn exchange_tickets(
         rate_micro_per_mb: agreed_rate_micro_per_mb,
         ..Default::default()
     };
+    let worth_attesting =
+        objects_received > 0 || !completed_media.is_empty() || bytes_received >= TICKET_MIN_BYTES;
     let issue = || -> Result<Vec<u8>, String> {
+        if !worth_attesting {
+            return Ok(Vec::new());
+        }
         let nonce = mini_crypto::random_32().map_err(|error| error.to_string())?;
         let fields = TicketFields {
             provider: peer.clone(),
@@ -450,8 +500,11 @@ fn exchange_tickets(
                   channel: &mut Channel,
                   store: &mut Store<FsBackend>,
                   cache: &mut KelCache|
-     -> Result<u64, String> {
+     -> Result<Option<u64>, String> {
         let bytes = recv_sealed(bearer, channel, TICKET_AAD, MAX_TICKET_OBJECT_BYTES)?;
+        if bytes.is_empty() {
+            return Ok(None);
+        }
         let object = Object::from_bytes(&bytes).map_err(|error| error.to_string())?;
         if Ingest::check(cache, &object) != IngestOutcome::Accepted {
             return Err("peer ticket failed provenance".into());
@@ -470,7 +523,7 @@ fn exchange_tickets(
             return Err("peer ticket prices above the agreed rate".into());
         }
         store.insert(&object).map_err(|error| error.to_string())?;
-        Ok(ticket.fields.bytes_received)
+        Ok(Some(ticket.fields.bytes_received))
     };
     let result = match role {
         SyncRole::Initiator => send_sealed(bearer, channel, TICKET_AAD, &mine)
@@ -484,8 +537,12 @@ fn exchange_tickets(
         }
     };
     match result {
-        Ok(bytes) => outcome.received_bytes = Some(bytes),
+        Ok(bytes) => outcome.received_bytes = bytes,
         Err(error) => outcome.note = Some(error),
+    }
+    if !worth_attesting {
+        outcome.issued_bytes = 0;
+        outcome.idle = outcome.received_bytes.is_none();
     }
     outcome
 }
@@ -616,15 +673,33 @@ pub fn dial_private(
     }
 }
 
-/// Ask one peer what it holds that matches `query`.
+/// Ask one peer what it holds that matches `query`, and what its own saved
+/// peers hold (one further hop) if it forwards searches.
 pub fn dial_search(
     root: &Path,
     endpoint: &str,
     query: &str,
 ) -> Result<Vec<crate::netsearch::RemoteResult>, String> {
+    dial_search_hops(root, endpoint, query, 1, EXCHANGE_DEADLINE)
+}
+
+fn dial_search_hops(
+    root: &Path,
+    endpoint: &str,
+    query: &str,
+    hops: u8,
+    deadline: Duration,
+) -> Result<Vec<crate::netsearch::RemoteResult>, String> {
     let identity = load_identity(root, "searching")?;
-    let (mut bearer, mut channel) = connect(endpoint)?;
-    send_intent(&mut bearer, &mut channel, Intent::Search(query.to_owned()))?;
+    let (mut bearer, mut channel) = connect_within(endpoint, deadline)?;
+    send_intent(
+        &mut bearer,
+        &mut channel,
+        Intent::Search {
+            query: query.to_owned(),
+            hops,
+        },
+    )?;
     let (my_ask, _) = my_rates(root);
     let _ = exchange_hello(
         &mut bearer,
@@ -642,9 +717,20 @@ pub fn dial_search(
     crate::netsearch::decode_results(&bytes)
 }
 
+/// What one fetch attempt produced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FetchOutcome {
+    /// Objects arrived (or were already here); the text summarises counts
+    /// and tickets.
+    Done(String),
+    /// The peer does not hold it yet but is pulling it from the peer that
+    /// answered its forwarded search; ask again shortly.
+    PeerFetching,
+}
+
 /// Fetch the closure of `posts` from one peer through verified retrieval,
 /// then exchange tickets for what moved.
-pub fn dial_fetch(root: &Path, endpoint: &str, posts: &[ObjectId]) -> Result<String, String> {
+pub fn dial_fetch(root: &Path, endpoint: &str, posts: &[ObjectId]) -> Result<FetchOutcome, String> {
     let identity = load_identity(root, "fetching")?;
     let (mut store, mut cache) = open_sync_state(root, &identity)?;
     let (mut bearer, mut channel) = connect(endpoint)?;
@@ -659,6 +745,11 @@ pub fn dial_fetch(root: &Path, endpoint: &str, posts: &[ObjectId]) -> Result<Str
     )?;
     let peer = hello.did.clone();
     let agreed = mini_ticket::Rate::agree(hello.ask_micro_per_mb, my_ceiling);
+    match recv_sealed(&mut bearer, &mut channel, FETCH_AAD, 1)?.first() {
+        Some(&FETCH_STATUS_SERVING) => {}
+        Some(&FETCH_STATUS_FETCHING_FROM_ORIGIN) => return Ok(FetchOutcome::PeerFetching),
+        _ => return Err("that peer does not hold it and knows no peer that does".into()),
+    }
     let before = complete_manifests(&store);
     let start = bearer.received_bytes();
     let report =
@@ -680,13 +771,152 @@ pub fn dial_fetch(root: &Path, endpoint: &str, posts: &[ObjectId]) -> Result<Str
         report.ingest.accepted as u32,
         completed,
     );
-    Ok(format!(
+    Ok(FetchOutcome::Done(format!(
         "Fetched {} of {} object(s) ({}). Tickets: {}.",
         report.ingest.accepted,
         report.selected,
         public_summary(&report.ingest),
         tickets.summary()
-    ))
+    )))
+}
+
+/// Fetch, and when the peer is itself still pulling from the origin, ask
+/// again a bounded number of times.
+pub fn dial_fetch_patiently(
+    root: &Path,
+    endpoint: &str,
+    posts: &[ObjectId],
+    attempts: usize,
+    pause: Duration,
+) -> Result<String, String> {
+    let mut left = attempts.max(1);
+    loop {
+        match dial_fetch(root, endpoint, posts)? {
+            FetchOutcome::Done(summary) => return Ok(summary),
+            FetchOutcome::PeerFetching if left > 1 => {
+                left -= 1;
+                std::thread::sleep(pause);
+            }
+            FetchOutcome::PeerFetching => {
+                return Err(
+                    "the peer is still fetching it from its origin; try again in a minute".into(),
+                )
+            }
+        }
+    }
+}
+
+fn origin_key(root: &Path, post: &str) -> String {
+    format!("{}|{post}", root.display())
+}
+
+fn remember_origin(root: &Path, post: &str, endpoint: &str) {
+    if let Ok(mut origins) = ORIGINS.lock() {
+        while origins.len() >= MAX_REMEMBERED_ORIGINS {
+            let first = origins.keys().next().cloned();
+            match first {
+                Some(key) => {
+                    origins.remove(&key);
+                }
+                None => break,
+            }
+        }
+        origins.insert(origin_key(root, post), endpoint.to_owned());
+    }
+}
+
+fn origin_of(root: &Path, post: &str) -> Option<String> {
+    ORIGINS
+        .lock()
+        .ok()
+        .and_then(|origins| origins.get(&origin_key(root, post)).cloned())
+}
+
+fn proxy_fetch_in_flight(root: &Path, posts: &[ObjectId]) -> bool {
+    PROXY_FETCHES
+        .lock()
+        .map(|inflight| {
+            posts
+                .iter()
+                .any(|post| inflight.contains(&origin_key(root, post.as_str())))
+        })
+        .unwrap_or(false)
+}
+
+/// Forward a search to the saved peers and merge what they hold, marking
+/// each hit with the endpoint that holds it.
+fn forwarded_results(
+    root: &Path,
+    query: &str,
+    hops: u8,
+    have: &[crate::netsearch::RemoteResult],
+) -> Vec<crate::netsearch::RemoteResult> {
+    let settings = crate::connectivity::load(root);
+    if hops == 0 || !settings.forward_searches || settings.peers.is_empty() {
+        return Vec::new();
+    }
+    let workers: Vec<_> = settings
+        .peers
+        .iter()
+        .take(MAX_FORWARDED_PEERS)
+        .map(|peer| {
+            let (root, endpoint, query) =
+                (root.to_path_buf(), peer.endpoint.clone(), query.to_owned());
+            std::thread::spawn(move || {
+                let hits = dial_search_hops(&root, &endpoint, &query, hops - 1, FORWARD_DEADLINE)
+                    .unwrap_or_default();
+                (endpoint, hits)
+            })
+        })
+        .collect();
+    let mut merged: Vec<crate::netsearch::RemoteResult> = Vec::new();
+    for worker in workers {
+        let Ok((endpoint, hits)) = worker.join() else {
+            continue;
+        };
+        for mut hit in hits {
+            if !hit.via.is_empty() {
+                // Two hops out is beyond what this host can fetch on a
+                // requester's behalf; leave it out rather than promise it.
+                continue;
+            }
+            let seen = have.iter().chain(merged.iter()).any(|r| r.post == hit.post);
+            if seen {
+                continue;
+            }
+            remember_origin(root, hit.post.as_str(), &endpoint);
+            hit.via = endpoint.clone();
+            merged.push(hit);
+        }
+    }
+    merged
+}
+
+/// Start pulling `posts` from `origin` into this device on a worker thread
+/// unless that is already under way.
+fn start_proxy_fetch(root: &Path, origin: String, posts: Vec<ObjectId>) {
+    let mut posts: Vec<ObjectId> = posts
+        .into_iter()
+        .filter(|post| !proxy_fetch_in_flight(root, std::slice::from_ref(post)))
+        .collect();
+    if posts.is_empty() {
+        return;
+    }
+    posts.dedup();
+    let keys: Vec<String> = posts
+        .iter()
+        .map(|post| origin_key(root, post.as_str()))
+        .collect();
+    if let Ok(mut inflight) = PROXY_FETCHES.lock() {
+        inflight.extend(keys.iter().cloned());
+    }
+    let root = root.to_path_buf();
+    std::thread::spawn(move || {
+        let _ = dial_fetch(&root, &origin, &posts);
+        if let Ok(mut inflight) = PROXY_FETCHES.lock() {
+            inflight.retain(|id| !keys.contains(id));
+        }
+    });
 }
 
 /// Serve one accepted connection: handshake, read the intent, run the
@@ -716,22 +946,72 @@ pub fn serve(
     let peer = hello.did.clone();
     let agreed = mini_ticket::Rate::agree(hello.ask_micro_per_mb, my_ceiling);
     match intent {
-        Intent::Search(query) => {
-            let results = crate::netsearch::local_results(&store, &identity.root.did(), &query)?;
+        Intent::Search { query, hops } => {
+            let mut results =
+                crate::netsearch::local_results(&store, &identity.root.did(), &query)?;
+            let local = results.len();
+            let forwarded = forwarded_results(root, &query, hops, &results);
+            let from_peers = forwarded.len();
+            results.extend(forwarded);
+            results.truncate(crate::netsearch::MAX_RESULTS);
             let bytes = crate::netsearch::encode_results(&results);
             send_sealed(&mut bearer, &mut channel, SEARCH_AAD, &bytes)?;
             Ok(format!(
-                "search \"{}\": {} result(s)",
-                query.chars().take(40).collect::<String>(),
-                results.len()
+                "search \"{}\": {local} result(s) here, {from_peers} on saved peers",
+                query.chars().take(40).collect::<String>()
             ))
         }
-        Intent::Fetch(_) => {
+        Intent::Fetch(wanted) => {
+            if proxy_fetch_in_flight(root, &wanted) {
+                send_sealed(
+                    &mut bearer,
+                    &mut channel,
+                    FETCH_AAD,
+                    &[FETCH_STATUS_FETCHING_FROM_ORIGIN],
+                )?;
+                return Ok("fetch: still pulling it from the peer that has it".into());
+            }
+            let mut selected = crate::netsearch::fetch_closure(&store, &wanted)?;
+            if selected.is_empty() {
+                let mut by_origin: BTreeMap<String, Vec<ObjectId>> = BTreeMap::new();
+                for post in &wanted {
+                    if let Some(origin) = origin_of(root, post.as_str()) {
+                        by_origin.entry(origin).or_default().push(post.clone());
+                    }
+                }
+                if by_origin.is_empty() || !crate::connectivity::load(root).forward_searches {
+                    send_sealed(
+                        &mut bearer,
+                        &mut channel,
+                        FETCH_AAD,
+                        &[FETCH_STATUS_UNKNOWN],
+                    )?;
+                    return Err("fetch: none of the requested objects are on this device".into());
+                }
+                for (origin, posts) in by_origin {
+                    start_proxy_fetch(root, origin, posts);
+                }
+                send_sealed(
+                    &mut bearer,
+                    &mut channel,
+                    FETCH_AAD,
+                    &[FETCH_STATUS_FETCHING_FROM_ORIGIN],
+                )?;
+                return Ok("fetch: not here yet; pulling it from the peer that has it".into());
+            }
+            send_sealed(
+                &mut bearer,
+                &mut channel,
+                FETCH_AAD,
+                &[FETCH_STATUS_SERVING],
+            )?;
             let seeds = mini_sync::receive_retrieval_request(&mut bearer, &mut channel)
                 .map_err(|error| error.to_string())?;
-            let selected = crate::netsearch::fetch_closure(&store, &seeds)?;
-            if selected.is_empty() {
-                return Err("fetch: none of the requested objects are on this device".into());
+            if seeds != wanted {
+                selected = crate::netsearch::fetch_closure(&store, &seeds)?;
+                if selected.is_empty() {
+                    return Err("fetch: the retrieval request names nothing held here".into());
+                }
             }
             let start = bearer.received_bytes();
             mini_sync::serve_retrieval(&mut bearer, &mut channel, &store, &selected)
@@ -928,10 +1208,12 @@ mod tests {
         assert!(Intent::decode(&[INTENT_PRIVATE; 10]).is_err());
         assert!(Intent::decode(&[INTENT_PRIVATE; 34]).is_err());
         assert!(Intent::decode(&[9]).is_err());
-        assert_eq!(
-            Intent::decode(&Intent::Search("hi there".into()).encode()),
-            Ok(Intent::Search("hi there".into()))
-        );
+        let search = Intent::Search {
+            query: "hi there".into(),
+            hops: 1,
+        };
+        assert_eq!(Intent::decode(&search.encode()), Ok(search));
+        assert!(Intent::decode(&[INTENT_SEARCH]).is_err());
         assert!(Intent::decode(&[INTENT_FETCH]).is_err());
     }
 

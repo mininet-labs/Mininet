@@ -44,6 +44,9 @@ pub struct RemoteResult {
     pub kind: String,
     pub bytes: u64,
     pub timestamp_ms: u64,
+    /// Endpoint of the peer that actually holds it when the answering peer
+    /// forwarded the search; empty when the answering peer holds it.
+    pub via: String,
 }
 
 fn put_str(out: &mut Vec<u8>, s: &str) {
@@ -95,6 +98,7 @@ pub fn encode_results(results: &[RemoteResult]) -> Vec<u8> {
         put_str(&mut out, &r.kind);
         out.extend_from_slice(&r.bytes.to_be_bytes());
         out.extend_from_slice(&r.timestamp_ms.to_be_bytes());
+        put_str(&mut out, &r.via);
     }
     out
 }
@@ -124,6 +128,7 @@ pub fn decode_results(bytes: &[u8]) -> Result<Vec<RemoteResult>, String> {
         let kind = get_str(bytes, &mut pos)?;
         let bytes_len = get_u64(bytes, &mut pos)?;
         let timestamp_ms = get_u64(bytes, &mut pos)?;
+        let via = get_str(bytes, &mut pos)?;
         out.push(RemoteResult {
             post,
             media,
@@ -134,6 +139,7 @@ pub fn decode_results(bytes: &[u8]) -> Result<Vec<RemoteResult>, String> {
             kind,
             bytes: bytes_len,
             timestamp_ms,
+            via,
         });
     }
     if pos != bytes.len() {
@@ -165,6 +171,7 @@ pub fn local_results<B: Backend>(
             kind: entry.kind.label().to_string(),
             bytes: entry.bytes,
             timestamp_ms: entry.timestamp_ms,
+            via: String::new(),
         })
         .collect())
 }

@@ -24863,6 +24863,59 @@ video and could watch it.
 several fetches or a session to complete; results are unsigned claims.
 
 **Required follow-up:** multi-hop forwarding with budgets; signed result
-records; index peers.
+records; index peers. (Two-hop forwarding and proxied fetch: D-0528.)
 
 **Supersedes / superseded by:** none. Extends D-0526.
+
+### D-0528 — Search forwarding with proxied fetch; no ticket for an idle exchange  ·  *Shipped*
+
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{peer_link,netsearch,connectivity}.rs`;
+D-0527 (the search this extends); D-0524 (the tickets this thins out).
+
+**Decision:** two of D-0527's stated limits closed before the line merges.
+
+1. **Search reaches a host's neighbourhood.** The search intent carries a
+   hop budget (0 or 1; anything larger is clamped). A host answering with
+   budget 1 also forwards the query to at most eight of its own saved peers
+   on worker threads with a 25 s deadline each, merges what they hold
+   (deduplicated, still ≤50 records), and marks each such hit with the
+   endpoint that holds it (`via`). Hits two hops out are dropped rather
+   than promised. The host remembers post → origin (bounded, 4096).
+2. **Fetch through the host.** A fetch now begins with a one-byte status
+   frame after the hello: *serving*, *fetching from origin*, or *unknown*.
+   When a requester asks a host for a post it does not hold but knows the
+   origin of, the host starts one bounded proxy fetch from that origin (its
+   own verified retrieval, its own ticket to the origin), answers *fetching*,
+   and serves the closure on a later attempt; the requester retries a bounded
+   number of times (8 × 15 s in the UI). The host then seeds the object and
+   holds the host ticket for it — the hub earns for carrying.
+3. **Owner switch.** "While hosting, answer searches with what my saved
+   peers hold too" (`forward_searches`, default on, persisted) gates both
+   forwarding and proxy fetching.
+4. **Idle exchanges mint no ticket.** A session polls every 30 s; each poll
+   used to issue a ticket object that replicated to everyone (~120 objects
+   per hour per side while idle). An exchange that received no objects,
+   completed no media and moved under 64 KiB now sends an empty ticket frame
+   instead; the peer accepts it as "nothing to attest". Ticket volume is
+   proportional to content moved, not to session length.
+
+**Constitutional impact:** none. No new dependency. Forwarding is bounded
+in fan-out (8), depth (1), time (25 s per peer) and size; nothing runs
+without a requester the owner's host already accepted, and the owner can
+switch it off.
+
+**Implementation status:** shipped; the real-TCP test now runs a third
+identity that only knows the hub, finds a clip held by the hub's peer,
+fetches it through the hub (status *fetching* → served), and holds the
+verified manifest and chunks; the session test asserts every ticket that
+exists attests to objects actually received.
+
+**Failure point:** two hops maximum; a proxy fetch of a large collection
+completes across attempts; origin memory is per process and lost on
+restart; results remain unsigned claims until fetched.
+
+**Required follow-up:** ticket pruning needs a delete path in
+`mini-store` (its store is append-only), which is a separate decision;
+signed result records; index peers.
+
+**Supersedes / superseded by:** none. Extends D-0527.

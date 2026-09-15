@@ -3091,7 +3091,13 @@ No tracking. No forced updates.",
         self.fetching = Some(post.clone());
         let root = data_root();
         std::thread::spawn(move || {
-            let _ = sender.send(peer_link::dial_fetch(&root, &endpoint, &[post]));
+            let _ = sender.send(peer_link::dial_fetch_patiently(
+                &root,
+                &endpoint,
+                &[post],
+                8,
+                Duration::from_secs(15),
+            ));
         });
     }
 
@@ -3294,11 +3300,16 @@ No tracking. No forced updates.",
                                     theme::muted(ui, &hit.description);
                                 }
                                 theme::muted(ui, &format!(
-                                    "{} · {} · {} · {} · on {label}",
+                                    "{} · {} · {} · {} · {}",
                                     hit.author_name,
                                     hit.kind,
                                     library::human_size(hit.bytes),
-                                    timeline::age(hit.timestamp_ms, now_ms())
+                                    timeline::age(hit.timestamp_ms, now_ms()),
+                                    if hit.via.is_empty() {
+                                        format!("on {label}")
+                                    } else {
+                                        format!("on {}, reachable through {label}", hit.via)
+                                    }
                                 ));
                                 ui.horizontal(|ui| {
                                     if local_posts.contains(hit.post.as_str()) {
@@ -4698,6 +4709,16 @@ No tracking. No forced updates.",
             theme::muted(
                 ui,
                 "Private conversations exchange only encrypted envelopes for routes both sides already hold. Changing this takes effect for the next session or hosting window.",
+            );
+            changed |= ui
+                .checkbox(
+                    &mut self.connections.forward_searches,
+                    "While hosting, answer searches with what my saved peers hold too",
+                )
+                .changed();
+            theme::muted(
+                ui,
+                "Forwards a searcher's query one hop to your saved peers, and when they ask you for a hit you do not hold yet, pulls it from that peer first and then serves it — you seed it from then on and hold the host ticket for it.",
             );
             if changed {
                 self.save_connections();
@@ -8467,7 +8488,17 @@ mod tests {
                 &sender,
             )
         });
-        std::thread::sleep(Duration::from_millis(150));
+        // Wait until the server thread owns the port (a fixed sleep raced a
+        // slow runner): binding it ourselves fails once it is listening.
+        let bound_by_server = (0..100).any(|_| {
+            if std::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port)).is_err() {
+                true
+            } else {
+                std::thread::sleep(Duration::from_millis(50));
+                false
+            }
+        });
+        assert!(bound_by_server, "server never bound port {port}");
 
         let endpoint = format!("127.0.0.1:{port}");
         run_peer_sync(&alice_root, &endpoint, false).unwrap();
@@ -8665,19 +8696,29 @@ mod tests {
 
         // Service tickets: Bob (host) holds tickets naming him as provider,
         // signed by Alice; Alice holds Bob's tickets naming her. Both sides
-        // hold their own issued tickets too. Four exchanges each way.
+        // hold their own issued tickets too. Exchanges that moved nothing
+        // (the idle side of a private round) mint no ticket, so counts are
+        // per side that received objects, not per exchange.
         let rate = mini_ticket::Rate::default();
         let bob_ledger = mini_ticket::Ledger::collect(&bob_store, &bob_did, rate).unwrap();
         assert_eq!(bob_ledger.malformed, 0);
-        assert!(bob_ledger.as_host.len() >= 2, "{bob_ledger:?}");
+        assert!(!bob_ledger.as_host.is_empty(), "{bob_ledger:?}");
         assert!(bob_ledger
             .as_host
             .iter()
             .all(|entry| entry.ticket.consumer == alice_did));
-        assert!(bob_ledger.issued.len() >= 2);
+        assert!(bob_ledger
+            .as_host
+            .iter()
+            .all(|entry| entry.ticket.fields.objects_received > 0));
+        assert!(bob_ledger.issued.len() >= 2, "{bob_ledger:?}");
+        assert!(bob_ledger
+            .issued
+            .iter()
+            .all(|ticket| ticket.fields.objects_received > 0));
         let alice_ledger = mini_ticket::Ledger::collect(&alice_store, &alice_did, rate).unwrap();
-        assert!(alice_ledger.as_host.len() >= 2, "{alice_ledger:?}");
-        assert!(alice_ledger.issued.len() >= 2);
+        assert!(!alice_ledger.as_host.is_empty(), "{alice_ledger:?}");
+        assert!(!alice_ledger.issued.is_empty());
         // Only Bob can redeem tickets that name Bob.
         let ids: Vec<mini_objects::ObjectId> = bob_ledger
             .as_host
@@ -8814,8 +8855,65 @@ shot at dusk",
                 .is_empty()
         );
 
-        let summary =
-            peer_link::dial_fetch(&bob_root, &endpoint, std::slice::from_ref(&post_id)).unwrap();
+        // Second hop: Bob hosts with Alice saved as a peer and forwards
+        // searches; Carol, who only knows Bob, finds Alice's clip through him
+        // and fetches it through him — Bob pulls it from Alice first.
+        let carol_root = test_root.join("carol");
+        let _carol_did = profile_root(&carol_root, "Carol");
+        let mut bob_settings = crate::connectivity::load(&bob_root);
+        bob_settings.peers.push(crate::connectivity::PeerEntry {
+            label: "alice".into(),
+            endpoint: endpoint.clone(),
+            did: None,
+        });
+        crate::connectivity::save(&bob_root, &bob_settings).unwrap();
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let bob_port = probe.local_addr().unwrap().port();
+        drop(probe);
+        let bob_stop = Arc::new(AtomicBool::new(false));
+        let (bob_events, bob_event_rx) = mpsc::channel();
+        let (bob_host_root, bob_host_stop) = (bob_root.clone(), Arc::clone(&bob_stop));
+        let bob_host = std::thread::spawn(move || {
+            peer_link::run_host(
+                bob_host_root,
+                bob_port,
+                Vec::new(),
+                bob_host_stop,
+                bob_events,
+            )
+        });
+        assert!(matches!(
+            bob_event_rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            peer_link::HostEvent::Listening { .. }
+        ));
+        let bob_endpoint = format!("127.0.0.1:{bob_port}");
+        let hits = peer_link::dial_search(&carol_root, &bob_endpoint, "harbour").unwrap();
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        assert_eq!(hits[0].post, post_id);
+        assert_eq!(hits[0].via, endpoint, "hit should name Alice as the holder");
+        let summary = peer_link::dial_fetch_patiently(
+            &carol_root,
+            &bob_endpoint,
+            std::slice::from_ref(&post_id),
+            40,
+            Duration::from_millis(250),
+        )
+        .unwrap();
+        assert!(summary.contains("Fetched"), "{summary}");
+        let carol_store = Store::new(FsBackend::open(&carol_root).unwrap());
+        let manifest = read_manifest(&carol_store.get(&media_id).unwrap()).unwrap();
+        assert!(missing_chunks(&carol_store, &manifest).unwrap().is_empty());
+        bob_stop.store(true, Ordering::Relaxed);
+        bob_host.join().unwrap();
+
+        let summary = peer_link::dial_fetch_patiently(
+            &bob_root,
+            &endpoint,
+            std::slice::from_ref(&post_id),
+            1,
+            Duration::from_millis(1),
+        )
+        .unwrap();
         assert!(summary.contains("Fetched"), "{summary}");
 
         stop.store(true, Ordering::Relaxed);

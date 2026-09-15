@@ -1,7 +1,7 @@
 # Mininet desktop beta — setup and test guide
 
 For testers of the Windows client on the `claude/connected-desktop-beta`
-line (D-0523–D-0527). Everything below was exercised on Windows 11; other
+line (D-0523–D-0528). Everything below was exercised on Windows 11; other
 platforms are not part of this beta. Nothing here moves money and nothing
 here is anonymous: read "What this beta is not" before inviting anyone.
 
@@ -139,8 +139,12 @@ follow, message, their media and posts). The search box covers what your
 device holds; **🌐 Search my peers** asks every saved peer for matches and
 lists them under "On your peers" with a **Fetch** button that retrieves
 exactly that post (identity, manifest, chunks) verified on arrival, after
-which it plays like anything local. Search reaches your saved peers, one
-hop — not the whole network.
+which it plays like anything local. A hosting peer that allows it
+(**Connections → "answer searches with what my saved peers hold too"**, on
+by default) also forwards your query to *its* saved peers and lists those
+hits as "on X, reachable through Y"; fetching one asks Y, which pulls it
+from X first (you see "peer is fetching", then it arrives) and seeds it from
+then on. Reach is two hops, not the whole network.
 
 ## 8. Private messages
 
@@ -193,6 +197,8 @@ Please report each item as pass/fail with the two `Activity` texts:
    resumes chunks rather than starting over.
 10. Media → type a title word → **Search my peers** → **Fetch** a hit you do
     not hold; it should flip to "on this device" and play/export.
+    With three testers (C only knows B, B knows A): C finds A's clip through
+    B ("reachable through B") and the fetch completes after B pulls it.
 11. Diagnostics → run the suite; note any failed check.
 
 Include: Windows build, both `Activity` panels, the connection card host
@@ -201,11 +207,14 @@ address.
 
 ## 12. What this beta is not
 
-- Not anonymous: peers see your IP. Not a relay: behind CGNAT you need a
-  reachable partner. Search reaches saved peers one hop deep, not an index
-  of the whole network.
+- Not anonymous: peers see your IP. Not a relay: behind CGNAT you need one
+  reachable partner (everything you post and receive flows through that
+  hub, so two CGNAT testers can still see each other's posts via it).
+  Search reaches saved peers and their saved peers, not an index of the
+  whole network.
 - Not money: tickets are signed evidence with unsettled credit.
 - Not production messaging: invites carry the conversation key; there is no
   ratchet or mailbox yet.
 - Not moderation: muting is device-local.
-- Ticket objects replicate to everyone and are not pruned yet.
+- Ticket objects replicate to everyone and are not pruned yet (only
+  exchanges that moved something mint one).

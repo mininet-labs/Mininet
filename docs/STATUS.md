@@ -3104,8 +3104,10 @@ built: relay/rendezvous for CGNAT, B-frame video, H.265/VP9/AV1, seekable
 video, settlement. Media is a YouTube-style catalog (search, filters, sort,
 poster grid) with per-author Channel pages; search covers this device only.
 
-## Search my peers — 2026-09-15 (D-0527)
+## Search my peers — 2026-09-15 (D-0527, D-0528)
 
-Network search (one hop, saved peers) and targeted verified fetch through
-`mini-sync` retrieval, from the Media view. `docs/BETA_TESTING.md` is the
-tester guide for this line.
+Network search (saved peers, forwarded one further hop by hosts that allow
+it) and targeted verified fetch through `mini-sync` retrieval, from the
+Media view; a host that does not hold a hit pulls it from the origin and
+then serves and seeds it. Idle exchanges no longer mint ticket objects.
+`docs/BETA_TESTING.md` is the tester guide for this line.
