@@ -192,8 +192,7 @@ declined, idempotent repeat), and two live desktop instances on one Windows
 started on launch. Windows Firewall prompted for the host as expected.
 
 Not verified: two machines behind different NATs, performance budgets above,
-video playback, the installer's firewall guidance. Known limits: per-I/O
-rather than whole-exchange deadlines, no relay/rendezvous/NAT traversal, the
+video playback, the installer's firewall guidance. Known limits: no relay/rendezvous/NAT traversal, the
 Everyone timeline is capped but not indexed, a session's "Connected" means
 the last exchange with some saved peer completed. The next bottleneck is
 the connection service in step 2.

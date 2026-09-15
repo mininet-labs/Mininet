@@ -24530,8 +24530,8 @@ column. Windows Firewall raised its normal inbound prompt for the host.
 different NATs still need a port forward or a reachable host; no relay,
 rendezvous, NAT traversal or endpoint advertisement is deployed. A session's
 "Connected" means the last exchange with at least one saved peer completed,
-not that any particular object reached any particular person. Per-I/O
-timeouts still do not bound a whole exchange. The Everyone timeline walks
+not that any particular object reached any particular person. A `BoundedBearer` wrapper caps every desktop exchange at 180 s and
+256 MiB end to end (added after the initial landing). The Everyone timeline walks
 every received post on each refresh; it is capped at 50 cards but not
 indexed. Media playback is not integrated; images show once complete.
 
@@ -24539,6 +24539,7 @@ indexed. Media playback is not integrated; images show once complete.
 durable outbox, signed expiring endpoint advertisements, and at least one
 replaceable relay/rendezvous path — before any claim of an internet beta
 across NATs. Indexed timeline pages and cancellation of stale timeline
-workers. Firewall guidance in the installer.
+workers. Firewall guidance in the installer (the client itself now states
+the prompt).
 
 **Supersedes / superseded by:** none. Extends D-0520/D-0521.

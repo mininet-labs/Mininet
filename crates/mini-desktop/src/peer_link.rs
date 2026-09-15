@@ -10,7 +10,7 @@
 //! the peer was.
 
 use crate::{configure_peer_stream, load_desktop_identity, open_sync_state, PEER_IO_TIMEOUT};
-use mini_bearer::{Bearer, Channel, Initiator, Responder, TcpBearer};
+use mini_bearer::{Bearer, BearerError, Channel, Initiator, Responder, TcpBearer};
 use mini_objects::OpaqueRoute;
 use mini_store::{FsBackend, Store};
 use mini_sync::{
@@ -30,6 +30,79 @@ const INTENT_PRIVATE: u8 = 2;
 /// Connections a host serves at the same time; extra ones are refused.
 const MAX_CONCURRENT_CONNECTIONS: usize = 4;
 const ACCEPT_POLL: Duration = Duration::from_millis(250);
+/// End-to-end bound on one exchange (handshake through the last frame).
+/// Per-I/O timeouts alone let a peer that dribbles one byte per timeout
+/// hold a worker indefinitely; this caps the whole conversation.
+const EXCHANGE_DEADLINE: Duration = Duration::from_secs(180);
+/// Bytes one exchange may move in either direction before it is cut off.
+const EXCHANGE_BYTE_BUDGET: usize = 256 * 1024 * 1024;
+
+/// A bearer that refuses to carry another frame once its deadline has
+/// passed or its byte budget is spent. Wrapping the socket here means every
+/// protocol on top gets a whole-exchange bound without knowing about it.
+pub struct BoundedBearer<B: Bearer> {
+    inner: B,
+    deadline: Instant,
+    remaining_bytes: usize,
+}
+
+impl<B: Bearer> BoundedBearer<B> {
+    pub fn new(inner: B, deadline: Instant, byte_budget: usize) -> Self {
+        Self {
+            inner,
+            deadline,
+            remaining_bytes: byte_budget,
+        }
+    }
+
+    fn charge(&mut self, bytes: usize) -> mini_bearer::Result<()> {
+        if Instant::now() >= self.deadline {
+            return Err(BearerError::Io("exchange deadline exceeded".into()));
+        }
+        self.remaining_bytes = self
+            .remaining_bytes
+            .checked_sub(bytes)
+            .ok_or_else(|| BearerError::Io("exchange byte budget exceeded".into()))?;
+        Ok(())
+    }
+}
+
+impl<B: Bearer> Bearer for BoundedBearer<B> {
+    fn send(&mut self, frame: &[u8]) -> mini_bearer::Result<()> {
+        self.charge(frame.len())?;
+        self.inner.send(frame)
+    }
+
+    fn recv(&mut self) -> mini_bearer::Result<Vec<u8>> {
+        self.charge(0)?;
+        let frame = self.inner.recv()?;
+        self.charge(frame.len())?;
+        Ok(frame)
+    }
+
+    fn try_recv(&mut self) -> mini_bearer::Result<Option<Vec<u8>>> {
+        self.charge(0)?;
+        let frame = self.inner.try_recv()?;
+        if let Some(frame) = frame.as_ref() {
+            self.charge(frame.len())?;
+        }
+        Ok(frame)
+    }
+
+    fn max_frame_bytes(&self) -> Option<usize> {
+        self.inner.max_frame_bytes()
+    }
+}
+
+type Link = BoundedBearer<TcpBearer>;
+
+fn bound(bearer: TcpBearer) -> Link {
+    BoundedBearer::new(
+        bearer,
+        Instant::now() + EXCHANGE_DEADLINE,
+        EXCHANGE_BYTE_BUDGET,
+    )
+}
 
 /// What the dialing side wants from this connection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,12 +154,12 @@ fn resolve(endpoint: &str) -> Result<SocketAddr, String> {
         .ok_or_else(|| format!("{endpoint} did not resolve to an address"))
 }
 
-fn connect(endpoint: &str) -> Result<(TcpBearer, Channel), String> {
+fn connect(endpoint: &str) -> Result<(Link, Channel), String> {
     let address = resolve(endpoint)?;
     let stream = TcpStream::connect_timeout(&address, PEER_IO_TIMEOUT)
         .map_err(|error| format!("{endpoint} refused or timed out: {error}"))?;
     configure_peer_stream(&stream)?;
-    let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
+    let mut bearer = bound(TcpBearer::from_stream(stream).map_err(|error| error.to_string())?);
     let (initiator, hello) = Initiator::start().map_err(|error| error.to_string())?;
     bearer.send(&hello).map_err(|error| error.to_string())?;
     let response = bearer.recv().map_err(|error| error.to_string())?;
@@ -96,30 +169,26 @@ fn connect(endpoint: &str) -> Result<(TcpBearer, Channel), String> {
     Ok((bearer, channel))
 }
 
-fn accept(stream: TcpStream) -> Result<(TcpBearer, Channel), String> {
+fn accept(stream: TcpStream) -> Result<(Link, Channel), String> {
     stream
         .set_nonblocking(false)
         .map_err(|error| error.to_string())?;
     configure_peer_stream(&stream)?;
-    let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
+    let mut bearer = bound(TcpBearer::from_stream(stream).map_err(|error| error.to_string())?);
     let hello = bearer.recv().map_err(|error| error.to_string())?;
     let (channel, response) = Responder::respond(&hello).map_err(|error| error.to_string())?;
     bearer.send(&response).map_err(|error| error.to_string())?;
     Ok((bearer, channel))
 }
 
-fn send_intent(
-    bearer: &mut TcpBearer,
-    channel: &mut Channel,
-    intent: Intent,
-) -> Result<(), String> {
+fn send_intent(bearer: &mut Link, channel: &mut Channel, intent: Intent) -> Result<(), String> {
     let sealed = channel
         .seal(&intent.encode(), INTENT_AAD)
         .map_err(|error| error.to_string())?;
     bearer.send(&sealed).map_err(|error| error.to_string())
 }
 
-fn recv_intent(bearer: &mut TcpBearer, channel: &mut Channel) -> Result<Intent, String> {
+fn recv_intent(bearer: &mut Link, channel: &mut Channel) -> Result<Intent, String> {
     let sealed = bearer.recv().map_err(|error| error.to_string())?;
     let plain = channel
         .open(&sealed, INTENT_AAD)
@@ -328,5 +397,22 @@ mod tests {
         assert!(Intent::decode(&[INTENT_PRIVATE; 10]).is_err());
         assert!(Intent::decode(&[INTENT_PRIVATE; 34]).is_err());
         assert!(Intent::decode(&[9]).is_err());
+    }
+
+    #[test]
+    fn bounded_bearer_stops_at_deadline_and_byte_budget() {
+        let (a, mut b) = mini_bearer::pair();
+        let mut bounded = BoundedBearer::new(a, Instant::now() + Duration::from_secs(60), 10);
+        bounded.send(&[1; 6]).unwrap();
+        assert_eq!(b.recv().unwrap(), vec![1; 6]);
+        // 6 + 6 > 10: the second frame is refused before it is sent.
+        assert!(bounded.send(&[2; 6]).is_err());
+        assert!(b.try_recv().unwrap().is_none());
+
+        let (a, mut b) = mini_bearer::pair();
+        let mut expired = BoundedBearer::new(a, Instant::now() - Duration::from_secs(1), 1 << 20);
+        assert!(expired.send(&[1]).is_err());
+        b.send(&[7]).unwrap();
+        assert!(expired.recv().is_err());
     }
 }
