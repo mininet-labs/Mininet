@@ -2,7 +2,7 @@
 
 Windows-first egui reference client shell for Mininet.
 
-The connected desktop beta (D-0522) opens into an X-style black shell:
+The connected desktop beta (D-0523) opens into an X-style black shell:
 navigation rail, central timeline, and a discovery column on wide windows.
 Timelines are loaded by a worker (50 cards), show real author names and
 author-claimed relative times, and offer *Following* and *Everyone* scopes,

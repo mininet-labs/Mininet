@@ -24455,7 +24455,7 @@ per the voice/value wall" and "no WiX/MSI" choices specifically. Everything
 else in D-0520 — the package format, the install engine, the setup program,
 the CI jobs — stands as written.
 
-### D-0522 — Connected desktop beta: X-style shell, owner-started hosting and multi-peer sessions, intent-tagged desktop link, opt-in private-conversation delivery  ·  *Shipped*
+### D-0523 — Connected desktop beta: X-style shell, owner-started hosting and multi-peer sessions, intent-tagged desktop link, opt-in private-conversation delivery  ·  *Shipped*
 
 **Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{peer_link,network_session,connectivity,theme,timeline}.rs`;
 `mini_sync::sync_private_route_responder_any`; `docs/proposals/connected-mininet-client.md`;
@@ -24557,10 +24557,10 @@ the prompt).
 
 **Supersedes / superseded by:** none. Extends D-0520/D-0521.
 
-### D-0523 — Service tickets (`mini-ticket`), the desktop Earnings ledger, and the seedable Library (files and movies of any size)  ·  *Shipped*
+### D-0524 — Service tickets (`mini-ticket`), the desktop Earnings ledger, and the seedable Library (files and movies of any size)  ·  *Shipped*
 
 **Date:** 2026-09-15 · **Refs:** `crates/mini-ticket/`; `crates/mini-desktop/src/{peer_link,library}.rs`;
-D-0522 (the connected desktop this extends); D-0417 (`mini-contribution`, the
+D-0523 (the connected desktop this extends); D-0417 (`mini-contribution`, the
 full escrow/settlement coordinator this deliberately does not activate);
 D-0302 (`mini-resource-pricing`, whose micro-MINI/MB convention tickets
 reuse); D-0037/D-0047 (no real value before external audit);
@@ -24632,11 +24632,11 @@ settlement path when D-0047 clears; ticket pruning/aggregation; agreed
 rates via provider declarations (`mini-provider`); chunk-level attribution;
 streaming playback from partial collections.
 
-**Supersedes / superseded by:** none. Extends D-0522.
+**Supersedes / superseded by:** none. Extends D-0523.
 
-### D-0524 — In-app Shorts and Watch: pure-Rust audio playback and animated GIF/WebP, video stays export-to-watch  ·  *Shipped*
+### D-0525 — In-app Shorts and Watch: pure-Rust audio playback and animated GIF/WebP, video stays export-to-watch  ·  *Shipped*
 
-**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/player.rs`; D-0523
+**Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/player.rs`; D-0524
 (the Library this plays from); `deny.toml` (MPL-2.0 already allowed);
 `crates/mini-desktop/README.md` ("no embedded browser, no external
 execution").
@@ -24684,13 +24684,13 @@ rules (candidates: a pure-Rust AV1 decoder when one matures, or an
 OS-media-foundation adapter behind an explicit owner switch, both to be
 decided, not assumed); streaming decode for large audio; playlists.
 
-**Supersedes / superseded by:** none. Extends D-0523.
+**Supersedes / superseded by:** none. Extends D-0524.
 
-### D-0525 — Fixing D-0522–D-0524's stated limits: UPnP router mapping, agreed ticket rates, in-process H.264 video  ·  *Shipped*
+### D-0526 — Fixing D-0523–D-0525's stated limits: UPnP router mapping, agreed ticket rates, in-process H.264 video  ·  *Shipped*
 
 **Date:** 2026-09-15 · **Refs:** `crates/mini-desktop/src/{video,player,connectivity,peer_link}.rs`;
-`crates/mini-ticket`; D-0522 (no NAT help), D-0523 (device-local rates),
-D-0524 (no video); `deny.toml` (BSD-2 already allowed).
+`crates/mini-ticket`; D-0523 (no NAT help), D-0524 (device-local rates),
+D-0525 (no video); `deny.toml` (BSD-2 already allowed).
 
 **Decision:** close the limits that were closable in the client, and say
 plainly which still stand.
@@ -24755,4 +24755,4 @@ Cards open Watch; author names open a **Channel** page (profile, follow,
 message, their media and posts). Search is over what this device holds;
 it is not network search.
 
-**Supersedes / superseded by:** none. Extends D-0522–D-0524.
+**Supersedes / superseded by:** none. Extends D-0523–D-0525.

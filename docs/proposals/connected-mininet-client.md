@@ -179,7 +179,7 @@ and real-value external audit gates remain unchanged.
 
 ## Evidence and review record
 
-Landed as D-0522 on the merged Windows PR #345 base. Reversible Tier-O
+Landed as D-0523 on the merged Windows PR #345 base. Reversible Tier-O
 client change plus one additive `mini-sync` responder API; no canonical
 invariant, protocol wire format, monetary rule, release, repository setting
 or activation record changed.

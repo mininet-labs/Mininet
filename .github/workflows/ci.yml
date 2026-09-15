@@ -328,7 +328,7 @@ jobs:
       # `WindowsShell`, every `cfg` branch -- is type-checked here for the
       # price of one `rustup target add`.
       #
-      # mini-desktop's in-process H.264 decoder (openh264, D-0525) compiles C++
+      # mini-desktop's in-process H.264 decoder (openh264, D-0526) compiles C++
       # from source, so the type-check of that crate needs the MinGW cross
       # compiler alongside the Rust target.
       - name: Type-check the Windows-conditional code from Linux

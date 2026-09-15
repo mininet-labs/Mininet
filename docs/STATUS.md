@@ -3057,7 +3057,7 @@ value-to-routing/ranking/voice path. An authenticated endpoint proves control of
 one key-bound endpoint on one channel, not personhood, operator independence,
 result truth, or governance standing.
 
-## Connected desktop beta — 2026-09-15 (D-0522)
+## Connected desktop beta — 2026-09-15 (D-0523)
 
 The Windows client now opens into an X-style black shell (rail, timeline,
 discovery column) with real author names/times, a worker-loaded 50-card
@@ -3077,7 +3077,7 @@ rendezvous, NAT traversal, endpoint advertisements, durable outbox,
 whole-exchange deadlines, indexed timelines, video playback, maps, dating
 and business workflows. See `docs/proposals/connected-mininet-client.md`.
 
-## Service tickets and the seedable Library — 2026-09-15 (D-0523)
+## Service tickets and the seedable Library — 2026-09-15 (D-0524)
 
 `mini-ticket` adds signed, replicable service tickets issued by the receiver
 of every desktop exchange, a ledger that credits hosts and creators in
@@ -3088,14 +3088,14 @@ exports chunk by chunk; Earnings shows the ledger and rate. Verified over
 real TCP and live with two instances. Not built: settlement or payout,
 ticket pruning, agreed rates, streaming playback.
 
-## Shorts, Watch and in-app playback — 2026-09-15 (D-0524)
+## Shorts, Watch and in-app playback — 2026-09-15 (D-0525)
 
 Audio (MP3/FLAC/Ogg/WAV/AAC-in-MP4) plays in-app through pure-Rust
 decoders with seek, pause, volume and a now-playing bar; animated GIF/WebP
 loop in Shorts and Watch. Video does not decode in-app (no pure-Rust
 decoder; no browser or external launch) and the UI says so, offering export.
 
-## Limits closed — 2026-09-15 (D-0525)
+## Limits closed — 2026-09-15 (D-0526)
 
 Owner-triggered UPnP router mapping with honest public-address detection;
 agreed per-exchange ticket rates written into tickets; in-process H.264
