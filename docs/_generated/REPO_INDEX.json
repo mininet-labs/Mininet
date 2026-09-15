@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 84,
-    "files": 1055,
-    "headings": 3743,
-    "rust_symbols": 11435
+    "files": 1073,
+    "headings": 3809,
+    "rust_symbols": 11517
   },
   "crates": {
     "did-mini": {
@@ -1010,7 +1010,7 @@
       "title": "Android beta slice 9 (issue #205, hub #196): SPEC-11's verified-"
     },
     {
-      "bytes": 25447,
+      "bytes": 25758,
       "group": "ci",
       "headings": [
         {
@@ -1050,9 +1050,9 @@
         "set",
         "json"
       ],
-      "lines": 492,
+      "lines": 498,
       "path": ".github/workflows/ci.yml",
-      "sha256": "7b10601bd7f0182dd316d16e20d749f8cfa8f028f1f20a015c133028e9540e89",
+      "sha256": "fa18445fe33c7a7a7cf68de44ead7ee5d5aa91246c9525eba10ea2e86e504846",
       "symbols": [],
       "title": "Least-privilege default: this workflow only reads and checks the repo, it"
     },
@@ -1814,7 +1814,7 @@
       "title": "Creative Commons Legal Code"
     },
     {
-      "bytes": 31082,
+      "bytes": 31572,
       "group": "root",
       "headings": [
         {
@@ -1860,9 +1860,9 @@
       ],
       "keywords": [
         "never",
-        "real",
         "what",
         "money",
+        "real",
         "identity",
         "one",
         "network",
@@ -1886,7 +1886,7 @@
       ],
       "lines": 491,
       "path": "README.md",
-      "sha256": "dbee18c8bc6465baa48c17553289de02d5a8bc0841b3acbf694875666b967a46",
+      "sha256": "a84c1153501cdf2d92b809f2c0a756f2b53d276cec3b1c7c696accfd43f78a29",
       "symbols": [],
       "title": "Mininet"
     },
@@ -27752,7 +27752,7 @@
       "title": "Keep the renderer explicit: no persistence, webbrowser, web screen reader,"
     },
     {
-      "bytes": 13128,
+      "bytes": 13282,
       "group": "crate:mini-desktop",
       "headings": [
         {
@@ -27762,36 +27762,168 @@
         }
       ],
       "keywords": [
-        "bob",
         "one",
+        "bob",
         "signed",
-        "profile",
-        "alice",
         "connections",
-        "window",
-        "nearby",
+        "profile",
+        "open",
         "you",
         "did",
+        "alice",
+        "window",
+        "nearby",
         "mini-desktop",
         "follow",
         "profiles",
-        "open",
         "your",
         "public",
         "endpoint",
-        "friend",
         "launch",
         "discovery",
         "windows",
-        "what",
-        "request",
-        "plays"
+        "cards",
+        "author",
+        "names",
+        "media"
       ],
-      "lines": 219,
+      "lines": 221,
       "path": "crates/mini-desktop/README.md",
-      "sha256": "647a425464c499a036539cec05730d8f77c8a6097da2b6d84a78692914784486",
+      "sha256": "acc9fef35c4fbf77c2d7aa98a522babc1cec881c78097452fcb2c0f8a9675bab",
       "symbols": [],
       "title": "mini-desktop"
+    },
+    {
+      "bytes": 12188,
+      "group": "crate:mini-desktop",
+      "headings": [],
+      "keywords": [
+        "kind",
+        "self",
+        "store",
+        "string",
+        "sort",
+        "to_lowercase",
+        "word",
+        "media",
+        "playback",
+        "match",
+        "entry",
+        "post",
+        "objectid",
+        "posts",
+        "video",
+        "image",
+        "content_type",
+        "contains",
+        "label",
+        "object",
+        "music",
+        "animation",
+        "file",
+        "str"
+      ],
+      "lines": 370,
+      "path": "crates/mini-desktop/src/catalog.rs",
+      "sha256": "965d110a9ef3e6a06704d6c92eda6d143dafa4275923545e1f994c95602a3465",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 18,
+          "name": "MAX_ENTRIES"
+        },
+        {
+          "kind": "enum",
+          "line": 21,
+          "name": "Kind"
+        },
+        {
+          "kind": "impl",
+          "line": 29,
+          "name": "Kind"
+        },
+        {
+          "kind": "fn",
+          "line": 30,
+          "name": "label"
+        },
+        {
+          "kind": "fn",
+          "line": 40,
+          "name": "glyph"
+        },
+        {
+          "kind": "fn",
+          "line": 50,
+          "name": "from_content_type"
+        },
+        {
+          "kind": "struct",
+          "line": 62,
+          "name": "Entry"
+        },
+        {
+          "kind": "impl",
+          "line": 81,
+          "name": "Entry"
+        },
+        {
+          "kind": "fn",
+          "line": 83,
+          "name": "matches"
+        },
+        {
+          "kind": "enum",
+          "line": 101,
+          "name": "Sort"
+        },
+        {
+          "kind": "impl",
+          "line": 107,
+          "name": "Sort"
+        },
+        {
+          "kind": "fn",
+          "line": 108,
+          "name": "label"
+        },
+        {
+          "kind": "fn",
+          "line": 117,
+          "name": "snapshot"
+        },
+        {
+          "kind": "fn",
+          "line": 123,
+          "name": "build"
+        },
+        {
+          "kind": "fn",
+          "line": 223,
+          "name": "split_title"
+        },
+        {
+          "kind": "fn",
+          "line": 241,
+          "name": "sort"
+        },
+        {
+          "kind": "mod",
+          "line": 258,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 267,
+          "name": "person"
+        },
+        {
+          "kind": "fn",
+          "line": 281,
+          "name": "catalog_indexes_media_posts_with_titles_authors_and_search"
+        }
+      ],
+      "title": "use crate::library;"
     },
     {
       "bytes": 21560,
@@ -28462,7 +28594,7 @@
       "title": "use did_mini::{Controller, Did};"
     },
     {
-      "bytes": 347018,
+      "bytes": 375515,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -28491,1012 +28623,1012 @@
         "false",
         "connectivity"
       ],
-      "lines": 7871,
+      "lines": 8494,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "075d2db25c0c9156cb38b2396e64529e37015ccf34b99a8b5c83876c0dc322db",
+      "sha256": "f52eb216875113776b2a0bd65f39460b9b26d27875b29dff642c9b2f2fdc21d9",
       "symbols": [
         {
           "kind": "mod",
           "line": 10,
-          "name": "connectivity"
+          "name": "catalog"
         },
         {
           "kind": "mod",
           "line": 11,
-          "name": "conversation_state"
+          "name": "connectivity"
         },
         {
           "kind": "mod",
           "line": 12,
-          "name": "discussion"
+          "name": "conversation_state"
         },
         {
           "kind": "mod",
           "line": 13,
-          "name": "library"
+          "name": "discussion"
         },
         {
           "kind": "mod",
           "line": 14,
-          "name": "mute_list"
+          "name": "library"
         },
         {
           "kind": "mod",
           "line": 15,
-          "name": "network_session"
+          "name": "mute_list"
         },
         {
           "kind": "mod",
           "line": 16,
-          "name": "peer_link"
+          "name": "network_session"
         },
         {
           "kind": "mod",
           "line": 17,
-          "name": "player"
+          "name": "peer_link"
         },
         {
           "kind": "mod",
           "line": 18,
-          "name": "theme"
+          "name": "player"
         },
         {
           "kind": "mod",
           "line": 19,
-          "name": "timeline"
+          "name": "theme"
         },
         {
           "kind": "mod",
           "line": 20,
+          "name": "timeline"
+        },
+        {
+          "kind": "mod",
+          "line": 21,
           "name": "video"
         },
         {
           "kind": "const",
-          "line": 49,
+          "line": 50,
           "name": "PEER_IO_TIMEOUT"
         },
         {
           "kind": "enum",
-          "line": 52,
+          "line": 53,
           "name": "View"
         },
         {
           "kind": "enum",
-          "line": 73,
+          "line": 75,
           "name": "UpdatePolicy"
         },
         {
           "kind": "enum",
-          "line": 79,
+          "line": 81,
           "name": "SyncContext"
         },
         {
           "kind": "struct",
-          "line": 85,
+          "line": 87,
           "name": "ConversationPreview"
         },
         {
           "kind": "struct",
-          "line": 97,
+          "line": 99,
           "name": "HostState"
         },
         {
           "kind": "impl",
-          "line": 108,
+          "line": 110,
           "name": "Drop"
         },
         {
           "kind": "fn",
-          "line": 109,
+          "line": 111,
           "name": "drop"
         },
         {
           "kind": "struct",
-          "line": 115,
+          "line": 117,
           "name": "PrivacyState"
         },
         {
           "kind": "impl",
-          "line": 128,
+          "line": 130,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 129,
+          "line": 131,
           "name": "default"
         },
         {
           "kind": "struct",
-          "line": 140,
+          "line": 142,
           "name": "MininetApp"
         },
         {
           "kind": "struct",
-          "line": 264,
+          "line": 280,
           "name": "Workspace"
         },
         {
           "kind": "struct",
-          "line": 273,
+          "line": 289,
           "name": "DesktopIdentity"
         },
         {
           "kind": "fn",
-          "line": 278,
+          "line": 294,
           "name": "desktop_identity_from_seeds"
         },
         {
           "kind": "fn",
-          "line": 295,
+          "line": 311,
           "name": "load_desktop_identity"
         },
         {
           "kind": "impl",
-          "line": 311,
+          "line": 327,
           "name": "Workspace"
         },
         {
           "kind": "fn",
-          "line": 312,
+          "line": 328,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 344,
+          "line": 360,
           "name": "refresh"
         },
         {
           "kind": "fn",
-          "line": 354,
+          "line": 370,
           "name": "is_unlocked"
         },
         {
           "kind": "fn",
-          "line": 358,
+          "line": 374,
           "name": "root_created"
         },
         {
           "kind": "fn",
-          "line": 362,
+          "line": 378,
           "name": "has_public_account"
         },
         {
           "kind": "fn",
-          "line": 366,
+          "line": 382,
           "name": "human_did"
         },
         {
           "kind": "fn",
-          "line": 372,
+          "line": 388,
           "name": "create_root"
         },
         {
           "kind": "fn",
-          "line": 386,
+          "line": 402,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 390,
+          "line": 406,
           "name": "unlock"
         },
         {
           "kind": "fn",
-          "line": 400,
+          "line": 416,
           "name": "publish_post"
         },
         {
           "kind": "fn",
-          "line": 419,
+          "line": 435,
           "name": "publish_profile"
         },
         {
           "kind": "fn",
-          "line": 441,
+          "line": 457,
           "name": "publish_custom_profile"
         },
         {
           "kind": "fn",
-          "line": 502,
+          "line": 518,
           "name": "publish_custom_profile_confirmed"
         },
         {
           "kind": "fn",
-          "line": 531,
+          "line": 547,
           "name": "known_profiles"
         },
         {
           "kind": "fn",
-          "line": 535,
+          "line": 551,
           "name": "current_profile"
         },
         {
           "kind": "fn",
-          "line": 541,
+          "line": 557,
           "name": "profile_needs_device_upgrade"
         },
         {
           "kind": "fn",
-          "line": 553,
+          "line": 569,
           "name": "upgrade_profile_for_sync"
         },
         {
           "kind": "fn",
-          "line": 569,
+          "line": 585,
           "name": "follows"
         },
         {
           "kind": "fn",
-          "line": 576,
+          "line": 592,
           "name": "is_friend"
         },
         {
           "kind": "fn",
-          "line": 585,
+          "line": 601,
           "name": "set_follow_target_confirmed"
         },
         {
           "kind": "fn",
-          "line": 598,
+          "line": 614,
           "name": "media_bytes"
         },
         {
           "kind": "fn",
-          "line": 616,
+          "line": 632,
           "name": "profile_image"
         },
         {
           "kind": "fn",
-          "line": 625,
+          "line": 641,
           "name": "publish_public_wall"
         },
         {
           "kind": "fn",
-          "line": 659,
+          "line": 675,
           "name": "publish_community"
         },
         {
           "kind": "fn",
-          "line": 680,
+          "line": 696,
           "name": "publish_media_post"
         },
         {
           "kind": "fn",
-          "line": 719,
+          "line": 735,
           "name": "publish_comment"
         },
         {
           "kind": "fn",
-          "line": 743,
+          "line": 759,
           "name": "publish_file"
         },
         {
           "kind": "fn",
-          "line": 779,
+          "line": 795,
           "name": "publish_media_post_for"
         },
         {
           "kind": "fn",
-          "line": 813,
+          "line": 829,
           "name": "build_redemption"
         },
         {
           "kind": "fn",
-          "line": 843,
+          "line": 859,
           "name": "redemption_requests"
         },
         {
           "kind": "fn",
-          "line": 879,
-          "name": "publish_comment_confirmed"
-        },
-        {
-          "kind": "fn",
           "line": 895,
-          "name": "set_community_membership_confirmed"
+          "name": "publish_comment_confirmed"
         },
         {
           "kind": "fn",
           "line": 911,
+          "name": "set_community_membership_confirmed"
+        },
+        {
+          "kind": "fn",
+          "line": 927,
           "name": "react_like"
         },
         {
           "kind": "fn",
-          "line": 923,
+          "line": 939,
           "name": "react_like_unlocked"
         },
         {
           "kind": "fn",
-          "line": 944,
+          "line": 960,
           "name": "export_bundle"
         },
         {
           "kind": "const",
-          "line": 945,
+          "line": 961,
           "name": "MAGIC"
         },
         {
           "kind": "const",
-          "line": 946,
+          "line": 962,
           "name": "MAX_OBJECTS"
         },
         {
           "kind": "const",
-          "line": 947,
+          "line": 963,
           "name": "MAX_OBJECT_BYTES"
         },
         {
           "kind": "fn",
-          "line": 971,
+          "line": 987,
           "name": "import_bundle"
         },
         {
           "kind": "const",
-          "line": 972,
+          "line": 988,
           "name": "MAGIC"
         },
         {
           "kind": "const",
-          "line": 973,
+          "line": 989,
           "name": "MAX_OBJECTS"
         },
         {
           "kind": "const",
-          "line": 974,
+          "line": 990,
           "name": "MAX_OBJECT_BYTES"
         },
         {
           "kind": "fn",
-          "line": 1002,
+          "line": 1018,
           "name": "set_community_membership"
         },
         {
           "kind": "fn",
-          "line": 1026,
+          "line": 1042,
           "name": "set_follow_target"
         },
         {
           "kind": "fn",
-          "line": 1047,
+          "line": 1063,
           "name": "following_count"
         },
         {
           "kind": "fn",
-          "line": 1054,
+          "line": 1070,
           "name": "follower_count"
         },
         {
           "kind": "fn",
-          "line": 1061,
+          "line": 1077,
           "name": "mutual_follow_count"
         },
         {
           "kind": "fn",
-          "line": 1077,
+          "line": 1093,
           "name": "communities"
         },
         {
           "kind": "fn",
-          "line": 1093,
+          "line": 1109,
           "name": "create_beta_conversation"
         },
         {
           "kind": "fn",
-          "line": 1117,
+          "line": 1133,
           "name": "import_beta_conversation"
         },
         {
           "kind": "fn",
-          "line": 1136,
+          "line": 1152,
           "name": "send_private_message"
         },
         {
           "kind": "fn",
-          "line": 1161,
+          "line": 1177,
           "name": "private_messages"
         },
         {
           "kind": "fn",
-          "line": 1170,
+          "line": 1186,
           "name": "data_root"
         },
         {
           "kind": "fn",
-          "line": 1182,
+          "line": 1198,
           "name": "settings_path"
         },
         {
           "kind": "fn",
-          "line": 1186,
+          "line": 1202,
           "name": "encode_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 1199,
+          "line": 1215,
           "name": "decode_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 1216,
+          "line": 1232,
           "name": "load_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 1223,
+          "line": 1239,
           "name": "save_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 1228,
+          "line": 1244,
           "name": "now_ms"
         },
         {
           "kind": "fn",
-          "line": 1235,
+          "line": 1251,
           "name": "next_object_sequence"
         },
         {
           "kind": "fn",
-          "line": 1249,
+          "line": 1265,
           "name": "decode_profile_image"
         },
         {
           "kind": "const",
-          "line": 1250,
+          "line": 1266,
           "name": "MAX_DIMENSION"
         },
         {
           "kind": "const",
-          "line": 1251,
+          "line": 1267,
           "name": "MAX_DECODE_ALLOCATION"
         },
         {
           "kind": "fn",
-          "line": 1276,
+          "line": 1292,
           "name": "parse_profile_fields"
         },
         {
           "kind": "fn",
-          "line": 1316,
+          "line": 1332,
           "name": "atomic_write_file"
         },
         {
           "kind": "fn",
-          "line": 1335,
+          "line": 1351,
           "name": "read_u32"
         },
         {
           "kind": "fn",
-          "line": 1349,
+          "line": 1365,
           "name": "configure_peer_stream"
         },
         {
           "kind": "fn",
-          "line": 1359,
+          "line": 1375,
           "name": "nearby_endpoint_for"
         },
         {
           "kind": "fn",
-          "line": 1366,
+          "line": 1382,
           "name": "open_sync_state"
         },
         {
           "kind": "fn",
-          "line": 1386,
+          "line": 1402,
           "name": "accept_once"
         },
         {
           "kind": "fn",
-          "line": 1392,
+          "line": 1408,
           "name": "run_peer_sync"
         },
         {
           "kind": "fn",
-          "line": 1401,
+          "line": 1417,
           "name": "run_private_sync"
         },
         {
           "kind": "fn",
-          "line": 1423,
+          "line": 1439,
           "name": "scan_nearby_profiles"
         },
         {
           "kind": "fn",
-          "line": 1452,
+          "line": 1468,
           "name": "run_discoverable_profile_sync"
         },
         {
           "kind": "impl",
-          "line": 1504,
+          "line": 1520,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 1505,
+          "line": 1521,
           "name": "default"
         },
         {
           "kind": "impl",
-          "line": 1670,
+          "line": 1698,
           "name": "eframe::App"
         },
         {
           "kind": "fn",
-          "line": 1671,
+          "line": 1699,
           "name": "update"
         },
         {
           "kind": "impl",
-          "line": 1788,
+          "line": 1819,
           "name": "MininetApp"
         },
         {
           "kind": "fn",
-          "line": 1791,
+          "line": 1822,
           "name": "log_activity"
         },
         {
           "kind": "const",
-          "line": 1792,
+          "line": 1823,
           "name": "MAX_ACTIVITY"
         },
         {
           "kind": "fn",
-          "line": 1802,
+          "line": 1833,
           "name": "reload_workspace"
         },
         {
           "kind": "fn",
-          "line": 1817,
+          "line": 1849,
           "name": "rebuild_conversation_previews"
         },
         {
           "kind": "fn",
-          "line": 1861,
+          "line": 1893,
           "name": "save_connections"
         },
         {
           "kind": "fn",
-          "line": 1869,
+          "line": 1901,
           "name": "apply_launch_policy"
         },
         {
           "kind": "fn",
-          "line": 1888,
+          "line": 1920,
           "name": "start_host"
         },
         {
           "kind": "fn",
-          "line": 1934,
+          "line": 1966,
           "name": "stop_host"
         },
         {
           "kind": "fn",
-          "line": 1942,
+          "line": 1974,
           "name": "start_router_mapping"
         },
         {
           "kind": "fn",
-          "line": 1957,
+          "line": 1989,
           "name": "poll_router"
         },
         {
           "kind": "fn",
-          "line": 2007,
+          "line": 2039,
           "name": "poll_host"
         },
         {
           "kind": "fn",
-          "line": 2069,
+          "line": 2101,
           "name": "start_session"
         },
         {
           "kind": "fn",
-          "line": 2100,
+          "line": 2132,
           "name": "stop_session"
         },
         {
           "kind": "fn",
-          "line": 2107,
+          "line": 2139,
           "name": "schedule_session"
         },
         {
           "kind": "fn",
-          "line": 2156,
+          "line": 2188,
           "name": "poll_session"
         },
         {
           "kind": "fn",
-          "line": 2192,
+          "line": 2224,
           "name": "poll_dropped_files"
         },
         {
           "kind": "fn",
-          "line": 2222,
+          "line": 2254,
           "name": "poll_discovery"
         },
         {
           "kind": "fn",
-          "line": 2240,
+          "line": 2272,
           "name": "poll_one_shot_sync"
         },
         {
           "kind": "fn",
-          "line": 2273,
+          "line": 2305,
           "name": "poll_selftest"
         },
         {
           "kind": "fn",
-          "line": 2309,
+          "line": 2341,
           "name": "poll_visibility"
         },
         {
           "kind": "fn",
-          "line": 2341,
+          "line": 2373,
           "name": "connection_state"
         },
         {
           "kind": "fn",
-          "line": 2358,
+          "line": 2390,
           "name": "connection_summary"
         },
         {
           "kind": "fn",
-          "line": 2383,
+          "line": 2415,
           "name": "top_bar"
         },
         {
           "kind": "fn",
-          "line": 2446,
+          "line": 2478,
           "name": "navigation_rail"
         },
         {
           "kind": "fn",
-          "line": 2516,
+          "line": 2548,
           "name": "discovery_column"
         },
         {
           "kind": "fn",
-          "line": 2652,
+          "line": 2684,
           "name": "set_muted"
         },
         {
           "kind": "fn",
-          "line": 2670,
+          "line": 2702,
           "name": "peer_label"
         },
         {
           "kind": "fn",
-          "line": 2680,
+          "line": 2712,
           "name": "follow_suggestions"
         },
         {
           "kind": "fn",
-          "line": 2696,
+          "line": 2728,
           "name": "follow_did"
         },
         {
           "kind": "fn",
-          "line": 2711,
+          "line": 2743,
           "name": "poll_timeline"
         },
         {
           "kind": "fn",
-          "line": 2783,
+          "line": 2815,
           "name": "timeline_controls"
         },
         {
           "kind": "fn",
-          "line": 2829,
+          "line": 2861,
           "name": "render_timeline"
         },
         {
           "kind": "fn",
-          "line": 2897,
+          "line": 2929,
           "name": "discover"
         },
         {
           "kind": "fn",
-          "line": 2929,
+          "line": 2963,
+          "name": "poll_catalog"
+        },
+        {
+          "kind": "fn",
+          "line": 3010,
+          "name": "thumbnail"
+        },
+        {
+          "kind": "fn",
+          "line": 3062,
           "name": "media_timeline"
         },
         {
           "kind": "fn",
-          "line": 2950,
+          "line": 3140,
+          "name": "catalog_grid"
+        },
+        {
+          "kind": "fn",
+          "line": 3294,
+          "name": "channel"
+        },
+        {
+          "kind": "fn",
+          "line": 3427,
           "name": "media_texture"
         },
         {
           "kind": "fn",
-          "line": 2980,
+          "line": 3457,
           "name": "media_description"
         },
         {
           "kind": "fn",
-          "line": 3026,
+          "line": 3503,
           "name": "start_nearby_scan"
         },
         {
           "kind": "fn",
-          "line": 3043,
+          "line": 3520,
           "name": "start_profile_visibility"
         },
         {
           "kind": "fn",
-          "line": 3089,
+          "line": 3566,
           "name": "start_peer_sync"
         },
         {
           "kind": "fn",
-          "line": 3115,
+          "line": 3592,
           "name": "start_private_sync"
         },
         {
           "kind": "fn",
-          "line": 3152,
+          "line": 3629,
           "name": "add_friend"
         },
         {
           "kind": "fn",
-          "line": 3199,
+          "line": 3676,
           "name": "post_card"
         },
         {
           "kind": "fn",
-          "line": 3359,
+          "line": 3846,
           "name": "thread"
         },
         {
           "kind": "const",
-          "line": 3360,
+          "line": 3847,
           "name": "MAX_SHOWN"
         },
         {
           "kind": "fn",
-          "line": 3433,
+          "line": 3920,
           "name": "nav_button"
         },
         {
           "kind": "fn",
-          "line": 3453,
+          "line": 3940,
           "name": "header"
         },
         {
           "kind": "fn",
-          "line": 3524,
+          "line": 4012,
           "name": "home"
         },
         {
           "kind": "fn",
-          "line": 3647,
+          "line": 4135,
           "name": "connections"
         },
         {
           "kind": "fn",
-          "line": 4073,
+          "line": 4561,
           "name": "onboarding"
         },
         {
           "kind": "fn",
-          "line": 4187,
+          "line": 4675,
           "name": "inbox"
         },
         {
           "kind": "fn",
-          "line": 4507,
+          "line": 4995,
           "name": "profile_texture"
         },
         {
           "kind": "fn",
-          "line": 4530,
+          "line": 5018,
           "name": "people"
         },
         {
           "kind": "fn",
-          "line": 4750,
+          "line": 5238,
           "name": "reload_library"
         },
         {
           "kind": "fn",
-          "line": 4764,
+          "line": 5252,
           "name": "library"
         },
         {
           "kind": "fn",
-          "line": 5034,
+          "line": 5554,
           "name": "earnings"
         },
         {
           "kind": "fn",
-          "line": 5223,
+          "line": 5743,
           "name": "media_info"
         },
         {
           "kind": "fn",
-          "line": 5246,
+          "line": 5766,
           "name": "animation_for"
         },
         {
           "kind": "fn",
-          "line": 5268,
+          "line": 5789,
+          "name": "advance_play_queue"
+        },
+        {
+          "kind": "fn",
+          "line": 5807,
+          "name": "enqueue_audio"
+        },
+        {
+          "kind": "fn",
+          "line": 5825,
           "name": "play_audio"
         },
         {
           "kind": "fn",
-          "line": 5299,
+          "line": 5856,
           "name": "media_stage"
         },
         {
           "kind": "fn",
-          "line": 5402,
+          "line": 5971,
           "name": "media_placeholder"
         },
         {
           "kind": "fn",
-          "line": 5427,
+          "line": 5996,
           "name": "video_stage"
         },
         {
           "kind": "fn",
-          "line": 5531,
+          "line": 6100,
           "name": "start_video"
         },
         {
           "kind": "fn",
-          "line": 5570,
+          "line": 6139,
           "name": "now_playing_controls"
         },
         {
           "kind": "fn",
-          "line": 5615,
+          "line": 6184,
           "name": "now_playing_bar"
         },
         {
           "kind": "fn",
-          "line": 5656,
+          "line": 6238,
           "name": "media_cards"
         },
         {
           "kind": "fn",
-          "line": 5664,
+          "line": 6246,
           "name": "shorts"
         },
         {
           "kind": "fn",
-          "line": 5733,
+          "line": 6315,
           "name": "media_actions"
         },
         {
           "kind": "fn",
-          "line": 5780,
+          "line": 6362,
           "name": "watch"
         },
         {
           "kind": "fn",
-          "line": 5922,
+          "line": 6504,
           "name": "communities"
         },
         {
           "kind": "fn",
-          "line": 6027,
+          "line": 6609,
           "name": "router_controls"
         },
         {
           "kind": "fn",
-          "line": 6101,
+          "line": 6683,
           "name": "set_membership"
         },
         {
           "kind": "fn",
-          "line": 6114,
+          "line": 6696,
           "name": "reload_discussion"
         },
         {
           "kind": "fn",
-          "line": 6140,
+          "line": 6722,
           "name": "community_discussion"
         },
         {
           "kind": "fn",
-          "line": 6268,
+          "line": 6850,
           "name": "discussion_node"
         },
         {
           "kind": "fn",
-          "line": 6423,
+          "line": 7005,
           "name": "publish_comment_confirmed"
         },
         {
           "kind": "fn",
-          "line": 6434,
+          "line": 7016,
           "name": "creator"
         },
         {
           "kind": "fn",
-          "line": 6749,
+          "line": 7331,
           "name": "system"
         },
         {
           "kind": "fn",
-          "line": 6857,
+          "line": 7439,
           "name": "start_selftest"
         },
         {
           "kind": "fn",
-          "line": 6908,
+          "line": 7490,
           "name": "diagnostics"
         },
         {
           "kind": "fn",
-          "line": 7060,
+          "line": 7642,
           "name": "updates"
         },
         {
           "kind": "fn",
-          "line": 7218,
+          "line": 7800,
           "name": "install_summary"
         },
         {
           "kind": "fn",
-          "line": 7267,
+          "line": 7849,
           "name": "privacy"
         },
         {
           "kind": "fn",
-          "line": 7364,
+          "line": 7946,
           "name": "short_did"
         },
         {
           "kind": "const",
-          "line": 7365,
+          "line": 7947,
           "name": "KEEP"
         },
         {
           "kind": "fn",
-          "line": 7376,
+          "line": 7958,
           "name": "exchange_with_peer"
         },
         {
           "kind": "fn",
-          "line": 7408,
-          "name": "main"
-        },
-        {
-          "kind": "mod",
-          "line": 7424,
-          "name": "tests"
-        },
-        {
-          "kind": "fn",
-          "line": 7436,
-          "name": "privacy_defaults_are_local_and_manual"
-        },
-        {
-          "kind": "fn",
-          "line": 7446,
-          "name": "privacy_settings_round_trip_without_telemetry_state"
-        },
-        {
-          "kind": "fn",
-          "line": 7463,
-          "name": "custom_profile_fields_are_parsed_without_fixed_platform_schema"
-        },
-        {
-          "kind": "fn",
-          "line": 7476,
-          "name": "duplicate_or_malformed_custom_profile_fields_are_rejected"
-        },
-        {
-          "kind": "fn",
-          "line": 7482,
-          "name": "signing_sequence_continues_after_existing_objects"
-        },
-        {
-          "kind": "fn",
-          "line": 7505,
-          "name": "automatic_delivery_uses_only_the_exact_verified_did"
+          "line": 7991,
+          "name": "thumbnail_for"
         }
       ],
-      "title": "mod connectivity;"
+      "title": "mod catalog;"
     },
     {
       "bytes": 5191,
@@ -30180,38 +30312,38 @@
       "title": "use crate::{"
     },
     {
-      "bytes": 18875,
+      "bytes": 19666,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "self",
         "player",
         "playback",
-        "audio",
         "now",
-        "audioplayer",
+        "audio",
         "image",
+        "audioplayer",
         "video",
         "device",
         "duration",
         "else",
-        "nowplaying",
         "is_paused",
-        "volume",
         "source",
         "play",
         "string",
+        "nowplaying",
         "open",
         "stop",
         "animation",
         "max_audio_bytes",
-        "set_volume",
         "decode",
-        "through"
+        "through",
+        "const",
+        "error"
       ],
-      "lines": 579,
+      "lines": 587,
       "path": "crates/mini-desktop/src/player.rs",
-      "sha256": "94437d8318882541a2829acdd350c34d063dc5b26ed9a787bf3e9218d922af2a",
+      "sha256": "976d12dec772ed0db0f472a1508868f54e34b923dc6fbc1b507112164b3b8b15",
       "symbols": [
         {
           "kind": "const",
@@ -30280,249 +30412,259 @@
         },
         {
           "kind": "fn",
-          "line": 131,
+          "line": 132,
+          "name": "finished"
+        },
+        {
+          "kind": "fn",
+          "line": 136,
           "name": "toggle"
         },
         {
           "kind": "fn",
-          "line": 139,
+          "line": 144,
           "name": "is_paused"
-        },
-        {
-          "kind": "fn",
-          "line": 143,
-          "name": "stop"
         },
         {
           "kind": "fn",
           "line": 148,
-          "name": "position"
-        },
-        {
-          "kind": "fn",
-          "line": 152,
-          "name": "seek"
-        },
-        {
-          "kind": "fn",
-          "line": 156,
-          "name": "volume"
-        },
-        {
-          "kind": "fn",
-          "line": 160,
-          "name": "set_volume"
-        },
-        {
-          "kind": "struct",
-          "line": 167,
-          "name": "AudioPlayer"
-        },
-        {
-          "kind": "impl",
-          "line": 172,
-          "name": "AudioPlayer"
-        },
-        {
-          "kind": "fn",
-          "line": 173,
-          "name": "open"
-        },
-        {
-          "kind": "fn",
-          "line": 176,
-          "name": "play_bytes"
-        },
-        {
-          "kind": "fn",
-          "line": 185,
-          "name": "now"
-        },
-        {
-          "kind": "fn",
-          "line": 188,
-          "name": "is_playing"
-        },
-        {
-          "kind": "fn",
-          "line": 191,
-          "name": "toggle"
-        },
-        {
-          "kind": "fn",
-          "line": 192,
-          "name": "is_paused"
-        },
-        {
-          "kind": "fn",
-          "line": 195,
           "name": "stop"
         },
         {
           "kind": "fn",
-          "line": 198,
+          "line": 153,
           "name": "position"
         },
         {
           "kind": "fn",
-          "line": 201,
+          "line": 157,
           "name": "seek"
         },
         {
           "kind": "fn",
-          "line": 202,
+          "line": 161,
           "name": "volume"
         },
         {
           "kind": "fn",
-          "line": 205,
+          "line": 165,
           "name": "set_volume"
         },
         {
           "kind": "struct",
-          "line": 213,
-          "name": "ContainerAudio"
+          "line": 172,
+          "name": "AudioPlayer"
         },
         {
           "kind": "impl",
-          "line": 226,
-          "name": "ContainerAudio"
+          "line": 177,
+          "name": "AudioPlayer"
         },
         {
           "kind": "fn",
-          "line": 227,
+          "line": 178,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 280,
+          "line": 181,
+          "name": "play_bytes"
+        },
+        {
+          "kind": "fn",
+          "line": 190,
+          "name": "now"
+        },
+        {
+          "kind": "fn",
+          "line": 193,
+          "name": "is_playing"
+        },
+        {
+          "kind": "fn",
+          "line": 196,
+          "name": "finished"
+        },
+        {
+          "kind": "fn",
+          "line": 199,
+          "name": "toggle"
+        },
+        {
+          "kind": "fn",
+          "line": 200,
+          "name": "is_paused"
+        },
+        {
+          "kind": "fn",
+          "line": 203,
+          "name": "stop"
+        },
+        {
+          "kind": "fn",
+          "line": 206,
+          "name": "position"
+        },
+        {
+          "kind": "fn",
+          "line": 209,
+          "name": "seek"
+        },
+        {
+          "kind": "fn",
+          "line": 210,
+          "name": "volume"
+        },
+        {
+          "kind": "fn",
+          "line": 213,
+          "name": "set_volume"
+        },
+        {
+          "kind": "struct",
+          "line": 221,
+          "name": "ContainerAudio"
+        },
+        {
+          "kind": "impl",
+          "line": 234,
+          "name": "ContainerAudio"
+        },
+        {
+          "kind": "fn",
+          "line": 235,
+          "name": "open"
+        },
+        {
+          "kind": "fn",
+          "line": 288,
           "name": "refill"
         },
         {
           "kind": "impl",
-          "line": 317,
+          "line": 325,
           "name": "Iterator"
         },
         {
           "kind": "type",
-          "line": 318,
+          "line": 326,
           "name": "Item"
         },
         {
           "kind": "fn",
-          "line": 319,
+          "line": 327,
           "name": "next"
         },
         {
           "kind": "impl",
-          "line": 330,
+          "line": 338,
           "name": "Source"
         },
         {
           "kind": "fn",
-          "line": 331,
+          "line": 339,
           "name": "current_span_len"
         },
         {
           "kind": "fn",
-          "line": 334,
+          "line": 342,
           "name": "channels"
         },
         {
           "kind": "fn",
-          "line": 337,
+          "line": 345,
           "name": "sample_rate"
         },
         {
           "kind": "fn",
-          "line": 340,
+          "line": 348,
           "name": "total_duration"
         },
         {
           "kind": "impl",
-          "line": 346,
+          "line": 354,
           "name": "AudioPlayer"
         },
         {
           "kind": "fn",
-          "line": 348,
+          "line": 356,
           "name": "play_container"
         },
         {
           "kind": "impl",
-          "line": 374,
+          "line": 382,
           "name": "AudioPlayer"
         },
         {
           "kind": "fn",
-          "line": 375,
+          "line": 383,
           "name": "play_container"
         },
         {
           "kind": "struct",
-          "line": 387,
+          "line": 395,
           "name": "Animation"
         },
         {
           "kind": "impl",
-          "line": 394,
+          "line": 402,
           "name": "Animation"
         },
         {
           "kind": "fn",
-          "line": 396,
+          "line": 404,
           "name": "decode"
         },
         {
           "kind": "fn",
-          "line": 457,
+          "line": 465,
           "name": "current"
         },
         {
           "kind": "fn",
-          "line": 473,
+          "line": 481,
           "name": "frame_count"
         },
         {
           "kind": "fn",
-          "line": 478,
+          "line": 486,
           "name": "format_duration"
         },
         {
           "kind": "mod",
-          "line": 493,
+          "line": 501,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 497,
+          "line": 505,
           "name": "content_types_map_to_the_right_playback"
         },
         {
           "kind": "fn",
-          "line": 513,
+          "line": 521,
           "name": "a_wav_decodes_without_an_output_device"
         },
         {
           "kind": "fn",
-          "line": 535,
+          "line": 543,
           "name": "a_two_frame_gif_becomes_an_animation"
         },
         {
           "kind": "mod",
-          "line": 563,
+          "line": 571,
           "name": "clip_audio_tests"
         },
         {
           "kind": "fn",
-          "line": 567,
+          "line": 575,
           "name": "local_clip_audio_decodes_through_the_container_source"
         }
       ],
       "title": "use eframe::egui;"
     },
     {
-      "bytes": 9443,
+      "bytes": 9453,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -30553,7 +30695,7 @@
       ],
       "lines": 243,
       "path": "crates/mini-desktop/src/theme.rs",
-      "sha256": "db465012ef76f417b7857cdac1a49e9a2b08308a7ff7419bdbabbe9a364c6db7",
+      "sha256": "65a9670cd2f1b676e68b0a937297a98fcbe4e3447a115780ee3cb024686dd91a",
       "symbols": [
         {
           "kind": "const",
@@ -30781,7 +30923,7 @@
       "title": "use did_mini::Did;"
     },
     {
-      "bytes": 14585,
+      "bytes": 17402,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
@@ -30810,9 +30952,9 @@
         "height",
         "option"
       ],
-      "lines": 397,
+      "lines": 481,
       "path": "crates/mini-desktop/src/video.rs",
-      "sha256": "3acd3984f5670380d36a7f074bfc7403e19a73e0dcea225c73e60f34818a5921",
+      "sha256": "2d7f861d46261146a7915787a696f6ffea4a83345ed9ad4319b198cb6898c7b0",
       "symbols": [
         {
           "kind": "const",
@@ -30870,48 +31012,53 @@
           "name": "decode_thread"
         },
         {
+          "kind": "fn",
+          "line": 235,
+          "name": "poster"
+        },
+        {
           "kind": "impl",
-          "line": 232,
+          "line": 312,
           "name": "VideoPlayer"
         },
         {
           "kind": "fn",
-          "line": 235,
+          "line": 315,
           "name": "start"
         },
         {
           "kind": "fn",
-          "line": 263,
+          "line": 343,
           "name": "frame_at"
         },
         {
           "kind": "fn",
-          "line": 315,
+          "line": 395,
           "name": "restart_clock"
         },
         {
           "kind": "mod",
-          "line": 321,
+          "line": 401,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 325,
+          "line": 405,
           "name": "avcc_samples_become_annex_b"
         },
         {
           "kind": "fn",
-          "line": 337,
+          "line": 417,
           "name": "garbage_is_reported_not_panicked"
         },
         {
           "kind": "mod",
-          "line": 364,
+          "line": 444,
           "name": "clip_tests"
         },
         {
           "kind": "fn",
-          "line": 370,
+          "line": 450,
           "name": "local_clip_decodes_frames"
         }
       ],
@@ -40158,6 +40305,238 @@
       "title": "use std::collections::BTreeMap;"
     },
     {
+      "bytes": 17247,
+      "group": "crate:mini-forge",
+      "headings": [],
+      "keywords": [
+        "u32",
+        "seat",
+        "const",
+        "parliamentpolicyerror",
+        "vote",
+        "yes",
+        "tally",
+        "votechoice",
+        "votetally",
+        "derive",
+        "abstain",
+        "invitation",
+        "debug",
+        "clone",
+        "copy",
+        "partialeq",
+        "active_seats",
+        "evidence",
+        "self",
+        "return",
+        "err",
+        "max_active_seats",
+        "seatvote",
+        "reference"
+      ],
+      "lines": 468,
+      "path": "crates/mini-forge/src/parliament_policy.rs",
+      "sha256": "29f7c52eb477b174953a2766268f26e403e8192bbc32946c765f9ce1eb26ab81",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 9,
+          "name": "FOUNDING_SEATS"
+        },
+        {
+          "kind": "const",
+          "line": 14,
+          "name": "MAX_ACTIVE_SEATS"
+        },
+        {
+          "kind": "const",
+          "line": 16,
+          "name": "H0_INVITATIONS_PER_WINDOW"
+        },
+        {
+          "kind": "const",
+          "line": 18,
+          "name": "STEWARD_INVITATIONS_PER_WINDOW"
+        },
+        {
+          "kind": "const",
+          "line": 20,
+          "name": "STEWARD_INVITER_MIN_SERVICE_DAYS"
+        },
+        {
+          "kind": "const",
+          "line": 22,
+          "name": "MAX_EMERGENCY_ORDER_MS"
+        },
+        {
+          "kind": "const",
+          "line": 24,
+          "name": "MAX_GUARDIAN_STAY_MS"
+        },
+        {
+          "kind": "const",
+          "line": 26,
+          "name": "FULL_PUBLIC_ELIGIBILITY_BPS"
+        },
+        {
+          "kind": "enum",
+          "line": 30,
+          "name": "ParliamentPolicyError"
+        },
+        {
+          "kind": "enum",
+          "line": 59,
+          "name": "MotionClass"
+        },
+        {
+          "kind": "enum",
+          "line": 70,
+          "name": "VoteChoice"
+        },
+        {
+          "kind": "struct",
+          "line": 79,
+          "name": "SeatVote"
+        },
+        {
+          "kind": "struct",
+          "line": 86,
+          "name": "VoteTally"
+        },
+        {
+          "kind": "impl",
+          "line": 92,
+          "name": "VoteTally"
+        },
+        {
+          "kind": "fn",
+          "line": 93,
+          "name": "participation"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "ceil_two_thirds"
+        },
+        {
+          "kind": "fn",
+          "line": 102,
+          "name": "ceil_three_fourths"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "majority"
+        },
+        {
+          "kind": "fn",
+          "line": 111,
+          "name": "tally_votes"
+        },
+        {
+          "kind": "fn",
+          "line": 145,
+          "name": "motion_passes"
+        },
+        {
+          "kind": "enum",
+          "line": 170,
+          "name": "InviterClass"
+        },
+        {
+          "kind": "struct",
+          "line": 180,
+          "name": "InvitationAllowance"
+        },
+        {
+          "kind": "fn",
+          "line": 185,
+          "name": "invitation_allowance"
+        },
+        {
+          "kind": "fn",
+          "line": 209,
+          "name": "can_issue_invitation"
+        },
+        {
+          "kind": "enum",
+          "line": 223,
+          "name": "EmergencyAction"
+        },
+        {
+          "kind": "struct",
+          "line": 231,
+          "name": "EmergencyOrder"
+        },
+        {
+          "kind": "fn",
+          "line": 238,
+          "name": "validate_emergency_order"
+        },
+        {
+          "kind": "struct",
+          "line": 252,
+          "name": "DutyEvidence"
+        },
+        {
+          "kind": "fn",
+          "line": 262,
+          "name": "at_least_70_percent"
+        },
+        {
+          "kind": "fn",
+          "line": 272,
+          "name": "duty_payment_eligible"
+        },
+        {
+          "kind": "enum",
+          "line": 300,
+          "name": "ParliamentPhase"
+        },
+        {
+          "kind": "struct",
+          "line": 308,
+          "name": "ParliamentState"
+        },
+        {
+          "kind": "struct",
+          "line": 319,
+          "name": "TransitionEvidence"
+        },
+        {
+          "kind": "fn",
+          "line": 331,
+          "name": "next_seat_capacity"
+        },
+        {
+          "kind": "fn",
+          "line": 341,
+          "name": "validate_transition"
+        },
+        {
+          "kind": "enum",
+          "line": 412,
+          "name": "GuardianStayTarget"
+        },
+        {
+          "kind": "enum",
+          "line": 420,
+          "name": "GuardianReason"
+        },
+        {
+          "kind": "struct",
+          "line": 430,
+          "name": "GuardianStay"
+        },
+        {
+          "kind": "fn",
+          "line": 438,
+          "name": "validate_guardian_stay"
+        }
+      ],
+      "title": "pub const FOUNDING_SEATS: u32 = 7;"
+    },
+    {
       "bytes": 12584,
       "group": "crate:mini-forge",
       "headings": [],
@@ -40793,6 +41172,148 @@
         }
       ],
       "title": "use did_mini::{Capabilities, Controller, Did};"
+    },
+    {
+      "bytes": 13556,
+      "group": "crate:mini-forge",
+      "headings": [],
+      "keywords": [
+        "motion_passes",
+        "motionclass",
+        "unwrap",
+        "assert",
+        "yes_votes",
+        "seatvote",
+        "seat",
+        "assert_eq",
+        "choice",
+        "votechoice",
+        "votes",
+        "err",
+        "parliamentpolicyerror",
+        "parliament_policy",
+        "yes",
+        "ordinary",
+        "four",
+        "five",
+        "inviterclass",
+        "order",
+        "vec",
+        "four_yes",
+        "four_yes_one_abstain",
+        "invitation_allowance"
+      ],
+      "lines": 429,
+      "path": "crates/mini-forge/tests/parliament_policy.rs",
+      "sha256": "d19a24492088c18840ac78106f0a600b8e1f326e5dc1ae8eba48e8ae565d22e1",
+      "symbols": [
+        {
+          "kind": "mod",
+          "line": 4,
+          "name": "parliament_policy"
+        },
+        {
+          "kind": "fn",
+          "line": 8,
+          "name": "yes_votes"
+        },
+        {
+          "kind": "fn",
+          "line": 18,
+          "name": "founder_has_no_extra_ordinary_vote_weight"
+        },
+        {
+          "kind": "fn",
+          "line": 45,
+          "name": "duplicate_seat_cannot_vote_twice"
+        },
+        {
+          "kind": "fn",
+          "line": 63,
+          "name": "hostile_seat_capacity_is_rejected_before_allocation"
+        },
+        {
+          "kind": "fn",
+          "line": 76,
+          "name": "ordinary_majority_needs_two_thirds_participation"
+        },
+        {
+          "kind": "fn",
+          "line": 85,
+          "name": "major_motion_needs_quorum_and_majority_of_all_seats"
+        },
+        {
+          "kind": "fn",
+          "line": 98,
+          "name": "emergency_fix_needs_majority_of_all_seats"
+        },
+        {
+          "kind": "fn",
+          "line": 106,
+          "name": "constitutional_and_public_transition_need_two_thirds_of_all_seats"
+        },
+        {
+          "kind": "fn",
+          "line": 116,
+          "name": "guardian_override_needs_three_quarters_of_all_seats"
+        },
+        {
+          "kind": "fn",
+          "line": 124,
+          "name": "invitation_limits_are_candidate_access_not_votes"
+        },
+        {
+          "kind": "fn",
+          "line": 157,
+          "name": "immediate_effect_orders_are_short_lived"
+        },
+        {
+          "kind": "fn",
+          "line": 177,
+          "name": "duty_payment_requires_activity_not_vote_direction"
+        },
+        {
+          "kind": "fn",
+          "line": 200,
+          "name": "duty_payment_refuses_a_period_with_nothing_assigned"
+        },
+        {
+          "kind": "fn",
+          "line": 221,
+          "name": "duty_payment_ratio_does_not_overflow_near_u32_max"
+        },
+        {
+          "kind": "fn",
+          "line": 241,
+          "name": "chamber_growth_is_exact_and_evidence_gated"
+        },
+        {
+          "kind": "fn",
+          "line": 281,
+          "name": "public_eligibility_never_moves_backwards"
+        },
+        {
+          "kind": "fn",
+          "line": 310,
+          "name": "full_eligibility_requires_the_public_phase_not_just_the_number"
+        },
+        {
+          "kind": "fn",
+          "line": 342,
+          "name": "public_transition_kills_h0_exception_one_way"
+        },
+        {
+          "kind": "fn",
+          "line": 381,
+          "name": "h0_cannot_stay_public_transition_or_own_sunset"
+        },
+        {
+          "kind": "fn",
+          "line": 406,
+          "name": "h0_stay_is_bounded_and_one_shot_per_exact_target"
+        }
+      ],
+      "title": "mod parliament_policy;"
     },
     {
       "bytes": 8504,
@@ -92413,7 +92934,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1519757,
+      "bytes": 1524253,
       "group": "docs",
       "headings": [
         {
@@ -92843,9 +93364,9 @@
         "new",
         "doctrine"
       ],
-      "lines": 24748,
+      "lines": 24821,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "07472d45ffd312201b998df2baa5b84b350f74d54f9e7ac6496c0373286ee5cf",
+      "sha256": "a115064d721f387e397bd83c61bceaffb0734eeaa121884b3d5436efa828a983",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -94181,7 +94702,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 210076,
+      "bytes": 210210,
       "group": "docs",
       "headings": [
         {
@@ -94297,22 +94818,22 @@
         {
           "level": 2,
           "line": 3060,
-          "text": "Connected desktop beta \u2014 2026-09-15 (D-0522)"
+          "text": "Connected desktop beta \u2014 2026-09-15 (D-0523)"
         },
         {
           "level": 2,
           "line": 3080,
-          "text": "Service tickets and the seedable Library \u2014 2026-09-15 (D-0523)"
+          "text": "Service tickets and the seedable Library \u2014 2026-09-15 (D-0524)"
         },
         {
           "level": 2,
           "line": 3091,
-          "text": "Shorts, Watch and in-app playback \u2014 2026-09-15 (D-0524)"
+          "text": "Shorts, Watch and in-app playback \u2014 2026-09-15 (D-0525)"
         },
         {
           "level": 2,
           "line": 3098,
-          "text": "Limits closed \u2014 2026-09-15 (D-0525)"
+          "text": "Limits closed \u2014 2026-09-15 (D-0526)"
         }
       ],
       "keywords": [
@@ -94341,9 +94862,9 @@
         "one",
         "design"
       ],
-      "lines": 3105,
+      "lines": 3106,
       "path": "docs/STATUS.md",
-      "sha256": "a62adaca6a0864798ee1d8d681ca4f0ed70e54e2232e43d014dab5df2d6dec38",
+      "sha256": "899ddb33041f09f142f9a1dd654d1be3283c52ae54c28ea738e1e9f93285e9c9",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -100516,6 +101037,73 @@
       "title": "Fork legitimacy criteria \u2014 what makes a fork *the* Mininet"
     },
     {
+      "bytes": 4333,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Founding Parliament proposal scope"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "In scope"
+        },
+        {
+          "level": 2,
+          "line": 32,
+          "text": "Explicitly not activated by this PR"
+        },
+        {
+          "level": 2,
+          "line": 50,
+          "text": "Why code now"
+        },
+        {
+          "level": 2,
+          "line": 56,
+          "text": "Primary red flags"
+        },
+        {
+          "level": 2,
+          "line": 71,
+          "text": "Merge/readiness gates"
+        }
+      ],
+      "keywords": [
+        "public",
+        "vote",
+        "transition",
+        "seat",
+        "parliament",
+        "one",
+        "proposal",
+        "governance",
+        "duty",
+        "evidence",
+        "founding",
+        "scope",
+        "rolling",
+        "policy",
+        "days",
+        "forge",
+        "explicitly",
+        "merge",
+        "proposed",
+        "guardian",
+        "stay",
+        "rules",
+        "rust",
+        "kernel"
+      ],
+      "lines": 80,
+      "path": "docs/design/founding-parliament-scope.md",
+      "sha256": "305f6faa8059b085849f0e78c8ebf32232f42e62e92522d9c4029e616c71185d",
+      "symbols": [],
+      "title": "Founding Parliament proposal scope"
+    },
+    {
       "bytes": 66715,
       "group": "docs",
       "headings": [
@@ -104029,7 +104617,7 @@
       "title": "Architecture of Mininet Governance"
     },
     {
-      "bytes": 9465,
+      "bytes": 10833,
       "group": "docs",
       "headings": [
         {
@@ -104054,69 +104642,74 @@
         },
         {
           "level": 2,
-          "line": 59,
+          "line": 64,
           "text": "Universal lifecycle"
         },
         {
           "level": 2,
-          "line": 67,
+          "line": 72,
           "text": "Interpretation rules"
         },
         {
           "level": 2,
-          "line": 81,
+          "line": 86,
           "text": "Current hard honesty requirements"
         },
         {
           "level": 2,
-          "line": 91,
+          "line": 96,
           "text": "v0.5\u2013v0.6 specifications"
         },
         {
           "level": 2,
-          "line": 108,
+          "line": 113,
           "text": "Version 1.1 compatible operational guidance"
         },
         {
           "level": 2,
-          "line": 116,
+          "line": 121,
           "text": "Version 1 completion documents"
         },
         {
           "level": 2,
-          "line": 132,
+          "line": 137,
           "text": "Bootstrap operating decisions"
+        },
+        {
+          "level": 2,
+          "line": 141,
+          "text": "Founding Parliament proposal"
         }
       ],
       "keywords": [
         "governance",
+        "bootstrap",
         "canonical",
         "rules",
-        "bootstrap",
-        "github",
-        "evidence",
         "authority",
+        "proposed",
         "documents",
-        "lifecycle",
-        "pack",
+        "current",
+        "github",
         "spec-00",
         "accepted",
         "constitutional",
-        "implementation",
+        "evidence",
         "normative",
-        "current",
         "specifications",
         "version",
         "forge",
+        "pack",
         "invariants",
-        "changes",
         "legitimacy",
-        "governed",
-        "owner"
+        "required",
+        "releases",
+        "index",
+        "purpose"
       ],
-      "lines": 135,
+      "lines": 149,
       "path": "docs/governance/00_GOVERNANCE_INDEX.md",
-      "sha256": "d25f649cb8c520ba286ea720d0323e3a03ad2ff6962c2e419b1d31ea87a2d270",
+      "sha256": "d1968c2bf4966504f3c11315656d351b7d28d3714d0e5389c3b0234ead08fcce",
       "symbols": [],
       "title": "Mininet Governance Index"
     },
@@ -109471,6 +110064,439 @@
       "title": "Pre-Go-Live Governance Pause and Anonymous-Only Bootstrap Participation"
     },
     {
+      "bytes": 11721,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Founding Parliament"
+        },
+        {
+          "level": 2,
+          "line": 6,
+          "text": "1. Purpose"
+        },
+        {
+          "level": 2,
+          "line": 12,
+          "text": "2. Relationship to current bootstrap policy"
+        },
+        {
+          "level": 2,
+          "line": 20,
+          "text": "3. H0"
+        },
+        {
+          "level": 2,
+          "line": 34,
+          "text": "4. Candidate invitation"
+        },
+        {
+          "level": 2,
+          "line": 58,
+          "text": "5. Rolling active seats"
+        },
+        {
+          "level": 2,
+          "line": 78,
+          "text": "6. Standing committees"
+        },
+        {
+          "level": 2,
+          "line": 96,
+          "text": "7. Immediate-effect authority"
+        },
+        {
+          "level": 2,
+          "line": 122,
+          "text": "8. Plenary voting"
+        },
+        {
+          "level": 3,
+          "line": 130,
+          "text": "Ordinary"
+        },
+        {
+          "level": 3,
+          "line": 135,
+          "text": "Major"
+        },
+        {
+          "level": 3,
+          "line": 142,
+          "text": "Emergency Fix"
+        },
+        {
+          "level": 3,
+          "line": 150,
+          "text": "Constitutional"
+        },
+        {
+          "level": 3,
+          "line": 157,
+          "text": "Public Transition"
+        },
+        {
+          "level": 3,
+          "line": 165,
+          "text": "Guardian Stay Override"
+        },
+        {
+          "level": 2,
+          "line": 169,
+          "text": "9. Parliamentary dossiers"
+        },
+        {
+          "level": 2,
+          "line": 177,
+          "text": "10. Selection and rotation"
+        },
+        {
+          "level": 2,
+          "line": 183,
+          "text": "11. Parliament is not a reward tier"
+        },
+        {
+          "level": 2,
+          "line": 189,
+          "text": "12. Public-governance destination"
+        },
+        {
+          "level": 2,
+          "line": 208,
+          "text": "13. Anti-capture invariants"
+        },
+        {
+          "level": 2,
+          "line": 225,
+          "text": "14. Exact failure point"
+        }
+      ],
+      "keywords": [
+        "parliament",
+        "active",
+        "governance",
+        "founding",
+        "invitation",
+        "may",
+        "seat",
+        "bootstrap",
+        "committees",
+        "authority",
+        "public",
+        "activation",
+        "automatic",
+        "rolling",
+        "seats",
+        "human",
+        "vote",
+        "steward",
+        "days",
+        "current",
+        "candidate",
+        "standing",
+        "ordinary",
+        "constitutional"
+      ],
+      "lines": 230,
+      "path": "docs/governance/53_FOUNDING_PARLIAMENT.md",
+      "sha256": "77d45983af70d2d672e9fa95088cd309ad38a004545030ea56c8efcc8afd764b",
+      "symbols": [],
+      "title": "Founding Parliament"
+    },
+    {
+      "bytes": 5032,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "H0 Guardian Stay"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "1. Purpose"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "2. H0 has one ordinary vote"
+        },
+        {
+          "level": 2,
+          "line": 17,
+          "text": "3. Permitted reasons"
+        },
+        {
+          "level": 2,
+          "line": 30,
+          "text": "4. Effect"
+        },
+        {
+          "level": 2,
+          "line": 55,
+          "text": "5. Mandatory reconsideration"
+        },
+        {
+          "level": 2,
+          "line": 67,
+          "text": "6. No serial veto"
+        },
+        {
+          "level": 2,
+          "line": 73,
+          "text": "7. Matters H0 may never stay"
+        },
+        {
+          "level": 2,
+          "line": 83,
+          "text": "8. Sunset"
+        },
+        {
+          "level": 2,
+          "line": 95,
+          "text": "9. Key compromise and disappearance"
+        },
+        {
+          "level": 2,
+          "line": 103,
+          "text": "10. Value judgment"
+        }
+      ],
+      "keywords": [
+        "stay",
+        "guardian",
+        "may",
+        "one",
+        "ordinary",
+        "key",
+        "parliament",
+        "exact",
+        "public",
+        "motion",
+        "veto",
+        "temporary",
+        "active",
+        "same",
+        "authority",
+        "valid",
+        "state",
+        "override",
+        "its",
+        "governance",
+        "purpose",
+        "vote",
+        "reasons",
+        "reconsideration"
+      ],
+      "lines": 108,
+      "path": "docs/governance/54_H0_GUARDIAN_STAY.md",
+      "sha256": "1887c71c510398be61b54c556a9cdad903b60173f8c3af7d397976232a920ae6",
+      "symbols": [],
+      "title": "H0 Guardian Stay"
+    },
+    {
+      "bytes": 4921,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Parliament Activity and Compensation"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "1. Principle"
+        },
+        {
+          "level": 2,
+          "line": 13,
+          "text": "2. Duty period"
+        },
+        {
+          "level": 2,
+          "line": 29,
+          "text": "3. Duty Receipt"
+        },
+        {
+          "level": 2,
+          "line": 42,
+          "text": "4. Abstention and recusal"
+        },
+        {
+          "level": 2,
+          "line": 50,
+          "text": "5. Payment character"
+        },
+        {
+          "level": 2,
+          "line": 63,
+          "text": "6. Technical work by Stewards"
+        },
+        {
+          "level": 2,
+          "line": 73,
+          "text": "7. Inactivity and vacancy"
+        },
+        {
+          "level": 2,
+          "line": 84,
+          "text": "8. Anti-gaming"
+        },
+        {
+          "level": 2,
+          "line": 98,
+          "text": "9. Treasury separation"
+        },
+        {
+          "level": 2,
+          "line": 104,
+          "text": "10. Values verdict"
+        }
+      ],
+      "keywords": [
+        "duty",
+        "period",
+        "payment",
+        "work",
+        "steward",
+        "parliament",
+        "recusal",
+        "active",
+        "may",
+        "compensation",
+        "seat",
+        "vote",
+        "contribution",
+        "technical",
+        "treasury",
+        "emergency",
+        "service",
+        "rewards",
+        "governance",
+        "abstention",
+        "stewards",
+        "inactivity",
+        "vacancy",
+        "separation"
+      ],
+      "lines": 111,
+      "path": "docs/governance/55_PARLIAMENT_ACTIVITY_AND_COMPENSATION.md",
+      "sha256": "3954928cb9eb2ca037214f4bf37c51301b1552da6d03c730ace89b12365f7f50",
+      "symbols": [],
+      "title": "Parliament Activity and Compensation"
+    },
+    {
+      "bytes": 5968,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Parliament to Public Governance Transition"
+        },
+        {
+          "level": 2,
+          "line": 5,
+          "text": "1. Goal"
+        },
+        {
+          "level": 2,
+          "line": 11,
+          "text": "2. Phases"
+        },
+        {
+          "level": 3,
+          "line": 13,
+          "text": "Phase F0 \u2014 Founding Parliament"
+        },
+        {
+          "level": 3,
+          "line": 21,
+          "text": "Phase F1 \u2014 Expanding Parliament"
+        },
+        {
+          "level": 3,
+          "line": 29,
+          "text": "Phase F2 \u2014 Public Parliament"
+        },
+        {
+          "level": 2,
+          "line": 37,
+          "text": "3. Expansion gate"
+        },
+        {
+          "level": 2,
+          "line": 52,
+          "text": "4. Public eligibility must be monotonic"
+        },
+        {
+          "level": 2,
+          "line": 62,
+          "text": "5. Public-transition evidence"
+        },
+        {
+          "level": 2,
+          "line": 75,
+          "text": "6. Founder/H0 sunset"
+        },
+        {
+          "level": 2,
+          "line": 85,
+          "text": "7. Representation after public maturity"
+        },
+        {
+          "level": 2,
+          "line": 100,
+          "text": "8. No self-preserving council"
+        },
+        {
+          "level": 2,
+          "line": 108,
+          "text": "9. GitHub and Forge"
+        },
+        {
+          "level": 2,
+          "line": 114,
+          "text": "10. Exact failure point"
+        }
+      ],
+      "keywords": [
+        "public",
+        "parliament",
+        "transition",
+        "phase",
+        "may",
+        "governance",
+        "founding",
+        "evidence",
+        "mature",
+        "forge",
+        "exact",
+        "eligibility",
+        "founder",
+        "github",
+        "invitation",
+        "capacity",
+        "political",
+        "expanding",
+        "expansion",
+        "gate",
+        "representation",
+        "active",
+        "history",
+        "candidate"
+      ],
+      "lines": 119,
+      "path": "docs/governance/56_PARLIAMENT_TO_PUBLIC_GOVERNANCE.md",
+      "sha256": "60f504613f5d048cc2eff0972e9ac07111b450829f27f887f7a016573c703776",
+      "symbols": [],
+      "title": "Parliament to Public Governance Transition"
+    },
+    {
       "bytes": 4289,
       "group": "docs",
       "headings": [
@@ -111206,7 +112232,7 @@
       ],
       "lines": 199,
       "path": "docs/proposals/connected-mininet-client.md",
-      "sha256": "ddc7b9b2589660e9ed197af24710bec17cff217e6591c8ad5a5b3e0a9fc3b1fa",
+      "sha256": "68bfcd42db246c79f8493a58a9a645fd108f3bc312528edd5d3d5a444c35bc79",
       "symbols": [],
       "title": "Connected Mininet: one application for a shared internet"
     },
@@ -112665,6 +113691,53 @@
       "title": "Post-Quantum Migration Research Report"
     },
     {
+      "bytes": 2181,
+      "group": "root",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Forge-native Founding Parliament objects"
+        },
+        {
+          "level": 2,
+          "line": 18,
+          "text": "Missing before activation"
+        }
+      ],
+      "keywords": [
+        "json",
+        "schema",
+        "parliament",
+        "activation",
+        "seat",
+        "evidence",
+        "forge-native",
+        "founding",
+        "schemas",
+        "canonical",
+        "invitation",
+        "state",
+        "objects",
+        "missing",
+        "vocabulary",
+        "forge",
+        "until",
+        "exact-state",
+        "single-use",
+        "term",
+        "motion",
+        "one",
+        "release",
+        "signed"
+      ],
+      "lines": 35,
+      "path": "forge-native/FOUNDING_PARLIAMENT.md",
+      "sha256": "05a976fae9949819a1e20500aac28f29bf8e24ad4dca731f916fddf91f98ee92",
+      "symbols": [],
+      "title": "Forge-native Founding Parliament objects"
+    },
+    {
       "bytes": 516,
       "group": "root",
       "headings": [],
@@ -112913,6 +113986,294 @@
       "lines": 56,
       "path": "forge-native/schemas/governance-object.schema.json",
       "sha256": "818de482c9b1110de7bbb65a745de90f7cc6a2a85c87d94e0eed6300273b0a83",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 965,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "stay_id",
+        "exact_target_digest",
+        "reason",
+        "issued_at",
+        "expires_at",
+        "constitutional_refs",
+        "minlength",
+        "integer",
+        "minimum",
+        "array",
+        "items",
+        "uniqueitems",
+        "true",
+        "forge-native",
+        "schemas",
+        "h0-guardian-stay",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft"
+      ],
+      "lines": 18,
+      "path": "forge-native/schemas/h0-guardian-stay.schema.json",
+      "sha256": "f8c96c999d36d8160b89900e1a697fcb3dd9809173dc202e45457e04e696d192",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1211,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "integer",
+        "minimum",
+        "string",
+        "schema",
+        "term_id",
+        "period_id",
+        "seat_id",
+        "committee_tasks_assigned",
+        "committee_tasks_completed",
+        "plenary_votes_eligible",
+        "plenary_votes_participated",
+        "emergency_calls_assigned",
+        "emergency_calls_answered",
+        "substantive_review_refs",
+        "minlength",
+        "array",
+        "items",
+        "uniqueitems",
+        "true",
+        "forge-native",
+        "schemas",
+        "parliament-duty-receipt",
+        "json"
+      ],
+      "lines": 21,
+      "path": "forge-native/schemas/parliament-duty-receipt.schema.json",
+      "sha256": "04493e33dc27413ac3f5178970ce59e026f4ecf9036bd315c0a890673cc4a9ca",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 782,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "order_id",
+        "action",
+        "exact_target_digest",
+        "issued_at",
+        "expires_at",
+        "evidence_refs",
+        "minlength",
+        "integer",
+        "minimum",
+        "forge-native",
+        "schemas",
+        "parliament-emergency-order",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "parliamentemergencyorder",
+        "payload",
+        "object"
+      ],
+      "lines": 17,
+      "path": "forge-native/schemas/parliament-emergency-order.schema.json",
+      "sha256": "c57f33a7ba87bb738f472c291980613d4df7690cb9c2eb38ccdea3efeb44a9d1",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 631,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "schema",
+        "string",
+        "invitation_id",
+        "inviter_class",
+        "issued_at",
+        "expires_at",
+        "single_use_commitment",
+        "minlength",
+        "integer",
+        "minimum",
+        "forge-native",
+        "schemas",
+        "parliament-invitation",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "parliamentinvitation",
+        "payload",
+        "object",
+        "required"
+      ],
+      "lines": 16,
+      "path": "forge-native/schemas/parliament-invitation.schema.json",
+      "sha256": "88568815f62958af5e43edc281ade7c25d73505a4848fbced16126cffd3e6626",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 917,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "minlength",
+        "motion_id",
+        "class",
+        "exact_state_digest",
+        "committee",
+        "opened_at",
+        "integer",
+        "minimum",
+        "array",
+        "items",
+        "uniqueitems",
+        "true",
+        "forge-native",
+        "schemas",
+        "parliament-motion",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title"
+      ],
+      "lines": 19,
+      "path": "forge-native/schemas/parliament-motion.schema.json",
+      "sha256": "83503cc695ac904cf774aee32e59ada15ab9cbac0a2ebd7a5352589f247047d3",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 864,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "integer",
+        "minimum",
+        "string",
+        "schema",
+        "minlength",
+        "seat_id",
+        "term_id",
+        "steward_key",
+        "starts_at",
+        "ends_at",
+        "primary_committee",
+        "active",
+        "consecutive_term_number",
+        "forge-native",
+        "schemas",
+        "parliament-seat-term",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "parliamentseatterm"
+      ],
+      "lines": 19,
+      "path": "forge-native/schemas/parliament-seat-term.schema.json",
+      "sha256": "c57609ed2b69de20416d01d258177657f05aa50f6818bc1bae49093425ad0468",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 1042,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "integer",
+        "minimum",
+        "schema",
+        "from_phase",
+        "to_phase",
+        "from_seat_capacity",
+        "to_seat_capacity",
+        "from_public_eligibility_bps",
+        "to_public_eligibility_bps",
+        "from_h0_guardian_active",
+        "to_h0_guardian_active",
+        "evidence_refs",
+        "enum",
+        "founding",
+        "expanding",
+        "public",
+        "maximum",
+        "boolean",
+        "forge-native",
+        "schemas",
+        "parliament-transition",
+        "json",
+        "https"
+      ],
+      "lines": 19,
+      "path": "forge-native/schemas/parliament-transition.schema.json",
+      "sha256": "565fdb3c3285bf5ce064bb14e1106573d673ad6ce56b6cd0a697f4dbd4a7e024",
+      "symbols": [],
+      "title": "{"
+    },
+    {
+      "bytes": 589,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "type",
+        "string",
+        "schema",
+        "minlength",
+        "motion_id",
+        "seat_id",
+        "term_id",
+        "choice",
+        "exact_state_digest",
+        "forge-native",
+        "schemas",
+        "parliament-vote",
+        "json",
+        "https",
+        "json-schema",
+        "org",
+        "draft",
+        "title",
+        "parliamentvote",
+        "payload",
+        "object",
+        "required",
+        "properties",
+        "integer"
+      ],
+      "lines": 16,
+      "path": "forge-native/schemas/parliament-vote.schema.json",
+      "sha256": "ca7e124acd61817e25e1820f373e8c356581d3c9af8f9094847484113d4a1f4e",
       "symbols": [],
       "title": "{"
     },
@@ -113266,71 +114627,73 @@
       "title": "{"
     },
     {
-      "bytes": 1356,
+      "bytes": 2053,
       "group": "root",
       "headings": [
         {
           "level": 1,
-          "line": 21,
+          "line": 36,
           "text": "Example (illustrative only -- every value here is a placeholder, and the"
         },
         {
           "level": 1,
-          "line": 22,
+          "line": 37,
           "text": "date is deliberately not a real one so no scanner can mistake this block"
         },
         {
           "level": 1,
-          "line": 23,
+          "line": 38,
           "text": "for a live exception, whether or not it strips comments first):"
         },
         {
           "level": 1,
-          "line": 24,
+          "line": 39,
           "text": "- id: DEP-EX-0001"
         },
         {
           "level": 1,
-          "line": 25,
+          "line": 40,
           "text": "scope: RUSTSEC-YYYY-NNNN"
         },
         {
           "level": 1,
-          "line": 26,
+          "line": 41,
           "text": "owner: did:mini:example-pseudonym"
         },
         {
           "level": 1,
-          "line": 27,
+          "line": 42,
           "text": "reason: No patched compatible version; affected code path is unreachable."
         },
         {
           "level": 1,
-          "line": 28,
+          "line": 43,
           "text": "mitigation: Disable the affected feature and add a regression test."
         },
         {
           "level": 1,
-          "line": 29,
+          "line": 44,
           "text": "expires: YYYY-MM-DD"
         },
         {
           "level": 1,
-          "line": 30,
+          "line": 45,
           "text": "decision: D-00XX"
         }
       ],
       "keywords": [
-        "affected",
-        "one",
         "scope",
         "owner",
         "reason",
         "version",
-        "path",
+        "affected",
         "mitigation",
         "expires",
         "decision",
+        "bulletproofs",
+        "one",
+        "dep-ex-0001",
+        "path",
         "governance",
         "exceptions",
         "example",
@@ -113342,15 +114705,49 @@
         "date",
         "deliberately",
         "real",
-        "scanner",
-        "mistake",
-        "block"
+        "scanner"
       ],
-      "lines": 31,
+      "lines": 46,
       "path": "governance/exceptions.yml",
-      "sha256": "3ba9f4ec1e7a53ccce9aa2d5a7f536f060a282b2bf4e00d5d18742336fbdf302",
+      "sha256": "970c887fd9a16a23c803735ea3167cc2f7ef57e9db624307a0ad5787fc803ff9",
       "symbols": [],
       "title": "Example (illustrative only -- every value here is a placeholder, and the"
+    },
+    {
+      "bytes": 712,
+      "group": "root",
+      "headings": [],
+      "keywords": [
+        "true",
+        "governance",
+        "parliament-proposal",
+        "json",
+        "schema_version",
+        "proposal_id",
+        "founding-parliament-v1",
+        "status",
+        "proposed",
+        "active",
+        "false",
+        "current_authority",
+        "pre-go-live-bootstrap",
+        "founding_seat_capacity",
+        "seat_growth_rule",
+        "seat_term_days",
+        "h0_invitations_per_30_days",
+        "steward_invitations_per_60_days",
+        "steward_invitation_rights_after_service_days",
+        "emergency_order_max_hours",
+        "h0_guardian_stay_max_days",
+        "public_eligibility_monotonic",
+        "public_transition_disables_h0_guardian_one_way",
+        "activation_requires_exact_state_decision"
+      ],
+      "lines": 20,
+      "path": "governance/parliament-proposal.json",
+      "sha256": "8e872590f72869b10db5b75803aed3ed29b3881159cf1c5b95b65fdf3005c7eb",
+      "symbols": [],
+      "title": "{"
     },
     {
       "bytes": 5409,
@@ -115127,6 +116524,7 @@
     "deploy/packages.lock",
     "deploy/verification/lock-packages.sh",
     "deploy/verification/verify.sh",
+    "forge-native/FOUNDING_PARLIAMENT.md",
     "forge-native/examples/amendment-proposal.example.json",
     "forge-native/examples/change-proposal.example.json",
     "forge-native/examples/working-group-charter.example.json",
@@ -115134,6 +116532,14 @@
     "forge-native/schemas/bounty-offer.schema.json",
     "forge-native/schemas/conformance-claim.schema.json",
     "forge-native/schemas/governance-object.schema.json",
+    "forge-native/schemas/h0-guardian-stay.schema.json",
+    "forge-native/schemas/parliament-duty-receipt.schema.json",
+    "forge-native/schemas/parliament-emergency-order.schema.json",
+    "forge-native/schemas/parliament-invitation.schema.json",
+    "forge-native/schemas/parliament-motion.schema.json",
+    "forge-native/schemas/parliament-seat-term.schema.json",
+    "forge-native/schemas/parliament-transition.schema.json",
+    "forge-native/schemas/parliament-vote.schema.json",
     "forge-native/schemas/working-group-charter.schema.json",
     "governance/ai-charter-activation-decision.schema.json",
     "governance/ai-charter-activation.json",
@@ -115145,6 +116551,7 @@
     "governance/decisions/D-0084.json",
     "governance/document-summary.schema.json",
     "governance/exceptions.yml",
+    "governance/parliament-proposal.json",
     "governance/policy.yml",
     "governance/work-claims.json",
     "governance/work-claims.schema.json",

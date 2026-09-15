@@ -24756,3 +24756,65 @@ message, their media and posts). Search is over what this device holds;
 it is not network search.
 
 **Supersedes / superseded by:** none. Extends D-0523–D-0525.
+### D-0522 — Registering the `RUSTSEC-2026-0283` (`clear_on_drop`) `deny.toml` ignore as a governed, owned, time-bounded exception  ·  *Shipped*
+
+**Date:** 2026-09-14 · **Refs:** Codex review finding on PR #340
+(`deny.toml:72`, P2 x2); touches
+`deny.toml,governance/exceptions.yml,docs/DECISION_LOG.md`.
+
+**Decision:** A newly published advisory (`RUSTSEC-2026-0283`) flags
+`clear_on_drop` 0.2.5, reachable only as an internal dependency of the
+vendored `bulletproofs` 5.0.0 crate (`mini-value`'s D-0036/D-0040 range
+proofs; also reached via `mini-bounty`, `mini-private-payment`,
+`mini-shielded-verify`). No safe upgrade exists per the advisory's own
+"Solution" field, and `clear_on_drop` is internal to `bulletproofs`'
+own zeroing, not a call site this tree makes directly. An ignore entry
+for it was added to `deny.toml` earlier this session (confirmed to
+reproduce identically on `main` and every branch resolving `mini-value`,
+not introduced by any one PR's diff) following the two existing
+"unmaintained, no safe upgrade" ignore entries already in that file
+(`RUSTSEC-2026-0192`, `RUSTSEC-2023-0089`) — but, per this finding,
+without the `governance/exceptions.yml` record `governance/policy.yml`
+itself requires for exactly this file (`deny.toml` is listed there as a
+`protocol-critical` glob owned by `security-stewards`, and the
+`exceptions:` block names `governance/exceptions.yml` with
+`require_owner: true` / `require_expiry: true`). This entry closes that
+gap: `governance/exceptions.yml` now carries a `DEP-EX-0001`-shaped
+record (`scope: RUSTSEC-2026-0283`, `owner: security-stewards`,
+`decision: D-0522`, a 90-day `expires` date) alongside `deny.toml`'s
+existing inline reasoning, which is left as-is.
+
+**Constitutional impact:** none. This registers an existing, already-
+reasoned dependency-advisory suppression into this project's own
+governed-exception process; it does not touch a frozen invariant, grant
+new authority, or change what the suppression itself permits.
+
+**Implementation status:** shipped on this PR's branch. `deny.toml`'s
+reasoning comment is unchanged; `governance/exceptions.yml` gains one
+entry. The same `deny.toml` ignore is already live on `main` and on
+every other branch that independently hit this advisory (see the Refs
+above) — none of those branches yet carry the matching
+`governance/exceptions.yml` record this entry adds here. `tools/
+check_governance.py`'s exceptions check (structure + expiry parsing,
+not per-advisory-ID cross-referencing) passes with this entry present.
+
+**Failure point:** `check_governance.py` does not currently cross-check
+that every `deny.toml` ignore has a matching `governance/exceptions.yml`
+entry by advisory ID — it only validates the file's own structure and
+that no listed exception has expired. A future `deny.toml` ignore could
+therefore still be added without a matching governance record and no
+CI job would catch it; tightening that check is real follow-up, not
+attempted here.
+
+**Required follow-up:** port this same `governance/exceptions.yml` entry
+to `main` and to the other branches carrying the identical `deny.toml`
+ignore, so the registered exception travels with every copy rather than
+living only on this one PR's branch. Revisit at the 90-day `expires`
+date: either `bulletproofs` has released a version off `clear_on_drop`
+(remove the ignore and this exception) or it has not (a human renews the
+exception with a fresh expiry, per `governance/exceptions.yml`'s own
+process — this entry does not pre-authorize a silent extension).
+Tightening `check_governance.py` to cross-reference `deny.toml` ignores
+against `exceptions.yml` by advisory ID, named above, is also open.
+
+**Supersedes / superseded by:** none.

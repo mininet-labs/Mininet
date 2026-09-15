@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "H0GuardianStay payload",
+  "type": "object",
+  "required": ["stay_id", "exact_target_digest", "reason", "issued_at", "expires_at", "constitutional_refs"],
+  "properties": {
+    "stay_id": {"type": "string", "minLength": 1},
+    "exact_target_digest": {"type": "string", "minLength": 16},
+    "reason": {"enum": ["voice-value-wall", "permanent-admin-authority", "forced-update-or-kill-switch", "hidden-unmasking", "confiscation-or-value-backdoor", "fork-exit-or-owner-sovereignty"]},
+    "issued_at": {"type": "integer", "minimum": 0},
+    "expires_at": {"type": "integer", "minimum": 1},
+    "constitutional_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "override_motion_id": {"type": "string"}
+  },
+  "additionalProperties": false
+}

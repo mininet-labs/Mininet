@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ParliamentTransition payload",
+  "type": "object",
+  "required": ["from_phase", "to_phase", "from_seat_capacity", "to_seat_capacity", "from_public_eligibility_bps", "to_public_eligibility_bps", "from_h0_guardian_active", "to_h0_guardian_active", "evidence_refs"],
+  "properties": {
+    "from_phase": {"enum": ["founding", "expanding", "public"]},
+    "to_phase": {"enum": ["founding", "expanding", "public"]},
+    "from_seat_capacity": {"type": "integer", "minimum": 1},
+    "to_seat_capacity": {"type": "integer", "minimum": 1},
+    "from_public_eligibility_bps": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "to_public_eligibility_bps": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "from_h0_guardian_active": {"type": "boolean"},
+    "to_h0_guardian_active": {"type": "boolean"},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true}
+  },
+  "additionalProperties": false
+}
