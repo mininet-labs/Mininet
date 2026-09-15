@@ -196,6 +196,9 @@ struct MininetApp {
     library_share_target: Option<mini_objects::ObjectId>,
     library_caption: String,
     export_file_path: String,
+    /// Router mapping in progress (worker) and the last result.
+    router_rx: Option<Receiver<Result<connectivity::RouterMapping, String>>>,
+    router_mapping: Option<connectivity::RouterMapping>,
     /// Opened on first play, never on launch.
     audio: Option<player::AudioPlayer>,
     /// Decoded animations by media id; `None` records a failed decode.
@@ -1557,6 +1560,8 @@ impl Default for MininetApp {
             library_share_target: None,
             library_caption: String::new(),
             export_file_path: String::new(),
+            router_rx: None,
+            router_mapping: None,
             audio: None,
             animations: HashMap::new(),
             shorts_index: 0,
@@ -1670,6 +1675,7 @@ impl eframe::App for MininetApp {
         }
         self.poll_timeline(ctx);
         self.poll_host();
+        self.poll_router();
         self.poll_session();
         self.poll_dropped_files(ctx);
         self.poll_discovery();
@@ -1863,6 +1869,9 @@ impl MininetApp {
         }
         if self.connections.host_on_launch {
             self.start_host();
+            if self.connections.router_mapping_on_launch {
+                self.start_router_mapping();
+            }
         }
         if self.connections.session_on_launch && !self.connections.peers.is_empty() {
             self.start_session();
@@ -1920,6 +1929,71 @@ impl MininetApp {
             self.notice =
                 "Stopped accepting connections. Exchanges already in progress may finish.".into();
             self.log_activity("Hosting stopped.".into());
+        }
+    }
+
+    fn start_router_mapping(&mut self) {
+        if self.router_rx.is_some() {
+            return;
+        }
+        let port = self.connections.listen_port;
+        let (sender, receiver) = mpsc::channel();
+        self.router_rx = Some(receiver);
+        self.notice = "Asking your router to forward the port (UPnP)…".into();
+        std::thread::spawn(move || {
+            // Two-hour lease, renewed by the owner (or on launch when hosting
+            // on launch is enabled); a forgotten mapping expires by itself.
+            let _ = sender.send(connectivity::map_port_on_router(port, 7200));
+        });
+    }
+
+    fn poll_router(&mut self) {
+        let result = self
+            .router_rx
+            .as_ref()
+            .and_then(|receiver| match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("the router worker stopped unexpectedly".into()))
+                }
+            });
+        let Some(result) = result else {
+            return;
+        };
+        self.router_rx = None;
+        match result {
+            Ok(mapping) => {
+                match mapping.external_ip {
+                    Some(ip) => {
+                        self.card_host = ip.to_string();
+                        self.log_activity(format!(
+                            "Router {} forwards port {} to this machine; public address {}:{} (lease {} min).",
+                            mapping.gateway,
+                            mapping.external_port,
+                            ip,
+                            mapping.external_port,
+                            mapping.lease_seconds / 60
+                        ));
+                        self.notice = format!(
+                            "Reachable at {}:{} — your connection card now carries it.",
+                            ip, mapping.external_port
+                        );
+                    }
+                    None => {
+                        self.log_activity(format!(
+                            "Router {} forwards port {} to this machine, but it has no public address itself (double NAT or carrier-grade NAT).",
+                            mapping.gateway, mapping.external_port
+                        ));
+                        self.notice = "The router accepted the mapping but has no public address of its own: it sits behind another NAT. Peers on the internet still cannot reach you through it; forward on the upstream router too, or host from a machine with a public address.".into();
+                    }
+                }
+                self.router_mapping = Some(mapping);
+            }
+            Err(error) => {
+                self.notice = format!("Router mapping failed: {error}. Forward the port by hand or host from a machine with a public address.");
+                self.log_activity(format!("Router mapping failed: {error}"));
+            }
         }
     }
 
@@ -3663,7 +3737,7 @@ No tracking. No forced updates.",
             theme::section_title(ui, "Accept connections (host)");
             theme::muted(
                 ui,
-                "Let peers reach you. The port must be reachable from the internet (router port-forward, VPS, or the same LAN); no NAT traversal or relay is provided yet. Only signed public objects and, if enabled, your own conversations' encrypted envelopes are exchanged. The first time you host, Windows Firewall asks whether to allow mininet-desktop; hosting only works if you allow it.",
+                "Let peers reach you. The port must be reachable from the internet: ask your router to forward it below (UPnP), forward it by hand, or host from a machine with a public address. Only signed public objects and, if enabled, your own conversations' encrypted envelopes are exchanged. The first time you host, Windows Firewall asks whether to allow mininet-desktop; hosting only works if you allow it.",
             );
             match self.host.as_ref() {
                 Some(host) => {
@@ -3690,6 +3764,7 @@ No tracking. No forced updates.",
                     if ui.add(theme::secondary_button("■  Stop hosting")).clicked() {
                         self.stop_host();
                     }
+                    self.router_controls(ui);
                 }
                 None => {
                     ui.horizontal(|ui| {
@@ -3713,6 +3788,7 @@ No tracking. No forced updates.",
                             self.start_host();
                         }
                     });
+                    self.router_controls(ui);
                 }
             }
         });
@@ -5780,6 +5856,80 @@ No tracking. No forced updates.",
         });
         ui.add_space(8.0);
         theme::muted(ui, "Community content remains fetchable by object id. Labels and local filters change your view; they do not erase the author's copy.");
+    }
+
+    fn router_controls(&mut self, ui: &mut egui::Ui) {
+        ui.separator();
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Reach me from the internet").strong());
+            match (self.router_mapping.clone(), self.router_rx.is_some()) {
+                (_, true) => {
+                    ui.spinner();
+                    theme::muted(ui, "asking the router…");
+                }
+                (Some(mapping), false) => {
+                    match mapping.external_ip {
+                        Some(ip) => {
+                            theme::pill_badge(ui, "MAPPED", theme::ONLINE_GREEN);
+                            theme::muted(
+                                ui,
+                                &format!(
+                                    "{}:{} via {} · lease {} min",
+                                    ip,
+                                    mapping.external_port,
+                                    mapping.gateway,
+                                    mapping.lease_seconds / 60
+                                ),
+                            );
+                        }
+                        None => {
+                            theme::pill_badge(ui, "MAPPED · NO PUBLIC ADDRESS", theme::WARN_AMBER);
+                            theme::muted(
+                                ui,
+                                &format!(
+                                    "{} forwards port {} but is itself behind another NAT (double NAT or carrier-grade NAT)",
+                                    mapping.gateway, mapping.external_port
+                                ),
+                            );
+                        }
+                    }
+                    if ui.add(theme::secondary_button("Renew")).clicked() {
+                        self.start_router_mapping();
+                    }
+                    if ui.add(theme::secondary_button("Remove")).clicked() {
+                        let port = mapping.external_port;
+                        self.notice = match connectivity::unmap_port_on_router(port) {
+                            Ok(()) => "Router mapping removed.".into(),
+                            Err(error) => format!(
+                                "Could not remove the mapping (it expires by itself): {error}"
+                            ),
+                        };
+                        self.router_mapping = None;
+                    }
+                }
+                (None, false) => {
+                    if ui
+                        .add(theme::primary_button("Open port on router (UPnP)"))
+                        .clicked()
+                    {
+                        self.start_router_mapping();
+                    }
+                }
+            }
+        });
+        theme::muted(
+            ui,
+            "Asks the router on your LAN to forward the hosting port to this machine and reports your public address. Nothing leaves your network except through peers you connect to. Routers with UPnP disabled, carrier-grade NAT, or IPv6-only lines will refuse; then forward the port by hand or use a peer that can be reached.",
+        );
+        if ui
+            .checkbox(
+                &mut self.connections.router_mapping_on_launch,
+                "Renew the router mapping whenever hosting starts on launch",
+            )
+            .changed()
+        {
+            self.save_connections();
+        }
     }
 
     fn set_membership(&mut self, id: &mini_objects::ObjectId, join: bool) {

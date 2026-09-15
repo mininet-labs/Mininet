@@ -34,6 +34,8 @@ pub struct ConnectionSettings {
     pub session_on_launch: bool,
     /// Accept incoming connections when Mininet launches.
     pub host_on_launch: bool,
+    /// With `host_on_launch`, also ask the router to forward the port.
+    pub router_mapping_on_launch: bool,
     /// Sessions also exchange the owner's private conversation routes.
     pub include_private: bool,
     /// Micro-MINI per MB this device prices service tickets at.
@@ -50,6 +52,7 @@ impl Default for ConnectionSettings {
             session_length: SessionLength::Short,
             session_on_launch: false,
             host_on_launch: false,
+            router_mapping_on_launch: false,
             include_private: false,
             rate_micro_per_mb: 10,
             creator_bps: 3000,
@@ -138,6 +141,10 @@ impl ConnectionSettings {
             u8::from(self.host_on_launch)
         ));
         out.push_str(&format!(
+            "router_mapping_on_launch\t{}\n",
+            u8::from(self.router_mapping_on_launch)
+        ));
+        out.push_str(&format!(
             "include_private\t{}\n",
             u8::from(self.include_private)
         ));
@@ -196,6 +203,9 @@ impl ConnectionSettings {
                 "host_on_launch" => {
                     settings.host_on_launch = flag(parts.next().unwrap_or_default())?;
                 }
+                "router_mapping_on_launch" => {
+                    settings.router_mapping_on_launch = flag(parts.next().unwrap_or_default())?;
+                }
                 "include_private" => {
                     settings.include_private = flag(parts.next().unwrap_or_default())?;
                 }
@@ -239,6 +249,78 @@ pub fn local_address() -> Result<String, String> {
         return Err("no route to a network".into());
     }
     Ok(address.ip().to_string())
+}
+
+/// Result of an owner-triggered router mapping.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RouterMapping {
+    /// The router's WAN address when it is a public one; `None` when the
+    /// router reported nothing usable (0.0.0.0 or a private range), which
+    /// means it sits behind another NAT or carrier-grade NAT and the
+    /// mapping alone cannot make this machine reachable from the internet.
+    pub external_ip: Option<std::net::Ipv4Addr>,
+    pub external_port: u16,
+    pub gateway: String,
+    /// Seconds the router granted; 0 means the router keeps it until removed.
+    pub lease_seconds: u32,
+}
+
+/// Ask the LAN's UPnP gateway to forward `port` to this machine and report
+/// the external address. Talks only to the local router (SSDP multicast
+/// discovery, then HTTP to the gateway's control URL); owner-triggered,
+/// never on launch. The lease is bounded so a forgotten mapping expires.
+pub fn map_port_on_router(port: u16, lease_seconds: u32) -> Result<RouterMapping, String> {
+    let local_ip: std::net::Ipv4Addr = local_address()?
+        .parse()
+        .map_err(|_| "this machine's LAN address is not IPv4".to_string())?;
+    let options = igd::SearchOptions {
+        timeout: Some(std::time::Duration::from_secs(4)),
+        ..Default::default()
+    };
+    let gateway = igd::search_gateway(options)
+        .map_err(|error| format!("no UPnP gateway answered on this network: {error}"))?;
+    let external_ip = gateway
+        .get_external_ip()
+        .map_err(|error| format!("the router did not report an external address: {error}"))?;
+    gateway
+        .add_port(
+            igd::PortMappingProtocol::TCP,
+            port,
+            std::net::SocketAddrV4::new(local_ip, port),
+            lease_seconds,
+            "Mininet desktop hosting",
+        )
+        .map_err(|error| format!("the router refused the port mapping: {error}"))?;
+    let external_ip = (!external_ip.is_unspecified()
+        && !external_ip.is_private()
+        && !external_ip.is_loopback()
+        && !external_ip.is_link_local()
+        && !is_cgnat(external_ip))
+    .then_some(external_ip);
+    Ok(RouterMapping {
+        external_ip,
+        external_port: port,
+        gateway: gateway.addr.to_string(),
+        lease_seconds,
+    })
+}
+
+/// RFC 6598 shared address space (100.64.0.0/10): carrier-grade NAT.
+fn is_cgnat(ip: std::net::Ipv4Addr) -> bool {
+    let [a, b, _, _] = ip.octets();
+    a == 100 && (64..=127).contains(&b)
+}
+
+/// Remove a mapping created by [`map_port_on_router`].
+pub fn unmap_port_on_router(port: u16) -> Result<(), String> {
+    let options = igd::SearchOptions {
+        timeout: Some(std::time::Duration::from_secs(4)),
+        ..Default::default()
+    };
+    let gateway = igd::search_gateway(options).map_err(|error| error.to_string())?;
+    gateway
+        .remove_port(igd::PortMappingProtocol::TCP, port)
+        .map_err(|error| error.to_string())
 }
 
 pub fn settings_path(root: &Path) -> std::path::PathBuf {
@@ -357,6 +439,7 @@ mod tests {
             session_length: SessionLength::WhileOpen,
             session_on_launch: true,
             host_on_launch: true,
+            router_mapping_on_launch: true,
             include_private: true,
             rate_micro_per_mb: 25,
             creator_bps: 5000,
@@ -426,6 +509,14 @@ mod tests {
             ConnectionCard::decode(&format!("mininet-peer-v1;endpoint=host;did={did};name=A"))
                 .is_err()
         );
+    }
+
+    #[test]
+    fn carrier_grade_nat_range_is_recognised() {
+        assert!(is_cgnat("100.64.0.1".parse().unwrap()));
+        assert!(is_cgnat("100.127.255.254".parse().unwrap()));
+        assert!(!is_cgnat("100.128.0.1".parse().unwrap()));
+        assert!(!is_cgnat("203.0.113.5".parse().unwrap()));
     }
 
     #[test]

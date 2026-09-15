@@ -26,6 +26,9 @@ mini-bearer = { path = "../mini-bearer" }
 mini-sync = { path = "../mini-sync" }
 mini-ticket = { path = "../mini-ticket" }
 mini-crypto = { path = "../mini-crypto" }
+# Owner-triggered UPnP IGD port mapping and external-address lookup. Talks
+# only to the local router (SSDP multicast + HTTP on the LAN); never on launch.
+igd = { version = "0.12", default-features = false }
 mini-social = { path = "../mini-social" }
 mini-store = { path = "../mini-store" }
 mini-windows-vault = { path = "../mini-windows-vault" }
