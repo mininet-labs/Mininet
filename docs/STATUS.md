@@ -3101,4 +3101,5 @@ Owner-triggered UPnP router mapping with honest public-address detection;
 agreed per-exchange ticket rates written into tickets; in-process H.264
 (no B-frames) + AAC video playback via OpenH264 and symphonia. Still not
 built: relay/rendezvous for CGNAT, B-frame video, H.265/VP9/AV1, seekable
-video, settlement.
+video, settlement. Media is a YouTube-style catalog (search, filters, sort,
+poster grid) with per-author Channel pages; search covers this device only.

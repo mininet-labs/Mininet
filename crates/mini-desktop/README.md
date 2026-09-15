@@ -16,7 +16,9 @@ ordered collection of manifests) with seeding progress and chunk-by-chunk
 export; **Earnings** shows the service tickets peers signed for what you
 served, priced at your rate as unsettled micro-MINI credit, redeemable only
 by your DID once the audited settlement layer admits the request.
-**Shorts** plays media posts one at a time and **Watch** shows one with its
+**Media** is a catalog: search by title, author or type, filter by kind,
+sort, and browse a grid of poster cards; author names open a **Channel**
+page. **Shorts** plays media posts one at a time and **Watch** shows one with its
 comments and what is up next; audio plays in-app through pure-Rust decoders
 and animated GIF/WebP loop; H.264 video without B-frames plays in-process
 (OpenH264 + AAC via symphonia), while B-frame H.264, H.265/VP9/AV1 and

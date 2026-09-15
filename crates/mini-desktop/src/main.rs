@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+mod catalog;
 mod connectivity;
 mod conversation_state;
 mod discussion;
@@ -56,6 +57,7 @@ enum View {
     Media,
     Shorts,
     Watch,
+    Channel,
     Inbox,
     People,
     Communities,
@@ -208,6 +210,18 @@ struct MininetApp {
     watch_target: Option<mini_objects::ObjectId>,
     /// The one video decode in flight; dropping it stops the worker.
     video: Option<video::VideoPlayer>,
+    catalog: Vec<catalog::Entry>,
+    catalog_rx: Option<Receiver<Result<Vec<catalog::Entry>, String>>>,
+    catalog_dirty: bool,
+    catalog_query: String,
+    catalog_kind: Option<catalog::Kind>,
+    catalog_sort: catalog::Sort,
+    /// Poster textures by media id; `None` = no poster for this kind.
+    thumbnails: HashMap<String, Option<egui::TextureHandle>>,
+    thumb_requested: std::collections::HashSet<String>,
+    thumb_tx: Option<std::sync::mpsc::Sender<(String, String)>>,
+    thumb_rx: Option<Receiver<(String, Option<egui::ColorImage>)>>,
+    channel_did: Option<String>,
     /// Audio to play after the current track: (media, title, author).
     play_queue: std::collections::VecDeque<(mini_objects::ObjectId, String, String)>,
     composer: String,
@@ -1573,6 +1587,17 @@ impl Default for MininetApp {
             watch_target: None,
             video: None,
             play_queue: std::collections::VecDeque::new(),
+            catalog: Vec::new(),
+            catalog_rx: None,
+            catalog_dirty: true,
+            catalog_query: String::new(),
+            catalog_kind: None,
+            catalog_sort: catalog::Sort::Newest,
+            thumbnails: HashMap::new(),
+            thumb_requested: std::collections::HashSet::new(),
+            thumb_tx: None,
+            thumb_rx: None,
+            channel_did: None,
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1681,6 +1706,7 @@ impl eframe::App for MininetApp {
             self.apply_launch_policy();
         }
         self.poll_timeline(ctx);
+        self.poll_catalog(ctx);
         self.poll_host();
         self.poll_router();
         self.poll_session();
@@ -1771,6 +1797,7 @@ impl eframe::App for MininetApp {
                             View::Media => self.media_timeline(ui),
                             View::Shorts => self.shorts(ui),
                             View::Watch => self.watch(ui),
+                            View::Channel => self.channel(ui),
                             View::Inbox => self.inbox(ui),
                             View::People => self.people(ui),
                             View::Communities => self.communities(ui),
@@ -1816,6 +1843,7 @@ impl MininetApp {
         self.previews_dirty = true;
         self.discussion_dirty = true;
         self.library_dirty = true;
+        self.catalog_dirty = true;
     }
 
     fn rebuild_conversation_previews(&mut self) {
@@ -2751,7 +2779,7 @@ No tracking. No forced updates.",
         let networking = self.network_session.is_some() || self.host.is_some();
         if !matches!(
             self.view,
-            View::Home | View::Discover | View::Media | View::Shorts | View::Watch
+            View::Home | View::Discover | View::Media | View::Shorts | View::Watch | View::Channel
         ) && !networking
         {
             return;
@@ -2930,23 +2958,468 @@ No tracking. No forced updates.",
         self.render_timeline(ui, false);
     }
 
+    // ----- catalog, thumbnails, channels -------------------------------------
+
+    fn poll_catalog(&mut self, ctx: &egui::Context) {
+        if let Some(receiver) = self.catalog_rx.as_ref() {
+            match receiver.try_recv() {
+                Ok(Ok(entries)) => {
+                    self.catalog = entries;
+                    self.catalog_rx = None;
+                    self.catalog_dirty = false;
+                }
+                Ok(Err(error)) => {
+                    self.catalog_rx = None;
+                    self.catalog_dirty = false;
+                    self.notice = format!("Catalog could not be built: {error}");
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.catalog_rx = None;
+                    self.catalog_dirty = false;
+                }
+            }
+        }
+        if !matches!(
+            self.view,
+            View::Media | View::Channel | View::Watch | View::Shorts
+        ) {
+            return;
+        }
+        if self.catalog_dirty && self.catalog_rx.is_none() {
+            let Some((root, human)) = self.workspace.as_ref().and_then(|workspace| {
+                workspace
+                    .human
+                    .clone()
+                    .map(|human| (workspace.root.clone(), human))
+            }) else {
+                return;
+            };
+            let (sender, receiver) = mpsc::channel();
+            self.catalog_rx = Some(receiver);
+            let repaint = ctx.clone();
+            std::thread::spawn(move || {
+                let _ = sender.send(catalog::snapshot(&root, &human));
+                repaint.request_repaint();
+            });
+        }
+    }
+
+    /// Ask the thumbnail worker for a poster once; returns the texture when
+    /// it has arrived.
+    fn thumbnail(
+        &mut self,
+        ctx: &egui::Context,
+        media: &mini_objects::ObjectId,
+        content_type: &str,
+    ) -> Option<egui::TextureHandle> {
+        let key = media.as_str().to_owned();
+        if let Some(texture) = self.thumbnails.get(&key) {
+            return texture.clone();
+        }
+        // Drain finished thumbnails.
+        if let Some(receiver) = self.thumb_rx.as_ref() {
+            let mut done = Vec::new();
+            while let Ok((id, image)) = receiver.try_recv() {
+                done.push((id, image));
+            }
+            for (id, image) in done {
+                let texture = image.map(|image| {
+                    ctx.load_texture(format!("thumb:{id}"), image, egui::TextureOptions::LINEAR)
+                });
+                self.thumbnails.insert(id, texture);
+            }
+            if let Some(texture) = self.thumbnails.get(&key) {
+                return texture.clone();
+            }
+        }
+        if self.thumb_requested.insert(key.clone()) {
+            if self.thumb_tx.is_none() {
+                let (tx, rx) = mpsc::channel::<(String, String)>();
+                let (done_tx, done_rx) = mpsc::channel();
+                let root = data_root();
+                let repaint = ctx.clone();
+                std::thread::spawn(move || {
+                    while let Ok((id, content_type)) = rx.recv() {
+                        let image = thumbnail_for(&root, &id, &content_type);
+                        if done_tx.send((id, image)).is_err() {
+                            break;
+                        }
+                        repaint.request_repaint();
+                    }
+                });
+                self.thumb_tx = Some(tx);
+                self.thumb_rx = Some(done_rx);
+            }
+            if let Some(tx) = self.thumb_tx.as_ref() {
+                let _ = tx.send((key, content_type.to_owned()));
+            }
+        }
+        None
+    }
+
+    /// The YouTube-style media catalog: search, filters, sort, grid.
     fn media_timeline(&mut self, ui: &mut egui::Ui) {
-        theme::muted(
-            ui,
-            "Photo and video posts you have received. Images show inline once every chunk has arrived; video playback is not integrated yet.",
+        ui.add(
+            egui::TextEdit::singleline(&mut self.catalog_query)
+                .hint_text("🔍  Search videos, music, images, people…")
+                .desired_width(f32::INFINITY),
         );
         ui.horizontal_wrapped(|ui| {
+            for (kind, label) in [
+                (None, "All"),
+                (Some(catalog::Kind::Video), "Video"),
+                (Some(catalog::Kind::Music), "Music"),
+                (Some(catalog::Kind::Image), "Images"),
+                (Some(catalog::Kind::Animation), "GIFs"),
+                (Some(catalog::Kind::File), "Files"),
+            ] {
+                if ui
+                    .selectable_label(self.catalog_kind == kind, label)
+                    .clicked()
+                {
+                    self.catalog_kind = kind;
+                }
+            }
+            ui.separator();
+            for sort in [
+                catalog::Sort::Newest,
+                catalog::Sort::MostLiked,
+                catalog::Sort::MostDiscussed,
+            ] {
+                if ui
+                    .selectable_label(self.catalog_sort == sort, sort.label())
+                    .clicked()
+                {
+                    self.catalog_sort = sort;
+                }
+            }
+            ui.separator();
             if ui
-                .add(theme::primary_button("🖼  Share a photo or video"))
+                .add(theme::secondary_button("🔄"))
+                .on_hover_text("Rebuild")
                 .clicked()
             {
-                self.view = View::Creator;
+                self.catalog_dirty = true;
+            }
+            if ui.add(theme::secondary_button("📋  Upload")).clicked() {
+                self.view = View::Library;
             }
         });
         ui.add_space(6.0);
-        self.timeline_controls(ui);
-        ui.add_space(8.0);
-        self.render_timeline(ui, true);
+        let mut entries: Vec<catalog::Entry> = self
+            .catalog
+            .iter()
+            .filter(|entry| self.catalog_kind.is_none_or(|kind| entry.kind == kind))
+            .filter(|entry| entry.matches(&self.catalog_query))
+            .filter(|entry| !self.muted.contains(&entry.author_did))
+            .cloned()
+            .collect();
+        catalog::sort(&mut entries, self.catalog_sort);
+        if self.catalog_rx.is_some() && self.catalog.is_empty() {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                theme::muted(ui, "Indexing what this device holds…");
+            });
+        } else if entries.is_empty() {
+            theme::card_frame().show(ui, |ui| {
+                ui.heading(if self.catalog_query.trim().is_empty() {
+                    "Nothing here yet"
+                } else {
+                    "No matches"
+                });
+                theme::muted(ui, "Media posts from everyone you exchange with are indexed here. Upload something to your Library and share it, or connect to more peers.");
+            });
+        } else {
+            theme::muted(ui, &format!("{} result(s)", entries.len()));
+        }
+        self.catalog_grid(ui, &entries);
+    }
+
+    /// Cards in a responsive grid.
+    fn catalog_grid(&mut self, ui: &mut egui::Ui, entries: &[catalog::Entry]) {
+        let gap = 12.0;
+        let available = ui.available_width();
+        let columns = ((available + gap) / (260.0 + gap)).floor().clamp(1.0, 4.0) as usize;
+        let card_width = ((available - gap * (columns as f32 - 1.0)) / columns as f32).max(200.0);
+        let mut open_watch: Option<mini_objects::ObjectId> = None;
+        let mut open_channel: Option<String> = None;
+        for row in entries.chunks(columns) {
+            ui.horizontal_top(|ui| {
+                for entry in row {
+                    ui.push_id(entry.post.as_str(), |ui| {
+                        ui.allocate_ui_with_layout(
+                            egui::vec2(card_width, 0.0),
+                            egui::Layout::top_down(egui::Align::Min),
+                            |ui| {
+                                ui.set_width(card_width);
+                                let (thumb_w, thumb_h) = (card_width, card_width * 9.0 / 16.0);
+                                let texture =
+                                    self.thumbnail(ui.ctx(), &entry.media, &entry.content_type);
+                                let (rect, response) = ui.allocate_exact_size(
+                                    egui::vec2(thumb_w, thumb_h),
+                                    egui::Sense::click(),
+                                );
+                                ui.painter().rect_filled(rect, 10.0, theme::CARD);
+                                match texture {
+                                    Some(texture) => {
+                                        let size = texture.size_vec2();
+                                        let scale = (thumb_w / size.x).min(thumb_h / size.y);
+                                        let shown = size * scale;
+                                        let image_rect =
+                                            egui::Rect::from_center_size(rect.center(), shown);
+                                        ui.painter().image(
+                                            texture.id(),
+                                            image_rect,
+                                            egui::Rect::from_min_max(
+                                                egui::pos2(0.0, 0.0),
+                                                egui::pos2(1.0, 1.0),
+                                            ),
+                                            egui::Color32::WHITE,
+                                        );
+                                    }
+                                    None => {
+                                        ui.painter().text(
+                                            rect.center(),
+                                            egui::Align2::CENTER_CENTER,
+                                            entry.kind.glyph(),
+                                            egui::FontId::proportional(44.0),
+                                            theme::TEXT_SECONDARY,
+                                        );
+                                    }
+                                }
+                                // Size/kind badge, bottom-right like a duration.
+                                let badge = if entry.bytes > 0 {
+                                    format!(
+                                        "{} · {}",
+                                        entry.kind.label(),
+                                        library::human_size(entry.bytes)
+                                    )
+                                } else {
+                                    "not received yet".to_string()
+                                };
+                                let badge_pos = rect.right_bottom() - egui::vec2(8.0, 8.0);
+                                let galley = ui.painter().layout_no_wrap(
+                                    badge,
+                                    egui::FontId::proportional(11.5),
+                                    egui::Color32::WHITE,
+                                );
+                                let badge_rect = egui::Rect::from_min_max(
+                                    badge_pos - galley.size() - egui::vec2(8.0, 4.0),
+                                    badge_pos,
+                                );
+                                ui.painter().rect_filled(
+                                    badge_rect,
+                                    4.0,
+                                    egui::Color32::from_black_alpha(190),
+                                );
+                                ui.painter().galley(
+                                    badge_rect.min + egui::vec2(4.0, 2.0),
+                                    galley,
+                                    egui::Color32::WHITE,
+                                );
+                                if !entry.complete && entry.bytes > 0 {
+                                    theme::pill_badge(ui, "STILL ARRIVING", theme::WARN_AMBER);
+                                }
+                                if response.clicked() {
+                                    open_watch = Some(entry.post.clone());
+                                }
+                                ui.add_space(6.0);
+                                ui.horizontal_top(|ui| {
+                                    let avatar = theme::avatar(
+                                        ui,
+                                        &entry.author_name,
+                                        &entry.author_did,
+                                        32.0,
+                                    );
+                                    if avatar.interact(egui::Sense::click()).clicked() {
+                                        open_channel = Some(entry.author_did.clone());
+                                    }
+                                    ui.vertical(|ui| {
+                                        ui.set_width(card_width - 44.0);
+                                        let title = ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&entry.title)
+                                                    .strong()
+                                                    .color(theme::TEXT_PRIMARY),
+                                            )
+                                            .truncate()
+                                            .sense(egui::Sense::click()),
+                                        );
+                                        if title.clicked() {
+                                            open_watch = Some(entry.post.clone());
+                                        }
+                                        let author = ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&entry.author_name)
+                                                    .small()
+                                                    .color(theme::TEXT_SECONDARY),
+                                            )
+                                            .sense(egui::Sense::click()),
+                                        );
+                                        if author.clicked() {
+                                            open_channel = Some(entry.author_did.clone());
+                                        }
+                                        theme::muted(
+                                            ui,
+                                            &format!(
+                                                "♥ {} · 💬 {} · {}",
+                                                entry.likes,
+                                                entry.comments,
+                                                timeline::age(entry.timestamp_ms, now_ms())
+                                            ),
+                                        );
+                                    });
+                                });
+                            },
+                        );
+                    });
+                    ui.add_space(12.0);
+                }
+            });
+            ui.add_space(14.0);
+        }
+        if let Some(post) = open_watch {
+            self.watch_target = Some(post);
+            self.reply_target = None;
+            self.view = View::Watch;
+        }
+        if let Some(did) = open_channel {
+            self.channel_did = Some(did);
+            self.view = View::Channel;
+        }
+    }
+
+    /// An author's page: profile, follow, their media and posts.
+    fn channel(&mut self, ui: &mut egui::Ui) {
+        let Some(did_text) = self.channel_did.clone() else {
+            theme::muted(ui, "Open a channel from a video card or a post.");
+            return;
+        };
+        let did = Did::parse(&did_text).ok();
+        let profile = self.workspace.as_ref().and_then(|workspace| {
+            did.as_ref()
+                .and_then(|did| resolve_profile(&workspace.store, did).ok().flatten())
+        });
+        let (name, bio, avatar) = profile
+            .as_ref()
+            .map(|profile| {
+                (
+                    profile.display_name.clone(),
+                    profile.bio.clone(),
+                    profile.avatar.clone(),
+                )
+            })
+            .unwrap_or_else(|| ("Mininet participant".into(), String::new(), None));
+        let own = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.human.as_ref())
+            .is_some_and(|me| me.as_str() == did_text);
+        let follows = self
+            .workspace
+            .as_ref()
+            .zip(did.as_ref())
+            .is_some_and(|(workspace, did)| workspace.follows(did));
+        let media: Vec<catalog::Entry> = self
+            .catalog
+            .iter()
+            .filter(|entry| entry.author_did == did_text)
+            .cloned()
+            .collect();
+        let post_count = self
+            .timeline_cards
+            .iter()
+            .filter(|card| card.did == did_text)
+            .count();
+        theme::card_frame().show(ui, |ui| {
+            ui.horizontal(|ui| {
+                match avatar
+                    .as_ref()
+                    .and_then(|avatar| self.profile_texture(ui.ctx(), avatar))
+                {
+                    Some(texture) => {
+                        ui.add(
+                            egui::Image::new((texture.id(), egui::vec2(72.0, 72.0)))
+                                .corner_radius(36.0),
+                        );
+                    }
+                    None => {
+                        theme::avatar(ui, &name, &did_text, 72.0);
+                    }
+                }
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new(&name).strong().size(22.0));
+                    theme::muted(ui, &short_did(&did_text));
+                    if !bio.is_empty() {
+                        ui.label(&bio);
+                    }
+                    theme::muted(
+                        ui,
+                        &format!(
+                            "{} media · {} post(s) on this device",
+                            media.len(),
+                            post_count
+                        ),
+                    );
+                    ui.horizontal(|ui| {
+                        if own {
+                            theme::pill_badge(ui, "YOUR CHANNEL", theme::ACCENT);
+                        } else if follows {
+                            theme::pill_badge(ui, "FOLLOWING", theme::ONLINE_GREEN);
+                            if ui.add(theme::secondary_button("Unfollow")).clicked() {
+                                self.notice = match self.workspace.as_mut() {
+                                    Some(workspace) => match workspace
+                                        .set_follow_target_confirmed(&did_text, false)
+                                    {
+                                        Ok(()) => format!("Unfollowed {name}."),
+                                        Err(error) => format!("Could not unfollow: {error}"),
+                                    },
+                                    None => "Local workspace unavailable.".into(),
+                                };
+                            }
+                        } else if ui.add(theme::primary_button("Follow")).clicked() {
+                            self.follow_did(&did_text, &name);
+                        }
+                        if !own && ui.add(theme::secondary_button("✉  Message")).clicked() {
+                            self.conversation_peer = did_text.clone();
+                            if self.conversation_label.trim().is_empty() {
+                                self.conversation_label = name.clone();
+                            }
+                            self.view = View::Inbox;
+                        }
+                        if ui.add(theme::secondary_button("Copy DID")).clicked() {
+                            ui.ctx().copy_text(did_text.clone());
+                        }
+                    });
+                });
+            });
+        });
+        ui.add_space(10.0);
+        theme::section_title(ui, "Media");
+        if media.is_empty() {
+            theme::muted(ui, "No media from this channel on your device yet.");
+        }
+        let mut media = media;
+        catalog::sort(&mut media, catalog::Sort::Newest);
+        self.catalog_grid(ui, &media);
+        ui.add_space(10.0);
+        theme::section_title(ui, "Posts");
+        let posts: Vec<timeline::Card> = self
+            .timeline_cards
+            .iter()
+            .filter(|card| card.did == did_text && card.media.is_none())
+            .cloned()
+            .collect();
+        if posts.is_empty() {
+            theme::muted(
+                ui,
+                "No text posts from this channel in the last 50 received.",
+            );
+        }
+        for card in posts {
+            ui.push_id(card.id.as_str(), |ui| self.post_card(ui, &card));
+        }
     }
 
     /// Decode a post's image once and cache the texture; a manifest that is
@@ -3222,11 +3695,21 @@ No tracking. No forced updates.",
                 ui.vertical(|ui| {
                     ui.set_width(ui.available_width());
                     ui.horizontal_wrapped(|ui| {
-                        ui.label(
-                            egui::RichText::new(&card.author)
-                                .strong()
-                                .color(theme::TEXT_PRIMARY),
-                        );
+                        if ui
+                            .add(
+                                egui::Label::new(
+                                    egui::RichText::new(&card.author)
+                                        .strong()
+                                        .color(theme::TEXT_PRIMARY),
+                                )
+                                .sense(egui::Sense::click()),
+                            )
+                            .on_hover_text("Open channel")
+                            .clicked()
+                        {
+                            self.channel_did = Some(card.did.clone());
+                            self.view = View::Channel;
+                        }
                         theme::muted(ui, &short_did(&card.did));
                         theme::muted(
                             ui,
@@ -3468,7 +3951,8 @@ No tracking. No forced updates.",
                 "Explore",
                 "Search everything your device has received. Connect peers to bring more into view.",
             ),
-            View::Media => ("Media", "Photo, video and music posts from people on your network."),
+            View::Media => ("Media", "Videos, music, images and files from everyone you exchange with. Search by title, author or type."),
+            View::Channel => ("Channel", "One author: their profile, media and posts."),
             View::Shorts => ("Shorts", "One at a time. GIFs and music play here; arrow keys to move."),
             View::Watch => ("Watch", "Play, read the comments, and see what is up next."),
             View::Inbox => (
@@ -7501,6 +7985,47 @@ fn exchange_with_peer(
         summary.push_str(&format!(" Errors: {}", errors.join("; ")));
     }
     Ok(summary)
+}
+
+/// Build a poster image for one media object on the thumbnail worker.
+fn thumbnail_for(root: &std::path::Path, id: &str, content_type: &str) -> Option<egui::ColorImage> {
+    const EDGE: usize = 480;
+    let store = Store::new(FsBackend::open(root).ok()?);
+    let media = mini_objects::ObjectId::parse(id).ok()?;
+    let object = store.get(&media).ok()?;
+    let total = match read_manifest(&object) {
+        Ok(manifest) => manifest.total_len,
+        Err(_) => library::read_collection(&object).ok()?.total_len,
+    };
+    match player::playback_for(content_type) {
+        player::Playback::Video | player::Playback::VideoUnsupported => {
+            if total > video::MAX_VIDEO_BYTES {
+                return None;
+            }
+            let mut bytes = Vec::with_capacity(total as usize);
+            library::export(&store, &media, &mut bytes).ok()?;
+            let frame = video::poster(&bytes, EDGE).ok()?;
+            Some(egui::ColorImage::from_rgb(
+                [frame.width, frame.height],
+                &frame.rgb,
+            ))
+        }
+        player::Playback::Image | player::Playback::Animation => {
+            if total > player::MAX_ANIMATION_BYTES {
+                return None;
+            }
+            let mut bytes = Vec::with_capacity(total as usize);
+            library::export(&store, &media, &mut bytes).ok()?;
+            let (image, _) = decode_profile_image(&bytes).ok()?;
+            let image = image.thumbnail(EDGE as u32, EDGE as u32).to_rgba8();
+            let size = [image.width() as usize, image.height() as usize];
+            Some(egui::ColorImage::from_rgba_unmultiplied(
+                size,
+                image.as_raw(),
+            ))
+        }
+        _ => None,
+    }
 }
 
 fn main() -> eframe::Result {

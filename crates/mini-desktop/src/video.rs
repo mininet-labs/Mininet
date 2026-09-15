@@ -229,6 +229,86 @@ fn decode_thread(bytes: Vec<u8>, tx: SyncSender<Event>, stop: Arc<AtomicBool>) {
     };
 }
 
+/// Decode only the first picture of an H.264 MP4 as an RGB poster. The
+/// first sample is a keyframe, so this works for files whose later
+/// B-frames the decoder cannot handle.
+pub fn poster(bytes: &[u8], max_edge: usize) -> Result<Frame, String> {
+    let size = bytes.len() as u64;
+    let mut reader = Mp4Reader::read_header(Cursor::new(bytes), size)
+        .map_err(|error| format!("not a readable MP4: {error}"))?;
+    let (track_id, sps, pps, length_size) = {
+        let track = reader
+            .tracks()
+            .values()
+            .find(|track| track.track_type().ok() == Some(TrackType::Video))
+            .ok_or("no video track")?;
+        if track.media_type().map_err(|error| error.to_string())? != MediaType::H264 {
+            return Err("not H.264".into());
+        }
+        let avcc = track
+            .trak
+            .mdia
+            .minf
+            .stbl
+            .stsd
+            .avc1
+            .as_ref()
+            .map(|avc1| &avc1.avcc)
+            .ok_or("no decoder configuration")?;
+        (
+            track.track_id(),
+            track
+                .sequence_parameter_set()
+                .map_err(|error| error.to_string())?
+                .to_vec(),
+            track
+                .picture_parameter_set()
+                .map_err(|error| error.to_string())?
+                .to_vec(),
+            usize::from(avcc.length_size_minus_one & 0x03) + 1,
+        )
+    };
+    let mut decoder = Decoder::new().map_err(|error| format!("decoder: {error}"))?;
+    let mut headers = vec![0, 0, 0, 1];
+    headers.extend_from_slice(&sps);
+    headers.extend_from_slice(&[0, 0, 0, 1]);
+    headers.extend_from_slice(&pps);
+    let _ = decoder.decode(&headers);
+    let count = reader
+        .sample_count(track_id)
+        .map_err(|error| error.to_string())?;
+    let mut annex_b = Vec::new();
+    for sample_id in 1..=count.min(30) {
+        let Some(sample) = reader
+            .read_sample(track_id, sample_id)
+            .map_err(|error| error.to_string())?
+        else {
+            break;
+        };
+        avcc_to_annex_b(&sample.bytes, length_size, &mut annex_b)?;
+        if let Ok(Some(yuv)) = decoder.decode(&annex_b) {
+            let (w, h) = yuv.dimensions();
+            let mut rgb = vec![0u8; w * h * 3];
+            yuv.write_rgb8(&mut rgb);
+            let image = image::RgbImage::from_raw(w as u32, h as u32, rgb)
+                .ok_or("frame buffer size mismatch")?;
+            let scale = (max_edge as f32 / w.max(h) as f32).min(1.0);
+            let thumb = image::imageops::thumbnail(
+                &image,
+                ((w as f32 * scale) as u32).max(1),
+                ((h as f32 * scale) as u32).max(1),
+            );
+            return Ok(Frame {
+                pts: Duration::ZERO,
+                width: thumb.width() as usize,
+                height: thumb.height() as usize,
+                rgb: thumb.into_raw(),
+            });
+        }
+    }
+    Err("no decodable picture in the first samples".into())
+}
+
 impl VideoPlayer {
     /// Start decoding `bytes` on a worker. Nothing is shown until the first
     /// frame arrives.
@@ -392,5 +472,9 @@ mod clip_tests {
         }
         eprintln!("frames {frames} first {first:?}");
         assert!(frames > 200, "expected ~300 frames, got {frames}");
+        let bytes = std::fs::read("C:/dev/clip720.mp4").unwrap();
+        let poster = poster(&bytes, 320).unwrap();
+        assert_eq!(poster.width, 320);
+        assert_eq!(poster.height, 180);
     }
 }

@@ -24744,4 +24744,15 @@ H.264 as they mature, or an OS-codec adapter behind an owner switch —
 still a decision, not an assumption); streaming decode from chunks;
 seekable video; relay/rendezvous for CGNAT.
 
+**Addendum (same day):** the Media view is now a catalog: every media post
+on the device indexed off the render thread (title = caption first line or
+file name, description, author, kind, size, likes, comments, completeness;
+bounded to 2 000 posts), searched by words over title/description/author/
+DID/type, filtered by kind, sorted by newest/most liked/most discussed, and
+shown as a grid of cards with posters decoded by a thumbnail worker (first
+H.264 keyframe — which works even for B-frame files — or a scaled image).
+Cards open Watch; author names open a **Channel** page (profile, follow,
+message, their media and posts). Search is over what this device holds;
+it is not network search.
+
 **Supersedes / superseded by:** none. Extends D-0522–D-0524.
