@@ -5303,6 +5303,7 @@ mod tests {
     /// encrypted message; Alice gets Bob's profile. The private route must
     /// be served by the multi-route host responder, and a route Bob does
     /// not hold must be declined without error.
+    #[cfg(windows)]
     #[test]
     fn host_serves_session_exchanges_public_and_private_over_tcp() {
         use super::{
