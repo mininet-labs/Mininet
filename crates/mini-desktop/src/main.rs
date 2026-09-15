@@ -4068,7 +4068,18 @@ No tracking. No forced updates.",
                     } else if ui.add(theme::primary_button("Follow")).clicked() {
                         self.add_friend(&profile);
                     }
-                    if ui.button("Copy DID").clicked() {
+                    if !is_own && ui.add(theme::secondary_button("✉  Message")).clicked() {
+                        self.conversation_peer = profile.human.as_str().to_string();
+                        if self.conversation_label.trim().is_empty() {
+                            self.conversation_label = profile.display_name.clone();
+                        }
+                        self.view = View::Inbox;
+                        self.notice = format!(
+                            "Create a sensitive invite for {} and send it to them over a trusted channel; they import it in Messages.",
+                            profile.display_name
+                        );
+                    }
+                    if ui.add(theme::secondary_button("Copy DID")).clicked() {
                         ui.ctx().copy_text(profile.human.as_str().to_string());
                     }
                 });
