@@ -53,6 +53,11 @@ When two sources disagree, use this precedence until an accepted constitutional 
 | `21_GOVERNANCE_TEST_SUITE.md` | Positive, adversarial, recovery, and scaling scenarios. |
 | `22_MACHINE_READABLE_SUMMARIES.md` | Experimental structured summary schema and validation direction. |
 | `50_PRIMARY_AI_ENGINEER_CHARTER.md` | Proposed, model-independent, non-authorizing bootstrap engineering charter and session-adapter conformance boundary. |
+| `52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md` | Current Pre-Go-Live bootstrap decision and anonymous-only participation boundary. |
+| `53_FOUNDING_PARLIAMENT.md` | Proposed rolling Founding Parliament; non-activating until an exact-state decision. |
+| `54_H0_GUARDIAN_STAY.md` | Proposed bounded, overridable and self-sunsetting H0 Guardian Stay. |
+| `55_PARLIAMENT_ACTIVITY_AND_COMPENSATION.md` | Proposed active-duty proof and outcome-neutral Steward compensation. |
+| `56_PARLIAMENT_TO_PUBLIC_GOVERNANCE.md` | Proposed evidence-gated, monotonic transition from invited stewardship to public human governance. |
 | `RFC-0001_PROTOCOL_GOVERNANCE.md` | Platform-independent governance protocol proposal. |
 | `CHANGELOG.md` | Versioned changes to this pack. |
 
@@ -132,3 +137,12 @@ The charter becomes canonical only through an exact-state activation decision. S
 ## Bootstrap operating decisions
 
 - [52 — Pre-Go-Live Governance Pause and Anonymous-Only Bootstrap Participation](52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md) — temporary Founder bootstrap operating override; supersedes conflicting bootstrap procedure only for the Pre-Go-Live period per its own Section 8, and does not weaken the Section 7 substantive protections or any Tier-F frozen invariant. Originally filed as `40_PRE_GO_LIVE_GOVERNANCE_PAUSE.md`, colliding with document 40 above (Governance Simulation and Stress Testing); renumbered to 52 (the next unused slot after 51) with no change to its content.
+
+## Founding Parliament proposal
+
+Documents 53–56 describe a proposed successor path from the current bootstrap to a rolling Parliament and then public human governance. Their presence in this index is discoverability, **not activation**. Until an exact-state activation decision and corresponding machine state say otherwise, Document 52 remains the controlling Pre-Go-Live operating decision and `governance/parliament-proposal.json` remains `active=false`.
+
+- [53 — Founding Parliament](53_FOUNDING_PARLIAMENT.md)
+- [54 — H0 Guardian Stay](54_H0_GUARDIAN_STAY.md)
+- [55 — Parliament Activity and Compensation](55_PARLIAMENT_ACTIVITY_AND_COMPENSATION.md)
+- [56 — Parliament to Public Governance](56_PARLIAMENT_TO_PUBLIC_GOVERNANCE.md)
