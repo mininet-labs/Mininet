@@ -62,7 +62,11 @@ fn map_rows() -> BTreeMap<&'static str, Row<'static>> {
                 gate: columns[5],
             },
         );
-        assert!(old.is_none(), "{} is listed twice in the Windows map", columns[0]);
+        assert!(
+            old.is_none(),
+            "{} is listed twice in the Windows map",
+            columns[0]
+        );
     }
     rows
 }
@@ -75,8 +79,7 @@ fn direct_mininet_dependencies() -> BTreeSet<String> {
             if !line.contains("path = \"../") {
                 return None;
             }
-            line.split_once('=')
-                .map(|(name, _)| name.trim().to_owned())
+            line.split_once('=').map(|(name, _)| name.trim().to_owned())
         })
         .collect()
 }
@@ -107,7 +110,8 @@ fn direct_desktop_dependencies_are_declared_as_direct_and_only_them() {
     let rows = map_rows();
     let declared: BTreeSet<String> = rows
         .iter()
-        .filter_map(|(name, row)| (row.current == "direct").then(|| (*name).to_owned()))
+        .filter(|(_, row)| row.current == "direct")
+        .map(|(name, _)| (*name).to_owned())
         .collect();
 
     assert_eq!(
@@ -149,7 +153,10 @@ fn every_row_uses_a_known_process_wave_and_nonempty_product_contract() {
             "{name} has unknown implementation wave {:?}",
             row.wave
         );
-        assert!(!row.surface.trim().is_empty(), "{name} has no product surface");
+        assert!(
+            !row.surface.trim().is_empty(),
+            "{name} has no product surface"
+        );
         assert!(
             row.gate.trim().len() >= 20,
             "{name} has no meaningful integration gate: {:?}",
@@ -186,8 +193,5 @@ fn value_and_forge_are_assigned_to_separate_process_domains() {
     assert_eq!(rows["mini-value"].target_process, "wallet-service");
     assert_eq!(rows["mini-treasury"].target_process, "wallet-service");
     assert_eq!(rows["mini-forge"].target_process, "forge-service");
-    assert_eq!(
-        rows["mini-build-runner-wasmtime"].target_process,
-        "worker"
-    );
+    assert_eq!(rows["mini-build-runner-wasmtime"].target_process, "worker");
 }
