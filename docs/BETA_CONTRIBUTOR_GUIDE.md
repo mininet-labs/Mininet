@@ -1,118 +1,153 @@
-# Beta contributor guide
+# Open Beta contributor guide
 
-This is the practical door for people who want to help Mininet before a
-public Beta is published. It is an orientation and evidence guide, not a
-grant of authority. The canonical documents and accepted decisions linked
-from the [README](../README.md) control if this page is ever stale.
+**Open Beta participation is now open.** Start with [`BETA_OPEN.md`](BETA_OPEN.md)
+if you want the shortest practical route. This page explains how beta evidence,
+implementation work, contribution recognition, Beta MINI, and the Forge cutover
+fit together.
 
-## Current Beta boundary
+This is an orientation and evidence guide, not a grant of authority. Canonical
+invariants and accepted bootstrap decisions control if this page is ever stale.
 
-The target is a real, honest two-device path. The repository contains a
-substantial Rust core, an Android foundation, and Rust-side LAN/QR pairing
-work, but the end-to-end Beta is not yet validated.
+## Current boundary
 
-Still outstanding for a genuine device Beta include real Android CI and
-two-device acceptance for the LAN/QR path ([#200](../../issues/200)), the
-Android BLE implementation and hardware test ([#201](../../issues/201)),
-background lifecycle behavior ([#202](../../issues/202)), dependency/build
-verification ([#203](../../issues/203)), Android CI assembly ([#204](../../issues/204)),
-and reproducible APK evidence ([#205](../../issues/205)). The external gates
-and research questions are tracked separately in [#262](../../issues/262).
+The project is in the final **Pre-Go-Live** phase, not production. PR #333 landed
+the BLE multi-hop transport/Android code slice and CI can build it, but real
+physical-device evidence, product wiring, broader adversarial/lifecycle testing,
+and external/value-safety gates still matter. Passing Rust/Android CI is not a
+real-phone acceptance test or an external cryptography audit.
 
-This project is not ready for real value, treasury custody, production
-personhood claims, or production cryptography. A passing test suite is not an
-external audit. Current governance and consensus counts must be described in
-terms of identity roots, not as proof of unique humans.
+Production value, treasury custody, production personhood claims, and unaudited
+cryptographic paths are not activated by Open Beta. Current governance/consensus
+claims must still distinguish verified identity roots from proven unique humans.
 
 ## Choose a route
 
 | You can help with | Safe first route | Evidence to return |
 |---|---|---|
-| Try a Beta flow or reproduce a bug | Use the [Beta test report](../../issues/new?template=beta-test-report.yml) | Exact revision, device/toolchain, steps, expected/observed result, logs, and limits |
-| Rust implementation or tests | Pick an open implementation issue, read the five canon docs, then claim the issue in the work registry | Focused tests plus the full PR ritual and a clear non-goals section |
-| Android, LAN, BLE, or device testing | Start with #200-#205 and state whether you have an emulator, one device, or two physical devices | Device-specific evidence; do not generalize emulator/Rust results to hardware |
-| Documentation, research, or threat modeling | Use #262 or #263, or open a scoped design/research issue | Sources, alternatives, falsification conditions, and unresolved questions |
-| Security or external review coordination | Read [`docs/gates/`](gates/README.md) and use the [review response template](gates/EXTERNAL_REVIEW_RESPONSE_TEMPLATE.md) | Scope, independence, findings, disposition, residual risk, and review date |
-| Governance/process or contributor routing | Start with #263 and the [preliminary report](design/mininet-teams-and-contributor-routing.md) | A proposal, not an activated team or authority claim |
-| Domain consultation or employee-sponsored work | Declare the relevant conflict/relationship privately where needed, then contribute through a scoped issue | Technical evidence; employment or funding does not confer authority |
+| Try the product / reproduce a bug | [Beta test report](../../issues/new?template=beta-test-report.yml) | exact revision, evidence class, component, environment, steps, expected/observed, redacted artifacts, limits |
+| One or more Android phones | follow `BETA_OPEN.md` one/two/multi-phone itineraries | physical-device evidence; device/OS facts needed to reproduce, no stable identifiers |
+| Accessibility/usability | first-run, permissions, errors, recovery, assistive tech | exact state + task + observed barrier + proposed/verified improvement |
+| Rust implementation/tests | choose an open scoped task and claim it | focused tests, exact state, non-goals, full PR ritual |
+| Forge transition work | use the migration matrix in `FORGE_BETA_MIGRATION.md` | GitHub-independent campaign/finding/task/review/reward evidence |
+| Build/release/reproducibility | current release/build issues and gates | exact build inputs, outputs/digests, independent reproduction limits |
+| Documentation/research/threat modeling | open a scoped evidence issue | sources, alternatives, falsification conditions, unresolved questions |
+| Security/external review | private security route where needed + `docs/gates/` | scope, exact reviewed state, findings, disposition, residual risk |
+| Domain consultation | one bounded evidence question | technical evidence; status/employment never creates authority |
 
-If you are unsure, choose the smallest documentation, reproduction, or test
-task and ask in the issue. You do not need to infer policy from a GitHub team
-name, a job title, a bounty, or an AI-generated suggestion.
+If unsure, choose the smallest reproduction, documentation, or test task. A useful
+single report is a complete contribution; nobody has to build a persistent
+profile or stay involved.
+
+## Pre-Go-Live anonymity
+
+`docs/governance/52_PRE_GO_LIVE_GOVERNANCE_PAUSE.md` controls this period:
+Mininet-level bootstrap participation is canonically **anonymous** until Go-Live.
+
+Therefore:
+
+- GitHub usernames/emails are transport metadata, not Mininet identities;
+- no legal name, Mininet pseudonym, DID, reputation handle, or continuity proof
+  is required for testing/contribution;
+- separate submissions must not be silently linked to construct a hidden profile;
+- the Forge-native beta schema records fresh artifact-scoped `SubmissionTag` /
+  `ClaimTag` values instead of contributor identities; and
+- a Beta MINI destination/claim handle must not be posted publicly or promoted
+  into a governance/reviewer/personhood credential.
+
+A person may voluntarily identify themselves on GitHub; Mininet still does not
+make that identity canonical during Pre-Go-Live.
 
 ## The contribution path
 
-1. **Discover** a route and read its linked scope.
-2. **Choose** a privacy mode: anonymous, pseudonymous, or public. Legal-name
-   disclosure is not the default.
-3. **Claim** one open issue and record the branch, paths, lease, and planned
-   Decision identifier in `governance/work-claims.json`. A claim prevents
-   collisions; it is not approval or legitimacy.
-4. **Build or test** against the exact revision. Keep Rust-only, emulator,
-   physical-device, external-review, and research evidence distinct.
-5. **Peer review** the exact state and record adverse findings. Peer review is
-   not the same event as authorized approval.
-6. **Handoff** the evidence for the applicable human or governance authority.
-   AI reviews are evidence and carry zero approval weight.
+The target workflow is the same whether GitHub is available or not:
 
-Use [`CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md`](CONTRIBUTOR_TASK_BRIEF_TEMPLATE.md)
-when an issue does not already give enough structure. Use
-[`CONTRIBUTING.md`](../CONTRIBUTING.md) for the branch and validation ritual.
+1. **Discover** a beta campaign or bounded task.
+2. **Test/build/review** an exact state and preserve reproducible evidence.
+3. **Submit** a structured finding or implementation artifact.
+4. **Disposition** the finding append-only: accepted, duplicate, needs info,
+   fixed, cannot reproduce, or rejected with rationale.
+5. **Scope** actionable work as a Forge task brief.
+6. **Claim** work explicitly with an expiring claim; a claim prevents collision,
+   it is not an assignment or approval.
+7. **Handoff** exact-state technical review evidence separately from governance or
+   merge/release approval.
+8. **Record** useful accepted work as an artifact-bound contribution receipt.
+9. **Optionally grant Beta MINI** for testing/participation through a fresh
+   one-contribution claim path.
+10. **Replicate** the evidence through Mininet store/sync so GitHub becomes a
+   mirror instead of a prerequisite.
 
-## Teams, employees, and consultants
+Existing Forge-native `TaskBrief`, `WorkClaim`, task suggestions, and
+`TechnicalReview` live in `mini-forge`. PR #334's `mini-beta` adds campaign,
+finding, disposition, accepted-contribution, and beta-grant objects on the same
+content-addressed object substrate.
 
-Mininet's intended long-term model is a set of bounded working groups, not a
-permanent maintainer class. The existing Governance Pack describes
-contributors, reviewers, maintainers, integration representatives, and
-security stewards, as well as expiring terms, appeals, conflicts, and group
-lifecycles. The current Forge-native charter schema is a design artifact; no
-runtime recruitment or delegation service is active yet.
+## Beta MINI participation
 
-An employee or consultant is welcome as a contributor. The employment or
-client relationship may matter for conflict disclosure or compensation, but
-it is not a governance credential. Organization roots are not governance-
-eligible. A group may organize ordinary implementation work inside accepted
-specifications, but it cannot amend frozen invariants, make a personhood
-claim, authorize value, or force an update.
+Beta MINI lets people exercise economic UX and lets the beta recognize useful
+participation without prematurely activating real value.
 
-The intended automatic experience is guided matching: a client suggests a
-task from declared skills, domain, dependencies, risk, and evidence needs;
-the person accepts it. Suggestions do not silently assign work, disclose
-private employment data, appoint a reviewer, or create an authority
-delegation. The design questions for a Mininet-native implementation are in
-[#263](../../issues/263), not decided by this page.
+Two grant classes exist:
 
-## Releases and public confirmation
+- **testing** — free test balance for product flows;
+- **participation** — requires an accepted contribution receipt and can recognize
+  testing, reproduction, device work, accessibility, docs, security/research,
+  code/tests, review, reproducibility, or operational evidence.
 
-Peer findings, external challenge, release evidence, installation, and owner
-adoption are separate stages. A public release page or a group recommendation
-can make an exact release eligible for voluntary adoption; it cannot install
-software on another device. Each owner retains an explicit typed choice to
-stage, activate, defer, reject, fork, or roll back according to local policy.
+The reference code in `crates/mini-beta` enforces explicit epochs, per-grant and
+epoch supply bounds, duplicate-grant rejection, transfer accounting, and zeroed
+epoch rollover. It has no dependency on production value/settlement/treasury/
+chain/consensus/governance crates.
 
-## What to say in a report
+Beta MINI is resettable test value and creates **no automatic production-MINI
+conversion right**. That separation is deliberate: promising conversion now
+would create a pre-allocation/issuer obligation before production value passes
+its substantive audits and before Forge governance is canonical.
+
+Money still never buys voice. Balance, reward amount, employer status,
+contribution count, or hardware ownership must not affect governance, review,
+release, personhood, or merge authority.
+
+## GitHub is an adapter, Forge is the destination
+
+Use GitHub freely while it is useful, but do not design new beta processes that
+only make sense on GitHub. See [`FORGE_BETA_MIGRATION.md`](FORGE_BETA_MIGRATION.md).
+
+Before `forge_canonical = true`, the project must prove a complete GitHub-outage
+loop: discover campaign -> submit finding -> disposition -> task -> claim ->
+review evidence -> accepted contribution -> Beta MINI grant, all on Mininet
+objects/store/sync with no GitHub account/API required.
+
+The one-way Go-Live transition then ends bootstrap canonical integration; it must
+not merely rename GitHub centralization as Forge governance.
+
+## What to say in every report
 
 Always state:
 
-- the exact commit, release, or issue state;
-- what you tested and what you did not test;
-- the environment and reproducible steps;
-- whether the result is Rust-only, emulator-only, physical-device, external,
-  or research evidence;
-- privacy, safety, and recovery limitations;
+- exact commit/release/object state;
+- evidence class (physical device, emulator, Rust/toolchain, research, external,
+  accessibility, other);
+- what you tested and did not test;
+- environment and reproducible steps;
+- expected and observed result;
+- privacy/safety/recovery limitations;
 - what is not built, not audited, not anonymous, or not enforced.
 
-Never upload secrets, private keys, unnecessary personal data, or a claim that
-AI agreement is approval. For security-sensitive material, use the private
-security route linked in the issue configuration.
+Never upload secrets, private keys, stable device identifiers, unnecessary
+personal/location data, or a public Beta MINI claim/account handle. For
+security-sensitive material, use the private security route.
 
 ## Further reading
 
+- [`BETA_OPEN.md`](BETA_OPEN.md)
+- [`BETA_STATUS.md`](BETA_STATUS.md)
+- [`FORGE_BETA_MIGRATION.md`](FORGE_BETA_MIGRATION.md)
+- [`design/beta-open-forge-transition.md`](design/beta-open-forge-transition.md)
 - [Founder Directives](FOUNDER_DIRECTIVES.md)
 - [Invariants](INVARIANTS.md)
 - [Failure Book](FAILURE_BOOK.md)
 - [Threat Model](THREAT_MODEL.md)
 - [Decision Log](DECISION_LOG.md)
 - [Governance Index](governance/00_GOVERNANCE_INDEX.md)
-- [Preliminary teams/routing report](design/mininet-teams-and-contributor-routing.md)
 - [External-review gate index](gates/README.md)

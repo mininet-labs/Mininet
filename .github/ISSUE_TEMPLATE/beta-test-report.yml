@@ -1,17 +1,33 @@
 name: Beta test report
-description: Report reproducible Beta evidence tied to an exact revision.
+description: Submit reproducible Open Beta evidence tied to an exact revision; this maps to the Forge-native beta finding schema.
 title: "beta-test: "
 labels: [documentation]
 body:
   - type: markdown
     attributes:
       value: |
-        A Beta report is evidence, not a production-readiness or external-audit claim. Do not include secrets, private keys, or unnecessary personal/device data. Keep Rust-only, emulator-only, and physical-device results separate.
+        Open Beta is for evidence, not a production-readiness claim. Do not include secrets, private keys, stable device identifiers, unnecessary personal data, or a Beta MINI account/claim handle. Keep physical-device, emulator, Rust/toolchain, research, and external-review evidence distinct. Accepted useful reports may later receive an artifact-scoped Beta MINI participation grant without turning this GitHub account into a Mininet identity.
   - type: input
     id: revision
     attributes:
       label: Exact revision, release, or object digest
-      placeholder: commit SHA, release id, or proposal digest
+      description: This becomes the Forge beta campaign/build target. Never report only "latest".
+      placeholder: commit SHA, release id, or object digest
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence_class
+    attributes:
+      label: Evidence class
+      description: Choose the strongest class you actually produced; do not round emulator/toolchain evidence up to physical-device evidence.
+      options:
+        - Physical device
+        - Emulator or simulator
+        - Rust/toolchain or host executable
+        - Research or protocol analysis
+        - External review
+        - Accessibility or usability
+        - Other (describe below)
     validations:
       required: true
   - type: dropdown
@@ -20,28 +36,60 @@ body:
       label: Test path
       multiple: true
       options:
-        - Rust-only
-        - Android emulator
         - One physical Android device
         - Two physical Android devices
+        - Three-plus-device / multi-hop mesh
+        - Internet-off / local-only operation
         - LAN or QR pairing
-        - BLE transport
-        - Background or process-restart lifecycle
+        - BLE discovery / transport / relay
+        - Background, screen-off, or process-restart lifecycle
+        - Permissions / Bluetooth off-on / recovery
+        - Beta MINI wallet / grant / transfer flow
+        - Forge / contribution / task / review flow
         - Release, install, or rollback
+        - Accessibility / first-run usability
+        - Malformed / adversarial / resource-boundary test
         - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: component
+    attributes:
+      label: Affected component or surface
+      placeholder: BleMeshService, mini-beta, Forge task flow, installer, first-run UI...
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Reporter-claimed severity
+      description: Triage may disposition this differently; explain impact below.
+      options:
+        - Observation / improvement
+        - Low
+        - Medium
+        - High
+        - Critical / release-blocking
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Why this severity / what is affected?
+      description: State the concrete failure or improvement, not just a label.
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
       label: Environment and device details
-      description: Include OS/toolchain/app build information needed to reproduce, but omit identifiers and private data.
+      description: Include OS/toolchain/app build information needed to reproduce, but omit serial numbers, advertising identifiers, phone numbers, account names, exact home/work location, and other stable/private identifiers.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Reproduction steps
+      label: Reproduction or test steps
       placeholder: |
         1. ...
         2. ...
@@ -64,24 +112,30 @@ body:
     id: evidence
     attributes:
       label: Evidence and artifacts
-      description: Link logs, screenshots, hashes, or a minimal reproduction. Redact secrets and personal data.
+      description: Link redacted logs, screenshots, hashes, traces, or a minimal reproduction. For an immediately exploitable security issue, use the private security route instead of posting exploit details here.
     validations:
       required: true
   - type: textarea
     id: limitations
     attributes:
       label: What this does not prove
-      description: State what was not tested, including missing hardware, missing external review, or missing production integration.
+      description: State what was not tested, including other hardware/vendors, missing external review, missing production integration, or limits of the reproduction.
     validations:
       required: true
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Participation
+      options:
+        - label: I am happy for this artifact to be considered as an Open Beta contribution if the evidence is useful. I understand any Beta MINI grant is test-only, resettable, creates no governance/reputation authority, and has no automatic conversion right to production MINI.
   - type: checkboxes
     id: boundaries
     attributes:
       label: Safety and honesty checks
       options:
-        - label: This report does not claim an external cryptography audit, unique-human proof, production value, or production custody.
+        - label: This report does not claim an external cryptography audit, unique-human proof, production value, production custody, or Go-Live readiness unless separately evidenced.
           required: true
         - label: If this concerns an update or install, I distinguish release eligibility, installation, and voluntary owner adoption.
           required: true
-        - label: I have removed secrets and unnecessary personal data.
+        - label: I removed secrets, stable device identifiers, and unnecessary personal data; I did not put a Beta MINI account or reward-claim handle in this public issue.
           required: true
