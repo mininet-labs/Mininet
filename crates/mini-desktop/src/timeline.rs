@@ -40,7 +40,6 @@ pub struct Card {
     pub avatar: Option<ObjectId>,
 }
 
-
 /// Convert the bounded application-core feed view into renderer cards.
 ///
 /// The renderer does not reopen the store for this path; object identifiers
