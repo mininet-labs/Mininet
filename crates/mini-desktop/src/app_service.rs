@@ -79,8 +79,7 @@ fn worker(
         let id = request_id;
         request_id = request_id.saturating_add(1);
         let request = Request::new(id, work.command);
-        let result = exchange(&mut stdin, &mut stdout, &request);
-        let fatal = result.is_err();
+        let (result, fatal) = exchange(&mut stdin, &mut stdout, &request);
         let _ = work.response.send(result);
         if fatal {
             while let Ok(pending) = receiver.try_recv() {
@@ -107,20 +106,32 @@ fn exchange(
     stdin: &mut ChildStdin,
     stdout: &mut ChildStdout,
     request: &Request,
-) -> Result<Reply, String> {
-    write_request(stdin, request).map_err(|error| error.to_string())?;
-    let response = read_response(stdout)
-        .map_err(|error| error.to_string())?
-        .ok_or_else(|| "application core closed its response stream".to_string())?;
+) -> (Result<Reply, String>, bool) {
+    if let Err(error) = write_request(stdin, request) {
+        return (Err(error.to_string()), true);
+    }
+    let response = match read_response(stdout) {
+        Ok(Some(response)) => response,
+        Ok(None) => {
+            return (
+                Err("application core closed its response stream".to_string()),
+                true,
+            )
+        }
+        Err(error) => return (Err(error.to_string()), true),
+    };
     if response.request_id != request.request_id {
-        return Err(format!(
-            "application core response id mismatch: expected {}, got {}",
-            request.request_id, response.request_id
-        ));
+        return (
+            Err(format!(
+                "application core response id mismatch: expected {}, got {}",
+                request.request_id, response.request_id
+            )),
+            true,
+        );
     }
     match response.body {
-        ResponseBody::Ok(reply) => Ok(reply),
-        ResponseBody::Err(error) => Err(error.message),
+        ResponseBody::Ok(reply) => (Ok(reply), false),
+        ResponseBody::Err(error) => (Err(error.message), false),
     }
 }
 
