@@ -540,7 +540,7 @@ impl<V: IdentityVault> Core<V> {
                     comment_count: u32::try_from(comment_count).unwrap_or(u32::MAX),
                     media: match post.kind {
                         PostKind::Media { media } => Some(media.as_str().to_string()),
-                        PostKind::Plain | PostKind::Intake { .. } => None,
+                        _ => None,
                     },
                     own: post.author == *human,
                     avatar,
