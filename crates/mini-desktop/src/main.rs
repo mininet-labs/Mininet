@@ -1569,6 +1569,13 @@ fn run_discoverable_profile_sync(
 impl Default for MininetApp {
     fn default() -> Self {
         let workspace = Workspace::open().ok();
+        let (app_service, app_status_rx, app_service_error) = match app_service::Client::spawn() {
+            Ok(client) => match client.request(AppCommand::Status) {
+                Ok(receiver) => (Some(client), Some(receiver), None),
+                Err(error) => (Some(client), None, Some(error)),
+            },
+            Err(error) => (None, None, Some(error)),
+        };
         let connections = connectivity::load(&data_root());
         let listen_port = connections.listen_port.to_string();
         let (muted, mute_error) = mute_list::load(&data_root());
@@ -1581,8 +1588,28 @@ impl Default for MininetApp {
         } else {
             View::Onboarding
         };
+        let notice = match (mute_error, app_service_error) {
+            (_, Some(error)) => format!(
+                "Application core unavailable: {error}. Read-only local data remains available, but core signing actions are disabled."
+            ),
+            (Some(error), None) => {
+                format!("Mute list could not be read and is treated as empty: {error}")
+            }
+            (None, None) => {
+                "Application core starting. Identity is locked; no network activity has started."
+                    .to_string()
+            }
+        };
         Self {
             workspace,
+            app_service,
+            app_status: None,
+            app_status_rx,
+            app_action: None,
+            app_events_rx: None,
+            app_events_due: Instant::now(),
+            post_operation: None,
+            profile_operation: None,
             view,
             privacy: load_privacy_settings(),
             theme_applied: false,
@@ -1737,15 +1764,7 @@ impl Default for MininetApp {
             selftest_report: None,
             selftest_area: None,
             install_notice: String::new(),
-            notice: match mute_error {
-                Some(error) => {
-                    format!("Mute list could not be read and is treated as empty: {error}")
-                }
-                None => {
-                    "Local object store ready. Identity is locked; no network activity has started."
-                        .to_string()
-                }
-            },
+            notice,
         }
     }
 }
