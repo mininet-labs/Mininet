@@ -20,7 +20,7 @@ use mini_app_protocol::{
     ProfileView, PublishedObject, Reply, ServiceError, ServiceEvent, ServiceEventKind,
     MAX_OPERATION_ID_BYTES, MAX_POST_BYTES, MAX_PROFILE_BIO_BYTES, MAX_PROFILE_NAME_BYTES,
 };
-use mini_objects::{Object, ObjectId, ObjectType};
+use mini_objects::{Object, ObjectId, ObjectType, Payload};
 use mini_social::{
     build_post, build_profile, comments, feed, following, reaction_counts, resolve_post,
     resolve_profile, FeedFilter, FeedReason as SocialFeedReason, PostKind,
@@ -944,7 +944,7 @@ fn commit_record(
                 duplicate: false,
             })
         }
-        MutationInput::Profile { .. } => {
+        MutationInput::Profile { display_name, bio } => {
             if record.objects.len() != 2 {
                 return Err(ServiceError::new(
                     ErrorCode::Storage,
@@ -953,14 +953,29 @@ fn commit_record(
             }
             let profile = Object::from_bytes(&record.objects[0]).map_err(storage_error)?;
             let head = Object::from_bytes(&record.objects[1]).map_err(storage_error)?;
-            if profile.object_type != ObjectType::PROFILE
-                || head.object_type != ObjectType::HEAD
+            let decoded = mini_social::decode_profile(&profile).map_err(storage_or_social)?;
+            let head_targets_profile = head.links.len() == 1
+                && head.links[0].rel == "target"
+                && &head.links[0].target == profile.id();
+            let head_names_profile = matches!(
+                &head.payload,
+                Payload::Public(bytes) if bytes.as_slice() == b"profile"
+            );
+            if head.object_type != ObjectType::HEAD
                 || profile.author_human != head.author_human
                 || profile.sequence != head.sequence
+                || !head_targets_profile
+                || !head_names_profile
+                || decoded.display_name != *display_name
+                || decoded.bio != *bio
+                || decoded.avatar.is_some()
+                || decoded.location.is_some()
+                || decoded.age.is_some()
+                || !decoded.fields.is_empty()
             {
                 return Err(ServiceError::new(
                     ErrorCode::Storage,
-                    "profile journal contains an invalid profile/head pair",
+                    "profile journal does not match its requested mutation",
                 ));
             }
             let object_id = profile.id().as_str().to_string();
@@ -1478,6 +1493,32 @@ mod tests {
         };
         assert!(duplicate.duplicate);
         assert_eq!(duplicate.object_id, expected_id);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn profile_pending_record_is_bound_to_requested_content() {
+        let root = temp_root("profile-binding");
+        let vault = MemoryVault::seeded();
+        let mut core = Core::open_inner(root.clone(), vault, false).unwrap();
+        core.unlock().unwrap();
+        let (human, device) = core.signing_identity().unwrap();
+        let (profile, head) =
+            build_profile(human, device, "Alice", "real bio", None, 77, 9).unwrap();
+        let record = PendingMutation {
+            operation_id: "profile:binding:1".to_string(),
+            input: MutationInput::Profile {
+                display_name: "Mallory".to_string(),
+                bio: "different bio".to_string(),
+            },
+            objects: vec![profile.to_bytes(), head.to_bytes()],
+        };
+        core.journal.write_pending(&record).unwrap();
+        drop(core);
+
+        let error = Core::open_inner(root.clone(), MemoryVault::seeded(), false).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Storage);
 
         fs::remove_dir_all(root).unwrap();
     }
