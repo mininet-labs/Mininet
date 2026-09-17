@@ -542,7 +542,7 @@ impl<V: IdentityVault> Core<V> {
                         PostKind::Media { media } => Some(media.as_str().to_string()),
                         _ => None,
                     },
-                    own: post.author == *human,
+                    own: &post.author == human,
                     avatar,
                 })
             })
