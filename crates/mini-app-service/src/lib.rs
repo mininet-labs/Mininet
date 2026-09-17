@@ -966,8 +966,8 @@ fn commit_record(
                 || profile.sequence != head.sequence
                 || !head_targets_profile
                 || !head_names_profile
-                || decoded.display_name != *display_name
-                || decoded.bio != *bio
+                || decoded.display_name.as_str() != display_name.as_str()
+                || decoded.bio.as_str() != bio.as_str()
                 || decoded.avatar.is_some()
                 || decoded.location.is_some()
                 || decoded.age.is_some()
