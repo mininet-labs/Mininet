@@ -94,13 +94,8 @@ enum CoreAction {
     UnlockIdentity,
     LockIdentity,
     LockAfterProfile,
-    PublishProfile {
-        display_name: String,
-        bio: String,
-    },
-    PublishPost {
-        text: String,
-    },
+    PublishProfile { display_name: String, bio: String },
+    PublishPost { text: String },
 }
 
 /// One row of the Messages conversation list.
@@ -1981,7 +1976,6 @@ impl MininetApp {
         }
     }
 
-
     fn core_unlocked(&self) -> bool {
         self.app_status
             .as_ref()
@@ -2053,15 +2047,16 @@ impl MininetApp {
     }
 
     fn poll_app_service(&mut self) {
-        let status_result = self.app_status_rx.as_ref().and_then(|receiver| {
-            match receiver.try_recv() {
-                Ok(result) => Some(result),
-                Err(mpsc::TryRecvError::Empty) => None,
-                Err(mpsc::TryRecvError::Disconnected) => {
-                    Some(Err("application core status request stopped".to_string()))
-                }
-            }
-        });
+        let status_result =
+            self.app_status_rx
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core status request stopped".to_string()))
+                    }
+                });
         if let Some(result) = status_result {
             self.app_status_rx = None;
             match result {
@@ -2078,15 +2073,16 @@ impl MininetApp {
             }
         }
 
-        let action_result = self.app_action.as_ref().and_then(|(_, receiver)| {
-            match receiver.try_recv() {
-                Ok(result) => Some(result),
-                Err(mpsc::TryRecvError::Empty) => None,
-                Err(mpsc::TryRecvError::Disconnected) => {
-                    Some(Err("application core action stopped".to_string()))
-                }
-            }
-        });
+        let action_result =
+            self.app_action
+                .as_ref()
+                .and_then(|(_, receiver)| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core action stopped".to_string()))
+                    }
+                });
         if let Some(result) = action_result {
             let (action, _) = self
                 .app_action
@@ -2095,15 +2091,16 @@ impl MininetApp {
             self.finish_core_action(action, result);
         }
 
-        let event_result = self.app_events_rx.as_ref().and_then(|receiver| {
-            match receiver.try_recv() {
-                Ok(result) => Some(result),
-                Err(mpsc::TryRecvError::Empty) => None,
-                Err(mpsc::TryRecvError::Disconnected) => {
-                    Some(Err("application core event request stopped".to_string()))
-                }
-            }
-        });
+        let event_result =
+            self.app_events_rx
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core event request stopped".to_string()))
+                    }
+                });
         if let Some(result) = event_result {
             self.app_events_rx = None;
             self.app_events_due = Instant::now() + Duration::from_secs(1);
@@ -2183,10 +2180,7 @@ impl MininetApp {
                 self.app_status = Some(status);
                 self.notice = "Public account created locally and identity locked again. Add any optional public details in Creator, or open People when you are ready.".to_string();
             }
-            (
-                CoreAction::PublishProfile { display_name, bio },
-                Ok(AppReply::Published(_)),
-            ) => {
+            (CoreAction::PublishProfile { display_name, bio }, Ok(AppReply::Published(_))) => {
                 self.profile_name = display_name;
                 self.profile_bio = bio;
                 self.profile_operation = None;
@@ -3243,8 +3237,7 @@ No tracking. No forced updates.",
                         order,
                         scope,
                         limit: timeline::PAGE as u16,
-                    })
-                {
+                    }) {
                     Ok(receiver) => receiver,
                     Err(error) => {
                         self.timeline_error =
@@ -4766,8 +4759,7 @@ No tracking. No forced updates.",
                                     self.notice =
                                         "Nothing published: write something first.".to_string();
                                 } else if !self.signing_confirmation {
-                                    self.notice =
-                                        "Confirm signing before publishing.".to_string();
+                                    self.notice = "Confirm signing before publishing.".to_string();
                                 } else {
                                     let operation_id = self.post_operation_id(&text);
                                     self.start_core_action(
