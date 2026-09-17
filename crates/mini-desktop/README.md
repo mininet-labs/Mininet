@@ -6,17 +6,19 @@ W1 now ships a separate per-user `mininet-app-service` application core. The
 desktop starts it as a sibling process and talks over a versioned, length-bounded
 protocol. Root creation, identity lock/unlock, public-profile creation, plain-post
 publication, and Home/Explore feed snapshots use that boundary. The core keeps
-signing controllers out of the renderer, holds an exclusive application-writer
-lock, durably reserves object sequences, journals exact signed objects before
+signing controllers out of the renderer for migrated flows, refuses a second
+live core-service instance, durably reserves object sequences, journals exact signed objects before
 store mutation, and records idempotency receipts so an uncertain renderer retry
 cannot publish a second object. The service does not start networking, crawling,
 relaying, wallet, Forge, consensus, or updates.
 
 W1 is still a migration: replies/reactions, rich profile edits, communities,
 media publication, private messaging and several connection-side mutations
-still use the older in-process `Workspace` path. Those are explicitly the next
-commands to move behind the same core; this change does not claim the renderer
-is already a zero-authority client for every feature.
+still use the older in-process `Workspace` path. The filesystem backend reads
+indexes live, so service reads observe those transitional writes, and the core
+rescans the author's maximum sequence before each new signed mutation. Those
+paths are explicitly the next commands to move behind the same core; this
+change does not yet claim a universal single-writer or zero-authority renderer.
 
 The connected desktop beta (D-0523) opens into an X-style black shell:
 navigation rail, central timeline, and a discovery column on wide windows.
