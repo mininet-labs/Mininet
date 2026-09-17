@@ -330,10 +330,7 @@ pub fn read_request<R: Read>(reader: &mut R) -> Result<Option<Request>, Protocol
     Ok(Some(request))
 }
 
-pub fn write_response<W: Write>(
-    writer: &mut W,
-    response: &Response,
-) -> Result<(), ProtocolError> {
+pub fn write_response<W: Write>(writer: &mut W, response: &Response) -> Result<(), ProtocolError> {
     if response.version != PROTOCOL_VERSION {
         return Err(ProtocolError::Encode(
             "cannot encode unsupported response version".to_string(),
@@ -476,9 +473,7 @@ fn decode_command(decoder: &mut Decoder<'_>) -> Result<Command, ProtocolError> {
             limit: decoder.u16()?,
         }),
         9 => Ok(Command::Shutdown),
-        tag => Err(ProtocolError::Decode(format!(
-            "unknown command tag {tag}"
-        ))),
+        tag => Err(ProtocolError::Decode(format!("unknown command tag {tag}"))),
     }
 }
 
@@ -583,9 +578,7 @@ fn encode_profile_option(
     Ok(())
 }
 
-fn decode_profile_option(
-    decoder: &mut Decoder<'_>,
-) -> Result<Option<ProfileView>, ProtocolError> {
+fn decode_profile_option(decoder: &mut Decoder<'_>) -> Result<Option<ProfileView>, ProtocolError> {
     if !decoder.bool()? {
         return Ok(None);
     }
@@ -730,10 +723,7 @@ fn decode_event(decoder: &mut Decoder<'_>) -> Result<ServiceEvent, ProtocolError
     Ok(ServiceEvent { event_id, kind })
 }
 
-fn encode_service_error(
-    encoder: &mut Encoder,
-    error: &ServiceError,
-) -> Result<(), ProtocolError> {
+fn encode_service_error(encoder: &mut Encoder, error: &ServiceError) -> Result<(), ProtocolError> {
     encoder.u8(match error.code {
         ErrorCode::BadRequest => 0,
         ErrorCode::IdentityLocked => 1,
@@ -843,18 +833,14 @@ impl Encoder {
         if value.len() > max {
             return Err(ProtocolError::LimitExceeded("string"));
         }
-        let length = u32::try_from(value.len())
-            .map_err(|_| ProtocolError::LimitExceeded("string"))?;
+        let length =
+            u32::try_from(value.len()).map_err(|_| ProtocolError::LimitExceeded("string"))?;
         self.u32(length);
         self.bytes.extend_from_slice(value.as_bytes());
         Ok(())
     }
 
-    fn option_string(
-        &mut self,
-        value: Option<&str>,
-        max: usize,
-    ) -> Result<(), ProtocolError> {
+    fn option_string(&mut self, value: Option<&str>, max: usize) -> Result<(), ProtocolError> {
         self.bool(value.is_some());
         if let Some(value) = value {
             self.string(value, max)?;
