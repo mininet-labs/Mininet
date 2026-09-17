@@ -3,6 +3,7 @@
 //! The desktop starts this process explicitly. It never starts network
 //! sessions, crawling, relays, wallet work, Forge work, or updates.
 
+#![cfg_attr(windows, windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
 use mini_app_protocol::{
