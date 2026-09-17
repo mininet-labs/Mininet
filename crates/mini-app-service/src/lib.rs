@@ -102,7 +102,9 @@ impl IdentityVault for WindowsIdentityVault {
 }
 
 /// Long-lived application authority. The production specialization holds an
-/// exclusive process lock for its lifetime.
+/// exclusive core-service-instance lock for its lifetime. During W1 migration,
+/// older renderer/network paths can still mutate the filesystem store; the
+/// final single-writer guarantee arrives when those paths move behind IPC.
 #[derive(Debug)]
 pub struct Core<V: IdentityVault> {
     store: Store<FsBackend>,
@@ -117,7 +119,7 @@ pub struct Core<V: IdentityVault> {
 }
 
 impl Core<WindowsIdentityVault> {
-    /// Open the production core and refuse a second live writer.
+    /// Open the production core and refuse a second live core-service instance.
     pub fn open(root: PathBuf) -> Result<Self, ServiceError> {
         let vault = WindowsIdentityVault::new(root.clone());
         Self::open_inner(root, vault, true)
@@ -1461,7 +1463,7 @@ mod tests {
     }
 
     #[test]
-    fn production_lock_refuses_a_second_live_writer() {
+    fn production_lock_refuses_a_second_core_service_instance() {
         let root = temp_root("lock");
         let first = Core::open_inner(root.clone(), MemoryVault::empty(), true).unwrap();
         let error = Core::open_inner(root.clone(), MemoryVault::empty(), true).unwrap_err();
