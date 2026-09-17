@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+mod app_service;
 mod catalog;
 mod connectivity;
 mod conversation_state;
@@ -24,6 +25,10 @@ mod video;
 use conversation_state::ConversationRecord;
 use did_mini::{Capabilities, Controller, Did};
 use eframe::egui;
+use mini_app_protocol::{
+    AccountStatus, Command as AppCommand, FeedOrder as AppFeedOrder, FeedScope as AppFeedScope,
+    Reply as AppReply, ServiceEventKind,
+};
 use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
@@ -81,6 +86,21 @@ enum UpdatePolicy {
 #[derive(Debug, Clone)]
 enum SyncContext {
     FriendRequest { display_name: String },
+}
+
+#[derive(Debug, Clone)]
+enum CoreAction {
+    CreateRoot,
+    UnlockIdentity,
+    LockIdentity,
+    LockAfterProfile,
+    PublishProfile {
+        display_name: String,
+        bio: String,
+    },
+    PublishPost {
+        text: String,
+    },
 }
 
 /// One row of the Messages conversation list.
@@ -145,6 +165,14 @@ impl Default for PrivacyState {
 
 struct MininetApp {
     workspace: Option<Workspace>,
+    app_service: Option<app_service::Client>,
+    app_status: Option<AccountStatus>,
+    app_status_rx: Option<Receiver<Result<AppReply, String>>>,
+    app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
+    app_events_rx: Option<Receiver<Result<AppReply, String>>>,
+    app_events_due: Instant,
+    post_operation: Option<(String, String)>,
+    profile_operation: Option<(String, String, String)>,
     view: View,
     privacy: PrivacyState,
     theme_applied: bool,
