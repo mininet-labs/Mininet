@@ -2,6 +2,22 @@
 
 Windows-first egui reference client shell for Mininet.
 
+W1 now ships a separate per-user `mininet-app-service` application core. The
+desktop starts it as a sibling process and talks over a versioned, length-bounded
+protocol. Root creation, identity lock/unlock, public-profile creation, plain-post
+publication, and Home/Explore feed snapshots use that boundary. The core keeps
+signing controllers out of the renderer, holds an exclusive application-writer
+lock, durably reserves object sequences, journals exact signed objects before
+store mutation, and records idempotency receipts so an uncertain renderer retry
+cannot publish a second object. The service does not start networking, crawling,
+relaying, wallet, Forge, consensus, or updates.
+
+W1 is still a migration: replies/reactions, rich profile edits, communities,
+media publication, private messaging and several connection-side mutations
+still use the older in-process `Workspace` path. Those are explicitly the next
+commands to move behind the same core; this change does not claim the renderer
+is already a zero-authority client for every feature.
+
 The connected desktop beta (D-0523) opens into an X-style black shell:
 navigation rail, central timeline, and a discovery column on wide windows.
 Timelines are loaded by a worker (50 cards), show real author names and
@@ -53,11 +69,17 @@ have not been demonstrated. See
 [`connected-mininet-client.md`](../../docs/proposals/connected-mininet-client.md)
 for the full product specification and what remains.
 
-Run it locally:
+Run it locally. The application core is intentionally a sibling executable,
+not a `mini-desktop` library dependency, so build it alongside the renderer:
 
 ```powershell
+cargo build -p mini-app-service
 cargo run -p mini-desktop
 ```
+
+Packaged Windows builds include `mininet-app-service.exe` automatically. A
+missing service fails closed for the migrated signing actions; the renderer
+does not silently reconstruct keys and sign instead.
 
 The default home is `%LOCALAPPDATA%\Mininet`. To run two independent local
 instances, launch each one with a different `MININET_HOME`, such as
@@ -133,11 +155,14 @@ Creator view. These are public claims selected by the profile owner, not
 platform-verified attributes.
 
 The human-root and delegated-device seed envelopes are separately protected
-with the Windows-user DPAPI boundary by `mini-windows-vault`. Day-to-day social
-objects use the scoped delegated device; sync distributes both self-certifying
-KELs and rejects objects without valid device provenance.
+with the Windows-user DPAPI boundary by `mini-windows-vault`. For migrated W1
+flows only the application core reconstructs the controllers; no seed or
+controller crosses the IPC protocol. Day-to-day social objects use the scoped
+delegated device; sync distributes both self-certifying KELs and rejects objects
+without valid device provenance.
 
-The UI has an explicit identity lock and starts every session locked. A locked
+The UI has an explicit identity lock and the application core starts every
+session locked. A locked
 client can inspect local data but cannot publish signed objects. Each publish
 form also requires an explicit signing confirmation, and privacy settings are
 stored through DPAPI.
