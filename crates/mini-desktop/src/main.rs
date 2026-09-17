@@ -714,6 +714,24 @@ impl Workspace {
         Ok(())
     }
 
+    fn publish_public_wall_confirmed(
+        &mut self,
+        name: &str,
+        bio: &str,
+        links: &[&str],
+        unlisted: bool,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_public_wall(name, bio, links, unlisted);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
     fn publish_community(&mut self, name: &str, charter: &str) -> Result<(), String> {
         let identity = self
             .identity
@@ -733,6 +751,18 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn publish_community_confirmed(&mut self, name: &str, charter: &str) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_community(name, charter);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn publish_media_post(
@@ -772,6 +802,23 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn publish_media_post_confirmed(
+        &mut self,
+        path: &str,
+        content_type: &str,
+        caption: &str,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_media_post(path, content_type, caption);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn publish_comment(
@@ -894,6 +941,22 @@ impl Workspace {
         self.sequence = self.sequence.saturating_add(1);
         let request = mini_ticket::read_redemption(&object).map_err(|error| error.to_string())?;
         Ok((request.id, request.micro_mini))
+    }
+
+    fn build_redemption_confirmed(
+        &mut self,
+        tickets: &[mini_objects::ObjectId],
+        rate: mini_ticket::Rate,
+    ) -> Result<(mini_objects::ObjectId, u64), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.build_redemption(tickets, rate);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     /// (id, micro-MINI, ticket count, verifies) for every redemption request
@@ -1149,9 +1212,6 @@ impl Workspace {
     }
 
     fn create_beta_conversation(&mut self, label: &str, peer: &str) -> Result<String, String> {
-        if !self.is_unlocked() {
-            return Err("identity is locked".to_string());
-        }
         let peer = Did::parse(peer.trim()).map_err(|error| error.to_string())?;
         let inviter = self.human_did()?.clone();
         let (record, invite) = ConversationRecord::create(label.trim().to_string(), peer, inviter)?;
@@ -1214,6 +1274,18 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn send_private_message_confirmed(&mut self, index: usize, body: &str) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.send_private_message(index, body);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn private_messages(&self, index: usize) -> Result<mini_messaging::ConversationScan, String> {
@@ -4731,7 +4803,7 @@ No tracking. No forced updates.",
                         } else if !self.signing_confirmation {
                             "Confirm signing before publishing.".to_string()
                         } else if let Some(workspace) = self.workspace.as_mut() {
-                            match workspace.publish_comment(&target, self.reply_text.trim()) {
+                            match workspace.publish_comment_confirmed(&target, self.reply_text.trim()) {
                                 Ok(()) => {
                                     self.reply_text.clear();
                                     self.reply_target = None;
@@ -5613,7 +5685,7 @@ No tracking. No forced updates.",
                 } else if !self.signing_confirmation {
                     "Confirm signing before sending.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.send_private_message(selected, &body) {
+                    match workspace.send_private_message_confirmed(selected, &body) {
                         Ok(()) => {
                             self.message_text.clear();
                             self.signing_confirmation = false;
@@ -7250,7 +7322,7 @@ No tracking. No forced updates.",
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_community(
+                    match workspace.publish_community_confirmed(
                         self.community_name.trim(),
                         self.community_charter.trim(),
                     ) {
@@ -7907,7 +7979,7 @@ No tracking. No forced updates.",
                     } else if !self.signing_confirmation {
                         "Confirm signing before changing the follow graph.".to_string()
                     } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target(&self.follow_target, true) {
+                        match workspace.set_follow_target_confirmed(&self.follow_target, true) {
                             Ok(()) => {
                                 self.signing_confirmation = false;
                                 "Follow object written locally.".to_string()
@@ -7927,7 +7999,7 @@ No tracking. No forced updates.",
                     } else if !self.signing_confirmation {
                         "Confirm signing before changing the follow graph.".to_string()
                     } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target(&self.follow_target, false) {
+                        match workspace.set_follow_target_confirmed(&self.follow_target, false) {
                             Ok(()) => {
                                 self.signing_confirmation = false;
                                 "Unfollow object written locally.".to_string()
@@ -7971,7 +8043,7 @@ No tracking. No forced updates.",
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing media.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_media_post(
+                    match workspace.publish_media_post_confirmed(
                         self.media_path.trim(),
                         self.media_content_type.trim(),
                         self.media_caption.trim(),
