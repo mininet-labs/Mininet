@@ -19,12 +19,12 @@ pub const MAX_OPERATION_ID_BYTES: usize = 96;
 pub const MAX_POST_BYTES: usize = 16 * 1024;
 pub const MAX_PROFILE_NAME_BYTES: usize = 64;
 pub const MAX_PROFILE_BIO_BYTES: usize = 1024;
-pub const MAX_FEED_ITEMS: u16 = 100;
+pub const MAX_FEED_ITEMS: u16 = 50;
 pub const MAX_EVENTS_PER_RESPONSE: u16 = 64;
 const MAX_DID_BYTES: usize = 256;
 const MAX_OBJECT_ID_BYTES: usize = 256;
 const MAX_ERROR_BYTES: usize = 4096;
-const MAX_REASONABLE_TEXT_BYTES: usize = 64 * 1024;
+const MAX_FEED_BODY_BYTES: usize = MAX_POST_BYTES;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FeedOrder {
@@ -594,7 +594,7 @@ fn encode_feed_card(encoder: &mut Encoder, card: &FeedCard) -> Result<(), Protoc
     encoder.string(&card.id, MAX_OBJECT_ID_BYTES)?;
     encoder.string(&card.author, MAX_PROFILE_NAME_BYTES)?;
     encoder.string(&card.did, MAX_DID_BYTES)?;
-    encoder.string(&card.body, MAX_REASONABLE_TEXT_BYTES)?;
+    encoder.string(&card.body, MAX_FEED_BODY_BYTES)?;
     encoder.u64(card.timestamp_ms);
     encoder.u8(match card.reason {
         FeedReason::Own => 0,
@@ -612,7 +612,7 @@ fn decode_feed_card(decoder: &mut Decoder<'_>) -> Result<FeedCard, ProtocolError
     let id = decoder.string(MAX_OBJECT_ID_BYTES)?;
     let author = decoder.string(MAX_PROFILE_NAME_BYTES)?;
     let did = decoder.string(MAX_DID_BYTES)?;
-    let body = decoder.string(MAX_REASONABLE_TEXT_BYTES)?;
+    let body = decoder.string(MAX_FEED_BODY_BYTES)?;
     let timestamp_ms = decoder.u64()?;
     let reason = match decoder.u8()? {
         0 => FeedReason::Own,
@@ -976,6 +976,37 @@ mod tests {
         );
         let mut bytes = Vec::new();
         write_response(&mut bytes, &response).unwrap();
+        assert_eq!(
+            read_response(&mut bytes.as_slice()).unwrap().unwrap(),
+            response
+        );
+    }
+
+    #[test]
+    fn maximum_feed_response_fits_the_declared_frame() {
+        let long_id = "o".repeat(MAX_OBJECT_ID_BYTES);
+        let long_did = "d".repeat(MAX_DID_BYTES);
+        let long_author = "a".repeat(MAX_PROFILE_NAME_BYTES);
+        let body = "x".repeat(MAX_POST_BYTES);
+        let cards = (0..MAX_FEED_ITEMS)
+            .map(|_| FeedCard {
+                id: long_id.clone(),
+                author: long_author.clone(),
+                did: long_did.clone(),
+                body: body.clone(),
+                timestamp_ms: u64::MAX,
+                reason: FeedReason::Received,
+                support_count: u32::MAX,
+                comment_count: u32::MAX,
+                media: Some(long_id.clone()),
+                own: false,
+                avatar: Some(long_id.clone()),
+            })
+            .collect();
+        let response = Response::ok(11, Reply::Feed(cards));
+        let mut bytes = Vec::new();
+        write_response(&mut bytes, &response).unwrap();
+        assert!(bytes.len() <= MAX_FRAME_BYTES + 4);
         assert_eq!(
             read_response(&mut bytes.as_slice()).unwrap().unwrap(),
             response
