@@ -1529,6 +1529,7 @@ fn run_discoverable_profile_sync(
     visibility_duration: Duration,
     progress: &mpsc::Sender<Result<String, String>>,
     ready: Option<&mpsc::Sender<()>>,
+    max_completed: Option<usize>,
 ) -> Result<String, String> {
     let identity = load_desktop_identity(root, false).map_err(|error| {
         format!(
@@ -1562,6 +1563,11 @@ fn run_discoverable_profile_sync(
                         let _ = progress.send(Ok(format!(
                             "Nearby sync #{completed} complete with {peer}: {summary}. Still visible until the window ends."
                         )));
+                        if max_completed.is_some_and(|limit| completed >= limit) {
+                            return Ok(format!(
+                                "Nearby visibility window ended after {completed} completed sync connection(s)."
+                            ));
+                        }
                     }
                     Err(error) => {
                         let _ = progress.send(Err(format!(
@@ -4188,6 +4194,7 @@ No tracking. No forced updates.",
                 &name,
                 Duration::from_secs(60),
                 &sender,
+                None,
                 None,
             );
             let _ = sender.send(result);
@@ -8922,9 +8929,10 @@ mod tests {
                 &server_root,
                 port,
                 "Bob",
-                Duration::from_secs(4),
+                Duration::from_secs(30),
                 &sender,
                 Some(&ready_tx),
+                Some(2),
             )
         });
         // Wait for the server's real readiness signal (sent right after it
