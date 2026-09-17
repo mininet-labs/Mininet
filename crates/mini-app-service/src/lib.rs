@@ -820,6 +820,27 @@ impl MutationJournal {
             {
                 continue;
             }
+            let path = entry.path();
+            let file_name = entry.file_name();
+            let file_name = file_name.to_str().ok_or_else(|| {
+                ServiceError::new(
+                    ErrorCode::Storage,
+                    "pending mutation filename is not valid UTF-8",
+                )
+            })?;
+            if file_name.ends_with(".tmp") {
+                fs::remove_file(&path)
+                    .map_err(|error| ServiceError::new(ErrorCode::Io, error.to_string()))?;
+                mini_durable::sync_parent(&path)
+                    .map_err(|error| ServiceError::new(ErrorCode::Io, error.to_string()))?;
+                continue;
+            }
+            if !file_name.ends_with(".op") {
+                return Err(ServiceError::new(
+                    ErrorCode::Storage,
+                    "unknown file in application pending-mutation directory",
+                ));
+            }
             count = count.saturating_add(1);
             if count > MAX_PENDING_OPERATIONS {
                 return Err(ServiceError::new(
@@ -827,7 +848,6 @@ impl MutationJournal {
                     "too many pending application mutations; refusing unbounded recovery",
                 ));
             }
-            let path = entry.path();
             let record = read_bounded(&path).and_then(|bytes| decode_pending(&bytes))?;
             let expected_path = self.pending_path(&record.operation_id);
             if path != expected_path {
@@ -1458,6 +1478,21 @@ mod tests {
         };
         assert!(duplicate.duplicate);
         assert_eq!(duplicate.object_id, expected_id);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn orphaned_atomic_replace_temp_does_not_block_recovery() {
+        let root = temp_root("orphan-temp");
+        let pending = root.join("app-service").join("pending");
+        fs::create_dir_all(&pending).unwrap();
+        let orphan = pending.join("deadbeef.op.999-1.tmp");
+        fs::write(&orphan, b"partial uncommitted bytes").unwrap();
+
+        let core = Core::open_inner(root.clone(), MemoryVault::empty(), false).unwrap();
+        assert!(!orphan.exists());
+        drop(core);
 
         fs::remove_dir_all(root).unwrap();
     }
