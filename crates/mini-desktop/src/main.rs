@@ -3115,23 +3115,75 @@ No tracking. No forced updates.",
             if self.timeline_loaded != wanted {
                 self.timeline_cards.clear();
             }
-            let Some((root, human)) = self.workspace.as_ref().and_then(|workspace| {
-                workspace
-                    .human
-                    .clone()
-                    .map(|human| (workspace.root.clone(), human))
-            }) else {
-                return;
-            };
             self.timeline_loaded = wanted;
             let (filter, scope) = wanted;
             let (sender, receiver) = mpsc::channel();
-            self.timeline_rx = Some(receiver);
             let repaint = ctx.clone();
-            std::thread::spawn(move || {
-                let _ = sender.send(timeline::snapshot(&root, &human, filter, scope));
-                repaint.request_repaint();
-            });
+
+            if self.core_available() {
+                let Some(status) = self.app_status.as_ref() else {
+                    return;
+                };
+                if !status.root_created {
+                    self.timeline_cards.clear();
+                    self.timeline_error = None;
+                    return;
+                }
+                let order = match filter {
+                    FeedFilter::Chronological => AppFeedOrder::Chronological,
+                    FeedFilter::MostSupported => AppFeedOrder::MostSupported,
+                    _ => AppFeedOrder::Chronological,
+                };
+                let scope = match scope {
+                    timeline::Scope::Following => AppFeedScope::Following,
+                    timeline::Scope::Everyone => AppFeedScope::Everyone,
+                };
+                let service_rx = match self
+                    .app_service
+                    .as_ref()
+                    .expect("core availability checked above")
+                    .request(AppCommand::FeedSnapshot {
+                        order,
+                        scope,
+                        limit: timeline::PAGE as u16,
+                    })
+                {
+                    Ok(receiver) => receiver,
+                    Err(error) => {
+                        self.timeline_error =
+                            Some(format!("Application core feed unavailable: {error}"));
+                        self.timeline_refresh = Instant::now() + Duration::from_secs(2);
+                        return;
+                    }
+                };
+                self.timeline_rx = Some(receiver);
+                std::thread::spawn(move || {
+                    let result = match service_rx.recv() {
+                        Ok(Ok(AppReply::Feed(cards))) => timeline::from_service(cards),
+                        Ok(Ok(other)) => Err(format!(
+                            "application core returned an unexpected feed response: {other:?}"
+                        )),
+                        Ok(Err(error)) => Err(error),
+                        Err(_) => Err("application core feed request stopped".to_string()),
+                    };
+                    let _ = sender.send(result);
+                    repaint.request_repaint();
+                });
+            } else {
+                let Some((root, human)) = self.workspace.as_ref().and_then(|workspace| {
+                    workspace
+                        .human
+                        .clone()
+                        .map(|human| (workspace.root.clone(), human))
+                }) else {
+                    return;
+                };
+                self.timeline_rx = Some(receiver);
+                std::thread::spawn(move || {
+                    let _ = sender.send(timeline::snapshot(&root, &human, filter, scope));
+                    repaint.request_repaint();
+                });
+            }
         }
         ctx.request_repaint_after(Duration::from_secs(5));
     }
