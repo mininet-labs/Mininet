@@ -97,8 +97,7 @@ impl IdentityVault for WindowsIdentityVault {
     }
 
     fn load_or_create_device(&mut self) -> Result<SeedPair, ServiceError> {
-        mini_windows_vault::load_or_create(&self.root.join("device.dpapi"))
-            .map_err(Self::map_vault)
+        mini_windows_vault::load_or_create(&self.root.join("device.dpapi")).map_err(Self::map_vault)
     }
 }
 
@@ -303,8 +302,8 @@ impl<V: IdentityVault> Core<V> {
         self.ensure_signing_available()?;
         let sequence = self.reserve_sequence()?;
         let (human, device) = self.signing_identity()?;
-        let object = build_post(human, device, text, now_ms(), sequence)
-            .map_err(storage_or_social)?;
+        let object =
+            build_post(human, device, text, now_ms(), sequence).map_err(storage_or_social)?;
         let record = PendingMutation {
             operation_id: operation_id.to_string(),
             input,
@@ -369,8 +368,7 @@ impl<V: IdentityVault> Core<V> {
                 duplicate: true,
             },
             ExistingMutation::Pending(record) => {
-                let mut published =
-                    self.journal.commit_and_complete(&mut self.store, &record)?;
+                let mut published = self.journal.commit_and_complete(&mut self.store, &record)?;
                 published.duplicate = true;
                 published
             }
@@ -417,7 +415,10 @@ impl<V: IdentityVault> Core<V> {
         }
         let sequence = self.next_sequence;
         let next = sequence.checked_add(1).ok_or_else(|| {
-            ServiceError::new(ErrorCode::Storage, "local object sequence space is exhausted")
+            ServiceError::new(
+                ErrorCode::Storage,
+                "local object sequence space is exhausted",
+            )
         })?;
         self.journal.persist_next_sequence(next)?;
         self.next_sequence = next;
@@ -512,8 +513,8 @@ impl<V: IdentityVault> Core<V> {
                 let (author, avatar) = if let Some(cached) = profiles.get(&did) {
                     cached.clone()
                 } else {
-                    let profile = resolve_profile(&self.store, &seed.author)
-                        .map_err(storage_or_social)?;
+                    let profile =
+                        resolve_profile(&self.store, &seed.author).map_err(storage_or_social)?;
                     let cached = profile
                         .map(|profile| {
                             (
@@ -629,7 +630,10 @@ fn next_object_sequence<B: Backend>(
         }
     }
     maximum.checked_add(1).ok_or_else(|| {
-        ServiceError::new(ErrorCode::Storage, "local object sequence space is exhausted")
+        ServiceError::new(
+            ErrorCode::Storage,
+            "local object sequence space is exhausted",
+        )
     })
 }
 
@@ -851,19 +855,13 @@ impl MutationJournal {
             .map_err(|error| ServiceError::new(ErrorCode::Io, error.to_string()))
     }
 
-    fn read_pending(
-        &self,
-        operation_id: &str,
-    ) -> Result<Option<PendingMutation>, ServiceError> {
+    fn read_pending(&self, operation_id: &str) -> Result<Option<PendingMutation>, ServiceError> {
         read_optional(&self.pending_path(operation_id))?
             .map(|bytes| decode_pending(&bytes))
             .transpose()
     }
 
-    fn read_receipt(
-        &self,
-        operation_id: &str,
-    ) -> Result<Option<MutationReceipt>, ServiceError> {
+    fn read_receipt(&self, operation_id: &str) -> Result<Option<MutationReceipt>, ServiceError> {
         read_optional(&self.receipt_path(operation_id))?
             .map(|bytes| decode_receipt(&bytes))
             .transpose()
@@ -1202,9 +1200,10 @@ impl<'a> JournalDecoder<'a> {
     }
 
     fn take(&mut self, count: usize) -> Result<&'a [u8], ServiceError> {
-        let end = self.offset.checked_add(count).ok_or_else(|| {
-            ServiceError::new(ErrorCode::Storage, "journal length overflow")
-        })?;
+        let end = self
+            .offset
+            .checked_add(count)
+            .ok_or_else(|| ServiceError::new(ErrorCode::Storage, "journal length overflow"))?;
         let out = self.bytes.get(self.offset..end).ok_or_else(|| {
             ServiceError::new(ErrorCode::Storage, "truncated application journal")
         })?;
@@ -1217,10 +1216,7 @@ impl<'a> JournalDecoder<'a> {
     }
 
     fn u32(&mut self) -> Result<u32, ServiceError> {
-        let bytes: [u8; 4] = self
-            .take(4)?
-            .try_into()
-            .expect("four-byte journal slice");
+        let bytes: [u8; 4] = self.take(4)?.try_into().expect("four-byte journal slice");
         Ok(u32::from_be_bytes(bytes))
     }
 
