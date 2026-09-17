@@ -3,9 +3,14 @@
 //! A dedicated worker thread owns the child process and its framed stdio. The
 //! egui thread only enqueues capability-shaped commands into a bounded queue;
 //! it never owns service stdin/stdout and never receives private key material.
+//!
+//! Transport failures are supervised. The worker terminates a broken child,
+//! starts a fresh core, and retries the *same* request once. Signed mutations
+//! carry durable operation ids, so an uncertain lost response can replay the
+//! original committed object instead of publishing a second one.
 
 use mini_app_protocol::{read_response, write_request, Command, Reply, Request, ResponseBody};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command as ProcessCommand, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
@@ -26,28 +31,9 @@ pub struct Client {
 impl Client {
     pub fn spawn() -> Result<Self, String> {
         let executable = service_executable()?;
-        let mut child = ProcessCommand::new(&executable)
-            .arg("--stdio")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|error| {
-                format!(
-                    "could not start application core {}: {error}",
-                    executable.display()
-                )
-            })?;
-        let stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| "application core stdin was not piped".to_string())?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| "application core stdout was not piped".to_string())?;
+        let session = Session::spawn(&executable)?;
         let (sender, receiver) = mpsc::sync_channel(COMMAND_QUEUE);
-        std::thread::spawn(move || worker(child, stdin, stdout, receiver));
+        std::thread::spawn(move || worker(executable, session, receiver));
         Ok(Self { sender })
     }
 
@@ -60,44 +46,127 @@ impl Client {
                     .to_string(),
             ),
             Err(TrySendError::Disconnected(_)) => {
-                Err("application core process is not available".to_string())
+                Err("application core supervisor is not available".to_string())
             }
         }
     }
 }
 
-fn worker(
-    mut child: Child,
-    mut stdin: ChildStdin,
-    mut stdout: ChildStdout,
-    receiver: Receiver<Work>,
-) {
+struct Session {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: ChildStdout,
+}
+
+impl Session {
+    fn spawn(executable: &Path) -> Result<Self, String> {
+        let mut child = ProcessCommand::new(executable)
+            .arg("--stdio")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|error| {
+                format!(
+                    "could not start application core {}: {error}",
+                    executable.display()
+                )
+            })?;
+        let stdin = child.stdin.take().ok_or_else(|| {
+            let _ = child.kill();
+            let _ = child.wait();
+            "application core stdin was not piped".to_string()
+        })?;
+        let stdout = child.stdout.take().ok_or_else(|| {
+            let _ = child.kill();
+            let _ = child.wait();
+            "application core stdout was not piped".to_string()
+        })?;
+        Ok(Self {
+            child,
+            stdin,
+            stdout,
+        })
+    }
+
+    fn exchange(&mut self, request: &Request) -> (Result<Reply, String>, bool) {
+        exchange(&mut self.stdin, &mut self.stdout, request)
+    }
+
+    fn abort(mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+
+    fn shutdown(mut self, request_id: u64) {
+        let shutdown = Request::new(request_id, Command::Shutdown);
+        let _ = write_request(&mut self.stdin, &shutdown);
+        let _ = read_response(&mut self.stdout);
+        if wait_for_exit(&mut self.child).is_err() {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
+}
+
+fn worker(executable: PathBuf, initial: Session, receiver: Receiver<Work>) {
+    let mut session = Some(initial);
     let mut request_id = 1u64;
     while let Ok(work) = receiver.recv() {
         let id = request_id;
         request_id = request_id.saturating_add(1);
         let request = Request::new(id, work.command);
-        let (result, fatal) = exchange(&mut stdin, &mut stdout, &request);
+        let result = supervised_exchange(&executable, &mut session, &request);
         let _ = work.response.send(result);
-        if fatal {
-            while let Ok(pending) = receiver.try_recv() {
-                let _ = pending
-                    .response
-                    .send(Err("application core IPC stopped".to_string()));
-            }
-            let _ = child.kill();
-            let _ = child.wait();
-            return;
-        }
     }
 
-    let shutdown = Request::new(request_id, Command::Shutdown);
-    let _ = write_request(&mut stdin, &shutdown);
-    let _ = read_response(&mut stdout);
-    if wait_for_exit(&mut child).is_err() {
-        let _ = child.kill();
-        let _ = child.wait();
+    if let Some(active) = session {
+        active.shutdown(request_id);
     }
+}
+
+fn supervised_exchange(
+    executable: &Path,
+    session: &mut Option<Session>,
+    request: &Request,
+) -> Result<Reply, String> {
+    if session.is_none() {
+        *session = Some(Session::spawn(executable)?);
+    }
+
+    let (first, fatal) = session
+        .as_mut()
+        .expect("session is present after spawn")
+        .exchange(request);
+    if !fatal {
+        return first;
+    }
+
+    let first_error = first
+        .err()
+        .unwrap_or_else(|| "application core transport failed".to_string());
+    if let Some(broken) = session.take() {
+        broken.abort();
+    }
+
+    let mut restarted = Session::spawn(executable).map_err(|restart_error| {
+        format!(
+            "application core transport failed ({first_error}); restart failed: {restart_error}"
+        )
+    })?;
+    let (retry, retry_fatal) = restarted.exchange(request);
+    if retry_fatal {
+        let retry_error = retry
+            .err()
+            .unwrap_or_else(|| "application core retry transport failed".to_string());
+        restarted.abort();
+        return Err(format!(
+            "application core transport failed ({first_error}); retry after restart failed: {retry_error}"
+        ));
+    }
+
+    *session = Some(restarted);
+    retry
 }
 
 fn exchange(
