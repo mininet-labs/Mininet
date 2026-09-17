@@ -6,9 +6,7 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
-use mini_app_protocol::{
-    read_request, write_response, Command, ErrorCode, Response, ServiceError,
-};
+use mini_app_protocol::{read_request, write_response, Command, ErrorCode, Response, ServiceError};
 use mini_app_service::Core;
 use std::io::{self, BufReader, BufWriter};
 use std::path::PathBuf;
