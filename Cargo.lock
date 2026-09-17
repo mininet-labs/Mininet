@@ -2994,9 +2994,9 @@ version = "0.0.1"
 dependencies = [
  "did-mini",
  "eframe",
- "mini-app-protocol",
  "igd",
  "image",
+ "mini-app-protocol",
  "mini-bearer",
  "mini-crypto",
  "mini-media",
