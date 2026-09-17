@@ -2780,18 +2780,43 @@ impl MininetApp {
                             self.view = View::Privacy;
                         }
                         ui.add_space(6.0);
-                        if let Some(workspace) = self.workspace.as_mut() {
-                            if workspace.is_unlocked() {
-                                if ui.add(theme::secondary_button("🔒  Lock identity")).clicked() {
-                                    workspace.lock();
-                                    self.signing_confirmation = false;
-                                    self.notice = "Identity locked. Reading remains available; signing is disabled.".to_string();
+                        match self.app_status.as_ref() {
+                            Some(status) if status.identity_unlocked => {
+                                if ui
+                                    .add_enabled(
+                                        self.app_action.is_none(),
+                                        theme::secondary_button("🔒  Lock identity"),
+                                    )
+                                    .clicked()
+                                {
+                                    self.start_core_action(
+                                        CoreAction::LockIdentity,
+                                        AppCommand::LockIdentity,
+                                    );
                                 }
-                            } else if ui.add(theme::primary_button("🔓  Unlock identity")).clicked() {
-                                match workspace.unlock() {
-                                    Ok(()) => self.notice = "Identity unlocked. Review and confirm before signing.".to_string(),
-                                    Err(error) => self.notice = format!("Unlock failed: {error}"),
+                            }
+                            Some(status) if status.root_created => {
+                                if ui
+                                    .add_enabled(
+                                        self.app_action.is_none(),
+                                        theme::primary_button("🔓  Unlock identity"),
+                                    )
+                                    .clicked()
+                                {
+                                    self.start_core_action(
+                                        CoreAction::UnlockIdentity,
+                                        AppCommand::UnlockIdentity,
+                                    );
                                 }
+                            }
+                            Some(_) => {
+                                theme::muted(ui, "Create identity in onboarding");
+                            }
+                            None if self.core_available() => {
+                                theme::muted(ui, "Core starting…");
+                            }
+                            None => {
+                                ui.colored_label(theme::WARN_AMBER, "Core unavailable");
                             }
                         }
                     });
@@ -4604,18 +4629,28 @@ No tracking. No forced updates.",
 
     fn home(&mut self, ui: &mut egui::Ui) {
         let (name, did) = self
-            .workspace
+            .app_status
             .as_ref()
-            .and_then(|workspace| {
-                workspace.current_profile().map(|profile| {
+            .and_then(|status| {
+                status.profile.as_ref().map(|profile| {
                     (
-                        profile.display_name,
-                        workspace
-                            .human
-                            .as_ref()
-                            .map(|did| did.as_str().to_owned())
-                            .unwrap_or_default(),
+                        profile.display_name.clone(),
+                        status.human_did.clone().unwrap_or_default(),
                     )
+                })
+            })
+            .or_else(|| {
+                self.workspace.as_ref().and_then(|workspace| {
+                    workspace.current_profile().map(|profile| {
+                        (
+                            profile.display_name,
+                            workspace
+                                .human
+                                .as_ref()
+                                .map(|did| did.as_str().to_owned())
+                                .unwrap_or_default(),
+                        )
+                    })
                 })
             })
             .unwrap_or_else(|| ("You".to_string(), String::new()));
@@ -4644,34 +4679,30 @@ No tracking. No forced updates.",
                             self.view = View::Communities;
                         }
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let unlocked =
-                                self.workspace.as_ref().is_some_and(Workspace::is_unlocked);
+                            let can_post = self.core_unlocked() && self.app_action.is_none();
                             if ui
-                                .add_enabled(unlocked, theme::primary_button("Post"))
-                                .on_disabled_hover_text("Unlock your identity to sign a post.")
+                                .add_enabled(can_post, theme::primary_button("Post"))
+                                .on_disabled_hover_text(if self.core_available() {
+                                    "Unlock your identity in the application core to sign a post."
+                                } else {
+                                    "Application core unavailable; signing is disabled."
+                                })
                                 .clicked()
                             {
-                                self.notice = if self.composer.trim().is_empty() {
-                                    "Nothing published: write something first.".to_string()
+                                let text = self.composer.trim().to_string();
+                                if text.is_empty() {
+                                    self.notice =
+                                        "Nothing published: write something first.".to_string();
                                 } else if !self.signing_confirmation {
-                                    "Confirm signing before publishing.".to_string()
-                                } else if let Some(workspace) = self.workspace.as_mut() {
-                                    match workspace.publish_post(self.composer.trim()) {
-                                        Ok(()) => {
-                                            self.composer.clear();
-                                            self.signing_confirmation = false;
-                                            self.timeline_refresh = Instant::now();
-                                            if self.network_session.is_some() || self.host.is_some() {
-                                                "Posted. It shares with your peers on the next exchange.".to_string()
-                                            } else {
-                                                "Posted and saved locally. Start a session in Connections to share it.".to_string()
-                                            }
-                                        }
-                                        Err(error) => format!("Could not publish: {error}"),
-                                    }
+                                    self.notice =
+                                        "Confirm signing before publishing.".to_string();
                                 } else {
-                                    "Local workspace unavailable; no content was published.".to_string()
-                                };
+                                    let operation_id = self.post_operation_id(&text);
+                                    self.start_core_action(
+                                        CoreAction::PublishPost { text: text.clone() },
+                                        AppCommand::PublishPost { operation_id, text },
+                                    );
+                                }
                             }
                         });
                     });
@@ -4706,7 +4737,7 @@ No tracking. No forced updates.",
                                     self.reply_target = None;
                                     self.signing_confirmation = false;
                                     self.timeline_refresh = Instant::now();
-                                    "Reply signed and saved. It shares on the next exchange."
+                                    "Reply signed and saved by the transitional desktop path. It shares on the next exchange."
                                         .to_string()
                                 }
                                 Err(error) => format!("Could not publish reply: {error}"),
@@ -4719,6 +4750,10 @@ No tracking. No forced updates.",
                         self.reply_target = None;
                     }
                 });
+                theme::muted(
+                    ui,
+                    "Replies are still on the legacy W1 migration path; root/profile/plain-post signing already uses the application core.",
+                );
             });
             ui.add_space(6.0);
         }
@@ -5165,114 +5200,142 @@ No tracking. No forced updates.",
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(theme::BG).inner_margin(egui::Margin::same(24)))
             .show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.add_space(54.0);
-                ui.heading("MININET");
-                ui.label(
-                    egui::RichText::new("Your identity. Your objects. Your transport choices.")
-                        .color(egui::Color32::LIGHT_GRAY),
-                );
-                ui.add_space(22.0);
-                ui.allocate_ui_with_layout(
-                    [620.0, ui.available_height()].into(),
-                    egui::Layout::top_down(egui::Align::Min),
-                    |ui| {
-                        let root_created = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::root_created);
-                        let has_public_account = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::has_public_account);
-                        let is_unlocked = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::is_unlocked);
-                        if self.workspace.is_some() {
-                            if !root_created {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(54.0);
+                    ui.heading("MININET");
+                    ui.label(
+                        egui::RichText::new("Your identity. Your objects. Your transport choices.")
+                            .color(egui::Color32::LIGHT_GRAY),
+                    );
+                    ui.add_space(22.0);
+                    ui.allocate_ui_with_layout(
+                        [620.0, ui.available_height()].into(),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| {
+                            if !self.core_available() {
                                 theme::card_frame().show(ui, |ui| {
-                                    ui.heading("1. Create your Mininet root");
-                                    ui.label("This creates a new local signing root protected by the Windows user vault. It never uploads a seed or contacts a server.");
-                                    ui.label("You will be able to export recovery material only through a separate, deliberate backup flow.");
-                                    if ui.button("Create local root").clicked() {
-                                        self.notice = match self
-                                            .workspace
-                                            .as_mut()
-                                            .expect("workspace checked above")
-                                            .create_root()
-                                        {
-                                            Ok(()) => "Root created locally. Publish your public account to continue.".to_string(),
-                                            Err(error) => format!("Root creation failed: {error}"),
-                                        };
-                                    }
+                                    ui.heading("Application core unavailable");
+                                    ui.colored_label(
+                                        theme::WARN_AMBER,
+                                        "Identity creation and signing are disabled rather than falling back to renderer-owned keys.",
+                                    );
+                                    ui.label("Install or build mininet-app-service beside mininet-desktop, then restart the client.");
                                 });
-                            } else if !has_public_account {
-                                theme::card_frame().show(ui, |ui| {
-                                    ui.heading("2. Create your public account");
-                                    ui.label("Start with a display name and optional bio. Next, you can choose a photo, location, age, and any custom public details before becoming visible to anyone.");
-                                    ui.label("Your cryptographic identity remains the DID shown in Privacy & safety.");
-                                    ui.add_space(8.0);
-                                    ui.label("Display name");
-                                    ui.text_edit_singleline(&mut self.account_name);
-                                    ui.label("Bio");
-                                    ui.add_sized(
-                                        [ui.available_width(), 90.0],
-                                        egui::TextEdit::multiline(&mut self.account_bio),
-                                    );
-                                    if !is_unlocked {
-                                        ui.label("This setup action will unlock the local root only long enough to sign the profile, then lock it again.");
-                                    }
-                                    ui.checkbox(
-                                        &mut self.signing_confirmation,
-                                        "I confirm this creates my signed public profile",
-                                    );
-                                    if ui.button("Publish public account locally").clicked() {
-                                        self.notice = if self.account_name.trim().is_empty() {
-                                            "Choose a display name first.".to_string()
-                                        } else if !self.signing_confirmation {
-                                            "Confirm signing before publishing the account.".to_string()
-                                        } else if let Some(workspace) = self.workspace.as_mut() {
-                                            let result = if workspace.is_unlocked() {
-                                                workspace.publish_profile(
-                                                    self.account_name.trim(),
-                                                    self.account_bio.trim(),
+                            } else if let Some(status) = self.app_status.clone() {
+                                if !status.root_created {
+                                    theme::card_frame().show(ui, |ui| {
+                                        ui.heading("1. Create your Mininet root");
+                                        ui.label("The per-user application core creates the signing root and delegated device under the Windows user vault. The renderer never receives seed material.");
+                                        ui.label("No network session, crawler, relay, wallet, Forge task, or update starts as part of this action.");
+                                        if ui
+                                            .add_enabled(
+                                                self.app_action.is_none(),
+                                                theme::primary_button("Create local root"),
+                                            )
+                                            .clicked()
+                                        {
+                                            self.start_core_action(
+                                                CoreAction::CreateRoot,
+                                                AppCommand::CreateRoot,
+                                            );
+                                        }
+                                    });
+                                } else if status.profile.is_none() {
+                                    theme::card_frame().show(ui, |ui| {
+                                        ui.heading("2. Create your public account");
+                                        ui.label("Start with a display name and optional bio. Additional public profile fields remain owner-selected and can be edited later in Creator.");
+                                        if let Some(did) = status.human_did.as_deref() {
+                                            theme::muted(ui, &format!("Identity anchor: {}", short_did(did)));
+                                        }
+                                        ui.add_space(8.0);
+                                        ui.label("Display name");
+                                        ui.text_edit_singleline(&mut self.account_name);
+                                        ui.label("Bio");
+                                        ui.add_sized(
+                                            [ui.available_width(), 90.0],
+                                            egui::TextEdit::multiline(&mut self.account_bio),
+                                        );
+                                        if !status.identity_unlocked {
+                                            ui.colored_label(
+                                                theme::WARN_AMBER,
+                                                "Identity is locked in the application core. Unlock it before publishing.",
+                                            );
+                                            if ui
+                                                .add_enabled(
+                                                    self.app_action.is_none(),
+                                                    theme::secondary_button("🔓  Unlock identity"),
                                                 )
-                                            } else {
-                                                workspace.unlock().and_then(|()| {
-                                                    workspace.publish_profile(
-                                                        self.account_name.trim(),
-                                                        self.account_bio.trim(),
-                                                    )
-                                                })
-                                            };
-                                            workspace.lock();
-                                            match result {
-                                                Ok(()) => {
-                                                    self.profile_name = self.account_name.trim().to_string();
-                                                    self.profile_bio = self.account_bio.trim().to_string();
-                                                    self.signing_confirmation = false;
-                                                    self.view = View::Creator;
-                                                    "Public account created locally and identity locked again. Add any optional public details below, or open People when you are ready.".to_string()
-                                                }
-                                                Err(error) => format!("Could not create public account: {error}"),
+                                                .clicked()
+                                            {
+                                                self.start_core_action(
+                                                    CoreAction::UnlockIdentity,
+                                                    AppCommand::UnlockIdentity,
+                                                );
                                             }
-                                        } else {
-                                            "Local workspace unavailable.".to_string()
-                                        };
-                                    }
+                                        }
+                                        ui.checkbox(
+                                            &mut self.signing_confirmation,
+                                            "I confirm this creates my signed public profile",
+                                        );
+                                        if ui
+                                            .add_enabled(
+                                                status.identity_unlocked
+                                                    && self.app_action.is_none(),
+                                                theme::primary_button(
+                                                    "Publish public account locally",
+                                                ),
+                                            )
+                                            .clicked()
+                                        {
+                                            let display_name =
+                                                self.account_name.trim().to_string();
+                                            let bio = self.account_bio.trim().to_string();
+                                            if display_name.is_empty() {
+                                                self.notice =
+                                                    "Choose a display name first.".to_string();
+                                            } else if !self.signing_confirmation {
+                                                self.notice =
+                                                    "Confirm signing before publishing the account."
+                                                        .to_string();
+                                            } else {
+                                                let operation_id =
+                                                    self.profile_operation_id(&display_name, &bio);
+                                                self.start_core_action(
+                                                    CoreAction::PublishProfile {
+                                                        display_name: display_name.clone(),
+                                                        bio: bio.clone(),
+                                                    },
+                                                    AppCommand::PublishProfile {
+                                                        operation_id,
+                                                        display_name,
+                                                        bio,
+                                                    },
+                                                );
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    self.view = View::Home;
+                                    self.reload_workspace();
+                                }
+                            } else {
+                                theme::card_frame().show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.spinner();
+                                        ui.label("Starting the per-user application core…");
+                                    });
+                                    theme::muted(
+                                        ui,
+                                        "The renderer is waiting for bounded status before enabling identity actions.",
+                                    );
                                 });
                             }
-                        } else {
-                            ui.colored_label(egui::Color32::YELLOW, "The local workspace could not be opened.");
-                            ui.label(&self.notice);
-                        }
-                        ui.add_space(14.0);
-                        ui.label(egui::RichText::new(&self.notice).small());
-                    },
-                );
+                            ui.add_space(14.0);
+                            ui.label(egui::RichText::new(&self.notice).small());
+                        },
+                    );
+                });
             });
-        });
     }
 
     fn inbox(&mut self, ui: &mut egui::Ui) {
