@@ -444,22 +444,21 @@ pub fn publish_profile<B: Backend>(
     Ok(profile)
 }
 
-/// Resolve the latest profile of `human`, if any.
-pub fn resolve_profile<B: Backend>(store: &Store<B>, human: &Did) -> Result<Option<Profile>> {
-    let target = match store.resolve_head(human, "profile")? {
-        Some(t) => t,
-        None => return Ok(None),
-    };
-    let obj = store.get(&target)?;
-    if obj.object_type != ObjectType::PROFILE || obj.author_human.as_str() != human.as_str() {
+/// Decode and structurally validate one signed profile object without
+/// consulting head state. This is the canonical profile payload decoder used
+/// both by ordinary reads and by crash-recovery code that must validate exact
+/// signed bytes before mutating a store.
+pub fn decode_profile(object: &Object) -> Result<Profile> {
+    if object.object_type != ObjectType::PROFILE {
         return Err(SocialError::BadProfile);
     }
-    let bytes = match &obj.payload {
-        Payload::Public(b) => b,
+    let bytes = match &object.payload {
+        Payload::Public(bytes) => bytes,
         Payload::Encrypted(_) => return Err(SocialError::BadProfile),
     };
     if bytes.starts_with(PROFILE_V2_MAGIC) {
-        return decode_profile_v2(&obj.author_human, bytes);
+        return decode_profile_v2(&object.author_human, bytes)?
+            .ok_or(SocialError::BadProfile);
     }
     let mut pos = 0usize;
     let display_name = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
@@ -473,15 +472,28 @@ pub fn resolve_profile<B: Backend>(store: &Store<B>, human: &Did) -> Result<Opti
     } else {
         Some(ObjectId::parse(&avatar_str).map_err(|_| SocialError::BadProfile)?)
     };
-    Ok(Some(Profile {
-        human: obj.author_human.clone(),
+    Ok(Profile {
+        human: object.author_human.clone(),
         display_name,
         bio,
         avatar,
         location: None,
         age: None,
         fields: Vec::new(),
-    }))
+    })
+}
+
+/// Resolve the latest profile of `human`, if any.
+pub fn resolve_profile<B: Backend>(store: &Store<B>, human: &Did) -> Result<Option<Profile>> {
+    let target = match store.resolve_head(human, "profile")? {
+        Some(target) => target,
+        None => return Ok(None),
+    };
+    let object = store.get(&target)?;
+    if object.author_human.as_str() != human.as_str() {
+        return Err(SocialError::BadProfile);
+    }
+    decode_profile(&object).map(Some)
 }
 
 fn decode_profile_v2(human: &Did, bytes: &[u8]) -> Result<Option<Profile>> {
