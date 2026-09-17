@@ -300,8 +300,9 @@ impl<V: IdentityVault> Core<V> {
             return self.finish_existing(existing, ObjectKind::Post);
         }
 
-        let (human, device) = self.signing_identity()?;
+        self.ensure_signing_available()?;
         let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
         let object = build_post(human, device, text, now_ms(), sequence)
             .map_err(storage_or_social)?;
         let record = PendingMutation {
@@ -339,8 +340,9 @@ impl<V: IdentityVault> Core<V> {
             return self.finish_existing(existing, ObjectKind::Profile);
         }
 
-        let (human, device) = self.signing_identity()?;
+        self.ensure_signing_available()?;
         let sequence = self.reserve_sequence()?;
+        let (human, device) = self.signing_identity()?;
         let (profile, head) =
             build_profile(human, device, display_name, bio, None, now_ms(), sequence)
                 .map_err(storage_or_social)?;
@@ -383,13 +385,26 @@ impl<V: IdentityVault> Core<V> {
         Ok(published)
     }
 
+    fn ensure_signing_available(&self) -> Result<(), ServiceError> {
+        if self.human.is_none() {
+            return Err(ServiceError::new(
+                ErrorCode::RootMissing,
+                "create a Mininet root first",
+            ));
+        }
+        if self.identity.is_none() {
+            return Err(ServiceError::new(
+                ErrorCode::IdentityLocked,
+                "identity is locked",
+            ));
+        }
+        Ok(())
+    }
+
     fn signing_identity(&self) -> Result<(&Did, &Controller), ServiceError> {
-        let identity = self.identity.as_ref().ok_or_else(|| {
-            ServiceError::new(ErrorCode::IdentityLocked, "identity is locked")
-        })?;
-        let human = self.human.as_ref().ok_or_else(|| {
-            ServiceError::new(ErrorCode::RootMissing, "create a Mininet root first")
-        })?;
+        self.ensure_signing_available()?;
+        let human = self.human.as_ref().expect("checked above");
+        let identity = self.identity.as_ref().expect("checked above");
         Ok((human, &identity.device))
     }
 
@@ -690,7 +705,6 @@ enum ExistingMutation {
 
 #[derive(Debug, Clone)]
 struct MutationJournal {
-    root: PathBuf,
     pending: PathBuf,
     receipts: PathBuf,
     sequence: PathBuf,
@@ -705,7 +719,6 @@ impl MutationJournal {
             .map_err(|error| ServiceError::new(ErrorCode::Io, error.to_string()))?;
         Ok(Self {
             sequence: root.join("sequence.state"),
-            root,
             pending,
             receipts,
         })
@@ -817,7 +830,13 @@ impl MutationJournal {
                     "pending mutation filename does not match its operation id",
                 ));
             }
-            if self.read_receipt(&record.operation_id)?.is_some() {
+            if let Some(receipt) = self.read_receipt(&record.operation_id)? {
+                if receipt.input != record.input {
+                    return Err(ServiceError::new(
+                        ErrorCode::Storage,
+                        "pending mutation disagrees with its durable receipt",
+                    ));
+                }
                 self.remove_pending(&record.operation_id)?;
                 continue;
             }
@@ -1452,7 +1471,8 @@ mod tests {
         let error = Core::open_inner(root.clone(), MemoryVault::empty(), true).unwrap_err();
         assert_eq!(error.code, ErrorCode::Busy);
         drop(first);
-        Core::open_inner(root.clone(), MemoryVault::empty(), true).unwrap();
+        let third = Core::open_inner(root.clone(), MemoryVault::empty(), true).unwrap();
+        drop(third);
         fs::remove_dir_all(root).unwrap();
     }
 }
