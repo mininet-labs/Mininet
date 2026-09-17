@@ -35,13 +35,15 @@ use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
     community_members, followers, following, known_profiles, publish_comment, publish_community,
-    publish_media_post, publish_post, publish_profile, publish_profile_details, publish_wall,
+    publish_media_post, publish_profile_details, publish_wall,
     resolve_community, resolve_profile, set_follow, set_membership, set_reaction, FeedFilter,
     LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
     PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
     MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
+#[cfg(test)]
+use mini_social::publish_profile;
 use mini_sync::{kel_carrier, KelCache};
 use mini_windows_setup::{InstallOptions, RecordingShell, Setup, SetupStatus, WindowsShell};
 use mini_windows_vault::{load_existing, load_or_create, load_user_data, save_user_data, SeedPair};
