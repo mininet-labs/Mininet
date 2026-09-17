@@ -39,7 +39,7 @@ The connected-client design already points to the correct first move: a single a
 The architecture is no longer only a scope document:
 
 - `mini-app-protocol` is a dependency-free, versioned, length-framed contract with explicit commands, typed errors, bounded strings/collections, and no generic execute or filesystem primitive;
-- `mini-app-service` is a per-user process that owns DPAPI-backed controller reconstruction while unlocked, a process writer lock, durable sequence reservation, exact-signed-object publish recovery, idempotency receipts, feed materialization, and a bounded event backlog;
+- `mini-app-service` is a per-user process that owns DPAPI-backed controller reconstruction while unlocked, refuses a second live core-service instance, durably reserves sequences, recovers exact signed objects, records idempotency receipts, materializes feeds, and keeps a bounded event backlog;
 - the desktop launches that process as a sibling executable through a bounded command queue and fails closed for migrated signing actions if it is absent;
 - onboarding root/profile creation, identity lock/unlock, plain Home posts, and Home/Explore feed snapshots use the service;
 - Windows packaging ships `mininet-app-service.exe`, and native/cross-Windows CI includes the protocol and service.
@@ -52,10 +52,13 @@ changing command semantics.
 This is substantial W1 progress, not W1 completion. Replies/reactions,
 community and rich-profile mutations, media publication, messaging, sync/store
 ingest ownership, and several connection workflows still open/sign/mutate
-through the legacy desktop `Workspace`. Until those are migrated, the
-application service is the authority for the listed W1 flows but the repository
-must not claim the renderer has become a universal zero-authority client or
-that the one-writer rule covers every existing beta mutation.
+through the legacy desktop `Workspace`. The filesystem backend reads metadata
+from disk on each query, and the service rescans the local author's maximum
+sequence before reserving its next one, so these transitional writes remain
+visible without pretending they satisfy the final architecture. Until they are
+migrated, the application service is the authority only for the listed W1
+flows; the repository must not claim a universal zero-authority renderer or a
+universal single-writer guarantee.
 
 ## 3. Target process topology
 
