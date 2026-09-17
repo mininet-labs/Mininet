@@ -422,20 +422,6 @@ impl Workspace {
             .ok_or_else(|| "create a Mininet root first".to_string())
     }
 
-    fn create_root(&mut self) -> Result<(), String> {
-        if self.root_created() {
-            return Ok(());
-        }
-        let root_seeds =
-            load_or_create(&self.root.join("identity.dpapi")).map_err(|error| error.to_string())?;
-        let device_seeds =
-            load_or_create(&self.root.join("device.dpapi")).map_err(|error| error.to_string())?;
-        let identity = desktop_identity_from_seeds(&root_seeds, &device_seeds)?;
-        self.human = Some(identity.root.did());
-        self.identity = Some(identity);
-        Ok(())
-    }
-
     fn lock(&mut self) {
         self.identity = None;
     }
@@ -447,46 +433,6 @@ impl Workspace {
         let identity = load_desktop_identity(&self.root, true)?;
         self.human = Some(identity.root.did());
         self.identity = Some(identity);
-        Ok(())
-    }
-
-    fn publish_post(&mut self, text: &str) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_post(
-            &mut self.store,
-            &human,
-            &identity.device,
-            text,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
-    fn publish_profile(&mut self, name: &str, bio: &str) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_profile(
-            &mut self.store,
-            &human,
-            &identity.device,
-            name,
-            bio,
-            None,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
         Ok(())
     }
 
@@ -6407,7 +6353,7 @@ No tracking. No forced updates.",
                     .take(mini_ticket::MAX_REDEMPTION_TICKETS)
                     .collect();
                 self.notice = match self.workspace.as_mut() {
-                    Some(workspace) => match workspace.build_redemption(&ids, rate) {
+                    Some(workspace) => match workspace.build_redemption_confirmed(&ids, rate) {
                         Ok((id, micro)) => format!(
                             "Redemption request {} signed for {} over {} ticket(s). It settles when the audited layer accepts it.",
                             short_did(id.as_str()),
@@ -7909,7 +7855,7 @@ No tracking. No forced updates.",
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing the wall.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_public_wall(
+                    match workspace.publish_public_wall_confirmed(
                         self.wall_name.trim(),
                         self.wall_bio.trim(),
                         &link_refs,
