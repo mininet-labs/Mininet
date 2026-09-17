@@ -40,6 +40,42 @@ pub struct Card {
     pub avatar: Option<ObjectId>,
 }
 
+
+/// Convert the bounded application-core feed view into renderer cards.
+///
+/// The renderer does not reopen the store for this path; object identifiers
+/// are parsed and bounded data is copied from the service contract.
+pub fn from_service(cards: Vec<mini_app_protocol::FeedCard>) -> Result<Vec<Card>, String> {
+    cards
+        .into_iter()
+        .map(|card| {
+            Ok(Card {
+                id: ObjectId::parse(&card.id).map_err(|error| error.to_string())?,
+                author: card.author,
+                did: card.did,
+                body: card.body,
+                timestamp_ms: card.timestamp_ms,
+                reason: match card.reason {
+                    mini_app_protocol::FeedReason::Own => "Your post",
+                    mini_app_protocol::FeedReason::Followed => "You follow this author",
+                    mini_app_protocol::FeedReason::Received => "Received from a peer",
+                },
+                support_count: card.support_count as usize,
+                comment_count: card.comment_count as usize,
+                media: card
+                    .media
+                    .map(|id| ObjectId::parse(&id).map_err(|error| error.to_string()))
+                    .transpose()?,
+                own: card.own,
+                avatar: card
+                    .avatar
+                    .map(|id| ObjectId::parse(&id).map_err(|error| error.to_string()))
+                    .transpose()?,
+            })
+        })
+        .collect()
+}
+
 pub fn snapshot(
     root: &Path,
     human: &Did,
