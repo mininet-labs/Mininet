@@ -4,9 +4,7 @@
 //! egui thread only enqueues capability-shaped commands into a bounded queue;
 //! it never owns service stdin/stdout and never receives private key material.
 
-use mini_app_protocol::{
-    read_response, write_request, Command, Reply, Request, ResponseBody,
-};
+use mini_app_protocol::{read_response, write_request, Command, Reply, Request, ResponseBody};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command as ProcessCommand, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -57,10 +55,10 @@ impl Client {
         let (response, receiver) = mpsc::channel();
         match self.sender.try_send(Work { command, response }) {
             Ok(()) => Ok(receiver),
-            Err(TrySendError::Full(_)) => {
-                Err("application core command queue is full; retry after current work finishes"
-                    .to_string())
-            }
+            Err(TrySendError::Full(_)) => Err(
+                "application core command queue is full; retry after current work finishes"
+                    .to_string(),
+            ),
             Err(TrySendError::Disconnected(_)) => {
                 Err("application core process is not available".to_string())
             }
@@ -191,7 +189,6 @@ mod tests {
         assert!(first.len() <= mini_app_protocol::MAX_OPERATION_ID_BYTES);
         assert!(first
             .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric()
-                || matches!(byte, b'-' | b'_' | b'.' | b':')));
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':')));
     }
 }
