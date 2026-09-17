@@ -171,6 +171,7 @@ struct MininetApp {
     app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
     app_events_rx: Option<Receiver<Result<AppReply, String>>>,
     app_events_due: Instant,
+    app_last_event_id: Option<u64>,
     post_operation: Option<(String, String)>,
     profile_operation: Option<(String, String, String)>,
     view: View,
@@ -1608,6 +1609,7 @@ impl Default for MininetApp {
             app_action: None,
             app_events_rx: None,
             app_events_due: Instant::now(),
+            app_last_event_id: None,
             post_operation: None,
             profile_operation: None,
             view,
@@ -1779,6 +1781,7 @@ impl eframe::App for MininetApp {
             self.launched = true;
             self.apply_launch_policy();
         }
+        self.poll_app_service();
         self.poll_timeline(ctx);
         self.poll_catalog(ctx);
         self.poll_netsearch();
@@ -1811,6 +1814,9 @@ impl eframe::App for MininetApp {
             || self.visibility_rx.is_some()
             || self.selftest_rx.is_some()
             || self.timeline_rx.is_some()
+            || self.app_status_rx.is_some()
+            || self.app_action.is_some()
+            || self.app_events_rx.is_some()
         {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
@@ -1900,6 +1906,249 @@ impl MininetApp {
         if self.activity.len() > MAX_ACTIVITY {
             let excess = self.activity.len() - MAX_ACTIVITY;
             self.activity.drain(..excess);
+        }
+    }
+
+
+    fn core_unlocked(&self) -> bool {
+        self.app_status
+            .as_ref()
+            .is_some_and(|status| status.identity_unlocked)
+    }
+
+    fn core_available(&self) -> bool {
+        self.app_service.is_some()
+    }
+
+    fn start_core_action(&mut self, action: CoreAction, command: AppCommand) {
+        if self.app_action.is_some() {
+            self.notice = "The application core is finishing the previous signing action.".into();
+            return;
+        }
+        let Some(client) = self.app_service.as_ref() else {
+            self.notice =
+                "Application core unavailable. This signing action is disabled.".to_string();
+            return;
+        };
+        match client.request(command) {
+            Ok(receiver) => {
+                self.app_action = Some((action, receiver));
+                self.notice = "Application core is processing the signed action…".to_string();
+            }
+            Err(error) => {
+                self.notice = format!("Application core unavailable: {error}");
+            }
+        }
+    }
+
+    fn request_core_status(&mut self) {
+        if self.app_status_rx.is_some() {
+            return;
+        }
+        let Some(client) = self.app_service.as_ref() else {
+            return;
+        };
+        match client.request(AppCommand::Status) {
+            Ok(receiver) => self.app_status_rx = Some(receiver),
+            Err(error) => self.notice = format!("Could not query application core: {error}"),
+        }
+    }
+
+    fn post_operation_id(&mut self, text: &str) -> String {
+        if let Some((saved_text, operation_id)) = self.post_operation.as_ref() {
+            if saved_text == text {
+                return operation_id.clone();
+            }
+        }
+        let operation_id = app_service::operation_id("post");
+        self.post_operation = Some((text.to_string(), operation_id.clone()));
+        operation_id
+    }
+
+    fn profile_operation_id(&mut self, display_name: &str, bio: &str) -> String {
+        if let Some((saved_name, saved_bio, operation_id)) = self.profile_operation.as_ref() {
+            if saved_name == display_name && saved_bio == bio {
+                return operation_id.clone();
+            }
+        }
+        let operation_id = app_service::operation_id("profile");
+        self.profile_operation = Some((
+            display_name.to_string(),
+            bio.to_string(),
+            operation_id.clone(),
+        ));
+        operation_id
+    }
+
+    fn poll_app_service(&mut self) {
+        let status_result = self.app_status_rx.as_ref().and_then(|receiver| {
+            match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("application core status request stopped".to_string()))
+                }
+            }
+        });
+        if let Some(result) = status_result {
+            self.app_status_rx = None;
+            match result {
+                Ok(AppReply::Status(status)) => {
+                    self.app_status = Some(status);
+                }
+                Ok(_) => {
+                    self.notice =
+                        "Application core returned an unexpected status response.".to_string();
+                }
+                Err(error) => {
+                    self.notice = format!("Could not read application core status: {error}");
+                }
+            }
+        }
+
+        let action_result = self.app_action.as_ref().and_then(|(_, receiver)| {
+            match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("application core action stopped".to_string()))
+                }
+            }
+        });
+        if let Some(result) = action_result {
+            let (action, _) = self
+                .app_action
+                .take()
+                .expect("action receiver existed when result was read");
+            self.finish_core_action(action, result);
+        }
+
+        let event_result = self.app_events_rx.as_ref().and_then(|receiver| {
+            match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("application core event request stopped".to_string()))
+                }
+            }
+        });
+        if let Some(result) = event_result {
+            self.app_events_rx = None;
+            self.app_events_due = Instant::now() + Duration::from_secs(1);
+            match result {
+                Ok(AppReply::Events(events)) => {
+                    for event in events {
+                        if self
+                            .app_last_event_id
+                            .is_some_and(|last| event.event_id != last.saturating_add(1))
+                        {
+                            self.timeline_refresh = Instant::now();
+                            self.request_core_status();
+                        }
+                        self.app_last_event_id = Some(event.event_id);
+                        match event.kind {
+                            ServiceEventKind::RootCreated { .. } => self.request_core_status(),
+                            ServiceEventKind::IdentityChanged { unlocked } => {
+                                if let Some(status) = self.app_status.as_mut() {
+                                    status.identity_unlocked = unlocked;
+                                } else {
+                                    self.request_core_status();
+                                }
+                            }
+                            ServiceEventKind::ObjectPublished { .. }
+                            | ServiceEventKind::FeedChanged => {
+                                self.timeline_refresh = Instant::now();
+                            }
+                        }
+                    }
+                }
+                Ok(_) => {
+                    self.notice =
+                        "Application core returned an unexpected event response.".to_string();
+                }
+                Err(error) => {
+                    self.notice = format!("Application core events unavailable: {error}");
+                }
+            }
+        }
+
+        if self.app_events_rx.is_none() && Instant::now() >= self.app_events_due {
+            if let Some(client) = self.app_service.as_ref() {
+                match client.request(AppCommand::DrainEvents { limit: 64 }) {
+                    Ok(receiver) => self.app_events_rx = Some(receiver),
+                    Err(error) => {
+                        self.app_events_due = Instant::now() + Duration::from_secs(2);
+                        self.notice = format!("Application core events unavailable: {error}");
+                    }
+                }
+            }
+        }
+    }
+
+    fn finish_core_action(&mut self, action: CoreAction, result: Result<AppReply, String>) {
+        match (action, result) {
+            (CoreAction::CreateRoot, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.reload_workspace();
+                self.notice =
+                    "Root created locally by the application core. Publish your public account to continue."
+                        .to_string();
+            }
+            (CoreAction::UnlockIdentity, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.notice =
+                    "Identity unlocked inside the application core. Review and confirm before signing."
+                        .to_string();
+            }
+            (CoreAction::LockIdentity, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.signing_confirmation = false;
+                self.notice =
+                    "Identity locked in the application core. Reading remains available; signing is disabled."
+                        .to_string();
+            }
+            (CoreAction::LockAfterProfile, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.notice = "Public account created locally and identity locked again. Add any optional public details in Creator, or open People when you are ready.".to_string();
+            }
+            (
+                CoreAction::PublishProfile { display_name, bio },
+                Ok(AppReply::Published(_)),
+            ) => {
+                self.profile_name = display_name;
+                self.profile_bio = bio;
+                self.profile_operation = None;
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.view = View::Creator;
+                self.start_core_action(CoreAction::LockAfterProfile, AppCommand::LockIdentity);
+            }
+            (CoreAction::PublishPost { text }, Ok(AppReply::Published(_))) => {
+                if self.composer.trim() == text {
+                    self.composer.clear();
+                }
+                self.post_operation = None;
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.timeline_refresh = Instant::now();
+                self.notice = if self.network_session.is_some() || self.host.is_some() {
+                    "Posted through the application core. It shares with your peers on the next exchange."
+                        .to_string()
+                } else {
+                    "Posted through the application core and saved locally. Start a session in Connections to share it."
+                        .to_string()
+                };
+            }
+            (action, Ok(reply)) => {
+                self.notice = format!(
+                    "Application core returned an unexpected response for {action:?}: {reply:?}"
+                );
+                self.request_core_status();
+            }
+            (action, Err(error)) => {
+                self.notice = format!("Application core {action:?} failed: {error}");
+                self.request_core_status();
+            }
         }
     }
 
