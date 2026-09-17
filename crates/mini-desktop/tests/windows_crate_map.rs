@@ -124,6 +124,7 @@ fn direct_desktop_dependencies_are_declared_as_direct_and_only_them() {
 fn every_row_uses_a_known_process_wave_and_nonempty_product_contract() {
     const PROCESSES: &[&str] = &[
         "ui",
+        "shared-protocol",
         "core-service",
         "node-service",
         "wallet-service",
