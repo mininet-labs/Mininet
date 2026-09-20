@@ -3020,6 +3020,7 @@ name = "mini-economy"
 version = "0.0.1"
 dependencies = [
  "mini-crypto",
+ "mini-settlement",
 ]
 
 [[package]]
@@ -3427,6 +3428,7 @@ name = "mini-settlement"
 version = "0.0.1"
 dependencies = [
  "mini-crypto",
+ "mini-durable",
 ]
 
 [[package]]

@@ -8,6 +8,8 @@
 #![warn(missing_debug_implementations)]
 
 mod amount;
+pub mod cadence;
+pub mod credit;
 mod error;
 mod genesis;
 mod issuance;
