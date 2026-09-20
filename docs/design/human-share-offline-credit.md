@@ -183,6 +183,15 @@ No calendar dates are promised: later stages depend on review and explicit polic
 The mobile OS can reuse these wallet primitives after their acceptance gates; it
 is not a prerequisite for prototyping them on existing supported devices.
 
+## Runnable local example
+
+Run `cargo run --locked -p mini-economy --example offline_credit`. The example
+uses synthetic keys and policy, signs 30 + 20 + 50 MINI, reopens the encrypted
+journal, refuses another 1, reconciles each coupon twice without double-counting,
+repays 60 then 40 from simulated actual releases, and issues a distinct online
+renewal. It deletes its temporary encrypted journal after successful completion.
+This exercises the library integration; no network or real payment is performed.
+
 ## Evidence and remaining risks
 
 Tests live in `mini-settlement/tests/credit_permit.rs`,
