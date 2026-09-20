@@ -18,4 +18,5 @@ mini-objects = { path = "../mini-objects" }
 mini-store = { path = "../mini-store" }
 
 [dev-dependencies]
+rand_core = { version = "0.6", features = ["getrandom"] }
 tempfile = "3"
