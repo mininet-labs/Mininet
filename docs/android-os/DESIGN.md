@@ -1,5 +1,24 @@
 # Mininet on a hardened Android OS: integration design
 
+**Status: unreviewed P3 platform-feasibility spike, not an accepted decision.**
+[`docs/mobile/MOBILE_OS_ROADMAP.md`](../mobile/MOBILE_OS_ROADMAP.md) (the
+accepted mobile-OS roadmap) explicitly reserves the OS source baseline,
+hardware target, and support commitment as future decisions requiring
+review — GrapheneOS below is one *candidate* baseline this document
+evaluates, not a chosen one. The roadmap also states its P3 (reference
+image) work depends on P0–P2 (device inventory, custody/recovery,
+lifecycle, real mesh — see the roadmap's M00–M08) landing first, with one
+named exception: *"The P3 feasibility spike can run alongside client
+work, but cannot consume the work needed to make the network usable."*
+This document and its accompanying `os/grapheneos-overlay/` overlay are
+exactly that early, parallel P3 spike — evaluating whether a GrapheneOS
+base is even feasible — not a substitute for M00's exact-revision
+two-phone baseline or a claim that the OS work is scheduled ahead of it.
+If GrapheneOS is later accepted as the baseline, this spike's output
+becomes the seed for the roadmap's M09 ("reference image spike"), likely
+relocated under a path like `platform/android/` per that work package's
+own naming; until then it stays here, clearly labeled as unadopted.
+
 ## Goal
 
 Ship Mininet as a preinstalled, preconfigured system app on a
@@ -25,7 +44,11 @@ against real threat models. Re-deriving that from scratch would mean Mininet
 inheriting *our* mistakes in a domain neither this project's crates nor its
 existing contributors have expertise in.
 
-**Recommendation: base on GrapheneOS.** It already ships:
+**This spike evaluates GrapheneOS as the leading candidate**, without
+deciding it — the roadmap proposal itself names GrapheneOS only as "a
+comparator, not an endorsement, affiliation, or chosen base"
+([`MOBILE_OS_PROPOSAL.md`](../mobile/MOBILE_OS_PROPOSAL.md) §9). It's
+attractive as a candidate because it already ships:
 - A minimal, hardened `system_server` and kernel config, with a much smaller
   attack surface than stock AOSP.
 - No baked-in Google Play Services (avoids exactly the kind of default

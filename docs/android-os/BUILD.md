@@ -1,6 +1,9 @@
 # Building a GrapheneOS image with Mininet preinstalled
 
-Read [`DESIGN.md`](DESIGN.md) first for what this does and does not change.
+**This is an unreviewed P3 feasibility spike, not the accepted mobile-OS
+plan** — read [`DESIGN.md`](DESIGN.md)'s status note first, and see
+[`docs/mobile/MOBILE_OS_ROADMAP.md`](../mobile/MOBILE_OS_ROADMAP.md) for
+the actual accepted sequencing (M00 device inventory first).
 
 This cannot be done on this Windows checkout, or on any machine without
 serious build resources. Plan for:
