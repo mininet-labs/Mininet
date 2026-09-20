@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Priv-app permission allowlist for Mininet. Android silently strips any
+  "privileged" permission from a priv-app that isn't explicitly allowlisted
+  here, regardless of what its AndroidManifest.xml requests -- this file
+  keeps that grant list in lockstep with
+  app/android/app/src/main/AndroidManifest.xml's actual <uses-permission>
+  list. Do not add anything here that the manifest doesn't also request.
+-->
+<permissions>
+    <privapp-permissions package="org.mininet.app">
+        <permission name="android.permission.BLUETOOTH_SCAN" />
+        <permission name="android.permission.BLUETOOTH_ADVERTISE" />
+        <permission name="android.permission.BLUETOOTH_CONNECT" />
+    </privapp-permissions>
+</permissions>

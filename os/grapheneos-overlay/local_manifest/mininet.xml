@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  repo local manifest: pulls this repository into a GrapheneOS source tree
+  at device/mininet/mininet, so the app/android Gradle project inside it
+  (device/mininet/mininet/app/android) can be built as part of the OS
+  image. See docs/android-os/BUILD.md step 2.
+
+  Usage: copy to .repo/local_manifests/mininet.xml inside a synced
+  GrapheneOS source checkout, then `repo sync device/mininet/mininet`.
+-->
+<manifest>
+  <remote name="mininet-labs" fetch="https://github.com/mininet-labs/" />
+  <project
+      name="mininet"
+      path="device/mininet/mininet"
+      remote="mininet-labs"
+      revision="main" />
+</manifest>

@@ -480,7 +480,10 @@ documents above; see
 for what's activated, staged, or founder-only),
 [`docs/LEGAL_DISCLAIMER.md`](docs/LEGAL_DISCLAIMER.md) (the project's
 constitutional legal position — voluntary participation, no universal
-representative, individual legal responsibility, no protocol ownership).
+representative, individual legal responsibility, no protocol ownership),
+[`docs/android-os/`](docs/android-os/) (preinstalling `app/android` as a
+priv-app on a hardened Android OS fork — design and build steps, not yet
+built or tested on real hardware).
 Find anything offline: `python tools/mininet_nav.py build` (see
 [`docs/NAVIGATION.md`](docs/NAVIGATION.md)).
 
