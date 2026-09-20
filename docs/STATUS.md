@@ -2644,7 +2644,7 @@ the top development priority.
 
 See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,
 backend composition, maturity matrix, and implementation order.
-No desktop or web application exists anywhere in this repository.
+A Windows-first desktop reference client exists; a browser client is not implemented.
 `docs/UI_BETA_PLAN.md` is a plan, not code, for those. An Android client
 foundation exists: a `mini-ffi` UniFFI command/event boundary plus a thin
 Jetpack Compose onboarding shell, stopping at `RootCreationReady` with no
@@ -3056,3 +3056,18 @@ trusted first peer, majority-by-download rule, admin/unmasking key, or
 value-to-routing/ranking/voice path. An authenticated endpoint proves control of
 one key-bound endpoint on one channel, not personhood, operator independence,
 result truth, or governance standing.
+
+## Connected desktop, step 1 — 2026-09-14 (D-0522)
+
+`mini-desktop` gained an X-inspired layout, actual author names/times, a
+worker-loaded 50-post timeline, received-timeline search/media filtering and
+an owner-started, 15-minute expiring public peer-sync session with capped
+retry backoff. `cargo fmt --all`, `cargo clippy --all-targets --all-features
+--workspace -- -D warnings`, and `cargo test --workspace --all-features` all
+pass on this change (12 new/existing `mini-desktop` tests included). Windows
+visual QA and packaging have not run — this was verified on Linux only.
+This is not internet-wide discovery, deployed relay/NAT traversal, secure
+asynchronous messaging, video playback, maps, dating or business workflows;
+those are later steps. See `docs/proposals/connected-mininet-client.md` for
+the full requested product mapping, founder constraints, connectivity
+dependencies and measurable gates.

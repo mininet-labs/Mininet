@@ -24454,3 +24454,96 @@ follow-ups, unchanged.
 per the voice/value wall" and "no WiX/MSI" choices specifically. Everything
 else in D-0520 — the package format, the install engine, the setup program,
 the CI jobs — stands as written.
+
+### D-0522 — Connected desktop, step 1: `mini-desktop` gets an X-inspired timeline, honest author/time rendering, and an owner-started expiring public-sync session  ·  *Shipped (step 1 of 6)*
+
+**Date:** 2026-09-14 · **Refs:** `crates/mini-desktop/src/main.rs`;
+`crates/mini-desktop/src/timeline.rs` (new); `crates/mini-desktop/src/
+network_session.rs` (new); `crates/mini-desktop/README.md`; `docs/STATUS.md`;
+`docs/proposals/connected-mininet-client.md` (new); base commit `471b2575`
+(D-0520/D-0521, PR #345).
+
+**Decision:** reworked the reference client's home view around an X-inspired
+dark three-column layout (persistent nav rail, central timeline, contextual
+column on wide windows), and shipped the first slice of
+`docs/proposals/connected-mininet-client.md`'s six-step plan for a socially
+useful, internet-reachable Mininet client:
+
+1. **`timeline::snapshot`** materializes up to 50 feed cards (author,
+   real signed timestamp, reason, support/comment counts, media flag) off
+   the UI thread via the existing worker-channel pattern, replacing
+   per-repaint disk scans; results refresh at most once per 5 seconds.
+   `timeline::age` renders real author-claimed relative time and never
+   underflows on a future timestamp.
+2. **Explore search and a media-only filter** run over the received
+   timeline snapshot — not a global index; the UI does not claim otherwise.
+3. **`network_session::NetworkSession`** is a small, pure state machine:
+   an owner enters one `host:port`, gets a 15-minute session, sync attempts
+   recur every 30s on success and back off to 60s/120s on failure, and the
+   session cannot be revived by editing the address field mid-retry (the
+   in-flight endpoint is pinned). Expiry stops scheduling new exchanges; an
+   in-flight exchange may still finish. Nothing restarts automatically, no
+   endpoint is trusted as an identity, and no default peer is compiled in —
+   this also removes the previous hardcoded `127.0.0.1:46000` default.
+4. Regression tests for all of the above (12 tests total in the crate,
+   including the two new modules).
+
+**Reason:** the client's home view previously did per-frame disk work and had
+no honest connectivity story beyond a one-shot manual sync button; nothing
+let an owner ask "stay synced with this peer for a while" without re-driving
+the sync flow by hand every time. `docs/proposals/connected-mininet-client.md`
+lays out the full requested product surface (an "all-in-one" feed combining
+patterns familiar from X, WhatsApp, Instagram, TikTok, Reddit, YouTube,
+torrent-style distribution, search, maps, dating, and business profiles) and
+is explicit that most of that table's right-hand column — indexed discovery,
+relay/NAT traversal, ratcheted messaging, video playback, maps, dating, real
+business workflows — is unbuilt; this decision covers only its step 1
+(desktop layout, honest state rendering, off-render-thread timeline,
+search/filter, and the expiring sync scheduler). Steps 2-6 are future work,
+each gated on its own vertical slice per the proposal's implementation
+sequence.
+
+**Constitutional impact:** no frozen invariant touched. Directive 16 / P1
+(voice/value wall): `mini-desktop` gains no edge to `mini-value`,
+`mini-bounty`, or `mini-treasury` in either direction — `Cargo.toml` is
+unchanged. U1 (no forced update, no kill path): unaffected: this is sync
+scheduling, not update adoption. FD-09/P5/P6 (privacy is structural, distinct
+audiences): the sync session carries only the owner-chosen public endpoint
+and never auto-syncs private conversation routes. Directive 14 (simplicity):
+`NetworkSession` is deliberately a plain state machine (endpoint, expiry,
+next-attempt, failure count) with no networking of its own — it schedules
+calls into the existing verified `MINI/SYNC1` sync path, it doesn't
+reimplement it. This is Tier O (`docs/INVARIANTS.md`: "App surfaces ...
+client software ... constrained only in that they may not cause a Tier-F
+violation") — no [FREEZE] choice is made, so this entry is recorded for
+traceability and STATUS.md accuracy, not because Tier O requires a D-number.
+
+**Implementation status:** shipped and independently validated in this
+session (not merely applied) — `git apply --check` against base commit
+`471b2575`, then `cargo fmt --all -- --check`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` (all crates, wasm32-wasip2 target installed to cover
+`mini-build-runner-wasmtime`/`mini-cli`'s guest-compile tests) all pass
+clean on Linux. `crates/mini-desktop`'s own suite: 12 passed, 0 failed.
+Windows visual QA, packaging, and a real two-machine internet sync test
+(different NATs) have not run — see the proposal doc's acceptance gates
+before claiming an internet beta.
+
+**Failure point:** a successful sync exchange confirms that one protocol
+exchange with the pinned endpoint succeeded — not the intended peer's
+identity, global reachability, or that every follower received every
+object. Per-I/O socket timeouts are not yet a whole-exchange deadline, so a
+slow-but-alive peer can hold a retry slot past what the UI implies. Explore
+search only ever sees posts already received into the local store, not a
+real index — a query for content this device hasn't synced returns nothing,
+silently indistinguishable from "no such content exists."
+
+**Required follow-up:** step 2 (`docs/proposals/connected-mininet-client.md`):
+a durable outbox with queued/sent/acknowledged states, real relay/NAT-traversal
+paths, signed expiring endpoint advertisements, and a single application
+service that serializes store mutation separately from UI. Windows-native CI
+run and visual QA for this change specifically (the existing `windows-client`
+CI job from D-0520 covers packaging/install, not this view). An end-to-end
+whole-exchange deadline in the transport layer, not just per-I/O timeouts.
+
+**Supersedes / superseded by:** none.

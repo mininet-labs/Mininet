@@ -2,6 +2,22 @@
 
 Windows-first egui reference client shell for Mininet.
 
+The connected-client work (step 1, D-0522) adds an X-inspired dark
+three-column layout, real author names and author-claimed relative times,
+worker-loaded timeline snapshots, Explore search over the latest 50 received
+timeline posts, and a media-post filter. `cargo fmt`, workspace Clippy, and
+`cargo test -p mini-desktop` pass; Windows visual QA has not run. Explore is
+not yet global search and Media is not a video player.
+
+Connections can start an explicit 15-minute public-sync session with a chosen
+reachable peer. Exchanges recur every 30 seconds after success, backing off to
+60/120 seconds after failures. Stop/expiry prevents new exchanges; an active
+exchange may finish. Sessions never restart automatically and never include
+private conversation routes. No relay, NAT traversal or public directory is
+provided by this scheduler. See
+[`connected-mininet-client.md`](../../docs/proposals/connected-mininet-client.md)
+for the complete unified-product specification and missing deployment work.
+
 Run it locally:
 
 ```powershell
@@ -124,9 +140,9 @@ real encrypted TCP bearer and verified `MINI/SYNC1` ingest. It is
 foreground-user initiated, runs off the UI thread, and accepts no silent
 background network activity. People adds a separate opt-in three-second LAN
 scan and 60-second visible window; announcements are unverified hints, each
-socket has bounded I/O, and there is no retry loop or always-on listener.
+socket has bounded I/O, and there is no always-on listener. Connections separately offers an explicit, expiring public-sync retry session.
 
-It does not start networking, open external URLs, collect telemetry, execute
+It does not start networking on launch, open external URLs, collect telemetry, execute
 updates, or embed a browser. Private signing material is not stored as
 plaintext.
 

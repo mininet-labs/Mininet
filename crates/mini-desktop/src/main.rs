@@ -1,13 +1,14 @@
 //! Windows-first Mininet reference client shell.
 //!
-//! This UI deliberately has no analytics, remote configuration, background
-//! fetch, embedded browser, or update executor. Those are security properties
-//! of the shell, not merely settings displayed to the user. Network and
-//! protocol integration should be added behind explicit local interfaces.
+//! No analytics, remote configuration, embedded browser, or update executor.
+//! Public peer sync can repeat within an explicit owner-started session;
+//! networking never starts merely because the application was launched.
 
 #![forbid(unsafe_code)]
 
 mod conversation_state;
+mod network_session;
+mod timeline;
 
 use conversation_state::ConversationRecord;
 use did_mini::{Capabilities, Controller, Did};
@@ -18,13 +19,12 @@ use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 use mini_social::{
-    comments, community_members, feed, followers, following, known_profiles, publish_comment,
-    publish_community, publish_media_post, publish_post, publish_profile, publish_profile_details,
-    publish_wall, resolve_community, resolve_post, resolve_profile, set_follow, set_membership,
-    set_reaction, FeedFilter, FeedItem, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
-    NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy,
-    MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
-    MAX_PROFILE_FIELD_VALUE_BYTES,
+    community_members, followers, following, known_profiles, publish_comment, publish_community,
+    publish_media_post, publish_post, publish_profile, publish_profile_details, publish_wall,
+    resolve_community, resolve_profile, set_follow, set_membership, set_reaction, FeedFilter,
+    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
+    PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
+    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{
@@ -36,7 +36,7 @@ use std::collections::HashMap;
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const PEER_IO_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -44,6 +44,8 @@ const PEER_IO_TIMEOUT: Duration = Duration::from_secs(10);
 enum View {
     Onboarding,
     Home,
+    Discover,
+    Media,
     Inbox,
     People,
     Communities,
@@ -96,6 +98,16 @@ struct MininetApp {
     workspace: Option<Workspace>,
     view: View,
     privacy: PrivacyState,
+    theme_applied: bool,
+    network_session: Option<network_session::NetworkSession>,
+    session_sync: bool,
+    last_sync_ok: Option<bool>,
+    timeline_cards: Vec<timeline::Card>,
+    timeline_rx: Option<Receiver<Result<Vec<timeline::Card>, String>>>,
+    timeline_filter: FeedFilter,
+    timeline_refresh: Instant,
+    timeline_error: Option<String>,
+    timeline_query: String,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -572,10 +584,6 @@ impl Workspace {
         Ok(())
     }
 
-    fn feed(&self, filter: FeedFilter) -> Result<Vec<FeedItem>, String> {
-        feed(&self.store, self.human_did()?, filter, 50).map_err(|error| error.to_string())
-    }
-
     fn publish_comment(
         &mut self,
         parent: &mini_objects::ObjectId,
@@ -619,12 +627,6 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
-    }
-
-    fn comment_count(&self, target: &mini_objects::ObjectId) -> usize {
-        comments(&self.store, target)
-            .map(|items| items.len())
-            .unwrap_or(0)
     }
 
     fn export_bundle(&self, path: &str) -> Result<usize, String> {
@@ -758,16 +760,6 @@ impl Workspace {
             .iter()
             .filter(|person| incoming.iter().any(|other| other == *person))
             .count()
-    }
-
-    fn post_text(&self, item: &FeedItem) -> String {
-        // Canonical path only: `resolve_post` re-applies the same
-        // structural validation `feed` already used to admit this item
-        // (type, bound, UTF-8, link shape), rather than re-decoding the
-        // raw payload here and risking a second, divergent decode rule.
-        resolve_post(&self.store, &item.id)
-            .map(|post| post.text)
-            .unwrap_or_else(|_| "[unreadable or encrypted post]".to_string())
     }
 
     fn communities(&self) -> Vec<(mini_objects::ObjectId, String, String, usize, bool)> {
@@ -1324,6 +1316,16 @@ impl Default for MininetApp {
             workspace,
             view,
             privacy: load_privacy_settings(),
+            theme_applied: false,
+            network_session: None,
+            session_sync: false,
+            last_sync_ok: None,
+            timeline_cards: Vec::new(),
+            timeline_rx: None,
+            timeline_filter: FeedFilter::Chronological,
+            timeline_refresh: Instant::now(),
+            timeline_error: None,
+            timeline_query: String::new(),
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1392,7 +1394,7 @@ impl Default for MininetApp {
                 .join("mininet-import.minibundle")
                 .display()
                 .to_string(),
-            peer_address: "127.0.0.1:46000".to_string(),
+            peer_address: String::new(),
             listen_port: "46000".to_string(),
             follow_target: String::new(),
             conversation_label: String::new(),
@@ -1417,7 +1419,30 @@ impl Default for MininetApp {
 
 impl eframe::App for MininetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.apply_theme(ctx);
+        if !self.theme_applied {
+            self.apply_theme(ctx);
+            self.theme_applied = true;
+        }
+        self.poll_timeline(ctx);
+        if self
+            .network_session
+            .as_ref()
+            .is_some_and(|session| session.expired(Instant::now()))
+        {
+            self.network_session = None;
+            self.notice = "Connection session ended. Start another session to keep syncing.".into();
+        }
+        if self.network_session.is_some() {
+            ctx.request_repaint_after(Duration::from_secs(1));
+        }
+        if self.sync_rx.is_some()
+            || self.discovery_rx.is_some()
+            || self.visibility_rx.is_some()
+            || self.selftest_rx.is_some()
+            || self.timeline_rx.is_some()
+        {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        }
         if self.view == View::Creator {
             if let Some(path) = ctx.input(|input| {
                 input
@@ -1446,12 +1471,26 @@ impl eframe::App for MininetApp {
                 Err(error) => self.notice = format!("Nearby scan failed: {error}"),
             }
         }
-        if let Some(result) = self
+        let sync_result = self
             .sync_rx
             .as_ref()
-            .and_then(|receiver| receiver.try_recv().ok())
-        {
+            .and_then(|receiver| match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => Some(Err(
+                    "Sync worker stopped; delivery was not confirmed.".into(),
+                )),
+            });
+        if let Some(result) = sync_result {
             self.sync_rx = None;
+            self.last_sync_ok = Some(result.is_ok());
+            self.timeline_refresh = Instant::now();
+            if self.session_sync {
+                if let Some(session) = self.network_session.as_mut() {
+                    session.completed(result.is_ok(), Instant::now());
+                }
+                self.session_sync = false;
+            }
             self.workspace = Workspace::open().ok();
             self.notice = match (self.sync_context.take(), result) {
                 (Some(SyncContext::FriendRequest { display_name }), Ok(summary)) => format!(
@@ -1521,6 +1560,20 @@ impl eframe::App for MininetApp {
                 Err(error) => error,
             };
         }
+        if self.sync_rx.is_none() && self.visibility_rx.is_none() {
+            if let Some(endpoint) = self
+                .network_session
+                .as_ref()
+                .filter(|session| session.due(Instant::now()))
+                .map(|session| session.endpoint().to_owned())
+            {
+                // Bind every retry to the exact endpoint the owner enabled,
+                // regardless of subsequent edits to the connection form.
+                let edited_endpoint = std::mem::replace(&mut self.peer_address, endpoint);
+                self.session_sync = self.start_peer_sync(false, None);
+                self.peer_address = edited_endpoint;
+            }
+        }
         if self.view == View::Onboarding {
             self.onboarding(ctx);
             return;
@@ -1529,9 +1582,22 @@ impl eframe::App for MininetApp {
             ui.set_min_height(54.0);
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("MININET").strong().size(20.0));
-                ui.label(egui::RichText::new("local-first social network").color(egui::Color32::GRAY));
+                ui.label(egui::RichText::new("Your people. Your world. Your internet.").color(egui::Color32::GRAY));
                 ui.separator();
-                ui.colored_label(egui::Color32::from_rgb(100, 210, 160), "LOCAL ONLY");
+                let connection = if self.sync_rx.is_some() {
+                    "Syncing"
+                } else if self.network_session.is_some() {
+                    match self.last_sync_ok {
+                        Some(true) => "Session active · last sync succeeded",
+                        Some(false) => "Peer unavailable · retry scheduled",
+                        None => "Connecting",
+                    }
+                } else {
+                    "Offline · saved content available"
+                };
+                if ui.button(connection).clicked() {
+                    self.view = View::Connections;
+                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("Privacy center").clicked() {
                         self.view = View::Privacy;
@@ -1562,23 +1628,66 @@ impl eframe::App for MininetApp {
                 ui.label(egui::RichText::new("YOUR NETWORK").small().strong());
                 ui.add_space(6.0);
                 self.nav_button(ui, View::Home, "Home");
-                self.nav_button(ui, View::Inbox, "Inbox (beta)");
+                self.nav_button(ui, View::Discover, "Explore");
+                self.nav_button(ui, View::Media, "Media");
+                self.nav_button(ui, View::Inbox, "Messages");
                 self.nav_button(ui, View::People, "People");
                 self.nav_button(ui, View::Communities, "Communities");
                 self.nav_button(ui, View::Creator, "Creator studio");
                 self.nav_button(ui, View::Connections, "Connections");
                 self.nav_button(ui, View::System, "System & storage");
                 ui.add_space(18.0);
-                ui.label(egui::RichText::new("CONTROL PLANE").small().strong());
+                ui.label(egui::RichText::new("SETTINGS").small().strong());
                 ui.add_space(6.0);
                 self.nav_button(ui, View::Privacy, "Privacy & safety");
                 self.nav_button(ui, View::Diagnostics, "Diagnostics");
                 self.nav_button(ui, View::Updates, "Version & install");
                 ui.separator();
                 ui.label(
-                    egui::RichText::new("No analytics\nNo ad SDKs\nNo embedded web view").small(),
+                    egui::RichText::new(
+                        "Your keys. Your choices.\nNo tracking. No forced updates.",
+                    )
+                    .small(),
                 );
             });
+
+        if ctx.screen_rect().width() >= 1100.0 {
+            egui::SidePanel::right("discovery_sidebar")
+                .resizable(false).default_width(270.0).show(ctx, |ui| {
+                    ui.add_space(20.0);
+                    ui.add(egui::TextEdit::singleline(&mut self.timeline_query)
+                        .hint_text("Search Mininet"));
+                    if ui.button("Explore posts").clicked() { self.view = View::Discover; }
+                    ui.add_space(28.0);
+                    ui.heading("Make it your internet");
+                    ui.label("Follow people, join a community, share what you create.");
+                    ui.add_space(12.0);
+                    if ui.button("Find your people").clicked() { self.view = View::People; }
+                    if ui.button("Browse communities").clicked() { self.view = View::Communities; }
+                    ui.add_space(28.0);
+                    ui.heading("You choose the feed");
+                    ui.label("Following and your own posts. Chronological by default. No hidden paid ranking.");
+                    ui.add_space(28.0);
+                    if ui.button("Network connections").clicked() { self.view = View::Connections; }
+                    ui.label("Public sync sessions connect to the peer you select. Your saved content survives disconnection.");
+                });
+        }
+
+        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(egui::RichText::new(&self.notice).small());
+                ui.separator();
+                ui.label(egui::RichText::new("Updates: manual approval").small());
+                ui.label(
+                    egui::RichText::new(if self.network_session.is_some() {
+                        "Public sync session enabled"
+                    } else {
+                        "Sync session stopped"
+                    })
+                    .small(),
+                );
+            });
+        });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
@@ -1592,6 +1701,8 @@ impl eframe::App for MininetApp {
                             unreachable!("onboarding returns before the main shell")
                         }
                         View::Home => self.home(ui),
+                        View::Discover => self.discover(ui),
+                        View::Media => self.media_timeline(ui),
                         View::Inbox => self.inbox(ui),
                         View::People => self.people(ui),
                         View::Communities => self.communities(ui),
@@ -1605,19 +1716,157 @@ impl eframe::App for MininetApp {
                     ui.add_space(18.0);
                 });
         });
-
-        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(egui::RichText::new(&self.notice).small());
-                ui.separator();
-                ui.label(egui::RichText::new("Updates: manual approval").small());
-                ui.label(egui::RichText::new("No background sync").small());
-            });
-        });
     }
 }
 
 impl MininetApp {
+    fn poll_timeline(&mut self, ctx: &egui::Context) {
+        if let Some(receiver) = self.timeline_rx.as_ref() {
+            let result = match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("Timeline worker stopped. Retry refresh.".into()))
+                }
+            };
+            if let Some(result) = result {
+                self.timeline_rx = None;
+                self.timeline_refresh = Instant::now() + Duration::from_secs(5);
+                match result {
+                    Ok(cards) => {
+                        self.timeline_cards = cards;
+                        self.timeline_error = None;
+                    }
+                    Err(error) => self.timeline_error = Some(error),
+                }
+            }
+        }
+        if !matches!(self.view, View::Home | View::Discover | View::Media) {
+            return;
+        }
+        if self.timeline_rx.is_none()
+            && (Instant::now() >= self.timeline_refresh || self.timeline_filter != self.feed_filter)
+        {
+            if self.timeline_filter != self.feed_filter {
+                self.timeline_cards.clear();
+            }
+            let Some((root, human)) = self.workspace.as_ref().and_then(|workspace| {
+                workspace
+                    .human
+                    .clone()
+                    .map(|human| (workspace.root.clone(), human))
+            }) else {
+                return;
+            };
+            self.timeline_filter = self.feed_filter;
+            let filter = self.feed_filter;
+            let (sender, receiver) = mpsc::channel();
+            self.timeline_rx = Some(receiver);
+            let repaint = ctx.clone();
+            std::thread::spawn(move || {
+                let _ = sender.send(timeline::snapshot(&root, &human, filter));
+                repaint.request_repaint();
+            });
+        }
+        ctx.request_repaint_after(Duration::from_secs(5));
+    }
+
+    fn render_timeline(&mut self, ui: &mut egui::Ui, media_only: bool) {
+        if self.timeline_rx.is_some() {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label("Refreshing timeline…");
+            });
+        }
+        if let Some(error) = &self.timeline_error {
+            ui.colored_label(
+                egui::Color32::YELLOW,
+                format!("Could not refresh: {error}. Showing the last received view."),
+            );
+        }
+        let query = if self.view == View::Discover {
+            self.timeline_query.trim().to_lowercase()
+        } else {
+            String::new()
+        };
+        let cards: Vec<_> = self
+            .timeline_cards
+            .iter()
+            .filter(|card| {
+                (!media_only || card.media)
+                    && (query.is_empty()
+                        || card.body.to_lowercase().contains(&query)
+                        || card.author.to_lowercase().contains(&query)
+                        || card.did.to_lowercase().contains(&query))
+            })
+            .cloned()
+            .collect();
+        if cards.is_empty() && self.timeline_rx.is_none() {
+            ui.add_space(24.0);
+            ui.heading(if query.is_empty() {
+                "Your network starts with people"
+            } else {
+                "No matching posts received yet"
+            });
+            ui.label("Follow people and connect to a peer to exchange posts. Saved content remains available offline.");
+            ui.horizontal(|ui| {
+                if ui.button("Find people").clicked() {
+                    self.view = View::People;
+                }
+                if ui.button("Connect a peer").clicked() {
+                    self.view = View::Connections;
+                }
+            });
+        }
+        for card in cards {
+            ui.push_id(&card.id, |ui| {
+                self.post_card(
+                    ui,
+                    &card.id,
+                    &card.author,
+                    card.timestamp_ms,
+                    &card.body,
+                    card.reason,
+                    card.support_count,
+                    card.comment_count,
+                );
+                ui.collapsing("Post identity", |ui| {
+                    ui.label(&card.did);
+                    ui.label("Time is claimed by the author; it is not a server receipt.");
+                });
+            });
+        }
+    }
+
+    fn discover(&mut self, ui: &mut egui::Ui) {
+        ui.add_sized(
+            [ui.available_width(), 44.0],
+            egui::TextEdit::singleline(&mut self.timeline_query)
+                .hint_text("Search posts, people or a DID"),
+        );
+        ui.label("Search scope: the latest 50 posts in your received timeline. This is not internet-wide search.");
+        ui.horizontal(|ui| {
+            if ui.button("People directory").clicked() {
+                self.view = View::People;
+            }
+            if ui.button("Communities").clicked() {
+                self.view = View::Communities;
+            }
+            if ui.button("Refresh").clicked() {
+                self.timeline_refresh = Instant::now();
+            }
+        });
+        self.render_timeline(ui, false);
+    }
+
+    fn media_timeline(&mut self, ui: &mut egui::Ui) {
+        ui.label("Media-linked posts in your received timeline. Playback and swarm downloads are not yet integrated.");
+        if ui.button("Share a photo or video").clicked() {
+            self.view = View::Creator;
+        }
+        self.render_timeline(ui, true);
+    }
+
     fn start_nearby_scan(&mut self) {
         if !self.privacy.lan_discovery {
             self.notice = "Enable local-network discovery in Privacy & safety first.".to_string();
@@ -1785,15 +2034,15 @@ impl MininetApp {
 
     fn apply_theme(&self, ctx: &egui::Context) {
         let mut visuals = egui::Visuals::dark();
-        visuals.panel_fill = egui::Color32::from_rgb(15, 20, 29);
-        visuals.window_fill = egui::Color32::from_rgb(10, 14, 21);
-        visuals.faint_bg_color = egui::Color32::from_rgb(28, 37, 52);
-        visuals.extreme_bg_color = egui::Color32::from_rgb(8, 11, 17);
-        visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(20, 27, 38);
-        visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(27, 37, 52);
-        visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(42, 61, 82);
-        visuals.widgets.active.bg_fill = egui::Color32::from_rgb(65, 116, 154);
-        visuals.selection.bg_fill = egui::Color32::from_rgb(42, 105, 145);
+        visuals.panel_fill = egui::Color32::from_rgb(0, 0, 0);
+        visuals.window_fill = egui::Color32::from_rgb(10, 10, 10);
+        visuals.faint_bg_color = egui::Color32::from_rgb(22, 24, 28);
+        visuals.extreme_bg_color = egui::Color32::from_rgb(0, 0, 0);
+        visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(15, 20, 25);
+        visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(22, 24, 28);
+        visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(35, 39, 43);
+        visuals.widgets.active.bg_fill = egui::Color32::from_rgb(29, 155, 240);
+        visuals.selection.bg_fill = egui::Color32::from_rgb(29, 110, 170);
         let mut style = (*ctx.style()).clone();
         style.visuals = visuals;
         style.spacing.item_spacing = egui::vec2(12.0, 10.0);
@@ -1834,9 +2083,11 @@ impl MininetApp {
                 "Create your local root, then publish the public profile you choose to share.",
             ),
             View::Home => (
-                "Your feed",
-                "A local view of objects your device has received.",
+                "Home",
+                "People you follow. Conversations that matter. Your choice of order.",
             ),
+            View::Discover => ("Explore", "Search your received timeline. Connect peers to bring more into view."),
+            View::Media => ("Media", "Photo and video posts from people you follow."),
             View::Inbox => (
                 "Inbox beta",
                 "Encrypted route-scoped messages with manual trusted invitation and sync.",
@@ -1997,7 +2248,7 @@ impl MininetApp {
             ui.add_sized(
                 [ui.available_width(), 72.0],
                 egui::TextEdit::multiline(&mut self.composer)
-                    .hint_text("Write a post… (saved locally before sync)"),
+                    .hint_text("What is happening?"),
             );
             ui.checkbox(
                 &mut self.signing_confirmation,
@@ -2007,7 +2258,7 @@ impl MininetApp {
                 if ui
                     .add_enabled(
                         self.workspace.as_ref().is_some_and(Workspace::is_unlocked),
-                        egui::Button::new("Publish locally"),
+                        egui::Button::new("Post"),
                     )
                     .clicked()
                 {
@@ -2020,7 +2271,7 @@ impl MininetApp {
                             Ok(()) => {
                                 self.composer.clear();
                                 self.signing_confirmation = false;
-                                "Post written to the local object store. No network used."
+                                "Post saved. An active public sync session shares it on the next exchange."
                                     .to_string()
                             }
                             Err(error) => format!("Could not publish locally: {error}"),
@@ -2060,46 +2311,7 @@ impl MininetApp {
                 });
             ui.label("Ranking is local and user-selected.");
         });
-        let items = self
-            .workspace
-            .as_ref()
-            .and_then(|workspace| workspace.feed(self.feed_filter).ok())
-            .unwrap_or_default();
-        if items.is_empty() {
-            ui.label("No local posts yet. Your first post stays on this device until you choose a connection path.");
-        }
-        let cards: Vec<_> = self
-            .workspace
-            .as_ref()
-            .map(|workspace| {
-                items
-                    .iter()
-                    .map(|item| {
-                        (
-                            item.id.clone(),
-                            workspace.post_text(item),
-                            match item.reason {
-                                mini_social::FeedReason::Own => "Own",
-                                mini_social::FeedReason::Followed => "Followed",
-                            },
-                            item.support_count,
-                            workspace.comment_count(&item.id),
-                        )
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        for (id, body, reason, support_count, comment_count) in cards {
-            self.post_card(
-                ui,
-                &id,
-                "Local post",
-                &body,
-                reason,
-                support_count,
-                comment_count,
-            );
-        }
+        self.render_timeline(ui, false);
         if let Some(target) = self.reply_target.clone() {
             ui.group(|ui| {
                 ui.label(egui::RichText::new("Reply to selected post").strong());
@@ -2619,6 +2831,7 @@ impl MininetApp {
         ui: &mut egui::Ui,
         id: &mini_objects::ObjectId,
         title: &str,
+        timestamp_ms: u64,
         body: &str,
         reason: &str,
         support_count: usize,
@@ -2629,7 +2842,7 @@ impl MininetApp {
                 ui.label(egui::RichText::new("●").color(egui::Color32::from_rgb(100, 210, 160)));
                 ui.label(egui::RichText::new(title).strong());
                 ui.label(
-                    egui::RichText::new("  2m")
+                    egui::RichText::new(timeline::age(timestamp_ms, now_ms()))
                         .small()
                         .color(egui::Color32::GRAY),
                 );
@@ -3060,6 +3273,29 @@ impl MininetApp {
     }
 
     fn connections(&mut self, ui: &mut egui::Ui) {
+        ui.group(|ui| {
+            ui.heading("Connect to your network");
+            ui.label("Keep exchanging public posts and profiles with a reachable peer while you use Mininet.");
+            ui.add(egui::TextEdit::singleline(&mut self.peer_address)
+                .hint_text("peer.example:46000 or [IPv6]:46000"));
+            ui.label("This shares public objects and your IP with that endpoint. Private conversations are excluded. The endpoint is a connection hint, not a verified identity.");
+            if self.network_session.is_some() {
+                if ui.button("Stop session").clicked() {
+                    self.network_session = None;
+                    self.notice = "No more automatic exchanges will start. An exchange already in progress may finish.".into();
+                }
+            } else if ui.add_enabled(self.sync_rx.is_none(), egui::Button::new("Start 15-minute public sync session")).clicked() {
+                match network_session::NetworkSession::start(&self.peer_address, Instant::now()) {
+                    Ok(session) => {
+                        self.network_session = Some(session);
+                        self.last_sync_ok = None;
+                    }
+                    Err(error) => self.notice = error,
+                }
+            }
+            ui.label("Exchanges run every 30 seconds, with backoff on failure. Sessions expire after 15 minutes and never restart on app launch. The peer must be accepting connections; automatic rendezvous and NAT traversal are still needed.");
+        });
+        ui.add_space(16.0);
         ui.label(egui::RichText::new("Transport order is user-controlled").strong());
         ui.add_space(6.0);
         self.transport_row(ui, "Offline store", "Always available", true);
@@ -3735,7 +3971,7 @@ impl MininetApp {
         }
         ui.separator();
         ui.label(egui::RichText::new("Telemetry: permanently disabled in this shell").strong());
-        ui.label("There is no analytics client, ad SDK, embedded browser, remote configuration, silent update executor, or background network loop in this UI crate.");
+        ui.label("There is no analytics client, ad SDK, embedded browser, remote configuration, silent update executor, or automatic network startup. Public sync repeats only during a session you start in Connections.");
         if let Some(workspace) = self.workspace.as_ref() {
             if let Some(human) = workspace.human.as_ref() {
                 ui.label(format!("Current session identity: {}", human.as_str()));
@@ -3924,7 +4160,7 @@ mod tests {
         };
         use mini_store::FsBackend;
         use std::sync::mpsc;
-        use std::time::Duration;
+        use std::time::{Duration, Instant};
 
         fn profile_root(root: &std::path::Path, name: &str) -> did_mini::Did {
             load_or_create(&root.join("identity.dpapi")).unwrap();

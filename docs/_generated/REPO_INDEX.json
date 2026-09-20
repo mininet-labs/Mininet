@@ -1,9 +1,9 @@
 {
   "counts": {
     "crates": 83,
-    "files": 1042,
-    "headings": 3716,
-    "rust_symbols": 10979
+    "files": 1045,
+    "headings": 3725,
+    "rust_symbols": 11001
   },
   "crates": {
     "did-mini": {
@@ -27688,7 +27688,7 @@
       "title": "Keep the renderer explicit: no persistence, webbrowser, web screen reader,"
     },
     {
-      "bytes": 9804,
+      "bytes": 10883,
       "group": "crate:mini-desktop",
       "headings": [
         {
@@ -27698,34 +27698,34 @@
         }
       ],
       "keywords": [
-        "signed",
         "bob",
+        "signed",
         "profile",
+        "public",
         "alice",
         "nearby",
-        "public",
-        "local",
         "window",
-        "identity",
-        "did",
-        "objects",
         "mini-desktop",
+        "did",
+        "run",
+        "seconds",
+        "relay",
         "localappdata",
+        "local",
         "profiles",
         "people",
         "same",
-        "sync",
         "follow",
-        "client",
-        "run",
-        "each",
-        "its",
-        "vault",
-        "friend"
+        "names",
+        "search",
+        "posts",
+        "cargo",
+        "connections",
+        "explicit"
       ],
-      "lines": 171,
+      "lines": 187,
       "path": "crates/mini-desktop/README.md",
-      "sha256": "93e4e0d0ced1a388d7ef7e409d708b97c6682c59a42167b8cf573ac2c88f1b10",
+      "sha256": "1fb501c023c703650e27c27f58a9d8c36f5c57406af704891898aeb204fd0265",
       "symbols": [],
       "title": "mini-desktop"
     },
@@ -27867,43 +27867,53 @@
       "title": "use std::path::Path;"
     },
     {
-      "bytes": 170859,
+      "bytes": 181527,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "string",
-        "option",
         "bool",
+        "option",
         "default",
         "std",
-        "receiver",
+        "network_session",
+        "timeline",
         "view",
         "updatepolicy",
         "privacystate",
         "workspace",
+        "receiver",
         "derive",
         "debug",
         "clone",
         "false",
+        "vec",
         "conversation_state",
-        "synccontext",
         "mininetapp",
         "communities",
-        "diagnostics",
         "updates",
         "privacy",
-        "shell",
         "mini_objects",
-        "selftestreport"
+        "feedfilter"
       ],
-      "lines": 4007,
+      "lines": 4243,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "4ae0a7ef04743fd60707aa1fcd6fea611e1d8a34e8fc8510b2f37d1f2c10e2f7",
+      "sha256": "d35737ab87cd70e4e66fdc320805e5cc70a0d174e7070229659b2017c0f017cf",
       "symbols": [
         {
           "kind": "mod",
-          "line": 10,
+          "line": 9,
           "name": "conversation_state"
+        },
+        {
+          "kind": "mod",
+          "line": 10,
+          "name": "network_session"
+        },
+        {
+          "kind": "mod",
+          "line": 11,
+          "name": "timeline"
         },
         {
           "kind": "const",
@@ -27917,596 +27927,770 @@
         },
         {
           "kind": "enum",
-          "line": 59,
+          "line": 61,
           "name": "UpdatePolicy"
         },
         {
           "kind": "enum",
-          "line": 65,
+          "line": 67,
           "name": "SyncContext"
         },
         {
           "kind": "struct",
-          "line": 70,
+          "line": 72,
           "name": "PrivacyState"
         },
         {
           "kind": "impl",
-          "line": 83,
+          "line": 85,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 84,
+          "line": 86,
           "name": "default"
         },
         {
           "kind": "struct",
-          "line": 95,
+          "line": 97,
           "name": "MininetApp"
         },
         {
           "kind": "struct",
-          "line": 152,
+          "line": 164,
           "name": "Workspace"
         },
         {
           "kind": "struct",
-          "line": 161,
+          "line": 173,
           "name": "DesktopIdentity"
         },
         {
           "kind": "fn",
-          "line": 166,
+          "line": 178,
           "name": "desktop_identity_from_seeds"
         },
         {
           "kind": "fn",
-          "line": 183,
+          "line": 195,
           "name": "load_desktop_identity"
         },
         {
           "kind": "impl",
-          "line": 199,
+          "line": 211,
           "name": "Workspace"
         },
         {
           "kind": "fn",
-          "line": 200,
+          "line": 212,
           "name": "open"
         },
         {
           "kind": "fn",
-          "line": 229,
+          "line": 241,
           "name": "is_unlocked"
         },
         {
           "kind": "fn",
-          "line": 233,
+          "line": 245,
           "name": "root_created"
         },
         {
           "kind": "fn",
-          "line": 237,
+          "line": 249,
           "name": "has_public_account"
         },
         {
           "kind": "fn",
-          "line": 241,
+          "line": 253,
           "name": "human_did"
         },
         {
           "kind": "fn",
-          "line": 247,
+          "line": 259,
           "name": "create_root"
         },
         {
           "kind": "fn",
-          "line": 261,
+          "line": 273,
           "name": "lock"
         },
         {
           "kind": "fn",
-          "line": 265,
+          "line": 277,
           "name": "unlock"
         },
         {
           "kind": "fn",
-          "line": 275,
+          "line": 287,
           "name": "publish_post"
         },
         {
           "kind": "fn",
-          "line": 294,
+          "line": 306,
           "name": "publish_profile"
         },
         {
           "kind": "fn",
-          "line": 316,
+          "line": 328,
           "name": "publish_custom_profile"
         },
         {
           "kind": "fn",
-          "line": 377,
+          "line": 389,
           "name": "publish_custom_profile_confirmed"
         },
         {
           "kind": "fn",
-          "line": 406,
+          "line": 418,
           "name": "known_profiles"
         },
         {
           "kind": "fn",
-          "line": 410,
+          "line": 422,
           "name": "current_profile"
         },
         {
           "kind": "fn",
-          "line": 416,
+          "line": 428,
           "name": "profile_needs_device_upgrade"
         },
         {
           "kind": "fn",
-          "line": 428,
+          "line": 440,
           "name": "upgrade_profile_for_sync"
         },
         {
           "kind": "fn",
-          "line": 444,
+          "line": 456,
           "name": "follows"
         },
         {
           "kind": "fn",
-          "line": 451,
+          "line": 463,
           "name": "is_friend"
         },
         {
           "kind": "fn",
-          "line": 460,
+          "line": 472,
           "name": "set_follow_target_confirmed"
         },
         {
           "kind": "fn",
-          "line": 472,
+          "line": 484,
           "name": "profile_image"
         },
         {
           "kind": "fn",
-          "line": 481,
+          "line": 493,
           "name": "publish_public_wall"
         },
         {
           "kind": "fn",
-          "line": 515,
+          "line": 527,
           "name": "publish_community"
         },
         {
           "kind": "fn",
-          "line": 536,
+          "line": 548,
           "name": "publish_media_post"
         },
         {
           "kind": "fn",
-          "line": 575,
-          "name": "feed"
-        },
-        {
-          "kind": "fn",
-          "line": 579,
+          "line": 587,
           "name": "publish_comment"
         },
         {
           "kind": "fn",
-          "line": 603,
+          "line": 611,
           "name": "react_like"
         },
         {
           "kind": "fn",
-          "line": 624,
-          "name": "comment_count"
-        },
-        {
-          "kind": "fn",
-          "line": 630,
+          "line": 632,
           "name": "export_bundle"
         },
         {
           "kind": "const",
-          "line": 631,
+          "line": 633,
           "name": "MAGIC"
         },
         {
           "kind": "const",
-          "line": 632,
+          "line": 634,
           "name": "MAX_OBJECTS"
         },
         {
           "kind": "const",
-          "line": 633,
+          "line": 635,
           "name": "MAX_OBJECT_BYTES"
         },
         {
           "kind": "fn",
-          "line": 657,
+          "line": 659,
           "name": "import_bundle"
         },
         {
           "kind": "const",
-          "line": 658,
+          "line": 660,
           "name": "MAGIC"
         },
         {
           "kind": "const",
-          "line": 659,
+          "line": 661,
           "name": "MAX_OBJECTS"
         },
         {
           "kind": "const",
-          "line": 660,
+          "line": 662,
           "name": "MAX_OBJECT_BYTES"
         },
         {
           "kind": "fn",
-          "line": 688,
+          "line": 690,
           "name": "set_community_membership"
         },
         {
           "kind": "fn",
-          "line": 712,
+          "line": 714,
           "name": "set_follow_target"
         },
         {
           "kind": "fn",
-          "line": 733,
+          "line": 735,
           "name": "following_count"
         },
         {
           "kind": "fn",
-          "line": 740,
+          "line": 742,
           "name": "follower_count"
         },
         {
           "kind": "fn",
-          "line": 747,
+          "line": 749,
           "name": "mutual_follow_count"
         },
         {
           "kind": "fn",
-          "line": 763,
-          "name": "post_text"
-        },
-        {
-          "kind": "fn",
-          "line": 773,
+          "line": 765,
           "name": "communities"
         },
         {
           "kind": "fn",
-          "line": 789,
+          "line": 781,
           "name": "create_beta_conversation"
         },
         {
           "kind": "fn",
-          "line": 813,
+          "line": 805,
           "name": "import_beta_conversation"
         },
         {
           "kind": "fn",
-          "line": 832,
+          "line": 824,
           "name": "send_private_message"
         },
         {
           "kind": "fn",
-          "line": 857,
+          "line": 849,
           "name": "private_messages"
         },
         {
           "kind": "fn",
-          "line": 866,
+          "line": 858,
           "name": "data_root"
         },
         {
           "kind": "fn",
-          "line": 878,
+          "line": 870,
           "name": "settings_path"
         },
         {
           "kind": "fn",
-          "line": 882,
+          "line": 874,
           "name": "encode_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 895,
+          "line": 887,
           "name": "decode_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 912,
+          "line": 904,
           "name": "load_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 919,
+          "line": 911,
           "name": "save_privacy_settings"
         },
         {
           "kind": "fn",
-          "line": 924,
+          "line": 916,
           "name": "now_ms"
         },
         {
           "kind": "fn",
-          "line": 931,
+          "line": 923,
           "name": "next_object_sequence"
         },
         {
           "kind": "fn",
-          "line": 945,
+          "line": 937,
           "name": "decode_profile_image"
         },
         {
           "kind": "const",
-          "line": 946,
+          "line": 938,
           "name": "MAX_DIMENSION"
         },
         {
           "kind": "const",
-          "line": 947,
+          "line": 939,
           "name": "MAX_DECODE_ALLOCATION"
         },
         {
           "kind": "fn",
-          "line": 972,
+          "line": 964,
           "name": "parse_profile_fields"
         },
         {
           "kind": "fn",
-          "line": 1012,
+          "line": 1004,
           "name": "atomic_write_file"
         },
         {
           "kind": "fn",
-          "line": 1031,
+          "line": 1023,
           "name": "read_u32"
         },
         {
           "kind": "fn",
-          "line": 1045,
+          "line": 1037,
           "name": "configure_peer_stream"
         },
         {
           "kind": "fn",
-          "line": 1055,
+          "line": 1047,
           "name": "nearby_endpoint_for"
         },
         {
           "kind": "fn",
-          "line": 1062,
+          "line": 1054,
           "name": "open_sync_state"
         },
         {
           "kind": "fn",
-          "line": 1082,
+          "line": 1074,
           "name": "run_peer_sync"
         },
         {
           "kind": "fn",
-          "line": 1150,
+          "line": 1142,
           "name": "run_private_sync"
         },
         {
           "kind": "fn",
-          "line": 1205,
+          "line": 1197,
           "name": "scan_nearby_profiles"
         },
         {
           "kind": "fn",
-          "line": 1234,
+          "line": 1226,
           "name": "run_discoverable_profile_sync"
         },
         {
           "kind": "impl",
-          "line": 1311,
+          "line": 1303,
           "name": "Default"
         },
         {
           "kind": "fn",
-          "line": 1312,
+          "line": 1304,
           "name": "default"
         },
         {
           "kind": "impl",
-          "line": 1418,
+          "line": 1420,
           "name": "eframe::App"
         },
         {
           "kind": "fn",
-          "line": 1419,
+          "line": 1421,
           "name": "update"
         },
         {
           "kind": "impl",
-          "line": 1620,
+          "line": 1722,
           "name": "MininetApp"
         },
         {
           "kind": "fn",
-          "line": 1621,
+          "line": 1723,
+          "name": "poll_timeline"
+        },
+        {
+          "kind": "fn",
+          "line": 1774,
+          "name": "render_timeline"
+        },
+        {
+          "kind": "fn",
+          "line": 1841,
+          "name": "discover"
+        },
+        {
+          "kind": "fn",
+          "line": 1862,
+          "name": "media_timeline"
+        },
+        {
+          "kind": "fn",
+          "line": 1870,
           "name": "start_nearby_scan"
         },
         {
           "kind": "fn",
-          "line": 1638,
+          "line": 1887,
           "name": "start_profile_visibility"
         },
         {
           "kind": "fn",
-          "line": 1684,
+          "line": 1933,
           "name": "start_peer_sync"
         },
         {
           "kind": "fn",
-          "line": 1710,
+          "line": 1959,
           "name": "start_private_sync"
         },
         {
           "kind": "fn",
-          "line": 1747,
+          "line": 1996,
           "name": "add_friend"
         },
         {
           "kind": "fn",
-          "line": 1786,
+          "line": 2035,
           "name": "apply_theme"
         },
         {
           "kind": "fn",
-          "line": 1817,
+          "line": 2066,
           "name": "nav_button"
         },
         {
           "kind": "fn",
-          "line": 1830,
+          "line": 2079,
           "name": "header"
         },
         {
           "kind": "fn",
-          "line": 1881,
+          "line": 2132,
           "name": "onboarding"
         },
         {
           "kind": "fn",
-          "line": 1993,
+          "line": 2244,
           "name": "home"
         },
         {
           "kind": "fn",
-          "line": 2134,
+          "line": 2346,
           "name": "inbox"
         },
         {
           "kind": "fn",
-          "line": 2389,
+          "line": 2601,
           "name": "profile_texture"
         },
         {
           "kind": "fn",
-          "line": 2412,
+          "line": 2624,
           "name": "people"
         },
         {
           "kind": "fn",
-          "line": 2617,
+          "line": 2829,
           "name": "post_card"
         },
         {
           "kind": "fn",
-          "line": 2665,
+          "line": 2878,
           "name": "communities"
         },
         {
           "kind": "fn",
-          "line": 2747,
+          "line": 2960,
           "name": "creator"
         },
         {
           "kind": "fn",
-          "line": 3062,
+          "line": 3275,
           "name": "connections"
         },
         {
           "kind": "fn",
-          "line": 3151,
+          "line": 3387,
           "name": "system"
         },
         {
           "kind": "fn",
-          "line": 3259,
+          "line": 3495,
           "name": "transport_row"
         },
         {
           "kind": "fn",
-          "line": 3279,
+          "line": 3515,
           "name": "start_selftest"
         },
         {
           "kind": "fn",
-          "line": 3330,
+          "line": 3566,
           "name": "diagnostics"
         },
         {
           "kind": "fn",
-          "line": 3482,
+          "line": 3718,
           "name": "updates"
         },
         {
           "kind": "fn",
-          "line": 3640,
+          "line": 3876,
           "name": "install_summary"
         },
         {
           "kind": "fn",
-          "line": 3689,
+          "line": 3925,
           "name": "privacy"
         },
         {
           "kind": "fn",
-          "line": 3753,
+          "line": 3989,
           "name": "main"
         },
         {
           "kind": "mod",
-          "line": 3769,
+          "line": 4005,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 3781,
+          "line": 4017,
           "name": "privacy_defaults_are_local_and_manual"
         },
         {
           "kind": "fn",
-          "line": 3791,
+          "line": 4027,
           "name": "privacy_settings_round_trip_without_telemetry_state"
         },
         {
           "kind": "fn",
-          "line": 3808,
+          "line": 4044,
           "name": "custom_profile_fields_are_parsed_without_fixed_platform_schema"
         },
         {
           "kind": "fn",
-          "line": 3821,
+          "line": 4057,
           "name": "duplicate_or_malformed_custom_profile_fields_are_rejected"
         },
         {
           "kind": "fn",
-          "line": 3827,
+          "line": 4063,
           "name": "signing_sequence_continues_after_existing_objects"
         },
         {
           "kind": "fn",
-          "line": 3850,
+          "line": 4086,
           "name": "automatic_delivery_uses_only_the_exact_verified_did"
         },
         {
           "kind": "fn",
-          "line": 3872,
+          "line": 4108,
           "name": "legacy_root_signed_profile_upgrades_without_changing_human_did"
         },
         {
           "kind": "fn",
-          "line": 3920,
+          "line": 4156,
           "name": "one_visibility_window_verifies_profile_then_receives_follow"
         },
         {
           "kind": "fn",
-          "line": 3929,
+          "line": 4165,
           "name": "profile_root"
         }
       ],
       "title": "mod conversation_state;"
+    },
+    {
+      "bytes": 3082,
+      "group": "crate:mini-desktop",
+      "headings": [],
+      "keywords": [
+        "now",
+        "endpoint",
+        "self",
+        "session",
+        "duration",
+        "instant",
+        "due",
+        "assert",
+        "networksession",
+        "port",
+        "from_secs",
+        "host",
+        "session_limit",
+        "start",
+        "completed",
+        "failures",
+        "sync_interval",
+        "expired",
+        "next_attempt",
+        "peer",
+        "max_retry",
+        "const",
+        "expires",
+        "bool"
+      ],
+      "lines": 96,
+      "path": "crates/mini-desktop/src/network_session.rs",
+      "sha256": "6a2fb3793e91f25fe479540d716286c7eb1f13fbc147f4916ed6efa6ed65e497",
+      "symbols": [
+        {
+          "kind": "const",
+          "line": 6,
+          "name": "SESSION_LIMIT"
+        },
+        {
+          "kind": "const",
+          "line": 7,
+          "name": "SYNC_INTERVAL"
+        },
+        {
+          "kind": "const",
+          "line": 8,
+          "name": "MAX_RETRY"
+        },
+        {
+          "kind": "struct",
+          "line": 11,
+          "name": "NetworkSession"
+        },
+        {
+          "kind": "impl",
+          "line": 18,
+          "name": "NetworkSession"
+        },
+        {
+          "kind": "fn",
+          "line": 19,
+          "name": "start"
+        },
+        {
+          "kind": "fn",
+          "line": 39,
+          "name": "endpoint"
+        },
+        {
+          "kind": "fn",
+          "line": 43,
+          "name": "expired"
+        },
+        {
+          "kind": "fn",
+          "line": 47,
+          "name": "due"
+        },
+        {
+          "kind": "fn",
+          "line": 51,
+          "name": "completed"
+        },
+        {
+          "kind": "mod",
+          "line": 63,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 67,
+          "name": "unavailable_peer_backs_off_and_success_recovers"
+        },
+        {
+          "kind": "fn",
+          "line": 81,
+          "name": "consent_expires_even_if_every_attempt_failed"
+        },
+        {
+          "kind": "fn",
+          "line": 89,
+          "name": "invalid_configuration_never_starts_a_session"
+        }
+      ],
+      "title": "use std::time::{Duration, Instant};"
+    },
+    {
+      "bytes": 2725,
+      "group": "crate:mini-desktop",
+      "headings": [],
+      "keywords": [
+        "error",
+        "item",
+        "age",
+        "store",
+        "author",
+        "timestamp_ms",
+        "string",
+        "map_err",
+        "to_string",
+        "seconds",
+        "card",
+        "did",
+        "mini_social",
+        "u64",
+        "profile",
+        "post",
+        "assert_eq",
+        "feed",
+        "path",
+        "reason",
+        "support_count",
+        "media",
+        "now_ms",
+        "format"
+      ],
+      "lines": 79,
+      "path": "crates/mini-desktop/src/timeline.rs",
+      "sha256": "d09579067601b2b42384db35bc60fc71929a6a2fba9d6293bd7d5833b2dd8c1e",
+      "symbols": [
+        {
+          "kind": "struct",
+          "line": 11,
+          "name": "Card"
+        },
+        {
+          "kind": "fn",
+          "line": 23,
+          "name": "snapshot"
+        },
+        {
+          "kind": "fn",
+          "line": 54,
+          "name": "age"
+        },
+        {
+          "kind": "mod",
+          "line": 68,
+          "name": "tests"
+        },
+        {
+          "kind": "fn",
+          "line": 72,
+          "name": "author_time_is_real_and_future_time_is_not_underflowed"
+        }
+      ],
+      "title": "use did_mini::Did;"
     },
     {
       "bytes": 715,
@@ -89610,7 +89794,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1478054,
+      "bytes": 1483999,
       "group": "docs",
       "headings": [
         {
@@ -90029,8 +90213,8 @@
         "batch",
         "review",
         "design",
-        "audit",
         "shipped",
+        "audit",
         "closes",
         "decision",
         "local",
@@ -90040,9 +90224,9 @@
         "new",
         "doctrine"
       ],
-      "lines": 24457,
+      "lines": 24550,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "1990eb248a8a42e5da274b846db5f07fa01be3f01589f55670fd5e6a9a70bb08",
+      "sha256": "30ac9127596c6a569616b02f3bf0d7d2559d2d653e7f4e897ab02bf85fecd260",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -91378,7 +91562,7 @@
       "title": "Mininet social network product contract"
     },
     {
-      "bytes": 204397,
+      "bytes": 205332,
       "group": "docs",
       "headings": [
         {
@@ -91490,6 +91674,11 @@
           "level": 2,
           "line": 3024,
           "text": "Day-0 release code hardening \u2014 D-0442/D-0443 proposal"
+        },
+        {
+          "level": 2,
+          "line": 3060,
+          "text": "Connected desktop, step 1 \u2014 2026-09-14 (D-0522)"
         }
       ],
       "keywords": [
@@ -91518,9 +91707,9 @@
         "design",
         "exists"
       ],
-      "lines": 3059,
+      "lines": 3074,
       "path": "docs/STATUS.md",
-      "sha256": "17c95bae33a46e7ee6a097a6f046adc3c65fc1abaa09b4396301bf5b90c377dc",
+      "sha256": "ab0298f357d892d9fbced492d78b2a192ab34e5fbd239a947fb9ed31b0b4522d",
       "symbols": [],
       "title": "Implementation status"
     },
@@ -108309,6 +108498,83 @@
       "sha256": "cc24a55014d8721382d96a3d8737191a30eadaf558fb421a23056c15efca65a1",
       "symbols": [],
       "title": "Privacy and transport security completion (#291)"
+    },
+    {
+      "bytes": 13914,
+      "group": "docs",
+      "headings": [
+        {
+          "level": 1,
+          "line": 1,
+          "text": "Connected Mininet: one application for a shared internet"
+        },
+        {
+          "level": 2,
+          "line": 7,
+          "text": "Product direction"
+        },
+        {
+          "level": 2,
+          "line": 37,
+          "text": "One graph, distinct audiences"
+        },
+        {
+          "level": 2,
+          "line": 56,
+          "text": "Connectivity is a service, not a repeated button press"
+        },
+        {
+          "level": 2,
+          "line": 101,
+          "text": "Performance design"
+        },
+        {
+          "level": 2,
+          "line": 131,
+          "text": "Founder alignment and boundaries"
+        },
+        {
+          "level": 2,
+          "line": 159,
+          "text": "Implementation sequence and release gates"
+        },
+        {
+          "level": 2,
+          "line": 180,
+          "text": "Evidence and review record"
+        }
+      ],
+      "keywords": [
+        "one",
+        "product",
+        "private",
+        "public",
+        "service",
+        "optional",
+        "dating",
+        "organisation",
+        "shared",
+        "internet",
+        "audiences",
+        "implementation",
+        "discovery",
+        "feed",
+        "never",
+        "services",
+        "experience",
+        "notifications",
+        "live",
+        "session",
+        "google",
+        "offline",
+        "separate",
+        "matching"
+      ],
+      "lines": 217,
+      "path": "docs/proposals/connected-mininet-client.md",
+      "sha256": "1329e5a3ff5505b8f6c582898bf094f35e45dfac7d4bad1014ffe2265fbae8dd",
+      "symbols": [],
+      "title": "Connected Mininet: one application for a shared internet"
     },
     {
       "bytes": 40128,
