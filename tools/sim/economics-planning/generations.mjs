@@ -110,7 +110,7 @@ export function forecast(input={}){
     r.actualNetIssuanceMINI=i?r.totalMINI-previous.totalMINI:0;
     r.actualNetIssuancePct=i?r.actualNetIssuanceMINI/previous.totalMINI*100:0;
     r.realWealthGrowthPct=i&&previous.wealth>0?(r.wealth/previous.wealth-1)*100:0;
-    r.wealthRequiredForStableMINI=p.capturePct>0?initialPrice*r.totalMINI/(p.capturePct/100):null;
+    r.wealthRequiredForStableMINI=initialPrice>0?initialPrice*r.totalMINI/(p.capturePct/100):null;
     r.realWealthGapUSD=r.wealthRequiredForStableMINI===null?null:r.wealthRequiredForStableMINI-r.wealth;
   }
   return {assumptions:p,rows,maxAnnual,conservation};

@@ -359,7 +359,7 @@ const milestones=[
  {id:'M4',name:'Complete founder-independent succession',fraction:.20,evidence:'Two exercised role/key rotations; founder unavailable drill; reproducible archives; three independent successors for each critical function.',horizon:'After a demonstrated handoff',owner:'Affected groups + independent constitutional review',gate:'Temporary authority ends; compensation never extends it'}
 ];
 const finite=n=>Number.isFinite(n)&&n>=0;
-function validate(p){const errors=[];for(const [k,v] of Object.entries(defaults)){if(typeof v==='number'&&!finite(p[k]))errors.push(`${k} must be a finite non-negative number`);}for(const k of ['basePay','supply','price','humans','providers','recognitionYears'])if(!(p[k]>0))errors.push(`${k} must be greater than zero`);if(p.years<1||p.years>200||!Number.isInteger(p.years))errors.push('years must be an integer from 1 to 200');for(const k of ['serviceUse','treasuryUse','whalePct','whaleServicePct','liquidityHaircutPct','futurePct'])if(p[k]>100)errors.push(`${k} cannot exceed 100`);if(p.futurePct>=100)errors.push('futurePct must be below 100');if(p.liquidityHaircutPct>=100)errors.push('Liquidity haircut must be below 100');if(p.founderFte>1||p.councilFte>1||p.leadFte>1||p.contributorFte>1)errors.push('FTE cannot exceed 1');if(p.humanTarget<1)errors.push('humanTarget must be at least 1');for(const k of ['humans','humanTarget','sybils','contributors','councillors','providers'])if(!Number.isInteger(p[k]))errors.push(`${k} must be an integer`);if(p.whalePct>100)errors.push('whale percentage cannot exceed 100');return errors;}
+function validate(p){const errors=[];for(const [k,v] of Object.entries(defaults)){if(typeof v==='number'&&!finite(p[k]))errors.push(`${k} must be a finite non-negative number`);}for(const k of ['basePay','supply','price','humans','providers','recognitionYears'])if(!(p[k]>0))errors.push(`${k} must be greater than zero`);if(p.years<1||p.years>200||!Number.isInteger(p.years))errors.push('years must be an integer from 1 to 200');for(const k of ['serviceUse','treasuryUse','whalePct','whaleServicePct','liquidityHaircutPct','futurePct'])if(p[k]>100)errors.push(`${k} cannot exceed 100`);if(p.futurePct>=100)errors.push('futurePct must be below 100');if(p.liquidityHaircutPct>=100)errors.push('Liquidity haircut must be below 100');if(p.founderFte>1||p.councilFte>1||p.leadFte>1||p.contributorFte>1)errors.push('FTE cannot exceed 1');if(p.humanTarget<1)errors.push('humanTarget must be at least 1');for(const k of ['humans','humanTarget','sybils','contributors','councillors','providers'])if(!Number.isInteger(p[k]))errors.push(`${k} must be an integer`);if(p.whalePct>100)errors.push('whale percentage cannot exceed 100');if(typeof p.annualGuard!=='boolean')errors.push('annualGuard must be boolean');return errors;}
 function compensation(p){
  const founder=p.basePay*1.5*p.leadFte,contributor=p.basePay*p.contributorFte,senior=p.basePay*1.5,council=p.basePay*1.2*p.councilFte,audit=p.auditBudget;
  const wages=founder+p.contributors*contributor+p.councillors*council;
@@ -400,7 +400,7 @@ function simulate(p){
  for(let year=1;year<=p.years;year++){
   const opening=circulating;let humanIssued=0,serviceIssued=0,treasuryIssued=0,humanPer=0,humanVested=0;
   // Population reaches the selected target over 50 years and then stabilizes. This is an explicit scenario.
-  const actualHumans=Math.max(1,Math.round(p.humans*Math.pow(p.humanTarget/p.humans,Math.min(year-1,50)/50)));
+  const actualHumans=Math.max(1,Math.round(p.humans*Math.pow(p.humanTarget/p.humans,Math.min(year,50)/50)));
   const eligible=actualHumans+p.sybils;
   for(let month=0;month<12;month++){
    const t=(year-1)*12+month;
@@ -547,7 +547,7 @@ function forecast(input={}){
     r.actualNetIssuanceMINI=i?r.totalMINI-previous.totalMINI:0;
     r.actualNetIssuancePct=i?r.actualNetIssuanceMINI/previous.totalMINI*100:0;
     r.realWealthGrowthPct=i&&previous.wealth>0?(r.wealth/previous.wealth-1)*100:0;
-    r.wealthRequiredForStableMINI=p.capturePct>0?initialPrice*r.totalMINI/(p.capturePct/100):null;
+    r.wealthRequiredForStableMINI=initialPrice>0?initialPrice*r.totalMINI/(p.capturePct/100):null;
     r.realWealthGapUSD=r.wealthRequiredForStableMINI===null?null:r.wealthRequiredForStableMINI-r.wealth;
   }
   return {assumptions:p,rows,maxAnnual,conservation};
@@ -570,7 +570,7 @@ function chart(id,title,key,unit,log=false){
 function renderPay(){
  const basePay=Number($('basePay').value);
  const p={...defaults,basePay,auditBudget:basePay*2,openingCash:Number($('openingCash').value),annualIncome:Number($('annualIncome').value),founderYears:Number($('pastFteYears').value),founderFte:1};
- const errs=validate(p);if(errs.length){$('pay').textContent=errs.join('; ');return;}
+ const errs=validate(p);if(errs.length){$('pay').textContent=errs.join('; ');$('milestones').innerHTML='';return;}
  const c=compensation(p);$('pay').innerHTML='<div class="table-wrap"><table><thead><tr><th>Role / budget</th><th>Proposed EUR</th></tr></thead><tbody>'+[['Active founder / comparable lead, per year',c.founder],['Contributor, per year',c.contributor],['Quarter-time councillor, per six-month term',c.council/2],['Finite historical award, before funding decision',c.recognition],['Core annual spending',c.essential],['Recurring income needed, including 10% future transfer',c.neededIncome],['Historical award paid in year one',c.pastPayment]].map(([k,v])=>'<tr><td>'+k+'</td><td>'+fmt(v)+'</td></tr>').join('')+'</tbody></table></div><p>'+ (c.awardFunded?'The entire historical award and associated costs can be reserved upfront after the core reserve floor.':'The historical award is not funded: an additional EUR '+fmt(c.recognitionFundingNeeded)+' is needed before an unconditional award.')+'</p>';
  $('milestones').innerHTML=milestones.map(m=>'<tr><td>'+m.id+' · '+m.name+'</td><td>'+fmt(m.fraction*100)+'% · EUR '+fmt(m.fraction*c.earnedPool)+'</td><td>'+m.evidence+'</td></tr>').join('');
 }
