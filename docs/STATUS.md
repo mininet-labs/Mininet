@@ -2644,7 +2644,7 @@ the top development priority.
 
 See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,
 backend composition, maturity matrix, and implementation order.
-No desktop or web application exists anywhere in this repository.
+A Windows-first desktop reference client exists; a browser client is not implemented.
 `docs/UI_BETA_PLAN.md` is a plan, not code, for those. An Android client
 foundation exists: a `mini-ffi` UniFFI command/event boundary plus a thin
 Jetpack Compose onboarding shell, stopping at `RootCreationReady` with no
@@ -3056,3 +3056,58 @@ trusted first peer, majority-by-download rule, admin/unmasking key, or
 value-to-routing/ranking/voice path. An authenticated endpoint proves control of
 one key-bound endpoint on one channel, not personhood, operator independence,
 result truth, or governance standing.
+
+## Connected desktop beta — 2026-09-15 (D-0523)
+
+The Windows client now opens into an X-style black shell (rail, timeline,
+discovery column) with real author names/times, a worker-loaded 50-card
+timeline with Following and Everyone scopes, received-post search, a media
+filter with inline images, and "Who to follow" from received profiles.
+Connectivity: an owner-started hosting window that accepts many connections,
+multi-peer sessions with backoff (15 min / 1 h / while open), pasteable
+connection cards, opt-in private-conversation delivery through the same
+link, and default-off "on launch" policies. One sealed intent frame after
+the CH1 handshake selects public sync or one private route on one socket
+(`mini_sync::sync_private_route_responder_any` serves the host side).
+
+Verified: crate tests including a real-TCP host/session exchange, and two
+live instances on one Windows machine exchanging a post and a follow.
+Not verified: two machines behind different NATs. Still missing: relay,
+rendezvous, NAT traversal, endpoint advertisements, durable outbox,
+whole-exchange deadlines, indexed timelines, video playback, maps, dating
+and business workflows. See `docs/proposals/connected-mininet-client.md`.
+
+## Service tickets and the seedable Library — 2026-09-15 (D-0524)
+
+`mini-ticket` adds signed, replicable service tickets issued by the receiver
+of every desktop exchange, a ledger that credits hosts and creators in
+micro-MINI (unsettled), and a redemption request only the named DID can
+build or verify. The desktop's Library publishes files of any size (up to
+64 GiB as an ordered collection of manifests), shows seeding progress, and
+exports chunk by chunk; Earnings shows the ledger and rate. Verified over
+real TCP and live with two instances. Not built: settlement or payout,
+ticket pruning, agreed rates, streaming playback.
+
+## Shorts, Watch and in-app playback — 2026-09-15 (D-0525)
+
+Audio (MP3/FLAC/Ogg/WAV/AAC-in-MP4) plays in-app through pure-Rust
+decoders with seek, pause, volume and a now-playing bar; animated GIF/WebP
+loop in Shorts and Watch. Video does not decode in-app (no pure-Rust
+decoder; no browser or external launch) and the UI says so, offering export.
+
+## Limits closed — 2026-09-15 (D-0526)
+
+Owner-triggered UPnP router mapping with honest public-address detection;
+agreed per-exchange ticket rates written into tickets; in-process H.264
+(no B-frames) + AAC video playback via OpenH264 and symphonia. Still not
+built: relay/rendezvous for CGNAT, B-frame video, H.265/VP9/AV1, seekable
+video, settlement. Media is a YouTube-style catalog (search, filters, sort,
+poster grid) with per-author Channel pages; search covers this device only.
+
+## Search my peers — 2026-09-15 (D-0527, D-0528)
+
+Network search (saved peers, forwarded one further hop by hosts that allow
+it) and targeted verified fetch through `mini-sync` retrieval, from the
+Media view; a host that does not hold a hit pulls it from the origin and
+then serves and seeds it. Idle exchanges no longer mint ticket objects.
+`docs/BETA_TESTING.md` is the tester guide for this line.

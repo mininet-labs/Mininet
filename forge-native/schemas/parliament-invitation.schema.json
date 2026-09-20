@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ParliamentInvitation payload",
+  "type": "object",
+  "required": ["invitation_id", "inviter_class", "issued_at", "expires_at", "single_use_commitment"],
+  "properties": {
+    "invitation_id": {"type": "string", "minLength": 1},
+    "inviter_class": {"enum": ["h0", "active-steward"]},
+    "issued_at": {"type": "integer", "minimum": 0},
+    "expires_at": {"type": "integer", "minimum": 1},
+    "single_use_commitment": {"type": "string", "minLength": 16},
+    "qualification_track": {"type": "string"}
+  },
+  "additionalProperties": false
+}
