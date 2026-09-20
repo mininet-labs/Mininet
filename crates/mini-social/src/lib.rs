@@ -457,8 +457,7 @@ pub fn decode_profile(object: &Object) -> Result<Profile> {
         Payload::Encrypted(_) => return Err(SocialError::BadProfile),
     };
     if bytes.starts_with(PROFILE_V2_MAGIC) {
-        return decode_profile_v2(&object.author_human, bytes)?
-            .ok_or(SocialError::BadProfile);
+        return decode_profile_v2(&object.author_human, bytes)?.ok_or(SocialError::BadProfile);
     }
     let mut pos = 0usize;
     let display_name = get_str(bytes, &mut pos).ok_or(SocialError::BadProfile)?;
