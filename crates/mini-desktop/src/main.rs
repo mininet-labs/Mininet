@@ -33,6 +33,8 @@ use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
+#[cfg(all(test, windows))]
+use mini_social::publish_profile;
 use mini_social::{
     community_members, followers, following, known_profiles, publish_comment, publish_community,
     publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
