@@ -10,6 +10,9 @@
 .idea/
 .vscode/
 
+# Claude Code local session/agent state (worktrees, etc.) — not project source
+.claude/
+
 # Python bytecode cache (tools/*.py: mininet_nav.py, check_governance.py)
 __pycache__/
 *.pyc
