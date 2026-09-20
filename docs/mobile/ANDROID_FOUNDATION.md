@@ -262,6 +262,16 @@ which half still needs that local verification.
     explicitly pre-review; no production/custody claim is made before this
     gate clears.
 
+## Proposed mobile reference system
+
+The [mobile OS and open phone ecosystem proposal](MOBILE_OS_PROPOSAL.md)
+(2026-09-19, design-only) scopes an optional Android-derived reference system,
+a [staged implementation roadmap](MOBILE_OS_ROADMAP.md), and
+[open device/manufacturer requirements](MOBILE_DEVICE_REQUIREMENTS.md).
+It builds on this client and keeps the ordinary APK a first-class access path.
+It does not claim an implemented OS, approved product name, certified phone,
+manufacturer commitment, or closure of existing hardware/security gates.
+
 ## Primary implementation references
 
 - UniFFI user guide: <https://mozilla.github.io/uniffi-rs/latest/>
