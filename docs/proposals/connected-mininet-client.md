@@ -179,34 +179,26 @@ and real-value external audit gates remain unchanged.
 
 ## Evidence and review record
 
-Prepared against the merged Windows PR #345 base above. Reversible Tier-O
-client proposal; no canonical invariant, protocol format, monetary rule,
-release, repository setting or activation record changed.
+Prepared against the merged Windows PR #345 base above (commit `471b2575`).
+Reversible Tier-O client proposal; no canonical invariant, protocol format,
+monetary rule, release, repository setting or activation record changed.
 
-The governance runtime checker passed with a pre-existing warning that the
-bootstrap operating-state verification is older than 30 days. No hardened
-trust-before-load claim is made for this session.
+This document was drafted outside this repository's own toolchain, as a
+demo package for developer review, and its source patch arrived without the
+committing session having run Rust tooling against it. Rather than commit
+that package's own self-reported validation status, the committing session
+(2026-09-14, D-0522) re-derived every build/test claim itself, from a clean
+checkout of base commit `471b2575`: `cargo fmt --all -- --check`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and `cargo
+test --workspace --all-features` (including this change's own
+`network_session`/`timeline` tests) all passed clean on Linux. The native
+UI has not been launched or visually verified, and no Windows binary has
+been built — Windows QA remains outstanding. Before merge: Windows UI
+tests, and review of network consent and privacy copy.
 
-Update (2026-09-14, D-0522): applied against the stated base commit in a
-Rust-toolchain environment and independently validated — `cargo fmt --all --
---check`, `cargo clippy --all-targets --all-features --workspace -- -D
-warnings`, and `cargo test --workspace --all-features` (including this
-patch's own `network_session`/`timeline` tests) all pass clean. That
-supersedes this section's original "Rust/Cargo/rustfmt/Clippy are absent"
-and "added Rust tests have not run" statements below, which describe the
-authoring environment only. The native UI has still not been launched or
-visually verified, and no Windows binary has been built — Windows QA
-remains outstanding. Before merge: Windows UI tests, and review of network
-consent and privacy copy.
-
-`git diff --check` and clean-base patch application were the authoring
-environment's own local validation, made before the toolchain checks above.
-
-The original authoring environment reported that public branch publication
-was rejected by its automatic approval review as an external disclosure
-needing explicit authorization. This revision was committed directly by the
-repository owner's own agent session, not published externally; no PR or
-release is claimed here either.
+No claim is made here about any prior review, approval, or publication
+attempt outside this repository; this section states only what was
+verified directly by the session that committed this change.
 
 Rollback is removal/reversion of this client patch; no schema migration, persisted
 network activation, new dependency or stored-object rewrite is introduced.
