@@ -13,3 +13,6 @@
 # Python bytecode cache (tools/*.py: mininet_nav.py, check_governance.py)
 __pycache__/
 *.pyc
+
+# Claude Code session-local agent worktrees (not project content)
+/.claude/
