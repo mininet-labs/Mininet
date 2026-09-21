@@ -3087,6 +3087,7 @@ dependencies = [
  "mini-bearer",
  "mini-crypto",
  "mini-mesh",
+ "mini-messaging",
  "mini-objects",
  "mini-social",
  "mini-store",

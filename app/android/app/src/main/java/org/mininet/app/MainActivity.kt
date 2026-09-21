@@ -99,6 +99,8 @@ sealed interface CoreUiState {
         val rootDid: String,
         val deviceDid: String,
         val contacts: List<PairingContact>,
+        /** Every device this root currently delegates, including [deviceDid]. */
+        val devices: List<String> = listOf(deviceDid),
         val offer: PairingOfferView? = null,
         val pairingBusy: Boolean = false,
         val message: String? = null,
@@ -250,14 +252,42 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
 
     private fun homeState(message: String? = null): CoreUiState.Home {
         val rootDid = requireNotNull(rootCore.rootDid())
-        val deviceDid = rootCore.delegatedDevices().firstOrNull()
+        val devices = rootCore.delegatedDevices()
+        val deviceDid = devices.firstOrNull()
             ?: error("restored root has no delegated device")
         return CoreUiState.Home(
             rootDid = rootDid,
             deviceDid = deviceDid,
             contacts = rootCore.pairingContacts(),
+            devices = devices,
             message = message,
         )
+    }
+
+    /**
+     * Revoke one of this root's own delegated devices (D-0335's
+     * `RootCore.revokeDelegatedDevice`, already wired end-to-end since it
+     * shipped -- this is the first UI surface that calls it). Honest limit:
+     * revocation only removes [did] from the root's KEL-recorded
+     * authorization; it does not, and cannot, reach out and disable that
+     * physical device -- a revoked device only "finds out" if and when it
+     * re-checks a fresh copy of the root KEL itself. Revoking this
+     * session's own current device ([CoreUiState.Home.deviceDid]) is
+     * refused in the UI ([DeviceCard]'s revoke button is disabled for it)
+     * rather than in this function, since the local `RootCore` would keep
+     * signing with that device's still-held secret key regardless --
+     * revoking your own current device from itself is a self-lockout, not
+     * a security boundary this call can meaningfully enforce.
+     */
+    fun revokeDevice(did: String) {
+        if (state !is CoreUiState.Home) return
+        runCatching {
+            rootCore.revokeDelegatedDevice(did)
+            persistRootState()
+            state = homeState("Revoked ${did.take(28)}…")
+        }.onFailure { failure ->
+            updateHome(message = failure.message ?: failure::class.java.simpleName)
+        }
     }
 
     private fun updateHome(
@@ -397,6 +427,7 @@ private fun MininetApp(model: MiniViewModel = viewModel()) {
                     onCreateOffer = model::beginPairing,
                     onAcceptQr = model::acceptPairingQr,
                     onQrFailure = model::reportQrFailure,
+                    onRevokeDevice = model::revokeDevice,
                 )
                 is CoreUiState.Unavailable -> CoreUnavailable(state.reason)
                 is CoreUiState.RestoreFailed -> RestoreFailedScreen(state.reason)
@@ -484,6 +515,7 @@ private fun HomeScreen(
     onCreateOffer: (String) -> Unit,
     onAcceptQr: (String, String) -> Unit,
     onQrFailure: (String) -> Unit,
+    onRevokeDevice: (String) -> Unit,
 ) {
     var displayName by androidx.compose.runtime.remember { mutableStateOf("") }
     val camera = rememberLauncherForActivityResult(
@@ -592,6 +624,20 @@ private fun HomeScreen(
             NoticeCard(state.message)
         }
 
+        Text("Your devices", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+        Text(
+            "Revoking a device removes it from your root's signed authorization list. It does not remotely lock or wipe that device -- it only stops being recognized as you the next time it checks a fresh copy of your identity.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Ink.copy(alpha = 0.62f),
+        )
+        state.devices.forEach { deviceDid ->
+            DeviceCard(
+                did = deviceDid,
+                isCurrentDevice = deviceDid == state.deviceDid,
+                onRevoke = { onRevokeDevice(deviceDid) },
+            )
+        }
+
         Text("People you follow", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
         if (state.contacts.isEmpty()) {
             Text(
@@ -601,6 +647,55 @@ private fun HomeScreen(
         } else {
             state.contacts.forEach { contact ->
                 ContactCard(contact)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceCard(did: String, isCurrentDevice: Boolean, onRevoke: () -> Unit) {
+    var confirming by androidx.compose.runtime.remember(did) { mutableStateOf(false) }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                if (isCurrentDevice) "This device" else "Delegated device",
+                fontWeight = FontWeight.ExtraBold,
+            )
+            Text(
+                did,
+                style = MaterialTheme.typography.bodySmall,
+                color = Ink.copy(alpha = 0.62f),
+            )
+            if (isCurrentDevice) {
+                Text(
+                    "Can't be revoked from itself -- switch to another delegated device first.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Ink.copy(alpha = 0.5f),
+                )
+            } else if (confirming) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = { confirming = false; onRevoke() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Amber),
+                    ) {
+                        Text("Confirm revoke", fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(onClick = { confirming = false }) {
+                        Text("Cancel")
+                    }
+                }
+            } else {
+                OutlinedButton(onClick = { confirming = true }) {
+                    Text("Revoke this device")
+                }
             }
         }
     }

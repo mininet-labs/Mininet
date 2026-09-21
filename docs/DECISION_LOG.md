@@ -24919,3 +24919,85 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0529 — `mini-ffi::messaging`: a `RootCore`-native `mini-messaging` adapter, plus a device-revoke UI  ·  *Shipped*
+
+**Date:** 2026-09-21 · **Refs:** `crates/mini-ffi/src/messaging.rs`;
+`crates/mini-ffi/src/mini_ffi.udl`; `app/android/app/src/main/java/org/mininet/app/MainActivity.kt`;
+D-0335 (`RootCore` root/device delegation this reuses), D-0338 (the
+persisted-state pipeline this extends), D-0340 (`pairing.rs`, the sibling
+adapter this module's shape mirrors).
+
+**Decision:** add one new capability to `mini-ffi`, following its own
+documented convention of one deliberately reviewed adapter at a time
+(`lib.rs`'s crate doc: "sync... enter[s] through later, separately
+reviewed adapters"), rather than a broad multi-crate FFI expansion.
+
+1. **`RootCore.send_message`/`scan_conversation`.** A thin bridge over
+   `mini-messaging::send`/`scan`, signing with `RootCore`'s own
+   `state.devices.first()` (matching `pairing.rs`'s existing convention)
+   and persisting sealed `ObjectEnvelopeV2` bytes — never plaintext — as a
+   new `MessagingState` field folded into `RootCore::persist_state`'s
+   existing ciphertext (persisted-state format bumped `PERSIST_VERSION`
+   2 → 3, with 1/2/3 all still readable). `ConversationSecretHandle`
+   (32-byte route + 32-byte key) is accepted, never generated, matching
+   `mini-messaging`'s own "does not invent key distribution" stance —
+   establishing one safely is still entirely the caller's problem.
+2. **`signature_verified` is scoped honestly.** It is computed only when a
+   message claims `author_human` equal to this process's own root *and*
+   `author_device` matches one of `state.devices`' own current KELs —
+   i.e., only for a device this `RootCore` already knows is its own. It is
+   never computed against a different person's KEL (this module has no
+   way to fetch one), and the doc comment says so directly rather than
+   leaving that limit implicit.
+3. **Device-revoke admin UI.** `RootCore.delegatedDevices()`/
+   `revokeDelegatedDevice()` (D-0335, already fully wired end-to-end in
+   Rust) had no Kotlin UI calling them. `MainActivity.kt`'s `HomeScreen`
+   now lists every delegated device with a confirm-before-revoke control;
+   the current device's own entry cannot be revoked from itself (a
+   self-lockout, not a security boundary the call can enforce), and the
+   revoke-does-not-remote-wipe honest limit is stated in the screen copy,
+   not just a code comment.
+
+**Rejected alternatives, and why:** a full "admin panel" with live
+online/last-seen presence (`mini-presence` investigated first) was
+rejected — that crate implements one-time cryptographic proximity
+attestation, not online status; no heartbeat/last-seen concept exists
+anywhere in this workspace, and inventing one would be new protocol
+design work needing its own decision, not a side effect of an FFI
+adapter. A remote lock/wipe command was rejected for the same reason:
+`did-mini` has only delegate/revoke KEL seals, no command-seal variant,
+and no push mechanism exists to notify a device of anything.
+
+**Constitutional impact:** none. No dependency crosses the voice/value
+wall (`mini-messaging` depends only on `did-mini`/`mini-crypto`/
+`mini-objects`/`mini-store`). No cryptography invented — composes
+`mini-messaging`'s existing sealed-envelope primitive unchanged.
+
+**Implementation status:** shipped and tested on the Rust side: 6 new
+`crates/mini-ffi/src/messaging.rs` unit tests (send/scan round-trip with
+verified signature, wrong-key rejection, invalid-secret-length rejection,
+no-root rejection, persist/restore round-trip, malformed-receipt
+rejection), all 69 `mini-ffi` tests green, `cargo clippy -p mini-ffi
+--all-targets --all-features -- -D warnings` clean, and the UDL was
+round-tripped through real `uniffi-bindgen` Kotlin generation to confirm
+`sendMessage`/`scanConversation`/`ConversationSecretHandle` land correctly
+in generated Kotlin. The Kotlin `HomeScreen` changes are unverified in
+this environment (no JDK/Android SDK/Gradle/emulator here, same standing
+limit as every other Android UI change in this log) — Gradle sync and a
+real device/emulator run remain outstanding.
+
+**Failure point:** conversation-key establishment is still entirely
+caller-managed (no pairwise session protocol exists yet — same limit
+`mini-messaging` itself already states); `scan_conversation` is a full
+re-scan every call with no cursor, so cost grows with `MAX_ENVELOPES`
+(4096) history; revocation still has no push path to the revoked device.
+
+**Required follow-up:** a real pairwise key-establishment protocol before
+this is usable for anyone other than a user's own multiple devices
+sharing a secret through an already-trusted channel; Gradle/emulator
+verification of the new Kotlin; issue tracking for the rejected
+presence/remote-command work if the founder wants it pursued as its own
+decision.
+
+**Supersedes / superseded by:** none. Extends D-0335/D-0338/D-0340.
