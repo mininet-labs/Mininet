@@ -2707,6 +2707,20 @@ Beta explicitly means "builds, installs, golden path works, full Rust
 suite green" — not that the custody layer has cleared external review
 (D-0047 gate).
 
+`mini-ffi` gained a second capability adapter beyond pairing (D-0529):
+`RootCore.send_message`/`scan_conversation` bridge `mini-messaging`'s
+sealed-envelope send/scan into the same persisted-state pipeline
+(`PERSIST_VERSION` 2 → 3), with `signature_verified` deliberately scoped
+to only ever validate against this process's own root and its own
+currently-known devices' KELs — never another person's, which this
+module has no way to fetch. `MainActivity.kt`'s `HomeScreen` also gained
+a device list with confirm-before-revoke, the first UI caller of
+`RootCore.revokeDelegatedDevice` since it shipped under D-0335. Same
+standing limit as the rest of this section: the Rust side is tested (6
+new tests, 69/69 green, clippy clean, UDL round-tripped through real
+`uniffi-bindgen` Kotlin generation), the Kotlin UI change is not
+Gradle/emulator-verified in this environment.
+
 ## 12. Edge / provider layer (Founder Directive 18, D-0352)
 
 **shipped (Wave 1, D-0400)** — `mini-provider`: `ProviderDeclaration`
