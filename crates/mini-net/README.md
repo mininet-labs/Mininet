@@ -62,9 +62,21 @@ This crate is the routing/broadcast *logic*, still not a fully running
 network stack:
 
 - **Real transport** now exists for the gossip half (`TcpBearer`, proven
-  live by the demo above) but is not wired into `RoutingTable`/peer
-  discovery yet, and TCP is a stand-in for local-Wi-Fi/relay connectivity,
-  not BLE.
+  live by the demo above), and PEX-based peer discovery over real transport
+  is also proven end to end: `mini_consensus::discovery::pex_over_tcp`/
+  `serve_pex_over_tcp` (D-0462) carries `PexMessage` over an authenticated
+  `mini_bearer::Channel`, and `dialable_fanout` plus
+  `tests/pex_driven_gossip_mesh.rs` (D-0472) proves a node that only ever
+  knew a bootstrap peer discovers and gossips directly to a peer it never
+  dialed, purely through a PEX round — closing roadmap #24's bootstrap/DHT-
+  discovery and shared-bootstrap-convergence scope. TCP remains a stand-in
+  for local-Wi-Fi/relay connectivity, not BLE. Overlay routing for peers
+  not directly reachable hands off to `mini-relay`'s existing Tier-1
+  relay/rendezvous protocol rather than duplicating routing logic here.
+  Real NAT hole-punching/STUN/ICE for CGNAT-class peers is still open
+  (D-0526 shipped owner-triggered UPnP only; D-0528 names relay/rendezvous
+  for CGNAT as required follow-up) — deliberately not faked, since it's
+  unverifiable without real NAT hardware.
 - **Bucket-refresh-by-liveness-ping** is not implemented — a stale bucket
   entry isn't detected and evicted yet.
 - **Randomized gossip fanout** is not implemented — `fanout_peers` is
