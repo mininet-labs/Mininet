@@ -18,6 +18,7 @@ path = "src/main.rs"
 # or optional platform integration is pulled into the reference shell.
 eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
 image = { version = "0.25", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
+mini-app-protocol = { path = "../mini-app-protocol" }
 did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-media = { path = "../mini-media" }
