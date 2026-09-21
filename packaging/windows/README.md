@@ -27,6 +27,10 @@ packaging/windows/build-release.sh
 
 Output in `dist/windows`:
 
+The verified `.mnpkg` contains both `mininet-desktop.exe` and
+`mininet-app-service.exe`; the latter is the per-user identity/social core
+required by migrated W1 signing flows.
+
 | Artifact | What it is |
 | --- | --- |
 | `mininet-setup-<version>-<target>.exe` | One file to hand someone. The wizard, with the package inside it. |
@@ -82,8 +86,10 @@ Or, from an extracted release directory:
 .\Install-Mininet.ps1             # and then install
 ```
 
-No administrator. No service. No scheduled task. No network access. Files go to
-`%LOCALAPPDATA%\Programs\Mininet`; identities, posts, and settings live
+No administrator and no administrator-owned Windows Service. The desktop
+launches the packaged `mininet-app-service.exe` as a per-user sibling process;
+there is no scheduled task and installation itself performs no network access.
+Files go to `%LOCALAPPDATA%\Programs\Mininet`; identities, posts, and settings live
 separately in `%LOCALAPPDATA%\Mininet` and are never touched by installing,
 upgrading, or removing the program.
 
