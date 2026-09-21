@@ -8,7 +8,7 @@
     `mini windows pack`, so neither can drift into producing a
     differently-shaped package.
 
-    Steps: build mini-desktop, mini-cli and mini-setup in release mode; stage
+    Steps: build mini-desktop, the per-user application core, mini-cli and mini-setup in release mode; stage
     the files; pack a verified container plus a readable manifest; rebuild
     mini-setup with the container embedded so there is one file to hand
     someone; write SHA256SUMS.txt.
@@ -96,12 +96,15 @@ try {
     if (Test-Path $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path (Join-Path $stageDir 'docs') | Out-Null
 
-    Write-Host '-- building client, cli, and setup'
-    & cargo build --release --target $Target -p mini-desktop -p mini-cli -p mini-setup -p mini-value-selftest
+    Write-Host '-- building client, application core, cli, and setup'
+    & cargo build --release --target $Target -p mini-desktop -p mini-app-service -p mini-cli -p mini-setup -p mini-value-selftest
     if ($LASTEXITCODE -ne 0) { throw "cargo build failed with exit code $LASTEXITCODE" }
 
     Write-Host '-- staging package files'
     Copy-Item (Join-Path $binDir 'mininet-desktop.exe') (Join-Path $stageDir 'mininet-desktop.exe')
+    # The renderer launches this sibling process for bounded identity/social
+    # authority. Shipping the GUI without it would deliberately disable signing.
+    Copy-Item (Join-Path $binDir 'mininet-app-service.exe') (Join-Path $stageDir 'mininet-app-service.exe')
     Copy-Item (Join-Path $binDir 'mini.exe') (Join-Path $stageDir 'mini.exe')
     # The setup program inside the package is the variant *without* an
     # embedded payload: it is what Apps & features runs to uninstall, verify,

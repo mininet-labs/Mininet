@@ -1,0 +1,23 @@
+[package]
+name = "mini-app-service"
+version = "0.0.1"
+description = "Per-user Mininet application core: single-writer identity, social state, feed materialization, and bounded IPC service."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mininet-app-service"
+path = "src/main.rs"
+
+[dependencies]
+did-mini = { path = "../did-mini" }
+mini-app-protocol = { path = "../mini-app-protocol" }
+mini-durable = { path = "../mini-durable" }
+mini-objects = { path = "../mini-objects" }
+mini-social = { path = "../mini-social" }
+mini-store = { path = "../mini-store" }
+mini-windows-vault = { path = "../mini-windows-vault" }
