@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+mod app_service;
 mod catalog;
 mod connectivity;
 mod conversation_state;
@@ -24,16 +25,22 @@ mod video;
 use conversation_state::ConversationRecord;
 use did_mini::{Capabilities, Controller, Did};
 use eframe::egui;
+use mini_app_protocol::{
+    AccountStatus, Command as AppCommand, FeedOrder as AppFeedOrder, FeedScope as AppFeedScope,
+    Reply as AppReply, ServiceEventKind,
+};
 use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
+#[cfg(all(test, windows))]
+use mini_social::publish_profile;
 use mini_social::{
     community_members, followers, following, known_profiles, publish_comment, publish_community,
-    publish_media_post, publish_post, publish_profile, publish_profile_details, publish_wall,
-    resolve_community, resolve_profile, set_follow, set_membership, set_reaction, FeedFilter,
-    LocalProfileAnnouncer, LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft,
-    PublicProfileField, ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
+    publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
+    set_follow, set_membership, set_reaction, FeedFilter, LocalProfileAnnouncer,
+    LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft, PublicProfileField,
+    ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
     MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
@@ -81,6 +88,16 @@ enum UpdatePolicy {
 #[derive(Debug, Clone)]
 enum SyncContext {
     FriendRequest { display_name: String },
+}
+
+#[derive(Debug, Clone)]
+enum CoreAction {
+    CreateRoot,
+    UnlockIdentity,
+    LockIdentity,
+    LockAfterProfile,
+    PublishProfile { display_name: String, bio: String },
+    PublishPost { text: String },
 }
 
 /// One row of the Messages conversation list.
@@ -145,6 +162,15 @@ impl Default for PrivacyState {
 
 struct MininetApp {
     workspace: Option<Workspace>,
+    app_service: Option<app_service::Client>,
+    app_status: Option<AccountStatus>,
+    app_status_rx: Option<Receiver<Result<AppReply, String>>>,
+    app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
+    app_events_rx: Option<Receiver<Result<AppReply, String>>>,
+    app_events_due: Instant,
+    app_last_event_id: Option<u64>,
+    post_operation: Option<(String, String)>,
+    profile_operation: Option<(String, String, String)>,
     view: View,
     privacy: PrivacyState,
     theme_applied: bool,
@@ -398,20 +424,6 @@ impl Workspace {
             .ok_or_else(|| "create a Mininet root first".to_string())
     }
 
-    fn create_root(&mut self) -> Result<(), String> {
-        if self.root_created() {
-            return Ok(());
-        }
-        let root_seeds =
-            load_or_create(&self.root.join("identity.dpapi")).map_err(|error| error.to_string())?;
-        let device_seeds =
-            load_or_create(&self.root.join("device.dpapi")).map_err(|error| error.to_string())?;
-        let identity = desktop_identity_from_seeds(&root_seeds, &device_seeds)?;
-        self.human = Some(identity.root.did());
-        self.identity = Some(identity);
-        Ok(())
-    }
-
     fn lock(&mut self) {
         self.identity = None;
     }
@@ -423,46 +435,6 @@ impl Workspace {
         let identity = load_desktop_identity(&self.root, true)?;
         self.human = Some(identity.root.did());
         self.identity = Some(identity);
-        Ok(())
-    }
-
-    fn publish_post(&mut self, text: &str) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_post(
-            &mut self.store,
-            &human,
-            &identity.device,
-            text,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
-    fn publish_profile(&mut self, name: &str, bio: &str) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_profile(
-            &mut self.store,
-            &human,
-            &identity.device,
-            name,
-            bio,
-            None,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
         Ok(())
     }
 
@@ -685,6 +657,24 @@ impl Workspace {
         Ok(())
     }
 
+    fn publish_public_wall_confirmed(
+        &mut self,
+        name: &str,
+        bio: &str,
+        links: &[&str],
+        unlisted: bool,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_public_wall(name, bio, links, unlisted);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
     fn publish_community(&mut self, name: &str, charter: &str) -> Result<(), String> {
         let identity = self
             .identity
@@ -704,6 +694,18 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn publish_community_confirmed(&mut self, name: &str, charter: &str) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_community(name, charter);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn publish_media_post(
@@ -743,6 +745,23 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn publish_media_post_confirmed(
+        &mut self,
+        path: &str,
+        content_type: &str,
+        caption: &str,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_media_post(path, content_type, caption);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn publish_comment(
@@ -865,6 +884,22 @@ impl Workspace {
         self.sequence = self.sequence.saturating_add(1);
         let request = mini_ticket::read_redemption(&object).map_err(|error| error.to_string())?;
         Ok((request.id, request.micro_mini))
+    }
+
+    fn build_redemption_confirmed(
+        &mut self,
+        tickets: &[mini_objects::ObjectId],
+        rate: mini_ticket::Rate,
+    ) -> Result<(mini_objects::ObjectId, u64), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.build_redemption(tickets, rate);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     /// (id, micro-MINI, ticket count, verifies) for every redemption request
@@ -1120,9 +1155,6 @@ impl Workspace {
     }
 
     fn create_beta_conversation(&mut self, label: &str, peer: &str) -> Result<String, String> {
-        if !self.is_unlocked() {
-            return Err("identity is locked".to_string());
-        }
         let peer = Did::parse(peer.trim()).map_err(|error| error.to_string())?;
         let inviter = self.human_did()?.clone();
         let (record, invite) = ConversationRecord::create(label.trim().to_string(), peer, inviter)?;
@@ -1185,6 +1217,18 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn send_private_message_confirmed(&mut self, index: usize, body: &str) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.send_private_message(index, body);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn private_messages(&self, index: usize) -> Result<mini_messaging::ConversationScan, String> {
@@ -1485,6 +1529,7 @@ fn run_discoverable_profile_sync(
     visibility_duration: Duration,
     progress: &mpsc::Sender<Result<String, String>>,
     ready: Option<&mpsc::Sender<()>>,
+    max_completed: Option<usize>,
 ) -> Result<String, String> {
     let identity = load_desktop_identity(root, false).map_err(|error| {
         format!(
@@ -1518,6 +1563,11 @@ fn run_discoverable_profile_sync(
                         let _ = progress.send(Ok(format!(
                             "Nearby sync #{completed} complete with {peer}: {summary}. Still visible until the window ends."
                         )));
+                        if max_completed.is_some_and(|limit| completed >= limit) {
+                            return Ok(format!(
+                                "Nearby visibility window ended after {completed} completed sync connection(s)."
+                            ));
+                        }
                     }
                     Err(error) => {
                         let _ = progress.send(Err(format!(
@@ -1541,6 +1591,13 @@ fn run_discoverable_profile_sync(
 impl Default for MininetApp {
     fn default() -> Self {
         let workspace = Workspace::open().ok();
+        let (app_service, app_status_rx, app_service_error) = match app_service::Client::spawn() {
+            Ok(client) => match client.request(AppCommand::Status) {
+                Ok(receiver) => (Some(client), Some(receiver), None),
+                Err(error) => (Some(client), None, Some(error)),
+            },
+            Err(error) => (None, None, Some(error)),
+        };
         let connections = connectivity::load(&data_root());
         let listen_port = connections.listen_port.to_string();
         let (muted, mute_error) = mute_list::load(&data_root());
@@ -1553,8 +1610,29 @@ impl Default for MininetApp {
         } else {
             View::Onboarding
         };
+        let notice = match (mute_error, app_service_error) {
+            (_, Some(error)) => format!(
+                "Application core unavailable: {error}. Read-only local data remains available, but core signing actions are disabled."
+            ),
+            (Some(error), None) => {
+                format!("Mute list could not be read and is treated as empty: {error}")
+            }
+            (None, None) => {
+                "Application core starting. Identity is locked; no network activity has started."
+                    .to_string()
+            }
+        };
         Self {
             workspace,
+            app_service,
+            app_status: None,
+            app_status_rx,
+            app_action: None,
+            app_events_rx: None,
+            app_events_due: Instant::now(),
+            app_last_event_id: None,
+            post_operation: None,
+            profile_operation: None,
             view,
             privacy: load_privacy_settings(),
             theme_applied: false,
@@ -1709,15 +1787,7 @@ impl Default for MininetApp {
             selftest_report: None,
             selftest_area: None,
             install_notice: String::new(),
-            notice: match mute_error {
-                Some(error) => {
-                    format!("Mute list could not be read and is treated as empty: {error}")
-                }
-                None => {
-                    "Local object store ready. Identity is locked; no network activity has started."
-                        .to_string()
-                }
-            },
+            notice,
         }
     }
 }
@@ -1732,6 +1802,7 @@ impl eframe::App for MininetApp {
             self.launched = true;
             self.apply_launch_policy();
         }
+        self.poll_app_service();
         self.poll_timeline(ctx);
         self.poll_catalog(ctx);
         self.poll_netsearch();
@@ -1764,6 +1835,9 @@ impl eframe::App for MininetApp {
             || self.visibility_rx.is_some()
             || self.selftest_rx.is_some()
             || self.timeline_rx.is_some()
+            || self.app_status_rx.is_some()
+            || self.app_action.is_some()
+            || self.app_events_rx.is_some()
         {
             ctx.request_repaint_after(Duration::from_millis(100));
         }
@@ -1853,6 +1927,248 @@ impl MininetApp {
         if self.activity.len() > MAX_ACTIVITY {
             let excess = self.activity.len() - MAX_ACTIVITY;
             self.activity.drain(..excess);
+        }
+    }
+
+    fn core_unlocked(&self) -> bool {
+        self.app_status
+            .as_ref()
+            .is_some_and(|status| status.identity_unlocked)
+    }
+
+    fn core_available(&self) -> bool {
+        self.app_service.is_some()
+    }
+
+    fn start_core_action(&mut self, action: CoreAction, command: AppCommand) {
+        if self.app_action.is_some() {
+            self.notice = "The application core is finishing the previous signing action.".into();
+            return;
+        }
+        let Some(client) = self.app_service.as_ref() else {
+            self.notice =
+                "Application core unavailable. This signing action is disabled.".to_string();
+            return;
+        };
+        match client.request(command) {
+            Ok(receiver) => {
+                self.app_action = Some((action, receiver));
+                self.notice = "Application core is processing the signed action…".to_string();
+            }
+            Err(error) => {
+                self.notice = format!("Application core unavailable: {error}");
+            }
+        }
+    }
+
+    fn request_core_status(&mut self) {
+        if self.app_status_rx.is_some() {
+            return;
+        }
+        let Some(client) = self.app_service.as_ref() else {
+            return;
+        };
+        match client.request(AppCommand::Status) {
+            Ok(receiver) => self.app_status_rx = Some(receiver),
+            Err(error) => self.notice = format!("Could not query application core: {error}"),
+        }
+    }
+
+    fn post_operation_id(&mut self, text: &str) -> String {
+        if let Some((saved_text, operation_id)) = self.post_operation.as_ref() {
+            if saved_text == text {
+                return operation_id.clone();
+            }
+        }
+        let operation_id = app_service::operation_id("post");
+        self.post_operation = Some((text.to_string(), operation_id.clone()));
+        operation_id
+    }
+
+    fn profile_operation_id(&mut self, display_name: &str, bio: &str) -> String {
+        if let Some((saved_name, saved_bio, operation_id)) = self.profile_operation.as_ref() {
+            if saved_name == display_name && saved_bio == bio {
+                return operation_id.clone();
+            }
+        }
+        let operation_id = app_service::operation_id("profile");
+        self.profile_operation = Some((
+            display_name.to_string(),
+            bio.to_string(),
+            operation_id.clone(),
+        ));
+        operation_id
+    }
+
+    fn poll_app_service(&mut self) {
+        let status_result =
+            self.app_status_rx
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core status request stopped".to_string()))
+                    }
+                });
+        if let Some(result) = status_result {
+            self.app_status_rx = None;
+            match result {
+                Ok(AppReply::Status(status)) => {
+                    self.app_status = Some(status);
+                }
+                Ok(_) => {
+                    self.notice =
+                        "Application core returned an unexpected status response.".to_string();
+                }
+                Err(error) => {
+                    self.notice = format!("Could not read application core status: {error}");
+                }
+            }
+        }
+
+        let action_result =
+            self.app_action
+                .as_ref()
+                .and_then(|(_, receiver)| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core action stopped".to_string()))
+                    }
+                });
+        if let Some(result) = action_result {
+            let (action, _) = self
+                .app_action
+                .take()
+                .expect("action receiver existed when result was read");
+            self.finish_core_action(action, result);
+        }
+
+        let event_result =
+            self.app_events_rx
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core event request stopped".to_string()))
+                    }
+                });
+        if let Some(result) = event_result {
+            self.app_events_rx = None;
+            self.app_events_due = Instant::now() + Duration::from_secs(1);
+            match result {
+                Ok(AppReply::Events(events)) => {
+                    for event in events {
+                        if self
+                            .app_last_event_id
+                            .is_some_and(|last| event.event_id != last.saturating_add(1))
+                        {
+                            self.timeline_refresh = Instant::now();
+                            self.request_core_status();
+                        }
+                        self.app_last_event_id = Some(event.event_id);
+                        match event.kind {
+                            ServiceEventKind::RootCreated { .. } => self.request_core_status(),
+                            ServiceEventKind::IdentityChanged { unlocked } => {
+                                if let Some(status) = self.app_status.as_mut() {
+                                    status.identity_unlocked = unlocked;
+                                } else {
+                                    self.request_core_status();
+                                }
+                            }
+                            ServiceEventKind::ObjectPublished { .. }
+                            | ServiceEventKind::FeedChanged => {
+                                self.timeline_refresh = Instant::now();
+                            }
+                        }
+                    }
+                }
+                Ok(_) => {
+                    self.notice =
+                        "Application core returned an unexpected event response.".to_string();
+                }
+                Err(error) => {
+                    self.notice = format!("Application core events unavailable: {error}");
+                }
+            }
+        }
+
+        if self.app_events_rx.is_none() && Instant::now() >= self.app_events_due {
+            if let Some(client) = self.app_service.as_ref() {
+                match client.request(AppCommand::DrainEvents { limit: 64 }) {
+                    Ok(receiver) => self.app_events_rx = Some(receiver),
+                    Err(error) => {
+                        self.app_events_due = Instant::now() + Duration::from_secs(2);
+                        self.notice = format!("Application core events unavailable: {error}");
+                    }
+                }
+            }
+        }
+    }
+
+    fn finish_core_action(&mut self, action: CoreAction, result: Result<AppReply, String>) {
+        match (action, result) {
+            (CoreAction::CreateRoot, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.reload_workspace();
+                self.notice =
+                    "Root created locally by the application core. Publish your public account to continue."
+                        .to_string();
+            }
+            (CoreAction::UnlockIdentity, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.notice =
+                    "Identity unlocked inside the application core. Review and confirm before signing."
+                        .to_string();
+            }
+            (CoreAction::LockIdentity, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.signing_confirmation = false;
+                self.notice =
+                    "Identity locked in the application core. Reading remains available; signing is disabled."
+                        .to_string();
+            }
+            (CoreAction::LockAfterProfile, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.notice = "Public account created locally and identity locked again. Add any optional public details in Creator, or open People when you are ready.".to_string();
+            }
+            (CoreAction::PublishProfile { display_name, bio }, Ok(AppReply::Published(_))) => {
+                self.profile_name = display_name;
+                self.profile_bio = bio;
+                self.profile_operation = None;
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.view = View::Creator;
+                self.start_core_action(CoreAction::LockAfterProfile, AppCommand::LockIdentity);
+            }
+            (CoreAction::PublishPost { text }, Ok(AppReply::Published(_))) => {
+                if self.composer.trim() == text {
+                    self.composer.clear();
+                }
+                self.post_operation = None;
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.timeline_refresh = Instant::now();
+                self.notice = if self.network_session.is_some() || self.host.is_some() {
+                    "Posted through the application core. It shares with your peers on the next exchange."
+                        .to_string()
+                } else {
+                    "Posted through the application core and saved locally. Start a session in Connections to share it."
+                        .to_string()
+                };
+            }
+            (action, Ok(reply)) => {
+                self.notice = format!(
+                    "Application core returned an unexpected response for {action:?}: {reply:?}"
+                );
+                self.request_core_status();
+            }
+            (action, Err(error)) => {
+                self.notice = format!("Application core {action:?} failed: {error}");
+                self.request_core_status();
+            }
         }
     }
 
@@ -2484,18 +2800,43 @@ impl MininetApp {
                             self.view = View::Privacy;
                         }
                         ui.add_space(6.0);
-                        if let Some(workspace) = self.workspace.as_mut() {
-                            if workspace.is_unlocked() {
-                                if ui.add(theme::secondary_button("🔒  Lock identity")).clicked() {
-                                    workspace.lock();
-                                    self.signing_confirmation = false;
-                                    self.notice = "Identity locked. Reading remains available; signing is disabled.".to_string();
+                        match self.app_status.as_ref() {
+                            Some(status) if status.identity_unlocked => {
+                                if ui
+                                    .add_enabled(
+                                        self.app_action.is_none(),
+                                        theme::secondary_button("🔒  Lock identity"),
+                                    )
+                                    .clicked()
+                                {
+                                    self.start_core_action(
+                                        CoreAction::LockIdentity,
+                                        AppCommand::LockIdentity,
+                                    );
                                 }
-                            } else if ui.add(theme::primary_button("🔓  Unlock identity")).clicked() {
-                                match workspace.unlock() {
-                                    Ok(()) => self.notice = "Identity unlocked. Review and confirm before signing.".to_string(),
-                                    Err(error) => self.notice = format!("Unlock failed: {error}"),
+                            }
+                            Some(status) if status.root_created => {
+                                if ui
+                                    .add_enabled(
+                                        self.app_action.is_none(),
+                                        theme::primary_button("🔓  Unlock identity"),
+                                    )
+                                    .clicked()
+                                {
+                                    self.start_core_action(
+                                        CoreAction::UnlockIdentity,
+                                        AppCommand::UnlockIdentity,
+                                    );
                                 }
+                            }
+                            Some(_) => {
+                                theme::muted(ui, "Create identity in onboarding");
+                            }
+                            None if self.core_available() => {
+                                theme::muted(ui, "Core starting…");
+                            }
+                            None => {
+                                ui.colored_label(theme::WARN_AMBER, "Core unavailable");
                             }
                         }
                     });
@@ -2819,23 +3160,74 @@ No tracking. No forced updates.",
             if self.timeline_loaded != wanted {
                 self.timeline_cards.clear();
             }
-            let Some((root, human)) = self.workspace.as_ref().and_then(|workspace| {
-                workspace
-                    .human
-                    .clone()
-                    .map(|human| (workspace.root.clone(), human))
-            }) else {
-                return;
-            };
             self.timeline_loaded = wanted;
             let (filter, scope) = wanted;
             let (sender, receiver) = mpsc::channel();
-            self.timeline_rx = Some(receiver);
             let repaint = ctx.clone();
-            std::thread::spawn(move || {
-                let _ = sender.send(timeline::snapshot(&root, &human, filter, scope));
-                repaint.request_repaint();
-            });
+
+            if self.core_available() {
+                let Some(status) = self.app_status.as_ref() else {
+                    return;
+                };
+                if !status.root_created {
+                    self.timeline_cards.clear();
+                    self.timeline_error = None;
+                    return;
+                }
+                let order = match filter {
+                    FeedFilter::Chronological => AppFeedOrder::Chronological,
+                    FeedFilter::MostSupported => AppFeedOrder::MostSupported,
+                    _ => AppFeedOrder::Chronological,
+                };
+                let scope = match scope {
+                    timeline::Scope::Following => AppFeedScope::Following,
+                    timeline::Scope::Everyone => AppFeedScope::Everyone,
+                };
+                let service_rx = match self
+                    .app_service
+                    .as_ref()
+                    .expect("core availability checked above")
+                    .request(AppCommand::FeedSnapshot {
+                        order,
+                        scope,
+                        limit: timeline::PAGE as u16,
+                    }) {
+                    Ok(receiver) => receiver,
+                    Err(error) => {
+                        self.timeline_error =
+                            Some(format!("Application core feed unavailable: {error}"));
+                        self.timeline_refresh = Instant::now() + Duration::from_secs(2);
+                        return;
+                    }
+                };
+                self.timeline_rx = Some(receiver);
+                std::thread::spawn(move || {
+                    let result = match service_rx.recv() {
+                        Ok(Ok(AppReply::Feed(cards))) => timeline::from_service(cards),
+                        Ok(Ok(other)) => Err(format!(
+                            "application core returned an unexpected feed response: {other:?}"
+                        )),
+                        Ok(Err(error)) => Err(error),
+                        Err(_) => Err("application core feed request stopped".to_string()),
+                    };
+                    let _ = sender.send(result);
+                    repaint.request_repaint();
+                });
+            } else {
+                let Some((root, human)) = self.workspace.as_ref().and_then(|workspace| {
+                    workspace
+                        .human
+                        .clone()
+                        .map(|human| (workspace.root.clone(), human))
+                }) else {
+                    return;
+                };
+                self.timeline_rx = Some(receiver);
+                std::thread::spawn(move || {
+                    let _ = sender.send(timeline::snapshot(&root, &human, filter, scope));
+                    repaint.request_repaint();
+                });
+            }
         }
         ctx.request_repaint_after(Duration::from_secs(5));
     }
@@ -3803,6 +4195,7 @@ No tracking. No forced updates.",
                 Duration::from_secs(60),
                 &sender,
                 None,
+                None,
             );
             let _ = sender.send(result);
         });
@@ -4256,18 +4649,28 @@ No tracking. No forced updates.",
 
     fn home(&mut self, ui: &mut egui::Ui) {
         let (name, did) = self
-            .workspace
+            .app_status
             .as_ref()
-            .and_then(|workspace| {
-                workspace.current_profile().map(|profile| {
+            .and_then(|status| {
+                status.profile.as_ref().map(|profile| {
                     (
-                        profile.display_name,
-                        workspace
-                            .human
-                            .as_ref()
-                            .map(|did| did.as_str().to_owned())
-                            .unwrap_or_default(),
+                        profile.display_name.clone(),
+                        status.human_did.clone().unwrap_or_default(),
                     )
+                })
+            })
+            .or_else(|| {
+                self.workspace.as_ref().and_then(|workspace| {
+                    workspace.current_profile().map(|profile| {
+                        (
+                            profile.display_name,
+                            workspace
+                                .human
+                                .as_ref()
+                                .map(|did| did.as_str().to_owned())
+                                .unwrap_or_default(),
+                        )
+                    })
                 })
             })
             .unwrap_or_else(|| ("You".to_string(), String::new()));
@@ -4296,34 +4699,29 @@ No tracking. No forced updates.",
                             self.view = View::Communities;
                         }
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let unlocked =
-                                self.workspace.as_ref().is_some_and(Workspace::is_unlocked);
+                            let can_post = self.core_unlocked() && self.app_action.is_none();
                             if ui
-                                .add_enabled(unlocked, theme::primary_button("Post"))
-                                .on_disabled_hover_text("Unlock your identity to sign a post.")
+                                .add_enabled(can_post, theme::primary_button("Post"))
+                                .on_disabled_hover_text(if self.core_available() {
+                                    "Unlock your identity in the application core to sign a post."
+                                } else {
+                                    "Application core unavailable; signing is disabled."
+                                })
                                 .clicked()
                             {
-                                self.notice = if self.composer.trim().is_empty() {
-                                    "Nothing published: write something first.".to_string()
+                                let text = self.composer.trim().to_string();
+                                if text.is_empty() {
+                                    self.notice =
+                                        "Nothing published: write something first.".to_string();
                                 } else if !self.signing_confirmation {
-                                    "Confirm signing before publishing.".to_string()
-                                } else if let Some(workspace) = self.workspace.as_mut() {
-                                    match workspace.publish_post(self.composer.trim()) {
-                                        Ok(()) => {
-                                            self.composer.clear();
-                                            self.signing_confirmation = false;
-                                            self.timeline_refresh = Instant::now();
-                                            if self.network_session.is_some() || self.host.is_some() {
-                                                "Posted. It shares with your peers on the next exchange.".to_string()
-                                            } else {
-                                                "Posted and saved locally. Start a session in Connections to share it.".to_string()
-                                            }
-                                        }
-                                        Err(error) => format!("Could not publish: {error}"),
-                                    }
+                                    self.notice = "Confirm signing before publishing.".to_string();
                                 } else {
-                                    "Local workspace unavailable; no content was published.".to_string()
-                                };
+                                    let operation_id = self.post_operation_id(&text);
+                                    self.start_core_action(
+                                        CoreAction::PublishPost { text: text.clone() },
+                                        AppCommand::PublishPost { operation_id, text },
+                                    );
+                                }
                             }
                         });
                     });
@@ -4352,13 +4750,13 @@ No tracking. No forced updates.",
                         } else if !self.signing_confirmation {
                             "Confirm signing before publishing.".to_string()
                         } else if let Some(workspace) = self.workspace.as_mut() {
-                            match workspace.publish_comment(&target, self.reply_text.trim()) {
+                            match workspace.publish_comment_confirmed(&target, self.reply_text.trim()) {
                                 Ok(()) => {
                                     self.reply_text.clear();
                                     self.reply_target = None;
                                     self.signing_confirmation = false;
                                     self.timeline_refresh = Instant::now();
-                                    "Reply signed and saved. It shares on the next exchange."
+                                    "Reply signed and saved by the transitional desktop path. It shares on the next exchange."
                                         .to_string()
                                 }
                                 Err(error) => format!("Could not publish reply: {error}"),
@@ -4371,6 +4769,10 @@ No tracking. No forced updates.",
                         self.reply_target = None;
                     }
                 });
+                theme::muted(
+                    ui,
+                    "Replies are still on the legacy W1 migration path; root/profile/plain-post signing already uses the application core.",
+                );
             });
             ui.add_space(6.0);
         }
@@ -4817,114 +5219,142 @@ No tracking. No forced updates.",
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(theme::BG).inner_margin(egui::Margin::same(24)))
             .show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.add_space(54.0);
-                ui.heading("MININET");
-                ui.label(
-                    egui::RichText::new("Your identity. Your objects. Your transport choices.")
-                        .color(egui::Color32::LIGHT_GRAY),
-                );
-                ui.add_space(22.0);
-                ui.allocate_ui_with_layout(
-                    [620.0, ui.available_height()].into(),
-                    egui::Layout::top_down(egui::Align::Min),
-                    |ui| {
-                        let root_created = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::root_created);
-                        let has_public_account = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::has_public_account);
-                        let is_unlocked = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::is_unlocked);
-                        if self.workspace.is_some() {
-                            if !root_created {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(54.0);
+                    ui.heading("MININET");
+                    ui.label(
+                        egui::RichText::new("Your identity. Your objects. Your transport choices.")
+                            .color(egui::Color32::LIGHT_GRAY),
+                    );
+                    ui.add_space(22.0);
+                    ui.allocate_ui_with_layout(
+                        [620.0, ui.available_height()].into(),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| {
+                            if !self.core_available() {
                                 theme::card_frame().show(ui, |ui| {
-                                    ui.heading("1. Create your Mininet root");
-                                    ui.label("This creates a new local signing root protected by the Windows user vault. It never uploads a seed or contacts a server.");
-                                    ui.label("You will be able to export recovery material only through a separate, deliberate backup flow.");
-                                    if ui.button("Create local root").clicked() {
-                                        self.notice = match self
-                                            .workspace
-                                            .as_mut()
-                                            .expect("workspace checked above")
-                                            .create_root()
-                                        {
-                                            Ok(()) => "Root created locally. Publish your public account to continue.".to_string(),
-                                            Err(error) => format!("Root creation failed: {error}"),
-                                        };
-                                    }
+                                    ui.heading("Application core unavailable");
+                                    ui.colored_label(
+                                        theme::WARN_AMBER,
+                                        "Identity creation and signing are disabled rather than falling back to renderer-owned keys.",
+                                    );
+                                    ui.label("Install or build mininet-app-service beside mininet-desktop, then restart the client.");
                                 });
-                            } else if !has_public_account {
-                                theme::card_frame().show(ui, |ui| {
-                                    ui.heading("2. Create your public account");
-                                    ui.label("Start with a display name and optional bio. Next, you can choose a photo, location, age, and any custom public details before becoming visible to anyone.");
-                                    ui.label("Your cryptographic identity remains the DID shown in Privacy & safety.");
-                                    ui.add_space(8.0);
-                                    ui.label("Display name");
-                                    ui.text_edit_singleline(&mut self.account_name);
-                                    ui.label("Bio");
-                                    ui.add_sized(
-                                        [ui.available_width(), 90.0],
-                                        egui::TextEdit::multiline(&mut self.account_bio),
-                                    );
-                                    if !is_unlocked {
-                                        ui.label("This setup action will unlock the local root only long enough to sign the profile, then lock it again.");
-                                    }
-                                    ui.checkbox(
-                                        &mut self.signing_confirmation,
-                                        "I confirm this creates my signed public profile",
-                                    );
-                                    if ui.button("Publish public account locally").clicked() {
-                                        self.notice = if self.account_name.trim().is_empty() {
-                                            "Choose a display name first.".to_string()
-                                        } else if !self.signing_confirmation {
-                                            "Confirm signing before publishing the account.".to_string()
-                                        } else if let Some(workspace) = self.workspace.as_mut() {
-                                            let result = if workspace.is_unlocked() {
-                                                workspace.publish_profile(
-                                                    self.account_name.trim(),
-                                                    self.account_bio.trim(),
+                            } else if let Some(status) = self.app_status.clone() {
+                                if !status.root_created {
+                                    theme::card_frame().show(ui, |ui| {
+                                        ui.heading("1. Create your Mininet root");
+                                        ui.label("The per-user application core creates the signing root and delegated device under the Windows user vault. The renderer never receives seed material.");
+                                        ui.label("No network session, crawler, relay, wallet, Forge task, or update starts as part of this action.");
+                                        if ui
+                                            .add_enabled(
+                                                self.app_action.is_none(),
+                                                theme::primary_button("Create local root"),
+                                            )
+                                            .clicked()
+                                        {
+                                            self.start_core_action(
+                                                CoreAction::CreateRoot,
+                                                AppCommand::CreateRoot,
+                                            );
+                                        }
+                                    });
+                                } else if status.profile.is_none() {
+                                    theme::card_frame().show(ui, |ui| {
+                                        ui.heading("2. Create your public account");
+                                        ui.label("Start with a display name and optional bio. Additional public profile fields remain owner-selected and can be edited later in Creator.");
+                                        if let Some(did) = status.human_did.as_deref() {
+                                            theme::muted(ui, &format!("Identity anchor: {}", short_did(did)));
+                                        }
+                                        ui.add_space(8.0);
+                                        ui.label("Display name");
+                                        ui.text_edit_singleline(&mut self.account_name);
+                                        ui.label("Bio");
+                                        ui.add_sized(
+                                            [ui.available_width(), 90.0],
+                                            egui::TextEdit::multiline(&mut self.account_bio),
+                                        );
+                                        if !status.identity_unlocked {
+                                            ui.colored_label(
+                                                theme::WARN_AMBER,
+                                                "Identity is locked in the application core. Unlock it before publishing.",
+                                            );
+                                            if ui
+                                                .add_enabled(
+                                                    self.app_action.is_none(),
+                                                    theme::secondary_button("🔓  Unlock identity"),
                                                 )
-                                            } else {
-                                                workspace.unlock().and_then(|()| {
-                                                    workspace.publish_profile(
-                                                        self.account_name.trim(),
-                                                        self.account_bio.trim(),
-                                                    )
-                                                })
-                                            };
-                                            workspace.lock();
-                                            match result {
-                                                Ok(()) => {
-                                                    self.profile_name = self.account_name.trim().to_string();
-                                                    self.profile_bio = self.account_bio.trim().to_string();
-                                                    self.signing_confirmation = false;
-                                                    self.view = View::Creator;
-                                                    "Public account created locally and identity locked again. Add any optional public details below, or open People when you are ready.".to_string()
-                                                }
-                                                Err(error) => format!("Could not create public account: {error}"),
+                                                .clicked()
+                                            {
+                                                self.start_core_action(
+                                                    CoreAction::UnlockIdentity,
+                                                    AppCommand::UnlockIdentity,
+                                                );
                                             }
-                                        } else {
-                                            "Local workspace unavailable.".to_string()
-                                        };
-                                    }
+                                        }
+                                        ui.checkbox(
+                                            &mut self.signing_confirmation,
+                                            "I confirm this creates my signed public profile",
+                                        );
+                                        if ui
+                                            .add_enabled(
+                                                status.identity_unlocked
+                                                    && self.app_action.is_none(),
+                                                theme::primary_button(
+                                                    "Publish public account locally",
+                                                ),
+                                            )
+                                            .clicked()
+                                        {
+                                            let display_name =
+                                                self.account_name.trim().to_string();
+                                            let bio = self.account_bio.trim().to_string();
+                                            if display_name.is_empty() {
+                                                self.notice =
+                                                    "Choose a display name first.".to_string();
+                                            } else if !self.signing_confirmation {
+                                                self.notice =
+                                                    "Confirm signing before publishing the account."
+                                                        .to_string();
+                                            } else {
+                                                let operation_id =
+                                                    self.profile_operation_id(&display_name, &bio);
+                                                self.start_core_action(
+                                                    CoreAction::PublishProfile {
+                                                        display_name: display_name.clone(),
+                                                        bio: bio.clone(),
+                                                    },
+                                                    AppCommand::PublishProfile {
+                                                        operation_id,
+                                                        display_name,
+                                                        bio,
+                                                    },
+                                                );
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    self.view = View::Home;
+                                    self.reload_workspace();
+                                }
+                            } else {
+                                theme::card_frame().show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.spinner();
+                                        ui.label("Starting the per-user application core…");
+                                    });
+                                    theme::muted(
+                                        ui,
+                                        "The renderer is waiting for bounded status before enabling identity actions.",
+                                    );
                                 });
                             }
-                        } else {
-                            ui.colored_label(egui::Color32::YELLOW, "The local workspace could not be opened.");
-                            ui.label(&self.notice);
-                        }
-                        ui.add_space(14.0);
-                        ui.label(egui::RichText::new(&self.notice).small());
-                    },
-                );
+                            ui.add_space(14.0);
+                            ui.label(egui::RichText::new(&self.notice).small());
+                        },
+                    );
+                });
             });
-        });
     }
 
     fn inbox(&mut self, ui: &mut egui::Ui) {
@@ -5202,7 +5632,7 @@ No tracking. No forced updates.",
                 } else if !self.signing_confirmation {
                     "Confirm signing before sending.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.send_private_message(selected, &body) {
+                    match workspace.send_private_message_confirmed(selected, &body) {
                         Ok(()) => {
                             self.message_text.clear();
                             self.signing_confirmation = false;
@@ -5932,7 +6362,7 @@ No tracking. No forced updates.",
                     .take(mini_ticket::MAX_REDEMPTION_TICKETS)
                     .collect();
                 self.notice = match self.workspace.as_mut() {
-                    Some(workspace) => match workspace.build_redemption(&ids, rate) {
+                    Some(workspace) => match workspace.build_redemption_confirmed(&ids, rate) {
                         Ok((id, micro)) => format!(
                             "Redemption request {} signed for {} over {} ticket(s). It settles when the audited layer accepts it.",
                             short_did(id.as_str()),
@@ -6839,7 +7269,7 @@ No tracking. No forced updates.",
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_community(
+                    match workspace.publish_community_confirmed(
                         self.community_name.trim(),
                         self.community_charter.trim(),
                     ) {
@@ -7434,7 +7864,7 @@ No tracking. No forced updates.",
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing the wall.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_public_wall(
+                    match workspace.publish_public_wall_confirmed(
                         self.wall_name.trim(),
                         self.wall_bio.trim(),
                         &link_refs,
@@ -7496,7 +7926,7 @@ No tracking. No forced updates.",
                     } else if !self.signing_confirmation {
                         "Confirm signing before changing the follow graph.".to_string()
                     } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target(&self.follow_target, true) {
+                        match workspace.set_follow_target_confirmed(&self.follow_target, true) {
                             Ok(()) => {
                                 self.signing_confirmation = false;
                                 "Follow object written locally.".to_string()
@@ -7516,7 +7946,7 @@ No tracking. No forced updates.",
                     } else if !self.signing_confirmation {
                         "Confirm signing before changing the follow graph.".to_string()
                     } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target(&self.follow_target, false) {
+                        match workspace.set_follow_target_confirmed(&self.follow_target, false) {
                             Ok(()) => {
                                 self.signing_confirmation = false;
                                 "Unfollow object written locally.".to_string()
@@ -7560,7 +7990,7 @@ No tracking. No forced updates.",
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing media.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_media_post(
+                    match workspace.publish_media_post_confirmed(
                         self.media_path.trim(),
                         self.media_content_type.trim(),
                         self.media_caption.trim(),
@@ -8499,9 +8929,10 @@ mod tests {
                 &server_root,
                 port,
                 "Bob",
-                Duration::from_secs(4),
+                Duration::from_secs(30),
                 &sender,
                 Some(&ready_tx),
+                Some(2),
             )
         });
         // Wait for the server's real readiness signal (sent right after it
