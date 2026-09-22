@@ -24922,7 +24922,7 @@ signed result records; index peers.
 
 ---
 
-### D-0529 — Issue #75 (DOS & spam resistance review): `mini-net` PEX address-book flood fix, plus `mini-social::PostRateLimiter` — identity-root-keyed, bounded content-layer spam resistance with no identity-scarcity assumption  ·  *Shipped*
+### D-0532 — Issue #75 (DOS & spam resistance review): `mini-net` PEX address-book flood fix, plus `mini-social::PostRateLimiter` — identity-root-keyed, bounded content-layer spam resistance with no identity-scarcity assumption  ·  *Shipped*
 **Date:** 2026-09-21 · **Refs:** [#75](../../issues/75); `crates/mini-net/src/pex.rs`
 (`absorb_response`, `AddressBook`); `crates/mini-social/src/spam.rs`
 (`PostRateLimiter`); `crates/mini-net/src/gossip.rs` (`GossipRouter`, the
