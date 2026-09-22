@@ -2625,6 +2625,16 @@ the top development priority.
   calls, automatic Internet relay/NAT traversal, Internet-wide name directory,
   search, forge administration workflow, hardware-backed key custody,
   code signing, or independent security review.
+  A visual/UX pass (D-0522) fixed a theme bug that silently left every
+  button in stock `egui` gray, unified the ad hoc per-screen colors into one
+  shared accent/warning/danger palette, restyled onboarding (a real layout
+  bug had it anchored top-left in a mostly-empty window) into a centered
+  card with a step indicator, and turned the bottom-bar status line into a
+  color-coded banner next to the content it describes. It touched the shared
+  shell (theme, onboarding, top bar, side nav, header, notices); each
+  screen's own content, copy density, and information architecture are
+  unchanged and are exactly the plain, developer-tool-facing text this
+  entry's own follow-up still names as remaining work.
 - **partial** — Windows packaging and install (D-0520, `mini-windows-setup` +
   `mini-setup` + `packaging/windows/`). `mininet-setup.exe` is a real
   double-click installer: per-user, no administrator, no service, no network
@@ -2644,8 +2654,9 @@ the top development priority.
 
 See `docs/PLATFORM_PRODUCT_ARCHITECTURE.md` for the unified product shell,
 backend composition, maturity matrix, and implementation order.
-No desktop or web application exists anywhere in this repository.
-`docs/UI_BETA_PLAN.md` is a plan, not code, for those. An Android client
+No web application exists anywhere in this repository; `mini-desktop` above
+is the only shipped client shell. `docs/UI_BETA_PLAN.md` is a plan, not
+code, for the web client. An Android client
 foundation exists: a `mini-ffi` UniFFI command/event boundary plus a thin
 Jetpack Compose onboarding shell, stopping at `RootCreationReady` with no
 key or identity faked. This remote environment has no

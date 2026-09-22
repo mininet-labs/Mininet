@@ -40,6 +40,42 @@ use std::time::Duration;
 
 const PEER_IO_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Shared brand palette. One accent, used consistently for the primary
+/// action in a view and for "this is selected/active" state, keeps the
+/// whole shell readable as one product instead of a pile of default-gray
+/// egui widgets.
+const ACCENT: egui::Color32 = egui::Color32::from_rgb(101, 213, 173);
+const ACCENT_STRONG: egui::Color32 = egui::Color32::from_rgb(68, 176, 140);
+const ACCENT_TEXT_ON_ACCENT: egui::Color32 = egui::Color32::from_rgb(8, 20, 16);
+const SURFACE: egui::Color32 = egui::Color32::from_rgb(19, 25, 35);
+const SURFACE_RAISED: egui::Color32 = egui::Color32::from_rgb(24, 32, 45);
+const WARNING: egui::Color32 = egui::Color32::from_rgb(230, 178, 96);
+const DANGER: egui::Color32 = egui::Color32::from_rgb(224, 122, 118);
+const MUTED_TEXT: egui::Color32 = egui::Color32::from_rgb(158, 170, 184);
+
+/// A rounded, tinted card frame, used everywhere a plain `ui.group` used to
+/// draw a hairline box with no visual weight of its own.
+fn card_frame() -> egui::Frame {
+    egui::Frame::new()
+        .fill(SURFACE_RAISED)
+        .corner_radius(egui::CornerRadius::same(10))
+        .inner_margin(egui::Margin::same(16))
+        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(38, 49, 66)))
+}
+
+/// The accent-filled call-to-action button style, reserved for the one
+/// primary action on a screen; everything else stays a plain button so the
+/// primary action stays visually obvious.
+fn primary_button(label: &str) -> egui::Button<'static> {
+    egui::Button::new(
+        egui::RichText::new(label)
+            .color(ACCENT_TEXT_ON_ACCENT)
+            .strong(),
+    )
+    .fill(ACCENT)
+    .stroke(egui::Stroke::NONE)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum View {
     Onboarding,
@@ -53,6 +89,13 @@ enum View {
     Diagnostics,
     Updates,
     Privacy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OnboardingStepState {
+    Done,
+    Current,
+    Upcoming,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1526,12 +1569,30 @@ impl eframe::App for MininetApp {
             return;
         }
         egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
-            ui.set_min_height(54.0);
+            ui.set_min_height(58.0);
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("MININET").strong().size(20.0));
-                ui.label(egui::RichText::new("local-first social network").color(egui::Color32::GRAY));
+                ui.label(
+                    egui::RichText::new("MININET")
+                        .strong()
+                        .size(20.0)
+                        .color(ACCENT),
+                );
+                ui.label(
+                    egui::RichText::new("local-first social network").color(MUTED_TEXT),
+                );
                 ui.separator();
-                ui.colored_label(egui::Color32::from_rgb(100, 210, 160), "LOCAL ONLY");
+                egui::Frame::new()
+                    .fill(ACCENT.gamma_multiply(0.16))
+                    .corner_radius(egui::CornerRadius::same(20))
+                    .inner_margin(egui::Margin::symmetric(10, 4))
+                    .show(ui, |ui| {
+                        ui.label(
+                            egui::RichText::new("● LOCAL ONLY")
+                                .small()
+                                .strong()
+                                .color(ACCENT),
+                        );
+                    });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("Privacy center").clicked() {
                         self.view = View::Privacy;
@@ -1559,24 +1620,36 @@ impl eframe::App for MininetApp {
             .default_width(228.0)
             .show(ctx, |ui| {
                 ui.add_space(12.0);
-                ui.label(egui::RichText::new("YOUR NETWORK").small().strong());
+                ui.label(
+                    egui::RichText::new("YOUR NETWORK")
+                        .small()
+                        .strong()
+                        .color(MUTED_TEXT),
+                );
                 ui.add_space(6.0);
-                self.nav_button(ui, View::Home, "Home");
-                self.nav_button(ui, View::Inbox, "Inbox (beta)");
-                self.nav_button(ui, View::People, "People");
-                self.nav_button(ui, View::Communities, "Communities");
-                self.nav_button(ui, View::Creator, "Creator studio");
-                self.nav_button(ui, View::Connections, "Connections");
-                self.nav_button(ui, View::System, "System & storage");
+                self.nav_button(ui, View::Home, "🏠", "Home");
+                self.nav_button(ui, View::Inbox, "✉", "Inbox (beta)");
+                self.nav_button(ui, View::People, "👥", "People");
+                self.nav_button(ui, View::Communities, "🌐", "Communities");
+                self.nav_button(ui, View::Creator, "🎨", "Creator studio");
+                self.nav_button(ui, View::Connections, "🔗", "Connections");
+                self.nav_button(ui, View::System, "💾", "System & storage");
                 ui.add_space(18.0);
-                ui.label(egui::RichText::new("CONTROL PLANE").small().strong());
+                ui.label(
+                    egui::RichText::new("CONTROL PLANE")
+                        .small()
+                        .strong()
+                        .color(MUTED_TEXT),
+                );
                 ui.add_space(6.0);
-                self.nav_button(ui, View::Privacy, "Privacy & safety");
-                self.nav_button(ui, View::Diagnostics, "Diagnostics");
-                self.nav_button(ui, View::Updates, "Version & install");
+                self.nav_button(ui, View::Privacy, "🛡", "Privacy & safety");
+                self.nav_button(ui, View::Diagnostics, "🩺", "Diagnostics");
+                self.nav_button(ui, View::Updates, "⬇", "Version & install");
                 ui.separator();
                 ui.label(
-                    egui::RichText::new("No analytics\nNo ad SDKs\nNo embedded web view").small(),
+                    egui::RichText::new("No analytics\nNo ad SDKs\nNo embedded web view")
+                        .small()
+                        .color(MUTED_TEXT),
                 );
             });
 
@@ -1587,6 +1660,7 @@ impl eframe::App for MininetApp {
                     ui.add_space(18.0);
                     self.header(ui);
                     ui.add_space(14.0);
+                    self.notice_banner(ui);
                     match self.view {
                         View::Onboarding => {
                             unreachable!("onboarding returns before the main shell")
@@ -1608,10 +1682,17 @@ impl eframe::App for MininetApp {
 
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.label(egui::RichText::new(&self.notice).small());
+                ui.label(
+                    egui::RichText::new("Updates: manual approval")
+                        .small()
+                        .color(MUTED_TEXT),
+                );
                 ui.separator();
-                ui.label(egui::RichText::new("Updates: manual approval").small());
-                ui.label(egui::RichText::new("No background sync").small());
+                ui.label(
+                    egui::RichText::new("No background sync")
+                        .small()
+                        .color(MUTED_TEXT),
+                );
             });
         });
     }
@@ -1787,13 +1868,34 @@ impl MininetApp {
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = egui::Color32::from_rgb(15, 20, 29);
         visuals.window_fill = egui::Color32::from_rgb(10, 14, 21);
-        visuals.faint_bg_color = egui::Color32::from_rgb(28, 37, 52);
+        visuals.faint_bg_color = egui::Color32::from_rgb(24, 32, 45);
         visuals.extreme_bg_color = egui::Color32::from_rgb(8, 11, 17);
+        visuals.hyperlink_color = ACCENT;
+        visuals.window_corner_radius = egui::CornerRadius::same(12);
+        visuals.menu_corner_radius = egui::CornerRadius::same(8);
+
         visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(20, 27, 38);
+        visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(10);
+
         visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(27, 37, 52);
+        visuals.widgets.inactive.weak_bg_fill = egui::Color32::from_rgb(31, 42, 58);
+        visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(8);
+
         visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(42, 61, 82);
-        visuals.widgets.active.bg_fill = egui::Color32::from_rgb(65, 116, 154);
-        visuals.selection.bg_fill = egui::Color32::from_rgb(42, 105, 145);
+        visuals.widgets.hovered.weak_bg_fill = egui::Color32::from_rgb(44, 64, 86);
+        visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(8);
+        visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, ACCENT);
+
+        visuals.widgets.active.bg_fill = ACCENT_STRONG;
+        visuals.widgets.active.weak_bg_fill = ACCENT_STRONG;
+        visuals.widgets.active.corner_radius = egui::CornerRadius::same(8);
+        visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, ACCENT_TEXT_ON_ACCENT);
+
+        // Selected nav entries and selected text/checkboxes read as a
+        // confident accent pill with dark text, not a faint blue tint.
+        visuals.selection.bg_fill = ACCENT;
+        visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT_TEXT_ON_ACCENT);
+
         let mut style = (*ctx.style()).clone();
         style.visuals = visuals;
         style.spacing.item_spacing = egui::vec2(12.0, 10.0);
@@ -1814,12 +1916,14 @@ impl MininetApp {
         ctx.set_style(style);
     }
 
-    fn nav_button(&mut self, ui: &mut egui::Ui, view: View, label: &str) {
+    fn nav_button(&mut self, ui: &mut egui::Ui, view: View, icon: &str, label: &str) {
         let selected = self.view == view;
+        let text = egui::RichText::new(format!("{icon}  {label}")).size(14.5);
+        let text = if selected { text.strong() } else { text };
         if ui
             .add_sized(
                 [ui.available_width(), 38.0],
-                egui::SelectableLabel::new(selected, label),
+                egui::SelectableLabel::new(selected, text),
             )
             .clicked()
         {
@@ -1827,166 +1931,307 @@ impl MininetApp {
         }
     }
 
+    /// A color-coded, icon-led banner for `self.notice`, used in place of a
+    /// bare gray line so a person can tell success from failure at a glance
+    /// instead of reading every word.
+    fn notice_banner(&self, ui: &mut egui::Ui) {
+        if self.notice.is_empty() {
+            return;
+        }
+        let lower = self.notice.to_lowercase();
+        let (icon, color) = if lower.contains("fail")
+            || lower.contains("could not")
+            || lower.contains("cannot")
+            || lower.contains("unavailable")
+            || lower.contains("unexpectedly")
+        {
+            ("⚠", WARNING)
+        } else if lower.contains("locked") {
+            ("🔒", MUTED_TEXT)
+        } else {
+            ("✓", ACCENT)
+        };
+        egui::Frame::new()
+            .fill(SURFACE)
+            .corner_radius(egui::CornerRadius::same(8))
+            .inner_margin(egui::Margin::symmetric(12, 9))
+            .stroke(egui::Stroke::new(1.0, color.gamma_multiply(0.6)))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(icon).color(color));
+                    ui.label(
+                        egui::RichText::new(&self.notice)
+                            .color(egui::Color32::from_rgb(220, 226, 233)),
+                    );
+                });
+            });
+        ui.add_space(10.0);
+    }
+
     fn header(&self, ui: &mut egui::Ui) {
-        let (title, subtitle) = match self.view {
+        let (icon, title, subtitle) = match self.view {
             View::Onboarding => (
+                "✦",
                 "Welcome to Mininet",
                 "Create your local root, then publish the public profile you choose to share.",
             ),
             View::Home => (
+                "🏠",
                 "Your feed",
                 "A local view of objects your device has received.",
             ),
             View::Inbox => (
+                "✉",
                 "Inbox beta",
                 "Encrypted route-scoped messages with manual trusted invitation and sync.",
             ),
             View::People => (
+                "👥",
                 "People",
                 "Search signed profiles already on your device or discover opt-in nearby peers.",
             ),
             View::Communities => (
+                "🌐",
                 "Communities",
                 "Portable spaces for discussion, not platform-owned silos.",
             ),
             View::Diagnostics => (
+                "🩺",
                 "Diagnostics",
                 "Run the real protocol code on this device and read what it actually did.",
             ),
             View::Updates => (
+                "⬇",
                 "Version & install",
                 "What is installed, whether it still matches its manifest, and how to go back.",
             ),
             View::Creator => (
+                "🎨",
                 "Creator studio",
                 "Publish text, images, clips, and long-form media from one identity.",
             ),
             View::Connections => (
+                "🔗",
                 "Connections",
                 "Direct peers, local mesh, and optional relays.",
             ),
             View::System => (
+                "💾",
                 "Mininet system",
                 "Inspect the local object graph and the protocol foundations available to this client.",
             ),
             View::Privacy => (
+                "🛡",
                 "Privacy center",
                 "See exactly what this client can and cannot do.",
             ),
         };
-        ui.heading(title);
-        ui.label(egui::RichText::new(subtitle).color(egui::Color32::LIGHT_GRAY));
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new(icon).size(24.0).color(ACCENT));
+            ui.heading(title);
+        });
+        ui.label(egui::RichText::new(subtitle).color(MUTED_TEXT));
+    }
+
+    /// A small "step N of total" pill used by the onboarding progress bar:
+    /// filled accent once reached, outlined once passed, muted while ahead.
+    fn onboarding_step_pill(ui: &mut egui::Ui, label: &str, state: OnboardingStepState) {
+        let (fill, text_color, stroke) = match state {
+            OnboardingStepState::Done => (
+                ACCENT.gamma_multiply(0.22),
+                ACCENT,
+                egui::Stroke::new(1.0, ACCENT),
+            ),
+            OnboardingStepState::Current => (ACCENT, ACCENT_TEXT_ON_ACCENT, egui::Stroke::NONE),
+            OnboardingStepState::Upcoming => (
+                SURFACE,
+                MUTED_TEXT,
+                egui::Stroke::new(1.0, egui::Color32::from_rgb(40, 51, 68)),
+            ),
+        };
+        egui::Frame::new()
+            .fill(fill)
+            .stroke(stroke)
+            .corner_radius(egui::CornerRadius::same(16))
+            .inner_margin(egui::Margin::symmetric(12, 6))
+            .show(ui, |ui| {
+                let text = if state == OnboardingStepState::Done {
+                    format!("✓ {label}")
+                } else {
+                    label.to_string()
+                };
+                ui.label(egui::RichText::new(text).small().strong().color(text_color));
+            });
     }
 
     fn onboarding(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.add_space(54.0);
-                ui.heading("MININET");
-                ui.label(
-                    egui::RichText::new("Your identity. Your objects. Your transport choices.")
-                        .color(egui::Color32::LIGHT_GRAY),
-                );
-                ui.add_space(22.0);
-                ui.allocate_ui_with_layout(
-                    [620.0, ui.available_height()].into(),
-                    egui::Layout::top_down(egui::Align::Min),
-                    |ui| {
-                        let root_created = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::root_created);
-                        let has_public_account = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::has_public_account);
-                        let is_unlocked = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::is_unlocked);
-                        if self.workspace.is_some() {
-                            if !root_created {
-                                ui.group(|ui| {
-                                    ui.heading("1. Create your Mininet root");
-                                    ui.label("This creates a new local signing root protected by the Windows user vault. It never uploads a seed or contacts a server.");
-                                    ui.label("You will be able to export recovery material only through a separate, deliberate backup flow.");
-                                    if ui.button("Create local root").clicked() {
-                                        self.notice = match self
-                                            .workspace
-                                            .as_mut()
-                                            .expect("workspace checked above")
-                                            .create_root()
-                                        {
-                                            Ok(()) => "Root created locally. Publish your public account to continue.".to_string(),
-                                            Err(error) => format!("Root creation failed: {error}"),
-                                        };
-                                    }
-                                });
-                            } else if !has_public_account {
-                                ui.group(|ui| {
-                                    ui.heading("2. Create your public account");
-                                    ui.label("Start with a display name and optional bio. Next, you can choose a photo, location, age, and any custom public details before becoming visible to anyone.");
-                                    ui.label("Your cryptographic identity remains the DID shown in Privacy & safety.");
-                                    ui.add_space(8.0);
-                                    ui.label("Display name");
-                                    ui.text_edit_singleline(&mut self.account_name);
-                                    ui.label("Bio");
-                                    ui.add_sized(
-                                        [ui.available_width(), 90.0],
-                                        egui::TextEdit::multiline(&mut self.account_bio),
-                                    );
-                                    if !is_unlocked {
-                                        ui.label("This setup action will unlock the local root only long enough to sign the profile, then lock it again.");
-                                    }
-                                    ui.checkbox(
-                                        &mut self.signing_confirmation,
-                                        "I confirm this creates my signed public profile",
-                                    );
-                                    if ui.button("Publish public account locally").clicked() {
-                                        self.notice = if self.account_name.trim().is_empty() {
-                                            "Choose a display name first.".to_string()
-                                        } else if !self.signing_confirmation {
-                                            "Confirm signing before publishing the account.".to_string()
-                                        } else if let Some(workspace) = self.workspace.as_mut() {
-                                            let result = if workspace.is_unlocked() {
-                                                workspace.publish_profile(
-                                                    self.account_name.trim(),
-                                                    self.account_bio.trim(),
-                                                )
-                                            } else {
-                                                workspace.unlock().and_then(|()| {
+            // egui's main-axis auto-centering only settles in after a frame
+            // of measurement, which a person launching the app never sees:
+            // the first paint is what matters, so the top margin is a plain
+            // fraction of the window instead, stable from frame one.
+            let available = ui.available_size();
+            ui.add_space((available.y * 0.14).clamp(20.0, 110.0));
+            ui.allocate_ui_with_layout(
+                available,
+                egui::Layout::top_down(egui::Align::Center),
+                |ui| {
+                    ui.heading(egui::RichText::new("MININET").color(ACCENT).size(36.0));
+                    ui.label(
+                        egui::RichText::new("Your identity. Your objects. Your transport choices.")
+                            .color(MUTED_TEXT),
+                    );
+                    ui.add_space(26.0);
+
+                    let root_created = self
+                        .workspace
+                        .as_ref()
+                        .is_some_and(Workspace::root_created);
+                    let has_public_account = self
+                        .workspace
+                        .as_ref()
+                        .is_some_and(Workspace::has_public_account);
+                    let is_unlocked = self
+                        .workspace
+                        .as_ref()
+                        .is_some_and(Workspace::is_unlocked);
+
+                    if self.workspace.is_some() {
+                        // An explicit width, like the card below, is what
+                        // makes egui center this row; a bare `ui.horizontal`
+                        // claims the full remaining width and "centering"
+                        // a full-width rect is a no-op.
+                        ui.allocate_ui_with_layout(
+                            [280.0, 0.0].into(),
+                            egui::Layout::left_to_right(egui::Align::Center),
+                            |ui| {
+                                Self::onboarding_step_pill(
+                                    ui,
+                                    "1  Local root",
+                                    if root_created {
+                                        OnboardingStepState::Done
+                                    } else {
+                                        OnboardingStepState::Current
+                                    },
+                                );
+                                ui.add_space(6.0);
+                                ui.label(egui::RichText::new("—").color(MUTED_TEXT));
+                                ui.add_space(6.0);
+                                Self::onboarding_step_pill(
+                                    ui,
+                                    "2  Public account",
+                                    if !root_created {
+                                        OnboardingStepState::Upcoming
+                                    } else if has_public_account {
+                                        OnboardingStepState::Done
+                                    } else {
+                                        OnboardingStepState::Current
+                                    },
+                                );
+                            },
+                        );
+                        ui.add_space(18.0);
+                    }
+
+                    ui.allocate_ui_with_layout(
+                        [560.0, 0.0].into(),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| {
+                            if self.workspace.is_some() {
+                                if !root_created {
+                                    card_frame().show(ui, |ui| {
+                                        ui.set_width(ui.available_width());
+                                        ui.heading("Create your Mininet root");
+                                        ui.label("This creates a new local signing root protected by the Windows user vault. It never uploads a seed or contacts a server.");
+                                        ui.label("You will be able to export recovery material only through a separate, deliberate backup flow.");
+                                        ui.add_space(10.0);
+                                        if ui.add(primary_button("Create local root")).clicked() {
+                                            self.notice = match self
+                                                .workspace
+                                                .as_mut()
+                                                .expect("workspace checked above")
+                                                .create_root()
+                                            {
+                                                Ok(()) => "Root created locally. Publish your public account to continue.".to_string(),
+                                                Err(error) => format!("Root creation failed: {error}"),
+                                            };
+                                        }
+                                    });
+                                } else if !has_public_account {
+                                    card_frame().show(ui, |ui| {
+                                        ui.set_width(ui.available_width());
+                                        ui.heading("Create your public account");
+                                        ui.label("Start with a display name and optional bio. Next, you can choose a photo, location, age, and any custom public details before becoming visible to anyone.");
+                                        ui.label("Your cryptographic identity remains the DID shown in Privacy & safety.");
+                                        ui.add_space(10.0);
+                                        ui.label(egui::RichText::new("Display name").small().color(MUTED_TEXT));
+                                        ui.text_edit_singleline(&mut self.account_name);
+                                        ui.add_space(6.0);
+                                        ui.label(egui::RichText::new("Bio").small().color(MUTED_TEXT));
+                                        ui.add_sized(
+                                            [ui.available_width(), 90.0],
+                                            egui::TextEdit::multiline(&mut self.account_bio),
+                                        );
+                                        ui.add_space(6.0);
+                                        if !is_unlocked {
+                                            ui.label(egui::RichText::new("This setup action will unlock the local root only long enough to sign the profile, then lock it again.").small().color(MUTED_TEXT));
+                                        }
+                                        ui.checkbox(
+                                            &mut self.signing_confirmation,
+                                            "I confirm this creates my signed public profile",
+                                        );
+                                        ui.add_space(6.0);
+                                        if ui.add(primary_button("Publish public account locally")).clicked() {
+                                            self.notice = if self.account_name.trim().is_empty() {
+                                                "Choose a display name first.".to_string()
+                                            } else if !self.signing_confirmation {
+                                                "Confirm signing before publishing the account.".to_string()
+                                            } else if let Some(workspace) = self.workspace.as_mut() {
+                                                let result = if workspace.is_unlocked() {
                                                     workspace.publish_profile(
                                                         self.account_name.trim(),
                                                         self.account_bio.trim(),
                                                     )
-                                                })
-                                            };
-                                            workspace.lock();
-                                            match result {
-                                                Ok(()) => {
-                                                    self.profile_name = self.account_name.trim().to_string();
-                                                    self.profile_bio = self.account_bio.trim().to_string();
-                                                    self.signing_confirmation = false;
-                                                    self.view = View::Creator;
-                                                    "Public account created locally and identity locked again. Add any optional public details below, or open People when you are ready.".to_string()
+                                                } else {
+                                                    workspace.unlock().and_then(|()| {
+                                                        workspace.publish_profile(
+                                                            self.account_name.trim(),
+                                                            self.account_bio.trim(),
+                                                        )
+                                                    })
+                                                };
+                                                workspace.lock();
+                                                match result {
+                                                    Ok(()) => {
+                                                        self.profile_name = self.account_name.trim().to_string();
+                                                        self.profile_bio = self.account_bio.trim().to_string();
+                                                        self.signing_confirmation = false;
+                                                        self.view = View::Creator;
+                                                        "Public account created locally and identity locked again. Add any optional public details below, or open People when you are ready.".to_string()
+                                                    }
+                                                    Err(error) => format!("Could not create public account: {error}"),
                                                 }
-                                                Err(error) => format!("Could not create public account: {error}"),
-                                            }
-                                        } else {
-                                            "Local workspace unavailable.".to_string()
-                                        };
-                                    }
+                                            } else {
+                                                "Local workspace unavailable.".to_string()
+                                            };
+                                        }
+                                    });
+                                }
+                            } else {
+                                card_frame().show(ui, |ui| {
+                                    ui.set_width(ui.available_width());
+                                    ui.colored_label(WARNING, "⚠ The local workspace could not be opened.");
+                                    ui.label(&self.notice);
                                 });
                             }
-                        } else {
-                            ui.colored_label(egui::Color32::YELLOW, "The local workspace could not be opened.");
-                            ui.label(&self.notice);
-                        }
-                        ui.add_space(14.0);
-                        ui.label(egui::RichText::new(&self.notice).small());
-                    },
-                );
-            });
+                            if self.workspace.is_some() {
+                                ui.add_space(14.0);
+                                self.notice_banner(ui);
+                            }
+                        },
+                    );
+                },
+            );
         });
     }
 
@@ -2136,7 +2381,7 @@ impl MininetApp {
             ui.label(egui::RichText::new("Beta security boundary").strong());
             ui.label("Messages are signed and encrypted at rest, and private sync is limited to the selected opaque conversation route.");
             ui.colored_label(
-                egui::Color32::YELLOW,
+                WARNING,
                 "Invitation codes contain the conversation key. Anyone who obtains one can read this beta conversation. Transfer it through a trusted channel.",
             );
             ui.label("This beta does not yet provide prekeys, a ratchet, post-compromise recovery, mailbox delivery, or authenticated endpoint discovery.");
@@ -2188,10 +2433,7 @@ impl MininetApp {
                 ui.text_edit_singleline(&mut self.conversation_peer);
                 let valid_peer = Did::parse(self.conversation_peer.trim()).is_ok();
                 if !self.conversation_peer.trim().is_empty() && !valid_peer {
-                    ui.colored_label(
-                        egui::Color32::YELLOW,
-                        "Enter a complete did:mini identifier.",
-                    );
+                    ui.colored_label(WARNING, "Enter a complete did:mini identifier.");
                 }
                 if ui
                     .add_enabled(
@@ -2322,7 +2564,7 @@ impl MininetApp {
                 }
                 if !scan.rejected.is_empty() {
                     ui.colored_label(
-                        egui::Color32::YELLOW,
+                        WARNING,
                         format!(
                             "{} envelope(s) could not be decrypted or validated.",
                             scan.rejected.len()
@@ -2330,7 +2572,7 @@ impl MininetApp {
                     );
                 }
             } else {
-                ui.colored_label(egui::Color32::YELLOW, "Conversation could not be decrypted.");
+                ui.colored_label(WARNING, "Conversation could not be decrypted.");
             }
             ui.add_sized(
                 [ui.available_width(), 64.0],
@@ -2417,7 +2659,7 @@ impl MininetApp {
         if profile_needs_upgrade {
             ui.group(|ui| {
                 ui.colored_label(
-                    egui::Color32::YELLOW,
+                    WARNING,
                     egui::RichText::new("One-time verified-sync upgrade").strong(),
                 );
                 ui.label("This account was created by an earlier desktop beta that signed directly with the human root. Peers correctly reject those objects. Re-sign the same public profile with a scoped delegated device; your DID and published details stay unchanged.");
@@ -2626,7 +2868,7 @@ impl MininetApp {
     ) {
         ui.group(|ui| {
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("●").color(egui::Color32::from_rgb(100, 210, 160)));
+                ui.label(egui::RichText::new("●").color(ACCENT));
                 ui.label(egui::RichText::new(title).strong());
                 ui.label(
                     egui::RichText::new("  2m")
@@ -2958,7 +3200,7 @@ impl MininetApp {
             });
             if !target_valid {
                 ui.colored_label(
-                    egui::Color32::YELLOW,
+                    WARNING,
                     "Enter a complete did:mini identifier, not a display name.",
                 );
             }
@@ -3150,7 +3392,7 @@ impl MininetApp {
 
     fn system(&mut self, ui: &mut egui::Ui) {
         let Some(workspace) = self.workspace.as_ref() else {
-            ui.colored_label(egui::Color32::YELLOW, "Local workspace unavailable.");
+            ui.colored_label(WARNING, "Local workspace unavailable.");
             return;
         };
         let count = |object_type: &ObjectType| {
@@ -3394,16 +3636,12 @@ impl MininetApp {
                     .show(ui, |ui| {
                         for (name, coverage) in mini_selftest::COVERAGE {
                             let (mark, colour, detail) = match coverage {
-                                mini_selftest::Coverage::Exercised { area } => (
-                                    "run",
-                                    egui::Color32::from_rgb(90, 170, 110),
-                                    (*area).to_string(),
-                                ),
-                                mini_selftest::Coverage::SeparateBinary { binary, .. } => (
-                                    "run",
-                                    egui::Color32::from_rgb(90, 170, 110),
-                                    format!("via {binary}"),
-                                ),
+                                mini_selftest::Coverage::Exercised { area } => {
+                                    ("run", ACCENT, (*area).to_string())
+                                }
+                                mini_selftest::Coverage::SeparateBinary { binary, .. } => {
+                                    ("run", ACCENT, format!("via {binary}"))
+                                }
                                 mini_selftest::Coverage::Transitive { via } => {
                                     ("dep", egui::Color32::GRAY, (*via).to_string())
                                 }
@@ -3433,10 +3671,10 @@ impl MininetApp {
             ui.horizontal_wrapped(|ui| {
                 ui.label(egui::RichText::new(report.summary()).strong());
                 if report.is_clean() {
-                    ui.colored_label(egui::Color32::from_rgb(90, 170, 110), "nothing failed");
+                    ui.colored_label(ACCENT, "nothing failed");
                 } else {
                     ui.colored_label(
-                        egui::Color32::from_rgb(220, 120, 60),
+                        DANGER,
                         "at least one check failed; this build should not be trusted",
                     );
                 }
@@ -3454,8 +3692,8 @@ impl MininetApp {
                 current_area = check.area;
             }
             let (mark, colour) = match &check.outcome {
-                CheckOutcome::Passed { .. } => ("pass", egui::Color32::from_rgb(90, 170, 110)),
-                CheckOutcome::Failed { .. } => ("FAIL", egui::Color32::from_rgb(220, 120, 60)),
+                CheckOutcome::Passed { .. } => ("pass", ACCENT),
+                CheckOutcome::Failed { .. } => ("FAIL", DANGER),
                 CheckOutcome::Skipped { .. } => ("skip", egui::Color32::GRAY),
             };
             ui.horizontal_wrapped(|ui| {
@@ -3496,10 +3734,7 @@ impl MininetApp {
         match &status {
             Ok(status) => self.install_summary(ui, status),
             Err(error) => {
-                ui.colored_label(
-                    egui::Color32::from_rgb(220, 120, 60),
-                    format!("Could not read the installation: {error}"),
-                );
+                ui.colored_label(DANGER, format!("Could not read the installation: {error}"));
             }
         }
         ui.add_space(12.0);
@@ -3687,7 +3922,7 @@ impl MininetApp {
     }
 
     fn privacy(&mut self, ui: &mut egui::Ui) {
-        ui.colored_label(egui::Color32::from_rgb(100, 210, 160), "HARDENED DEFAULTS");
+        ui.colored_label(ACCENT, "HARDENED DEFAULTS");
         ui.add_space(8.0);
         let mut settings_changed = ui
             .checkbox(
@@ -3745,7 +3980,7 @@ impl MininetApp {
             ui.label("The identity seed envelope is protected by Windows DPAPI for the current user. This does not defend against malware or an administrator running as that user.");
         }
         ui.add_space(10.0);
-        ui.colored_label(egui::Color32::YELLOW, "Windows boundary");
+        ui.colored_label(WARNING, "Windows boundary");
         ui.label("This reduces Mininet's own tracking and censorship dependencies. It cannot stop a compromised Windows kernel, a malicious administrator, malware, accessibility abuse, screen capture, or a hardware/driver keylogger. Sensitive entry should use a trusted OS/device and Mininet should keep secrets out of logs and URLs.");
     }
 }

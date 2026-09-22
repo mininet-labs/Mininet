@@ -24454,3 +24454,111 @@ follow-ups, unchanged.
 per the voice/value wall" and "no WiX/MSI" choices specifically. Everything
 else in D-0520 — the package format, the install engine, the setup program,
 the CI jobs — stands as written.
+
+---
+
+### D-0522 — `mini-desktop` visual/UX pass: a shared theme system, restyled onboarding, and consistent color semantics  ·  *Shipped*
+
+**Date:** 2026-09-22 · **Refs:** `crates/mini-desktop/src/main.rs`; D-0520
+(the shell this refines); D-0521 (unrelated, same crate family).
+
+**Decision:** give the Windows desktop shell one consistent visual language
+instead of unstyled default-`egui` widgets, and fix a real layout bug in the
+first screen every person sees.
+
+1. **Buttons were never actually themed.** The existing `apply_theme` set
+   `bg_fill` on every widget state but never `weak_bg_fill`, which is the
+   field `egui::Button` actually paints with — every button in the shell was
+   rendering in egui's stock gray regardless of the custom panel colors
+   around it. `weak_bg_fill`, hover/active accents, and per-state corner
+   radii are now set so buttons, the selected-nav pill, and hovered rows all
+   read as one product.
+2. **One accent color, applied consistently.** `ACCENT`/`ACCENT_STRONG`/
+   `WARNING`/`DANGER`/`MUTED_TEXT` are now shared constants; the ad hoc
+   `Color32::YELLOW`, `Color32::from_rgb(90, 170, 110)`,
+   `Color32::from_rgb(220, 120, 60)`, and `Color32::from_rgb(100, 210, 160)`
+   scattered across inbox, diagnostics, connections, and privacy now resolve
+   to the same three or four colors, so "this failed," "this is a caution,"
+   and "this succeeded" look the same everywhere in the shell instead of
+   each screen inventing its own shade.
+3. **A real onboarding layout bug.** The first-run screen anchored its card
+   to the top-left of the window with a fixed 620px box and a single
+   `add_space(54.0)`, leaving most of a 1180×760 window as dead black space
+   below and to the right — confirmed by actually launching the built
+   `mininet-desktop` binary under Xvfb on this Linux session (`eframe`'s
+   `x11`/`wayland` features already make that possible) and screenshotting
+   it. The card and its status line are now centered, in a rounded/tinted
+   `card_frame()`, with a two-step progress pill row above it and a
+   viewport-fraction top margin instead of a fixed pixel offset. Getting the
+   progress-pill row to center required giving it an explicit width the same
+   way the card already had one: an `egui::Layout::top_down` with
+   `Align::Center` only centers a child whose own allocated rect is
+   narrower than the available width, and a bare `ui.horizontal(...)` claims
+   the full remaining width, so "centering" it is a no-op. `with_main_align`
+   was tried for true vertical centering and dropped: it only settles after
+   a second measurement frame, which a person launching the app for the
+   first time never sees — the first paint is what matters, so the top
+   margin is a plain, stable fraction of the window instead.
+4. **The transient status line moved.** `self.notice` (root created, sync
+   result, unlock failure, …) was a bare gray line in the bottom status bar,
+   easy to miss below a scrolled page. It now renders as a color-coded
+   banner (`notice_banner`) directly under the header of whichever view is
+   open, classified success/caution/locked by simple keyword matching on
+   the message text. The bottom bar keeps only the two static trust lines
+   ("Updates: manual approval", "No background sync").
+5. **Nav and header got icons**; the "LOCAL ONLY" marker became a filled
+   pill instead of plain colored text.
+
+**Reason:** the founder's read on the shipped Windows client was that it is
+"way too simple and user unfriendly" relative to what this project expects
+of a real end-user surface. Reading the code and then actually running the
+built binary confirmed a concrete, fixable cause: the theme function had a
+field-name bug that silently defeated its own button styling, colors were
+chosen ad hoc per screen, and the first screen a new user sees had a real
+layout defect, not just a plain aesthetic. Fixing the shared primitives
+(`apply_theme`, `card_frame`, `primary_button`, `notice_banner`, `nav_button`,
+`header`) improves every view that uses them, which is all of them, without
+requiring a rewrite of each view's own content.
+
+**Constitutional impact:** None. No dependency changed (`Cargo.toml` is
+untouched), no signing/authority surface changed, and the voice/value wall
+is unaffected — this crate has never had a value-layer edge and still
+doesn't.
+
+**Implementation status:** shipped for the shared shell (theme, onboarding,
+top bar, side nav, header, notice banner) and for color consistency across
+every existing screen. `cargo fmt --all`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test -p mini-desktop
+--all-features` are clean (the two DPAPI-backed tests stay `#[cfg(windows)]`
+as before). Verified by building the real `mininet-desktop` binary on this
+Linux session and rendering it under Xvfb: the onboarding screen was
+screenshotted before and after. The rest of the shell (home, inbox, people,
+communities, creator, connections, system, diagnostics, updates, privacy)
+was **not** individually re-screenshotted or redesigned content-wise in this
+pass — `mini-windows-vault`'s non-Windows `protect`/`unprotect` correctly
+return `VaultError::UnsupportedPlatform` by design (D-0520's Windows-user
+DPAPI boundary), so this Linux session cannot get past onboarding's "Create
+local root" step without weakening that boundary, which this session
+declined to do even temporarily for a screenshot. Those views inherit the
+new shared colors, button styling, and card frame by construction, but their
+information density, copy, and per-view layout are exactly as before.
+
+**Failure point:** the notice banner's success/caution classification is a
+keyword match on the message text (`"fail"`, `"could not"`, `"unavailable"`,
+…), not a typed outcome — a future message that describes a failure without
+one of those words will render as a false "success" green. A typed
+`Notice { Info, Success, Warning }` on `MininetApp` would remove this
+guesswork; it wasn't done here to keep this pass to styling plus the one
+real layout bug, not a state-shape change touching every call site that
+sets `self.notice`.
+
+**Required follow-up:** the content-heavy views listed above still read as
+a technical/developer tool rather than a consumer app — dense subtitles,
+walls of body text, no empty-state illustrations, no per-field inline
+validation styling. That is real remaining work belonging to a follow-up
+batch (or the founder's Batch 6 / Branch call from the current-priority
+section above), not implied to be finished by this entry. Typed notices
+(above) and an Authenticode-signed, non-Xvfb visual pass on real Windows
+before distribution (D-0520's own follow-up) both still stand.
+
+**Supersedes / superseded by:** none.
