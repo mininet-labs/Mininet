@@ -28,11 +28,37 @@ crates/mini-desktop/windows-crate-map.tsv
 
 ## 2. Current state
 
-The root workspace currently contains 84 crates. `mini-desktop/Cargo.toml` directly links 13 Mininet crates: identity/object/media/messaging/bearer/sync/ticket/crypto/social/store plus the Windows vault, diagnostics, and Windows setup engine. That direct-dependency count is not the same as product coverage: PR #345 separately established whole-workspace **diagnostic** classification, and the connected-client work already composes additional behavior through those dependencies.
+This W1 implementation branch contains 86 workspace crates: the original 84 plus `mini-app-protocol` and `mini-app-service`. `mini-desktop/Cargo.toml` directly links 14 Mininet crates: the prior 13 plus the zero-authority application protocol. The service implementation itself is deliberately not linked into the renderer. That direct-dependency count is not the same as product coverage: PR #345 separately established whole-workspace **diagnostic** classification, and the connected-client work already composes additional behavior through those dependencies.
 
 The important gap is architectural: repository capabilities such as native search, relay/mesh, storage roles, Forge, personhood/presence, value/settlement, and network consensus do not yet have one consistent Windows application-service boundary and honest end-user lifecycle.
 
 The connected-client design already points to the correct first move: a single application service that serializes store mutation/signing, keeps UI and key custody separate, and emits bounded events to clients. This design makes that service boundary the spine for whole-workspace integration.
+
+### 2.1 W1 implementation now present on this branch
+
+The architecture is no longer only a scope document:
+
+- `mini-app-protocol` is a dependency-free, versioned, length-framed contract with explicit commands, typed errors, bounded strings/collections, and no generic execute or filesystem primitive;
+- `mini-app-service` is a per-user process that owns DPAPI-backed controller reconstruction while unlocked, refuses a second live core-service instance, durably reserves sequences, recovers exact signed objects, records idempotency receipts, materializes feeds, and keeps a bounded event backlog;
+- the desktop launches that process as a sibling executable through a bounded command queue and fails closed for migrated signing actions if it is absent;
+- onboarding root/profile creation, identity lock/unlock, plain Home posts, and Home/Explore feed snapshots use the service;
+- Windows packaging ships `mininet-app-service.exe`, and native/cross-Windows CI includes the protocol and service.
+
+The first transport is child-process stdin/stdout using the same bounded wire
+contract. Per-user Windows named pipes remain the preferred next transport
+hardening because they can add OS-level same-user/session access control without
+changing command semantics.
+
+This is substantial W1 progress, not W1 completion. Replies/reactions,
+community and rich-profile mutations, media publication, messaging, sync/store
+ingest ownership, and several connection workflows still open/sign/mutate
+through the legacy desktop `Workspace`. The filesystem backend reads metadata
+from disk on each query, and the service rescans the local author's maximum
+sequence before reserving its next one, so these transitional writes remain
+visible without pretending they satisfy the final architecture. Until they are
+migrated, the application service is the authority only for the listed W1
+flows; the repository must not claim a universal zero-authority renderer or a
+universal single-writer guarantee.
 
 ## 3. Target process topology
 
@@ -139,7 +165,7 @@ These are still classified in the Windows map so "all crates" never becomes "all
 
 Windows integration should use a small, versioned local protocol rather than ad-hoc cross-process calls.
 
-Preferred transport: per-user Windows named pipes, with a loopback test transport allowed for portable CI. The protocol must have:
+Preferred final transport: per-user Windows named pipes, with a loopback or child-process stdio transport allowed for portable CI and staged migration. The current W1 implementation uses bounded child-process stdio; moving the same protocol onto a same-user named pipe is transport hardening, not a command redesign. The protocol must have:
 
 - explicit version and message type;
 - bounded frame size and collection counts before allocation;
@@ -275,8 +301,20 @@ The connected-client performance targets remain useful acceptance budgets: 4 GB 
 - Requiring any single hosted provider for identity, local data or ownership continuity.
 - Calling real-value, consensus, personhood or privacy functionality production-ready before its external gates are satisfied.
 
-## 10. First implementation PR after this scope
+## 10. W1 implementation sequence
 
-The highest-leverage follow-up is W1: create the application-service protocol/process, then move one complete vertical slice through it — **identity lock/unlock + local feed read + signed post publish + bounded event notification** — while keeping the existing GUI behavior and tests.
+This branch implements the first authority-bearing W1 slice — **root/profile
+onboarding + identity lock/unlock + local feed read + signed plain-post publish
++ bounded event notification + crash/idempotency recovery** — and packages the
+service with the client.
 
-That slice establishes the pattern all later crates use: UI intent -> typed local IPC -> capability-scoped service -> store/network/worker -> bounded result/event. Once that spine is proven, integrating more crates becomes composition rather than repeatedly adding privileged logic to `main.rs`.
+The next W1 work should extend the same capability-scoped protocol rather than
+create parallel mutation paths: replies/reactions/follows and rich profile
+editing first, then communities/media/messaging/sync ingest, and finally removal
+of renderer-owned signing/store-write dependencies once every current beta flow
+has a service-backed equivalent.
+
+That establishes the pattern all later crates use: UI intent -> typed local IPC
+-> capability-scoped service -> store/network/worker -> bounded result/event.
+Once W1 is fully migrated, later waves become composition rather than repeatedly
+adding privileged logic to `main.rs`.
