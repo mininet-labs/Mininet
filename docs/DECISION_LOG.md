@@ -24919,3 +24919,74 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0529 — `mini-objects` object-model extensibility review: confirm forward-compat, close a `WellKnown`/`Custom` tag collision (issue #64)  ·  *Accepted*
+
+**Date:** 2026-09-21 · **Refs:** `docs/design/
+mini-objects-extensibility-review.md` (new); `crates/mini-objects/src/
+object.rs`; D-0021 (original unified envelope, `ObjectType` "extensible
+type"); D-0300/`MN-103` (`ObjectEnvelope` v2, unrelated lane, no conflict).
+
+**Decision:** issue #64 asked whether entirely new object types can be
+added decades from now without a breaking migration and without any single
+party's schema proposal getting special authority over the format. Review
+finding: **yes, already true by design** (D-0021), but two things were
+missing rather than broken. (1) The forward-compat property — an
+unrecognized `ObjectType::WellKnown(u16)` tag or `Custom(String)` name
+round-trips losslessly through `Object::to_bytes`/`from_bytes` with no
+special handling — was real but untested as a forward-compat guarantee;
+four new tests in `crates/mini-objects/src/object.rs`
+(`object_of_a_future_unknown_well_known_type_round_trips_losslessly`,
+`object_of_a_future_unknown_custom_type_round_trips_losslessly`,
+`an_unrecognized_well_known_type_falls_back_to_the_narrowest_capability`,
+`signing_the_reserved_custom_marker_as_a_well_known_tag_is_rejected`) now
+prove it. (2) A real latent bug: the wire format reserves `u16::MAX` as the
+`Custom`-discriminator tag, but nothing stopped signing
+`ObjectType::WellKnown(u16::MAX)`, which would encode to bytes a decoder
+reads back as `Custom` with a zero-length name — itself already rejected,
+so the failure mode was "un-decodable at the wrong layer, however long
+after signing" rather than a clear error at construction time. Fixed by
+naming the reserved value `CUSTOM_TYPE_MARKER` (one source of truth for
+encode/decode) and having `ObjectBuilder::sign` reject
+`WellKnown(CUSTOM_TYPE_MARKER)` up front. No wire format change: `Object`'s
+version byte, `ObjectType`'s two variants, and every existing encoding are
+unchanged; every pre-existing test still passes unmodified. Confirmed
+separately, no code change needed: adding a new `WellKnown` associated
+constant is an ordinary `mini-forge`-governed source change (2-approval
+protocol floor, `KelDirectory` oracle) like any other, and `Custom(String)`
+needs no gate at all — neither path grants any single party (maintainer,
+code owner, external registry) special authority over which type
+identifiers exist.
+
+**Constitutional impact:** none. No dependency edge changed (voice/value
+wall untouched — `mini-objects` has no path to `mini-value`/`mini-bounty`/
+`mini-treasury` or to `mini-forge`/`mini-chain` voting either way). No
+Tier-F invariant touched. `ObjectBuilder::sign` already takes the typed
+`ObjectType` domain value, not a generic `sign(bytes)`, so the new guard is
+an added validation inside an already-typed-domain function, not a new
+authority surface.
+
+**Implementation status:** shipped. `cargo fmt --all`, `cargo clippy
+--all-targets --all-features --workspace -- -D warnings`, and `cargo test
+--workspace --all-features` clean; `mini-objects`' 59 unit tests + 9
+integration tests (`tests/objects.rs`) + 1 doc-test all pass, including the
+4 new tests above.
+
+**Failure point:** the `WellKnown`/`Custom` collision was only ever
+reachable by deliberately constructing `WellKnown(u16::MAX)`, since every
+named associated constant is far below it (`WALL_LINKAGE` = 14) — this was
+closed before any real allocation pressure existed, not after an incident.
+`Payload`'s two wire variants (`Public`/`Encrypted`) and
+`ObjectEnvelopeV2`'s `RetentionClass` tag remain closed matches on the
+wire; that is intentional (both are envelope/mechanism-level, not object
+*type*, and a new mechanism should force a version bump so old nodes don't
+silently misclassify data) but is recorded here so it is not later mistaken
+for the same gap this review closed.
+
+**Required follow-up:** none blocking. If `WellKnown` allocation ever
+approaches the top of the `u16` range (currently 14 of ~65,534 slots used),
+revisit whether `CUSTOM_TYPE_MARKER`'s single reserved value is still
+sufficient headroom — not expected to matter on any realistic timeline.
+
+**Supersedes / superseded by:** none. Extends D-0021; no prior decision on
+extensibility testing existed to supersede.
