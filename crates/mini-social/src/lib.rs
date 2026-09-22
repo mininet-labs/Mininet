@@ -30,6 +30,7 @@
 mod discovery;
 mod pairing;
 mod post;
+mod spam;
 mod wall;
 
 pub use discovery::{
@@ -41,6 +42,8 @@ pub use post::{
     build_intake_post, build_post, decode_post, publish_media_post, publish_post, resolve_post,
     Post, PostKind, MAX_POST_BYTES,
 };
+
+pub use spam::{PostRateLimiter, MAX_TRACKED_AUTHORS};
 
 pub use pairing::{
     create_pairing_acceptance, create_pairing_offer, receive_pairing_acceptance,
@@ -124,6 +127,9 @@ pub enum SocialError {
     /// A [`PairingNonceLedger`] had no room even after sweeping expired
     /// entries.
     PairingNonceLedgerFull,
+    /// A [`PostRateLimiter`] rejected a post: the author has already used
+    /// its flat per-author budget inside the current trailing window.
+    PostRateLimited,
 }
 
 impl core::fmt::Display for SocialError {
@@ -146,6 +152,9 @@ impl core::fmt::Display for SocialError {
                 write!(f, "pairing device lacks the POST capability")
             }
             SocialError::PairingNonceLedgerFull => write!(f, "pairing nonce ledger is full"),
+            SocialError::PostRateLimited => {
+                write!(f, "author exceeded its post rate limit for this window")
+            }
         }
     }
 }

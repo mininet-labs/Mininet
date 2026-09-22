@@ -24919,3 +24919,107 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+---
+
+### D-0529 — Issue #75 (DOS & spam resistance review): `mini-net` PEX address-book flood fix, plus `mini-social::PostRateLimiter` — identity-root-keyed, bounded content-layer spam resistance with no identity-scarcity assumption  ·  *Shipped*
+**Date:** 2026-09-21 · **Refs:** [#75](../../issues/75); `crates/mini-net/src/pex.rs`
+(`absorb_response`, `AddressBook`); `crates/mini-social/src/spam.rs`
+(`PostRateLimiter`); `crates/mini-net/src/gossip.rs` (`GossipRouter`, the
+existing bounded-cache precedent this follows); `crates/mini-social/src/pairing.rs`
+(`PairingNonceLedger`, the existing bounded-cache precedent this follows).
+
+**Decision:** a systematic pass over `mini-net`, `mini-bearer`, `mini-social`,
+and `mini-store` for uncapped attacker-influenced buffers/caches found one
+real uncapped path and fixed it, found everything else already bounded, and
+closed the still-open content-layer spam question with a mechanism that
+does not depend on identity scarcity.
+
+1. **Fixed: `mini-net::pex::AddressBook` unbounded growth.**
+   `absorb_response` called `book.insert(record.id, record.addr)`
+   unconditionally for every record in a `PexMessage::Response`, regardless
+   of whether `RoutingTable::insert` accepted that id. `RoutingTable` itself
+   is bounded (`BUCKET_SIZE` × 256 buckets), but a hostile peer sending many
+   separate PEX responses — each individually capped at `MAX_PEX_RECORDS`,
+   but with a fresh forged `PeerId` in every batch, since nothing
+   authenticates who a `PeerId` belongs to — could grow `AddressBook`
+   without limit even as `RoutingTable` refused most of those same ids.
+   Fixed by gating `AddressBook::insert` on `RoutingTable::contains`
+   (accepted-or-already-known) after the insert attempt, tying the address
+   book's size to the routing table's own bound instead of to how many
+   responses an attacker is willing to send. New test
+   `absorb_response_never_grows_the_address_book_past_the_routing_table_bound`
+   floods 200 responses of 64 forged ids each (12,800 total) and asserts
+   `book.len()` never exceeds the routing table's bound.
+2. **Confirmed already bounded, no change needed:** `mini-net::GossipRouter`'s
+   seen-set (capacity-bounded LRU, pre-existing), `mini-net::RoutingTable`
+   (per-bucket cap, pre-existing), `mini-bearer::FrameReader`/`encode_frame`
+   (`MAX_FRAME_BYTES`/`MAX_STREAM_BUFFER_BYTES`, pre-existing, rejects before
+   allocating), `mini-bearer::ble` chunk reassembly (`MAX_FRAME_BYTES`,
+   pre-existing), `mini-social`'s existing per-object size bounds
+   (`MAX_POST_BYTES`, `MAX_WALL_*`, `MAX_PAIRING_*`) and
+   `PairingNonceLedger`'s own bounded-with-sweep design. `mini-store`'s
+   growth is ordinary content-addressed storage, not an attacker-controlled
+   buffer ahead of validation, and is out of this review's scope.
+3. **New: `mini_social::PostRateLimiter`**, content-layer spam resistance
+   for issue #75's second half. Rate-limiting keyed to identity-root
+   activity was chosen over local-reputation-graph filtering or
+   per-post proof-of-work as the mechanism actually implementable now
+   without inventing anything: every `Did` (identity root) already seen
+   locally gets the same flat budget — at most N posts per trailing
+   window-`Did` regardless of reputation or how many identities an
+   attacker controls — so it never assumes identity scarcity (constitution
+   principle 7, open participation) and never claims to distinguish a real
+   human from a Sybil (`docs/INVARIANTS.md`'s frozen top limitation: identity
+   root ≠ verified human). It explicitly does not stop a well-resourced
+   Sybil flood (N identity roots buy N× the aggregate budget); it stops one
+   identity hammering a feed, the cheaper and more common case. Tracked
+   authors are themselves bounded (`MAX_TRACKED_AUTHORS`, LRU-evicted, a
+   rejected attempt never refreshes an author's LRU position so a spamming
+   author cannot keep itself artificially "warm") — the same
+   cap-before-it-becomes-a-resource-exhaustion-vector shape `GossipRouter`
+   and `PairingNonceLedger` already use, reused here one layer up because
+   the growth-path shape (many distinct attacker-chosen keys) is identical.
+   Five new tests cover: budget enforcement, window aging, the flat-budget-
+   regardless-of-identity-count property, the tracked-author cap holding
+   under a 2,000-identity flood, and LRU eviction correctness under a
+   spamming author. `PostRateLimiter` is a local, per-viewer admission
+   check (construct with `PostRateLimiter::standard()` or `::new`, call
+   `admit(&author, now_ms)` before storing/ranking a post) — not a
+   consensus rule; it is not yet wired into `publish_post`/`publish_media_post`
+   or feed assembly by this decision (see Required follow-up).
+
+**Constitutional impact:** none weakened; strengthens Directive 16-adjacent
+resource-exhaustion posture and stays inside constitution principle 7 (open
+participation) by construction — `PostRateLimiter` imposes no cost or
+gate on *acquiring* an identity root, only a flat post-frequency cap on one
+already held. Never claims "one human, one vote" or any Sybil-resistance
+property; identity root ≠ verified human remains exactly as frozen in
+`docs/INVARIANTS.md`.
+
+**Implementation status:** shipped in `mini-net`/`mini-social`, unit-tested,
+not yet wired into any caller (`mini-desktop`, feed assembly, or the
+`publish_post`/`publish_media_post` call sites) and not yet backed by a
+production load test or real-network measurement.
+
+**Failure point:** `PostRateLimiter` is local/per-device state — restarting
+the process resets it, and it makes no attempt to survive a device switch,
+so a rate-limited author can reset its own budget by any local action that
+recreates the limiter; it also does nothing against an aggregate multi-
+identity flood, by design (see Decision, point 3). The `AddressBook` fix
+bounds *this* growth path but does not defend against other flooding
+vectors this review did not find because they don't yet exist in the
+current transport-thin slice (e.g. no live TCP fuzzing was run against
+`mini-net`/`mini-bearer` together as a real running node).
+
+**Required follow-up:** wire `PostRateLimiter` into an actual publish/feed
+call site (`mini-social::post`/`mini-desktop`) so it does something beyond
+being unit-tested; a durable (not just in-process) per-author budget if
+cross-restart persistence turns out to matter in practice; the still-open
+local-reputation-graph and per-post proof-of-work mechanisms this decision
+named but did not implement remain available as *additional*, not
+alternative, layers if a real deployment shows the flat rate limit alone
+is insufficient; aggregate Sybil-flood resistance remains out of scope
+here and stays tracked under roadmap #18.
+
+**Supersedes / superseded by:** none.
