@@ -3357,6 +3357,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mini-safety"
+version = "0.0.1"
+dependencies = [
+ "did-mini",
+]
+
+[[package]]
 name = "mini-search-federation"
 version = "0.0.1"
 dependencies = [
