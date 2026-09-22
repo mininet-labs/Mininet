@@ -3,7 +3,7 @@
     "crates": 86,
     "files": 1087,
     "headings": 3887,
-    "rust_symbols": 11829
+    "rust_symbols": 11831
   },
   "crates": {
     "did-mini": {
@@ -2545,7 +2545,7 @@
       "title": "use crate::error::{IdentityError, Result};"
     },
     {
-      "bytes": 29139,
+      "bytes": 29532,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -2574,9 +2574,9 @@
         "material",
         "its"
       ],
-      "lines": 710,
+      "lines": 715,
       "path": "crates/did-mini/src/controller.rs",
-      "sha256": "3361bdf4b58ffadd59bc39908580a98dd26c6f2b96eeafaadb6f1a729470703f",
+      "sha256": "65cb472258345eb19f399b4646fe91c131856c4b2a02b472f5c541091db0ad78",
       "symbols": [
         {
           "kind": "const",
@@ -2735,39 +2735,39 @@
         },
         {
           "kind": "fn",
-          "line": 622,
+          "line": 624,
           "name": "revoke_devices_except"
         },
         {
           "kind": "fn",
-          "line": 642,
+          "line": 647,
           "name": "revoke_all_devices"
         },
         {
           "kind": "fn",
-          "line": 647,
+          "line": 652,
           "name": "seal"
         },
         {
           "kind": "fn",
-          "line": 668,
+          "line": 673,
           "name": "append"
         },
         {
           "kind": "fn",
-          "line": 690,
+          "line": 695,
           "name": "sign_event"
         },
         {
           "kind": "fn",
-          "line": 703,
+          "line": 708,
           "name": "generate_like"
         }
       ],
       "title": "use mini_crypto::{SignatureSuite, SigningKey};"
     },
     {
-      "bytes": 10906,
+      "bytes": 11337,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -2796,9 +2796,9 @@
         "store",
         "contains"
       ],
-      "lines": 251,
+      "lines": 261,
       "path": "crates/did-mini/src/delegation.rs",
-      "sha256": "9e145c01762c7aab363c598fb1af743517f1c9fa83ad1960ddee8acf1e7220f8",
+      "sha256": "393a7b5dbec335c520ee30a103db1d2c3fcdf34635ead6ba98a9d39bd3f807e4",
       "symbols": [
         {
           "kind": "struct",
@@ -2892,22 +2892,22 @@
         },
         {
           "kind": "enum",
-          "line": 152,
+          "line": 159,
           "name": "DeviceTier"
         },
         {
           "kind": "enum",
-          "line": 194,
+          "line": 204,
           "name": "Seal"
         },
         {
           "kind": "const",
-          "line": 209,
+          "line": 219,
           "name": "SEAL_DELEGATE"
         },
         {
           "kind": "const",
-          "line": 210,
+          "line": 220,
           "name": "SEAL_REVOKE"
         }
       ],
@@ -5170,7 +5170,7 @@
       "title": "use std::collections::HashMap;"
     },
     {
-      "bytes": 11190,
+      "bytes": 12665,
       "group": "crate:did-mini",
       "headings": [],
       "keywords": [
@@ -5199,9 +5199,9 @@
         "vote",
         "root_c"
       ],
-      "lines": 299,
+      "lines": 344,
       "path": "crates/did-mini/tests/delegation.rs",
-      "sha256": "6d3f8de0a203426cffb879aed828036d4ad1bee1858bf03fe9c908fa8b1f31d5",
+      "sha256": "c235643690357de1d2e696f393e8b449b8f25d8c1110c3c2675a493368f1815a",
       "symbols": [
         {
           "kind": "const",
@@ -5320,43 +5320,53 @@
         },
         {
           "kind": "fn",
-          "line": 190,
+          "line": 200,
           "name": "hardware_token_tier_is_signing_only"
         },
         {
           "kind": "fn",
-          "line": 201,
+          "line": 211,
           "name": "daily_device_tier_has_everyday_authority_but_no_key_management"
         },
         {
           "kind": "fn",
-          "line": 211,
+          "line": 221,
           "name": "emerging_tier_is_conservative_by_default"
         },
         {
           "kind": "fn",
-          "line": 222,
+          "line": 232,
           "name": "every_tier_is_bounded_by_capabilities_all"
         },
         {
           "kind": "fn",
-          "line": 234,
+          "line": 244,
           "name": "delegate_device_tier_matches_capabilities_for_tier"
         },
         {
           "kind": "fn",
-          "line": 244,
+          "line": 254,
           "name": "revoke_devices_except_keeps_the_named_devices_and_cuts_the_rest"
         },
         {
           "kind": "fn",
-          "line": 269,
+          "line": 279,
           "name": "revoke_devices_except_is_a_noop_when_nothing_needs_cutting"
         },
         {
           "kind": "fn",
-          "line": 284,
+          "line": 294,
           "name": "revoke_all_devices_cuts_every_delegated_device"
+        },
+        {
+          "kind": "fn",
+          "line": 311,
+          "name": "cold_root_tier_is_an_enumerated_set_not_whatever_all_grows_into"
+        },
+        {
+          "kind": "fn",
+          "line": 325,
+          "name": "revoke_all_devices_splits_more_than_one_seal_events_worth"
         }
       ],
       "title": "use did_mini::{verify_delegation, Capabilities, Controller, DeviceTier, Did};"
@@ -94898,7 +94908,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1511367,
+      "bytes": 1511616,
       "group": "docs",
       "headings": [
         {
@@ -95328,9 +95338,9 @@
         "new",
         "doctrine"
       ],
-      "lines": 25022,
+      "lines": 25026,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "308c87891370c288841fe2f1b6f7d6e97f326cfbab7d99fa9a93038a0e769246",
+      "sha256": "b300d1314714895cd56ab178282badddd6c93761a62bcbf79b8d7306fc14e951",
       "symbols": [],
       "title": "Decision Log"
     },
@@ -102324,7 +102334,7 @@
       "title": "Day-0 transparent balance ledger"
     },
     {
-      "bytes": 7685,
+      "bytes": 8195,
       "group": "docs",
       "headings": [
         {
@@ -102344,17 +102354,17 @@
         },
         {
           "level": 2,
-          "line": 74,
+          "line": 77,
           "text": "Why the mapping is a constructor, not caller-supplied bits"
         },
         {
           "level": 2,
-          "line": 91,
+          "line": 94,
           "text": "Revocation ergonomics"
         },
         {
           "level": 2,
-          "line": 111,
+          "line": 119,
           "text": "What this is not"
         }
       ],
@@ -102362,12 +102372,13 @@
         "device",
         "tier",
         "capabilities",
+        "its",
         "capability",
-        "bound",
+        "own",
         "why",
         "what",
-        "own",
-        "its",
+        "never",
+        "bound",
         "would",
         "issue",
         "four",
@@ -102375,18 +102386,17 @@
         "did-mini",
         "controller",
         "shape",
-        "never",
         "hardware",
         "because",
         "set",
         "whole",
+        "bit",
         "per",
-        "new",
         "design"
       ],
-      "lines": 135,
+      "lines": 143,
       "path": "docs/design/device-hierarchy.md",
-      "sha256": "e597b550b9fb3da3bfe8d7b890d8c1f5fea0127ae91ca1520d05fbd151a35053",
+      "sha256": "015986bfcfd40dfa4a7a81c278d51e52f4150a9368d499b7a235e765de124b0e",
       "symbols": [],
       "title": "Device hierarchy design (issue #14, D-0530)"
     },

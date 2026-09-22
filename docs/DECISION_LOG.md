@@ -24933,7 +24933,9 @@ capability-scoped delegation primitive (`Capabilities`, `Seal::Delegate`/
 `Seal::Revoke`), not a new primitive. A `#[non_exhaustive] DeviceTier` enum
 names four risk profiles an identity root delegates to — `ColdRoot`
 (rarely-used, highest-authority key: the only tier granted
-`MANAGE_DEVICES`, bound to `Capabilities::ALL`), `HardwareToken` (dedicated
+`MANAGE_DEVICES`, bound to every capability defined today, enumerated
+rather than taken as `Capabilities::ALL` so a later-added bit never enters
+it silently), `HardwareToken` (dedicated
 signing hardware: `Capabilities::SIGN` only, no delegation authority),
 `DailyDevice` (phone-class, constant use: `Capabilities::primary()` —
 everyday signing/pay/post/attest/vote, never key-management or storage
@@ -24983,11 +24985,13 @@ entirely inside `did-mini`).
 `Capabilities::for_tier` in `crates/did-mini/src/delegation.rs`;
 `Controller::delegate_device_tier`, `revoke_devices_except`,
 `revoke_all_devices` in `crates/did-mini/src/controller.rs`; both
-re-exported from `did-mini`'s crate root. 12 new tests in
+re-exported from `did-mini`'s crate root. 11 new tests in
 `crates/did-mini/tests/delegation.rs` covering each tier's capability
 bound, the `ALL`-boundedness invariant, tier-driven delegation matching
 `Capabilities::for_tier`, and all three revocation-ergonomics behaviors
-(keep-named-cut-rest, no-op when nothing needs cutting, full wipe).
+(keep-named-cut-rest, no-op when nothing needs cutting, full wipe),
+plus revocation of more devices than one seal event holds (split across
+events) and a check that `ColdRoot` is exactly its enumerated set.
 `docs/design/device-hierarchy.md` records the per-tier rationale and what
 this explicitly does not do (it does not change how a root's own
 multi-key/threshold signing keys are modeled, and it does not add

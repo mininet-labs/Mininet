@@ -29,9 +29,12 @@ Each tier is a distinct **risk profile**, not a distinct product category:
 - **`ColdRoot`** — the device most likely to sit offline/air-gapped and be
   invoked only to re-key the device set after something else is lost or
   compromised. It is the *only* tier that gets
-  `Capabilities::MANAGE_DEVICES` (and thus the full `Capabilities::ALL`
-  bound) because its whole reason to exist is disaster recovery: if it
-  cannot re-key everything else, it has no purpose.
+  `Capabilities::MANAGE_DEVICES` (plus every other capability that exists
+  today) because its whole reason to exist is disaster recovery: if it
+  cannot re-key everything else, it has no purpose. Its set is enumerated
+  bit by bit, not taken as `Capabilities::ALL`, so a capability bit added
+  later (such as an opt-in liability bit that must stay off by default)
+  never enters this tier without its own decision-log entry.
 - **`HardwareToken`** — dedicated signing hardware (a FIDO2-class key, a
   smart card). It is bound to `Capabilities::SIGN` alone. A hardware
   token's threat model is "this specific physical object is stolen or
@@ -103,6 +106,11 @@ format:
   `revoke_devices_except_is_a_noop_when_nothing_needs_cutting`).
 - `revoke_all_devices()` — the full-wipe form, for "assume every device I
   have ever authorized is compromised."
+
+One seal event carries at most 128 seals (`MAX_SEALS`), so both methods
+split a larger revocation across consecutive seal events rather than
+failing. If a later event in that sequence fails, the earlier ones stay
+appended (each is individually valid) and the error is returned.
 
 Both are pure policy composed from primitives that already existed
 (`Seal::Revoke`, `Controller::seal`, `Kel::delegated_devices`); no new

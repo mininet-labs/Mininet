@@ -119,7 +119,14 @@ impl Capabilities {
     /// [`DeviceTier`] for why each tier gets the bound it does.
     pub fn for_tier(tier: DeviceTier) -> Self {
         match tier {
-            DeviceTier::ColdRoot => Self::ALL,
+            // Enumerated, never `Self::ALL` — see `DeviceTier::ColdRoot`.
+            DeviceTier::ColdRoot => Self::SIGN
+                .with(Self::PAY)
+                .with(Self::POST)
+                .with(Self::ATTEST)
+                .with(Self::VOTE)
+                .with(Self::MANAGE_DEVICES)
+                .with(Self::STORE),
             DeviceTier::HardwareToken => Self::SIGN,
             DeviceTier::DailyDevice => Self::primary(),
             DeviceTier::Emerging => Self::secondary(),
@@ -150,15 +157,18 @@ impl Capabilities {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DeviceTier {
-    /// The rarely-used, highest-authority key: full authority including
-    /// [`Capabilities::MANAGE_DEVICES`] (add/revoke other devices) and
-    /// [`Capabilities::VOTE`]/[`Capabilities::STORE`]. Meant to sit offline
-    /// or air-gapped, invoked only to re-key the device set after a lower
-    /// tier is lost or compromised — never for everyday signing. Losing
-    /// this tier's key is the worst case a human root can face short of
-    /// full root compromise, so it is granted the full bound, never more
-    /// (it still cannot exceed [`Capabilities::ALL`] — no capability this
-    /// crate does not already define).
+    /// The rarely-used, highest-authority key: every capability this tier
+    /// was reviewed for, including [`Capabilities::MANAGE_DEVICES`]
+    /// (add/revoke other devices) and [`Capabilities::VOTE`]/
+    /// [`Capabilities::STORE`]. Meant to sit offline or air-gapped, invoked
+    /// only to re-key the device set after a lower tier is lost or
+    /// compromised — never for everyday signing.
+    ///
+    /// The set is enumerated bit by bit in [`Capabilities::for_tier`], not
+    /// taken as [`Capabilities::ALL`]: a capability bit added to this crate
+    /// later (for example an opt-in liability bit that must stay off by
+    /// default) must never enter this tier silently. Widening `ColdRoot` is
+    /// a decision-log entry, like any other tier change.
     ColdRoot,
     /// Dedicated signing hardware (e.g. a FIDO2-class security key):
     /// [`Capabilities::SIGN`] only. Deliberately excludes

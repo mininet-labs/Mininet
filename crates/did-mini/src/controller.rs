@@ -615,8 +615,10 @@ impl Controller {
     /// and this seals a `Revoke` for every other device this root's own
     /// KEL currently lists as delegated ([`Kel::delegated_devices`]).
     ///
-    /// A no-op (empty seal, not an error) if every currently-delegated
-    /// device is in `keep`. Devices already revoked, or never delegated,
+    /// A no-op (no event appended, not an error) if every currently-delegated
+    /// device is in `keep`. More than `MAX_SEALS` (128) revocations are
+    /// split across consecutive seal events; if one of those fails, the
+    /// earlier ones stay appended and the error is returned. Devices already revoked, or never delegated,
     /// are simply absent from [`Kel::delegated_devices`] and so are never
     /// re-sealed.
     pub fn revoke_devices_except(&mut self, keep: &[Did]) -> Result<()> {
@@ -629,10 +631,13 @@ impl Controller {
                 device: device.as_str().to_string(),
             })
             .collect();
-        if to_revoke.is_empty() {
-            return Ok(());
+        // One seal event carries at most `MAX_SEALS` seals; a root with more
+        // delegated devices than that is revoked across several events
+        // rather than failing outright.
+        for chunk in to_revoke.chunks(MAX_SEALS) {
+            self.seal(chunk.to_vec())?;
         }
-        self.seal(to_revoke)
+        Ok(())
     }
 
     /// Revoke every currently-delegated device (issue #14 revocation

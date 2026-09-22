@@ -180,7 +180,17 @@ fn storing_on_a_roots_behalf_is_never_granted_by_a_default() {
 #[test]
 fn cold_root_tier_has_full_authority() {
     let caps = Capabilities::for_tier(DeviceTier::ColdRoot);
-    assert_eq!(caps, Capabilities::ALL);
+    for bit in [
+        Capabilities::SIGN,
+        Capabilities::PAY,
+        Capabilities::POST,
+        Capabilities::ATTEST,
+        Capabilities::VOTE,
+        Capabilities::MANAGE_DEVICES,
+        Capabilities::STORE,
+    ] {
+        assert!(caps.contains(bit));
+    }
     assert!(caps.contains(Capabilities::MANAGE_DEVICES));
     assert!(caps.contains(Capabilities::VOTE));
     assert!(caps.contains(Capabilities::STORE));
@@ -295,4 +305,39 @@ fn revoke_all_devices_cuts_every_delegated_device() {
     assert!(root.kel().delegated_devices().is_empty());
     assert!(verify_delegation(&root.kel(), &cold.kel()).is_err());
     assert!(verify_delegation(&root.kel(), &phone.kel()).is_err());
+}
+
+#[test]
+fn cold_root_tier_is_an_enumerated_set_not_whatever_all_grows_into() {
+    // Any capability bit added to `Capabilities::ALL` later must not
+    // silently enter the ColdRoot tier: the tier is exactly these bits.
+    let reviewed = Capabilities::SIGN
+        .with(Capabilities::PAY)
+        .with(Capabilities::POST)
+        .with(Capabilities::ATTEST)
+        .with(Capabilities::VOTE)
+        .with(Capabilities::MANAGE_DEVICES)
+        .with(Capabilities::STORE);
+    assert_eq!(Capabilities::for_tier(DeviceTier::ColdRoot), reviewed);
+}
+
+#[test]
+fn revoke_all_devices_splits_more_than_one_seal_events_worth() {
+    // 130 delegated devices is more than one seal event may carry (128).
+    let mut root = root();
+    let mut devices = Vec::new();
+    for i in 0..130u8 {
+        let d = device(&root.did(), &[i; 32], &[i.wrapping_add(200); 32]);
+        root.delegate_device_tier(&d.did(), DeviceTier::DailyDevice)
+            .unwrap();
+        devices.push(d);
+    }
+    assert_eq!(root.kel().delegated_devices().len(), 130);
+
+    root.revoke_all_devices().unwrap();
+
+    assert!(root.kel().delegated_devices().is_empty());
+    for d in &devices {
+        assert!(verify_delegation(&root.kel(), &d.kel()).is_err());
+    }
 }
