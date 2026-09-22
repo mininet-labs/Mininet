@@ -24919,3 +24919,107 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0530 — Device hierarchy policy layer: named `DeviceTier`s over `did-mini`'s existing capability-scoped delegation (issue #14, Founder Directive 13)  ·  *Shipped*
+
+**Date:** 2026-09-21 · **Refs:** `crates/did-mini/src/delegation.rs`
+(`DeviceTier`, `Capabilities::for_tier`); `crates/did-mini/src/controller.rs`
+(`Controller::delegate_device_tier`, `revoke_devices_except`,
+`revoke_all_devices`); `crates/did-mini/tests/delegation.rs`;
+`docs/design/device-hierarchy.md`; issue #14.
+
+**Decision:** add a policy layer on top of `did-mini`'s already-shipped
+capability-scoped delegation primitive (`Capabilities`, `Seal::Delegate`/
+`Seal::Revoke`), not a new primitive. A `#[non_exhaustive] DeviceTier` enum
+names four risk profiles an identity root delegates to — `ColdRoot`
+(rarely-used, highest-authority key: the only tier granted
+`MANAGE_DEVICES`, bound to every capability defined today, enumerated
+rather than taken as `Capabilities::ALL` so a later-added bit never enters
+it silently), `HardwareToken` (dedicated
+signing hardware: `Capabilities::SIGN` only, no delegation authority),
+`DailyDevice` (phone-class, constant use: `Capabilities::primary()` —
+everyday signing/pay/post/attest/vote, never key-management or storage
+authority), and `Emerging` (any device shape not yet given its own named
+tier — implants, wearables, or anything not yet invented — bound to the
+network's existing conservative `Capabilities::secondary()` default until
+promoted by a future decision). `Capabilities::for_tier(DeviceTier)` is the
+sole typed-domain constructor from tier to capability set (no
+caller-supplied-bits escape hatch); `Controller::delegate_device_tier`
+composes it with the existing `delegate_device`. Revocation ergonomics
+build on the existing `Seal::Revoke` + `Kel::delegated_devices()` machinery:
+`revoke_devices_except(&[Did])` (keep named devices, cut the rest, in one
+seal event, no-op if nothing needs cutting) and `revoke_all_devices()` (cut
+every currently-delegated device). No new event kind, no new wire format,
+no new cryptography — composition of `did-mini`'s existing KERI/
+capability-scoping primitives per `CLAUDE.md`'s prohibition on inventing
+cryptography.
+
+**Reason:** issue #14 asked for the *policy* half of device hierarchy
+(how many tiers, what capability sets per tier, revocation ergonomics) on
+top of the *mechanism* half (`BaseDeviceRole`/`Capabilities`) that already
+existed. Four fixed, reviewed tiers — rather than an open numeric or
+string tier a caller could assign arbitrary bits to at the call site —
+keep capability growth reviewed the same way the typed-domain rule already
+requires everywhere else in this codebase (`sign(bytes)`/`finalize(state)`
+is rejected in review; a free-form "device with capabilities X" tier
+constructor would be the same mistake one layer up). `Emerging`'s
+deliberately conservative, deliberately temporary bound is Founder
+Directive 13 ("think in centuries, not releases") in code form: today's
+device shapes (phone, hardware dongle) are not assumed permanent, and a
+genuinely new shape is neither silently matched into an existing tier nor
+handed a bespoke capability set on the spot — it starts bounded and is
+promoted only by a future canonical decision.
+
+**Constitutional impact:** Directive 13 (device-shape permanence is never
+assumed — the `#[non_exhaustive]` enum and `Emerging`'s conservative
+default exist for this reason); the typed-domain rule in `CLAUDE.md`
+(tier-to-capability mapping is a fixed constructor, never a generic
+capabilities-by-value delegation path); P1 (capability scoping continues
+to only narrow a device's authority, never inflate the root's standing —
+`Capabilities::ALL` remains the ceiling every tier is checked against, and
+`every_tier_is_bounded_by_capabilities_all` is a real test of that). No
+crate boundary changed; no voice/value dependency edge is touched (this is
+entirely inside `did-mini`).
+
+**Implementation status:** shipped. `DeviceTier` (4 variants) and
+`Capabilities::for_tier` in `crates/did-mini/src/delegation.rs`;
+`Controller::delegate_device_tier`, `revoke_devices_except`,
+`revoke_all_devices` in `crates/did-mini/src/controller.rs`; both
+re-exported from `did-mini`'s crate root. 11 new tests in
+`crates/did-mini/tests/delegation.rs` covering each tier's capability
+bound, the `ALL`-boundedness invariant, tier-driven delegation matching
+`Capabilities::for_tier`, and all three revocation-ergonomics behaviors
+(keep-named-cut-rest, no-op when nothing needs cutting, full wipe),
+plus revocation of more devices than one seal event holds (split across
+events) and a check that `ColdRoot` is exactly its enumerated set.
+`docs/design/device-hierarchy.md` records the per-tier rationale and what
+this explicitly does not do (it does not change how a root's own
+multi-key/threshold signing keys are modeled, and it does not add
+enforcement that only a `MANAGE_DEVICES`-holding session may call
+`delegate_device`/`revoke_device` — those remain root-`Controller`-signed
+operations; an application-layer check consulting the capability bit is a
+separate, unbuilt piece, same as every other capability bit today).
+
+**Failure point:** `MANAGE_DEVICES` (and every other capability bit) is
+still not enforced by any application-layer authorization check in this
+repo — it is metadata a caller can consult, not a runtime gate; a device
+tier that should no longer hold its capability set (e.g. a `HardwareToken`
+whose issuer wants to demote it) needs `revoke_device` + re-delegate at a
+lower tier, there is no in-place tier downgrade primitive; `Emerging`'s
+bound is a policy default, not a technical ceiling — nothing stops an
+application from calling the untiered `delegate_device` with a wider
+capability set for a device it privately considers "emerging," so the tier
+system's guarantee is only as strong as callers choosing
+`delegate_device_tier` over the untiered escape hatch.
+
+**Required follow-up:** an application-layer authorization check that
+actually consults `MANAGE_DEVICES`/`VOTE`/etc. before letting a session
+act with a device's granted capabilities (tracked generally under the
+capability-scoping work, not opened as a new issue by this entry); a
+future decision promoting a specific `Emerging` device shape (e.g. a
+wearable) to its own named tier once the network has real experience with
+it, per this design's stated promotion path.
+
+**Supersedes / superseded by:** none. Extends the delegation primitive
+shipped alongside SPEC-01 §6 (`Capabilities`, `Seal::Delegate`/
+`Seal::Revoke`, predating this log's D-numbering of `did-mini` work).

@@ -112,6 +112,89 @@ impl Capabilities {
     pub fn secondary() -> Self {
         Self::SIGN.with(Self::PAY).with(Self::POST)
     }
+
+    /// The fixed, risk-bounded capability set for a [`DeviceTier`] (D-0530,
+    /// Founder Directive 13, issue #14). This is the *only* sanctioned path
+    /// from "what kind of device is this" to "what may it do" — see
+    /// [`DeviceTier`] for why each tier gets the bound it does.
+    pub fn for_tier(tier: DeviceTier) -> Self {
+        match tier {
+            // Enumerated, never `Self::ALL` — see `DeviceTier::ColdRoot`.
+            DeviceTier::ColdRoot => Self::SIGN
+                .with(Self::PAY)
+                .with(Self::POST)
+                .with(Self::ATTEST)
+                .with(Self::VOTE)
+                .with(Self::MANAGE_DEVICES)
+                .with(Self::STORE),
+            DeviceTier::HardwareToken => Self::SIGN,
+            DeviceTier::DailyDevice => Self::primary(),
+            DeviceTier::Emerging => Self::secondary(),
+        }
+    }
+}
+
+/// A named tier in the device hierarchy an identity root delegates to
+/// (issue #14, D-0530). Each tier is a fixed risk profile, not a free-form
+/// label: [`Capabilities::for_tier`] is the only constructor that turns a
+/// tier into a capability set, so the tier bounds what a device may do at
+/// compile time rather than at whatever bits a caller happens to assemble
+/// (the same typed-domain discipline this crate applies everywhere else —
+/// see the crate's `sign(bytes)`/`finalize(state)` prohibition).
+///
+/// This is a **policy layer over an existing primitive**: every tier still
+/// delegates through the ordinary [`Seal::Delegate`]/[`Seal::Revoke`]
+/// mechanism and the root's own KEL. No new cryptography, no new wire
+/// format, no new capability bits — just a named, bounded mapping from
+/// device *kind* to device *capability set*.
+///
+/// `#[non_exhaustive]` per Founder Directive 13 ("think in centuries, not
+/// releases"): today's device shapes (phone, hardware dongle) are not
+/// assumed permanent. A genuinely new device shape (e.g. an implant or
+/// wearable) is *not* silently matched into an existing tier or given a
+/// bespoke capability set on the spot; see [`DeviceTier::Emerging`] and the
+/// design note at `docs/design/device-hierarchy.md`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum DeviceTier {
+    /// The rarely-used, highest-authority key: every capability this tier
+    /// was reviewed for, including [`Capabilities::MANAGE_DEVICES`]
+    /// (add/revoke other devices) and [`Capabilities::VOTE`]/
+    /// [`Capabilities::STORE`]. Meant to sit offline or air-gapped, invoked
+    /// only to re-key the device set after a lower tier is lost or
+    /// compromised — never for everyday signing.
+    ///
+    /// The set is enumerated bit by bit in [`Capabilities::for_tier`], not
+    /// taken as [`Capabilities::ALL`]: a capability bit added to this crate
+    /// later (for example an opt-in liability bit that must stay off by
+    /// default) must never enter this tier silently. Widening `ColdRoot` is
+    /// a decision-log entry, like any other tier change.
+    ColdRoot,
+    /// Dedicated signing hardware (e.g. a FIDO2-class security key):
+    /// [`Capabilities::SIGN`] only. Deliberately excludes
+    /// [`Capabilities::MANAGE_DEVICES`] — a hardware token authenticates
+    /// day-to-day operations, it does not get to reshape the device set —
+    /// and excludes [`Capabilities::VOTE`]/[`Capabilities::PAY`]/
+    /// [`Capabilities::POST`]/[`Capabilities::ATTEST`]/[`Capabilities::STORE`]
+    /// so a stolen token is a signing nuisance, not a governance or funds
+    /// incident.
+    HardwareToken,
+    /// A phone-class device in constant use: [`Capabilities::primary`]'s
+    /// bound (sign/pay/post/attest/vote) but never
+    /// [`Capabilities::MANAGE_DEVICES`] or [`Capabilities::STORE`] — the
+    /// device most likely to be lost, left unlocked, or malware-infected
+    /// gets everyday authority but no key-management or durable-storage-
+    /// liability authority.
+    DailyDevice,
+    /// A device shape this crate does not yet have a named tier for
+    /// (implant, wearable, or anything not yet invented) — Founder
+    /// Directive 13's "think in centuries" clause in code form. Bound to
+    /// [`Capabilities::secondary`] (sign/pay/post, no vote, no device
+    /// management) until the network has enough experience with the shape
+    /// to warrant its own named tier and bound, decided the same way any
+    /// other capability policy is: a new `docs/DECISION_LOG.md` entry, not
+    /// a silent code change.
+    Emerging,
 }
 
 /// A seal carried by a human-root's `Seal` event to authorize or revoke a
