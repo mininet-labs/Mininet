@@ -24920,7 +24920,7 @@ signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
 
-### D-0529 — `mini-objects`: distinct, unlaundered AI-generated/AI-mediated object type  ·  *Shipped*
+### D-0534 — `mini-objects`: distinct, unlaundered AI-generated/AI-mediated object type  ·  *Shipped*
 
 **Date:** 2026-09-22 · **Refs:** `crates/mini-objects/src/ai_object.rs`,
 `crates/did-mini/src/delegation.rs` (`Capabilities::AI_DISCLOSE`); roadmap
