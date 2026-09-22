@@ -24920,7 +24920,7 @@ signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
 
-### D-0529 — `mini-safety`: typed, device-local block/mute primitives (issue #76, Phase 10.6)  ·  *Shipped*
+### D-0533 — `mini-safety`: typed, device-local block/mute primitives (issue #76, Phase 10.6)  ·  *Shipped*
 
 **Date:** 2026-09-21 · **Refs:** `crates/mini-safety/src/lib.rs`; issue #76
 (Phase 10.6, abuse-handling design); D-0523 (`mini-desktop`'s ad hoc

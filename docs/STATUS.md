@@ -3112,7 +3112,7 @@ Media view; a host that does not hold a hit pulls it from the origin and
 then serves and seeds it. Idle exchanges no longer mint ticket objects.
 `docs/BETA_TESTING.md` is the tester guide for this line.
 
-## Abuse handling: `mini-safety` — 2026-09-21 (D-0529, issue #76)
+## Abuse handling: `mini-safety` — 2026-09-21 (D-0533, issue #76)
 
 New crate: device-local, typed block/mute primitives per constitution
 principles 7 and 10. `SafetyProfile` holds a block list of identity roots
