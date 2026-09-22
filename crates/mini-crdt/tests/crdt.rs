@@ -27,8 +27,14 @@ fn second_device(root: &mut Controller, seed: u8) -> Controller {
 
 /// A thread root: any object works as a doc root; use a POST.
 fn thread_root(human: &Did, device: &Controller) -> Object {
+    thread_root_named(human, device, b"thread root")
+}
+
+/// A thread root with distinct content, so two roots from the same author
+/// don't collide on the same content id.
+fn thread_root_named(human: &Did, device: &Controller, text: &[u8]) -> Object {
     ObjectBuilder::new(ObjectType::POST)
-        .payload(Payload::Public(b"thread root".to_vec()))
+        .payload(Payload::Public(text.to_vec()))
         .sign(human, device)
         .unwrap()
 }
@@ -239,4 +245,56 @@ fn hostile_ops_are_excluded_not_fatal() {
     for bad in [wrong_doc.id(), garbage.id(), stranger_tomb.id()] {
         assert!(state.rejected.contains(bad));
     }
+}
+
+/// #59: op link shape must be exhaustively validated, the same convention
+/// `mini-social::decode_post`/`mini-messaging::decode_message` already
+/// follow — an op naming this document twice (with a second, contradicting
+/// target) must not silently parse under whichever `"doc"` link happens to
+/// come first.
+#[test]
+fn an_op_with_a_duplicate_contradicting_doc_link_is_rejected() {
+    let (a_root, a_dev) = human(10);
+    let root = thread_root(&a_root.did(), &a_dev);
+    let doc = root.id();
+    let other_root = thread_root_named(&a_root.did(), &a_dev, b"a different document root");
+    let other_doc = other_root.id();
+
+    let mut payload = vec![1u8]; // OP_ADD
+    payload.extend_from_slice(b"body");
+    let confused = ObjectBuilder::new(ObjectType::CRDT_OP)
+        .link("doc", doc.clone())
+        .link("doc", other_doc.clone())
+        .payload(Payload::Public(payload))
+        .sign(&a_root.did(), &a_dev)
+        .unwrap();
+
+    let state = replay(doc, std::slice::from_ref(&confused));
+    assert!(state.is_empty());
+    assert!(state.pending.is_empty());
+    assert!(state.rejected.contains(confused.id()));
+}
+
+/// An op carrying an extra, unrecognized link beyond `"doc"` and its target
+/// relation must be rejected, not silently accepted with the extra link
+/// ignored.
+#[test]
+fn an_op_with_an_extra_unrecognized_link_is_rejected() {
+    let (a_root, a_dev) = human(10);
+    let root = thread_root(&a_root.did(), &a_dev);
+    let doc = root.id();
+
+    let mut payload = vec![1u8]; // OP_ADD
+    payload.extend_from_slice(b"body");
+    let extra = ObjectBuilder::new(ObjectType::CRDT_OP)
+        .link("doc", doc.clone())
+        .link("parent", doc.clone())
+        .link("bogus", doc.clone())
+        .payload(Payload::Public(payload))
+        .sign(&a_root.did(), &a_dev)
+        .unwrap();
+
+    let state = replay(doc, std::slice::from_ref(&extra));
+    assert!(state.is_empty());
+    assert!(state.rejected.contains(extra.id()));
 }

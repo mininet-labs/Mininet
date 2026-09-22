@@ -24919,3 +24919,87 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0529 — Object model consistency review (#59): CRDT op link-shape strictness fixed
+
+**Date:** 2026-09-22 · **Refs:** `crates/mini-objects/src/{object,private_object,envelope_v2}.rs`;
+`crates/mini-social/src/{post,wall}.rs`, `crates/mini-social/src/lib.rs`;
+`crates/mini-crdt/src/lib.rs`, `crates/mini-crdt/tests/crdt.rs`;
+`crates/mini-messaging/src/lib.rs`; issue #59.
+
+**Decision:** reviewed `mini-objects`' shared envelope conventions
+(content-addressing, typed-domain signing, versioning, capability-gated
+provenance) against how `mini-social` (posts, walls), `mini-crdt` (forum
+ops), and `mini-messaging` (private messages) each build and decode
+objects on top of it, since all three read/write the same envelope and a
+divergent convention between them would make the model harder to extend
+safely.
+
+Findings:
+
+1. **Public vs. private envelope split (v1 `Object` vs. `PrivateObject`/
+   `ObjectEnvelopeV2`) is consistent and intentional, not an
+   inconsistency.** `mini-social`/`mini-crdt` build cleartext v1 `Object`s;
+   `mini-messaging` builds `PrivateObject`s sealed into v2
+   `ObjectEnvelopeV2`s. Both sides derive content ids with the identical
+   `Multihash`(BLAKE3)-over-canonical-bytes recipe, both defer
+   signature/provenance verification to ingest rather than to
+   publish/store (`Store::insert`/`insert_private` verify neither), and
+   the v1/v2 version-byte disambiguation is airtight (`object.rs`'s `1`,
+   `envelope_v2.rs`'s `ENVELOPE_VERSION = 2`, each format's parser rejects
+   the other's first byte, tested in both modules). No fix needed here.
+2. **Link-shape validation strictness diverged, and this one was a real
+   interop gap.** `mini-social::decode_post` and
+   `mini-messaging::decode_message` both exhaustively validate an
+   object's full link set — any link beyond the exact shape their type
+   defines (an unrecognized relation, a duplicate) is rejected, not
+   ignored. `mini-crdt::parse_op` did not follow this: it picked the first
+   `"doc"` link and the first target-relation link via `Vec::iter().find()`
+   and never looked at the rest, so a `CRDT_OP` carrying a second,
+   contradicting `"doc"` link, a duplicate target link, or any
+   unrecognized extra link still parsed successfully under whichever link
+   happened to come first — bytes a stricter reader elsewhere in the
+   workspace would reject as malformed. Fixed: `parse_op` now requires
+   exactly two links (`"doc"` plus the op kind's target relation, in
+   either order) and rejects anything else, matching the exhaustive-link
+   convention `mini-social`/`mini-messaging` already use. Two regression
+   tests cover it (`an_op_with_a_duplicate_contradicting_doc_link_is_rejected`,
+   `an_op_with_an_extra_unrecognized_link_is_rejected`).
+3. **`ObjectType::Custom` naming has no enforced convention across the
+   workspace** (`"mini/community-membership"` in `mini-social` vs.
+   `"mininet/private-message/v1"` in `mini-messaging`, and the wider
+   codebase mixes `"mini/x"`, `"mininet/x/v1"`, and bare names like
+   `"test"`). Collisions are avoided today only because the strings
+   happen to differ (and, on the separate unmerged #64 branch,
+   `WellKnown`/`Custom` tags no longer collide either — see below); this
+   is a naming-hygiene gap, not a decodable-bytes ambiguity, and adopting
+   one convention retroactively would be a breaking wire-format change to
+   already-published object types, so it is recorded as an open item
+   rather than forced through here.
+
+**Constitutional impact:** none (Directive 14, simplicity/no new
+dependency; no voice/value edge touched; no Tier-F invariant weakened).
+The fix makes decode strictness *more* uniform, not less.
+
+**Implementation status:** shipped on `feature/object-model-consistency-review`.
+`cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace
+-- -D warnings`, `cargo test --workspace --all-features`, and
+`python3 tools/mininet_nav.py build` all pass. Note for whoever reviews
+this alongside issues #63/#64 (both completed on separate unmerged
+branches touching `crates/mini-objects/src/object.rs` and
+`did-mini/delegation.rs`): this review was done against `main` *before*
+those two land, so it does not reflect their changes; #64 in particular
+already closes a related `WellKnown`/`Custom` tag-collision finding
+(reportedly D-0529 on that branch) — the two D-0529s will collide on
+merge order and the later one needs renumbering per the decision-number
+allocation policy at the top of this file.
+
+**Failure point:** the `Custom`-type naming-convention gap (finding 3)
+remains open; nothing here changes it.
+
+**Required follow-up:** if a `Custom`-type naming convention is adopted
+project-wide, it applies to new types only (no retroactive rename of
+already-published type strings); resolve the D-0529 numbering collision
+with whichever of this review or #64 merges second.
+
+**Supersedes / superseded by:** none.
