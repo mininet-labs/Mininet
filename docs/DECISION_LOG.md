@@ -24920,7 +24920,7 @@ signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
 
-### D-0529 — Private, per-relationship social-graph edges via `did-mini`'s existing pairwise pseudonyms (issue #19)  ·  *Shipped*
+### D-0536 — Private, per-relationship social-graph edges via `did-mini`'s existing pairwise pseudonyms (issue #19)  ·  *Shipped*
 
 **Date:** 2026-09-22 · **Refs:** `crates/mini-social/src/private_graph.rs`;
 `did-mini::Controller::incept_pairwise_pseudonym` (SPEC-01 §10, pre-existing);
