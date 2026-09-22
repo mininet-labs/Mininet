@@ -56,6 +56,21 @@ impl Capabilities {
     /// storage device, not inherited from a "primary device" default.
     pub const STORE: Capabilities = Capabilities(1 << 6);
 
+    /// Publish AI-generated/AI-mediated disclosure objects on the root's
+    /// behalf (`mini-objects::ai_object`, Directive 12, constitution
+    /// principle 8: AI participation must be labeled, never laundered as
+    /// human authorship or human governance participation).
+    ///
+    /// Off in **both** secure defaults, deliberately — same reasoning as
+    /// [`Self::STORE`]: this is a distinct, opt-in liability (the root is
+    /// vouching that content published under this capability really is
+    /// AI-produced and honestly labeled as such), not something a
+    /// day-to-day posting/voting device should hold implicitly. Disjoint
+    /// from [`Self::POST`] and [`Self::VOTE`] on purpose: a device may hold
+    /// this without holding either, and holding `POST`/`VOTE` never implies
+    /// this.
+    pub const AI_DISCLOSE: Capabilities = Capabilities(1 << 7);
+
     /// No capabilities.
     pub const fn empty() -> Self {
         Capabilities(0)
@@ -79,7 +94,8 @@ impl Capabilities {
             | Self::ATTEST.bits()
             | Self::VOTE.bits()
             | Self::MANAGE_DEVICES.bits()
-            | Self::STORE.bits(),
+            | Self::STORE.bits()
+            | Self::AI_DISCLOSE.bits(),
     );
 
     /// The raw bit pattern.

@@ -24919,3 +24919,58 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0529 — `mini-objects`: distinct, unlaundered AI-generated/AI-mediated object type  ·  *Shipped*
+
+**Date:** 2026-09-22 · **Refs:** `crates/mini-objects/src/ai_object.rs`,
+`crates/did-mini/src/delegation.rs` (`Capabilities::AI_DISCLOSE`); roadmap
+#63; Directive 12; constitution principle 8.
+
+**Decision:** AI-generated or AI-mediated content (agent posts, AI-assisted
+moderation decisions, model outputs) gets its own type, `AiObject`, that is
+structurally incapable of passing as human-authored content or human
+governance participation:
+
+1. `AiObject` is a distinct struct, not an `ObjectType` variant of `Object`
+   and not convertible into one (no `From<AiObject> for Object`). It has
+   its own wire tag (`AI_ENVELOPE_TAG = 0xA1` vs. `Object`'s `1`), so
+   attempting to decode one as the other fails immediately rather than
+   silently.
+2. Authoring an `AiObject` requires a new typed capability bit,
+   `Capabilities::AI_DISCLOSE`, off by default on every existing device
+   role. A device with only ordinary human-authoring capabilities cannot
+   sign one; a device holding only `AI_DISCLOSE` cannot sign an ordinary
+   human `Object` (checked both directions in tests).
+3. `AiObjectBuilder` requires non-empty `AiProvenance` (producing
+   system/model id, timestamp) before it will sign anything — there is no
+   path to an `AiObject` without disclosed provenance.
+4. `verify_ai_provenance` is a separate function from `Object`'s
+   `verify_provenance`, not an optional flag on the same one; a
+   `compile_fail` doctest proves the human-content verification path
+   rejects `&AiObject` at compile time, not just at runtime.
+
+**Constitutional impact:** Directive 12 / principle 8 (AI content must be
+clearly labeled and cannot be laundered into human-authored or
+human-governance status). No voice/value-wall edge: `mini-objects` and
+`did-mini` are outside that wall. No new cryptography — reuses existing
+`did-mini` signing/capability primitives.
+
+**Implementation status:** shipped. `AiOrigin` (GeneratedContent |
+MediatedDecision) with a `disclosure_label()` for honest rendering;
+8 new tests in `crates/mini-objects/tests/ai_object.rs` covering round-trip,
+cross-envelope decode rejection both directions, capability-gated authoring
+both directions, and empty-provenance rejection. `cargo clippy
+--all-targets --all-features --workspace -- -D warnings` and `cargo test
+--workspace --all-features` both pass clean on this change.
+
+**Failure point:** labeling is honest only as far as the authoring device
+actually holds/uses `AI_DISCLOSE` correctly — nothing here detects an
+AI-authored object signed by a device that also has ordinary human
+authoring capability and chooses to lie about which path it used; that is
+a device-trust question this decision does not attempt to solve.
+
+**Required follow-up:** no consumer (mini-social walls, mini-forge review
+UI) yet renders `AiObject`'s disclosure label distinctly in a real client;
+that wiring is separate follow-up work, not claimed here.
+
+**Supersedes / superseded by:** none.
