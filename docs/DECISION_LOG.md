@@ -24920,7 +24920,7 @@ signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
 
-### D-0529 — Object model consistency review (#59): CRDT op link-shape strictness fixed
+### D-0535 — Object model consistency review (#59): CRDT op link-shape strictness fixed
 
 **Date:** 2026-09-22 · **Refs:** `crates/mini-objects/src/{object,private_object,envelope_v2}.rs`;
 `crates/mini-social/src/{post,wall}.rs`, `crates/mini-social/src/lib.rs`;
@@ -24989,17 +24989,17 @@ this alongside issues #63/#64 (both completed on separate unmerged
 branches touching `crates/mini-objects/src/object.rs` and
 `did-mini/delegation.rs`): this review was done against `main` *before*
 those two land, so it does not reflect their changes; #64 in particular
-already closes a related `WellKnown`/`Custom` tag-collision finding
-(reportedly D-0529 on that branch) — the two D-0529s will collide on
-merge order and the later one needs renumbering per the decision-number
-allocation policy at the top of this file.
+already closes a related `WellKnown`/`Custom` tag-collision finding,
+now recorded as D-0531 on that branch after an earlier D-0529 collision
+across five parallel branches was resolved by renumbering. This entry
+was originally also D-0529 and has been renumbered to D-0535 for the
+same reason.
 
 **Failure point:** the `Custom`-type naming-convention gap (finding 3)
 remains open; nothing here changes it.
 
 **Required follow-up:** if a `Custom`-type naming convention is adopted
 project-wide, it applies to new types only (no retroactive rename of
-already-published type strings); resolve the D-0529 numbering collision
-with whichever of this review or #64 merges second.
+already-published type strings).
 
 **Supersedes / superseded by:** none.
