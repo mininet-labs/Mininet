@@ -175,7 +175,7 @@ fn storing_on_a_roots_behalf_is_never_granted_by_a_default() {
     assert!(!granted.contains(Capabilities::MANAGE_DEVICES));
 }
 
-// --- Device hierarchy tiers (issue #14, D-0529) ---
+// --- Device hierarchy tiers (issue #14, D-0530) ---
 
 #[test]
 fn cold_root_tier_has_full_authority() {

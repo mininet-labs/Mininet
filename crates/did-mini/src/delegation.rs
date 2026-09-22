@@ -113,7 +113,7 @@ impl Capabilities {
         Self::SIGN.with(Self::PAY).with(Self::POST)
     }
 
-    /// The fixed, risk-bounded capability set for a [`DeviceTier`] (D-0529,
+    /// The fixed, risk-bounded capability set for a [`DeviceTier`] (D-0530,
     /// Founder Directive 13, issue #14). This is the *only* sanctioned path
     /// from "what kind of device is this" to "what may it do" — see
     /// [`DeviceTier`] for why each tier gets the bound it does.
@@ -128,7 +128,7 @@ impl Capabilities {
 }
 
 /// A named tier in the device hierarchy an identity root delegates to
-/// (issue #14, D-0529). Each tier is a fixed risk profile, not a free-form
+/// (issue #14, D-0530). Each tier is a fixed risk profile, not a free-form
 /// label: [`Capabilities::for_tier`] is the only constructor that turns a
 /// tier into a capability set, so the tier bounds what a device may do at
 /// compile time rather than at whatever bits a caller happens to assemble

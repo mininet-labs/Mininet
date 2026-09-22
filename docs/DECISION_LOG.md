@@ -24920,7 +24920,7 @@ signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
 
-### D-0529 — Device hierarchy policy layer: named `DeviceTier`s over `did-mini`'s existing capability-scoped delegation (issue #14, Founder Directive 13)  ·  *Shipped*
+### D-0530 — Device hierarchy policy layer: named `DeviceTier`s over `did-mini`'s existing capability-scoped delegation (issue #14, Founder Directive 13)  ·  *Shipped*
 
 **Date:** 2026-09-21 · **Refs:** `crates/did-mini/src/delegation.rs`
 (`DeviceTier`, `Capabilities::for_tier`); `crates/did-mini/src/controller.rs`

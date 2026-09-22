@@ -598,7 +598,7 @@ impl Controller {
         }])
     }
 
-    /// Authorize a delegated device by [`DeviceTier`] (issue #14, D-0529):
+    /// Authorize a delegated device by [`DeviceTier`] (issue #14, D-0530):
     /// the typed-domain counterpart to [`Controller::delegate_device`]. The
     /// tier — not the caller — determines the capability set
     /// ([`Capabilities::for_tier`]), so callers cannot assemble an

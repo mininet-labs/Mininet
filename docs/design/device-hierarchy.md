@@ -1,4 +1,4 @@
-# Device hierarchy design (issue #14, D-0529)
+# Device hierarchy design (issue #14, D-0530)
 
 Status: policy layer shipped in `did-mini` (`DeviceTier`,
 `Capabilities::for_tier`, `Controller::delegate_device_tier`,
