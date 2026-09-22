@@ -24920,7 +24920,7 @@ signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
 
-### D-0529 — `mini-objects` object-model extensibility review: confirm forward-compat, close a `WellKnown`/`Custom` tag collision (issue #64)  ·  *Accepted*
+### D-0531 — `mini-objects` object-model extensibility review: confirm forward-compat, close a `WellKnown`/`Custom` tag collision (issue #64)  ·  *Accepted*
 
 **Date:** 2026-09-21 · **Refs:** `docs/design/
 mini-objects-extensibility-review.md` (new); `crates/mini-objects/src/

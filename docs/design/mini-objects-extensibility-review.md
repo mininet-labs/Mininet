@@ -1,6 +1,6 @@
 # `mini-objects` envelope forward-extensibility review (issue #64)
 
-**Date:** 2026-09-21 · **Refs:** D-0529; `crates/mini-objects/src/{object,
+**Date:** 2026-09-21 · **Refs:** D-0531; `crates/mini-objects/src/{object,
 envelope_v2}.rs`; D-0021 (original unified envelope decision); `MN-103`
 (`ObjectEnvelope` v2, the L1 lane, D-0300).
 
