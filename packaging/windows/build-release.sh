@@ -113,10 +113,10 @@ echo
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR/docs"
 
-echo "-- building client, cli, and setup"
+echo "-- building client, application core, cli, and setup"
 # shellcheck disable=SC2086
 cargo build --release $TARGET_ARGS \
-    -p mini-desktop -p mini-cli -p mini-setup -p mini-value-selftest
+    -p mini-desktop -p mini-app-service -p mini-cli -p mini-setup -p mini-value-selftest
 
 echo "-- staging package files"
 # Staged names always end in .exe: this is a Windows package, and the
@@ -124,6 +124,9 @@ echo "-- staging package files"
 # both looked up by that name. A --host build stages host binaries under the
 # same names on purpose, so the pipeline under test is the real one.
 cp "$BIN_DIR/mininet-desktop$EXE_SUFFIX" "$STAGE_DIR/mininet-desktop.exe"
+# The GUI fails closed for migrated signing actions when this sibling authority
+# process is absent, so it is a required part of the client package.
+cp "$BIN_DIR/mininet-app-service$EXE_SUFFIX" "$STAGE_DIR/mininet-app-service.exe"
 cp "$BIN_DIR/mini$EXE_SUFFIX" "$STAGE_DIR/mini.exe"
 cp "$BIN_DIR/mininet-setup$EXE_SUFFIX" "$STAGE_DIR/mininet-setup.exe"
 # The value-layer diagnostics run in their own process, which means the client
