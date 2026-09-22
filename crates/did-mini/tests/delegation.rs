@@ -4,7 +4,7 @@
 //! a human-root authorizes device identifiers with capabilities, the link is
 //! mutual (neither side can fake it), and revocation removes a device.
 
-use did_mini::{verify_delegation, Capabilities, Controller, Did};
+use did_mini::{verify_delegation, Capabilities, Controller, DeviceTier, Did};
 
 // Distinct seeds for root + two devices (current/next per identity).
 const ROOT_C: [u8; 32] = [10u8; 32];
@@ -15,6 +15,8 @@ const B_C: [u8; 32] = [30u8; 32];
 const B_N: [u8; 32] = [31u8; 32];
 const X_C: [u8; 32] = [40u8; 32];
 const X_N: [u8; 32] = [41u8; 32];
+const C_C: [u8; 32] = [50u8; 32];
+const C_N: [u8; 32] = [51u8; 32];
 
 fn root() -> Controller {
     Controller::incept_single_from_seeds(&ROOT_C, &ROOT_N).unwrap()
@@ -171,4 +173,126 @@ fn storing_on_a_roots_behalf_is_never_granted_by_a_default() {
     assert!(granted.contains(Capabilities::STORE));
     assert!(!granted.contains(Capabilities::VOTE));
     assert!(!granted.contains(Capabilities::MANAGE_DEVICES));
+}
+
+// --- Device hierarchy tiers (issue #14, D-0529) ---
+
+#[test]
+fn cold_root_tier_has_full_authority() {
+    let caps = Capabilities::for_tier(DeviceTier::ColdRoot);
+    assert_eq!(caps, Capabilities::ALL);
+    assert!(caps.contains(Capabilities::MANAGE_DEVICES));
+    assert!(caps.contains(Capabilities::VOTE));
+    assert!(caps.contains(Capabilities::STORE));
+}
+
+#[test]
+fn hardware_token_tier_is_signing_only() {
+    let caps = Capabilities::for_tier(DeviceTier::HardwareToken);
+    assert_eq!(caps, Capabilities::SIGN);
+    assert!(!caps.contains(Capabilities::MANAGE_DEVICES));
+    assert!(!caps.contains(Capabilities::VOTE));
+    assert!(!caps.contains(Capabilities::PAY));
+    assert!(!caps.contains(Capabilities::POST));
+    assert!(!caps.contains(Capabilities::STORE));
+}
+
+#[test]
+fn daily_device_tier_has_everyday_authority_but_no_key_management() {
+    let caps = Capabilities::for_tier(DeviceTier::DailyDevice);
+    assert_eq!(caps, Capabilities::primary());
+    assert!(caps.contains(Capabilities::SIGN));
+    assert!(caps.contains(Capabilities::VOTE));
+    assert!(!caps.contains(Capabilities::MANAGE_DEVICES));
+    assert!(!caps.contains(Capabilities::STORE));
+}
+
+#[test]
+fn emerging_tier_is_conservative_by_default() {
+    // Future device shapes (implant/wearable, Directive 13) start bounded
+    // exactly like a secondary device: no vote, no device management.
+    let caps = Capabilities::for_tier(DeviceTier::Emerging);
+    assert_eq!(caps, Capabilities::secondary());
+    assert!(!caps.contains(Capabilities::VOTE));
+    assert!(!caps.contains(Capabilities::MANAGE_DEVICES));
+    assert!(!caps.contains(Capabilities::STORE));
+}
+
+#[test]
+fn every_tier_is_bounded_by_capabilities_all() {
+    for tier in [
+        DeviceTier::ColdRoot,
+        DeviceTier::HardwareToken,
+        DeviceTier::DailyDevice,
+        DeviceTier::Emerging,
+    ] {
+        assert!(Capabilities::ALL.contains(Capabilities::for_tier(tier)));
+    }
+}
+
+#[test]
+fn delegate_device_tier_matches_capabilities_for_tier() {
+    let mut root = root();
+    let key = device(&root.did(), &A_C, &A_N);
+    root.delegate_device_tier(&key.did(), DeviceTier::HardwareToken)
+        .unwrap();
+    let caps = verify_delegation(&root.kel(), &key.kel()).unwrap();
+    assert_eq!(caps, Capabilities::for_tier(DeviceTier::HardwareToken));
+}
+
+#[test]
+fn revoke_devices_except_keeps_the_named_devices_and_cuts_the_rest() {
+    let mut root = root();
+    let cold = device(&root.did(), &A_C, &A_N);
+    let token = device(&root.did(), &B_C, &B_N);
+    let phone = device(&root.did(), &C_C, &C_N);
+
+    root.delegate_device_tier(&cold.did(), DeviceTier::ColdRoot)
+        .unwrap();
+    root.delegate_device_tier(&token.did(), DeviceTier::HardwareToken)
+        .unwrap();
+    root.delegate_device_tier(&phone.did(), DeviceTier::DailyDevice)
+        .unwrap();
+    assert_eq!(root.kel().delegated_devices().len(), 3);
+
+    // "I lost my phone" -- keep the cold root and hardware token, cut the rest.
+    root.revoke_devices_except(&[cold.did(), token.did()])
+        .unwrap();
+
+    assert!(verify_delegation(&root.kel(), &cold.kel()).is_ok());
+    assert!(verify_delegation(&root.kel(), &token.kel()).is_ok());
+    assert!(verify_delegation(&root.kel(), &phone.kel()).is_err());
+    assert_eq!(root.kel().delegated_devices().len(), 2);
+}
+
+#[test]
+fn revoke_devices_except_is_a_noop_when_nothing_needs_cutting() {
+    let mut root = root();
+    let phone = device(&root.did(), &A_C, &A_N);
+    root.delegate_device_tier(&phone.did(), DeviceTier::DailyDevice)
+        .unwrap();
+    let sn_before = root.kel().verify().unwrap().sn;
+
+    root.revoke_devices_except(&[phone.did()]).unwrap();
+
+    // No seal event was appended -- the KEL's sequence number is unchanged.
+    assert_eq!(root.kel().verify().unwrap().sn, sn_before);
+    assert!(verify_delegation(&root.kel(), &phone.kel()).is_ok());
+}
+
+#[test]
+fn revoke_all_devices_cuts_every_delegated_device() {
+    let mut root = root();
+    let cold = device(&root.did(), &A_C, &A_N);
+    let phone = device(&root.did(), &B_C, &B_N);
+    root.delegate_device_tier(&cold.did(), DeviceTier::ColdRoot)
+        .unwrap();
+    root.delegate_device_tier(&phone.did(), DeviceTier::DailyDevice)
+        .unwrap();
+
+    root.revoke_all_devices().unwrap();
+
+    assert!(root.kel().delegated_devices().is_empty());
+    assert!(verify_delegation(&root.kel(), &cold.kel()).is_err());
+    assert!(verify_delegation(&root.kel(), &phone.kel()).is_err());
 }

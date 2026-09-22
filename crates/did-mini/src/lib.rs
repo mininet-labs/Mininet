@@ -70,7 +70,7 @@ use mini_crypto::{encoding, Multihash};
 pub use assurance::{assess_kel_assurance, KelAssurance, WitnessEvidence};
 pub use base_device::{AvailabilityWindow, BaseDeviceRole, BatteryPolicy, PrivacyMode};
 pub use controller::Controller;
-pub use delegation::{Capabilities, Seal};
+pub use delegation::{Capabilities, DeviceTier, Seal};
 pub use duplicity::DuplicityRegistry;
 pub use error::{IdentityError, Result};
 pub use event::{
