@@ -24919,3 +24919,90 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0529 — Private, per-relationship social-graph edges via `did-mini`'s existing pairwise pseudonyms (issue #19)  ·  *Shipped*
+
+**Date:** 2026-09-22 · **Refs:** `crates/mini-social/src/private_graph.rs`;
+`did-mini::Controller::incept_pairwise_pseudonym` (SPEC-01 §10, pre-existing);
+`crates/mini-social/src/pairing.rs` (the embedded-KEL offer/acceptance shape
+this reuses); issue #19 ("Privacy-preserving social graph architecture").
+
+**Decision:** `mini-social::set_follow` signs a `FOLLOW` object with the
+follower's real human-root `Did` and names the target's real human-root `Did`
+in the payload — the only option that existed before this change, so it was
+also the default for every relationship, including ones neither side meant
+to be legible to a third party. Anyone observing storage/replication traffic
+could read `author_human` and the target `Did` straight off the wire and
+reconstruct the full social graph. `crates/mini-social/src/private_graph.rs`
+adds an alternative that composes `did-mini`'s **already-existing**
+`Controller::incept_pairwise_pseudonym` (SPEC-01 §10, shipped long before
+this issue) — no new cryptography, exactly the "check whether social-graph
+edges can reuse that" instruction issue #19 opened with:
+
+1. `derive_relationship_pseudonym(root, counterpart)` derives a distinct,
+   deterministic, unlinkable-looking pseudonym root per counterpart from the
+   caller's own key material (context = a domain-separated hash of the
+   counterpart's `Did`).
+2. `set_private_follow` publishes the `FOLLOW` edge through the existing
+   `set_follow` using only pseudonym `Did`s as author and target — never a
+   real root.
+3. `create_relationship_linkage` / `verify_relationship_linkage` let a root
+   vouch, to one named counterpart only, that a pseudonym `Did` is really it
+   — the same embedded-KEL, offline-verifiable shape `mini-social::pairing`
+   already uses for its offer/acceptance exchange. This linkage is deliberately
+   **never published**; it must be handed directly to the one counterpart it
+   names (e.g. the same private channel pairing already uses, or an
+   encrypted `Payload::Encrypted` object), and `verify_relationship_linkage`
+   refuses to accept it for anyone else, so a leaked or misdirected linkage
+   cannot be repurposed to deanonymize the pseudonym.
+
+**Constitutional impact:** Directive 16 / P1 (voice/value wall) — untouched;
+`mini-social` gained no new dependency edge, no `mini-forge`/`mini-value`
+link. Directive 14 (simplicity is security) — composes an already-reviewed,
+already-shipped primitive (`incept_pairwise_pseudonym`) rather than
+inventing a new pseudonymization scheme; no cryptography invented here.
+Typed-domain rule — `set_private_follow` and `create_relationship_linkage`
+take specific pseudonym/linkage types, never a generic `sign(bytes)`.
+"Identity root" language preserved throughout the module's doc comments;
+this does not touch personhood.
+
+**Implementation status:** shipped. `derive_relationship_pseudonym`,
+`set_private_follow`, `create_relationship_linkage`,
+`verify_relationship_linkage`, and `VerifiedRelationshipLinkage` are public
+from `mini-social`. Three tests prove: (a) the same root deriving pseudonyms
+for two different counterparts gets two distinct, unlinkable `did:mini`
+roots, and re-deriving for the same counterpart recovers the identical
+pseudonym; (b) a `FOLLOW` edge published this way carries only pseudonym
+`Did`s — an observer of the object store sees no real root, and two of one
+party's relationships use distinct pseudonyms so they cannot be merged into
+one graph node; (c) both sides of one relationship still mutually
+authenticate via exchanged linkage proofs, while a linkage scoped to one
+counterpart is rejected by anyone else.
+
+**Failure point:** this hides *which* identity roots sit behind a
+relationship's two pseudonym `Did`s from an object-store/replication
+observer — it does **not** hide that *a* relationship exists between two
+pseudonym `Did`s (the `FOLLOW` object itself is still visible, same as a
+public follow), and it does not hide network-layer metadata (who talks to
+whom, when — out of scope here, same honestly-noted limitation
+`docs/design/storage-fraud-detection.md` already carries for the adjacent
+storage-claim case). Privacy also depends entirely on the linkage proof
+being delivered over a channel a third party cannot read; this module picks
+no such channel — pairing's existing TCP exchange or an encrypted
+`Payload::Encrypted` object are both suitable and left to the caller.
+`mini-social::wall`'s public-wall linkage (`publish_wall_linkage`) remains
+intentionally separate and public — it is for a *voluntary* disclosure, the
+opposite intent from this module.
+
+**Required follow-up:** wiring `set_private_follow`/the linkage exchange
+into `mini-social::pairing`'s existing offer/acceptance flow so pairing can
+optionally establish a private relationship end-to-end in one exchange
+(today the caller must derive pseudonyms and exchange linkages themselves);
+extending the same pattern to wall membership/community-join edges if the
+founder wants those private by default too; deciding whether/how encrypted
+`Payload::Encrypted` linkage delivery over `mini-sync` should be a first-
+class helper rather than left to the caller.
+
+**Supersedes / superseded by:** none. Composes SPEC-01 §10's pre-existing
+`incept_pairwise_pseudonym` and `mini-social::pairing`'s embedded-KEL
+verification shape; does not change either.
