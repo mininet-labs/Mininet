@@ -88,3 +88,4 @@ mini-search-federation-net	none	node-service	Search and Connections	W3	Requires 
 mini-storage-fraud	none	node-service	Storage and Earnings	W2	Needs multi-holder evidence; never claim single-node diagnostics prove fraud resistance
 mini-shielded-verify	none	node-service	Node and Wallet	W6	Verify against canonical ledger view; running-chain gate applies
 mini-mesh	none	node-service	Connections	W2	Multi-peer dedup flooding requires real linked-peer tests and bounded resource policy
+mini-safety	none	core-service	Safety	W1	Viewer-local block/mute state only; never removes content from the network or denies access; community lists are explicit one-time import, never auto-subscribe

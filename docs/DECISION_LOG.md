@@ -24919,3 +24919,95 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0533 — `mini-safety`: typed, device-local block/mute primitives (issue #76, Phase 10.6)  ·  *Shipped*
+
+**Date:** 2026-09-21 · **Refs:** `crates/mini-safety/src/lib.rs`; issue #76
+(Phase 10.6, abuse-handling design); D-0523 (`mini-desktop`'s ad hoc
+`muted.txt`, the local half of blocking this generalizes); `mini-social`'s
+`FeedFilter`/`feed` doc comment (already noted personal blocklists live in
+"the safety layer, E9"); constitution principles 7 and 10;
+`docs/FOUNDER_DIRECTIVES.md` Directive 16 (voice/value wall — `mini-safety`
+adds no edge to any value crate); Directive 14 (simplicity).
+
+**Decision:** give abuse handling (harassment, illegal content
+distribution, coordinated manipulation) a real, tested, typed crate that
+lives entirely on the viewer's own device, so every client (desktop, CLI,
+future mobile) shares one block/mute primitive instead of reinventing it
+per surface, as `mini-desktop`'s `muted.txt` had started to.
+
+1. **`SafetyProfile` is one viewer's own local state.** It holds a block
+   list of identity roots (`did_mini::Did`) and a set of content-mute
+   rules (`MuteRule::Keyword`/`MuteRule::ExactObject`). A fresh profile
+   blocks and mutes nothing; every entry exists because this device called
+   a mutation method.
+2. **Every mutation is a named request type**, per the typed-domain rule:
+   `BlockIdentityRequest`, `UnblockIdentityRequest`, `AddMuteRuleRequest`,
+   `RemoveMuteRuleRequest` — no generic "apply this opaque rule" entry
+   point. `visibility_for`/`filter` are the only read paths and both take
+   caller-supplied `(author, object_id, text)` rather than reading
+   `mini-objects`/`mini-social` types directly, so `mini-safety` has no
+   dependency edge onto either and stays reusable across every content
+   shape a caller wants to filter (post body, wall bio, comment).
+3. **Constitution principle 7 is structural, not a promise.** Nothing in
+   the crate touches `mini-store`, `mini-net` replication, or any object's
+   existence; a block/mute is a local render decision only — it can never
+   stop a peer from publishing, replicating, or being served by anyone
+   else's node, and there is no aggregate, quorum, or cross-viewer
+   comparison of profiles anywhere in the crate (each `SafetyProfile`
+   belongs to exactly one viewer).
+4. **Constitution principle 10's "community filters" are opt-in import,
+   never push.** `SafetyProfile::import` is the only path by which another
+   viewer's shared block/mute list (an ordinary object, decoded by the
+   caller — publishing that object is `mini-objects`/`mini-social`'s job,
+   not this crate's) can affect a profile, and it always requires this
+   viewer's device to call it. An imported entry becomes an ordinary local
+   entry afterward — same removal path, same `MuteRuleId` allocation — so
+   the source of a shared list can never override, un-import, or track
+   what was imported.
+5. **Plain-text persistence**, generalizing D-0523's `muted.txt`
+   convention: `to_lines`/`from_lines` round-trip a profile through a
+   tab-delimited local text format; a malformed line is a hard parse
+   error rather than a silent skip, so a corrupted file is never mistaken
+   for "nothing is blocked."
+
+**Constitutional impact:** advances principle 10 (user/community filters,
+never central moderation) and principle 7 (no forced exclusion from basic
+network use) into real, tested code. No frozen invariant in
+`docs/INVARIANTS.md` is touched. No dependency edge to
+`mini-value`/`mini-bounty`/`mini-treasury` or to `mini-forge`/`mini-chain`
+voting exists or is needed (Directive 16); `mini-safety` depends on
+`did-mini` only.
+
+**Implementation status:** shipped. `crates/mini-safety` (new workspace
+member): `SafetyProfile`, `Visibility`, `MuteRule`, `MuteRuleId`, the four
+typed request structs, `SafetyError`, 12 unit tests covering fresh-profile
+default-visible, block/unblock and idempotent re-block, keyword and
+exact-object muting (including case-insensitivity and removal), block
+precedence over mute, order-preserving `filter`, line round-tripping,
+malformed-input rejection, blank-line tolerance, opt-in additive `import`
+with duplicate-suppression, and `MuteRuleId` non-reuse after removal.
+`cargo fmt --all`, `cargo clippy --all-targets --all-features --workspace
+-- -D warnings`, and `cargo test --workspace --all-features` all clean;
+`tools/mininet_nav.py build` regenerated. No client (desktop, CLI) is
+wired to this crate yet — that is deliberate follow-up, not claimed here.
+
+**Failure point:** matching is substring/exact only — no regex, no
+per-language normalization beyond ASCII case-folding, so a determined
+poster can trivially evade a keyword mute with spacing or homoglyphs; this
+is an acknowledged, honest limitation of a first primitive, not a claim of
+robust filtering. `import`'s "no way to track what was imported" is a
+property of this crate only — a *caller* that also logs who it fetched a
+shared list from could still leak that locally; this crate itself stores
+nothing about provenance. No persistence integration exists yet: callers
+must wire `to_lines`/`from_lines` to their own file/store path themselves.
+
+**Required follow-up:** wire `mini-desktop`'s `muted.txt` and any future
+CLI/mobile surface onto `SafetyProfile` instead of each keeping its own
+ad hoc list; consider a `mini-objects`-typed "shared filter list" object
+shape so `import` has a canonical wire format rather than every caller
+inventing its own; richer local matching (regex, language-aware
+normalization) as a later, still purely local, opt-in addition.
+
+**Supersedes / superseded by:** none. Generalizes the local half of
+D-0523's `muted.txt`.
