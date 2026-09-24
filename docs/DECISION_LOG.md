@@ -25006,3 +25006,53 @@ class helper rather than left to the caller.
 **Supersedes / superseded by:** none. Composes SPEC-01 §10's pre-existing
 `incept_pairwise_pseudonym` and `mini-social::pairing`'s embedded-KEL
 verification shape; does not change either.
+
+### D-0538 — Wire private-follow primitives into a real `mini-desktop` caller (roadmap #19 follow-up)  ·  *Shipped*
+
+**Date:** 2026-09-24 · **Refs:** `crates/mini-desktop/src/main.rs`
+(`Workspace::follow_privately`); `crates/mini-social/src/private_graph.rs`
+(unchanged, the primitives being wired); D-0536 (this wiring's own
+prerequisite); issue #19.
+
+**Decision:** D-0536 shipped `derive_relationship_pseudonym`/
+`set_private_follow`/`create_relationship_linkage`/
+`verify_relationship_linkage`, fully tested at the `mini-social` library
+level, but nothing in the workspace actually called them — a user had no
+way to create a private follow through any existing app code path. Closes
+that gap:
+
+1. `Workspace::follow_privately(&mut self, target: &Did) -> Result<(), String>`
+   — same shape as the existing `Workspace::set_follow_target`, but derives
+   this relationship's pseudonym via `derive_relationship_pseudonym` and
+   publishes the FOLLOW edge via `set_private_follow`, so the real human
+   root of either party never appears on the published edge.
+2. A real UI call site: the "Add from a connection card" panel now offers
+   "Add peer and follow" (unchanged, ordinary follow) alongside a new
+   "Add peer and follow privately" button that parses the card's `did` and
+   calls `follow_privately` through the same connection-card flow, not a
+   speculative/unused code path.
+3. Integration-level test (`follow_privately_never_publishes_the_real_human_root`)
+   builds a real `Workspace` over an `FsBackend` store with two real
+   `DesktopIdentity`s and asserts, through this exact call site, that the
+   published FOLLOW edge contains only pseudonym `Did`s.
+
+**Constitutional impact:** none new beyond D-0536's own (Directive 14 —
+composition, not invention; Directive 16/P1 voice/value wall untouched).
+
+**Implementation status:** shipped. `cargo test -p mini-desktop
+follow_privately` passes; `cargo fmt --all`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, `cargo test --workspace
+--all-features`, and `python3 tools/mininet_nav.py build` all pass.
+
+**Failure point:** none new — `create_relationship_linkage`/
+`verify_relationship_linkage` (the mutual-authentication half of D-0536)
+still has no real `mini-desktop` caller; only the publish half
+(`set_private_follow`) is wired here. A private follow is fully
+functional and unlinkable today; proving *which* real root a pseudonym
+belongs to (the linkage half) remains library-only.
+
+**Required follow-up:** wire `create_relationship_linkage`/
+`verify_relationship_linkage` into a real mutual-authentication flow
+(e.g. exchanged during pairing) when that UI work is prioritized.
+
+**Supersedes / superseded by:** none. Extends D-0536.

@@ -36,12 +36,13 @@ use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
 #[cfg(all(test, windows))]
 use mini_social::publish_profile;
 use mini_social::{
-    community_members, followers, following, known_profiles, publish_comment, publish_community,
-    publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
-    set_follow, set_membership, set_reaction, FeedFilter, LocalProfileAnnouncer,
-    LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft, PublicProfileField,
-    ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
-    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
+    community_members, derive_relationship_pseudonym, followers, following, known_profiles,
+    publish_comment, publish_community, publish_media_post, publish_profile_details, publish_wall,
+    resolve_community, resolve_profile, set_follow, set_membership, set_private_follow,
+    set_reaction, FeedFilter, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
+    NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy,
+    MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
+    MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
 use mini_sync::{kel_carrier, KelCache};
@@ -1100,6 +1101,35 @@ impl Workspace {
             &identity.device,
             &target,
             follow,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
+        self.sequence = self.sequence.saturating_add(1);
+        Ok(())
+    }
+
+    /// Same shape as [`Workspace::set_follow_target`], but publishes a
+    /// *private* follow edge (issue #19, D-0537): derives this
+    /// relationship's own pairwise pseudonym via
+    /// [`derive_relationship_pseudonym`] instead of signing with the
+    /// real human root, and follows `target_pseudonym` (the counterpart's
+    /// own relationship pseudonym `Did`, learned out of band — e.g. from a
+    /// [`mini_social::verify_relationship_linkage`] exchange) with
+    /// [`set_private_follow`]. Nothing published by this path ever carries
+    /// the caller's real human-root `Did`.
+    fn follow_privately(&mut self, target_pseudonym: &Did) -> Result<(), String> {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or_else(|| "identity is locked".to_string())?;
+        let pseudonym = derive_relationship_pseudonym(&identity.root, target_pseudonym)
+            .map_err(|error| error.to_string())?;
+        set_private_follow(
+            &mut self.store,
+            &pseudonym,
+            target_pseudonym,
+            true,
             now_ms(),
             self.sequence,
         )
@@ -5039,16 +5069,38 @@ No tracking. No forced updates.",
                     .desired_rows(2)
                     .desired_width(f32::INFINITY),
             );
-            if ui.add(theme::primary_button("Add peer and follow")).clicked() {
+            let mut clicked_private = false;
+            let mut clicked = ui.add(theme::primary_button("Add peer and follow")).clicked();
+            if ui
+                .add(theme::secondary_button("Add peer and follow privately"))
+                .clicked()
+            {
+                clicked = true;
+                clicked_private = true;
+            }
+            if clicked {
                 self.notice = match connectivity::ConnectionCard::decode(&self.card_input) {
                     Ok(card) => {
                         match self.connections.upsert_peer(&card.name, &card.endpoint, Some(&card.did)) {
                             Ok(_) => {
                                 self.save_connections();
                                 self.card_input.clear();
-                                let follow = self.workspace.as_mut().map(|workspace| {
-                                    workspace.set_follow_target_confirmed(&card.did, true)
-                                });
+                                let follow: Option<Result<(), String>> = if clicked_private {
+                                    Some(
+                                        Did::parse(&card.did)
+                                            .map_err(|error| error.to_string())
+                                            .and_then(|target| {
+                                                self.workspace
+                                                    .as_mut()
+                                                    .ok_or_else(|| "no workspace".to_string())?
+                                                    .follow_privately(&target)
+                                            }),
+                                    )
+                                } else {
+                                    self.workspace.as_mut().map(|workspace| {
+                                        workspace.set_follow_target_confirmed(&card.did, true)
+                                    })
+                                };
                                 match follow {
                                     Some(Ok(())) => format!(
                                         "Saved {} and signed a follow. Start a session to exchange with them.",
@@ -9381,5 +9433,76 @@ shot at dusk",
         assert_eq!(local.len(), 1, "fetched post is searchable locally");
 
         std::fs::remove_dir_all(test_root).unwrap();
+    }
+
+    /// Real integration test for issue #19 / D-0537: proves
+    /// [`Workspace::follow_privately`] — the actual app-surface call path,
+    /// not just the `mini-social` library primitives it wraps — publishes a
+    /// private follow edge that never carries either party's real
+    /// human-root `Did`.
+    #[test]
+    fn follow_privately_never_publishes_the_real_human_root() {
+        use super::{now_ms, DesktopIdentity, Workspace};
+        use mini_social::{derive_relationship_pseudonym, following};
+        use mini_store::FsBackend;
+
+        let test_root = std::env::temp_dir().join(format!(
+            "mininet-desktop-private-follow-{}-{}",
+            std::process::id(),
+            now_ms()
+        ));
+
+        let alice_root = Controller::incept_single_from_seeds(&[30; 32], &[31; 32]).unwrap();
+        let alice_root_did = alice_root.did();
+        let alice_device =
+            Controller::incept_device_single_from_seeds(&alice_root_did, &[32; 32], &[33; 32])
+                .unwrap();
+        let bob_root = Controller::incept_single_from_seeds(&[40; 32], &[41; 32]).unwrap();
+        let bob_root_did = bob_root.did();
+        // Bob's own pseudonym for his relationship with Alice: Alice learns
+        // this out of band (a `verify_relationship_linkage` exchange, out of
+        // scope for this test), not from the object store.
+        let bob_pseudonym_for_alice =
+            derive_relationship_pseudonym(&bob_root, &alice_root_did).unwrap();
+        let bob_pseudonym_for_alice_did = bob_pseudonym_for_alice.did();
+
+        // Alice's own relationship pseudonym for this counterpart, computed
+        // independently to check what the workspace call actually published
+        // — derived before `alice_root` moves into the workspace below.
+        let alice_pseudonym_for_bob =
+            derive_relationship_pseudonym(&alice_root, &bob_pseudonym_for_alice_did).unwrap();
+        let alice_pseudonym_for_bob_did = alice_pseudonym_for_bob.did();
+
+        let mut workspace = Workspace {
+            store: Store::new(FsBackend::open(&test_root).unwrap()),
+            identity: Some(DesktopIdentity {
+                root: alice_root,
+                device: alice_device,
+            }),
+            human: Some(alice_root_did.clone()),
+            root: test_root.clone(),
+            sequence: 0,
+            conversations: Vec::new(),
+        };
+
+        workspace
+            .follow_privately(&bob_pseudonym_for_alice_did)
+            .unwrap();
+
+        // Alice's own relationship pseudonym for this counterpart is what
+        // actually published the edge.
+        let published = following(&workspace.store, &alice_pseudonym_for_bob_did).unwrap();
+        assert_eq!(published, vec![bob_pseudonym_for_alice_did.clone()]);
+
+        // Alice's real human root never appears as a follower/following
+        // entry anywhere in the store this call touched.
+        let real_root_following = following(&workspace.store, &alice_root_did).unwrap();
+        assert!(real_root_following.is_empty());
+        assert!(!published
+            .iter()
+            .any(|did| did.as_str() == alice_root_did.as_str()
+                || did.as_str() == bob_root_did.as_str()));
+
+        std::fs::remove_dir_all(&test_root).unwrap();
     }
 }
