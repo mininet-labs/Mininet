@@ -3,7 +3,7 @@
     "crates": 86,
     "files": 1088,
     "headings": 3881,
-    "rust_symbols": 11857
+    "rust_symbols": 11861
   },
   "crates": {
     "did-mini": {
@@ -32491,38 +32491,38 @@
       "title": "use eframe::egui::{self, Color32};"
     },
     {
-      "bytes": 10340,
+      "bytes": 14376,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "card",
-        "error",
-        "store",
         "author",
-        "scope",
-        "item",
-        "post",
-        "objectid",
-        "map_err",
-        "to_string",
+        "string",
+        "aiobject",
         "did",
-        "vec",
+        "objectid",
+        "never",
+        "payload",
+        "body",
+        "error",
+        "usize",
+        "own",
+        "timeline",
+        "from_service",
+        "build",
+        "cards",
+        "renderer",
         "feed",
         "feedreason",
-        "usize",
+        "posts",
+        "clone",
         "follow",
-        "string",
-        "human",
-        "reason",
-        "own",
-        "map",
-        "cards",
-        "following",
-        "path"
+        "timestamp_ms",
+        "reason"
       ],
-      "lines": 306,
+      "lines": 401,
       "path": "crates/mini-desktop/src/timeline.rs",
-      "sha256": "fe1555c8e2f85112c1d8db8c76914a1d9ae7f8c5c2bab4a1f566f572e913073e",
+      "sha256": "5f487c526e5d6d42f2ebd67fd1c9c64ed4f0244fce6e30471a842b7844e0f3a7",
       "symbols": [
         {
           "kind": "const",
@@ -32541,48 +32541,58 @@
         },
         {
           "kind": "fn",
-          "line": 47,
+          "line": 56,
           "name": "from_service"
         },
         {
           "kind": "fn",
-          "line": 78,
+          "line": 102,
+          "name": "ai_card"
+        },
+        {
+          "kind": "fn",
+          "line": 125,
           "name": "snapshot"
         },
         {
           "kind": "type",
-          "line": 88,
+          "line": 135,
           "name": "Item"
         },
         {
           "kind": "fn",
-          "line": 90,
+          "line": 137,
           "name": "build"
         },
         {
           "kind": "fn",
-          "line": 192,
+          "line": 240,
           "name": "age"
         },
         {
           "kind": "mod",
-          "line": 206,
+          "line": 254,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 212,
+          "line": 261,
           "name": "person"
         },
         {
           "kind": "fn",
-          "line": 227,
+          "line": 276,
           "name": "author_time_is_real_and_future_time_is_not_underflowed"
         },
         {
           "kind": "fn",
-          "line": 235,
+          "line": 284,
           "name": "everyone_scope_shows_received_posts_before_any_follow_exists"
+        },
+        {
+          "kind": "fn",
+          "line": 356,
+          "name": "ai_card_carries_a_disclosure_that_ordinary_cards_never_get"
         }
       ],
       "title": "use did_mini::Did;"
@@ -49792,7 +49802,7 @@
       "title": "mini-objects"
     },
     {
-      "bytes": 17502,
+      "bytes": 18386,
       "group": "crate:mini-objects",
       "headings": [],
       "keywords": [
@@ -49821,9 +49831,9 @@
         "new",
         "disclosure"
       ],
-      "lines": 439,
+      "lines": 457,
       "path": "crates/mini-objects/src/ai_object.rs",
-      "sha256": "4856bf51d4bd884be56b8211498836a02efdeddcc8a99ade9907b6fc9baad90c",
+      "sha256": "5342345ef52a672eda7857b880260c198cb181652e368d5394f91a6b7fe3fa3a",
       "symbols": [
         {
           "kind": "const",
@@ -49942,47 +49952,52 @@
         },
         {
           "kind": "fn",
-          "line": 334,
+          "line": 343,
+          "name": "render_disclosure"
+        },
+        {
+          "kind": "fn",
+          "line": 352,
           "name": "verify_signature"
         },
         {
           "kind": "enum",
-          "line": 345,
+          "line": 363,
           "name": "EncodeMode"
         },
         {
           "kind": "fn",
-          "line": 359,
+          "line": 377,
           "name": "verify_ai_provenance"
         },
         {
           "kind": "struct",
-          "line": 375,
+          "line": 393,
           "name": "AiObjectBuilder"
         },
         {
           "kind": "impl",
-          "line": 382,
+          "line": 400,
           "name": "AiObjectBuilder"
         },
         {
           "kind": "fn",
-          "line": 385,
+          "line": 403,
           "name": "new"
         },
         {
           "kind": "fn",
-          "line": 395,
+          "line": 413,
           "name": "link"
         },
         {
           "kind": "fn",
-          "line": 404,
+          "line": 422,
           "name": "payload"
         },
         {
           "kind": "fn",
-          "line": 412,
+          "line": 430,
           "name": "sign"
         }
       ],
@@ -51445,7 +51460,7 @@
       "title": "use did_mini::Controller;"
     },
     {
-      "bytes": 6877,
+      "bytes": 7311,
       "group": "crate:mini-objects",
       "headings": [],
       "keywords": [
@@ -51457,26 +51472,26 @@
         "object",
         "capabilities",
         "human",
-        "err",
-        "post",
-        "objecterror",
-        "payload",
-        "unwrap",
         "obj",
+        "post",
+        "payload",
         "controller",
-        "ai_disclose",
-        "aiobject",
         "aiorigin",
+        "objecterror",
+        "unwrap",
+        "ai_disclose",
+        "err",
+        "aiobject",
         "root_c",
         "assert_eq",
-        "sign",
-        "unwrap_err",
-        "human_post",
-        "root_kel"
+        "rendered",
+        "assert",
+        "provenance",
+        "ai-disclosure"
       ],
-      "lines": 171,
+      "lines": 181,
       "path": "crates/mini-objects/tests/ai_object.rs",
-      "sha256": "c39bf5cff0934bd9d6cca2b248ade0be5d364dfc74f893262d9fa5c9f598e74a",
+      "sha256": "10134de14e90659a2fe722d634789fea59ef2b6f0266c8a76c756930bbca521e",
       "symbols": [
         {
           "kind": "fn",
@@ -51501,36 +51516,41 @@
         {
           "kind": "fn",
           "line": 53,
+          "name": "render_disclosure_is_non_empty_and_names_the_producing_system"
+        },
+        {
+          "kind": "fn",
+          "line": 63,
           "name": "ai_envelope_bytes_are_rejected_by_the_human_object_decoder_and_vice_versa"
         },
         {
           "kind": "fn",
-          "line": 87,
+          "line": 97,
           "name": "a_device_holding_only_human_capabilities_cannot_author_an_ai_object"
         },
         {
           "kind": "fn",
-          "line": 102,
+          "line": 112,
           "name": "a_device_holding_only_ai_disclose_cannot_author_human_content_or_vote"
         },
         {
           "kind": "fn",
-          "line": 118,
+          "line": 128,
           "name": "ai_disclose_capability_authors_a_verifiable_ai_object"
         },
         {
           "kind": "fn",
-          "line": 130,
+          "line": 140,
           "name": "empty_system_id_is_rejected_before_signing"
         },
         {
           "kind": "fn",
-          "line": 145,
+          "line": 155,
           "name": "empty_model_id_is_rejected_before_signing"
         },
         {
           "kind": "fn",
-          "line": 160,
+          "line": 170,
           "name": "decoded_ai_object_preserves_mandatory_provenance_fields"
         }
       ],
@@ -95112,7 +95132,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1508062,
+      "bytes": 1512264,
       "group": "docs",
       "headings": [
         {
@@ -95542,9 +95562,9 @@
         "new",
         "doctrine"
       ],
-      "lines": 24977,
+      "lines": 25051,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "e5482078681c892cf9b7b34c754348370ed8cbbfbf4a3a7f4fd8fc0a05a71cfc",
+      "sha256": "c750d03ede759dd1e72b83d5febd977026b8bcda8a7f559e166c7b83747445cb",
       "symbols": [],
       "title": "Decision Log"
     },

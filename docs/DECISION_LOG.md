@@ -24974,3 +24974,77 @@ UI) yet renders `AiObject`'s disclosure label distinctly in a real client;
 that wiring is separate follow-up work, not claimed here.
 
 **Supersedes / superseded by:** none.
+
+### D-0537 — Wire `AiObject` disclosure rendering into a real client consumer
+
+**Date:** 2026-09-24 · **Refs:** `crates/mini-objects/src/ai_object.rs`
+(`AiObject::render_disclosure`), `crates/mini-desktop/src/timeline.rs`
+(`Card::ai_disclosure`, `ai_card`); roadmap #63; Directive 12; constitution
+principle 8.
+
+**Decision:** D-0534 shipped `AiObject`/`AiOrigin::disclosure_label()` as a
+correct-by-construction type, but its own "Required follow-up" noted no
+consumer anywhere rendered that label, leaving it functionally inert. This
+closes that gap honestly, without inventing a feed/store integration that
+does not exist yet:
+
+1. `AiObject::render_disclosure(&self) -> String` (mini-objects) composes
+   the existing `AiOrigin::disclosure_label()` with the object's
+   `provenance.system_id` into one client-ready string, so every real
+   consumer gets identical, honest wording instead of reaching into
+   `origin`/`provenance` itself.
+2. `mini-desktop::timeline::Card` gains `ai_disclosure: Option<String>`.
+   The two existing card-construction paths (`build`, `from_service`) —
+   which only ever decode human-authored `mini_objects::Object`s — always
+   set it to `None`; there is no code path by which an ordinary human post
+   can acquire a disclosure string.
+3. A new `mini_desktop::timeline::ai_card(&AiObject, author, did) -> Card`
+   is the one function that builds a card *for* an `AiObject`, always
+   setting `ai_disclosure: Some(ai.render_disclosure())`, `own: false`,
+   and a payload-derived (never fabricated-human-looking) body. This is
+   the real, callable integration point a renderer uses to show AI content
+   distinctly in the same list as human cards.
+
+This is deliberately the lighter of the two deliverables the follow-up
+named: `mini-store`'s `Store`/`by_type` index and `mini-social`'s
+`feed`/`resolve_post` path are hard-typed to `mini_objects::Object` byte
+decoding (`Object::from_bytes`) with no `AiObject` persistence or indexing
+of any kind. Adding real feed/store integration for a second envelope type
+is a separate, larger `mini-store`/`mini-social` decision, not something to
+retrofit unilaterally under a disclosure-wiring task; forcing it in now
+would risk exactly the kind of scope creep this project's rituals warn
+against. `ai_card` is written so that whenever that store/feed integration
+lands, it is the natural place to call from.
+
+**Constitutional impact:** Directive 12 / constitution principle 8 (AI
+participation must be labeled and never laundered into human-authored
+appearance) — a disclosure string now actually reaches a client-facing type
+(`Card`) through a real function, closing D-0534's stated gap. No
+voice/value-wall edge: `mini-objects` and `mini-desktop` are both outside
+that wall. No new cryptography.
+
+**Implementation status:** shipped. `render_disclosure` plus a
+mini-objects test
+(`render_disclosure_is_non_empty_and_names_the_producing_system`);
+`Card::ai_disclosure` plus `ai_card` plus a mini-desktop test
+(`ai_card_carries_a_disclosure_that_ordinary_cards_never_get`) proving an
+`ai_card`-built card always carries a non-empty disclosure while every
+`build()`-produced human card's `ai_disclosure` stays `None`. `cargo fmt
+--all`, `cargo clippy --all-targets --all-features --workspace -- -D
+warnings`, and `cargo test --workspace --all-features` all pass clean on
+this change.
+
+**Failure point:** `ai_card` is not yet called from any running UI loop —
+there is still no code path that fetches an `AiObject` from storage or the
+network and hands it to `ai_card` automatically; a caller has to construct
+or receive the `AiObject` itself. Honesty over polish: this decision closes
+the "no renderer even exists" gap, not the "AI content flows through the
+feed automatically" gap, which remains real follow-up work.
+
+**Required follow-up:** design and decide real `AiObject` persistence/
+indexing (a second envelope type in `mini-store`, or a parallel index) and
+a `mini-social`-level function that scans it the way `feed`/`resolve_post`
+scan `Object`s, so `ai_card` can be invoked from an actual timeline
+assembly path instead of only from direct/test callers.
+
+**Supersedes / superseded by:** none. Extends D-0534.

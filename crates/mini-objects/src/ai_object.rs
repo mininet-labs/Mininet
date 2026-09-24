@@ -330,6 +330,24 @@ impl AiObject {
         }
     }
 
+    /// A client-facing disclosure string for this exact object: the honest,
+    /// non-blank label from [`AiOrigin::disclosure_label`] plus the
+    /// `system_id` that produced it, e.g. `"AI-generated content — not
+    /// human-authored (mini-forge-review-assistant/0.3.0)"`. This is the
+    /// function a rendering consumer (a feed/timeline card, a review UI,
+    /// ...) should call rather than reaching into `origin`/`provenance`
+    /// itself, so every real display path gets the same wording and never
+    /// has to remember to attach the system id. Never empty: the type's own
+    /// constructors (see module docs) cannot produce an `AiObject` whose
+    /// `system_id` is empty.
+    pub fn render_disclosure(&self) -> String {
+        format!(
+            "{} ({})",
+            self.origin.disclosure_label(),
+            self.provenance.system_id
+        )
+    }
+
     /// Layer 2 — authenticity: the named device signed these bytes.
     pub fn verify_signature(&self, device: &Kel) -> Result<()> {
         if device.did().as_str() != self.operator_device.as_str() {

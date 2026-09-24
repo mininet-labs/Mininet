@@ -50,6 +50,16 @@ fn ai_object_round_trips_and_carries_a_render_ready_disclosure_label() {
 }
 
 #[test]
+fn render_disclosure_is_non_empty_and_names_the_producing_system() {
+    let (root, device) = human_with_device(29, Capabilities::AI_DISCLOSE);
+    let obj = ai_object(&root.did(), &device, AiOrigin::GeneratedContent);
+    let rendered = obj.render_disclosure();
+    assert!(!rendered.is_empty());
+    assert!(rendered.contains("AI-generated content"));
+    assert!(rendered.contains("mini-forge-review-assistant/0.1.0"));
+}
+
+#[test]
 fn ai_envelope_bytes_are_rejected_by_the_human_object_decoder_and_vice_versa() {
     let (root, device) = human_with_device(21, Capabilities::AI_DISCLOSE);
     let ai_obj = ai_object(&root.did(), &device, AiOrigin::MediatedDecision);
