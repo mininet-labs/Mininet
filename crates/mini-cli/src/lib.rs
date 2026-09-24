@@ -39,6 +39,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod beta;
 mod build;
 mod cli;
 mod coordination;

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Beta MINI Grant Policy payload",
+  "description": "Forge-native semantic schema for mininet.beta/grant-policy/v1. Campaign-scoped operational acceptance only: membership carries no governance, personhood, reputation, production-MINI, or persistent identity authority.",
+  "type": "object",
+  "required": [
+    "campaign_id",
+    "beta_epoch",
+    "authorizers",
+    "testing_threshold",
+    "participation_threshold",
+    "testing_grant_amount_micro",
+    "participation_reward_bands_micro",
+    "valid_from_ms",
+    "valid_until_ms"
+  ],
+  "properties": {
+    "campaign_id": { "type": "string", "minLength": 1 },
+    "beta_epoch": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+    "authorizers": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^did:mini:.+" }
+    },
+    "testing_threshold": { "type": "integer", "minimum": 2, "maximum": 32 },
+    "participation_threshold": { "type": "integer", "minimum": 2, "maximum": 32 },
+    "testing_grant_amount_micro": { "type": "integer", "minimum": 1 },
+    "participation_reward_bands_micro": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 1 }
+    },
+    "valid_from_ms": { "type": "integer", "minimum": 0 },
+    "valid_until_ms": { "type": "integer", "minimum": 1 }
+  },
+  "additionalProperties": false
+}

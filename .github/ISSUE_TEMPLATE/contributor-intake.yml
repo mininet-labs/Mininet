@@ -1,74 +1,78 @@
 name: Contributor intake
-description: Find a bounded first task without turning participation into authority.
+description: Find a bounded Open Beta / final-phase task without turning participation or rewards into authority.
 title: "contributor: "
 labels: [documentation, enhancement]
 body:
   - type: markdown
     attributes:
       value: |
-        This form is an opt-in routing aid. Legal identity is not required. Do not include secrets, private keys, unnecessary personal data, or confidential employer/client information. A GitHub team, employer, payment, commit count, or AI output grants no review, merge, release, or governance authority.
+        Open Beta welcomes one-off anonymous participation. Before Go-Live, Mininet's canonical participant classification is anonymous: this GitHub account is transport metadata, not a Mininet pseudonym, identity, reviewer credential, or reputation handle. Do not include secrets, private keys, unnecessary personal data, or confidential employer/client information. A GitHub team, employer, payment, contribution volume, Beta MINI balance, commit count, or AI output grants no review, merge, release, personhood, or governance authority.
   - type: dropdown
     id: route
     attributes:
       label: Preferred contribution route
       multiple: true
       options:
-        - Beta testing or reproduction
-        - Rust implementation or tests
-        - Android, LAN, BLE, or device testing
+        - Open Beta testing or bug reproduction
+        - Physical Android / LAN / BLE / multi-hop testing
+        - Accessibility or first-run usability
+        - Rust implementation or regression tests
+        - Forge / GitHub-independence / outage testing
+        - Build, release, reproducibility, install, or rollback
         - Documentation or research
         - Security or external-review coordination
-        - Governance or process design
+        - Governance/process implementation for the Forge cutover
         - Domain consultation
         - I am not sure yet
     validations:
       required: true
-  - type: dropdown
-    id: privacy
+  - type: markdown
     attributes:
-      label: Preferred attribution mode
-      description: Choose what you want shown publicly for this routing request.
-      options:
-        - Anonymous
-        - Pseudonymous
-        - Public
-    validations:
-      required: true
+      value: |
+        **Privacy:** there is no Mininet attribution-mode choice before Go-Live. The canonical Mininet contribution record remains anonymous even if GitHub displays an account name. Do not add a stable Mininet pseudonym, DID, reward account, or claim handle here.
   - type: textarea
     id: skills
     attributes:
       label: Skills, interests, and confidence
-      description: What can you try now, and which areas would benefit from a guided first step?
-      placeholder: Rust testing; Android device testing; cryptography research; beginner with a guided task...
+      description: What can you try now, and which areas would benefit from a guided first step? Beginners and non-coders are welcome.
+      placeholder: Two Android phones; Rust testing; accessibility review; cryptography research; beginner with a guided task...
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
       label: Available environment
-      description: State only what is relevant: OS, Rust toolchain, Android SDK, emulator, physical devices, or other test equipment.
+      description: State only what is relevant: OS, Rust toolchain, Android SDK, emulator, number/type of physical devices, or other test equipment. Omit stable identifiers and private location data.
     validations:
       required: true
   - type: textarea
     id: first_task
     attributes:
       label: Preferred first task or question
-      description: Link an existing issue if you have one; otherwise describe the smallest safe task you want help selecting.
+      description: Link an existing issue if you have one; otherwise describe the smallest safe task you want help selecting. The long-term path is Forge task brief -> explicit expiring claim -> exact-state evidence/review.
     validations:
       required: true
+  - type: checkboxes
+    id: rewards
+    attributes:
+      label: Beta participation rewards
+      options:
+        - label: I understand useful accepted work may be eligible for Beta MINI participation testing, but Beta MINI is resettable test value, creates no authority or reputation weight, and has no automatic production-MINI conversion right.
   - type: textarea
     id: relationship
     attributes:
       label: Relevant relationship or conflict
-      description: Optional. Mention an employer, funder, client, authorship, or close-control relationship only if it could affect review independence. Private details should be shared through an appropriate private channel.
+      description: Optional. Mention an employer, funder, client, authorship, or close-control relationship only if it materially affects the technical evidence. Do not provide private details publicly; Pre-Go-Live Mininet does not require identity/credential disclosure.
   - type: checkboxes
     id: boundaries
     attributes:
       label: Boundaries understood
       options:
-        - label: I understand that a suggested task is not an assignment or authority delegation.
+        - label: I understand that a suggested task is not an assignment, appointment, or authority delegation.
           required: true
         - label: I will bind test or implementation evidence to an exact revision and state what I did not test.
+          required: true
+        - label: I will not publish secrets, persistent reward handles, or unnecessary personal/device identifiers in this intake.
           required: true
         - label: I understand that identity roots are not currently proof of unique humans and that AI reviews carry zero approval weight.
           required: true
