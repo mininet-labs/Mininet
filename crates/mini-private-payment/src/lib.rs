@@ -186,6 +186,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+mod account;
 mod amount;
 mod claim;
 mod codec;
@@ -197,6 +198,10 @@ mod nullifier;
 mod reconcile;
 mod scan;
 
+pub use account::{
+    account_snapshot, AccountCredit, AccountError, AccountLedgerView, AccountSnapshot,
+    CreditStatus, MAX_ACCOUNT_CLAIMS,
+};
 pub use amount::{
     audit_amounts, AcknowledgedAmountDisclosure, AmountDisclosure, AuditedIncome, OpenedPayment,
     AMOUNT_DISCLOSURE_DOMAIN, AMOUNT_DISCLOSURE_VERSION,
