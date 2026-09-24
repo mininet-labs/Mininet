@@ -73,8 +73,10 @@ pub fn reconcile(
     // The claim is all-or-nothing -- there is no state in which some of a
     // claim's inputs moved and the rest did not, and inventing one would be
     // the merge M1 forbids, spelled differently.
-    let mut finalized_here = false;
+    let mut finalized_here = 0;
+    let mut inputs = 0;
     for key_image in claim.key_images() {
+        inputs += 1;
         match ledger.finalized_claim(key_image) {
             // The ledger finalized a *different* claim against this key
             // image. M3 in action -- this claim loses outright. It is never
@@ -82,17 +84,18 @@ pub fn reconcile(
             Some(finalized) if finalized != digest => {
                 return Ok(SettlementState::RejectedConflict);
             }
-            Some(_) => finalized_here = true,
+            Some(_) => finalized_here += 1,
             None => {}
         }
     }
 
-    if finalized_here {
-        // Value moved. A claim the ledger finalized against one of its
-        // inputs is final even if the ledger has not recorded the rest --
-        // partial finalization is not a state this vocabulary has, and
-        // reporting it as pending would let value move twice.
+    if finalized_here == inputs && inputs > 0 {
         return Ok(SettlementState::Finalized);
+    }
+    if finalized_here > 0 {
+        // A truncated/inconsistent view is not an atomic canonical inclusion.
+        // Do not turn it into spendable credit, expiry or a retryable payment.
+        return Err(crate::PrivatePaymentError::IncompleteFinality);
     }
     if claim.claim().valid_until_ms < now_ms {
         return Ok(SettlementState::Expired);
