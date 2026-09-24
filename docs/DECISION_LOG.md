@@ -24919,3 +24919,80 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0102 — `mini-sync` adversarial partition-pattern stress tests, closing roadmap #26  ·  *Accepted*
+**Date:** 2026-09-21 · **Refs:** [roadmap #26](../../issues/26), D-0062
+(carved this scope out explicitly: "that robustness testing is `mini-sync`'s
+own separate scope, roadmap #26"), `crates/mini-sync/src/protocol.rs`,
+`crates/mini-sync/tests/sync_partition_stress.rs`, `crates/mini-sync/tests/
+sync_over_tcp.rs`.
+
+**Decision:** add real-TCP adversarial integration tests for `mini-sync`'s
+existing bucketed reconciliation protocol covering four partition patterns
+the existing suite (single mid-transfer kill, simple 2-peer convergence)
+did not exercise: repeated intermittent drops with a fresh connection each
+time, long offline accumulation (1000+ objects across many local writes)
+before a single reconnect, asymmetric 3-peer reachability where two peers
+never connect directly and rely entirely on a third as relay, and
+out-of-order/interleaved reconnection (peers meeting in a scrambled order
+with local writes between every encounter). This is adversarial *testing*
+of the existing model per the issue's own framing, not a redesign; no
+protocol code changed.
+
+**Reason:** D-0062 explicitly deferred this exact scope to #26 rather than
+claiming the live-TCP demo covered it. Directive 1 (the network must
+actually work under real conditions, not just in the happy path) requires
+verifying the store-and-forward claim ("A3", the crate's own README) holds
+under the partition shapes a real deployment produces, not just a single
+clean drop.
+
+**Constitutional impact:** none — no frozen invariant touched, no protocol
+or wire-format change, no new dependency edge (reuses `mini-bearer::
+TcpBearer`/`Channel` and `mini_sync::sync_bidirectional` exactly as
+`sync_over_tcp.rs` already does).
+
+**Implementation status:** shipped. `crates/mini-sync/tests/
+sync_partition_stress.rs`, 4 new tests, all real TCP:
+`repeated_intermittent_drops_eventually_converge_without_loss_or_duplication`,
+`long_offline_accumulation_converges_in_a_single_reconnect`,
+`asymmetric_reachability_relays_content_transitively_through_a_common_peer`,
+`out_of_order_reconnection_with_interleaved_writes_still_fully_converges`.
+All four passed on first correct assertion; the store-and-forward
+reconciliation model itself needed **no code fix** -- the writing of the
+first test surfaced not a protocol bug but an incorrect test assumption,
+documented here so it isn't rediscovered as a false alarm: `sync_bidirectional`
+under `SyncRole::Initiator` runs its own `pull()` to full completion
+*before* calling `serve_pull()` for the peer's leg (see `protocol.rs`'s
+`sync_bidirectional`). If the connection then dies during that *second*
+leg, `sync_bidirectional` returns `Err` even though the first leg's
+`pull()` already committed its ingest. This is correct and intended --
+each `pull()` round is independently atomic-by-idempotence exactly as the
+crate's doc comment already states -- but the *wrapping* call's `Err`
+does not imply "this whole encounter was a no-op," only that "something in
+this encounter, possibly the far side's leg, did not finish." A caller
+that assumes an `Err` from `sync_bidirectional` means zero store mutation
+would be wrong; a caller that assumes idempotent, monotonic, id-verified
+convergence across repeated attempts (what every test here actually
+checks) is correct. `cargo fmt --all`, `cargo clippy --all-targets
+--all-features --workspace -- -D warnings`, and `cargo test --workspace
+--all-features` all clean; `tools/mininet_nav.py build` regenerated.
+
+**Failure point:** these tests still run everything on one machine over
+real loopback TCP, not real BLE/Wi-Fi radios (roadmap #22, unchanged) and
+not truly concurrent multi-peer sessions (each encounter in these tests is
+still one pairwise pull-then-serve exchange, sequenced by the test, not N
+peers syncing simultaneously). The `bucket_of` scheme (256 buckets keyed
+off one id byte) was stress-tested only up to ~1000 objects per store here;
+its behavior at much larger real-world store sizes (bucket collision rate,
+`BucketDigests` message size) remains unmeasured and is a distinct future
+concern, not something this entry claims to have closed.
+
+**Required follow-up:** none required to close #26's stated scope (partition
+pattern robustness of the existing model); a future decision should measure
+bucket-collision behavior at realistic object-count scale if/when that
+becomes a priority, and roadmap #22 (real radio bearers) remains the
+separate hardware-dependent blocker for testing these same patterns over
+an actual lossy link rather than TCP loopback.
+
+**Supersedes / superseded by:** none — first dedicated partition-pattern
+stress coverage for `mini-sync`.
