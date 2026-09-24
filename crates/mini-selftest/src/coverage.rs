@@ -410,6 +410,18 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-app-protocol",
+        Coverage::Gap {
+            reason: "the local IPC framing/command types between the desktop shell and its application-service process; framing, limit-rejection, and round-trip behavior are unit-tested in-crate",
+        },
+    ),
+    (
+        "mini-app-service",
+        Coverage::Gap {
+            reason: "the per-user application-service process itself; identity/profile/post/feed flow, restart-idempotent publication, and single-instance refusal are covered by its own in-crate and cross-process tests, not by this in-process diagnostics suite",
+        },
+    ),
+    (
         "mini-windows-vault",
         Coverage::Exercised { area: "identity" },
     ),

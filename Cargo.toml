@@ -64,6 +64,8 @@ members = [
     "crates/mini-intake-social",
     "crates/mini-crawler",
     "crates/mini-crawler-fetch",
+    "crates/mini-app-protocol",
+    "crates/mini-app-service",
     "crates/mini-desktop",
     "crates/mini-windows-vault",
     "crates/mini-windows-setup",

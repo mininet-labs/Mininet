@@ -59,7 +59,9 @@ mini-intake	none	core-service	Search and Import	W3	External content ingestion is
 mini-intake-social	none	core-service	Search and Social	W3	Only accepted/provenanced intake may become social objects
 mini-crawler	none	worker	Search	W3	Crawl planning runs as an owner-enabled background worker with quotas
 mini-crawler-fetch	none	worker	Search	W3	Outbound HTTPS is explicit and sandboxed/budgeted; never runs merely because the app opened
-mini-desktop	host	ui	Application shell	W0	Presentation and user intent only; avoid store mutation keys consensus value and compiler work in this process
+mini-app-protocol	direct	shared-protocol	Application boundary	W1	Zero-authority bounded wire contract shared by renderer and core service; no generic execute escape hatch
+mini-app-service	none	core-service	All local application state	W1	Exclusive per-user writer owns signing social mutation feed materialization crash recovery and bounded events
+mini-desktop	host	ui	Application shell	W0	Presentation and user intent only; migrate direct store mutation and signing authority behind mini-app-service
 mini-windows-vault	direct	core-service	Identity	W1	DPAPI remains the Windows boundary; move signing/key use behind service IPC while keeping user ownership
 mini-windows-setup	direct	setup-tool	Setup and Updates	W0	Existing per-user verified installer path; no silent network/update behavior
 mini-setup	none	setup-tool	Setup and Updates	W0	Shipped setup executable owns install lifecycle across a process boundary
