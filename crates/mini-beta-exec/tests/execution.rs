@@ -11,9 +11,16 @@ use mini_beta_exec::{
 use mini_beta_grants::{create_grant_approval, create_grant_policy};
 use mini_objects::{Object, ObjectBuilder, ObjectType, Payload};
 use mini_store::{FsBackend, MemoryBackend, Store};
+use rand_core::{OsRng, RngCore};
 
 fn signer(seed: u8) -> Controller {
     Controller::incept_single_from_seeds(&[seed; 32], &[seed.wrapping_add(1); 32]).unwrap()
+}
+
+fn random_nonce() -> [u8; 32] {
+    let mut nonce = [0u8; 32];
+    OsRng.fill_bytes(&mut nonce);
+    nonce
 }
 
 fn limits(max_supply: u64) -> BetaMiniPolicy {
@@ -99,15 +106,36 @@ impl Fixture {
         .unwrap();
         objects.push(policy.clone());
 
-        let alice_reg =
-            create_account_registration(&mut store, &alice.did(), &alice, epoch, [1; 32], 250, 1)
-                .unwrap();
-        let bob_reg =
-            create_account_registration(&mut store, &bob.did(), &bob, epoch, [2; 32], 251, 1)
-                .unwrap();
-        let carol_reg =
-            create_account_registration(&mut store, &carol.did(), &carol, epoch, [3; 32], 252, 1)
-                .unwrap();
+        let alice_reg = create_account_registration(
+            &mut store,
+            &alice.did(),
+            &alice,
+            epoch,
+            random_nonce(),
+            250,
+            1,
+        )
+        .unwrap();
+        let bob_reg = create_account_registration(
+            &mut store,
+            &bob.did(),
+            &bob,
+            epoch,
+            random_nonce(),
+            251,
+            1,
+        )
+        .unwrap();
+        let carol_reg = create_account_registration(
+            &mut store,
+            &carol.did(),
+            &carol,
+            epoch,
+            random_nonce(),
+            252,
+            1,
+        )
+        .unwrap();
         objects.extend([alice_reg.clone(), bob_reg.clone(), carol_reg.clone()]);
         let alice_account = parse_account_registration_object(&alice_reg)
             .unwrap()
@@ -211,7 +239,7 @@ fn account_id_binds_epoch_owner_and_nonce() {
     let other = signer(91);
     let epoch_a = BetaEpochId::new([1; 32]).unwrap();
     let epoch_b = BetaEpochId::new([2; 32]).unwrap();
-    let nonce = [9; 32];
+    let nonce = random_nonce();
     assert_ne!(
         derive_account_id(epoch_a, &owner.did(), nonce).unwrap(),
         derive_account_id(epoch_b, &owner.did(), nonce).unwrap()
@@ -227,7 +255,7 @@ fn another_author_cannot_claim_an_observed_account_id() {
     let owner = signer(92);
     let attacker = signer(93);
     let epoch = BetaEpochId::new([3; 32]).unwrap();
-    let nonce = [4; 32];
+    let nonce = random_nonce();
     let victim_account = derive_account_id(epoch, &owner.did(), nonce).unwrap();
     let mut payload = vec![1];
     payload.extend_from_slice(epoch.as_bytes());

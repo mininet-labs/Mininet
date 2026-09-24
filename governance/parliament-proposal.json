@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "proposal_id": "founding-parliament-v1",
+  "status": "proposed",
+  "active": false,
+  "current_authority": "pre-go-live-bootstrap",
+  "founding_seat_capacity": 7,
+  "seat_growth_rule": "2n+1",
+  "seat_term_days": 90,
+  "h0_invitations_per_30_days": 100,
+  "steward_invitations_per_60_days": 10,
+  "steward_invitation_rights_after_service_days": 90,
+  "emergency_order_max_hours": 72,
+  "h0_guardian_stay_max_days": 14,
+  "public_eligibility_monotonic": true,
+  "public_transition_disables_h0_guardian_one_way": true,
+  "activation_requires_exact_state_decision": true,
+  "notes": "Proposal metadata only. This file grants no authority and does not supersede governance document 52."
+}

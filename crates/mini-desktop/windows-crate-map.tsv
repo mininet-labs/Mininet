@@ -1,0 +1,93 @@
+# Windows whole-workspace integration map.
+# Source of truth for how every Rust workspace crate reaches (or intentionally does not reach)
+# the Windows product. Keep one row per workspace member. The integration test fails on drift.
+crate	current	target_process	surface	wave	gate
+mini-durable	none	core-service	Storage	W1	Single-writer service owns durable mutation; no UI-thread writes
+mini-crypto	direct	core-service	Identity	W1	Keep keys and cryptographic operations out of rendering code; external audit still gates production guarantees
+did-mini	direct	core-service	Identity	W1	Expose identity operations through typed service commands; do not describe identity roots as verified humans
+mini-witness-service	none	node-service	Identity	W4	Optional witness role only; durable service lifecycle and operator consent required
+mini-bearer	direct	core-service	Connections	W1	Owner-selected networking policy; bounded I/O and zero-network mode remain first-class
+mini-presence	none	core-service	People	W4	Real BLE/UWB adapter and physical-device evidence required before proximity claims
+mini-reward	none	wallet-service	Earnings	W5	Value boundary plus storage-reward limitations and external review before production use
+mini-keystone	none	core-service	People	W4	Real co-present hardware path and durable replay protection required
+mini-ffi	none	platform-excluded	Mobile companion	W7	UniFFI mobile host boundary; not a Windows runtime dependency
+mini-objects	direct	core-service	All content	W1	Canonical object validation remains behind service API
+mini-store	direct	core-service	All content	W1	One application service serializes store mutation and emits bounded events
+mini-crdt	none	core-service	Social and documents	W1	Non-spendable content only; never extend CRDT merge semantics to spendable value
+mini-sync	direct	core-service	Connections	W1	Verified ingest and durable outbox/service coordination; cross-NAT evidence required for internet beta
+mini-messaging	direct	core-service	Messages	W1	Current shared-key beta remains labelled; ratchet/mailbox/device fanout are later security gates
+mini-social	direct	core-service	Home People Communities	W1	User-selected feeds and portable moderation; no paid influence over governance
+mini-media	direct	core-service	Media Library Creator	W1	Chunked local-first media with explicit bandwidth/seeding policy
+mini-forge	none	forge-service	Forge	W4	Separate governance/build service; must not acquire a dependency path into wallet/value code
+mini-beta	none	forge-service	Forge	W4	Open-Beta campaign/finding/contribution coordination objects; resettable test currency only, code-level walled from mini-value/mini-treasury/mini-chain/mini-forge governance authority
+mini-beta-exec	none	forge-service	Forge	W4	Durable/replicated execution for resettable Beta MINI test value; not production settlement, shares mini-beta's process boundary and value/governance wall
+mini-beta-grants	none	forge-service	Forge	W4	Campaign-scoped multi-party Beta MINI grant acceptance evidence; no production value or governance authority
+mini-bootstrap	none	core-service	Setup and recovery	W4	Offline bootstrap transport must be real before claiming no-internet recovery
+mini-update	none	setup-tool	Updates	W1	Evaluation is read-only; activation always requires explicit owner approval for an exact release
+mini-chain	none	node-service	Node	W6	Testnet/full-node mode only until consensus/value external gates are satisfied
+mini-storage	none	node-service	Library and Earnings	W2	Real peer receipts and replication-uniqueness limitation must remain visible
+mini-net	none	node-service	Connections	W2	Peer discovery and network service; no central endpoint becomes a trust root
+mini-uniqueness	none	core-service	Identity	W4	Personhood/Sybil research remains unresolved; UI must show evidence maturity honestly
+mini-spacetime	none	node-service	Storage and Node	W2	Proves possession not unique replication; never market it as warehouse-resistant yet
+mini-treasury	none	wallet-service	Wallet administration	W5	External audit and multi-party policy; never expose treasury authority as ordinary client privilege
+mini-custody	none	wallet-service	Wallet administration	W5	Multi-custodian ceremony and transport evidence required
+mini-value	none	wallet-service	Wallet	W5	Separate process from Forge/governance; external audit before real-value activation
+mini-private-payment	none	wallet-service	Wallet	W5	Funded testnet fixture and cryptographic review required before production claims
+mini-bounty	none	wallet-service	Forge and Wallet	W5	Funded pool plus approved-contributor semantics; payment must never buy review or governance
+mini-settlement	none	wallet-service	Wallet	W5	UI must preserve pending accepted finalized distinction; canonical chain decides conflicts
+mini-dtn	none	node-service	Connections	W2	Needs multi-device disruption tests before store-carry-forward UX is enabled
+mini-execution	none	node-service	Node	W6	Only finalized canonical blocks may advance spendable state
+mini-consensus	none	node-service	Node	W6	Multi-validator network role; external audit and dynamic-set limitations remain gates
+mini-porep	none	node-service	Storage and Node	W2	Heavy sealing belongs off the UI thread with weakest-device performance evidence
+mini-erasure	none	node-service	Storage	W2	Background storage worker with bounded CPU disk and bandwidth budgets
+mini-cli	none	tooling	Developer tools	W7	Developer/admin CLI remains optional tooling rather than an app runtime dependency
+mini-provenance	none	forge-service	Forge	W4	Independent-builder evidence; one local process must not pretend to prove independence
+mini-pipeline	none	forge-service	Forge	W4	Build manifests/capabilities stay behind Forge service boundary
+mini-pipeline-protocol	none	worker	Forge	W4	Bounded IPC protocol between coordinator and isolated build runner
+mini-build-runner-wasmtime	none	worker	Forge	W4	Spawn sandboxed worker on demand; never load Wasmtime/compiler surface into the GUI process
+mini-installer	none	platform-excluded	Setup	W7	Legacy POSIX installer is intentionally not part of the Windows runtime
+mini-privacy-policy	none	core-service	Privacy	W1	One policy engine gates privacy-sensitive routes before network work starts
+mini-transport-policy	none	core-service	Connections and Privacy	W2	Enable only mechanisms that actually exist and expose cost/privacy trade-offs
+mini-transport-security	none	core-service	Connections	W2	Authenticated peer binding must be proven over real channels, not inferred from TCP reachability
+mini-resource-pricing	none	node-service	Earnings	W2	Quotes/service pricing only; must not create governance weight or hidden paid ranking
+mini-relay	none	node-service	Connections	W2	Replaceable opt-in relay operators; disappearance must cost convenience only
+mini-bridge	none	node-service	Connections	W2	Optional anti-censorship entry path; requires real bridge operator tests
+mini-private-index	none	core-service	Search and Privacy	W3	Local/private indexing only; privacy review before remote query composition
+mini-intake-types	none	core-service	Search and Import	W3	Shared bounded intake vocabulary behind the application service
+mini-web-types	none	core-service	Search	W3	Shared crawl/document types; no network authority by themselves
+mini-intake	none	core-service	Search and Import	W3	External content ingestion is explicit opt-in with provenance and resource limits
+mini-intake-social	none	core-service	Search and Social	W3	Only accepted/provenanced intake may become social objects
+mini-crawler	none	worker	Search	W3	Crawl planning runs as an owner-enabled background worker with quotas
+mini-crawler-fetch	none	worker	Search	W3	Outbound HTTPS is explicit and sandboxed/budgeted; never runs merely because the app opened
+mini-app-protocol	direct	shared-protocol	Application boundary	W1	Zero-authority bounded wire contract shared by renderer and core service; no generic execute escape hatch
+mini-app-service	none	core-service	All local application state	W1	Exclusive per-user writer owns signing social mutation feed materialization crash recovery and bounded events
+mini-desktop	host	ui	Application shell	W0	Presentation and user intent only; migrate direct store mutation and signing authority behind mini-app-service
+mini-windows-vault	direct	core-service	Identity	W1	DPAPI remains the Windows boundary; move signing/key use behind service IPC while keeping user ownership
+mini-windows-setup	direct	setup-tool	Setup and Updates	W0	Existing per-user verified installer path; no silent network/update behavior
+mini-setup	none	setup-tool	Setup and Updates	W0	Shipped setup executable owns install lifecycle across a process boundary
+mini-selftest	direct	diagnostics-tool	Diagnostics	W0	Move whole-workspace diagnostics out of GUI dependency graph and stream bounded results back
+mini-value-selftest	none	diagnostics-tool	Diagnostics	W0	Remain a separate spawned process so value tests do not link into governance diagnostics
+mini-extract-protocol	none	worker	Search	W3	Bounded IPC framing for isolated extraction worker
+mini-extract-host	none	core-service	Search	W3	Application service owns worker lifecycle; extractor never receives identity or wallet secrets
+mini-provider	none	node-service	Services and Earnings	W2	Optional replaceable edge-provider role; no provider is required for identity or ownership
+mini-engagement	none	wallet-service	Business and Earnings	W5	Funded escrow/counterparty required; keep payment separate from reputation/governance authority
+mini-pq-anchor	none	core-service	Identity and Security	W4	Migration inventory only until a real post-quantum transition is activated
+mini-attest	none	core-service	Business and Reviews	W5	Only engagement-proven attestations; never turn commercial reviews into personhood or governance weight
+mini-airdrop	none	wallet-service	Wallet	W5	Needs a network-wide eligibility snapshot/testnet before user-facing claims
+mini-airdrop-treasury	none	wallet-service	Wallet administration	W5	Treasury payout bridge remains audit-gated and multi-party
+mini-commons-policy	none	core-service	Commons and Search	W3	Consume bounded wallet standing/capability over IPC rather than linking value into social/search core
+mini-publication-policy	none	core-service	Publishing	W3	Route only to transports that are actually available and owner-enabled
+mini-web-extract	none	worker	Search	W3	Untrusted document extraction stays isolated and resource-bounded
+mini-lexical-index	none	core-service	Search	W3	Incremental local index with measured weak-device memory/latency budgets
+mini-ranker	none	core-service	Search	W3	Transparent explainable ranking with user-selectable policy; paid placement never masquerades as organic rank
+mini-replication-policy	none	node-service	Storage and Privacy	W2	Owner-controlled seeding/replication budgets; no compelled replication
+mini-economy	none	wallet-service	Wallet and Network formation	W5	Network-formation economics are not ordinary per-client authority; testnet/review first
+mini-econ-sim	none	tooling	Research	W7	Long-running research simulator; expose reports/imports if useful, not as production runtime logic
+mini-contribution	none	wallet-service	Earnings and Forge	W5	Funded settlement path; accepted work/payment must not grant governance power
+mini-ticket	direct	node-service	Earnings	W2	Provider/service accounting moves behind service boundary; UI displays signed receipts and redemption state
+mini-query	none	core-service	Search	W3	Unified local query API becomes the UI entry point for search
+mini-search-federation	none	core-service	Search	W3	Federated query composition with explicit providers and local ranking policy
+mini-search-federation-net	none	node-service	Search and Connections	W3	Requires live peer federation and bounded authenticated transport
+mini-storage-fraud	none	node-service	Storage and Earnings	W2	Needs multi-holder evidence; never claim single-node diagnostics prove fraud resistance
+mini-shielded-verify	none	node-service	Node and Wallet	W6	Verify against canonical ledger view; running-chain gate applies
+mini-mesh	none	node-service	Connections	W2	Multi-peer dedup flooding requires real linked-peer tests and bounded resource policy

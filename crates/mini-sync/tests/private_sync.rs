@@ -170,3 +170,90 @@ fn selected_private_route_converges_over_real_tcp() {
     assert_eq!(client_store.private_by_route(&route).unwrap().len(), 2);
     assert_eq!(server_store.private_by_route(&route).unwrap().len(), 2);
 }
+
+#[test]
+fn responder_holding_many_routes_serves_only_the_named_one() {
+    use mini_sync::sync_private_route_responder_any;
+
+    let wanted = OpaqueRoute::from_bytes([31; 32]);
+    let other = OpaqueRoute::from_bytes([32; 32]);
+    let key = AeadKey::from_suite_bytes(AeadSuite::DEFAULT, &[9; 32]).unwrap();
+    let mut a_store = Store::new(MemoryBackend::new());
+    let mut b_store = Store::new(MemoryBackend::new());
+    a_store
+        .insert_private(&envelope(wanted, &key, 10, 1))
+        .unwrap();
+    b_store
+        .insert_private(&envelope(wanted, &key, 20, 2))
+        .unwrap();
+    b_store
+        .insert_private(&envelope(other, &key, 30, 3))
+        .unwrap();
+
+    let (mut a_bearer, mut b_bearer) = pair();
+    let (mut a_channel, mut b_channel) = channels(&mut a_bearer, &mut b_bearer);
+    let responder = thread::spawn(move || {
+        let result = sync_private_route_responder_any(
+            &mut b_bearer,
+            &mut b_channel,
+            &mut b_store,
+            &[other, wanted],
+        );
+        (b_store, result)
+    });
+    let a_report = sync_private_route_bidirectional(
+        &mut a_bearer,
+        &mut a_channel,
+        &mut a_store,
+        wanted,
+        SyncRole::Initiator,
+    )
+    .unwrap();
+    let (b_store, b_result) = responder.join().unwrap();
+    let (matched, b_report) = b_result.unwrap();
+
+    assert_eq!(matched, wanted);
+    assert_eq!(a_report.accepted, 1);
+    assert_eq!(b_report.accepted, 1);
+    assert_eq!(a_store.private_by_route(&wanted).unwrap().len(), 2);
+    assert!(a_store.private_by_route(&other).unwrap().is_empty());
+    assert_eq!(b_store.private_by_route(&other).unwrap().len(), 1);
+}
+
+#[test]
+fn responder_holding_many_routes_refuses_an_unknown_one() {
+    use mini_sync::sync_private_route_responder_any;
+
+    let asked = OpaqueRoute::from_bytes([41; 32]);
+    let held = OpaqueRoute::from_bytes([42; 32]);
+    let key = AeadKey::from_suite_bytes(AeadSuite::DEFAULT, &[9; 32]).unwrap();
+    let mut a_store = Store::new(MemoryBackend::new());
+    let mut b_store = Store::new(MemoryBackend::new());
+    a_store
+        .insert_private(&envelope(asked, &key, 10, 1))
+        .unwrap();
+    b_store
+        .insert_private(&envelope(held, &key, 20, 2))
+        .unwrap();
+
+    let (mut a_bearer, mut b_bearer) = pair();
+    let (mut a_channel, mut b_channel) = channels(&mut a_bearer, &mut b_bearer);
+    let responder = thread::spawn(move || {
+        let result =
+            sync_private_route_responder_any(&mut b_bearer, &mut b_channel, &mut b_store, &[held]);
+        (b_store, result)
+    });
+    let a_result = sync_private_route_bidirectional(
+        &mut a_bearer,
+        &mut a_channel,
+        &mut a_store,
+        asked,
+        SyncRole::Initiator,
+    );
+    let (b_store, b_result) = responder.join().unwrap();
+
+    assert!(matches!(a_result, Err(SyncError::PrivateRouteMismatch)));
+    assert!(matches!(b_result, Err(SyncError::PrivateRouteMismatch)));
+    assert!(b_store.private_by_route(&asked).unwrap().is_empty());
+    assert_eq!(b_store.private_by_route(&held).unwrap().len(), 1);
+}

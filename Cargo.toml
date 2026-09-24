@@ -64,6 +64,8 @@ members = [
     "crates/mini-intake-social",
     "crates/mini-crawler",
     "crates/mini-crawler-fetch",
+    "crates/mini-app-protocol",
+    "crates/mini-app-service",
     "crates/mini-desktop",
     "crates/mini-windows-vault",
     "crates/mini-windows-setup",
@@ -87,6 +89,7 @@ members = [
     "crates/mini-economy",
     "crates/mini-econ-sim",
     "crates/mini-contribution",
+    "crates/mini-ticket",
     "crates/mini-query",
     "crates/mini-search-federation",
     "crates/mini-search-federation-net",
@@ -132,4 +135,11 @@ opt-level = 3
 opt-level = 3
 
 [profile.dev.package.mini-value]
+opt-level = 3
+
+# The bundled OpenH264 C/C++ decoder is unusable at -O0 (about 12 fps at
+# 720p); optimize it even in dev builds so a debug client can play video.
+[profile.dev.package.openh264-sys2]
+opt-level = 3
+[profile.dev.package.openh264]
 opt-level = 3

@@ -2,11 +2,86 @@
 
 Windows-first egui reference client shell for Mininet.
 
-Run it locally:
+W1 now ships a separate per-user `mininet-app-service` application core. The
+desktop starts it as a sibling process and talks over a versioned, length-bounded
+protocol. Root creation, identity lock/unlock, public-profile creation, plain-post
+publication, and Home/Explore feed snapshots use that boundary. The core keeps
+signing controllers out of the renderer for migrated flows, refuses a second
+live core-service instance, durably reserves object sequences, journals exact signed objects before
+store mutation, and records idempotency receipts so an uncertain renderer retry
+cannot publish a second object. The service does not start networking, crawling,
+relaying, wallet, Forge, consensus, or updates.
+
+W1 is still a migration: replies/reactions, rich profile edits, communities,
+media publication, private messaging and several connection-side mutations
+still use the older in-process `Workspace` path. The filesystem backend reads
+indexes live, so service reads observe those transitional writes, and the core
+rescans the author's maximum sequence before each new signed mutation. Those
+paths are explicitly the next commands to move behind the same core; this
+change does not yet claim a universal single-writer or zero-authority renderer.
+
+The connected desktop beta (D-0523) opens into an X-style black shell:
+navigation rail, central timeline, and a discovery column on wide windows.
+Timelines are loaded by a worker (50 cards), show real author names and
+author-claimed relative times, and offer *Following* and *Everyone* scopes,
+received-post search (Explore), a media filter with inline images, and
+"Who to follow" from received signed profiles. Communities open into
+Reddit-style threaded discussion (title + body threads, nested replies,
+upvotes, Top/New) built entirely from existing comment and reaction
+objects, so discussions replicate like everything else. **Library** holds
+files and movies of any size (one manifest up to 256 MiB, larger files as an
+ordered collection of manifests) with seeding progress and chunk-by-chunk
+export; **Earnings** shows the service tickets peers signed for what you
+served, priced at your rate as unsettled micro-MINI credit, redeemable only
+by your DID once the audited settlement layer admits the request.
+**Media** is a catalog: search by title, author or type, filter by kind,
+sort, and browse a grid of poster cards; author names open a **Channel**
+page; **Search my peers** asks saved peers (and, through hosts that allow
+it, their saved peers) and **Fetch** retrieves one post's
+verified closure. **Shorts** plays media posts one at a time and **Watch** shows one with its
+comments and what is up next; audio plays in-app through pure-Rust decoders
+and animated GIF/WebP loop; H.264 video without B-frames plays in-process
+(OpenH264 + AAC via symphonia), while B-frame H.264, H.265/VP9/AV1 and
+WebM/MKV show an explanation with export. Connections can ask the router
+to forward the hosting port (UPnP) and reports whether the result is a
+public address. Ticket rates are agreed per exchange (provider ask capped by
+the receiver's ceiling) and written into the ticket.
+
+Connections is where networking starts, and only there:
+
+- **Accept connections (host)** binds one port and serves many connections
+  until you stop it. Peers reach you only if that port is reachable
+  (port-forward, VPS, or the same LAN) — no relay or NAT traversal yet.
+- **Sessions** dial every saved peer every 30 s (backing off to 2 min after
+  failures) for 15 min, 1 h, or while the app is open, exchanging public
+  posts, profiles, follows and reactions.
+- **Connection cards** (`mininet-peer-v1;endpoint=…;did=…;name=…`) let a
+  friend save your endpoint and follow your DID in one paste. A card grants
+  nothing; names are trusted only once the signed profile arrives.
+- **Private conversations** are included in sessions/hosting only when you
+  enable it; otherwise a private request is refused before any route check.
+- **On launch** nothing connects unless you enabled "session on launch" or
+  "accept connections on launch" here. Both default off.
+
+Under the hood every desktop path is one link: anonymous CH1 handshake over
+TCP, one sealed intent frame (public `MINI/SYNC1` or one private route),
+then that bounded protocol. Verified by crate tests over real TCP and by two
+live instances on one Windows machine; two machines behind different NATs
+have not been demonstrated. See
+[`connected-mininet-client.md`](../../docs/proposals/connected-mininet-client.md)
+for the full product specification and what remains.
+
+Run it locally. The application core is intentionally a sibling executable,
+not a `mini-desktop` library dependency, so build it alongside the renderer:
 
 ```powershell
+cargo build -p mini-app-service
 cargo run -p mini-desktop
 ```
+
+Packaged Windows builds include `mininet-app-service.exe` automatically. A
+missing service fails closed for the migrated signing actions; the renderer
+does not silently reconstruct keys and sign instead.
 
 The default home is `%LOCALAPPDATA%\Mininet`. To run two independent local
 instances, launch each one with a different `MININET_HOME`, such as
@@ -82,11 +157,14 @@ Creator view. These are public claims selected by the profile owner, not
 platform-verified attributes.
 
 The human-root and delegated-device seed envelopes are separately protected
-with the Windows-user DPAPI boundary by `mini-windows-vault`. Day-to-day social
-objects use the scoped delegated device; sync distributes both self-certifying
-KELs and rejects objects without valid device provenance.
+with the Windows-user DPAPI boundary by `mini-windows-vault`. For migrated W1
+flows only the application core reconstructs the controllers; no seed or
+controller crosses the IPC protocol. Day-to-day social objects use the scoped
+delegated device; sync distributes both self-certifying KELs and rejects objects
+without valid device provenance.
 
-The UI has an explicit identity lock and starts every session locked. A locked
+The UI has an explicit identity lock and the application core starts every
+session locked. A locked
 client can inspect local data but cannot publish signed objects. Each publish
 form also requires an explicit signing confirmation, and privacy settings are
 stored through DPAPI.
@@ -124,9 +202,10 @@ real encrypted TCP bearer and verified `MINI/SYNC1` ingest. It is
 foreground-user initiated, runs off the UI thread, and accepts no silent
 background network activity. People adds a separate opt-in three-second LAN
 scan and 60-second visible window; announcements are unverified hints, each
-socket has bounded I/O, and there is no retry loop or always-on listener.
+socket has bounded I/O. Hosting and sessions in Connections are the only
+repeating network activity and both are owner-started or owner-enabled.
 
-It does not start networking, open external URLs, collect telemetry, execute
+It does not start networking on launch, open external URLs, collect telemetry, execute
 updates, or embed a browser. Private signing material is not stored as
 plaintext.
 

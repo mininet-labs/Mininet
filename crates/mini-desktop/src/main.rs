@@ -1,42 +1,59 @@
 //! Windows-first Mininet reference client shell.
 //!
-//! This UI deliberately has no analytics, remote configuration, background
-//! fetch, embedded browser, or update executor. Those are security properties
-//! of the shell, not merely settings displayed to the user. Network and
-//! protocol integration should be added behind explicit local interfaces.
+//! No analytics, remote configuration, embedded browser, or update executor.
+//! Networking runs only inside an owner-started connection session or an
+//! owner-started hosting window; both can be re-enabled on launch only by a
+//! persisted, default-off choice the owner makes in Connections.
 
 #![forbid(unsafe_code)]
 
+mod app_service;
+mod catalog;
+mod connectivity;
 mod conversation_state;
+mod discussion;
+mod library;
+mod mute_list;
+mod netsearch;
+mod network_session;
+mod peer_link;
+mod player;
+mod theme;
+mod timeline;
+mod video;
 
 use conversation_state::ConversationRecord;
 use did_mini::{Capabilities, Controller, Did};
 use eframe::egui;
-use mini_bearer::{Bearer, Initiator, Responder, TcpBearer};
+use mini_app_protocol::{
+    AccountStatus, Command as AppCommand, FeedOrder as AppFeedOrder, FeedScope as AppFeedScope,
+    Reply as AppReply, ServiceEventKind,
+};
 use mini_media::{assemble, publish_media, read_manifest};
 use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
 use mini_objects::{ObjectType, OpaqueRoute};
 use mini_selftest::{Outcome as CheckOutcome, Report as SelfTestReport};
+#[cfg(all(test, windows))]
+use mini_social::publish_profile;
 use mini_social::{
-    comments, community_members, feed, followers, following, known_profiles, publish_comment,
-    publish_community, publish_media_post, publish_post, publish_profile, publish_profile_details,
-    publish_wall, resolve_community, resolve_post, resolve_profile, set_follow, set_membership,
-    set_reaction, FeedFilter, FeedItem, LocalProfileAnnouncer, LocalProfileScanner, MembershipMode,
-    NearbyProfile, PublicProfileDraft, PublicProfileField, ReactionKind, VisibilityPolicy,
-    MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS, MAX_PROFILE_FIELD_LABEL_BYTES,
-    MAX_PROFILE_FIELD_VALUE_BYTES,
+    community_members, followers, following, known_profiles, publish_comment, publish_community,
+    publish_media_post, publish_profile_details, publish_wall, resolve_community, resolve_profile,
+    set_follow, set_membership, set_reaction, FeedFilter, LocalProfileAnnouncer,
+    LocalProfileScanner, MembershipMode, NearbyProfile, PublicProfileDraft, PublicProfileField,
+    ReactionKind, VisibilityPolicy, MAX_LOCATION_BYTES, MAX_PROFILE_FIELDS,
+    MAX_PROFILE_FIELD_LABEL_BYTES, MAX_PROFILE_FIELD_VALUE_BYTES,
 };
 use mini_store::{Backend, FsBackend, Store};
-use mini_sync::{
-    kel_carrier, sync_bidirectional, sync_private_route_bidirectional, KelCache, SyncRole,
-};
+use mini_sync::{kel_carrier, KelCache};
 use mini_windows_setup::{InstallOptions, RecordingShell, Setup, SetupStatus, WindowsShell};
 use mini_windows_vault::{load_existing, load_or_create, load_user_data, save_user_data, SeedPair};
 use std::collections::HashMap;
-use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
-use std::time::Duration;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 const PEER_IO_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -44,11 +61,18 @@ const PEER_IO_TIMEOUT: Duration = Duration::from_secs(10);
 enum View {
     Onboarding,
     Home,
+    Discover,
+    Media,
+    Shorts,
+    Watch,
+    Channel,
     Inbox,
     People,
     Communities,
     Creator,
     Connections,
+    Library,
+    Earnings,
     System,
     Diagnostics,
     Updates,
@@ -64,6 +88,50 @@ enum UpdatePolicy {
 #[derive(Debug, Clone)]
 enum SyncContext {
     FriendRequest { display_name: String },
+}
+
+#[derive(Debug, Clone)]
+enum CoreAction {
+    CreateRoot,
+    UnlockIdentity,
+    LockIdentity,
+    LockAfterProfile,
+    PublishProfile { display_name: String, bio: String },
+    PublishPost { text: String },
+}
+
+/// One row of the Messages conversation list.
+#[derive(Debug, Clone)]
+struct ConversationPreview {
+    index: usize,
+    label: String,
+    peer_name: String,
+    peer_did: String,
+    last_body: String,
+    last_timestamp_ms: u64,
+    count: usize,
+}
+
+/// One saved peer's answer to a network search: (label, endpoint, hits).
+type SearchAnswer = (String, String, Result<Vec<netsearch::RemoteResult>, String>);
+
+/// An owner-started hosting window: the accepting socket lives on a worker
+/// thread and stops when this is dropped or the owner presses Stop.
+struct HostState {
+    stop: Arc<AtomicBool>,
+    rx: Receiver<peer_link::HostEvent>,
+    port: u16,
+    started: Instant,
+    listening: bool,
+    served: usize,
+    failed: usize,
+    last: String,
+}
+
+impl Drop for HostState {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,8 +162,107 @@ impl Default for PrivacyState {
 
 struct MininetApp {
     workspace: Option<Workspace>,
+    app_service: Option<app_service::Client>,
+    app_status: Option<AccountStatus>,
+    app_status_rx: Option<Receiver<Result<AppReply, String>>>,
+    app_action: Option<(CoreAction, Receiver<Result<AppReply, String>>)>,
+    app_events_rx: Option<Receiver<Result<AppReply, String>>>,
+    app_events_due: Instant,
+    app_last_event_id: Option<u64>,
+    post_operation: Option<(String, String)>,
+    profile_operation: Option<(String, String, String)>,
     view: View,
     privacy: PrivacyState,
+    theme_applied: bool,
+    /// The launch policy (session/host on launch) runs exactly once.
+    launched: bool,
+    connections: connectivity::ConnectionSettings,
+    network_session: Option<network_session::NetworkSession>,
+    /// One session exchange in flight: (peer index, outcome).
+    session_rx: Option<Receiver<(usize, Result<String, String>)>>,
+    host: Option<HostState>,
+    /// Most recent network events, newest last, bounded.
+    activity: Vec<String>,
+    timeline_cards: Vec<timeline::Card>,
+    timeline_rx: Option<Receiver<Result<Vec<timeline::Card>, String>>>,
+    timeline_loaded: (FeedFilter, timeline::Scope),
+    timeline_scope: timeline::Scope,
+    timeline_refresh: Instant,
+    timeline_error: Option<String>,
+    timeline_query: String,
+    /// Decoded post images keyed by manifest id; `None` records a manifest
+    /// that could not be shown so it is not re-decoded every frame.
+    media_textures: HashMap<String, Option<egui::TextureHandle>>,
+    new_peer_label: String,
+    new_peer_endpoint: String,
+    card_input: String,
+    /// Host part the owner wants on their connection card.
+    card_host: String,
+    /// Post ids the owner has not had on screen yet; cleared when Home is
+    /// shown. Counted from timeline snapshots, so it needs no server.
+    unseen_posts: Vec<String>,
+    /// Device-local mute list; hides posts, suggestions and directory rows.
+    muted: mute_list::MuteList,
+    /// Post ids whose reply thread is expanded inline.
+    expanded_threads: Vec<String>,
+    /// Conversation list rows (peer name, last message, count), rebuilt
+    /// only when the store changes so decryption never runs per frame.
+    conversation_previews: Vec<ConversationPreview>,
+    previews_dirty: bool,
+    /// Community currently opened for discussion.
+    open_community: Option<mini_objects::ObjectId>,
+    discussion: Vec<discussion::Node>,
+    discussion_dirty: bool,
+    discussion_error: Option<String>,
+    discussion_order: discussion::Order,
+    discussion_title: String,
+    discussion_body: String,
+    discussion_reply_target: Option<mini_objects::ObjectId>,
+    discussion_reply_text: String,
+    collapsed_nodes: Vec<String>,
+    library_items: Vec<library::Item>,
+    library_dirty: bool,
+    library_path: String,
+    library_name: String,
+    library_content_type: String,
+    library_export_target: Option<mini_objects::ObjectId>,
+    library_share_target: Option<mini_objects::ObjectId>,
+    library_caption: String,
+    export_file_path: String,
+    /// Router mapping in progress (worker) and the last result.
+    router_rx: Option<Receiver<Result<connectivity::RouterMapping, String>>>,
+    router_mapping: Option<connectivity::RouterMapping>,
+    /// Opened on first play, never on launch.
+    audio: Option<player::AudioPlayer>,
+    /// Decoded animations by media id; `None` records a failed decode.
+    animations: HashMap<String, Option<player::Animation>>,
+    shorts_index: usize,
+    watch_target: Option<mini_objects::ObjectId>,
+    /// The one video decode in flight; dropping it stops the worker.
+    video: Option<video::VideoPlayer>,
+    catalog: Vec<catalog::Entry>,
+    catalog_rx: Option<Receiver<Result<Vec<catalog::Entry>, String>>>,
+    catalog_dirty: bool,
+    catalog_query: String,
+    catalog_kind: Option<catalog::Kind>,
+    catalog_sort: catalog::Sort,
+    /// Poster textures by media id; `None` = no poster for this kind.
+    thumbnails: HashMap<String, Option<egui::TextureHandle>>,
+    thumb_requested: std::collections::HashSet<String>,
+    thumb_tx: Option<std::sync::mpsc::Sender<(String, String)>>,
+    thumb_rx: Option<Receiver<(String, Option<egui::ColorImage>)>>,
+    channel_did: Option<String>,
+    /// Network search in flight: (peer label, endpoint, outcome) per peer.
+    netsearch_rx: Option<Receiver<SearchAnswer>>,
+    netsearch_pending: usize,
+    /// Remote hits: (peer label, endpoint, result), deduplicated by post id.
+    netsearch_results: Vec<(String, String, netsearch::RemoteResult)>,
+    netsearch_query: String,
+    /// One fetch in flight: (endpoint, post) and its outcome channel.
+    fetch_rx: Option<Receiver<Result<String, String>>>,
+    fetching: Option<mini_objects::ObjectId>,
+    /// Audio to play after the current track: (media, title, author).
+    play_queue: std::collections::VecDeque<(mini_objects::ObjectId, String, String)>,
     composer: String,
     community_name: String,
     community_charter: String,
@@ -226,6 +393,19 @@ impl Workspace {
         })
     }
 
+    /// Re-read on-disk state after another thread (a sync worker or the
+    /// host) inserted objects, without dropping an unlocked identity: the
+    /// owner should not have to unlock again after every exchange.
+    fn refresh(&mut self) -> Result<(), String> {
+        let store = Store::new(FsBackend::open(&self.root).map_err(|error| error.to_string())?);
+        let conversations = conversation_state::load(&self.root.join("conversations.dpapi"))?;
+        let sequence = next_object_sequence(&store, self.human.as_ref())?;
+        self.store = store;
+        self.conversations = conversations;
+        self.sequence = self.sequence.max(sequence);
+        Ok(())
+    }
+
     fn is_unlocked(&self) -> bool {
         self.identity.is_some()
     }
@@ -244,20 +424,6 @@ impl Workspace {
             .ok_or_else(|| "create a Mininet root first".to_string())
     }
 
-    fn create_root(&mut self) -> Result<(), String> {
-        if self.root_created() {
-            return Ok(());
-        }
-        let root_seeds =
-            load_or_create(&self.root.join("identity.dpapi")).map_err(|error| error.to_string())?;
-        let device_seeds =
-            load_or_create(&self.root.join("device.dpapi")).map_err(|error| error.to_string())?;
-        let identity = desktop_identity_from_seeds(&root_seeds, &device_seeds)?;
-        self.human = Some(identity.root.did());
-        self.identity = Some(identity);
-        Ok(())
-    }
-
     fn lock(&mut self) {
         self.identity = None;
     }
@@ -269,46 +435,6 @@ impl Workspace {
         let identity = load_desktop_identity(&self.root, true)?;
         self.human = Some(identity.root.did());
         self.identity = Some(identity);
-        Ok(())
-    }
-
-    fn publish_post(&mut self, text: &str) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_post(
-            &mut self.store,
-            &human,
-            &identity.device,
-            text,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
-        Ok(())
-    }
-
-    fn publish_profile(&mut self, name: &str, bio: &str) -> Result<(), String> {
-        let identity = self
-            .identity
-            .as_ref()
-            .ok_or_else(|| "identity is locked".to_string())?;
-        let human = self.human_did()?.clone();
-        publish_profile(
-            &mut self.store,
-            &human,
-            &identity.device,
-            name,
-            bio,
-            None,
-            now_ms(),
-            self.sequence,
-        )
-        .map_err(|error| error.to_string())?;
-        self.sequence = self.sequence.saturating_add(1);
         Ok(())
     }
 
@@ -469,6 +595,25 @@ impl Workspace {
         result
     }
 
+    /// Assemble a complete manifest or collection into memory, bounded.
+    fn media_bytes(&self, id: &mini_objects::ObjectId, max: u64) -> Result<Vec<u8>, String> {
+        let object = self.store.get(id).map_err(|error| error.to_string())?;
+        let total = match read_manifest(&object) {
+            Ok(manifest) => manifest.total_len,
+            Err(_) => library::read_collection(&object)?.total_len,
+        };
+        if total > max {
+            return Err(format!(
+                "{} is larger than the {} MB in-memory playback limit",
+                library::human_size(total),
+                max / (1024 * 1024)
+            ));
+        }
+        let mut out = Vec::with_capacity(total as usize);
+        library::export(&self.store, id, &mut out)?;
+        Ok(out)
+    }
+
     fn profile_image(&self, id: &mini_objects::ObjectId) -> Result<Vec<u8>, String> {
         let object = self.store.get(id).map_err(|error| error.to_string())?;
         let manifest = read_manifest(&object).map_err(|error| error.to_string())?;
@@ -512,6 +657,24 @@ impl Workspace {
         Ok(())
     }
 
+    fn publish_public_wall_confirmed(
+        &mut self,
+        name: &str,
+        bio: &str,
+        links: &[&str],
+        unlisted: bool,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_public_wall(name, bio, links, unlisted);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
     fn publish_community(&mut self, name: &str, charter: &str) -> Result<(), String> {
         let identity = self
             .identity
@@ -531,6 +694,18 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn publish_community_confirmed(&mut self, name: &str, charter: &str) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_community(name, charter);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn publish_media_post(
@@ -572,8 +747,21 @@ impl Workspace {
         Ok(())
     }
 
-    fn feed(&self, filter: FeedFilter) -> Result<Vec<FeedItem>, String> {
-        feed(&self.store, self.human_did()?, filter, 50).map_err(|error| error.to_string())
+    fn publish_media_post_confirmed(
+        &mut self,
+        path: &str,
+        content_type: &str,
+        caption: &str,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_media_post(path, content_type, caption);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn publish_comment(
@@ -600,7 +788,203 @@ impl Workspace {
         Ok(())
     }
 
+    fn publish_file(
+        &mut self,
+        path: &std::path::Path,
+        name: &str,
+        content_type: &str,
+    ) -> Result<library::Published, String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = (|| {
+            let identity = self
+                .identity
+                .as_ref()
+                .ok_or_else(|| "identity is locked".to_string())?;
+            let human = self.human_did()?.clone();
+            let published = library::publish_file(
+                &mut self.store,
+                &human,
+                &identity.device,
+                path,
+                name,
+                content_type,
+                now_ms(),
+                self.sequence,
+            )?;
+            self.sequence = self.sequence.saturating_add(published.objects);
+            Ok(published)
+        })();
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    /// Post a caption linking an existing manifest or collection.
+    fn publish_media_post_for(
+        &mut self,
+        media: &mini_objects::ObjectId,
+        caption: &str,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = (|| {
+            let identity = self
+                .identity
+                .as_ref()
+                .ok_or_else(|| "identity is locked".to_string())?;
+            let human = self.human_did()?.clone();
+            publish_media_post(
+                &mut self.store,
+                &human,
+                &identity.device,
+                media.clone(),
+                caption,
+                now_ms(),
+                self.sequence,
+            )
+            .map_err(|error| error.to_string())?;
+            self.sequence = self.sequence.saturating_add(1);
+            Ok(())
+        })();
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    fn build_redemption(
+        &mut self,
+        tickets: &[mini_objects::ObjectId],
+        rate: mini_ticket::Rate,
+    ) -> Result<(mini_objects::ObjectId, u64), String> {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or_else(|| "identity is locked".to_string())?;
+        let human = self.human_did()?.clone();
+        let object = mini_ticket::build_redemption(
+            &self.store,
+            &human,
+            &identity.device,
+            tickets,
+            rate,
+            now_ms(),
+            self.sequence,
+        )
+        .map_err(|error| error.to_string())?;
+        self.store
+            .insert(&object)
+            .map_err(|error| error.to_string())?;
+        self.sequence = self.sequence.saturating_add(1);
+        let request = mini_ticket::read_redemption(&object).map_err(|error| error.to_string())?;
+        Ok((request.id, request.micro_mini))
+    }
+
+    fn build_redemption_confirmed(
+        &mut self,
+        tickets: &[mini_objects::ObjectId],
+        rate: mini_ticket::Rate,
+    ) -> Result<(mini_objects::ObjectId, u64), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.build_redemption(tickets, rate);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    /// (id, micro-MINI, ticket count, verifies) for every redemption request
+    /// authored by this identity, newest first.
+    fn redemption_requests(&self) -> Vec<(mini_objects::ObjectId, u64, usize, bool)> {
+        let Some(me) = self.human.as_ref() else {
+            return Vec::new();
+        };
+        let Ok(ids) = self
+            .store
+            .by_type(&ObjectType::Custom(mini_ticket::REDEMPTION_TYPE.into()))
+        else {
+            return Vec::new();
+        };
+        let mut rows: Vec<(u64, mini_objects::ObjectId, u64, usize, bool)> = Vec::new();
+        for id in ids {
+            let Ok(object) = self.store.get(&id) else {
+                continue;
+            };
+            let Ok(request) = mini_ticket::read_redemption(&object) else {
+                continue;
+            };
+            if &request.claimant != me {
+                continue;
+            }
+            let ok = mini_ticket::verify_redemption(&self.store, &request).is_ok();
+            rows.push((
+                request.timestamp_ms,
+                request.id,
+                request.micro_mini,
+                request.tickets.len(),
+                ok,
+            ));
+        }
+        rows.sort_by(|a, b| b.0.cmp(&a.0));
+        rows.into_iter()
+            .map(|(_, id, micro, n, ok)| (id, micro, n, ok))
+            .collect()
+    }
+
+    fn publish_comment_confirmed(
+        &mut self,
+        parent: &mini_objects::ObjectId,
+        text: &str,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.publish_comment(parent, text);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    fn set_community_membership_confirmed(
+        &mut self,
+        community: &mini_objects::ObjectId,
+        joined: bool,
+    ) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.set_community_membership(community, joined);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
     fn react_like(&mut self, target: &mini_objects::ObjectId) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.react_like_unlocked(target);
+        if relock {
+            self.lock();
+        }
+        result
+    }
+
+    fn react_like_unlocked(&mut self, target: &mini_objects::ObjectId) -> Result<(), String> {
         let identity = self
             .identity
             .as_ref()
@@ -619,12 +1003,6 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
-    }
-
-    fn comment_count(&self, target: &mini_objects::ObjectId) -> usize {
-        comments(&self.store, target)
-            .map(|items| items.len())
-            .unwrap_or(0)
     }
 
     fn export_bundle(&self, path: &str) -> Result<usize, String> {
@@ -760,16 +1138,6 @@ impl Workspace {
             .count()
     }
 
-    fn post_text(&self, item: &FeedItem) -> String {
-        // Canonical path only: `resolve_post` re-applies the same
-        // structural validation `feed` already used to admit this item
-        // (type, bound, UTF-8, link shape), rather than re-decoding the
-        // raw payload here and risking a second, divergent decode rule.
-        resolve_post(&self.store, &item.id)
-            .map(|post| post.text)
-            .unwrap_or_else(|_| "[unreadable or encrypted post]".to_string())
-    }
-
     fn communities(&self) -> Vec<(mini_objects::ObjectId, String, String, usize, bool)> {
         self.store
             .by_type(&ObjectType::COMMUNITY)
@@ -787,9 +1155,6 @@ impl Workspace {
     }
 
     fn create_beta_conversation(&mut self, label: &str, peer: &str) -> Result<String, String> {
-        if !self.is_unlocked() {
-            return Err("identity is locked".to_string());
-        }
         let peer = Did::parse(peer.trim()).map_err(|error| error.to_string())?;
         let inviter = self.human_did()?.clone();
         let (record, invite) = ConversationRecord::create(label.trim().to_string(), peer, inviter)?;
@@ -852,6 +1217,18 @@ impl Workspace {
         .map_err(|error| error.to_string())?;
         self.sequence = self.sequence.saturating_add(1);
         Ok(())
+    }
+
+    fn send_private_message_confirmed(&mut self, index: usize, body: &str) -> Result<(), String> {
+        let relock = !self.is_unlocked();
+        if relock {
+            self.unlock()?;
+        }
+        let result = self.send_private_message(index, body);
+        if relock {
+            self.lock();
+        }
+        result
     }
 
     fn private_messages(&self, index: usize) -> Result<mini_messaging::ConversationScan, String> {
@@ -1079,71 +1456,18 @@ fn open_sync_state(
     Ok((store, cache))
 }
 
-fn run_peer_sync(root: &std::path::Path, endpoint: &str, listener: bool) -> Result<String, String> {
-    let identity = load_desktop_identity(root, false).map_err(|error| {
-        format!(
-            "identity/device vault unavailable; unlock the identity once before syncing: {error}"
-        )
-    })?;
-    let (mut store, mut cache) = open_sync_state(root, &identity)?;
+fn accept_once(endpoint: &str) -> Result<TcpStream, String> {
+    let listener = std::net::TcpListener::bind(endpoint).map_err(|error| error.to_string())?;
+    let (stream, _) = listener.accept().map_err(|error| error.to_string())?;
+    Ok(stream)
+}
 
+fn run_peer_sync(root: &std::path::Path, endpoint: &str, listener: bool) -> Result<String, String> {
     if listener {
-        let listener = std::net::TcpListener::bind(endpoint).map_err(|error| error.to_string())?;
-        let (stream, _) = listener.accept().map_err(|error| error.to_string())?;
-        configure_peer_stream(&stream)?;
-        let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
-        let hello = bearer.recv().map_err(|error| error.to_string())?;
-        let (mut channel, response) =
-            Responder::respond(&hello).map_err(|error| error.to_string())?;
-        bearer.send(&response).map_err(|error| error.to_string())?;
-        let report = sync_bidirectional(
-            &mut bearer,
-            &mut channel,
-            &mut store,
-            &mut cache,
-            SyncRole::Responder,
-        )
-        .map_err(|error| error.to_string())?;
-        Ok(format!(
-            "Peer sync complete: received {}, accepted {}, identity carriers {}, unknown authors {}, invalid {}.",
-            report.received,
-            report.accepted,
-            report.carriers,
-            report.unknown_author,
-            report.invalid
-        ))
+        let stream = accept_once(endpoint)?;
+        peer_link::serve(root, stream, &[]).map(|summary| format!("Peer sync complete: {summary}."))
     } else {
-        let address = endpoint
-            .to_socket_addrs()
-            .map_err(|error| error.to_string())?
-            .next()
-            .ok_or_else(|| "peer address did not resolve".to_string())?;
-        let stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(10))
-            .map_err(|error| error.to_string())?;
-        configure_peer_stream(&stream)?;
-        let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
-        let (initiator, hello) = Initiator::start().map_err(|error| error.to_string())?;
-        bearer.send(&hello).map_err(|error| error.to_string())?;
-        let response = bearer.recv().map_err(|error| error.to_string())?;
-        let mut channel = initiator
-            .finish(&response)
-            .map_err(|error| error.to_string())?;
-        let report = sync_bidirectional(
-            &mut bearer,
-            &mut channel,
-            &mut store,
-            &mut cache,
-            SyncRole::Initiator,
-        )
-        .map_err(|error| error.to_string())?;
-        Ok(format!(
-            "Peer sync complete: received {}, accepted {}, identity carriers {}, unknown authors {}, invalid {}.",
-            report.received,
-            report.accepted,
-            report.carriers,
-            report.unknown_author,
-            report.invalid
-        ))
+        peer_link::dial_public(root, endpoint)
     }
 }
 
@@ -1153,53 +1477,20 @@ fn run_private_sync(
     listener: bool,
     route: OpaqueRoute,
 ) -> Result<String, String> {
-    let mut store = Store::new(FsBackend::open(root).map_err(|error| error.to_string())?);
-    let report = if listener {
-        let listener = std::net::TcpListener::bind(endpoint).map_err(|error| error.to_string())?;
-        let (stream, _) = listener.accept().map_err(|error| error.to_string())?;
-        configure_peer_stream(&stream)?;
-        let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
-        let hello = bearer.recv().map_err(|error| error.to_string())?;
-        let (mut channel, response) =
-            Responder::respond(&hello).map_err(|error| error.to_string())?;
-        bearer.send(&response).map_err(|error| error.to_string())?;
-        sync_private_route_bidirectional(
-            &mut bearer,
-            &mut channel,
-            &mut store,
-            route,
-            SyncRole::Responder,
-        )
-        .map_err(|error| error.to_string())?
+    if listener {
+        let stream = accept_once(endpoint)?;
+        peer_link::serve(root, stream, &[route])
+            .map(|summary| format!("Private sync complete: {summary}."))
     } else {
-        let address = endpoint
-            .to_socket_addrs()
-            .map_err(|error| error.to_string())?
-            .next()
-            .ok_or_else(|| "peer address did not resolve".to_string())?;
-        let stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(10))
-            .map_err(|error| error.to_string())?;
-        configure_peer_stream(&stream)?;
-        let mut bearer = TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
-        let (initiator, hello) = Initiator::start().map_err(|error| error.to_string())?;
-        bearer.send(&hello).map_err(|error| error.to_string())?;
-        let response = bearer.recv().map_err(|error| error.to_string())?;
-        let mut channel = initiator
-            .finish(&response)
-            .map_err(|error| error.to_string())?;
-        sync_private_route_bidirectional(
-            &mut bearer,
-            &mut channel,
-            &mut store,
-            route,
-            SyncRole::Initiator,
-        )
-        .map_err(|error| error.to_string())?
-    };
-    Ok(format!(
-        "Private sync complete: received {}, accepted {}, invalid {}.",
-        report.received, report.accepted, report.invalid
-    ))
+        match peer_link::dial_private(root, endpoint, route)? {
+            peer_link::PrivateOutcome::Synced { received, accepted } => Ok(format!(
+                "Private sync complete: received {received}, accepted {accepted}."
+            )),
+            peer_link::PrivateOutcome::NotOnThisPeer => {
+                Err("the peer does not hold this conversation".into())
+            }
+        }
+    }
 }
 
 fn scan_nearby_profiles() -> Result<Vec<NearbyProfile>, String> {
@@ -1237,6 +1528,8 @@ fn run_discoverable_profile_sync(
     display_name: &str,
     visibility_duration: Duration,
     progress: &mpsc::Sender<Result<String, String>>,
+    ready: Option<&mpsc::Sender<()>>,
+    max_completed: Option<usize>,
 ) -> Result<String, String> {
     let identity = load_desktop_identity(root, false).map_err(|error| {
         format!(
@@ -1250,44 +1543,31 @@ fn run_discoverable_profile_sync(
         .map_err(|error| error.to_string())?;
     let announcer = LocalProfileAnnouncer::bind(port, &identity.root.did(), display_name)
         .map_err(|error| error.to_string())?;
+    // The socket is in LISTEN state as soon as `TcpListener::bind` above
+    // returns (std's `bind` calls `listen()` internally), and the local
+    // announcer is bound too, so it is safe to tell a caller we are ready to
+    // accept connections. Only tests observe this; real callers pass `None`.
+    if let Some(ready) = ready {
+        let _ = ready.send(());
+    }
     let deadline = std::time::Instant::now() + visibility_duration;
     let mut completed = 0usize;
     loop {
         announcer.announce().map_err(|error| error.to_string())?;
         match listener.accept() {
             Ok((stream, peer)) => {
-                let result = (|| {
-                    stream
-                        .set_nonblocking(false)
-                        .map_err(|error| error.to_string())?;
-                    configure_peer_stream(&stream)?;
-                    let (mut store, mut cache) = open_sync_state(root, &identity)?;
-                    let mut bearer =
-                        TcpBearer::from_stream(stream).map_err(|error| error.to_string())?;
-                    let hello = bearer.recv().map_err(|error| error.to_string())?;
-                    let (mut channel, response) =
-                        Responder::respond(&hello).map_err(|error| error.to_string())?;
-                    bearer.send(&response).map_err(|error| error.to_string())?;
-                    sync_bidirectional(
-                        &mut bearer,
-                        &mut channel,
-                        &mut store,
-                        &mut cache,
-                        SyncRole::Responder,
-                    )
-                    .map_err(|error| error.to_string())
-                })();
+                let result = peer_link::serve(root, stream, &[]);
                 match result {
-                    Ok(report) => {
+                    Ok(summary) => {
                         completed = completed.saturating_add(1);
                         let _ = progress.send(Ok(format!(
-                            "Nearby sync #{completed} complete with {peer}: received {}, accepted {}, identity carriers {}, unknown authors {}, invalid {}. Still visible until the window ends.",
-                            report.received,
-                            report.accepted,
-                            report.carriers,
-                            report.unknown_author,
-                            report.invalid
+                            "Nearby sync #{completed} complete with {peer}: {summary}. Still visible until the window ends."
                         )));
+                        if max_completed.is_some_and(|limit| completed >= limit) {
+                            return Ok(format!(
+                                "Nearby visibility window ended after {completed} completed sync connection(s)."
+                            ));
+                        }
                     }
                     Err(error) => {
                         let _ = progress.send(Err(format!(
@@ -1311,6 +1591,16 @@ fn run_discoverable_profile_sync(
 impl Default for MininetApp {
     fn default() -> Self {
         let workspace = Workspace::open().ok();
+        let (app_service, app_status_rx, app_service_error) = match app_service::Client::spawn() {
+            Ok(client) => match client.request(AppCommand::Status) {
+                Ok(receiver) => (Some(client), Some(receiver), None),
+                Err(error) => (Some(client), None, Some(error)),
+            },
+            Err(error) => (None, None, Some(error)),
+        };
+        let connections = connectivity::load(&data_root());
+        let listen_port = connections.listen_port.to_string();
+        let (muted, mute_error) = mute_list::load(&data_root());
         let existing_profile = workspace.as_ref().and_then(Workspace::current_profile);
         let view = if workspace
             .as_ref()
@@ -1320,10 +1610,99 @@ impl Default for MininetApp {
         } else {
             View::Onboarding
         };
+        let notice = match (mute_error, app_service_error) {
+            (_, Some(error)) => format!(
+                "Application core unavailable: {error}. Read-only local data remains available, but core signing actions are disabled."
+            ),
+            (Some(error), None) => {
+                format!("Mute list could not be read and is treated as empty: {error}")
+            }
+            (None, None) => {
+                "Application core starting. Identity is locked; no network activity has started."
+                    .to_string()
+            }
+        };
         Self {
             workspace,
+            app_service,
+            app_status: None,
+            app_status_rx,
+            app_action: None,
+            app_events_rx: None,
+            app_events_due: Instant::now(),
+            app_last_event_id: None,
+            post_operation: None,
+            profile_operation: None,
             view,
             privacy: load_privacy_settings(),
+            theme_applied: false,
+            launched: false,
+            connections,
+            network_session: None,
+            session_rx: None,
+            host: None,
+            activity: Vec::new(),
+            timeline_cards: Vec::new(),
+            timeline_rx: None,
+            timeline_loaded: (FeedFilter::Chronological, timeline::Scope::Following),
+            timeline_scope: timeline::Scope::Following,
+            timeline_refresh: Instant::now(),
+            timeline_error: None,
+            timeline_query: String::new(),
+            media_textures: HashMap::new(),
+            new_peer_label: String::new(),
+            new_peer_endpoint: String::new(),
+            card_input: String::new(),
+            card_host: String::new(),
+            unseen_posts: Vec::new(),
+            muted,
+            expanded_threads: Vec::new(),
+            conversation_previews: Vec::new(),
+            previews_dirty: true,
+            open_community: None,
+            discussion: Vec::new(),
+            discussion_dirty: true,
+            discussion_error: None,
+            discussion_order: discussion::Order::Top,
+            discussion_title: String::new(),
+            discussion_body: String::new(),
+            discussion_reply_target: None,
+            discussion_reply_text: String::new(),
+            collapsed_nodes: Vec::new(),
+            library_items: Vec::new(),
+            library_dirty: true,
+            library_path: String::new(),
+            library_name: String::new(),
+            library_content_type: String::new(),
+            library_export_target: None,
+            library_share_target: None,
+            library_caption: String::new(),
+            export_file_path: String::new(),
+            router_rx: None,
+            router_mapping: None,
+            audio: None,
+            animations: HashMap::new(),
+            shorts_index: 0,
+            watch_target: None,
+            video: None,
+            play_queue: std::collections::VecDeque::new(),
+            catalog: Vec::new(),
+            catalog_rx: None,
+            catalog_dirty: true,
+            catalog_query: String::new(),
+            catalog_kind: None,
+            catalog_sort: catalog::Sort::Newest,
+            thumbnails: HashMap::new(),
+            thumb_requested: std::collections::HashSet::new(),
+            thumb_tx: None,
+            thumb_rx: None,
+            channel_did: None,
+            netsearch_rx: None,
+            netsearch_pending: 0,
+            netsearch_results: Vec::new(),
+            netsearch_query: String::new(),
+            fetch_rx: None,
+            fetching: None,
             composer: String::new(),
             community_name: String::new(),
             community_charter: String::new(),
@@ -1392,8 +1771,8 @@ impl Default for MininetApp {
                 .join("mininet-import.minibundle")
                 .display()
                 .to_string(),
-            peer_address: "127.0.0.1:46000".to_string(),
-            listen_port: "46000".to_string(),
+            peer_address: String::new(),
+            listen_port,
             follow_target: String::new(),
             conversation_label: String::new(),
             conversation_peer: String::new(),
@@ -1408,17 +1787,786 @@ impl Default for MininetApp {
             selftest_report: None,
             selftest_area: None,
             install_notice: String::new(),
-            notice:
-                "Local object store ready. Identity is locked; no network activity has started."
-                    .to_string(),
+            notice,
         }
     }
 }
 
 impl eframe::App for MininetApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.apply_theme(ctx);
-        if self.view == View::Creator {
+        if !self.theme_applied {
+            theme::apply(ctx);
+            self.theme_applied = true;
+        }
+        if !self.launched {
+            self.launched = true;
+            self.apply_launch_policy();
+        }
+        self.poll_app_service();
+        self.poll_timeline(ctx);
+        self.poll_catalog(ctx);
+        self.poll_netsearch();
+        self.poll_host();
+        self.poll_router();
+        self.poll_session();
+        self.poll_dropped_files(ctx);
+        self.poll_discovery();
+        self.poll_one_shot_sync();
+        self.poll_selftest();
+        self.poll_visibility();
+        self.schedule_session();
+        self.advance_play_queue();
+        if self.network_session.is_some() || self.host.is_some() {
+            ctx.request_repaint_after(Duration::from_secs(1));
+        }
+        if self
+            .audio
+            .as_ref()
+            .is_some_and(player::AudioPlayer::is_playing)
+        {
+            ctx.request_repaint_after(Duration::from_millis(250));
+        }
+        if self.video.as_ref().is_some_and(|video| !video.ended) {
+            ctx.request_repaint_after(Duration::from_millis(16));
+        }
+        if self.sync_rx.is_some()
+            || self.session_rx.is_some()
+            || self.discovery_rx.is_some()
+            || self.visibility_rx.is_some()
+            || self.selftest_rx.is_some()
+            || self.timeline_rx.is_some()
+            || self.app_status_rx.is_some()
+            || self.app_action.is_some()
+            || self.app_events_rx.is_some()
+        {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        }
+        if self.view == View::Onboarding {
+            self.onboarding(ctx);
+            return;
+        }
+        self.top_bar(ctx);
+        self.navigation_rail(ctx);
+        if ctx.screen_rect().width() >= 1100.0 {
+            self.discovery_column(ctx);
+        }
+        self.now_playing_bar(ctx);
+        egui::TopBottomPanel::bottom("status_bar")
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG)
+                    .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                    .inner_margin(egui::Margin::symmetric(16, 6)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let summary = self.connection_summary();
+                    let reserve = 360.0_f32.min(ui.available_width() * 0.45);
+                    ui.add_sized(
+                        [ui.available_width() - reserve, 18.0],
+                        egui::Label::new(
+                            egui::RichText::new(&self.notice)
+                                .small()
+                                .color(theme::TEXT_SECONDARY),
+                        )
+                        .truncate(),
+                    )
+                    .on_hover_text(&self.notice);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        theme::muted(ui, &summary);
+                    });
+                });
+            });
+
+        egui::CentralPanel::default()
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG)
+                    .inner_margin(egui::Margin::symmetric(24, 18)),
+            )
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        self.header(ui);
+                        ui.add_space(12.0);
+                        match self.view {
+                            View::Onboarding => {
+                                unreachable!("onboarding returns before the main shell")
+                            }
+                            View::Home => self.home(ui),
+                            View::Discover => self.discover(ui),
+                            View::Media => self.media_timeline(ui),
+                            View::Shorts => self.shorts(ui),
+                            View::Watch => self.watch(ui),
+                            View::Channel => self.channel(ui),
+                            View::Inbox => self.inbox(ui),
+                            View::People => self.people(ui),
+                            View::Communities => self.communities(ui),
+                            View::Creator => self.creator(ui),
+                            View::Connections => self.connections(ui),
+                            View::Library => self.library(ui),
+                            View::Earnings => self.earnings(ui),
+                            View::System => self.system(ui),
+                            View::Diagnostics => self.diagnostics(ui),
+                            View::Updates => self.updates(ui),
+                            View::Privacy => self.privacy(ui),
+                        }
+                        ui.add_space(18.0);
+                    });
+            });
+    }
+}
+
+impl MininetApp {
+    // ----- background workers and polling -------------------------------
+
+    fn log_activity(&mut self, line: String) {
+        const MAX_ACTIVITY: usize = 60;
+        self.activity.push(line);
+        if self.activity.len() > MAX_ACTIVITY {
+            let excess = self.activity.len() - MAX_ACTIVITY;
+            self.activity.drain(..excess);
+        }
+    }
+
+    fn core_unlocked(&self) -> bool {
+        self.app_status
+            .as_ref()
+            .is_some_and(|status| status.identity_unlocked)
+    }
+
+    fn core_available(&self) -> bool {
+        self.app_service.is_some()
+    }
+
+    fn start_core_action(&mut self, action: CoreAction, command: AppCommand) {
+        if self.app_action.is_some() {
+            self.notice = "The application core is finishing the previous signing action.".into();
+            return;
+        }
+        let Some(client) = self.app_service.as_ref() else {
+            self.notice =
+                "Application core unavailable. This signing action is disabled.".to_string();
+            return;
+        };
+        match client.request(command) {
+            Ok(receiver) => {
+                self.app_action = Some((action, receiver));
+                self.notice = "Application core is processing the signed action…".to_string();
+            }
+            Err(error) => {
+                self.notice = format!("Application core unavailable: {error}");
+            }
+        }
+    }
+
+    fn request_core_status(&mut self) {
+        if self.app_status_rx.is_some() {
+            return;
+        }
+        let Some(client) = self.app_service.as_ref() else {
+            return;
+        };
+        match client.request(AppCommand::Status) {
+            Ok(receiver) => self.app_status_rx = Some(receiver),
+            Err(error) => self.notice = format!("Could not query application core: {error}"),
+        }
+    }
+
+    fn post_operation_id(&mut self, text: &str) -> String {
+        if let Some((saved_text, operation_id)) = self.post_operation.as_ref() {
+            if saved_text == text {
+                return operation_id.clone();
+            }
+        }
+        let operation_id = app_service::operation_id("post");
+        self.post_operation = Some((text.to_string(), operation_id.clone()));
+        operation_id
+    }
+
+    fn profile_operation_id(&mut self, display_name: &str, bio: &str) -> String {
+        if let Some((saved_name, saved_bio, operation_id)) = self.profile_operation.as_ref() {
+            if saved_name == display_name && saved_bio == bio {
+                return operation_id.clone();
+            }
+        }
+        let operation_id = app_service::operation_id("profile");
+        self.profile_operation = Some((
+            display_name.to_string(),
+            bio.to_string(),
+            operation_id.clone(),
+        ));
+        operation_id
+    }
+
+    fn poll_app_service(&mut self) {
+        let status_result =
+            self.app_status_rx
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core status request stopped".to_string()))
+                    }
+                });
+        if let Some(result) = status_result {
+            self.app_status_rx = None;
+            match result {
+                Ok(AppReply::Status(status)) => {
+                    self.app_status = Some(status);
+                }
+                Ok(_) => {
+                    self.notice =
+                        "Application core returned an unexpected status response.".to_string();
+                }
+                Err(error) => {
+                    self.notice = format!("Could not read application core status: {error}");
+                }
+            }
+        }
+
+        let action_result =
+            self.app_action
+                .as_ref()
+                .and_then(|(_, receiver)| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core action stopped".to_string()))
+                    }
+                });
+        if let Some(result) = action_result {
+            let (action, _) = self
+                .app_action
+                .take()
+                .expect("action receiver existed when result was read");
+            self.finish_core_action(action, result);
+        }
+
+        let event_result =
+            self.app_events_rx
+                .as_ref()
+                .and_then(|receiver| match receiver.try_recv() {
+                    Ok(result) => Some(result),
+                    Err(mpsc::TryRecvError::Empty) => None,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        Some(Err("application core event request stopped".to_string()))
+                    }
+                });
+        if let Some(result) = event_result {
+            self.app_events_rx = None;
+            self.app_events_due = Instant::now() + Duration::from_secs(1);
+            match result {
+                Ok(AppReply::Events(events)) => {
+                    for event in events {
+                        if self
+                            .app_last_event_id
+                            .is_some_and(|last| event.event_id != last.saturating_add(1))
+                        {
+                            self.timeline_refresh = Instant::now();
+                            self.request_core_status();
+                        }
+                        self.app_last_event_id = Some(event.event_id);
+                        match event.kind {
+                            ServiceEventKind::RootCreated { .. } => self.request_core_status(),
+                            ServiceEventKind::IdentityChanged { unlocked } => {
+                                if let Some(status) = self.app_status.as_mut() {
+                                    status.identity_unlocked = unlocked;
+                                } else {
+                                    self.request_core_status();
+                                }
+                            }
+                            ServiceEventKind::ObjectPublished { .. }
+                            | ServiceEventKind::FeedChanged => {
+                                self.timeline_refresh = Instant::now();
+                            }
+                        }
+                    }
+                }
+                Ok(_) => {
+                    self.notice =
+                        "Application core returned an unexpected event response.".to_string();
+                }
+                Err(error) => {
+                    self.notice = format!("Application core events unavailable: {error}");
+                }
+            }
+        }
+
+        if self.app_events_rx.is_none() && Instant::now() >= self.app_events_due {
+            if let Some(client) = self.app_service.as_ref() {
+                match client.request(AppCommand::DrainEvents { limit: 64 }) {
+                    Ok(receiver) => self.app_events_rx = Some(receiver),
+                    Err(error) => {
+                        self.app_events_due = Instant::now() + Duration::from_secs(2);
+                        self.notice = format!("Application core events unavailable: {error}");
+                    }
+                }
+            }
+        }
+    }
+
+    fn finish_core_action(&mut self, action: CoreAction, result: Result<AppReply, String>) {
+        match (action, result) {
+            (CoreAction::CreateRoot, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.reload_workspace();
+                self.notice =
+                    "Root created locally by the application core. Publish your public account to continue."
+                        .to_string();
+            }
+            (CoreAction::UnlockIdentity, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.notice =
+                    "Identity unlocked inside the application core. Review and confirm before signing."
+                        .to_string();
+            }
+            (CoreAction::LockIdentity, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.signing_confirmation = false;
+                self.notice =
+                    "Identity locked in the application core. Reading remains available; signing is disabled."
+                        .to_string();
+            }
+            (CoreAction::LockAfterProfile, Ok(AppReply::Status(status))) => {
+                self.app_status = Some(status);
+                self.notice = "Public account created locally and identity locked again. Add any optional public details in Creator, or open People when you are ready.".to_string();
+            }
+            (CoreAction::PublishProfile { display_name, bio }, Ok(AppReply::Published(_))) => {
+                self.profile_name = display_name;
+                self.profile_bio = bio;
+                self.profile_operation = None;
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.view = View::Creator;
+                self.start_core_action(CoreAction::LockAfterProfile, AppCommand::LockIdentity);
+            }
+            (CoreAction::PublishPost { text }, Ok(AppReply::Published(_))) => {
+                if self.composer.trim() == text {
+                    self.composer.clear();
+                }
+                self.post_operation = None;
+                self.signing_confirmation = false;
+                self.reload_workspace();
+                self.timeline_refresh = Instant::now();
+                self.notice = if self.network_session.is_some() || self.host.is_some() {
+                    "Posted through the application core. It shares with your peers on the next exchange."
+                        .to_string()
+                } else {
+                    "Posted through the application core and saved locally. Start a session in Connections to share it."
+                        .to_string()
+                };
+            }
+            (action, Ok(reply)) => {
+                self.notice = format!(
+                    "Application core returned an unexpected response for {action:?}: {reply:?}"
+                );
+                self.request_core_status();
+            }
+            (action, Err(error)) => {
+                self.notice = format!("Application core {action:?} failed: {error}");
+                self.request_core_status();
+            }
+        }
+    }
+
+    /// Re-read store-backed state after a worker inserted objects. Keeps
+    /// the identity unlocked; falls back to a fresh open if refresh fails.
+    fn reload_workspace(&mut self) {
+        match self.workspace.as_mut() {
+            Some(workspace) => {
+                if workspace.refresh().is_err() {
+                    self.workspace = Workspace::open().ok();
+                }
+            }
+            None => self.workspace = Workspace::open().ok(),
+        }
+        self.timeline_refresh = Instant::now();
+        self.previews_dirty = true;
+        self.discussion_dirty = true;
+        self.library_dirty = true;
+        self.catalog_dirty = true;
+    }
+
+    fn rebuild_conversation_previews(&mut self) {
+        self.previews_dirty = false;
+        let Some(workspace) = self.workspace.as_ref() else {
+            self.conversation_previews.clear();
+            return;
+        };
+        let profiles = workspace.known_profiles();
+        self.conversation_previews = workspace
+            .conversations
+            .iter()
+            .enumerate()
+            .map(|(index, conversation)| {
+                let peer_did = conversation.peer.as_str().to_owned();
+                let peer_name = profiles
+                    .iter()
+                    .find(|profile| profile.human == conversation.peer)
+                    .map(|profile| profile.display_name.clone())
+                    .unwrap_or_else(|| conversation.label.clone());
+                let (last_body, last_timestamp_ms, count) = workspace
+                    .private_messages(index)
+                    .ok()
+                    .map(|scan| {
+                        let count = scan.messages.len();
+                        let last = scan.messages.last();
+                        (
+                            last.map(|message| message.body.clone()).unwrap_or_default(),
+                            last.map(|message| message.timestamp_ms).unwrap_or(0),
+                            count,
+                        )
+                    })
+                    .unwrap_or_default();
+                ConversationPreview {
+                    index,
+                    label: conversation.label.clone(),
+                    peer_name,
+                    peer_did,
+                    last_body,
+                    last_timestamp_ms,
+                    count,
+                }
+            })
+            .collect();
+    }
+
+    fn save_connections(&mut self) {
+        if let Err(error) = connectivity::save(&data_root(), &self.connections) {
+            self.notice = format!("Connection settings were not saved: {error}");
+        }
+    }
+
+    /// The persisted, default-off launch choices. Nothing else starts a
+    /// socket because the application was opened.
+    fn apply_launch_policy(&mut self) {
+        let ready = self
+            .workspace
+            .as_ref()
+            .is_some_and(|workspace| workspace.root_created() && workspace.has_public_account());
+        if !ready {
+            return;
+        }
+        if self.connections.host_on_launch {
+            self.start_host();
+            if self.connections.router_mapping_on_launch {
+                self.start_router_mapping();
+            }
+        }
+        if self.connections.session_on_launch && !self.connections.peers.is_empty() {
+            self.start_session();
+        }
+    }
+
+    fn start_host(&mut self) {
+        if self.host.is_some() {
+            self.notice = "Already accepting connections.".into();
+            return;
+        }
+        if self
+            .workspace
+            .as_ref()
+            .is_some_and(Workspace::profile_needs_device_upgrade)
+        {
+            self.notice = "Upgrade this beta profile for verified peer sync first (People).".into();
+            return;
+        }
+        let port = self.connections.listen_port;
+        let routes: Vec<OpaqueRoute> = if self.connections.include_private {
+            self.workspace
+                .as_ref()
+                .map(|workspace| {
+                    workspace
+                        .conversations
+                        .iter()
+                        .map(ConversationRecord::route)
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let stop = Arc::new(AtomicBool::new(false));
+        let (sender, receiver) = mpsc::channel();
+        let root = data_root();
+        let worker_stop = Arc::clone(&stop);
+        std::thread::spawn(move || peer_link::run_host(root, port, routes, worker_stop, sender));
+        self.host = Some(HostState {
+            stop,
+            rx: receiver,
+            port,
+            started: Instant::now(),
+            listening: false,
+            served: 0,
+            failed: 0,
+            last: String::new(),
+        });
+        self.log_activity(format!("Hosting requested on port {port}."));
+    }
+
+    fn stop_host(&mut self) {
+        if self.host.take().is_some() {
+            self.notice =
+                "Stopped accepting connections. Exchanges already in progress may finish.".into();
+            self.log_activity("Hosting stopped.".into());
+        }
+    }
+
+    fn start_router_mapping(&mut self) {
+        if self.router_rx.is_some() {
+            return;
+        }
+        let port = self.connections.listen_port;
+        let (sender, receiver) = mpsc::channel();
+        self.router_rx = Some(receiver);
+        self.notice = "Asking your router to forward the port (UPnP)…".into();
+        std::thread::spawn(move || {
+            // Two-hour lease, renewed by the owner (or on launch when hosting
+            // on launch is enabled); a forgotten mapping expires by itself.
+            let _ = sender.send(connectivity::map_port_on_router(port, 7200));
+        });
+    }
+
+    fn poll_router(&mut self) {
+        let result = self
+            .router_rx
+            .as_ref()
+            .and_then(|receiver| match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("the router worker stopped unexpectedly".into()))
+                }
+            });
+        let Some(result) = result else {
+            return;
+        };
+        self.router_rx = None;
+        match result {
+            Ok(mapping) => {
+                match mapping.external_ip {
+                    Some(ip) => {
+                        self.card_host = ip.to_string();
+                        self.log_activity(format!(
+                            "Router {} forwards port {} to this machine; public address {}:{} (lease {} min).",
+                            mapping.gateway,
+                            mapping.external_port,
+                            ip,
+                            mapping.external_port,
+                            mapping.lease_seconds / 60
+                        ));
+                        self.notice = format!(
+                            "Reachable at {}:{} — your connection card now carries it.",
+                            ip, mapping.external_port
+                        );
+                    }
+                    None => {
+                        self.log_activity(format!(
+                            "Router {} forwards port {} to this machine, but it has no public address itself (double NAT or carrier-grade NAT).",
+                            mapping.gateway, mapping.external_port
+                        ));
+                        self.notice = "The router accepted the mapping but has no public address of its own: it sits behind another NAT. Peers on the internet still cannot reach you through it; forward on the upstream router too, or host from a machine with a public address.".into();
+                    }
+                }
+                self.router_mapping = Some(mapping);
+            }
+            Err(error) => {
+                self.notice = format!("Router mapping failed: {error}. Forward the port by hand or host from a machine with a public address.");
+                self.log_activity(format!("Router mapping failed: {error}"));
+            }
+        }
+    }
+
+    fn poll_host(&mut self) {
+        let mut events = Vec::new();
+        let mut ended = None;
+        if let Some(host) = self.host.as_ref() {
+            loop {
+                match host.rx.try_recv() {
+                    Ok(peer_link::HostEvent::Ended(result)) => {
+                        ended = Some(result);
+                        break;
+                    }
+                    Ok(event) => events.push(event),
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        ended = Some(Err("the hosting worker stopped unexpectedly".into()));
+                        break;
+                    }
+                }
+            }
+        }
+        let mut changed = false;
+        for event in events {
+            match event {
+                peer_link::HostEvent::Listening { port } => {
+                    if let Some(host) = self.host.as_mut() {
+                        host.listening = true;
+                    }
+                    self.log_activity(format!("Accepting connections on port {port}."));
+                }
+                peer_link::HostEvent::Connection { peer, result } => {
+                    changed |= result.is_ok();
+                    let line = match &result {
+                        Ok(summary) => format!("{peer}: {summary}"),
+                        Err(error) => format!("{peer}: {error}"),
+                    };
+                    if let Some(host) = self.host.as_mut() {
+                        if result.is_ok() {
+                            host.served = host.served.saturating_add(1);
+                        } else {
+                            host.failed = host.failed.saturating_add(1);
+                        }
+                        host.last = line.clone();
+                    }
+                    self.log_activity(line);
+                }
+                peer_link::HostEvent::Ended(_) => {}
+            }
+        }
+        if let Some(result) = ended {
+            self.host = None;
+            match result {
+                Ok(summary) => self.log_activity(summary),
+                Err(error) => {
+                    self.notice = format!("Hosting stopped: {error}");
+                    self.log_activity(format!("Hosting stopped: {error}"));
+                }
+            }
+        }
+        if changed {
+            self.reload_workspace();
+        }
+    }
+
+    fn start_session(&mut self) {
+        if self.network_session.is_some() {
+            self.notice = "A connection session is already running.".into();
+            return;
+        }
+        if self
+            .workspace
+            .as_ref()
+            .is_some_and(Workspace::profile_needs_device_upgrade)
+        {
+            self.notice = "Upgrade this beta profile for verified peer sync first (People).".into();
+            return;
+        }
+        match network_session::NetworkSession::start(
+            &self.connections.endpoints(),
+            Instant::now(),
+            self.connections.session_length,
+            self.connections.include_private,
+        ) {
+            Ok(session) => {
+                let count = session.peers().len();
+                self.network_session = Some(session);
+                self.log_activity(format!(
+                    "Session started with {count} saved peer(s), {}.",
+                    self.connections.session_length.label().to_lowercase()
+                ));
+            }
+            Err(error) => self.notice = error,
+        }
+    }
+
+    fn stop_session(&mut self) {
+        if self.network_session.take().is_some() {
+            self.notice = "Session stopped. An exchange already in progress may finish.".into();
+            self.log_activity("Session stopped.".into());
+        }
+    }
+
+    fn schedule_session(&mut self) {
+        let now = Instant::now();
+        if self
+            .network_session
+            .as_ref()
+            .is_some_and(|session| session.expired(now))
+        {
+            self.network_session = None;
+            self.notice = "Connection session ended. Start another to keep syncing.".into();
+            self.log_activity("Session ended (time limit reached).".into());
+            return;
+        }
+        if self.session_rx.is_some() || self.sync_rx.is_some() {
+            return;
+        }
+        let Some((index, endpoint, include_private)) =
+            self.network_session.as_ref().and_then(|session| {
+                session.next_due(now).and_then(|index| {
+                    session
+                        .endpoint(index)
+                        .map(|endpoint| (index, endpoint.to_owned(), session.include_private()))
+                })
+            })
+        else {
+            return;
+        };
+        let routes: Vec<(String, OpaqueRoute)> = if include_private {
+            self.workspace
+                .as_ref()
+                .map(|workspace| {
+                    workspace
+                        .conversations
+                        .iter()
+                        .map(|conversation| (conversation.label.clone(), conversation.route()))
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let (sender, receiver) = mpsc::channel();
+        self.session_rx = Some(receiver);
+        let root = data_root();
+        std::thread::spawn(move || {
+            let result = exchange_with_peer(&root, &endpoint, &routes);
+            let _ = sender.send((index, result));
+        });
+    }
+
+    fn poll_session(&mut self) {
+        let outcome = self
+            .session_rx
+            .as_ref()
+            .and_then(|receiver| match receiver.try_recv() {
+                Ok(outcome) => Some(outcome),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => Some((
+                    usize::MAX,
+                    Err("the exchange worker stopped unexpectedly".into()),
+                )),
+            });
+        let Some((index, result)) = outcome else {
+            return;
+        };
+        self.session_rx = None;
+        let now = Instant::now();
+        let endpoint = self
+            .network_session
+            .as_ref()
+            .and_then(|session| session.endpoint(index))
+            .unwrap_or("peer")
+            .to_owned();
+        let line = match &result {
+            Ok(summary) => format!("{endpoint}: {summary}"),
+            Err(error) => format!("{endpoint}: {error}"),
+        };
+        if let Some(session) = self.network_session.as_mut() {
+            session.completed(index, result.is_ok(), line.clone(), now);
+        }
+        if result.is_ok() {
+            self.reload_workspace();
+        }
+        self.log_activity(line);
+    }
+
+    fn poll_dropped_files(&mut self, ctx: &egui::Context) {
+        if self.view == View::Library {
             if let Some(path) = ctx.input(|input| {
                 input
                     .raw
@@ -1426,11 +2574,28 @@ impl eframe::App for MininetApp {
                     .iter()
                     .find_map(|file| file.path.clone())
             }) {
-                self.profile_photo_path = path.display().to_string();
-                self.profile_remove_photo = false;
-                self.notice = "Profile photo selected. It remains local until you review and publish the signed profile.".to_string();
+                self.library_path = path.display().to_string();
+                self.notice = "File selected. Confirm signing and press Add to library.".into();
             }
+            return;
         }
+        if self.view != View::Creator {
+            return;
+        }
+        if let Some(path) = ctx.input(|input| {
+            input
+                .raw
+                .dropped_files
+                .iter()
+                .find_map(|file| file.path.clone())
+        }) {
+            self.profile_photo_path = path.display().to_string();
+            self.profile_remove_photo = false;
+            self.notice = "Profile photo selected. It remains local until you review and publish the signed profile.".to_string();
+        }
+    }
+
+    fn poll_discovery(&mut self) {
         if let Some(result) = self
             .discovery_rx
             .as_ref()
@@ -1446,57 +2611,78 @@ impl eframe::App for MininetApp {
                 Err(error) => self.notice = format!("Nearby scan failed: {error}"),
             }
         }
-        if let Some(result) = self
+    }
+
+    fn poll_one_shot_sync(&mut self) {
+        let sync_result = self
             .sync_rx
             .as_ref()
-            .and_then(|receiver| receiver.try_recv().ok())
-        {
-            self.sync_rx = None;
-            self.workspace = Workspace::open().ok();
-            self.notice = match (self.sync_context.take(), result) {
-                (Some(SyncContext::FriendRequest { display_name }), Ok(summary)) => format!(
-                    "Friend request delivered to {display_name}. They can add you back after syncing. {summary}"
-                ),
-                (Some(SyncContext::FriendRequest { display_name }), Err(error)) => format!(
-                    "Friend request for {display_name} is saved locally, but automatic delivery failed: {error}. Find them nearby and retry sync."
-                ),
-                (None, Ok(summary)) => summary,
-                (None, Err(error)) => format!("Peer sync failed: {error}"),
-            };
-        }
-        if let Some(receiver) = self.selftest_rx.as_ref() {
-            match receiver.try_recv() {
-                Ok(report) => {
-                    self.selftest_rx = None;
-                    self.notice = format!("Diagnostics finished: {}", report.summary());
-                    self.selftest_report = Some(report);
-                }
-                // The worker went away without sending: a check panicked.
-                // Discarding this state with `.ok()` left the receiver in
-                // place forever, so the page kept spinning with every button
-                // disabled and no way to retry short of restarting.
-                Err(mpsc::TryRecvError::Disconnected) => {
-                    self.selftest_rx = None;
-                    self.notice =
-                        "Diagnostics stopped unexpectedly. Nothing here has been verified."
-                            .to_string();
-                    self.selftest_report = Some(SelfTestReport {
-                        checks: vec![mini_selftest::Check {
-                            area: "diagnostics",
-                            name: "the diagnostics stopped before reporting",
-                            negative: false,
-                            outcome: CheckOutcome::Failed {
-                                detail: "a check ended the run without producing a result. \
-                                         Nothing has been verified; press a button to run again."
-                                    .to_string(),
-                            },
-                        }],
-                        elapsed_ms: 0,
-                    });
-                }
-                Err(mpsc::TryRecvError::Empty) => {}
+            .and_then(|receiver| match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => Some(Err(
+                    "Sync worker stopped; delivery was not confirmed.".into(),
+                )),
+            });
+        let Some(result) = sync_result else {
+            return;
+        };
+        self.sync_rx = None;
+        self.reload_workspace();
+        let line = match &result {
+            Ok(summary) => summary.clone(),
+            Err(error) => format!("One-shot sync failed: {error}"),
+        };
+        self.log_activity(line);
+        self.notice = match (self.sync_context.take(), result) {
+            (Some(SyncContext::FriendRequest { display_name }), Ok(summary)) => format!(
+                "Friend request delivered to {display_name}. They can add you back after syncing. {summary}"
+            ),
+            (Some(SyncContext::FriendRequest { display_name }), Err(error)) => format!(
+                "Friend request for {display_name} is saved locally, but automatic delivery failed: {error}. It will go out on the next successful exchange."
+            ),
+            (None, Ok(summary)) => summary,
+            (None, Err(error)) => format!("Peer sync failed: {error}"),
+        };
+    }
+
+    fn poll_selftest(&mut self) {
+        let Some(receiver) = self.selftest_rx.as_ref() else {
+            return;
+        };
+        match receiver.try_recv() {
+            Ok(report) => {
+                self.selftest_rx = None;
+                self.notice = format!("Diagnostics finished: {}", report.summary());
+                self.selftest_report = Some(report);
             }
+            // The worker went away without sending: a check panicked.
+            // Discarding this state with `.ok()` left the receiver in
+            // place forever, so the page kept spinning with every button
+            // disabled and no way to retry short of restarting.
+            Err(mpsc::TryRecvError::Disconnected) => {
+                self.selftest_rx = None;
+                self.notice =
+                    "Diagnostics stopped unexpectedly. Nothing here has been verified.".to_string();
+                self.selftest_report = Some(SelfTestReport {
+                    checks: vec![mini_selftest::Check {
+                        area: "diagnostics",
+                        name: "the diagnostics stopped before reporting",
+                        negative: false,
+                        outcome: CheckOutcome::Failed {
+                            detail: "a check ended the run without producing a result. \
+                                     Nothing has been verified; press a button to run again."
+                                .to_string(),
+                        },
+                    }],
+                    elapsed_ms: 0,
+                });
+            }
+            Err(mpsc::TryRecvError::Empty) => {}
         }
+    }
+
+    fn poll_visibility(&mut self) {
         let mut visibility_results = Vec::new();
         let mut visibility_finished = false;
         if let Some(receiver) = self.visibility_rx.as_ref() {
@@ -1515,109 +2701,1436 @@ impl eframe::App for MininetApp {
             self.visibility_rx = None;
         }
         for result in visibility_results {
-            self.workspace = Workspace::open().ok();
-            self.notice = match result {
+            self.reload_workspace();
+            let line = match result {
                 Ok(summary) => summary,
                 Err(error) => error,
             };
+            self.log_activity(line.clone());
+            self.notice = line;
         }
-        if self.view == View::Onboarding {
-            self.onboarding(ctx);
-            return;
+    }
+
+    // ----- connection state summaries -----------------------------------
+
+    /// Short, honest state for the top bar: what is actually running.
+    fn connection_state(&self) -> (&'static str, egui::Color32) {
+        let now = Instant::now();
+        let hosting = self.host.as_ref().is_some_and(|host| host.listening);
+        match (&self.network_session, hosting) {
+            (Some(_), _) if self.session_rx.is_some() => ("Syncing", theme::ACCENT),
+            (Some(session), _) if session.any_success() => ("Connected", theme::ONLINE_GREEN),
+            (Some(session), _) if session.all_failed() => ("Peers unreachable", theme::WARN_AMBER),
+            (Some(session), _) if session.elapsed(now) < Duration::from_secs(1) => {
+                ("Connecting", theme::ACCENT)
+            }
+            (Some(_), _) => ("Connecting", theme::ACCENT),
+            (None, true) => ("Hosting", theme::ONLINE_GREEN),
+            (None, false) if self.host.is_some() => ("Starting host", theme::ACCENT),
+            (None, false) => ("Offline", theme::TEXT_SECONDARY),
         }
-        egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
-            ui.set_min_height(54.0);
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("MININET").strong().size(20.0));
-                ui.label(egui::RichText::new("local-first social network").color(egui::Color32::GRAY));
-                ui.separator();
-                ui.colored_label(egui::Color32::from_rgb(100, 210, 160), "LOCAL ONLY");
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Privacy center").clicked() {
-                        self.view = View::Privacy;
+    }
+
+    fn connection_summary(&self) -> String {
+        let now = Instant::now();
+        let mut parts = Vec::new();
+        if let Some(host) = self.host.as_ref() {
+            parts.push(format!("Hosting on {} · {} served", host.port, host.served));
+        }
+        if let Some(session) = self.network_session.as_ref() {
+            let remaining = match session.remaining(now) {
+                Some(left) => format!("{}m left", left.as_secs() / 60),
+                None => "open-ended".to_string(),
+            };
+            parts.push(format!(
+                "Session · {} peer(s) · {remaining}",
+                session.peers().len()
+            ));
+        }
+        if parts.is_empty() {
+            "No network activity · saved content available".to_string()
+        } else {
+            parts.join(" · ")
+        }
+    }
+
+    // ----- shell chrome ---------------------------------------------------
+
+    fn top_bar(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::top("top_bar")
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG)
+                    .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                    .inner_margin(egui::Margin::symmetric(20, 10)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    theme::avatar(ui, "Mininet", "mininet", 30.0);
+                    ui.add_space(6.0);
+                    ui.label(
+                        egui::RichText::new("Mininet")
+                            .strong()
+                            .size(19.0)
+                            .color(theme::TEXT_PRIMARY),
+                    );
+                    ui.add_space(4.0);
+                    theme::muted(ui, "Your people. Your world. Your internet.");
+                    ui.add_space(10.0);
+                    let (state, color) = self.connection_state();
+                    if ui
+                        .add(
+                            egui::Button::new(
+                                egui::RichText::new(format!("🌐  {state}"))
+                                    .small()
+                                    .strong()
+                                    .color(color),
+                            )
+                            .fill(color.linear_multiply(0.14))
+                            .stroke(egui::Stroke::new(1.0, color))
+                            .corner_radius(egui::CornerRadius::same(255)),
+                        )
+                        .on_hover_text(self.connection_summary())
+                        .clicked()
+                    {
+                        self.view = View::Connections;
                     }
-                    if let Some(workspace) = self.workspace.as_mut() {
-                        if workspace.is_unlocked() {
-                            if ui.button("Lock identity").clicked() {
-                                workspace.lock();
-                                self.signing_confirmation = false;
-                                self.notice = "Identity locked. Reading remains available; signing is disabled.".to_string();
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add(theme::secondary_button("Privacy")).clicked() {
+                            self.view = View::Privacy;
+                        }
+                        ui.add_space(6.0);
+                        match self.app_status.as_ref() {
+                            Some(status) if status.identity_unlocked => {
+                                if ui
+                                    .add_enabled(
+                                        self.app_action.is_none(),
+                                        theme::secondary_button("🔒  Lock identity"),
+                                    )
+                                    .clicked()
+                                {
+                                    self.start_core_action(
+                                        CoreAction::LockIdentity,
+                                        AppCommand::LockIdentity,
+                                    );
+                                }
                             }
-                        } else if ui.button("Unlock identity").clicked() {
-                            match workspace.unlock() {
-                                Ok(()) => self.notice = "Identity unlocked. Review and confirm before signing.".to_string(),
-                                Err(error) => self.notice = format!("Unlock failed: {error}"),
+                            Some(status) if status.root_created => {
+                                if ui
+                                    .add_enabled(
+                                        self.app_action.is_none(),
+                                        theme::primary_button("🔓  Unlock identity"),
+                                    )
+                                    .clicked()
+                                {
+                                    self.start_core_action(
+                                        CoreAction::UnlockIdentity,
+                                        AppCommand::UnlockIdentity,
+                                    );
+                                }
+                            }
+                            Some(_) => {
+                                theme::muted(ui, "Create identity in onboarding");
+                            }
+                            None if self.core_available() => {
+                                theme::muted(ui, "Core starting…");
+                            }
+                            None => {
+                                ui.colored_label(theme::WARN_AMBER, "Core unavailable");
                             }
                         }
-                    }
+                    });
                 });
             });
-        });
+    }
 
+    fn navigation_rail(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("navigation")
             .resizable(false)
-            .default_width(228.0)
+            .default_width(236.0)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG)
+                    .inner_margin(egui::Margin::symmetric(12, 16)),
+            )
             .show(ctx, |ui| {
+                let home_label = if self.unseen_posts.is_empty() {
+                    "Home".to_string()
+                } else {
+                    format!("Home  ({} new)", self.unseen_posts.len())
+                };
+                self.nav_button(ui, View::Home, "🏠", &home_label);
+                self.nav_button(ui, View::Discover, "🔍", "Explore");
+                self.nav_button(ui, View::Media, "🎬", "Media");
+                self.nav_button(ui, View::Shorts, "▶", "Shorts");
+                self.nav_button(ui, View::Inbox, "✉", "Messages");
+                self.nav_button(ui, View::People, "👥", "People");
+                self.nav_button(ui, View::Communities, "🏢", "Communities");
+                self.nav_button(ui, View::Creator, "✏", "Creator studio");
+                self.nav_button(ui, View::Connections, "🔗", "Connections");
+                self.nav_button(ui, View::Library, "📋", "Library");
+                self.nav_button(ui, View::Earnings, "💰", "Earnings");
+                self.nav_button(ui, View::System, "🖥", "System & storage");
                 ui.add_space(12.0);
-                ui.label(egui::RichText::new("YOUR NETWORK").small().strong());
-                ui.add_space(6.0);
-                self.nav_button(ui, View::Home, "Home");
-                self.nav_button(ui, View::Inbox, "Inbox (beta)");
-                self.nav_button(ui, View::People, "People");
-                self.nav_button(ui, View::Communities, "Communities");
-                self.nav_button(ui, View::Creator, "Creator studio");
-                self.nav_button(ui, View::Connections, "Connections");
-                self.nav_button(ui, View::System, "System & storage");
-                ui.add_space(18.0);
-                ui.label(egui::RichText::new("CONTROL PLANE").small().strong());
-                ui.add_space(6.0);
-                self.nav_button(ui, View::Privacy, "Privacy & safety");
-                self.nav_button(ui, View::Diagnostics, "Diagnostics");
-                self.nav_button(ui, View::Updates, "Version & install");
                 ui.separator();
-                ui.label(
-                    egui::RichText::new("No analytics\nNo ad SDKs\nNo embedded web view").small(),
+                ui.add_space(8.0);
+                self.nav_button(ui, View::Privacy, "🔒", "Privacy & safety");
+                self.nav_button(ui, View::Diagnostics, "ℹ", "Diagnostics");
+                self.nav_button(ui, View::Updates, "⬆", "Version & install");
+                ui.add_space(14.0);
+                if ui
+                    .add_sized([ui.available_width(), 40.0], theme::primary_button("Post"))
+                    .clicked()
+                {
+                    self.view = View::Home;
+                }
+                ui.add_space(14.0);
+                if let Some(name) = self
+                    .workspace
+                    .as_ref()
+                    .and_then(Workspace::current_profile)
+                    .map(|profile| profile.display_name)
+                {
+                    let did = self
+                        .workspace
+                        .as_ref()
+                        .and_then(|workspace| workspace.human.as_ref())
+                        .map(|did| did.as_str().to_owned())
+                        .unwrap_or_default();
+                    ui.horizontal(|ui| {
+                        theme::avatar(ui, &name, &did, 34.0);
+                        ui.vertical(|ui| {
+                            ui.label(egui::RichText::new(&name).strong());
+                            theme::muted(ui, &short_did(&did));
+                        });
+                    });
+                }
+                ui.add_space(8.0);
+                theme::muted(
+                    ui,
+                    "Your keys. Your choices.
+No tracking. No forced updates.",
                 );
             });
+    }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    ui.add_space(18.0);
-                    self.header(ui);
-                    ui.add_space(14.0);
-                    match self.view {
-                        View::Onboarding => {
-                            unreachable!("onboarding returns before the main shell")
+    fn discovery_column(&mut self, ctx: &egui::Context) {
+        let now = Instant::now();
+        egui::SidePanel::right("discovery_sidebar")
+            .resizable(false)
+            .default_width(300.0)
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG)
+                    .inner_margin(egui::Margin::symmetric(16, 16)),
+            )
+            .show(ctx, |ui| {
+                let search = ui.add(
+                    egui::TextEdit::singleline(&mut self.timeline_query)
+                        .hint_text("🔍  Search Mininet")
+                        .desired_width(f32::INFINITY),
+                );
+                if search.changed() && !self.timeline_query.trim().is_empty() {
+                    self.view = View::Discover;
+                }
+                ui.add_space(14.0);
+
+                theme::card_frame().show(ui, |ui| {
+                    theme::section_title(ui, "Your network");
+                    ui.add_space(4.0);
+                    match self.host.as_ref() {
+                        Some(host) if host.listening => {
+                            ui.horizontal(|ui| {
+                                theme::pill_badge(ui, "HOSTING", theme::ONLINE_GREEN);
+                                theme::muted(
+                                    ui,
+                                    &format!("port {} · {} served", host.port, host.served),
+                                );
+                            });
                         }
-                        View::Home => self.home(ui),
-                        View::Inbox => self.inbox(ui),
-                        View::People => self.people(ui),
-                        View::Communities => self.communities(ui),
-                        View::Creator => self.creator(ui),
-                        View::Connections => self.connections(ui),
-                        View::System => self.system(ui),
-                        View::Diagnostics => self.diagnostics(ui),
-                        View::Updates => self.updates(ui),
-                        View::Privacy => self.privacy(ui),
+                        Some(_) => theme::muted(ui, "Starting host…"),
+                        None => theme::muted(ui, "Not accepting connections."),
                     }
-                    ui.add_space(18.0);
+                    match self.network_session.as_ref() {
+                        Some(session) => {
+                            for slot in session.peers() {
+                                ui.horizontal(|ui| {
+                                    let (glyph, color) = match slot.last_ok() {
+                                        Some(true) => ("✔", theme::ONLINE_GREEN),
+                                        Some(false) => ("✖", theme::WARN_AMBER),
+                                        None => ("•", theme::TEXT_SECONDARY),
+                                    };
+                                    ui.label(egui::RichText::new(glyph).color(color));
+                                    ui.label(
+                                        egui::RichText::new(self.peer_label(slot.endpoint()))
+                                            .small(),
+                                    );
+                                    theme::muted(ui, &format!("{}s", slot.due_in(now)));
+                                });
+                            }
+                            ui.horizontal(|ui| {
+                                if ui.add(theme::secondary_button("Sync now")).clicked() {
+                                    if let Some(session) = self.network_session.as_mut() {
+                                        session.sync_now(now);
+                                    }
+                                }
+                                if ui.add(theme::secondary_button("Stop")).clicked() {
+                                    self.stop_session();
+                                }
+                            });
+                        }
+                        None if self.connections.peers.is_empty() => {
+                            theme::muted(ui, "No saved peers yet.");
+                            if ui.add(theme::primary_button("Add a peer")).clicked() {
+                                self.view = View::Connections;
+                            }
+                        }
+                        None => {
+                            theme::muted(
+                                ui,
+                                &format!("{} saved peer(s), no session.", self.connections.peers.len()),
+                            );
+                            if ui.add(theme::primary_button("Start session")).clicked() {
+                                self.start_session();
+                            }
+                        }
+                    }
                 });
-        });
+                ui.add_space(14.0);
 
-        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(egui::RichText::new(&self.notice).small());
-                ui.separator();
-                ui.label(egui::RichText::new("Updates: manual approval").small());
-                ui.label(egui::RichText::new("No background sync").small());
+                let suggestions = self.follow_suggestions(3);
+                if !suggestions.is_empty() {
+                    theme::card_frame().show(ui, |ui| {
+                        theme::section_title(ui, "Who to follow");
+                        ui.add_space(4.0);
+                        for (name, did) in suggestions {
+                            ui.horizontal(|ui| {
+                                theme::avatar(ui, &name, &did, 32.0);
+                                ui.vertical(|ui| {
+                                    ui.label(egui::RichText::new(&name).strong());
+                                    theme::muted(ui, &short_did(&did));
+                                });
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if ui.add(theme::secondary_button("Follow")).clicked() {
+                                            self.follow_did(&did, &name);
+                                        }
+                                    },
+                                );
+                            });
+                        }
+                    });
+                    ui.add_space(14.0);
+                }
+
+                theme::card_frame().show(ui, |ui| {
+                    theme::section_title(ui, "Make it your internet");
+                    theme::muted(
+                        ui,
+                        "Follow people, join a community, share what you create. Chronological by default; no hidden paid ranking.",
+                    );
+                    ui.add_space(6.0);
+                    if ui.add(theme::secondary_button("Find your people")).clicked() {
+                        self.view = View::People;
+                    }
+                    if ui.add(theme::secondary_button("Browse communities")).clicked() {
+                        self.view = View::Communities;
+                    }
+                });
+                ui.add_space(14.0);
+                if !self.activity.is_empty() {
+                    theme::card_frame().show(ui, |ui| {
+                        theme::section_title(ui, "Recent activity");
+                        for line in self.activity.iter().rev().take(4) {
+                            theme::muted(ui, line);
+                        }
+                    });
+                }
             });
+    }
+
+    fn set_muted(&mut self, did: &str, name: &str, mute: bool) {
+        let result = if mute {
+            self.muted.mute(did).map(|_| ())
+        } else {
+            self.muted.unmute(did);
+            Ok(())
+        };
+        self.notice = match result.and_then(|()| mute_list::save(&data_root(), &self.muted)) {
+            Ok(()) if mute => format!(
+                "Muted {name} on this device. Their posts, suggestions and directory entry are hidden here; nothing was published or deleted."
+            ),
+            Ok(()) => format!("Unmuted {name}."),
+            Err(error) => format!("Mute list not saved: {error}"),
+        };
+        self.timeline_refresh = Instant::now();
+    }
+
+    /// Owner label for an endpoint, or the endpoint itself.
+    fn peer_label(&self, endpoint: &str) -> String {
+        self.connections
+            .peers
+            .iter()
+            .find(|peer| peer.endpoint == endpoint)
+            .map(|peer| peer.label.clone())
+            .unwrap_or_else(|| endpoint.to_owned())
+    }
+
+    /// Received signed profiles the owner does not follow yet.
+    fn follow_suggestions(&self, limit: usize) -> Vec<(String, String)> {
+        let Some(workspace) = self.workspace.as_ref() else {
+            return Vec::new();
+        };
+        let own = workspace.human.clone();
+        workspace
+            .known_profiles()
+            .into_iter()
+            .filter(|profile| own.as_ref() != Some(&profile.human))
+            .filter(|profile| !self.muted.contains(profile.human.as_str()))
+            .filter(|profile| !workspace.follows(&profile.human))
+            .take(limit)
+            .map(|profile| (profile.display_name, profile.human.as_str().to_owned()))
+            .collect()
+    }
+
+    fn follow_did(&mut self, did: &str, name: &str) {
+        self.notice = match self.workspace.as_mut() {
+            Some(workspace) => match workspace.set_follow_target_confirmed(did, true) {
+                Ok(()) => {
+                    format!("Following {name}. The signed follow goes out on the next exchange.")
+                }
+                Err(error) => format!("Could not follow {name}: {error}"),
+            },
+            None => "Local workspace unavailable.".to_string(),
+        };
+        self.timeline_refresh = Instant::now();
+    }
+
+    // ----- timeline -------------------------------------------------------
+
+    fn poll_timeline(&mut self, ctx: &egui::Context) {
+        if let Some(receiver) = self.timeline_rx.as_ref() {
+            let result = match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("Timeline worker stopped. Retry refresh.".into()))
+                }
+            };
+            if let Some(result) = result {
+                self.timeline_rx = None;
+                self.timeline_refresh = Instant::now() + Duration::from_secs(5);
+                match result {
+                    Ok(cards) => {
+                        if self.view != View::Home && !self.timeline_cards.is_empty() {
+                            for card in &cards {
+                                let id = card.id.as_str();
+                                if !card.own
+                                    && !self.muted.contains(&card.did)
+                                    && !self.timeline_cards.iter().any(|old| old.id.as_str() == id)
+                                    && !self.unseen_posts.iter().any(|seen| seen == id)
+                                {
+                                    self.unseen_posts.push(id.to_owned());
+                                }
+                            }
+                        }
+                        self.timeline_cards = cards;
+                        self.timeline_error = None;
+                    }
+                    Err(error) => self.timeline_error = Some(error),
+                }
+            }
+        }
+        if self.view == View::Home {
+            self.unseen_posts.clear();
+        }
+        let networking = self.network_session.is_some() || self.host.is_some();
+        if !matches!(
+            self.view,
+            View::Home | View::Discover | View::Media | View::Shorts | View::Watch | View::Channel
+        ) && !networking
+        {
+            return;
+        }
+        let wanted = (self.feed_filter, self.timeline_scope);
+        if self.timeline_rx.is_none()
+            && (Instant::now() >= self.timeline_refresh || self.timeline_loaded != wanted)
+        {
+            if self.timeline_loaded != wanted {
+                self.timeline_cards.clear();
+            }
+            self.timeline_loaded = wanted;
+            let (filter, scope) = wanted;
+            let (sender, receiver) = mpsc::channel();
+            let repaint = ctx.clone();
+
+            if self.core_available() {
+                let Some(status) = self.app_status.as_ref() else {
+                    return;
+                };
+                if !status.root_created {
+                    self.timeline_cards.clear();
+                    self.timeline_error = None;
+                    return;
+                }
+                let order = match filter {
+                    FeedFilter::Chronological => AppFeedOrder::Chronological,
+                    FeedFilter::MostSupported => AppFeedOrder::MostSupported,
+                    _ => AppFeedOrder::Chronological,
+                };
+                let scope = match scope {
+                    timeline::Scope::Following => AppFeedScope::Following,
+                    timeline::Scope::Everyone => AppFeedScope::Everyone,
+                };
+                let service_rx = match self
+                    .app_service
+                    .as_ref()
+                    .expect("core availability checked above")
+                    .request(AppCommand::FeedSnapshot {
+                        order,
+                        scope,
+                        limit: timeline::PAGE as u16,
+                    }) {
+                    Ok(receiver) => receiver,
+                    Err(error) => {
+                        self.timeline_error =
+                            Some(format!("Application core feed unavailable: {error}"));
+                        self.timeline_refresh = Instant::now() + Duration::from_secs(2);
+                        return;
+                    }
+                };
+                self.timeline_rx = Some(receiver);
+                std::thread::spawn(move || {
+                    let result = match service_rx.recv() {
+                        Ok(Ok(AppReply::Feed(cards))) => timeline::from_service(cards),
+                        Ok(Ok(other)) => Err(format!(
+                            "application core returned an unexpected feed response: {other:?}"
+                        )),
+                        Ok(Err(error)) => Err(error),
+                        Err(_) => Err("application core feed request stopped".to_string()),
+                    };
+                    let _ = sender.send(result);
+                    repaint.request_repaint();
+                });
+            } else {
+                let Some((root, human)) = self.workspace.as_ref().and_then(|workspace| {
+                    workspace
+                        .human
+                        .clone()
+                        .map(|human| (workspace.root.clone(), human))
+                }) else {
+                    return;
+                };
+                self.timeline_rx = Some(receiver);
+                std::thread::spawn(move || {
+                    let _ = sender.send(timeline::snapshot(&root, &human, filter, scope));
+                    repaint.request_repaint();
+                });
+            }
+        }
+        ctx.request_repaint_after(Duration::from_secs(5));
+    }
+
+    fn timeline_controls(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal_wrapped(|ui| {
+            for (scope, label) in [
+                (timeline::Scope::Following, "Following"),
+                (timeline::Scope::Everyone, "Everyone"),
+            ] {
+                let selected = self.timeline_scope == scope;
+                let text = egui::RichText::new(label).strong();
+                let text = if selected {
+                    text.color(theme::TEXT_PRIMARY)
+                } else {
+                    text.color(theme::TEXT_SECONDARY)
+                };
+                if ui.selectable_label(selected, text).clicked() {
+                    self.timeline_scope = scope;
+                }
+            }
+            ui.separator();
+            egui::ComboBox::from_id_salt("feed_filter")
+                .selected_text(match self.feed_filter {
+                    FeedFilter::Chronological => "Newest first",
+                    FeedFilter::MostSupported => "Most supported",
+                    _ => "Custom",
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut self.feed_filter,
+                        FeedFilter::Chronological,
+                        "Newest first",
+                    );
+                    ui.selectable_value(
+                        &mut self.feed_filter,
+                        FeedFilter::MostSupported,
+                        "Most supported",
+                    );
+                });
+            if ui
+                .add(theme::secondary_button("🔄"))
+                .on_hover_text("Refresh")
+                .clicked()
+            {
+                self.timeline_refresh = Instant::now();
+            }
         });
     }
-}
 
-impl MininetApp {
+    fn render_timeline(&mut self, ui: &mut egui::Ui, media_only: bool) {
+        if self.timeline_rx.is_some() && self.timeline_cards.is_empty() {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                theme::muted(ui, "Loading timeline…");
+            });
+        }
+        if let Some(error) = &self.timeline_error {
+            ui.colored_label(
+                theme::WARN_AMBER,
+                format!("Could not refresh: {error}. Showing the last received view."),
+            );
+        }
+        let query = if self.view == View::Discover {
+            self.timeline_query.trim().to_lowercase()
+        } else {
+            String::new()
+        };
+        let cards: Vec<_> = self
+            .timeline_cards
+            .iter()
+            .filter(|card| {
+                !self.muted.contains(&card.did)
+                    && (!media_only || card.media.is_some())
+                    && (query.is_empty()
+                        || card.body.to_lowercase().contains(&query)
+                        || card.author.to_lowercase().contains(&query)
+                        || card.did.to_lowercase().contains(&query))
+            })
+            .cloned()
+            .collect();
+        if cards.is_empty() && self.timeline_rx.is_none() {
+            ui.add_space(24.0);
+            theme::card_frame().show(ui, |ui| {
+                ui.heading(if !query.is_empty() {
+                    "No matching posts received yet"
+                } else if self.timeline_scope == timeline::Scope::Following {
+                    "Your network starts with people"
+                } else {
+                    "Nothing received yet"
+                });
+                theme::muted(
+                    ui,
+                    "Connect to a peer to exchange posts and profiles, then follow the people you find. Saved content stays available offline.",
+                );
+                ui.add_space(6.0);
+                ui.horizontal_wrapped(|ui| {
+                    if ui.add(theme::primary_button("Connect a peer")).clicked() {
+                        self.view = View::Connections;
+                    }
+                    if ui.add(theme::secondary_button("Find people")).clicked() {
+                        self.view = View::People;
+                    }
+                    if self.timeline_scope == timeline::Scope::Following
+                        && ui.add(theme::secondary_button("Show everyone")).clicked()
+                    {
+                        self.timeline_scope = timeline::Scope::Everyone;
+                    }
+                });
+            });
+        }
+        for card in cards {
+            ui.push_id(&card.id, |ui| {
+                self.post_card(ui, &card);
+            });
+        }
+    }
+
+    fn discover(&mut self, ui: &mut egui::Ui) {
+        ui.add_sized(
+            [ui.available_width(), 40.0],
+            egui::TextEdit::singleline(&mut self.timeline_query)
+                .hint_text("🔍  Search posts, people or a DID"),
+        );
+        theme::muted(
+            ui,
+            "Search scope: the latest 50 posts in your received timeline. This is not internet-wide search.",
+        );
+        ui.add_space(6.0);
+        if self.timeline_scope != timeline::Scope::Everyone {
+            self.timeline_scope = timeline::Scope::Everyone;
+        }
+        ui.horizontal_wrapped(|ui| {
+            if ui
+                .add(theme::secondary_button("People directory"))
+                .clicked()
+            {
+                self.view = View::People;
+            }
+            if ui.add(theme::secondary_button("Communities")).clicked() {
+                self.view = View::Communities;
+            }
+            if ui.add(theme::secondary_button("🔄  Refresh")).clicked() {
+                self.timeline_refresh = Instant::now();
+            }
+        });
+        ui.add_space(8.0);
+        self.render_timeline(ui, false);
+    }
+
+    // ----- catalog, thumbnails, channels -------------------------------------
+
+    fn start_network_search(&mut self) {
+        let query = self.catalog_query.trim().to_string();
+        if query.is_empty() {
+            self.notice = "Type something to search for first.".into();
+            return;
+        }
+        if self.connections.peers.is_empty() {
+            self.notice = "Save at least one peer in Connections to search the network.".into();
+            return;
+        }
+        if self.netsearch_rx.is_some() {
+            return;
+        }
+        let (sender, receiver) = mpsc::channel();
+        self.netsearch_rx = Some(receiver);
+        self.netsearch_results.clear();
+        self.netsearch_query = query.clone();
+        self.netsearch_pending = self.connections.peers.len();
+        let root = data_root();
+        for peer in &self.connections.peers {
+            let (label, endpoint, query, root, sender) = (
+                peer.label.clone(),
+                peer.endpoint.clone(),
+                query.clone(),
+                root.clone(),
+                sender.clone(),
+            );
+            std::thread::spawn(move || {
+                let result = peer_link::dial_search(&root, &endpoint, &query);
+                let _ = sender.send((label, endpoint, result));
+            });
+        }
+        self.log_activity(format!(
+            "Searching {} saved peer(s) for \"{query}\".",
+            self.connections.peers.len()
+        ));
+    }
+
+    fn poll_netsearch(&mut self) {
+        let mut arrived = Vec::new();
+        let mut closed = false;
+        if let Some(receiver) = self.netsearch_rx.as_ref() {
+            loop {
+                match receiver.try_recv() {
+                    Ok(item) => arrived.push(item),
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        closed = true;
+                        break;
+                    }
+                }
+            }
+        }
+        for (label, endpoint, result) in arrived {
+            self.netsearch_pending = self.netsearch_pending.saturating_sub(1);
+            match result {
+                Ok(results) => {
+                    let count = results.len();
+                    for result in results {
+                        if !self
+                            .netsearch_results
+                            .iter()
+                            .any(|(_, _, existing)| existing.post == result.post)
+                        {
+                            self.netsearch_results
+                                .push((label.clone(), endpoint.clone(), result));
+                        }
+                    }
+                    self.log_activity(format!("{label}: {count} match(es)."));
+                }
+                Err(error) => self.log_activity(format!("{label}: search failed: {error}")),
+            }
+        }
+        if closed || (self.netsearch_rx.is_some() && self.netsearch_pending == 0) {
+            self.netsearch_rx = None;
+        }
+        let fetched = self
+            .fetch_rx
+            .as_ref()
+            .and_then(|receiver| match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => Some(Err("fetch worker stopped".into())),
+            });
+        if let Some(result) = fetched {
+            self.fetch_rx = None;
+            self.fetching = None;
+            match result {
+                Ok(summary) => {
+                    self.notice = summary.clone();
+                    self.log_activity(summary);
+                    self.reload_workspace();
+                }
+                Err(error) => {
+                    self.notice = format!("Fetch failed: {error}");
+                    self.log_activity(format!("Fetch failed: {error}"));
+                }
+            }
+        }
+    }
+
+    fn start_fetch(&mut self, endpoint: String, post: mini_objects::ObjectId) {
+        if self.fetch_rx.is_some() {
+            self.notice = "A fetch is already running.".into();
+            return;
+        }
+        let (sender, receiver) = mpsc::channel();
+        self.fetch_rx = Some(receiver);
+        self.fetching = Some(post.clone());
+        let root = data_root();
+        std::thread::spawn(move || {
+            let _ = sender.send(peer_link::dial_fetch_patiently(
+                &root,
+                &endpoint,
+                &[post],
+                8,
+                Duration::from_secs(15),
+            ));
+        });
+    }
+
+    fn poll_catalog(&mut self, ctx: &egui::Context) {
+        if let Some(receiver) = self.catalog_rx.as_ref() {
+            match receiver.try_recv() {
+                Ok(Ok(entries)) => {
+                    self.catalog = entries;
+                    self.catalog_rx = None;
+                    self.catalog_dirty = false;
+                }
+                Ok(Err(error)) => {
+                    self.catalog_rx = None;
+                    self.catalog_dirty = false;
+                    self.notice = format!("Catalog could not be built: {error}");
+                }
+                Err(mpsc::TryRecvError::Empty) => {}
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.catalog_rx = None;
+                    self.catalog_dirty = false;
+                }
+            }
+        }
+        if !matches!(
+            self.view,
+            View::Media | View::Channel | View::Watch | View::Shorts
+        ) {
+            return;
+        }
+        if self.catalog_dirty && self.catalog_rx.is_none() {
+            let Some((root, human)) = self.workspace.as_ref().and_then(|workspace| {
+                workspace
+                    .human
+                    .clone()
+                    .map(|human| (workspace.root.clone(), human))
+            }) else {
+                return;
+            };
+            let (sender, receiver) = mpsc::channel();
+            self.catalog_rx = Some(receiver);
+            let repaint = ctx.clone();
+            std::thread::spawn(move || {
+                let _ = sender.send(catalog::snapshot(&root, &human));
+                repaint.request_repaint();
+            });
+        }
+    }
+
+    /// Ask the thumbnail worker for a poster once; returns the texture when
+    /// it has arrived.
+    fn thumbnail(
+        &mut self,
+        ctx: &egui::Context,
+        media: &mini_objects::ObjectId,
+        content_type: &str,
+    ) -> Option<egui::TextureHandle> {
+        let key = media.as_str().to_owned();
+        if let Some(texture) = self.thumbnails.get(&key) {
+            return texture.clone();
+        }
+        // Drain finished thumbnails.
+        if let Some(receiver) = self.thumb_rx.as_ref() {
+            let mut done = Vec::new();
+            while let Ok((id, image)) = receiver.try_recv() {
+                done.push((id, image));
+            }
+            for (id, image) in done {
+                let texture = image.map(|image| {
+                    ctx.load_texture(format!("thumb:{id}"), image, egui::TextureOptions::LINEAR)
+                });
+                self.thumbnails.insert(id, texture);
+            }
+            if let Some(texture) = self.thumbnails.get(&key) {
+                return texture.clone();
+            }
+        }
+        if self.thumb_requested.insert(key.clone()) {
+            if self.thumb_tx.is_none() {
+                let (tx, rx) = mpsc::channel::<(String, String)>();
+                let (done_tx, done_rx) = mpsc::channel();
+                let root = data_root();
+                let repaint = ctx.clone();
+                std::thread::spawn(move || {
+                    while let Ok((id, content_type)) = rx.recv() {
+                        let image = thumbnail_for(&root, &id, &content_type);
+                        if done_tx.send((id, image)).is_err() {
+                            break;
+                        }
+                        repaint.request_repaint();
+                    }
+                });
+                self.thumb_tx = Some(tx);
+                self.thumb_rx = Some(done_rx);
+            }
+            if let Some(tx) = self.thumb_tx.as_ref() {
+                let _ = tx.send((key, content_type.to_owned()));
+            }
+        }
+        None
+    }
+
+    /// The YouTube-style media catalog: search, filters, sort, grid.
+    fn media_timeline(&mut self, ui: &mut egui::Ui) {
+        ui.add(
+            egui::TextEdit::singleline(&mut self.catalog_query)
+                .hint_text("🔍  Search videos, music, images, people…")
+                .desired_width(f32::INFINITY),
+        );
+        ui.horizontal_wrapped(|ui| {
+            for (kind, label) in [
+                (None, "All"),
+                (Some(catalog::Kind::Video), "Video"),
+                (Some(catalog::Kind::Music), "Music"),
+                (Some(catalog::Kind::Image), "Images"),
+                (Some(catalog::Kind::Animation), "GIFs"),
+                (Some(catalog::Kind::File), "Files"),
+            ] {
+                if ui
+                    .selectable_label(self.catalog_kind == kind, label)
+                    .clicked()
+                {
+                    self.catalog_kind = kind;
+                }
+            }
+            ui.separator();
+            for sort in [
+                catalog::Sort::Newest,
+                catalog::Sort::MostLiked,
+                catalog::Sort::MostDiscussed,
+            ] {
+                if ui
+                    .selectable_label(self.catalog_sort == sort, sort.label())
+                    .clicked()
+                {
+                    self.catalog_sort = sort;
+                }
+            }
+            ui.separator();
+            if ui
+                .add(theme::secondary_button("🔄"))
+                .on_hover_text("Rebuild")
+                .clicked()
+            {
+                self.catalog_dirty = true;
+            }
+            if ui.add(theme::secondary_button("📋  Upload")).clicked() {
+                self.view = View::Library;
+            }
+        });
+        ui.horizontal_wrapped(|ui| {
+            let searching = self.netsearch_rx.is_some();
+            if ui
+                .add_enabled(!searching, theme::primary_button("🌐  Search my peers"))
+                .on_hover_text("Asks every saved peer what it holds that matches. Results are that peer's claims until fetched and verified.")
+                .clicked()
+            {
+                self.start_network_search();
+            }
+            if searching {
+                ui.spinner();
+                theme::muted(ui, &format!("{} peer(s) still answering…", self.netsearch_pending));
+            }
+            if !self.netsearch_results.is_empty() {
+                theme::muted(
+                    ui,
+                    &format!(
+                        "{} remote hit(s) for \"{}\"",
+                        self.netsearch_results.len(),
+                        self.netsearch_query
+                    ),
+                );
+                if ui.add(theme::secondary_button("Clear")).clicked() {
+                    self.netsearch_results.clear();
+                }
+            }
+        });
+        if !self.netsearch_results.is_empty() {
+            ui.add_space(4.0);
+            theme::section_title(ui, "On your peers");
+            let local_posts: std::collections::HashSet<String> = self
+                .catalog
+                .iter()
+                .map(|entry| entry.post.as_str().to_owned())
+                .collect();
+            let hits = self.netsearch_results.clone();
+            for (label, endpoint, hit) in hits {
+                ui.push_id(hit.post.as_str(), |ui| {
+                    theme::card_frame().show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new(match hit.kind.as_str() {
+                                "Video" | "GIF" => "🎬",
+                                "Music" => "♫",
+                                "Image" => "🖼",
+                                _ => "📋",
+                            }).size(26.0));
+                            ui.vertical(|ui| {
+                                ui.set_width(ui.available_width());
+                                ui.label(egui::RichText::new(&hit.title).strong());
+                                if !hit.description.is_empty() {
+                                    theme::muted(ui, &hit.description);
+                                }
+                                theme::muted(ui, &format!(
+                                    "{} · {} · {} · {} · {}",
+                                    hit.author_name,
+                                    hit.kind,
+                                    library::human_size(hit.bytes),
+                                    timeline::age(hit.timestamp_ms, now_ms()),
+                                    if hit.via.is_empty() {
+                                        format!("on {label}")
+                                    } else {
+                                        format!("on {}, reachable through {label}", hit.via)
+                                    }
+                                ));
+                                ui.horizontal(|ui| {
+                                    if local_posts.contains(hit.post.as_str()) {
+                                        theme::pill_badge(ui, "ON THIS DEVICE", theme::ONLINE_GREEN);
+                                        if ui.add(theme::secondary_button("▶  Watch")).clicked() {
+                                            self.watch_target = Some(hit.post.clone());
+                                            self.view = View::Watch;
+                                        }
+                                    } else if self.fetching.as_ref() == Some(&hit.post) {
+                                        ui.spinner();
+                                        theme::muted(ui, "fetching…");
+                                    } else if ui
+                                        .add_enabled(self.fetch_rx.is_none(), theme::primary_button("⬇  Fetch"))
+                                        .on_hover_text("Retrieves the post, its author's identity, the manifest and chunks from this peer, verified on arrival. Large files continue over sessions.")
+                                        .clicked()
+                                    {
+                                        self.start_fetch(endpoint.clone(), hit.post.clone());
+                                    }
+                                });
+                            });
+                        });
+                    });
+                });
+            }
+            ui.add_space(8.0);
+            theme::section_title(ui, "On this device");
+        }
+        ui.add_space(6.0);
+        let mut entries: Vec<catalog::Entry> = self
+            .catalog
+            .iter()
+            .filter(|entry| self.catalog_kind.is_none_or(|kind| entry.kind == kind))
+            .filter(|entry| entry.matches(&self.catalog_query))
+            .filter(|entry| !self.muted.contains(&entry.author_did))
+            .cloned()
+            .collect();
+        catalog::sort(&mut entries, self.catalog_sort);
+        if self.catalog_rx.is_some() && self.catalog.is_empty() {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                theme::muted(ui, "Indexing what this device holds…");
+            });
+        } else if entries.is_empty() {
+            theme::card_frame().show(ui, |ui| {
+                ui.heading(if self.catalog_query.trim().is_empty() {
+                    "Nothing here yet"
+                } else {
+                    "No matches"
+                });
+                theme::muted(ui, "Media posts from everyone you exchange with are indexed here. Upload something to your Library and share it, or connect to more peers.");
+            });
+        } else {
+            theme::muted(ui, &format!("{} result(s)", entries.len()));
+        }
+        self.catalog_grid(ui, &entries);
+    }
+
+    /// Cards in a responsive grid.
+    fn catalog_grid(&mut self, ui: &mut egui::Ui, entries: &[catalog::Entry]) {
+        let gap = 12.0;
+        let available = ui.available_width();
+        let columns = ((available + gap) / (260.0 + gap)).floor().clamp(1.0, 4.0) as usize;
+        let card_width = ((available - gap * (columns as f32 - 1.0)) / columns as f32).max(200.0);
+        let mut open_watch: Option<mini_objects::ObjectId> = None;
+        let mut open_channel: Option<String> = None;
+        for row in entries.chunks(columns) {
+            ui.horizontal_top(|ui| {
+                for entry in row {
+                    ui.push_id(entry.post.as_str(), |ui| {
+                        ui.allocate_ui_with_layout(
+                            egui::vec2(card_width, 0.0),
+                            egui::Layout::top_down(egui::Align::Min),
+                            |ui| {
+                                ui.set_width(card_width);
+                                let (thumb_w, thumb_h) = (card_width, card_width * 9.0 / 16.0);
+                                let texture =
+                                    self.thumbnail(ui.ctx(), &entry.media, &entry.content_type);
+                                let (rect, response) = ui.allocate_exact_size(
+                                    egui::vec2(thumb_w, thumb_h),
+                                    egui::Sense::click(),
+                                );
+                                ui.painter().rect_filled(rect, 10.0, theme::CARD);
+                                match texture {
+                                    Some(texture) => {
+                                        let size = texture.size_vec2();
+                                        let scale = (thumb_w / size.x).min(thumb_h / size.y);
+                                        let shown = size * scale;
+                                        let image_rect =
+                                            egui::Rect::from_center_size(rect.center(), shown);
+                                        ui.painter().image(
+                                            texture.id(),
+                                            image_rect,
+                                            egui::Rect::from_min_max(
+                                                egui::pos2(0.0, 0.0),
+                                                egui::pos2(1.0, 1.0),
+                                            ),
+                                            egui::Color32::WHITE,
+                                        );
+                                    }
+                                    None => {
+                                        ui.painter().text(
+                                            rect.center(),
+                                            egui::Align2::CENTER_CENTER,
+                                            entry.kind.glyph(),
+                                            egui::FontId::proportional(44.0),
+                                            theme::TEXT_SECONDARY,
+                                        );
+                                    }
+                                }
+                                // Size/kind badge, bottom-right like a duration.
+                                let badge = if entry.bytes > 0 {
+                                    format!(
+                                        "{} · {}",
+                                        entry.kind.label(),
+                                        library::human_size(entry.bytes)
+                                    )
+                                } else {
+                                    "not received yet".to_string()
+                                };
+                                let badge_pos = rect.right_bottom() - egui::vec2(8.0, 8.0);
+                                let galley = ui.painter().layout_no_wrap(
+                                    badge,
+                                    egui::FontId::proportional(11.5),
+                                    egui::Color32::WHITE,
+                                );
+                                let badge_rect = egui::Rect::from_min_max(
+                                    badge_pos - galley.size() - egui::vec2(8.0, 4.0),
+                                    badge_pos,
+                                );
+                                ui.painter().rect_filled(
+                                    badge_rect,
+                                    4.0,
+                                    egui::Color32::from_black_alpha(190),
+                                );
+                                ui.painter().galley(
+                                    badge_rect.min + egui::vec2(4.0, 2.0),
+                                    galley,
+                                    egui::Color32::WHITE,
+                                );
+                                if !entry.complete && entry.bytes > 0 {
+                                    theme::pill_badge(ui, "STILL ARRIVING", theme::WARN_AMBER);
+                                }
+                                if response.clicked() {
+                                    open_watch = Some(entry.post.clone());
+                                }
+                                ui.add_space(6.0);
+                                ui.horizontal_top(|ui| {
+                                    let avatar = theme::avatar(
+                                        ui,
+                                        &entry.author_name,
+                                        &entry.author_did,
+                                        32.0,
+                                    );
+                                    if avatar.interact(egui::Sense::click()).clicked() {
+                                        open_channel = Some(entry.author_did.clone());
+                                    }
+                                    ui.vertical(|ui| {
+                                        ui.set_width(card_width - 44.0);
+                                        let title = ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&entry.title)
+                                                    .strong()
+                                                    .color(theme::TEXT_PRIMARY),
+                                            )
+                                            .truncate()
+                                            .sense(egui::Sense::click()),
+                                        );
+                                        if title.clicked() {
+                                            open_watch = Some(entry.post.clone());
+                                        }
+                                        let author = ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&entry.author_name)
+                                                    .small()
+                                                    .color(theme::TEXT_SECONDARY),
+                                            )
+                                            .sense(egui::Sense::click()),
+                                        );
+                                        if author.clicked() {
+                                            open_channel = Some(entry.author_did.clone());
+                                        }
+                                        theme::muted(
+                                            ui,
+                                            &format!(
+                                                "♥ {} · 💬 {} · {}",
+                                                entry.likes,
+                                                entry.comments,
+                                                timeline::age(entry.timestamp_ms, now_ms())
+                                            ),
+                                        );
+                                    });
+                                });
+                            },
+                        );
+                    });
+                    ui.add_space(12.0);
+                }
+            });
+            ui.add_space(14.0);
+        }
+        if let Some(post) = open_watch {
+            self.watch_target = Some(post);
+            self.reply_target = None;
+            self.view = View::Watch;
+        }
+        if let Some(did) = open_channel {
+            self.channel_did = Some(did);
+            self.view = View::Channel;
+        }
+    }
+
+    /// An author's page: profile, follow, their media and posts.
+    fn channel(&mut self, ui: &mut egui::Ui) {
+        let Some(did_text) = self.channel_did.clone() else {
+            theme::muted(ui, "Open a channel from a video card or a post.");
+            return;
+        };
+        let did = Did::parse(&did_text).ok();
+        let profile = self.workspace.as_ref().and_then(|workspace| {
+            did.as_ref()
+                .and_then(|did| resolve_profile(&workspace.store, did).ok().flatten())
+        });
+        let (name, bio, avatar) = profile
+            .as_ref()
+            .map(|profile| {
+                (
+                    profile.display_name.clone(),
+                    profile.bio.clone(),
+                    profile.avatar.clone(),
+                )
+            })
+            .unwrap_or_else(|| ("Mininet participant".into(), String::new(), None));
+        let own = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.human.as_ref())
+            .is_some_and(|me| me.as_str() == did_text);
+        let follows = self
+            .workspace
+            .as_ref()
+            .zip(did.as_ref())
+            .is_some_and(|(workspace, did)| workspace.follows(did));
+        let media: Vec<catalog::Entry> = self
+            .catalog
+            .iter()
+            .filter(|entry| entry.author_did == did_text)
+            .cloned()
+            .collect();
+        let post_count = self
+            .timeline_cards
+            .iter()
+            .filter(|card| card.did == did_text)
+            .count();
+        theme::card_frame().show(ui, |ui| {
+            ui.horizontal(|ui| {
+                match avatar
+                    .as_ref()
+                    .and_then(|avatar| self.profile_texture(ui.ctx(), avatar))
+                {
+                    Some(texture) => {
+                        ui.add(
+                            egui::Image::new((texture.id(), egui::vec2(72.0, 72.0)))
+                                .corner_radius(36.0),
+                        );
+                    }
+                    None => {
+                        theme::avatar(ui, &name, &did_text, 72.0);
+                    }
+                }
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new(&name).strong().size(22.0));
+                    theme::muted(ui, &short_did(&did_text));
+                    if !bio.is_empty() {
+                        ui.label(&bio);
+                    }
+                    theme::muted(
+                        ui,
+                        &format!(
+                            "{} media · {} post(s) on this device",
+                            media.len(),
+                            post_count
+                        ),
+                    );
+                    ui.horizontal(|ui| {
+                        if own {
+                            theme::pill_badge(ui, "YOUR CHANNEL", theme::ACCENT);
+                        } else if follows {
+                            theme::pill_badge(ui, "FOLLOWING", theme::ONLINE_GREEN);
+                            if ui.add(theme::secondary_button("Unfollow")).clicked() {
+                                self.notice = match self.workspace.as_mut() {
+                                    Some(workspace) => match workspace
+                                        .set_follow_target_confirmed(&did_text, false)
+                                    {
+                                        Ok(()) => format!("Unfollowed {name}."),
+                                        Err(error) => format!("Could not unfollow: {error}"),
+                                    },
+                                    None => "Local workspace unavailable.".into(),
+                                };
+                            }
+                        } else if ui.add(theme::primary_button("Follow")).clicked() {
+                            self.follow_did(&did_text, &name);
+                        }
+                        if !own && ui.add(theme::secondary_button("✉  Message")).clicked() {
+                            self.conversation_peer = did_text.clone();
+                            if self.conversation_label.trim().is_empty() {
+                                self.conversation_label = name.clone();
+                            }
+                            self.view = View::Inbox;
+                        }
+                        if ui.add(theme::secondary_button("Copy DID")).clicked() {
+                            ui.ctx().copy_text(did_text.clone());
+                        }
+                    });
+                });
+            });
+        });
+        ui.add_space(10.0);
+        theme::section_title(ui, "Media");
+        if media.is_empty() {
+            theme::muted(ui, "No media from this channel on your device yet.");
+        }
+        let mut media = media;
+        catalog::sort(&mut media, catalog::Sort::Newest);
+        self.catalog_grid(ui, &media);
+        ui.add_space(10.0);
+        theme::section_title(ui, "Posts");
+        let posts: Vec<timeline::Card> = self
+            .timeline_cards
+            .iter()
+            .filter(|card| card.did == did_text && card.media.is_none())
+            .cloned()
+            .collect();
+        if posts.is_empty() {
+            theme::muted(
+                ui,
+                "No text posts from this channel in the last 50 received.",
+            );
+        }
+        for card in posts {
+            ui.push_id(card.id.as_str(), |ui| self.post_card(ui, &card));
+        }
+    }
+
+    /// Decode a post's image once and cache the texture; a manifest that is
+    /// incomplete or not an image is remembered as unavailable.
+    fn media_texture(
+        &mut self,
+        ctx: &egui::Context,
+        manifest: &mini_objects::ObjectId,
+    ) -> Option<egui::TextureHandle> {
+        if let Some(cached) = self.media_textures.get(manifest.as_str()) {
+            return cached.clone();
+        }
+        let texture = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.profile_image(manifest).ok())
+            .and_then(|bytes| decode_profile_image(&bytes).ok())
+            .map(|(image, _)| {
+                let image = image.thumbnail(640, 640);
+                let rgba = image.to_rgba8();
+                let size = [rgba.width() as usize, rgba.height() as usize];
+                let color = egui::ColorImage::from_rgba_unmultiplied(size, rgba.as_raw());
+                ctx.load_texture(
+                    format!("media:{}", manifest.as_str()),
+                    color,
+                    egui::TextureOptions::LINEAR,
+                )
+            });
+        self.media_textures
+            .insert(manifest.as_str().to_string(), texture.clone());
+        texture
+    }
+
+    /// What a media post links to, for the non-image fallback.
+    fn media_description(&self, manifest: &mini_objects::ObjectId) -> String {
+        let Some(workspace) = self.workspace.as_ref() else {
+            return "media unavailable".into();
+        };
+        let Ok(object) = workspace.store.get(manifest) else {
+            return "media manifest not received yet".into();
+        };
+        let Ok(manifest) = read_manifest(&object) else {
+            if let Ok(collection) = library::read_collection(&object) {
+                let progress = library::list(&workspace.store)
+                    .ok()
+                    .and_then(|items| items.into_iter().find(|item| item.id == collection.id));
+                return match progress {
+                    Some(item) if item.complete() => format!(
+                        "{} · {} · {} · complete, in your Library",
+                        collection.name,
+                        collection.content_type,
+                        library::human_size(collection.total_len)
+                    ),
+                    Some(item) => format!(
+                        "{} · {} · {} · {}% received, still arriving from peers",
+                        collection.name,
+                        collection.content_type,
+                        library::human_size(collection.total_len),
+                        item.percent()
+                    ),
+                    None => format!("{} · {}", collection.name, collection.content_type),
+                };
+            }
+            return "unreadable media manifest".into();
+        };
+        let complete = mini_media::missing_chunks(&workspace.store, &manifest)
+            .map(|missing| missing.is_empty())
+            .unwrap_or(false);
+        format!(
+            "{} · {} · {}",
+            manifest.content_type,
+            library::human_size(manifest.total_len),
+            if complete {
+                "received, in your Library"
+            } else {
+                "still arriving from peers"
+            }
+        )
+    }
+
     fn start_nearby_scan(&mut self) {
         if !self.privacy.lan_discovery {
             self.notice = "Enable local-network discovery in Privacy & safety first.".to_string();
@@ -1675,8 +4188,15 @@ impl MininetApp {
         );
         let root = data_root();
         std::thread::spawn(move || {
-            let result =
-                run_discoverable_profile_sync(&root, port, &name, Duration::from_secs(60), &sender);
+            let result = run_discoverable_profile_sync(
+                &root,
+                port,
+                &name,
+                Duration::from_secs(60),
+                &sender,
+                None,
+                None,
+            );
             let _ = sender.send(result);
         });
     }
@@ -1764,11 +4284,19 @@ impl MininetApp {
             return;
         }
 
+        self.timeline_refresh = Instant::now();
         let Some(endpoint) = nearby_endpoint_for(&self.nearby_profiles, &profile.human) else {
-            self.notice = format!(
-                "Friend request for {} is signed locally. Find them nearby again to deliver it.",
-                profile.display_name
-            );
+            self.notice = if self.network_session.is_some() || self.host.is_some() {
+                format!(
+                    "Following {}. The signed follow goes out on the next exchange.",
+                    profile.display_name
+                )
+            } else {
+                format!(
+                    "Following {}. Start a session in Connections to deliver the signed follow.",
+                    profile.display_name
+                )
+            };
             return;
         };
         self.peer_address = endpoint.to_string();
@@ -1783,48 +4311,268 @@ impl MininetApp {
         }
     }
 
-    fn apply_theme(&self, ctx: &egui::Context) {
-        let mut visuals = egui::Visuals::dark();
-        visuals.panel_fill = egui::Color32::from_rgb(15, 20, 29);
-        visuals.window_fill = egui::Color32::from_rgb(10, 14, 21);
-        visuals.faint_bg_color = egui::Color32::from_rgb(28, 37, 52);
-        visuals.extreme_bg_color = egui::Color32::from_rgb(8, 11, 17);
-        visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(20, 27, 38);
-        visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(27, 37, 52);
-        visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(42, 61, 82);
-        visuals.widgets.active.bg_fill = egui::Color32::from_rgb(65, 116, 154);
-        visuals.selection.bg_fill = egui::Color32::from_rgb(42, 105, 145);
-        let mut style = (*ctx.style()).clone();
-        style.visuals = visuals;
-        style.spacing.item_spacing = egui::vec2(12.0, 10.0);
-        style.spacing.button_padding = egui::vec2(14.0, 9.0);
-        style.spacing.window_margin = egui::Margin::same(18);
-        style
-            .text_styles
-            .insert(egui::TextStyle::Heading, egui::FontId::proportional(28.0));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Body, egui::FontId::proportional(15.0));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Button, egui::FontId::proportional(14.0));
-        style
-            .text_styles
-            .insert(egui::TextStyle::Small, egui::FontId::proportional(12.0));
-        ctx.set_style(style);
+    fn post_card(&mut self, ui: &mut egui::Ui, card: &timeline::Card) {
+        theme::row_frame().show(ui, |ui| {
+            ui.horizontal_top(|ui| {
+                match card
+                    .avatar
+                    .as_ref()
+                    .and_then(|avatar| self.profile_texture(ui.ctx(), avatar))
+                {
+                    Some(texture) => {
+                        ui.add(
+                            egui::Image::new((texture.id(), egui::vec2(42.0, 42.0)))
+                                .corner_radius(21.0),
+                        );
+                    }
+                    None => {
+                        theme::avatar(ui, &card.author, &card.did, 42.0);
+                    }
+                }
+                ui.add_space(8.0);
+                ui.vertical(|ui| {
+                    ui.set_width(ui.available_width());
+                    ui.horizontal_wrapped(|ui| {
+                        if ui
+                            .add(
+                                egui::Label::new(
+                                    egui::RichText::new(&card.author)
+                                        .strong()
+                                        .color(theme::TEXT_PRIMARY),
+                                )
+                                .sense(egui::Sense::click()),
+                            )
+                            .on_hover_text("Open channel")
+                            .clicked()
+                        {
+                            self.channel_did = Some(card.did.clone());
+                            self.view = View::Channel;
+                        }
+                        theme::muted(ui, &short_did(&card.did));
+                        theme::muted(
+                            ui,
+                            &format!("· {}", timeline::age(card.timestamp_ms, now_ms())),
+                        );
+                        if card.own {
+                            theme::pill_badge(ui, "You", theme::ACCENT);
+                        } else if card.reason == "Received from a peer" {
+                            theme::pill_badge(ui, "Not followed", theme::TEXT_SECONDARY);
+                        }
+                    });
+                    ui.add_space(2.0);
+                    ui.label(egui::RichText::new(&card.body).color(theme::TEXT_PRIMARY));
+                    if let Some(manifest) = card.media.as_ref() {
+                        ui.add_space(6.0);
+                        match self.media_texture(ui.ctx(), manifest) {
+                            Some(texture) => {
+                                let size = texture.size_vec2();
+                                let width = ui.available_width().min(size.x).min(520.0);
+                                let scale = width / size.x.max(1.0);
+                                ui.add(
+                                    egui::Image::new((texture.id(), size * scale))
+                                        .corner_radius(12.0),
+                                );
+                            }
+                            None => {
+                                let description = self.media_description(manifest);
+                                theme::card_frame().show(ui, |ui| {
+                                    ui.label(egui::RichText::new("🎬  Media attachment").strong());
+                                    theme::muted(ui, &description);
+                                });
+                            }
+                        }
+                    }
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        if theme::icon_action(
+                            ui,
+                            "💬",
+                            &card.comment_count.to_string(),
+                            theme::ACCENT,
+                        ) {
+                            let id = card.id.as_str().to_owned();
+                            if let Some(index) =
+                                self.expanded_threads.iter().position(|open| *open == id)
+                            {
+                                self.expanded_threads.remove(index);
+                            } else {
+                                self.expanded_threads.push(id);
+                                self.reply_target = Some(card.id.clone());
+                            }
+                        }
+                        ui.add_space(10.0);
+                        if theme::icon_action(
+                            ui,
+                            "♥",
+                            &card.support_count.to_string(),
+                            theme::LIKE_PINK,
+                        ) {
+                            self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                                match workspace.react_like(&card.id) {
+                                    Ok(()) => {
+                                        "Like signed and saved. It shares on the next exchange."
+                                            .to_string()
+                                    }
+                                    Err(error) => format!("Could not react: {error}"),
+                                }
+                            } else {
+                                "Local workspace unavailable.".to_string()
+                            };
+                            self.timeline_refresh = Instant::now();
+                        }
+                        ui.add_space(10.0);
+                        if card.media.is_some()
+                            && theme::icon_action(ui, "▶", "Watch", theme::ACCENT)
+                        {
+                            self.watch_target = Some(card.id.clone());
+                            self.view = View::Watch;
+                        }
+                        if !card.own {
+                            let follows = self
+                                .workspace
+                                .as_ref()
+                                .zip(Did::parse(&card.did).ok())
+                                .is_some_and(|(workspace, did)| workspace.follows(&did));
+                            if !follows && theme::icon_action(ui, "👥", "Follow", theme::ACCENT) {
+                                let (did, name) = (card.did.clone(), card.author.clone());
+                                self.follow_did(&did, &name);
+                            }
+                        }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.menu_button("ℹ", |ui| {
+                                ui.set_min_width(420.0);
+                                ui.label(egui::RichText::new("Post identity").strong());
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(&card.did).monospace().small(),
+                                    )
+                                    .wrap_mode(egui::TextWrapMode::Extend),
+                                );
+                                theme::muted(ui, card.reason);
+                                theme::muted(
+                                    ui,
+                                    "Time is claimed by the author; it is not a server receipt.",
+                                );
+                                if ui.button("Copy author DID").clicked() {
+                                    ui.ctx().copy_text(card.did.clone());
+                                    ui.close_menu();
+                                }
+                                if !card.own && ui.button("Mute author on this device").clicked() {
+                                    let (did, name) = (card.did.clone(), card.author.clone());
+                                    self.set_muted(&did, &name, true);
+                                    ui.close_menu();
+                                }
+                            });
+                        });
+                    });
+                });
+            });
+        });
+        if self
+            .expanded_threads
+            .iter()
+            .any(|open| open == card.id.as_str())
+        {
+            self.thread(ui, &card.id);
+        }
+        ui.separator();
     }
 
-    fn nav_button(&mut self, ui: &mut egui::Ui, view: View, label: &str) {
+    /// Replies to one post, read from the local store when the thread is
+    /// expanded. Bounded by the store's own comment query; muted authors
+    /// are hidden like everywhere else.
+    fn thread(&mut self, ui: &mut egui::Ui, parent: &mini_objects::ObjectId) {
+        const MAX_SHOWN: usize = 100;
+        let Some(workspace) = self.workspace.as_ref() else {
+            return;
+        };
+        let own = workspace.human.clone();
+        let mut replies = match mini_social::comments(&workspace.store, parent) {
+            Ok(replies) => replies,
+            Err(error) => {
+                theme::muted(ui, &format!("Replies could not be read: {error}"));
+                return;
+            }
+        };
+        replies.sort_by_key(|reply| reply.timestamp_ms);
+        let hidden = replies.len().saturating_sub(MAX_SHOWN);
+        let rows: Vec<(String, String, String, u64, bool)> = replies
+            .into_iter()
+            .take(MAX_SHOWN)
+            .filter(|reply| !self.muted.contains(reply.author.as_str()))
+            .map(|reply| {
+                let name = resolve_profile(&workspace.store, &reply.author)
+                    .ok()
+                    .flatten()
+                    .map(|profile| profile.display_name)
+                    .unwrap_or_else(|| "Mininet participant".into());
+                (
+                    name,
+                    reply.author.as_str().to_owned(),
+                    reply.text,
+                    reply.timestamp_ms,
+                    own.as_ref() == Some(&reply.author),
+                )
+            })
+            .collect();
+        egui::Frame::new()
+            .inner_margin(egui::Margin {
+                left: 56,
+                right: 16,
+                top: 0,
+                bottom: 8,
+            })
+            .show(ui, |ui| {
+                if rows.is_empty() {
+                    theme::muted(
+                        ui,
+                        "No replies received yet. Yours goes out on the next exchange.",
+                    );
+                }
+                for (name, did, text, timestamp_ms, own) in rows {
+                    ui.horizontal_top(|ui| {
+                        theme::avatar(ui, &name, &did, 30.0);
+                        ui.vertical(|ui| {
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(egui::RichText::new(&name).strong());
+                                theme::muted(ui, &short_did(&did));
+                                theme::muted(
+                                    ui,
+                                    &format!("· {}", timeline::age(timestamp_ms, now_ms())),
+                                );
+                                if own {
+                                    theme::pill_badge(ui, "You", theme::ACCENT);
+                                }
+                            });
+                            ui.label(egui::RichText::new(text).color(theme::TEXT_PRIMARY));
+                        });
+                    });
+                    ui.add_space(4.0);
+                }
+                if hidden > 0 {
+                    theme::muted(ui, &format!("{hidden} older repl(ies) not shown."));
+                }
+            });
+    }
+
+    fn nav_button(&mut self, ui: &mut egui::Ui, view: View, glyph: &str, label: &str) {
         let selected = self.view == view;
-        if ui
-            .add_sized(
-                [ui.available_width(), 38.0],
-                egui::SelectableLabel::new(selected, label),
-            )
-            .clicked()
-        {
+        let text = egui::RichText::new(format!("{glyph}  {label}"))
+            .size(15.5)
+            .color(if selected {
+                theme::TEXT_PRIMARY
+            } else {
+                theme::TEXT_SECONDARY
+            });
+        let text = if selected { text.strong() } else { text };
+        let response = ui.add_sized(
+            [ui.available_width(), 40.0],
+            egui::SelectableLabel::new(selected, text),
+        );
+        if response.clicked() {
             self.view = view;
         }
+        ui.add_space(2.0);
     }
 
     fn header(&self, ui: &mut egui::Ui) {
@@ -1834,20 +4582,28 @@ impl MininetApp {
                 "Create your local root, then publish the public profile you choose to share.",
             ),
             View::Home => (
-                "Your feed",
-                "A local view of objects your device has received.",
+                "Home",
+                "People you follow. Conversations that matter. Your choice of order.",
             ),
+            View::Discover => (
+                "Explore",
+                "Search everything your device has received. Connect peers to bring more into view.",
+            ),
+            View::Media => ("Media", "Videos, music, images and files from everyone you exchange with. Search by title, author or type."),
+            View::Channel => ("Channel", "One author: their profile, media and posts."),
+            View::Shorts => ("Shorts", "One at a time. GIFs and music play here; arrow keys to move."),
+            View::Watch => ("Watch", "Play, read the comments, and see what is up next."),
             View::Inbox => (
-                "Inbox beta",
-                "Encrypted route-scoped messages with manual trusted invitation and sync.",
+                "Messages",
+                "Encrypted conversations. Delivered through your connection sessions when you allow it.",
             ),
             View::People => (
                 "People",
-                "Search signed profiles already on your device or discover opt-in nearby peers.",
+                "Signed profiles already on your device, plus opt-in nearby discovery.",
             ),
             View::Communities => (
                 "Communities",
-                "Portable spaces for discussion, not platform-owned silos.",
+                "Threaded discussion in portable, signed spaces — not platform-owned silos.",
             ),
             View::Diagnostics => (
                 "Diagnostics",
@@ -1863,7 +4619,15 @@ impl MininetApp {
             ),
             View::Connections => (
                 "Connections",
-                "Direct peers, local mesh, and optional relays.",
+                "Your saved peers, hosting, and the sessions that keep content flowing.",
+            ),
+            View::Library => (
+                "Library",
+                "Files and movies you hold, seed, and can rebuild — any size, resumable, verified.",
+            ),
+            View::Earnings => (
+                "Earnings",
+                "Service tickets peers signed for what you served. Unsettled credit, redeemable only by your DID.",
             ),
             View::System => (
                 "Mininet system",
@@ -1874,265 +4638,739 @@ impl MininetApp {
                 "See exactly what this client can and cannot do.",
             ),
         };
-        ui.heading(title);
-        ui.label(egui::RichText::new(subtitle).color(egui::Color32::LIGHT_GRAY));
-    }
-
-    fn onboarding(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.add_space(54.0);
-                ui.heading("MININET");
-                ui.label(
-                    egui::RichText::new("Your identity. Your objects. Your transport choices.")
-                        .color(egui::Color32::LIGHT_GRAY),
-                );
-                ui.add_space(22.0);
-                ui.allocate_ui_with_layout(
-                    [620.0, ui.available_height()].into(),
-                    egui::Layout::top_down(egui::Align::Min),
-                    |ui| {
-                        let root_created = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::root_created);
-                        let has_public_account = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::has_public_account);
-                        let is_unlocked = self
-                            .workspace
-                            .as_ref()
-                            .is_some_and(Workspace::is_unlocked);
-                        if self.workspace.is_some() {
-                            if !root_created {
-                                ui.group(|ui| {
-                                    ui.heading("1. Create your Mininet root");
-                                    ui.label("This creates a new local signing root protected by the Windows user vault. It never uploads a seed or contacts a server.");
-                                    ui.label("You will be able to export recovery material only through a separate, deliberate backup flow.");
-                                    if ui.button("Create local root").clicked() {
-                                        self.notice = match self
-                                            .workspace
-                                            .as_mut()
-                                            .expect("workspace checked above")
-                                            .create_root()
-                                        {
-                                            Ok(()) => "Root created locally. Publish your public account to continue.".to_string(),
-                                            Err(error) => format!("Root creation failed: {error}"),
-                                        };
-                                    }
-                                });
-                            } else if !has_public_account {
-                                ui.group(|ui| {
-                                    ui.heading("2. Create your public account");
-                                    ui.label("Start with a display name and optional bio. Next, you can choose a photo, location, age, and any custom public details before becoming visible to anyone.");
-                                    ui.label("Your cryptographic identity remains the DID shown in Privacy & safety.");
-                                    ui.add_space(8.0);
-                                    ui.label("Display name");
-                                    ui.text_edit_singleline(&mut self.account_name);
-                                    ui.label("Bio");
-                                    ui.add_sized(
-                                        [ui.available_width(), 90.0],
-                                        egui::TextEdit::multiline(&mut self.account_bio),
-                                    );
-                                    if !is_unlocked {
-                                        ui.label("This setup action will unlock the local root only long enough to sign the profile, then lock it again.");
-                                    }
-                                    ui.checkbox(
-                                        &mut self.signing_confirmation,
-                                        "I confirm this creates my signed public profile",
-                                    );
-                                    if ui.button("Publish public account locally").clicked() {
-                                        self.notice = if self.account_name.trim().is_empty() {
-                                            "Choose a display name first.".to_string()
-                                        } else if !self.signing_confirmation {
-                                            "Confirm signing before publishing the account.".to_string()
-                                        } else if let Some(workspace) = self.workspace.as_mut() {
-                                            let result = if workspace.is_unlocked() {
-                                                workspace.publish_profile(
-                                                    self.account_name.trim(),
-                                                    self.account_bio.trim(),
-                                                )
-                                            } else {
-                                                workspace.unlock().and_then(|()| {
-                                                    workspace.publish_profile(
-                                                        self.account_name.trim(),
-                                                        self.account_bio.trim(),
-                                                    )
-                                                })
-                                            };
-                                            workspace.lock();
-                                            match result {
-                                                Ok(()) => {
-                                                    self.profile_name = self.account_name.trim().to_string();
-                                                    self.profile_bio = self.account_bio.trim().to_string();
-                                                    self.signing_confirmation = false;
-                                                    self.view = View::Creator;
-                                                    "Public account created locally and identity locked again. Add any optional public details below, or open People when you are ready.".to_string()
-                                                }
-                                                Err(error) => format!("Could not create public account: {error}"),
-                                            }
-                                        } else {
-                                            "Local workspace unavailable.".to_string()
-                                        };
-                                    }
-                                });
-                            }
-                        } else {
-                            ui.colored_label(egui::Color32::YELLOW, "The local workspace could not be opened.");
-                            ui.label(&self.notice);
-                        }
-                        ui.add_space(14.0);
-                        ui.label(egui::RichText::new(&self.notice).small());
-                    },
-                );
-            });
-        });
+        ui.label(
+            egui::RichText::new(title)
+                .strong()
+                .size(24.0)
+                .color(theme::TEXT_PRIMARY),
+        );
+        theme::muted(ui, subtitle);
     }
 
     fn home(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
-            ui.label(egui::RichText::new("Create something").strong());
-            ui.add_space(4.0);
-            ui.add_sized(
-                [ui.available_width(), 72.0],
-                egui::TextEdit::multiline(&mut self.composer)
-                    .hint_text("Write a post… (saved locally before sync)"),
-            );
-            ui.checkbox(
-                &mut self.signing_confirmation,
-                "I confirm this action will create a signed Mininet object",
-            );
-            ui.horizontal(|ui| {
-                if ui
-                    .add_enabled(
-                        self.workspace.as_ref().is_some_and(Workspace::is_unlocked),
-                        egui::Button::new("Publish locally"),
+        let (name, did) = self
+            .app_status
+            .as_ref()
+            .and_then(|status| {
+                status.profile.as_ref().map(|profile| {
+                    (
+                        profile.display_name.clone(),
+                        status.human_did.clone().unwrap_or_default(),
                     )
-                    .clicked()
-                {
-                    self.notice = if self.composer.trim().is_empty() {
-                        "Nothing published: write something first.".to_string()
-                    } else if !self.signing_confirmation {
-                        "Confirm signing before publishing.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.publish_post(self.composer.trim()) {
-                            Ok(()) => {
-                                self.composer.clear();
-                                self.signing_confirmation = false;
-                                "Post written to the local object store. No network used."
-                                    .to_string()
-                            }
-                            Err(error) => format!("Could not publish locally: {error}"),
-                        }
-                    } else {
-                        "Local workspace unavailable; no content was published.".to_string()
-                    };
-                }
-                if ui.button("Attach media").clicked() {
-                    self.view = View::Creator;
-                }
-                if ui.button("Add community").clicked() {
-                    self.view = View::Communities;
-                }
-            });
-        });
-        ui.add_space(14.0);
-        ui.horizontal(|ui| {
-            ui.label("Feed order:");
-            egui::ComboBox::from_id_salt("feed_filter")
-                .selected_text(match self.feed_filter {
-                    FeedFilter::Chronological => "Chronological",
-                    FeedFilter::MostSupported => "Most supported",
-                    _ => "Custom",
                 })
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(
-                        &mut self.feed_filter,
-                        FeedFilter::Chronological,
-                        "Chronological",
-                    );
-                    ui.selectable_value(
-                        &mut self.feed_filter,
-                        FeedFilter::MostSupported,
-                        "Most supported",
-                    );
-                });
-            ui.label("Ranking is local and user-selected.");
-        });
-        let items = self
-            .workspace
-            .as_ref()
-            .and_then(|workspace| workspace.feed(self.feed_filter).ok())
-            .unwrap_or_default();
-        if items.is_empty() {
-            ui.label("No local posts yet. Your first post stays on this device until you choose a connection path.");
-        }
-        let cards: Vec<_> = self
-            .workspace
-            .as_ref()
-            .map(|workspace| {
-                items
-                    .iter()
-                    .map(|item| {
+            })
+            .or_else(|| {
+                self.workspace.as_ref().and_then(|workspace| {
+                    workspace.current_profile().map(|profile| {
                         (
-                            item.id.clone(),
-                            workspace.post_text(item),
-                            match item.reason {
-                                mini_social::FeedReason::Own => "Own",
-                                mini_social::FeedReason::Followed => "Followed",
-                            },
-                            item.support_count,
-                            workspace.comment_count(&item.id),
+                            profile.display_name,
+                            workspace
+                                .human
+                                .as_ref()
+                                .map(|did| did.as_str().to_owned())
+                                .unwrap_or_default(),
                         )
                     })
-                    .collect()
+                })
             })
-            .unwrap_or_default();
-        for (id, body, reason, support_count, comment_count) in cards {
-            self.post_card(
-                ui,
-                &id,
-                "Local post",
-                &body,
-                reason,
-                support_count,
-                comment_count,
-            );
-        }
+            .unwrap_or_else(|| ("You".to_string(), String::new()));
+        theme::card_frame().show(ui, |ui| {
+            ui.horizontal_top(|ui| {
+                theme::avatar(ui, &name, &did, 44.0);
+                ui.add_space(8.0);
+                ui.vertical(|ui| {
+                    ui.set_width(ui.available_width());
+                    ui.add(
+                        egui::TextEdit::multiline(&mut self.composer)
+                            .hint_text("What is happening?")
+                            .frame(false)
+                            .desired_rows(2)
+                            .desired_width(f32::INFINITY),
+                    );
+                    ui.checkbox(
+                        &mut self.signing_confirmation,
+                        "I confirm this creates a signed Mininet object",
+                    );
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::secondary_button("🖼  Media")).clicked() {
+                            self.view = View::Creator;
+                        }
+                        if ui.add(theme::secondary_button("🏢  Community")).clicked() {
+                            self.view = View::Communities;
+                        }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let can_post = self.core_unlocked() && self.app_action.is_none();
+                            if ui
+                                .add_enabled(can_post, theme::primary_button("Post"))
+                                .on_disabled_hover_text(if self.core_available() {
+                                    "Unlock your identity in the application core to sign a post."
+                                } else {
+                                    "Application core unavailable; signing is disabled."
+                                })
+                                .clicked()
+                            {
+                                let text = self.composer.trim().to_string();
+                                if text.is_empty() {
+                                    self.notice =
+                                        "Nothing published: write something first.".to_string();
+                                } else if !self.signing_confirmation {
+                                    self.notice = "Confirm signing before publishing.".to_string();
+                                } else {
+                                    let operation_id = self.post_operation_id(&text);
+                                    self.start_core_action(
+                                        CoreAction::PublishPost { text: text.clone() },
+                                        AppCommand::PublishPost { operation_id, text },
+                                    );
+                                }
+                            }
+                        });
+                    });
+                });
+            });
+        });
+        ui.add_space(10.0);
+        self.timeline_controls(ui);
+        ui.add_space(6.0);
         if let Some(target) = self.reply_target.clone() {
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.label(egui::RichText::new("Reply to selected post").strong());
-                ui.text_edit_multiline(&mut self.reply_text);
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.reply_text)
+                        .desired_width(f32::INFINITY)
+                        .desired_rows(2),
+                );
                 ui.checkbox(
                     &mut self.signing_confirmation,
-                    "I confirm this action will create a signed reply",
+                    "I confirm this creates a signed reply",
                 );
-                if ui.button("Publish reply locally").clicked() {
-                    self.notice = if self.reply_text.trim().is_empty() {
-                        "Write a reply first.".to_string()
-                    } else if !self.signing_confirmation {
-                        "Confirm signing before publishing.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.publish_comment(&target, self.reply_text.trim()) {
-                            Ok(()) => {
-                                self.reply_text.clear();
-                                self.reply_target = None;
-                                self.signing_confirmation = false;
-                                "Reply written locally. No network used.".to_string()
+                ui.horizontal(|ui| {
+                    if ui.add(theme::primary_button("Reply")).clicked() {
+                        self.notice = if self.reply_text.trim().is_empty() {
+                            "Write a reply first.".to_string()
+                        } else if !self.signing_confirmation {
+                            "Confirm signing before publishing.".to_string()
+                        } else if let Some(workspace) = self.workspace.as_mut() {
+                            match workspace.publish_comment_confirmed(&target, self.reply_text.trim()) {
+                                Ok(()) => {
+                                    self.reply_text.clear();
+                                    self.reply_target = None;
+                                    self.signing_confirmation = false;
+                                    self.timeline_refresh = Instant::now();
+                                    "Reply signed and saved by the transitional desktop path. It shares on the next exchange."
+                                        .to_string()
+                                }
+                                Err(error) => format!("Could not publish reply: {error}"),
                             }
-                            Err(error) => format!("Could not publish reply: {error}"),
+                        } else {
+                            "Local workspace unavailable.".to_string()
+                        };
+                    }
+                    if ui.add(theme::secondary_button("Cancel")).clicked() {
+                        self.reply_target = None;
+                    }
+                });
+                theme::muted(
+                    ui,
+                    "Replies are still on the legacy W1 migration path; root/profile/plain-post signing already uses the application core.",
+                );
+            });
+            ui.add_space(6.0);
+        }
+        self.render_timeline(ui, false);
+    }
+
+    fn connections(&mut self, ui: &mut egui::Ui) {
+        let now = Instant::now();
+        let own_did = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.human.as_ref())
+            .map(|did| did.as_str().to_owned());
+        let own_name = self
+            .workspace
+            .as_ref()
+            .and_then(Workspace::current_profile)
+            .map(|profile| profile.display_name);
+
+        // --- status -------------------------------------------------------
+        theme::card_frame().show(ui, |ui| {
+            let (state, color) = self.connection_state();
+            ui.horizontal(|ui| {
+                theme::pill_badge(ui, &state.to_uppercase(), color);
+                theme::muted(ui, &self.connection_summary());
+            });
+            ui.add_space(6.0);
+            match self.network_session.as_ref() {
+                Some(session) => {
+                    for slot in session.peers() {
+                        ui.horizontal_wrapped(|ui| {
+                            let (glyph, color) = match slot.last_ok() {
+                                Some(true) => ("✔", theme::ONLINE_GREEN),
+                                Some(false) => ("✖", theme::WARN_AMBER),
+                                None => ("•", theme::TEXT_SECONDARY),
+                            };
+                            ui.label(egui::RichText::new(glyph).color(color));
+                            ui.label(egui::RichText::new(self.peer_label(slot.endpoint())).strong());
+                            theme::muted(ui, slot.endpoint());
+                            theme::muted(
+                                ui,
+                                &format!(
+                                    "· {} ok / {} failed · next in {}s",
+                                    slot.successes(),
+                                    slot.failures(),
+                                    slot.due_in(now)
+                                ),
+                            );
+                        });
+                        if !slot.last_summary().is_empty() {
+                            theme::muted(ui, slot.last_summary());
+                        }
+                    }
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::secondary_button("Sync now")).clicked() {
+                            if let Some(session) = self.network_session.as_mut() {
+                                session.sync_now(now);
+                            }
+                        }
+                        if ui.add(theme::secondary_button("Stop session")).clicked() {
+                            self.stop_session();
+                        }
+                    });
+                }
+                None => {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("Session length:");
+                        for length in [
+                            network_session::SessionLength::Short,
+                            network_session::SessionLength::Hour,
+                            network_session::SessionLength::WhileOpen,
+                        ] {
+                            if ui
+                                .selectable_value(
+                                    &mut self.connections.session_length,
+                                    length,
+                                    length.label(),
+                                )
+                                .changed()
+                            {
+                                self.save_connections();
+                            }
+                        }
+                    });
+                    let can_start = !self.connections.peers.is_empty();
+                    if ui
+                        .add_enabled(can_start, theme::primary_button("▶  Start session"))
+                        .on_disabled_hover_text("Save a peer first.")
+                        .clicked()
+                    {
+                        self.start_session();
+                    }
+                    theme::muted(
+                        ui,
+                        "A session dials each saved peer every 30 seconds (backing off to 2 minutes after failures), exchanges public posts, profiles, follows and reactions, and stops at the chosen limit. It never restarts on its own unless you enable that below.",
+                    );
+                }
+            }
+        });
+        ui.add_space(12.0);
+
+        // --- hosting ------------------------------------------------------
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Accept connections (host)");
+            theme::muted(
+                ui,
+                "Let peers reach you. The port must be reachable from the internet: ask your router to forward it below (UPnP), forward it by hand, or host from a machine with a public address. Only signed public objects and, if enabled, your own conversations' encrypted envelopes are exchanged. The first time you host, Windows Firewall asks whether to allow mininet-desktop; hosting only works if you allow it.",
+            );
+            match self.host.as_ref() {
+                Some(host) => {
+                    ui.horizontal_wrapped(|ui| {
+                        theme::pill_badge(
+                            ui,
+                            if host.listening { "HOSTING" } else { "STARTING" },
+                            theme::ONLINE_GREEN,
+                        );
+                        theme::muted(
+                            ui,
+                            &format!(
+                                "port {} · {} served · {} failed · {} min",
+                                host.port,
+                                host.served,
+                                host.failed,
+                                host.started.elapsed().as_secs() / 60
+                            ),
+                        );
+                    });
+                    if !host.last.is_empty() {
+                        theme::muted(ui, &host.last);
+                    }
+                    if ui.add(theme::secondary_button("■  Stop hosting")).clicked() {
+                        self.stop_host();
+                    }
+                    self.router_controls(ui);
+                }
+                None => {
+                    ui.horizontal(|ui| {
+                        ui.label("Port");
+                        if ui
+                            .add(egui::TextEdit::singleline(&mut self.listen_port).desired_width(80.0))
+                            .lost_focus()
+                        {
+                            match self.listen_port.trim().parse::<u16>() {
+                                Ok(port) if port != 0 => {
+                                    self.connections.listen_port = port;
+                                    self.save_connections();
+                                }
+                                _ => {
+                                    self.listen_port = self.connections.listen_port.to_string();
+                                    self.notice = "Enter a valid non-zero port.".into();
+                                }
+                            }
+                        }
+                        if ui.add(theme::primary_button("▶  Start hosting")).clicked() {
+                            self.start_host();
+                        }
+                    });
+                    self.router_controls(ui);
+                }
+            }
+        });
+        ui.add_space(12.0);
+
+        // --- your card ----------------------------------------------------
+        if let (Some(did), Some(name)) = (own_did.as_ref(), own_name.as_ref()) {
+            theme::card_frame().show(ui, |ui| {
+                theme::section_title(ui, "Your connection card");
+                theme::muted(
+                    ui,
+                    "Send this to a friend. It carries the address peers can reach you at and your DID; it grants nothing by itself. Use your public IP or hostname for the internet, or your LAN address for the same network.",
+                );
+                ui.horizontal(|ui| {
+                    ui.label("Reachable host");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.card_host)
+                            .hint_text("public IP, hostname, or LAN address")
+                            .desired_width(240.0),
+                    );
+                    if ui
+                        .add(theme::secondary_button("Detect LAN address"))
+                        .on_hover_text("Asks the OS which local address routes outward. No packet is sent.")
+                        .clicked()
+                    {
+                        match connectivity::local_address() {
+                            Ok(address) => {
+                                self.card_host = address;
+                                self.notice = "LAN address filled in. Peers outside your network still need your public IP or a port-forward.".into();
+                            }
+                            Err(error) => self.notice = format!("Could not detect a LAN address: {error}"),
+                        }
+                    }
+                });
+                let host = if self.card_host.trim().is_empty() {
+                    "YOUR-PUBLIC-IP".to_string()
+                } else {
+                    self.card_host.trim().to_string()
+                };
+                let card = connectivity::ConnectionCard {
+                    endpoint: format!("{host}:{}", self.connections.listen_port),
+                    did: did.clone(),
+                    name: name.clone(),
+                }
+                .encode();
+                ui.add(
+                    egui::TextEdit::singleline(&mut card.clone())
+                        .desired_width(f32::INFINITY)
+                        .interactive(false),
+                );
+                if ui.add(theme::secondary_button("📋  Copy card")).clicked() {
+                    ui.ctx().copy_text(card);
+                    self.notice = if self.card_host.trim().is_empty() {
+                        "Connection card copied. Replace YOUR-PUBLIC-IP with an address peers can reach.".into()
+                    } else {
+                        "Connection card copied.".into()
+                    };
+                }
+            });
+            ui.add_space(12.0);
+        }
+
+        // --- peers --------------------------------------------------------
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Saved peers");
+            if self.connections.peers.is_empty() {
+                theme::muted(ui, "No peers saved. Paste a friend's connection card or add an endpoint by hand.");
+            }
+            let mut remove: Option<String> = None;
+            let mut dial: Option<String> = None;
+            for peer in self.connections.peers.clone() {
+                ui.horizontal_wrapped(|ui| {
+                    theme::avatar(ui, &peer.label, peer.did.as_deref().unwrap_or(&peer.endpoint), 30.0);
+                    ui.label(egui::RichText::new(&peer.label).strong());
+                    theme::muted(ui, &peer.endpoint);
+                    if let Some(did) = peer.did.as_deref() {
+                        theme::muted(ui, &short_did(did));
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add(theme::secondary_button("Remove")).clicked() {
+                            remove = Some(peer.endpoint.clone());
+                        }
+                        if ui
+                            .add_enabled(self.sync_rx.is_none(), theme::secondary_button("Sync once"))
+                            .clicked()
+                        {
+                            dial = Some(peer.endpoint.clone());
+                        }
+                    });
+                });
+            }
+            if let Some(endpoint) = remove {
+                self.connections.remove_peer(&endpoint);
+                self.save_connections();
+                self.notice = "Peer removed. A running session keeps its own list until restarted.".into();
+            }
+            if let Some(endpoint) = dial {
+                self.peer_address = endpoint;
+                self.start_peer_sync(false, None);
+            }
+            ui.separator();
+            ui.label(egui::RichText::new("Add from a connection card").strong());
+            ui.add(
+                egui::TextEdit::multiline(&mut self.card_input)
+                    .hint_text("mininet-peer-v1;endpoint=…;did=…;name=…")
+                    .desired_rows(2)
+                    .desired_width(f32::INFINITY),
+            );
+            if ui.add(theme::primary_button("Add peer and follow")).clicked() {
+                self.notice = match connectivity::ConnectionCard::decode(&self.card_input) {
+                    Ok(card) => {
+                        match self.connections.upsert_peer(&card.name, &card.endpoint, Some(&card.did)) {
+                            Ok(_) => {
+                                self.save_connections();
+                                self.card_input.clear();
+                                let follow = self.workspace.as_mut().map(|workspace| {
+                                    workspace.set_follow_target_confirmed(&card.did, true)
+                                });
+                                match follow {
+                                    Some(Ok(())) => format!(
+                                        "Saved {} and signed a follow. Start a session to exchange with them.",
+                                        card.name
+                                    ),
+                                    Some(Err(error)) => format!(
+                                        "Saved {}, but the follow was not signed: {error}",
+                                        card.name
+                                    ),
+                                    None => format!("Saved {}.", card.name),
+                                }
+                            }
+                            Err(error) => error,
+                        }
+                    }
+                    Err(error) => error,
+                };
+            }
+            ui.add_space(6.0);
+            ui.label(egui::RichText::new("Or add an endpoint by hand").strong());
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.new_peer_label)
+                        .hint_text("Name")
+                        .desired_width(140.0),
+                );
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.new_peer_endpoint)
+                        .hint_text("peer.example:46000 or [IPv6]:46000")
+                        .desired_width(240.0),
+                );
+                if ui.add(theme::secondary_button("Save peer")).clicked() {
+                    self.notice = match self.connections.upsert_peer(
+                        &self.new_peer_label,
+                        &self.new_peer_endpoint,
+                        None,
+                    ) {
+                        Ok(_) => {
+                            self.save_connections();
+                            self.new_peer_label.clear();
+                            self.new_peer_endpoint.clear();
+                            "Peer saved.".into()
+                        }
+                        Err(error) => error,
+                    };
+                }
+            });
+            theme::muted(ui, "An endpoint is a dial hint, not a verified identity. Names and profiles are verified only when their signed objects arrive.");
+        });
+        ui.add_space(12.0);
+
+        // --- policy -------------------------------------------------------
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Connection policy");
+            let mut changed = false;
+            changed |= ui
+                .checkbox(
+                    &mut self.connections.session_on_launch,
+                    "Start a session with my saved peers when Mininet opens",
+                )
+                .changed();
+            changed |= ui
+                .checkbox(
+                    &mut self.connections.host_on_launch,
+                    "Accept connections when Mininet opens",
+                )
+                .changed();
+            changed |= ui
+                .checkbox(
+                    &mut self.connections.include_private,
+                    "Include my private conversations in sessions and hosting",
+                )
+                .changed();
+            theme::muted(
+                ui,
+                "Private conversations exchange only encrypted envelopes for routes both sides already hold. Changing this takes effect for the next session or hosting window.",
+            );
+            changed |= ui
+                .checkbox(
+                    &mut self.connections.forward_searches,
+                    "While hosting, answer searches with what my saved peers hold too",
+                )
+                .changed();
+            theme::muted(
+                ui,
+                "Forwards a searcher's query one hop to your saved peers, and when they ask you for a hit you do not hold yet, pulls it from that peer first and then serves it — you seed it from then on and hold the host ticket for it.",
+            );
+            if changed {
+                self.save_connections();
+                self.notice = "Connection policy saved. These are the only ways Mininet starts networking on launch.".into();
+            }
+        });
+        ui.add_space(12.0);
+
+        // --- activity -----------------------------------------------------
+        if !self.activity.is_empty() {
+            theme::card_frame().show(ui, |ui| {
+                theme::section_title(ui, "Activity");
+                for line in self.activity.iter().rev().take(12) {
+                    theme::muted(ui, line);
+                }
+            });
+            ui.add_space(12.0);
+        }
+
+        // --- advanced -----------------------------------------------------
+        ui.collapsing("Advanced: one-shot sync and offline transfer", |ui| {
+            theme::card_frame().show(ui, |ui| {
+                ui.label(egui::RichText::new("One-shot direct peer sync").strong());
+                theme::muted(ui, "Encrypted TCP bearer + verified MINI/SYNC1 ingest. One connection, then it stops.");
+                ui.horizontal(|ui| {
+                    ui.label("Peer address");
+                    ui.text_edit_singleline(&mut self.peer_address);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Listen port");
+                    ui.text_edit_singleline(&mut self.listen_port);
+                });
+                ui.horizontal(|ui| {
+                    if ui.add(theme::secondary_button("Connect once")).clicked() {
+                        self.start_peer_sync(false, None);
+                    }
+                    if ui.add(theme::secondary_button("Listen once")).clicked() {
+                        self.start_peer_sync(true, None);
+                    }
+                });
+                if self.sync_rx.is_some() || self.visibility_rx.is_some() {
+                    theme::muted(ui, "Peer operation active…");
+                }
+            });
+            ui.add_space(8.0);
+            theme::card_frame().show(ui, |ui| {
+                ui.label(egui::RichText::new("Offline transfer").strong());
+                theme::muted(ui, "Move signed objects by USB or a trusted folder. Bundles never contain the identity vault.");
+                ui.text_edit_singleline(&mut self.export_path);
+                if ui.add(theme::secondary_button("Export local objects")).clicked() {
+                    self.notice = if let Some(workspace) = self.workspace.as_ref() {
+                        match workspace.export_bundle(self.export_path.trim()) {
+                            Ok(bytes) => format!("Exported {bytes} bytes of signed objects. The bundle is portable, not encrypted."),
+                            Err(error) => format!("Export failed: {error}"),
+                        }
+                    } else {
+                        "Local workspace unavailable.".to_string()
+                    };
+                }
+                ui.separator();
+                ui.text_edit_singleline(&mut self.import_path);
+                if ui.add(theme::secondary_button("Import local objects")).clicked() {
+                    self.notice = if let Some(workspace) = self.workspace.as_mut() {
+                        match workspace.import_bundle(self.import_path.trim()) {
+                            Ok(count) => {
+                                self.timeline_refresh = Instant::now();
+                                format!("Imported {count} verified object(s). No network used.")
+                            }
+                            Err(error) => format!("Import failed: {error}"),
                         }
                     } else {
                         "Local workspace unavailable.".to_string()
                     };
                 }
             });
-        }
+        });
+        ui.add_space(8.0);
+        theme::muted(ui, "A blocked domain or unavailable peer does not delete local data. Export, peer transfer, and alternate peers remain separate paths.");
+    }
+
+    fn onboarding(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(theme::BG).inner_margin(egui::Margin::same(24)))
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(54.0);
+                    ui.heading("MININET");
+                    ui.label(
+                        egui::RichText::new("Your identity. Your objects. Your transport choices.")
+                            .color(egui::Color32::LIGHT_GRAY),
+                    );
+                    ui.add_space(22.0);
+                    ui.allocate_ui_with_layout(
+                        [620.0, ui.available_height()].into(),
+                        egui::Layout::top_down(egui::Align::Min),
+                        |ui| {
+                            if !self.core_available() {
+                                theme::card_frame().show(ui, |ui| {
+                                    ui.heading("Application core unavailable");
+                                    ui.colored_label(
+                                        theme::WARN_AMBER,
+                                        "Identity creation and signing are disabled rather than falling back to renderer-owned keys.",
+                                    );
+                                    ui.label("Install or build mininet-app-service beside mininet-desktop, then restart the client.");
+                                });
+                            } else if let Some(status) = self.app_status.clone() {
+                                if !status.root_created {
+                                    theme::card_frame().show(ui, |ui| {
+                                        ui.heading("1. Create your Mininet root");
+                                        ui.label("The per-user application core creates the signing root and delegated device under the Windows user vault. The renderer never receives seed material.");
+                                        ui.label("No network session, crawler, relay, wallet, Forge task, or update starts as part of this action.");
+                                        if ui
+                                            .add_enabled(
+                                                self.app_action.is_none(),
+                                                theme::primary_button("Create local root"),
+                                            )
+                                            .clicked()
+                                        {
+                                            self.start_core_action(
+                                                CoreAction::CreateRoot,
+                                                AppCommand::CreateRoot,
+                                            );
+                                        }
+                                    });
+                                } else if status.profile.is_none() {
+                                    theme::card_frame().show(ui, |ui| {
+                                        ui.heading("2. Create your public account");
+                                        ui.label("Start with a display name and optional bio. Additional public profile fields remain owner-selected and can be edited later in Creator.");
+                                        if let Some(did) = status.human_did.as_deref() {
+                                            theme::muted(ui, &format!("Identity anchor: {}", short_did(did)));
+                                        }
+                                        ui.add_space(8.0);
+                                        ui.label("Display name");
+                                        ui.text_edit_singleline(&mut self.account_name);
+                                        ui.label("Bio");
+                                        ui.add_sized(
+                                            [ui.available_width(), 90.0],
+                                            egui::TextEdit::multiline(&mut self.account_bio),
+                                        );
+                                        if !status.identity_unlocked {
+                                            ui.colored_label(
+                                                theme::WARN_AMBER,
+                                                "Identity is locked in the application core. Unlock it before publishing.",
+                                            );
+                                            if ui
+                                                .add_enabled(
+                                                    self.app_action.is_none(),
+                                                    theme::secondary_button("🔓  Unlock identity"),
+                                                )
+                                                .clicked()
+                                            {
+                                                self.start_core_action(
+                                                    CoreAction::UnlockIdentity,
+                                                    AppCommand::UnlockIdentity,
+                                                );
+                                            }
+                                        }
+                                        ui.checkbox(
+                                            &mut self.signing_confirmation,
+                                            "I confirm this creates my signed public profile",
+                                        );
+                                        if ui
+                                            .add_enabled(
+                                                status.identity_unlocked
+                                                    && self.app_action.is_none(),
+                                                theme::primary_button(
+                                                    "Publish public account locally",
+                                                ),
+                                            )
+                                            .clicked()
+                                        {
+                                            let display_name =
+                                                self.account_name.trim().to_string();
+                                            let bio = self.account_bio.trim().to_string();
+                                            if display_name.is_empty() {
+                                                self.notice =
+                                                    "Choose a display name first.".to_string();
+                                            } else if !self.signing_confirmation {
+                                                self.notice =
+                                                    "Confirm signing before publishing the account."
+                                                        .to_string();
+                                            } else {
+                                                let operation_id =
+                                                    self.profile_operation_id(&display_name, &bio);
+                                                self.start_core_action(
+                                                    CoreAction::PublishProfile {
+                                                        display_name: display_name.clone(),
+                                                        bio: bio.clone(),
+                                                    },
+                                                    AppCommand::PublishProfile {
+                                                        operation_id,
+                                                        display_name,
+                                                        bio,
+                                                    },
+                                                );
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    self.view = View::Home;
+                                    self.reload_workspace();
+                                }
+                            } else {
+                                theme::card_frame().show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.spinner();
+                                        ui.label("Starting the per-user application core…");
+                                    });
+                                    theme::muted(
+                                        ui,
+                                        "The renderer is waiting for bounded status before enabling identity actions.",
+                                    );
+                                });
+                            }
+                            ui.add_space(14.0);
+                            ui.label(egui::RichText::new(&self.notice).small());
+                        },
+                    );
+                });
+            });
     }
 
     fn inbox(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
+            ui.label(egui::RichText::new("How messages travel").strong());
+            if self.connections.include_private {
+                ui.label("Private conversations are included in your sessions and hosting: encrypted envelopes are exchanged automatically with peers that hold the same conversation.");
+            } else {
+                ui.label("Automatic delivery is off. Enable \"Include my private conversations\" in Connections, or use the manual one-shot sync below.");
+                if ui.add(theme::secondary_button("Open Connections")).clicked() {
+                    self.view = View::Connections;
+                }
+            }
+        });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Beta security boundary").strong());
             ui.label("Messages are signed and encrypted at rest, and private sync is limited to the selected opaque conversation route.");
             ui.colored_label(
@@ -2162,25 +5400,70 @@ impl MininetApp {
             })
             .unwrap_or_default();
 
-        ui.group(|ui| {
-            ui.label(egui::RichText::new("Conversations").strong());
+        if self.previews_dirty {
+            self.rebuild_conversation_previews();
+        }
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Conversations");
             if conversation_cards.is_empty() {
-                ui.label("No private conversations are stored in this Windows profile.");
+                theme::muted(ui, "No private conversations yet. Open a profile in People and press Message, or import an invite below.");
             }
-            for (index, label, peer) in &conversation_cards {
-                let selected = self.selected_conversation == Some(*index);
-                if ui
-                    .selectable_label(selected, format!("{label}  ·  {peer}"))
-                    .clicked()
-                {
-                    self.selected_conversation = Some(*index);
+            let previews = self.conversation_previews.clone();
+            for preview in previews {
+                let selected = self.selected_conversation == Some(preview.index);
+                let fill = if selected { theme::CARD_HOVER } else { egui::Color32::TRANSPARENT };
+                let response = egui::Frame::new()
+                    .fill(fill)
+                    .corner_radius(egui::CornerRadius::same(10))
+                    .inner_margin(egui::Margin::symmetric(8, 6))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            theme::avatar(ui, &preview.peer_name, &preview.peer_did, 36.0);
+                            ui.vertical(|ui| {
+                                ui.set_width(ui.available_width());
+                                ui.horizontal(|ui| {
+                                    ui.label(egui::RichText::new(&preview.peer_name).strong());
+                                    theme::muted(ui, &preview.label);
+                                    ui.with_layout(
+                                        egui::Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            if preview.count > 0 {
+                                                theme::muted(
+                                                    ui,
+                                                    &format!(
+                                                        "{} · {} message(s)",
+                                                        timeline::age(preview.last_timestamp_ms, now_ms()),
+                                                        preview.count
+                                                    ),
+                                                );
+                                            }
+                                        },
+                                    );
+                                });
+                                let line = if preview.last_body.is_empty() {
+                                    "No messages yet".to_string()
+                                } else {
+                                    preview.last_body.chars().take(90).collect()
+                                };
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(line).small().color(theme::TEXT_SECONDARY),
+                                    )
+                                    .truncate(),
+                                );
+                            });
+                        });
+                    })
+                    .response;
+                if response.interact(egui::Sense::click()).clicked() {
+                    self.selected_conversation = Some(preview.index);
                 }
             }
         });
         ui.add_space(12.0);
 
         ui.columns(2, |columns| {
-            columns[0].group(|ui| {
+            theme::card_frame().show(&mut columns[0], |ui| {
                 ui.label(egui::RichText::new("Create an invitation").strong());
                 ui.label("Local label");
                 ui.text_edit_singleline(&mut self.conversation_label);
@@ -2208,6 +5491,7 @@ impl MininetApp {
                                 self.selected_conversation =
                                     Some(workspace.conversations.len().saturating_sub(1));
                                 self.conversation_invite = invite;
+                                self.previews_dirty = true;
                                 self.conversation_label.clear();
                                 self.conversation_peer.clear();
                                 "Conversation stored through DPAPI. Transfer the invite securely."
@@ -2220,7 +5504,7 @@ impl MininetApp {
                     };
                 }
             });
-            columns[1].group(|ui| {
+            theme::card_frame().show(&mut columns[1], |ui| {
                 ui.label(egui::RichText::new("Import an invitation").strong());
                 ui.label("Local label");
                 ui.text_edit_singleline(&mut self.import_conversation_label);
@@ -2239,6 +5523,7 @@ impl MininetApp {
                         match workspace.import_beta_conversation(&label, &invite) {
                             Ok(index) => {
                                 self.selected_conversation = Some(index);
+                                self.previews_dirty = true;
                                 self.import_conversation_label.clear();
                                 self.import_conversation_invite.clear();
                                 "Conversation capability imported into DPAPI-protected storage."
@@ -2255,7 +5540,7 @@ impl MininetApp {
 
         if !self.conversation_invite.is_empty() {
             ui.add_space(10.0);
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.label(egui::RichText::new("Sensitive invite — grants message access").strong());
                 ui.add_sized(
                     [ui.available_width(), 72.0],
@@ -2281,7 +5566,7 @@ impl MininetApp {
         };
 
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.heading(&label);
             ui.label(format!("Claimed peer: {peer}"));
             ui.label(egui::RichText::new("Message signatures are retained, but this beta view does not yet prove current device delegation/provenance.").small());
@@ -2298,7 +5583,7 @@ impl MininetApp {
                     .as_ref()
                     .and_then(|workspace| workspace.human.as_ref());
                 for message in scan.messages {
-                    ui.group(|ui| {
+                    theme::card_frame().show(ui, |ui| {
                         let sender = if own_did == Some(&message.author_human) {
                             "You".to_string()
                         } else if message.author_human.as_str() == peer {
@@ -2340,19 +5625,25 @@ impl MininetApp {
                 &mut self.signing_confirmation,
                 "I confirm this creates a signed encrypted message",
             );
-            if ui.button("Send to local outbox").clicked() {
+            if ui.add(theme::primary_button("Send")).clicked() {
                 let body = self.message_text.trim().to_string();
                 self.notice = if body.is_empty() {
                     "Write a message first.".to_string()
                 } else if !self.signing_confirmation {
                     "Confirm signing before sending.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.send_private_message(selected, &body) {
+                    match workspace.send_private_message_confirmed(selected, &body) {
                         Ok(()) => {
                             self.message_text.clear();
                             self.signing_confirmation = false;
-                            "Encrypted message stored locally. Sync the conversation to deliver it."
-                                .to_string()
+                            self.previews_dirty = true;
+                            if self.connections.include_private
+                                && (self.network_session.is_some() || self.host.is_some())
+                            {
+                                "Encrypted message saved. It delivers on the next exchange.".to_string()
+                            } else {
+                                "Encrypted message saved locally. Enable private delivery in Connections or sync the conversation manually.".to_string()
+                            }
                         }
                         Err(error) => format!("Could not send message: {error}"),
                     }
@@ -2363,7 +5654,7 @@ impl MininetApp {
         });
 
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Deliver selected conversation").strong());
             ui.label("Both peers must select the same imported conversation. The route check completes before message IDs are exchanged.");
             ui.horizontal(|ui| {
@@ -2382,7 +5673,7 @@ impl MininetApp {
                     self.start_private_sync(true);
                 }
             });
-            ui.label("Foreground only: no background mailbox, retry loop, push service, or always-on listener.");
+            theme::muted(ui, "Manual path. Sessions and hosting deliver automatically when private conversations are included.");
         });
     }
 
@@ -2415,7 +5706,7 @@ impl MininetApp {
             .as_ref()
             .is_some_and(Workspace::profile_needs_device_upgrade);
         if profile_needs_upgrade {
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.colored_label(
                     egui::Color32::YELLOW,
                     egui::RichText::new("One-time verified-sync upgrade").strong(),
@@ -2433,7 +5724,7 @@ impl MininetApp {
             });
             ui.add_space(12.0);
         }
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Find people").strong());
             ui.add_sized(
                 [ui.available_width(), 34.0],
@@ -2485,7 +5776,7 @@ impl MininetApp {
             ui.add_space(12.0);
             ui.label(egui::RichText::new("Nearby — not yet verified").strong());
             for profile in nearby {
-                ui.group(|ui| {
+                theme::card_frame().show(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
                         ui.label(egui::RichText::new(&profile.display_name).strong());
                         ui.label(profile.did.as_str());
@@ -2515,7 +5806,7 @@ impl MininetApp {
             })
             .collect();
         if profiles.is_empty() {
-            ui.label("No matching signed profiles are present yet. Ask the other instance to become visible, then sync its profile.");
+            theme::muted(ui, "No matching signed profiles yet. Connect to a peer (Connections) and their profile arrives with the first exchange.");
         }
         for profile in profiles {
             let texture = profile
@@ -2531,7 +5822,7 @@ impl MininetApp {
                 .workspace
                 .as_ref()
                 .is_some_and(|workspace| workspace.is_friend(&profile.human));
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 ui.horizontal(|ui| {
                     if let Some(texture) = texture {
                         ui.add(egui::Image::new((
@@ -2539,16 +5830,7 @@ impl MininetApp {
                             egui::vec2(76.0, 76.0),
                         )));
                     } else {
-                        let initials: String = profile
-                            .display_name
-                            .split_whitespace()
-                            .filter_map(|part| part.chars().next())
-                            .take(2)
-                            .collect();
-                        ui.add_sized(
-                            [76.0, 76.0],
-                            egui::Label::new(egui::RichText::new(initials).size(28.0).strong()),
-                        );
+                        theme::avatar(ui, &profile.display_name, profile.human.as_str(), 76.0);
                     }
                     ui.vertical(|ui| {
                         ui.heading(&profile.display_name);
@@ -2601,11 +5883,34 @@ impl MininetApp {
                                 "Local workspace unavailable.".to_string()
                             };
                         }
-                    } else if ui.button("Add friend").clicked() {
+                    } else if ui.add(theme::primary_button("Follow")).clicked() {
                         self.add_friend(&profile);
                     }
-                    if ui.button("Copy DID").clicked() {
+                    if !is_own && ui.add(theme::secondary_button("✉  Message")).clicked() {
+                        self.conversation_peer = profile.human.as_str().to_string();
+                        if self.conversation_label.trim().is_empty() {
+                            self.conversation_label = profile.display_name.clone();
+                        }
+                        self.view = View::Inbox;
+                        self.notice = format!(
+                            "Create a sensitive invite for {} and send it to them over a trusted channel; they import it in Messages.",
+                            profile.display_name
+                        );
+                    }
+                    if ui.add(theme::secondary_button("Copy DID")).clicked() {
                         ui.ctx().copy_text(profile.human.as_str().to_string());
+                    }
+                    if !is_own {
+                        let muted = self.muted.contains(profile.human.as_str());
+                        if ui
+                            .add(theme::secondary_button(if muted { "Unmute" } else { "Mute" }))
+                            .clicked()
+                        {
+                            self.set_muted(profile.human.as_str(), &profile.display_name, !muted);
+                        }
+                        if muted {
+                            theme::pill_badge(ui, "MUTED HERE", theme::WARN_AMBER);
+                        }
                     }
                 });
             });
@@ -2613,59 +5918,1342 @@ impl MininetApp {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn post_card(
-        &mut self,
-        ui: &mut egui::Ui,
-        id: &mini_objects::ObjectId,
-        title: &str,
-        body: &str,
-        reason: &str,
-        support_count: usize,
-        comment_count: usize,
-    ) {
-        ui.group(|ui| {
+    // ----- library (files and movies) ---------------------------------------
+
+    fn reload_library(&mut self) {
+        self.library_dirty = false;
+        self.library_items = self
+            .workspace
+            .as_ref()
+            .map(|workspace| library::list(&workspace.store))
+            .transpose()
+            .unwrap_or_else(|error| {
+                self.notice = format!("Library could not be read: {error}");
+                None
+            })
+            .unwrap_or_default();
+    }
+
+    fn library(&mut self, ui: &mut egui::Ui) {
+        if self.library_dirty {
+            self.reload_library();
+        }
+        let hosting = self.host.as_ref().is_some_and(|host| host.listening);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Add a file or movie");
+            theme::muted(
+                ui,
+                "Any file becomes signed, content-addressed 1 MiB chunks. Up to 256 MiB is one manifest; larger files (up to 64 GiB) become an ordered collection of manifests. Peers that hold any part seed that part; downloads resume chunk by chunk.",
+            );
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("●").color(egui::Color32::from_rgb(100, 210, 160)));
-                ui.label(egui::RichText::new(title).strong());
-                ui.label(
-                    egui::RichText::new("  2m")
-                        .small()
-                        .color(egui::Color32::GRAY),
+                ui.label("Path");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.library_path)
+                        .hint_text("C:\\Videos\\movie.mp4 (or drop a file on this window)")
+                        .desired_width(f32::INFINITY),
                 );
             });
-            ui.label(body);
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(format!("Why here: {reason}")).small());
-                ui.label(egui::RichText::new(format!("{support_count} likes")).small());
-                ui.label(egui::RichText::new(format!("{comment_count} replies")).small());
-                if ui.button("Reply").clicked() {
-                    self.reply_target = Some(id.clone());
-                }
-                if ui.button("React").clicked() {
-                    self.notice = if !self.signing_confirmation {
-                        "Confirm signing before reacting.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.react_like(id) {
-                            Ok(()) => {
-                                self.signing_confirmation = false;
-                                "Like written locally. No network used.".to_string()
-                            }
-                            Err(error) => format!("Could not react: {error}"),
-                        }
+                ui.label("Name");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.library_name)
+                        .hint_text("Shown to peers")
+                        .desired_width(240.0),
+                );
+                ui.label("Type");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.library_content_type)
+                        .hint_text("guessed from the extension")
+                        .desired_width(160.0),
+                );
+            });
+            ui.checkbox(
+                &mut self.signing_confirmation,
+                "I confirm this creates signed objects that peers may replicate",
+            );
+            ui.horizontal(|ui| {
+                if ui.add(theme::primary_button("Add to library")).clicked() {
+                    let path = std::path::PathBuf::from(self.library_path.trim());
+                    let name = if self.library_name.trim().is_empty() {
+                        path.file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("file")
+                            .to_string()
                     } else {
-                        "Local workspace unavailable.".to_string()
+                        self.library_name.trim().to_string()
                     };
+                    let content_type = if self.library_content_type.trim().is_empty() {
+                        library::content_type_for(&path).to_string()
+                    } else {
+                        self.library_content_type.trim().to_string()
+                    };
+                    self.notice = if self.library_path.trim().is_empty() {
+                        "Enter a file path first.".into()
+                    } else if !self.signing_confirmation {
+                        "Confirm signing before adding.".into()
+                    } else {
+                        match self.workspace.as_mut() {
+                            Some(workspace) => match workspace.publish_file(&path, &name, &content_type) {
+                                Ok(published) => {
+                                    self.signing_confirmation = false;
+                                    self.library_dirty = true;
+                                    self.library_path.clear();
+                                    self.library_name.clear();
+                                    self.library_content_type.clear();
+                                    format!(
+                                        "Added {name}: {} in {} part(s), {} objects. {}",
+                                        library::human_size(published.bytes),
+                                        published.parts,
+                                        published.objects,
+                                        if hosting {
+                                            "Peers can fetch it now."
+                                        } else {
+                                            "Start hosting or a session to seed it."
+                                        }
+                                    )
+                                }
+                                Err(error) => format!("Could not add file: {error}"),
+                            },
+                            None => "Local workspace unavailable.".into(),
+                        }
+                    };
+                }
+                if ui.add(theme::secondary_button("🔄  Refresh")).clicked() {
+                    self.library_dirty = true;
                 }
             });
         });
         ui.add_space(8.0);
+        let audio_items: Vec<(mini_objects::ObjectId, String, String)> = self
+            .library_items
+            .iter()
+            .filter(|item| {
+                item.complete()
+                    && player::playback_for(&item.content_type) == player::Playback::Audio
+            })
+            .map(|item| {
+                (
+                    item.id.clone(),
+                    item.name.clone(),
+                    short_did(item.author.as_str()),
+                )
+            })
+            .collect();
+        if !audio_items.is_empty()
+            && ui
+                .add(theme::secondary_button(&format!(
+                    "♫  Play all {} track(s)",
+                    audio_items.len()
+                )))
+                .clicked()
+        {
+            let mut items = audio_items.into_iter();
+            if let Some((media, title, author)) = items.next() {
+                self.play_queue.clear();
+                self.play_audio(&media, title, author);
+                for (media, title, author) in items.take(100) {
+                    self.play_queue.push_back((media, title, author));
+                }
+            }
+        }
+        ui.horizontal_wrapped(|ui| {
+            if hosting {
+                theme::pill_badge(ui, "SEEDING", theme::ONLINE_GREEN);
+                theme::muted(ui, "Everything complete below is available to peers that connect.");
+            } else {
+                theme::pill_badge(ui, "NOT SEEDING", theme::TEXT_SECONDARY);
+                theme::muted(ui, "Start hosting in Connections to seed to peers; sessions also share what you hold.");
+            }
+        });
+        ui.add_space(6.0);
+        if self.library_items.is_empty() {
+            theme::muted(
+                ui,
+                "Nothing in the library yet. Add a file above, or receive media from peers.",
+            );
+        }
+        let own = self
+            .workspace
+            .as_ref()
+            .and_then(|workspace| workspace.human.clone());
+        let items = self.library_items.clone();
+        for item in &items {
+            ui.push_id(item.id.as_str(), |ui| {
+                theme::card_frame().show(ui, |ui| {
+                    ui.horizontal_top(|ui| {
+                        let glyph = if item.content_type.starts_with("video/") {
+                            "🎬"
+                        } else if item.content_type.starts_with("image/") {
+                            "🖼"
+                        } else {
+                            "📋"
+                        };
+                        ui.label(egui::RichText::new(glyph).size(26.0));
+                        ui.vertical(|ui| {
+                            ui.set_width(ui.available_width());
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(egui::RichText::new(&item.name).strong().size(16.0));
+                                theme::muted(ui, &item.content_type);
+                                theme::muted(ui, &format!("· {}", library::human_size(item.total_len)));
+                                if item.kind == library::Kind::Collection {
+                                    theme::pill_badge(ui, "COLLECTION", theme::ACCENT);
+                                }
+                                if own.as_ref() == Some(&item.author) {
+                                    theme::pill_badge(ui, "Yours", theme::ACCENT);
+                                }
+                            });
+                            let percent = item.percent();
+                            ui.add(
+                                egui::ProgressBar::new(f32::from(percent) / 100.0)
+                                    .text(if item.complete() {
+                                        format!("complete · {} chunk(s)", item.chunks_total)
+                                    } else {
+                                        format!(
+                                            "{percent}% · {}/{} chunk(s){}",
+                                            item.chunks_present,
+                                            item.chunks_total,
+                                            if item.parts_missing > 0 {
+                                                format!(" · {} part(s) not announced yet", item.parts_missing)
+                                            } else {
+                                                String::new()
+                                            }
+                                        )
+                                    })
+                                    .desired_width(ui.available_width()),
+                            );
+                            theme::muted(
+                                ui,
+                                &format!(
+                                    "by {} · {}",
+                                    short_did(item.author.as_str()),
+                                    timeline::age(item.timestamp_ms, now_ms())
+                                ),
+                            );
+                            ui.horizontal_wrapped(|ui| {
+                                if item.complete() {
+                                    if ui.add(theme::secondary_button("Export to disk")).clicked() {
+                                        self.library_export_target = Some(item.id.clone());
+                                        if self.export_file_path.trim().is_empty() {
+                                            self.export_file_path = std::env::var_os("USERPROFILE")
+                                                .map(std::path::PathBuf::from)
+                                                .unwrap_or_default()
+                                                .join("Downloads")
+                                                .join(&item.name)
+                                                .display()
+                                                .to_string();
+                                        }
+                                    }
+                                    if ui.add(theme::secondary_button("Share as post")).clicked() {
+                                        self.library_share_target = Some(item.id.clone());
+                                        self.library_caption.clear();
+                                    }
+                                } else {
+                                    theme::muted(ui, "Missing chunks arrive from any peer that holds them.");
+                                }
+                                if ui.add(theme::secondary_button("Copy id")).clicked() {
+                                    ui.ctx().copy_text(item.id.as_str().to_owned());
+                                }
+                            });
+                            if self.library_export_target.as_ref() == Some(&item.id) {
+                                ui.horizontal(|ui| {
+                                    ui.add(
+                                        egui::TextEdit::singleline(&mut self.export_file_path)
+                                            .desired_width(f32::INFINITY),
+                                    );
+                                });
+                                ui.horizontal(|ui| {
+                                    if ui.add(theme::primary_button("Write file")).clicked() {
+                                        let target = std::path::PathBuf::from(self.export_file_path.trim());
+                                        self.notice = match self.workspace.as_ref() {
+                                            Some(workspace) => match std::fs::File::create(&target) {
+                                                Ok(mut file) => {
+                                                    match library::export(&workspace.store, &item.id, &mut file) {
+                                                        Ok(bytes) => {
+                                                            self.library_export_target = None;
+                                                            format!(
+                                                                "Wrote {} to {}.",
+                                                                library::human_size(bytes),
+                                                                target.display()
+                                                            )
+                                                        }
+                                                        Err(error) => format!("Export failed: {error}"),
+                                                    }
+                                                }
+                                                Err(error) => format!("Could not create file: {error}"),
+                                            },
+                                            None => "Local workspace unavailable.".into(),
+                                        };
+                                    }
+                                    if ui.add(theme::secondary_button("Cancel")).clicked() {
+                                        self.library_export_target = None;
+                                    }
+                                });
+                            }
+                            if self.library_share_target.as_ref() == Some(&item.id) {
+                                ui.add(
+                                    egui::TextEdit::multiline(&mut self.library_caption)
+                                        .hint_text("Caption")
+                                        .desired_rows(2)
+                                        .desired_width(f32::INFINITY),
+                                );
+                                ui.checkbox(
+                                    &mut self.signing_confirmation,
+                                    "I confirm this creates a signed post",
+                                );
+                                ui.horizontal(|ui| {
+                                    if ui.add(theme::primary_button("Post")).clicked() {
+                                        self.notice = if !self.signing_confirmation {
+                                            "Confirm signing before posting.".into()
+                                        } else {
+                                            match self.workspace.as_mut() {
+                                                Some(workspace) => match workspace
+                                                    .publish_media_post_for(&item.id, self.library_caption.trim())
+                                                {
+                                                    Ok(()) => {
+                                                        self.signing_confirmation = false;
+                                                        self.library_share_target = None;
+                                                        self.timeline_refresh = Instant::now();
+                                                        "Posted. It shares on the next exchange.".into()
+                                                    }
+                                                    Err(error) => format!("Could not post: {error}"),
+                                                },
+                                                None => "Local workspace unavailable.".into(),
+                                            }
+                                        };
+                                    }
+                                    if ui.add(theme::secondary_button("Cancel")).clicked() {
+                                        self.library_share_target = None;
+                                    }
+                                });
+                            }
+                        });
+                    });
+                });
+            });
+            ui.add_space(6.0);
+        }
+    }
+
+    // ----- earnings (service tickets) ----------------------------------------
+
+    fn earnings(&mut self, ui: &mut egui::Ui) {
+        let rate = mini_ticket::Rate {
+            micro_mini_per_mb: self.connections.rate_micro_per_mb,
+            creator_bps: self.connections.creator_bps,
+        };
+        let ledger = self.workspace.as_ref().and_then(|workspace| {
+            workspace
+                .human
+                .as_ref()
+                .map(|me| mini_ticket::Ledger::collect(&workspace.store, me, rate))
+        });
+        let ledger = match ledger {
+            Some(Ok(ledger)) => ledger,
+            Some(Err(error)) => {
+                ui.colored_label(
+                    theme::WARN_AMBER,
+                    format!("Ledger could not be read: {error}"),
+                );
+                return;
+            }
+            None => {
+                theme::muted(ui, "Create your identity first.");
+                return;
+            }
+        };
+        let mini = |micro: u64| format!("{}.{:06} MINI", micro / 1_000_000, micro % 1_000_000);
+        let stats = [
+            ("Earned as host", mini(ledger.host_micro)),
+            ("Earned as creator", mini(ledger.creator_micro)),
+            ("Owed to peers", mini(ledger.owed_micro)),
+        ];
+        ui.columns(3, |columns| {
+            for (column, (label, value)) in columns.iter_mut().zip(stats) {
+                theme::card_frame().show(column, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.label(egui::RichText::new(value).strong().size(18.0));
+                    theme::muted(ui, label);
+                });
+            }
+        });
+        theme::muted(
+            ui,
+            &format!(
+                "Unsettled credit from {} ticket(s) naming you, {} you issued · served {} · received {}. {} duplicate(s) ignored{}.",
+                ledger.as_host.len(),
+                ledger.issued.len(),
+                library::human_size(ledger.bytes_served),
+                library::human_size(ledger.bytes_received),
+                ledger.duplicates,
+                if ledger.malformed > 0 {
+                    format!(", {} malformed ticket object(s) skipped", ledger.malformed)
+                } else {
+                    String::new()
+                }
+            ),
+        );
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "How this works");
+            ui.label("Every exchange ends with each side signing a service ticket for what it received, naming the other side's DID. Tickets are ordinary signed objects: they replicate, they verify through the same provenance checks as posts, and they can only be redeemed by the DID they name.");
+            ui.colored_label(
+                theme::WARN_AMBER,
+                "Credit here is not money yet. A redemption request is a signed, checkable claim; it becomes a payout only when the audited settlement layer (D-0037/D-0047) admits it. A ticket proves one peer attested to one exchange, not that anyone is honest or unique.",
+            );
+        });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Your rate");
+            ui.horizontal(|ui| {
+                ui.label("micro-MINI per MB served");
+                let mut rate_text = self.connections.rate_micro_per_mb.to_string();
+                if ui
+                    .add(egui::TextEdit::singleline(&mut rate_text).desired_width(90.0))
+                    .lost_focus()
+                {
+                    if let Ok(value) = rate_text.trim().parse::<u64>() {
+                        self.connections.rate_micro_per_mb = value;
+                        self.save_connections();
+                    }
+                }
+                ui.label("most I pay per MB");
+                let mut ceiling_text = self.connections.max_pay_micro_per_mb.to_string();
+                if ui
+                    .add(egui::TextEdit::singleline(&mut ceiling_text).desired_width(90.0))
+                    .lost_focus()
+                {
+                    if let Ok(value) = ceiling_text.trim().parse::<u64>() {
+                        self.connections.max_pay_micro_per_mb = value;
+                        self.save_connections();
+                    }
+                }
+                ui.label("creator share (bps)");
+                let mut bps_text = self.connections.creator_bps.to_string();
+                if ui
+                    .add(egui::TextEdit::singleline(&mut bps_text).desired_width(70.0))
+                    .lost_focus()
+                {
+                    if let Ok(value) = bps_text.trim().parse::<u16>() {
+                        if value <= 10_000 {
+                            self.connections.creator_bps = value;
+                            self.save_connections();
+                        }
+                    }
+                }
+            });
+            theme::muted(ui, "Each exchange agrees a rate: the provider's ask, capped by the receiver's ceiling. The agreed rate is written into the ticket, so both ledgers compute the same credit. Media bytes are split between the host and the manifest's author by the creator share.");
+        });
+        ui.add_space(8.0);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Redeem");
+            theme::muted(ui, "Builds a signed redemption request over every ticket naming you. Only your DID can build or pass verification for these tickets. The request is stored locally and replicates like any object; settlement is not executed.");
+            let can = !ledger.as_host.is_empty()
+                && self.workspace.as_ref().is_some_and(Workspace::is_unlocked);
+            if ui
+                .add_enabled(can, theme::primary_button("Create redemption request"))
+                .on_disabled_hover_text("Needs at least one ticket naming you and an unlocked identity.")
+                .clicked()
+            {
+                let ids: Vec<mini_objects::ObjectId> = ledger
+                    .as_host
+                    .iter()
+                    .filter(|entry| entry.host_micro > 0)
+                    .map(|entry| entry.ticket.id.clone())
+                    .take(mini_ticket::MAX_REDEMPTION_TICKETS)
+                    .collect();
+                self.notice = match self.workspace.as_mut() {
+                    Some(workspace) => match workspace.build_redemption_confirmed(&ids, rate) {
+                        Ok((id, micro)) => format!(
+                            "Redemption request {} signed for {} over {} ticket(s). It settles when the audited layer accepts it.",
+                            short_did(id.as_str()),
+                            mini(micro),
+                            ids.len()
+                        ),
+                        Err(error) => format!("Could not build a redemption request: {error}"),
+                    },
+                    None => "Local workspace unavailable.".into(),
+                };
+            }
+            if let Some(requests) = self
+                .workspace
+                .as_ref()
+                .map(|workspace| workspace.redemption_requests())
+            {
+                for (id, micro, tickets, ok) in requests.iter().take(10) {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new(if *ok { "✔" } else { "✖" }).color(if *ok {
+                            theme::ONLINE_GREEN
+                        } else {
+                            theme::WARN_AMBER
+                        }));
+                        ui.label(format!("{} · {} ticket(s)", mini(*micro), tickets));
+                        theme::muted(ui, &short_did(id.as_str()));
+                        theme::muted(ui, if *ok { "verifies" } else { "does not verify against local tickets" });
+                    });
+                }
+            }
+        });
+        ui.add_space(8.0);
+        theme::section_title(ui, "Recent tickets");
+        for entry in ledger.as_host.iter().rev().take(20) {
+            let t = &entry.ticket;
+            ui.horizontal_wrapped(|ui| {
+                theme::avatar(ui, "P", t.consumer.as_str(), 22.0);
+                ui.label(egui::RichText::new(short_did(t.consumer.as_str())).small());
+                theme::muted(ui, t.fields.service.label());
+                ui.label(library::human_size(t.fields.bytes_received));
+                ui.label(
+                    egui::RichText::new(format!("+{}", mini(entry.host_micro)))
+                        .color(theme::ONLINE_GREEN),
+                );
+                theme::muted(ui, &format!("@ {} µMINI/MB", t.fields.rate_micro_per_mb));
+                if !entry.creator_micro.is_empty() {
+                    theme::muted(
+                        ui,
+                        &format!("creator share to {} author(s)", entry.creator_micro.len()),
+                    );
+                }
+                theme::muted(ui, &timeline::age(t.timestamp_ms, now_ms()));
+            });
+        }
+        if ledger.as_host.is_empty() {
+            theme::muted(ui, "No tickets name you yet. Host or run a session; every completed exchange earns one.");
+        }
+    }
+
+    // ----- media stage, shorts, watch, now playing ---------------------------
+
+    /// Content type, display name and completeness of a manifest or
+    /// collection this device holds (or knows about).
+    fn media_info(&mut self, media: &mini_objects::ObjectId) -> Option<(String, String, bool)> {
+        if self.library_dirty {
+            self.reload_library();
+        }
+        let workspace = self.workspace.as_ref()?;
+        let object = workspace.store.get(media).ok()?;
+        if let Ok(manifest) = read_manifest(&object) {
+            let complete = mini_media::missing_chunks(&workspace.store, &manifest)
+                .map(|missing| missing.is_empty())
+                .unwrap_or(false);
+            return Some((manifest.content_type, String::new(), complete));
+        }
+        let collection = library::read_collection(&object).ok()?;
+        let complete = self
+            .library_items
+            .iter()
+            .find(|item| item.id == collection.id)
+            .map(library::Item::complete)
+            .unwrap_or(false);
+        Some((collection.content_type, collection.name, complete))
+    }
+
+    /// Decode an animation once per media id.
+    fn animation_for(
+        &mut self,
+        ctx: &egui::Context,
+        media: &mini_objects::ObjectId,
+        content_type: &str,
+    ) -> Option<&player::Animation> {
+        let key = media.as_str().to_owned();
+        if !self.animations.contains_key(&key) {
+            let decoded = self
+                .workspace
+                .as_ref()
+                .and_then(|workspace| {
+                    workspace
+                        .media_bytes(media, player::MAX_ANIMATION_BYTES)
+                        .ok()
+                })
+                .and_then(|bytes| player::Animation::decode(ctx, &key, content_type, &bytes).ok());
+            self.animations.insert(key.clone(), decoded);
+        }
+        self.animations.get(&key).and_then(Option::as_ref)
+    }
+
+    /// When the current track has finished, start the next queued one.
+    fn advance_play_queue(&mut self) {
+        let finished = self
+            .audio
+            .as_ref()
+            .is_some_and(|audio| audio.now().is_some() && audio.finished());
+        if !finished {
+            return;
+        }
+        match self.play_queue.pop_front() {
+            Some((media, title, author)) => self.play_audio(&media, title, author),
+            None => {
+                if let Some(audio) = self.audio.as_mut() {
+                    audio.stop();
+                }
+            }
+        }
+    }
+
+    fn enqueue_audio(&mut self, media: &mini_objects::ObjectId, title: String, author: String) {
+        let playing = self
+            .audio
+            .as_ref()
+            .is_some_and(|audio| audio.now().is_some() && !audio.finished());
+        if !playing {
+            self.play_audio(media, title, author);
+            return;
+        }
+        if self.play_queue.len() >= 100 {
+            self.notice = "The queue holds at most 100 tracks.".into();
+            return;
+        }
+        self.play_queue
+            .push_back((media.clone(), title.clone(), author));
+        self.notice = format!("Queued {title} ({} in queue).", self.play_queue.len());
+    }
+
+    fn play_audio(&mut self, media: &mini_objects::ObjectId, title: String, author: String) {
+        if self.audio.is_none() {
+            match player::AudioPlayer::open() {
+                Ok(player) => self.audio = Some(player),
+                Err(error) => {
+                    self.notice = error;
+                    return;
+                }
+            }
+        }
+        let bytes = self
+            .workspace
+            .as_ref()
+            .ok_or_else(|| "Local workspace unavailable.".to_string())
+            .and_then(|workspace| workspace.media_bytes(media, player::MAX_AUDIO_BYTES));
+        self.notice = match bytes {
+            Ok(bytes) => match self.audio.as_mut().expect("opened above").play_bytes(
+                bytes,
+                media.clone(),
+                title.clone(),
+                author,
+            ) {
+                Ok(()) => format!("Playing {title}."),
+                Err(error) => error,
+            },
+            Err(error) => format!("Could not load audio: {error}"),
+        };
+    }
+
+    /// Draw one media object at up to `max` size: image, looping animation,
+    /// audio controls, or an honest poster for video.
+    fn media_stage(
+        &mut self,
+        ui: &mut egui::Ui,
+        media: &mini_objects::ObjectId,
+        max: egui::Vec2,
+        title: &str,
+        author: &str,
+    ) {
+        let Some((content_type, name, complete)) = self.media_info(media) else {
+            theme::card_frame().show(ui, |ui| {
+                ui.label(egui::RichText::new("🎬  Media not received yet").strong());
+                theme::muted(ui, "The manifest arrives with the next exchange.");
+            });
+            return;
+        };
+        let label = if name.is_empty() {
+            title.to_owned()
+        } else {
+            name.clone()
+        };
+        let fit = |size: egui::Vec2| -> egui::Vec2 {
+            let scale = (max.x / size.x.max(1.0))
+                .min(max.y / size.y.max(1.0))
+                .min(1.0);
+            size * scale
+        };
+        match player::playback_for(&content_type) {
+            player::Playback::Image => match self.media_texture(ui.ctx(), media) {
+                Some(texture) => {
+                    let size = fit(texture.size_vec2());
+                    ui.add(egui::Image::new((texture.id(), size)).corner_radius(12.0));
+                }
+                None => self.media_placeholder(ui, "🖼", &label, &content_type, complete),
+            },
+            player::Playback::Animation => {
+                let frame = self
+                    .animation_for(ui.ctx(), media, &content_type)
+                    .map(|animation| {
+                        (
+                            animation.current().id(),
+                            animation.size,
+                            animation.frame_count(),
+                        )
+                    });
+                match frame {
+                    Some((id, size, frames)) => {
+                        let size = fit(size);
+                        ui.add(egui::Image::new((id, size)).corner_radius(12.0));
+                        theme::muted(ui, &format!("{frames} frame(s) · loops"));
+                        ui.ctx().request_repaint_after(Duration::from_millis(33));
+                    }
+                    None => self.media_placeholder(ui, "🎬", &label, &content_type, complete),
+                }
+            }
+            player::Playback::Audio => {
+                let playing_this = self
+                    .audio
+                    .as_ref()
+                    .and_then(player::AudioPlayer::now)
+                    .is_some_and(|now| &now.media == media);
+                theme::card_frame().show(ui, |ui| {
+                    ui.set_width(max.x.min(ui.available_width()));
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("♫").size(40.0).color(theme::ACCENT));
+                        ui.vertical(|ui| {
+                            ui.label(egui::RichText::new(&label).strong().size(16.0));
+                            theme::muted(ui, &format!("{content_type} · {author}"));
+                            if !complete {
+                                theme::muted(ui, "Still arriving from peers.");
+                            } else if playing_this {
+                                self.now_playing_controls(ui);
+                            } else {
+                                ui.horizontal(|ui| {
+                                    if ui.add(theme::primary_button("▶  Play")).clicked() {
+                                        self.play_audio(media, label.clone(), author.to_owned());
+                                    }
+                                    if self
+                                        .audio
+                                        .as_ref()
+                                        .is_some_and(|audio| audio.now().is_some())
+                                        && ui.add(theme::secondary_button("Play next")).clicked()
+                                    {
+                                        self.enqueue_audio(media, label.clone(), author.to_owned());
+                                    }
+                                });
+                            }
+                        });
+                    });
+                });
+            }
+            player::Playback::Video => {
+                self.video_stage(ui, media, max, &label, author, &content_type, complete);
+            }
+            player::Playback::VideoUnsupported => {
+                theme::card_frame().show(ui, |ui| {
+                    ui.set_width(max.x.min(ui.available_width()));
+                    ui.label(egui::RichText::new("🎬").size(48.0));
+                    ui.label(egui::RichText::new(&label).strong().size(16.0));
+                    theme::muted(ui, &format!("{content_type} · {}", if complete { "complete on this device" } else { "still arriving from peers" }));
+                    ui.colored_label(
+                        theme::WARN_AMBER,
+                        "This container does not decode in-app: Mininet plays H.264 video in MP4/M4V/MOV in-process, and will not embed a browser or launch another program for other formats. Export it from your Library to watch.",
+                    );
+                    if complete && ui.add(theme::secondary_button("Open in Library")).clicked() {
+                        self.view = View::Library;
+                        self.library_export_target = Some(media.clone());
+                    }
+                });
+            }
+            player::Playback::Other => {
+                self.media_placeholder(ui, "📋", &label, &content_type, complete)
+            }
+        }
+    }
+
+    fn media_placeholder(
+        &mut self,
+        ui: &mut egui::Ui,
+        glyph: &str,
+        label: &str,
+        content_type: &str,
+        complete: bool,
+    ) {
+        theme::card_frame().show(ui, |ui| {
+            ui.label(egui::RichText::new(format!("{glyph}  {label}")).strong());
+            theme::muted(
+                ui,
+                &format!(
+                    "{content_type} · {}",
+                    if complete {
+                        "complete, see Library"
+                    } else {
+                        "still arriving from peers"
+                    }
+                ),
+            );
+        });
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn video_stage(
+        &mut self,
+        ui: &mut egui::Ui,
+        media: &mini_objects::ObjectId,
+        max: egui::Vec2,
+        label: &str,
+        author: &str,
+        content_type: &str,
+        complete: bool,
+    ) {
+        let active = self
+            .video
+            .as_ref()
+            .is_some_and(|video| &video.media == media);
+        if !active {
+            theme::card_frame().show(ui, |ui| {
+                ui.set_width(max.x.min(ui.available_width()));
+                ui.label(egui::RichText::new("🎬").size(48.0));
+                ui.label(egui::RichText::new(label).strong().size(16.0));
+                theme::muted(ui, &format!("{content_type} · {author}"));
+                if !complete {
+                    theme::muted(ui, "Still arriving from peers.");
+                } else if ui.add(theme::primary_button("▶  Play")).clicked() {
+                    self.start_video(media, label.to_owned(), author.to_owned());
+                }
+                theme::muted(ui, "Decodes H.264 with AAC audio in-process. H.265/VP9/AV1 show an explanation instead.");
+            });
+            return;
+        }
+        // Audio for this file is the clock when it is playing.
+        let clock = self
+            .audio
+            .as_ref()
+            .filter(|audio| audio.now().is_some_and(|now| &now.media == media))
+            .map(player::AudioPlayer::position);
+        let ctx = ui.ctx().clone();
+        let (texture, ended, error, shown, probe) = {
+            let video = self.video.as_mut().expect("active");
+            let texture = video.frame_at(&ctx, clock).map(|t| (t.id(), t.size_vec2()));
+            (
+                texture,
+                video.ended,
+                video.error.clone(),
+                video.shown_pts,
+                video.probe.clone(),
+            )
+        };
+        match texture {
+            Some((id, size)) => {
+                let scale = (max.x / size.x.max(1.0))
+                    .min(max.y / size.y.max(1.0))
+                    .min(1.0);
+                ui.add(egui::Image::new((id, size * scale)).corner_radius(12.0));
+            }
+            None if error.is_none() => {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    theme::muted(ui, "decoding…");
+                });
+            }
+            None => {}
+        }
+        if let Some(error) = error {
+            ui.colored_label(
+                theme::WARN_AMBER,
+                format!("Cannot play in-app: {error}. Export it from your Library to watch."),
+            );
+        }
+        ui.horizontal_wrapped(|ui| {
+            if let Some(probe) = probe {
+                theme::muted(
+                    ui,
+                    &format!(
+                        "{} {}x{} · {} / {}{}",
+                        probe.video_codec,
+                        probe.width,
+                        probe.height,
+                        player::format_duration(shown),
+                        player::format_duration(probe.duration),
+                        if probe.has_aac_audio {
+                            " · AAC"
+                        } else {
+                            " · no audio track"
+                        }
+                    ),
+                );
+            }
+            if ended && ui.add(theme::secondary_button("↺  Replay")).clicked() {
+                self.start_video(media, label.to_owned(), author.to_owned());
+            }
+            if ui.add(theme::secondary_button("■  Stop")).clicked() {
+                self.video = None;
+                if let Some(audio) = self.audio.as_mut() {
+                    if audio.now().is_some_and(|now| &now.media == media) {
+                        audio.stop();
+                    }
+                }
+            }
+        });
+        if clock.is_some() {
+            self.now_playing_controls(ui);
+        }
+    }
+
+    fn start_video(&mut self, media: &mini_objects::ObjectId, title: String, author: String) {
+        let bytes = self
+            .workspace
+            .as_ref()
+            .ok_or_else(|| "Local workspace unavailable.".to_string())
+            .and_then(|workspace| workspace.media_bytes(media, video::MAX_VIDEO_BYTES));
+        let bytes = match bytes {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.notice = format!("Could not load video: {error}");
+                return;
+            }
+        };
+        // Audio first (it may legitimately fail: no audio track), then video.
+        self.video = None;
+        if self.audio.is_none() {
+            self.audio = player::AudioPlayer::open().ok();
+        }
+        let audio_started = self
+            .audio
+            .as_mut()
+            .map(|audio| {
+                audio.play_container(bytes.clone(), media.clone(), title.clone(), author.clone())
+            })
+            .is_some_and(|result| result.is_ok());
+        match video::VideoPlayer::start(media.clone(), bytes) {
+            Ok(mut video) => {
+                video.restart_clock();
+                self.video = Some(video);
+                self.notice = if audio_started {
+                    format!("Playing {title}.")
+                } else {
+                    format!("Playing {title} (no decodable audio track).")
+                };
+            }
+            Err(error) => self.notice = error,
+        }
+    }
+
+    fn now_playing_controls(&mut self, ui: &mut egui::Ui) {
+        let Some(audio) = self.audio.as_mut() else {
+            return;
+        };
+        let Some(now) = audio.now().cloned() else {
+            return;
+        };
+        let position = audio.position();
+        ui.horizontal(|ui| {
+            let glyph = if audio.is_paused() { "▶" } else { "■" };
+            if ui.add(theme::secondary_button(glyph)).clicked() {
+                audio.toggle();
+            }
+            let total = now.duration.unwrap_or(position).max(Duration::from_secs(1));
+            let mut fraction = (position.as_secs_f32() / total.as_secs_f32()).clamp(0.0, 1.0);
+            let slider = ui.add(
+                egui::Slider::new(&mut fraction, 0.0..=1.0)
+                    .show_value(false)
+                    .trailing_fill(true),
+            );
+            if slider.drag_stopped() || (slider.changed() && !slider.dragged()) {
+                audio.seek(total.mul_f32(fraction));
+            }
+            theme::muted(
+                ui,
+                &format!(
+                    "{} / {}",
+                    player::format_duration(position),
+                    now.duration
+                        .map(player::format_duration)
+                        .unwrap_or_else(|| "?".into())
+                ),
+            );
+            let mut volume = audio.volume();
+            if ui
+                .add(egui::Slider::new(&mut volume, 0.0..=1.5).show_value(false))
+                .on_hover_text("Volume")
+                .changed()
+            {
+                audio.set_volume(volume);
+            }
+        });
+        ui.ctx().request_repaint_after(Duration::from_millis(250));
+    }
+
+    fn now_playing_bar(&mut self, ctx: &egui::Context) {
+        let Some(now) = self
+            .audio
+            .as_ref()
+            .and_then(player::AudioPlayer::now)
+            .cloned()
+        else {
+            return;
+        };
+        egui::TopBottomPanel::bottom("now_playing")
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::CARD)
+                    .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                    .inner_margin(egui::Margin::symmetric(16, 8)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("♫").color(theme::ACCENT).size(18.0));
+                    ui.vertical(|ui| {
+                        ui.label(egui::RichText::new(&now.title).strong());
+                        theme::muted(ui, &now.author);
+                    });
+                    ui.add_space(12.0);
+                    self.now_playing_controls(ui);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .add(theme::secondary_button("✖"))
+                            .on_hover_text("Stop")
+                            .clicked()
+                        {
+                            self.play_queue.clear();
+                            if let Some(audio) = self.audio.as_mut() {
+                                audio.stop();
+                            }
+                        }
+                        if !self.play_queue.is_empty() {
+                            if ui
+                                .add(theme::secondary_button("▶▶"))
+                                .on_hover_text("Skip to the next queued track")
+                                .clicked()
+                            {
+                                if let Some((media, title, author)) = self.play_queue.pop_front() {
+                                    self.play_audio(&media, title, author);
+                                }
+                            }
+                            theme::muted(ui, &format!("{} queued", self.play_queue.len()));
+                        }
+                    });
+                });
+            });
+    }
+
+    /// Media posts, newest first, from the Everyone timeline.
+    fn media_cards(&self) -> Vec<timeline::Card> {
+        self.timeline_cards
+            .iter()
+            .filter(|card| card.media.is_some() && !self.muted.contains(&card.did))
+            .cloned()
+            .collect()
+    }
+
+    fn shorts(&mut self, ui: &mut egui::Ui) {
+        if self.timeline_scope != timeline::Scope::Everyone {
+            self.timeline_scope = timeline::Scope::Everyone;
+        }
+        let cards = self.media_cards();
+        if cards.is_empty() {
+            theme::card_frame().show(ui, |ui| {
+                ui.heading("No shorts yet");
+                theme::muted(ui, "Media posts from your network appear here one at a time. Add a clip, GIF or track in Library and share it as a post.");
+                if ui.add(theme::primary_button("Open Library")).clicked() {
+                    self.view = View::Library;
+                }
+            });
+            return;
+        }
+        let (up, down) = ui.input(|input| {
+            (
+                input.key_pressed(egui::Key::ArrowUp) || input.key_pressed(egui::Key::K),
+                input.key_pressed(egui::Key::ArrowDown)
+                    || input.key_pressed(egui::Key::J)
+                    || input.key_pressed(egui::Key::Space),
+            )
+        });
+        if down && self.shorts_index + 1 < cards.len() {
+            self.shorts_index += 1;
+        }
+        if up && self.shorts_index > 0 {
+            self.shorts_index -= 1;
+        }
+        self.shorts_index = self.shorts_index.min(cards.len() - 1);
+        let card = cards[self.shorts_index].clone();
+        let media = card.media.clone().expect("media cards only");
+        ui.horizontal(|ui| {
+            theme::muted(ui, &format!("{} / {}", self.shorts_index + 1, cards.len()));
+            theme::muted(ui, "· arrow keys or J/K to move");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .add_enabled(
+                        self.shorts_index + 1 < cards.len(),
+                        theme::secondary_button("Next  ▶"),
+                    )
+                    .clicked()
+                {
+                    self.shorts_index += 1;
+                }
+                if ui
+                    .add_enabled(
+                        self.shorts_index > 0,
+                        theme::secondary_button("◀  Previous"),
+                    )
+                    .clicked()
+                {
+                    self.shorts_index -= 1;
+                }
+            });
+        });
+        ui.add_space(6.0);
+        ui.vertical_centered(|ui| {
+            let stage = egui::vec2(
+                ui.available_width().min(460.0),
+                (ui.available_height() - 150.0).clamp(240.0, 640.0),
+            );
+            self.media_stage(ui, &media, stage, &card.body, &card.author);
+        });
+        ui.add_space(8.0);
+        self.media_actions(ui, &card);
+    }
+
+    /// Author row + like / reply / follow / watch for one media card.
+    fn media_actions(&mut self, ui: &mut egui::Ui, card: &timeline::Card) {
+        ui.horizontal_wrapped(|ui| {
+            theme::avatar(ui, &card.author, &card.did, 32.0);
+            ui.label(egui::RichText::new(&card.author).strong());
+            theme::muted(ui, &short_did(&card.did));
+            theme::muted(
+                ui,
+                &format!("· {}", timeline::age(card.timestamp_ms, now_ms())),
+            );
+            if !card.own {
+                let follows = self
+                    .workspace
+                    .as_ref()
+                    .zip(Did::parse(&card.did).ok())
+                    .is_some_and(|(workspace, did)| workspace.follows(&did));
+                if !follows && ui.add(theme::secondary_button("Follow")).clicked() {
+                    let (did, name) = (card.did.clone(), card.author.clone());
+                    self.follow_did(&did, &name);
+                }
+            }
+        });
+        if !card.body.trim().is_empty() {
+            ui.label(egui::RichText::new(&card.body).color(theme::TEXT_PRIMARY));
+        }
+        ui.horizontal(|ui| {
+            if theme::icon_action(ui, "♥", &card.support_count.to_string(), theme::LIKE_PINK) {
+                self.notice = match self.workspace.as_mut() {
+                    Some(workspace) => match workspace.react_like(&card.id) {
+                        Ok(()) => "Like signed and saved.".into(),
+                        Err(error) => format!("Could not react: {error}"),
+                    },
+                    None => "Local workspace unavailable.".into(),
+                };
+                self.timeline_refresh = Instant::now();
+            }
+            if theme::icon_action(ui, "💬", &card.comment_count.to_string(), theme::ACCENT) {
+                self.watch_target = Some(card.id.clone());
+                self.reply_target = Some(card.id.clone());
+                self.view = View::Watch;
+            }
+            if self.view != View::Watch && theme::icon_action(ui, "▶", "Watch", theme::ACCENT) {
+                self.watch_target = Some(card.id.clone());
+                self.view = View::Watch;
+            }
+        });
+    }
+
+    fn watch(&mut self, ui: &mut egui::Ui) {
+        if self.timeline_scope != timeline::Scope::Everyone {
+            self.timeline_scope = timeline::Scope::Everyone;
+        }
+        let cards = self.media_cards();
+        let Some(card) = self
+            .watch_target
+            .as_ref()
+            .and_then(|target| cards.iter().find(|card| &card.id == target))
+            .cloned()
+            .or_else(|| cards.first().cloned())
+        else {
+            theme::card_frame().show(ui, |ui| {
+                ui.heading("Nothing to watch yet");
+                theme::muted(ui, "Media posts from your network play here, with comments below and more to watch on the side.");
+                if ui.add(theme::primary_button("Open Library")).clicked() {
+                    self.view = View::Library;
+                }
+            });
+            return;
+        };
+        self.watch_target = Some(card.id.clone());
+        let media = card.media.clone().expect("media cards only");
+        let stage = egui::vec2(ui.available_width(), 480.0);
+        self.media_stage(ui, &media, stage, &card.body, &card.author);
+        ui.add_space(6.0);
+        let (title, description) = discussion::split_title(&card.body);
+        ui.label(
+            egui::RichText::new(if title.is_empty() { "Untitled" } else { title })
+                .strong()
+                .size(20.0)
+                .color(theme::TEXT_PRIMARY),
+        );
+        if !description.is_empty() {
+            ui.label(egui::RichText::new(description).color(theme::TEXT_PRIMARY));
+        }
+        let card_no_body = timeline::Card {
+            body: String::new(),
+            ..card.clone()
+        };
+        self.media_actions(ui, &card_no_body);
+        ui.add_space(8.0);
+        theme::section_title(ui, "Comments");
+        if self.reply_target.as_ref() == Some(&card.id) {
+            theme::card_frame().show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.reply_text)
+                        .hint_text("Add a comment")
+                        .desired_rows(2)
+                        .desired_width(f32::INFINITY),
+                );
+                ui.checkbox(
+                    &mut self.signing_confirmation,
+                    "I confirm this creates a signed reply",
+                );
+                ui.horizontal(|ui| {
+                    if ui.add(theme::primary_button("Comment")).clicked() {
+                        let text = self.reply_text.trim().to_string();
+                        self.notice = if text.is_empty() {
+                            "Write a comment first.".into()
+                        } else if !self.signing_confirmation {
+                            "Confirm signing before commenting.".into()
+                        } else {
+                            match self.publish_comment_confirmed(&card.id, &text) {
+                                Ok(()) => {
+                                    self.reply_text.clear();
+                                    self.reply_target = None;
+                                    self.signing_confirmation = false;
+                                    self.timeline_refresh = Instant::now();
+                                    "Comment signed and saved. It shares on the next exchange."
+                                        .into()
+                                }
+                                Err(error) => format!("Could not comment: {error}"),
+                            }
+                        };
+                    }
+                    if ui.add(theme::secondary_button("Cancel")).clicked() {
+                        self.reply_target = None;
+                    }
+                });
+            });
+        } else if ui
+            .add(theme::secondary_button("💬  Add a comment"))
+            .clicked()
+        {
+            self.reply_target = Some(card.id.clone());
+        }
+        self.thread(ui, &card.id);
+        ui.add_space(10.0);
+        let others: Vec<timeline::Card> = cards
+            .into_iter()
+            .filter(|other| other.id != card.id)
+            .take(12)
+            .collect();
+        if !others.is_empty() {
+            theme::section_title(ui, "Up next");
+            for other in others {
+                ui.push_id(other.id.as_str(), |ui| {
+                    theme::card_frame().show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let info = other
+                                .media
+                                .as_ref()
+                                .and_then(|media| self.media_info(media));
+                            let glyph =
+                                match info.as_ref().map(|(ct, _, _)| player::playback_for(ct)) {
+                                    Some(player::Playback::Audio) => "♫",
+                                    Some(player::Playback::Image) => "🖼",
+                                    _ => "🎬",
+                                };
+                            ui.label(egui::RichText::new(glyph).size(22.0));
+                            ui.vertical(|ui| {
+                                let (t, _) = discussion::split_title(&other.body);
+                                ui.label(
+                                    egui::RichText::new(if t.is_empty() { "Untitled" } else { t })
+                                        .strong(),
+                                );
+                                theme::muted(
+                                    ui,
+                                    &format!(
+                                        "{} · {}",
+                                        other.author,
+                                        timeline::age(other.timestamp_ms, now_ms())
+                                    ),
+                                );
+                            });
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.add(theme::secondary_button("▶  Watch")).clicked() {
+                                        self.watch_target = Some(other.id.clone());
+                                        self.reply_target = None;
+                                    }
+                                },
+                            );
+                        });
+                    });
+                });
+            }
+        }
     }
 
     fn communities(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
-            ui.label(egui::RichText::new("Create a local community").strong());
-            ui.text_edit_singleline(&mut self.community_name);
+        if let Some(community) = self.open_community.clone() {
+            self.community_discussion(ui, &community);
+            return;
+        }
+        let cards = self
+            .workspace
+            .as_ref()
+            .map(|workspace| workspace.communities())
+            .unwrap_or_default();
+        theme::muted(
+            ui,
+            "Communities are signed objects that replicate like posts. Discussions inside them are threaded comments; upvotes are reactions.",
+        );
+        ui.add_space(6.0);
+        if cards.is_empty() {
+            theme::card_frame().show(ui, |ui| {
+                ui.heading("No communities yet");
+                theme::muted(ui, "Create one below, or connect to a peer whose communities will arrive with the next exchange.");
+            });
+        }
+        for (id, name, charter, member_count, joined) in cards {
+            theme::card_frame().show(ui, |ui| {
+                ui.horizontal_top(|ui| {
+                    theme::avatar(ui, &name, id.as_str(), 44.0);
+                    ui.vertical(|ui| {
+                        ui.set_width(ui.available_width());
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new(&name).strong().size(18.0));
+                            if joined {
+                                theme::pill_badge(ui, "JOINED", theme::ONLINE_GREEN);
+                            }
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.add(theme::primary_button("Open")).clicked() {
+                                        self.open_community = Some(id.clone());
+                                        self.discussion_dirty = true;
+                                    }
+                                    if ui
+                                        .add(theme::secondary_button(if joined {
+                                            "Leave"
+                                        } else {
+                                            "Join"
+                                        }))
+                                        .clicked()
+                                    {
+                                        self.set_membership(&id, !joined);
+                                    }
+                                },
+                            );
+                        });
+                        if !charter.is_empty() {
+                            ui.label(&charter);
+                        }
+                        theme::muted(ui, &format!("{member_count} locally known member(s)"));
+                    });
+                });
+            });
+        }
+        ui.add_space(10.0);
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Create a community");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.community_name)
+                    .hint_text("Name")
+                    .desired_width(f32::INFINITY),
+            );
             ui.add_sized(
                 [ui.available_width(), 48.0],
                 egui::TextEdit::multiline(&mut self.community_charter)
@@ -2673,15 +7261,15 @@ impl MininetApp {
             );
             ui.checkbox(
                 &mut self.signing_confirmation,
-                "I confirm this action will create a signed community object",
+                "I confirm this creates a signed community object",
             );
-            if ui.button("Publish community locally").clicked() {
+            if ui.add(theme::primary_button("Create")).clicked() {
                 self.notice = if self.community_name.trim().is_empty() {
                     "A community name is required.".to_string()
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_community(
+                    match workspace.publish_community_confirmed(
                         self.community_name.trim(),
                         self.community_charter.trim(),
                     ) {
@@ -2689,7 +7277,7 @@ impl MininetApp {
                             self.community_name.clear();
                             self.community_charter.clear();
                             self.signing_confirmation = false;
-                            "Community card written locally. No directory was contacted."
+                            "Community created. It shares with your peers on the next exchange."
                                 .to_string()
                         }
                         Err(error) => format!("Could not create community: {error}"),
@@ -2699,53 +7287,419 @@ impl MininetApp {
                 };
             }
         });
-        let cards = self
+        ui.add_space(8.0);
+        theme::muted(ui, "Community content remains fetchable by object id. Labels and local filters change your view; they do not erase the author's copy.");
+    }
+
+    fn router_controls(&mut self, ui: &mut egui::Ui) {
+        ui.separator();
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Reach me from the internet").strong());
+            match (self.router_mapping.clone(), self.router_rx.is_some()) {
+                (_, true) => {
+                    ui.spinner();
+                    theme::muted(ui, "asking the router…");
+                }
+                (Some(mapping), false) => {
+                    match mapping.external_ip {
+                        Some(ip) => {
+                            theme::pill_badge(ui, "MAPPED", theme::ONLINE_GREEN);
+                            theme::muted(
+                                ui,
+                                &format!(
+                                    "{}:{} via {} · lease {} min",
+                                    ip,
+                                    mapping.external_port,
+                                    mapping.gateway,
+                                    mapping.lease_seconds / 60
+                                ),
+                            );
+                        }
+                        None => {
+                            theme::pill_badge(ui, "MAPPED · NO PUBLIC ADDRESS", theme::WARN_AMBER);
+                            theme::muted(
+                                ui,
+                                &format!(
+                                    "{} forwards port {} but is itself behind another NAT (double NAT or carrier-grade NAT)",
+                                    mapping.gateway, mapping.external_port
+                                ),
+                            );
+                        }
+                    }
+                    if ui.add(theme::secondary_button("Renew")).clicked() {
+                        self.start_router_mapping();
+                    }
+                    if ui.add(theme::secondary_button("Remove")).clicked() {
+                        let port = mapping.external_port;
+                        self.notice = match connectivity::unmap_port_on_router(port) {
+                            Ok(()) => "Router mapping removed.".into(),
+                            Err(error) => format!(
+                                "Could not remove the mapping (it expires by itself): {error}"
+                            ),
+                        };
+                        self.router_mapping = None;
+                    }
+                }
+                (None, false) => {
+                    if ui
+                        .add(theme::primary_button("Open port on router (UPnP)"))
+                        .clicked()
+                    {
+                        self.start_router_mapping();
+                    }
+                }
+            }
+        });
+        theme::muted(
+            ui,
+            "Asks the router on your LAN to forward the hosting port to this machine and reports your public address. Nothing leaves your network except through peers you connect to. Routers with UPnP disabled, carrier-grade NAT, or IPv6-only lines will refuse; then forward the port by hand or use a peer that can be reached.",
+        );
+        if ui
+            .checkbox(
+                &mut self.connections.router_mapping_on_launch,
+                "Renew the router mapping whenever hosting starts on launch",
+            )
+            .changed()
+        {
+            self.save_connections();
+        }
+    }
+
+    fn set_membership(&mut self, id: &mini_objects::ObjectId, join: bool) {
+        self.notice = match self.workspace.as_mut() {
+            Some(workspace) => match workspace.set_community_membership_confirmed(id, join) {
+                Ok(()) if join => {
+                    "Joined. The signed membership shares on the next exchange.".into()
+                }
+                Ok(()) => "Left the community.".into(),
+                Err(error) => format!("Could not change membership: {error}"),
+            },
+            None => "Local workspace unavailable.".into(),
+        };
+    }
+
+    fn reload_discussion(&mut self, community: &mini_objects::ObjectId) {
+        self.discussion_dirty = false;
+        let Some(workspace) = self.workspace.as_ref() else {
+            self.discussion.clear();
+            return;
+        };
+        let Some(viewer) = workspace.human.as_ref() else {
+            self.discussion.clear();
+            return;
+        };
+        let muted = self.muted.clone();
+        match discussion::load(
+            &workspace.store,
+            community,
+            viewer,
+            self.discussion_order,
+            &|did| muted.contains(did),
+        ) {
+            Ok(threads) => {
+                self.discussion = threads;
+                self.discussion_error = None;
+            }
+            Err(error) => self.discussion_error = Some(error),
+        }
+    }
+
+    fn community_discussion(&mut self, ui: &mut egui::Ui, community: &mini_objects::ObjectId) {
+        let (name, charter, joined) = self
             .workspace
             .as_ref()
-            .map(|workspace| workspace.communities())
-            .unwrap_or_default();
-        if cards.is_empty() {
-            ui.label("No community cards are present locally yet.");
+            .and_then(|workspace| {
+                workspace
+                    .communities()
+                    .into_iter()
+                    .find(|(id, ..)| id == community)
+                    .map(|(_, name, charter, _, joined)| (name, charter, joined))
+            })
+            .unwrap_or_else(|| ("Community".into(), String::new(), false));
+        if self.discussion_dirty {
+            self.reload_discussion(community);
         }
-        for (id, name, charter, member_count, joined) in cards {
-            ui.group(|ui| {
-                ui.heading(name);
-                ui.label(charter);
-                ui.label(format!("{member_count} locally known members"));
-                if ui
-                    .button(if joined {
-                        "Leave community"
+        ui.horizontal(|ui| {
+            if ui
+                .add(theme::secondary_button("◀  All communities"))
+                .clicked()
+            {
+                self.open_community = None;
+                self.discussion_reply_target = None;
+                return;
+            }
+            theme::avatar(ui, &name, community.as_str(), 30.0);
+            ui.label(egui::RichText::new(&name).strong().size(18.0));
+            if joined {
+                theme::pill_badge(ui, "JOINED", theme::ONLINE_GREEN);
+            } else if ui.add(theme::secondary_button("Join")).clicked() {
+                self.set_membership(community, true);
+            }
+        });
+        if self.open_community.is_none() {
+            return;
+        }
+        if !charter.is_empty() {
+            theme::muted(ui, &charter);
+        }
+        ui.add_space(8.0);
+
+        theme::card_frame().show(ui, |ui| {
+            theme::section_title(ui, "Start a discussion");
+            ui.add(
+                egui::TextEdit::singleline(&mut self.discussion_title)
+                    .hint_text("Title")
+                    .desired_width(f32::INFINITY),
+            );
+            ui.add(
+                egui::TextEdit::multiline(&mut self.discussion_body)
+                    .hint_text("Say more (optional)")
+                    .desired_rows(3)
+                    .desired_width(f32::INFINITY),
+            );
+            ui.checkbox(
+                &mut self.signing_confirmation,
+                "I confirm this creates a signed discussion object",
+            );
+            if ui.add(theme::primary_button("Post discussion")).clicked() {
+                let title = self.discussion_title.trim().to_string();
+                let body = self.discussion_body.trim().to_string();
+                self.notice = if title.is_empty() {
+                    "Give the discussion a title.".into()
+                } else if !self.signing_confirmation {
+                    "Confirm signing before posting.".into()
+                } else {
+                    let text = if body.is_empty() {
+                        title
                     } else {
-                        "Join community"
-                    })
-                    .clicked()
-                {
-                    self.notice = if !self.signing_confirmation {
-                        "Confirm signing before changing membership.".to_string()
-                    } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_community_membership(&id, !joined) {
-                            Ok(()) => {
-                                self.signing_confirmation = false;
-                                if joined {
-                                    "Leave object written locally.".to_string()
-                                } else {
-                                    "Join object written locally.".to_string()
-                                }
-                            }
-                            Err(error) => format!("Could not change membership: {error}"),
+                        format!("{title}\n\n{body}")
+                    };
+                    match self.publish_comment_confirmed(community, &text) {
+                        Ok(()) => {
+                            self.discussion_title.clear();
+                            self.discussion_body.clear();
+                            self.signing_confirmation = false;
+                            self.discussion_dirty = true;
+                            "Discussion posted. It shares with your peers on the next exchange."
+                                .into()
                         }
-                    } else {
-                        "Local workspace unavailable.".to_string()
+                        Err(error) => format!("Could not post: {error}"),
+                    }
+                };
+            }
+        });
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            for (order, label) in [
+                (discussion::Order::Top, "Top"),
+                (discussion::Order::New, "New"),
+            ] {
+                if ui
+                    .selectable_label(self.discussion_order == order, label)
+                    .clicked()
+                    && self.discussion_order != order
+                {
+                    self.discussion_order = order;
+                    self.discussion_dirty = true;
+                }
+            }
+            if ui
+                .add(theme::secondary_button("🔄"))
+                .on_hover_text("Reload")
+                .clicked()
+            {
+                self.discussion_dirty = true;
+            }
+            theme::muted(ui, &format!("{} discussion(s)", self.discussion.len()));
+        });
+        if let Some(error) = &self.discussion_error {
+            ui.colored_label(
+                theme::WARN_AMBER,
+                format!("Could not load discussions: {error}"),
+            );
+        }
+        if self.discussion.is_empty() {
+            theme::muted(ui, "Nothing here yet. Start the first discussion above.");
+        }
+        let threads = self.discussion.clone();
+        for thread in &threads {
+            ui.push_id(thread.id.as_str(), |ui| {
+                theme::card_frame().show(ui, |ui| {
+                    self.discussion_node(ui, thread, 0);
+                });
+            });
+            ui.add_space(6.0);
+        }
+    }
+
+    fn discussion_node(&mut self, ui: &mut egui::Ui, node: &discussion::Node, depth: usize) {
+        let collapsed = self.collapsed_nodes.iter().any(|id| id == node.id.as_str());
+        let (title, body) = discussion::split_title(&node.text);
+        ui.horizontal_top(|ui| {
+            // Upvote column, Reddit style.
+            ui.vertical(|ui| {
+                ui.set_width(40.0);
+                if theme::icon_action(ui, "⬆", "", theme::ACCENT) {
+                    self.notice = match self.workspace.as_mut() {
+                        Some(workspace) => match workspace.react_like(&node.id) {
+                            Ok(()) => {
+                                self.discussion_dirty = true;
+                                "Upvote signed. It shares on the next exchange.".into()
+                            }
+                            Err(error) => format!("Could not upvote: {error}"),
+                        },
+                        None => "Local workspace unavailable.".into(),
                     };
                 }
+                ui.label(
+                    egui::RichText::new(node.upvotes.to_string())
+                        .strong()
+                        .color(theme::TEXT_PRIMARY),
+                );
             });
-        }
-        ui.add_space(16.0);
-        ui.label(egui::RichText::new("Community content remains fetchable by object id. Labels and local filters can change your view; they do not erase the author's copy.").italics());
+            ui.vertical(|ui| {
+                ui.set_width(ui.available_width());
+                ui.horizontal_wrapped(|ui| {
+                    theme::avatar(ui, &node.author, &node.did, 22.0);
+                    ui.label(egui::RichText::new(&node.author).strong());
+                    theme::muted(ui, &short_did(&node.did));
+                    theme::muted(
+                        ui,
+                        &format!("· {}", timeline::age(node.timestamp_ms, now_ms())),
+                    );
+                    if node.own {
+                        theme::pill_badge(ui, "You", theme::ACCENT);
+                    }
+                });
+                if depth == 0 {
+                    ui.label(
+                        egui::RichText::new(title)
+                            .strong()
+                            .size(17.0)
+                            .color(theme::TEXT_PRIMARY),
+                    );
+                    if !body.is_empty() {
+                        ui.label(egui::RichText::new(body).color(theme::TEXT_PRIMARY));
+                    }
+                } else {
+                    ui.label(egui::RichText::new(&node.text).color(theme::TEXT_PRIMARY));
+                }
+                ui.horizontal(|ui| {
+                    let replies = node.total_replies();
+                    if theme::icon_action(ui, "💬", &format!("Reply · {replies}"), theme::ACCENT)
+                    {
+                        self.discussion_reply_target = Some(node.id.clone());
+                        self.discussion_reply_text.clear();
+                    }
+                    if replies > 0
+                        && theme::icon_action(
+                            ui,
+                            if collapsed { "▶" } else { "•" },
+                            if collapsed {
+                                "Show replies"
+                            } else {
+                                "Hide replies"
+                            },
+                            theme::TEXT_SECONDARY,
+                        )
+                    {
+                        if collapsed {
+                            self.collapsed_nodes.retain(|id| id != node.id.as_str());
+                        } else {
+                            self.collapsed_nodes.push(node.id.as_str().to_owned());
+                        }
+                    }
+                    if !node.own && theme::icon_action(ui, "🔇", "Mute", theme::WARN_AMBER) {
+                        let (did, name) = (node.did.clone(), node.author.clone());
+                        self.set_muted(&did, &name, true);
+                        self.discussion_dirty = true;
+                    }
+                });
+                if self.discussion_reply_target.as_ref() == Some(&node.id) {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut self.discussion_reply_text)
+                            .hint_text("Write a reply")
+                            .desired_rows(2)
+                            .desired_width(f32::INFINITY),
+                    );
+                    ui.checkbox(
+                        &mut self.signing_confirmation,
+                        "I confirm this creates a signed reply",
+                    );
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::primary_button("Reply")).clicked() {
+                            let text = self.discussion_reply_text.trim().to_string();
+                            self.notice = if text.is_empty() {
+                                "Write a reply first.".into()
+                            } else if !self.signing_confirmation {
+                                "Confirm signing before replying.".into()
+                            } else {
+                                match self.publish_comment_confirmed(&node.id, &text) {
+                                    Ok(()) => {
+                                        self.discussion_reply_target = None;
+                                        self.discussion_reply_text.clear();
+                                        self.signing_confirmation = false;
+                                        self.discussion_dirty = true;
+                                        "Reply posted. It shares on the next exchange.".into()
+                                    }
+                                    Err(error) => format!("Could not reply: {error}"),
+                                }
+                            };
+                        }
+                        if ui.add(theme::secondary_button("Cancel")).clicked() {
+                            self.discussion_reply_target = None;
+                        }
+                    });
+                }
+                if !collapsed {
+                    for reply in &node.replies {
+                        ui.push_id(reply.id.as_str(), |ui| {
+                            egui::Frame::new()
+                                .inner_margin(egui::Margin {
+                                    left: 10,
+                                    right: 0,
+                                    top: 6,
+                                    bottom: 0,
+                                })
+                                .stroke(egui::Stroke::NONE)
+                                .show(ui, |ui| {
+                                    let rect = ui.max_rect();
+                                    ui.painter().vline(
+                                        rect.left() + 2.0,
+                                        rect.y_range(),
+                                        egui::Stroke::new(2.0, theme::BORDER),
+                                    );
+                                    self.discussion_node(ui, reply, depth + 1);
+                                });
+                        });
+                    }
+                    if node.truncated > 0 {
+                        theme::muted(
+                            ui,
+                            &format!(
+                                "{} deeper repl(ies) not shown at this depth.",
+                                node.truncated
+                            ),
+                        );
+                    }
+                }
+            });
+        });
+    }
+
+    fn publish_comment_confirmed(
+        &mut self,
+        parent: &mini_objects::ObjectId,
+        text: &str,
+    ) -> Result<(), String> {
+        self.workspace
+            .as_mut()
+            .ok_or_else(|| "Local workspace unavailable.".to_string())
+            .and_then(|workspace| workspace.publish_comment_confirmed(parent, text))
     }
 
     fn creator(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Your public profile").strong());
             ui.label("You choose every optional detail below. Only the display name is required; blank or disabled fields are not published.");
             ui.label("Display name");
@@ -2876,7 +7830,7 @@ impl MininetApp {
             }
         });
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Public wall").strong());
             ui.label("A voluntary public-facing surface separate from your profile. It does not reveal another root unless you explicitly publish a linkage object.");
             ui.label("Wall name");
@@ -2910,7 +7864,7 @@ impl MininetApp {
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing the wall.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_public_wall(
+                    match workspace.publish_public_wall_confirmed(
                         self.wall_name.trim(),
                         self.wall_bio.trim(),
                         &link_refs,
@@ -2930,7 +7884,7 @@ impl MininetApp {
         ui.add_space(12.0);
         let target_valid =
             self.follow_target.trim().is_empty() || Did::parse(self.follow_target.trim()).is_ok();
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("People and follows").strong());
             ui.label("Exchange the full did:mini identifier through a trusted channel. Usernames are not unique contact identifiers.");
             if let Some(workspace) = self.workspace.as_ref() {
@@ -2972,7 +7926,7 @@ impl MininetApp {
                     } else if !self.signing_confirmation {
                         "Confirm signing before changing the follow graph.".to_string()
                     } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target(&self.follow_target, true) {
+                        match workspace.set_follow_target_confirmed(&self.follow_target, true) {
                             Ok(()) => {
                                 self.signing_confirmation = false;
                                 "Follow object written locally.".to_string()
@@ -2992,7 +7946,7 @@ impl MininetApp {
                     } else if !self.signing_confirmation {
                         "Confirm signing before changing the follow graph.".to_string()
                     } else if let Some(workspace) = self.workspace.as_mut() {
-                        match workspace.set_follow_target(&self.follow_target, false) {
+                        match workspace.set_follow_target_confirmed(&self.follow_target, false) {
                             Ok(()) => {
                                 self.signing_confirmation = false;
                                 "Unfollow object written locally.".to_string()
@@ -3018,7 +7972,7 @@ impl MininetApp {
             }
         });
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.heading("Your creator page");
             ui.label("Profile + pinned collections + progressive media");
             ui.separator();
@@ -3036,7 +7990,7 @@ impl MininetApp {
                 } else if !self.signing_confirmation {
                     "Confirm signing before publishing media.".to_string()
                 } else if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.publish_media_post(
+                    match workspace.publish_media_post_confirmed(
                         self.media_path.trim(),
                         self.media_content_type.trim(),
                         self.media_caption.trim(),
@@ -3059,95 +8013,6 @@ impl MininetApp {
         ui.label("Media playback is designed to work from local chunks first. External catalog adapters are opt-in and never become update or identity authorities.");
     }
 
-    fn connections(&mut self, ui: &mut egui::Ui) {
-        ui.label(egui::RichText::new("Transport order is user-controlled").strong());
-        ui.add_space(6.0);
-        self.transport_row(ui, "Offline store", "Always available", true);
-        self.transport_row(
-            ui,
-            "Local Wi-Fi / hotspot",
-            "Direct nearby transfer",
-            self.privacy.lan_discovery,
-        );
-        self.transport_row(
-            ui,
-            "Self-hosted relay",
-            "Optional encrypted transport",
-            self.privacy.relays,
-        );
-        ui.add_space(12.0);
-        ui.group(|ui| {
-            ui.label(egui::RichText::new("Add a friend or contact").strong());
-            ui.label("Open People to search signed profiles by name or DID, discover an opt-in nearby profile, and add a friend with one button.");
-            if let Some(workspace) = self.workspace.as_ref() {
-                if let Some(human) = workspace.human.as_ref() {
-                    ui.label(format!("Your DID: {human}"));
-                }
-            }
-            if ui.button("Open friend manager").clicked() {
-                self.view = View::People;
-            }
-            ui.label("A friend is shown as mutual only after both signed follow objects arrive through sync.");
-        });
-        ui.add_space(12.0);
-        ui.group(|ui| {
-            ui.label(egui::RichText::new("One-shot direct peer sync").strong());
-            ui.label("Encrypted TCP bearer + verified MINI/SYNC1 ingest. Nothing runs until you press a button.");
-            ui.label("Use this with a peer you trust; the address is not authenticated by discovery.");
-            ui.horizontal(|ui| {
-                ui.label("Peer address");
-                ui.text_edit_singleline(&mut self.peer_address);
-            });
-            ui.horizontal(|ui| {
-                ui.label("Listen port");
-                ui.text_edit_singleline(&mut self.listen_port);
-            });
-            ui.horizontal(|ui| {
-                if ui.button("Connect once").clicked() {
-                    self.start_peer_sync(false, None);
-                }
-                if ui.button("Listen once").clicked() {
-                    self.start_peer_sync(true, None);
-                }
-            });
-            if self.sync_rx.is_some() || self.visibility_rx.is_some() {
-                ui.label("Peer operation active… close the peer or wait for the bounded protocol to finish.");
-            }
-            ui.label("Direct TCP works on LAN or over the internet when the endpoint is reachable. Port forwarding, firewall rules, NAT traversal, and relay deployment remain the operator's responsibility.");
-        });
-        ui.add_space(12.0);
-        ui.group(|ui| {
-            ui.label(egui::RichText::new("Offline transfer").strong());
-            ui.label("Move signed objects by USB, a trusted shared folder, or a peer handoff. Bundles do not contain the DPAPI identity vault.");
-            ui.text_edit_singleline(&mut self.export_path);
-            if ui.button("Export local objects").clicked() {
-                self.notice = if let Some(workspace) = self.workspace.as_ref() {
-                    match workspace.export_bundle(self.export_path.trim()) {
-                        Ok(bytes) => format!("Exported {bytes} bytes of signed objects. The bundle is portable, not encrypted."),
-                        Err(error) => format!("Export failed: {error}"),
-                    }
-                } else {
-                    "Local workspace unavailable.".to_string()
-                };
-            }
-            ui.separator();
-            ui.text_edit_singleline(&mut self.import_path);
-            if ui.button("Import local objects").clicked() {
-                self.notice = if let Some(workspace) = self.workspace.as_mut() {
-                    match workspace.import_bundle(self.import_path.trim()) {
-                        Ok(count) => format!("Imported {count} verified object(s). No network used."),
-                        Err(error) => format!("Import failed: {error}"),
-                    }
-                } else {
-                    "Local workspace unavailable.".to_string()
-                };
-            }
-            ui.label("For sensitive material, protect the destination with BitLocker or another user-selected encrypted container.");
-        });
-        ui.add_space(12.0);
-        ui.label("A blocked domain or unavailable relay does not delete local data. Export, peer transfer, and alternate relays remain separate paths.");
-    }
-
     fn system(&mut self, ui: &mut egui::Ui) {
         let Some(workspace) = self.workspace.as_ref() else {
             ui.colored_label(egui::Color32::YELLOW, "Local workspace unavailable.");
@@ -3160,7 +8025,7 @@ impl MininetApp {
                 .map_or(0, |ids| ids.len())
         };
         let total = workspace.store.all_ids().map_or(0, |ids| ids.len());
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Local state").strong());
             ui.label(format!(
                 "{total} signed/content-addressed object(s) stored locally."
@@ -3189,14 +8054,14 @@ impl MininetApp {
                 ("Forge commits", count(&ObjectType::COMMIT)),
                 ("Releases", count(&ObjectType::RELEASE)),
             ] {
-                ui.group(|ui| {
+                theme::card_frame().show(ui, |ui| {
                     ui.heading(value.to_string());
                     ui.label(label);
                 });
             }
         });
         ui.add_space(10.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Available client surfaces").strong());
             ui.horizontal_wrapped(|ui| {
                 if ui.button("Open feed").clicked() {
@@ -3223,14 +8088,14 @@ impl MininetApp {
             });
         });
         ui.add_space(10.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Protocol coverage").strong());
             ui.label("Integrated here: signed social objects, local feed assembly, communities, threaded replies, reactions, chunked media, DPAPI identity/conversation storage, Inbox beta, offline bundles, encrypted one-shot TCP sync, Windows install inspection with re-verification and rollback, and a diagnostics suite that executes the real identity, storage, social, media, messaging, sync, governance, erasure-coding, and storage-proof code.");
             ui.label("Available in the repository but not yet a finished desktop workflow: production chat sessions/mailboxes, forge repository/PR administration, presence/keystone encounters, reward accounting, privacy-cost routing, and release adoption decisions. Diagnostics *exercises* the governed-review path end to end, which is not the same as offering a desktop workflow for running it.");
             ui.label("Those foundations are deliberately shown as boundaries rather than unsafe pretend buttons. Public object types remain inspectable and syncable when another Mininet tool creates them; private messages currently require an explicit one-shot conversation sync.");
         });
         ui.add_space(10.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Production readiness").strong());
             for (feature, status, owner) in [
                 ("Local social, profiles, follows, walls, communities", "Integrated / test-covered", "Desktop"),
@@ -3256,26 +8121,6 @@ impl MininetApp {
         });
     }
 
-    fn transport_row(&self, ui: &mut egui::Ui, name: &str, detail: &str, enabled: bool) {
-        ui.horizontal(|ui| {
-            ui.label(if enabled { "●" } else { "○" });
-            ui.label(egui::RichText::new(name).strong());
-            ui.label(detail);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(if enabled { "enabled" } else { "off" });
-            });
-        });
-        ui.separator();
-    }
-
-    /// Start a diagnostics run off the UI thread.
-    ///
-    /// The suite opens real sockets and writes real files, so it takes long
-    /// enough that running it on the UI thread would freeze the window --- the
-    /// one place in this client where a background thread is worth the extra
-    /// state. Scratch state goes in a throwaway directory under the OS temp
-    /// directory, never in the user's own `MININET_HOME`, so a diagnostics run
-    /// can never touch identities or posts.
     fn start_selftest(&mut self, area: Option<&'static str>) {
         if self.selftest_rx.is_some() {
             self.notice = "Diagnostics are already running.".to_string();
@@ -3429,7 +8274,7 @@ impl MininetApp {
             );
             return;
         };
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label(egui::RichText::new(report.summary()).strong());
                 if report.is_clean() {
@@ -3591,14 +8436,14 @@ impl MininetApp {
         }
         if !self.install_notice.is_empty() {
             ui.add_space(10.0);
-            ui.group(|ui| {
+            theme::card_frame().show(ui, |ui| {
                 for line in self.install_notice.lines() {
                     ui.label(line);
                 }
             });
         }
         ui.add_space(12.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("What this client will not do").strong());
             ui.label(
                 "It does not check for updates, download a release, or install one. There is no \
@@ -3615,7 +8460,7 @@ impl MininetApp {
             );
         });
         ui.add_space(10.0);
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             ui.label(egui::RichText::new("Verify this yourself").strong());
             ui.label(
                 "The manifest beside each package records every file's length, BLAKE3, and \
@@ -3638,7 +8483,7 @@ impl MininetApp {
     }
 
     fn install_summary(&self, ui: &mut egui::Ui, status: &SetupStatus) {
-        ui.group(|ui| {
+        theme::card_frame().show(ui, |ui| {
             match &status.active {
                 Some(record) => {
                     ui.label(
@@ -3735,7 +8580,21 @@ impl MininetApp {
         }
         ui.separator();
         ui.label(egui::RichText::new("Telemetry: permanently disabled in this shell").strong());
-        ui.label("There is no analytics client, ad SDK, embedded browser, remote configuration, silent update executor, or background network loop in this UI crate.");
+        ui.label("There is no analytics client, ad SDK, embedded browser, remote configuration, or silent update executor. Networking runs only inside sessions and hosting windows you start in Connections, or on launch only if you enabled that there.");
+        ui.horizontal_wrapped(|ui| {
+            theme::muted(
+                ui,
+                &format!(
+                "Launch policy: session on open {}, hosting on open {}, private conversations {}.",
+                if self.connections.session_on_launch { "ON" } else { "off" },
+                if self.connections.host_on_launch { "ON" } else { "off" },
+                if self.connections.include_private { "included" } else { "excluded" },
+            ),
+            );
+            if ui.add(theme::secondary_button("Change")).clicked() {
+                self.view = View::Connections;
+            }
+        });
         if let Some(workspace) = self.workspace.as_ref() {
             if let Some(human) = workspace.human.as_ref() {
                 ui.label(format!("Current session identity: {}", human.as_str()));
@@ -3745,8 +8604,112 @@ impl MininetApp {
             ui.label("The identity seed envelope is protected by Windows DPAPI for the current user. This does not defend against malware or an administrator running as that user.");
         }
         ui.add_space(10.0);
+        ui.add_space(10.0);
+        ui.label(
+            egui::RichText::new(format!("Muted on this device ({})", self.muted.len())).strong(),
+        );
+        if self.muted.is_empty() {
+            theme::muted(ui, "Nobody. Mute an author from a post's ℹ menu or from People. Muting hides content here only; it publishes nothing.");
+        } else {
+            let muted: Vec<String> = self.muted.iter().map(str::to_owned).collect();
+            for did in muted {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(short_did(&did)).small());
+                    if ui.add(theme::secondary_button("Unmute")).clicked() {
+                        self.set_muted(&did, &short_did(&did), false);
+                    }
+                });
+            }
+        }
+        ui.add_space(10.0);
         ui.colored_label(egui::Color32::YELLOW, "Windows boundary");
         ui.label("This reduces Mininet's own tracking and censorship dependencies. It cannot stop a compromised Windows kernel, a malicious administrator, malware, accessibility abuse, screen capture, or a hardware/driver keylogger. Sensitive entry should use a trusted OS/device and Mininet should keep secrets out of logs and URLs.");
+    }
+}
+
+/// A DID shortened for display; the full value stays one click away.
+fn short_did(did: &str) -> String {
+    const KEEP: usize = 18;
+    if did.chars().count() <= KEEP + 1 {
+        did.to_owned()
+    } else {
+        let head: String = did.chars().take(KEEP).collect();
+        format!("{head}…")
+    }
+}
+
+/// One session exchange with one saved peer: the public sync, then every
+/// private route the owner opted in. Runs on a worker thread.
+fn exchange_with_peer(
+    root: &std::path::Path,
+    endpoint: &str,
+    routes: &[(String, OpaqueRoute)],
+) -> Result<String, String> {
+    let public = peer_link::dial_public(root, endpoint)?;
+    if routes.is_empty() {
+        return Ok(public);
+    }
+    let mut synced = 0usize;
+    let mut accepted = 0usize;
+    let mut absent = 0usize;
+    let mut errors = Vec::new();
+    for (label, route) in routes {
+        match peer_link::dial_private(root, endpoint, *route) {
+            Ok(peer_link::PrivateOutcome::Synced { accepted: got, .. }) => {
+                synced += 1;
+                accepted += got;
+            }
+            Ok(peer_link::PrivateOutcome::NotOnThisPeer) => absent += 1,
+            Err(error) => errors.push(format!("{label}: {error}")),
+        }
+    }
+    let mut summary = format!(
+        "{public} Private: {synced} conversation(s) synced, {accepted} new envelope(s), {absent} not on this peer."
+    );
+    if !errors.is_empty() {
+        summary.push_str(&format!(" Errors: {}", errors.join("; ")));
+    }
+    Ok(summary)
+}
+
+/// Build a poster image for one media object on the thumbnail worker.
+fn thumbnail_for(root: &std::path::Path, id: &str, content_type: &str) -> Option<egui::ColorImage> {
+    const EDGE: usize = 480;
+    let store = Store::new(FsBackend::open(root).ok()?);
+    let media = mini_objects::ObjectId::parse(id).ok()?;
+    let object = store.get(&media).ok()?;
+    let total = match read_manifest(&object) {
+        Ok(manifest) => manifest.total_len,
+        Err(_) => library::read_collection(&object).ok()?.total_len,
+    };
+    match player::playback_for(content_type) {
+        player::Playback::Video | player::Playback::VideoUnsupported => {
+            if total > video::MAX_VIDEO_BYTES {
+                return None;
+            }
+            let mut bytes = Vec::with_capacity(total as usize);
+            library::export(&store, &media, &mut bytes).ok()?;
+            let frame = video::poster(&bytes, EDGE).ok()?;
+            Some(egui::ColorImage::from_rgb(
+                [frame.width, frame.height],
+                &frame.rgb,
+            ))
+        }
+        player::Playback::Image | player::Playback::Animation => {
+            if total > player::MAX_ANIMATION_BYTES {
+                return None;
+            }
+            let mut bytes = Vec::with_capacity(total as usize);
+            library::export(&store, &media, &mut bytes).ok()?;
+            let (image, _) = decode_profile_image(&bytes).ok()?;
+            let image = image.thumbnail(EDGE as u32, EDGE as u32).to_rgba8();
+            let size = [image.width() as usize, image.height() as usize];
+            Some(egui::ColorImage::from_rgba_unmultiplied(
+                size,
+                image.as_raw(),
+            ))
+        }
+        _ => None,
     }
 }
 
@@ -3959,17 +8922,27 @@ mod tests {
         let port = probe.local_addr().unwrap().port();
         drop(probe);
         let (sender, receiver) = mpsc::channel();
+        let (ready_tx, ready_rx) = mpsc::channel();
         let server_root = bob_root.clone();
         let server = std::thread::spawn(move || {
             run_discoverable_profile_sync(
                 &server_root,
                 port,
                 "Bob",
-                Duration::from_secs(4),
+                Duration::from_secs(30),
                 &sender,
+                Some(&ready_tx),
+                Some(2),
             )
         });
-        std::thread::sleep(Duration::from_millis(150));
+        // Wait for the server's real readiness signal (sent right after it
+        // binds and starts listening) instead of racing it for the port: a
+        // bind-probe from this thread can itself hold the port open across
+        // its own sleep and steal it from the real server, which is exactly
+        // what made this test flaky.
+        ready_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("server never signaled it was listening");
 
         let endpoint = format!("127.0.0.1:{port}");
         run_peer_sync(&alice_root, &endpoint, false).unwrap();
@@ -4000,6 +8973,412 @@ mod tests {
         assert!(names.iter().any(|name| name == "Alice"));
         assert!(names.iter().any(|name| name == "Bob"));
         assert_eq!(followers(&bob_store, &bob_did).unwrap(), vec![alice_did]);
+
+        std::fs::remove_dir_all(test_root).unwrap();
+    }
+    /// The connected-beta path end to end over real TCP: Bob hosts for a
+    /// window; Alice's session worker dials him twice (public + a shared
+    /// private conversation). Bob ends up with Alice's profile, follow and
+    /// encrypted message; Alice gets Bob's profile. The private route must
+    /// be served by the multi-route host responder, and a route Bob does
+    /// not hold must be declined without error.
+    #[cfg(windows)]
+    #[test]
+    fn host_serves_session_exchanges_public_and_private_over_tcp() {
+        use super::{
+            conversation_state, exchange_with_peer, followers, known_profiles,
+            load_desktop_identity, load_or_create, peer_link, publish_profile, set_follow,
+            ConversationRecord,
+        };
+        use mini_messaging::{scan as scan_messages, send as send_message, MessageDraft};
+        use mini_objects::OpaqueRoute;
+        use mini_store::FsBackend;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::{mpsc, Arc};
+        use std::time::Duration;
+
+        fn profile_root(root: &std::path::Path, name: &str) -> did_mini::Did {
+            load_or_create(&root.join("identity.dpapi")).unwrap();
+            let identity = load_desktop_identity(root, true).unwrap();
+            let human = identity.root.did();
+            let mut store = Store::new(FsBackend::open(root).unwrap());
+            publish_profile(
+                &mut store,
+                &human,
+                &identity.device,
+                name,
+                "host test",
+                None,
+                1,
+                0,
+            )
+            .unwrap();
+            human
+        }
+
+        let test_root = std::env::temp_dir().join(format!(
+            "mininet-desktop-host-{}-{}",
+            std::process::id(),
+            super::now_ms()
+        ));
+        let bob_root = test_root.join("bob");
+        let alice_root = test_root.join("alice");
+        let bob_did = profile_root(&bob_root, "Bob");
+        let alice_did = profile_root(&alice_root, "Alice");
+
+        // One shared conversation (created by Alice, imported by Bob) and one
+        // Alice-only conversation Bob must decline.
+        let (shared, invite) =
+            ConversationRecord::create("shared".into(), bob_did.clone(), alice_did.clone())
+                .unwrap();
+        let (alice_only, alice_only_invite) =
+            ConversationRecord::create("mine".into(), bob_did.clone(), alice_did.clone()).unwrap();
+        let bob_copy = ConversationRecord::import("shared".into(), &invite).unwrap();
+        let alice_records = [
+            ConversationRecord::import("shared".into(), &invite).unwrap(),
+            ConversationRecord::import("mine".into(), &alice_only_invite).unwrap(),
+        ];
+        conversation_state::save(&alice_root.join("conversations.dpapi"), &alice_records).unwrap();
+        let bob_records = [ConversationRecord::import("shared".into(), &invite).unwrap()];
+        conversation_state::save(&bob_root.join("conversations.dpapi"), &bob_records).unwrap();
+
+        // Alice follows Bob and writes him a message before any connection.
+        let alice_identity = load_desktop_identity(&alice_root, false).unwrap();
+        {
+            let mut alice_store = Store::new(FsBackend::open(&alice_root).unwrap());
+            set_follow(
+                &mut alice_store,
+                &alice_did,
+                &alice_identity.device,
+                &bob_did,
+                true,
+                2,
+                1,
+            )
+            .unwrap();
+            send_message(
+                &mut alice_store,
+                &shared.secret().unwrap(),
+                alice_did.clone(),
+                &alice_identity.device,
+                3,
+                2,
+                MessageDraft::text("hello over the internet"),
+            )
+            .unwrap();
+        }
+
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = probe.local_addr().unwrap().port();
+        drop(probe);
+        let stop = Arc::new(AtomicBool::new(false));
+        let (events, event_rx) = mpsc::channel();
+        let host_root = bob_root.clone();
+        let host_stop = Arc::clone(&stop);
+        let host_routes = vec![bob_copy.route()];
+        let host = std::thread::spawn(move || {
+            peer_link::run_host(host_root, port, host_routes, host_stop, events)
+        });
+        let listening = event_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(matches!(listening, peer_link::HostEvent::Listening { .. }));
+
+        let endpoint = format!("127.0.0.1:{port}");
+        let routes: Vec<(String, OpaqueRoute)> = vec![
+            ("shared".into(), shared.route()),
+            ("mine".into(), alice_only.route()),
+        ];
+        let summary = exchange_with_peer(&alice_root, &endpoint, &routes).unwrap();
+        assert!(summary.contains("1 conversation(s) synced"), "{summary}");
+        assert!(summary.contains("1 not on this peer"), "{summary}");
+        assert!(!summary.contains("Errors"), "{summary}");
+        // A second exchange is idempotent and the host is still accepting.
+        let again = exchange_with_peer(&alice_root, &endpoint, &routes).unwrap();
+        assert!(again.contains("0 new envelope(s)"), "{again}");
+
+        stop.store(true, Ordering::Relaxed);
+        host.join().unwrap();
+        let mut served = 0;
+        let mut declined = 0;
+        for event in event_rx.try_iter() {
+            if let peer_link::HostEvent::Connection { result, .. } = event {
+                let text = result.unwrap();
+                served += 1;
+                if text.contains("declined") {
+                    declined += 1;
+                }
+            }
+        }
+        assert_eq!(served, 6);
+        assert_eq!(declined, 2);
+
+        let bob_store = Store::new(FsBackend::open(&bob_root).unwrap());
+        let names: Vec<String> = known_profiles(&bob_store)
+            .unwrap()
+            .into_iter()
+            .map(|profile| profile.display_name)
+            .collect();
+        assert!(names.iter().any(|name| name == "Alice"));
+        assert_eq!(
+            followers(&bob_store, &bob_did).unwrap(),
+            vec![alice_did.clone()]
+        );
+        let scan = scan_messages(&bob_store, &bob_copy.secret().unwrap()).unwrap();
+        assert_eq!(scan.messages.len(), 1);
+        assert_eq!(scan.messages[0].body, "hello over the internet");
+        assert!(bob_store
+            .private_by_route(&alice_only.route())
+            .unwrap()
+            .is_empty());
+
+        let alice_store = Store::new(FsBackend::open(&alice_root).unwrap());
+        let names: Vec<String> = known_profiles(&alice_store)
+            .unwrap()
+            .into_iter()
+            .map(|profile| profile.display_name)
+            .collect();
+        assert!(names.iter().any(|name| name == "Bob"));
+
+        // Service tickets: Bob (host) holds tickets naming him as provider,
+        // signed by Alice; Alice holds Bob's tickets naming her. Both sides
+        // hold their own issued tickets too. Exchanges that moved nothing
+        // (the idle side of a private round) mint no ticket, so counts are
+        // per side that received objects, not per exchange.
+        let rate = mini_ticket::Rate::default();
+        let bob_ledger = mini_ticket::Ledger::collect(&bob_store, &bob_did, rate).unwrap();
+        assert_eq!(bob_ledger.malformed, 0);
+        assert!(!bob_ledger.as_host.is_empty(), "{bob_ledger:?}");
+        assert!(bob_ledger
+            .as_host
+            .iter()
+            .all(|entry| entry.ticket.consumer == alice_did));
+        assert!(bob_ledger
+            .as_host
+            .iter()
+            .all(|entry| entry.ticket.fields.objects_received > 0));
+        assert!(bob_ledger.issued.len() >= 2, "{bob_ledger:?}");
+        assert!(bob_ledger
+            .issued
+            .iter()
+            .all(|ticket| ticket.fields.objects_received > 0));
+        let alice_ledger = mini_ticket::Ledger::collect(&alice_store, &alice_did, rate).unwrap();
+        assert!(!alice_ledger.as_host.is_empty(), "{alice_ledger:?}");
+        assert!(!alice_ledger.issued.is_empty());
+        // Only Bob can redeem tickets that name Bob.
+        let ids: Vec<mini_objects::ObjectId> = bob_ledger
+            .as_host
+            .iter()
+            .map(|entry| entry.ticket.id.clone())
+            .collect();
+        let bob_identity = load_desktop_identity(&bob_root, false).unwrap();
+        let request = mini_ticket::build_redemption(
+            &bob_store,
+            &bob_did,
+            &bob_identity.device,
+            &ids,
+            rate,
+            1,
+            99,
+        )
+        .unwrap();
+        let decoded = mini_ticket::read_redemption(&request).unwrap();
+        mini_ticket::verify_redemption(&bob_store, &decoded).unwrap();
+        assert!(mini_ticket::build_redemption(
+            &bob_store,
+            &alice_did,
+            &alice_identity.device,
+            &ids,
+            rate,
+            1,
+            99
+        )
+        .is_err());
+
+        std::fs::remove_dir_all(test_root).unwrap();
+    }
+    /// Network search and targeted fetch over real TCP: Alice hosts a
+    /// media post; Bob has never synced with her, searches by a word in
+    /// the title, fetches the hit, and ends up holding the verified post,
+    /// Alice's identity and profile, the manifest and every chunk.
+    #[cfg(windows)]
+    #[test]
+    fn search_finds_media_on_a_peer_and_fetch_brings_the_verified_closure() {
+        use super::{
+            known_profiles, load_desktop_identity, load_or_create, netsearch, peer_link,
+            publish_profile,
+        };
+        use mini_media::{missing_chunks, publish_media, read_manifest};
+        use mini_social::publish_media_post;
+        use mini_store::FsBackend;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::{mpsc, Arc};
+        use std::time::Duration;
+
+        fn profile_root(root: &std::path::Path, name: &str) -> did_mini::Did {
+            load_or_create(&root.join("identity.dpapi")).unwrap();
+            let identity = load_desktop_identity(root, true).unwrap();
+            let human = identity.root.did();
+            let mut store = Store::new(FsBackend::open(root).unwrap());
+            publish_profile(
+                &mut store,
+                &human,
+                &identity.device,
+                name,
+                "search test",
+                None,
+                1,
+                0,
+            )
+            .unwrap();
+            human
+        }
+
+        let test_root = std::env::temp_dir().join(format!(
+            "mininet-desktop-search-{}-{}",
+            std::process::id(),
+            super::now_ms()
+        ));
+        let alice_root = test_root.join("alice");
+        let bob_root = test_root.join("bob");
+        let alice_did = profile_root(&alice_root, "Alice");
+        let _bob_did = profile_root(&bob_root, "Bob");
+        let alice_identity = load_desktop_identity(&alice_root, false).unwrap();
+        let clip_bytes: Vec<u8> = (0..(2 * mini_media::CHUNK_SIZE + 77))
+            .map(|i| (i % 253) as u8)
+            .collect();
+        let (post_id, media_id) = {
+            let mut store = Store::new(FsBackend::open(&alice_root).unwrap());
+            let manifest = publish_media(
+                &mut store,
+                &alice_did,
+                &alice_identity.device,
+                "video/mp4",
+                &clip_bytes,
+                5,
+                2,
+            )
+            .unwrap();
+            let post = publish_media_post(
+                &mut store,
+                &alice_did,
+                &alice_identity.device,
+                manifest.id.clone(),
+                "Sunset over the harbour
+shot at dusk",
+                6,
+                10,
+            )
+            .unwrap();
+            (post.id().clone(), manifest.id)
+        };
+
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = probe.local_addr().unwrap().port();
+        drop(probe);
+        let stop = Arc::new(AtomicBool::new(false));
+        let (events, event_rx) = mpsc::channel();
+        let host_root = alice_root.clone();
+        let host_stop = Arc::clone(&stop);
+        let host = std::thread::spawn(move || {
+            peer_link::run_host(host_root, port, Vec::new(), host_stop, events)
+        });
+        assert!(matches!(
+            event_rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            peer_link::HostEvent::Listening { .. }
+        ));
+        let endpoint = format!("127.0.0.1:{port}");
+
+        let hits = peer_link::dial_search(&bob_root, &endpoint, "harbour").unwrap();
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        assert_eq!(hits[0].post, post_id);
+        assert_eq!(hits[0].title, "Sunset over the harbour");
+        assert_eq!(hits[0].author_name, "Alice");
+        assert_eq!(hits[0].kind, "Video");
+        assert!(
+            peer_link::dial_search(&bob_root, &endpoint, "nothing-like-this")
+                .unwrap()
+                .is_empty()
+        );
+
+        // Second hop: Bob hosts with Alice saved as a peer and forwards
+        // searches; Carol, who only knows Bob, finds Alice's clip through him
+        // and fetches it through him — Bob pulls it from Alice first.
+        let carol_root = test_root.join("carol");
+        let _carol_did = profile_root(&carol_root, "Carol");
+        let mut bob_settings = crate::connectivity::load(&bob_root);
+        bob_settings.peers.push(crate::connectivity::PeerEntry {
+            label: "alice".into(),
+            endpoint: endpoint.clone(),
+            did: None,
+        });
+        crate::connectivity::save(&bob_root, &bob_settings).unwrap();
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let bob_port = probe.local_addr().unwrap().port();
+        drop(probe);
+        let bob_stop = Arc::new(AtomicBool::new(false));
+        let (bob_events, bob_event_rx) = mpsc::channel();
+        let (bob_host_root, bob_host_stop) = (bob_root.clone(), Arc::clone(&bob_stop));
+        let bob_host = std::thread::spawn(move || {
+            peer_link::run_host(
+                bob_host_root,
+                bob_port,
+                Vec::new(),
+                bob_host_stop,
+                bob_events,
+            )
+        });
+        assert!(matches!(
+            bob_event_rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            peer_link::HostEvent::Listening { .. }
+        ));
+        let bob_endpoint = format!("127.0.0.1:{bob_port}");
+        let hits = peer_link::dial_search(&carol_root, &bob_endpoint, "harbour").unwrap();
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        assert_eq!(hits[0].post, post_id);
+        assert_eq!(hits[0].via, endpoint, "hit should name Alice as the holder");
+        let summary = peer_link::dial_fetch_patiently(
+            &carol_root,
+            &bob_endpoint,
+            std::slice::from_ref(&post_id),
+            40,
+            Duration::from_millis(250),
+        )
+        .unwrap();
+        assert!(summary.contains("Fetched"), "{summary}");
+        let carol_store = Store::new(FsBackend::open(&carol_root).unwrap());
+        let manifest = read_manifest(&carol_store.get(&media_id).unwrap()).unwrap();
+        assert!(missing_chunks(&carol_store, &manifest).unwrap().is_empty());
+        bob_stop.store(true, Ordering::Relaxed);
+        bob_host.join().unwrap();
+
+        let summary = peer_link::dial_fetch_patiently(
+            &bob_root,
+            &endpoint,
+            std::slice::from_ref(&post_id),
+            1,
+            Duration::from_millis(1),
+        )
+        .unwrap();
+        assert!(summary.contains("Fetched"), "{summary}");
+
+        stop.store(true, Ordering::Relaxed);
+        host.join().unwrap();
+
+        let bob_store = Store::new(FsBackend::open(&bob_root).unwrap());
+        assert!(bob_store.contains(&post_id).unwrap());
+        let manifest = read_manifest(&bob_store.get(&media_id).unwrap()).unwrap();
+        assert!(missing_chunks(&bob_store, &manifest).unwrap().is_empty());
+        let mut out = Vec::new();
+        super::library::export(&bob_store, &media_id, &mut out).unwrap();
+        assert_eq!(out, clip_bytes);
+        let names: Vec<String> = known_profiles(&bob_store)
+            .unwrap()
+            .into_iter()
+            .map(|profile| profile.display_name)
+            .collect();
+        assert!(names.iter().any(|name| name == "Alice"), "{names:?}");
+        let bob_did = load_desktop_identity(&bob_root, false).unwrap().root.did();
+        let local = netsearch::local_results(&bob_store, &bob_did, "sunset").unwrap();
+        assert_eq!(local.len(), 1, "fetched post is searchable locally");
 
         std::fs::remove_dir_all(test_root).unwrap();
     }

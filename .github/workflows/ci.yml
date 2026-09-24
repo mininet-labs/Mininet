@@ -176,12 +176,14 @@ jobs:
         run: >
           cargo clippy --all-targets --all-features
           -p mini-windows-vault -p mini-windows-setup -p mini-setup
+          -p mini-app-protocol -p mini-app-service
           -p mini-selftest -p mini-desktop -- -D warnings
 
       - name: Test the Windows-specific crates
         run: >
           cargo test --all-features
           -p mini-windows-vault -p mini-windows-setup -p mini-setup
+          -p mini-app-protocol -p mini-app-service
           -p mini-selftest -p mini-desktop
 
       # The diagnostics suite a user can press a button to run, run here too:
@@ -327,12 +329,19 @@ jobs:
       # linker, so the whole Windows-conditional surface -- the DPAPI vault,
       # `WindowsShell`, every `cfg` branch -- is type-checked here for the
       # price of one `rustup target add`.
+      #
+      # mini-desktop's in-process H.264 decoder (openh264, D-0526) compiles C++
+      # from source, so the type-check of that crate needs the MinGW cross
+      # compiler alongside the Rust target.
       - name: Type-check the Windows-conditional code from Linux
         run: |
           set -eu
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-mingw-w64-x86-64 nasm
           rustup target add x86_64-pc-windows-gnu
           cargo clippy --target x86_64-pc-windows-gnu --all-targets --all-features \
             -p mini-windows-vault -p mini-windows-setup -p mini-setup \
+            -p mini-app-protocol -p mini-app-service \
             -p mini-selftest -p mini-desktop -- -D warnings
 
       # Same spawn path on Linux, where most contributors will see it first.
@@ -356,7 +365,7 @@ jobs:
         run: |
           set -eu
           cargo tree --version >/dev/null
-          for crate in mini-selftest mini-desktop mini-cli mini-windows-setup mini-setup; do
+          for crate in mini-app-protocol mini-app-service mini-selftest mini-desktop mini-cli mini-windows-setup mini-setup; do
             deps=$(cargo tree -p "$crate" --prefix none --no-dedupe 2>/dev/null | awk '{print $1}' | sort -u)
             value=$(echo "$deps" | grep -cE '^(mini-value|mini-bounty|mini-treasury)$' || true)
             governance=$(echo "$deps" | grep -cE '^(mini-forge|mini-chain)$' || true)
@@ -407,6 +416,11 @@ jobs:
               exit 1
             fi
           done
+
+      - name: The packaged tree carries the application core
+        run: |
+          set -eu
+          test -f dist/ci/stage/mininet-app-service.exe
 
       # The packaged tree must carry the value-check binary, or every installed
       # copy silently skips the checks the Diagnostics page advertises. Run it

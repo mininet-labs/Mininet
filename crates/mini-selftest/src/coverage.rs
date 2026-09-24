@@ -182,6 +182,24 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         Coverage::Exercised { area: "forge" },
     ),
     (
+        "mini-beta",
+        Coverage::Gap {
+            reason: "resettable, test-domain-only Open Beta coordination and Beta MINI ledger, code-level walled from production value/governance; its own campaign/finding/contribution/grant round-trip tests already cover this, a diagnostic would only repeat them",
+        },
+    ),
+    (
+        "mini-beta-exec",
+        Coverage::Gap {
+            reason: "durable/replicated execution for the same resettable test currency; covered by its own crash-recovery and replication tests, not by this in-process diagnostics suite",
+        },
+    ),
+    (
+        "mini-beta-grants",
+        Coverage::Gap {
+            reason: "campaign-scoped multi-party Beta MINI grant acceptance evidence; covered by its own acceptance/duplicate-rejection tests",
+        },
+    ),
+    (
         "mini-bootstrap",
         Coverage::Gap {
             reason: "genesis capsules are a first-run network-formation step; a client that already has an identity has nothing meaningful to bootstrap from",
@@ -392,6 +410,18 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         },
     ),
     (
+        "mini-app-protocol",
+        Coverage::Gap {
+            reason: "the local IPC framing/command types between the desktop shell and its application-service process; framing, limit-rejection, and round-trip behavior are unit-tested in-crate",
+        },
+    ),
+    (
+        "mini-app-service",
+        Coverage::Gap {
+            reason: "the per-user application-service process itself; identity/profile/post/feed flow, restart-idempotent publication, and single-instance refusal are covered by its own in-crate and cross-process tests, not by this in-process diagnostics suite",
+        },
+    ),
+    (
         "mini-windows-vault",
         Coverage::Exercised { area: "identity" },
     ),
@@ -487,6 +517,12 @@ pub const COVERAGE: &[(&str, Coverage)] = &[
         "mini-contribution",
         Coverage::Gap {
             reason: "composes engagement, storage and settlement; a meaningful check needs a funded escrow, so it belongs with the value binary",
+        },
+    ),
+    (
+        "mini-ticket",
+        Coverage::Gap {
+            reason: "service-ticket encoding and the provider-only redemption rule are unit-tested in-crate and exercised end to end by mini-desktop's real-TCP host test; a diagnostic would only repeat those",
         },
     ),
     (

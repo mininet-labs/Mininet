@@ -18,12 +18,22 @@ path = "src/main.rs"
 # or optional platform integration is pulled into the reference shell.
 eframe = { version = "0.31", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
 image = { version = "0.25", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
+mini-app-protocol = { path = "../mini-app-protocol" }
 did-mini = { path = "../did-mini" }
 mini-objects = { path = "../mini-objects" }
 mini-media = { path = "../mini-media" }
 mini-messaging = { path = "../mini-messaging" }
 mini-bearer = { path = "../mini-bearer" }
 mini-sync = { path = "../mini-sync" }
+mini-ticket = { path = "../mini-ticket" }
+mini-crypto = { path = "../mini-crypto" }
+# Owner-triggered UPnP IGD port mapping and external-address lookup. Talks
+# only to the local router (SSDP multicast + HTTP on the LAN); never on launch.
+igd = { version = "0.12", default-features = false }
+# In-process H.264 decoding (Cisco OpenH264, BSD-2, built from bundled source)
+# and MP4 demuxing. Runs in this process: no browser, no external player.
+openh264 = { version = "0.9", default-features = false, features = ["source"] }
+mp4 = "0.14"
 mini-social = { path = "../mini-social" }
 mini-store = { path = "../mini-store" }
 mini-windows-vault = { path = "../mini-windows-vault" }
@@ -36,3 +46,13 @@ mini-windows-vault = { path = "../mini-windows-vault" }
 # adds one.
 mini-selftest = { path = "../mini-selftest" }
 mini-windows-setup = { path = "../mini-windows-setup" }
+
+# Pure-Rust audio decoding (symphonia, MPL-2.0) and output (cpal/WASAPI).
+# Windows-only: on Linux cpal needs ALSA headers the CI image lacks, and
+# this is a Windows-first client. Other targets get a stub that says so.
+# No video codec exists in pure Rust; video stays export-to-watch for now.
+[target.'cfg(windows)'.dependencies]
+rodio = { version = "0.22", default-features = false, features = ["symphonia-all", "playback"] }
+# Driven directly for MP4 audio tracks (rodio's wrapper picks the video
+# track as default in MP4 containers).
+symphonia = { version = "0.5", default-features = false, features = ["aac", "isomp4", "alac"] }
