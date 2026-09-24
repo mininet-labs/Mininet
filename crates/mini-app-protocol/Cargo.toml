@@ -1,0 +1,12 @@
+[package]
+name = "mini-app-protocol"
+version = "0.0.1"
+description = "Bounded, versioned IPC contract between the Mininet desktop renderer and the per-user application core."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
