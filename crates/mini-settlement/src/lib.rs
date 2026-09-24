@@ -56,6 +56,7 @@
 
 mod claim;
 mod claim_v2;
+pub mod credit_permit;
 mod error;
 mod ledger;
 mod reconcile;
@@ -78,3 +79,5 @@ pub use reconcile::{
 };
 pub use state::{SettlementState, WalletLabel};
 pub use watcher::{ClaimWatcher, InMemoryClaimWatcher};
+
+pub mod credit_journal;

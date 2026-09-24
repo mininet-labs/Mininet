@@ -24919,3 +24919,42 @@ restart; results remain unsigned claims until fetched.
 signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
+
+### D-0529 — Reusable offline credit allowances and private account settlement · *Proposed*
+
+**Date:** 2026-09-19 · **Refs:** `docs/design/human-share-offline-credit.md`;
+Directives 4/5/6/11/16; invariants M1/M2/M3, P1, A1; D-0074.
+
+**Proposal:** implement experimental sender-enforced, reusable online credit
+allowances with an encrypted durable coupon outbox. Canonical accounting bounds
+aggregate coupons and debt across devices and repays accepted receivables from
+actual future Human Share releases. This is a credit limit, not insurance or new
+issuance. Add a local private cash-account projection and require every input of
+a private claim to be canonically finalized before reporting finality. Separate
+settlement cadence arithmetic from issuance/vesting and consensus activation.
+
+**Reason:** allow limited offline exchange when a person lacks liquid MINI,
+without pretending an offline signature is final money. Reconnection is required
+for newly authorized capacity; an exhausted authorization never refills itself.
+
+**Constitutional impact:** strengthens M2/M3 checks, preserves M1 and the
+voice/value wall. No production collective policy, single-key authority,
+personhood eligibility change, mint, vesting amendment or timing change is
+accepted by this proposal. D-0074 remains unchanged.
+
+**Implementation status:** experimental library primitives and tests; no wallet,
+canonical private-credit service or real-value activation. See design/status.
+
+**Failure points:** whole-device rollback/cloning, default and submission-deadline
+risk; private credit proofs, canonical persistence and atomic private repayment
+are not implemented. Raw credit records are linkable and must not be public.
+
+**Evidence:** targeted Rust tests, sender recovery/CAS regression, complete-input
+finality tests and independent AI adversarial review; no external audit or human
+approval claimed. Exact commands/results are in the PR.
+
+**Required follow-up:** collective policy and unique-human admission; confidential
+credit state/proofs; durable canonical integration; wallet/device recovery;
+performance measurement; independent reviews and owner-opt-in release.
+
+**Supersedes / superseded by:** none. Proposal only; no rule superseded.

@@ -10,7 +10,7 @@ authors.workspace = true
 publish = false
 
 [dependencies]
-# The only dependency: raw signing/verification and hashing. This crate is
+# Signing/verification and hashing plus local durable journal primitives. This crate is
 # deliberately decoupled from mini-value's stealth/ring modules and from
 # did-mini's KEL layer -- a payer/payee "authority" here is just a public
 # key, so callers choose what kind of key it is (a stealth one-time key,
@@ -18,3 +18,4 @@ publish = false
 # position on addressing or anonymity. Its only job is the settlement
 # state machine and reconciliation rules M1/M2/M3 require.
 mini-crypto = { path = "../mini-crypto" }
+mini-durable = { path = "../mini-durable" }
