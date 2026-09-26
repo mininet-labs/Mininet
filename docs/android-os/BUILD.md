@@ -38,12 +38,36 @@ whether a later build failure came from this overlay or from the base OS.
 From the root of your GrapheneOS source checkout (the directory containing
 `.repo/`):
 
+First, pick the exact commit of this repository you have reviewed and want
+baked into the image — **never `main`**: `main` moves, and a priv-app
+compiled and signed into an OS image from a moving branch can neither be
+reproduced nor audited later (a later `repo sync` would silently pull in
+whatever `main` has become by then, and the checked-in manifest's own
+`revision="main"` default is only a template — it must be overridden, not
+used as-is). Set the reviewed commit once as a shell variable:
+
 ```bash
-# Add the local manifest so `repo sync` also pulls this whole repo as a
-# project inside the AOSP source tree, at device/mininet/mininet.
+# The exact commit you reviewed, e.g. from `git rev-parse HEAD` on a commit
+# you trust, or a signed release tag once mini-forge release tooling covers
+# this artifact.
+MININET_REVIEWED_SHA=<pinned-commit-sha>
+
+# Fetch the manifest template from that same pinned commit (not `main`), so
+# an attacker who lands a malicious commit on `main` after your review
+# cannot substitute a different manifest at fetch time.
 mkdir -p .repo/local_manifests
 curl -o .repo/local_manifests/mininet.xml \
-  https://raw.githubusercontent.com/mininet-labs/mininet/main/os/grapheneos-overlay/local_manifest/mininet.xml
+  "https://raw.githubusercontent.com/mininet-labs/mininet/${MININET_REVIEWED_SHA}/os/grapheneos-overlay/local_manifest/mininet.xml"
+
+# Pin the actual checkout to that exact commit too -- the template's
+# revision="main" is only a placeholder and must be overridden here.
+sed -i "s/revision=\"main\"/revision=\"${MININET_REVIEWED_SHA}\"/" \
+  .repo/local_manifests/mininet.xml
+grep -q "revision=\"${MININET_REVIEWED_SHA}\"" .repo/local_manifests/mininet.xml || {
+  echo "failed to pin manifest to ${MININET_REVIEWED_SHA}; aborting" >&2
+  exit 1
+}
+
 repo sync device/mininet/mininet
 ```
 
@@ -79,10 +103,13 @@ cd device/mininet/mininet/app/android
 
 # mini-ffi's native library still needs cross-compiling for
 # arm64-v8a/x86_64 first, same as any normal build of this app.
+rustup target add aarch64-linux-android x86_64-linux-android
 command -v cargo-ndk >/dev/null || cargo install cargo-ndk --version 4.1.2 --locked
 ./scripts/build-rust.sh release
 
-./gradlew assembleRelease
+# app/android has no Gradle wrapper committed; use an installed Gradle
+# 9.5.0, the same way android-ci.yml and ANDROID_FOUNDATION.md do.
+gradle :app:assembleRelease
 cp app/build/outputs/apk/release/app-release-unsigned.apk \
    ../../os/grapheneos-overlay/device/mininet/os_overlay/Mininet.apk
 
@@ -109,11 +136,24 @@ GrapheneOS's release/verified-boot signing process at all. After flashing:
 1. Confirm **Settings → Apps → Mininet** shows it as a system app (no
    uninstall option, only "disable" — that's the expected priv-app
    behavior).
-2. Confirm it launched with **no Bluetooth permission prompt** on first
-   open — that's the allowlist in step 3 taking effect. If you do see a
-   prompt, the `privapp-permissions` XML did not get picked up; check
-   `adb logcat | grep -i privapp` for the specific denial reason (Android
-   logs exactly which permission failed allowlist verification).
+2. Verify the three Bluetooth permissions were actually pre-granted —
+   **do not** rely on the absence of a permission dialog on first launch as
+   proof: `app/android` has no runtime-permission request flow of its own
+   yet, and `BleMeshService` is not wired into the UI, so no dialog would
+   appear either way regardless of whether the allowlist took effect.
+   Check each permission directly instead:
+
+   ```bash
+   for p in BLUETOOTH_SCAN BLUETOOTH_ADVERTISE BLUETOOTH_CONNECT; do
+     adb shell pm check-permission "android.permission.$p" org.mininet.app
+   done
+   ```
+
+   Each should print `Permission granted`. If any prints `Permission
+   denied`, the `privapp-permissions`/`default-permissions` XML did not get
+   picked up; check `adb logcat | grep -i privapp` for the specific denial
+   reason (Android logs exactly which permission failed allowlist
+   verification).
 3. From here, testing Mininet itself (pairing, mesh, identity) is
    identical to testing the plain `app/android` build — nothing about its
    own behavior changed, only its install class.
@@ -130,9 +170,9 @@ GrapheneOS's release/verified-boot signing process at all. After flashing:
   `lunch`ed, not a different target.
 - **App installs but crashes on launch**: check `adb logcat` for
   `UnsatisfiedLinkError` on `libmini_ffi.so` first — this means step 4's
-  `build-rust.sh release` was skipped or its output wasn't picked up by
-  `./gradlew assembleRelease`, so the APK has no native library at all for
-  the device's ABI.
+  `build-rust.sh release` was skipped, or its output wasn't picked up by
+  `gradle :app:assembleRelease`, so the APK has no native library at all
+  for the device's ABI.
 - **Permission still prompts at runtime**: priv-app permission allowlisting
   is strict about the exact package name and permission string matching;
   diff `os/grapheneos-overlay/device/mininet/os_overlay/etc/permissions/privapp-permissions-org.mininet.app.xml`

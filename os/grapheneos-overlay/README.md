@@ -12,4 +12,4 @@ for how to actually use these files on a real Linux build host.
 | `device/mininet/os_overlay/mininet_overlay.mk` | Product makefile: adds `Mininet` to `PRODUCT_PACKAGES`. |
 | `device/mininet/os_overlay/Android.bp` | Imports the Gradle-built `Mininet.apk` as a priv-app Soong module. |
 | `device/mininet/os_overlay/etc/permissions/` | Priv-app permission allowlist (mirrors `app/android`'s manifest). |
-| `device/mininet/os_overlay/etc/sysconfig/` | Default-grants the same permissions so first boot has no prompt. |
+| `device/mininet/os_overlay/etc/default-permissions/` | Default-grants the same permissions so first boot has no prompt. |

@@ -16,4 +16,4 @@ PRODUCT_PACKAGES += \
 
 PRODUCT_COPY_FILES += \
     device/mininet/mininet/os/grapheneos-overlay/device/mininet/os_overlay/etc/permissions/privapp-permissions-org.mininet.app.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/privapp-permissions-org.mininet.app.xml \
-    device/mininet/mininet/os/grapheneos-overlay/device/mininet/os_overlay/etc/sysconfig/default-permissions-org.mininet.app.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/sysconfig/default-permissions-org.mininet.app.xml
+    device/mininet/mininet/os/grapheneos-overlay/device/mininet/os_overlay/etc/default-permissions/default-permissions-org.mininet.app.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/default-permissions/default-permissions-org.mininet.app.xml

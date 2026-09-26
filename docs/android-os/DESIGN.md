@@ -100,7 +100,7 @@ os/grapheneos-overlay/
     Android.bp                       <- imports the separately Gradle-built APK as a priv-app module
     Mininet.apk                      <- NOT committed; built locally per BUILD.md step 4
     etc/permissions/privapp-permissions-org.mininet.app.xml
-    etc/sysconfig/default-permissions-org.mininet.app.xml
+    etc/default-permissions/default-permissions-org.mininet.app.xml
 ```
 
 `os/grapheneos-overlay` is *not* a full device tree or a GrapheneOS source
