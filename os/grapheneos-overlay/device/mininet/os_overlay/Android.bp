@@ -1,0 +1,23 @@
+// Imports the separately-built Mininet release APK as a priv-app module,
+// so `PRODUCT_PACKAGES += Mininet` in mininet_overlay.mk resolves to it.
+//
+// AOSP's Soong/Make build system does not build Gradle projects directly --
+// app/android is still built with Gradle exactly as it is for a normal,
+// non-OS install (see docs/android-os/BUILD.md step 4), and the resulting
+// APK is imported here rather than re-expressed as a Soong android_app
+// module. This keeps app/android itself completely unchanged by OS
+// integration, at the cost of one manual build step before `m` runs.
+android_app_import {
+    name: "Mininet",
+    apk: "Mininet.apk",
+    presigned: false,
+    privileged: true,
+    // Must list every permission app/android/app/src/main/AndroidManifest.xml
+    // declares that Android treats as a "privileged permission" needing
+    // explicit priv-app allowlisting (see privapp-permissions-org.mininet.app.xml
+    // in this same directory) -- anything else here is redundant with the
+    // manifest and does not itself grant anything.
+    dex_preopt: {
+        enabled: false,
+    },
+}
