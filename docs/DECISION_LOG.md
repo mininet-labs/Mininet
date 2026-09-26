@@ -25020,12 +25020,28 @@ caller-managed (no pairwise session protocol exists yet — same limit
 `mini-messaging` itself already states); `scan_conversation` is a full
 re-scan every call with no cursor, so cost grows with `MAX_ENVELOPES`
 (4096) history; revocation still has no push path to the revoked device.
+A fourth pre-merge review finding (P2, advisory, not fixed in this PR):
+the revocation screen enumerates `RootCore.delegatedDevices()`, which
+only lists locally held `Controller`s — a device this root delegated
+*elsewhere* via the cross-device enrollment path (D-0335's issue #199)
+is invisible and unrevocable from this screen, since Android does not
+yet call that path at all. Not fixed here because the fix is standing
+up that whole cross-device UI flow (how the app would even obtain the
+root's own KEL bytes to enumerate from, absent a locally-held device),
+not a substitution inside `revokeDevice` — see required follow-up.
 
 **Required follow-up:** a real pairwise key-establishment protocol before
 this is usable for anyone other than a user's own multiple devices
 sharing a secret through an already-trusted channel; Gradle/emulator
 verification of the new Kotlin; issue tracking for the rejected
 presence/remote-command work if the founder wants it pursued as its own
-decision.
+decision; wiring Android to the existing
+`begin_device_enrollment`/`approve_device_enrollment`/
+`finish_device_enrollment`/`revoke_delegated_device` cross-device flow so
+the revocation screen can enumerate and revoke a device this root
+delegated from a different process, not only ones this process itself
+created (the P2 advisory finding above) — `revoke_delegated_device`
+itself already doesn't require holding the device's secrets, so the gap
+is enumeration/UI, not the underlying Rust capability.
 
 **Supersedes / superseded by:** none. Extends D-0335/D-0338/D-0340.
