@@ -2,7 +2,7 @@
 //! disk scans from repaint; it does not claim the underlying feed is indexed.
 
 use did_mini::Did;
-use mini_objects::{ObjectId, ObjectType};
+use mini_objects::{AiObject, ObjectId, ObjectType, Payload};
 use mini_social::{
     comments, feed, following, reaction_counts, resolve_post, resolve_profile, FeedFilter,
     FeedReason, PostKind,
@@ -38,6 +38,15 @@ pub struct Card {
     pub own: bool,
     /// The author's profile photo manifest, when their signed profile has one.
     pub avatar: Option<ObjectId>,
+    /// Set only when this card renders an [`mini_objects::AiObject`]
+    /// (Directive 12 / constitution principle 8: AI participation is never
+    /// laundered into looking like human authorship). `None` for every
+    /// ordinary human-authored [`mini_objects::Object`]-backed card built by
+    /// [`build`]/[`from_service`] — those two paths never touch an
+    /// `AiObject` and so can never set this field, by construction. The
+    /// renderer should show this string distinctly (never as, or beside,
+    /// the human `author`/`did` fields) wherever it is `Some`.
+    pub ai_disclosure: Option<String>,
 }
 
 /// Convert the bounded application-core feed view into renderer cards.
@@ -70,9 +79,60 @@ pub fn from_service(cards: Vec<mini_app_protocol::FeedCard>) -> Result<Vec<Card>
                     .avatar
                     .map(|id| ObjectId::parse(&id).map_err(|error| error.to_string()))
                     .transpose()?,
+                ai_disclosure: None,
             })
         })
         .collect()
+}
+
+/// Build a timeline card for an [`AiObject`] — the disclosure-rendering
+/// consumer required by Directive 12 / constitution principle 8: an
+/// AI-generated/AI-mediated object that a client displays in the same list
+/// as human posts must render distinctly labeled, never as if a human wrote
+/// it. There is no `From<AiObject> for Card`/`TryFrom` here on purpose: a
+/// caller must go through this function (or [`build`]/[`from_service`],
+/// neither of which can ever produce one from an `AiObject`) rather than
+/// having a generic conversion quietly drop the disclosure.
+///
+/// `author` is the operator's display name (never claimed as the content's
+/// author — see [`AiObject::operator_human`]'s doc comment on that
+/// distinction); the card body is the object's public payload text when
+/// present, or a plain placeholder for encrypted/non-UTF-8 payloads so this
+/// never panics or silently substitutes human-looking text.
+///
+/// `mini-desktop` is a binary-only crate (no `lib.rs`), so `pub` here does
+/// not create an external consumer the way it would in a library crate:
+/// rustc's `dead_code` lint judges reachability from `main`, not from other
+/// crates. D-0537 documents, as its own stated "Failure point," that
+/// nothing in the running UI loop calls this yet — `mini-store`/
+/// `mini-social` have no `AiObject` persistence/indexing to source one
+/// from, and retrofitting that here would be exactly the scope creep the
+/// same decision explicitly declined. Until that follow-up lands and gives
+/// this a real caller, `#[allow(dead_code)]` keeps that honestly-documented
+/// gap from failing `-D warnings` builds; it is exercised today only by
+/// `ai_card_carries_a_disclosure_that_ordinary_cards_never_get` below.
+#[allow(dead_code)]
+pub fn ai_card(ai: &AiObject, author: String, did: String) -> Card {
+    let body = match &ai.payload {
+        Payload::Public(bytes) => {
+            String::from_utf8(bytes.clone()).unwrap_or_else(|_| "[unreadable AI payload]".into())
+        }
+        Payload::Encrypted(_) => "[encrypted AI content]".into(),
+    };
+    Card {
+        id: ai.id().clone(),
+        author,
+        did,
+        body,
+        timestamp_ms: ai.provenance.produced_at_ms,
+        reason: "AI system output",
+        support_count: 0,
+        comment_count: 0,
+        media: None,
+        own: false,
+        avatar: None,
+        ai_disclosure: Some(ai.render_disclosure()),
+    }
 }
 
 pub fn snapshot(
@@ -184,6 +244,7 @@ fn build<B: Backend>(
                     _ => None,
                 },
                 avatar,
+                ai_disclosure: None,
             })
         })
         .collect()
@@ -204,8 +265,9 @@ pub fn age(timestamp_ms: u64, now_ms: u64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{age, build, Scope};
+    use super::{age, ai_card, build, Scope};
     use did_mini::{Capabilities, Controller};
+    use mini_objects::{AiObjectBuilder, AiOrigin, AiProvenance, Payload};
     use mini_social::{publish_post, publish_profile, set_follow, FeedFilter};
     use mini_store::{MemoryBackend, Store};
 
@@ -301,5 +363,51 @@ mod tests {
         .unwrap();
         assert_eq!(following.len(), 2);
         assert_eq!(following[1].reason, "You follow this author");
+    }
+
+    #[test]
+    fn ai_card_carries_a_disclosure_that_ordinary_cards_never_get() {
+        let mut store = Store::new(MemoryBackend::new());
+        let (me, me_device) = person(30);
+        publish_post(&mut store, &me.did(), &me_device, "a human post", 1_000, 1).unwrap();
+        let human_cards = build(
+            &store,
+            &me.did(),
+            FeedFilter::Chronological,
+            Scope::Everyone,
+        )
+        .unwrap();
+        assert_eq!(human_cards.len(), 1);
+        assert!(
+            human_cards[0].ai_disclosure.is_none(),
+            "a human-authored Object must never carry an AI disclosure"
+        );
+
+        let (operator, operator_device) = person(40);
+        let ai_obj = AiObjectBuilder::new(
+            AiOrigin::GeneratedContent,
+            AiProvenance {
+                system_id: "mini-forge-review-assistant/0.1.0".to_string(),
+                model_id: "test:fixture-model".to_string(),
+                produced_at_ms: 5_000,
+            },
+        )
+        .payload(Payload::Public(b"a generated summary".to_vec()))
+        .sign(&operator.did(), &operator_device)
+        .unwrap();
+
+        let card = ai_card(
+            &ai_obj,
+            "Operator Org".to_string(),
+            operator.did().to_string(),
+        );
+        let disclosure = card
+            .ai_disclosure
+            .as_ref()
+            .expect("an AiObject-rendered card must always carry a disclosure");
+        assert!(!disclosure.is_empty());
+        assert!(disclosure.contains("AI-generated content"));
+        assert_eq!(card.body, "a generated summary");
+        assert!(!card.own);
     }
 }

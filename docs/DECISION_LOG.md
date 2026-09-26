@@ -24920,6 +24920,142 @@ signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
 
+### D-0534 — `mini-objects`: distinct, unlaundered AI-generated/AI-mediated object type  ·  *Shipped*
+
+**Date:** 2026-09-22 · **Refs:** `crates/mini-objects/src/ai_object.rs`,
+`crates/did-mini/src/delegation.rs` (`Capabilities::AI_DISCLOSE`); roadmap
+#63; Directive 12; constitution principle 8.
+
+**Decision:** AI-generated or AI-mediated content (agent posts, AI-assisted
+moderation decisions, model outputs) gets its own type, `AiObject`, that is
+structurally incapable of passing as human-authored content or human
+governance participation:
+
+1. `AiObject` is a distinct struct, not an `ObjectType` variant of `Object`
+   and not convertible into one (no `From<AiObject> for Object`). It has
+   its own wire tag (`AI_ENVELOPE_TAG = 0xA1` vs. `Object`'s `1`), so
+   attempting to decode one as the other fails immediately rather than
+   silently.
+2. Authoring an `AiObject` requires a new typed capability bit,
+   `Capabilities::AI_DISCLOSE`, off by default on every existing device
+   role. A device with only ordinary human-authoring capabilities cannot
+   sign one; a device holding only `AI_DISCLOSE` cannot sign an ordinary
+   human `Object` (checked both directions in tests).
+3. `AiObjectBuilder` requires non-empty `AiProvenance` (producing
+   system/model id, timestamp) before it will sign anything — there is no
+   path to an `AiObject` without disclosed provenance.
+4. `verify_ai_provenance` is a separate function from `Object`'s
+   `verify_provenance`, not an optional flag on the same one; a
+   `compile_fail` doctest proves the human-content verification path
+   rejects `&AiObject` at compile time, not just at runtime.
+
+**Constitutional impact:** Directive 12 / principle 8 (AI content must be
+clearly labeled and cannot be laundered into human-authored or
+human-governance status). No voice/value-wall edge: `mini-objects` and
+`did-mini` are outside that wall. No new cryptography — reuses existing
+`did-mini` signing/capability primitives.
+
+**Implementation status:** shipped. `AiOrigin` (GeneratedContent |
+MediatedDecision) with a `disclosure_label()` for honest rendering;
+8 new tests in `crates/mini-objects/tests/ai_object.rs` covering round-trip,
+cross-envelope decode rejection both directions, capability-gated authoring
+both directions, and empty-provenance rejection. `cargo clippy
+--all-targets --all-features --workspace -- -D warnings` and `cargo test
+--workspace --all-features` both pass clean on this change.
+
+**Failure point:** labeling is honest only as far as the authoring device
+actually holds/uses `AI_DISCLOSE` correctly — nothing here detects an
+AI-authored object signed by a device that also has ordinary human
+authoring capability and chooses to lie about which path it used; that is
+a device-trust question this decision does not attempt to solve.
+
+**Required follow-up:** no consumer (mini-social walls, mini-forge review
+UI) yet renders `AiObject`'s disclosure label distinctly in a real client;
+that wiring is separate follow-up work, not claimed here.
+
+**Supersedes / superseded by:** none.
+
+### D-0537 — Wire `AiObject` disclosure rendering into a real client consumer
+
+**Date:** 2026-09-24 · **Refs:** `crates/mini-objects/src/ai_object.rs`
+(`AiObject::render_disclosure`), `crates/mini-desktop/src/timeline.rs`
+(`Card::ai_disclosure`, `ai_card`); roadmap #63; Directive 12; constitution
+principle 8.
+
+**Decision:** D-0534 shipped `AiObject`/`AiOrigin::disclosure_label()` as a
+correct-by-construction type, but its own "Required follow-up" noted no
+consumer anywhere rendered that label, leaving it functionally inert. This
+closes that gap honestly, without inventing a feed/store integration that
+does not exist yet:
+
+1. `AiObject::render_disclosure(&self) -> String` (mini-objects) composes
+   the existing `AiOrigin::disclosure_label()` with the object's
+   `provenance.system_id` into one client-ready string, so every real
+   consumer gets identical, honest wording instead of reaching into
+   `origin`/`provenance` itself.
+2. `mini-desktop::timeline::Card` gains `ai_disclosure: Option<String>`.
+   The two existing card-construction paths (`build`, `from_service`) —
+   which only ever decode human-authored `mini_objects::Object`s — always
+   set it to `None`; there is no code path by which an ordinary human post
+   can acquire a disclosure string.
+3. A new `mini_desktop::timeline::ai_card(&AiObject, author, did) -> Card`
+   is the one function that builds a card *for* an `AiObject`, always
+   setting `ai_disclosure: Some(ai.render_disclosure())`, `own: false`,
+   and a payload-derived (never fabricated-human-looking) body. This is
+   the real, callable integration point a renderer uses to show AI content
+   distinctly in the same list as human cards.
+
+This is deliberately the lighter of the two deliverables the follow-up
+named: `mini-store`'s `Store`/`by_type` index and `mini-social`'s
+`feed`/`resolve_post` path are hard-typed to `mini_objects::Object` byte
+decoding (`Object::from_bytes`) with no `AiObject` persistence or indexing
+of any kind. Adding real feed/store integration for a second envelope type
+is a separate, larger `mini-store`/`mini-social` decision, not something to
+retrofit unilaterally under a disclosure-wiring task; forcing it in now
+would risk exactly the kind of scope creep this project's rituals warn
+against. `ai_card` is written so that whenever that store/feed integration
+lands, it is the natural place to call from.
+
+**Constitutional impact:** Directive 12 / constitution principle 8 (AI
+participation must be labeled and never laundered into human-authored
+appearance) — a disclosure string now actually reaches a client-facing type
+(`Card`) through a real function, closing D-0534's stated gap. No
+voice/value-wall edge: `mini-objects` and `mini-desktop` are both outside
+that wall. No new cryptography.
+
+**Implementation status:** shipped. `render_disclosure` plus a
+mini-objects test
+(`render_disclosure_is_non_empty_and_names_the_producing_system`);
+`Card::ai_disclosure` plus `ai_card` plus a mini-desktop test
+(`ai_card_carries_a_disclosure_that_ordinary_cards_never_get`) proving an
+`ai_card`-built card always carries a non-empty disclosure while every
+`build()`-produced human card's `ai_disclosure` stays `None`. Correction
+(same PR, before merge): the original text here claimed `cargo clippy
+--all-targets --all-features --workspace -- -D warnings` passed clean;
+it did not — `mini-desktop` is a binary-only crate, so `ai_card` (a real
+function this decision's own "Failure point" already says has no
+production caller yet) tripped `-D dead-code` on the workspace `check`,
+`windows-client`, and `windows-packaging-pipeline` CI jobs. Fixed with a
+documented `#[allow(dead_code)]` on `ai_card` citing this same decision,
+rather than fabricating a caller or an `AiObject` feed/store integration
+this decision explicitly declined to add. `cargo fmt --all`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` now pass clean.
+
+**Failure point:** `ai_card` is not yet called from any running UI loop —
+there is still no code path that fetches an `AiObject` from storage or the
+network and hands it to `ai_card` automatically; a caller has to construct
+or receive the `AiObject` itself. Honesty over polish: this decision closes
+the "no renderer even exists" gap, not the "AI content flows through the
+feed automatically" gap, which remains real follow-up work.
+
+**Required follow-up:** design and decide real `AiObject` persistence/
+indexing (a second envelope type in `mini-store`, or a parallel index) and
+a `mini-social`-level function that scans it the way `feed`/`resolve_post`
+scan `Object`s, so `ai_card` can be invoked from an actual timeline
+assembly path instead of only from direct/test callers.
+
+**Supersedes / superseded by:** none. Extends D-0534.
 ### D-0529 — Reusable offline credit allowances and private account settlement · *Proposed*
 
 **Date:** 2026-09-19 · **Refs:** `docs/design/human-share-offline-credit.md`;
