@@ -24920,7 +24920,18 @@ signed result records; index peers.
 
 **Supersedes / superseded by:** none. Extends D-0527.
 
-### D-0529 — `mini-ffi::messaging`: a `RootCore`-native `mini-messaging` adapter, plus a device-revoke UI  ·  *Shipped*
+### D-0539 — `mini-ffi::messaging`: a `RootCore`-native `mini-messaging` adapter, plus a device-revoke UI  ·  *Shipped*
+
+**Renumbering note:** originally opened claiming D-0529; that number was
+independently taken by D-0529 "Reusable offline credit allowances and
+private account settlement" (PR #352) while this PR was still open.
+Renumbered to the next free main-sequence number (checked against
+`docs/DECISION_LOG.md`'s own header and every other open PR's diff at the
+time: D-0530–D-0538 were already claimed by PRs #360/#361/#358/#356/#357/
+#362/#363) per this log's own collision-resolution convention — the
+still-unmerged side renumbers, never the merged one. No content below was
+otherwise changed by the renumbering itself; the two fixes noted in
+"Implementation status" were made in the same pass, before merge.
 
 **Date:** 2026-09-21 · **Refs:** `crates/mini-ffi/src/messaging.rs`;
 `crates/mini-ffi/src/mini_ffi.udl`; `app/android/app/src/main/java/org/mininet/app/MainActivity.kt`;
@@ -24945,11 +24956,20 @@ reviewed adapters"), rather than a broad multi-crate FFI expansion.
    establishing one safely is still entirely the caller's problem.
 2. **`signature_verified` is scoped honestly.** It is computed only when a
    message claims `author_human` equal to this process's own root *and*
-   `author_device` matches one of `state.devices`' own current KELs —
-   i.e., only for a device this `RootCore` already knows is its own. It is
-   never computed against a different person's KEL (this module has no
-   way to fetch one), and the doc comment says so directly rather than
-   leaving that limit implicit.
+   `author_device` matches one of `state.devices`' own current KELs *and*
+   that device is currently listed in the root's own KEL as an actively
+   delegated device (`Kel::delegated_devices()` — the authoritative source,
+   not mere local possession of a `Controller`). The third condition
+   closes a pre-merge review finding: `state.devices` can hold a device
+   delegated by a *different* root than `state.root` (the cross-device
+   enrollment path, D-0335's issue #199, never required the enrolling
+   process to be root-less), so without it a process holding both its own
+   root and a foreign device could send/see a message that falsely claims
+   `author_human` for that foreign device. `send_message` applies the same
+   check when choosing which device signs, instead of blindly taking
+   `devices.first()`. Never computed against a different person's KEL at
+   all (this module has no way to fetch one), and the doc comment says so
+   directly rather than leaving that limit implicit.
 3. **Device-revoke admin UI.** `RootCore.delegatedDevices()`/
    `revokeDelegatedDevice()` (D-0335, already fully wired end-to-end in
    Rust) had no Kotlin UI calling them. `MainActivity.kt`'s `HomeScreen`
@@ -24974,18 +24994,26 @@ wall (`mini-messaging` depends only on `did-mini`/`mini-crypto`/
 `mini-objects`/`mini-store`). No cryptography invented — composes
 `mini-messaging`'s existing sealed-envelope primitive unchanged.
 
-**Implementation status:** shipped and tested on the Rust side: 6 new
+**Implementation status:** shipped and tested on the Rust side: 9 new
 `crates/mini-ffi/src/messaging.rs` unit tests (send/scan round-trip with
 verified signature, wrong-key rejection, invalid-secret-length rejection,
 no-root rejection, persist/restore round-trip, malformed-receipt
-rejection), all 69 `mini-ffi` tests green, `cargo clippy -p mini-ffi
---all-targets --all-features -- -D warnings` clean, and the UDL was
-round-tripped through real `uniffi-bindgen` Kotlin generation to confirm
-`sendMessage`/`scanConversation`/`ConversationSecretHandle` land correctly
-in generated Kotlin. The Kotlin `HomeScreen` changes are unverified in
-this environment (no JDK/Android SDK/Gradle/emulator here, same standing
-limit as every other Android UI change in this log) — Gradle sync and a
-real device/emulator run remain outstanding.
+rejection, plus three added in review remediation covering the
+root-delegation binding fix above), all 72 `mini-ffi` tests green, `cargo
+clippy -p mini-ffi --all-targets --all-features -- -D warnings` clean, and
+the UDL was round-tripped through real `uniffi-bindgen` Kotlin generation
+to confirm `sendMessage`/`scanConversation`/`ConversationSecretHandle` land
+correctly in generated Kotlin. `ConversationSecretHandle` is a UniFFI
+`interface` (opaque object handle), not a `dictionary`: a second
+pre-merge review finding noted that a `dictionary` generates a Kotlin
+`data class`, whose compiler-generated `toString()`/`equals()` would print
+the raw conversation key (and the Rust struct's own derived `Debug` had
+the same problem) — an `interface` has no such printable representation,
+and nothing outside this module ever reads `route`/`key` back out of one.
+The Kotlin `HomeScreen` changes are unverified in this environment (no
+JDK/Android SDK/Gradle/emulator here, same standing limit as every other
+Android UI change in this log) — Gradle sync and a real device/emulator
+run remain outstanding.
 
 **Failure point:** conversation-key establishment is still entirely
 caller-managed (no pairwise session protocol exists yet — same limit

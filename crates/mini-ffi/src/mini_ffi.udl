@@ -153,9 +153,16 @@ dictionary PairingOfferView {
 // bytes each. See crates/mini-ffi/src/messaging.rs's module doc comment for
 // what establishing one of these safely actually requires; this crate does
 // not generate, exchange, or store these on its own initiative.
-dictionary ConversationSecretHandle {
-  sequence<u8> route;
-  sequence<u8> key;
+//
+// Deliberately an `interface` (opaque object handle), not a `dictionary`:
+// a `dictionary` would generate a Kotlin `data class`, whose compiler-
+// generated `toString()`/`equals()` print every field with no per-field
+// way to exclude one -- exposing the raw conversation key to anything that
+// logs or string-interpolates the handle. An `interface` has no such
+// generated printable representation, and nothing outside this module ever
+// needs to read `route`/`key` back out of one.
+interface ConversationSecretHandle {
+  constructor(sequence<u8> route, sequence<u8> key);
 };
 
 enum MessageKindInput {

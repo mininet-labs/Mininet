@@ -48,10 +48,34 @@ const MAX_OBJECT_ID_BYTES: usize = 256;
 /// A conversation's opaque storage route bound to its symmetric key, as
 /// raw bytes crossing the FFI boundary. See this module's doc comment for
 /// what establishing one of these safely actually requires.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// Deliberately a UniFFI `interface` (opaque object handle), not a
+/// `dictionary`: a `dictionary` crosses to Kotlin as a `data class`, whose
+/// compiler-generated `toString()`/`equals()`/`hashCode()` print or hash
+/// every constructor field with no per-field way to exclude one -- so
+/// logging or string-interpolating the handle would print the raw
+/// conversation key, and possession of that key is enough to read and
+/// write the conversation. An `interface` has no such generated printable
+/// representation. `Debug` is implemented by hand below for the same
+/// reason on the Rust side.
 pub struct ConversationSecretHandle {
-    pub route: Vec<u8>,
-    pub key: Vec<u8>,
+    route: Vec<u8>,
+    key: Vec<u8>,
+}
+
+impl ConversationSecretHandle {
+    pub fn new(route: Vec<u8>, key: Vec<u8>) -> Self {
+        Self { route, key }
+    }
+}
+
+impl core::fmt::Debug for ConversationSecretHandle {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ConversationSecretHandle")
+            .field("route", &self.route)
+            .field("key", &"<redacted>")
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -264,7 +288,7 @@ impl RootCore {
     /// Returns the new envelope's id.
     pub fn send_message(
         &self,
-        secret: ConversationSecretHandle,
+        secret: std::sync::Arc<ConversationSecretHandle>,
         timestamp_ms: u64,
         draft: MessageDraftInput,
     ) -> Result<String, MessagingFfiError> {
@@ -283,8 +307,22 @@ impl RootCore {
             messaging,
             ..
         } = &mut *guard;
-        let author_human = root.as_ref().ok_or(MessagingFfiError::NoRoot)?.did();
-        let device = devices.first().ok_or(MessagingFfiError::NoDevice)?;
+        let root_ref = root.as_ref().ok_or(MessagingFfiError::NoRoot)?;
+        let author_human = root_ref.did();
+        // A device held in `devices` (this process created or completed
+        // enrollment for it) is not on its own proof that *this* root
+        // delegates it -- `finish_device_enrollment` does not require the
+        // process to be device-less, so a process could hold both its own
+        // root and a device actually delegated by someone else's root.
+        // Re-derive the current delegation set from the root's own KEL
+        // (source of truth, not the local `devices` list) so a message can
+        // never claim `author_human` for a device that root never actually
+        // authorized.
+        let delegated = root_ref.kel().delegated_devices();
+        let device = devices
+            .iter()
+            .find(|candidate| delegated.iter().any(|(did, _)| *did == candidate.did()))
+            .ok_or(MessagingFfiError::NoDevice)?;
         if messaging.envelopes.len() >= MAX_ENVELOPES {
             return Err(MessagingFfiError::LimitExceeded);
         }
@@ -319,13 +357,29 @@ impl RootCore {
     /// (no cursor/incremental API exists yet).
     pub fn scan_conversation(
         &self,
-        secret: ConversationSecretHandle,
+        secret: std::sync::Arc<ConversationSecretHandle>,
     ) -> Result<ConversationScanView, MessagingFfiError> {
         let secret = to_secret(&secret)?;
         let state = self.lock();
         let store = rebuild_store(&state.messaging.envelopes)?;
         let scan = mini_messaging::scan(&store, &secret).map_err(messaging_err)?;
         let own_root_did = state.root.as_ref().map(Controller::did);
+        // Mirrors `send_message`'s own fix: a device in `state.devices` is
+        // only trustworthy as "one of this root's own devices" when the
+        // root's *own current KEL* still actively delegates it -- not
+        // merely because this process happens to hold its controller (see
+        // `send_message` for how the two can diverge).
+        let own_delegated: Vec<Did> = state
+            .root
+            .as_ref()
+            .map(|root| {
+                root.kel()
+                    .delegated_devices()
+                    .into_iter()
+                    .map(|(did, _)| did)
+                    .collect()
+            })
+            .unwrap_or_default();
         let messages = scan
             .messages
             .into_iter()
@@ -333,7 +387,10 @@ impl RootCore {
                 let own_device_kel = state
                     .devices
                     .iter()
-                    .find(|device| device.did() == message.author_device)
+                    .find(|device| {
+                        device.did() == message.author_device
+                            && own_delegated.contains(&device.did())
+                    })
                     .map(Controller::kel);
                 view_from_received(message, own_root_did.as_ref(), own_device_kel.as_ref())
             })
@@ -404,11 +461,11 @@ mod tests {
         }
     }
 
-    fn secret() -> ConversationSecretHandle {
-        ConversationSecretHandle {
-            route: vec![7u8; ROUTE_LEN],
-            key: vec![9u8; KEY_LEN],
-        }
+    fn secret() -> std::sync::Arc<ConversationSecretHandle> {
+        std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![7u8; ROUTE_LEN],
+            vec![9u8; KEY_LEN],
+        ))
     }
 
     #[test]
@@ -462,8 +519,10 @@ mod tests {
         )
         .unwrap();
 
-        let mut wrong = secret();
-        wrong.key = vec![1u8; KEY_LEN];
+        let wrong = std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![7u8; ROUTE_LEN],
+            vec![1u8; KEY_LEN],
+        ));
         let scan = core.scan_conversation(wrong).unwrap();
         assert!(scan.messages.is_empty());
         assert_eq!(scan.rejected.len(), 1);
@@ -474,10 +533,10 @@ mod tests {
         let core = RootCore::new();
         core.create_root().unwrap();
         core.create_device().unwrap();
-        let bad = ConversationSecretHandle {
-            route: vec![1u8; 4],
-            key: vec![2u8; KEY_LEN],
-        };
+        let bad = std::sync::Arc::new(ConversationSecretHandle::new(
+            vec![1u8; 4],
+            vec![2u8; KEY_LEN],
+        ));
         assert_eq!(
             core.send_message(
                 bad,
@@ -557,6 +616,135 @@ mod tests {
                 },
             ),
             Err(MessagingFfiError::InvalidMessage)
+        );
+    }
+
+    /// Enrolls `core` (device-side, issue #199 flow) as a device of a wholly
+    /// separate root `root_b`, returning `root_b`'s controller and the new
+    /// device's DID. `core` ends up holding a `Controller` in `state.devices`
+    /// that `core`'s own root never delegated -- exactly the divergence
+    /// `send_message`/`scan_conversation` must not trust.
+    fn enroll_as_device_of_a_different_root(core: &RootCore) -> (did_mini::Controller, Did) {
+        let mut root_b = did_mini::Controller::incept_single().unwrap();
+        let request = core
+            .begin_device_enrollment(root_b.did().as_str().to_string())
+            .unwrap();
+        let device_kel = did_mini::Kel::from_bytes(&request).unwrap();
+        root_b
+            .delegate_device(&device_kel.did(), did_mini::Capabilities::primary())
+            .unwrap();
+        core.finish_device_enrollment(root_b.kel().to_bytes())
+            .unwrap();
+        (root_b, device_kel.did())
+    }
+
+    #[test]
+    fn send_message_refuses_a_locally_held_device_this_root_never_delegated() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        // No `create_device()` call: the only device this process holds is
+        // one delegated by a completely different root.
+        enroll_as_device_of_a_different_root(&core);
+
+        assert_eq!(
+            core.send_message(
+                secret(),
+                1_000,
+                MessageDraftInput {
+                    kind: MessageKindInput::Text,
+                    body: "should never claim my root authored this".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            ),
+            Err(MessagingFfiError::NoDevice),
+            "a device the root itself never delegated must never be used to sign, \
+             even though this process happens to hold its controller"
+        );
+    }
+
+    #[test]
+    fn send_message_picks_a_device_this_root_actually_delegates_over_a_foreign_one() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        // Foreign device added first, so a naive `devices.first()` would
+        // have picked it.
+        enroll_as_device_of_a_different_root(&core);
+        core.create_device().unwrap();
+
+        let scan = {
+            let id = core
+                .send_message(
+                    secret(),
+                    1_000,
+                    MessageDraftInput {
+                        kind: MessageKindInput::Text,
+                        body: "signed by my real device".to_string(),
+                        reply_to: None,
+                        attachments: Vec::new(),
+                        receipt_for: None,
+                    },
+                )
+                .unwrap();
+            let scan = core.scan_conversation(secret()).unwrap();
+            assert_eq!(scan.messages[0].envelope_id, id);
+            scan
+        };
+        assert!(
+            scan.messages[0].signature_verified,
+            "the genuinely-delegated device must still be usable and verify"
+        );
+    }
+
+    #[test]
+    fn scan_never_verifies_a_message_from_a_locally_held_but_undelegated_device() {
+        let core = RootCore::new();
+        core.create_root().unwrap();
+        let (_root_b, device_b_did) = enroll_as_device_of_a_different_root(&core);
+
+        // Forge an envelope claiming `author_human` = this process's own
+        // root, signed by the foreign device -- e.g. what a compromised or
+        // simply misconfigured foreign device could attempt, since it is
+        // still a `Controller` this process physically holds in
+        // `state.devices`.
+        let raw_secret = to_secret(&secret()).unwrap();
+        let bytes = {
+            let mut guard = core.lock();
+            let crate::RootState { root, devices, .. } = &mut *guard;
+            let author_human = root.as_ref().unwrap().did();
+            let device_b = devices
+                .iter()
+                .find(|d| d.did() == device_b_did)
+                .expect("finish_device_enrollment added it to state.devices");
+            let mut store = rebuild_store(&[]).unwrap();
+            let id = mini_messaging::send(
+                &mut store,
+                &raw_secret,
+                author_human,
+                device_b,
+                1_000,
+                0,
+                MessageDraft {
+                    kind: MessageKind::Text,
+                    body: "forged".to_string(),
+                    reply_to: None,
+                    attachments: Vec::new(),
+                    receipt_for: None,
+                },
+            )
+            .unwrap();
+            store.get_private(&id).unwrap().to_bytes()
+        };
+        core.lock().messaging.envelopes.push(bytes);
+
+        let scan = core.scan_conversation(secret()).unwrap();
+        assert_eq!(scan.messages.len(), 1);
+        assert_eq!(scan.messages[0].author_device, device_b_did.as_str());
+        assert!(
+            !scan.messages[0].signature_verified,
+            "a device that is only locally held, and never actually delegated \
+             by this root's own current KEL, must never be reported as verified"
         );
     }
 }

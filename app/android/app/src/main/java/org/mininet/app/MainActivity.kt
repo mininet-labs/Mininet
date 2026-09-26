@@ -136,7 +136,12 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
             RootCore()
         }
     }
-    private val rootCore: RootCore = rootCoreResult.getOrElse { RootCore() }
+    // `var`, not `val`: an authority-changing call (e.g. device revocation)
+    // that mutates this instance's in-memory state but then fails to
+    // durably persist that mutation must be able to swap in a freshly
+    // restored `RootCore` reflecting the last state that *did* make it to
+    // disk -- see `revokeDevice`/`rollBackToLastPersistedState`.
+    private var rootCore: RootCore = rootCoreResult.getOrElse { RootCore() }
 
     var state: CoreUiState by mutableStateOf(
         rootCoreResult.fold(
@@ -286,8 +291,38 @@ class MiniViewModel(application: android.app.Application) : AndroidViewModel(app
             persistRootState()
             state = homeState("Revoked ${did.take(28)}…")
         }.onFailure { failure ->
-            updateHome(message = failure.message ?: failure::class.java.simpleName)
+            // `revokeDelegatedDevice` above already mutated `rootCore`'s
+            // in-memory root KEL before `persistRootState()` threw (Keystore
+            // encryption, the temporary write, or the atomic move can each
+            // fail independently). Leaving that mutation in place would
+            // desync memory from disk: a retry would hit an
+            // already-revoked device in memory, while the un-persisted disk
+            // copy still authorizes it and would re-authorize it on the
+            // next restore. Roll back to the last durably persisted state
+            // instead of reporting the failure on top of a half-applied
+            // revocation.
+            rollBackToLastPersistedState()
+            state = homeState(failure.message ?: failure::class.java.simpleName)
         }
+    }
+
+    // Discard any in-memory mutation that never made it to disk by
+    // reloading `rootCore` from the last successfully persisted blob. A
+    // no-op if nothing has ever been persisted yet, since callers that can
+    // reach an authority-changing action here (see `revokeDevice`) only do
+    // so from [CoreUiState.Home], which itself requires a prior successful
+    // persist to have happened (either from `createRoot()` or from
+    // restoring an existing identity at startup).
+    private fun rollBackToLastPersistedState() {
+        if (!stateFile.exists()) return
+        runCatching {
+            RootCore.restore(stateFile.readBytes().toUByteList(), storageCipher)
+        }.onSuccess { restored ->
+            rootCore = restored
+        }
+        // If even reloading the last-known-good blob fails, there is
+        // nothing further this call can safely do; `rootCore` is left as-is
+        // and the original failure is still surfaced to the caller.
     }
 
     private fun updateHome(
