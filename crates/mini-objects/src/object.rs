@@ -59,6 +59,43 @@ impl ObjectId {
 }
 
 /// The extensible type tag (SPEC-09: well-known core set + Tier-O custom types).
+///
+/// ## Forward-extensibility (issue #64)
+///
+/// Decades from now, a genuinely new object type must be addable without a
+/// breaking wire-format migration, and without any single party's schema
+/// proposal getting special authority over the format. This type is built
+/// for both:
+///
+/// - **No closed enum on the wire.** `WellKnown(u16)` and `Custom(String)`
+///   both accept *any* value; [`Object::from_bytes`] never rejects a tag or
+///   name merely for being unrecognized by this build. An old node decoding
+///   an object of a type invented after it was built gets back a live
+///   `ObjectType::WellKnown(n)` or `ObjectType::Custom(name)` it can inspect,
+///   store, relay, and re-encode byte-for-byte — it never has to understand
+///   the type to avoid corrupting or dropping it (see
+///   `object_of_a_future_unknown_well_known_type_round_trips_losslessly` and
+///   `object_of_a_future_unknown_custom_type_round_trips_losslessly` below).
+///   Layer 3 (`verify_provenance`) is the only place type *meaning* matters
+///   (which capability it requires), and an unrecognized well-known tag
+///   already falls back to the narrowest scope, [`Capabilities::SIGN`],
+///   rather than refusing to decode.
+/// - **No single-party gate on new identifiers.** Adding a new
+///   `WellKnown(n)` associated constant (like [`ObjectType::WALL`] below) is
+///   an ordinary source change to this crate, going through the same
+///   `mini-forge` proposal/review/merge path as any other change — no code
+///   owner, maintainer allowlist, or registry service gets to approve type
+///   identifiers outside that governed process. `Custom(String)` needs no
+///   registry or gate at all: any author can mint a namespaced type name
+///   (`"chess/move"`) unilaterally, at the cost of collision risk the naming
+///   convention (self-chosen namespace prefix) is meant to keep low.
+///
+/// The one wire-format constraint this relies on: `u16::MAX` is the
+/// `Custom` discriminator ([`Object::encode`]/[`Object::from_bytes`]), so it
+/// is not available as a `WellKnown` tag — [`ObjectBuilder::sign`] rejects
+/// it rather than silently producing bytes a decoder would read back as the
+/// wrong variant. With `u16::MAX - 1` well-known slots otherwise open, this
+/// is not expected to bind in practice.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectType {
     /// A well-known core type.
@@ -66,6 +103,10 @@ pub enum ObjectType {
     /// A community-defined type, named to avoid collisions (e.g. `"chess/move"`).
     Custom(String),
 }
+
+/// The wire tag reserved to mean "this is a `Custom` type, read a name
+/// next" — not available as a `WellKnown` value (see the type-level docs).
+const CUSTOM_TYPE_MARKER: u16 = u16::MAX;
 
 impl ObjectType {
     /// Microblog / feed post.
@@ -180,7 +221,7 @@ impl Object {
                 w.bytes(b"");
             }
             ObjectType::Custom(name) => {
-                w.u16(u16::MAX);
+                w.u16(CUSTOM_TYPE_MARKER);
                 w.bytes(name.as_bytes());
             }
         }
@@ -224,7 +265,7 @@ impl Object {
         let suite = SignatureSuite::from_tag(r.u8()?).map_err(ObjectError::Crypto)?;
         let type_tag = r.u16()?;
         let type_name = r.bytes_limited(MAX_TYPE_BYTES)?;
-        let object_type = if type_tag == u16::MAX {
+        let object_type = if type_tag == CUSTOM_TYPE_MARKER {
             let name = String::from_utf8(type_name).map_err(|_| ObjectError::BadObject)?;
             if name.is_empty() {
                 return Err(ObjectError::BadObject);
@@ -418,6 +459,12 @@ impl ObjectBuilder {
         if self.links.len() > MAX_LINKS {
             return Err(ObjectError::LimitExceeded);
         }
+        if self.object_type == ObjectType::WellKnown(CUSTOM_TYPE_MARKER) {
+            // u16::MAX is the wire-format's `Custom` discriminator; encoding
+            // it as a `WellKnown` tag would round-trip back as the wrong
+            // variant (see the `ObjectType` docs).
+            return Err(ObjectError::BadObject);
+        }
         let payload_len = match &self.payload {
             Payload::Public(b) | Payload::Encrypted(b) => b.len(),
         };
@@ -476,5 +523,83 @@ mod tests {
         signed.id = ObjectId::of(&signed.to_bytes());
         let decoded = Object::from_bytes(&signed.to_bytes()).unwrap();
         assert_eq!(decoded, signed);
+    }
+
+    /// Issue #64 (object-model extensibility review): a well-known type tag
+    /// this build has never heard of (no associated const, not in
+    /// `required_capability`'s named ranges) must still decode cleanly and
+    /// re-encode byte-for-byte, exactly like `ObjectType::POST` does. An old
+    /// node must never corrupt or reject data of a type invented after it
+    /// shipped.
+    #[test]
+    fn object_of_a_future_unknown_well_known_type_round_trips_losslessly() {
+        let device = Controller::incept_single().unwrap();
+        let future_type = ObjectType::WellKnown(60_000); // not in 1..=14
+        let signed = ObjectBuilder::new(future_type.clone())
+            .timestamp_ms(1)
+            .sequence(1)
+            .payload(Payload::Public(b"from the future".to_vec()))
+            .sign(&device.did(), &device)
+            .unwrap();
+        let bytes = signed.to_bytes();
+        let decoded = Object::from_bytes(&bytes).unwrap();
+        assert_eq!(decoded, signed);
+        assert_eq!(decoded.object_type, future_type);
+        // Byte-identical re-encoding: nothing about the unknown type was
+        // dropped, normalized away, or forced through a lossy fallback.
+        assert_eq!(decoded.to_bytes(), bytes);
+        // Integrity and signature layers don't need to understand the type
+        // at all to do their job.
+        decoded.verify_integrity(decoded.id()).unwrap();
+        decoded.verify_signature(&device.kel()).unwrap();
+    }
+
+    /// Same property for the open `Custom(String)` lane: any author can mint
+    /// a namespaced type name with no registry, gate, or code change at all,
+    /// and an old node must still round-trip it losslessly.
+    #[test]
+    fn object_of_a_future_unknown_custom_type_round_trips_losslessly() {
+        let device = Controller::incept_single().unwrap();
+        let future_type = ObjectType::Custom("mycelium/spore-map".to_string());
+        let signed = ObjectBuilder::new(future_type.clone())
+            .timestamp_ms(1)
+            .sequence(1)
+            .payload(Payload::Public(b"a type nobody has defined yet".to_vec()))
+            .sign(&device.did(), &device)
+            .unwrap();
+        let bytes = signed.to_bytes();
+        let decoded = Object::from_bytes(&bytes).unwrap();
+        assert_eq!(decoded, signed);
+        assert_eq!(decoded.object_type, future_type);
+        assert_eq!(decoded.to_bytes(), bytes);
+    }
+
+    /// An unrecognized well-known type must still resolve to *some*
+    /// capability requirement (the narrowest, `SIGN`) rather than panicking
+    /// or refusing to classify it — so provenance verification stays total
+    /// over the whole open `WellKnown(u16)` space, not just today's named
+    /// range.
+    #[test]
+    fn an_unrecognized_well_known_type_falls_back_to_the_narrowest_capability() {
+        assert_eq!(
+            required_capability(&ObjectType::WellKnown(60_000)),
+            Capabilities::SIGN
+        );
+    }
+
+    /// `u16::MAX` is reserved on the wire to mean "this is `Custom`, read a
+    /// name next" (`CUSTOM_TYPE_MARKER`). Signing a `WellKnown(u16::MAX)`
+    /// object would produce bytes a decoder reads back as `Custom` with a
+    /// zero-length name (itself rejected) — silently the wrong variant.
+    /// `sign` must refuse this at construction time instead of letting it
+    /// reach the wire.
+    #[test]
+    fn signing_the_reserved_custom_marker_as_a_well_known_tag_is_rejected() {
+        let device = Controller::incept_single().unwrap();
+        let err = ObjectBuilder::new(ObjectType::WellKnown(CUSTOM_TYPE_MARKER))
+            .payload(Payload::Public(b"x".to_vec()))
+            .sign(&device.did(), &device)
+            .unwrap_err();
+        assert_eq!(err, ObjectError::BadObject);
     }
 }
