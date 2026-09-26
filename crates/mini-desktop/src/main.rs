@@ -1110,7 +1110,7 @@ impl Workspace {
     }
 
     /// Same shape as [`Workspace::set_follow_target`], but publishes a
-    /// *private* follow edge (issue #19, D-0537): derives this
+    /// *private* follow edge (issue #19, D-0538): derives this
     /// relationship's own pairwise pseudonym via
     /// [`derive_relationship_pseudonym`] instead of signing with the
     /// real human root, and follows `target_pseudonym` (the counterpart's
@@ -9435,7 +9435,7 @@ shot at dusk",
         std::fs::remove_dir_all(test_root).unwrap();
     }
 
-    /// Real integration test for issue #19 / D-0537: proves
+    /// Real integration test for issue #19 / D-0538: proves
     /// [`Workspace::follow_privately`] — the actual app-surface call path,
     /// not just the `mini-social` library primitives it wraps — publishes a
     /// private follow edge that never carries either party's real

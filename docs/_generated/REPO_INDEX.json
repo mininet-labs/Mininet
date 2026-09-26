@@ -30038,7 +30038,7 @@
       ],
       "lines": 9509,
       "path": "crates/mini-desktop/src/main.rs",
-      "sha256": "697641b92268771f5429af54d4a581e93b9171abccb9f10678bc3895094bd01a",
+      "sha256": "c7d15e9e93f4d7640ff36df36686be7acf9d3d641fc28ba375cac5249baeb0ea",
       "symbols": [
         {
           "kind": "mod",
