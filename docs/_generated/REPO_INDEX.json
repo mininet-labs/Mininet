@@ -32491,20 +32491,18 @@
       "title": "use eframe::egui::{self, Color32};"
     },
     {
-      "bytes": 14376,
+      "bytes": 15208,
       "group": "crate:mini-desktop",
       "headings": [],
       "keywords": [
         "card",
-        "author",
-        "string",
         "aiobject",
-        "did",
+        "author",
         "objectid",
         "never",
-        "payload",
-        "body",
+        "string",
         "error",
+        "did",
         "usize",
         "own",
         "timeline",
@@ -32515,14 +32513,16 @@
         "feed",
         "feedreason",
         "posts",
-        "clone",
         "follow",
-        "timestamp_ms",
-        "reason"
+        "body",
+        "human",
+        "object",
+        "mini_app_protocol",
+        "scope"
       ],
-      "lines": 401,
+      "lines": 414,
       "path": "crates/mini-desktop/src/timeline.rs",
-      "sha256": "5f487c526e5d6d42f2ebd67fd1c9c64ed4f0244fce6e30471a842b7844e0f3a7",
+      "sha256": "067cf3c739e926425fea4b3e7c2abafe4c7bfb128400d5090ed4c190d5ef24b3",
       "symbols": [
         {
           "kind": "const",
@@ -32546,52 +32546,52 @@
         },
         {
           "kind": "fn",
-          "line": 102,
+          "line": 115,
           "name": "ai_card"
         },
         {
           "kind": "fn",
-          "line": 125,
+          "line": 138,
           "name": "snapshot"
         },
         {
           "kind": "type",
-          "line": 135,
+          "line": 148,
           "name": "Item"
         },
         {
           "kind": "fn",
-          "line": 137,
+          "line": 150,
           "name": "build"
         },
         {
           "kind": "fn",
-          "line": 240,
+          "line": 253,
           "name": "age"
         },
         {
           "kind": "mod",
-          "line": 254,
+          "line": 267,
           "name": "tests"
         },
         {
           "kind": "fn",
-          "line": 261,
+          "line": 274,
           "name": "person"
         },
         {
           "kind": "fn",
-          "line": 276,
+          "line": 289,
           "name": "author_time_is_real_and_future_time_is_not_underflowed"
         },
         {
           "kind": "fn",
-          "line": 284,
+          "line": 297,
           "name": "everyone_scope_shows_received_posts_before_any_follow_exists"
         },
         {
           "kind": "fn",
-          "line": 356,
+          "line": 369,
           "name": "ai_card_carries_a_disclosure_that_ordinary_cards_never_get"
         }
       ],
@@ -96335,7 +96335,7 @@
       "title": "Contributor task brief"
     },
     {
-      "bytes": 1514497,
+      "bytes": 1515107,
       "group": "docs",
       "headings": [
         {
@@ -96765,9 +96765,9 @@
         "new",
         "doctrine"
       ],
-      "lines": 25089,
+      "lines": 25097,
       "path": "docs/DECISION_LOG.md",
-      "sha256": "76ee625f382f5874057d488006d1166cf3740943b2e40d219f4b065319e7acab",
+      "sha256": "fdb5ec3e4499995b05f79e54f04932d49ebd46b2f10c3a0b9ad900cada04ac62",
       "symbols": [],
       "title": "Decision Log"
     },

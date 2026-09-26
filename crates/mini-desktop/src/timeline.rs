@@ -99,6 +99,19 @@ pub fn from_service(cards: Vec<mini_app_protocol::FeedCard>) -> Result<Vec<Card>
 /// distinction); the card body is the object's public payload text when
 /// present, or a plain placeholder for encrypted/non-UTF-8 payloads so this
 /// never panics or silently substitutes human-looking text.
+///
+/// `mini-desktop` is a binary-only crate (no `lib.rs`), so `pub` here does
+/// not create an external consumer the way it would in a library crate:
+/// rustc's `dead_code` lint judges reachability from `main`, not from other
+/// crates. D-0537 documents, as its own stated "Failure point," that
+/// nothing in the running UI loop calls this yet — `mini-store`/
+/// `mini-social` have no `AiObject` persistence/indexing to source one
+/// from, and retrofitting that here would be exactly the scope creep the
+/// same decision explicitly declined. Until that follow-up lands and gives
+/// this a real caller, `#[allow(dead_code)]` keeps that honestly-documented
+/// gap from failing `-D warnings` builds; it is exercised today only by
+/// `ai_card_carries_a_disclosure_that_ordinary_cards_never_get` below.
+#[allow(dead_code)]
 pub fn ai_card(ai: &AiObject, author: String, did: String) -> Card {
     let body = match &ai.payload {
         Payload::Public(bytes) => {

@@ -25029,10 +25029,18 @@ mini-objects test
 `Card::ai_disclosure` plus `ai_card` plus a mini-desktop test
 (`ai_card_carries_a_disclosure_that_ordinary_cards_never_get`) proving an
 `ai_card`-built card always carries a non-empty disclosure while every
-`build()`-produced human card's `ai_disclosure` stays `None`. `cargo fmt
---all`, `cargo clippy --all-targets --all-features --workspace -- -D
-warnings`, and `cargo test --workspace --all-features` all pass clean on
-this change.
+`build()`-produced human card's `ai_disclosure` stays `None`. Correction
+(same PR, before merge): the original text here claimed `cargo clippy
+--all-targets --all-features --workspace -- -D warnings` passed clean;
+it did not — `mini-desktop` is a binary-only crate, so `ai_card` (a real
+function this decision's own "Failure point" already says has no
+production caller yet) tripped `-D dead-code` on the workspace `check`,
+`windows-client`, and `windows-packaging-pipeline` CI jobs. Fixed with a
+documented `#[allow(dead_code)]` on `ai_card` citing this same decision,
+rather than fabricating a caller or an `AiObject` feed/store integration
+this decision explicitly declined to add. `cargo fmt --all`, `cargo
+clippy --all-targets --all-features --workspace -- -D warnings`, and
+`cargo test --workspace --all-features` now pass clean.
 
 **Failure point:** `ai_card` is not yet called from any running UI loop —
 there is still no code path that fetches an `AiObject` from storage or the
